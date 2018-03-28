@@ -32,6 +32,7 @@ func loggingHandler(next http.Handler) http.Handler {
 		transactionID := uuid.NewV4().String()
 		r = r.WithContext(context.WithTransactionID(r.Context(), transactionID))
 		logger.InfoR(context.GetTransactionID(r.Context()), fmt.Sprintf("Hello %s", r.RemoteAddr))
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -59,8 +60,8 @@ func enforceContentTypeHandler(next http.Handler) http.Handler {
 			logger.ErrorR(context.GetTransactionID(r.Context()), fmt.Errorf("%s", http.StatusText(http.StatusUnsupportedMediaType)), http.StatusUnsupportedMediaType, "No matching content type found")
 			return
 		}
-
 		r = r.WithContext(context.WithContentType(r.Context(), contentType))
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -93,9 +94,9 @@ func convertHandler(next http.Handler) http.Handler {
 			logger.ErrorR(context.GetTransactionID(r.Context()), err, http.StatusInternalServerError, "An error occured during conversion")
 			return
 		}
-
-		r = r.WithContext(context.WithResultFilePath(r.Context(), resultFilePath))
 		r = r.WithContext(context.WithConverter(r.Context(), c))
+		r = r.WithContext(context.WithResultFilePath(r.Context(), resultFilePath))
+
 		next.ServeHTTP(w, r)
 	})
 }

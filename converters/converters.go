@@ -66,7 +66,7 @@ type ConverterUnprocessableEntityError struct {
 	message string
 }
 
-// Error is the implementation of the function Error from the error interface.
+// Error is the implementation of the Error function from the error interface.
 func (e *ConverterUnprocessableEntityError) Error() string {
 	return e.message
 }

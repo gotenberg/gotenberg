@@ -39,18 +39,21 @@ func SetLevel(logLevel string) {
 	}
 }
 
+// InfoR logs an information with a transaction field.
 func InfoR(transactionID string, msg string) {
 	Log.WithFields(logrus.Fields{
 		"transaction": transactionID,
 	}).Info(msg)
 }
 
+// WarnR logs a warning with a transaction field.
 func WarnR(transactionID string, msg string) {
 	Log.WithFields(logrus.Fields{
 		"transaction": transactionID,
 	}).Warn(msg)
 }
 
+// ErrorR logs an error with transaction, err and code fields.
 func ErrorR(transactionID string, err error, code int, msg string) {
 	Log.WithFields(logrus.Fields{
 		"transaction": transactionID,
