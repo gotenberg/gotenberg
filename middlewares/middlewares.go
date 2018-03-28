@@ -20,20 +20,20 @@ import (
 	"github.com/satori/go.uuid"
 )
 
-// LoggingHandler identifies the request.
-func LoggingHandler(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		transactionID := uuid.NewV4().String()
-		r = r.WithContext(context.WithTransactionID(r.Context(), transactionID))
-		logger.InfoR(context.GetTransactionID(r.Context()), fmt.Sprintf("Handling new request from %s", r.RemoteAddr))
-		next.ServeHTTP(w, r)
-	})
-}
-
 // GetMiddlewaresChain builds and returns the chaining of handlers
 // using the alice library.
 func GetMiddlewaresChain() http.Handler {
-	return alice.New(enforceContentLengthHandler, enforceContentTypeHandler, convertHandler, serveHandler).ThenFunc(clearHandler)
+	return alice.New(loggingHandler, enforceContentLengthHandler, enforceContentTypeHandler, convertHandler, serveHandler).ThenFunc(clearHandler)
+}
+
+// loggingHandler identifies the request.
+func loggingHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		transactionID := uuid.NewV4().String()
+		r = r.WithContext(context.WithTransactionID(r.Context(), transactionID))
+		logger.InfoR(context.GetTransactionID(r.Context()), fmt.Sprintf("Hello %s", r.RemoteAddr))
+		next.ServeHTTP(w, r)
+	})
 }
 
 // enforeContentLengthHandler checks if the request has content.
@@ -137,5 +137,5 @@ func clearHandler(w http.ResponseWriter, r *http.Request) {
 	if err := c.Clear(); err != nil {
 		logger.WarnR(context.GetTransactionID(r.Context()), err.Error())
 	}
-	logger.InfoR(context.GetTransactionID(r.Context()), "Request handled")
+	logger.InfoR(context.GetTransactionID(r.Context()), fmt.Sprintf("Bye %s", r.RemoteAddr))
 }
