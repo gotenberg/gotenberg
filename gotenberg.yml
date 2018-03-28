@@ -1,0 +1,22 @@
+# The port the application will listen to.
+port: 3000
+
+# Defines the log level. 
+# Accepted values, in order of severity: DEBUG, INFO, WARN, ERROR, FATAL, PANIC.
+# Messages at and above the selected level will be logged.
+logLevel: "DEBUG"
+
+# The commands' templates.
+commands:
+  # Available data:
+  # - FilePath: the path of the file to convert to PDF.
+  # - ResultFilePath: path of the PDF file created by the command. 
+  HTMLtoPDF: "xvfb-run -e /dev/stdout wkhtmltopdf {{ .FilePath }} {{ .ResultFilePath }}"
+  # Available data:
+  # - FilePath: the path of the file to convert to PDF.
+  # - ResultFilePath: path of the PDF file created by the command. 
+  WordToPDF: "unoconv --format pdf --output \"{{ .ResultFilePath }}\" \"{{ .FilePath }}\""
+  # Available data:
+  # - FilePath: the paths of the PDF files to merge.
+  # - ResultFilePath: path of the PDF file created by the considered command. 
+  MergePDF: "pdftk {{ range $filePath := .FilesPaths }} {{ $filePath }} {{ end }} cat output {{ .ResultFilePath }}"
