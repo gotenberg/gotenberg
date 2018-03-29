@@ -10,56 +10,35 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"net/http"
 	"os"
 	"os/signal"
 	"time"
 
-	"github.com/gulien/gotenberg/config"
-	"github.com/gulien/gotenberg/logger"
-	"github.com/gulien/gotenberg/middlewares"
+	"github.com/gulien/gotenberg/app"
+	"github.com/gulien/gotenberg/app/handlers/converter/process"
+	"github.com/gulien/gotenberg/app/logger"
 
-	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 )
 
 // version will be set on build time.
 var version = "master"
 
-// init sets up the application configuration.
-func init() {
-	err := config.MakeConfig()
-	if err != nil {
-		logger.Log.Fatal(err)
-		os.Exit(1)
-	}
-
-	logger.SetLevel(config.AppConfig.LogLevel)
-	logger.Log.Infof("Gotenberg %s", version)
-}
-
 // main initializes the application and handles
 // graceful shutdown.
 func main() {
-	r := mux.NewRouter()
-
-	// defines our entry point.
-	r.Handle("/", middlewares.GetMiddlewaresChain()).Methods("POST")
-
-	srv := &http.Server{
-		Addr: fmt.Sprintf(":%s", config.AppConfig.Port),
-		// good practice to set timeouts to avoid Slowloris attacks.
-		WriteTimeout: time.Second * 15,
-		ReadTimeout:  time.Second * 15,
-		IdleTimeout:  time.Second * 60,
-		Handler:      r,
+	a, err := app.NewApp(version)
+	if err != nil {
+		resetState()
+		logger.Fatal(err)
+		os.Exit(1)
 	}
 
 	// runs our server in a goroutine so that it doesn't block.
 	go func() {
-		logger.Log.Infof("Listening to port %s", config.AppConfig.Port)
-		if err := srv.ListenAndServe(); err != nil {
-			logger.Log.Panicf("Unrecoverable error: %s", err)
+		if err = a.Run(); err != nil {
+			resetState()
+			logger.Panic(err)
 			os.Exit(1)
 		}
 	}()
@@ -79,8 +58,14 @@ func main() {
 
 	// doesn't block if no connections, but will otherwise wait
 	// until the timeout deadline.
-	srv.Shutdown(ctx)
+	a.Server.Shutdown(ctx)
+	resetState()
 
-	logger.Log.Info("Bye!")
+	logger.Info("Bye!")
 	os.Exit(0)
+}
+
+func resetState() {
+	logger.SetLevel(logrus.InfoLevel)
+	process.Reset()
 }
