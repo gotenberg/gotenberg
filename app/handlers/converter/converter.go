@@ -92,7 +92,7 @@ func (c *Converter) Convert() (string, error) {
 		}
 	}
 
-	if len(filesPaths) == 0 {
+	if len(filesPaths) == 1 {
 		return filesPaths[0], nil
 	}
 
