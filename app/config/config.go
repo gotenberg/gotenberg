@@ -171,7 +171,7 @@ func (e *wrongLoggingLevelError) Error() string {
 }
 
 // getLoggingLevelFromFileConfig returns a logrus level if a matching was found
-// with the one defined by ther user.
+// with the one defined by the user.
 // If no match, throws a wrongLoggingLevelError.
 func getLoggingLevelFromFileConfig(c *fileConfig) (logrus.Level, error) {
 	l, ok := levels[c.Logs.Level]
@@ -198,7 +198,7 @@ func (e *wrongLoggingFormatError) Error() string {
 }
 
 // getLoggingLevelFromFileConfig returns a logrus Formatter if a matching was found
-// with the format defined by ther user.
+// with the format defined by the user.
 // If no match, throws a wrongLoggingFormatError.
 func getLoggingFormatterFromFileConfig(c *fileConfig) (logrus.Formatter, error) {
 	f, ok := formatters[c.Logs.Format]

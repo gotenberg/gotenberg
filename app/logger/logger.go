@@ -12,7 +12,7 @@ type logger struct {
 	logger *logrus.Logger
 }
 
-// log is our logger instance used accross the application.
+// log is our logger instance used across the application.
 var log = newLogger()
 
 // newLogger instantiates a logger instance with default values.
