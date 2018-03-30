@@ -21,8 +21,6 @@ func GetHandlersChain() http.Handler {
 	return alice.New(enforceContentLengthHandler, enforceContentTypeHandler, convertHandler, serveHandler).ThenFunc(clearHandler)
 }
 
-// requestHasNoContentError is raised when the request
-// content length is 0.
 type requestHasNoContentError struct{}
 
 func (e *requestHasNoContentError) Error() string {

@@ -1,3 +1,4 @@
+// Package http provides functions for detecting a request or a file content type.
 package http
 
 import (
@@ -7,22 +8,30 @@ import (
 	"strings"
 )
 
+// ContentType is a string which represents a content type.
 type ContentType string
 
 const (
-	PDFContentType               ContentType = "application/pdf"
-	HTMLContentType              ContentType = "text/html"
-	OctetStreamContentType       ContentType = "application/octet-stream"
-	ZipContentType               ContentType = "application/zip"
+	// PDFContentType represents... the PDF content type.
+	PDFContentType ContentType = "application/pdf"
+	// HTMLContentType represents... the HTML content type.
+	HTMLContentType ContentType = "text/html"
+	// OctetStreamContentType represents... the octet stream content type.
+	OctetStreamContentType ContentType = "application/octet-stream"
+	// ZipContentType represents... the zip content type.
+	ZipContentType ContentType = "application/zip"
+	// MultipartFormDataContentType represents... the multipart form data content type.
 	MultipartFormDataContentType ContentType = "multipart/form-data"
 )
 
 type notAuthorizedContentTypeError struct{}
 
 func (e *notAuthorizedContentTypeError) Error() string {
-	return fmt.Sprintf("Accepted values for 'Content-Type': %s, %s, %s, %s", HTMLContentType, OctetStreamContentType, MultipartFormDataContentType)
+	return fmt.Sprintf("Accepted values for 'Content-Type': %s, %s, %s", HTMLContentType, OctetStreamContentType, MultipartFormDataContentType)
 }
 
+// FindAuthorizedContentType tries to return a content type according to a request header.
+// If no authorized content type found, throws an error.
 func FindAuthorizedContentType(h http.Header) (ContentType, error) {
 	ct := findContentType(h.Get("Content-Type"), HTMLContentType, OctetStreamContentType, MultipartFormDataContentType)
 	if ct == "" {
@@ -35,9 +44,11 @@ func FindAuthorizedContentType(h http.Header) (ContentType, error) {
 type notAuthorizedFileContentTypeError struct{}
 
 func (e *notAuthorizedFileContentTypeError) Error() string {
-	return fmt.Sprintf("Unable to detect a file 'Content-Type'")
+	return fmt.Sprintf("Unable to detect a file content type")
 }
 
+// SniffContentType tries to detect the content type of a file.
+// If no authorized content type found, throws an error.
 func SniffContentType(f *os.File) (ContentType, error) {
 	// only the first 512 bytes are used to sniff the content type.
 	buffer := make([]byte, 512)
@@ -58,6 +69,8 @@ func SniffContentType(f *os.File) (ContentType, error) {
 	return ct, nil
 }
 
+// findContentType parses a string representing a content type and tries to find
+// one of the given content types.
 func findContentType(contentType string, contentTypes ...ContentType) ContentType {
 	for _, ct := range contentTypes {
 		if i := strings.IndexRune(contentType, ';'); i != -1 {

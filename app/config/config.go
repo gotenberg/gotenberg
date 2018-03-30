@@ -162,8 +162,6 @@ var levels = map[string]logrus.Level{
 	"PANIC": logrus.PanicLevel,
 }
 
-// wrongLoggingLevelError is raised when the logging level defined by the user
-// is not applicable.
 type wrongLoggingLevelError struct{}
 
 func (e *wrongLoggingLevelError) Error() string {
@@ -172,7 +170,7 @@ func (e *wrongLoggingLevelError) Error() string {
 
 // getLoggingLevelFromFileConfig returns a logrus level if a matching was found
 // with the one defined by the user.
-// If no match, throws a wrongLoggingLevelError.
+// If no match, throws an error.
 func getLoggingLevelFromFileConfig(c *fileConfig) (logrus.Level, error) {
 	l, ok := levels[c.Logs.Level]
 	if !ok {
@@ -189,8 +187,6 @@ var formatters = map[string]logrus.Formatter{
 	"json": &logrus.JSONFormatter{},
 }
 
-// wrongLoggingFormatError is raised when the logging format defined by the user
-// is not applicable.
 type wrongLoggingFormatError struct{}
 
 func (e *wrongLoggingFormatError) Error() string {
@@ -199,7 +195,7 @@ func (e *wrongLoggingFormatError) Error() string {
 
 // getLoggingLevelFromFileConfig returns a logrus Formatter if a matching was found
 // with the format defined by the user.
-// If no match, throws a wrongLoggingFormatError.
+// If no match, throws an error.
 func getLoggingFormatterFromFileConfig(c *fileConfig) (logrus.Formatter, error) {
 	f, ok := formatters[c.Logs.Format]
 	if !ok {
