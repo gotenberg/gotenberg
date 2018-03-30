@@ -7,7 +7,7 @@ logs:
   level: "DEBUG"
 
   # Accepted values: text, json.
-  # When a TTY is not attached, the output will be in the definied format.
+  # When a TTY is not attached, the output will be in the defined format.
   format: "text"
 
 commands:
