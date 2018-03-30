@@ -1,3 +1,4 @@
+// Package handlers implements all functions on which a request will pass through.
 package handlers
 
 import (
@@ -14,10 +15,14 @@ import (
 	"github.com/justinas/alice"
 )
 
+// GetHandlersChain returns the handlers chaining
+// thanks to the alice library.
 func GetHandlersChain() http.Handler {
 	return alice.New(enforceContentLengthHandler, enforceContentTypeHandler, convertHandler, serveHandler).ThenFunc(clearHandler)
 }
 
+// requestHasNoContentError is raised when the request
+// content length is 0.
 type requestHasNoContentError struct{}
 
 func (e *requestHasNoContentError) Error() string {
