@@ -31,7 +31,7 @@ type (
 	}
 
 	// CommandsConfig gathers all commands' configurations as defined
-	// by the user in the gotenberg.yml
+	// by the user in the gotenberg.yml file.
 	CommandsConfig struct {
 		// HTML is the command's configuration for converting
 		// an HTML file to PDF.
