@@ -1,3 +1,9 @@
+/*
+Package config contains all the logic allowing us to instantiate the application's configuration.
+
+The application's configuration is loaded from a YAML file named gotenberg.yml.
+It should be located where the user starts the application from the CLI.
+*/
 package config
 
 import (
@@ -9,27 +15,47 @@ import (
 )
 
 type (
+	// AppConfig gathers all data required to instantiate the application.
 	AppConfig struct {
+		// Port is the port which the application will listen to.
 		Port string
+		// Logs contains the logging configuration.
 		Logs struct {
-			Level     logrus.Level
+			// Level is the level of messages which will be logged.
+			Level logrus.Level
+			// Formatter defines the logging format when a TTY is not attached.
 			Formatter logrus.Formatter
 		}
+		// CommandsConfig is... an instance of CommandsConfig.
 		CommandsConfig *CommandsConfig
 	}
 
+	// CommandsConfig gathers all commands' configurations as defined
+	// by the user in the gotenberg.yml
 	CommandsConfig struct {
-		HTML   *CommandConfig
+		// HTML is the command's configuration for converting
+		// an HTML file to PDF.
+		HTML *CommandConfig
+		// Office is the command's configuration for converting
+		// an Office document to PDF.
 		Office *CommandConfig
-		Merge  *CommandConfig
+		// Merge is the command's configuration for merging
+		// multiple PDF files into one PDF file.
+		Merge *CommandConfig
 	}
 
+	// CommandConfig is a command's configuration.
 	CommandConfig struct {
-		Timeout  int
+		// Timeout is the duration in seconds after which the command's process will be killed
+		// if it does not finish before.
+		Timeout int
+		// Template is the data-driven template of the command.
 		Template *template.Template
 	}
 )
 
+// NewAppConfig instantiates the application's configuration.
+// If something bad happens here, the application should not start.
 func NewAppConfig() (*AppConfig, error) {
 	fileConfig, err := loadFileConfig()
 	if err != nil {
@@ -82,6 +108,7 @@ func NewAppConfig() (*AppConfig, error) {
 	return c, nil
 }
 
+// fileConfig gathers all data coming from the configuration file gotenberg.yml.
 type fileConfig struct {
 	Port string `yaml:"port"`
 	Logs struct {
@@ -107,6 +134,8 @@ type fileConfig struct {
 // configurationFilePath is our default configuration file to parse.
 const configurationFilePath = "gotenberg.yml"
 
+// loadFileConfig instantiates a fileConfig instance by loading
+// the configuration file gotenberg.yml.
 func loadFileConfig() (*fileConfig, error) {
 	c := &fileConfig{}
 
@@ -122,6 +151,8 @@ func loadFileConfig() (*fileConfig, error) {
 	return c, nil
 }
 
+// levels associates logging levels as defined in the configuration file gotenberg.yml
+// with its counterpart from the logrus library.
 var levels = map[string]logrus.Level{
 	"DEBUG": logrus.DebugLevel,
 	"INFO":  logrus.InfoLevel,
@@ -131,12 +162,17 @@ var levels = map[string]logrus.Level{
 	"PANIC": logrus.PanicLevel,
 }
 
+// wrongLoggingLevelError is raised when the logging level defined by the user
+// is not applicable.
 type wrongLoggingLevelError struct{}
 
 func (e *wrongLoggingLevelError) Error() string {
 	return "Accepted values for logging level: DEBUG, INFO, WARN, ERROR, FATAL, PANIC"
 }
 
+// getLoggingLevelFromFileConfig returns a logrus level if a matching was found
+// with the one defined by ther user.
+// If no match, throws a wrongLoggingLevelError.
 func getLoggingLevelFromFileConfig(c *fileConfig) (logrus.Level, error) {
 	l, ok := levels[c.Logs.Level]
 	if !ok {
@@ -146,17 +182,24 @@ func getLoggingLevelFromFileConfig(c *fileConfig) (logrus.Level, error) {
 	return l, nil
 }
 
+// levels associates logging formats as defined in the configuration file gotenberg.yml
+// with its counterpart from the logrus library.
 var formatters = map[string]logrus.Formatter{
 	"text": &logrus.TextFormatter{},
 	"json": &logrus.JSONFormatter{},
 }
 
+// wrongLoggingFormatError is raised when the logging format defined by the user
+// is not applicable.
 type wrongLoggingFormatError struct{}
 
 func (e *wrongLoggingFormatError) Error() string {
 	return "Accepted value for logging format: text, json"
 }
 
+// getLoggingLevelFromFileConfig returns a logrus Formatter if a matching was found
+// with the format defined by ther user.
+// If no match, throws a wrongLoggingFormatError.
 func getLoggingFormatterFromFileConfig(c *fileConfig) (logrus.Formatter, error) {
 	f, ok := formatters[c.Logs.Format]
 	if !ok {
@@ -166,6 +209,8 @@ func getLoggingFormatterFromFileConfig(c *fileConfig) (logrus.Formatter, error) 
 	return f, nil
 }
 
+// getCommandTemplate is a simple helper for parsing a command template as defined by the user.
+// If the user gives us a wrong template, throws an error.
 func getCommandTemplate(command string, commandName string) (*template.Template, error) {
 	t, err := template.New(commandName).Parse(command)
 	if err != nil {

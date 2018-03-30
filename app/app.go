@@ -13,7 +13,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// App gathers all data required to start the application.
+// App gathers all data required for the application.
 type App struct {
 	// version is the application version as defined in the main package.
 	version string
