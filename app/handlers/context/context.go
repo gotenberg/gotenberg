@@ -74,7 +74,7 @@ func WithResultFilePath(r *http.Request, resultFilePath string) *http.Request {
 type resultFilePathNotFoundError struct{}
 
 func (e *resultFilePathNotFoundError) Error() string {
-	return "The resultFilePath was not found in request context"
+	return "The result file path was not found in request context"
 }
 
 func GetResultFilePath(r *http.Request) (string, error) {
