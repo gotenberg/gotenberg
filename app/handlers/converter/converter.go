@@ -1,22 +1,36 @@
 package converter
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 
 	gfile "github.com/gulien/gotenberg/app/handlers/converter/file"
 	"github.com/gulien/gotenberg/app/handlers/converter/process"
 	ghttp "github.com/gulien/gotenberg/app/handlers/http"
+
+	"github.com/satori/go.uuid"
 )
 
 type Converter struct {
-	files            []*gfile.File
-	resultFilesPaths []string
-	FinalFilePath    string
+	files      []*gfile.File
+	workingDir string
+}
+
+type NoFileToConvertError struct{}
+
+func (e *NoFileToConvertError) Error() string {
+	return "There is no file to convert"
 }
 
 func NewConverter(r *http.Request, contentType ghttp.ContentType) (*Converter, error) {
-	c := &Converter{}
+	c := &Converter{
+		workingDir: fmt.Sprintf("./%s/", uuid.NewV4().String()),
+	}
+
+	if err := os.Mkdir(c.workingDir, 0666); err != nil {
+		return nil, err
+	}
 
 	switch contentType {
 	case ghttp.MultipartFormDataContentType:
@@ -28,7 +42,6 @@ func NewConverter(r *http.Request, contentType ghttp.ContentType) (*Converter, e
 		formData := r.MultipartForm
 		files, ok := formData.File["files"]
 		if !ok {
-			// TODO
 			return nil, nil
 		}
 
@@ -40,9 +53,8 @@ func NewConverter(r *http.Request, contentType ghttp.ContentType) (*Converter, e
 
 			defer file.Close()
 
-			f, err := gfile.NewFile(file)
+			f, err := gfile.NewFile(c.workingDir, file)
 			if err != nil {
-				// todo err
 				return nil, err
 			}
 
@@ -50,29 +62,28 @@ func NewConverter(r *http.Request, contentType ghttp.ContentType) (*Converter, e
 		}
 		break
 	default:
-		f, err := gfile.NewFile(r.Body)
+		f, err := gfile.NewFile(c.workingDir, r.Body)
 		if err != nil {
-			// todo err
 			return nil, err
 		}
 
 		c.files = append(c.files, f)
 	}
 
+	if len(c.files) == 0 {
+		return nil, &NoFileToConvertError{}
+	}
+
 	return c, nil
 }
 
-func (c *Converter) Convert() error {
-	if len(c.files) == 0 {
-		return &noFileToConvertError{}
-	}
-
+func (c *Converter) Convert() (string, error) {
 	var filesPaths []string
 	for _, f := range c.files {
 		if f.Type != gfile.PDFType {
-			path, err := process.ExecConversion(f)
+			path, err := process.ExecConversion(c.workingDir, f)
 			if err != nil {
-				return err
+				return "", err
 			}
 
 			filesPaths = append(filesPaths, path)
@@ -81,37 +92,21 @@ func (c *Converter) Convert() error {
 		}
 	}
 
-	path, err := process.ExecMerge(filesPaths)
-	if err != nil {
-		return err
+	if len(filesPaths) == 0 {
+		return filesPaths[0], nil
 	}
 
-	c.resultFilesPaths = filesPaths
-	c.FinalFilePath = path
+	path, err := process.ExecMerge(c.workingDir, filesPaths)
+	if err != nil {
+		return "", err
+	}
 
-	return nil
+	return path, nil
 }
 
 func (c *Converter) Clear() error {
-	for _, f := range c.files {
-		err := os.Remove(f.Path)
-		if err != nil {
-			return err
-		}
-	}
-
-	for _, path := range c.resultFilesPaths {
-		err := os.Remove(path)
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.FinalFilePath != "" {
-		err := os.Remove(c.FinalFilePath)
-		if err != nil {
-			return err
-		}
+	if err := os.RemoveAll(c.workingDir); err != nil {
+		return err
 	}
 
 	return nil

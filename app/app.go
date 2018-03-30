@@ -22,8 +22,7 @@ type App struct {
 func NewApp(version string) (*App, error) {
 	c, err := config.NewAppConfig()
 	if err != nil {
-		logger.Error(err)
-		return nil, &appConfigError{}
+		return nil, err
 	}
 
 	a := &App{}
@@ -52,8 +51,8 @@ func NewApp(version string) (*App, error) {
 
 func (a *App) Run() error {
 	process.Load(a.config.CommandsConfig)
-	logger.Infof("Gotenberg %s", a.version)
-	logger.Infof("Application is starting on %s", a.Server.Addr)
+	logger.Infof("Starting Gotenberg version %s", a.version)
+	logger.Infof("Listening on port %s", a.config.Port)
 
 	return a.Server.ListenAndServe()
 }

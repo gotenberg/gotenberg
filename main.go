@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/gulien/gotenberg/app"
-	"github.com/gulien/gotenberg/app/handlers/converter/process"
 	"github.com/gulien/gotenberg/app/logger"
 
 	"github.com/sirupsen/logrus"
@@ -29,7 +28,7 @@ var version = "master"
 func main() {
 	a, err := app.NewApp(version)
 	if err != nil {
-		resetState()
+		logger.SetLevel(logrus.InfoLevel)
 		logger.Fatal(err)
 		os.Exit(1)
 	}
@@ -37,7 +36,7 @@ func main() {
 	// runs our server in a goroutine so that it doesn't block.
 	go func() {
 		if err = a.Run(); err != nil {
-			resetState()
+			logger.SetLevel(logrus.InfoLevel)
 			logger.Panic(err)
 			os.Exit(1)
 		}
@@ -59,13 +58,8 @@ func main() {
 	// doesn't block if no connections, but will otherwise wait
 	// until the timeout deadline.
 	a.Server.Shutdown(ctx)
-	resetState()
+	logger.SetLevel(logrus.InfoLevel)
 
 	logger.Info("Bye!")
 	os.Exit(0)
-}
-
-func resetState() {
-	logger.SetLevel(logrus.InfoLevel)
-	process.Reset()
 }

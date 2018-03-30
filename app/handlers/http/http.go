@@ -1,6 +1,7 @@
 package http
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -16,6 +17,12 @@ const (
 	MultipartFormDataContentType ContentType = "multipart/form-data"
 )
 
+type notAuthorizedContentTypeError struct{}
+
+func (e *notAuthorizedContentTypeError) Error() string {
+	return fmt.Sprintf("Accepted values for 'Content-Type': %s, %s, %s, %s", PDFContentType, HTMLContentType, OctetStreamContentType, MultipartFormDataContentType)
+}
+
 func FindAuthorizedContentType(h http.Header) (ContentType, error) {
 	ct := findContentType(h.Get("Content-Type"), HTMLContentType, OctetStreamContentType, MultipartFormDataContentType)
 	if ct == "" {
@@ -23,6 +30,12 @@ func FindAuthorizedContentType(h http.Header) (ContentType, error) {
 	}
 
 	return ct, nil
+}
+
+type notAuthorizedFileContentTypeError struct{}
+
+func (e *notAuthorizedFileContentTypeError) Error() string {
+	return fmt.Sprintf("Unable to detect a file 'Content-Type'")
 }
 
 func SniffContentType(f *os.File) (ContentType, error) {

@@ -10,30 +10,22 @@ import (
 	"github.com/satori/go.uuid"
 )
 
-type (
-	File struct {
-		Type FileType
-		Path string
-	}
+type File struct {
+	Type FileType
+	Path string
+}
 
-	FileType string
-
-	FileExt string
-)
+type FileType uint32
 
 const (
-	PDFType    FileType = "PDF"
-	HTMLType   FileType = "HTML"
-	OfficeType FileType = "Office"
-
-	PDFExt    FileExt = ".pdf"
-	HTMLExt   FileExt = ".html"
-	OfficeExt FileExt = ""
+	PDFType FileType = iota
+	HTMLType
+	OfficeType
 )
 
-func NewFile(r io.Reader) (*File, error) {
+func NewFile(workingDir string, r io.Reader) (*File, error) {
 	f := &File{
-		Path: MakeFilePath(),
+		Path: MakeFilePath(workingDir),
 	}
 
 	file, err := os.Create(f.Path)
@@ -58,7 +50,7 @@ func NewFile(r io.Reader) (*File, error) {
 
 	f.Type = t
 
-	f, err = reworkFilePath(f)
+	f, err = reworkFilePath(workingDir, f)
 	if err != nil {
 		return nil, err
 	}
@@ -66,8 +58,8 @@ func NewFile(r io.Reader) (*File, error) {
 	return f, nil
 }
 
-func MakeFilePath() string {
-	return fmt.Sprintf("./%s", uuid.NewV4().String())
+func MakeFilePath(workingDir string) string {
+	return fmt.Sprintf("%s%s", workingDir, uuid.NewV4().String())
 }
 
 var filesTypes = map[ghttp.ContentType]FileType{
@@ -77,20 +69,33 @@ var filesTypes = map[ghttp.ContentType]FileType{
 	ghttp.ZipContentType:         OfficeType,
 }
 
+type fileTypeNotFound struct{}
+
+func (e *fileTypeNotFound) Error() string {
+	return "The file type was not found for the given 'Content-Type'"
+}
+
 func findFileType(f *os.File) (FileType, error) {
 	ct, err := ghttp.SniffContentType(f)
 	if err != nil {
-		return "", err
+		return 999, err
 	}
 
 	t, ok := filesTypes[ct]
 	if !ok {
-		// TODO error
-		return "", nil
+		return 999, &fileTypeNotFound{}
 	}
 
 	return t, nil
 }
+
+type FileExt string
+
+const (
+	PDFExt    FileExt = ".pdf"
+	HTMLExt   FileExt = ".html"
+	OfficeExt FileExt = ""
+)
 
 var filesExtensions = map[FileType]FileExt{
 	PDFType:    PDFExt,
@@ -98,15 +103,20 @@ var filesExtensions = map[FileType]FileExt{
 	OfficeType: OfficeExt,
 }
 
-func reworkFilePath(f *File) (*File, error) {
+type fileExtNotFound struct{}
+
+func (e *fileExtNotFound) Error() string {
+	return "The file extension was not found for the given file type"
+}
+
+func reworkFilePath(workingDir string, f *File) (*File, error) {
 	ext, ok := filesExtensions[f.Type]
 	if !ok {
-		// TODO error
-		return nil, nil
+		return nil, &fileExtNotFound{}
 	}
 
 	if ext != OfficeExt {
-		newPath := fmt.Sprintf("./%s%s", MakeFilePath(), ext)
+		newPath := fmt.Sprintf("%s%s", MakeFilePath(workingDir), ext)
 
 		err := os.Rename(f.Path, newPath)
 		if err != nil {

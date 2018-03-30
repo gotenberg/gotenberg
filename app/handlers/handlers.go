@@ -18,6 +18,12 @@ func GetHandlersChain() http.Handler {
 	return alice.New(enforceContentLengthHandler, enforceContentTypeHandler, convertHandler, serveHandler).ThenFunc(clearHandler)
 }
 
+type requestHasNoContentError struct{}
+
+func (e *requestHasNoContentError) Error() string {
+	return "Request has not content"
+}
+
 // enforeContentLengthHandler checks if the request has content.
 func enforceContentLengthHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -61,12 +67,17 @@ func convertHandler(next http.Handler) http.Handler {
 
 		c, err := converter.NewConverter(r, ct)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			if noFileToConvertError, ok := err.(*converter.NoFileToConvertError); ok {
+				http.Error(w, noFileToConvertError.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+
 			logger.Error(err)
 			return
 		}
 
-		err = c.Convert()
+		path, err := c.Convert()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			logger.Error(err)
@@ -74,6 +85,7 @@ func convertHandler(next http.Handler) http.Handler {
 		}
 
 		r = context.WithConverter(r, c)
+		r = context.WithResultFilePath(r, path)
 
 		next.ServeHTTP(w, r)
 	})
@@ -82,13 +94,13 @@ func convertHandler(next http.Handler) http.Handler {
 // serveHandler simply serves the created PDF.
 func serveHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		c, err := context.GetConverter(r)
+		path, err := context.GetResultFilePath(r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			logger.Error(err)
 		}
 
-		reader, err := os.Open(c.FinalFilePath)
+		reader, err := os.Open(path)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			logger.Error(err)

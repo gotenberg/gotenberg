@@ -17,19 +17,21 @@ func Load(config *config.CommandsConfig) {
 	commandsConfig = config
 }
 
-func Reset() {
-	commandsConfig = nil
-}
-
 type conversionData struct {
 	FilePath       string
 	ResultFilePath string
 }
 
-func ExecConversion(file *gfile.File) (string, error) {
+type impossibleConversionError struct{}
+
+func (e *impossibleConversionError) Error() string {
+	return "Impossible conversion"
+}
+
+func ExecConversion(workingDir string, file *gfile.File) (string, error) {
 	cmdData := &conversionData{
 		FilePath:       file.Path,
-		ResultFilePath: fmt.Sprintf("%s%s", gfile.MakeFilePath(), gfile.PDFExt),
+		ResultFilePath: fmt.Sprintf("%s%s", gfile.MakeFilePath(workingDir), gfile.PDFExt),
 	}
 
 	var (
@@ -68,10 +70,10 @@ type mergeData struct {
 	ResultFilePath string
 }
 
-func ExecMerge(filesPaths []string) (string, error) {
+func ExecMerge(workingDir string, filesPaths []string) (string, error) {
 	cmdData := &mergeData{
 		FilesPaths:     filesPaths,
-		ResultFilePath: fmt.Sprintf("%s%s", gfile.MakeFilePath(), gfile.PDFExt),
+		ResultFilePath: fmt.Sprintf("%s%s", gfile.MakeFilePath(workingDir), gfile.PDFExt),
 	}
 
 	cmdTemplate := commandsConfig.Merge.Template
@@ -90,8 +92,13 @@ func ExecMerge(filesPaths []string) (string, error) {
 	return cmdData.ResultFilePath, nil
 }
 
+type commandTimeoutError struct{}
+
+func (e *commandTimeoutError) Error() string {
+	return "The command has reached timeout"
+}
+
 func execCommand(command string, timeout int) error {
-	// Wait for the process to finish or kill it after a timeout.
 	cmd := exec.Command("/bin/sh", "-c", command)
 	if err := cmd.Start(); err != nil {
 		return err
@@ -102,6 +109,7 @@ func execCommand(command string, timeout int) error {
 		done <- cmd.Wait()
 	}()
 
+	// wait for the process to finish or kill it after a timeout.
 	select {
 	case <-time.After(time.Duration(timeout) * time.Second):
 		if err := cmd.Process.Kill(); err != nil {

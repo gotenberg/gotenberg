@@ -4,9 +4,6 @@ import (
 	"io/ioutil"
 	"text/template"
 
-	"github.com/gulien/gotenberg/app/logger"
-
-	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
@@ -36,22 +33,24 @@ type (
 func NewAppConfig() (*AppConfig, error) {
 	fileConfig, err := loadFileConfig()
 	if err != nil {
-		logger.Error(err)
-		return nil, &fileConfigError{}
+		return nil, err
 	}
 
 	c := &AppConfig{}
 	c.Port = fileConfig.Port
-	c.Logs.Level = getLoggingLevelFromFileConfig(fileConfig)
-	c.Logs.Formatter = getLoggingFormatterFromFileConfig(fileConfig)
 
-	if c.Logs.Level == 999 {
-		return nil, &wrongLoggingLevelError{}
+	lvl, err := getLoggingLevelFromFileConfig(fileConfig)
+	if err != nil {
+		return nil, err
 	}
 
-	if c.Logs.Formatter == nil {
-		return nil, &wrongLoggingFormatError{}
+	formatter, err := getLoggingFormatterFromFileConfig(fileConfig)
+	if err != nil {
+		return nil, err
 	}
+
+	c.Logs.Level = lvl
+	c.Logs.Formatter = formatter
 
 	c.CommandsConfig = &CommandsConfig{}
 	c.CommandsConfig.HTML = &CommandConfig{}
@@ -61,22 +60,19 @@ func NewAppConfig() (*AppConfig, error) {
 	c.CommandsConfig.Office.Timeout = fileConfig.Commands.Office.Timeout
 	c.CommandsConfig.Merge.Timeout = fileConfig.Commands.Merge.Timeout
 
-	tmplHTML, err := getCommandTemplate(fileConfig.Commands.HTML.Template)
+	tmplHTML, err := getCommandTemplate(fileConfig.Commands.HTML.Template, "HTML")
 	if err != nil {
-		logger.Error(err)
-		return nil, &wrongHTMLCommandTemplate{}
+		return nil, err
 	}
 
-	tmplOffice, err := getCommandTemplate(fileConfig.Commands.Office.Template)
+	tmplOffice, err := getCommandTemplate(fileConfig.Commands.Office.Template, "Office")
 	if err != nil {
-		logger.Error(err)
-		return nil, &wrongOfficeCommandTemplate{}
+		return nil, err
 	}
 
-	tmplMerge, err := getCommandTemplate(fileConfig.Commands.Merge.Template)
+	tmplMerge, err := getCommandTemplate(fileConfig.Commands.Merge.Template, "Merge")
 	if err != nil {
-		logger.Error(err)
-		return nil, &wrongMergeCommandTemplate{}
+		return nil, err
 	}
 
 	c.CommandsConfig.HTML.Template = tmplHTML
@@ -116,13 +112,11 @@ func loadFileConfig() (*fileConfig, error) {
 
 	data, err := ioutil.ReadFile(configurationFilePath)
 	if err != nil {
-		logger.Error(err)
-		return nil, &readFileError{}
+		return nil, err
 	}
 
 	if err := yaml.Unmarshal(data, &c); err != nil {
-		logger.Error(err)
-		return nil, &unmarshalError{}
+		return nil, err
 	}
 
 	return c, nil
@@ -137,13 +131,19 @@ var levels = map[string]logrus.Level{
 	"PANIC": logrus.PanicLevel,
 }
 
-func getLoggingLevelFromFileConfig(c *fileConfig) logrus.Level {
+type wrongLoggingLevelError struct{}
+
+func (e *wrongLoggingLevelError) Error() string {
+	return "Accepted values for logging level: DEBUG, INFO, WARN, ERROR, FATAL, PANIC"
+}
+
+func getLoggingLevelFromFileConfig(c *fileConfig) (logrus.Level, error) {
 	l, ok := levels[c.Logs.Level]
 	if !ok {
-		return 999
+		return 999, &wrongLoggingLevelError{}
 	}
 
-	return l
+	return l, nil
 }
 
 var formatters = map[string]logrus.Formatter{
@@ -151,17 +151,23 @@ var formatters = map[string]logrus.Formatter{
 	"json": &logrus.JSONFormatter{},
 }
 
-func getLoggingFormatterFromFileConfig(c *fileConfig) logrus.Formatter {
-	f, ok := formatters[c.Logs.Format]
-	if !ok {
-		return nil
-	}
+type wrongLoggingFormatError struct{}
 
-	return f
+func (e *wrongLoggingFormatError) Error() string {
+	return "Accepted value for logging format: text, json"
 }
 
-func getCommandTemplate(command string) (*template.Template, error) {
-	t, err := template.New(uuid.NewV4().String()).Parse(command)
+func getLoggingFormatterFromFileConfig(c *fileConfig) (logrus.Formatter, error) {
+	f, ok := formatters[c.Logs.Format]
+	if !ok {
+		return nil, &wrongLoggingFormatError{}
+	}
+
+	return f, nil
+}
+
+func getCommandTemplate(command string, commandName string) (*template.Template, error) {
+	t, err := template.New(commandName).Parse(command)
 	if err != nil {
 		return nil, err
 	}
