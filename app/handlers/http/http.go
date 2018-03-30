@@ -20,7 +20,7 @@ const (
 type notAuthorizedContentTypeError struct{}
 
 func (e *notAuthorizedContentTypeError) Error() string {
-	return fmt.Sprintf("Accepted values for 'Content-Type': %s, %s, %s, %s", PDFContentType, HTMLContentType, OctetStreamContentType, MultipartFormDataContentType)
+	return fmt.Sprintf("Accepted values for 'Content-Type': %s, %s, %s, %s", HTMLContentType, OctetStreamContentType, MultipartFormDataContentType)
 }
 
 func FindAuthorizedContentType(h http.Header) (ContentType, error) {
