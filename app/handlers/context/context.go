@@ -1,3 +1,5 @@
+// Package context provides functions for setting and getting values from
+// a request's context.
 package context
 
 import (
@@ -17,6 +19,8 @@ const (
 	resultFilePathKey
 )
 
+// WithContentType populates a request's context with the given content type
+// and returns the updated request.
 func WithContentType(r *http.Request, contentType ghttp.ContentType) *http.Request {
 	ctx := r.Context()
 	ctx = context.WithValue(ctx, contentTypeKey, contentType)
@@ -31,6 +35,8 @@ func (e *contentTypeNotFoundError) Error() string {
 	return "The 'Content-Type' was not found in request context"
 }
 
+// GetContentType returns the content type if found in
+// the request's context. Otherwise throws an error.
 func GetContentType(r *http.Request) (ghttp.ContentType, error) {
 	ct, ok := r.Context().Value(contentTypeKey).(ghttp.ContentType)
 	if !ok {
@@ -40,6 +46,8 @@ func GetContentType(r *http.Request) (ghttp.ContentType, error) {
 	return ct, nil
 }
 
+// WithConverter populates a request's context with the given converter
+// and returns the updated request.
 func WithConverter(r *http.Request, converter *converter.Converter) *http.Request {
 	ctx := r.Context()
 	ctx = context.WithValue(ctx, converterKey, converter)
@@ -54,6 +62,8 @@ func (e *converterNotFoundError) Error() string {
 	return "The converter was not found in request context"
 }
 
+// GetConverter returns the converter if found in
+// the request's context. Otherwise throws an error.
 func GetConverter(r *http.Request) (*converter.Converter, error) {
 	c, ok := r.Context().Value(converterKey).(*converter.Converter)
 	if !ok {
@@ -63,6 +73,8 @@ func GetConverter(r *http.Request) (*converter.Converter, error) {
 	return c, nil
 }
 
+// WithResultFilePath populates a request's context with the given result file path
+// and returns the updated request.
 func WithResultFilePath(r *http.Request, resultFilePath string) *http.Request {
 	ctx := r.Context()
 	ctx = context.WithValue(ctx, resultFilePathKey, resultFilePath)
@@ -77,6 +89,8 @@ func (e *resultFilePathNotFoundError) Error() string {
 	return "The result file path was not found in request context"
 }
 
+// GetResultFilePath returns the result file path if found in
+// the request's context. Otherwise throws an error.
 func GetResultFilePath(r *http.Request) (string, error) {
 	path, ok := r.Context().Value(resultFilePathKey).(string)
 	if !ok {
