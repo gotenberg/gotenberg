@@ -1,9 +1,9 @@
+// Package app is the entry point of the application.
 package app
 
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/gulien/gotenberg/app/config"
 	"github.com/gulien/gotenberg/app/handlers"
@@ -13,12 +13,19 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// App gathers all data required to start the application.
 type App struct {
+	// version is the application version as defined in the main package.
 	version string
-	config  *config.AppConfig
-	Server  *http.Server
+	// config is the application configuration.
+	// It's populated thanks to the gotenberg.yml file.
+	config *config.AppConfig
+	// Server is the instance of http.Server used by the application.
+	Server *http.Server
 }
 
+// NewApp instantiates the application by loading the configuration from the
+// gotenberg.yml file.
 func NewApp(version string) (*App, error) {
 	c, err := config.NewAppConfig()
 	if err != nil {
@@ -38,17 +45,14 @@ func NewApp(version string) (*App, error) {
 	r.Handle("/", handlers.GetHandlersChain())
 
 	a.Server = &http.Server{
-		Addr: fmt.Sprintf(":%s", a.config.Port),
-		// good practice to set timeouts to avoid Slowloris attacks.
-		WriteTimeout: time.Second * 15,
-		ReadTimeout:  time.Second * 15,
-		IdleTimeout:  time.Second * 60,
-		Handler:      r,
+		Addr:    fmt.Sprintf(":%s", a.config.Port),
+		Handler: r,
 	}
 
 	return a, nil
 }
 
+// Run starts the server.
 func (a *App) Run() error {
 	process.Load(a.config.CommandsConfig)
 	logger.Infof("Starting Gotenberg version %s", a.version)

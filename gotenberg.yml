@@ -13,13 +13,13 @@ logs:
 commands:
 
   html:
-    timeout: 10
+    timeout: 30
     template: "xvfb-run -e /dev/stdout wkhtmltopdf {{ .FilePath }} {{ .ResultFilePath }}"
 
   office:
-    timeout: 10
+    timeout: 30
     template: "unoconv --format pdf --output \"{{ .ResultFilePath }}\" \"{{ .FilePath }}\""
 
   merge:
-    timeout: 10
+    timeout: 30
     template: "pdftk {{ range $filePath := .FilesPaths }} {{ $filePath }} {{ end }} cat output {{ .ResultFilePath }}"

@@ -1,8 +1,7 @@
 /*
 Package main handles the application startup and shutdown.
 
-Gotenberg is a stateless API for generating PDF from many sources
-(".html", ".doc", ".docx").
+Gotenberg is a stateless API for converting HTML files and Office document to PDF.
 
 For more information, go to https://github.com/gulien/gotenberg.
 */
@@ -23,7 +22,7 @@ import (
 // version will be set on build time.
 var version = "master"
 
-// main initializes the application and handles
+// main initializes the application, starts it, and handles
 // graceful shutdown.
 func main() {
 	a, err := app.NewApp(version)
