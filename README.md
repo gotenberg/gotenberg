@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="https://user-images.githubusercontent.com/8983173/38133003-a9615a2e-340d-11e8-9a7f-ee10b6765eec.png" alt="Gotenberg's logo" width="250" height="148" />
+    <img src="https://user-images.githubusercontent.com/8983173/38133003-a9615a2e-340d-11e8-9a7f-ee10b6765eec.png" alt="Gotenberg's logo" width="146" height="170" />
 </p>
 <h3 align="center">Gotenberg</h3>
 <p align="center">Gotenberg is a stateless API for converting HTML files and Office document to PDF.</p>
