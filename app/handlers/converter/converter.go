@@ -114,9 +114,5 @@ func (c *Converter) Convert() (string, error) {
 
 // Clear removes all file inside its working directory.
 func (c *Converter) Clear() error {
-	if err := os.RemoveAll(c.workingDir); err != nil {
-		return err
-	}
-
-	return nil
+	return os.RemoveAll(c.workingDir)
 }
