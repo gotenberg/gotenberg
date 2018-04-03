@@ -69,7 +69,7 @@ func Unconv(workingDir string, file *gfile.File) (string, error) {
 	return cmdData.ResultFilePath, nil
 }
 
-// mergeDAta will be applied to the data-driven template of the merge command.
+// mergeData will be applied to the data-driven template of the merge command.
 type mergeData struct {
 	FilesPaths     []string
 	ResultFilePath string
