@@ -1,3 +1,4 @@
+// Package process handles all commands executions.
 package process
 
 import (
@@ -13,10 +14,12 @@ import (
 
 var commandsConfig *config.CommandsConfig
 
+// Load loads the commands configuration coming from the application configuration.
 func Load(config *config.CommandsConfig) {
 	commandsConfig = config
 }
 
+// conversionData will be applied to the data-driven templates of conversions commands.
 type conversionData struct {
 	FilePath       string
 	ResultFilePath string
@@ -28,7 +31,8 @@ func (e *impossibleConversionError) Error() string {
 	return "Impossible conversion"
 }
 
-func ExecConversion(workingDir string, file *gfile.File) (string, error) {
+// Unconv converts a file to PDF and returns the new file path.
+func Unconv(workingDir string, file *gfile.File) (string, error) {
 	cmdData := &conversionData{
 		FilePath:       file.Path,
 		ResultFilePath: fmt.Sprintf("%s%s", gfile.MakeFilePath(workingDir), gfile.PDFExt),
@@ -57,7 +61,7 @@ func ExecConversion(workingDir string, file *gfile.File) (string, error) {
 		return "", err
 	}
 
-	err := execCommand(data.String(), cmdTimeout)
+	err := run(data.String(), cmdTimeout)
 	if err != nil {
 		return "", err
 	}
@@ -65,12 +69,14 @@ func ExecConversion(workingDir string, file *gfile.File) (string, error) {
 	return cmdData.ResultFilePath, nil
 }
 
+// mergeDAta will be applied to the data-driven template of the merge command.
 type mergeData struct {
 	FilesPaths     []string
 	ResultFilePath string
 }
 
-func ExecMerge(workingDir string, filesPaths []string) (string, error) {
+// Merge merges many PDF files to one unique PDF file and returns the new file path.
+func Merge(workingDir string, filesPaths []string) (string, error) {
 	cmdData := &mergeData{
 		FilesPaths:     filesPaths,
 		ResultFilePath: fmt.Sprintf("%s%s", gfile.MakeFilePath(workingDir), gfile.PDFExt),
@@ -84,7 +90,7 @@ func ExecMerge(workingDir string, filesPaths []string) (string, error) {
 		return "", err
 	}
 
-	err := execCommand(data.String(), cmdTimeout)
+	err := run(data.String(), cmdTimeout)
 	if err != nil {
 		return "", err
 	}
@@ -98,7 +104,9 @@ func (e *commandTimeoutError) Error() string {
 	return "The command has reached timeout"
 }
 
-func execCommand(command string, timeout int) error {
+// run runs the given command. If timeout is reached or
+// something bad happened, returns an error.
+func run(command string, timeout int) error {
 	cmd := exec.Command("/bin/sh", "-c", command)
 	if err := cmd.Start(); err != nil {
 		return err

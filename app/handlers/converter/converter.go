@@ -81,7 +81,7 @@ func (c *Converter) Convert() (string, error) {
 	var filesPaths []string
 	for _, f := range c.files {
 		if f.Type != gfile.PDFType {
-			path, err := process.ExecConversion(c.workingDir, f)
+			path, err := process.Unconv(c.workingDir, f)
 			if err != nil {
 				return "", err
 			}
@@ -96,7 +96,7 @@ func (c *Converter) Convert() (string, error) {
 		return filesPaths[0], nil
 	}
 
-	path, err := process.ExecMerge(c.workingDir, filesPaths)
+	path, err := process.Merge(c.workingDir, filesPaths)
 	if err != nil {
 		return "", err
 	}
