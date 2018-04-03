@@ -14,7 +14,9 @@ import (
 // File represents a file which has been created
 // from a request.
 type File struct {
+	// Type is the kind of file.
 	Type Type
+	// Path is the file path.
 	Path string
 }
 
