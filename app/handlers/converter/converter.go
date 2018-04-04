@@ -27,6 +27,14 @@ func (e *NoFileToConvertError) Error() string {
 	return "There is no file to convert"
 }
 
+// FilesKeyNotFoundError is raised when "files" key does not exist
+// in the form data
+type FilesKeyNotFoundError struct{}
+
+func (e *FilesKeyNotFoundError) Error() string {
+	return "\"files\" key was not found in the form data"
+}
+
 // NewConverter instantiates a converter by parsing a request.
 func NewConverter(r *http.Request, contentType ghttp.ContentType) (*Converter, error) {
 	c := &Converter{
@@ -47,7 +55,7 @@ func NewConverter(r *http.Request, contentType ghttp.ContentType) (*Converter, e
 		formData := r.MultipartForm
 		files, ok := formData.File["files"]
 		if !ok {
-			return nil, nil
+			return nil, &FilesKeyNotFoundError{}
 		}
 
 		for i := range files {
