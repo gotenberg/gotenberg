@@ -33,7 +33,7 @@ func (e *notAuthorizedContentTypeError) Error() string {
 // FindAuthorizedContentType tries to return a content type according to a request header.
 // If no authorized content type found, throws an error.
 func FindAuthorizedContentType(h http.Header) (ContentType, error) {
-	ct := findContentType(h.Get("Content-Type"), HTMLContentType, OctetStreamContentType, MultipartFormDataContentType)
+	ct := findContentType(h.Get("Content-Type"), OctetStreamContentType, MultipartFormDataContentType)
 	if ct == "" {
 		return "", &notAuthorizedContentTypeError{}
 	}
