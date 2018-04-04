@@ -6,9 +6,9 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/gulien/gotenberg/app/handlers/converter"
+	"github.com/gulien/gotenberg/app/converter"
 
-	ghttp "github.com/gulien/gotenberg/app/handlers/http"
+	ghttp "github.com/gulien/gotenberg/app/http"
 )
 
 type key uint32

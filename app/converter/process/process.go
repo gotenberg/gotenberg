@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gulien/gotenberg/app/config"
-	gfile "github.com/gulien/gotenberg/app/handlers/converter/file"
+	gfile "github.com/gulien/gotenberg/app/converter/file"
 )
 
 var commandsConfig *config.CommandsConfig

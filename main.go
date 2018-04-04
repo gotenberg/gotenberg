@@ -9,13 +9,18 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"time"
 
 	"github.com/gulien/gotenberg/app"
+	"github.com/gulien/gotenberg/app/config"
+	"github.com/gulien/gotenberg/app/converter/process"
 	"github.com/gulien/gotenberg/app/logger"
 
+	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 )
 
@@ -28,29 +33,47 @@ const defaultConfigurationFilePath = "gotenberg.yml"
 // main initializes the application, starts it, and handles
 // graceful shutdown.
 func main() {
-	a, err := app.NewApp(version, defaultConfigurationFilePath)
+	c, err := config.NewAppConfig(defaultConfigurationFilePath)
 	if err != nil {
 		logger.SetLevel(logrus.InfoLevel)
 		logger.Fatal(err)
 		os.Exit(1)
 	}
 
+	// defines our application logging.
+	logger.SetLevel(c.Logs.Level)
+	logger.SetFormatter(c.Logs.Formatter)
+
+	// defines our application router.
+	r := mux.NewRouter()
+	r.Handle("/", app.GetHandlersChain()).Methods(http.MethodPost)
+
+	// defines our server.
+	s := &http.Server{
+		Addr:    fmt.Sprintf(":%s", c.Port),
+		Handler: r,
+	}
+
+	process.Load(c.CommandsConfig)
+	logger.Infof("Starting Gotenberg version %s", version)
+	logger.Infof("Listening on port %s", c.Port)
+
 	// runs our server in a goroutine so that it doesn't block.
 	go func() {
-		if err = a.Run(); err != nil {
+		if err = s.ListenAndServe(); err != nil {
 			logger.SetLevel(logrus.InfoLevel)
 			logger.Panic(err)
 			os.Exit(1)
 		}
 	}()
 
-	c := make(chan os.Signal, 1)
+	quit := make(chan os.Signal, 1)
 	// we'll accept graceful shutdowns when quit via SIGINT (Ctrl+C)
 	// SIGKILL, SIGQUIT or SIGTERM (Ctrl+/) will not be caught.
-	signal.Notify(c, os.Interrupt)
+	signal.Notify(quit, os.Interrupt)
 
 	// blocks until we receive our signal.
-	<-c
+	<-quit
 
 	// creates a deadline to wait for.
 	var wait time.Duration
@@ -59,7 +82,7 @@ func main() {
 
 	// doesn't block if no connections, but will otherwise wait
 	// until the timeout deadline.
-	a.Server.Shutdown(ctx)
+	s.Shutdown(ctx)
 	logger.SetLevel(logrus.InfoLevel)
 
 	logger.Info("Bye!")

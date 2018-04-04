@@ -1,5 +1,5 @@
-// Package handlers implements all functions on which a request will pass through.
-package handlers
+// Package app implements all functions on which a request will pass through.
+package app
 
 import (
 	"fmt"
@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/gulien/gotenberg/app/handlers/context"
-	"github.com/gulien/gotenberg/app/handlers/converter"
-	ghttp "github.com/gulien/gotenberg/app/handlers/http"
+	"github.com/gulien/gotenberg/app/context"
+	"github.com/gulien/gotenberg/app/converter"
+	ghttp "github.com/gulien/gotenberg/app/http"
 	"github.com/gulien/gotenberg/app/logger"
 
 	"github.com/justinas/alice"
