@@ -1,7 +1,7 @@
 tasks:
 
   - use: install
-    short: Installs all required dependencies
+    short: Installs all required dev dependencies
     run:
       - go get -u github.com/golang/dep/cmd/dep
       - go get -u gopkg.in/alecthomas/gometalinter.v2
@@ -13,19 +13,19 @@ tasks:
       - go fmt ./...
       - gometalinter.v2 --disable-all -E vet -E gofmt -E misspell -E ineffassign -E goimports -E deadcode -E gocyclo --vendor ./...
 
+  - use: tests
+    short: Runs tests inside a container
+    run:
+      - docker build -t gotenberg:tests -f Dockerfile.tests .
+      - docker run --rm gotenberg:tests
+
   - use: build
     short: Builds a Linux binary and the Docker image
     run:
       - env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-X main.version={{ .Orbit.Version }}"
-      - docker build . -t gotenberg:snapshot
+      - docker build . -t gotenberg:{{ .Orbit.Version }}
 
   - use: up
-    short: Starts the snapshot version of the Gotenberg image
+    short: Starts the {{ .Orbit.Version }} version of the Gotenberg image
     run:
-      - docker run -p 3000:3000/tcp --name=gotenberg gotenberg:{{ .Orbit.Version }}
-
-  - use: stop
-    short: Stops the snapshot version of the Gotenberg image
-    run :
-     - docker stop gotenberg
-     - docker rm gotenberg
+      - docker run --rm -p 3000:3000/tcp --name=gotenberg gotenberg:{{ .Orbit.Version }}

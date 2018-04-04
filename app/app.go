@@ -26,8 +26,8 @@ type App struct {
 
 // NewApp instantiates the application by loading the configuration from the
 // gotenberg.yml file.
-func NewApp(version string) (*App, error) {
-	c, err := config.NewAppConfig()
+func NewApp(version string, configurationFilePath string) (*App, error) {
+	c, err := config.NewAppConfig(configurationFilePath)
 	if err != nil {
 		return nil, err
 	}

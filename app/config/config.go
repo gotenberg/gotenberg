@@ -56,8 +56,8 @@ type (
 
 // NewAppConfig instantiates the application's configuration.
 // If something bad happens here, the application should not start.
-func NewAppConfig() (*AppConfig, error) {
-	fileConfig, err := loadFileConfig()
+func NewAppConfig(configurationFilePath string) (*AppConfig, error) {
+	fileConfig, err := loadFileConfig(configurationFilePath)
 	if err != nil {
 		return nil, err
 	}
@@ -131,12 +131,9 @@ type fileConfig struct {
 	} `yaml:"commands"`
 }
 
-// configurationFilePath is our default configuration file to parse.
-const configurationFilePath = "gotenberg.yml"
-
 // loadFileConfig instantiates a fileConfig instance by loading
 // the configuration file gotenberg.yml.
-func loadFileConfig() (*fileConfig, error) {
+func loadFileConfig(configurationFilePath string) (*fileConfig, error) {
 	c := &fileConfig{}
 
 	data, err := ioutil.ReadFile(configurationFilePath)

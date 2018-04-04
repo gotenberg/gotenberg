@@ -22,10 +22,13 @@ import (
 // version will be set on build time.
 var version = "master"
 
+// defaultConfigurationFilePath is our default configuration file to parse.
+const defaultConfigurationFilePath = "gotenberg.yml"
+
 // main initializes the application, starts it, and handles
 // graceful shutdown.
 func main() {
-	a, err := app.NewApp(version)
+	a, err := app.NewApp(version, defaultConfigurationFilePath)
 	if err != nil {
 		logger.SetLevel(logrus.InfoLevel)
 		logger.Fatal(err)
