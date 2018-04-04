@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"github.com/gulien/gotenberg/app/converter"
-
 	ghttp "github.com/gulien/gotenberg/app/http"
 )
 

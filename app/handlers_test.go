@@ -38,7 +38,7 @@ func TestEnforceContentLengthHandler(t *testing.T) {
 	h.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusBadRequest {
-		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
+		t.Errorf("Handler returned a wrong status code: got %v want %v", status, http.StatusBadRequest)
 	}
 
 	// case 2: sends a body.
@@ -48,7 +48,7 @@ func TestEnforceContentLengthHandler(t *testing.T) {
 	h.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		t.Errorf("Handler returned a wrong status code: got %v want %v", status, http.StatusOK)
 	}
 }
 
@@ -62,7 +62,7 @@ func TestEnforceContentTypeHandler(t *testing.T) {
 	h.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusUnsupportedMediaType {
-		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusUnsupportedMediaType)
+		t.Errorf("Handler returned a wrong status code: got %v want %v", status, http.StatusUnsupportedMediaType)
 	}
 
 	// case 2: sends a good content type.
@@ -72,20 +72,20 @@ func TestEnforceContentTypeHandler(t *testing.T) {
 	h.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		t.Errorf("Handler returned wrong a status code: got %v want %v", status, http.StatusOK)
 	}
 }
 
 func TestConvertHandler(t *testing.T) {
 	h := alice.New(convertHandler).ThenFunc(fakeSuccessHandler)
 
-	// case 1: sends a request without a content type in its context.
+	// case 1: sends a request without a content type entry in its context.
 	req := httptest.NewRequest(http.MethodPost, "/", nil)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusInternalServerError {
-		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusInternalServerError)
+		t.Errorf("Handler returned a wrong status code: got %v want %v", status, http.StatusInternalServerError)
 	}
 
 	// case 2: sends a request as without body.
@@ -94,7 +94,7 @@ func TestConvertHandler(t *testing.T) {
 	h.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusInternalServerError {
-		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusInternalServerError)
+		t.Errorf("Handler returned a wrong status code: got %v want %v", status, http.StatusInternalServerError)
 	}
 
 	// case 3: sends a request as "multipart/form-data" without "files" key.
