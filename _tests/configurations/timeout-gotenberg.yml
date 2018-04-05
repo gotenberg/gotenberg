@@ -1,0 +1,14 @@
+port: 3000
+logs:
+  level: "DEBUG"
+  format: "text"
+commands:
+  html:
+    timeout: 0
+    template: "xvfb-run -e /dev/stdout wkhtmltopdf {{ .FilePath }} {{ .ResultFilePath }}"
+  office:
+    timeout: 0
+    template: "unoconv --format pdf --output \"{{ .ResultFilePath }}\" \"{{ .FilePath }}\""
+  merge:
+    timeout: 0
+    template: "pdftk {{ range $filePath := .FilesPaths }} {{ $filePath }} {{ end }} cat output {{ .ResultFilePath }}"

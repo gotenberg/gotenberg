@@ -27,8 +27,10 @@ type conversionData struct {
 
 type impossibleConversionError struct{}
 
+const impossibleConversionErrorMessage = "Impossible conversion"
+
 func (e *impossibleConversionError) Error() string {
-	return "Impossible conversion"
+	return impossibleConversionErrorMessage
 }
 
 // Unconv converts a file to PDF and returns the new file path.
@@ -100,8 +102,10 @@ func Merge(workingDir string, filesPaths []string) (string, error) {
 
 type commandTimeoutError struct{}
 
+const commandTimeoutErrorMessage = "The command has reached timeout"
+
 func (e *commandTimeoutError) Error() string {
-	return "The command has reached timeout"
+	return commandTimeoutErrorMessage
 }
 
 // run runs the given command. If timeout is reached or
