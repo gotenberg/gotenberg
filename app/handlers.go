@@ -70,14 +70,7 @@ func convertHandler(next http.Handler) http.Handler {
 
 		c, err := converter.NewConverter(r, ct)
 		if err != nil {
-			if noFileToConvertError, ok := err.(*converter.NoFileToConvertError); ok {
-				http.Error(w, noFileToConvertError.Error(), http.StatusBadRequest)
-			} else if filesKeyNotFoundError, ok := err.(*converter.FilesKeyNotFoundError); ok {
-				http.Error(w, filesKeyNotFoundError.Error(), http.StatusBadRequest)
-			} else {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
-
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			logger.Error(err)
 			return
 		}

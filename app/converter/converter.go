@@ -3,6 +3,7 @@ package converter
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 
@@ -19,22 +20,6 @@ type Converter struct {
 	workingDir string
 }
 
-// NoFileToConvertError is raised when the converter has no file
-// to convert.
-type NoFileToConvertError struct{}
-
-func (e *NoFileToConvertError) Error() string {
-	return "There is no file to convert"
-}
-
-// FilesKeyNotFoundError is raised when "files" key does not exist
-// in the form data
-type FilesKeyNotFoundError struct{}
-
-func (e *FilesKeyNotFoundError) Error() string {
-	return "\"files\" key was not found in the form data"
-}
-
 // NewConverter instantiates a converter by parsing a request.
 func NewConverter(r *http.Request, contentType ghttp.ContentType) (*Converter, error) {
 	c := &Converter{
@@ -47,26 +32,22 @@ func NewConverter(r *http.Request, contentType ghttp.ContentType) (*Converter, e
 
 	switch contentType {
 	case ghttp.MultipartFormDataContentType:
-		err := r.ParseMultipartForm(32 << 20)
+		reader, err := r.MultipartReader()
 		if err != nil {
 			return nil, err
 		}
 
-		formData := r.MultipartForm
-		files, ok := formData.File["files"]
-		if !ok {
-			return nil, &FilesKeyNotFoundError{}
-		}
-
-		for i := range files {
-			file, err := files[i].Open()
-			if err != nil {
-				return nil, err
+		for {
+			part, err := reader.NextPart()
+			if err == io.EOF {
+				break
 			}
 
-			defer file.Close()
+			if part.FileName() == "" {
+				continue
+			}
 
-			f, err := gfile.NewFile(c.workingDir, file)
+			f, err := gfile.NewFile(c.workingDir, part)
 			if err != nil {
 				return nil, err
 			}
@@ -81,10 +62,6 @@ func NewConverter(r *http.Request, contentType ghttp.ContentType) (*Converter, e
 		}
 
 		c.files = append(c.files, f)
-	}
-
-	if len(c.files) == 0 {
-		return nil, &NoFileToConvertError{}
 	}
 
 	return c, nil

@@ -28,4 +28,4 @@ tasks:
   - use: up
     short: Starts the {{ .Orbit.Version }} version of the Gotenberg image
     run:
-      - docker run --rm -p 3000:3000/tcp --name=gotenberg gotenberg:{{ .Orbit.Version }}
+      - docker run --rm -p 3000:3000/tcp gotenberg:{{ .Orbit.Version }}
