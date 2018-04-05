@@ -1,6 +1,7 @@
 package http
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -38,5 +39,20 @@ func TestSniffContentType(t *testing.T) {
 	defer f.Close()
 	if _, err := SniffContentType(f); err != nil {
 		t.Error("It should have been able to retrieve an authorized content type from a PDF file!")
+	}
+}
+
+func TestNotAuthorizedContentTypeError(t *testing.T) {
+	err := &notAuthorizedContentTypeError{}
+	message := fmt.Sprintf("Accepted values for 'Content-Type': %s, %s", OctetStreamContentType, MultipartFormDataContentType)
+	if err.Error() != message {
+		t.Errorf("Error returned a wrong message: got %s want %s", err.Error(), message)
+	}
+}
+
+func TestNotAuthorizedFileContentTypeError(t *testing.T) {
+	err := &notAuthorizedFileContentTypeError{}
+	if err.Error() != notAuthorizedFileContentTypeErrorMessage {
+		t.Errorf("Error returned a wrong message: got %s want %s", err.Error(), notAuthorizedFileContentTypeErrorMessage)
 	}
 }

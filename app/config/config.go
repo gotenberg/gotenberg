@@ -161,8 +161,10 @@ var levels = map[string]logrus.Level{
 
 type wrongLoggingLevelError struct{}
 
+const wrongLoggingLevelErrorMessage = "Accepted values for logging level: DEBUG, INFO, WARN, ERROR, FATAL, PANIC"
+
 func (e *wrongLoggingLevelError) Error() string {
-	return "Accepted values for logging level: DEBUG, INFO, WARN, ERROR, FATAL, PANIC"
+	return wrongLoggingLevelErrorMessage
 }
 
 // getLoggingLevelFromFileConfig returns a logrus level if a matching was found
@@ -186,8 +188,10 @@ var formatters = map[string]logrus.Formatter{
 
 type wrongLoggingFormatError struct{}
 
+const wrongLoggingFormatErrorMessage = "Accepted value for logging format: text, json"
+
 func (e *wrongLoggingFormatError) Error() string {
-	return "Accepted value for logging format: text, json"
+	return wrongLoggingFormatErrorMessage
 }
 
 // getLoggingLevelFromFileConfig returns a logrus Formatter if a matching was found

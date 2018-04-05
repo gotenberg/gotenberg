@@ -83,10 +83,12 @@ var filesTypes = map[ghttp.ContentType]Type{
 	ghttp.ZipContentType:         OfficeType,
 }
 
-type fileTypeNotFound struct{}
+type fileTypeNotFoundError struct{}
 
-func (e *fileTypeNotFound) Error() string {
-	return "The file type was not found for the given 'Content-Type'"
+const fileTypeNotFoundErrorMessage = "The file type was not found for the given 'Content-Type'"
+
+func (e *fileTypeNotFoundError) Error() string {
+	return fileTypeNotFoundErrorMessage
 }
 
 // findFileType tries to detect what kind of file is the given file.
@@ -98,7 +100,7 @@ func findFileType(f *os.File) (Type, error) {
 
 	t, ok := filesTypes[ct]
 	if !ok {
-		return 999, &fileTypeNotFound{}
+		return 999, &fileTypeNotFoundError{}
 	}
 
 	return t, nil
@@ -124,17 +126,19 @@ var filesExtensions = map[Type]Ext{
 	OfficeType: OfficeExt,
 }
 
-type fileExtNotFound struct{}
+type fileExtNotFoundError struct{}
 
-func (e *fileExtNotFound) Error() string {
-	return "The file extension was not found for the given file type"
+const fileExtNotFoundErrorMessage = "The file extension was not found for the given file type"
+
+func (e *fileExtNotFoundError) Error() string {
+	return fileExtNotFoundErrorMessage
 }
 
 // reworkFilePath renames a file in the considered directory and adds its extension.
 func reworkFilePath(workingDir string, f *File) (*File, error) {
 	ext, ok := filesExtensions[f.Type]
 	if !ok {
-		return nil, &fileExtNotFound{}
+		return nil, &fileExtNotFoundError{}
 	}
 
 	if ext != OfficeExt {

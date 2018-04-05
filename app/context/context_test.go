@@ -75,3 +75,24 @@ func TestGetResultFilePath(t *testing.T) {
 		t.Error("Context should have a converter entry!")
 	}
 }
+
+func TestContentTypeNotFoundError(t *testing.T) {
+	err := &contentTypeNotFoundError{}
+	if err.Error() != contentTypeNotFoundErrorMessage {
+		t.Errorf("Error returned a wrong message: got %s want %s", err.Error(), contentTypeNotFoundErrorMessage)
+	}
+}
+
+func TestConverterNotFoundError(t *testing.T) {
+	err := &converterNotFoundError{}
+	if err.Error() != converterNotFoundErrorMessage {
+		t.Errorf("Error returned a wrong message: got %s want %s", err.Error(), converterNotFoundErrorMessage)
+	}
+}
+
+func TestResultFilePathNotFoundError(t *testing.T) {
+	err := &resultFilePathNotFoundError{}
+	if err.Error() != resultFilePathNotFoundErrorMessage {
+		t.Errorf("Error returned a wrong message: got %s want %s", err.Error(), resultFilePathNotFoundErrorMessage)
+	}
+}

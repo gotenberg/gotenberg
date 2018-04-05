@@ -50,3 +50,17 @@ func TestReworkFilePath(t *testing.T) {
 
 	os.RemoveAll(workingDir)
 }
+
+func TestFileTypeNotFoundError(t *testing.T) {
+	err := &fileTypeNotFoundError{}
+	if err.Error() != fileTypeNotFoundErrorMessage {
+		t.Errorf("Error returned a wrong message: got %s want %s", err.Error(), fileTypeNotFoundErrorMessage)
+	}
+}
+
+func TestFileExtNotFoundError(t *testing.T) {
+	err := &fileExtNotFoundError{}
+	if err.Error() != fileExtNotFoundErrorMessage {
+		t.Errorf("Error returned a wrong message: got %s want %s", err.Error(), fileExtNotFoundErrorMessage)
+	}
+}

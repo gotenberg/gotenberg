@@ -43,8 +43,10 @@ func FindAuthorizedContentType(h http.Header) (ContentType, error) {
 
 type notAuthorizedFileContentTypeError struct{}
 
+const notAuthorizedFileContentTypeErrorMessage = "Unable to detect an authorized file content type"
+
 func (e *notAuthorizedFileContentTypeError) Error() string {
-	return fmt.Sprintf("Unable to detect a file content type")
+	return notAuthorizedFileContentTypeErrorMessage
 }
 
 // SniffContentType tries to detect the content type of a file.

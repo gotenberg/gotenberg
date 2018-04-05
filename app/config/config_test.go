@@ -53,3 +53,17 @@ func TestNewAppConfig(t *testing.T) {
 		t.Error("AppConfig should have been instantiated!")
 	}
 }
+
+func TestWrongLoggingLevelError(t *testing.T) {
+	err := &wrongLoggingLevelError{}
+	if err.Error() != wrongLoggingLevelErrorMessage {
+		t.Errorf("Error returned a wrong message: got %s want %s", err.Error(), wrongLoggingLevelErrorMessage)
+	}
+}
+
+func TestWrongLoggingFormatError(t *testing.T) {
+	err := &wrongLoggingFormatError{}
+	if err.Error() != wrongLoggingFormatErrorMessage {
+		t.Errorf("Error returned a wrong message: got %s want %s", err.Error(), wrongLoggingFormatErrorMessage)
+	}
+}

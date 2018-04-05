@@ -30,8 +30,10 @@ func WithContentType(r *http.Request, contentType ghttp.ContentType) *http.Reque
 
 type contentTypeNotFoundError struct{}
 
+const contentTypeNotFoundErrorMessage = "The 'Content-Type' was not found in request context"
+
 func (e *contentTypeNotFoundError) Error() string {
-	return "The 'Content-Type' was not found in request context"
+	return contentTypeNotFoundErrorMessage
 }
 
 // GetContentType returns the content type if found in
@@ -57,8 +59,10 @@ func WithConverter(r *http.Request, converter *converter.Converter) *http.Reques
 
 type converterNotFoundError struct{}
 
+const converterNotFoundErrorMessage = "The converter was not found in request context"
+
 func (e *converterNotFoundError) Error() string {
-	return "The converter was not found in request context"
+	return converterNotFoundErrorMessage
 }
 
 // GetConverter returns the converter if found in
@@ -84,8 +88,10 @@ func WithResultFilePath(r *http.Request, resultFilePath string) *http.Request {
 
 type resultFilePathNotFoundError struct{}
 
+const resultFilePathNotFoundErrorMessage = "The result file path was not found in request context"
+
 func (e *resultFilePathNotFoundError) Error() string {
-	return "The result file path was not found in request context"
+	return resultFilePathNotFoundErrorMessage
 }
 
 // GetResultFilePath returns the result file path if found in
