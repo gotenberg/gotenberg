@@ -105,7 +105,7 @@ func TestRun(t *testing.T) {
 	}
 
 	// case 2: uses a simple command but with an unsuitable timeout.
-	if err := run("echo Hello world", 0); err == nil {
+	if err := run("sleep 5", 0); err == nil {
 		t.Error("Command should not have worked!")
 	}
 

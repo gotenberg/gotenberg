@@ -128,6 +128,7 @@ func clearHandler(w http.ResponseWriter, r *http.Request) {
 	c, err := context.GetConverter(r)
 	if err != nil {
 		logger.Warn(err.Error())
+		return
 	}
 
 	if err := c.Clear(); err != nil {
