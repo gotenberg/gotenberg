@@ -13,6 +13,9 @@
     <a href="https://goreportcard.com/report/thecodingmachine/gotenberg">
         <img src="https://goreportcard.com/badge/github.com/thecodingmachine/gotenberg" alt="Go Report Card">
     </a>
+    <a href="https://codecov.io/gh/thecodingmachine/gotenberg/branch/{{ .Orbit.Branch }}">
+        <img src="https://codecov.io/gh/thecodingmachine/gotenberg/branch/{{ .Orbit.Branch }}/graph/badge.svg" alt="Codecov">
+    </a>
 </p>
 
 ---
