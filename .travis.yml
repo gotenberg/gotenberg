@@ -7,8 +7,7 @@ services:
 
 before_install:
   - wget -qO- https://github.com/gulien/orbit/releases/download/v3.0.0/orbit_Linux_x86_64.tar.gz | tar xvz -C .
-  - mv ./orbit /usr/local/bin 
-  - chmod +x /usr/local/bin/orbit
+  - sudo mv ./orbit /usr/local/bin && chmod +x /usr/local/bin/orbit
 
 script:
   - orbit run tests -p "Version,${TRAVIS_BRANCH}"
