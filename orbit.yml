@@ -9,6 +9,8 @@ tasks:
     short: Generates all files from blueprints
     run:
       - BRANCH="$(git symbolic-ref --short HEAD)"; orbit generate -f _blueprints/README.blueprint.md -o README.md -p "Branch,${BRANCH}"
+      - orbit generate -f _blueprints/Dockerfile.blueprint -o Dockerfile.tests -p "Image,TESTS"
+      - orbit generate -f _blueprints/Dockerfile.blueprint -o Dockerfile -p "Image,BUILD"
 
   - use: tests
     short: Runs tests inside a container
