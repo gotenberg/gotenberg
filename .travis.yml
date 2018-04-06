@@ -1,0 +1,16 @@
+sudo: required
+
+language: generic
+
+services:
+  - docker
+
+before_install:
+  - wget -qO- https://github.com/gulien/orbit/releases/download/v3.0.0/orbit_Linux_x86_64.tar.gz | tar xvz -C .
+  - mv ./orbit /usr/local/bin 
+  - chmod +x /usr/local/bin/orbit
+
+script:
+  - orbit run tests -p "Version,${TRAVIS_BRANCH}"
+  # Uploads coverage and push to Docker hub only if not in a pull request and the branch name matches the semver format.
+  - if [[ "$TRAVIS_PULL_REQUEST" = false && "$TRAVIS_BRANCH" =~ ^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$ ]]; then bash <(curl -s https://codecov.io/bash); fi
