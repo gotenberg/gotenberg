@@ -11,18 +11,18 @@ if [[ "$VERSION" == "snapshot" ]]; then
         go test -race -cover $d;
     done
 else
-    echo "" > ./_ci/coverage.txt;
+    echo "" > ./.ci/coverage.txt;
     for d in $(go list ./... | grep -v vendor); do
         go test -race -coverprofile=profile.out -covermode=atomic $d;
         if [ -f profile.out ]; then
-            cat profile.out >> ./_ci/coverage.txt;
+            cat profile.out >> ./.ci/coverage.txt;
             rm profile.out;
         fi
     done
 fi
 
 # Builds the Linux binary.
-env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-X main.version=${VERSION}" && mv gotenberg _build/;
+env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-X main.version=${VERSION}" && mv gotenberg .build/;
 
 # Bye!
 exit 0;

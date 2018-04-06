@@ -36,4 +36,4 @@ COPY . .
 # Installs project dependencies.
 RUN go get -d -v ./...
 
-ENTRYPOINT ["_ci/docker-entrypoint.sh"]
+ENTRYPOINT [".ci/docker-entrypoint.sh"]

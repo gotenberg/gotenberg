@@ -24,11 +24,11 @@ RUN echo "deb http://httpredir.debian.org/debian/ stretch main contrib non-free"
 # | All Gotenberg related stuff.
 # |
 
-COPY _build/gotenberg /usr/bin/gotenberg
+COPY .build/gotenberg /usr/bin/gotenberg
 RUN ln -s /usr/bin/gotenberg /usr/local/bin/gotenberg
 
 WORKDIR /gotenberg
-COPY gotenberg.yml /gotenberg/gotenberg.yml
+COPY .build/gotenberg.yml /gotenberg/gotenberg.yml
 
 EXPOSE 3000
 CMD ["gotenberg"]

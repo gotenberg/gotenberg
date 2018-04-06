@@ -8,15 +8,15 @@ tasks:
   - use: generate
     short: Generates all files from blueprints
     run:
-      - BRANCH="$(git symbolic-ref --short HEAD)"; orbit generate -f _blueprints/README.blueprint.md -o README.md -p "Branch,${BRANCH}"
-      - orbit generate -f _blueprints/Dockerfile.blueprint -o Dockerfile.ci -p "Image,CI"
-      - orbit generate -f _blueprints/Dockerfile.blueprint -o Dockerfile -p "Image,MAIN"
+      - BRANCH="$(git symbolic-ref --short HEAD)"; orbit generate -f .blueprints/README.blueprint.md -o README.md -p "Branch,${BRANCH}"
+      - orbit generate -f .blueprints/Dockerfile.blueprint -o Dockerfile.ci -p "Image,CI"
+      - orbit generate -f .blueprints/Dockerfile.blueprint -o Dockerfile -p "Image,MAIN"
 
   - use: ci
     short: Runs CI process inside a container
     run:
       - docker build -t gotenberg:ci -f Dockerfile.ci .
-      - docker run --rm -e "VERSION={{ .Orbit.Version }}" -v "$(pwd)/_ci:/go/src/github.com/thecodingmachine/gotenberg/_ci" -v "$(pwd)/_build:/go/src/github.com/thecodingmachine/gotenberg/_build" gotenberg:ci
+      - docker run --rm -e "VERSION={{ .Orbit.Version }}" -v "$(pwd)/.ci:/go/src/github.com/thecodingmachine/gotenberg/.ci" -v "$(pwd)/.build:/go/src/github.com/thecodingmachine/gotenberg/.build" gotenberg:ci
 
   - use: build
     short: Builds the main Docker image

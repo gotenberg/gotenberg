@@ -38,14 +38,14 @@ COPY . .
 # Installs project dependencies.
 RUN go get -d -v ./...
 
-ENTRYPOINT ["_ci/docker-entrypoint.sh"]
+ENTRYPOINT [".ci/docker-entrypoint.sh"]
 {{- else }}
 
-COPY _build/gotenberg /usr/bin/gotenberg
+COPY .build/gotenberg /usr/bin/gotenberg
 RUN ln -s /usr/bin/gotenberg /usr/local/bin/gotenberg
 
 WORKDIR /gotenberg
-COPY gotenberg.yml /gotenberg/gotenberg.yml
+COPY .build/gotenberg.yml /gotenberg/gotenberg.yml
 
 EXPOSE 3000
 CMD ["gotenberg"]
