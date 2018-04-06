@@ -5,7 +5,7 @@
 <p align="center">A stateless API for converting HTML files and Office documents to PDF.</p>
 <p align="center">
     <a href="https://microbadger.com/images/thecodingmachine/gotenberg:1.0.0">
-        <img src="https://images.microbadger.com/badges/image/thecodingmachine/gotenberg:1.0.0.svg1.0.0" alt="MicroBadger">
+        <img src="https://images.microbadger.com/badges/image/thecodingmachine/gotenberg:1.0.0.svg" alt="MicroBadger">
     </a>
     <a href="https://travis-ci.org/thecodingmachine/gotenberg">
         <img src="https://travis-ci.org/thecodingmachine/docker-images-php.svg?branch=1.0.0" alt="Travis CI">
