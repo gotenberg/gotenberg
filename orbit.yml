@@ -21,7 +21,7 @@ tasks:
   - use: build
     short: Builds the main Docker image
     run:
-      - docker build . -t gotenberg:{{ .Orbit.Version }}
+      - docker build . -t thecodingmachine/gotenberg:{{ .Orbit.Version }}
 
   - use: up
     short: Starts the {{ .Orbit.Version }} version of the Gotenberg image
