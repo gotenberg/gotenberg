@@ -11,5 +11,7 @@ before_install:
 
 script:
   - orbit run tests -p "Version,${TRAVIS_BRANCH}"
-  # Uploads coverage and push to Docker hub only if not in a pull request and the branch name matches the semver format.
-  - if [[ "$TRAVIS_PULL_REQUEST" = false && "$TRAVIS_BRANCH" =~ ^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$ ]]; then bash <(curl -s https://codecov.io/bash); fi
+  # Uploads coverage.
+  - bash <(curl -s https://codecov.io/bash)
+  # Let's push to Docker hub only if not in a pull request and the branch name matches the semver format.
+  #- if [[ "$TRAVIS_PULL_REQUEST" = false && "$TRAVIS_BRANCH" =~ ^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$ ]]; then ; fi
