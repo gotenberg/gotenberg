@@ -5,13 +5,19 @@ language: generic
 services:
   - docker
 
+env:
+  global:
+  - secure: ClsghGGhXXVK3pzy338YXGMz/h3TrfXlpTGrZTqWpNdNT4HDsqR5Hjd1nrYeAuA3Hf0o9cDUYaUdBkZx0GBorC81XNowpbFRMyVzPtniZazB1fDpI29AjTMNC73tPF0ANwo2rrmoIx0ca/vIkJuQk1fn7gfKbdVVlZEsD86buJ3W7f7Y3AA6rWVH1R01iwzoLqLv4UCELLNlHS52JHvPqe8cYuMaFhivm3qUGC/m9R/uG31OW+k9fJ4i/rJGgJlkP1eUI0l1bxKnePR0dccbRCv11k4iXFyoV4yvzxi1aO/S/gOnye8RzaSfXvYuKKN4Ge6pN7VO8nVlt3SfZDMgSVyGiOh2AJEjAoc+Itz48dHH4D8NfvbDi4EphftHxM5qqc1T8WKEkoXoBynJJydTlDdkb4dr3geCwo2ps38YnQ0y/JxXFigRzWRF8V3CiZ5bgRXCQiIWD37TmoFv8JYPWGpD8Xs7DJLiDOUEVvARmaeqptW73RxXUfTnd+KD6G0WBcz4tYVSauXyHlOpKPxV0k/+yG5G2ikSvkkf/2Mafut4+5Gy9TMYUXw6C2i2+eGXTpFDDQsoDbZ4dRqrVzrunaXNm3DbPyiE38BCVXwYmz6EQUDoKKlV7d3+Zr/5Kfw8hbXvflGSTQt87M4WDh0FbLhAm2cGPoP5PDzF8lm+txc=
+  - secure: JssDXVzbu3gScW92+C/ZdSDODXV79PDx4IekkCYH6+OFPNLJSF9n14js6LtMJurKZp7F7VpqUO4gNyQ9y4HVRQJPhB7nzOy2SH77AWcwK2tmTGVB7MBK19E/d8xLBuDQWziVBIOCjW5gHpffBhT0SgBeZ5kxy15hVCZrce65bxlycGd+5DRGSd4zz6u+eGIc+eKWYgTSbfKRmWRC4QQVi87wiR9Efp7ywTEjKutMg9zFXTvPNoeaUbQJQgx2ZeGOY/THB0jXL9jkYgnvDq5sowDaSjd7DTEAWy5PdKh0zCIv8lLrO+mWiVOzGpKwRwVatPHsfzbuvl51ZIp6XvphURRpgu/+1x+Spm/Y+twzXzzeJenIJsJdPFZ4j5g34NsVHc+RnjIhB51g/+VPpW/Rid1+tWYp9v+QtUxMq7p7ZStwE/17Bi9+wVbACvUuHlyenr+hEXr2JCmv0Jj7F0P5+GgLSE3h3yitgUU+nJ6qwdmGzyZ3WQp8KklyumhbfOLIMvJ811Ayp8aV12dcp+hGIl5D7XSHdwZ4PK4wnB3oJiPaBB/HGS6/Tcav+cN8E39f6DjISlPHGXidfxQl3XuMOBOi6U6/eInWCRD1hTqzRtJMieboz8OOh9KcUQq8XhoqTbh2zCKRY+wgoOqLzHs9Dbd1cJAu0CvDX6jIuR3FqUA=
+
 before_install:
   - wget -qO- https://github.com/gulien/orbit/releases/download/v3.0.0/orbit_Linux_x86_64.tar.gz | tar xvz -C .
   - sudo mv ./orbit /usr/local/bin && chmod +x /usr/local/bin/orbit
 
 script:
-  - orbit run tests -p "Version,${TRAVIS_BRANCH}"
+  - orbit run ci -p "Version,${TRAVIS_BRANCH}"
+  - orbit run build -p "Version,${TRAVIS_BRANCH}"
   # Uploads coverage.
   - bash <(curl -s https://codecov.io/bash)
   # Let's push to Docker hub only if not in a pull request and the branch name matches the semver format.
-  #- if [[ "$TRAVIS_PULL_REQUEST" = false && "$TRAVIS_BRANCH" =~ ^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$ ]]; then ; fi
+  - if [[ "$TRAVIS_PULL_REQUEST" = false && "$TRAVIS_BRANCH" =~ ^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$ ]]; then docker login -u $DOCKER_USER -p $DOCKER_PASS && docker push thecodingmachine/gotenberg:${TRAVIS_BRANCH}; fi
