@@ -7,7 +7,7 @@
     <a href="https://godoc.org/github.com/thecodingmachine/gotenberg">
         <img src="https://godoc.org/github.com/thecodingmachine/gotenberg?status.svg" alt="GoDoc">
     </a>
-    <a href="https://goreportcard.com/report/gulien/gotenberg">
+    <a href="https://goreportcard.com/report/thecodingmachine/gotenberg">
         <img src="https://goreportcard.com/badge/github.com/thecodingmachine/gotenberg" alt="Go Report Card">
     </a>
 </p>
