@@ -22,3 +22,28 @@
 </p>
 
 ---
+
+# Menu
+
+* [Quick start](#quick-start)
+* [API](#api)
+* [Custom implementation](#custom-implementation)
+* [Scalability](#scalability)
+
+## Quick start
+
+```sh
+$ docker run --rm -p 3000:3000 thecodingmachine/gotenberg:{{ .Orbit.Branch }}
+```
+
+The API is now available through `http://127.0.0.1:3000`.
+
+## API
+
+## Custom implementation
+
+## Scalability
+
+---
+
+Would you like to update this documentation ? Feel free to open an [issue](../../issues).
