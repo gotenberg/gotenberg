@@ -25,8 +25,15 @@ RUN echo "deb http://httpredir.debian.org/debian/ stretch main contrib non-free"
 # |
 
 WORKDIR /go/src/github.com/gulien/gotenberg
+
+# Installs lint dependencies.
+RUN go get -u gopkg.in/alecthomas/gometalinter.v2 &&\
+    gometalinter.v2 --install
+
+# Copies our Go source.
 COPY . .
 
+# Installs project dependencies.
 RUN go get -d -v ./...
 
-CMD ["go", "test", "-race", "-cover", "./..."]
+ENTRYPOINT ["_ci/docker-entrypoint.sh"]
