@@ -9,7 +9,7 @@ tasks:
     short: Runs tests inside a container
     run:
       - docker build -t gotenberg:tests -f Dockerfile.tests .
-      - docker run --rm -e "VERSION={{ .Orbit.Version }}" -v "$(pwd)/_ci:/go/src/github.com/gulien/gotenberg/_ci" gotenberg:tests
+      - docker run --rm -e "VERSION={{ .Orbit.Version }}" -v "$(pwd)/_ci:/go/src/github.com/thecodingmachine/gotenberg/_ci" gotenberg:tests
 
   - use: build
     short: Builds a Linux binary and the Docker image

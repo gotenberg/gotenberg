@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/gulien/gotenberg/app/context"
-	"github.com/gulien/gotenberg/app/converter"
-	ghttp "github.com/gulien/gotenberg/app/http"
-	"github.com/gulien/gotenberg/app/logger"
+	"github.com/thecodingmachine/gotenberg/app/context"
+	"github.com/thecodingmachine/gotenberg/app/converter"
+	ghttp "github.com/thecodingmachine/gotenberg/app/http"
+	"github.com/thecodingmachine/gotenberg/app/logger"
 
 	"github.com/justinas/alice"
 )

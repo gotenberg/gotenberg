@@ -4,11 +4,11 @@
 <h3 align="center">Gotenberg</h3>
 <p align="center">A stateless API for converting HTML files and Office documents to PDF.</p>
 <p align="center">
-    <a href="https://godoc.org/github.com/gulien/gotenberg">
-        <img src="https://godoc.org/github.com/gulien/gotenberg?status.svg" alt="GoDoc">
+    <a href="https://godoc.org/github.com/thecodingmachine/gotenberg">
+        <img src="https://godoc.org/github.com/thecodingmachine/gotenberg?status.svg" alt="GoDoc">
     </a>
     <a href="https://goreportcard.com/report/gulien/gotenberg">
-        <img src="https://goreportcard.com/badge/github.com/gulien/gotenberg" alt="Go Report Card">
+        <img src="https://goreportcard.com/badge/github.com/thecodingmachine/gotenberg" alt="Go Report Card">
     </a>
 </p>
 

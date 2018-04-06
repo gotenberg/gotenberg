@@ -5,8 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gulien/gotenberg/app/converter"
-	ghttp "github.com/gulien/gotenberg/app/http"
+	"github.com/thecodingmachine/gotenberg/app/converter"
+	ghttp "github.com/thecodingmachine/gotenberg/app/http"
 )
 
 func TestWithContentType(t *testing.T) {

@@ -24,7 +24,7 @@ RUN echo "deb http://httpredir.debian.org/debian/ stretch main contrib non-free"
 # | All Gotenberg related stuff.
 # |
 
-WORKDIR /go/src/github.com/gulien/gotenberg
+WORKDIR /go/src/github.com/thecodingmachine/gotenberg
 
 # Installs lint dependencies.
 RUN go get -u gopkg.in/alecthomas/gometalinter.v2 &&\

@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"os"
 
-	gfile "github.com/gulien/gotenberg/app/converter/file"
-	"github.com/gulien/gotenberg/app/converter/process"
-	ghttp "github.com/gulien/gotenberg/app/http"
+	gfile "github.com/thecodingmachine/gotenberg/app/converter/file"
+	"github.com/thecodingmachine/gotenberg/app/converter/process"
+	ghttp "github.com/thecodingmachine/gotenberg/app/http"
 
 	"github.com/satori/go.uuid"
 )

@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gulien/gotenberg/app/config"
-	gfile "github.com/gulien/gotenberg/app/converter/file"
+	"github.com/thecodingmachine/gotenberg/app/config"
+	gfile "github.com/thecodingmachine/gotenberg/app/converter/file"
 )
 
 func TestLoad(t *testing.T) {

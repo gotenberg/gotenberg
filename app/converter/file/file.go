@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	ghttp "github.com/gulien/gotenberg/app/http"
+	ghttp "github.com/thecodingmachine/gotenberg/app/http"
 
 	"github.com/satori/go.uuid"
 )

@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gulien/gotenberg/app/config"
-	"github.com/gulien/gotenberg/app/converter/process"
-	ghttp "github.com/gulien/gotenberg/app/http"
+	"github.com/thecodingmachine/gotenberg/app/config"
+	"github.com/thecodingmachine/gotenberg/app/converter/process"
+	ghttp "github.com/thecodingmachine/gotenberg/app/http"
 )
 
 func makeRequest(filesPaths ...string) *http.Request {
