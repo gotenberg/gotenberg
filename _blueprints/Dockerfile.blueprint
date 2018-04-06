@@ -1,4 +1,4 @@
-FROM {{ if eq "TESTS" .Orbit.Image }}golang:1.10-stretch{{ else }}debian:stretch-slim{{ end }}
+FROM {{ if eq "CI" .Orbit.Image }}golang:1.10-stretch{{ else }}debian:stretch-slim{{ end }}
 
 LABEL authors="Julien Neuhart <j.neuhart@thecodingmachine.com>"
 
@@ -24,7 +24,7 @@ RUN echo "deb http://httpredir.debian.org/debian/ stretch main contrib non-free"
 # | All Gotenberg related stuff.
 # |
 
-{{- if eq "TESTS" .Orbit.Image }}
+{{- if eq "CI" .Orbit.Image }}
 
 WORKDIR /go/src/github.com/thecodingmachine/gotenberg
 
@@ -41,7 +41,7 @@ RUN go get -d -v ./...
 ENTRYPOINT ["_ci/docker-entrypoint.sh"]
 {{- else }}
 
-COPY gotenberg /usr/bin/gotenberg
+COPY _build/gotenberg /usr/bin/gotenberg
 RUN ln -s /usr/bin/gotenberg /usr/local/bin/gotenberg
 
 WORKDIR /gotenberg
