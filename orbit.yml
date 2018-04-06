@@ -5,6 +5,11 @@ tasks:
     run:
       - go fmt ./...
 
+  - use: generate
+    short: Generates all files from blueprints
+    run:
+      - BRANCH="$(git symbolic-ref --short HEAD)"; orbit generate -f _blueprints/README.blueprint.md -o README.md -p "Branch,${BRANCH}"
+
   - use: tests
     short: Runs tests inside a container
     run:

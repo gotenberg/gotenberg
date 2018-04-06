@@ -5,7 +5,7 @@
 <p align="center">A stateless API for converting HTML files and Office documents to PDF.</p>
 <p align="center">
     <a href="https://travis-ci.org/thecodingmachine/gotenberg">
-        <img src="https://travis-ci.org/thecodingmachine/docker-images-php.svg?branch=1.0.0" alt="Travis CI">
+        <img src="https://travis-ci.org/thecodingmachine/docker-images-php.svg?branch={{ .Orbit.Branch }}" alt="Travis CI">
     </a>
     <a href="https://godoc.org/github.com/thecodingmachine/gotenberg">
         <img src="https://godoc.org/github.com/thecodingmachine/gotenberg?status.svg" alt="GoDoc">
