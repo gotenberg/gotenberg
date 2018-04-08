@@ -9,7 +9,6 @@ import (
 
 	gfile "github.com/thecodingmachine/gotenberg/app/converter/file"
 	"github.com/thecodingmachine/gotenberg/app/converter/process"
-	ghttp "github.com/thecodingmachine/gotenberg/app/http"
 
 	"github.com/satori/go.uuid"
 )
@@ -21,7 +20,7 @@ type Converter struct {
 }
 
 // NewConverter instantiates a converter by parsing a request.
-func NewConverter(r *http.Request, contentType ghttp.ContentType) (*Converter, error) {
+func NewConverter(r *http.Request) (*Converter, error) {
 	c := &Converter{
 		workingDir: fmt.Sprintf("./%s/", uuid.NewV4().String()),
 	}
@@ -30,33 +29,23 @@ func NewConverter(r *http.Request, contentType ghttp.ContentType) (*Converter, e
 		return nil, err
 	}
 
-	switch contentType {
-	case ghttp.MultipartFormDataContentType:
-		reader, err := r.MultipartReader()
-		if err != nil {
-			return nil, err
+	reader, err := r.MultipartReader()
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		part, err := reader.NextPart()
+		if err == io.EOF {
+			break
 		}
 
-		for {
-			part, err := reader.NextPart()
-			if err == io.EOF {
-				break
-			}
-
-			if part.FileName() == "" {
-				continue
-			}
-
-			f, err := gfile.NewFile(c.workingDir, part)
-			if err != nil {
-				return nil, err
-			}
-
-			c.files = append(c.files, f)
+		fileName := part.FileName()
+		if fileName == "" {
+			continue
 		}
-		break
-	default:
-		f, err := gfile.NewFile(c.workingDir, r.Body)
+
+		f, err := gfile.NewFile(c.workingDir, part, fileName)
 		if err != nil {
 			return nil, err
 		}

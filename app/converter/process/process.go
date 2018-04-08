@@ -3,7 +3,6 @@ package process
 
 import (
 	"bytes"
-	"fmt"
 	"os/exec"
 	"text/template"
 	"time"
@@ -37,7 +36,7 @@ func (e *impossibleConversionError) Error() string {
 func Unconv(workingDir string, file *gfile.File) (string, error) {
 	cmdData := &conversionData{
 		FilePath:       file.Path,
-		ResultFilePath: fmt.Sprintf("%s%s", gfile.MakeFilePath(workingDir), gfile.PDFExt),
+		ResultFilePath: gfile.MakeFilePath(workingDir, ".pdf"),
 	}
 
 	var (
@@ -81,7 +80,7 @@ type mergeData struct {
 func Merge(workingDir string, filesPaths []string) (string, error) {
 	cmdData := &mergeData{
 		FilesPaths:     filesPaths,
-		ResultFilePath: fmt.Sprintf("%s%s", gfile.MakeFilePath(workingDir), gfile.PDFExt),
+		ResultFilePath: gfile.MakeFilePath(workingDir, ".pdf"),
 	}
 
 	cmdTemplate := commandsConfig.Merge.Template
@@ -127,7 +126,6 @@ func run(command string, timeout int) error {
 		if err := cmd.Process.Kill(); err != nil {
 			return err
 		}
-
 		return &commandTimeoutError{}
 	case err := <-done:
 		if err != nil {

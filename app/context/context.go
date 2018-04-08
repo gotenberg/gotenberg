@@ -7,45 +7,14 @@ import (
 	"net/http"
 
 	"github.com/thecodingmachine/gotenberg/app/converter"
-	ghttp "github.com/thecodingmachine/gotenberg/app/http"
 )
 
 type key uint32
 
 const (
-	contentTypeKey key = iota
-	converterKey
+	converterKey key = iota
 	resultFilePathKey
 )
-
-// WithContentType populates a request's context with the given content type
-// and returns the updated request.
-func WithContentType(r *http.Request, contentType ghttp.ContentType) *http.Request {
-	ctx := r.Context()
-	ctx = context.WithValue(ctx, contentTypeKey, contentType)
-	r = r.WithContext(ctx)
-
-	return r
-}
-
-type contentTypeNotFoundError struct{}
-
-const contentTypeNotFoundErrorMessage = "The 'Content-Type' was not found in request context"
-
-func (e *contentTypeNotFoundError) Error() string {
-	return contentTypeNotFoundErrorMessage
-}
-
-// GetContentType returns the content type if found in
-// the request's context. Otherwise throws an error.
-func GetContentType(r *http.Request) (ghttp.ContentType, error) {
-	ct, ok := r.Context().Value(contentTypeKey).(ghttp.ContentType)
-	if !ok {
-		return "", &contentTypeNotFoundError{}
-	}
-
-	return ct, nil
-}
 
 // WithConverter populates a request's context with the given converter
 // and returns the updated request.

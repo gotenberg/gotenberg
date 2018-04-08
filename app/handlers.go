@@ -42,17 +42,14 @@ func enforceContentLengthHandler(next http.Handler) http.Handler {
 }
 
 // enforceContentTypeHandler checks if the "Content-Type" entry
-// from the request's header matches one of the allowed content types.
+// from the request's header matches the allowed content type.
 func enforceContentTypeHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ct, err := ghttp.FindAuthorizedContentType(r.Header)
-		if err != nil {
+		if err := ghttp.CheckAuthorizedContentType(r.Header); err != nil {
 			http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
 			logger.Error(err)
 			return
 		}
-
-		r = context.WithContentType(r, ct)
 
 		next.ServeHTTP(w, r)
 	})
@@ -61,14 +58,7 @@ func enforceContentTypeHandler(next http.Handler) http.Handler {
 // convertHandler is in charge of converting the file(s) from the request to PDF.
 func convertHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ct, err := context.GetContentType(r)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			logger.Error(err)
-			return
-		}
-
-		c, err := converter.NewConverter(r, ct)
+		c, err := converter.NewConverter(r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			logger.Error(err)

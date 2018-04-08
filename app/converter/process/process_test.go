@@ -1,6 +1,7 @@
 package process
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -8,6 +9,18 @@ import (
 	"github.com/thecodingmachine/gotenberg/app/config"
 	gfile "github.com/thecodingmachine/gotenberg/app/converter/file"
 )
+
+func makeFile(workingDir string, fileName string) *gfile.File {
+	filePath := fmt.Sprintf("%s%s", "../../../_tests/", fileName)
+	absPath, _ := filepath.Abs(filePath)
+
+	r, _ := os.Open(absPath)
+	defer r.Close()
+
+	f, _ := gfile.NewFile(workingDir, r, fileName)
+
+	return f
+}
 
 func TestLoad(t *testing.T) {
 	path, _ := filepath.Abs("../../../_tests/configurations/gotenberg.yml")
@@ -28,29 +41,17 @@ func TestUnconv(t *testing.T) {
 	os.Mkdir(workingDir, 0666)
 
 	// case 1: uses an HTML file type.
-	path, _ = filepath.Abs("../../../_tests/file.html")
-	r, _ := os.Open(path)
-	defer r.Close()
-	f, _ := gfile.NewFile(workingDir, r)
-	if _, err := Unconv(workingDir, f); err != nil {
+	if _, err := Unconv(workingDir, makeFile(workingDir, "file.html")); err != nil {
 		t.Error("HTML conversion to PDF should have worked!")
 	}
 
 	// case 2: uses an Office file type.
-	path, _ = filepath.Abs("../../../_tests/file.docx")
-	r, _ = os.Open(path)
-	defer r.Close()
-	f, _ = gfile.NewFile(workingDir, r)
-	if _, err := Unconv(workingDir, f); err != nil {
+	if _, err := Unconv(workingDir, makeFile(workingDir, "file.docx")); err != nil {
 		t.Error("Office conversion to PDF should have worked!")
 	}
 
 	// case 3: uses a PDF file type.
-	path, _ = filepath.Abs("../../../_tests/file.pdf")
-	r, _ = os.Open(path)
-	defer r.Close()
-	f, _ = gfile.NewFile(workingDir, r)
-	if _, err := Unconv(workingDir, f); err == nil {
+	if _, err := Unconv(workingDir, makeFile(workingDir, "file.pdf")); err == nil {
 		t.Error("PDF conversion to PDF should not have worked!")
 	}
 
@@ -58,11 +59,7 @@ func TestUnconv(t *testing.T) {
 	path, _ = filepath.Abs("../../../_tests/configurations/timeout-gotenberg.yml")
 	c, _ = config.NewAppConfig(path)
 	Load(c.CommandsConfig)
-	path, _ = filepath.Abs("../../../_tests/file.docx")
-	r, _ = os.Open(path)
-	defer r.Close()
-	f, _ = gfile.NewFile(workingDir, r)
-	if _, err := Unconv(workingDir, f); err == nil {
+	if _, err := Unconv(workingDir, makeFile(workingDir, "file.docx")); err == nil {
 		t.Error("Office conversion to PDF should have reached timeout!")
 	}
 

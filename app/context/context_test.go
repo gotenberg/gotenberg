@@ -6,30 +6,7 @@ import (
 	"testing"
 
 	"github.com/thecodingmachine/gotenberg/app/converter"
-	ghttp "github.com/thecodingmachine/gotenberg/app/http"
 )
-
-func TestWithContentType(t *testing.T) {
-	req := WithContentType(httptest.NewRequest(http.MethodPost, "/", nil), ghttp.MultipartFormDataContentType)
-	if ct, _ := req.Context().Value(contentTypeKey).(ghttp.ContentType); ct != ghttp.MultipartFormDataContentType {
-		t.Errorf("Context returned a wrong content type: got %v want %v", ct, ghttp.MultipartFormDataContentType)
-	}
-}
-
-func TestGetContentType(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/", nil)
-
-	// case 1: uses a request without a content type entry in its context.
-	if _, err := GetContentType(req); err == nil {
-		t.Error("Context should not have a content type entry!")
-	}
-
-	// case 2: uses a request with a content type entry in its context.
-	req = WithContentType(req, ghttp.MultipartFormDataContentType)
-	if _, err := GetContentType(req); err != nil {
-		t.Error("Context should have a content type entry!")
-	}
-}
 
 func TestWithConverter(t *testing.T) {
 	req := WithConverter(httptest.NewRequest(http.MethodPost, "/", nil), &converter.Converter{})
@@ -53,14 +30,6 @@ func TestGetConverter(t *testing.T) {
 	}
 }
 
-func TestWithResultFilePath(t *testing.T) {
-	filePath := "file.pdf"
-	req := WithResultFilePath(httptest.NewRequest(http.MethodPost, "/", nil), filePath)
-	if path, _ := req.Context().Value(resultFilePathKey).(string); path != filePath {
-		t.Errorf("Context returned a wrong converter: got %s want %s", path, filePath)
-	}
-}
-
 func TestGetResultFilePath(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/", nil)
 
@@ -76,10 +45,11 @@ func TestGetResultFilePath(t *testing.T) {
 	}
 }
 
-func TestContentTypeNotFoundError(t *testing.T) {
-	err := &contentTypeNotFoundError{}
-	if err.Error() != contentTypeNotFoundErrorMessage {
-		t.Errorf("Error returned a wrong message: got %s want %s", err.Error(), contentTypeNotFoundErrorMessage)
+func TestWithResultFilePath(t *testing.T) {
+	filePath := "file.pdf"
+	req := WithResultFilePath(httptest.NewRequest(http.MethodPost, "/", nil), filePath)
+	if path, _ := req.Context().Value(resultFilePathKey).(string); path != filePath {
+		t.Errorf("Context returned a wrong converter: got %s want %s", path, filePath)
 	}
 }
 

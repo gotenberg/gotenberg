@@ -1,7 +1,6 @@
 package app
 
 import (
-	"bytes"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -24,19 +23,6 @@ func fakeSuccessHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func makeRequest(filesPaths ...string) *http.Request {
-	if len(filesPaths) == 0 {
-		req := httptest.NewRequest(http.MethodPost, "/", new(bytes.Buffer))
-		req.Header.Set("Content-Type", string(ghttp.OctetStreamContentType))
-		return req
-	}
-
-	if len(filesPaths) == 1 {
-		file, _ := os.Open(filesPaths[0])
-		req := httptest.NewRequest(http.MethodPost, "/", file)
-		req.Header.Set("Content-Type", string(ghttp.OctetStreamContentType))
-		return req
-	}
-
 	r, w := io.Pipe()
 	mpw := multipart.NewWriter(w)
 
@@ -86,7 +72,7 @@ func TestEnforceContentTypeHandler(t *testing.T) {
 
 	// case 1: sends a wrong content type.
 	req := httptest.NewRequest(http.MethodPost, "/", nil)
-	req.Header.Set("Content-Type", string(ghttp.PDFContentType))
+	req.Header.Set("Content-Type", "application/pdf")
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusUnsupportedMediaType {
@@ -95,7 +81,7 @@ func TestEnforceContentTypeHandler(t *testing.T) {
 
 	// case 2: sends a good content type.
 	req = httptest.NewRequest(http.MethodPost, "/", nil)
-	req.Header.Set("Content-Type", string(ghttp.OctetStreamContentType))
+	req.Header.Set("Content-Type", string(ghttp.MultipartFormDataContentType))
 	rr = httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusOK {
@@ -106,7 +92,7 @@ func TestEnforceContentTypeHandler(t *testing.T) {
 func TestConvertHandler(t *testing.T) {
 	h := alice.New(convertHandler).ThenFunc(fakeSuccessHandler)
 
-	// case 1: sends a request without a content type entry in its context.
+	// case 1: sends a request without body.
 	req := httptest.NewRequest(http.MethodPost, "/", nil)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
@@ -114,22 +100,14 @@ func TestConvertHandler(t *testing.T) {
 		t.Errorf("Handler returned a wrong status code: got %v want %v", status, http.StatusInternalServerError)
 	}
 
-	// case 2: sends a request without body.
-	req = context.WithContentType(httptest.NewRequest(http.MethodPost, "/", nil), ghttp.OctetStreamContentType)
-	rr = httptest.NewRecorder()
-	h.ServeHTTP(rr, req)
-	if status := rr.Code; status != http.StatusInternalServerError {
-		t.Errorf("Handler returned a wrong status code: got %v want %v", status, http.StatusInternalServerError)
-	}
-
-	// case 3: sends a request with two files and using an unsuitable timeout for merge commande.
+	// case 2: sends a request with two files and using an unsuitable timeout for merge commande.
 	path, _ := filepath.Abs("../_tests/configurations/merge-timeout-gotenberg.yml")
 	appConfig, _ := config.NewAppConfig(path)
 	process.Load(appConfig.CommandsConfig)
 
 	oPath, _ := filepath.Abs("../_tests/file.docx")
 	path, _ = filepath.Abs("../_tests/configurations/gotenberg.yml")
-	req = context.WithContentType(makeRequest(oPath, path), ghttp.MultipartFormDataContentType)
+	req = makeRequest(oPath, path)
 	rr = httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusInternalServerError {
@@ -143,7 +121,7 @@ func TestConvertHandler(t *testing.T) {
 
 	oPath, _ = filepath.Abs("../_tests/file.docx")
 	path, _ = filepath.Abs("../_tests/file.pdf")
-	req = context.WithContentType(makeRequest(oPath, path), ghttp.MultipartFormDataContentType)
+	req = makeRequest(oPath, path)
 	rr = httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusOK {
