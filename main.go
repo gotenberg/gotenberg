@@ -83,8 +83,8 @@ func main() {
 	// doesn't block if no connections, but will otherwise wait
 	// until the timeout deadline.
 	s.Shutdown(ctx)
-	logger.SetLevel(logrus.InfoLevel)
 
+	logger.SetLevel(logrus.InfoLevel)
 	logger.Info("Bye!")
 	os.Exit(0)
 }
