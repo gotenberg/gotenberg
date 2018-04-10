@@ -3,6 +3,9 @@ logs:
   level: "text"
   format: "text"
 commands:
+  markdown:
+    timeout: 30
+    template: "markdown-pdf {{ .FilePath }} -o {{ .ResultFilePath }}"
   html:
     timeout: 30
     template: "xvfb-run -e /dev/stdout wkhtmltopdf {{ .FilePath }} {{ .ResultFilePath }}"

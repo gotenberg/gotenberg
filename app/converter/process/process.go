@@ -3,6 +3,7 @@ package process
 
 import (
 	"bytes"
+	"fmt"
 	"os/exec"
 	"text/template"
 	"time"
@@ -45,6 +46,10 @@ func Unconv(workingDir string, file *gfile.File) (string, error) {
 	)
 
 	switch file.Type {
+	case gfile.MarkdownType:
+		cmdTemplate = commandsConfig.Markdown.Template
+		cmdTimeout = commandsConfig.Markdown.Timeout
+		break
 	case gfile.HTMLType:
 		cmdTemplate = commandsConfig.HTML.Template
 		cmdTimeout = commandsConfig.HTML.Timeout
@@ -99,12 +104,13 @@ func Merge(workingDir string, filesPaths []string) (string, error) {
 	return cmdData.ResultFilePath, nil
 }
 
-type commandTimeoutError struct{}
-
-const commandTimeoutErrorMessage = "The command has reached timeout"
+type commandTimeoutError struct {
+	command string
+	timeout int
+}
 
 func (e *commandTimeoutError) Error() string {
-	return commandTimeoutErrorMessage
+	return fmt.Sprintf("The command '%s' has reached the %d second(s) timeout", e.command, e.timeout)
 }
 
 // run runs the given command. If timeout is reached or
@@ -126,7 +132,10 @@ func run(command string, timeout int) error {
 		if err := cmd.Process.Kill(); err != nil {
 			return err
 		}
-		return &commandTimeoutError{}
+		return &commandTimeoutError{
+			command: command,
+			timeout: timeout,
+		}
 	case err := <-done:
 		if err != nil {
 			return err

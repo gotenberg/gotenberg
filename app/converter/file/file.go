@@ -25,6 +25,8 @@ type Type uint32
 const (
 	// PDFType represents a... PDF file.
 	PDFType Type = iota
+	// MarkdownType represents a... markdown file.
+	MarkdownType
 	// HTMLType represents an... HTML file.
 	HTMLType
 	// OfficeType represents an... Office document.
@@ -34,6 +36,7 @@ const (
 // filesTypes associates a file extension with its file kind counterpart.
 var filesTypes = map[string]Type{
 	".pdf":  PDFType,
+	".md":   MarkdownType,
 	".htm":  HTMLType,
 	".html": HTMLType,
 	".doc":  OfficeType,

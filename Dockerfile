@@ -38,8 +38,9 @@ RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - &&\
 COPY .ci/gotenberg /usr/bin/gotenberg
 RUN ln -s /usr/bin/gotenberg /usr/local/bin/gotenberg
 
-WORKDIR /gotenberg
 COPY .ci/gotenberg.yml /gotenberg/gotenberg.yml
+
+WORKDIR /gotenberg
 
 EXPOSE 3000
 CMD ["gotenberg"]

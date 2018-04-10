@@ -120,8 +120,14 @@ func TestImpossibleConversionError(t *testing.T) {
 }
 
 func TestCommandTimeoutError(t *testing.T) {
-	err := &commandTimeoutError{}
-	if err.Error() != commandTimeoutErrorMessage {
-		t.Errorf("Error returned a wrong message: got %s want %s", err.Error(), commandTimeoutErrorMessage)
+	err := &commandTimeoutError{
+		command: "echo hello",
+		timeout: 30,
+	}
+
+	expected := fmt.Sprintf("The command '%s' has reached the %d second(s) timeout", err.command, err.timeout)
+
+	if err.Error() != expected {
+		t.Errorf("Error returned a wrong message: got %s want %s", err.Error(), expected)
 	}
 }

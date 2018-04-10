@@ -33,6 +33,9 @@ type (
 	// CommandsConfig gathers all commands' configurations as defined
 	// by the user in the gotenberg.yml file.
 	CommandsConfig struct {
+		// Markdown is the command's configuration for converting
+		// an markdown file to PDF.
+		Markdown *CommandConfig
 		// HTML is the command's configuration for converting
 		// an HTML file to PDF.
 		HTML *CommandConfig
@@ -79,12 +82,19 @@ func NewAppConfig(configurationFilePath string) (*AppConfig, error) {
 	c.Logs.Formatter = formatter
 
 	c.CommandsConfig = &CommandsConfig{}
+	c.CommandsConfig.Markdown = &CommandConfig{}
 	c.CommandsConfig.HTML = &CommandConfig{}
 	c.CommandsConfig.Office = &CommandConfig{}
 	c.CommandsConfig.Merge = &CommandConfig{}
+	c.CommandsConfig.Markdown.Timeout = fileConfig.Commands.Markdown.Timeout
 	c.CommandsConfig.HTML.Timeout = fileConfig.Commands.HTML.Timeout
 	c.CommandsConfig.Office.Timeout = fileConfig.Commands.Office.Timeout
 	c.CommandsConfig.Merge.Timeout = fileConfig.Commands.Merge.Timeout
+
+	tmplMarkdown, err := getCommandTemplate(fileConfig.Commands.Markdown.Template, "Markdown")
+	if err != nil {
+		return nil, err
+	}
 
 	tmplHTML, err := getCommandTemplate(fileConfig.Commands.HTML.Template, "HTML")
 	if err != nil {
@@ -101,6 +111,7 @@ func NewAppConfig(configurationFilePath string) (*AppConfig, error) {
 		return nil, err
 	}
 
+	c.CommandsConfig.Markdown.Template = tmplMarkdown
 	c.CommandsConfig.HTML.Template = tmplHTML
 	c.CommandsConfig.Office.Template = tmplOffice
 	c.CommandsConfig.Merge.Template = tmplMerge
@@ -116,6 +127,10 @@ type fileConfig struct {
 		Format string `yaml:"format"`
 	} `yaml:"logs"`
 	Commands struct {
+		Markdown struct {
+			Timeout  int    `yaml:"timeout"`
+			Template string `yaml:"template"`
+		} `yaml:"markdown"`
 		HTML struct {
 			Timeout  int
 			Template string

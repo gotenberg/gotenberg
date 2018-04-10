@@ -29,25 +29,31 @@ func TestNewAppConfig(t *testing.T) {
 		t.Error("AppConfig should not have been instantiated!")
 	}
 
-	// case 5: uses a configuration file with a wrong HTML command template.
+	// case 5: uses a configuration file with a wrong markdown command template.
+	path, _ = filepath.Abs("../../_tests/configurations/wrong-markdown-command-template-gotenberg.yml")
+	if _, err := NewAppConfig(path); err == nil {
+		t.Error("AppConfig should not have been instantiated!")
+	}
+
+	// case 6: uses a configuration file with a wrong HTML command template.
 	path, _ = filepath.Abs("../../_tests/configurations/wrong-html-command-template-gotenberg.yml")
 	if _, err := NewAppConfig(path); err == nil {
 		t.Error("AppConfig should not have been instantiated!")
 	}
 
-	// case 6: uses a configuration file with a wrong Office command template.
+	// case 7: uses a configuration file with a wrong Office command template.
 	path, _ = filepath.Abs("../../_tests/configurations/wrong-office-command-template-gotenberg.yml")
 	if _, err := NewAppConfig(path); err == nil {
 		t.Error("AppConfig should not have been instantiated!")
 	}
 
-	// case 7: uses a configuration file with a wrong merge command template.
+	// case 8: uses a configuration file with a wrong merge command template.
 	path, _ = filepath.Abs("../../_tests/configurations/wrong-merge-command-template-gotenberg.yml")
 	if _, err := NewAppConfig(path); err == nil {
 		t.Error("AppConfig should not have been instantiated!")
 	}
 
-	// case 8: uses a correct configuration file.
+	// case 9: uses a correct configuration file.
 	path, _ = filepath.Abs("../../_tests/configurations/gotenberg.yml")
 	if _, err := NewAppConfig(path); err != nil {
 		t.Error("AppConfig should have been instantiated!")
