@@ -16,7 +16,7 @@ tasks:
     short: Runs CI process inside a container
     run:
       - docker build -t gotenberg:ci -f Dockerfile.ci .
-      - docker run --rm -e "VERSION={{ .Orbit.Version }}" -v "$(pwd)/.ci:/go/src/github.com/thecodingmachine/gotenberg/.ci" -v "$(pwd)/.build:/go/src/github.com/thecodingmachine/gotenberg/.build" gotenberg:ci
+      - docker run --rm -e "VERSION={{ .Orbit.Version }}" -v "$(pwd)/.ci:/go/src/github.com/thecodingmachine/gotenberg/.ci" gotenberg:ci
 
   - use: build
     short: Builds the main Docker image

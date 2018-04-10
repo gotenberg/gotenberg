@@ -17,6 +17,17 @@ RUN echo "deb http://httpredir.debian.org/debian/ stretch main contrib non-free"
     ln -s /usr/bin/pdftk /usr/local/bin/pdftk &&\
     ln -s /usr/bin/unoconv /usr/local/bin/unoconv
 
+RUN apt-get install -y curl gnupg &&\
+    curl -sL https://deb.nodesource.com/setup_8.x | bash - &&\
+    apt-get update &&\
+    apt-get install -y nodejs
+
+RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - &&\
+    echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list &&\
+    apt-get update &&\
+    apt-get install -y yarn bzip2 &&\
+    yarn global add markdown-pdf --prefix /usr/local
+
 # |--------------------------------------------------------------------------
 # | Gotenberg
 # |--------------------------------------------------------------------------
@@ -24,11 +35,11 @@ RUN echo "deb http://httpredir.debian.org/debian/ stretch main contrib non-free"
 # | All Gotenberg related stuff.
 # |
 
-COPY .build/gotenberg /usr/bin/gotenberg
+COPY .ci/gotenberg /usr/bin/gotenberg
 RUN ln -s /usr/bin/gotenberg /usr/local/bin/gotenberg
 
 WORKDIR /gotenberg
-COPY .build/gotenberg.yml /gotenberg/gotenberg.yml
+COPY .ci/gotenberg.yml /gotenberg/gotenberg.yml
 
 EXPOSE 3000
 CMD ["gotenberg"]

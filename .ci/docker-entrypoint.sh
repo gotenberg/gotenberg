@@ -22,7 +22,7 @@ else
 fi
 
 # Builds the Linux binary.
-env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-X main.version=${VERSION}" && mv gotenberg .build/;
+env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-X main.version=${VERSION}" && mv gotenberg .ci/;
 
 # Bye!
 exit 0;

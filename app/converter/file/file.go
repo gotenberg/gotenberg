@@ -34,6 +34,7 @@ const (
 // filesTypes associates a file extension with its file kind counterpart.
 var filesTypes = map[string]Type{
 	".pdf":  PDFType,
+	".htm":  HTMLType,
 	".html": HTMLType,
 	".doc":  OfficeType,
 	".docx": OfficeType,

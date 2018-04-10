@@ -114,11 +114,26 @@ func TestConvertHandler(t *testing.T) {
 		t.Errorf("Handler returned a wrong status code: got %v want %v", status, http.StatusInternalServerError)
 	}
 
-	// case 4: sends a request with two files.
+	// case 3: sends two requests (almost) simultany.
 	path, _ = filepath.Abs("../_tests/configurations/gotenberg.yml")
 	appConfig, _ = config.NewAppConfig(path)
 	process.Load(appConfig.CommandsConfig)
 
+	/*sum := 0
+	for sum < 2 {
+		go func() {
+			path, _ := filepath.Abs("../_tests/file.docx")
+			req := makeRequest(path)
+			rr := httptest.NewRecorder()
+			h.ServeHTTP(rr, req)
+			if status := rr.Code; status != http.StatusInternalServerError {
+				t.Errorf("Handler returned a wrong status code: got %v want %v", status, http.StatusInternalServerError)
+			}
+		}()
+		sum++
+	}*/
+
+	// case 4: sends a request with two files.
 	oPath, _ = filepath.Abs("../_tests/file.docx")
 	path, _ = filepath.Abs("../_tests/file.pdf")
 	req = makeRequest(oPath, path)
