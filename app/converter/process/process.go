@@ -41,22 +41,22 @@ func Unconv(workingDir string, file *gfile.File) (string, error) {
 	}
 
 	var (
-		cmdTemplate *template.Template
 		cmdTimeout  int
+		cmdTemplate *template.Template
 	)
 
 	switch file.Type {
 	case gfile.MarkdownType:
-		cmdTemplate = commandsConfig.Markdown.Template
 		cmdTimeout = commandsConfig.Markdown.Timeout
+		cmdTemplate = commandsConfig.Markdown.Template
 		break
 	case gfile.HTMLType:
-		cmdTemplate = commandsConfig.HTML.Template
 		cmdTimeout = commandsConfig.HTML.Timeout
+		cmdTemplate = commandsConfig.HTML.Template
 		break
 	case gfile.OfficeType:
-		cmdTemplate = commandsConfig.Office.Template
 		cmdTimeout = commandsConfig.Office.Timeout
+		cmdTemplate = commandsConfig.Office.Template
 		break
 	default:
 		return "", &impossibleConversionError{}
@@ -88,8 +88,8 @@ func Merge(workingDir string, filesPaths []string) (string, error) {
 		ResultFilePath: gfile.MakeFilePath(workingDir, ".pdf"),
 	}
 
-	cmdTemplate := commandsConfig.Merge.Template
 	cmdTimeout := commandsConfig.Merge.Timeout
+	cmdTemplate := commandsConfig.Merge.Template
 
 	var data bytes.Buffer
 	if err := cmdTemplate.Execute(&data, cmdData); err != nil {
