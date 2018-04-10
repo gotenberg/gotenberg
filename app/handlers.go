@@ -62,9 +62,10 @@ func convertHandler(next http.Handler) http.Handler {
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			logger.Error(err)
-			cleanup(r)
 			return
 		}
+
+		r = context.WithConverter(r, c)
 
 		path, err := c.Convert()
 		if err != nil {
@@ -74,7 +75,6 @@ func convertHandler(next http.Handler) http.Handler {
 			return
 		}
 
-		r = context.WithConverter(r, c)
 		r = context.WithResultFilePath(r, path)
 
 		next.ServeHTTP(w, r)
