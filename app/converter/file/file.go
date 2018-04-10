@@ -25,7 +25,7 @@ type Type uint32
 const (
 	// PDFType represents a... PDF file.
 	PDFType Type = iota
-	// MarkdownType represents a... markdown file.
+	// MarkdownType represents a... Markdown file.
 	MarkdownType
 	// HTMLType represents an... HTML file.
 	HTMLType

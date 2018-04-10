@@ -34,7 +34,7 @@ type (
 	// by the user in the gotenberg.yml file.
 	CommandsConfig struct {
 		// Markdown is the command's configuration for converting
-		// an markdown file to PDF.
+		// an Markdown file to PDF.
 		Markdown *CommandConfig
 		// HTML is the command's configuration for converting
 		// an HTML file to PDF.

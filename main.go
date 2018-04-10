@@ -1,7 +1,7 @@
 /*
 Package main handles the application startup and shutdown.
 
-Gotenberg is a stateless API for converting HTML files and Office documents to PDF.
+Gotenberg is a stateless API for converting Markdown files, HTML files and Office documents to PDF.
 
 For more information, go to https://github.com/thecodingmachine/gotenberg.
 */
