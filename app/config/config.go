@@ -68,53 +68,13 @@ func NewAppConfig(configurationFilePath string) (*AppConfig, error) {
 	c := &AppConfig{}
 	c.Port = fileConfig.Port
 
-	lvl, err := getLoggingLevelFromFileConfig(fileConfig)
-	if err != nil {
+	if err := makeLogs(c, fileConfig); err != nil {
 		return nil, err
 	}
 
-	formatter, err := getLoggingFormatterFromFileConfig(fileConfig)
-	if err != nil {
+	if err := makeCommandsConfig(c, fileConfig); err != nil {
 		return nil, err
 	}
-
-	c.Logs.Level = lvl
-	c.Logs.Formatter = formatter
-
-	c.CommandsConfig = &CommandsConfig{}
-	c.CommandsConfig.Markdown = &CommandConfig{}
-	c.CommandsConfig.HTML = &CommandConfig{}
-	c.CommandsConfig.Office = &CommandConfig{}
-	c.CommandsConfig.Merge = &CommandConfig{}
-	c.CommandsConfig.Markdown.Timeout = fileConfig.Commands.Markdown.Timeout
-	c.CommandsConfig.HTML.Timeout = fileConfig.Commands.HTML.Timeout
-	c.CommandsConfig.Office.Timeout = fileConfig.Commands.Office.Timeout
-	c.CommandsConfig.Merge.Timeout = fileConfig.Commands.Merge.Timeout
-
-	tmplMarkdown, err := getCommandTemplate(fileConfig.Commands.Markdown.Template, "Markdown")
-	if err != nil {
-		return nil, err
-	}
-
-	tmplHTML, err := getCommandTemplate(fileConfig.Commands.HTML.Template, "HTML")
-	if err != nil {
-		return nil, err
-	}
-
-	tmplOffice, err := getCommandTemplate(fileConfig.Commands.Office.Template, "Office")
-	if err != nil {
-		return nil, err
-	}
-
-	tmplMerge, err := getCommandTemplate(fileConfig.Commands.Merge.Template, "Merge")
-	if err != nil {
-		return nil, err
-	}
-
-	c.CommandsConfig.Markdown.Template = tmplMarkdown
-	c.CommandsConfig.HTML.Template = tmplHTML
-	c.CommandsConfig.Office.Template = tmplOffice
-	c.CommandsConfig.Merge.Template = tmplMerge
 
 	return c, nil
 }
@@ -161,6 +121,25 @@ func loadFileConfig(configurationFilePath string) (*fileConfig, error) {
 	}
 
 	return c, nil
+}
+
+// makeLogs is a simple wrapper which populates all data related
+// to application's logging.
+func makeLogs(appConfig *AppConfig, fileConfig *fileConfig) error {
+	lvl, err := getLoggingLevelFromFileConfig(fileConfig)
+	if err != nil {
+		return err
+	}
+
+	formatter, err := getLoggingFormatterFromFileConfig(fileConfig)
+	if err != nil {
+		return err
+	}
+
+	appConfig.Logs.Level = lvl
+	appConfig.Logs.Formatter = formatter
+
+	return nil
 }
 
 // levels associates logging levels as defined in the configuration file gotenberg.yml
@@ -219,6 +198,48 @@ func getLoggingFormatterFromFileConfig(c *fileConfig) (logrus.Formatter, error) 
 	}
 
 	return f, nil
+}
+
+// makeCommandsConfigs is a simple wrapper which populates all data related
+// to commands' configurations.
+func makeCommandsConfig(appConfig *AppConfig, fileConfig *fileConfig) error {
+	appConfig.CommandsConfig = &CommandsConfig{}
+	appConfig.CommandsConfig.Markdown = &CommandConfig{}
+	appConfig.CommandsConfig.HTML = &CommandConfig{}
+	appConfig.CommandsConfig.Office = &CommandConfig{}
+	appConfig.CommandsConfig.Merge = &CommandConfig{}
+
+	appConfig.CommandsConfig.Markdown.Timeout = fileConfig.Commands.Markdown.Timeout
+	appConfig.CommandsConfig.HTML.Timeout = fileConfig.Commands.HTML.Timeout
+	appConfig.CommandsConfig.Office.Timeout = fileConfig.Commands.Office.Timeout
+	appConfig.CommandsConfig.Merge.Timeout = fileConfig.Commands.Merge.Timeout
+
+	tmplMarkdown, err := getCommandTemplate(fileConfig.Commands.Markdown.Template, "Markdown")
+	if err != nil {
+		return err
+	}
+
+	tmplHTML, err := getCommandTemplate(fileConfig.Commands.HTML.Template, "HTML")
+	if err != nil {
+		return err
+	}
+
+	tmplOffice, err := getCommandTemplate(fileConfig.Commands.Office.Template, "Office")
+	if err != nil {
+		return err
+	}
+
+	tmplMerge, err := getCommandTemplate(fileConfig.Commands.Merge.Template, "Merge")
+	if err != nil {
+		return err
+	}
+
+	appConfig.CommandsConfig.Markdown.Template = tmplMarkdown
+	appConfig.CommandsConfig.HTML.Template = tmplHTML
+	appConfig.CommandsConfig.Office.Template = tmplOffice
+	appConfig.CommandsConfig.Merge.Template = tmplMerge
+
+	return nil
 }
 
 // getCommandTemplate is a simple helper for parsing a command template as defined by the user.
