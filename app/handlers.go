@@ -18,7 +18,7 @@ import (
 // GetHandlersChain returns the handlers chaining
 // thanks to the alice library.
 func GetHandlersChain() http.Handler {
-	return alice.New(enforceContentLengthHandler, enforceContentTypeHandler, convertHandler, serveHandler).ThenFunc(clearHandler)
+	return alice.New(enforceContentLengthHandler, enforceContentTypeHandler, convertHandler).ThenFunc(serveHandler)
 }
 
 type requestHasNoContentError struct{}
@@ -62,6 +62,7 @@ func convertHandler(next http.Handler) http.Handler {
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			logger.Error(err)
+			cleanup(r)
 			return
 		}
 
@@ -69,6 +70,7 @@ func convertHandler(next http.Handler) http.Handler {
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			logger.Error(err)
+			cleanup(r)
 			return
 		}
 
@@ -80,41 +82,54 @@ func convertHandler(next http.Handler) http.Handler {
 }
 
 // serveHandler simply serves the created PDF.
-func serveHandler(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path, err := context.GetResultFilePath(r)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			logger.Error(err)
-		}
+func serveHandler(w http.ResponseWriter, r *http.Request) {
+	path, err := context.GetResultFilePath(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		logger.Error(err)
+		cleanup(r)
+		return
+	}
 
-		reader, err := os.Open(path)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			logger.Error(err)
-			return
-		}
+	reader, err := os.Open(path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		logger.Error(err)
+		cleanup(r)
+		return
+	}
 
-		defer reader.Close()
+	defer reader.Close()
 
-		resultFileInfo, err := reader.Stat()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			logger.Error(err)
-			return
-		}
+	resultFileInfo, err := reader.Stat()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		logger.Error(err)
+		cleanup(r)
+		return
+	}
 
+	done := make(chan error, 1)
+	go func() {
 		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", resultFileInfo.Name()))
 		w.Header().Set("Content-Type", "application/pdf")
 		w.Header().Set("Content-Length", fmt.Sprintf("%d", resultFileInfo.Size()))
-		io.Copy(w, reader)
+		_, err := io.Copy(w, reader)
 
-		next.ServeHTTP(w, r)
-	})
+		done <- err
+	}()
+
+	err = <-done
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		logger.Error(err)
+	}
+
+	cleanup(r)
 }
 
-// clearHandler removes all files created during the conversion.
-func clearHandler(w http.ResponseWriter, r *http.Request) {
+// cleanup removes all files created during the conversion.
+func cleanup(r *http.Request) {
 	c, err := context.GetConverter(r)
 	if err != nil {
 		logger.Warn(err.Error())

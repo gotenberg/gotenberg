@@ -11,7 +11,6 @@ import (
 
 	"github.com/thecodingmachine/gotenberg/app/config"
 	"github.com/thecodingmachine/gotenberg/app/context"
-	"github.com/thecodingmachine/gotenberg/app/converter"
 	"github.com/thecodingmachine/gotenberg/app/converter/process"
 	ghttp "github.com/thecodingmachine/gotenberg/app/http"
 
@@ -133,7 +132,7 @@ func TestConvertHandler(t *testing.T) {
 }
 
 func TestServeHandler(t *testing.T) {
-	h := alice.New(serveHandler).ThenFunc(fakeSuccessHandler)
+	h := alice.New().ThenFunc(serveHandler)
 
 	// case 1: sends a request without a result file path entry in its context.
 	req := httptest.NewRequest(http.MethodPost, "/", nil)
@@ -159,16 +158,4 @@ func TestServeHandler(t *testing.T) {
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("Handler returned a wrong status code: got %v want %v", status, http.StatusOK)
 	}
-}
-
-func TestClearHandler(t *testing.T) {
-	// case 1: sends a request without a converter entry in its context.
-	req := httptest.NewRequest(http.MethodPost, "/", nil)
-	rr := httptest.NewRecorder()
-	clearHandler(rr, req)
-
-	// case 2: sends with a wrong converter entry in its context.
-	req = context.WithConverter(httptest.NewRequest(http.MethodPost, "/", nil), &converter.Converter{})
-	rr = httptest.NewRecorder()
-	clearHandler(rr, req)
 }
