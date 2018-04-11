@@ -17,10 +17,6 @@ import (
 	"github.com/justinas/alice"
 )
 
-func fakeSuccessHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-}
-
 func makeRequest(filesPaths ...string) *http.Request {
 	r, w := io.Pipe()
 	mpw := multipart.NewWriter(w)
@@ -29,13 +25,18 @@ func makeRequest(filesPaths ...string) *http.Request {
 		var part io.Writer
 		defer w.Close()
 
-		for _, filePath := range filesPaths {
-			file, _ := os.Open(filePath)
-			defer file.Close()
+		if len(filesPaths) == 0 {
+			part, _ = mpw.CreateFormField("foo")
+			part.Write([]byte("bar"))
+		} else {
+			for _, filePath := range filesPaths {
+				file, _ := os.Open(filePath)
+				defer file.Close()
 
-			fileInfo, _ := file.Stat()
-			part, _ = mpw.CreateFormFile("files", fileInfo.Name())
-			io.Copy(part, file)
+				fileInfo, _ := file.Stat()
+				part, _ = mpw.CreateFormFile("files", fileInfo.Name())
+				io.Copy(part, file)
+			}
 		}
 
 		mpw.Close()
@@ -46,15 +47,30 @@ func makeRequest(filesPaths ...string) *http.Request {
 	return req
 }
 
+func loadCommandConfigs(configurationFilePath string) {
+	path, _ := filepath.Abs(configurationFilePath)
+	c, _ := config.NewAppConfig(path)
+	process.Load(c.CommandsConfig)
+}
+
+func fakeSuccessHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
+
 func TestEnforceContentLengthHandler(t *testing.T) {
+	var (
+		req *http.Request
+		rr  *httptest.ResponseRecorder
+	)
+
 	h := alice.New(enforceContentLengthHandler).ThenFunc(fakeSuccessHandler)
 
 	// case 1: sends an empty request.
-	req := httptest.NewRequest(http.MethodPost, "/", nil)
-	rr := httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/", nil)
+	rr = httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusBadRequest {
-		t.Errorf("Handler returned a wrong status code: got %v want %v", status, http.StatusBadRequest)
+		t.Errorf("Handler returned a wrong status code: got '%v' want '%v'", status, http.StatusBadRequest)
 	}
 
 	// case 2: sends a body.
@@ -62,20 +78,25 @@ func TestEnforceContentLengthHandler(t *testing.T) {
 	rr = httptest.NewRecorder()
 	h.ServeHTTP(rr, makeRequest(path))
 	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("Handler returned a wrong status code: got %v want %v", status, http.StatusOK)
+		t.Errorf("Handler returned a wrong status code: got '%v' want '%v'", status, http.StatusOK)
 	}
 }
 
 func TestEnforceContentTypeHandler(t *testing.T) {
+	var (
+		req *http.Request
+		rr  *httptest.ResponseRecorder
+	)
+
 	h := alice.New(enforceContentTypeHandler).ThenFunc(fakeSuccessHandler)
 
 	// case 1: sends a wrong content type.
-	req := httptest.NewRequest(http.MethodPost, "/", nil)
+	req = httptest.NewRequest(http.MethodPost, "/", nil)
 	req.Header.Set("Content-Type", "application/pdf")
-	rr := httptest.NewRecorder()
+	rr = httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusUnsupportedMediaType {
-		t.Errorf("Handler returned a wrong status code: got %v want %v", status, http.StatusUnsupportedMediaType)
+		t.Errorf("Handler returned a wrong status code: got '%v' want '%v'", status, http.StatusUnsupportedMediaType)
 	}
 
 	// case 2: sends a good content type.
@@ -84,62 +105,78 @@ func TestEnforceContentTypeHandler(t *testing.T) {
 	rr = httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("Handler returned wrong a status code: got %v want %v", status, http.StatusOK)
+		t.Errorf("Handler returned wrong a status code: got '%v' want '%v'", status, http.StatusOK)
 	}
 }
 
 func TestConvertHandler(t *testing.T) {
+	var (
+		req   *http.Request
+		rr    *httptest.ResponseRecorder
+		path  string
+		oPath string
+	)
+
 	h := alice.New(convertHandler).ThenFunc(fakeSuccessHandler)
 
 	// case 1: sends a request without body.
-	req := httptest.NewRequest(http.MethodPost, "/", nil)
-	rr := httptest.NewRecorder()
-	h.ServeHTTP(rr, req)
-	if status := rr.Code; status != http.StatusInternalServerError {
-		t.Errorf("Handler returned a wrong status code: got %v want %v", status, http.StatusInternalServerError)
-	}
-
-	// case 2: sends a request with two files and using an unsuitable timeout for merge commande.
-	path, _ := filepath.Abs("../_tests/configurations/merge-timeout-gotenberg.yml")
-	appConfig, _ := config.NewAppConfig(path)
-	process.Load(appConfig.CommandsConfig)
-
-	oPath, _ := filepath.Abs("../_tests/file.docx")
-	path, _ = filepath.Abs("../_tests/configurations/gotenberg.yml")
-	req = makeRequest(oPath, path)
+	req = httptest.NewRequest(http.MethodPost, "/", nil)
 	rr = httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusInternalServerError {
-		t.Errorf("Handler returned a wrong status code: got %v want %v", status, http.StatusInternalServerError)
+		t.Errorf("Handler returned a wrong status code: got '%v' want '%v'", status, http.StatusInternalServerError)
 	}
 
-	// case 3: sends two requests (almost) simultany.
-	path, _ = filepath.Abs("../_tests/configurations/gotenberg.yml")
-	appConfig, _ = config.NewAppConfig(path)
-	process.Load(appConfig.CommandsConfig)
+	// case 2: sends a request with no file.
+	req = makeRequest()
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Errorf("Handler returned a wrong status code: got '%v' want '%v'", status, http.StatusBadRequest)
+	}
 
-	// TODO
+	loadCommandConfigs("../_tests/configurations/merge-timeout-gotenberg.yml")
+
+	// case 3: sends a request with two files and using an unsuitable timeout for merge commande.
+	path, _ = filepath.Abs("../_tests/configurations/gotenberg.yml")
+	oPath, _ = filepath.Abs("../_tests/file.docx")
+	req = makeRequest(path, oPath)
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if status := rr.Code; status != http.StatusInternalServerError {
+		t.Errorf("Handler returned a wrong status code: got '%v' want '%v'", status, http.StatusInternalServerError)
+	}
+
+	loadCommandConfigs("../_tests/configurations/gotenberg.yml")
 
 	// case 4: sends a request with two files.
-	oPath, _ = filepath.Abs("../_tests/file.docx")
 	path, _ = filepath.Abs("../_tests/file.pdf")
-	req = makeRequest(oPath, path)
+	oPath, _ = filepath.Abs("../_tests/file.docx")
+	req = makeRequest(path, oPath)
 	rr = httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("Handler returned a wrong status code: got %v want %v", status, http.StatusOK)
+		t.Errorf("Handler returned a wrong status code: got '%v' want '%v'", status, http.StatusOK)
 	}
+
+	// case 5: sends two requests (almost) simultany.
+	// TODO
 }
 
 func TestServeHandler(t *testing.T) {
+	var (
+		req *http.Request
+		rr  *httptest.ResponseRecorder
+	)
+
 	h := alice.New().ThenFunc(serveHandler)
 
 	// case 1: sends a request without a result file path entry in its context.
-	req := httptest.NewRequest(http.MethodPost, "/", nil)
-	rr := httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/", nil)
+	rr = httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusInternalServerError {
-		t.Errorf("Handler returned a wrong status code: got %v want %v", status, http.StatusInternalServerError)
+		t.Errorf("Handler returned a wrong status code: got '%v' want '%v'", status, http.StatusInternalServerError)
 	}
 
 	// case 2: sends a request with a wrong result file path entry in its context.
@@ -147,7 +184,7 @@ func TestServeHandler(t *testing.T) {
 	rr = httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusInternalServerError {
-		t.Errorf("Handler returned a wrong status code: got %v want %v", status, http.StatusInternalServerError)
+		t.Errorf("Handler returned a wrong status code: got '%v' want '%v'", status, http.StatusInternalServerError)
 	}
 
 	// case 3: sends a request with a correct result file path entry in its context.
@@ -156,6 +193,6 @@ func TestServeHandler(t *testing.T) {
 	rr = httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("Handler returned a wrong status code: got %v want %v", status, http.StatusOK)
+		t.Errorf("Handler returned a wrong status code: got '%v' want '%v'", status, http.StatusOK)
 	}
 }
