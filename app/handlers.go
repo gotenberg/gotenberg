@@ -62,6 +62,12 @@ func convertHandler(next http.Handler) http.Handler {
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			logger.Error(err)
+
+			if c != nil {
+				r = context.WithConverter(r, c)
+				cleanup(r)
+			}
+
 			return
 		}
 

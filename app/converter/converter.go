@@ -31,7 +31,7 @@ func NewConverter(r *http.Request) (*Converter, error) {
 
 	reader, err := r.MultipartReader()
 	if err != nil {
-		return nil, err
+		return c, err
 	}
 
 	for {
@@ -47,7 +47,7 @@ func NewConverter(r *http.Request) (*Converter, error) {
 
 		f, err := gfile.NewFile(c.workingDir, part, fileName)
 		if err != nil {
-			return nil, err
+			return c, err
 		}
 
 		c.files = append(c.files, f)
