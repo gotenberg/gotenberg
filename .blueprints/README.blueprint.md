@@ -8,7 +8,7 @@
         <img src="https://images.microbadger.com/badges/image/thecodingmachine/gotenberg:{{ .Orbit.Branch }}.svg" alt="MicroBadger">
     </a>
     <a href="https://travis-ci.org/thecodingmachine/gotenberg">
-        <img src="https://travis-ci.org/thecodingmachine/docker-images-php.svg?branch={{ .Orbit.Branch }}" alt="Travis CI">
+        <img src="https://travis-ci.org/thecodingmachine/gotenberg.svg?branch={{ .Orbit.Branch }}" alt="Travis CI">
     </a>
     <a href="https://godoc.org/github.com/thecodingmachine/gotenberg">
         <img src="https://godoc.org/github.com/thecodingmachine/gotenberg?status.svg" alt="GoDoc">
