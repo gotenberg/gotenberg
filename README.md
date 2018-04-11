@@ -5,7 +5,10 @@
 <p align="center">A stateless API for converting Markdown files, HTML files and Office documents to PDF</p>
 <p align="center">
     <a href="https://microbadger.com/images/thecodingmachine/gotenberg:1.0.0">
-        <img src="https://images.microbadger.com/badges/image/thecodingmachine/gotenberg:1.0.0.svg" alt="MicroBadger">
+        <img src="https://images.microbadger.com/badges/version/thecodingmachine/gotenberg:1.0.0.svg" alt="MicroBadger version">
+    </a>
+    <a href="https://microbadger.com/images/thecodingmachine/gotenberg:1.0.0">
+        <img src="https://images.microbadger.com/badges/image/thecodingmachine/gotenberg:1.0.0.svg" alt="MicroBadger layers">
     </a>
     <a href="https://travis-ci.org/thecodingmachine/gotenberg">
         <img src="https://travis-ci.org/thecodingmachine/gotenberg.svg?branch=1.0.0" alt="Travis CI">
