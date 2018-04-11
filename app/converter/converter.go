@@ -19,11 +19,11 @@ type Converter struct {
 	workingDir string
 }
 
-type noFileToConvertError struct{}
+type NoFileToConvertError struct{}
 
 const noFileToConvertErrorMessage = "No file to convert"
 
-func (e *noFileToConvertError) Error() string {
+func (e *NoFileToConvertError) Error() string {
 	return noFileToConvertErrorMessage
 }
 
@@ -62,7 +62,7 @@ func NewConverter(r *http.Request) (*Converter, error) {
 	}
 
 	if len(c.files) == 0 {
-		return c, &noFileToConvertError{}
+		return c, &NoFileToConvertError{}
 	}
 
 	return c, nil

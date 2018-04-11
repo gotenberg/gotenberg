@@ -140,7 +140,7 @@ func TestClear(t *testing.T) {
 }
 
 func TestNoFileToConvertError(t *testing.T) {
-	err := &noFileToConvertError{}
+	err := &NoFileToConvertError{}
 	if err.Error() != noFileToConvertErrorMessage {
 		t.Errorf("Error returned a wrong message: got '%s' want '%s'", err.Error(), noFileToConvertErrorMessage)
 	}
