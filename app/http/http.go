@@ -19,7 +19,7 @@ func (e *notAuthorizedContentTypeError) Error() string {
 	return fmt.Sprintf("Accepted value for 'Content-Type': %s", MultipartFormDataContentType)
 }
 
-// CheckAuthorizedContentType check if the request header header has an authorized content type.
+// CheckAuthorizedContentType checks if the request header header has an authorized content type.
 // If no authorized content type found, throws an error.
 func CheckAuthorizedContentType(h http.Header) error {
 	ct := findContentType(h.Get("Content-Type"), MultipartFormDataContentType)
@@ -32,13 +32,13 @@ func CheckAuthorizedContentType(h http.Header) error {
 
 // findContentType parses a string representing a content type and tries to find
 // one of the given content types.
-func findContentType(contentType string, contentTypes ...ContentType) ContentType {
+func findContentType(requestContentType string, contentTypes ...ContentType) ContentType {
 	for _, ct := range contentTypes {
-		if i := strings.IndexRune(contentType, ';'); i != -1 {
-			contentType = contentType[0:i]
+		if i := strings.IndexRune(requestContentType, ';'); i != -1 {
+			requestContentType = requestContentType[0:i]
 		}
 
-		if contentType == string(ct) {
+		if requestContentType == string(ct) {
 			return ct
 		}
 	}

@@ -12,7 +12,6 @@ import (
 	"github.com/thecodingmachine/gotenberg/app/config"
 	"github.com/thecodingmachine/gotenberg/app/context"
 	"github.com/thecodingmachine/gotenberg/app/converter/process"
-	ghttp "github.com/thecodingmachine/gotenberg/app/http"
 
 	"github.com/justinas/alice"
 )
@@ -73,7 +72,7 @@ func TestEnforceContentLengthHandler(t *testing.T) {
 		t.Errorf("Handler returned a wrong status code: got '%v' want '%v'", status, http.StatusBadRequest)
 	}
 
-	// case 2: sends a body.
+	// case 2: sends a real body.
 	path, _ := filepath.Abs("../_tests/file.docx")
 	rr = httptest.NewRecorder()
 	h.ServeHTTP(rr, makeRequest(path))
@@ -100,10 +99,9 @@ func TestEnforceContentTypeHandler(t *testing.T) {
 	}
 
 	// case 2: sends a good content type.
-	req = httptest.NewRequest(http.MethodPost, "/", nil)
-	req.Header.Set("Content-Type", string(ghttp.MultipartFormDataContentType))
+	path, _ := filepath.Abs("../_tests/file.docx")
 	rr = httptest.NewRecorder()
-	h.ServeHTTP(rr, req)
+	h.ServeHTTP(rr, makeRequest(path))
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("Handler returned wrong a status code: got '%v' want '%v'", status, http.StatusOK)
 	}
