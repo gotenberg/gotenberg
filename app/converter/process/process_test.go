@@ -68,19 +68,25 @@ func TestUnconv(t *testing.T) {
 
 	loadCommandConfigs("../../../_tests/configurations/gotenberg.yml")
 
-	// case 1: uses an HTML file type.
+	// case 1: uses an Markdown file type.
+	file = makeFile(workingDir, "file.md")
+	if _, err := Unconv(workingDir, file); err != nil {
+		t.Errorf("Converting '%s' to PDF should have worked", file.Path)
+	}
+
+	// case 2: uses an HTML file type.
 	file = makeFile(workingDir, "file.html")
 	if _, err := Unconv(workingDir, file); err != nil {
 		t.Errorf("Converting '%s' to PDF should have worked", file.Path)
 	}
 
-	// case 2: uses an Office file type.
+	// case 3: uses an Office file type.
 	file = makeFile(workingDir, "file.docx")
 	if _, err := Unconv(workingDir, file); err != nil {
 		t.Errorf("Converting '%s' to PDF should have worked", file.Path)
 	}
 
-	// case 3: uses a PDF file type.
+	// case 4: uses a PDF file type.
 	file = makeFile(workingDir, "file.pdf")
 	if _, err := Unconv(workingDir, file); err == nil {
 		t.Errorf("Converting '%s' to PDF should not have worked", file.Path)
@@ -88,7 +94,7 @@ func TestUnconv(t *testing.T) {
 
 	loadCommandConfigs("../../../_tests/configurations/timeout-gotenberg.yml")
 
-	// case 4: uses a command with an unsuitable timeout.
+	// case 5: uses a command with an unsuitable timeout.
 	file = makeFile(workingDir, "file.docx")
 	if _, err := Unconv(workingDir, makeFile(workingDir, "file.docx")); err == nil {
 		t.Errorf("Converting '%s' to PDF should have reached timeout", file.Path)
