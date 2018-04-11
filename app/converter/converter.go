@@ -19,6 +19,7 @@ type Converter struct {
 	workingDir string
 }
 
+// NoFileToConvertError is raided when a request has not file attached to it.
 type NoFileToConvertError struct{}
 
 const noFileToConvertErrorMessage = "No file to convert"
