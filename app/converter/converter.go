@@ -19,6 +19,14 @@ type Converter struct {
 	workingDir string
 }
 
+type noFileToConvertError struct{}
+
+const noFileToConvertErrorMessage = "No file to convert"
+
+func (e *noFileToConvertError) Error() string {
+	return noFileToConvertErrorMessage
+}
+
 // NewConverter instantiates a converter by parsing a request.
 func NewConverter(r *http.Request) (*Converter, error) {
 	c := &Converter{
@@ -51,6 +59,10 @@ func NewConverter(r *http.Request) (*Converter, error) {
 		}
 
 		c.files = append(c.files, f)
+	}
+
+	if len(c.files) == 0 {
+		return c, &noFileToConvertError{}
 	}
 
 	return c, nil

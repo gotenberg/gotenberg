@@ -21,13 +21,18 @@ func makeRequest(filesPaths ...string) *http.Request {
 		var part io.Writer
 		defer w.Close()
 
-		for _, filePath := range filesPaths {
-			file, _ := os.Open(filePath)
-			defer file.Close()
+		if len(filesPaths) == 0 {
+			part, _ = mpw.CreateFormField("foo")
+			part.Write([]byte("bar"))
+		} else {
+			for _, filePath := range filesPaths {
+				file, _ := os.Open(filePath)
+				defer file.Close()
 
-			fileInfo, _ := file.Stat()
-			part, _ = mpw.CreateFormFile("files", fileInfo.Name())
-			io.Copy(part, file)
+				fileInfo, _ := file.Stat()
+				part, _ = mpw.CreateFormFile("files", fileInfo.Name())
+				io.Copy(part, file)
+			}
 		}
 
 		mpw.Close()
@@ -62,6 +67,11 @@ func TestNewConverter(t *testing.T) {
 	oPath, _ = filepath.Abs("../../_tests/file.docx")
 	path, _ = filepath.Abs("../../_tests/configurations/gotenberg.yml")
 	if _, err := NewConverter(makeRequest(oPath, path)); err == nil {
+		t.Error("Converter should not have been instantiated!")
+	}
+
+	// case 5: uses a request with no file.
+	if _, err := NewConverter(makeRequest()); err == nil {
 		t.Error("Converter should not have been instantiated!")
 	}
 }
@@ -113,5 +123,13 @@ func TestClear(t *testing.T) {
 	c, _ := NewConverter(makeRequest(path))
 	if err := c.Clear(); err != nil {
 		t.Error("Converter should have been able to clear itself!")
+	}
+}
+
+func TestNoFileToConvertError(t *testing.T) {
+	err := &noFileToConvertError{}
+
+	if err.Error() != noFileToConvertErrorMessage {
+		t.Errorf("Error returned a wrong message: got %s want %s", err.Error(), noFileToConvertErrorMessage)
 	}
 }
