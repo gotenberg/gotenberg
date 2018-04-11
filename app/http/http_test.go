@@ -12,20 +12,20 @@ func TestCheckAuthorizedContentType(t *testing.T) {
 
 	// case 1: uses a request without a content type entry in its header.
 	if err := CheckAuthorizedContentType(req.Header); err == nil {
-		t.Error("It should not have been able to retrieve an authorized content type from header!")
+		t.Error("Function should not have been able to retrieve an authorized content type from request's header")
 	}
 
 	// case 2: uses a request with a content type entry in its header.
 	req.Header.Set("Content-Type", string(MultipartFormDataContentType))
 	if err := CheckAuthorizedContentType(req.Header); err != nil {
-		t.Error("It should have been able to retrieve an authorized content type from header!")
+		t.Error("Function should have been able to retrieve an authorized content type from request's header")
 	}
 }
 
 func TestNotAuthorizedContentTypeError(t *testing.T) {
 	err := &notAuthorizedContentTypeError{}
-	message := fmt.Sprintf("Accepted value for 'Content-Type': %s", MultipartFormDataContentType)
-	if err.Error() != message {
-		t.Errorf("Error returned a wrong message: got %s want %s", err.Error(), message)
+	expected := fmt.Sprintf("Accepted value for 'Content-Type': %s", MultipartFormDataContentType)
+	if err.Error() != expected {
+		t.Errorf("Error returned a wrong message: got '%s' want '%s'", err.Error(), expected)
 	}
 }

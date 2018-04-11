@@ -43,78 +43,91 @@ func makeRequest(filesPaths ...string) *http.Request {
 	return req
 }
 
+func loadCommandConfigs(configurationFilePath string) {
+	path, _ := filepath.Abs(configurationFilePath)
+	c, _ := config.NewAppConfig(path)
+	process.Load(c.CommandsConfig)
+}
+
 func TestNewConverter(t *testing.T) {
+	var (
+		path  string
+		oPath string
+	)
+
 	// case 1: uses a request with a single file.
-	path, _ := filepath.Abs("../../_tests/file.docx")
+	path, _ = filepath.Abs("../../_tests/file.docx")
 	if _, err := NewConverter(makeRequest(path)); err != nil {
-		t.Error("Converter should have been instantiated!")
+		t.Errorf("Converter should have been instantiated with '%s'", path)
 	}
 
 	// case 2: uses a request with wrong file type.
 	path, _ = filepath.Abs("../../_tests/configurations/gotenberg.yml")
 	if _, err := NewConverter(makeRequest(path)); err == nil {
-		t.Error("Converter should not have been instantiated!")
+		t.Errorf("Converter should not have been instantiated with '%s'", path)
 	}
 
 	// case 3: uses a request with two files.
-	oPath, _ := filepath.Abs("../../_tests/file.docx")
 	path, _ = filepath.Abs("../../_tests/file.pdf")
-	if _, err := NewConverter(makeRequest(oPath, path)); err != nil {
-		t.Error("Converter should have been instantiated!")
+	oPath, _ = filepath.Abs("../../_tests/file.docx")
+	if _, err := NewConverter(makeRequest(path, oPath)); err != nil {
+		t.Errorf("Converter should have been instantiated with '%s' and '%s'", path, oPath)
 	}
 
-	// case 4: uses a request with one Office file and one wrong file type.
-	oPath, _ = filepath.Abs("../../_tests/file.docx")
+	// case 4: uses a request with one Office file type and one wrong file type.
 	path, _ = filepath.Abs("../../_tests/configurations/gotenberg.yml")
-	if _, err := NewConverter(makeRequest(oPath, path)); err == nil {
-		t.Error("Converter should not have been instantiated!")
+	oPath, _ = filepath.Abs("../../_tests/file.docx")
+	if _, err := NewConverter(makeRequest(path, oPath)); err == nil {
+		t.Errorf("Converter should not have been instantiated with '%s' and '%s'", path, oPath)
 	}
 
 	// case 5: uses a request with no file.
 	if _, err := NewConverter(makeRequest()); err == nil {
-		t.Error("Converter should not have been instantiated!")
+		t.Error("Converter should not have been instantiated with no file")
 	}
 }
 
 func TestConvert(t *testing.T) {
-	path, _ := filepath.Abs("../../_tests/configurations/gotenberg.yml")
-	appConfig, _ := config.NewAppConfig(path)
-	process.Load(appConfig.CommandsConfig)
+	var (
+		path  string
+		oPath string
+		c     *Converter
+	)
+
+	loadCommandConfigs("../../_tests/configurations/gotenberg.yml")
 
 	// case 1: uses a request with a single file.
 	path, _ = filepath.Abs("../../_tests/file.docx")
-	c, _ := NewConverter(makeRequest(path))
+	c, _ = NewConverter(makeRequest(path))
 	if _, err := c.Convert(); err != nil {
-		t.Error("Converter should have been able to convert an Office document to PDF!")
+		t.Errorf("Converter should have been able to convert '%s' to PDF", path)
 	}
 
 	// case 2: uses a request with two files.
-	oPath, _ := filepath.Abs("../../_tests/file.docx")
 	path, _ = filepath.Abs("../../_tests/file.pdf")
-	c, _ = NewConverter(makeRequest(oPath, path))
+	oPath, _ = filepath.Abs("../../_tests/file.docx")
+	c, _ = NewConverter(makeRequest(path, oPath))
 	if _, err := c.Convert(); err != nil {
-		t.Error("Converter should have been able to convert two files to PDF and merge them!")
+		t.Errorf("Converter should have been able to convert '%s' and '%s' to PDF", path, oPath)
 	}
 
+	loadCommandConfigs("../../_tests/configurations/timeout-gotenberg.yml")
+
 	// case 3: uses a request with a single file and a configuration with an unsuitable timeout for the conversion commands.
-	path, _ = filepath.Abs("../../_tests/configurations/timeout-gotenberg.yml")
-	appConfig, _ = config.NewAppConfig(path)
-	process.Load(appConfig.CommandsConfig)
 	path, _ = filepath.Abs("../../_tests/file.docx")
 	c, _ = NewConverter(makeRequest(path))
 	if _, err := c.Convert(); err == nil {
-		t.Error("Converter should not have been able to convert an Office document to PDF!")
+		t.Errorf("Converter should not have been able to convert '%s' to PDF", path)
 	}
 
+	loadCommandConfigs("../../_tests/configurations/merge-timeout-gotenberg.yml")
+
 	// case 4: uses a request with two files and a configuration with an unsuitable timeout for the merge command.
-	path, _ = filepath.Abs("../../_tests/configurations/merge-timeout-gotenberg.yml")
-	appConfig, _ = config.NewAppConfig(path)
-	process.Load(appConfig.CommandsConfig)
-	oPath, _ = filepath.Abs("../../_tests/file.docx")
 	path, _ = filepath.Abs("../../_tests/file.pdf")
-	c, _ = NewConverter(makeRequest(oPath, path))
+	oPath, _ = filepath.Abs("../../_tests/file.docx")
+	c, _ = NewConverter(makeRequest(path, oPath))
 	if _, err := c.Convert(); err == nil {
-		t.Error("Converter should not have been able to merge PDF!")
+		t.Errorf("Converter should not have been able to merge '%s' and '%s' into PDF", path, oPath)
 	}
 }
 
@@ -122,14 +135,13 @@ func TestClear(t *testing.T) {
 	path, _ := filepath.Abs("../../_tests/file.docx")
 	c, _ := NewConverter(makeRequest(path))
 	if err := c.Clear(); err != nil {
-		t.Error("Converter should have been able to clear itself!")
+		t.Error("Converter should have been able to clear itself")
 	}
 }
 
 func TestNoFileToConvertError(t *testing.T) {
 	err := &noFileToConvertError{}
-
 	if err.Error() != noFileToConvertErrorMessage {
-		t.Errorf("Error returned a wrong message: got %s want %s", err.Error(), noFileToConvertErrorMessage)
+		t.Errorf("Error returned a wrong message: got '%s' want '%s'", err.Error(), noFileToConvertErrorMessage)
 	}
 }

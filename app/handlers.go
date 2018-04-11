@@ -60,6 +60,7 @@ func convertHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, err := converter.NewConverter(r)
 		if err != nil {
+			// TODO bad request if no file to convert
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			logger.Error(err)
 
