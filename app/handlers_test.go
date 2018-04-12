@@ -164,8 +164,26 @@ func TestConvertHandler(t *testing.T) {
 		t.Errorf("Handler returned a wrong status code: got '%v' want '%v'", status, http.StatusOK)
 	}
 
-	// case 5: sends two requests (almost) simultany.
-	// TODO
+	// case 5: sends five requests (almost) simultany.
+	path, _ = filepath.Abs("../_tests/file.docx")
+	filesPaths := []string{
+		path,
+		path,
+		path,
+		path,
+		path,
+	}
+
+	for i := 0; i < len(filesPaths); i++ {
+		go func(i int) {
+			req := makeRequest(filesPaths[i])
+			rr := httptest.NewRecorder()
+			h.ServeHTTP(rr, req)
+			if status := rr.Code; status != http.StatusOK {
+				t.Errorf("Handler returned a wrong status code: got '%v' want '%v'", status, http.StatusOK)
+			}
+		}(i)
+	}
 }
 
 func TestServeHandler(t *testing.T) {
