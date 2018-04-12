@@ -29,5 +29,5 @@ commands:
 
   merge:
     timeout: 30
-     # Unlike others commands, you have access to FilesPaths instead of FilePath: it gathers all PDF files which should be merged.
+    # Unlike others commands' templates, you have access to FilesPaths instead of FilePath: it gathers all PDF files which should be merged.
     template: "pdftk {{ range $filePath := .FilesPaths }} {{ $filePath }} {{ end }} cat output {{ .ResultFilePath }}"
