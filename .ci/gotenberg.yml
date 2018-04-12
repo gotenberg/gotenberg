@@ -10,10 +10,13 @@ logs:
   # When a TTY is not attached, the output will be in the defined format.
   format: "text"
 
+# You don't like a library which is used for a conversion? You may provide here your own implementation.
 commands:
 
   markdown:
+    # Duration in seconds after which the command will be killed if it has not finished.
     timeout: 30
+    # The command template: you have access to FilePath and ResultFilePath variables.
     template: "markdown-pdf {{ .FilePath }} -o {{ .ResultFilePath }}"
 
   html:
@@ -26,4 +29,5 @@ commands:
 
   merge:
     timeout: 30
+     # Unlike others commands, you have access to FilesPaths instead of FilePath: it gathers all PDF files which should be merged.
     template: "pdftk {{ range $filePath := .FilesPaths }} {{ $filePath }} {{ end }} cat output {{ .ResultFilePath }}"
