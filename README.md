@@ -24,6 +24,10 @@
     </a>
 </p>
 
+At TheCodingMachine, we build a lot of web applications (intranets, extranets and so on) which require to generate PDF from 
+various sources. Each time, we end up using some well known libraries like **wkhtmltopdf** or **unoconv** and kind of losing time by
+reimplementing a solution from a project to another project. Meh.
+
 ---
 
 # Menu
@@ -80,7 +84,7 @@ services:
   # your other services
 
   gotenberg-proxy:
-    # Traefik is a powerful HTTP reverse proxy which allowx us to do some load-balancing. 
+    # Traefik is a powerful HTTP reverse proxy which allows us to do some load-balancing. 
     # It provides various methods of load-balancing which are not described here.
     # More information: https://traefik.io/
     image: traefik:1.5-alpine
