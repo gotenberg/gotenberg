@@ -8,7 +8,7 @@ gometalinter.v2 --disable-all -E vet -E gofmt -E misspell -E ineffassign -E goim
 # Running tests according to current Gotenberg version.
 if [[ "$VERSION" == "snapshot" ]]; then
     for d in $(go list ./... | grep -v vendor); do
-        go test -race -cover $d;
+        go test -race -cover -covermode=atomic $d;
     done
 else
     echo "" > .ci/coverage.txt;
