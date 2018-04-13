@@ -59,8 +59,8 @@ It currently accepts the following:
 
 There are two use cases:
 
-* If you send one file, it will convert it and return the resulting PDF.
-* If many files, it will convert them to PDF, merge the resulting PDFs into a single PDF and return it.
+* If you send one file, it will convert it and return the resulting PDF
+* If many files, it will convert them to PDF, merge the resulting PDFs into a single PDF and return it
 
 ## Security
 
