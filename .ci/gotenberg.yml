@@ -4,7 +4,7 @@ port: 3000
 logs:
   # Accepted values, in order of severity: DEBUG, INFO, WARN, ERROR, FATAL, PANIC.
   # Messages at and above the selected level will be logged.
-  level: "DEBUG"
+  level: "INFO"
 
   # Accepted values: text, json.
   # When a TTY is not attached, the output will be in the defined format.
