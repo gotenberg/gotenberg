@@ -62,9 +62,9 @@ There are two use cases:
 * If you send one file, it will convert it and return the resulting PDF
 * If many files, it will convert them to PDF, merge the resulting PDFs into a single PDF and return it
 
-### Examples
+### Examples:
 
-* One file:
+* One file
 
 ```sh
 $ curl --request POST \
@@ -75,7 +75,7 @@ $ curl --request POST \
     > result.pdf
 ```
 
-* Many files:
+* Many files
 
 ```sh
 $ curl --request POST \
@@ -107,34 +107,19 @@ In the following example, I'll demonstrate how to do some vertical scaling (= on
 version: '3'
 
 services:
-
-  # your other services
-
-  gotenberg-proxy:
-    # Traefik is a powerful HTTP reverse proxy which allows us to do some load-balancing. 
-    # It provides various methods of load-balancing which are not described here.
-    # More information: https://traefik.io/
-    image: traefik:1.5-alpine
-    command: --docker --logLevel=DEBUG
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       
   gotenberg:
     image: gotenberg:1.0.0
-    labels:
-      - traefik.backend=gotenberg
-      - traefik.frontend.rule=Host:gotenberg.yourdomain.com
-      - traefik.port=3000
 ```
 
 You may now launch your services using:
 
-```sh
+```bash
 docker-compose up --scale gotenberg=your_number_of_instances
 ```
 
-When requesting `gotenberg.yourdomain.com` with your client(s), Traefik will automatically redirect a request to a Gotenberg container
-according to the load-balancing strategy you have defined.
+When requesting `gotenberg.yourdomain.com` with your client(s), Docker will automatically redirect a request to a Gotenberg container
+according to the round-robin strategy.
 
 ## Custom implementation
 
