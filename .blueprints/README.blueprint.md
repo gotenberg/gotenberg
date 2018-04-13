@@ -118,7 +118,7 @@ You may now launch your services using:
 docker-compose up --scale gotenberg=your_number_of_instances
 ```
 
-When requesting `gotenberg.yourdomain.com` with your client(s), Docker will automatically redirect a request to a Gotenberg container
+When requesting the Gotenberg service with your client(s), Docker will automatically redirect a request to a Gotenberg container
 according to the round-robin strategy.
 
 ## Custom implementation
