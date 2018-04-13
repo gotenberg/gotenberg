@@ -28,24 +28,89 @@
 
 # Menu
 
-* [Quick start](#quick-start)
-* [API](#api)
-* [Custom implementation](#custom-implementation)
+* [Usage](#usage)
+* [Security][#security]
 * [Scalability](#scalability)
+* [Custom implementation](#custom-implementation)
 
-## Quick start
+## Usage
+
+Let's say you're starting the API using this simple command:
 
 ```sh
-$ docker run --rm -p 3000:3000 thecodingmachine/gotenberg:{{ .Orbit.Branch }}
+$ docker run --rm -p 3000:3000 thecodingmachine/gotenberg:1.0.0
 ```
 
-The API is now available through `http://127.0.0.1:3000`.
+The API is now available on your host under `http://127.0.0.1:3000`.
 
-## API
+It accepts `POST` requests with a `multipart/form-data` Content-Type. Your form data should provide one or more files to convert.
+It currently accepts the following:
+
+* Markdown files
+* HTML files
+* Office documents (.docx, .doc, .odt, .pptx, .ppt, .odp and so on)
+* PDF files (if more than one file to convert)
+
+**Heads up:** the API relies on the file extension to determine which library to use for conversion.
+
+There are two use cases:
+
+* If you send one file, it will convert it and return the resulting PDF.
+* If many files, it will convert them to PDF, merge the resulting PDFs into a single PDF and return it.
+
+## Security
+
+The API does not provide any authentication mechanisms. Make sure to not put it on a public facing port and your client(s) should always 
+controls what's is sent to the API.
+
+## Scalability
+
+Some libraries like **unoconv** cannot perform concurrent conversions. That's why the API does only one conversion at a time.
+If your API is under heavy load, a request will take time to be processed. 
+
+Fortunately, you may pass through this limitation by scaling the API.
+
+In the following example, I'll demonstrate how to do some vertical scaling (= on the same machine) with Docker Compose, but of course horizontal scaling works too!
+
+```yaml
+version: '3'
+
+services:
+
+  # your other services
+
+  gotenberg-proxy:
+    # Traefik is a powerful HTTP reverse proxy which allowx us to do some load-balancing. 
+    # It provides various methods of load-balancing which are not described here.
+    # More information: https://traefik.io/
+    image: traefik:1.5-alpine
+    command: --docker --logLevel=DEBUG
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      
+  gotenberg:
+    image: gotenberg:1.0.0
+    labels:
+      - traefik.backend=gotenberg
+      - traefik.frontend.rule=Host:gotenberg.yourdomain.com
+      - traefik.port=3000
+```
+
+You may now launch your services using:
+
+```sh
+docker-compose up --scale gotenberg=your_number_of_instances
+```
+
+When requesting `gotenberg.yourdomain.com` with your client(s), Traefik will automatically redirect a request to a Gotenberg container
+according to the load-balancing strategy you have defined.
 
 ## Custom implementation
 
-## Scalability
+The API relies on a simple YAML configuration file called `gotenberg.yml`. It allows you to tweak some values and even provides you 
+a way to change the commands called for each kind of conversion.
+
+The default configuration is located here: [.ci/gotenberg.yml](.ci/gotenberg.yml)
 
 ---
 
