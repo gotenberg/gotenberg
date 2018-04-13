@@ -107,6 +107,8 @@ In the following example, I'll demonstrate how to do some vertical scaling (= on
 version: '3'
 
 services:
+
+  # your others services
       
   gotenberg:
     image: gotenberg:1.0.0
