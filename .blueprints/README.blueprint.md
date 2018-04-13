@@ -27,7 +27,7 @@
 ---
 
 At TheCodingMachine, we build a lot of web applications (intranets, extranets and so on) which require to generate PDF from 
-various sources. Each time, we end up using some well known libraries like **wkhtmltopdf** or **unoconv** and kind of losing time by
+various sources. Each time, we ended up using some well known libraries like **wkhtmltopdf** or **unoconv** and kind of lost time by
 reimplementing a solution from a project to another project. Meh.
 
 # Menu
@@ -61,6 +61,33 @@ There are two use cases:
 
 * If you send one file, it will convert it and return the resulting PDF
 * If many files, it will convert them to PDF, merge the resulting PDFs into a single PDF and return it
+
+## Examples
+
+* One file:
+
+```sh
+$ curl --request POST \
+    --url http://127.0.0.1:3000 \
+    --header 'Content-Type: multipart/form-data' \
+    --header 'content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW' \
+    --form files=@file.docx \
+    > result.pdf
+```
+
+* Many files:
+
+```sh
+$ curl --request POST \
+    --url http://127.0.0.1:3000 \
+    --header 'Content-Type: multipart/form-data' \
+    --header 'content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW' \
+    --form files=@file.md \
+    --form files=@file.html \
+    --form files=@file.pdf \
+    --form files=@file.docx \
+    > result.pdf
+```
 
 ## Security
 
