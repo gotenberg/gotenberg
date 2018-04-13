@@ -29,7 +29,7 @@
 # Menu
 
 * [Usage](#usage)
-* [Security][#security]
+* [Security](#security)
 * [Scalability](#scalability)
 * [Custom implementation](#custom-implementation)
 
