@@ -92,7 +92,7 @@ $ curl --request POST \
 ## Security
 
 The API does not provide any authentication mechanisms. Make sure to not put it on a public facing port and your client(s) should always 
-controls what's is sent to the API.
+controls what is sent to the API.
 
 ## Scalability
 
