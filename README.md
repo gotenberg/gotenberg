@@ -70,7 +70,6 @@ There are two use cases:
 $ curl --request POST \
     --url http://127.0.0.1:3000 \
     --header 'Content-Type: multipart/form-data' \
-    --header 'content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW' \
     --form files=@file.docx \
     > result.pdf
 ```
@@ -81,7 +80,6 @@ $ curl --request POST \
 $ curl --request POST \
     --url http://127.0.0.1:3000 \
     --header 'Content-Type: multipart/form-data' \
-    --header 'content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW' \
     --form files=@file.md \
     --form files=@file.html \
     --form files=@file.pdf \
@@ -126,7 +124,7 @@ according to the round-robin strategy.
 ## Custom implementation
 
 The API relies on a simple YAML configuration file called `gotenberg.yml`. It allows you to tweak some values and even provides you 
-a way to change the commands called for each kind of conversion.
+a way to change the commands called for each kind of conversion. The configuration file should be located under `/gotenberg` in your container.
 
 The default configuration is located here: [.ci/gotenberg.yml](.ci/gotenberg.yml)
 
