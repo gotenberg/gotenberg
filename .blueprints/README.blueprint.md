@@ -36,6 +36,7 @@ reimplementing a solution from a project to another project. Meh.
 * [Security](#security)
 * [Scalability](#scalability)
 * [Custom implementation](#custom-implementation)
+* [Clients](#clients)
 
 ## Usage
 
@@ -127,6 +128,11 @@ The API relies on a simple YAML configuration file called `gotenberg.yml`. It al
 a way to change the commands called for each kind of conversion. The configuration file should be located under `/gotenberg` in your container.
 
 The default configuration is located here: [.ci/gotenberg.yml](.ci/gotenberg.yml)
+
+## Clients
+
+* https://github.com/thecodingmachine/gotenberg-php-client (PHP client)
+* Add your own client by submitting a [pull request](../../pulls)!
 
 ---
 
