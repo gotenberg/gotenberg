@@ -9,7 +9,7 @@ find below useful information about how to contribute to the Gotenberg project.
 
 1. Fork this repository
 2. Clone it to your local Go environment (requires *Go* >= 1.10)
-5. Install the latest [Orbit](https://github.com/gulien/orbit) release
+3. Install the latest [Orbit](https://github.com/gulien/orbit) release
 
 ### Working with git
 
