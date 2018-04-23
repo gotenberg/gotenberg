@@ -4,11 +4,8 @@
 <h3 align="center">Gotenberg</h3>
 <p align="center">A stateless API for converting Markdown files, HTML files and Office documents to PDF</p>
 <p align="center">
-    <a href="https://microbadger.com/images/thecodingmachine/gotenberg:{{ .Orbit.Branch }}">
-        <img src="https://images.microbadger.com/badges/version/thecodingmachine/gotenberg:{{ .Orbit.Branch }}.svg" alt="MicroBadger version">
-    </a>
-    <a href="https://microbadger.com/images/thecodingmachine/gotenberg:{{ .Orbit.Branch }}">
-        <img src="https://images.microbadger.com/badges/image/thecodingmachine/gotenberg:{{ .Orbit.Branch }}.svg" alt="MicroBadger layers">
+    <a href="https://microbadger.com/images/thecodingmachine/gotenberg:{{ .Orbit.Latest }}">
+        <img src="https://images.microbadger.com/badges/image/thecodingmachine/gotenberg:{{ .Orbit.Latest }}.svg" alt="MicroBadger layers">
     </a>
     <a href="https://travis-ci.org/thecodingmachine/gotenberg">
         <img src="https://travis-ci.org/thecodingmachine/gotenberg.svg?branch={{ .Orbit.Branch }}" alt="Travis CI">
@@ -43,7 +40,7 @@ reimplementing a solution from a project to another project. Meh.
 Let's say you're starting the API using this simple command:
 
 ```sh
-$ docker run --rm -p 3000:3000 thecodingmachine/gotenberg:1.0.0
+$ docker run --rm -p 3000:3000 thecodingmachine/gotenberg:{{ .Orbit.Latest }}
 ```
 
 The API is now available on your host under `http://127.0.0.1:3000`.
