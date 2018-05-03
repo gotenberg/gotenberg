@@ -107,7 +107,7 @@ services:
   # your others services
       
   gotenberg:
-    image: gotenberg:1.0.0
+    image: thecodingmachine/gotenberg:1.0.0
 ```
 
 You may now launch your services using:
