@@ -4,30 +4,46 @@ port: 3000
 logs:
   # Accepted values, in order of severity: DEBUG, INFO, WARN, ERROR, FATAL, PANIC.
   # Messages at and above the selected level will be logged.
-  level: "INFO"
+  level: "DEBUG"
 
   # Accepted values: text, json.
   # When a TTY is not attached, the output will be in the defined format.
-  format: "text"
+  formatter: "text"
 
-# You don't like a library which is used for a conversion? You may provide here your own implementation.
+# You don't like a library which is used for a conversion? You want to handle a new file type?
+# You may provide here your own implementation!
 commands:
 
-  markdown:
-    # Duration in seconds after which the command will be killed if it has not finished.
-    timeout: 30
-    # The command template: you have access to FilePath and ResultFilePath variables.
-    template: "markdown-pdf {{ .FilePath }} -o {{ .ResultFilePath }}"
-
-  html:
-    timeout: 30
-    template: "xvfb-run -e /dev/stdout wkhtmltopdf {{ .FilePath }} {{ .ResultFilePath }}"
-
-  office:
-    timeout: 30
-    template: "unoconv --format pdf --output \"{{ .ResultFilePath }}\" \"{{ .FilePath }}\""
-
+  # Unlike others commands' templates, you have access to FilesPaths instead of FilePath: it gathers all PDF files which should be merged.
   merge:
-    timeout: 30
-    # Unlike others commands' templates, you have access to FilesPaths instead of FilePath: it gathers all PDF files which should be merged.
     template: "pdftk {{ range $filePath := .FilesPaths }} {{ $filePath }} {{ end }} cat output {{ .ResultFilePath }}"
+    timeout: 30
+  
+  conversions:
+
+      # The command template: you have access to FilePath and ResultFilePath variables.
+    - template: "markdown-pdf {{ .FilePath }} -o {{ .ResultFilePath }}"
+      # Duration in seconds after which the command will be killed if it has not finished.
+      timeout: 30
+      # Files with the following extensions will be converted by the current command.
+      extensions:
+        - ".md"
+
+    - template: "xvfb-run -e /dev/stdout wkhtmltopdf {{ .FilePath }} {{ .ResultFilePath }}"
+      timeout: 30
+      extensions:
+        - ".html"
+        - ".htm"
+
+    - template: "unoconv --format pdf --output \"{{ .ResultFilePath }}\" \"{{ .FilePath }}\""
+      timeout: 30
+      extensions:
+        - ".doc"
+        - ".docx"
+        - ".odt"
+        - ".xls"
+        - ".xlsx"
+        - ".ods"
+        - ".ppt"
+        - ".pptx"
+        - ".odp"

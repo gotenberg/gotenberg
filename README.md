@@ -107,7 +107,7 @@ services:
   # your others services
       
   gotenberg:
-    image: thecodingmachine/gotenberg:1.0.0
+    image: gotenberg:1.0.0
 ```
 
 You may now launch your services using:
@@ -124,7 +124,7 @@ according to the round-robin strategy.
 The API relies on a simple YAML configuration file called `gotenberg.yml`. It allows you to tweak some values and even provides you 
 a way to change the commands called for each kind of conversion. The configuration file should be located under `/gotenberg` in your container.
 
-The default configuration is located here: [.ci/gotenberg.yml](.ci/gotenberg.yml)
+The default configuration is located here: [.ci/gotenberg.yml](https://github.com/thecodingmachine/gotenberg/blob/1.0.0/.ci/gotenberg.yml)
 
 ## Clients
 

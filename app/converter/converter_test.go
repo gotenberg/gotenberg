@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/thecodingmachine/gotenberg/app/config"
-	"github.com/thecodingmachine/gotenberg/app/converter/process"
 )
 
 func makeRequest(filesPaths ...string) *http.Request {
@@ -43,10 +42,10 @@ func makeRequest(filesPaths ...string) *http.Request {
 	return req
 }
 
-func loadCommandConfigs(configurationFilePath string) {
+func load(configurationFilePath string) {
+	config.Reset()
 	path, _ := filepath.Abs(configurationFilePath)
-	c, _ := config.NewAppConfig(path)
-	process.Load(c.CommandsConfig)
+	config.ParseFile(path)
 }
 
 func TestNewConverter(t *testing.T) {
@@ -54,6 +53,8 @@ func TestNewConverter(t *testing.T) {
 		path  string
 		oPath string
 	)
+
+	load("../../_tests/configurations/gotenberg.yml")
 
 	// case 1: uses a request with a single file.
 	path, _ = filepath.Abs("../../_tests/file.docx")
@@ -94,7 +95,7 @@ func TestConvert(t *testing.T) {
 		c     *Converter
 	)
 
-	loadCommandConfigs("../../_tests/configurations/gotenberg.yml")
+	load("../../_tests/configurations/gotenberg.yml")
 
 	// case 1: uses a request with a single file.
 	path, _ = filepath.Abs("../../_tests/file.docx")
@@ -111,7 +112,7 @@ func TestConvert(t *testing.T) {
 		t.Errorf("Converter should have been able to convert '%s' and '%s' to PDF", path, oPath)
 	}
 
-	loadCommandConfigs("../../_tests/configurations/timeout-gotenberg.yml")
+	load("../../_tests/configurations/timeout-gotenberg.yml")
 
 	// case 3: uses a request with a single file and a configuration with an unsuitable timeout for the conversion commands.
 	path, _ = filepath.Abs("../../_tests/file.docx")
@@ -120,7 +121,7 @@ func TestConvert(t *testing.T) {
 		t.Errorf("Converter should not have been able to convert '%s' to PDF", path)
 	}
 
-	loadCommandConfigs("../../_tests/configurations/merge-timeout-gotenberg.yml")
+	load("../../_tests/configurations/merge-timeout-gotenberg.yml")
 
 	// case 4: uses a request with two files and a configuration with an unsuitable timeout for the merge command.
 	path, _ = filepath.Abs("../../_tests/file.pdf")
@@ -132,6 +133,8 @@ func TestConvert(t *testing.T) {
 }
 
 func TestClear(t *testing.T) {
+	load("../../_tests/configurations/gotenberg.yml")
+
 	path, _ := filepath.Abs("../../_tests/file.docx")
 	c, _ := NewConverter(makeRequest(path))
 	if err := c.Clear(); err != nil {

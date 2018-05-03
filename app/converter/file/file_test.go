@@ -2,13 +2,22 @@ package file
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/thecodingmachine/gotenberg/app/config"
 )
 
+func load(configurationFilePath string) {
+	config.Reset()
+	path, _ := filepath.Abs(configurationFilePath)
+	config.ParseFile(path)
+}
+
 func TestNewFile(t *testing.T) {
+	load("../../../_tests/configurations/gotenberg.yml")
+
 	workingDir := "test"
 	os.Mkdir(workingDir, 0666)
 
@@ -17,21 +26,13 @@ func TestNewFile(t *testing.T) {
 		t.Error("File should not have been instantiated with an empty buffer")
 	}
 
-	// case 2: uses a reader from a correct file type.
+	// case 2: uses a file name.
 	filePath, _ := filepath.Abs("../../../_tests/file.pdf")
 	r, _ := os.Open(filePath)
 	defer r.Close()
 	if _, err := NewFile(workingDir, r, "file.pdf"); err != nil {
-		t.Errorf("File should have been instantiated using a reader from '%s'", filePath)
+		t.Errorf("File should have been instantiated using a reader of '%s'", filePath)
 	}
 
 	os.RemoveAll(workingDir)
-}
-func TestFileTypeNotFoundError(t *testing.T) {
-	fileName := "file.wp"
-	err := &fileTypeNotFoundError{fileName: fileName}
-	expected := fmt.Sprintf("File type was not found for '%s'", fileName)
-	if err.Error() != expected {
-		t.Errorf("Error returned a wrong message: got '%s' want '%s'", err.Error(), expected)
-	}
 }

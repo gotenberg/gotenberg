@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os/exec"
 	"sync"
-	"text/template"
 	"time"
 
 	"github.com/thecodingmachine/gotenberg/app/config"
@@ -14,8 +13,7 @@ import (
 )
 
 type runner struct {
-	mu             sync.Mutex
-	commandsConfig *config.CommandsConfig
+	mu sync.Mutex
 }
 
 var forest = &runner{}
@@ -64,23 +62,10 @@ func (r *runner) run(command string, timeout int) error {
 	}
 }
 
-// Load loads the commands configuration coming from the application configuration.
-func Load(config *config.CommandsConfig) {
-	forest.commandsConfig = config
-}
-
 // conversionData will be applied to the data-driven templates of conversions commands.
 type conversionData struct {
 	FilePath       string
 	ResultFilePath string
-}
-
-type impossibleConversionError struct{}
-
-const impossibleConversionErrorMessage = "Impossible conversion"
-
-func (e *impossibleConversionError) Error() string {
-	return impossibleConversionErrorMessage
 }
 
 // Unconv converts a file to PDF and returns the new file path.
@@ -90,34 +75,17 @@ func Unconv(workingDir string, file *gfile.File) (string, error) {
 		ResultFilePath: gfile.MakeFilePath(workingDir, ".pdf"),
 	}
 
-	var (
-		cmdTimeout  int
-		cmdTemplate *template.Template
-	)
-
-	switch file.Type {
-	case gfile.MarkdownType:
-		cmdTimeout = forest.commandsConfig.Markdown.Timeout
-		cmdTemplate = forest.commandsConfig.Markdown.Template
-		break
-	case gfile.HTMLType:
-		cmdTimeout = forest.commandsConfig.HTML.Timeout
-		cmdTemplate = forest.commandsConfig.HTML.Template
-		break
-	case gfile.OfficeType:
-		cmdTimeout = forest.commandsConfig.Office.Timeout
-		cmdTemplate = forest.commandsConfig.Office.Template
-		break
-	default:
-		return "", &impossibleConversionError{}
-	}
-
-	var data bytes.Buffer
-	if err := cmdTemplate.Execute(&data, cmdData); err != nil {
+	cmd, err := config.GetCommand(file.Extension)
+	if err != nil {
 		return "", err
 	}
 
-	err := forest.run(data.String(), cmdTimeout)
+	var data bytes.Buffer
+	if err := cmd.Template.Execute(&data, cmdData); err != nil {
+		return "", err
+	}
+
+	err = forest.run(data.String(), cmd.Timeout)
 	if err != nil {
 		return "", err
 	}
@@ -138,15 +106,17 @@ func Merge(workingDir string, filesPaths []string) (string, error) {
 		ResultFilePath: gfile.MakeFilePath(workingDir, ".pdf"),
 	}
 
-	cmdTimeout := forest.commandsConfig.Merge.Timeout
-	cmdTemplate := forest.commandsConfig.Merge.Template
-
-	var data bytes.Buffer
-	if err := cmdTemplate.Execute(&data, cmdData); err != nil {
+	cmd, err := config.GetCommand(".pdf")
+	if err != nil {
 		return "", err
 	}
 
-	err := forest.run(data.String(), cmdTimeout)
+	var data bytes.Buffer
+	if err := cmd.Template.Execute(&data, cmdData); err != nil {
+		return "", err
+	}
+
+	err = forest.run(data.String(), cmd.Timeout)
 	if err != nil {
 		return "", err
 	}

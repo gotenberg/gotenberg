@@ -22,20 +22,10 @@ func makeFile(workingDir string, fileName string) *gfile.File {
 	return f
 }
 
-func loadCommandConfigs(configurationFilePath string) {
+func load(configurationFilePath string) {
+	config.Reset()
 	path, _ := filepath.Abs(configurationFilePath)
-	c, _ := config.NewAppConfig(path)
-	Load(c.CommandsConfig)
-}
-
-func TestLoad(t *testing.T) {
-	path, _ := filepath.Abs("../../../_tests/configurations/gotenberg.yml")
-	c, _ := config.NewAppConfig(path)
-	Load(c.CommandsConfig)
-
-	if c.CommandsConfig != forest.commandsConfig {
-		t.Error("Commands configuration should have been loaded correctly")
-	}
+	config.ParseFile(path)
 }
 
 func TestRun(t *testing.T) {
@@ -66,7 +56,7 @@ func TestUnconv(t *testing.T) {
 	workingDir := "test"
 	os.Mkdir(workingDir, 0666)
 
-	loadCommandConfigs("../../../_tests/configurations/gotenberg.yml")
+	load("../../../_tests/configurations/gotenberg.yml")
 
 	// case 1: uses an Markdown file type.
 	file = makeFile(workingDir, "file.md")
@@ -92,7 +82,7 @@ func TestUnconv(t *testing.T) {
 		t.Errorf("Converting '%s' to PDF should not have worked", file.Path)
 	}
 
-	loadCommandConfigs("../../../_tests/configurations/timeout-gotenberg.yml")
+	load("../../../_tests/configurations/timeout-gotenberg.yml")
 
 	// case 5: uses a command with an unsuitable timeout.
 	file = makeFile(workingDir, "file.docx")
@@ -107,7 +97,7 @@ func TestMerge(t *testing.T) {
 	workingDir := "test"
 	os.Mkdir(workingDir, 0666)
 
-	loadCommandConfigs("../../../_tests/configurations/gotenberg.yml")
+	load("../../../_tests/configurations/gotenberg.yml")
 
 	var filesPaths []string
 	path, _ := filepath.Abs("../../../_tests/file.pdf")
@@ -119,7 +109,7 @@ func TestMerge(t *testing.T) {
 		t.Error("Merge should have worked")
 	}
 
-	loadCommandConfigs("../../../_tests/configurations/timeout-gotenberg.yml")
+	load("../../../_tests/configurations/timeout-gotenberg.yml")
 
 	// case 2: uses a command with an unsuitable timeout.
 	if _, err := Merge(workingDir, filesPaths); err == nil {
@@ -127,13 +117,6 @@ func TestMerge(t *testing.T) {
 	}
 
 	os.RemoveAll(workingDir)
-}
-
-func TestImpossibleConversionError(t *testing.T) {
-	err := &impossibleConversionError{}
-	if err.Error() != impossibleConversionErrorMessage {
-		t.Errorf("Error returned a wrong message: got '%s' want '%s'", err.Error(), impossibleConversionErrorMessage)
-	}
 }
 
 func TestCommandTimeoutError(t *testing.T) {

@@ -1,4 +1,4 @@
-// Package http provides functions for detecting a request or a file content type.
+// Package http provides functions for detecting a request content type.
 package http
 
 import (

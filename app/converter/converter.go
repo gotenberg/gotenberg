@@ -75,7 +75,7 @@ func NewConverter(r *http.Request) (*Converter, error) {
 func (c *Converter) Convert() (string, error) {
 	var filesPaths []string
 	for _, f := range c.files {
-		if f.Type != gfile.PDFType {
+		if f.Extension != ".pdf" {
 			path, err := process.Unconv(c.workingDir, f)
 			if err != nil {
 				return "", err

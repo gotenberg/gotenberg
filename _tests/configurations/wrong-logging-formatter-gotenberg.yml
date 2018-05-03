@@ -1,7 +1,7 @@
 port: 3000
 logs:
-  level: "text"
-  formatter: "text"
+  level: "DEBUG"
+  formatter: "DEBUG"
 commands:
   merge:
     template: "pdftk {{ range $filePath := .FilesPaths }} {{ $filePath }} {{ end }} cat output {{ .ResultFilePath }}"

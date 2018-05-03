@@ -2,6 +2,3 @@ payload:
 
   - key: Version
     value: snapshot
-
-  - key: Latest
-    value: 1.0.0
