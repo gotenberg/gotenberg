@@ -28,6 +28,15 @@ func load(configurationFilePath string) {
 	config.ParseFile(path)
 }
 
+func TestCommandTimeoutError(t *testing.T) {
+	err := &commandTimeoutError{"echo hello", 30}
+	expected := fmt.Sprintf(commandTimeoutErrorMessage, err.command, err.timeout)
+
+	if err.Error() != expected {
+		t.Errorf("Error returned a wrong message: got '%s' want '%s'", err.Error(), expected)
+	}
+}
+
 func TestRun(t *testing.T) {
 	var cmd string
 
@@ -117,15 +126,4 @@ func TestMerge(t *testing.T) {
 	}
 
 	os.RemoveAll(workingDir)
-}
-
-func TestCommandTimeoutError(t *testing.T) {
-	err := &commandTimeoutError{
-		command: "echo hello",
-		timeout: 30,
-	}
-	expected := fmt.Sprintf("The command '%s' has reached the %d second(s) timeout", err.command, err.timeout)
-	if err.Error() != expected {
-		t.Errorf("Error returned a wrong message: got '%s' want '%s'", err.Error(), expected)
-	}
 }

@@ -119,9 +119,9 @@ func TestFileExtensionAlreadyUsedError(t *testing.T) {
 	ext := ".pdf"
 	cmd1, _ := NewCommand("echo", 0)
 	cmd2, _ := NewCommand("echo", 0)
-	expected := fmt.Sprintf(fileExtensionAlreadyUsedErrorMessage, ext, cmd1.Template.Name(), cmd2.Template.Name())
-
 	err := &fileExtensionAlreadyUsedError{ext, cmd1, cmd2}
+	expected := fmt.Sprintf(fileExtensionAlreadyUsedErrorMessage, err.extension, err.command.Template.Name(), err.existingCommand.Template.Name())
+
 	if err.Error() != expected {
 		t.Errorf("Error returned a wrong message: got '%s' want '%s'", err.Error(), expected)
 	}
@@ -143,10 +143,9 @@ func TestWithCommand(t *testing.T) {
 }
 
 func TestNoCommandFoundForFileExtensionError(t *testing.T) {
-	ext := ".pdf"
-	expected := fmt.Sprintf(noCommandFoundForFileExtensionErrorMessage, ext)
+	err := &noCommandFoundForFileExtensionError{".pdf"}
+	expected := fmt.Sprintf(noCommandFoundForFileExtensionErrorMessage, err.extension)
 
-	err := &noCommandFoundForFileExtensionError{ext}
 	if err.Error() != expected {
 		t.Errorf("Error returned a wrong message: got '%s' want '%s'", err.Error(), expected)
 	}

@@ -23,8 +23,10 @@ func GetHandlersChain() http.Handler {
 
 type requestHasNoContentError struct{}
 
+const requestHasNoContentErrorMessage = "request has not content"
+
 func (e *requestHasNoContentError) Error() string {
-	return "Request has not content"
+	return requestHasNoContentErrorMessage
 }
 
 // enforeContentLengthHandler checks if the request has content.

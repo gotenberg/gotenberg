@@ -22,7 +22,7 @@ type Converter struct {
 // NoFileToConvertError is raided when a request has not file attached to it.
 type NoFileToConvertError struct{}
 
-const noFileToConvertErrorMessage = "No file to convert"
+const noFileToConvertErrorMessage = "no file to convert"
 
 func (e *NoFileToConvertError) Error() string {
 	return noFileToConvertErrorMessage

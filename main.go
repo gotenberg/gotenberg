@@ -53,8 +53,8 @@ func main() {
 		Handler: r,
 	}
 
-	logger.Infof("Starting Gotenberg version %s", version)
-	logger.Infof("Listening on port %s", config.GetPort())
+	logger.Infof("starting Gotenberg version %s", version)
+	logger.Infof("listening on port %s", config.GetPort())
 
 	// runs our server in a goroutine so that it doesn't block.
 	go func() {
@@ -83,6 +83,6 @@ func main() {
 	s.Shutdown(ctx)
 
 	logger.SetLevel(logrus.InfoLevel)
-	logger.Info("Bye!")
+	logger.Info("bye!")
 	os.Exit(0)
 }

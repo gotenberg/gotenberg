@@ -23,8 +23,10 @@ type commandTimeoutError struct {
 	timeout int
 }
 
+const commandTimeoutErrorMessage = "the command '%s' has reached the %d second(s) timeout"
+
 func (e *commandTimeoutError) Error() string {
-	return fmt.Sprintf("The command '%s' has reached the %d second(s) timeout", e.command, e.timeout)
+	return fmt.Sprintf(commandTimeoutErrorMessage, e.command, e.timeout)
 }
 
 // run runs the given command. If timeout is reached or

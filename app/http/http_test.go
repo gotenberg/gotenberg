@@ -31,7 +31,8 @@ func TestCheckAuthorizedContentType(t *testing.T) {
 
 func TestNotAuthorizedContentTypeError(t *testing.T) {
 	err := &notAuthorizedContentTypeError{}
-	expected := fmt.Sprintf("Accepted value for 'Content-Type': %s", MultipartFormDataContentType)
+	expected := fmt.Sprintf(notAuthorizedContentTypeErrorMessage, MultipartFormDataContentType)
+
 	if err.Error() != expected {
 		t.Errorf("Error returned a wrong message: got '%s' want '%s'", err.Error(), expected)
 	}

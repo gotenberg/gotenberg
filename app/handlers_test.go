@@ -62,6 +62,13 @@ func TestGetHandlersChain(t *testing.T) {
 	}
 }
 
+func TestRequestHasNoContentError(t *testing.T) {
+	err := &requestHasNoContentError{}
+	if err.Error() != requestHasNoContentErrorMessage {
+		t.Errorf("Error returned a wrong message: got '%s' want '%s'", err.Error(), requestHasNoContentErrorMessage)
+	}
+}
+
 func TestEnforceContentLengthHandler(t *testing.T) {
 	var (
 		req *http.Request
