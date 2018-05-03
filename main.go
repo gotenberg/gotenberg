@@ -17,7 +17,6 @@ import (
 
 	"github.com/thecodingmachine/gotenberg/app"
 	"github.com/thecodingmachine/gotenberg/app/config"
-	"github.com/thecodingmachine/gotenberg/app/converter/process"
 	"github.com/thecodingmachine/gotenberg/app/logger"
 
 	"github.com/gorilla/mux"
@@ -33,7 +32,7 @@ const defaultConfigurationFilePath = "gotenberg.yml"
 // main initializes the application, starts it, and handles
 // graceful shutdown.
 func main() {
-	c, err := config.NewAppConfig(defaultConfigurationFilePath)
+	err := config.ParseFile(defaultConfigurationFilePath)
 	if err != nil {
 		logger.SetLevel(logrus.InfoLevel)
 		logger.Fatal(err)
@@ -41,8 +40,8 @@ func main() {
 	}
 
 	// defines our application logging.
-	logger.SetLevel(c.Logs.Level)
-	logger.SetFormatter(c.Logs.Formatter)
+	logger.SetLevel(config.GetLogsLevel())
+	logger.SetFormatter(config.GetLogsFormatter())
 
 	// defines our application router.
 	r := mux.NewRouter()
@@ -50,13 +49,12 @@ func main() {
 
 	// defines our server.
 	s := &http.Server{
-		Addr:    fmt.Sprintf(":%s", c.Port),
+		Addr:    fmt.Sprintf(":%s", config.GetPort()),
 		Handler: r,
 	}
 
-	process.Load(c.CommandsConfig)
 	logger.Infof("Starting Gotenberg version %s", version)
-	logger.Infof("Listening on port %s", c.Port)
+	logger.Infof("Listening on port %s", config.GetPort())
 
 	// runs our server in a goroutine so that it doesn't block.
 	go func() {

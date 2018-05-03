@@ -1,17 +1,30 @@
 port: 3000
 logs:
   level: "DEBUG"
-  format: "text"
+  formatter: "text"
 commands:
-  markdown:
-    timeout: 30
-    template: "markdown-pdf {{ .FilePath }} -o {{ .ResultFilePath }}"
-  html:
-    timeout: 30
-    template: "xvfb-run -e /dev/stdout wkhtmltopdf {{ .FilePath }} {{ .ResultFilePath }}"
-  office:
-    timeout: 30
-    template: "unoconv --format pdf --output {{ .ResultFilePath }}\" \"{{ .FilePath }}\""
   merge:
+    template: "pdftk {{ range $filePath := FilesPaths }} {{ $filePath }} {{ end }} cat output {{ .ResultFilePath }}"
     timeout: 30
-    template: "pdftk {{ range $filePath := .FilesPaths }} {{ $filePath }} cat output {{ .ResultFilePath }}"
+  conversions:
+    - template: "markdown-pdf {{ .FilePath }} -o {{ .ResultFilePath }}"
+      timeout: 30
+      extensions:
+        - ".md"
+    - template: "xvfb-run -e /dev/stdout wkhtmltopdf {{ .FilePath }} {{ .ResultFilePath }}"
+      timeout: 30
+      extensions:
+        - ".html"
+        - ".htm"
+    - template: "unoconv --format pdf --output \"{{ .ResultFilePath }}\" \"{{ .FilePath }}\""
+      timeout: 30
+      extensions:
+        - ".doc"
+        - ".docx"
+        - ".odt"
+        - ".xls"
+        - ".xlsx"
+        - ".ods"
+        - ".ppt"
+        - ".pptx"
+        - ".odp"

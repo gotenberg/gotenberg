@@ -7,55 +7,18 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/thecodingmachine/gotenberg/app/config"
+
 	"github.com/satori/go.uuid"
 )
 
 // File represents a file which has been created
 // from a request.
 type File struct {
-	// Type is the kind of file.
-	Type Type
+	// Extension is the extension of the file.
+	Extension string
 	// Path is the file path.
 	Path string
-}
-
-// Type represents what kind of file we're dealing with.
-type Type uint32
-
-const (
-	// PDFType represents a... PDF file.
-	PDFType Type = iota
-	// MarkdownType represents a... Markdown file.
-	MarkdownType
-	// HTMLType represents an... HTML file.
-	HTMLType
-	// OfficeType represents an... Office document.
-	OfficeType
-)
-
-// filesTypes associates a file extension with its file kind counterpart.
-var filesTypes = map[string]Type{
-	".pdf":  PDFType,
-	".md":   MarkdownType,
-	".htm":  HTMLType,
-	".html": HTMLType,
-	".doc":  OfficeType,
-	".docx": OfficeType,
-	".odt":  OfficeType,
-	".xls":  OfficeType,
-	".xlsx": OfficeType,
-	".ods":  OfficeType,
-	".ppt":  OfficeType,
-	".pptx": OfficeType,
-	".odp":  OfficeType,
-}
-
-type fileTypeNotFoundError struct {
-	fileName string
-}
-
-func (e *fileTypeNotFoundError) Error() string {
-	return fmt.Sprintf("File type was not found for '%s'", e.fileName)
 }
 
 // NewFile creates a file in the considered directory.
@@ -63,14 +26,13 @@ func (e *fileTypeNotFoundError) Error() string {
 func NewFile(workingDir string, r io.Reader, fileName string) (*File, error) {
 	ext := filepath.Ext(fileName)
 
-	t, ok := filesTypes[ext]
-	if !ok {
-		return nil, &fileTypeNotFoundError{fileName: fileName}
+	if _, err := config.GetCommand(ext); err != nil {
+		return nil, err
 	}
 
 	f := &File{
-		Path: MakeFilePath(workingDir, ext),
-		Type: t,
+		Extension: ext,
+		Path:      MakeFilePath(workingDir, ext),
 	}
 
 	file, err := os.Create(f.Path)

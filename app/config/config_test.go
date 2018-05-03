@@ -1,77 +1,171 @@
 package config
 
 import (
-	"path/filepath"
+	"fmt"
 	"testing"
+
+	"github.com/sirupsen/logrus"
 )
 
-func TestNewAppConfig(t *testing.T) {
-	var path string
+func TestReset(t *testing.T) {
+	c := &appConfig{}
+	config.port = "3000"
+	Reset()
 
-	// case 1: uses an empty configuration file path.
-	if _, err := NewAppConfig(""); err == nil {
-		t.Error("AppConfig should not have been instantiated by using an empty configuration file path")
-	}
-
-	// case 2: uses a broken configuration file.
-	path, _ = filepath.Abs("../../_tests/configurations/broken-gotenberg.yml")
-	if _, err := NewAppConfig(path); err == nil {
-		t.Errorf("AppConfig should not have been instantiated with '%s'", path)
-	}
-
-	// case 3: uses a configuration file with a wrong logging level.
-	path, _ = filepath.Abs("../../_tests/configurations/wrong-logging-level-gotenberg.yml")
-	if _, err := NewAppConfig(path); err == nil {
-		t.Errorf("AppConfig should not have been instantiated with '%s'", path)
-	}
-
-	// case 4: uses a configuration file with a wrong logging format.
-	path, _ = filepath.Abs("../../_tests/configurations/wrong-logging-format-gotenberg.yml")
-	if _, err := NewAppConfig(path); err == nil {
-		t.Errorf("AppConfig should not have been instantiated with '%s'", path)
-	}
-
-	// case 5: uses a configuration file with a wrong markdown command template.
-	path, _ = filepath.Abs("../../_tests/configurations/wrong-markdown-command-template-gotenberg.yml")
-	if _, err := NewAppConfig(path); err == nil {
-		t.Errorf("AppConfig should not have been instantiated with '%s'", path)
-	}
-
-	// case 6: uses a configuration file with a wrong HTML command template.
-	path, _ = filepath.Abs("../../_tests/configurations/wrong-html-command-template-gotenberg.yml")
-	if _, err := NewAppConfig(path); err == nil {
-		t.Errorf("AppConfig should not have been instantiated with '%s'", path)
-	}
-
-	// case 7: uses a configuration file with a wrong Office command template.
-	path, _ = filepath.Abs("../../_tests/configurations/wrong-office-command-template-gotenberg.yml")
-	if _, err := NewAppConfig(path); err == nil {
-		t.Errorf("AppConfig should not have been instantiated with '%s'", path)
-	}
-
-	// case 8: uses a configuration file with a wrong merge command template.
-	path, _ = filepath.Abs("../../_tests/configurations/wrong-merge-command-template-gotenberg.yml")
-	if _, err := NewAppConfig(path); err == nil {
-		t.Errorf("AppConfig should not have been instantiated with '%s'", path)
-	}
-
-	// case 9: uses a correct configuration file.
-	path, _ = filepath.Abs("../../_tests/configurations/gotenberg.yml")
-	if _, err := NewAppConfig(path); err != nil {
-		t.Errorf("AppConfig should have been instantiated with '%s'", path)
+	if c.port != config.port {
+		t.Error("Configuration should have been reset")
 	}
 }
 
-func TestWrongLoggingLevelError(t *testing.T) {
-	err := &wrongLoggingLevelError{}
-	if err.Error() != wrongLoggingLevelErrorMessage {
-		t.Errorf("Error returned a wrong message: got '%s' want '%s'", err.Error(), wrongLoggingLevelErrorMessage)
+func TestWithPort(t *testing.T) {
+	port := "3000"
+	WithPort(port)
+
+	if config.port != port {
+		t.Errorf("Configuration populated with a wrong port: got '%s' want '%s'", config.port, port)
 	}
 }
 
-func TestWrongLoggingFormatError(t *testing.T) {
-	err := &wrongLoggingFormatError{}
-	if err.Error() != wrongLoggingFormatErrorMessage {
-		t.Errorf("Error returned a wrong message: got '%s' want '%s'", err.Error(), wrongLoggingFormatErrorMessage)
+func TestGetPort(t *testing.T) {
+	port := "3000"
+	config.port = port
+
+	if GetPort() != port {
+		t.Errorf("Configuration returned a wrong port: got '%s' want '%s'", GetPort(), port)
+	}
+}
+
+func TestWrongLogsLevelError(t *testing.T) {
+	err := &wrongLogsLevelError{}
+	if err.Error() != wrongLogsLevelErrorMessage {
+		t.Errorf("Error returned a wrong message: got '%s' want '%s'", err.Error(), wrongLogsLevelErrorMessage)
+	}
+}
+
+func TestWithLogsLevel(t *testing.T) {
+	var lvl string
+
+	// case 1: uses a wrong logs level.
+	lvl = "text"
+	if err := WithLogsLevel(lvl); err == nil {
+		t.Errorf("Configuration should not have been populated by using '%s' as logs level", lvl)
+	}
+
+	// case 2: uses a correct logs level.
+	lvl = "DEBUG"
+	if err := WithLogsLevel(lvl); err != nil {
+		t.Errorf("Configuration should have been populated by using '%s' as logs level", lvl)
+	}
+}
+
+func TestGetLogsLevel(t *testing.T) {
+	lvl := logrus.DebugLevel
+	config.logsLevel = lvl
+
+	if GetLogsLevel() != lvl {
+		t.Errorf("Configuration returned a wrong logs level: got '%s' want '%s'", GetLogsLevel(), lvl)
+	}
+}
+
+func TestWrongLogsFormatterError(t *testing.T) {
+	err := &wrongLogsFormatterError{}
+	if err.Error() != wrongLogsFormatterErrorMessage {
+		t.Errorf("Error returned a wrong message: got '%s' want '%s'", err.Error(), wrongLogsFormatterErrorMessage)
+	}
+}
+
+func TestWithLogsFormatter(t *testing.T) {
+	var formatter string
+
+	// case 1: uses a wrong logs formatter.
+	formatter = "DEBUG"
+	if err := WithLogsFormatter(formatter); err == nil {
+		t.Errorf("Configuration should not have been populated by using '%s' as logs formatter", formatter)
+	}
+
+	// case 2: uses a correct logs formatter.
+	formatter = "text"
+	if err := WithLogsFormatter(formatter); err != nil {
+		t.Errorf("Configuration should have been populated by using '%s' as logs formatter", formatter)
+	}
+}
+
+func TestGetLogsFormatter(t *testing.T) {
+	formatter := &logrus.TextFormatter{}
+	config.logsFormatter = formatter
+
+	if GetLogsFormatter() != formatter {
+		t.Errorf("Configuration returned a wrong logs formatter: got '%v' want '%v'", GetLogsFormatter(), formatter)
+	}
+}
+
+func TestNewCommand(t *testing.T) {
+	var cmd string
+
+	// case 1: uses a wrong command template.
+	cmd = "pdftk {{ range $filePath := FilesPaths }} {{ $filePath }} {{ end }} cat output {{ .ResultFilePath }}"
+	if _, err := NewCommand(cmd, 0); err == nil {
+		t.Errorf("Command should not have been instantiated by using '%s' as command template", cmd)
+	}
+
+	// case 2: uses a correct command template.
+	cmd = "pdftk {{ range $filePath := .FilesPaths }} {{ $filePath }} {{ end }} cat output {{ .ResultFilePath }}"
+	if _, err := NewCommand(cmd, 0); err != nil {
+		t.Errorf("Command should have been instantiated by using '%s' as command template", cmd)
+	}
+}
+
+func TestFileExtensionAlreadyUsedError(t *testing.T) {
+	ext := ".pdf"
+	cmd1, _ := NewCommand("echo", 0)
+	cmd2, _ := NewCommand("echo", 0)
+	expected := fmt.Sprintf(fileExtensionAlreadyUsedErrorMessage, ext, cmd1.Template.Name(), cmd2.Template.Name())
+
+	err := &fileExtensionAlreadyUsedError{ext, cmd1, cmd2}
+	if err.Error() != expected {
+		t.Errorf("Error returned a wrong message: got '%s' want '%s'", err.Error(), expected)
+	}
+}
+
+func TestWithCommand(t *testing.T) {
+	ext := ".pdf"
+	cmd, _ := NewCommand("echo", 0)
+
+	// case 1: uses a command with a file extension not already referenced.
+	if err := WithCommand(ext, cmd); err != nil {
+		t.Errorf("Configuration should have been populated by using a command with the file extension '%s'", ext)
+	}
+
+	// case 2: uses a command with a file extension already referenced.
+	if err := WithCommand(ext, cmd); err == nil {
+		t.Errorf("Configuration should not have been populated by using a command with the file extension '%s'", ext)
+	}
+}
+
+func TestNoCommandFoundForFileExtensionError(t *testing.T) {
+	ext := ".pdf"
+	expected := fmt.Sprintf(noCommandFoundForFileExtensionErrorMessage, ext)
+
+	err := &noCommandFoundForFileExtensionError{ext}
+	if err.Error() != expected {
+		t.Errorf("Error returned a wrong message: got '%s' want '%s'", err.Error(), expected)
+	}
+}
+
+func TestGetCommand(t *testing.T) {
+	Reset()
+	ext := ".pdf"
+	cmd, _ := NewCommand("echo", 0)
+	WithCommand(ext, cmd)
+
+	// case 1: uses a file extension which has a command associated.
+	if _, err := GetCommand(ext); err != nil {
+		t.Errorf("Configuration should have been able to return a command by using the file extension '%s'", ext)
+	}
+
+	// case 2: uses a file extension which has no command associated.
+	ext = ".docx"
+	if _, err := GetCommand(ext); err == nil {
+		t.Errorf("Configuration should not have been able to return a command by using the file extension '%s'", ext)
 	}
 }

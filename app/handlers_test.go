@@ -11,7 +11,6 @@ import (
 
 	"github.com/thecodingmachine/gotenberg/app/config"
 	"github.com/thecodingmachine/gotenberg/app/context"
-	"github.com/thecodingmachine/gotenberg/app/converter/process"
 
 	"github.com/justinas/alice"
 )
@@ -46,10 +45,10 @@ func makeRequest(filesPaths ...string) *http.Request {
 	return req
 }
 
-func loadCommandConfigs(configurationFilePath string) {
+func load(configurationFilePath string) {
+	config.Reset()
 	path, _ := filepath.Abs(configurationFilePath)
-	c, _ := config.NewAppConfig(path)
-	process.Load(c.CommandsConfig)
+	config.ParseFile(path)
 }
 
 func fakeSuccessHandler(w http.ResponseWriter, r *http.Request) {
@@ -140,7 +139,7 @@ func TestConvertHandler(t *testing.T) {
 		t.Errorf("Handler returned a wrong status code: got '%v' want '%v'", status, http.StatusBadRequest)
 	}
 
-	loadCommandConfigs("../_tests/configurations/merge-timeout-gotenberg.yml")
+	load("../_tests/configurations/merge-timeout-gotenberg.yml")
 
 	// case 3: sends a request with two files and using an unsuitable timeout for merge commande.
 	path, _ = filepath.Abs("../_tests/file.pdf")
@@ -152,7 +151,7 @@ func TestConvertHandler(t *testing.T) {
 		t.Errorf("Handler returned a wrong status code: got '%v' want '%v'", status, http.StatusInternalServerError)
 	}
 
-	loadCommandConfigs("../_tests/configurations/gotenberg.yml")
+	load("../_tests/configurations/gotenberg.yml")
 
 	// case 4: sends a request with two files.
 	path, _ = filepath.Abs("../_tests/file.pdf")

@@ -8,7 +8,7 @@
         <img src="https://images.microbadger.com/badges/image/thecodingmachine/gotenberg:1.0.0.svg" alt="MicroBadger layers">
     </a>
     <a href="https://travis-ci.org/thecodingmachine/gotenberg">
-        <img src="https://travis-ci.org/thecodingmachine/gotenberg.svg?branch=master" alt="Travis CI">
+        <img src="https://travis-ci.org/thecodingmachine/gotenberg.svg?branch=ext-config" alt="Travis CI">
     </a>
     <a href="https://godoc.org/github.com/thecodingmachine/gotenberg">
         <img src="https://godoc.org/github.com/thecodingmachine/gotenberg?status.svg" alt="GoDoc">
@@ -16,8 +16,8 @@
     <a href="https://goreportcard.com/report/thecodingmachine/gotenberg">
         <img src="https://goreportcard.com/badge/github.com/thecodingmachine/gotenberg" alt="Go Report Card">
     </a>
-    <a href="https://codecov.io/gh/thecodingmachine/gotenberg/branch/master">
-        <img src="https://codecov.io/gh/thecodingmachine/gotenberg/branch/master/graph/badge.svg" alt="Codecov">
+    <a href="https://codecov.io/gh/thecodingmachine/gotenberg/branch/ext-config">
+        <img src="https://codecov.io/gh/thecodingmachine/gotenberg/branch/ext-config/graph/badge.svg" alt="Codecov">
     </a>
 </p>
 
@@ -124,7 +124,7 @@ according to the round-robin strategy.
 The API relies on a simple YAML configuration file called `gotenberg.yml`. It allows you to tweak some values and even provides you 
 a way to change the commands called for each kind of conversion. The configuration file should be located under `/gotenberg` in your container.
 
-The default configuration is located here: [.ci/gotenberg.yml](.ci/gotenberg.yml)
+The default configuration is located here: [.ci/gotenberg.yml](https://github.com/thecodingmachine/gotenberg/blob/1.0.0/.ci/gotenberg.yml)
 
 ## Clients
 

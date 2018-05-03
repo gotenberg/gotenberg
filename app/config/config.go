@@ -7,139 +7,50 @@ It should be located where the user starts the application from the CLI.
 package config
 
 import (
-	"io/ioutil"
+	"fmt"
 	"text/template"
 
 	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
 )
 
 type (
-	// AppConfig gathers all data required to instantiate the application.
-	AppConfig struct {
-		// Port is the port which the application will listen to.
-		Port string
-		// Logs contains the logging configuration.
-		Logs struct {
-			// Level is the level of messages which will be logged.
-			Level logrus.Level
-			// Formatter defines the logging format when a TTY is not attached.
-			Formatter logrus.Formatter
-		}
-		// CommandsConfig is... an instance of CommandsConfig.
-		CommandsConfig *CommandsConfig
+	// appConfig gathers all configuration data.
+	appConfig struct {
+		port          string
+		logsLevel     logrus.Level
+		logsFormatter logrus.Formatter
+		// commands associates a file extension with a Command instance.
+		// Particular case: ".pdf" extension is used for the merge command.
+		commands map[string]*Command
 	}
 
-	// CommandsConfig gathers all commands' configurations as defined
-	// by the user in the gotenberg.yml file.
-	CommandsConfig struct {
-		// Markdown is the command's configuration for converting
-		// an Markdown file to PDF.
-		Markdown *CommandConfig
-		// HTML is the command's configuration for converting
-		// an HTML file to PDF.
-		HTML *CommandConfig
-		// Office is the command's configuration for converting
-		// an Office document to PDF.
-		Office *CommandConfig
-		// Merge is the command's configuration for merging
-		// multiple PDF files into one PDF file.
-		Merge *CommandConfig
-	}
-
-	// CommandConfig is a command's configuration.
-	CommandConfig struct {
+	// Command gathers information on how to launch an external binary used for converting
+	// a file to PDF.
+	Command struct {
+		// Template is the data-driven template of the command.
+		Template *template.Template
 		// Timeout is the duration in seconds after which the command's process will be killed
 		// if it does not finish before.
 		Timeout int
-		// Template is the data-driven template of the command.
-		Template *template.Template
 	}
 )
 
-// NewAppConfig instantiates the application's configuration.
-// If something bad happens here, the application should not start.
-func NewAppConfig(configurationFilePath string) (*AppConfig, error) {
-	fileConfig, err := loadFileConfig(configurationFilePath)
-	if err != nil {
-		return nil, err
-	}
+// our default instance of appConfig.
+var config = &appConfig{}
 
-	c := &AppConfig{}
-	c.Port = fileConfig.Port
-
-	if err := makeLogs(c, fileConfig); err != nil {
-		return nil, err
-	}
-
-	if err := makeCommandsConfig(c, fileConfig); err != nil {
-		return nil, err
-	}
-
-	return c, nil
+// Reset reinitializes our configuration.
+func Reset() {
+	config = &appConfig{}
 }
 
-// fileConfig gathers all data coming from the configuration file gotenberg.yml.
-type fileConfig struct {
-	Port string `yaml:"port"`
-	Logs struct {
-		Level  string `yaml:"level"`
-		Format string `yaml:"format"`
-	} `yaml:"logs"`
-	Commands struct {
-		Markdown struct {
-			Timeout  int    `yaml:"timeout"`
-			Template string `yaml:"template"`
-		} `yaml:"markdown"`
-		HTML struct {
-			Timeout  int
-			Template string
-		} `yaml:"html"`
-		Office struct {
-			Timeout  int    `yaml:"timeout"`
-			Template string `yaml:"template"`
-		} `yaml:"office"`
-		Merge struct {
-			Timeout  int    `yaml:"timeout"`
-			Template string `yaml:"template"`
-		} `yaml:"merge"`
-	} `yaml:"commands"`
+// WithPort sets the port which will be used by the application.
+func WithPort(port string) {
+	config.port = port
 }
 
-// loadFileConfig instantiates a fileConfig instance by loading
-// the configuration file gotenberg.yml.
-func loadFileConfig(configurationFilePath string) (*fileConfig, error) {
-	c := &fileConfig{}
-
-	data, err := ioutil.ReadFile(configurationFilePath)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := yaml.Unmarshal(data, &c); err != nil {
-		return nil, err
-	}
-
-	return c, nil
-}
-
-// makeLogs is a simple wrapper which populates all data related
-// to application's logging.
-func makeLogs(appConfig *AppConfig, fileConfig *fileConfig) error {
-	lvl, err := getLoggingLevelFromFileConfig(fileConfig)
-	if err != nil {
-		return err
-	}
-
-	formatter, err := getLoggingFormatterFromFileConfig(fileConfig)
-	if err != nil {
-		return err
-	}
-
-	appConfig.Logs.Level = lvl
-	appConfig.Logs.Formatter = formatter
-
-	return nil
+// GetPort returns the current port.
+func GetPort() string {
+	return config.port
 }
 
 // levels associates logging levels as defined in the configuration file gotenberg.yml
@@ -153,102 +64,122 @@ var levels = map[string]logrus.Level{
 	"PANIC": logrus.PanicLevel,
 }
 
-type wrongLoggingLevelError struct{}
+type wrongLogsLevelError struct{}
 
-const wrongLoggingLevelErrorMessage = "Accepted values for logging level: DEBUG, INFO, WARN, ERROR, FATAL, PANIC"
+const wrongLogsLevelErrorMessage = "accepted values for logs level: DEBUG, INFO, WARN, ERROR, FATAL, PANIC"
 
-func (e *wrongLoggingLevelError) Error() string {
-	return wrongLoggingLevelErrorMessage
+func (e *wrongLogsLevelError) Error() string {
+	return wrongLogsLevelErrorMessage
 }
 
-// getLoggingLevelFromFileConfig returns a logrus level if a matching was found
-// with the one defined by the user.
-// If no match, throws an error.
-func getLoggingLevelFromFileConfig(c *fileConfig) (logrus.Level, error) {
-	l, ok := levels[c.Logs.Level]
+// WithLogsLevel sets the logs level.
+// If the given string does not match with a logrus level,
+// throws an error.
+func WithLogsLevel(level string) error {
+	l, ok := levels[level]
 	if !ok {
-		return 999, &wrongLoggingLevelError{}
+		return &wrongLogsLevelError{}
 	}
 
-	return l, nil
+	config.logsLevel = l
+	return nil
 }
 
-// levels associates logging formats as defined in the configuration file gotenberg.yml
+// GetLogsLevel returns the current logs level.
+func GetLogsLevel() logrus.Level {
+	return config.logsLevel
+}
+
+// formatters associates logging formatter as defined in the configuration file gotenberg.yml
 // with its counterpart from the logrus library.
 var formatters = map[string]logrus.Formatter{
 	"text": &logrus.TextFormatter{},
 	"json": &logrus.JSONFormatter{},
 }
 
-type wrongLoggingFormatError struct{}
+type wrongLogsFormatterError struct{}
 
-const wrongLoggingFormatErrorMessage = "Accepted value for logging format: text, json"
+const wrongLogsFormatterErrorMessage = "accepted value for logs formatter: text, json"
 
-func (e *wrongLoggingFormatError) Error() string {
-	return wrongLoggingFormatErrorMessage
+func (e *wrongLogsFormatterError) Error() string {
+	return wrongLogsFormatterErrorMessage
 }
 
-// getLoggingLevelFromFileConfig returns a logrus Formatter if a matching was found
-// with the format defined by the user.
-// If no match, throws an error.
-func getLoggingFormatterFromFileConfig(c *fileConfig) (logrus.Formatter, error) {
-	f, ok := formatters[c.Logs.Format]
+// WithLogsFormatter sets the logs formatter.
+// If the given string does not match with a logrus formatter,
+// throws an error.
+func WithLogsFormatter(formatter string) error {
+	f, ok := formatters[formatter]
 	if !ok {
-		return nil, &wrongLoggingFormatError{}
+		return &wrongLogsFormatterError{}
 	}
 
-	return f, nil
-}
-
-// makeCommandsConfigs is a simple wrapper which populates all data related
-// to commands' configurations.
-func makeCommandsConfig(appConfig *AppConfig, fileConfig *fileConfig) error {
-	appConfig.CommandsConfig = &CommandsConfig{}
-	appConfig.CommandsConfig.Markdown = &CommandConfig{}
-	appConfig.CommandsConfig.HTML = &CommandConfig{}
-	appConfig.CommandsConfig.Office = &CommandConfig{}
-	appConfig.CommandsConfig.Merge = &CommandConfig{}
-
-	appConfig.CommandsConfig.Markdown.Timeout = fileConfig.Commands.Markdown.Timeout
-	appConfig.CommandsConfig.HTML.Timeout = fileConfig.Commands.HTML.Timeout
-	appConfig.CommandsConfig.Office.Timeout = fileConfig.Commands.Office.Timeout
-	appConfig.CommandsConfig.Merge.Timeout = fileConfig.Commands.Merge.Timeout
-
-	tmplMarkdown, err := getCommandTemplate(fileConfig.Commands.Markdown.Template, "Markdown")
-	if err != nil {
-		return err
-	}
-
-	tmplHTML, err := getCommandTemplate(fileConfig.Commands.HTML.Template, "HTML")
-	if err != nil {
-		return err
-	}
-
-	tmplOffice, err := getCommandTemplate(fileConfig.Commands.Office.Template, "Office")
-	if err != nil {
-		return err
-	}
-
-	tmplMerge, err := getCommandTemplate(fileConfig.Commands.Merge.Template, "Merge")
-	if err != nil {
-		return err
-	}
-
-	appConfig.CommandsConfig.Markdown.Template = tmplMarkdown
-	appConfig.CommandsConfig.HTML.Template = tmplHTML
-	appConfig.CommandsConfig.Office.Template = tmplOffice
-	appConfig.CommandsConfig.Merge.Template = tmplMerge
-
+	config.logsFormatter = f
 	return nil
 }
 
-// getCommandTemplate is a simple helper for parsing a command template as defined by the user.
-// If the user gives us a wrong template, throws an error.
-func getCommandTemplate(command string, commandName string) (*template.Template, error) {
-	t, err := template.New(commandName).Parse(command)
+// GetLogsFormatter returns the current logs formatter.
+func GetLogsFormatter() logrus.Formatter {
+	return config.logsFormatter
+}
+
+// NewCommand instantiates a Command. If the given command string
+// is not a valid template, throws an error.
+func NewCommand(command string, timeout int) (*Command, error) {
+	t, err := template.New(command).Parse(command)
 	if err != nil {
 		return nil, err
 	}
 
-	return t, nil
+	return &Command{t, timeout}, nil
+}
+
+type fileExtensionAlreadyUsedError struct {
+	extension       string
+	command         *Command
+	existingCommand *Command
+}
+
+const fileExtensionAlreadyUsedErrorMessage = "file extension '%s' from command '%s' is already used by command '%s'"
+
+func (e *fileExtensionAlreadyUsedError) Error() string {
+	return fmt.Sprintf(fileExtensionAlreadyUsedErrorMessage, e.extension, e.command.Template.Name(), e.existingCommand.Template.Name())
+}
+
+// WithCommand adds a Command instance and associates it with the given
+// file extension. If the file extension is already used by another Command
+// instance, throws an error.
+func WithCommand(extension string, command *Command) error {
+	if config.commands == nil {
+		config.commands = make(map[string]*Command)
+	}
+
+	existingCommand, ok := config.commands[extension]
+	if ok {
+		return &fileExtensionAlreadyUsedError{extension, command, existingCommand}
+	}
+
+	config.commands[extension] = command
+	return nil
+}
+
+type noCommandFoundForFileExtensionError struct {
+	extension string
+}
+
+const noCommandFoundForFileExtensionErrorMessage = "no command found for file extension '%s'"
+
+func (e *noCommandFoundForFileExtensionError) Error() string {
+	return fmt.Sprintf(noCommandFoundForFileExtensionErrorMessage, e.extension)
+}
+
+// GetCommand returns the Command instance associated with the given
+// file extension. If no Command instance found, throws an error.
+func GetCommand(extension string) (*Command, error) {
+	c, ok := config.commands[extension]
+	if !ok {
+		return nil, &noCommandFoundForFileExtensionError{extension}
+	}
+
+	return c, nil
 }
