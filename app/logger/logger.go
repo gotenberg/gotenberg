@@ -17,10 +17,7 @@ var log = newLogger()
 
 // newLogger instantiates a logger instance with default values.
 func newLogger() *logger {
-	l := &logger{
-		logger: logrus.New(),
-	}
-
+	l := &logger{logrus.New()}
 	l.logger.Out = os.Stdout
 	l.logger.Level = logrus.InfoLevel
 

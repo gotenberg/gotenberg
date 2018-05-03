@@ -51,10 +51,8 @@ func (r *runner) run(command string, timeout int) error {
 		if err := cmd.Process.Kill(); err != nil {
 			return err
 		}
-		return &commandTimeoutError{
-			command: command,
-			timeout: timeout,
-		}
+
+		return &commandTimeoutError{command, timeout}
 	case err := <-done:
 		if err != nil {
 			return err
@@ -72,10 +70,7 @@ type conversionData struct {
 
 // Unconv converts a file to PDF and returns the new file path.
 func Unconv(workingDir string, file *gfile.File) (string, error) {
-	cmdData := &conversionData{
-		FilePath:       file.Path,
-		ResultFilePath: gfile.MakeFilePath(workingDir, ".pdf"),
-	}
+	cmdData := &conversionData{file.Path, gfile.MakeFilePath(workingDir, ".pdf")}
 
 	cmd, err := config.GetCommand(file.Extension)
 	if err != nil {
@@ -103,10 +98,7 @@ type mergeData struct {
 
 // Merge merges many PDF files to one unique PDF file and returns the new file path.
 func Merge(workingDir string, filesPaths []string) (string, error) {
-	cmdData := &mergeData{
-		FilesPaths:     filesPaths,
-		ResultFilePath: gfile.MakeFilePath(workingDir, ".pdf"),
-	}
+	cmdData := &mergeData{filesPaths, gfile.MakeFilePath(workingDir, ".pdf")}
 
 	cmd, err := config.GetCommand(".pdf")
 	if err != nil {

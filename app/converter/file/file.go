@@ -30,10 +30,7 @@ func NewFile(workingDir string, r io.Reader, fileName string) (*File, error) {
 		return nil, err
 	}
 
-	f := &File{
-		Extension: ext,
-		Path:      MakeFilePath(workingDir, ext),
-	}
+	f := &File{ext, MakeFilePath(workingDir, ext)}
 
 	file, err := os.Create(f.Path)
 	if err != nil {
