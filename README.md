@@ -8,7 +8,7 @@
         <img src="https://images.microbadger.com/badges/image/thecodingmachine/gotenberg:1.0.0.svg" alt="MicroBadger layers">
     </a>
     <a href="https://travis-ci.org/thecodingmachine/gotenberg">
-        <img src="https://travis-ci.org/thecodingmachine/gotenberg.svg?branch=ext-config" alt="Travis CI">
+        <img src="https://travis-ci.org/thecodingmachine/gotenberg.svg?branch=master" alt="Travis CI">
     </a>
     <a href="https://godoc.org/github.com/thecodingmachine/gotenberg">
         <img src="https://godoc.org/github.com/thecodingmachine/gotenberg?status.svg" alt="GoDoc">
@@ -16,8 +16,8 @@
     <a href="https://goreportcard.com/report/thecodingmachine/gotenberg">
         <img src="https://goreportcard.com/badge/github.com/thecodingmachine/gotenberg" alt="Go Report Card">
     </a>
-    <a href="https://codecov.io/gh/thecodingmachine/gotenberg/branch/ext-config">
-        <img src="https://codecov.io/gh/thecodingmachine/gotenberg/branch/ext-config/graph/badge.svg" alt="Codecov">
+    <a href="https://codecov.io/gh/thecodingmachine/gotenberg/branch/master">
+        <img src="https://codecov.io/gh/thecodingmachine/gotenberg/branch/master/graph/badge.svg" alt="Codecov">
     </a>
 </p>
 
@@ -107,7 +107,7 @@ services:
   # your others services
       
   gotenberg:
-    image: thecodingmachine/gotenberg:1.0.0
+    image: gotenberg:1.0.0
 ```
 
 You may now launch your services using:
