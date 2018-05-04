@@ -10,6 +10,7 @@ import (
 
 	"github.com/thecodingmachine/gotenberg/app/config"
 	gfile "github.com/thecodingmachine/gotenberg/app/converter/file"
+	"github.com/thecodingmachine/gotenberg/app/logger"
 )
 
 type runner struct {
@@ -36,6 +37,8 @@ func (r *runner) run(command string, timeout int) error {
 	defer r.mu.Unlock()
 
 	cmd := exec.Command("/bin/sh", "-c", command)
+	logger.Debugf("executing command %s", cmd.Args)
+
 	if err := cmd.Start(); err != nil {
 		return err
 	}
@@ -87,6 +90,7 @@ func Unconv(workingDir string, file *gfile.File) (string, error) {
 		return "", err
 	}
 
+	logger.Debugf("created %s from %s", cmdData.ResultFilePath, cmdData.FilePath)
 	return cmdData.ResultFilePath, nil
 }
 
@@ -115,5 +119,6 @@ func Merge(workingDir string, filesPaths []string) (string, error) {
 		return "", err
 	}
 
+	logger.Debugf("created %s from %+v", cmdData.ResultFilePath, cmdData.FilesPaths)
 	return cmdData.ResultFilePath, nil
 }

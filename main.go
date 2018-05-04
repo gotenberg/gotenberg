@@ -53,6 +53,7 @@ func main() {
 		Handler: r,
 	}
 
+	logger.Debugf("configuration loaded from file %s", defaultConfigurationFilePath)
 	logger.Infof("starting Gotenberg version %s", version)
 	logger.Infof("listening on port %s", config.GetPort())
 
