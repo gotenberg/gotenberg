@@ -10,6 +10,7 @@ import (
 
 	"github.com/thecodingmachine/gotenberg/app/config"
 	gfile "github.com/thecodingmachine/gotenberg/app/converter/file"
+	"github.com/thecodingmachine/gotenberg/app/logger"
 )
 
 type runner struct {
@@ -23,8 +24,10 @@ type commandTimeoutError struct {
 	timeout int
 }
 
+const commandTimeoutErrorMessage = "the command '%s' has reached the %d second(s) timeout"
+
 func (e *commandTimeoutError) Error() string {
-	return fmt.Sprintf("The command '%s' has reached the %d second(s) timeout", e.command, e.timeout)
+	return fmt.Sprintf(commandTimeoutErrorMessage, e.command, e.timeout)
 }
 
 // run runs the given command. If timeout is reached or
@@ -34,6 +37,8 @@ func (r *runner) run(command string, timeout int) error {
 	defer r.mu.Unlock()
 
 	cmd := exec.Command("/bin/sh", "-c", command)
+	logger.Debugf("executing command %s", cmd.Args)
+
 	if err := cmd.Start(); err != nil {
 		return err
 	}
@@ -49,10 +54,8 @@ func (r *runner) run(command string, timeout int) error {
 		if err := cmd.Process.Kill(); err != nil {
 			return err
 		}
-		return &commandTimeoutError{
-			command: command,
-			timeout: timeout,
-		}
+
+		return &commandTimeoutError{command, timeout}
 	case err := <-done:
 		if err != nil {
 			return err
@@ -70,10 +73,7 @@ type conversionData struct {
 
 // Unconv converts a file to PDF and returns the new file path.
 func Unconv(workingDir string, file *gfile.File) (string, error) {
-	cmdData := &conversionData{
-		FilePath:       file.Path,
-		ResultFilePath: gfile.MakeFilePath(workingDir, ".pdf"),
-	}
+	cmdData := &conversionData{file.Path, gfile.MakeFilePath(workingDir, ".pdf")}
 
 	cmd, err := config.GetCommand(file.Extension)
 	if err != nil {
@@ -90,6 +90,7 @@ func Unconv(workingDir string, file *gfile.File) (string, error) {
 		return "", err
 	}
 
+	logger.Debugf("created %s from %s", cmdData.ResultFilePath, cmdData.FilePath)
 	return cmdData.ResultFilePath, nil
 }
 
@@ -101,10 +102,7 @@ type mergeData struct {
 
 // Merge merges many PDF files to one unique PDF file and returns the new file path.
 func Merge(workingDir string, filesPaths []string) (string, error) {
-	cmdData := &mergeData{
-		FilesPaths:     filesPaths,
-		ResultFilePath: gfile.MakeFilePath(workingDir, ".pdf"),
-	}
+	cmdData := &mergeData{filesPaths, gfile.MakeFilePath(workingDir, ".pdf")}
 
 	cmd, err := config.GetCommand(".pdf")
 	if err != nil {
@@ -121,5 +119,6 @@ func Merge(workingDir string, filesPaths []string) (string, error) {
 		return "", err
 	}
 
+	logger.Debugf("created %s from %+v", cmdData.ResultFilePath, cmdData.FilesPaths)
 	return cmdData.ResultFilePath, nil
 }

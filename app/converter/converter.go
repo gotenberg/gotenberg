@@ -9,6 +9,7 @@ import (
 
 	gfile "github.com/thecodingmachine/gotenberg/app/converter/file"
 	"github.com/thecodingmachine/gotenberg/app/converter/process"
+	"github.com/thecodingmachine/gotenberg/app/logger"
 
 	"github.com/satori/go.uuid"
 )
@@ -22,7 +23,7 @@ type Converter struct {
 // NoFileToConvertError is raided when a request has not file attached to it.
 type NoFileToConvertError struct{}
 
-const noFileToConvertErrorMessage = "No file to convert"
+const noFileToConvertErrorMessage = "no file to convert"
 
 func (e *NoFileToConvertError) Error() string {
 	return noFileToConvertErrorMessage
@@ -37,6 +38,8 @@ func NewConverter(r *http.Request) (*Converter, error) {
 	if err := os.Mkdir(c.workingDir, 0666); err != nil {
 		return nil, err
 	}
+
+	logger.Debugf("created working directory %s", c.workingDir)
 
 	reader, err := r.MultipartReader()
 	if err != nil {
@@ -101,5 +104,11 @@ func (c *Converter) Convert() (string, error) {
 
 // Clear removes all file inside its working directory.
 func (c *Converter) Clear() error {
-	return os.RemoveAll(c.workingDir)
+	if err := os.RemoveAll(c.workingDir); err != nil {
+		logger.Error(fmt.Errorf("failed to remove working directory %s", c.workingDir))
+		return err
+	}
+
+	logger.Debugf("removed working directory %s", c.workingDir)
+	return nil
 }

@@ -12,6 +12,7 @@ import (
 	ghttp "github.com/thecodingmachine/gotenberg/app/http"
 	"github.com/thecodingmachine/gotenberg/app/logger"
 
+	"github.com/dustin/go-humanize"
 	"github.com/justinas/alice"
 )
 
@@ -23,8 +24,10 @@ func GetHandlersChain() http.Handler {
 
 type requestHasNoContentError struct{}
 
+const requestHasNoContentErrorMessage = "request has not content"
+
 func (e *requestHasNoContentError) Error() string {
-	return "Request has not content"
+	return requestHasNoContentErrorMessage
 }
 
 // enforeContentLengthHandler checks if the request has content.
@@ -120,6 +123,8 @@ func serveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	logger.Debugf("serving result file %s...", path)
+
 	done := make(chan error, 1)
 	go func() {
 		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", resultFileInfo.Name()))
@@ -136,6 +141,7 @@ func serveHandler(w http.ResponseWriter, r *http.Request) {
 		logger.Error(err)
 	}
 
+	logger.Infof("result file %s (%s) sent", path, humanize.Bytes(uint64(resultFileInfo.Size())))
 	cleanup(r)
 }
 
@@ -143,11 +149,11 @@ func serveHandler(w http.ResponseWriter, r *http.Request) {
 func cleanup(r *http.Request) {
 	c, err := context.GetConverter(r)
 	if err != nil {
-		logger.Warn(err.Error())
+		logger.Error(err)
 		return
 	}
 
 	if err := c.Clear(); err != nil {
-		logger.Warn(err.Error())
+		logger.Error(err)
 	}
 }

@@ -15,8 +15,10 @@ const MultipartFormDataContentType ContentType = "multipart/form-data"
 
 type notAuthorizedContentTypeError struct{}
 
+const notAuthorizedContentTypeErrorMessage = "accepted value for 'Content-Type': %s"
+
 func (e *notAuthorizedContentTypeError) Error() string {
-	return fmt.Sprintf("Accepted value for 'Content-Type': %s", MultipartFormDataContentType)
+	return fmt.Sprintf(notAuthorizedContentTypeErrorMessage, MultipartFormDataContentType)
 }
 
 // CheckAuthorizedContentType checks if the request header header has an authorized content type.

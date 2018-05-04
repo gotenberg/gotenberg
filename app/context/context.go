@@ -28,7 +28,7 @@ func WithConverter(r *http.Request, converter *converter.Converter) *http.Reques
 
 type converterNotFoundError struct{}
 
-const converterNotFoundErrorMessage = "The converter was not found in request context"
+const converterNotFoundErrorMessage = "the converter was not found in request context"
 
 func (e *converterNotFoundError) Error() string {
 	return converterNotFoundErrorMessage
@@ -57,7 +57,7 @@ func WithResultFilePath(r *http.Request, resultFilePath string) *http.Request {
 
 type resultFilePathNotFoundError struct{}
 
-const resultFilePathNotFoundErrorMessage = "The result file path was not found in request context"
+const resultFilePathNotFoundErrorMessage = "the result file path was not found in request context"
 
 func (e *resultFilePathNotFoundError) Error() string {
 	return resultFilePathNotFoundErrorMessage

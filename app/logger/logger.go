@@ -17,10 +17,7 @@ var log = newLogger()
 
 // newLogger instantiates a logger instance with default values.
 func newLogger() *logger {
-	l := &logger{
-		logger: logrus.New(),
-	}
-
+	l := &logger{logrus.New()}
 	l.logger.Out = os.Stdout
 	l.logger.Level = logrus.InfoLevel
 
@@ -45,7 +42,7 @@ func Debug(message string) {
 
 // Debugf is a wrapper of the logrus Debugf function.
 func Debugf(format string, args ...interface{}) {
-	log.logger.Debugf(format, args)
+	log.logger.Debugf(format, args...)
 }
 
 // Info is a wrapper of the logrus Info function.
@@ -55,12 +52,17 @@ func Info(message string) {
 
 // Infof is a wrapper of the logrus Infof function.
 func Infof(format string, args ...interface{}) {
-	log.logger.Infof(format, args)
+	log.logger.Infof(format, args...)
 }
 
 // Warn is a wrapper of the logrus Warn function.
 func Warn(message string) {
 	log.logger.Warn(message)
+}
+
+// Warnf is wrapper of the logrus Warnf function.
+func Warnf(format string, args ...interface{}) {
+	log.logger.Warnf(format, args...)
 }
 
 // Error is a wrapper of the logrus Error function.

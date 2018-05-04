@@ -48,6 +48,13 @@ func load(configurationFilePath string) {
 	config.ParseFile(path)
 }
 
+func TestNoFileToConvertError(t *testing.T) {
+	err := &NoFileToConvertError{}
+	if err.Error() != noFileToConvertErrorMessage {
+		t.Errorf("Error returned a wrong message: got '%s' want '%s'", err.Error(), noFileToConvertErrorMessage)
+	}
+}
+
 func TestNewConverter(t *testing.T) {
 	var (
 		path  string
@@ -139,12 +146,5 @@ func TestClear(t *testing.T) {
 	c, _ := NewConverter(makeRequest(path))
 	if err := c.Clear(); err != nil {
 		t.Error("Converter should have been able to clear itself")
-	}
-}
-
-func TestNoFileToConvertError(t *testing.T) {
-	err := &NoFileToConvertError{}
-	if err.Error() != noFileToConvertErrorMessage {
-		t.Errorf("Error returned a wrong message: got '%s' want '%s'", err.Error(), noFileToConvertErrorMessage)
 	}
 }

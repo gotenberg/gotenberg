@@ -8,7 +8,9 @@ import (
 	"path/filepath"
 
 	"github.com/thecodingmachine/gotenberg/app/config"
+	"github.com/thecodingmachine/gotenberg/app/logger"
 
+	"github.com/dustin/go-humanize"
 	"github.com/satori/go.uuid"
 )
 
@@ -30,10 +32,7 @@ func NewFile(workingDir string, r io.Reader, fileName string) (*File, error) {
 		return nil, err
 	}
 
-	f := &File{
-		Extension: ext,
-		Path:      MakeFilePath(workingDir, ext),
-	}
+	f := &File{ext, MakeFilePath(workingDir, ext)}
 
 	file, err := os.Create(f.Path)
 	if err != nil {
@@ -42,7 +41,7 @@ func NewFile(workingDir string, r io.Reader, fileName string) (*File, error) {
 
 	defer file.Close()
 
-	_, err = io.Copy(file, r)
+	n, err := io.Copy(file, r)
 	if err != nil {
 		return nil, err
 	}
@@ -50,6 +49,7 @@ func NewFile(workingDir string, r io.Reader, fileName string) (*File, error) {
 	// resets the read pointer.
 	file.Seek(0, 0)
 
+	logger.Debugf("working file %s has been created from %s (%s copied)", f.Path, fileName, humanize.Bytes(uint64(n)))
 	return f, nil
 }
 
