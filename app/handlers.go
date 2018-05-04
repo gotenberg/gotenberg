@@ -141,7 +141,7 @@ func serveHandler(w http.ResponseWriter, r *http.Request) {
 		logger.Error(err)
 	}
 
-	logger.Debugf("result file %s (%s) sent", path, humanize.Bytes(uint64(resultFileInfo.Size())))
+	logger.Infof("result file %s (%s) sent", path, humanize.Bytes(uint64(resultFileInfo.Size())))
 	cleanup(r)
 }
 
