@@ -14,6 +14,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/justinas/alice"
+	"github.com/satori/go.uuid"
 )
 
 // GetHandlersChain returns the handlers chaining
@@ -39,6 +40,10 @@ func enforceContentLengthHandler(next http.Handler) http.Handler {
 			logger.Error(e)
 			return
 		}
+
+		requestID := uuid.NewV4().String()
+		r = context.WithRequestID(r, requestID)
+		logger.Infof("identified new request (%s) with %s", humanize.Bytes(uint64(r.ContentLength)), requestID)
 
 		next.ServeHTTP(w, r)
 	})
@@ -123,7 +128,12 @@ func serveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.Debugf("serving result file %s...", path)
+	requestID, err := context.GetRequestID(r)
+	if err != nil {
+		logger.Error(err)
+	}
+
+	logger.Debugf("serving result file %s for request %s...", path, requestID)
 
 	done := make(chan error, 1)
 	go func() {
@@ -139,9 +149,10 @@ func serveHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		logger.Error(err)
+	} else {
+		logger.Infof("result file %s (%s) sent for request %s", path, humanize.Bytes(uint64(resultFileInfo.Size())), requestID)
 	}
 
-	logger.Infof("result file %s (%s) sent", path, humanize.Bytes(uint64(resultFileInfo.Size())))
 	cleanup(r)
 }
 
