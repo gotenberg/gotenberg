@@ -99,26 +99,39 @@ func TestGetLogsFormatter(t *testing.T) {
 	}
 }
 
+func TestInterpreterEmptyError(t *testing.T) {
+	err := &interpreterEmptyError{"echo hello world"}
+	expected := fmt.Sprintf(interpreterEmptyErrorMessage, err.command)
+	if err.Error() != expected {
+		t.Errorf("Error returned a wrong message: got '%s' want '%s'", err.Error(), expected)
+	}
+}
+
 func TestNewCommand(t *testing.T) {
 	var cmd string
 
 	// case 1: uses a wrong command template.
 	cmd = "pdftk {{ range $filePath := FilesPaths }} {{ $filePath }} {{ end }} cat output {{ .ResultFilePath }}"
-	if _, err := NewCommand(cmd, 0); err == nil {
+	if _, err := NewCommand(cmd, "/bin/sh -c", 0); err == nil {
 		t.Errorf("Command should not have been instantiated by using '%s' as command template", cmd)
 	}
 
 	// case 2: uses a correct command template.
 	cmd = "pdftk {{ range $filePath := .FilesPaths }} {{ $filePath }} {{ end }} cat output {{ .ResultFilePath }}"
-	if _, err := NewCommand(cmd, 0); err != nil {
+	if _, err := NewCommand(cmd, "/bin/sh -c", 0); err != nil {
 		t.Errorf("Command should have been instantiated by using '%s' as command template", cmd)
+	}
+
+	// case 3: uses an empty interpreter.
+	if _, err := NewCommand(cmd, "", 0); err == nil {
+		t.Error("Command should not have been instantiated by using an empty interpreter")
 	}
 }
 
 func TestFileExtensionAlreadyUsedError(t *testing.T) {
 	ext := ".pdf"
-	cmd1, _ := NewCommand("echo", 0)
-	cmd2, _ := NewCommand("echo", 0)
+	cmd1, _ := NewCommand("echo", "/bin/sh -c", 0)
+	cmd2, _ := NewCommand("echo", "/bin/sh -c", 0)
 	err := &fileExtensionAlreadyUsedError{ext, cmd1, cmd2}
 	expected := fmt.Sprintf(fileExtensionAlreadyUsedErrorMessage, err.extension, err.command.Template.Name(), err.existingCommand.Template.Name())
 
@@ -129,7 +142,7 @@ func TestFileExtensionAlreadyUsedError(t *testing.T) {
 
 func TestWithCommand(t *testing.T) {
 	ext := ".pdf"
-	cmd, _ := NewCommand("echo", 0)
+	cmd, _ := NewCommand("echo", "/bin/sh -c", 0)
 
 	// case 1: uses a command with a file extension not already referenced.
 	if err := WithCommand(ext, cmd); err != nil {
@@ -154,7 +167,7 @@ func TestNoCommandFoundForFileExtensionError(t *testing.T) {
 func TestGetCommand(t *testing.T) {
 	Reset()
 	ext := ".pdf"
-	cmd, _ := NewCommand("echo", 0)
+	cmd, _ := NewCommand("echo", "/bin/sh -c", 0)
 	WithCommand(ext, cmd)
 
 	// case 1: uses a file extension which has a command associated.

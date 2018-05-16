@@ -24,7 +24,7 @@ func ParseFile(configurationFilePath string) error {
 	}
 
 	// handles merge command first...
-	cmd, err := NewCommand(fileConfig.Commands.Merge.Template, fileConfig.Commands.Merge.Timeout)
+	cmd, err := NewCommand(fileConfig.Commands.Merge.Template, fileConfig.Commands.Merge.Interpreter, fileConfig.Commands.Merge.Timeout)
 	if err != nil {
 		return err
 	}
@@ -33,7 +33,7 @@ func ParseFile(configurationFilePath string) error {
 
 	// ...then conversion commands!
 	for _, command := range fileConfig.Commands.Conversions {
-		cmd, err := NewCommand(command.Template, command.Timeout)
+		cmd, err := NewCommand(command.Template, command.Interpreter, command.Timeout)
 		if err != nil {
 			return err
 		}
@@ -64,15 +64,17 @@ type (
 
 	// mergeCommand gathers all data regarding the... merge command.
 	mergeCommand struct {
-		Template string `yaml:"template"`
-		Timeout  int    `yaml:"timeout"`
+		Template    string `yaml:"template"`
+		Interpreter string `yaml:"interpreter"`
+		Timeout     int    `yaml:"timeout"`
 	}
 
 	// conversionCommand gathers all data regarding a conversion command.
 	conversionCommand struct {
-		Template   string   `yaml:"template"`
-		Timeout    int      `yaml:"timeout"`
-		Extensions []string `yaml:"extensions"`
+		Template    string   `yaml:"template"`
+		Interpreter string   `yaml:"interpreter"`
+		Timeout     int      `yaml:"timeout"`
+		Extensions  []string `yaml:"extensions"`
 	}
 )
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/thecodingmachine/gotenberg/app/config"
@@ -42,19 +43,19 @@ func TestRun(t *testing.T) {
 
 	// case 1: uses a simple command.
 	cmd = "echo Hello world"
-	if err := forest.run(cmd, 30); err != nil {
+	if err := forest.run(cmd, strings.Fields("/bin/sh -c"), 30); err != nil {
 		t.Errorf("Command '%s' should have worked", cmd)
 	}
 
 	// case 2: uses a simple command but with an unsuitable timeout.
 	cmd = "sleep 5"
-	if err := forest.run(cmd, 0); err == nil {
+	if err := forest.run(cmd, strings.Fields("/bin/sh -c"), 0); err == nil {
 		t.Errorf("Command '%s' should not have worked", cmd)
 	}
 
 	// case 3: uses a broken command.
 	cmd = "helloworld"
-	if err := forest.run(cmd, 30); err == nil {
+	if err := forest.run(cmd, strings.Fields("/bin/sh -c"), 30); err == nil {
 		t.Errorf("Command '%s' should not have worked", cmd)
 	}
 }
