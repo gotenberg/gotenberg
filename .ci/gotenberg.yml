@@ -14,6 +14,11 @@ logs:
 # You may provide here your own implementation!
 commands:
 
+  # Some libraries like unoconv cannot perform concurrent conversions. That's why the API does only one conversion at a time.
+  # If your current implementation uses libraries which are able to perform concurrent conversions, you may
+  # change this value to false.
+  lock: true
+
   # Unlike others commands' templates, you have access to FilesPaths instead of FilePath: it gathers all PDF files which should be merged.
   merge:
     template: "pdftk {{ range $filePath := .FilesPaths }} {{ $filePath }} {{ end }} cat output {{ .ResultFilePath }}"

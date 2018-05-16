@@ -33,8 +33,12 @@ func (e *commandTimeoutError) Error() string {
 // run runs the given command. If timeout is reached or
 // something bad happened, returns an error.
 func (r *runner) run(command string, interpreter []string, timeout int) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	if config.HasLock() {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+	} else {
+		logger.Warn("lock disabled")
+	}
 
 	binary := interpreter[0]
 	parameters := append(interpreter[1:], command)

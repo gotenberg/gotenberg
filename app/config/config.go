@@ -20,6 +20,7 @@ type (
 		port          string
 		logsLevel     logrus.Level
 		logsFormatter logrus.Formatter
+		lock          bool
 		// commands associates a file extension with a Command instance.
 		// Particular case: ".pdf" extension is used for the merge command.
 		commands map[string]*Command
@@ -124,6 +125,16 @@ func WithLogsFormatter(formatter string) error {
 // GetLogsFormatter returns the current logs formatter.
 func GetLogsFormatter() logrus.Formatter {
 	return config.logsFormatter
+}
+
+// WithLock sets the lock strategy.
+func WithLock(lock bool) {
+	config.lock = lock
+}
+
+// HasLock returns the current lock strategy.
+func HasLock() bool {
+	return config.lock
 }
 
 type interpreterEmptyError struct {
