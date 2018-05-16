@@ -25,6 +25,7 @@ commands:
     interpreter: "/bin/sh -c"
     timeout: 30
   
+  # You may add more commands (or less, or even none).
   conversions:
 
       # The command template: you have access to FilePath and ResultFilePath variables.

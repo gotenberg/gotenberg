@@ -124,6 +124,8 @@ according to the round-robin strategy.
 The API relies on a simple YAML configuration file called `gotenberg.yml`. It allows you to tweak some values and even provides you 
 a way to change the commands called for each kind of conversion.
 
+Below the default configuration file:
+
 ```yaml
 # The port the application will listen to.
 port: 3000
@@ -152,6 +154,7 @@ commands:
     interpreter: "/bin/sh -c"
     timeout: 30
   
+  # You may add more commands (or less, or even none).
   conversions:
 
       # The command template: you have access to FilePath and ResultFilePath variables.
@@ -186,9 +189,8 @@ commands:
         - ".odp"
 ```
 
-We provide binaries for a wide range of OS and architecture in the [releases page](../../releases).
-
-Feel free to create your own image for your current implementation of the Gotenberg API! :metal:
+We provide binaries for a wide range of OS and architecture in the [releases page](../../releases), 
+so feel free to create your own Docker image for your implementation of the Gotenberg API :metal:
 
 ## Clients
 
