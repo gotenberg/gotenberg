@@ -8,6 +8,7 @@ package config
 
 import (
 	"fmt"
+	"strings"
 	"text/template"
 
 	"github.com/sirupsen/logrus"
@@ -29,6 +30,8 @@ type (
 	Command struct {
 		// Template is the data-driven template of the command.
 		Template *template.Template
+		// The binary which will call the command.
+		Interpreter []string
 		// Timeout is the duration in seconds after which the command's process will be killed
 		// if it does not finish before.
 		Timeout int
@@ -123,15 +126,29 @@ func GetLogsFormatter() logrus.Formatter {
 	return config.logsFormatter
 }
 
+type interpreterEmptyError struct {
+	command string
+}
+
+const interpreterEmptyErrorMessage = "the interepreter for command %s should not be empty"
+
+func (e *interpreterEmptyError) Error() string {
+	return fmt.Sprintf(interpreterEmptyErrorMessage, e.command)
+}
+
 // NewCommand instantiates a Command. If the given command string
 // is not a valid template, throws an error.
-func NewCommand(command string, timeout int) (*Command, error) {
+func NewCommand(command string, interpreter string, timeout int) (*Command, error) {
 	t, err := template.New(command).Parse(command)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Command{t, timeout}, nil
+	if interpreter == "" {
+		return nil, &interpreterEmptyError{command}
+	}
+
+	return &Command{t, strings.Fields(interpreter), timeout}, nil
 }
 
 type fileExtensionAlreadyUsedError struct {
@@ -140,7 +157,7 @@ type fileExtensionAlreadyUsedError struct {
 	existingCommand *Command
 }
 
-const fileExtensionAlreadyUsedErrorMessage = "file extension '%s' from command '%s' is already used by command '%s'"
+const fileExtensionAlreadyUsedErrorMessage = "file extension %s from command %s is already used by command %s"
 
 func (e *fileExtensionAlreadyUsedError) Error() string {
 	return fmt.Sprintf(fileExtensionAlreadyUsedErrorMessage, e.extension, e.command.Template.Name(), e.existingCommand.Template.Name())
@@ -167,7 +184,7 @@ type noCommandFoundForFileExtensionError struct {
 	extension string
 }
 
-const noCommandFoundForFileExtensionErrorMessage = "no command found for file extension '%s'"
+const noCommandFoundForFileExtensionErrorMessage = "no command found for file extension %s"
 
 func (e *noCommandFoundForFileExtensionError) Error() string {
 	return fmt.Sprintf(noCommandFoundForFileExtensionErrorMessage, e.extension)

@@ -24,7 +24,7 @@ type commandTimeoutError struct {
 	timeout int
 }
 
-const commandTimeoutErrorMessage = "the command '%s' has reached the %d second(s) timeout"
+const commandTimeoutErrorMessage = "the command %s has reached the %d second(s) timeout"
 
 func (e *commandTimeoutError) Error() string {
 	return fmt.Sprintf(commandTimeoutErrorMessage, e.command, e.timeout)
@@ -32,11 +32,13 @@ func (e *commandTimeoutError) Error() string {
 
 // run runs the given command. If timeout is reached or
 // something bad happened, returns an error.
-func (r *runner) run(command string, timeout int) error {
+func (r *runner) run(command string, interpreter []string, timeout int) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	cmd := exec.Command("/bin/sh", "-c", command)
+	binary := interpreter[0]
+	parameters := append(interpreter[1:], command)
+	cmd := exec.Command(binary, parameters...)
 	logger.Debugf("executing command %s", cmd.Args)
 
 	if err := cmd.Start(); err != nil {
@@ -85,7 +87,7 @@ func Unconv(workingDir string, file *gfile.File) (string, error) {
 		return "", err
 	}
 
-	err = forest.run(data.String(), cmd.Timeout)
+	err = forest.run(data.String(), cmd.Interpreter, cmd.Timeout)
 	if err != nil {
 		return "", err
 	}
@@ -114,7 +116,7 @@ func Merge(workingDir string, filesPaths []string) (string, error) {
 		return "", err
 	}
 
-	err = forest.run(data.String(), cmd.Timeout)
+	err = forest.run(data.String(), cmd.Interpreter, cmd.Timeout)
 	if err != nil {
 		return "", err
 	}
