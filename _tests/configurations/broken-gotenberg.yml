@@ -6,6 +6,7 @@ logs:
       ...
     }
 commands:
+  lock: true
   merge:
     template: "pdftk {{ range $filePath := .FilesPaths }} {{ $filePath }} {{ end }} cat output {{ .ResultFilePath }}"
     interpreter: "/bin/sh -c"

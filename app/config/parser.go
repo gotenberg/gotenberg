@@ -23,6 +23,8 @@ func ParseFile(configurationFilePath string) error {
 		return err
 	}
 
+	WithLock(fileConfig.Commands.Lock)
+
 	// handles merge command first...
 	cmd, err := NewCommand(fileConfig.Commands.Merge.Template, fileConfig.Commands.Merge.Interpreter, fileConfig.Commands.Merge.Timeout)
 	if err != nil {
@@ -57,6 +59,7 @@ type (
 			Formatter string `yaml:"formatter"`
 		} `yaml:"logs"`
 		Commands struct {
+			Lock        bool                 `yaml:"lock"`
 			Merge       *mergeCommand        `yaml:"merge"`
 			Conversions []*conversionCommand `yaml:"conversions,omitempty"`
 		} `yaml:"commands"`

@@ -99,6 +99,24 @@ func TestGetLogsFormatter(t *testing.T) {
 	}
 }
 
+func TestWithLock(t *testing.T) {
+	lock := true
+	WithLock(lock)
+
+	if config.lock != lock {
+		t.Errorf("Configuration populated with a wrong lock strategy: got '%t' want '%t'", config.lock, lock)
+	}
+}
+
+func TestHasLock(t *testing.T) {
+	lock := true
+	config.lock = true
+
+	if HasLock() != lock {
+		t.Errorf("Configuration returned a wrong port: got '%t' want '%t'", HasLock(), lock)
+	}
+}
+
 func TestInterpreterEmptyError(t *testing.T) {
 	err := &interpreterEmptyError{"echo hello world"}
 	expected := fmt.Sprintf(interpreterEmptyErrorMessage, err.command)

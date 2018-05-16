@@ -41,6 +41,8 @@ func TestCommandTimeoutError(t *testing.T) {
 func TestRun(t *testing.T) {
 	var cmd string
 
+	load("../../../_tests/configurations/gotenberg.yml")
+
 	// case 1: uses a simple command.
 	cmd = "echo Hello world"
 	if err := forest.run(cmd, strings.Fields("/bin/sh -c"), 30); err != nil {
@@ -57,6 +59,14 @@ func TestRun(t *testing.T) {
 	cmd = "helloworld"
 	if err := forest.run(cmd, strings.Fields("/bin/sh -c"), 30); err == nil {
 		t.Errorf("Command '%s' should not have worked", cmd)
+	}
+
+	load("../../../_tests/configurations/no-lock-gotenberg.yml")
+
+	// case 4: uses a configuration with a no lock strategy.
+	cmd = "echo Hello world"
+	if err := forest.run(cmd, strings.Fields("/bin/sh -c"), 30); err != nil {
+		t.Errorf("Command '%s' should have worked", cmd)
 	}
 }
 
