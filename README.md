@@ -4,8 +4,8 @@
 <h3 align="center">Gotenberg</h3>
 <p align="center">A stateless API for converting Markdown files, HTML files and Office documents to PDF</p>
 <p align="center">
-    <a href="https://microbadger.com/images/thecodingmachine/gotenberg:1.0.0">
-        <img src="https://images.microbadger.com/badges/image/thecodingmachine/gotenberg:1.0.0.svg" alt="MicroBadger layers">
+    <a href="https://microbadger.com/images/thecodingmachine/gotenberg:2.0.0">
+        <img src="https://images.microbadger.com/badges/image/thecodingmachine/gotenberg:2.0.0.svg" alt="MicroBadger layers">
     </a>
     <a href="https://travis-ci.org/thecodingmachine/gotenberg">
         <img src="https://travis-ci.org/thecodingmachine/gotenberg.svg?branch=master" alt="Travis CI">
@@ -40,18 +40,18 @@ reimplementing a solution from a project to another project. Meh.
 Let's say you're starting the API using this simple command:
 
 ```sh
-$ docker run --rm -p 3000:3000 thecodingmachine/gotenberg:1.0.0
+$ docker run --rm -p 3000:3000 thecodingmachine/gotenberg:2.0.0
 ```
 
 The API is now available on your host under `http://127.0.0.1:3000`.
 
 It accepts `POST` requests with a `multipart/form-data` Content-Type. Your form data should provide one or more files to convert.
-It currently accepts the following:
+The default image accepts the following:
 
 * Markdown files
 * HTML files
 * Office documents (.docx, .doc, .odt, .pptx, .ppt, .odp and so on)
-* PDF files (if more than one file to convert)
+* PDF files
 
 **Heads up:** the API relies on the file extension to determine which library to use for conversion.
 
@@ -107,7 +107,7 @@ services:
   # your others services
       
   gotenberg:
-    image: thecodingmachine/gotenberg:1.0.0
+    image: thecodingmachine/gotenberg:2.0.0
 ```
 
 You may now launch your services using:
@@ -122,9 +122,75 @@ according to the round-robin strategy.
 ## Custom implementation
 
 The API relies on a simple YAML configuration file called `gotenberg.yml`. It allows you to tweak some values and even provides you 
-a way to change the commands called for each kind of conversion. The configuration file should be located under `/gotenberg` in your container.
+a way to change the commands called for each kind of conversion.
 
-The default configuration is located here: [.ci/gotenberg.yml](https://github.com/thecodingmachine/gotenberg/blob/1.0.0/.ci/gotenberg.yml)
+Below the default configuration file:
+
+```yaml
+# The port the application will listen to.
+port: 3000
+
+logs:
+  # Accepted values, in order of severity: DEBUG, INFO, WARN, ERROR, FATAL, PANIC.
+  # Messages at and above the selected level will be logged.
+  level: "INFO"
+
+  # Accepted values: text, json.
+  # When a TTY is not attached, the output will be in the defined format.
+  formatter: "text"
+
+# You don't like a library which is used for a conversion? You want to handle a new file type?
+# You may provide here your own implementation!
+commands:
+
+  # Some libraries like unoconv cannot perform concurrent conversions. That's why the API does only one conversion at a time.
+  # If your current implementation uses libraries which are able to perform concurrent conversions, you may
+  # change this value to false.
+  lock: true
+
+  # Unlike others commands' templates, you have access to FilesPaths instead of FilePath: it gathers all PDF files which should be merged.
+  merge:
+    template: "pdftk {{ range $filePath := .FilesPaths }} {{ $filePath }} {{ end }} cat output {{ .ResultFilePath }}"
+    interpreter: "/bin/sh -c"
+    timeout: 30
+  
+  # You may add more commands (or less, or even none).
+  conversions:
+
+      # The command template: you have access to FilePath and ResultFilePath variables.
+    - template: "markdown-pdf {{ .FilePath }} -o {{ .ResultFilePath }}"
+      # The binary which will call the command.
+      interpreter: "/bin/sh -c"
+      # Duration in seconds after which the command will be killed if it has not finished.
+      timeout: 30
+      # Files with the following extensions will be converted by the current command.
+      extensions:
+        - ".md"
+
+    - template: "xvfb-run -e /dev/stdout wkhtmltopdf {{ .FilePath }} {{ .ResultFilePath }}"
+      interpreter: "/bin/sh -c"
+      timeout: 30
+      extensions:
+        - ".html"
+        - ".htm"
+
+    - template: "unoconv --format pdf --output \"{{ .ResultFilePath }}\" \"{{ .FilePath }}\""
+      interpreter: "/bin/sh -c"
+      timeout: 30
+      extensions:
+        - ".doc"
+        - ".docx"
+        - ".odt"
+        - ".xls"
+        - ".xlsx"
+        - ".ods"
+        - ".ppt"
+        - ".pptx"
+        - ".odp"
+```
+
+We provide binaries for a wide range of OS and architecture in the [releases page](../../releases), 
+so feel free to create your own Docker image for your implementation of the Gotenberg API :metal:
 
 ## Clients
 
