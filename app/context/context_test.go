@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/thecodingmachine/gotenberg/app/converter"
+	"github.com/kyani-inc/gotenberg/app/converter"
 
 	"github.com/satori/go.uuid"
 )

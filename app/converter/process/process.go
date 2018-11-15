@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thecodingmachine/gotenberg/app/config"
-	gfile "github.com/thecodingmachine/gotenberg/app/converter/file"
-	"github.com/thecodingmachine/gotenberg/app/logger"
+	"github.com/kyani-inc/gotenberg/app/config"
+	gfile "github.com/kyani-inc/gotenberg/app/converter/file"
+	"github.com/kyani-inc/gotenberg/app/logger"
 )
 
 type runner struct {

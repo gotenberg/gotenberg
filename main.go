@@ -3,7 +3,7 @@ Package main handles the application startup and shutdown.
 
 Gotenberg is a stateless API for converting Markdown files, HTML files and Office documents to PDF.
 
-For more information, go to https://github.com/thecodingmachine/gotenberg.
+For more information, go to https://github.com/kyani-inc/gotenberg.
 */
 package main
 
@@ -15,9 +15,9 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/thecodingmachine/gotenberg/app"
-	"github.com/thecodingmachine/gotenberg/app/config"
-	"github.com/thecodingmachine/gotenberg/app/logger"
+	"github.com/kyani-inc/gotenberg/app"
+	"github.com/kyani-inc/gotenberg/app/config"
+	"github.com/kyani-inc/gotenberg/app/logger"
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"

@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/thecodingmachine/gotenberg/app/config"
-	"github.com/thecodingmachine/gotenberg/app/context"
+	"github.com/kyani-inc/gotenberg/app/config"
+	"github.com/kyani-inc/gotenberg/app/context"
 
 	"github.com/justinas/alice"
 )

@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/thecodingmachine/gotenberg/app/config"
-	"github.com/thecodingmachine/gotenberg/app/logger"
+	"github.com/kyani-inc/gotenberg/app/config"
+	"github.com/kyani-inc/gotenberg/app/logger"
 
 	"github.com/dustin/go-humanize"
 	"github.com/satori/go.uuid"

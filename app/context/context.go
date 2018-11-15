@@ -6,7 +6,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/thecodingmachine/gotenberg/app/converter"
+	"github.com/kyani-inc/gotenberg/app/converter"
 )
 
 type key uint32

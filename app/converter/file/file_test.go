@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/thecodingmachine/gotenberg/app/config"
+	"github.com/kyani-inc/gotenberg/app/config"
 )
 
 func load(configurationFilePath string) {

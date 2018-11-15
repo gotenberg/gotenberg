@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/thecodingmachine/gotenberg/app/config"
+	"github.com/kyani-inc/gotenberg/app/config"
 )
 
 func makeRequest(filesPaths ...string) *http.Request {
