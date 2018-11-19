@@ -1,2 +1,1 @@
-.ci/coverage.txt
-.ci/gotenberg
+/build/package/gotenberg
