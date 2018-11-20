@@ -1,11 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/thecodingmachine/gotenberg/internal/app/cli"
-	"gopkg.in/alecthomas/kingpin.v2"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/notify"
 )
 
 var version = "snapshot"
@@ -13,9 +12,8 @@ var version = "snapshot"
 func main() {
 	cli.SetVersion(version)
 	if err := cli.Run(); err != nil {
-		kingpin.Errorf("%v", err)
+		notify.ErrPrintln(err)
 		os.Exit(1)
 	}
-	fmt.Println("Bye!")
 	os.Exit(0)
 }

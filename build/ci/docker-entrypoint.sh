@@ -3,7 +3,7 @@
 set -e
 
 # Statically checking Go source for errors and warnings.
-golangci-lint run -D errcheck -E gofmt -E golint -E misspell -E prealloc -E gocyclo -E goconst
+golangci-lint run --tests=false --enable-all --disable=lll --disable=errcheck --disable=gosec --disable=gochecknoglobals --disable=gochecknoinits
 
 # Running tests according to current Gotenberg version.
 if [[ "$VERSION" == "snapshot" ]]; then
@@ -23,11 +23,3 @@ else
         fi
     done
 fi
-
-# Removing previous Gotenberg binary if it exists.
-if [ -f build/package/gotenberg ]; then
-    rm -f build/package/gotenberg
-fi
-
-# Building Gotenberg binary.
-env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o build/package/gotenberg -ldflags "-X main.version=${VERSION}" cmd/gotenberg/main.go

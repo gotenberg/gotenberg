@@ -1,11 +1,22 @@
-package docker
+package process
 
 import (
 	"fmt"
 	"os/exec"
+	"time"
+
+	"github.com/thecodingmachine/gotenberg/internal/pkg/notify"
 )
 
-// StartChromeHeadless starts chrome headless
+// StartAll starts all processes.
+func StartAll() error {
+	if err := StartChromeHeadless(); err != nil {
+		return err
+	}
+	return StartOfficeHeadless()
+}
+
+// StartChromeHeadless starts Chrome headless
 // with PM2.
 func StartChromeHeadless() error {
 	cmd := exec.Command(
@@ -30,8 +41,10 @@ func StartChromeHeadless() error {
 		"--no-first-run",
 	)
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("starting chrome headless with PM2: %v", err)
+		return fmt.Errorf("starting Chrome headless with PM2: %v", err)
 	}
+	time.Sleep(2 * time.Second)
+	notify.Println("Chrome headless started with PM2")
 	return nil
 }
 
@@ -54,5 +67,7 @@ func StartOfficeHeadless() error {
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("starting soffice headless with PM2: %v", err)
 	}
+	time.Sleep(2 * time.Second)
+	notify.Println("soffice headless started with PM2")
 	return nil
 }

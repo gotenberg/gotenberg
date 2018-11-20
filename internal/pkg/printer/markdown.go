@@ -10,6 +10,7 @@ import (
 
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/rand"
 )
 
 // Markdown facilitates Markdown to PDF conversion.
@@ -48,7 +49,11 @@ func (md *Markdown) Print(destination string) error {
 	if err := tmpl.Execute(&data, nil); err != nil {
 		return fmt.Errorf("%s: executing template: %v", md.TemplatePath, err)
 	}
-	dst := fmt.Sprintf("%s/markdown.html", filepath.Base(md.TemplatePath))
+	filename, err := rand.Get()
+	if err != nil {
+		return err
+	}
+	dst := fmt.Sprintf("%s/%s.html", filepath.Base(md.TemplatePath), filename)
 	if err := writeBytesToFile(dst, data.Bytes()); err != nil {
 		return err
 	}

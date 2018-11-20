@@ -7,7 +7,7 @@ require (
 	github.com/gorilla/websocket v1.4.0 // indirect
 	github.com/hhrutter/pdfcpu v0.1.18
 	github.com/labstack/echo v3.3.5+incompatible
-	github.com/labstack/gommon v0.2.8 // indirect
+	github.com/labstack/gommon v0.2.8
 	github.com/mafredri/cdp v0.20.0
 	github.com/mattn/go-colorable v0.0.9 // indirect
 	github.com/mattn/go-isatty v0.0.4 // indirect

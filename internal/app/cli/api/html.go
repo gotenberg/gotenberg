@@ -1,12 +1,8 @@
 package api
 
 import (
-	"fmt"
-	"net/http"
-
 	"github.com/labstack/echo"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/printer"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/rand"
 )
 
 func convertHTML(c echo.Context) error {
@@ -16,7 +12,9 @@ func convertHTML(c echo.Context) error {
 	}
 	defer r.removeAll()
 	ctx, cancel := newContext(r)
-	defer cancel()
+	if cancel != nil {
+		defer cancel()
+	}
 	p := &printer.HTML{Context: ctx}
 	indexPath, err := r.filePath("index.html")
 	if err != nil {
@@ -39,18 +37,5 @@ func convertHTML(c echo.Context) error {
 	}
 	p.PaperWidth = paperSize[0]
 	p.PaperHeight = paperSize[1]
-	filename, err := rand.Get()
-	if err != nil {
-		return err
-	}
-	filename = fmt.Sprintf("%s.pdf", filename)
-	fpath := fmt.Sprintf("%s/%s", r.dirPath, filename)
-	if err := p.Print(fpath); err != nil {
-		return err
-	}
-	if r.webhookURL() == "" {
-		return c.Attachment(fpath, filename)
-	}
-	// TODO
-	return c.String(http.StatusOK, "Will upload to given webhook!")
+	return print(c, p, r)
 }

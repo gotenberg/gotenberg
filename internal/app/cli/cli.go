@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/thecodingmachine/gotenberg/internal/app/cli/api"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/docker"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/process"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -18,10 +18,7 @@ func SetVersion(version string) { kingpin.Version(version) }
 func Run() error {
 	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
 	case server.FullCommand():
-		if err := docker.StartChromeHeadless(); err != nil {
-			return err
-		}
-		if err := docker.StartOfficeHeadless(); err != nil {
+		if err := process.StartAll(); err != nil {
 			return err
 		}
 		return api.Start()
