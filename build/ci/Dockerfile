@@ -68,7 +68,7 @@ WORKDIR /ci
 COPY go.mod .
 COPY go.sum .
 
-# Installs project dependencies.
-RUN go get
+# Installs module dependencies.
+RUN go mod download
 
 ENTRYPOINT ["build/ci/docker-entrypoint.sh"]
