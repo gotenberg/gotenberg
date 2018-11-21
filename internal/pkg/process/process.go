@@ -8,17 +8,16 @@ import (
 	"github.com/thecodingmachine/gotenberg/internal/pkg/notify"
 )
 
-// StartAll starts all processes.
-func StartAll() error {
-	if err := StartChromeHeadless(); err != nil {
+// Start starts Chrome and soffice, both
+// headless, with PM2.
+func Start() error {
+	if err := startChromeHeadless(); err != nil {
 		return err
 	}
-	return StartOfficeHeadless()
+	return startOfficeHeadless()
 }
 
-// StartChromeHeadless starts Chrome headless
-// with PM2.
-func StartChromeHeadless() error {
+func startChromeHeadless() error {
 	cmd := exec.Command(
 		"pm2",
 		"start",
@@ -48,9 +47,7 @@ func StartChromeHeadless() error {
 	return nil
 }
 
-// StartOfficeHeadless starts soffice headless
-// with PM2.
-func StartOfficeHeadless() error {
+func startOfficeHeadless() error {
 	cmd := exec.Command(
 		"pm2",
 		"start",
