@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"path/filepath"
 
 	"github.com/mafredri/cdp"
 	"github.com/mafredri/cdp/devtool"
@@ -115,11 +114,7 @@ func (html *HTML) Print(destination string) error {
 
 // WithLocalURL sets a local URL from a file path.
 func (html *HTML) WithLocalURL(fpath string) error {
-	absPath, err := filepath.Abs(fpath)
-	if err != nil {
-		return fmt.Errorf("%s: getting absolute path: %v", fpath, err)
-	}
-	html.URL = fmt.Sprintf("file://%s", absPath)
+	html.URL = fmt.Sprintf("file://%s", fpath)
 	return nil
 }
 

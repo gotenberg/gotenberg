@@ -19,6 +19,7 @@ import (
 func Start() error {
 	e := echo.New()
 	e.HideBanner = true
+	e.HidePort = true
 	e.Use(middleware.Logger())
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -31,7 +32,7 @@ func Start() error {
 	g := e.Group("/convert")
 	g.POST("/html", convertHTML)
 	g.POST("/markdown", nil)
-	g.POST("/office", nil)
+	g.POST("/office", convertOffice)
 	// run our API in a goroutine so that it doesn't block.
 	go func() {
 		if err := e.Start(":3000"); err != nil {

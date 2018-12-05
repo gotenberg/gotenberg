@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/labstack/echo"
@@ -64,16 +65,13 @@ func (r *resource) writeFile(filename string, in io.Reader) error {
 		return fmt.Errorf("%s: creating new file: %v", fpath, err)
 	}
 	defer out.Close()
-	err = out.Chmod(0644)
-	if err != nil {
+	if err := out.Chmod(0644); err != nil {
 		return fmt.Errorf("%s: changing file mode: %v", fpath, err)
 	}
-	_, err = io.Copy(out, in)
-	if err != nil {
+	if _, err := io.Copy(out, in); err != nil {
 		return fmt.Errorf("%s: writing file: %v", fpath, err)
 	}
-	_, err = out.Seek(0, 0)
-	if err != nil {
+	if _, err := out.Seek(0, 0); err != nil {
 		return fmt.Errorf("%s: resetting read pointer: %v", fpath, err)
 	}
 	return nil
@@ -85,7 +83,32 @@ func (r *resource) filePath(filename string) (string, error) {
 	if os.IsNotExist(err) {
 		return "", fmt.Errorf("%s: file does not exist", filename)
 	}
-	return fmt.Sprintf("%s/%s", r.dirPath, filename), nil
+	absPath, err := filepath.Abs(fpath)
+	if err != nil {
+		return "", fmt.Errorf("%s: getting absolute path: %v", fpath, err)
+	}
+	return absPath, nil
+}
+
+func (r *resource) filePaths(exts []string) ([]string, error) {
+	var fpaths []string
+	filepath.Walk(r.dirPath, func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+		fpath, err := r.filePath(info.Name())
+		if err != nil {
+			return err
+		}
+		for _, ext := range exts {
+			if filepath.Ext(fpath) == ext {
+				fpaths = append(fpaths, fpath)
+				return nil
+			}
+		}
+		return nil
+	})
+	return fpaths, nil
 }
 
 func (r *resource) paperSize() ([2]float64, error) {
@@ -106,7 +129,7 @@ func (r *resource) paperSize() ([2]float64, error) {
 	return [2]float64{width, height}, nil
 }
 
-func (r *resource) Landscape() (bool, error) {
+func (r *resource) landscape() (bool, error) {
 	landscapeStr := r.values[landscape]
 	if landscapeStr == "" {
 		return false, nil

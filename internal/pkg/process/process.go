@@ -8,13 +8,13 @@ import (
 	"github.com/thecodingmachine/gotenberg/internal/pkg/notify"
 )
 
-// Start starts Chrome and soffice, both
-// headless, with PM2.
+// Start starts Chrome headless and
+// unoconv listener with PM2.
 func Start() error {
 	if err := startChromeHeadless(); err != nil {
 		return err
 	}
-	return startOfficeHeadless()
+	return startUnoconvListener()
 }
 
 func startChromeHeadless() error {
@@ -47,24 +47,20 @@ func startChromeHeadless() error {
 	return nil
 }
 
-func startOfficeHeadless() error {
+func startUnoconvListener() error {
 	cmd := exec.Command(
 		"pm2",
 		"start",
-		"soffice",
-		"--headless",
-		"--invisible",
-		"--nocrashreport",
-		"--nodefault",
-		"--nofirststartwizard",
-		"--nologo",
-		"--norestore",
-		"--accept=socket,host=127.0.0.1,port=2002,tcpNoDelay=1;urp;StarOffice.ComponentContext",
+		"unoconv",
+		"--interpreter none",
+		"--",
+		"--listener",
+		"--verbose",
 	)
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("starting soffice headless with PM2: %v", err)
+		return fmt.Errorf("starting unoconv listener with PM2: %v", err)
 	}
 	time.Sleep(2 * time.Second)
-	notify.Println("soffice headless started with PM2")
+	notify.Println("unoconv listener started with PM2")
 	return nil
 }

@@ -16,4 +16,4 @@ build-image:
 
 # Start the API using previously built Docker image.
 gotenberg:
-	docker run -it --rm -p "3000:3000" thecodingmachine/gotenberg:$(VERSION) gotenberg
+	docker run -it --rm -p "3000:3000" thecodingmachine/gotenberg:$(VERSION)
