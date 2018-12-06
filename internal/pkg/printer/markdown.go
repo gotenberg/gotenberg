@@ -30,6 +30,10 @@ type Markdown struct {
 	html *HTML
 }
 
+type templateData struct {
+	DirPath string
+}
+
 // Print converts markdown to PDF.
 func (md *Markdown) Print(destination string) error {
 	if md.html == nil {
@@ -55,26 +59,30 @@ func (md *Markdown) Print(destination string) error {
 	if err != nil {
 		return fmt.Errorf("%s: parsing template: %v", md.TemplatePath, err)
 	}
-	var data bytes.Buffer
-	if err := tmpl.Execute(&data, nil); err != nil {
+	dirPath := filepath.Dir(md.TemplatePath)
+	data := &templateData{DirPath: dirPath}
+	var buffer bytes.Buffer
+	if err := tmpl.Execute(&buffer, data); err != nil {
 		return fmt.Errorf("%s: executing template: %v", md.TemplatePath, err)
 	}
-	filename, err := rand.Get()
+	baseFilename, err := rand.Get()
 	if err != nil {
 		return err
 	}
-	dst := fmt.Sprintf("%s/%s.html", filepath.Base(md.TemplatePath), filename)
-	if err := writeBytesToFile(dst, data.Bytes()); err != nil {
+
+	dst := fmt.Sprintf("%s/%s.html", dirPath, baseFilename)
+	if err := writeBytesToFile(dst, buffer.Bytes()); err != nil {
 		return err
 	}
 	md.html.WithLocalURL(dst)
 	return md.html.Print(destination)
 }
 
-func toHTML(filename string) (template.HTML, error) {
-	b, err := ioutil.ReadFile(filename)
+func toHTML(dirPath, filename string) (template.HTML, error) {
+	fpath := fmt.Sprintf("%s/%s", dirPath, filename)
+	b, err := ioutil.ReadFile(fpath)
 	if err != nil {
-		return "", fmt.Errorf("%s: reading file: %v", filename, err)
+		return "", fmt.Errorf("%s: reading file: %v", fpath, err)
 	}
 	unsafe := blackfriday.Run(b)
 	contentHTML := bluemonday.UGCPolicy().SanitizeBytes(unsafe)
