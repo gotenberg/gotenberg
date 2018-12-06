@@ -5,7 +5,7 @@ import (
 	"github.com/thecodingmachine/gotenberg/internal/pkg/printer"
 )
 
-func convertHTML(c echo.Context) error {
+func convertMarkdown(c echo.Context) error {
 	r, err := newResource(c)
 	if err != nil {
 		return err
@@ -15,12 +15,11 @@ func convertHTML(c echo.Context) error {
 	if cancel != nil {
 		defer cancel()
 	}
-	p := &printer.HTML{Context: ctx}
 	indexPath, err := r.filePath("index.html")
 	if err != nil {
 		return err
 	}
-	p.WithLocalURL(indexPath)
+	p := &printer.Markdown{Context: ctx, TemplatePath: indexPath}
 	headerPath, _ := r.filePath("header.html")
 	if err := p.WithHeaderFile(headerPath); err != nil {
 		return err

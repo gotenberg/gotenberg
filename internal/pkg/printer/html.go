@@ -113,9 +113,8 @@ func (html *HTML) Print(destination string) error {
 }
 
 // WithLocalURL sets a local URL from a file path.
-func (html *HTML) WithLocalURL(fpath string) error {
+func (html *HTML) WithLocalURL(fpath string) {
 	html.URL = fmt.Sprintf("file://%s", fpath)
-	return nil
 }
 
 // WithHeaderFile sets header content from a file.

@@ -21,6 +21,7 @@ type Markdown struct {
 	FooterHTML   string
 	PaperWidth   float64
 	PaperHeight  float64
+	Landscape    bool
 
 	html *HTML
 }
@@ -38,9 +39,10 @@ func (md *Markdown) Print(destination string) error {
 	}
 	md.html.PaperWidth = md.PaperWidth
 	md.html.PaperHeight = md.PaperHeight
+	md.html.Landscape = md.Landscape
 	tmpl, err := template.
 		New(filepath.Base(md.TemplatePath)).
-		Funcs(template.FuncMap{"markdonify": markdonify}).
+		Funcs(template.FuncMap{"toHTML": toHTML}).
 		ParseFiles(md.TemplatePath)
 	if err != nil {
 		return fmt.Errorf("%s: parsing template: %v", md.TemplatePath, err)
@@ -57,13 +59,11 @@ func (md *Markdown) Print(destination string) error {
 	if err := writeBytesToFile(dst, data.Bytes()); err != nil {
 		return err
 	}
-	if err := md.html.WithLocalURL(dst); err != nil {
-		return err
-	}
+	md.html.WithLocalURL(dst)
 	return md.html.Print(destination)
 }
 
-func markdonify(filename string) (template.HTML, error) {
+func toHTML(filename string) (template.HTML, error) {
 	b, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return "", fmt.Errorf("%s: reading file: %v", filename, err)

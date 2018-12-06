@@ -13,16 +13,17 @@ import (
 
 var mu sync.Mutex
 
-// Office facilitates Office document to PDF conversion.
+// Office facilitates Office documents to PDF conversion.
 type Office struct {
 	Context   context.Context
 	FilePaths []string
 }
 
-// Print converts Office document to PDF.
+// Print converts Office documents to PDF.
 func (o *Office) Print(destination string) error {
 	mu.Lock()
 	defer mu.Unlock()
+	var fpaths []string
 	dirPath := filepath.Dir(destination)
 	for _, fpath := range o.FilePaths {
 		tmpFilename, err := rand.Get()
@@ -46,8 +47,9 @@ func (o *Office) Print(destination string) error {
 		if err != nil {
 			return fmt.Errorf("unoconv: non-zero exit code: %v", err)
 		}
+		fpaths = append(fpaths, tmpDest)
 	}
-	return Merge(dirPath, destination)
+	return Merge(fpaths, destination)
 }
 
 // Compile-time checks to ensure type implements desired interfaces.

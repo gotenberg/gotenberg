@@ -12,29 +12,21 @@ import (
 	"github.com/labstack/echo/middleware"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/notify"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/printer"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/process"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/rand"
 )
 
 // Start starts the API server on port 3000.
 func Start() error {
-	e := echo.New()
-	e.HideBanner = true
-	e.HidePort = true
-	e.Use(middleware.Logger())
-	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			if err := next(c); err != nil {
-				return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("%v", err))
-			}
-			return nil
-		}
-	})
-	g := e.Group("/convert")
-	g.POST("/html", convertHTML)
-	g.POST("/markdown", nil)
-	g.POST("/office", convertOffice)
+	e := setup()
+	// start Chrome headless and
+	// unoconv listener with PM2.
+	if err := process.Start(); err != nil {
+		return err
+	}
 	// run our API in a goroutine so that it doesn't block.
 	go func() {
+		notify.Println("starting server on port 3000")
 		if err := e.Start(":3000"); err != nil {
 			e.Logger.Fatalf("%v", err)
 			os.Exit(1)
@@ -55,6 +47,29 @@ func Start() error {
 	return e.Shutdown(ctx)
 }
 
+func setup() *echo.Echo {
+	e := echo.New()
+	e.HideBanner = true
+	e.HidePort = true
+	e.Use(middleware.Logger())
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if err := next(c); err != nil {
+				// TODO should return a better HTTP status code
+				// than 500 for some cases.
+				return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("%v", err))
+			}
+			return nil
+		}
+	})
+	e.POST("/merge", merge)
+	g := e.Group("/convert")
+	g.POST("/html", convertHTML)
+	g.POST("/markdown", convertMarkdown)
+	g.POST("/office", convertOffice)
+	return e
+}
+
 func newContext(r *resource) (context.Context, context.CancelFunc) {
 	webhookURL := r.webhookURL()
 	if webhookURL == "" {
@@ -67,16 +82,22 @@ func newContext(r *resource) (context.Context, context.CancelFunc) {
 func print(c echo.Context, p printer.Printer, r *resource) error {
 	filename, err := rand.Get()
 	if err != nil {
-		return fmt.Errorf("creating result filename: %v", err)
+		return fmt.Errorf("getting result file name: %v", err)
 	}
 	filename = fmt.Sprintf("%s.pdf", filename)
 	fpath := fmt.Sprintf("%s/%s", r.dirPath, filename)
 	if r.webhookURL() == "" {
+		// if no webhook URL given, run conversion
+		// and directly return the resulting PDF file
+		// or and error.
 		if err := p.Print(fpath); err != nil {
 			return err
 		}
 		return c.Attachment(fpath, filename)
 	}
+	// as a webhook URL has been given, we
+	// run the following lines in a goroutine so that
+	// it doesn't block.
 	go func() {
 		if err := p.Print(fpath); err != nil {
 			c.Logger().Errorf("%v", err)
