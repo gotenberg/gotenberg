@@ -23,14 +23,14 @@ type Office struct {
 func (o *Office) Print(destination string) error {
 	mu.Lock()
 	defer mu.Unlock()
-	var fpaths []string
+	fpaths := make([]string, len(o.FilePaths))
 	dirPath := filepath.Dir(destination)
-	for _, fpath := range o.FilePaths {
-		tmpFilename, err := rand.Get()
+	for i, fpath := range o.FilePaths {
+		baseFilename, err := rand.Get()
 		if err != nil {
 			return err
 		}
-		tmpDest := fmt.Sprintf("%s/%s.pdf", dirPath, tmpFilename)
+		tmpDest := fmt.Sprintf("%s/%s.pdf", dirPath, baseFilename)
 		cmd := exec.CommandContext(
 			o.Context,
 			"unoconv",
@@ -47,7 +47,7 @@ func (o *Office) Print(destination string) error {
 		if err != nil {
 			return fmt.Errorf("unoconv: non-zero exit code: %v", err)
 		}
-		fpaths = append(fpaths, tmpDest)
+		fpaths[i] = tmpDest
 	}
 	return Merge(fpaths, destination)
 }

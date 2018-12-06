@@ -6,7 +6,8 @@ fmt:
 
 # Run all linters and tests.
 testing:
-	docker build -t thecodingmachine/gotenberg:ci -f build/ci/Dockerfile .
+	make build-image VERSION=$(VERSION)
+	docker build --build-arg VERSION=$(VERSION) -t thecodingmachine/gotenberg:ci -f build/ci/Dockerfile .
 	docker run --rm -e "VERSION=$(VERSION)" -v "$(PWD):/ci" thecodingmachine/gotenberg:ci
 
 # Build Gotenberg and Docker image.

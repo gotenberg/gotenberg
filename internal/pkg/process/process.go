@@ -42,7 +42,7 @@ func startChromeHeadless() error {
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("starting Chrome headless with PM2: %v", err)
 	}
-	time.Sleep(4 * time.Second)
+	time.Sleep(5 * time.Second)
 	notify.Println("Chrome headless started with PM2")
 	return nil
 }
@@ -60,7 +60,7 @@ func startUnoconvListener() error {
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("starting unoconv listener with PM2: %v", err)
 	}
-	time.Sleep(4 * time.Second)
+	time.Sleep(5 * time.Second)
 	notify.Println("unoconv listener started with PM2")
 	return nil
 }

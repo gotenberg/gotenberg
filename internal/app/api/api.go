@@ -80,11 +80,11 @@ func newContext(r *resource) (context.Context, context.CancelFunc) {
 }
 
 func print(c echo.Context, p printer.Printer, r *resource) error {
-	filename, err := rand.Get()
+	baseFilename, err := rand.Get()
 	if err != nil {
 		return fmt.Errorf("getting result file name: %v", err)
 	}
-	filename = fmt.Sprintf("%s.pdf", filename)
+	filename := fmt.Sprintf("%s.pdf", baseFilename)
 	fpath := fmt.Sprintf("%s/%s", r.dirPath, filename)
 	if r.webhookURL() == "" {
 		// if no webhook URL given, run conversion

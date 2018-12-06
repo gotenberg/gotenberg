@@ -3,7 +3,6 @@ package printer
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 
 	pdfcpuAPI "github.com/hhrutter/pdfcpu/pkg/api"
 	pdfcpuConfig "github.com/hhrutter/pdfcpu/pkg/pdfcpu"
@@ -27,9 +26,4 @@ func writeBytesToFile(dst string, b []byte) error {
 		return fmt.Errorf("%s: writting file: %v", dst, err)
 	}
 	return nil
-}
-
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return !os.IsNotExist(err)
 }

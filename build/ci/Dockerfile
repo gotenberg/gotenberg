@@ -1,4 +1,6 @@
-FROM golang:1.11-stretch
+ARG VERSION
+
+FROM thecodingmachine/gotenberg:${VERSION}
 
 LABEL authors="Julien Neuhart <j.neuhart@thecodingmachine.com>"
 
@@ -9,40 +11,25 @@ LABEL authors="Julien Neuhart <j.neuhart@thecodingmachine.com>"
 # | Libraries used in the build process of this image.
 # |
 
-RUN echo "deb http://httpredir.debian.org/debian/ stretch main contrib non-free" > /etc/apt/sources.list &&\
-    apt-get update &&\
-    apt-get install -y curl wget
+RUN apt-get install -y git gcc
 
 # |--------------------------------------------------------------------------
-# | PM2
+# | Golang
 # |--------------------------------------------------------------------------
 # |
-# | Installs PM2 for launching programs in background and with failure 
-# | recovering. In our case: Chrome (headless) and Office (headless). 
+# | Installs Golang.
 # |
 
-RUN curl -sL https://raw.githubusercontent.com/Unitech/pm2/master/packager/setup.deb.sh | bash -
+ENV GOLANG_VERSION 1.11.2
 
-# |--------------------------------------------------------------------------
-# | Chrome
-# |--------------------------------------------------------------------------
-# |
-# | Installs Chrome for HTML and Markdown conversions.
-# |
+RUN wget -O go.tgz https://golang.org/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz &&\
+    tar -C /usr/local -xzf go.tgz &&\
+	rm go.tgz &&\
+    export PATH="/usr/local/go/bin:$PATH" &&\
+    go version
 
-RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - &&\
-    echo "deb http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list &&\
-    apt-get update &&\
-    apt-get -y install google-chrome-stable
-
-# |--------------------------------------------------------------------------
-# | Unoconv
-# |--------------------------------------------------------------------------
-# |
-# | Installs MS fonts and unoconv for Office documents conversions.
-# |
-
-RUN apt-get -y install ttf-mscorefonts-installer unoconv
+ENV GOPATH /go
+ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 
 # |--------------------------------------------------------------------------
 # | GolangCI-Lint
@@ -52,7 +39,10 @@ RUN apt-get -y install ttf-mscorefonts-installer unoconv
 # | than gometalinter.
 # |
 
-RUN curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh
+ENV GOLANGCI_LINT_VERSION 1.12.3
+
+RUN curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b /usr/local/bin v${GOLANGCI_LINT_VERSION} &&\
+    golangci-lint --version
 
 # |--------------------------------------------------------------------------
 # | Final touch

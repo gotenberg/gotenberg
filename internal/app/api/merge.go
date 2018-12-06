@@ -18,11 +18,11 @@ func merge(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	filename, err := rand.Get()
+	baseFilename, err := rand.Get()
 	if err != nil {
 		return fmt.Errorf("getting result file name: %v", err)
 	}
-	filename = fmt.Sprintf("%s.pdf", filename)
+	filename := fmt.Sprintf("%s.pdf", baseFilename)
 	dest := fmt.Sprintf("%s/%s", r.dirPath, filename)
 	return printer.Merge(fpaths, dest)
 }

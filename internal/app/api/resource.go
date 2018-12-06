@@ -92,7 +92,7 @@ func (r *resource) filePath(filename string) (string, error) {
 
 func (r *resource) filePaths(exts []string) ([]string, error) {
 	var fpaths []string
-	filepath.Walk(r.dirPath, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(r.dirPath, func(path string, info os.FileInfo, _ error) error {
 		if info.IsDir() {
 			return nil
 		}
@@ -108,6 +108,9 @@ func (r *resource) filePaths(exts []string) ([]string, error) {
 		}
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
 	return fpaths, nil
 }
 
