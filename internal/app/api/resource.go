@@ -12,10 +12,14 @@ import (
 )
 
 const (
-	webhookURL  string = "webhookURL"
-	paperWidth  string = "paperWidth"
-	paperHeight string = "paperHeight"
-	landscape   string = "landscape"
+	webhookURL   string = "webhookURL"
+	paperWidth   string = "paperWidth"
+	paperHeight  string = "paperHeight"
+	marginTop    string = "marginTop"
+	marginBottom string = "marginBottom"
+	marginLeft   string = "marginLeft"
+	marginRight  string = "marginRight"
+	landscape    string = "landscape"
 )
 
 // resource facilitates storing and accessing
@@ -130,6 +134,34 @@ func (r *resource) paperSize() ([2]float64, error) {
 		return defaultSize, fmt.Errorf("paper height: %v", err)
 	}
 	return [2]float64{width, height}, nil
+}
+
+func (r *resource) paperMargins() ([4]float64, error) {
+	defaultMargins := [4]float64{1, 1, 1, 1}
+	topStr := r.values[marginTop]
+	bottomStr := r.values[marginBottom]
+	leftStr := r.values[marginLeft]
+	rightStr := r.values[marginRight]
+	if topStr == "" || bottomStr == "" || leftStr == "" || rightStr == "" {
+		return defaultMargins, nil
+	}
+	top, err := strconv.ParseFloat(topStr, 64)
+	if err != nil {
+		return defaultMargins, fmt.Errorf("margin top: %v", err)
+	}
+	bottom, err := strconv.ParseFloat(bottomStr, 64)
+	if err != nil {
+		return defaultMargins, fmt.Errorf("margin bottom: %v", err)
+	}
+	left, err := strconv.ParseFloat(leftStr, 64)
+	if err != nil {
+		return defaultMargins, fmt.Errorf("margin left: %v", err)
+	}
+	right, err := strconv.ParseFloat(rightStr, 64)
+	if err != nil {
+		return defaultMargins, fmt.Errorf("margin right: %v", err)
+	}
+	return [4]float64{top, bottom, left, right}, nil
 }
 
 func (r *resource) landscape() (bool, error) {

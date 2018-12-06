@@ -2,26 +2,33 @@ package printer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"strings"
 
 	"github.com/mafredri/cdp"
 	"github.com/mafredri/cdp/devtool"
 	"github.com/mafredri/cdp/protocol/network"
 	"github.com/mafredri/cdp/protocol/page"
+	"github.com/mafredri/cdp/protocol/runtime"
 	"github.com/mafredri/cdp/protocol/target"
 	"github.com/mafredri/cdp/rpcc"
 )
 
 // HTML facilitates HTML to PDF conversion.
 type HTML struct {
-	Context     context.Context
-	URL         string
-	HeaderHTML  string
-	FooterHTML  string
-	PaperWidth  float64
-	PaperHeight float64
-	Landscape   bool
+	Context      context.Context
+	URL          string
+	HeaderHTML   string
+	FooterHTML   string
+	PaperWidth   float64
+	PaperHeight  float64
+	MarginTop    float64
+	MarginBottom float64
+	MarginLeft   float64
+	MarginRight  float64
+	Landscape    bool
 }
 
 // Print converts HTML to PDF.
@@ -92,15 +99,29 @@ func (html *HTML) Print(destination string) error {
 	if err != nil {
 		return fmt.Errorf("waiting for page loading: %v", err)
 	}
+	// inject a script to make sure web fonts are loaded.
+	script := `new Promise((resolve, reject) => {
+		document.fonts.ready.then(function () {
+			resolve('fonts loaded');
+		});
+		setTimeout(resolve.bind(resolve, 'timeout'), %.0f);
+	});`
+	scriptArg := runtime.NewEvaluateArgs(script).SetAwaitPromise(true)
+	returnObj, _ := c.Runtime.Evaluate(html.Context, scriptArg)
+	loadFontsResult := string(returnObj.Result.Value)
+	if strings.Contains(loadFontsResult, "timeout") {
+		return errors.New("timed out loading fonts")
+	}
 	print, err := c.Page.PrintToPDF(
 		html.Context,
 		page.NewPrintToPDFArgs().
 			SetLandscape(html.Landscape).
 			SetPrintBackground(true).
-			SetMarginTop(0).
-			SetMarginBottom(0).
-			SetMarginLeft(0).
-			SetMarginRight(0).
+			SetMarginTop(html.MarginTop).
+			SetMarginBottom(html.MarginBottom).
+			SetMarginLeft(html.MarginLeft).
+			SetMarginRight(html.MarginRight).
+			SetDisplayHeaderFooter(html.HeaderHTML != "" || html.FooterHTML != "").
 			SetHeaderTemplate(html.HeaderHTML).
 			SetFooterTemplate(html.FooterHTML).
 			SetPaperWidth(html.PaperWidth).

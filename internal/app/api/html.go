@@ -35,6 +35,14 @@ func convertHTML(c echo.Context) error {
 	}
 	p.PaperWidth = paperSize[0]
 	p.PaperHeight = paperSize[1]
+	paperMargins, err := r.paperMargins()
+	if err != nil {
+		return err
+	}
+	p.MarginTop = paperMargins[0]
+	p.MarginBottom = paperMargins[1]
+	p.MarginLeft = paperMargins[2]
+	p.MarginRight = paperMargins[3]
 	landscape, err := r.landscape()
 	if err != nil {
 		return err

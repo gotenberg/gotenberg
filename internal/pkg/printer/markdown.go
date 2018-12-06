@@ -21,6 +21,10 @@ type Markdown struct {
 	FooterHTML   string
 	PaperWidth   float64
 	PaperHeight  float64
+	MarginTop    float64
+	MarginBottom float64
+	MarginLeft   float64
+	MarginRight  float64
 	Landscape    bool
 
 	html *HTML
@@ -39,6 +43,10 @@ func (md *Markdown) Print(destination string) error {
 	}
 	md.html.PaperWidth = md.PaperWidth
 	md.html.PaperHeight = md.PaperHeight
+	md.html.MarginTop = md.MarginTop
+	md.html.MarginBottom = md.MarginBottom
+	md.html.MarginLeft = md.MarginLeft
+	md.html.MarginRight = md.MarginRight
 	md.html.Landscape = md.Landscape
 	tmpl, err := template.
 		New(filepath.Base(md.TemplatePath)).

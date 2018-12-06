@@ -20,7 +20,7 @@ RUN apt-get install -y git gcc
 # | Installs Golang.
 # |
 
-ENV GOLANG_VERSION 1.11.2
+ARG GOLANG_VERSION
 
 RUN wget -O go.tgz https://golang.org/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz &&\
     tar -C /usr/local -xzf go.tgz &&\
