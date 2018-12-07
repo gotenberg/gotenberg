@@ -5,10 +5,14 @@ GOLANG_VERSION=1.11.2
 fmt:
 	go fmt ./...
 
+# Prepare all base images.
+prepare:
+	docker build -t thecodingmachine/gotenberg:base -f build/base/package/Dockerfile .
+	docker build --build-arg GOLANG_VERSION=$(GOLANG_VERSION) -t thecodingmachine/gotenberg:baseci -f build/base/ci/Dockerfile .
+
 # Run all linters and tests.
 testing:
-	make build-image VERSION=$(VERSION) GOLANG_VERSION=$(GOLANG_VERSION)
-	docker build --build-arg VERSION=$(VERSION) --build-arg GOLANG_VERSION=$(GOLANG_VERSION) -t thecodingmachine/gotenberg:ci -f build/ci/Dockerfile .
+	docker build -t thecodingmachine/gotenberg:ci -f build/ci/Dockerfile .
 	docker run --rm -e "VERSION=$(VERSION)" -v "$(PWD):/ci" thecodingmachine/gotenberg:ci
 
 # Build Gotenberg and Docker image.

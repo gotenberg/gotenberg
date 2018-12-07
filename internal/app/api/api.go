@@ -11,8 +11,8 @@ import (
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/notify"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/pm2"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/printer"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/process"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/rand"
 )
 
@@ -21,12 +21,17 @@ func Start() error {
 	e := setup()
 	// start Chrome headless and
 	// unoconv listener with PM2.
-	if err := process.Start(); err != nil {
+	chrome := &pm2.Chrome{}
+	unoconv := &pm2.Unoconv{}
+	if err := chrome.Launch(); err != nil {
+		return err
+	}
+	if err := unoconv.Launch(); err != nil {
 		return err
 	}
 	// run our API in a goroutine so that it doesn't block.
 	go func() {
-		notify.Println("starting server on port 3000")
+		notify.Println("http server started on port 3000")
 		if err := e.Start(":3000"); err != nil {
 			e.Logger.Fatalf("%v", err)
 			os.Exit(1)

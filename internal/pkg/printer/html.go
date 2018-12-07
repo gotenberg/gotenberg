@@ -31,6 +31,8 @@ type HTML struct {
 	Landscape    bool
 }
 
+const defaultHeaderFooterHTML string = "<html><head></head><body></body></html>"
+
 // Print converts HTML to PDF.
 // Credits: https://medium.com/compass-true-north/go-service-to-convert-web-pages-to-pdf-using-headless-chrome-5fd9ffbae1af
 func (html *HTML) Print(destination string) error {
@@ -112,20 +114,28 @@ func (html *HTML) Print(destination string) error {
 	if strings.Contains(loadFontsResult, "timeout") {
 		return errors.New("timed out loading fonts")
 	}
+	// if no header or footer, use the default template
+	// for avoiding displaying default Chrome templates.
+	if html.HeaderHTML == "" {
+		html.HeaderHTML = defaultHeaderFooterHTML
+	}
+	if html.FooterHTML == "" {
+		html.FooterHTML = defaultHeaderFooterHTML
+	}
 	print, err := c.Page.PrintToPDF(
 		html.Context,
 		page.NewPrintToPDFArgs().
-			SetLandscape(html.Landscape).
-			SetPrintBackground(true).
+			SetPaperWidth(html.PaperWidth).
+			SetPaperHeight(html.PaperHeight).
 			SetMarginTop(html.MarginTop).
 			SetMarginBottom(html.MarginBottom).
 			SetMarginLeft(html.MarginLeft).
 			SetMarginRight(html.MarginRight).
-			SetDisplayHeaderFooter(html.HeaderHTML != "" || html.FooterHTML != "").
+			SetLandscape(html.Landscape).
+			SetDisplayHeaderFooter(true).
 			SetHeaderTemplate(html.HeaderHTML).
 			SetFooterTemplate(html.FooterHTML).
-			SetPaperWidth(html.PaperWidth).
-			SetPaperHeight(html.PaperHeight),
+			SetPrintBackground(true),
 	)
 	if err != nil {
 		return fmt.Errorf("printing page to PDF: %v", err)

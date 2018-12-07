@@ -34,6 +34,10 @@ func newResource(c echo.Context) (*resource, error) {
 	v[webhookURL] = c.FormValue(webhookURL)
 	v[paperWidth] = c.FormValue(paperWidth)
 	v[paperHeight] = c.FormValue(paperHeight)
+	v[marginTop] = c.FormValue(marginTop)
+	v[marginBottom] = c.FormValue(marginBottom)
+	v[marginLeft] = c.FormValue(marginLeft)
+	v[marginRight] = c.FormValue(marginRight)
 	v[landscape] = c.FormValue(landscape)
 	dirPath, err := rand.Get()
 	if err != nil {
