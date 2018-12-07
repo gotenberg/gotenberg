@@ -18,8 +18,8 @@ func (c *Chrome) Launch() error {
 // Shutdown stops Chrome headless and
 // removes it from the list of PM2
 // processes.
-func (c *Chrome) Shutdown() error {
-	return run(c, "delete")
+func (c *Chrome) Shutdown(delete bool) error {
+	return shutdown(c, delete)
 }
 
 func (c *Chrome) getArgs() []string {

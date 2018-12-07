@@ -12,8 +12,8 @@ func (u *Unoconv) Launch() error {
 // Shutdown stops unoconv listener and
 // removes it from the list of PM2
 // processes.
-func (u *Unoconv) Shutdown() error {
-	return run(u, "delete")
+func (u *Unoconv) Shutdown(delete bool) error {
+	return shutdown(u, delete)
 }
 
 func (u *Unoconv) getArgs() []string {

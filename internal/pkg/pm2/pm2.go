@@ -12,7 +12,7 @@ import (
 // shutdown a process with PM2.
 type Process interface {
 	Launch() error
-	Shutdown() error
+	Shutdown(delete bool) error
 	getArgs() []string
 	getName() string
 	getFullname() string
@@ -24,6 +24,7 @@ const maxRestartAttempts int = 5
 var humanNames = map[string]string{
 	"start":   "started",
 	"restart": "restarted",
+	"stop":    "stopped",
 	"delete":  "deleted",
 }
 
@@ -42,6 +43,13 @@ func launch(p Process) error {
 		}
 	}
 	return nil
+}
+
+func shutdown(p Process, delete bool) error {
+	if delete {
+		return run(p, "delete")
+	}
+	return run(p, "stop")
 }
 
 func run(p Process, cmdName string) error {

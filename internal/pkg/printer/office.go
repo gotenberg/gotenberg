@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sync"
@@ -48,6 +49,9 @@ func (o *Office) Print(destination string) error {
 			return fmt.Errorf("unoconv: non-zero exit code: %v", err)
 		}
 		fpaths[i] = tmpDest
+	}
+	if len(fpaths) == 1 {
+		return os.Rename(fpaths[0], destination)
 	}
 	return Merge(fpaths, destination)
 }
