@@ -68,31 +68,31 @@ func multipartForm(t *testing.T, kind string) (*bytes.Buffer, string) {
 	return body, writer.FormDataContentType()
 }
 
-// HTMLTestDirPath creates a temporary copy
+// HTMLTestDirPath creates a copy
 // of "html" folder in test/testdata.
 func HTMLTestDirPath(t *testing.T) string {
-	return createTmpDir(t, "html")
+	return copyDir(t, "html")
 }
 
-// MarkdownTestDirPath creates a temporary copy
+// MarkdownTestDirPath creates a copy
 // of "markdown" folder in test/testdata.
 func MarkdownTestDirPath(t *testing.T) string {
-	return createTmpDir(t, "markdown")
+	return copyDir(t, "markdown")
 }
 
-// OfficeTestDirPath creates a temporary copy
+// OfficeTestDirPath creates a copy
 // of "office" folder in test/testdata.
 func OfficeTestDirPath(t *testing.T) string {
-	return createTmpDir(t, "office")
+	return copyDir(t, "office")
 }
 
-// PDFTestDirPath creates a temporary copy
+// PDFTestDirPath creates a copy
 // of "pdf" folder in test/testdata.
 func PDFTestDirPath(t *testing.T) string {
-	return createTmpDir(t, "pdf")
+	return copyDir(t, "pdf")
 }
 
-func createTmpDir(t *testing.T, kind string) string {
+func copyDir(t *testing.T, kind string) string {
 	tmpDirPath, err := rand.Get()
 	require.Nil(t, err)
 	err = os.MkdirAll(tmpDirPath, 0755)
