@@ -19,7 +19,7 @@ tests:
 # build Docker image.
 image:
 	docker build -t thecodingmachine/gotenberg:base -f build/base/Dockerfile .
-	docker build  --build-arg GOLANG_VERSION=$(GOLANG_VERSION) --build-arg VERSION=$(VERSION) -t thecodingmachine/gotenberg:$(VERSION) -f build/package/Dockerfile .
+	docker build --build-arg GOLANG_VERSION=$(GOLANG_VERSION) --build-arg VERSION=$(VERSION) -t thecodingmachine/gotenberg:$(VERSION) -f build/package/Dockerfile .
 
 # start the API using previously built Docker image.
 gotenberg:
