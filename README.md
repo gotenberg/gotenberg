@@ -4,8 +4,6 @@
 <h3 align="center">Gotenberg</h3>
 <p align="center">A Docker-powered stateless API for converting HTML, Markdown and Office documents to PDF.</p>
 
----
-
 ## Features
 
 * HTML and Markdown conversions using Google Chrome headless
