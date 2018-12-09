@@ -12,9 +12,9 @@ At TheCodingMachine, we build a lot of web applications (intranets, extranets an
 
 * HTML and Markdown conversions using Google Chrome headless
 * Office conversions (.docx, .doc, .odt, .pptx, .ppt, .odp and so on) using [unoconv](https://github.com/dagwieers/unoconv)
-* :zap:Performance: Google Chrome and Libreoffice (unoconv) started once in the background thanks to PM2
-* :broken_heart:Failure prevention: PM2 automatically restarts previous processes if they fail
-* :package:Assets: send your images, fonts, stylesheets and so on for converting your HTML and Markdown to beaufitul PDFs!
+* Performance :zap:: Google Chrome and Libreoffice (unoconv) started once in the background thanks to PM2
+* Failure prevention :broken_heart:: PM2 automatically restarts previous processes if they fail
+* Assets :package:: send your images, fonts, stylesheets and so on for converting your HTML and Markdown to beaufitul PDFs!
 * Clients: easily interact with the API using `go` or `PHP`
 
 ## Quick start
