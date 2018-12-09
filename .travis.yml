@@ -20,4 +20,4 @@ jobs:
       script: make lint
     - stage: publish
       if: tag IS present
-      script: make prepare build-image VERSION=${TRAVIS_TAG} && docker login -u $DOCKER_USER -p $DOCKER_PASS && docker push thecodingmachine/gotenberg:${TRAVIS_TAG}
+      script: make image VERSION=$TRAVIS_TAG && ./scripts/publish.sh $TRAVIS_TAG $DOCKER_USER $DOCKER_PASS
