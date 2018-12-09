@@ -19,8 +19,8 @@ jobs:
   include:
     - stage: test
       script: make prepare testing
-    - stage: coverage
-      script: bash <(curl -s https://codecov.io/bash)
+   #- stage: coverage
+   #   script: bash <(curl -s https://codecov.io/bash)
     - stage: deploy
       if: tag IS present
       script: make prepare build-image VERSION=${TRAVIS_TAG} && docker login -u $DOCKER_USER -p $DOCKER_PASS && docker push thecodingmachine/gotenberg:${TRAVIS_TAG}

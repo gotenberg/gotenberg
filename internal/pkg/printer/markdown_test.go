@@ -2,26 +2,23 @@ package printer
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/pm2"
 	"github.com/thecodingmachine/gotenberg/test"
 )
 
 func TestMarkdown(t *testing.T) {
-	p := &pm2.Chrome{}
-	err := p.Launch()
-	require.Nil(t, err)
-	defer p.Shutdown(false)
+	dirPath := test.MarkdownTestDirPath(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	markdown := &Markdown{
 		Context:      ctx,
-		TemplatePath: test.MarkdownTestFilePath(t, "index.html"),
+		TemplatePath: fmt.Sprintf("%s/%s", dirPath, "index.html"),
 		PaperWidth:   8.27,
 		PaperHeight:  11.7,
 		MarginTop:    1,
@@ -29,13 +26,14 @@ func TestMarkdown(t *testing.T) {
 		MarginLeft:   1,
 		MarginRight:  1,
 	}
-	err = markdown.WithHeaderFile(test.MarkdownTestFilePath(t, "header.html"))
+	err := markdown.WithHeaderFile(fmt.Sprintf("%s/%s", dirPath, "header.html"))
 	require.Nil(t, err)
-	err = markdown.WithFooterFile(test.MarkdownTestFilePath(t, "footer.html"))
+	err = markdown.WithFooterFile(fmt.Sprintf("%s/%s", dirPath, "footer.html"))
 	require.Nil(t, err)
-	err = markdown.Print("foo.pdf")
+	dst := fmt.Sprintf("%s/%s", dirPath, "foo.pdf")
+	err = markdown.Print(dst)
 	require.Nil(t, err)
-	require.FileExists(t, "foo.pdf")
-	err = os.Remove("foo.pdf")
+	require.FileExists(t, dst)
+	err = os.RemoveAll(dirPath)
 	assert.Nil(t, err)
 }

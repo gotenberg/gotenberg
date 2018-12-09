@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/rand"
 )
 
 // HTMLMultipartForm returns the body
@@ -43,34 +44,6 @@ func PDFMultipartForm(t *testing.T) (*bytes.Buffer, string) {
 	return multipartForm(t, "pdf")
 }
 
-// HTMLTestFilePath returns the absolute
-// file path of a file under "html" folder
-// in test/testdata
-func HTMLTestFilePath(t *testing.T, filename string) string {
-	return abs(t, "html", filename)
-}
-
-// MarkdownTestFilePath returns the absolute
-// file path of a file under "markdown" folder
-// in test/testdata
-func MarkdownTestFilePath(t *testing.T, filename string) string {
-	return abs(t, "markdown", filename)
-}
-
-// OfficeTestFilePath returns the absolute
-// file path of a file under "office" folder
-// in test/testdata
-func OfficeTestFilePath(t *testing.T, filename string) string {
-	return abs(t, "office", filename)
-}
-
-// PDFTestFilePath returns the absolute
-// file path of a file under "pdf" folder
-// in test/testdata
-func PDFTestFilePath(t *testing.T, filename string) string {
-	return abs(t, "pdf", filename)
-}
-
 func multipartForm(t *testing.T, kind string) (*bytes.Buffer, string) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
@@ -93,6 +66,59 @@ func multipartForm(t *testing.T, kind string) (*bytes.Buffer, string) {
 		require.Nil(t, err)
 	}
 	return body, writer.FormDataContentType()
+}
+
+// HTMLTestDirPath creates a temporary copy
+// of "html" folder in test/testdata.
+func HTMLTestDirPath(t *testing.T) string {
+	return createTmpDir(t, "html")
+}
+
+// MarkdownTestDirPath creates a temporary copy
+// of "markdown" folder in test/testdata.
+func MarkdownTestDirPath(t *testing.T) string {
+	return createTmpDir(t, "markdown")
+}
+
+// OfficeTestDirPath creates a temporary copy
+// of "office" folder in test/testdata.
+func OfficeTestDirPath(t *testing.T) string {
+	return createTmpDir(t, "office")
+}
+
+// PDFTestDirPath creates a temporary copy
+// of "pdf" folder in test/testdata.
+func PDFTestDirPath(t *testing.T) string {
+	return createTmpDir(t, "pdf")
+}
+
+func createTmpDir(t *testing.T, kind string) string {
+	tmpDirPath, err := rand.Get()
+	require.Nil(t, err)
+	err = os.MkdirAll(tmpDirPath, 0755)
+	require.Nil(t, err)
+	dirPath := abs(t, kind, "")
+	filepath.Walk(dirPath, func(path string, info os.FileInfo, _ error) error {
+		if info.IsDir() {
+			return nil
+		}
+		fpath := abs(t, kind, info.Name())
+		in, err := os.Open(fpath)
+		require.Nil(t, err)
+		defer in.Close()
+		tmpFpath := fmt.Sprintf("%s/%s", tmpDirPath, info.Name())
+		out, err := os.Create(tmpFpath)
+		require.Nil(t, err)
+		defer out.Close()
+		err = out.Chmod(0644)
+		require.Nil(t, err)
+		_, err = io.Copy(out, in)
+		require.Nil(t, err)
+		_, err = out.Seek(0, 0)
+		require.Nil(t, err)
+		return nil
+	})
+	return tmpDirPath
 }
 
 func abs(t *testing.T, kind, filename string) string {

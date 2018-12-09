@@ -2,8 +2,11 @@ package pm2
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/mafredri/cdp/devtool"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/notify"
 )
 
 // Chrome facilitates starting or shutting down
@@ -18,8 +21,8 @@ func (c *Chrome) Launch() error {
 // Shutdown stops Chrome headless and
 // removes it from the list of PM2
 // processes.
-func (c *Chrome) Shutdown(delete bool) error {
-	return shutdown(c, delete)
+func (c *Chrome) Shutdown() error {
+	return shutdown(c)
 }
 
 func (c *Chrome) getArgs() []string {
@@ -54,6 +57,11 @@ func (c *Chrome) isViable() bool {
 	devt := devtool.New("http://127.0.0.1:9222")
 	_, err := devt.Create(context.TODO())
 	return err == nil
+}
+
+func (c *Chrome) warmup() {
+	notify.Println(fmt.Sprintf("warming-up %s", c.getFullname()))
+	time.Sleep(5 * time.Second)
 }
 
 // Compile-time checks to ensure type implements desired interfaces.

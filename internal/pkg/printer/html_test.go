@@ -2,21 +2,18 @@ package printer
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/pm2"
 	"github.com/thecodingmachine/gotenberg/test"
 )
 
 func TestHTML(t *testing.T) {
-	p := &pm2.Chrome{}
-	err := p.Launch()
-	require.Nil(t, err)
-	defer p.Shutdown(false)
+	dirPath := test.HTMLTestDirPath(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	html := &HTML{
@@ -28,14 +25,15 @@ func TestHTML(t *testing.T) {
 		MarginLeft:   1,
 		MarginRight:  1,
 	}
-	html.WithLocalURL(test.HTMLTestFilePath(t, "index.html"))
-	err = html.WithHeaderFile(test.HTMLTestFilePath(t, "header.html"))
+	html.WithLocalURL(fmt.Sprintf("%s/%s", dirPath, "index.html"))
+	err := html.WithHeaderFile(fmt.Sprintf("%s/%s", dirPath, "header.html"))
 	require.Nil(t, err)
-	err = html.WithFooterFile(test.HTMLTestFilePath(t, "footer.html"))
+	err = html.WithFooterFile(fmt.Sprintf("%s/%s", dirPath, "footer.html"))
 	require.Nil(t, err)
-	err = html.Print("foo.pdf")
+	dst := fmt.Sprintf("%s/%s", dirPath, "foo.pdf")
+	err = html.Print(dst)
 	require.Nil(t, err)
-	require.FileExists(t, "foo.pdf")
-	err = os.Remove("foo.pdf")
+	require.FileExists(t, dst)
+	err = os.RemoveAll(dirPath)
 	assert.Nil(t, err)
 }

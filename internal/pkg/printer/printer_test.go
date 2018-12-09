@@ -1,6 +1,7 @@
 package printer
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -10,15 +11,17 @@ import (
 )
 
 func TestMerge(t *testing.T) {
+	dirPath := test.PDFTestDirPath(t)
+	dst := fmt.Sprintf("%s/%s", dirPath, "foo.pdf")
 	err := Merge(
 		[]string{
-			test.PDFTestFilePath(t, "gotenberg.pdf"),
-			test.PDFTestFilePath(t, "gotenberg.pdf"),
+			fmt.Sprintf("%s/%s", dirPath, "gotenberg.pdf"),
+			fmt.Sprintf("%s/%s", dirPath, "gotenberg.pdf"),
 		},
-		"foo.pdf",
+		dst,
 	)
 	require.Nil(t, err)
-	require.FileExists(t, "foo.pdf")
-	err = os.Remove("foo.pdf")
+	require.FileExists(t, dst)
+	err = os.RemoveAll(dirPath)
 	assert.Nil(t, err)
 }
