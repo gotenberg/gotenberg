@@ -15,7 +15,7 @@ At TheCodingMachine, we build a lot of web applications (intranets, extranets an
 * Performance :zap:: Google Chrome and Libreoffice (unoconv) started once in the background thanks to PM2
 * Failure prevention :broken_heart:: PM2 automatically restarts previous processes if they fail
 * Assets :package:: send your images, fonts, stylesheets and so on for converting your HTML and Markdown to beaufitul PDFs!
-* Easily interact with the API using our `go` or `PHP` libraries
+* Easily interact with the API using our `go` and `PHP` libraries
 
 ## Quick start
 
