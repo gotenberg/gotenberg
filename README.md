@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="https://user-images.githubusercontent.com/8983173/49701058-4a750400-fbe7-11e8-922f-87dc3f9e72d6.png" alt="Gotenberg logo" width="250" height="250" />
+    <img src="https://user-images.githubusercontent.com/8983173/49701110-4c8b9280-fbe8-11e8-895c-a4b9c7d2515b.png" alt="Gotenberg logo" width="250" height="250" />
 </p>
 <h3 align="center">Gotenberg</h3>
 <p align="center">A Docker-powered and stateless API for converting HTML, Markdown and Office documents to PDF.</p>
