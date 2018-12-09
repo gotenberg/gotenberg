@@ -2,7 +2,7 @@
     <img src="https://user-images.githubusercontent.com/8983173/49701110-4c8b9280-fbe8-11e8-895c-a4b9c7d2515b.png" alt="Gotenberg logo" width="250" height="250" />
 </p>
 <h3 align="center">Gotenberg</h3>
-<p align="center">A Docker-powered and stateless API for converting HTML, Markdown and Office documents to PDF.</p>
+<p align="center">A Docker-powered stateless API for converting HTML, Markdown and Office documents to PDF.</p>
 <p align="center">
     <a href="https://microbadger.com/images/thecodingmachine/gotenberg:2.0.0">
         <img src="https://images.microbadger.com/badges/image/thecodingmachine/gotenberg:2.0.0.svg" alt="MicroBadger layers">
@@ -20,8 +20,23 @@
 
 ---
 
-TODO
+# Features
 
----
+* HTML and Markdown conversions using Google Chrome headless
+* Office conversions (.docx, .doc, .odt, .pptx, .ppt, .odp and so on) using [unoconv](https://github.com/dagwieers/unoconv)
+* :zap: Performance: Google Chrome and Libreoffice (unoconv) started once in the background thanks to PM2
+* Failure prevention: PM2 automatically restarts previous processes if they fail
+* Assets: send your images, fonts, stylesheets and so on for converting your HTML and Markdown to beaufitul PDFs!
 
-Would you like to update this documentation ? Feel free to open an [issue](../../issues).
+# Quick start
+
+Open a terminal and run the following command:
+
+```bash
+$ docker run --rm -p 3000:3000 thecodingmachine/gotenberg:3
+```
+
+The API is now available on your host under `http://localhost:3000`.
+
+Head to the [documentation](https://thecodingmachine.gotenberg.github.io)
+to learn how to interact with it!
