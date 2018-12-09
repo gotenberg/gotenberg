@@ -5,21 +5,22 @@ GOLANG_VERSION=1.11.2
 fmt:
 	go fmt ./...
 
-# Build all base images.
-prepare:
-	docker build -t thecodingmachine/gotenberg:base -f build/base/package/Dockerfile .
-	docker build --build-arg GOLANG_VERSION=$(GOLANG_VERSION) -t thecodingmachine/gotenberg:baseci -f build/base/ci/Dockerfile .
+# run all linters.
+lint:
+	docker build --build-arg GOLANG_VERSION=$(GOLANG_VERSION) -t thecodingmachine/gotenberg:lint -f build/lint/Dockerfile .
+	docker run --rm -it -v "$(PWD):/lint" thecodingmachine/gotenberg:lint
 
-# Run all linters and tests.
-testing:
-	docker build -t thecodingmachine/gotenberg:ci -f build/ci/Dockerfile .
-	docker run --rm -e "VERSION=$(VERSION)" -v "$(PWD):/ci" thecodingmachine/gotenberg:ci
+# run all tests.
+tests:
+	docker build -t thecodingmachine/gotenberg:base -f build/base/Dockerfile .
+	docker build --build-arg GOLANG_VERSION=$(GOLANG_VERSION) -t thecodingmachine/gotenberg:tests -f build/tests/Dockerfile .
+	docker run --rm -it -v "$(PWD):/tests" thecodingmachine/gotenberg:tests
 
-# Build Gotenberg and Docker image.
-build-image:
-	docker run -it --rm -e GOOS=linux -e GOARCH=amd64 -e CGO_ENABLED=0 -v "$(PWD):/gotenberg" -w /gotenberg golang:$(GOLANG_VERSION)-stretch go build -o build/package/gotenberg -ldflags "-X main.version=${VERSION}" cmd/gotenberg/main.go
-	docker build -t thecodingmachine/gotenberg:$(VERSION) -f build/package/Dockerfile .
+# build Docker image.
+image:
+	docker build -t thecodingmachine/gotenberg:base -f build/base/Dockerfile .
+	docker build  --build-arg GOLANG_VERSION=$(GOLANG_VERSION) --build-arg VERSION=$(VERSION) -t thecodingmachine/gotenberg:$(VERSION) -f build/package/Dockerfile .
 
-# Start the API using previously built Docker image.
+# start the API using previously built Docker image.
 gotenberg:
 	docker run -it --rm -p "3000:3000" thecodingmachine/gotenberg:$(VERSION)

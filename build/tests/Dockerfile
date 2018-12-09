@@ -1,3 +1,7 @@
+ARG GOLANG_VERSION
+
+FROM golang:${GOLANG_VERSION}-stretch AS golang
+
 FROM thecodingmachine/gotenberg:base
 
 LABEL authors="Julien Neuhart <j.neuhart@thecodingmachine.com>"
@@ -18,26 +22,29 @@ RUN apt-get install -y git gcc
 # | Installs Golang.
 # |
 
-ARG GOLANG_VERSION
+COPY --from=golang /usr/local/go /usr/local/go
 
-RUN wget -O go.tgz https://golang.org/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz &&\
-    tar -C /usr/local -xzf go.tgz &&\
-	rm go.tgz &&\
-    export PATH="/usr/local/go/bin:$PATH" &&\
+RUN export PATH="/usr/local/go/bin:$PATH" &&\
     go version
 
 ENV GOPATH /go
 ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 
 # |--------------------------------------------------------------------------
-# | GolangCI-Lint
+# | Final touch
 # |--------------------------------------------------------------------------
 # |
-# | Installs GolangCI-Lint, a linters Runner for Go. 5x faster 
-# | than gometalinter.
+# | Last instructions of this build.
 # |
 
-ENV GOLANGCI_LINT_VERSION 1.12.3
+# Define our workding outside of $GOPATH (we're using go modules).
+WORKDIR /tests
 
-RUN curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b /usr/local/bin v${GOLANGCI_LINT_VERSION} &&\
-    golangci-lint --version
+# Copy our module dependencies definitions.
+COPY go.mod .
+COPY go.sum .
+
+# Install module dependencies.
+RUN go mod download
+
+ENTRYPOINT ["build/tests/docker-entrypoint.sh"]

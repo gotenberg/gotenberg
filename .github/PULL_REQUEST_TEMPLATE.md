@@ -37,8 +37,8 @@ Fixes #
 **Checklist**
 
 - [ ] Have you followed the guidelines in our [CONTRIBUTING](CONTRIBUTING.md) guide?
-- [ ] Have you lint your code locally prior to submission (`make testing`)?
+- [ ] Have you lint your code locally prior to submission (`make lint`)?
 - [ ] Have you written new tests for your core changes, as applicable?
-- [ ] Have you successfully ran tests with your changes locally (`make testing`)?
+- [ ] Have you successfully ran tests with your changes locally (`make tests`)?
 - [ ] I have squashed any insignificant commits
 - [ ] This change has comments for package types, values, functions, and non-obvious lines of code

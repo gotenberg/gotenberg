@@ -1,15 +1,41 @@
-FROM thecodingmachine/gotenberg:base
+ARG GOLANG_VERSION
 
-LABEL authors="Julien Neuhart <j.neuhart@thecodingmachine.com>"
+# |--------------------------------------------------------------------------
+# | Binary
+# |--------------------------------------------------------------------------
+# |
+# | Buils Gotenberg binary.
+# |
+
+FROM golang:${GOLANG_VERSION}-stretch AS golang
+
+ARG VERSION
+
+ENV GOOS=linux \
+    GOARCH=amd64 \
+    CGO_ENABLED=0
+
+# Define our workding outside of $GOPATH (we're using go modules).
+WORKDIR /gotenberg
+
+# Copy our source code.
+COPY . .
+
+# Build our binary.
+RUN go build -o /gotenberg/gotenberg -ldflags "-X main.version=${VERSION}" cmd/gotenberg/main.go
 
 # |--------------------------------------------------------------------------
 # | Final touch
 # |--------------------------------------------------------------------------
 # |
-# | Last instructions to setup Gotenberg.
+# | Last instructions of this build.
 # |
 
-COPY build/package/gotenberg /usr/local/bin/
+FROM thecodingmachine/gotenberg:base
+
+LABEL authors="Julien Neuhart <j.neuhart@thecodingmachine.com>"
+
+COPY --from=golang /gotenberg/gotenberg /usr/local/bin/
 
 WORKDIR /gotenberg
 

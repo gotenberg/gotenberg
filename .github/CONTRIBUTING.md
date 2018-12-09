@@ -20,8 +20,8 @@ find below useful information about how to contribute to the Gotenberg project.
 
 ### Testing
 
-1. Build the base images (`make prepare`)
-2. Run all linters and tests (`make testing`)
+1. Run all linters (`make lint`)
+2. Run all tests (`make tests`)
 
 ## Reporting bugs and feature request
 
