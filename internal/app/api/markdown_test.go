@@ -11,7 +11,7 @@ import (
 )
 
 func TestMarkdown(t *testing.T) {
-	body, contentType := test.MarkdownMultipartForm(t)
+	body, contentType := test.MarkdownTestMultipartForm(t)
 	req := httptest.NewRequest(http.MethodPost, "/convert/markdown", body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	rec := httptest.NewRecorder()

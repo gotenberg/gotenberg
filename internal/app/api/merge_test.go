@@ -11,7 +11,7 @@ import (
 )
 
 func TestMerge(t *testing.T) {
-	body, contentType := test.PDFMultipartForm(t)
+	body, contentType := test.PDFTestMultipartForm(t)
 	req := httptest.NewRequest(http.MethodPost, "/merge", body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	rec := httptest.NewRecorder()

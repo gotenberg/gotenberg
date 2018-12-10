@@ -16,31 +16,31 @@ import (
 	"github.com/thecodingmachine/gotenberg/internal/pkg/rand"
 )
 
-// HTMLMultipartForm returns the body
+// HTMLTestMultipartForm returns the body
 // for a multipate/form-data request with all
 // files under "html" folder.
-func HTMLMultipartForm(t *testing.T) (*bytes.Buffer, string) {
+func HTMLTestMultipartForm(t *testing.T) (*bytes.Buffer, string) {
 	return multipartForm(t, "html")
 }
 
-// MarkdownMultipartForm returns the body
+// MarkdownTestMultipartForm returns the body
 // for a multipate/form-data request with all
 // files under "markdown" folder.
-func MarkdownMultipartForm(t *testing.T) (*bytes.Buffer, string) {
+func MarkdownTestMultipartForm(t *testing.T) (*bytes.Buffer, string) {
 	return multipartForm(t, "markdown")
 }
 
-// OfficeMultipartForm returns the body
+// OfficeTestMultipartForm returns the body
 // for a multipate/form-data request with all
 // files under "office" folder.
-func OfficeMultipartForm(t *testing.T) (*bytes.Buffer, string) {
+func OfficeTestMultipartForm(t *testing.T) (*bytes.Buffer, string) {
 	return multipartForm(t, "office")
 }
 
-// PDFMultipartForm returns the body
+// PDFTestMultipartForm returns the body
 // for a multipate/form-data request with all
 // files under "pdf" folder.
-func PDFMultipartForm(t *testing.T) (*bytes.Buffer, string) {
+func PDFTestMultipartForm(t *testing.T) (*bytes.Buffer, string) {
 	return multipartForm(t, "pdf")
 }
 

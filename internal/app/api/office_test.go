@@ -11,7 +11,7 @@ import (
 )
 
 func TestOffice(t *testing.T) {
-	body, contentType := test.OfficeMultipartForm(t)
+	body, contentType := test.OfficeTestMultipartForm(t)
 	req := httptest.NewRequest(http.MethodPost, "/convert/office", body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	rec := httptest.NewRecorder()

@@ -11,7 +11,7 @@ import (
 )
 
 func TestHTML(t *testing.T) {
-	body, contentType := test.HTMLMultipartForm(t)
+	body, contentType := test.HTMLTestMultipartForm(t)
 	req := httptest.NewRequest(http.MethodPost, "/convert/html", body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	rec := httptest.NewRecorder()
