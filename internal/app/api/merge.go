@@ -25,22 +25,25 @@ func merge(c echo.Context) error {
 		return fmt.Errorf("getting result file name: %v", err)
 	}
 	filename := fmt.Sprintf("%s.pdf", baseFilename)
-	dest := fmt.Sprintf("%s/%s", r.dirPath, filename)
+	fpath := fmt.Sprintf("%s/%s", r.dirPath, filename)
 	if r.webhookURL() == "" {
 		// if no webhook URL given, run merge
 		// and directly return the resulting PDF file
 		// or and error.
-		return printer.Merge(fpaths, dest)
+		if err := printer.Merge(fpaths, fpath); err != nil {
+			return err
+		}
+		return c.Attachment(fpath, filename)
 	}
 	// as a webhook URL has been given, we
 	// run the following lines in a goroutine so that
 	// it doesn't block.
 	go func() {
-		if err := printer.Merge(fpaths, dest); err != nil {
+		if err := printer.Merge(fpaths, fpath); err != nil {
 			c.Logger().Errorf("%v", err)
 			return
 		}
-		f, err := os.Open(dest)
+		f, err := os.Open(fpath)
 		if err != nil {
 			c.Logger().Errorf("%v", err)
 			return
