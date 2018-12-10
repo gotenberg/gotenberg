@@ -1,6 +1,10 @@
 VERSION=snapshot
 GOLANG_VERSION=1.11.2
 
+# generate documentation.
+doc:
+	static-docs --in docs --out public --theme gotenberg --title Gotenberg --subtitle "A Docker-powered stateless API for converting HTML, Markdown and Office documents to PDF."
+
 # gofmt and goimports all go files.
 fmt:
 	go fmt ./...
