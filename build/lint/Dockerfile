@@ -34,4 +34,4 @@ COPY go.sum .
 # Install module dependencies.
 RUN go mod download
 
-CMD ["golangci-lint", "run" ,"--tests=false", "--enable-all", "--disable=lll", "--disable=errcheck", "--disable=gosec", "--disable=gochecknoglobals", "--disable=gochecknoinits" ]
+CMD ["golangci-lint", "run" ,"--tests=false", "--enable-all", "--disable=dupl", "--disable=lll", "--disable=errcheck", "--disable=gosec", "--disable=gochecknoglobals", "--disable=gochecknoinits" ]
