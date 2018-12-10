@@ -679,7 +679,7 @@ to given URL.</p>
         <span class="p">},</span>
     <span class="p">}</span>
     <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
-    <span class="nx">c</span><span class="p">.</span><span class="nx">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+    <span class="nx">resp</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">c</span><span class="p">.</span><span class="nx">Post</span><span class="p">(</span><span class="nx">req</span><span class="p">)</span>
 <span class="p">}</span>
 </pre>
 

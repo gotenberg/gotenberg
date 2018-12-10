@@ -36,7 +36,7 @@ func main() {
         },
     }
     dest := "result.pdf"
-    c.Store(req, dest)
+    resp, err := c.Post(req)
 }
 ```
 
