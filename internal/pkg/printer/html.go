@@ -33,7 +33,6 @@ type HTML struct {
 
 const defaultHeaderFooterHTML string = "<html><head></head><body></body></html>"
 
-// nolint: gocyclo
 // Print converts HTML to PDF.
 // Credits: https://medium.com/compass-true-north/go-service-to-convert-web-pages-to-pdf-using-headless-chrome-5fd9ffbae1af
 func (html *HTML) Print(destination string) error {
