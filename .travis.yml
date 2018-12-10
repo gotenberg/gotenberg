@@ -20,4 +20,4 @@ jobs:
       script: make lint
     - stage: publish
       if: tag IS present
-      script: make image VERSION=$TRAVIS_TAG && ./scripts/publish.sh $TRAVIS_TAG $DOCKER_USER $DOCKER_PASS
+      script: ./scripts/publish.sh $TRAVIS_TAG $DOCKER_USER $DOCKER_PASS
