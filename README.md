@@ -27,7 +27,7 @@ $ docker run --rm -p 3000:3000 thecodingmachine/gotenberg:3
 
 The API is now available on your host at `http://localhost:3000`.
 
-Head to the [documentation](https://thecodingmachine.gotenberg.github.io)
+Head to the [documentation](https://thecodingmachine.github.io/gotenberg)
 to learn how to interact with it!
 
 ## Badges

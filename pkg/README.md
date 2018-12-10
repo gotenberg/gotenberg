@@ -34,4 +34,4 @@ func main() {
 }
 ```
 
-For more complete usages, head to the [documentation](https://thecodingmachine.gotenberg.github.io).
+For more complete usages, head to the [documentation](https://thecodingmachine.github.io/gotenberg).
