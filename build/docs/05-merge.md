@@ -11,7 +11,7 @@ It accepts `POST` requests with a `multipart/form-data` Content-Type.
 Nothing special here: you may send one or more PDF files and the API
 will merge them and return the resulting PDF file.
 
-### Guzzle
+### cURL
 
 ```bash
 $ curl --request POST \

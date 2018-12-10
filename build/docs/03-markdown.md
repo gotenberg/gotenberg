@@ -28,7 +28,7 @@ For instance:
 </html>
 ```
 
-### Guzzle
+### cURL
 
 ```bash
 $ curl --request POST \

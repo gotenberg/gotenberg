@@ -7,11 +7,11 @@ All endpoints accept a form field named `webhookURL`.
 If provided, the API will send the resulting PDF file in a `POST` request with the `application/pdf` Content-Type
 to given URL.
 
-By doing so, your requests to the API will be done before the conversions are actually done!
+By doing so, your requests to the API will be over before the conversions are actually done!
 
 ## Examples
 
-### Guzzle
+### cURL
 
 ```bash
 $ curl --request POST \
@@ -19,7 +19,6 @@ $ curl --request POST \
     --header 'Content-Type: multipart/form-data' \
     --form files=@index.html
     --form webhookURL='http://myapp.com/webhook/'
-    > result.pdf
 ```
 
 ### Go

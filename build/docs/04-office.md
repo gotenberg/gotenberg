@@ -26,7 +26,7 @@ All files will be merged into a single resulting PDF.
 > That's why for Office conversions, the API does only one conversion at a time.
 > See the [scalability section](#scalability) to find how to mitigate this issue.
 
-### Guzzle
+### cURL
 
 ```bash
 $ curl --request POST \

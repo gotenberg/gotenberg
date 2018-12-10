@@ -26,7 +26,7 @@ For instance:
 </html>
 ```
 
-### Guzzle
+### cURL
 
 ```bash
 $ curl --request POST \
@@ -100,7 +100,7 @@ The following classes allow you to inject printing values:
 > **Attention:** the CSS properties are independant of the ones used in the `index.html` file.
 > Also, `footer.html` CSS properties override the ones from `header.html`.
 
-### Guzzle
+### cURL
 
 ```bash
 $ curl --request POST \
@@ -193,7 +193,7 @@ You may also use *remote* paths for Google fonts, images and so on.
 > If you want to install fonts directly in the Gotenberg Docker image,
 > see to the [fonts section](#office.fonts).
 
-### Guzzle
+### cURL
 
 ```bash
 $ curl --request POST \
@@ -255,7 +255,7 @@ By default, it will be rendered in `A4` size with `1 inch` margins and `portrait
 > Paper size and margins have to be provided in `inches`.
 > Also, you have to set both `paperWidth` and `paperHeight`. Same for margins.
 
-### Guzzle
+### cURL
 
 ```bash
 $ curl --request POST \
