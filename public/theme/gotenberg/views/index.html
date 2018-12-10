@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{.Title}} &#183; {{.Subtitle}}</title>
+    <link rel="icon" type="image/png" href="theme/gotenberg/img/favicon-32x32.png" sizes="32x32" />
+  <link rel="icon" type="image/png" href="theme/gotenberg/img/favicon-16x16.png" sizes="16x16" />
+    <link rel="stylesheet" href="theme/gotenberg/css/index.css">
+  </head>
+  <body>
+    <div class="Wrapper">
+      <div class="Container">
+        <div class="Header">
+          <div class="Title center">
+            <img src="https://user-images.githubusercontent.com/8983173/49701110-4c8b9280-fbe8-11e8-895c-a4b9c7d2515b.png" alt="Gotenberg logo" width="250" height="250" />
+            <span class="text">{{.Title}}</span>
+            <span class="subtext">{{.Subtitle}}</span>
+          </div>
+        </div>
+
+        <div class="Content-wrapper">
+          <div class="Sidebar">
+            <div class="Menu">
+              {{range .Pages}}
+                <div class="item">
+                  <a href="#{{.Slug}}">{{.Title}}</a>
+                </div>
+              {{end}}
+            </div>
+          </div>
+
+          <div class="Content">
+            {{range .Pages}}
+              <div class="Page" id="{{.Slug}}">
+                <h1>{{.Title}}</h1>
+                {{.Content}}
+              </div>
+            {{end}}
+            <div class="Footer"></div>
+            <script src="theme/gotenberg/js/index.js"></script>
+          </div>
+        </div>
+    </div>
+  </body>
+</html>

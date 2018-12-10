@@ -10,14 +10,14 @@ env:
   - secure: d6pliM7iR7KJ3TQkr1C0tHi0HgU6Vdmc/ycw11XrXs794/dgj6g9UDrhgcvT2mTzOVIUNouHx7gyEWAlwJv7p8PPyguHJfIsyqMWfaXNPoytTx1ETUiygl1G/UsvXVdry6I5tZF/U+/PJ3hBXoAvo8EOFe0/MxxvP3ghCeeCpeEwEdoYP2jbADGffywVUNI7OEdmS29A28GusXXp2cWCIZYSq5Gn5iu1ZMPaJA6SkRTXpS+iVVLUvlbz5HW09ETFfurTvsdz5Ze4JICiuQt///CR1uwdxD8K7Ils/mkenaMtja9NHA9RdQBa51Azn8iCLsObCTYc52Zb6atbCi/X4ae9M8GA8qaaLigNz5G4v1BHneJylYfWKj5GwqUA3VmRu1mlEw7d2sN2uFRmgIl5kgsYYyOVOLBOKaJWhyBhNnR4U8KeqwUkOnlSdmNZnjfexXXBEcKHen1SozpXwMnzZh8LZuN6BNYd6TVpKmjulGI3vqNMM0c4JJZ9pSm4q5FjbNGQArwCsujDDwY4bCGZSJJTPMXjYOrx4yJ1RY+0TpyV9oDU3ogEqaWnhrkgrphfiYBlDY2bEvrxMTMukLCxJb0Nru6LGCpg4X1P9hu9r0gceqUSnBgdJI4rYTNddenxlEd4j/Thqv835stJWz6YoV+rfvERuSUpntl8xvrk3U8=
   - secure: CmLh169xwt3OC7l19lDUwdZYfw+l/+XXKjTGxnuJiXHa9hAH+nc4mEUSmqHMHwjquyYE6LnSVGZ94LH8sCaGed/TMm0Lj3DZtZ0VsjYu3sKsNrVJn5WdYEah+GvNJ8i8uzvHnGk1L2fAagLpXFUB2K9UraA1CFiHs1fF5Fua7Ra0mE7lMz0MFvyvzcmc9u8nMz71K2YVsXqn+I/rv8onJCTtc/Ds0hVrBXwG5Fh0T3xHqjOhME9ZI2hRHnnQVdBojSY3USifQ//qAKowfBVc0pebEtgFpyXx/I17A6xCm0KVtnA2tNqu1+XFkjWaBzryaLE9ujhJcTRC/YK0JUZ+QxfYbD5C7jVy9Jlx1lOEjJ42B/ImNxPP+9p3wi2MWNbcbZJPxIe635fnT17lI7CLK2Qg1xjfTQ4WTEKW5IhnYMiyfRKiripFh4PCkDm8cJlTbpntsX1n0uheydbsgf/11vS7o1WGhVQ8+Jelc4DvIbBHCqienQEOLJDBwm7FiK5JbwZJ6ZAGeDM/IhGU1h9PNjVbHUyJhUxYoPYUE9QsZFT7ENCrRQpq49KOzXBRfffyJNJRh+Ep9X5YoW0dUp0MNu5B7z2+6w9X9n/C+loa11xF42bFzniCvvbSOQ37J+EngDinVxJkNPeyivR4fye2ENhIAjAEjouTJLOSXL9nAOU=
 
-before_install:
-  - wget -qO- https://github.com/gulien/orbit/releases/download/v3.0.0/orbit_Linux_x86_64.tar.gz | tar xvz -C .
-  - sudo mv ./orbit /usr/local/bin && chmod +x /usr/local/bin/orbit
+stages:
+  - lint
+  - publish
 
-script:
-  - orbit run ci -p "Version,${TRAVIS_BRANCH}"
-  - orbit run build -p "Version,${TRAVIS_BRANCH}"
-  # Uploads coverage.
-  - bash <(curl -s https://codecov.io/bash)
-  # Let's push to Docker hub only if not in a pull request and the branch name matches the semver format.
-  - if [[ "$TRAVIS_PULL_REQUEST" = false && "$TRAVIS_BRANCH" =~ ^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$ ]]; then docker login -u $DOCKER_USER -p $DOCKER_PASS && docker push thecodingmachine/gotenberg:${TRAVIS_BRANCH}; fi
+jobs:
+  include:
+    - stage: lint
+      script: make lint
+    - stage: publish
+      if: tag IS present
+      script: make image VERSION=$TRAVIS_TAG && ./scripts/publish.sh $TRAVIS_TAG $DOCKER_USER $DOCKER_PASS

@@ -1,0 +1,742 @@
+<!DOCTYPE html><html><head>
+    <meta charset="utf-8"/>
+    <meta http-equiv="x-ua-compatible" content="ie=edge"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Gotenberg · A Docker-powered stateless API for converting HTML, Markdown and Office documents to PDF.</title>
+    <link rel="icon" type="image/png" href="theme/gotenberg/img/favicon-32x32.png" sizes="32x32"/>
+  <link rel="icon" type="image/png" href="theme/gotenberg/img/favicon-16x16.png" sizes="16x16"/>
+    <link rel="stylesheet" href="theme/gotenberg/css/index.css"/>
+  </head>
+  <body>
+    <div class="Wrapper">
+      <div class="Container">
+        <div class="Header">
+          <div class="Title center">
+            <img src="https://user-images.githubusercontent.com/8983173/49701110-4c8b9280-fbe8-11e8-895c-a4b9c7d2515b.png" alt="Gotenberg logo" width="250" height="250"/>
+            <span class="text">Gotenberg</span>
+            <span class="subtext">A Docker-powered stateless API for converting HTML, Markdown and Office documents to PDF.</span>
+          </div>
+        </div>
+
+        <div class="Content-wrapper">
+          <div class="Sidebar">
+            <div class="Menu">
+              
+                <div class="item">
+                  <a href="#introduction">Introduction</a>
+                </div>
+              
+                <div class="item">
+                  <a href="#install">Install</a>
+                </div>
+              
+                <div class="item">
+                  <a href="#html">HTML</a>
+                </div>
+              
+                <div class="item">
+                  <a href="#markdown">Markdown</a>
+                </div>
+              
+                <div class="item">
+                  <a href="#office">Office</a>
+                </div>
+              
+                <div class="item">
+                  <a href="#merge">Merge</a>
+                </div>
+              
+                <div class="item">
+                  <a href="#webhook">Webhook</a>
+                </div>
+              
+                <div class="item">
+                  <a href="#scalability">Scalability</a>
+                </div>
+              
+                <div class="item">
+                  <a href="#links">Links</a>
+                </div>
+              
+            </div>
+          </div>
+
+          <div class="Content">
+            
+              <div class="Page" id="introduction">
+                <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="introduction" href="#introduction">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Introduction</h1>
+                <p><a href="https://github.com/thecodingmachine/gotenberg/">Gotenberg</a> is a Docker-powered stateless API for converting HTML, Markdown and Office documents to PDF.</p>
+
+<ul>
+<li>HTML and Markdown conversions using Google Chrome headless</li>
+<li>Office conversions (.docx, .doc, .odt, .pptx, .ppt, .odp and so on) using <a href="https://github.com/dagwieers/unoconv">unoconv</a></li>
+<li>Performance: Google Chrome and Libreoffice (unoconv) started once in the background thanks to PM2</li>
+<li>Failure prevention: PM2 automatically restarts previous processes if they fail</li>
+<li>Assets: send your header, footer, images, fonts, stylesheets and so on for converting your HTML and Markdown to beaufitul PDFs!</li>
+<li>Easily interact with the API using our <a href="https://github.com/thecodingmachine/gotenberg/pkg">Go</a> and <a href="https://github.com/thecodingmachine/gotenberg-php-client">PHP</a> libraries</li>
+</ul>
+
+              </div>
+            
+              <div class="Page" id="install">
+                <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="install" href="#install">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Install</h1>
+                <p>Gotenberg is shipped within a Docker image.</p>
+
+<p>You may start it with:</p>
+
+<pre class="chroma">$ docker run --rm -p <span class="m">3000</span>:3000 thecodingmachine/gotenberg:3
+</pre>
+
+<blockquote>
+<p>The API will be available at <a href="http://localhost:3000">http://localhost:3000</a>.</p>
+</blockquote>
+
+<p>Or add it in your Docker Compose stack:</p>
+
+<pre class="chroma">version<span class="p">:</span><span class="w"> </span><span class="s1">&#39;3&#39;</span><span class="w">
+</span><span class="w">
+</span><span class="w"></span>services<span class="p">:</span><span class="w">
+</span><span class="w">
+</span><span class="w">  </span><span class="c"># your others services</span><span class="w">
+</span><span class="w">
+</span><span class="w">  </span>gotenberg<span class="p">:</span><span class="w">
+</span><span class="w">    </span>image<span class="p">:</span><span class="w"> </span>thecodingmachine/gotenberg<span class="p">:</span><span class="m">3</span><span class="w">
+</span><span class="w"></span></pre>
+
+<blockquote>
+<p>The API will be available under <code>gotenberg:3000</code> in your Docker Compose network.</p>
+</blockquote>
+
+<p>It may also be deployed with Kubernetes.</p>
+
+<p>In the following examples, we will assume your
+Gotenberg API is available at <a href="http://localhost:3000">http://localhost:3000</a>.</p>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="install.go_client" href="#install.go_client">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Go client</h2>
+
+<pre class="chroma">$ go get -u github.com/thecodingmachine/gotenberg
+</pre>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="install.php_client" href="#install.php_client">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>PHP client</h2>
+
+<p>Unless your project already has a PSR7 <code>HttpClient</code>, install <code>php-http/guzzle6-adapter</code>:</p>
+
+<pre class="chroma">$ composer require php-http/guzzle6-adapter
+</pre>
+
+<p>Then the PHP client:</p>
+
+<pre class="chroma">$ composer require thecodingmachine/gotenberg-php-client
+</pre>
+
+              </div>
+            
+              <div class="Page" id="html">
+                <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="html" href="#html">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>HTML</h1>
+                <p>Gotenberg provides the endpoint <code>/convert/html</code> for HTML conversions.</p>
+
+<p>It accepts <code>POST</code> requests with a <code>multipart/form-data</code> Content-Type.</p>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.basic" href="#html.basic">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Basic</h2>
+
+<p>The only requirement is to send a file named <code>index.html</code>: it is the file
+which will be converted to PDF.</p>
+
+<p>For instance:</p>
+
+<pre class="chroma"><span class="cp">&lt;!doctype html&gt;</span>
+<span class="p">&lt;</span><span class="nt">html</span> <span class="na">lang</span><span class="o">=</span><span class="s">&#34;en&#34;</span><span class="p"></span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">head</span><span class="p"></span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">meta</span> <span class="na">charset</span><span class="o">=</span><span class="s">&#34;utf-8&#34;</span><span class="p"></span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">title</span><span class="p"></span><span class="p">&gt;</span>My PDF<span class="p">&lt;</span><span class="p">/</span><span class="nt">title</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="p">/</span><span class="nt">head</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">body</span><span class="p"></span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">h1</span><span class="p"></span><span class="p">&gt;</span>Hello world!<span class="p">&lt;</span><span class="p">/</span><span class="nt">h1</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="p">/</span><span class="nt">body</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="p">/</span><span class="nt">html</span><span class="p">&gt;</span>
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.basic.guzzle" href="#html.basic.guzzle">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Guzzle</h3>
+
+<pre class="chroma">$ curl --request POST <span class="se">\
+</span><span class="se"></span>    --url http://localhost:3000/convert/html <span class="se">\
+</span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html
+    &gt; result.pdf
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.basic.go" href="#html.basic.go">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Go</h3>
+
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg/pkg&#34;</span>
+
+<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
+    <span class="nx">req</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">HTMLRequest</span><span class="p">{</span>
+        <span class="nx">IndexFilePath</span><span class="p">:</span> <span class="s">&#34;index.html&#34;</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
+    <span class="nx">c</span><span class="p">.</span><span class="nx">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+<span class="p">}</span>
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.basic.php" href="#html.basic.php">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>PHP</h3>
+
+<p>TODO</p>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.header_and_footer" href="#html.header_and_footer">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Header and footer</h2>
+
+<p>You may also add a header and/or a footer in the resulting PDF.
+Respectively, a file named <code>header.html</code> and <code>footer.html</code>.</p>
+
+<p>Each of them <strong>has to be a complete HTML document</strong>:</p>
+
+<pre class="chroma"><span class="p">&lt;</span><span class="nt">html</span><span class="p"></span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">head</span><span class="p"></span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">style</span><span class="p"></span><span class="p">&gt;</span>
+            <span class="nt">body</span> <span class="p">{</span>
+                <span class="k">font-size</span><span class="p">:</span> <span class="mi">8</span><span class="kt">rem</span><span class="p">;</span>
+                <span class="k">margin</span><span class="p">:</span> <span class="mi">4</span><span class="kt">rem</span> <span class="kc">auto</span><span class="p">;</span>
+            <span class="p">}</span>
+        <span class="p">&lt;</span><span class="p">/</span><span class="nt">style</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="p">/</span><span class="nt">head</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">body</span><span class="p"></span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">p</span><span class="p"></span><span class="p">&gt;</span>
+            <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&#34;pageNumber&#34;</span><span class="p"></span><span class="p">&gt;&lt;</span><span class="p">/</span><span class="nt">span</span><span class="p">&gt;</span> of <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&#34;totalPages&#34;</span><span class="p"></span><span class="p">&gt;&lt;</span><span class="p">/</span><span class="nt">span</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="p">/</span><span class="nt">p</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="p">/</span><span class="nt">body</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="p">/</span><span class="nt">html</span><span class="p">&gt;</span>
+</pre>
+
+<p>The following classes allow you to inject printing values:</p>
+
+<ul>
+<li><code>date</code>: formatted print date</li>
+<li><code>title</code>: document title</li>
+<li><code>pageNumber</code>: current page number</li>
+<li><code>totalPage</code>: total pages in the document</li>
+</ul>
+
+<blockquote>
+<p><strong>Attention:</strong> the CSS properties are independant of the ones used in the <code>index.html</code> file.
+Also, <code>footer.html</code> CSS properties override the ones from <code>header.html</code>.</p>
+</blockquote>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.header_and_footer.guzzle" href="#html.header_and_footer.guzzle">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Guzzle</h3>
+
+<pre class="chroma">$ curl --request POST <span class="se">\
+</span><span class="se"></span>    --url http://localhost:3000/convert/html <span class="se">\
+</span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html
+    --form <span class="nv">files</span><span class="o">=</span>@header.html
+    --form <span class="nv">files</span><span class="o">=</span>@footer.html
+    &gt; result.pdf
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.header_and_footer.go" href="#html.header_and_footer.go">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Go</h3>
+
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg/pkg&#34;</span>
+
+<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
+    <span class="nx">req</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">HTMLRequest</span><span class="p">{</span>
+        <span class="nx">IndexFilePath</span><span class="p">:</span> <span class="s">&#34;index.html&#34;</span><span class="p">,</span>
+        <span class="nx">Options</span><span class="p">:</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">HTMLOptions</span><span class="p">{</span>
+            <span class="nx">HeaderFilePath</span><span class="p">:</span> <span class="s">&#34;header.html&#34;</span><span class="p">,</span>
+            <span class="nx">FooterFilePath</span><span class="p">:</span> <span class="s">&#34;footer.html&#34;</span><span class="p">,</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+    <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
+    <span class="nx">c</span><span class="p">.</span><span class="nx">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+<span class="p">}</span>
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.header_and_footer.php" href="#html.header_and_footer.php">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>PHP</h3>
+
+<p>TODO</p>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.assets" href="#html.assets">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Assets</h2>
+
+<p>You may also send additional files. For instance, images, fonts, stylesheets and so on.</p>
+
+<p>The only requirement is to make sure that their paths
+are on the same level as the <code>index.html</code> file.</p>
+
+<p>In others words, this will work:</p>
+
+<pre class="chroma"><span class="cp">&lt;!doctype html&gt;</span>
+<span class="p">&lt;</span><span class="nt">html</span> <span class="na">lang</span><span class="o">=</span><span class="s">&#34;en&#34;</span><span class="p"></span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">head</span><span class="p"></span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">meta</span> <span class="na">charset</span><span class="o">=</span><span class="s">&#34;utf-8&#34;</span><span class="p"></span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">title</span><span class="p"></span><span class="p">&gt;</span>My PDF<span class="p">&lt;</span><span class="p">/</span><span class="nt">title</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="p">/</span><span class="nt">head</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">body</span><span class="p"></span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">h1</span><span class="p"></span><span class="p">&gt;</span>Hello world!<span class="p">&lt;</span><span class="p">/</span><span class="nt">h1</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="s">&#34;img.png&#34;</span><span class="p"></span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="p">/</span><span class="nt">body</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="p">/</span><span class="nt">html</span><span class="p">&gt;</span>
+</pre>
+
+<p>But this won’t:</p>
+
+<pre class="chroma"><span class="cp">&lt;!doctype html&gt;</span>
+<span class="p">&lt;</span><span class="nt">html</span> <span class="na">lang</span><span class="o">=</span><span class="s">&#34;en&#34;</span><span class="p"></span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">head</span><span class="p"></span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">meta</span> <span class="na">charset</span><span class="o">=</span><span class="s">&#34;utf-8&#34;</span><span class="p"></span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">title</span><span class="p"></span><span class="p">&gt;</span>My PDF<span class="p">&lt;</span><span class="p">/</span><span class="nt">title</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="p">/</span><span class="nt">head</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">body</span><span class="p"></span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">h1</span><span class="p"></span><span class="p">&gt;</span>Hello world!<span class="p">&lt;</span><span class="p">/</span><span class="nt">h1</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="s">&#34;/foo/img.png&#34;</span><span class="p"></span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="p">/</span><span class="nt">body</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="p">/</span><span class="nt">html</span><span class="p">&gt;</span>
+</pre>
+
+<p>You may also use <em>remote</em> paths for Google fonts, images and so on.</p>
+
+<blockquote>
+<p>If you want to install fonts directly in the Gotenberg Docker image,
+see to the <a href="#office.fonts">fonts section</a>.</p>
+</blockquote>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.assets.guzzle" href="#html.assets.guzzle">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Guzzle</h3>
+
+<pre class="chroma">$ curl --request POST <span class="se">\
+</span><span class="se"></span>    --url http://localhost:3000/convert/html <span class="se">\
+</span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html
+    --form <span class="nv">files</span><span class="o">=</span>@style.css
+    --form <span class="nv">files</span><span class="o">=</span>@img.png
+    --form <span class="nv">files</span><span class="o">=</span>@font.woff
+    &gt; result.pdf
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.assets.go" href="#html.assets.go">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Go</h3>
+
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg/pkg&#34;</span>
+
+<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
+    <span class="nx">req</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">HTMLRequest</span><span class="p">{</span>
+        <span class="nx">IndexFilePath</span><span class="p">:</span> <span class="s">&#34;index.html&#34;</span><span class="p">,</span>
+        <span class="nx">AssetFilePaths</span><span class="p">:</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span>
+            <span class="s">&#34;style.css&#34;</span><span class="p">,</span>
+            <span class="s">&#34;img.png&#34;</span><span class="p">,</span>
+            <span class="s">&#34;font.woff&#34;</span><span class="p">,</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+    <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
+    <span class="nx">c</span><span class="p">.</span><span class="nx">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+<span class="p">}</span>
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.assets.php" href="#html.assets.php">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>PHP</h3>
+
+<p>TODO</p>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.paper_size_margins_orientation" href="#html.paper_size_margins_orientation">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Paper size, margins, orientation</h2>
+
+<p>You may also customize the resulting PDF paper.</p>
+
+<p>By default, it will be rendered in <code>A4</code> size with <code>1 inch</code> margins and <code>portrait</code> orientation.</p>
+
+<blockquote>
+<p>Paper size and margins have to be provided in <code>inches</code>.
+Also, you have to set both <code>paperWidth</code> and <code>paperHeight</code>. Same for margins.</p>
+</blockquote>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.paper_size_margins_orientation.guzzle" href="#html.paper_size_margins_orientation.guzzle">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Guzzle</h3>
+
+<pre class="chroma">$ curl --request POST <span class="se">\
+</span><span class="se"></span>    --url http://localhost:3000/convert/html <span class="se">\
+</span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html
+    --form <span class="nv">paperWidth</span><span class="o">=</span><span class="m">8</span>.27
+    --form <span class="nv">paperHeight</span><span class="o">=</span><span class="m">11</span>.27
+    --form <span class="nv">marginTop</span><span class="o">=</span><span class="m">0</span>
+    --form <span class="nv">marginBottom</span><span class="o">=</span><span class="m">0</span>
+    --form <span class="nv">marginLeft</span><span class="o">=</span><span class="m">0</span>
+    --form <span class="nv">marginRight</span><span class="o">=</span><span class="m">0</span>
+    --form <span class="nv">landscape</span><span class="o">=</span><span class="nb">true</span>
+    &gt; result.pdf
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.paper_size_margins_orientation.go" href="#html.paper_size_margins_orientation.go">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Go</h3>
+
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg/pkg&#34;</span>
+
+<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
+    <span class="nx">req</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">HTMLRequest</span><span class="p">{</span>
+        <span class="nx">IndexFilePath</span><span class="p">:</span> <span class="s">&#34;index.html&#34;</span><span class="p">,</span>
+        <span class="nx">Options</span><span class="p">:</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">HTMLOptions</span><span class="p">{</span>
+            <span class="nx">PaperSize</span><span class="p">:</span>      <span class="nx">gotenberg</span><span class="p">.</span><span class="nx">A4</span><span class="p">,</span>
+            <span class="nx">PaperMargins</span><span class="p">:</span>   <span class="nx">gotenberg</span><span class="p">.</span><span class="nx">NoMargins</span><span class="p">,</span>
+            <span class="nx">Landscape</span><span class="p">:</span>      <span class="kc">true</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+    <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
+    <span class="nx">c</span><span class="p">.</span><span class="nx">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+<span class="p">}</span>
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.paper_size_margins_orientation.php" href="#html.paper_size_margins_orientation.php">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>PHP</h3>
+
+<p>TODO</p>
+
+              </div>
+            
+              <div class="Page" id="markdown">
+                <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="markdown" href="#markdown">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Markdown</h1>
+                <p>Gotenberg provides the endpoint <code>/convert/markdown</code> for Markdown conversions.</p>
+
+<p>It accepts <code>POST</code> requests with a <code>multipart/form-data</code> Content-Type.</p>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="markdown.basic" href="#markdown.basic">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Basic</h2>
+
+<p>Markdown conversions work the same as HTML conversions.</p>
+
+<p>Only difference is that you have access to the Go template function <code>toHTML</code>
+in the file <code>index.html</code> which will convert a given markdown file to HTML.</p>
+
+<p>For instance:</p>
+
+<pre class="chroma"><span class="cp">&lt;!doctype html&gt;</span>
+<span class="p">&lt;</span><span class="nt">html</span> <span class="na">lang</span><span class="o">=</span><span class="s">&#34;en&#34;</span><span class="p"></span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">head</span><span class="p"></span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">meta</span> <span class="na">charset</span><span class="o">=</span><span class="s">&#34;utf-8&#34;</span><span class="p"></span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">title</span><span class="p"></span><span class="p">&gt;</span>My PDF<span class="p">&lt;</span><span class="p">/</span><span class="nt">title</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="p">/</span><span class="nt">head</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">body</span><span class="p"></span><span class="p">&gt;</span>
+    {{ toHTML .DirPath &#34;file.md&#34; }}
+  <span class="p">&lt;</span><span class="p">/</span><span class="nt">body</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="p">/</span><span class="nt">html</span><span class="p">&gt;</span>
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="markdown.basic.guzzle" href="#markdown.basic.guzzle">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Guzzle</h3>
+
+<pre class="chroma">$ curl --request POST <span class="se">\
+</span><span class="se"></span>    --url http://localhost:3000/convert/markdown <span class="se">\
+</span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html
+    --form <span class="nv">files</span><span class="o">=</span>@file.md
+    &gt; result.pdf
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="markdown.basic.go" href="#markdown.basic.go">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Go</h3>
+
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg/pkg&#34;</span>
+
+<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
+    <span class="nx">req</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">MarkdownRequest</span><span class="p">{</span>
+        <span class="nx">IndexFilePath</span><span class="p">:</span> <span class="s">&#34;index.html&#34;</span><span class="p">,</span>
+        <span class="nx">MarkdownFilePaths</span><span class="p">:</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span>
+            <span class="s">&#34;file.md&#34;</span><span class="p">,</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+    <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
+    <span class="nx">c</span><span class="p">.</span><span class="nx">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+<span class="p">}</span>
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="markdown.basic.php" href="#markdown.basic.php">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>PHP</h3>
+
+<p>TODO</p>
+
+              </div>
+            
+              <div class="Page" id="office">
+                <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="office" href="#office">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Office</h1>
+                <p>Gotenberg provides the endpoint <code>/convert/office</code> for Office documents conversions.</p>
+
+<p>It accepts <code>POST</code> requests with a <code>multipart/form-data</code> Content-Type.</p>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="office.basic" href="#office.basic">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Basic</h2>
+
+<p>You may send one or more Office documents. Following file extensions are accepted:</p>
+
+<ul>
+<li><code>.doc</code></li>
+<li><code>.docx</code></li>
+<li><code>.odt</code></li>
+<li><code>.xls</code></li>
+<li><code>.xlsx</code></li>
+<li><code>.ods</code></li>
+<li><code>.ppt</code></li>
+<li><code>.pptx</code></li>
+<li><code>.odp</code></li>
+</ul>
+
+<p>All files will be merged into a single resulting PDF.</p>
+
+<blockquote>
+<p><strong>Attention:</strong> currently, <code>unoconv</code> cannot perform concurrent conversions.
+That’s why for Office conversions, the API does only one conversion at a time.
+See the <a href="#scalability">scalability section</a> to find how to mitigate this issue.</p>
+</blockquote>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="office.basic.guzzle" href="#office.basic.guzzle">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Guzzle</h3>
+
+<pre class="chroma">$ curl --request POST <span class="se">\
+</span><span class="se"></span>    --url http://localhost:3000/convert/office <span class="se">\
+</span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@document.docx
+    --form <span class="nv">files</span><span class="o">=</span>@document2.docx
+    &gt; result.pdf
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="office.basic.go" href="#office.basic.go">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Go</h3>
+
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg/pkg&#34;</span>
+
+<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
+    <span class="nx">req</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">OfficeRequest</span><span class="p">{</span>
+        <span class="nx">FilePaths</span><span class="p">:</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span>
+            <span class="s">&#34;document.docx&#34;</span><span class="p">,</span>
+            <span class="s">&#34;document2.docx&#34;</span><span class="p">,</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+    <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
+    <span class="nx">c</span><span class="p">.</span><span class="nx">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+<span class="p">}</span>
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="office.basic.php" href="#office.basic.php">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>PHP</h3>
+
+<p>TODO</p>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="office.fonts" href="#office.fonts">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Fonts</h2>
+
+<p>By default, only <code>ttf-mscorefonts</code> fonts are installed.</p>
+
+<p>If you wish to use more fonts, you will have to create your own image:</p>
+
+<pre class="chroma"><span class="k">FROM</span><span class="s"> thecodingmachine/gotenberg:3</span><span class="err">
+</span><span class="err">
+</span><span class="err"></span><span class="k">RUN</span> apt-get -y install yourfonts<span class="err">
+</span><span class="err"></span></pre>
+
+              </div>
+            
+              <div class="Page" id="merge">
+                <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="merge" href="#merge">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Merge</h1>
+                <p>Gotenberg provides the endpoint <code>/merge</code> for merging PDFs.</p>
+
+<p>It accepts <code>POST</code> requests with a <code>multipart/form-data</code> Content-Type.</p>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="merge.basic" href="#merge.basic">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Basic</h2>
+
+<p>Nothing special here: you may send one or more PDF files and the API
+will merge them and return the resulting PDF file.</p>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="merge.basic.guzzle" href="#merge.basic.guzzle">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Guzzle</h3>
+
+<pre class="chroma">$ curl --request POST <span class="se">\
+</span><span class="se"></span>    --url http://localhost:3000/merge <span class="se">\
+</span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@file.pdf
+    --form <span class="nv">files</span><span class="o">=</span>@file2.pdf
+    &gt; result.pdf
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="merge.basic.go" href="#merge.basic.go">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Go</h3>
+
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg/pkg&#34;</span>
+
+<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
+    <span class="nx">req</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">MergeRequest</span><span class="p">{</span>
+        <span class="nx">FilePaths</span><span class="p">:</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span>
+            <span class="s">&#34;file.pdf&#34;</span><span class="p">,</span>
+            <span class="s">&#34;file2.pdf&#34;</span><span class="p">,</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+    <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
+    <span class="nx">c</span><span class="p">.</span><span class="nx">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+<span class="p">}</span>
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="merge.basic.php" href="#merge.basic.php">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>PHP</h3>
+
+<p>TODO</p>
+
+              </div>
+            
+              <div class="Page" id="webhook">
+                <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook" href="#webhook">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Webhook</h1>
+                <p>All endpoints accept a form field named <code>webhookURL</code>.</p>
+
+<p>If provided, the API will send the resulting PDF file in a <code>POST</code> request with the <code>application/pdf</code> Content-Type
+to given URL.</p>
+
+<p>By doing so, your requests to the API will be done before the conversions are actually done!</p>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.examples" href="#webhook.examples">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Examples</h2>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.examples.guzzle" href="#webhook.examples.guzzle">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Guzzle</h3>
+
+<pre class="chroma">$ curl --request POST <span class="se">\
+</span><span class="se"></span>    --url http://localhost:3000/convert/html <span class="se">\
+</span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html
+    --form <span class="nv">webhookURL</span><span class="o">=</span><span class="s1">&#39;http://myapp.com/webhook/&#39;</span>
+    &gt; result.pdf
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.examples.go" href="#webhook.examples.go">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Go</h3>
+
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg/pkg&#34;</span>
+
+<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
+    <span class="nx">req</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">HTMLRequest</span><span class="p">{</span>
+        <span class="nx">IndexFilePath</span><span class="p">:</span> <span class="s">&#34;index.html&#34;</span><span class="p">,</span>
+        <span class="nx">Options</span><span class="p">:</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">HTMLOptions</span><span class="p">{</span>
+            <span class="nx">WebHookURL</span><span class="p">:</span> <span class="s">&#34;http://myapp.com/webhook/&#34;</span><span class="p">,</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+    <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
+    <span class="nx">resp</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">c</span><span class="p">.</span><span class="nx">Post</span><span class="p">(</span><span class="nx">req</span><span class="p">)</span>
+<span class="p">}</span>
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.examples.php" href="#webhook.examples.php">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>PHP</h3>
+
+<p>TODO</p>
+
+              </div>
+            
+              <div class="Page" id="scalability">
+                <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="scalability" href="#scalability">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Scalability</h1>
+                <p>The API being stateless, you may scale it as much as you want.</p>
+
+<p>For instance, using the following Docker Compose file:</p>
+
+<pre class="chroma">version<span class="p">:</span><span class="w"> </span><span class="s1">&#39;3&#39;</span><span class="w">
+</span><span class="w">
+</span><span class="w"></span>services<span class="p">:</span><span class="w">
+</span><span class="w">
+</span><span class="w">  </span><span class="c"># your others services</span><span class="w">
+</span><span class="w">
+</span><span class="w">  </span>gotenberg<span class="p">:</span><span class="w">
+</span><span class="w">    </span>image<span class="p">:</span><span class="w"> </span>thecodingmachine/gotenberg<span class="p">:</span><span class="m">3</span><span class="w">
+</span><span class="w"></span></pre>
+
+<p>You may now launch your services using:</p>
+
+<pre class="chroma">$ docker-compose up --scale <span class="nv">gotenberg</span><span class="o">=</span>your_number_of_instances
+</pre>
+
+<p>When requesting the Gotenberg service with your client(s), Docker will automatically
+redirect a request to a Gotenberg container according to the round-robin strategy.</p>
+
+              </div>
+            
+              <div class="Page" id="links">
+                <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="links" href="#links">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Links</h1>
+                <ul>
+<li>Follow the progress on the <a href="https://github.com/thecodingmachine/gotenberg">GitHub repository</a></li>
+<li>Follow <a href="https://twitter.com/gulnap">@gulnap</a> on Twitter</li>
+</ul>
+
+<p>Psst: TheCodingMachine is always looking for <a href="https://coders.thecodingmachine.com">talented coders</a>.</p>
+
+              </div>
+            
+            <div class="Footer"></div>
+            <script src="theme/gotenberg/js/index.js"></script>
+          </div>
+        </div>
+    </div>
+  
+
+</div></body></html>

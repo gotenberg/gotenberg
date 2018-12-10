@@ -27,7 +27,7 @@ Explain the **motivation** for making this change. What existing problem does th
 
 Demonstrate the code is solid. Example: The exact commands you ran and their output.
 
-<!-- Make sure tests pass on both Travis and AppVeyor. -->
+<!-- Make sure tests pass on Travis. -->
 
 **Closing issues**
 
@@ -37,8 +37,9 @@ Fixes #
 **Checklist**
 
 - [ ] Have you followed the guidelines in our [CONTRIBUTING](CONTRIBUTING.md) guide?
-- [ ] Have you lint your code locally prior to submission (`orbit run fmt`)?
+- [ ] Have you lint your code locally prior to submission (`make lint`)?
 - [ ] Have you written new tests for your core changes, as applicable?
-- [ ] Have you successfully ran tests with your changes locally (`orbit run ci`)?
+- [ ] Have you successfully ran tests with your changes locally (`make tests`)?
+- [ ] Have you updated the documentation (`make doc`)?
 - [ ] I have squashed any insignificant commits
 - [ ] This change has comments for package types, values, functions, and non-obvious lines of code
