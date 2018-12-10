@@ -33,9 +33,9 @@ type HTML struct {
 
 const defaultHeaderFooterHTML string = "<html><head></head><body></body></html>"
 
+// nolint: gocyclo
 // Print converts HTML to PDF.
 // Credits: https://medium.com/compass-true-north/go-service-to-convert-web-pages-to-pdf-using-headless-chrome-5fd9ffbae1af
-// nolint: gocyclo
 func (html *HTML) Print(destination string) error {
 	// use the DevTools HTTP/JSON API to manage targets (e.g. pages, webworkers).
 	devt := devtool.New("http://127.0.0.1:9222")
