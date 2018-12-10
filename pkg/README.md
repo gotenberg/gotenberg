@@ -18,9 +18,9 @@ func main() {
         },
         Options: &gotenberg.HTMLOptions{
             HeaderFilePath: "header.html",
-		    FooterFilePath: "footer.html",
-		    PaperSize:      gotenberg.A4,
-		    PaperMargins:   gotenberg.NormalMargins,  
+            FooterFilePath: "footer.html",
+            PaperSize:      gotenberg.A4,
+            PaperMargins:   gotenberg.NormalMargins,  
         },
         dest := "foo.pdf"
         c.Store(req, dest)
