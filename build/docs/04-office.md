@@ -2,7 +2,7 @@
 title: Office
 ---
 
-Gotenberg provides the endpoint `/convert/office` for Office documents conversions.
+Gotenberg provides the endpoint `/convert/office` for Office document conversions.
 
 It accepts `POST` requests with a `multipart/form-data` Content-Type.
 

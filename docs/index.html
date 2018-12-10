@@ -306,7 +306,7 @@ Also, <code>footer.html</code> CSS properties override the ones from <code>heade
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Assets</h2>
 
-<p>You may also send additional files. For instance, images, fonts, stylesheets and so on.</p>
+<p>You may also send additional files. For instance: images, fonts, stylesheets and so on.</p>
 
 <p>The only requirement is to make sure that their paths
 are on the same level as the <code>index.html</code> file.</p>
@@ -408,9 +408,9 @@ see to the <a href="#office.fonts">fonts section</a>.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Paper size, margins, orientation</h2>
 
-<p>You may also customize the resulting PDF paper.</p>
+<p>You may also customize the resulting PDF format.</p>
 
-<p>By default, it will be rendered in <code>A4</code> size with <code>1 inch</code> margins and <code>portrait</code> orientation.</p>
+<p>By default, it will be rendered with <code>A4</code> size, <code>1 inch</code> margins and <code>portrait</code> orientation.</p>
 
 <blockquote>
 <p>Paper size and margins have to be provided in <code>inches</code>.
@@ -492,7 +492,7 @@ Also, you have to set both <code>paperWidth</code> and <code>paperHeight</code>.
 <p>Markdown conversions work the same as HTML conversions.</p>
 
 <p>Only difference is that you have access to the Go template function <code>toHTML</code>
-in the file <code>index.html</code> which will convert a given markdown file to HTML.</p>
+in the file <code>index.html</code>. This function will convert a given markdown file to HTML.</p>
 
 <p>For instance:</p>
 
@@ -563,7 +563,7 @@ in the file <code>index.html</code> which will convert a given markdown file to 
                 <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="office" href="#office">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Office</h1>
-                <p>Gotenberg provides the endpoint <code>/convert/office</code> for Office documents conversions.</p>
+                <p>Gotenberg provides the endpoint <code>/convert/office</code> for Office document conversions.</p>
 
 <p>It accepts <code>POST</code> requests with a <code>multipart/form-data</code> Content-Type.</p>
 

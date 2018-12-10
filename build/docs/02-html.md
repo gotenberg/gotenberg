@@ -151,7 +151,7 @@ $filename = $client->store($request, $dirPath);
 
 ## Assets
 
-You may also send additional files. For instance, images, fonts, stylesheets and so on.
+You may also send additional files. For instance: images, fonts, stylesheets and so on.
 
 The only requirement is to make sure that their paths
 are on the same level as the `index.html` file.
@@ -248,9 +248,9 @@ $filename = $client->store($request, $dirPath);
 
 ## Paper size, margins, orientation
 
-You may also customize the resulting PDF paper.
+You may also customize the resulting PDF format.
 
-By default, it will be rendered in `A4` size with `1 inch` margins and `portrait` orientation.
+By default, it will be rendered with `A4` size, `1 inch` margins and `portrait` orientation.
 
 > Paper size and margins have to be provided in `inches`.
 > Also, you have to set both `paperWidth` and `paperHeight`. Same for margins.

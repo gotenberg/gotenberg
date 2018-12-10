@@ -11,7 +11,7 @@ It accepts `POST` requests with a `multipart/form-data` Content-Type.
 Markdown conversions work the same as HTML conversions.
 
 Only difference is that you have access to the Go template function `toHTML`
-in the file `index.html` which will convert a given markdown file to HTML.
+in the file `index.html`. This function will convert a given markdown file to HTML.
 
 For instance:
 
