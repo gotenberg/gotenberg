@@ -23,7 +23,7 @@ func Merge(fpaths []string, destination string) error {
 
 func writeBytesToFile(dst string, b []byte) error {
 	if err := ioutil.WriteFile(dst, b, 0644); err != nil {
-		return fmt.Errorf("%s: writting file: %v", dst, err)
+		return fmt.Errorf("%s: writing file: %v", dst, err)
 	}
 	return nil
 }

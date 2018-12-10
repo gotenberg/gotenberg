@@ -148,7 +148,7 @@ func multipartForm(req Request) (*bytes.Buffer, string, error) {
 	}
 	for name, value := range req.getFormValues() {
 		if err := writer.WriteField(name, value); err != nil {
-			return nil, "", fmt.Errorf("%s: writting form field: %v", name, err)
+			return nil, "", fmt.Errorf("%s: writing form field: %v", name, err)
 		}
 	}
 	return body, writer.FormDataContentType(), nil
