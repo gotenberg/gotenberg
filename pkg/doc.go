@@ -21,9 +21,9 @@ For instance, if you want to convert HTML:
 		     PaperSize:      gotenberg.A4,
 		     PaperMargins:   gotenberg.NormalMargins,
          },
-         dest := "foo.pdf"
-         c.Store(req, dest)
      }
+     dest := "foo.pdf"
+     c.Store(req, dest)
  }
 
 For more complete usages, head to the https://thecodingmachine.gotenberg.github.io.

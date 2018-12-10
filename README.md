@@ -39,4 +39,4 @@ to learn how to interact with it!
 
 ---
 
-Psst: TheCodingMachine is always looking for [talented coders](https://coders.thecodingmachine.com/).
+Psst: TheCodingMachine is always looking for [talented coders](https://coders.thecodingmachine.com).

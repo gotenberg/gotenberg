@@ -2,6 +2,12 @@
 
 A simple Go client for interacting with a Gotenberg API.
 
+## Install
+
+```bash
+$ go get -u github.com/thecodingmachine/gotenberg
+```
+
 ## Usage
 
 ```golang
@@ -22,9 +28,9 @@ func main() {
             PaperSize:      gotenberg.A4,
             PaperMargins:   gotenberg.NormalMargins,  
         },
-        dest := "foo.pdf"
-        c.Store(req, dest)
     }
+    dest := "foo.pdf"
+    c.Store(req, dest)
 }
 ```
 
