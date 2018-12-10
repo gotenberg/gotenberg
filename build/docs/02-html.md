@@ -53,7 +53,17 @@ func main() {
 
 ### PHP
 
-TODO
+```php
+use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\HTMLRequest;
+
+$client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath('index.html', 'index.html');
+$request = new HTMLRequest($index);
+$dirPath = "/foo";
+$filename = $client->store($request, $dirPath);
+```
 
 ## Header and footer
 
@@ -123,7 +133,21 @@ func main() {
 
 ### PHP
 
-TODO
+```php
+use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\HTMLRequest;
+
+$client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath('index.html', 'index.html');
+$header = DocumentFactory::makeFromPath('header.html', 'header.html');
+$footer = DocumentFactory::makeFromPath('footer.html', 'footer.html');
+$request = new HTMLRequest($index);
+$request->setHeader($header);
+$request->setFooter($footer);
+$dirPath = "/foo";
+$filename = $client->store($request, $dirPath);
+```
 
 ## Assets
 
@@ -204,7 +228,23 @@ func main() {
 
 ### PHP
 
-TODO
+```php
+use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\HTMLRequest;
+
+$client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath('index.html', 'index.html');
+$assets = [
+    DocumentFactory::makeFromPath('style.css', 'style.css'),
+    DocumentFactory::makeFromPath('img.png', 'img.png'),
+    DocumentFactory::makeFromPath('font.woff', 'font.woff'),
+];
+$request = new HTMLRequest($index);
+$request->setAssets($assets);
+$dirPath = "/foo";
+$filename = $client->store($request, $dirPath);
+```
 
 ## Paper size, margins, orientation
 
@@ -254,4 +294,18 @@ func main() {
 
 ### PHP
 
-TODO
+```php
+use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\HTMLRequest;
+use TheCodingMachine\Gotenberg\Request;
+
+$client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath('index.html', 'index.html');
+$request = new HTMLRequest($index);
+$request->setPaperSize(Request::A4);
+$request->setMargins(Request::NO_MARGINS);
+$request->setLandscape(true);
+$dirPath = "/foo";
+$filename = $client->store($request, $dirPath);
+```

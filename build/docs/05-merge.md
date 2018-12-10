@@ -42,4 +42,17 @@ func main() {
 
 ### PHP
 
-TODO
+```php
+use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\MergeRequest;
+
+$client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
+$files = [
+    DocumentFactory::makeFromPath('file.pdf', 'file.pdf'),
+    DocumentFactory::makeFromPath('file2.pdf', 'file2.pdf'),
+];
+$request = new MergeRequest($files);
+$dirPath = "/foo";
+$filename = $client->store($request, $dirPath);
+```

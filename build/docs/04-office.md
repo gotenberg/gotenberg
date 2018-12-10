@@ -57,7 +57,20 @@ func main() {
 
 ### PHP
 
-TODO
+```php
+use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\OfficeRequest;
+
+$client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
+$files = [
+    DocumentFactory::makeFromPath('document.docx', 'document.docx'),
+    DocumentFactory::makeFromPath('document2.docx', 'document2.docx'),
+];
+$request = new OfficeRequest($files);
+$dirPath = "/foo";
+$filename = $client->store($request, $dirPath);
+```
 
 ## Fonts
 

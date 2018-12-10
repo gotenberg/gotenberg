@@ -59,4 +59,17 @@ func main() {
 
 ### PHP
 
-TODO
+```php
+use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\MarkdownRequest;
+
+$client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath('index.html', 'index.html');
+$markdowns = [
+    DocumentFactory::makeFromPath('file.md', 'file.md'),
+];
+$request = new MarkdownRequest($index, $markdowns);
+$dirPath = "/foo";
+$filename = $client->store($request, $dirPath);
+```

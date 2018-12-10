@@ -199,7 +199,16 @@ which will be converted to PDF.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<p>TODO</p>
+<pre class="chroma"><span class="x">use TheCodingMachine\Gotenberg\Client;
+</span><span class="x">use TheCodingMachine\Gotenberg\DocumentFactory;
+</span><span class="x">use TheCodingMachine\Gotenberg\HTMLRequest;
+</span><span class="x">
+</span><span class="x">$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+</span><span class="x">$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
+</span><span class="x">$request = new HTMLRequest($index);
+</span><span class="x">$dirPath = &#34;/foo&#34;;
+</span><span class="x">$filename = $client-&gt;store($request, $dirPath);
+</span><span class="x"></span></pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.header_and_footer" href="#html.header_and_footer">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
@@ -278,7 +287,20 @@ Also, <code>footer.html</code> CSS properties override the ones from <code>heade
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<p>TODO</p>
+<pre class="chroma"><span class="x">use TheCodingMachine\Gotenberg\Client;
+</span><span class="x">use TheCodingMachine\Gotenberg\DocumentFactory;
+</span><span class="x">use TheCodingMachine\Gotenberg\HTMLRequest;
+</span><span class="x">
+</span><span class="x">$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+</span><span class="x">$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
+</span><span class="x">$header = DocumentFactory::makeFromPath(&#39;header.html&#39;, &#39;header.html&#39;);
+</span><span class="x">$footer = DocumentFactory::makeFromPath(&#39;footer.html&#39;, &#39;footer.html&#39;);
+</span><span class="x">$request = new HTMLRequest($index);
+</span><span class="x">$request-&gt;setHeader($header);
+</span><span class="x">$request-&gt;setFooter($footer);
+</span><span class="x">$dirPath = &#34;/foo&#34;;
+</span><span class="x">$filename = $client-&gt;store($request, $dirPath);
+</span><span class="x"></span></pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.assets" href="#html.assets">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
@@ -365,7 +387,22 @@ see to the <a href="#office.fonts">fonts section</a>.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<p>TODO</p>
+<pre class="chroma"><span class="x">use TheCodingMachine\Gotenberg\Client;
+</span><span class="x">use TheCodingMachine\Gotenberg\DocumentFactory;
+</span><span class="x">use TheCodingMachine\Gotenberg\HTMLRequest;
+</span><span class="x">
+</span><span class="x">$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+</span><span class="x">$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
+</span><span class="x">$assets = [
+</span><span class="x">    DocumentFactory::makeFromPath(&#39;style.css&#39;, &#39;style.css&#39;),
+</span><span class="x">    DocumentFactory::makeFromPath(&#39;img.png&#39;, &#39;img.png&#39;),
+</span><span class="x">    DocumentFactory::makeFromPath(&#39;font.woff&#39;, &#39;font.woff&#39;),
+</span><span class="x">];
+</span><span class="x">$request = new HTMLRequest($index);
+</span><span class="x">$request-&gt;setAssets($assets);
+</span><span class="x">$dirPath = &#34;/foo&#34;;
+</span><span class="x">$filename = $client-&gt;store($request, $dirPath);
+</span><span class="x"></span></pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.paper_size_margins_orientation" href="#html.paper_size_margins_orientation">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
@@ -423,7 +460,20 @@ Also, you have to set both <code>paperWidth</code> and <code>paperHeight</code>.
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<p>TODO</p>
+<pre class="chroma"><span class="x">use TheCodingMachine\Gotenberg\Client;
+</span><span class="x">use TheCodingMachine\Gotenberg\DocumentFactory;
+</span><span class="x">use TheCodingMachine\Gotenberg\HTMLRequest;
+</span><span class="x">use TheCodingMachine\Gotenberg\Request;
+</span><span class="x">
+</span><span class="x">$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+</span><span class="x">$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
+</span><span class="x">$request = new HTMLRequest($index);
+</span><span class="x">$request-&gt;setPaperSize(Request::A4);
+</span><span class="x">$request-&gt;setMargins(Request::NO_MARGINS);
+</span><span class="x">$request-&gt;setLandscape(true);
+</span><span class="x">$dirPath = &#34;/foo&#34;;
+</span><span class="x">$filename = $client-&gt;store($request, $dirPath);
+</span><span class="x"></span></pre>
 
               </div>
             
@@ -493,7 +543,19 @@ in the file <code>index.html</code> which will convert a given markdown file to 
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<p>TODO</p>
+<pre class="chroma"><span class="x">use TheCodingMachine\Gotenberg\Client;
+</span><span class="x">use TheCodingMachine\Gotenberg\DocumentFactory;
+</span><span class="x">use TheCodingMachine\Gotenberg\MarkdownRequest;
+</span><span class="x">
+</span><span class="x">$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+</span><span class="x">$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
+</span><span class="x">$markdowns = [
+</span><span class="x">    DocumentFactory::makeFromPath(&#39;file.md&#39;, &#39;file.md&#39;),
+</span><span class="x">];
+</span><span class="x">$request = new MarkdownRequest($index, $markdowns);
+</span><span class="x">$dirPath = &#34;/foo&#34;;
+</span><span class="x">$filename = $client-&gt;store($request, $dirPath);
+</span><span class="x"></span></pre>
 
               </div>
             
@@ -566,7 +628,19 @@ See the <a href="#scalability">scalability section</a> to find how to mitigate t
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<p>TODO</p>
+<pre class="chroma"><span class="x">use TheCodingMachine\Gotenberg\Client;
+</span><span class="x">use TheCodingMachine\Gotenberg\DocumentFactory;
+</span><span class="x">use TheCodingMachine\Gotenberg\OfficeRequest;
+</span><span class="x">
+</span><span class="x">$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+</span><span class="x">$files = [
+</span><span class="x">    DocumentFactory::makeFromPath(&#39;document.docx&#39;, &#39;document.docx&#39;),
+</span><span class="x">    DocumentFactory::makeFromPath(&#39;document2.docx&#39;, &#39;document2.docx&#39;),
+</span><span class="x">];
+</span><span class="x">$request = new OfficeRequest($files);
+</span><span class="x">$dirPath = &#34;/foo&#34;;
+</span><span class="x">$filename = $client-&gt;store($request, $dirPath);
+</span><span class="x"></span></pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="office.fonts" href="#office.fonts">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
@@ -633,7 +707,19 @@ will merge them and return the resulting PDF file.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<p>TODO</p>
+<pre class="chroma"><span class="x">use TheCodingMachine\Gotenberg\Client;
+</span><span class="x">use TheCodingMachine\Gotenberg\DocumentFactory;
+</span><span class="x">use TheCodingMachine\Gotenberg\MergeRequest;
+</span><span class="x">
+</span><span class="x">$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+</span><span class="x">$files = [
+</span><span class="x">    DocumentFactory::makeFromPath(&#39;file.pdf&#39;, &#39;file.pdf&#39;),
+</span><span class="x">    DocumentFactory::makeFromPath(&#39;file2.pdf&#39;, &#39;file2.pdf&#39;),
+</span><span class="x">];
+</span><span class="x">$request = new MergeRequest($files);
+</span><span class="x">$dirPath = &#34;/foo&#34;;
+</span><span class="x">$filename = $client-&gt;store($request, $dirPath);
+</span><span class="x"></span></pre>
 
               </div>
             
@@ -687,7 +773,16 @@ to given URL.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<p>TODO</p>
+<pre class="chroma"><span class="x">use TheCodingMachine\Gotenberg\Client;
+</span><span class="x">use TheCodingMachine\Gotenberg\DocumentFactory;
+</span><span class="x">use TheCodingMachine\Gotenberg\HTMLRequest;
+</span><span class="x">
+</span><span class="x">$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+</span><span class="x">$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
+</span><span class="x">$request = new HTMLRequest($index);
+</span><span class="x">$request-&gt;setWebhookURL(&#39;http://myapp.com/webhook/&#39;);
+</span><span class="x">$resp = $client-&gt;post($request);
+</span><span class="x"></span></pre>
 
               </div>
             
