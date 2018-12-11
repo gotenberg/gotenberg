@@ -17,5 +17,8 @@ func TestHTML(t *testing.T) {
 	rec := httptest.NewRecorder()
 	e := echo.New()
 	c := e.NewContext(req, rec)
-	assert.NoError(t, convertHTML(c))
+	if assert.NoError(t, convertHTML(c)) {
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "application/pdf", rec.Header().Get(echo.HeaderContentType))
+	}
 }

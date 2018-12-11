@@ -17,5 +17,8 @@ func TestOffice(t *testing.T) {
 	rec := httptest.NewRecorder()
 	e := echo.New()
 	c := e.NewContext(req, rec)
-	assert.NoError(t, convertOffice(c))
+	if assert.NoError(t, convertOffice(c)) {
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "application/pdf", rec.Header().Get(echo.HeaderContentType))
+	}
 }
