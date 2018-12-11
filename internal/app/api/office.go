@@ -8,6 +8,7 @@ import (
 )
 
 var officeExts = []string{
+	".txt",
 	".doc",
 	".docx",
 	".odt",

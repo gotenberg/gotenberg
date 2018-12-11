@@ -10,6 +10,7 @@ It accepts `POST` requests with a `multipart/form-data` Content-Type.
 
 You may send one or more Office documents. Following file extensions are accepted:
 
+* `.txt`
 * `.doc`
 * `.docx`
 * `.odt`
