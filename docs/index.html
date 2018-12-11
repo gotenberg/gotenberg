@@ -175,8 +175,8 @@ which will be converted to PDF.</p>
 <pre class="chroma">$ curl --request POST <span class="se">\
 </span><span class="se"></span>    --url http://localhost:3000/convert/html <span class="se">\
 </span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
-</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html
-    &gt; result.pdf
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html <span class="se">\
+</span><span class="se"></span>    &gt; result.pdf
 </pre>
 
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.basic.go" href="#html.basic.go">
@@ -257,10 +257,10 @@ Also, <code>footer.html</code> CSS properties override the ones from <code>heade
 <pre class="chroma">$ curl --request POST <span class="se">\
 </span><span class="se"></span>    --url http://localhost:3000/convert/html <span class="se">\
 </span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
-</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html
-    --form <span class="nv">files</span><span class="o">=</span>@header.html
-    --form <span class="nv">files</span><span class="o">=</span>@footer.html
-    &gt; result.pdf
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@header.html <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@footer.html <span class="se">\
+</span><span class="se"></span>    &gt; result.pdf
 </pre>
 
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.header_and_footer.go" href="#html.header_and_footer.go">
@@ -355,11 +355,11 @@ see to the <a href="#office.fonts">fonts section</a>.</p>
 <pre class="chroma">$ curl --request POST <span class="se">\
 </span><span class="se"></span>    --url http://localhost:3000/convert/html <span class="se">\
 </span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
-</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html
-    --form <span class="nv">files</span><span class="o">=</span>@style.css
-    --form <span class="nv">files</span><span class="o">=</span>@img.png
-    --form <span class="nv">files</span><span class="o">=</span>@font.woff
-    &gt; result.pdf
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@style.css <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@img.png <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@font.woff <span class="se">\
+</span><span class="se"></span>    &gt; result.pdf
 </pre>
 
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.assets.go" href="#html.assets.go">
@@ -424,15 +424,15 @@ Also, you have to set both <code>paperWidth</code> and <code>paperHeight</code>.
 <pre class="chroma">$ curl --request POST <span class="se">\
 </span><span class="se"></span>    --url http://localhost:3000/convert/html <span class="se">\
 </span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
-</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html
-    --form <span class="nv">paperWidth</span><span class="o">=</span><span class="m">8</span>.27
-    --form <span class="nv">paperHeight</span><span class="o">=</span><span class="m">11</span>.27
-    --form <span class="nv">marginTop</span><span class="o">=</span><span class="m">0</span>
-    --form <span class="nv">marginBottom</span><span class="o">=</span><span class="m">0</span>
-    --form <span class="nv">marginLeft</span><span class="o">=</span><span class="m">0</span>
-    --form <span class="nv">marginRight</span><span class="o">=</span><span class="m">0</span>
-    --form <span class="nv">landscape</span><span class="o">=</span><span class="nb">true</span>
-    &gt; result.pdf
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">paperWidth</span><span class="o">=</span><span class="m">8</span>.27 <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">paperHeight</span><span class="o">=</span><span class="m">11</span>.27 <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">marginTop</span><span class="o">=</span><span class="m">0</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">marginBottom</span><span class="o">=</span><span class="m">0</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">marginLeft</span><span class="o">=</span><span class="m">0</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">marginRight</span><span class="o">=</span><span class="m">0</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">landscape</span><span class="o">=</span><span class="nb">true</span> <span class="se">\
+</span><span class="se"></span>    &gt; result.pdf
 </pre>
 
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.paper_size_margins_orientation.go" href="#html.paper_size_margins_orientation.go">
@@ -515,9 +515,9 @@ in the file <code>index.html</code>. This function will convert a given markdown
 <pre class="chroma">$ curl --request POST <span class="se">\
 </span><span class="se"></span>    --url http://localhost:3000/convert/markdown <span class="se">\
 </span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
-</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html
-    --form <span class="nv">files</span><span class="o">=</span>@file.md
-    &gt; result.pdf
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@file.md <span class="se">\
+</span><span class="se"></span>    &gt; result.pdf
 </pre>
 
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="markdown.basic.go" href="#markdown.basic.go">
@@ -600,9 +600,9 @@ See the <a href="#scalability">scalability section</a> to find how to mitigate t
 <pre class="chroma">$ curl --request POST <span class="se">\
 </span><span class="se"></span>    --url http://localhost:3000/convert/office <span class="se">\
 </span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
-</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@document.docx
-    --form <span class="nv">files</span><span class="o">=</span>@document2.docx
-    &gt; result.pdf
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@document.docx <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@document2.docx <span class="se">\
+</span><span class="se"></span>    &gt; result.pdf
 </pre>
 
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="office.basic.go" href="#office.basic.go">
@@ -679,9 +679,9 @@ will merge them and return the resulting PDF file.</p>
 <pre class="chroma">$ curl --request POST <span class="se">\
 </span><span class="se"></span>    --url http://localhost:3000/merge <span class="se">\
 </span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
-</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@file.pdf
-    --form <span class="nv">files</span><span class="o">=</span>@file2.pdf
-    &gt; result.pdf
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@file.pdf <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@file2.pdf <span class="se">\
+</span><span class="se"></span>    &gt; result.pdf
 </pre>
 
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="merge.basic.go" href="#merge.basic.go">
@@ -745,8 +745,8 @@ to given URL.</p>
 <pre class="chroma">$ curl --request POST <span class="se">\
 </span><span class="se"></span>    --url http://localhost:3000/convert/html <span class="se">\
 </span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
-</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html
-    --form <span class="nv">webhookURL</span><span class="o">=</span><span class="s1">&#39;http://myapp.com/webhook/&#39;</span>
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">webhookURL</span><span class="o">=</span><span class="s1">&#39;http://myapp.com/webhook/&#39;</span>
 </pre>
 
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.examples.go" href="#webhook.examples.go">

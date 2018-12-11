@@ -34,8 +34,8 @@ For instance:
 $ curl --request POST \
     --url http://localhost:3000/convert/markdown \
     --header 'Content-Type: multipart/form-data' \
-    --form files=@index.html
-    --form files=@file.md
+    --form files=@index.html \
+    --form files=@file.md \
     > result.pdf
 ```
 

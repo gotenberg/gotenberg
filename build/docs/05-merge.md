@@ -17,8 +17,8 @@ will merge them and return the resulting PDF file.
 $ curl --request POST \
     --url http://localhost:3000/merge \
     --header 'Content-Type: multipart/form-data' \
-    --form files=@file.pdf
-    --form files=@file2.pdf
+    --form files=@file.pdf \
+    --form files=@file2.pdf \
     > result.pdf
 ```
 

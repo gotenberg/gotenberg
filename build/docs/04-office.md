@@ -32,8 +32,8 @@ All files will be merged into a single resulting PDF.
 $ curl --request POST \
     --url http://localhost:3000/convert/office \
     --header 'Content-Type: multipart/form-data' \
-    --form files=@document.docx
-    --form files=@document2.docx
+    --form files=@document.docx \
+    --form files=@document2.docx \
     > result.pdf
 ```
 

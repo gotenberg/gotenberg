@@ -17,7 +17,7 @@ By doing so, your requests to the API will be over before the conversions are ac
 $ curl --request POST \
     --url http://localhost:3000/convert/html \
     --header 'Content-Type: multipart/form-data' \
-    --form files=@index.html
+    --form files=@index.html \
     --form webhookURL='http://myapp.com/webhook/'
 ```
 

@@ -32,7 +32,7 @@ For instance:
 $ curl --request POST \
     --url http://localhost:3000/convert/html \
     --header 'Content-Type: multipart/form-data' \
-    --form files=@index.html
+    --form files=@index.html \
     > result.pdf
 ```
 
@@ -106,9 +106,9 @@ The following classes allow you to inject printing values:
 $ curl --request POST \
     --url http://localhost:3000/convert/html \
     --header 'Content-Type: multipart/form-data' \
-    --form files=@index.html
-    --form files=@header.html
-    --form files=@footer.html
+    --form files=@index.html \
+    --form files=@header.html \
+    --form files=@footer.html \
     > result.pdf
 ```
 
@@ -199,10 +199,10 @@ You may also use *remote* paths for Google fonts, images and so on.
 $ curl --request POST \
     --url http://localhost:3000/convert/html \
     --header 'Content-Type: multipart/form-data' \
-    --form files=@index.html
-    --form files=@style.css
-    --form files=@img.png
-    --form files=@font.woff
+    --form files=@index.html \
+    --form files=@style.css \
+    --form files=@img.png \
+    --form files=@font.woff \
     > result.pdf
 ```
 
@@ -261,14 +261,14 @@ By default, it will be rendered with `A4` size, `1 inch` margins and `portrait` 
 $ curl --request POST \
     --url http://localhost:3000/convert/html \
     --header 'Content-Type: multipart/form-data' \
-    --form files=@index.html
-    --form paperWidth=8.27
-    --form paperHeight=11.27
-    --form marginTop=0
-    --form marginBottom=0
-    --form marginLeft=0
-    --form marginRight=0
-    --form landscape=true
+    --form files=@index.html \
+    --form paperWidth=8.27 \
+    --form paperHeight=11.27 \
+    --form marginTop=0 \
+    --form marginBottom=0 \
+    --form marginLeft=0 \
+    --form marginRight=0 \
+    --form landscape=true \
     > result.pdf
 ```
 
