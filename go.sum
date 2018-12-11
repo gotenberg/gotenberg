@@ -10,6 +10,8 @@ github.com/gorilla/websocket v1.4.0 h1:WDFjx/TMzVgy9VdMMQi2K2Emtwi2QcUQsztZ/zLaH
 github.com/gorilla/websocket v1.4.0/go.mod h1:E7qHFY5m1UJ88s3WnNqhKjPHQ0heANvMoAMk2YaljkQ=
 github.com/hhrutter/pdfcpu v0.1.18 h1:GX3d6tZxmQlmB5X9VUyOtx7+HZZpR+8ISLqBineP6dc=
 github.com/hhrutter/pdfcpu v0.1.18/go.mod h1:iaCmXGnOXPIvoGLELZZc4m/GpIopVsvLQ00thrbu8LU=
+github.com/hhrutter/pdfcpu v0.1.19 h1:J6GjNFDPjurQWallPW9gmz3CcNqBfvgB7Dad9T3e8Hc=
+github.com/hhrutter/pdfcpu v0.1.19/go.mod h1:iaCmXGnOXPIvoGLELZZc4m/GpIopVsvLQ00thrbu8LU=
 github.com/labstack/echo v0.0.0-20181123063703-c7eb8da9ec73 h1:oQvA3Xy8274W5Ldgo6Nogy4lX8XO5AaIBsjF5Ggk0IU=
 github.com/labstack/echo v0.0.0-20181123063703-c7eb8da9ec73/go.mod h1:rS0D1UPvC8/3sXjhSwEq+K1olh7ipbDhjDWATN2KSgA=
 github.com/labstack/echo v3.3.5+incompatible h1:9PfxPUmasKzeJor9uQTaXLT6WUG/r+vSTmvXxvv3JO4=

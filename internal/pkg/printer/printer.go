@@ -5,8 +5,15 @@ import (
 	"io/ioutil"
 
 	pdfcpuAPI "github.com/hhrutter/pdfcpu/pkg/api"
+	pdfcpuLog "github.com/hhrutter/pdfcpu/pkg/log"
 	pdfcpuConfig "github.com/hhrutter/pdfcpu/pkg/pdfcpu"
 )
+
+func init() {
+	// disable loggers when merging
+	// PDFs.
+	pdfcpuLog.DisableLoggers()
+}
 
 // Printer is a type that can create a PDF file from a source.
 // The source is defined in the underlying implementation.

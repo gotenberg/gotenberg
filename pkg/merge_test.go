@@ -16,7 +16,7 @@ func TestMerge(t *testing.T) {
 	req := &MergeRequest{
 		FilePaths: []string{
 			test.PDFTestFilePath(t, "gotenberg.pdf"),
-			test.PDFTestFilePath(t, "gotenberg.pdf"),
+			test.PDFTestFilePath(t, "gotenberg_bis.pdf"),
 		},
 	}
 	dirPath, err := rand.Get()
