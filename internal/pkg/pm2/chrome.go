@@ -54,8 +54,9 @@ func (c *Chrome) getFullname() string {
 
 func (c *Chrome) isViable() bool {
 	// check if Chrome is correctly running.
-	devt := devtool.New("http://127.0.0.1:9222")
-	_, err := devt.Create(context.TODO())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, err := devtool.New("http://localhost:9222").Version(ctx)
 	return err == nil
 }
 
