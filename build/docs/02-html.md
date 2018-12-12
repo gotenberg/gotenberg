@@ -273,7 +273,7 @@ func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
     req, _ := gotenberg.NewHTMLRequest("index.html")
     req.SetPaperSize(gotenberg.A4)
-    req.SetMargins(gotenberg.NormalMargins)
+    req.SetMargins(gotenberg.NoMargins)
     req.SetLandscape(true)
     dest := "result.pdf"
     c.Store(req, dest)

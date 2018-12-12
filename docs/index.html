@@ -437,7 +437,7 @@ Also, you have to set both <code>paperWidth</code> and <code>paperHeight</code>.
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
     <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nx">NewHTMLRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">)</span>
     <span class="nx">req</span><span class="p">.</span><span class="nx">SetPaperSize</span><span class="p">(</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">A4</span><span class="p">)</span>
-    <span class="nx">req</span><span class="p">.</span><span class="nx">SetMargins</span><span class="p">(</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">NormalMargins</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nx">SetMargins</span><span class="p">(</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">NoMargins</span><span class="p">)</span>
     <span class="nx">req</span><span class="p">.</span><span class="nx">SetLandscape</span><span class="p">(</span><span class="kc">true</span><span class="p">)</span>
     <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
     <span class="nx">c</span><span class="p">.</span><span class="nx">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
@@ -679,7 +679,6 @@ Also, you have to set both <code>paperWidth</code> and <code>paperHeight</code>.
 </span><span class="x">];
 </span><span class="x">$request = new OfficeRequest($files);
 </span><span class="x">$request-&gt;setPaperSize(Request::A4);
-</span><span class="x">$request-&gt;setMargins(Request::NO_MARGINS);
 </span><span class="x">$request-&gt;setLandscape(true);
 </span><span class="x">$dirPath = &#34;/foo&#34;;
 </span><span class="x">$filename = $client-&gt;store($request, $dirPath);
@@ -795,14 +794,10 @@ to given URL.</p>
 
 <span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
-    <span class="nx">req</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">HTMLRequest</span><span class="p">{</span>
-        <span class="nx">IndexFilePath</span><span class="p">:</span> <span class="s">&#34;index.html&#34;</span><span class="p">,</span>
-        <span class="nx">Options</span><span class="p">:</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">HTMLOptions</span><span class="p">{</span>
-            <span class="nx">WebHookURL</span><span class="p">:</span> <span class="s">&#34;http://myapp.com/webhook/&#34;</span><span class="p">,</span>
-        <span class="p">},</span>
-    <span class="p">}</span>
+    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nx">NewHTMLRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nx">SetWebhookURL</span><span class="p">(</span><span class="s">&#34;http://myapp.com/webhook/&#34;</span><span class="p">)</span>
     <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
-    <span class="nx">resp</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">c</span><span class="p">.</span><span class="nx">Post</span><span class="p">(</span><span class="nx">req</span><span class="p">)</span>
+    <span class="nx">resp</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">c</span><span class="p">.</span><span class="nx">Post</span><span class="p">(</span><span class="nx">req</span><span class="p">)</span>
 <span class="p">}</span>
 </pre>
 

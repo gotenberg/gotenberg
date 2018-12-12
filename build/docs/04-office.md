@@ -119,7 +119,6 @@ $files = [
 ];
 $request = new OfficeRequest($files);
 $request->setPaperSize(Request::A4);
-$request->setMargins(Request::NO_MARGINS);
 $request->setLandscape(true);
 $dirPath = "/foo";
 $filename = $client->store($request, $dirPath);

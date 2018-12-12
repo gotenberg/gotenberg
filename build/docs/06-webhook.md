@@ -28,14 +28,10 @@ import "github.com/thecodingmachine/gotenberg/pkg"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req := &gotenberg.HTMLRequest{
-        IndexFilePath: "index.html",
-        Options: &gotenberg.HTMLOptions{
-            WebHookURL: "http://myapp.com/webhook/",
-        },
-    }
+    req, _ := gotenberg.NewHTMLRequest("index.html")
+    req.SetWebhookURL("http://myapp.com/webhook/")
     dest := "result.pdf"
-    resp, err := c.Post(req)
+    resp, _ := c.Post(req)
 }
 ```
 
