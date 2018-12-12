@@ -16,7 +16,7 @@ func TestMerge(t *testing.T) {
 	err := Merge(
 		[]string{
 			fmt.Sprintf("%s/%s", dirPath, "gotenberg.pdf"),
-			fmt.Sprintf("%s/%s", dirPath, "gotenberg.pdf"),
+			fmt.Sprintf("%s/%s", dirPath, "gotenberg_bis.pdf"),
 		},
 		dst,
 	)

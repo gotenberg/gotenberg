@@ -8,24 +8,23 @@ import (
 // MergeRequest facilitates merging PDF
 // with the Gotenberg API.
 type MergeRequest struct {
-	FilePaths []string
-	Options   *MergeOptions
+	filePaths []string
+	values    map[string]string
 }
 
-// MergeOptions gathers all options
-// for merging PDF
-// with the Gotenberg API.
-type MergeOptions struct {
-	WebHookURL string
-}
-
-func (merge *MergeRequest) validate() error {
-	for _, fpath := range merge.FilePaths {
+// NewMergeRequest create MergeRequest.
+func NewMergeRequest(fpaths []string) (*MergeRequest, error) {
+	for _, fpath := range fpaths {
 		if !fileExists(fpath) {
-			return fmt.Errorf("%s: PDF file does not exist", fpath)
+			return nil, fmt.Errorf("%s: file does not exist", fpath)
 		}
 	}
-	return nil
+	return &MergeRequest{filePaths: fpaths, values: make(map[string]string)}, nil
+}
+
+// SetWebhookURL sets webhookURL form field.
+func (merge *MergeRequest) SetWebhookURL(webhookURL string) {
+	merge.values[webhookURL] = webhookURL
 }
 
 func (merge *MergeRequest) getPostURL() string {
@@ -33,17 +32,12 @@ func (merge *MergeRequest) getPostURL() string {
 }
 
 func (merge *MergeRequest) getFormValues() map[string]string {
-	if merge.Options == nil {
-		merge.Options = &MergeOptions{}
-	}
-	values := make(map[string]string)
-	values[webhookURL] = merge.Options.WebHookURL
-	return values
+	return merge.values
 }
 
 func (merge *MergeRequest) getFormFiles() map[string]string {
 	files := make(map[string]string)
-	for _, fpath := range merge.FilePaths {
+	for _, fpath := range merge.filePaths {
 		files[filepath.Base(fpath)] = fpath
 	}
 	return files

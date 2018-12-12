@@ -16,19 +16,17 @@ import "github.com/thecodingmachine/gotenberg/pkg"
 func main() {
     // HTML conversion example.
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req := &gotenberg.HTMLRequest{
-        IndexFilePath: "index.html",
-        AssetFilePaths: []string{
-            "style.css",
-            "img.png",
-        },
-        Options: &gotenberg.HTMLOptions{
-            HeaderFilePath: "header.html",
-            FooterFilePath: "footer.html",
-            PaperSize:      gotenberg.A4,
-            PaperMargins:   gotenberg.NormalMargins,  
-        },
-    }
+    req, _ := gotenberg.NewHTMLRequest("index.html")
+    req.SetHeader("header.html")
+    req.SetFooter("footer.html")
+    req.SetAssets([]string{
+        "font.woff",
+        "img.gif",
+        "style.css",
+    })
+    req.SetPaperSize(A4)
+    req.SetMargins(NormalMargins)
+    req.SetLandscape(false)
     dest := "foo.pdf"
     c.Store(req, dest)
 }

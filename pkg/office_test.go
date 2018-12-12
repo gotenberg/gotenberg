@@ -13,13 +13,12 @@ import (
 
 func TestOffice(t *testing.T) {
 	c := &Client{Hostname: "http://localhost:3000"}
-	req := &OfficeRequest{
-		FilePaths: []string{
-			test.OfficeTestFilePath(t, "document.docx"),
-			test.OfficeTestFilePath(t, "document.txt"),
-			test.OfficeTestFilePath(t, "document.rtf"),
-		},
-	}
+	req, err := NewOfficeRequest([]string{
+		test.OfficeTestFilePath(t, "document.docx"),
+	})
+	require.Nil(t, err)
+	req.SetPaperSize(A4)
+	req.SetLandscape(false)
 	dirPath, err := rand.Get()
 	require.Nil(t, err)
 	dest := fmt.Sprintf("%s/foo.pdf", dirPath)
