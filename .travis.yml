@@ -11,13 +11,15 @@ env:
   - secure: CmLh169xwt3OC7l19lDUwdZYfw+l/+XXKjTGxnuJiXHa9hAH+nc4mEUSmqHMHwjquyYE6LnSVGZ94LH8sCaGed/TMm0Lj3DZtZ0VsjYu3sKsNrVJn5WdYEah+GvNJ8i8uzvHnGk1L2fAagLpXFUB2K9UraA1CFiHs1fF5Fua7Ra0mE7lMz0MFvyvzcmc9u8nMz71K2YVsXqn+I/rv8onJCTtc/Ds0hVrBXwG5Fh0T3xHqjOhME9ZI2hRHnnQVdBojSY3USifQ//qAKowfBVc0pebEtgFpyXx/I17A6xCm0KVtnA2tNqu1+XFkjWaBzryaLE9ujhJcTRC/YK0JUZ+QxfYbD5C7jVy9Jlx1lOEjJ42B/ImNxPP+9p3wi2MWNbcbZJPxIe635fnT17lI7CLK2Qg1xjfTQ4WTEKW5IhnYMiyfRKiripFh4PCkDm8cJlTbpntsX1n0uheydbsgf/11vS7o1WGhVQ8+Jelc4DvIbBHCqienQEOLJDBwm7FiK5JbwZJ6ZAGeDM/IhGU1h9PNjVbHUyJhUxYoPYUE9QsZFT7ENCrRQpq49KOzXBRfffyJNJRh+Ep9X5YoW0dUp0MNu5B7z2+6w9X9n/C+loa11xF42bFzniCvvbSOQ37J+EngDinVxJkNPeyivR4fye2ENhIAjAEjouTJLOSXL9nAOU=
 
 stages:
-  - lint
+  - tests
   - publish
 
 jobs:
   include:
-    - stage: lint
+    - stage: tests
       script: make lint
+    - stage: tests
+      script: make tests
     - stage: publish
       if: tag IS present
       script: ./scripts/publish.sh $TRAVIS_TAG $DOCKER_USER $DOCKER_PASS

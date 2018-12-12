@@ -36,14 +36,15 @@ const defaultHeaderFooterHTML string = "<html><head></head><body></body></html>"
 // Print converts HTML to PDF.
 // Credits: https://medium.com/compass-true-north/go-service-to-convert-web-pages-to-pdf-using-headless-chrome-5fd9ffbae1af
 func (html *HTML) Print(destination string) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	// use the DevTools HTTP/JSON API to manage targets (e.g. pages, webworkers).
-	devt := devtool.New("http://127.0.0.1:9222")
-	pt, err := devt.Create(html.Context)
+	devt, err := devtool.New("http://localhost:9222").Version(ctx)
 	if err != nil {
 		return fmt.Errorf("creating DevTools target: %v", err)
 	}
 	// open a new RPC connection to the Chrome Debugging Protocol target.
-	conn, err := rpcc.DialContext(html.Context, pt.WebSocketDebuggerURL)
+	conn, err := rpcc.DialContext(html.Context, devt.WebSocketDebuggerURL)
 	if err != nil {
 		return fmt.Errorf("creating RPC connection: %v", err)
 	}
