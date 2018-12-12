@@ -43,9 +43,7 @@ import "github.com/thecodingmachine/gotenberg/pkg"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req := &gotenberg.HTMLRequest{
-        IndexFilePath: "index.html",
-    }
+    req, _ := gotenberg.NewHTMLRequest("index.html")
     dest := "result.pdf"
     c.Store(req, dest)
 }
@@ -119,13 +117,9 @@ import "github.com/thecodingmachine/gotenberg/pkg"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req := &gotenberg.HTMLRequest{
-        IndexFilePath: "index.html",
-        Options: &gotenberg.HTMLOptions{
-            HeaderFilePath: "header.html",
-            FooterFilePath: "footer.html",
-        },
-    }
+    req, _ := gotenberg.NewHTMLRequest("index.html")
+    req.SetHeader("header.html")
+    req.SetFooter("footer.html")
     dest := "result.pdf"
     c.Store(req, dest)
 }
@@ -213,14 +207,12 @@ import "github.com/thecodingmachine/gotenberg/pkg"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req := &gotenberg.HTMLRequest{
-        IndexFilePath: "index.html",
-        AssetFilePaths: []string{
-            "style.css",
-            "img.png",
-            "font.woff",
-        },
-    }
+    req, _ := gotenberg.NewHTMLRequest("index.html")
+    req.SetAssets([]string{
+        "font.woff",
+        "img.gif",
+        "style.css",
+    })
     dest := "result.pdf"
     c.Store(req, dest)
 }
@@ -279,14 +271,10 @@ import "github.com/thecodingmachine/gotenberg/pkg"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req := &gotenberg.HTMLRequest{
-        IndexFilePath: "index.html",
-        Options: &gotenberg.HTMLOptions{
-            PaperSize:      gotenberg.A4,
-            PaperMargins:   gotenberg.NoMargins,
-            Landscape:      true
-        },
-    }
+    req, _ := gotenberg.NewHTMLRequest("index.html")
+    req.SetPaperSize(gotenberg.A4)
+    req.SetMargins(gotenberg.NormalMargins)
+    req.SetLandscape(true)
     dest := "result.pdf"
     c.Store(req, dest)
 }

@@ -11,7 +11,7 @@ LABEL authors="Julien Neuhart <j.neuhart@thecodingmachine.com>"
 
 RUN echo "deb http://httpredir.debian.org/debian/ stretch main contrib non-free" > /etc/apt/sources.list &&\
     apt-get update &&\
-    apt-get install -y curl wget
+    apt-get install -y curl wget python3-pip
 
 # |--------------------------------------------------------------------------
 # | PM2
@@ -39,7 +39,10 @@ RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add
 # | Unoconv
 # |--------------------------------------------------------------------------
 # |
-# | Installs MS fonts and unoconv for Office documents conversions.
+# | Installs unoconv and LibreOffice for Office documents conversions.
 # |
 
-RUN apt-get -y install ttf-mscorefonts-installer unoconv
+RUN pip3 install unoconv &&\
+    # https://github.com/nextcloud/docker/issues/380
+    mkdir -p /usr/share/man/man1mkdir -p /usr/share/man/man1 &&\
+    apt-get -y install libreoffice
