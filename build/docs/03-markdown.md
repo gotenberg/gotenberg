@@ -46,12 +46,7 @@ import "github.com/thecodingmachine/gotenberg/pkg"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req := &gotenberg.MarkdownRequest{
-        IndexFilePath: "index.html",
-        MarkdownFilePaths: []string{
-            "file.md",
-        },
-    }
+    req, _ := gotenberg.NewMarkdownRequest("index.html", []string{"file.md"})
     dest := "result.pdf"
     c.Store(req, dest)
 }

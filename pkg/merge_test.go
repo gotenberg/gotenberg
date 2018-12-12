@@ -13,12 +13,11 @@ import (
 
 func TestMerge(t *testing.T) {
 	c := &Client{Hostname: "http://localhost:3000"}
-	req := &MergeRequest{
-		FilePaths: []string{
-			test.PDFTestFilePath(t, "gotenberg.pdf"),
-			test.PDFTestFilePath(t, "gotenberg.pdf"),
-		},
-	}
+	req, err := NewMergeRequest([]string{
+		test.PDFTestFilePath(t, "gotenberg.pdf"),
+		test.PDFTestFilePath(t, "gotenberg.pdf"),
+	})
+	require.Nil(t, err)
 	dirPath, err := rand.Get()
 	require.Nil(t, err)
 	dest := fmt.Sprintf("%s/foo.pdf", dirPath)

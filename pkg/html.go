@@ -9,33 +9,73 @@ import (
 // HTMLRequest facilitates HTML conversion
 // with the Gotenberg API.
 type HTMLRequest struct {
-	IndexFilePath  string
-	AssetFilePaths []string
-	Options        *HTMLOptions
+	indexFilePath  string
+	headerFilePath string
+	footerFilePath string
+	assetFilePaths []string
+	values         map[string]string
 }
 
-// HTMLOptions gathers all options
-// for HTML conversion with the Gotenberg API.
-type HTMLOptions struct {
-	WebHookURL     string
-	HeaderFilePath string
-	FooterFilePath string
-	PaperSize      [2]float64
-	PaperMargins   [4]float64
-	Landscape      bool
+// NewHTMLRequest create HTMLRequest.
+func NewHTMLRequest(indexFilePath string) (*HTMLRequest, error) {
+	if !fileExists(indexFilePath) {
+		return nil, fmt.Errorf("%s: index file does not exist", indexFilePath)
+	}
+	return &HTMLRequest{indexFilePath: indexFilePath, values: make(map[string]string)}, nil
 }
 
-func (html *HTMLRequest) validate() error {
-	if !fileExists(html.IndexFilePath) {
-		return fmt.Errorf("%s: index file does not exist", html.IndexFilePath)
+// SetWebhookURL sets webhookURL form field.
+func (html *HTMLRequest) SetWebhookURL(webhookURL string) {
+	html.values[webhookURL] = webhookURL
+}
+
+// SetHeader sets header form file.
+func (html *HTMLRequest) SetHeader(fpath string) error {
+	if !fileExists(fpath) {
+		return fmt.Errorf("%s: header file does not exist", fpath)
 	}
-	if html.Options.HeaderFilePath != "" && !fileExists(html.Options.HeaderFilePath) {
-		return fmt.Errorf("%s: header file does not exist", html.Options.HeaderFilePath)
-	}
-	if html.Options.FooterFilePath != "" && !fileExists(html.Options.FooterFilePath) {
-		return fmt.Errorf("%s: footer file does not exist", html.Options.FooterFilePath)
-	}
+	html.headerFilePath = fpath
 	return nil
+}
+
+// SetFooter sets footer form file.
+func (html *HTMLRequest) SetFooter(fpath string) error {
+	if !fileExists(fpath) {
+		return fmt.Errorf("%s: footer file does not exist", fpath)
+	}
+	html.footerFilePath = fpath
+	return nil
+}
+
+// SetAssets sets assets form files.
+func (html *HTMLRequest) SetAssets(fpaths []string) error {
+	for _, fpath := range fpaths {
+		if !fileExists(fpath) {
+			return fmt.Errorf("%s: file does not exist", fpath)
+		}
+	}
+	html.assetFilePaths = fpaths
+	return nil
+}
+
+// SetPaperSize sets paperWidth and paperHeight form fields.
+func (html *HTMLRequest) SetPaperSize(size [2]float64) {
+	html.values[paperWidth] = fmt.Sprintf("%f", size[0])
+	html.values[paperHeight] = fmt.Sprintf("%f", size[1])
+}
+
+// SetMargins sets marginTop, marginBottom,
+// marginLeft and marginRight form fields.
+func (html *HTMLRequest) SetMargins(margins [4]float64) {
+	html.values[marginTop] = fmt.Sprintf("%f", margins[0])
+	html.values[marginBottom] = fmt.Sprintf("%f", margins[1])
+	html.values[marginLeft] = fmt.Sprintf("%f", margins[2])
+	html.values[marginRight] = fmt.Sprintf("%f", margins[3])
+}
+
+// SetLandscape sets landscape form field.
+func (html *HTMLRequest) SetLandscape(isLandscape bool) {
+	html.values[landscape] = strconv.FormatBool(isLandscape)
 }
 
 func (html *HTMLRequest) getPostURL() string {
@@ -43,30 +83,15 @@ func (html *HTMLRequest) getPostURL() string {
 }
 
 func (html *HTMLRequest) getFormValues() map[string]string {
-	if html.Options == nil {
-		html.Options = &HTMLOptions{}
-	}
-	values := make(map[string]string)
-	values[webhookURL] = html.Options.WebHookURL
-	values[paperWidth] = fmt.Sprintf("%f", html.Options.PaperSize[0])
-	values[paperHeight] = fmt.Sprintf("%f", html.Options.PaperSize[1])
-	values[marginTop] = fmt.Sprintf("%f", html.Options.PaperMargins[0])
-	values[marginBottom] = fmt.Sprintf("%f", html.Options.PaperMargins[1])
-	values[marginLeft] = fmt.Sprintf("%f", html.Options.PaperMargins[2])
-	values[marginRight] = fmt.Sprintf("%f", html.Options.PaperMargins[3])
-	values[landscape] = strconv.FormatBool(html.Options.Landscape)
-	return values
+	return html.values
 }
 
 func (html *HTMLRequest) getFormFiles() map[string]string {
-	if html.Options == nil {
-		html.Options = &HTMLOptions{}
-	}
 	files := make(map[string]string)
-	files["index.html"] = html.IndexFilePath
-	files["header.html"] = html.Options.HeaderFilePath
-	files["footer.html"] = html.Options.FooterFilePath
-	for _, fpath := range html.AssetFilePaths {
+	files["index.html"] = html.indexFilePath
+	files["header.html"] = html.headerFilePath
+	files["footer.html"] = html.footerFilePath
+	for _, fpath := range html.assetFilePaths {
 		files[filepath.Base(fpath)] = fpath
 	}
 	return files
@@ -75,4 +100,5 @@ func (html *HTMLRequest) getFormFiles() map[string]string {
 // Compile-time checks to ensure type implements desired interfaces.
 var (
 	_ = Request(new(HTMLRequest))
+	_ = ChromeRequest(new(HTMLRequest))
 )

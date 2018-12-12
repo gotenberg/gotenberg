@@ -37,5 +37,16 @@ func convertOffice(c echo.Context) error {
 		return errors.New("no suitable office documents to convert")
 	}
 	p := &printer.Office{Context: ctx, FilePaths: fpaths}
+	paperSize, err := r.paperSize()
+	if err != nil {
+		return err
+	}
+	p.PaperWidth = paperSize[0]
+	p.PaperHeight = paperSize[1]
+	landscape, err := r.landscape()
+	if err != nil {
+		return err
+	}
+	p.Landscape = landscape
 	return print(c, p, r)
 }
