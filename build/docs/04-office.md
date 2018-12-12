@@ -44,12 +44,7 @@ import "github.com/thecodingmachine/gotenberg/pkg"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req := &gotenberg.OfficeRequest{
-        FilePaths: []string{
-            "document.docx",
-            "document2.docx",
-        },
-    }
+    req, _ := gotenberg.NewOfficeRequest([]string{"document.docx", "document2.docx"})
     dest := "result.pdf"
     c.Store(req, dest)
 }
@@ -68,6 +63,62 @@ $files = [
     DocumentFactory::makeFromPath('document2.docx', 'document2.docx'),
 ];
 $request = new OfficeRequest($files);
+$dirPath = "/foo";
+$filename = $client->store($request, $dirPath);
+```
+
+## Paper size and orientation
+
+You may also customize the resulting PDF format.
+
+By default, it will be rendered with `A4` size `portrait` orientation.
+
+> Paper size has to be provided in `inches`.
+> Also, you have to set both `paperWidth` and `paperHeight`.
+
+### cURL
+
+```bash
+$ curl --request POST \
+    --url http://localhost:3000/convert/office \
+    --header 'Content-Type: multipart/form-data' \
+    --form files=@document.docx \
+    --form paperWidth=8.27 \
+    --form paperHeight=11.27 \
+    --form landscape=true \
+    > result.pdf
+```
+
+### Go
+
+```golang
+import "github.com/thecodingmachine/gotenberg/pkg"
+
+func main() {
+    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+    req, _ := gotenberg.NewOfficeRequest([]string{"document.docx"})
+    req.SetPaperSize(A4)
+    req.SetLandscape(true)
+    dest := "result.pdf"
+    c.Store(req, dest)
+}
+```
+
+### PHP
+
+```php
+use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\OfficeRequest;
+
+$client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
+$files = [
+    DocumentFactory::makeFromPath('document.docx', 'document.docx'),
+];
+$request = new OfficeRequest($files);
+$request->setPaperSize(Request::A4);
+$request->setMargins(Request::NO_MARGINS);
+$request->setLandscape(true);
 $dirPath = "/foo";
 $filename = $client->store($request, $dirPath);
 ```

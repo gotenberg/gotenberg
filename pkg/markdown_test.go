@@ -13,25 +13,28 @@ import (
 
 func TestMarkdown(t *testing.T) {
 	c := &Client{Hostname: "http://localhost:3000"}
-	req := &MarkdownRequest{
-		IndexFilePath: test.MarkdownTestFilePath(t, "index.html"),
-		MarkdownFilePaths: []string{
+	req, err := NewMarkdownRequest(
+		test.MarkdownTestFilePath(t, "index.html"),
+		[]string{
 			test.MarkdownTestFilePath(t, "paragraph1.md"),
 			test.MarkdownTestFilePath(t, "paragraph2.md"),
 			test.MarkdownTestFilePath(t, "paragraph3.md"),
 		},
-		AssetFilePaths: []string{
-			test.HTMLTestFilePath(t, "font.woff"),
-			test.HTMLTestFilePath(t, "img.gif"),
-			test.HTMLTestFilePath(t, "style.css"),
-		},
-		Options: &MarkdownOptions{
-			HeaderFilePath: test.MarkdownTestFilePath(t, "header.html"),
-			FooterFilePath: test.MarkdownTestFilePath(t, "footer.html"),
-			PaperSize:      A4,
-			PaperMargins:   NormalMargins,
-		},
-	}
+	)
+	require.Nil(t, err)
+	err = req.SetHeader(test.MarkdownTestFilePath(t, "header.html"))
+	require.Nil(t, err)
+	err = req.SetFooter(test.MarkdownTestFilePath(t, "footer.html"))
+	require.Nil(t, err)
+	err = req.SetAssets([]string{
+		test.MarkdownTestFilePath(t, "font.woff"),
+		test.MarkdownTestFilePath(t, "img.gif"),
+		test.MarkdownTestFilePath(t, "style.css"),
+	})
+	require.Nil(t, err)
+	req.SetPaperSize(A4)
+	req.SetMargins(NormalMargins)
+	req.SetLandscape(false)
 	dirPath, err := rand.Get()
 	require.Nil(t, err)
 	dest := fmt.Sprintf("%s/foo.pdf", dirPath)

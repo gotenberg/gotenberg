@@ -13,20 +13,21 @@ import (
 
 func TestHTML(t *testing.T) {
 	c := &Client{Hostname: "http://localhost:3000"}
-	req := &HTMLRequest{
-		IndexFilePath: test.HTMLTestFilePath(t, "index.html"),
-		AssetFilePaths: []string{
-			test.HTMLTestFilePath(t, "font.woff"),
-			test.HTMLTestFilePath(t, "img.gif"),
-			test.HTMLTestFilePath(t, "style.css"),
-		},
-		Options: &HTMLOptions{
-			HeaderFilePath: test.HTMLTestFilePath(t, "header.html"),
-			FooterFilePath: test.HTMLTestFilePath(t, "footer.html"),
-			PaperSize:      A4,
-			PaperMargins:   NormalMargins,
-		},
-	}
+	req, err := NewHTMLRequest(test.HTMLTestFilePath(t, "index.html"))
+	require.Nil(t, err)
+	err = req.SetHeader(test.HTMLTestFilePath(t, "header.html"))
+	require.Nil(t, err)
+	err = req.SetFooter(test.HTMLTestFilePath(t, "footer.html"))
+	require.Nil(t, err)
+	err = req.SetAssets([]string{
+		test.HTMLTestFilePath(t, "font.woff"),
+		test.HTMLTestFilePath(t, "img.gif"),
+		test.HTMLTestFilePath(t, "style.css"),
+	})
+	require.Nil(t, err)
+	req.SetPaperSize(A4)
+	req.SetMargins(NormalMargins)
+	req.SetLandscape(false)
 	dirPath, err := rand.Get()
 	require.Nil(t, err)
 	dest := fmt.Sprintf("%s/foo.pdf", dirPath)

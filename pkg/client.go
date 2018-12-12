@@ -59,18 +59,35 @@ type Client struct {
 // form values and form files to
 // the Gotenberg API.
 type Request interface {
-	validate() error
+	SetWebhookURL(webhookURL string)
 	getPostURL() string
 	getFormValues() map[string]string
 	getFormFiles() map[string]string
 }
 
+// ChromeRequest is a type for sending
+// conversion requests which will be
+// handle by Google Chrome.
+type ChromeRequest interface {
+	SetHeader(fpath string) error
+	SetFooter(fpath string) error
+	SetAssets(fpaths []string) error
+	SetPaperSize(size [2]float64)
+	SetMargins(margins [4]float64)
+	SetLandscape(isLandscape bool)
+}
+
+// UnoconvRequest is a type for sending
+// conversion requests which will be
+// handle by unoconv.
+type UnoconvRequest interface {
+	SetPaperSize(size [2]float64)
+	SetLandscape(landscape bool)
+}
+
 // Post sends a request to the Gotenberg API
 // and returns the response.
 func (c *Client) Post(req Request) (*http.Response, error) {
-	if err := req.validate(); err != nil {
-		return nil, err
-	}
 	body, contentType, err := multipartForm(req)
 	if err != nil {
 		return nil, err
