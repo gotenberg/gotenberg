@@ -24,8 +24,8 @@ func main() {
         "img.gif",
         "style.css",
     })
-    req.SetPaperSize(A4)
-    req.SetMargins(NormalMargins)
+    req.SetPaperSize(gotenberg.A4)
+    req.SetMargins(gotenberg.NormalMargins)
     req.SetLandscape(false)
     dest := "foo.pdf"
     c.Store(req, dest)
