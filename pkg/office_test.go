@@ -16,6 +16,8 @@ func TestOffice(t *testing.T) {
 	req := &OfficeRequest{
 		FilePaths: []string{
 			test.OfficeTestFilePath(t, "document.docx"),
+			test.OfficeTestFilePath(t, "document.txt"),
+			test.OfficeTestFilePath(t, "document.rtf"),
 		},
 	}
 	dirPath, err := rand.Get()

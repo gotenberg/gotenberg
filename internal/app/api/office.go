@@ -9,6 +9,7 @@ import (
 
 var officeExts = []string{
 	".txt",
+	".rtf",
 	".doc",
 	".docx",
 	".odt",
