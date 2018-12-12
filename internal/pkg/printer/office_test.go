@@ -20,6 +20,8 @@ func TestOffice(t *testing.T) {
 		Context: ctx,
 		FilePaths: []string{
 			fmt.Sprintf("%s/%s", dirPath, "document.docx"),
+			fmt.Sprintf("%s/%s", dirPath, "document.txt"),
+			fmt.Sprintf("%s/%s", dirPath, "document.rtf"),
 		},
 	}
 	dst := fmt.Sprintf("%s/%s", dirPath, "foo.pdf")
