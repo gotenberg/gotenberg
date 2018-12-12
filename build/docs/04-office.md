@@ -73,7 +73,7 @@ $filename = $client->store($request, $dirPath);
 
 You may also customize the resulting PDF format.
 
-By default, it will be rendered with `A4` size `portrait` orientation.
+By default, it will be rendered with `A4` size and `portrait` orientation.
 
 > Paper size has to be provided in `inches`.
 > Also, you have to set both `paperWidth` and `paperHeight`.
@@ -99,7 +99,7 @@ import "github.com/thecodingmachine/gotenberg/pkg"
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
     req, _ := gotenberg.NewOfficeRequest([]string{"document.docx"})
-    req.SetPaperSize(A4)
+    req.SetPaperSize(gotenberg.A4)
     req.SetLandscape(true)
     dest := "result.pdf"
     c.Store(req, dest)
