@@ -49,17 +49,17 @@ func newResource(c echo.Context) (*resource, error) {
 	r := &resource{values: v, dirPath: dirPath}
 	form, err := c.MultipartForm()
 	if err != nil {
-		return nil, fmt.Errorf("getting multipart form: %v", err)
+		return r, fmt.Errorf("getting multipart form: %v", err)
 	}
 	for _, files := range form.File {
 		for _, fh := range files {
 			in, err := fh.Open()
 			if err != nil {
-				return nil, fmt.Errorf("%s: opening file: %v", fh.Filename, err)
+				return r, fmt.Errorf("%s: opening file: %v", fh.Filename, err)
 			}
 			defer in.Close()
 			if err := r.writeFile(fh.Filename, in); err != nil {
-				return nil, err
+				return r, err
 			}
 		}
 	}

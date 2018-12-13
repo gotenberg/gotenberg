@@ -87,11 +87,12 @@ func newContext(r *resource) (context.Context, context.CancelFunc) {
 func print(c echo.Context, p printer.Printer, r *resource) error {
 	baseFilename, err := rand.Get()
 	if err != nil {
-		return fmt.Errorf("getting result file name: %v", err)
+		return hijackErr(fmt.Errorf("getting result file name: %v", err), r)
 	}
 	filename := fmt.Sprintf("%s.pdf", baseFilename)
 	fpath := fmt.Sprintf("%s/%s", r.dirPath, filename)
 	if r.webhookURL() == "" {
+		defer r.removeAll()
 		// if no webhook URL given, run conversion
 		// and directly return the resulting PDF file
 		// or an error.
@@ -104,6 +105,7 @@ func print(c echo.Context, p printer.Printer, r *resource) error {
 	// run the following lines in a goroutine so that
 	// it doesn't block.
 	go func() {
+		defer r.removeAll()
 		if err := p.Print(fpath); err != nil {
 			c.Logger().Errorf("%v", err)
 			return
@@ -122,4 +124,11 @@ func print(c echo.Context, p printer.Printer, r *resource) error {
 		defer resp.Body.Close()
 	}()
 	return nil
+}
+
+func hijackErr(err error, r *resource) error {
+	if r != nil {
+		defer r.removeAll()
+	}
+	return err
 }
