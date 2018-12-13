@@ -29,7 +29,7 @@ func merge(c echo.Context) error {
 	if r.webhookURL() == "" {
 		// if no webhook URL given, run merge
 		// and directly return the resulting PDF file
-		// or and error.
+		// or an error.
 		if err := printer.Merge(fpaths, fpath); err != nil {
 			return err
 		}

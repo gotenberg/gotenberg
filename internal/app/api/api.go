@@ -94,7 +94,7 @@ func print(c echo.Context, p printer.Printer, r *resource) error {
 	if r.webhookURL() == "" {
 		// if no webhook URL given, run conversion
 		// and directly return the resulting PDF file
-		// or and error.
+		// or an error.
 		if err := p.Print(fpath); err != nil {
 			return err
 		}
