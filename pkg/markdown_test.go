@@ -44,3 +44,11 @@ func TestMarkdown(t *testing.T) {
 	err = os.RemoveAll(dirPath)
 	assert.Nil(t, err)
 }
+
+func TestConcurrentMarkdown(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		go func() {
+			TestMarkdown(t)
+		}()
+	}
+}

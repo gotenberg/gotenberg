@@ -37,3 +37,11 @@ func TestHTML(t *testing.T) {
 	err = os.RemoveAll(dirPath)
 	assert.Nil(t, err)
 }
+
+func TestConcurrentHTML(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		go func() {
+			TestHTML(t)
+		}()
+	}
+}

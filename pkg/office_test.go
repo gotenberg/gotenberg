@@ -28,3 +28,11 @@ func TestOffice(t *testing.T) {
 	err = os.RemoveAll(dirPath)
 	assert.Nil(t, err)
 }
+
+func TestConcurrentOffice(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		go func() {
+			TestOffice(t)
+		}()
+	}
+}

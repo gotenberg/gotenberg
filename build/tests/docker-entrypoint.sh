@@ -22,3 +22,4 @@ go build -o /usr/local/bin/gotenberg cmd/gotenberg/main.go
 gotenberg &
 sleep 10
 go test -race -cover -covermode=atomic github.com/thecodingmachine/gotenberg/pkg
+sleep 5 # allows Gotenberg to remove generated files (concurrent requests).
