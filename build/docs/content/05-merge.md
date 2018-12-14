@@ -19,7 +19,7 @@ $ curl --request POST \
     --header 'Content-Type: multipart/form-data' \
     --form files=@file.pdf \
     --form files=@file2.pdf \
-    > result.pdf
+    -o result.pdf
 ```
 
 ### Go

@@ -36,7 +36,7 @@ $ curl --request POST \
     --header 'Content-Type: multipart/form-data' \
     --form files=@index.html \
     --form files=@file.md \
-    > result.pdf
+    -o result.pdf
 ```
 
 ### Go

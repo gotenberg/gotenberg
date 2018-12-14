@@ -36,7 +36,7 @@ $ curl --request POST \
     --header 'Content-Type: multipart/form-data' \
     --form files=@document.docx \
     --form files=@document2.docx \
-    > result.pdf
+    -o result.pdf
 ```
 
 ### Go
@@ -88,7 +88,7 @@ $ curl --request POST \
     --form paperWidth=8.27 \
     --form paperHeight=11.27 \
     --form landscape=true \
-    > result.pdf
+    -o result.pdf
 ```
 
 ### Go
