@@ -1,6 +1,6 @@
 # Contributing
 
-Hi! Thank your for considering contributing to Gotenberg. You'll
+Hi! Thank you for considering contributing to Gotenberg. You'll
 find below useful information about how to contribute to the Gotenberg project.
 
 ## Contributing code
@@ -8,8 +8,9 @@ find below useful information about how to contribute to the Gotenberg project.
 ### Install from sources
 
 1. Install and run the latest version of Docker
-2. Fork this repository
-3. Clone it to your local Go environment (requires *Go* >= 1.11)
+2. Verify your Go version (>= 1.11)
+3. Fork this repository
+4. Clone it outside of your `GOPATH` (we're using Go modules)
 
 ### Working with git
 
