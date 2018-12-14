@@ -1,8 +1,9 @@
 <p align="center">
-    <img src="https://user-images.githubusercontent.com/8983173/49701110-4c8b9280-fbe8-11e8-895c-a4b9c7d2515b.png" alt="Gotenberg logo" width="250" height="250" />
+    <img src="https://user-images.githubusercontent.com/8983173/50009948-84b01e00-ffb8-11e8-850b-fc240382c626.png" alt="Gotenberg logo" width="250" height="250" />
 </p>
 <h3 align="center">Gotenberg</h3>
 <p align="center">A Docker-powered stateless API for converting HTML, Markdown and Office documents to PDF.</p>
+<p align="center"><a href="https://thecodingmachine.github.io/gotenberg">Documentation</a> &#183; <a href="/.github/CONTRIBUTING.md">Contributing</a></p>
 
 ---
 
