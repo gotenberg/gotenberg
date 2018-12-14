@@ -21,4 +21,4 @@ RUN go get github.com/apex/static/cmd/static-docs
 
 WORKDIR /docs
 
-CMD [ "static-docs", "--in", "build/docs", "--out", "docs", "--theme", "gotenberg", "--title", "Gotenberg", "--subtitle", "A Docker-powered stateless API for converting HTML, Markdown and Office documents to PDF." ]
+CMD [ "static-docs", "--in", "build/docs/content", "--out", "docs", "--theme", "gotenberg", "--title", "Gotenberg", "--subtitle", "A Docker-powered stateless API for converting HTML, Markdown and Office documents to PDF." ]
