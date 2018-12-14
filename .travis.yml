@@ -22,4 +22,4 @@ jobs:
       script: make tests
     - stage: publish
       if: tag IS present
-      script: ./scripts/publish.sh $TRAVIS_TAG $DOCKER_USER $DOCKER_PASS
+      script: make publish VERSION=$TRAVIS_TAG DOCKER_USER=$DOCKER_USER DOCKER_PASSWORD=$DOCKER_PASS

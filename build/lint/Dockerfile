@@ -2,8 +2,6 @@ ARG GOLANG_VERSION
 
 FROM golang:${GOLANG_VERSION}-stretch
 
-LABEL authors="Julien Neuhart <j.neuhart@thecodingmachine.com>"
-
 # |--------------------------------------------------------------------------
 # | GolangCI-Lint
 # |--------------------------------------------------------------------------

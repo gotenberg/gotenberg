@@ -4,8 +4,6 @@ FROM golang:${GOLANG_VERSION}-stretch AS golang
 
 FROM thecodingmachine/gotenberg:base
 
-LABEL authors="Julien Neuhart <j.neuhart@thecodingmachine.com>"
-
 # |--------------------------------------------------------------------------
 # | Common libraries
 # |--------------------------------------------------------------------------

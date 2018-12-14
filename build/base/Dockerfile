@@ -1,7 +1,5 @@
 FROM debian:stretch-slim
 
-LABEL authors="Julien Neuhart <j.neuhart@thecodingmachine.com>"
-
 # |--------------------------------------------------------------------------
 # | Common libraries
 # |--------------------------------------------------------------------------

@@ -58,6 +58,10 @@
                   <a href="#links">Links</a>
                 </div>
               
+                <div class="item">
+                  <a href="#"></a>
+                </div>
+              
             </div>
           </div>
 
@@ -157,15 +161,15 @@ which will be converted to PDF.</p>
 <p>For instance:</p>
 
 <pre class="chroma"><span class="cp">&lt;!doctype html&gt;</span>
-<span class="p">&lt;</span><span class="nt">html</span> <span class="na">lang</span><span class="o">=</span><span class="s">&#34;en&#34;</span><span class="p"></span><span class="p">&gt;</span>
-  <span class="p">&lt;</span><span class="nt">head</span><span class="p"></span><span class="p">&gt;</span>
-    <span class="p">&lt;</span><span class="nt">meta</span> <span class="na">charset</span><span class="o">=</span><span class="s">&#34;utf-8&#34;</span><span class="p"></span><span class="p">&gt;</span>
-    <span class="p">&lt;</span><span class="nt">title</span><span class="p"></span><span class="p">&gt;</span>My PDF<span class="p">&lt;</span><span class="p">/</span><span class="nt">title</span><span class="p">&gt;</span>
-  <span class="p">&lt;</span><span class="p">/</span><span class="nt">head</span><span class="p">&gt;</span>
-  <span class="p">&lt;</span><span class="nt">body</span><span class="p"></span><span class="p">&gt;</span>
-    <span class="p">&lt;</span><span class="nt">h1</span><span class="p"></span><span class="p">&gt;</span>Hello world!<span class="p">&lt;</span><span class="p">/</span><span class="nt">h1</span><span class="p">&gt;</span>
-  <span class="p">&lt;</span><span class="p">/</span><span class="nt">body</span><span class="p">&gt;</span>
-<span class="p">&lt;</span><span class="p">/</span><span class="nt">html</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">html</span> <span class="na">lang</span><span class="o">=</span><span class="s">&#34;en&#34;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">head</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">meta</span> <span class="na">charset</span><span class="o">=</span><span class="s">&#34;utf-8&#34;</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">title</span><span class="p">&gt;</span>My PDF<span class="p">&lt;/</span><span class="nt">title</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">head</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">body</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">h1</span><span class="p">&gt;</span>Hello world!<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">body</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">html</span><span class="p">&gt;</span>
 </pre>
 
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.basic.c_url" href="#html.basic.c_url">
@@ -185,11 +189,11 @@ which will be converted to PDF.</p>
 
 <pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg/pkg&#34;</span>
 
-<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
-    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nx">NewHTMLRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewHTMLRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">)</span>
     <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
-    <span class="nx">c</span><span class="p">.</span><span class="nx">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+    <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
 <span class="p">}</span>
 </pre>
 
@@ -197,16 +201,16 @@ which will be converted to PDF.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma"><span class="x">use TheCodingMachine\Gotenberg\Client;
-</span><span class="x">use TheCodingMachine\Gotenberg\DocumentFactory;
-</span><span class="x">use TheCodingMachine\Gotenberg\HTMLRequest;
-</span><span class="x">
-</span><span class="x">$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-</span><span class="x">$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
-</span><span class="x">$request = new HTMLRequest($index);
-</span><span class="x">$dirPath = &#34;/foo&#34;;
-</span><span class="x">$filename = $client-&gt;store($request, $dirPath);
-</span><span class="x"></span></pre>
+<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\HTMLRequest;
+
+$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
+$request = new HTMLRequest($index);
+$dirPath = &#34;/foo&#34;;
+$filename = $client-&gt;store($request, $dirPath);
+</pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.header_and_footer" href="#html.header_and_footer">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
@@ -217,21 +221,21 @@ Respectively, a file named <code>header.html</code> and <code>footer.html</code>
 
 <p>Each of them <strong>has to be a complete HTML document</strong>:</p>
 
-<pre class="chroma"><span class="p">&lt;</span><span class="nt">html</span><span class="p"></span><span class="p">&gt;</span>
-    <span class="p">&lt;</span><span class="nt">head</span><span class="p"></span><span class="p">&gt;</span>
-        <span class="p">&lt;</span><span class="nt">style</span><span class="p"></span><span class="p">&gt;</span>
+<pre class="chroma"><span class="p">&lt;</span><span class="nt">html</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">head</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">style</span><span class="p">&gt;</span>
             <span class="nt">body</span> <span class="p">{</span>
                 <span class="k">font-size</span><span class="p">:</span> <span class="mi">8</span><span class="kt">rem</span><span class="p">;</span>
                 <span class="k">margin</span><span class="p">:</span> <span class="mi">4</span><span class="kt">rem</span> <span class="kc">auto</span><span class="p">;</span>
             <span class="p">}</span>
-        <span class="p">&lt;</span><span class="p">/</span><span class="nt">style</span><span class="p">&gt;</span>
-    <span class="p">&lt;</span><span class="p">/</span><span class="nt">head</span><span class="p">&gt;</span>
-    <span class="p">&lt;</span><span class="nt">body</span><span class="p"></span><span class="p">&gt;</span>
-        <span class="p">&lt;</span><span class="nt">p</span><span class="p"></span><span class="p">&gt;</span>
-            <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&#34;pageNumber&#34;</span><span class="p"></span><span class="p">&gt;&lt;</span><span class="p">/</span><span class="nt">span</span><span class="p">&gt;</span> of <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&#34;totalPages&#34;</span><span class="p"></span><span class="p">&gt;&lt;</span><span class="p">/</span><span class="nt">span</span><span class="p">&gt;</span>
-        <span class="p">&lt;</span><span class="p">/</span><span class="nt">p</span><span class="p">&gt;</span>
-    <span class="p">&lt;</span><span class="p">/</span><span class="nt">body</span><span class="p">&gt;</span>
-<span class="p">&lt;</span><span class="p">/</span><span class="nt">html</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">style</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">head</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">body</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>
+            <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&#34;pageNumber&#34;</span><span class="p">&gt;&lt;/</span><span class="nt">span</span><span class="p">&gt;</span> of <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&#34;totalPages&#34;</span><span class="p">&gt;&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">body</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">html</span><span class="p">&gt;</span>
 </pre>
 
 <p>The following classes allow you to inject printing values:</p>
@@ -267,13 +271,13 @@ Also, <code>footer.html</code> CSS properties override the ones from <code>heade
 
 <pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg/pkg&#34;</span>
 
-<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
-    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nx">NewHTMLRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">)</span>
-    <span class="nx">req</span><span class="p">.</span><span class="nx">SetHeader</span><span class="p">(</span><span class="s">&#34;header.html&#34;</span><span class="p">)</span>
-    <span class="nx">req</span><span class="p">.</span><span class="nx">SetFooter</span><span class="p">(</span><span class="s">&#34;footer.html&#34;</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewHTMLRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nf">SetHeader</span><span class="p">(</span><span class="s">&#34;header.html&#34;</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nf">SetFooter</span><span class="p">(</span><span class="s">&#34;footer.html&#34;</span><span class="p">)</span>
     <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
-    <span class="nx">c</span><span class="p">.</span><span class="nx">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+    <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
 <span class="p">}</span>
 </pre>
 
@@ -281,20 +285,20 @@ Also, <code>footer.html</code> CSS properties override the ones from <code>heade
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma"><span class="x">use TheCodingMachine\Gotenberg\Client;
-</span><span class="x">use TheCodingMachine\Gotenberg\DocumentFactory;
-</span><span class="x">use TheCodingMachine\Gotenberg\HTMLRequest;
-</span><span class="x">
-</span><span class="x">$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-</span><span class="x">$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
-</span><span class="x">$header = DocumentFactory::makeFromPath(&#39;header.html&#39;, &#39;header.html&#39;);
-</span><span class="x">$footer = DocumentFactory::makeFromPath(&#39;footer.html&#39;, &#39;footer.html&#39;);
-</span><span class="x">$request = new HTMLRequest($index);
-</span><span class="x">$request-&gt;setHeader($header);
-</span><span class="x">$request-&gt;setFooter($footer);
-</span><span class="x">$dirPath = &#34;/foo&#34;;
-</span><span class="x">$filename = $client-&gt;store($request, $dirPath);
-</span><span class="x"></span></pre>
+<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\HTMLRequest;
+
+$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
+$header = DocumentFactory::makeFromPath(&#39;header.html&#39;, &#39;header.html&#39;);
+$footer = DocumentFactory::makeFromPath(&#39;footer.html&#39;, &#39;footer.html&#39;);
+$request = new HTMLRequest($index);
+$request-&gt;setHeader($header);
+$request-&gt;setFooter($footer);
+$dirPath = &#34;/foo&#34;;
+$filename = $client-&gt;store($request, $dirPath);
+</pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.assets" href="#html.assets">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
@@ -308,31 +312,31 @@ are on the same level as the <code>index.html</code> file.</p>
 <p>In others words, this will work:</p>
 
 <pre class="chroma"><span class="cp">&lt;!doctype html&gt;</span>
-<span class="p">&lt;</span><span class="nt">html</span> <span class="na">lang</span><span class="o">=</span><span class="s">&#34;en&#34;</span><span class="p"></span><span class="p">&gt;</span>
-  <span class="p">&lt;</span><span class="nt">head</span><span class="p"></span><span class="p">&gt;</span>
-    <span class="p">&lt;</span><span class="nt">meta</span> <span class="na">charset</span><span class="o">=</span><span class="s">&#34;utf-8&#34;</span><span class="p"></span><span class="p">&gt;</span>
-    <span class="p">&lt;</span><span class="nt">title</span><span class="p"></span><span class="p">&gt;</span>My PDF<span class="p">&lt;</span><span class="p">/</span><span class="nt">title</span><span class="p">&gt;</span>
-  <span class="p">&lt;</span><span class="p">/</span><span class="nt">head</span><span class="p">&gt;</span>
-  <span class="p">&lt;</span><span class="nt">body</span><span class="p"></span><span class="p">&gt;</span>
-    <span class="p">&lt;</span><span class="nt">h1</span><span class="p"></span><span class="p">&gt;</span>Hello world!<span class="p">&lt;</span><span class="p">/</span><span class="nt">h1</span><span class="p">&gt;</span>
-    <span class="p">&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="s">&#34;img.png&#34;</span><span class="p"></span><span class="p">&gt;</span>
-  <span class="p">&lt;</span><span class="p">/</span><span class="nt">body</span><span class="p">&gt;</span>
-<span class="p">&lt;</span><span class="p">/</span><span class="nt">html</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">html</span> <span class="na">lang</span><span class="o">=</span><span class="s">&#34;en&#34;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">head</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">meta</span> <span class="na">charset</span><span class="o">=</span><span class="s">&#34;utf-8&#34;</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">title</span><span class="p">&gt;</span>My PDF<span class="p">&lt;/</span><span class="nt">title</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">head</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">body</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">h1</span><span class="p">&gt;</span>Hello world!<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="s">&#34;img.png&#34;</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">body</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">html</span><span class="p">&gt;</span>
 </pre>
 
 <p>But this won’t:</p>
 
 <pre class="chroma"><span class="cp">&lt;!doctype html&gt;</span>
-<span class="p">&lt;</span><span class="nt">html</span> <span class="na">lang</span><span class="o">=</span><span class="s">&#34;en&#34;</span><span class="p"></span><span class="p">&gt;</span>
-  <span class="p">&lt;</span><span class="nt">head</span><span class="p"></span><span class="p">&gt;</span>
-    <span class="p">&lt;</span><span class="nt">meta</span> <span class="na">charset</span><span class="o">=</span><span class="s">&#34;utf-8&#34;</span><span class="p"></span><span class="p">&gt;</span>
-    <span class="p">&lt;</span><span class="nt">title</span><span class="p"></span><span class="p">&gt;</span>My PDF<span class="p">&lt;</span><span class="p">/</span><span class="nt">title</span><span class="p">&gt;</span>
-  <span class="p">&lt;</span><span class="p">/</span><span class="nt">head</span><span class="p">&gt;</span>
-  <span class="p">&lt;</span><span class="nt">body</span><span class="p"></span><span class="p">&gt;</span>
-    <span class="p">&lt;</span><span class="nt">h1</span><span class="p"></span><span class="p">&gt;</span>Hello world!<span class="p">&lt;</span><span class="p">/</span><span class="nt">h1</span><span class="p">&gt;</span>
-    <span class="p">&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="s">&#34;/foo/img.png&#34;</span><span class="p"></span><span class="p">&gt;</span>
-  <span class="p">&lt;</span><span class="p">/</span><span class="nt">body</span><span class="p">&gt;</span>
-<span class="p">&lt;</span><span class="p">/</span><span class="nt">html</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">html</span> <span class="na">lang</span><span class="o">=</span><span class="s">&#34;en&#34;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">head</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">meta</span> <span class="na">charset</span><span class="o">=</span><span class="s">&#34;utf-8&#34;</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">title</span><span class="p">&gt;</span>My PDF<span class="p">&lt;/</span><span class="nt">title</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">head</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">body</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">h1</span><span class="p">&gt;</span>Hello world!<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="s">&#34;/foo/img.png&#34;</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">body</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">html</span><span class="p">&gt;</span>
 </pre>
 
 <p>You may also use <em>remote</em> paths for Google fonts, images and so on.</p>
@@ -362,16 +366,16 @@ see to the <a href="#office.fonts">fonts section</a>.</p>
 
 <pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg/pkg&#34;</span>
 
-<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
-    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nx">NewHTMLRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">)</span>
-    <span class="nx">req</span><span class="p">.</span><span class="nx">SetAssets</span><span class="p">([]</span><span class="kt">string</span><span class="p">{</span>
+    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewHTMLRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nf">SetAssets</span><span class="p">([]</span><span class="kt">string</span><span class="p">{</span>
         <span class="s">&#34;font.woff&#34;</span><span class="p">,</span>
         <span class="s">&#34;img.gif&#34;</span><span class="p">,</span>
         <span class="s">&#34;style.css&#34;</span><span class="p">,</span>
     <span class="p">})</span>
     <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
-    <span class="nx">c</span><span class="p">.</span><span class="nx">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+    <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
 <span class="p">}</span>
 </pre>
 
@@ -379,22 +383,22 @@ see to the <a href="#office.fonts">fonts section</a>.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma"><span class="x">use TheCodingMachine\Gotenberg\Client;
-</span><span class="x">use TheCodingMachine\Gotenberg\DocumentFactory;
-</span><span class="x">use TheCodingMachine\Gotenberg\HTMLRequest;
-</span><span class="x">
-</span><span class="x">$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-</span><span class="x">$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
-</span><span class="x">$assets = [
-</span><span class="x">    DocumentFactory::makeFromPath(&#39;style.css&#39;, &#39;style.css&#39;),
-</span><span class="x">    DocumentFactory::makeFromPath(&#39;img.png&#39;, &#39;img.png&#39;),
-</span><span class="x">    DocumentFactory::makeFromPath(&#39;font.woff&#39;, &#39;font.woff&#39;),
-</span><span class="x">];
-</span><span class="x">$request = new HTMLRequest($index);
-</span><span class="x">$request-&gt;setAssets($assets);
-</span><span class="x">$dirPath = &#34;/foo&#34;;
-</span><span class="x">$filename = $client-&gt;store($request, $dirPath);
-</span><span class="x"></span></pre>
+<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\HTMLRequest;
+
+$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
+$assets = [
+    DocumentFactory::makeFromPath(&#39;style.css&#39;, &#39;style.css&#39;),
+    DocumentFactory::makeFromPath(&#39;img.png&#39;, &#39;img.png&#39;),
+    DocumentFactory::makeFromPath(&#39;font.woff&#39;, &#39;font.woff&#39;),
+];
+$request = new HTMLRequest($index);
+$request-&gt;setAssets($assets);
+$dirPath = &#34;/foo&#34;;
+$filename = $client-&gt;store($request, $dirPath);
+</pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.paper_size_margins_orientation" href="#html.paper_size_margins_orientation">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
@@ -433,14 +437,14 @@ Also, you have to set both <code>paperWidth</code> and <code>paperHeight</code>.
 
 <pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg/pkg&#34;</span>
 
-<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
-    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nx">NewHTMLRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">)</span>
-    <span class="nx">req</span><span class="p">.</span><span class="nx">SetPaperSize</span><span class="p">(</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">A4</span><span class="p">)</span>
-    <span class="nx">req</span><span class="p">.</span><span class="nx">SetMargins</span><span class="p">(</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">NoMargins</span><span class="p">)</span>
-    <span class="nx">req</span><span class="p">.</span><span class="nx">SetLandscape</span><span class="p">(</span><span class="kc">true</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewHTMLRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nf">SetPaperSize</span><span class="p">(</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">A4</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nf">SetMargins</span><span class="p">(</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">NoMargins</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nf">SetLandscape</span><span class="p">(</span><span class="kc">true</span><span class="p">)</span>
     <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
-    <span class="nx">c</span><span class="p">.</span><span class="nx">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+    <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
 <span class="p">}</span>
 </pre>
 
@@ -448,20 +452,20 @@ Also, you have to set both <code>paperWidth</code> and <code>paperHeight</code>.
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma"><span class="x">use TheCodingMachine\Gotenberg\Client;
-</span><span class="x">use TheCodingMachine\Gotenberg\DocumentFactory;
-</span><span class="x">use TheCodingMachine\Gotenberg\HTMLRequest;
-</span><span class="x">use TheCodingMachine\Gotenberg\Request;
-</span><span class="x">
-</span><span class="x">$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-</span><span class="x">$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
-</span><span class="x">$request = new HTMLRequest($index);
-</span><span class="x">$request-&gt;setPaperSize(Request::A4);
-</span><span class="x">$request-&gt;setMargins(Request::NO_MARGINS);
-</span><span class="x">$request-&gt;setLandscape(true);
-</span><span class="x">$dirPath = &#34;/foo&#34;;
-</span><span class="x">$filename = $client-&gt;store($request, $dirPath);
-</span><span class="x"></span></pre>
+<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\HTMLRequest;
+use TheCodingMachine\Gotenberg\Request;
+
+$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
+$request = new HTMLRequest($index);
+$request-&gt;setPaperSize(Request::A4);
+$request-&gt;setMargins(Request::NO_MARGINS);
+$request-&gt;setLandscape(true);
+$dirPath = &#34;/foo&#34;;
+$filename = $client-&gt;store($request, $dirPath);
+</pre>
 
               </div>
             
@@ -485,15 +489,15 @@ in the file <code>index.html</code>. This function will convert a given markdown
 <p>For instance:</p>
 
 <pre class="chroma"><span class="cp">&lt;!doctype html&gt;</span>
-<span class="p">&lt;</span><span class="nt">html</span> <span class="na">lang</span><span class="o">=</span><span class="s">&#34;en&#34;</span><span class="p"></span><span class="p">&gt;</span>
-  <span class="p">&lt;</span><span class="nt">head</span><span class="p"></span><span class="p">&gt;</span>
-    <span class="p">&lt;</span><span class="nt">meta</span> <span class="na">charset</span><span class="o">=</span><span class="s">&#34;utf-8&#34;</span><span class="p"></span><span class="p">&gt;</span>
-    <span class="p">&lt;</span><span class="nt">title</span><span class="p"></span><span class="p">&gt;</span>My PDF<span class="p">&lt;</span><span class="p">/</span><span class="nt">title</span><span class="p">&gt;</span>
-  <span class="p">&lt;</span><span class="p">/</span><span class="nt">head</span><span class="p">&gt;</span>
-  <span class="p">&lt;</span><span class="nt">body</span><span class="p"></span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">html</span> <span class="na">lang</span><span class="o">=</span><span class="s">&#34;en&#34;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">head</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">meta</span> <span class="na">charset</span><span class="o">=</span><span class="s">&#34;utf-8&#34;</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">title</span><span class="p">&gt;</span>My PDF<span class="p">&lt;/</span><span class="nt">title</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">head</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">body</span><span class="p">&gt;</span>
     {{ toHTML .DirPath &#34;file.md&#34; }}
-  <span class="p">&lt;</span><span class="p">/</span><span class="nt">body</span><span class="p">&gt;</span>
-<span class="p">&lt;</span><span class="p">/</span><span class="nt">html</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">body</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">html</span><span class="p">&gt;</span>
 </pre>
 
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="markdown.basic.c_url" href="#markdown.basic.c_url">
@@ -514,11 +518,11 @@ in the file <code>index.html</code>. This function will convert a given markdown
 
 <pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg/pkg&#34;</span>
 
-<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
-    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nx">NewMarkdownRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">,</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;file.md&#34;</span><span class="p">})</span>
+    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewMarkdownRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">,</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;file.md&#34;</span><span class="p">})</span>
     <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
-    <span class="nx">c</span><span class="p">.</span><span class="nx">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+    <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
 <span class="p">}</span>
 </pre>
 
@@ -526,19 +530,19 @@ in the file <code>index.html</code>. This function will convert a given markdown
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma"><span class="x">use TheCodingMachine\Gotenberg\Client;
-</span><span class="x">use TheCodingMachine\Gotenberg\DocumentFactory;
-</span><span class="x">use TheCodingMachine\Gotenberg\MarkdownRequest;
-</span><span class="x">
-</span><span class="x">$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-</span><span class="x">$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
-</span><span class="x">$markdowns = [
-</span><span class="x">    DocumentFactory::makeFromPath(&#39;file.md&#39;, &#39;file.md&#39;),
-</span><span class="x">];
-</span><span class="x">$request = new MarkdownRequest($index, $markdowns);
-</span><span class="x">$dirPath = &#34;/foo&#34;;
-</span><span class="x">$filename = $client-&gt;store($request, $dirPath);
-</span><span class="x"></span></pre>
+<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\MarkdownRequest;
+
+$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
+$markdowns = [
+    DocumentFactory::makeFromPath(&#39;file.md&#39;, &#39;file.md&#39;),
+];
+$request = new MarkdownRequest($index, $markdowns);
+$dirPath = &#34;/foo&#34;;
+$filename = $client-&gt;store($request, $dirPath);
+</pre>
 
               </div>
             
@@ -596,11 +600,11 @@ See the <a href="#scalability">scalability section</a> to find how to mitigate t
 
 <pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg/pkg&#34;</span>
 
-<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
-    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nx">NewOfficeRequest</span><span class="p">([]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;document.docx&#34;</span><span class="p">,</span> <span class="s">&#34;document2.docx&#34;</span><span class="p">})</span>
+    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewOfficeRequest</span><span class="p">([]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;document.docx&#34;</span><span class="p">,</span> <span class="s">&#34;document2.docx&#34;</span><span class="p">})</span>
     <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
-    <span class="nx">c</span><span class="p">.</span><span class="nx">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+    <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
 <span class="p">}</span>
 </pre>
 
@@ -608,19 +612,19 @@ See the <a href="#scalability">scalability section</a> to find how to mitigate t
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma"><span class="x">use TheCodingMachine\Gotenberg\Client;
-</span><span class="x">use TheCodingMachine\Gotenberg\DocumentFactory;
-</span><span class="x">use TheCodingMachine\Gotenberg\OfficeRequest;
-</span><span class="x">
-</span><span class="x">$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-</span><span class="x">$files = [
-</span><span class="x">    DocumentFactory::makeFromPath(&#39;document.docx&#39;, &#39;document.docx&#39;),
-</span><span class="x">    DocumentFactory::makeFromPath(&#39;document2.docx&#39;, &#39;document2.docx&#39;),
-</span><span class="x">];
-</span><span class="x">$request = new OfficeRequest($files);
-</span><span class="x">$dirPath = &#34;/foo&#34;;
-</span><span class="x">$filename = $client-&gt;store($request, $dirPath);
-</span><span class="x"></span></pre>
+<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\OfficeRequest;
+
+$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+$files = [
+    DocumentFactory::makeFromPath(&#39;document.docx&#39;, &#39;document.docx&#39;),
+    DocumentFactory::makeFromPath(&#39;document2.docx&#39;, &#39;document2.docx&#39;),
+];
+$request = new OfficeRequest($files);
+$dirPath = &#34;/foo&#34;;
+$filename = $client-&gt;store($request, $dirPath);
+</pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="office.paper_size_and_orientation" href="#office.paper_size_and_orientation">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
@@ -655,13 +659,13 @@ Also, you have to set both <code>paperWidth</code> and <code>paperHeight</code>.
 
 <pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg/pkg&#34;</span>
 
-<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
-    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nx">NewOfficeRequest</span><span class="p">([]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;document.docx&#34;</span><span class="p">})</span>
-    <span class="nx">req</span><span class="p">.</span><span class="nx">SetPaperSize</span><span class="p">(</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">A4</span><span class="p">)</span>
-    <span class="nx">req</span><span class="p">.</span><span class="nx">SetLandscape</span><span class="p">(</span><span class="kc">true</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewOfficeRequest</span><span class="p">([]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;document.docx&#34;</span><span class="p">})</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nf">SetPaperSize</span><span class="p">(</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">A4</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nf">SetLandscape</span><span class="p">(</span><span class="kc">true</span><span class="p">)</span>
     <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
-    <span class="nx">c</span><span class="p">.</span><span class="nx">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+    <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
 <span class="p">}</span>
 </pre>
 
@@ -669,20 +673,20 @@ Also, you have to set both <code>paperWidth</code> and <code>paperHeight</code>.
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma"><span class="x">use TheCodingMachine\Gotenberg\Client;
-</span><span class="x">use TheCodingMachine\Gotenberg\DocumentFactory;
-</span><span class="x">use TheCodingMachine\Gotenberg\OfficeRequest;
-</span><span class="x">
-</span><span class="x">$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-</span><span class="x">$files = [
-</span><span class="x">    DocumentFactory::makeFromPath(&#39;document.docx&#39;, &#39;document.docx&#39;),
-</span><span class="x">];
-</span><span class="x">$request = new OfficeRequest($files);
-</span><span class="x">$request-&gt;setPaperSize(Request::A4);
-</span><span class="x">$request-&gt;setLandscape(true);
-</span><span class="x">$dirPath = &#34;/foo&#34;;
-</span><span class="x">$filename = $client-&gt;store($request, $dirPath);
-</span><span class="x"></span></pre>
+<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\OfficeRequest;
+
+$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+$files = [
+    DocumentFactory::makeFromPath(&#39;document.docx&#39;, &#39;document.docx&#39;),
+];
+$request = new OfficeRequest($files);
+$request-&gt;setPaperSize(Request::A4);
+$request-&gt;setLandscape(true);
+$dirPath = &#34;/foo&#34;;
+$filename = $client-&gt;store($request, $dirPath);
+</pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="office.fonts" href="#office.fonts">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
@@ -732,11 +736,11 @@ will merge them and return the resulting PDF file.</p>
 
 <pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg/pkg&#34;</span>
 
-<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
-    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nx">NewMergeRequest</span><span class="p">([]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;file.pdf&#34;</span><span class="p">,</span> <span class="s">&#34;file2.pdf&#34;</span><span class="p">})</span>
+    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewMergeRequest</span><span class="p">([]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;file.pdf&#34;</span><span class="p">,</span> <span class="s">&#34;file2.pdf&#34;</span><span class="p">})</span>
     <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
-    <span class="nx">c</span><span class="p">.</span><span class="nx">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+    <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
 <span class="p">}</span>
 </pre>
 
@@ -744,19 +748,19 @@ will merge them and return the resulting PDF file.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma"><span class="x">use TheCodingMachine\Gotenberg\Client;
-</span><span class="x">use TheCodingMachine\Gotenberg\DocumentFactory;
-</span><span class="x">use TheCodingMachine\Gotenberg\MergeRequest;
-</span><span class="x">
-</span><span class="x">$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-</span><span class="x">$files = [
-</span><span class="x">    DocumentFactory::makeFromPath(&#39;file.pdf&#39;, &#39;file.pdf&#39;),
-</span><span class="x">    DocumentFactory::makeFromPath(&#39;file2.pdf&#39;, &#39;file2.pdf&#39;),
-</span><span class="x">];
-</span><span class="x">$request = new MergeRequest($files);
-</span><span class="x">$dirPath = &#34;/foo&#34;;
-</span><span class="x">$filename = $client-&gt;store($request, $dirPath);
-</span><span class="x"></span></pre>
+<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\MergeRequest;
+
+$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+$files = [
+    DocumentFactory::makeFromPath(&#39;file.pdf&#39;, &#39;file.pdf&#39;),
+    DocumentFactory::makeFromPath(&#39;file2.pdf&#39;, &#39;file2.pdf&#39;),
+];
+$request = new MergeRequest($files);
+$dirPath = &#34;/foo&#34;;
+$filename = $client-&gt;store($request, $dirPath);
+</pre>
 
               </div>
             
@@ -792,12 +796,12 @@ to given URL.</p>
 
 <pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg/pkg&#34;</span>
 
-<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
-    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nx">NewHTMLRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">)</span>
-    <span class="nx">req</span><span class="p">.</span><span class="nx">SetWebhookURL</span><span class="p">(</span><span class="s">&#34;http://myapp.com/webhook/&#34;</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewHTMLRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nf">SetWebhookURL</span><span class="p">(</span><span class="s">&#34;http://myapp.com/webhook/&#34;</span><span class="p">)</span>
     <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
-    <span class="nx">resp</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">c</span><span class="p">.</span><span class="nx">Post</span><span class="p">(</span><span class="nx">req</span><span class="p">)</span>
+    <span class="nx">resp</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">c</span><span class="p">.</span><span class="nf">Post</span><span class="p">(</span><span class="nx">req</span><span class="p">)</span>
 <span class="p">}</span>
 </pre>
 
@@ -805,16 +809,16 @@ to given URL.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma"><span class="x">use TheCodingMachine\Gotenberg\Client;
-</span><span class="x">use TheCodingMachine\Gotenberg\DocumentFactory;
-</span><span class="x">use TheCodingMachine\Gotenberg\HTMLRequest;
-</span><span class="x">
-</span><span class="x">$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-</span><span class="x">$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
-</span><span class="x">$request = new HTMLRequest($index);
-</span><span class="x">$request-&gt;setWebhookURL(&#39;http://myapp.com/webhook/&#39;);
-</span><span class="x">$resp = $client-&gt;post($request);
-</span><span class="x"></span></pre>
+<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\HTMLRequest;
+
+$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
+$request = new HTMLRequest($index);
+$request-&gt;setWebhookURL(&#39;http://myapp.com/webhook/&#39;);
+$resp = $client-&gt;post($request);
+</pre>
 
               </div>
             
@@ -856,6 +860,74 @@ redirect a request to a Gotenberg container according to the round-robin strateg
 </ul>
 
 <p>Psst: TheCodingMachine is always looking for <a href="https://coders.thecodingmachine.com">talented coders</a>.</p>
+
+              </div>
+            
+              <div class="Page" id="">
+                <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="" href="#">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a></h1>
+                <p>ARG GOLANG_VERSION</p>
+
+<p>FROM golang:${GOLANG_VERSION}-stretch</p>
+
+<h1 class="Heading"><a class="Anchor" aria-hidden="true" id="" href="#">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>|————————————————————————–</h1>
+
+<h1 class="Heading"><a class="Anchor" aria-hidden="true" id="static" href="#static">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>| static</h1>
+
+<h1 class="Heading"><a class="Anchor" aria-hidden="true" id="" href="#">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>|————————————————————————–</h1>
+
+<h1 class="Heading"><a class="Anchor" aria-hidden="true" id="" href="#">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>|</h1>
+
+<h1 class="Heading"><a class="Anchor" aria-hidden="true" id="installs_the_static_site_anti_framework_general_purpose_library" href="#installs_the_static_site_anti_framework_general_purpose_library">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>| Installs the static site anti-framework – general-purpose library,</h1>
+
+<h1 class="Heading"><a class="Anchor" aria-hidden="true" id="purpose_built_commands_for_various_domains" href="#purpose_built_commands_for_various_domains">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>| purpose-built commands for various domains.</h1>
+
+<h1 class="Heading"><a class="Anchor" aria-hidden="true" id="" href="#">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>|</h1>
+
+<p>RUN go get github.com/apex/static/cmd/static-docs</p>
+
+<h1 class="Heading"><a class="Anchor" aria-hidden="true" id="" href="#">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>|————————————————————————–</h1>
+
+<h1 class="Heading"><a class="Anchor" aria-hidden="true" id="final_touch" href="#final_touch">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>| Final touch</h1>
+
+<h1 class="Heading"><a class="Anchor" aria-hidden="true" id="" href="#">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>|————————————————————————–</h1>
+
+<h1 class="Heading"><a class="Anchor" aria-hidden="true" id="" href="#">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>|</h1>
+
+<h1 class="Heading"><a class="Anchor" aria-hidden="true" id="last_instructions_of_this_build" href="#last_instructions_of_this_build">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>| Last instructions of this build.</h1>
+
+<h1 class="Heading"><a class="Anchor" aria-hidden="true" id="" href="#">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>|</h1>
+
+<p>WORKDIR /docs</p>
+
+<p>CMD [ “static-docs”, “–in”, “build/docs”, “–out”, “docs”, “–theme”, “gotenberg”, “–title”, “Gotenberg”, “–subtitle”, “A Docker-powered stateless API for converting HTML, Markdown and Office documents to PDF.” ]</p>
 
               </div>
             
