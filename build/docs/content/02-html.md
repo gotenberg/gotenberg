@@ -33,7 +33,7 @@ $ curl --request POST \
     --url http://localhost:3000/convert/html \
     --header 'Content-Type: multipart/form-data' \
     --form files=@index.html \
-    > result.pdf
+    -o result.pdf
 ```
 
 ### Go
@@ -107,7 +107,7 @@ $ curl --request POST \
     --form files=@index.html \
     --form files=@header.html \
     --form files=@footer.html \
-    > result.pdf
+    -o result.pdf
 ```
 
 ### Go
@@ -197,7 +197,7 @@ $ curl --request POST \
     --form files=@style.css \
     --form files=@img.png \
     --form files=@font.woff \
-    > result.pdf
+    -o result.pdf
 ```
 
 ### Go
@@ -261,7 +261,7 @@ $ curl --request POST \
     --form marginLeft=0 \
     --form marginRight=0 \
     --form landscape=true \
-    > result.pdf
+    -o result.pdf
 ```
 
 ### Go
