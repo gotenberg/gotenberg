@@ -1,4 +1,4 @@
-FROM debian:stretch-slim
+FROM debian:9.5-slim
 
 # |--------------------------------------------------------------------------
 # | Common libraries
