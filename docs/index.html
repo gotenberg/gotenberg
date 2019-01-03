@@ -55,6 +55,10 @@
                 </div>
               
                 <div class="item">
+                  <a href="#liveness">Liveness</a>
+                </div>
+              
+                <div class="item">
                   <a href="#links">Links</a>
                 </div>
               
@@ -105,7 +109,7 @@
 </span><span class="w">
 </span><span class="w">  </span>gotenberg<span class="p">:</span><span class="w">
 </span><span class="w">    </span>image<span class="p">:</span><span class="w"> </span>thecodingmachine/gotenberg<span class="p">:</span><span class="m">3</span><span class="w">
-</span><span class="w"></span></pre>
+</span></pre>
 
 <blockquote>
 <p>The API will be available under <code>gotenberg:3000</code> in your Docker Compose network.</p>
@@ -695,7 +699,7 @@ $filename = $client-&gt;store($request, $dirPath);
 <pre class="chroma"><span class="k">FROM</span><span class="s"> thecodingmachine/gotenberg:3</span><span class="err">
 </span><span class="err">
 </span><span class="err"></span><span class="k">RUN</span> apt-get -y install yourfonts<span class="err">
-</span><span class="err"></span></pre>
+</span></pre>
 
               </div>
             
@@ -834,7 +838,7 @@ $resp = $client-&gt;post($request);
 </span><span class="w">
 </span><span class="w">  </span>gotenberg<span class="p">:</span><span class="w">
 </span><span class="w">    </span>image<span class="p">:</span><span class="w"> </span>thecodingmachine/gotenberg<span class="p">:</span><span class="m">3</span><span class="w">
-</span><span class="w"></span></pre>
+</span></pre>
 
 <p>You may now launch your services using:</p>
 
@@ -843,6 +847,22 @@ $resp = $client-&gt;post($request);
 
 <p>When requesting the Gotenberg service with your client(s), Docker will automatically
 redirect a request to a Gotenberg container according to the round-robin strategy.</p>
+
+              </div>
+            
+              <div class="Page" id="liveness">
+                <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="liveness" href="#liveness">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Liveness</h1>
+                <p>Gotenberg provides the endpoint <code>/ping</code> for checking the API availability with
+a simple <code>GET</code> request.</p>
+
+<p>This feature is especially useful for liveness/readiness probes in Kubernetes:</p>
+
+<ul>
+<li><a href="https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes">Pod lifecycle</a></li>
+<li><a href="https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/">Configure Liveness and Readiness Probes</a></li>
+</ul>
 
               </div>
             
