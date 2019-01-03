@@ -44,3 +44,13 @@ RUN pip3 install unoconv &&\
     # https://github.com/nextcloud/docker/issues/380
     mkdir -p /usr/share/man/man1mkdir -p /usr/share/man/man1 &&\
     apt-get -y install libreoffice
+
+# |--------------------------------------------------------------------------
+# | PDFtk
+# |--------------------------------------------------------------------------
+# |
+# | Installs PDFtk as an alternative to pdfcpu for merging PDFs.
+# | https://github.com/thecodingmachine/gotenberg/issues/29
+# |
+
+RUN apt-get -y install pdftk
