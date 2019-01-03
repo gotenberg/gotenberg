@@ -3,6 +3,7 @@ package printer
 import (
 	"fmt"
 	"io/ioutil"
+	"os/exec"
 
 	pdfcpuAPI "github.com/hhrutter/pdfcpu/pkg/api"
 	pdfcpuLog "github.com/hhrutter/pdfcpu/pkg/log"
@@ -23,9 +24,18 @@ type Printer interface {
 
 // Merge merges PDF files.
 func Merge(fpaths []string, destination string) error {
-	cmd := pdfcpuAPI.MergeCommand(fpaths, destination, pdfcpuConfig.NewDefaultConfiguration())
-	_, err := pdfcpuAPI.Merge(cmd)
-	return err
+	cmdcpu := pdfcpuAPI.MergeCommand(fpaths, destination, pdfcpuConfig.NewDefaultConfiguration())
+	_, err := pdfcpuAPI.Merge(cmdcpu)
+	if err == nil {
+		return nil
+	}
+	// if pdfcpu failed to merge PDF files...
+	// https://github.com/thecodingmachine/gotenberg/issues/29
+	var cmdArgs []string
+	cmdArgs = append(cmdArgs, fpaths...)
+	cmdArgs = append(cmdArgs, "cat", "output", destination)
+	cmd := exec.Command("pdftk", cmdArgs...)
+	return cmd.Run()
 }
 
 func writeBytesToFile(dst string, b []byte) error {
