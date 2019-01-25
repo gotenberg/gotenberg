@@ -73,7 +73,7 @@ $filename = $client->store($request, $dirPath);
 
 You may also customize the resulting PDF format.
 
-By default, it will be rendered `portrait` orientation.
+By default, it will be rendered with `portrait` orientation.
 
 ### cURL
 
