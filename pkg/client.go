@@ -81,7 +81,6 @@ type ChromeRequest interface {
 // conversion requests which will be
 // handle by unoconv.
 type UnoconvRequest interface {
-	SetPaperSize(size [2]float64)
 	SetLandscape(landscape bool)
 }
 

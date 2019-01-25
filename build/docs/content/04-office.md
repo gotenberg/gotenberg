@@ -69,14 +69,11 @@ $dirPath = "/foo";
 $filename = $client->store($request, $dirPath);
 ```
 
-## Paper size and orientation
+## Orientation
 
 You may also customize the resulting PDF format.
 
-By default, it will be rendered with `A4` size and `portrait` orientation.
-
-> Paper size has to be provided in `inches`.
-> Also, you have to set both `paperWidth` and `paperHeight`.
+By default, it will be rendered `portrait` orientation.
 
 ### cURL
 
@@ -85,8 +82,6 @@ $ curl --request POST \
     --url http://localhost:3000/convert/office \
     --header 'Content-Type: multipart/form-data' \
     --form files=@document.docx \
-    --form paperWidth=8.27 \
-    --form paperHeight=11.27 \
     --form landscape=true \
     -o result.pdf
 ```
@@ -99,7 +94,6 @@ import "github.com/thecodingmachine/gotenberg/pkg"
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
     req, _ := gotenberg.NewOfficeRequest([]string{"document.docx"})
-    req.SetPaperSize(gotenberg.A4)
     req.SetLandscape(true)
     dest := "result.pdf"
     c.Store(req, dest)
@@ -118,7 +112,6 @@ $files = [
     DocumentFactory::makeFromPath('document.docx', 'document.docx'),
 ];
 $request = new OfficeRequest($files);
-$request->setPaperSize(Request::A4);
 $request->setLandscape(true);
 $dirPath = "/foo";
 $filename = $client->store($request, $dirPath);

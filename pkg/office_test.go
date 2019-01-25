@@ -17,7 +17,6 @@ func TestOffice(t *testing.T) {
 		test.OfficeTestFilePath(t, "document.docx"),
 	})
 	require.Nil(t, err)
-	req.SetPaperSize(A4)
 	req.SetLandscape(false)
 	dirPath, err := rand.Get()
 	require.Nil(t, err)
