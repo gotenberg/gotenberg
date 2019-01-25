@@ -71,7 +71,7 @@ type Request interface {
 type ChromeRequest interface {
 	SetHeader(fpath string) error
 	SetFooter(fpath string) error
-	SetAssets(fpaths []string) error
+	SetAssets(fpaths ...string) error
 	SetPaperSize(size [2]float64)
 	SetMargins(margins [4]float64)
 	SetLandscape(isLandscape bool)

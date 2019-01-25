@@ -19,11 +19,11 @@ func TestHTML(t *testing.T) {
 	require.Nil(t, err)
 	err = req.SetFooter(test.HTMLTestFilePath(t, "footer.html"))
 	require.Nil(t, err)
-	err = req.SetAssets([]string{
+	err = req.SetAssets(
 		test.HTMLTestFilePath(t, "font.woff"),
 		test.HTMLTestFilePath(t, "img.gif"),
 		test.HTMLTestFilePath(t, "style.css"),
-	})
+	)
 	require.Nil(t, err)
 	req.SetPaperSize(A4)
 	req.SetMargins(NormalMargins)

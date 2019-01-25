@@ -48,7 +48,7 @@ func (html *HTMLRequest) SetFooter(fpath string) error {
 }
 
 // SetAssets sets assets form files.
-func (html *HTMLRequest) SetAssets(fpaths []string) error {
+func (html *HTMLRequest) SetAssets(fpaths ...string) error {
 	for _, fpath := range fpaths {
 		if !fileExists(fpath) {
 			return fmt.Errorf("%s: file does not exist", fpath)

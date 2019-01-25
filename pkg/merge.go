@@ -13,7 +13,7 @@ type MergeRequest struct {
 }
 
 // NewMergeRequest create MergeRequest.
-func NewMergeRequest(fpaths []string) (*MergeRequest, error) {
+func NewMergeRequest(fpaths ...string) (*MergeRequest, error) {
 	for _, fpath := range fpaths {
 		if !fileExists(fpath) {
 			return nil, fmt.Errorf("%s: file does not exist", fpath)
