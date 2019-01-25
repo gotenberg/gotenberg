@@ -38,12 +38,6 @@ func convertOffice(c echo.Context) error {
 		return hijackErr(errors.New("no suitable office documents to convert"), r)
 	}
 	p := &printer.Office{Context: ctx, FilePaths: fpaths}
-	paperSize, err := r.paperSize()
-	if err != nil {
-		return hijackErr(err, r)
-	}
-	p.PaperWidth = paperSize[0]
-	p.PaperHeight = paperSize[1]
 	landscape, err := r.landscape()
 	if err != nil {
 		return hijackErr(err, r)

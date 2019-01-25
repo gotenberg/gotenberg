@@ -28,12 +28,6 @@ func (office *OfficeRequest) SetWebhookURL(webhookURL string) {
 	office.values[webhookURL] = webhookURL
 }
 
-// SetPaperSize sets paperWidth and paperHeight form fields.
-func (office *OfficeRequest) SetPaperSize(size [2]float64) {
-	office.values[paperWidth] = fmt.Sprintf("%f", size[0])
-	office.values[paperHeight] = fmt.Sprintf("%f", size[1])
-}
-
 // SetLandscape sets landscape form field.
 func (office *OfficeRequest) SetLandscape(isLandscape bool) {
 	office.values[landscape] = strconv.FormatBool(isLandscape)

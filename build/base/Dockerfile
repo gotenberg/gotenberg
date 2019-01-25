@@ -31,7 +31,7 @@ RUN curl -sL https://deb.nodesource.com/setup_9.x | bash - &&\
 
 COPY --from=hack /usr/bin/pm2 /usr/bin/pm2
 COPY --from=hack /usr/share/pm2 /usr/share/pm2
-COPY --from=hack /etc/default/pm2 /usr/default/pm2
+COPY --from=hack /etc/default/pm2 /etc/default/pm2
 COPY --from=hack /etc/systemd/system/pm2.service /etc/systemd/system/pm2.service
 
 # |--------------------------------------------------------------------------
