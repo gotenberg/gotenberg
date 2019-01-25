@@ -1,3 +1,4 @@
+FROM thecodingmachine/gotenberg:3.2.0 AS hack
 FROM debian:9.5-slim
 
 # |--------------------------------------------------------------------------
@@ -19,7 +20,19 @@ RUN echo "deb http://httpredir.debian.org/debian/ stretch main contrib non-free"
 # | recovering. In our case: Chrome (headless) and Office (headless). 
 # |
 
-RUN curl -sL https://raw.githubusercontent.com/Unitech/pm2/master/packager/setup.deb.sh | bash -
+# Yep, this is dirty. The following script does not work anymore (see https://github.com/Unitech/pm2/issues/4127).
+#RUN curl -sL https://raw.githubusercontent.com/Unitech/pm2/master/packager/setup.deb.sh | bash -
+
+# Installing PM2 with Node.js and npm breaks something which prevents Google Chrome to work as expected.
+# So we just copy all PM2 related files from a previous version of Gotenberg.
+
+RUN curl -sL https://deb.nodesource.com/setup_9.x | bash - &&\
+    apt-get install -y nodejs
+
+COPY --from=hack /usr/bin/pm2 /usr/bin/pm2
+COPY --from=hack /usr/share/pm2 /usr/share/pm2
+COPY --from=hack /etc/default/pm2 /usr/default/pm2
+COPY --from=hack /etc/systemd/system/pm2.service /etc/systemd/system/pm2.service
 
 # |--------------------------------------------------------------------------
 # | Chrome
