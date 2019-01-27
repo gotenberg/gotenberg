@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,6 +13,7 @@ import (
 )
 
 const (
+	remoteURL    string = "remoteURL"
 	webhookURL   string = "webhookURL"
 	paperWidth   string = "paperWidth"
 	paperHeight  string = "paperHeight"
@@ -31,6 +33,7 @@ type resource struct {
 
 func newResource(c echo.Context) (*resource, error) {
 	v := make(map[string]string)
+	v[remoteURL] = c.FormValue(remoteURL)
 	v[webhookURL] = c.FormValue(webhookURL)
 	v[paperWidth] = c.FormValue(paperWidth)
 	v[paperHeight] = c.FormValue(paperHeight)
@@ -178,6 +181,13 @@ func (r *resource) landscape() (bool, error) {
 		return false, fmt.Errorf("landscape: %v", err)
 	}
 	return landscape, nil
+}
+
+func (r *resource) remoteURL() (string, error) {
+	if r.values[remoteURL] == "" {
+		return "", errors.New("no remote URL")
+	}
+	return r.values[remoteURL], nil
 }
 
 func (r *resource) webhookURL() string { return r.values[webhookURL] }

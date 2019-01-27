@@ -46,6 +46,10 @@
                 </div>
               
                 <div class="item">
+                  <a href="#url">URL</a>
+                </div>
+              
+                <div class="item">
                   <a href="#markdown">Markdown</a>
                 </div>
               
@@ -474,6 +478,72 @@ $request = new HTMLRequest($index);
 $request-&gt;setPaperSize(Request::A4);
 $request-&gt;setMargins(Request::NO_MARGINS);
 $request-&gt;setLandscape(true);
+$dirPath = &#34;/foo&#34;;
+$filename = $client-&gt;store($request, $dirPath);
+</pre>
+
+              </div>
+            
+              <div class="Page" id="url">
+                <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="url" href="#url">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>URL</h1>
+                <p>Gotenberg provides the endpoint <code>/convert/url</code> for remote URL conversions.</p>
+
+<p>It accepts <code>POST</code> requests with a <code>multipart/form-data</code> Content-Type.</p>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="url.basic" href="#url.basic">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Basic</h2>
+
+<p>This endpoint does not accept an <code>index.html</code> file nor assets files but a form field
+named <code>remoteURL</code> instead. Otherwise, URL conversions work the same as HTML conversions.</p>
+
+<blockquote>
+<p><strong>Attention:</strong> when converting a website to PDF, you should remove all margins.
+If not, some of the content of the page might be hidden.</p>
+</blockquote>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="url.basic.c_url" href="#url.basic.c_url">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>cURL</h3>
+
+<pre class="chroma">$ curl --request POST <span class="se">\
+</span><span class="se"></span>    --url http://localhost:3000/convert/url <span class="se">\
+</span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">remoteURL</span><span class="o">=</span>https://google.com
+    --form <span class="nv">marginTop</span><span class="o">=</span><span class="m">0</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">marginBottom</span><span class="o">=</span><span class="m">0</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">marginLeft</span><span class="o">=</span><span class="m">0</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">marginRight</span><span class="o">=</span><span class="m">0</span> <span class="se">\
+</span><span class="se"></span>    -o result.pdf
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="url.basic.go" href="#url.basic.go">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Go</h3>
+
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg/pkg&#34;</span>
+
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
+    <span class="nx">req</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewURLRequest</span><span class="p">(</span><span class="s">&#34;https://google.com&#34;</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nf">SetMargins</span><span class="p">(</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">NoMargins</span><span class="p">)</span>
+    <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
+    <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+<span class="p">}</span>
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="url.basic.php" href="#url.basic.php">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>PHP</h3>
+
+<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\URLRequest;
+
+$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+$request = new URLRequest(&#39;https://google.com&#39;);
+$request-&gt;setMargins(Request::NO_MARGINS);
 $dirPath = &#34;/foo&#34;;
 $filename = $client-&gt;store($request, $dirPath);
 </pre>

@@ -71,6 +71,7 @@ func setup() *echo.Echo {
 	e.POST("/merge", merge)
 	g := e.Group("/convert")
 	g.POST("/html", convertHTML)
+	g.POST("/url", convertURL)
 	g.POST("/markdown", convertMarkdown)
 	g.POST("/office", convertOffice)
 	return e
