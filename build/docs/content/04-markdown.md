@@ -46,7 +46,7 @@ import "github.com/thecodingmachine/gotenberg/pkg"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req, _ := gotenberg.NewMarkdownRequest("index.html", []string{"file.md"})
+    req, _ := gotenberg.NewMarkdownRequest("index.html", "file.md")
     dest := "result.pdf"
     c.Store(req, dest)
 }
@@ -65,6 +65,6 @@ $markdowns = [
     DocumentFactory::makeFromPath('file.md', 'file.md'),
 ];
 $request = new MarkdownRequest($index, $markdowns);
-$dirPath = "/foo";
-$filename = $client->store($request, $dirPath);
+$dest = "result.pdf";
+$filename = $client->store($request, $dest);
 ```

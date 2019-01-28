@@ -18,7 +18,7 @@ type MarkdownRequest struct {
 }
 
 // NewMarkdownRequest create MarkdownRequest.
-func NewMarkdownRequest(indexFilePath string, markdownFilePaths []string) (*MarkdownRequest, error) {
+func NewMarkdownRequest(indexFilePath string, markdownFilePaths ...string) (*MarkdownRequest, error) {
 	if !fileExists(indexFilePath) {
 		return nil, fmt.Errorf("%s: index file does not exist", indexFilePath)
 	}
@@ -58,7 +58,7 @@ func (markdown *MarkdownRequest) SetFooter(fpath string) error {
 }
 
 // SetAssets sets assets form files.
-func (markdown *MarkdownRequest) SetAssets(fpaths []string) error {
+func (markdown *MarkdownRequest) SetAssets(fpaths ...string) error {
 	for _, fpath := range fpaths {
 		if !fileExists(fpath) {
 			return fmt.Errorf("%s: file does not exist", fpath)

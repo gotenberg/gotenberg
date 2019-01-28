@@ -15,22 +15,20 @@ func TestMarkdown(t *testing.T) {
 	c := &Client{Hostname: "http://localhost:3000"}
 	req, err := NewMarkdownRequest(
 		test.MarkdownTestFilePath(t, "index.html"),
-		[]string{
-			test.MarkdownTestFilePath(t, "paragraph1.md"),
-			test.MarkdownTestFilePath(t, "paragraph2.md"),
-			test.MarkdownTestFilePath(t, "paragraph3.md"),
-		},
+		test.MarkdownTestFilePath(t, "paragraph1.md"),
+		test.MarkdownTestFilePath(t, "paragraph2.md"),
+		test.MarkdownTestFilePath(t, "paragraph3.md"),
 	)
 	require.Nil(t, err)
 	err = req.SetHeader(test.MarkdownTestFilePath(t, "header.html"))
 	require.Nil(t, err)
 	err = req.SetFooter(test.MarkdownTestFilePath(t, "footer.html"))
 	require.Nil(t, err)
-	err = req.SetAssets([]string{
+	err = req.SetAssets(
 		test.MarkdownTestFilePath(t, "font.woff"),
 		test.MarkdownTestFilePath(t, "img.gif"),
 		test.MarkdownTestFilePath(t, "style.css"),
-	})
+	)
 	require.Nil(t, err)
 	req.SetPaperSize(A4)
 	req.SetMargins(NormalMargins)

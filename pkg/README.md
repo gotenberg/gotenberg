@@ -19,11 +19,11 @@ func main() {
     req, _ := gotenberg.NewHTMLRequest("index.html")
     req.SetHeader("header.html")
     req.SetFooter("footer.html")
-    req.SetAssets([]string{
+    req.SetAssets(
         "font.woff",
         "img.gif",
         "style.css",
-    })
+    )
     req.SetPaperSize(gotenberg.A4)
     req.SetMargins(gotenberg.NormalMargins)
     req.SetLandscape(false)

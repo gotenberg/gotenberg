@@ -46,7 +46,7 @@ import "github.com/thecodingmachine/gotenberg/pkg"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req, _ := gotenberg.NewOfficeRequest([]string{"document.docx", "document2.docx"})
+    req, _ := gotenberg.NewOfficeRequest("document.docx", "document2.docx")
     dest := "result.pdf"
     c.Store(req, dest)
 }
@@ -65,8 +65,8 @@ $files = [
     DocumentFactory::makeFromPath('document2.docx', 'document2.docx'),
 ];
 $request = new OfficeRequest($files);
-$dirPath = "/foo";
-$filename = $client->store($request, $dirPath);
+$dest = "result.pdf";
+$filename = $client->store($request, $dest);
 ```
 
 ## Orientation
@@ -93,7 +93,7 @@ import "github.com/thecodingmachine/gotenberg/pkg"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req, _ := gotenberg.NewOfficeRequest([]string{"document.docx"})
+    req, _ := gotenberg.NewOfficeRequest("document.docx")
     req.SetLandscape(true)
     dest := "result.pdf"
     c.Store(req, dest)
@@ -113,18 +113,6 @@ $files = [
 ];
 $request = new OfficeRequest($files);
 $request->setLandscape(true);
-$dirPath = "/foo";
-$filename = $client->store($request, $dirPath);
-```
-
-## Fonts
-
-By default, only `ttf-mscorefonts` fonts are installed.
-
-If you wish to use more fonts, you will have to create your own image:
-
-```Dockerfile
-FROM thecodingmachine/gotenberg:3
-
-RUN apt-get -y install yourfonts
+$dest = "result.pdf";
+$filename = $client->store($request, $dest);
 ```

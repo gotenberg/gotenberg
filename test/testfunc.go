@@ -23,6 +23,13 @@ func HTMLTestMultipartForm(t *testing.T) (*bytes.Buffer, string) {
 	return multipartForm(t, "html")
 }
 
+// URLTestMultipartForm returns the body
+// for a multipate/form-data request with all
+// files under "url" folder.
+func URLTestMultipartForm(t *testing.T) (*bytes.Buffer, string) {
+	return multipartForm(t, "url")
+}
+
 // MarkdownTestMultipartForm returns the body
 // for a multipate/form-data request with all
 // files under "markdown" folder.
@@ -65,6 +72,10 @@ func multipartForm(t *testing.T, kind string) (*bytes.Buffer, string) {
 		_, err = io.Copy(part, file)
 		require.Nil(t, err)
 	}
+	if kind == "url" {
+		err := writer.WriteField("remoteURL", "http://google.com")
+		require.Nil(t, err)
+	}
 	return body, writer.FormDataContentType()
 }
 
@@ -72,6 +83,12 @@ func multipartForm(t *testing.T, kind string) (*bytes.Buffer, string) {
 // of "html" folder in test/testdata.
 func HTMLTestDirPath(t *testing.T) string {
 	return copyDir(t, "html")
+}
+
+// URLTestDirPath creates a copy
+// of "url" folder in test/testdata.
+func URLTestDirPath(t *testing.T) string {
+	return copyDir(t, "url")
 }
 
 // MarkdownTestDirPath creates a copy
@@ -125,6 +142,12 @@ func copyDir(t *testing.T, kind string) string {
 // of a file in "html" folder in test/testdata.
 func HTMLTestFilePath(t *testing.T, filename string) string {
 	return abs(t, "html", filename)
+}
+
+// URLTestFilePath returns the absolute file path
+// of a file in "url" folder in test/testdata.
+func URLTestFilePath(t *testing.T, filename string) string {
+	return abs(t, "url", filename)
 }
 
 // MarkdownTestFilePath returns the absolute file path

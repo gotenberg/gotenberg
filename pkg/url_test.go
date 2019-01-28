@@ -11,13 +11,17 @@ import (
 	"github.com/thecodingmachine/gotenberg/test"
 )
 
-func TestMerge(t *testing.T) {
+func TestURL(t *testing.T) {
 	c := &Client{Hostname: "http://localhost:3000"}
-	req, err := NewMergeRequest(
-		test.PDFTestFilePath(t, "gotenberg.pdf"),
-		test.PDFTestFilePath(t, "gotenberg.pdf"),
-	)
+	req := NewURLRequest("http://google.com")
+	err := req.SetHeader(test.URLTestFilePath(t, "header.html"))
 	require.Nil(t, err)
+	err = req.SetFooter(test.URLTestFilePath(t, "footer.html"))
+	require.Nil(t, err)
+	require.Nil(t, err)
+	req.SetPaperSize(A4)
+	req.SetMargins(NormalMargins)
+	req.SetLandscape(false)
 	dirPath, err := rand.Get()
 	require.Nil(t, err)
 	dest := fmt.Sprintf("%s/foo.pdf", dirPath)
@@ -28,10 +32,10 @@ func TestMerge(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestConcurrentMerge(t *testing.T) {
+func TestConcurrentURL(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		go func() {
-			TestMerge(t)
+			TestURL(t)
 		}()
 	}
 }

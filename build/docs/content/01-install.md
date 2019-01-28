@@ -7,7 +7,7 @@ Gotenberg is shipped within a Docker image.
 You may start it with:
 
 ```bash
-$ docker run --rm -p 3000:3000 thecodingmachine/gotenberg:3
+$ docker run --rm -p 3000:3000 thecodingmachine/gotenberg:4
 ```
 
 > The API will be available at [http://localhost:3000](http://localhost:3000).
@@ -22,7 +22,7 @@ services:
   # your others services
 
   gotenberg:
-    image: thecodingmachine/gotenberg:3
+    image: thecodingmachine/gotenberg:4
 ```
 
 > The API will be available under `gotenberg:3000` in your Docker Compose network.

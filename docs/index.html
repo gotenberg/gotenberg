@@ -46,6 +46,10 @@
                 </div>
               
                 <div class="item">
+                  <a href="#url">URL</a>
+                </div>
+              
+                <div class="item">
                   <a href="#markdown">Markdown</a>
                 </div>
               
@@ -67,6 +71,10 @@
               
                 <div class="item">
                   <a href="#liveness">Liveness</a>
+                </div>
+              
+                <div class="item">
+                  <a href="#fonts">Fonts</a>
                 </div>
               
                 <div class="item">
@@ -103,7 +111,7 @@
 
 <p>You may start it with:</p>
 
-<pre class="chroma">$ docker run --rm -p <span class="m">3000</span>:3000 thecodingmachine/gotenberg:3
+<pre class="chroma">$ docker run --rm -p <span class="m">3000</span>:3000 thecodingmachine/gotenberg:4
 </pre>
 
 <blockquote>
@@ -119,7 +127,7 @@
 </span><span class="w">  </span><span class="c"># your others services</span><span class="w">
 </span><span class="w">
 </span><span class="w">  </span>gotenberg<span class="p">:</span><span class="w">
-</span><span class="w">    </span>image<span class="p">:</span><span class="w"> </span>thecodingmachine/gotenberg<span class="p">:</span><span class="m">3</span><span class="w">
+</span><span class="w">    </span>image<span class="p">:</span><span class="w"> </span>thecodingmachine/gotenberg<span class="p">:</span><span class="m">4</span><span class="w">
 </span></pre>
 
 <blockquote>
@@ -354,7 +362,7 @@ are on the same level as the <code>index.html</code> file.</p>
 
 <blockquote>
 <p>If you want to install fonts directly in the Gotenberg Docker image,
-see to the <a href="#office.fonts">fonts section</a>.</p>
+see to the <a href="#fonts">fonts section</a>.</p>
 </blockquote>
 
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.assets.c_url" href="#html.assets.c_url">
@@ -380,11 +388,7 @@ see to the <a href="#office.fonts">fonts section</a>.</p>
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
     <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewHTMLRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">)</span>
-    <span class="nx">req</span><span class="p">.</span><span class="nf">SetAssets</span><span class="p">([]</span><span class="kt">string</span><span class="p">{</span>
-        <span class="s">&#34;font.woff&#34;</span><span class="p">,</span>
-        <span class="s">&#34;img.gif&#34;</span><span class="p">,</span>
-        <span class="s">&#34;style.css&#34;</span><span class="p">,</span>
-    <span class="p">})</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nf">SetAssets</span><span class="p">(</span><span class="s">&#34;font.woff&#34;</span><span class="p">,</span> <span class="s">&#34;img.gif&#34;</span><span class="p">,</span> <span class="s">&#34;style.css&#34;</span><span class="p">)</span>
     <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
     <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
 <span class="p">}</span>
@@ -407,8 +411,8 @@ $assets = [
 ];
 $request = new HTMLRequest($index);
 $request-&gt;setAssets($assets);
-$dirPath = &#34;/foo&#34;;
-$filename = $client-&gt;store($request, $dirPath);
+$dest = &#34;result.pdf&#34;;
+$client-&gt;store($request, $dest);
 </pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.paper_size_margins_orientation" href="#html.paper_size_margins_orientation">
@@ -474,8 +478,74 @@ $request = new HTMLRequest($index);
 $request-&gt;setPaperSize(Request::A4);
 $request-&gt;setMargins(Request::NO_MARGINS);
 $request-&gt;setLandscape(true);
-$dirPath = &#34;/foo&#34;;
-$filename = $client-&gt;store($request, $dirPath);
+$dest = &#34;result.pdf&#34;;
+$client-&gt;store($request, $dest);
+</pre>
+
+              </div>
+            
+              <div class="Page" id="url">
+                <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="url" href="#url">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>URL</h1>
+                <p>Gotenberg provides the endpoint <code>/convert/url</code> for remote URL conversions.</p>
+
+<p>It accepts <code>POST</code> requests with a <code>multipart/form-data</code> Content-Type.</p>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="url.basic" href="#url.basic">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Basic</h2>
+
+<p>This endpoint does not accept an <code>index.html</code> file nor assets files but a form field
+named <code>remoteURL</code> instead. Otherwise, URL conversions work the same as HTML conversions.</p>
+
+<blockquote>
+<p><strong>Attention:</strong> when converting a website to PDF, you should remove all margins.
+If not, some of the content of the page might be hidden.</p>
+</blockquote>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="url.basic.c_url" href="#url.basic.c_url">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>cURL</h3>
+
+<pre class="chroma">$ curl --request POST <span class="se">\
+</span><span class="se"></span>    --url http://localhost:3000/convert/url <span class="se">\
+</span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">remoteURL</span><span class="o">=</span>https://google.com
+    --form <span class="nv">marginTop</span><span class="o">=</span><span class="m">0</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">marginBottom</span><span class="o">=</span><span class="m">0</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">marginLeft</span><span class="o">=</span><span class="m">0</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">marginRight</span><span class="o">=</span><span class="m">0</span> <span class="se">\
+</span><span class="se"></span>    -o result.pdf
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="url.basic.go" href="#url.basic.go">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Go</h3>
+
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg/pkg&#34;</span>
+
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
+    <span class="nx">req</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewURLRequest</span><span class="p">(</span><span class="s">&#34;https://google.com&#34;</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nf">SetMargins</span><span class="p">(</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">NoMargins</span><span class="p">)</span>
+    <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
+    <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+<span class="p">}</span>
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="url.basic.php" href="#url.basic.php">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>PHP</h3>
+
+<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\URLRequest;
+
+$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+$request = new URLRequest(&#39;https://google.com&#39;);
+$request-&gt;setMargins(Request::NO_MARGINS);
+$dest = &#34;result.pdf&#34;;
+$filename = $client-&gt;store($request, $dest);
 </pre>
 
               </div>
@@ -531,7 +601,7 @@ in the file <code>index.html</code>. This function will convert a given markdown
 
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
-    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewMarkdownRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">,</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;file.md&#34;</span><span class="p">})</span>
+    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewMarkdownRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">,</span> <span class="s">&#34;file.md&#34;</span><span class="p">)</span>
     <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
     <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
 <span class="p">}</span>
@@ -551,8 +621,8 @@ $markdowns = [
     DocumentFactory::makeFromPath(&#39;file.md&#39;, &#39;file.md&#39;),
 ];
 $request = new MarkdownRequest($index, $markdowns);
-$dirPath = &#34;/foo&#34;;
-$filename = $client-&gt;store($request, $dirPath);
+$dest = &#34;result.pdf&#34;;
+$filename = $client-&gt;store($request, $dest);
 </pre>
 
               </div>
@@ -613,7 +683,7 @@ See the <a href="#scalability">scalability section</a> to find how to mitigate t
 
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
-    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewOfficeRequest</span><span class="p">([]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;document.docx&#34;</span><span class="p">,</span> <span class="s">&#34;document2.docx&#34;</span><span class="p">})</span>
+    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewOfficeRequest</span><span class="p">(</span><span class="s">&#34;document.docx&#34;</span><span class="p">,</span> <span class="s">&#34;document2.docx&#34;</span><span class="p">)</span>
     <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
     <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
 <span class="p">}</span>
@@ -633,8 +703,8 @@ $files = [
     DocumentFactory::makeFromPath(&#39;document2.docx&#39;, &#39;document2.docx&#39;),
 ];
 $request = new OfficeRequest($files);
-$dirPath = &#34;/foo&#34;;
-$filename = $client-&gt;store($request, $dirPath);
+$dest = &#34;result.pdf&#34;;
+$filename = $client-&gt;store($request, $dest);
 </pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="office.orientation" href="#office.orientation">
@@ -665,7 +735,7 @@ $filename = $client-&gt;store($request, $dirPath);
 
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
-    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewOfficeRequest</span><span class="p">([]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;document.docx&#34;</span><span class="p">})</span>
+    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewOfficeRequest</span><span class="p">(</span><span class="s">&#34;document.docx&#34;</span><span class="p">)</span>
     <span class="nx">req</span><span class="p">.</span><span class="nf">SetLandscape</span><span class="p">(</span><span class="kc">true</span><span class="p">)</span>
     <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
     <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
@@ -686,22 +756,9 @@ $files = [
 ];
 $request = new OfficeRequest($files);
 $request-&gt;setLandscape(true);
-$dirPath = &#34;/foo&#34;;
-$filename = $client-&gt;store($request, $dirPath);
+$dest = &#34;result.pdf&#34;;
+$filename = $client-&gt;store($request, $dest);
 </pre>
-
-<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="office.fonts" href="#office.fonts">
-	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-</a>Fonts</h2>
-
-<p>By default, only <code>ttf-mscorefonts</code> fonts are installed.</p>
-
-<p>If you wish to use more fonts, you will have to create your own image:</p>
-
-<pre class="chroma"><span class="k">FROM</span><span class="s"> thecodingmachine/gotenberg:3</span><span class="err">
-</span><span class="err">
-</span><span class="err"></span><span class="k">RUN</span> apt-get -y install yourfonts<span class="err">
-</span></pre>
 
               </div>
             
@@ -740,7 +797,7 @@ will merge them and return the resulting PDF file.</p>
 
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
-    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewMergeRequest</span><span class="p">([]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;file.pdf&#34;</span><span class="p">,</span> <span class="s">&#34;file2.pdf&#34;</span><span class="p">})</span>
+    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewMergeRequest</span><span class="p">(</span><span class="s">&#34;file.pdf&#34;</span><span class="p">,</span> <span class="s">&#34;file2.pdf&#34;</span><span class="p">)</span>
     <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
     <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
 <span class="p">}</span>
@@ -760,8 +817,8 @@ $files = [
     DocumentFactory::makeFromPath(&#39;file2.pdf&#39;, &#39;file2.pdf&#39;),
 ];
 $request = new MergeRequest($files);
-$dirPath = &#34;/foo&#34;;
-$filename = $client-&gt;store($request, $dirPath);
+$dest = &#34;result.pdf&#34;;
+$filename = $client-&gt;store($request, $dest);
 </pre>
 
               </div>
@@ -839,7 +896,7 @@ $resp = $client-&gt;post($request);
 </span><span class="w">  </span><span class="c"># your others services</span><span class="w">
 </span><span class="w">
 </span><span class="w">  </span>gotenberg<span class="p">:</span><span class="w">
-</span><span class="w">    </span>image<span class="p">:</span><span class="w"> </span>thecodingmachine/gotenberg<span class="p">:</span><span class="m">3</span><span class="w">
+</span><span class="w">    </span>image<span class="p">:</span><span class="w"> </span>thecodingmachine/gotenberg<span class="p">:</span><span class="m">4</span><span class="w">
 </span></pre>
 
 <p>You may now launch your services using:</p>
@@ -865,6 +922,21 @@ a simple <code>GET</code> request.</p>
 <li><a href="https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes">Pod lifecycle</a></li>
 <li><a href="https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/">Configure Liveness and Readiness Probes</a></li>
 </ul>
+
+              </div>
+            
+              <div class="Page" id="fonts">
+                <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="fonts" href="#fonts">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Fonts</h1>
+                <p>By default, a handful of fonts are installed. Asian characters are also supported out of the box.</p>
+
+<p>If you wish to use more fonts, you will have to create your own image:</p>
+
+<pre class="chroma"><span class="k">FROM</span><span class="s"> thecodingmachine/gotenberg:4</span><span class="err">
+</span><span class="err">
+</span><span class="err"></span><span class="k">RUN</span> apt-get -y install yourfonts<span class="err">
+</span></pre>
 
               </div>
             

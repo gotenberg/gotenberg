@@ -14,7 +14,7 @@ type OfficeRequest struct {
 }
 
 // NewOfficeRequest create OfficeRequest.
-func NewOfficeRequest(fpaths []string) (*OfficeRequest, error) {
+func NewOfficeRequest(fpaths ...string) (*OfficeRequest, error) {
 	for _, fpath := range fpaths {
 		if !fileExists(fpath) {
 			return nil, fmt.Errorf("%s: file does not exist", fpath)

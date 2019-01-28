@@ -185,7 +185,7 @@ But this won't:
 You may also use *remote* paths for Google fonts, images and so on.
 
 > If you want to install fonts directly in the Gotenberg Docker image,
-> see to the [fonts section](#office.fonts).
+> see to the [fonts section](#fonts).
 
 ### cURL
 
@@ -208,11 +208,7 @@ import "github.com/thecodingmachine/gotenberg/pkg"
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
     req, _ := gotenberg.NewHTMLRequest("index.html")
-    req.SetAssets([]string{
-        "font.woff",
-        "img.gif",
-        "style.css",
-    })
+    req.SetAssets("font.woff", "img.gif", "style.css")
     dest := "result.pdf"
     c.Store(req, dest)
 }
@@ -234,8 +230,8 @@ $assets = [
 ];
 $request = new HTMLRequest($index);
 $request->setAssets($assets);
-$dirPath = "/foo";
-$filename = $client->store($request, $dirPath);
+$dest = "result.pdf";
+$client->store($request, $dest);
 ```
 
 ## Paper size, margins, orientation
@@ -294,6 +290,6 @@ $request = new HTMLRequest($index);
 $request->setPaperSize(Request::A4);
 $request->setMargins(Request::NO_MARGINS);
 $request->setLandscape(true);
-$dirPath = "/foo";
-$filename = $client->store($request, $dirPath);
+$dest = "result.pdf";
+$client->store($request, $dest);
 ```
