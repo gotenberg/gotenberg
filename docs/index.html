@@ -107,7 +107,7 @@
 
 <p>You may start it with:</p>
 
-<pre class="chroma">$ docker run --rm -p <span class="m">3000</span>:3000 thecodingmachine/gotenberg:3
+<pre class="chroma">$ docker run --rm -p <span class="m">3000</span>:3000 thecodingmachine/gotenberg:4
 </pre>
 
 <blockquote>
@@ -123,7 +123,7 @@
 </span><span class="w">  </span><span class="c"># your others services</span><span class="w">
 </span><span class="w">
 </span><span class="w">  </span>gotenberg<span class="p">:</span><span class="w">
-</span><span class="w">    </span>image<span class="p">:</span><span class="w"> </span>thecodingmachine/gotenberg<span class="p">:</span><span class="m">3</span><span class="w">
+</span><span class="w">    </span>image<span class="p">:</span><span class="w"> </span>thecodingmachine/gotenberg<span class="p">:</span><span class="m">4</span><span class="w">
 </span></pre>
 
 <blockquote>
@@ -601,7 +601,7 @@ in the file <code>index.html</code>. This function will convert a given markdown
 
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
-    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewMarkdownRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">,</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;file.md&#34;</span><span class="p">})</span>
+    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewMarkdownRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">,</span> <span class="s">&#34;file.md&#34;</span><span class="p">)</span>
     <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
     <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
 <span class="p">}</span>
@@ -683,7 +683,7 @@ See the <a href="#scalability">scalability section</a> to find how to mitigate t
 
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
-    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewOfficeRequest</span><span class="p">([]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;document.docx&#34;</span><span class="p">,</span> <span class="s">&#34;document2.docx&#34;</span><span class="p">})</span>
+    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewOfficeRequest</span><span class="p">(</span><span class="s">&#34;document.docx&#34;</span><span class="p">,</span> <span class="s">&#34;document2.docx&#34;</span><span class="p">)</span>
     <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
     <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
 <span class="p">}</span>
@@ -735,7 +735,7 @@ $filename = $client-&gt;store($request, $dirPath);
 
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
-    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewOfficeRequest</span><span class="p">([]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;document.docx&#34;</span><span class="p">})</span>
+    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewOfficeRequest</span><span class="p">(</span><span class="s">&#34;document.docx&#34;</span><span class="p">)</span>
     <span class="nx">req</span><span class="p">.</span><span class="nf">SetLandscape</span><span class="p">(</span><span class="kc">true</span><span class="p">)</span>
     <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
     <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
@@ -810,7 +810,7 @@ will merge them and return the resulting PDF file.</p>
 
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
-    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewMergeRequest</span><span class="p">([]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;file.pdf&#34;</span><span class="p">,</span> <span class="s">&#34;file2.pdf&#34;</span><span class="p">})</span>
+    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewMergeRequest</span><span class="p">(</span><span class="s">&#34;file.pdf&#34;</span><span class="p">,</span> <span class="s">&#34;file2.pdf&#34;</span><span class="p">)</span>
     <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
     <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
 <span class="p">}</span>
