@@ -66,5 +66,5 @@ $markdowns = [
 ];
 $request = new MarkdownRequest($index, $markdowns);
 $dest = "result.pdf";
-$filename = $client->store($request, $dest);
+$client->store($request, $dest);
 ```

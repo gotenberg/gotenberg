@@ -49,5 +49,5 @@ $files = [
 ];
 $request = new MergeRequest($files);
 $dest = "result.pdf";
-$filename = $client->store($request, $dest);
+$client->store($request, $dest);
 ```

@@ -545,7 +545,7 @@ $client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\
 $request = new URLRequest(&#39;https://google.com&#39;);
 $request-&gt;setMargins(Request::NO_MARGINS);
 $dest = &#34;result.pdf&#34;;
-$filename = $client-&gt;store($request, $dest);
+$client-&gt;store($request, $dest);
 </pre>
 
               </div>
@@ -622,7 +622,7 @@ $markdowns = [
 ];
 $request = new MarkdownRequest($index, $markdowns);
 $dest = &#34;result.pdf&#34;;
-$filename = $client-&gt;store($request, $dest);
+$client-&gt;store($request, $dest);
 </pre>
 
               </div>
@@ -704,7 +704,7 @@ $files = [
 ];
 $request = new OfficeRequest($files);
 $dest = &#34;result.pdf&#34;;
-$filename = $client-&gt;store($request, $dest);
+$client-&gt;store($request, $dest);
 </pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="office.orientation" href="#office.orientation">
@@ -757,7 +757,7 @@ $files = [
 $request = new OfficeRequest($files);
 $request-&gt;setLandscape(true);
 $dest = &#34;result.pdf&#34;;
-$filename = $client-&gt;store($request, $dest);
+$client-&gt;store($request, $dest);
 </pre>
 
               </div>
@@ -818,7 +818,7 @@ $files = [
 ];
 $request = new MergeRequest($files);
 $dest = &#34;result.pdf&#34;;
-$filename = $client-&gt;store($request, $dest);
+$client-&gt;store($request, $dest);
 </pre>
 
               </div>

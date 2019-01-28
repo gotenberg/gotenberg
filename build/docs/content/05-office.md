@@ -66,7 +66,7 @@ $files = [
 ];
 $request = new OfficeRequest($files);
 $dest = "result.pdf";
-$filename = $client->store($request, $dest);
+$client->store($request, $dest);
 ```
 
 ## Orientation
@@ -114,5 +114,5 @@ $files = [
 $request = new OfficeRequest($files);
 $request->setLandscape(true);
 $dest = "result.pdf";
-$filename = $client->store($request, $dest);
+$client->store($request, $dest);
 ```

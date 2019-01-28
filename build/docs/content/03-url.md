@@ -52,5 +52,5 @@ $client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client()
 $request = new URLRequest('https://google.com');
 $request->setMargins(Request::NO_MARGINS);
 $dest = "result.pdf";
-$filename = $client->store($request, $dest);
+$client->store($request, $dest);
 ```
