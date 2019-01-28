@@ -5,7 +5,7 @@ require (
 	github.com/google/go-cmp v0.2.0 // indirect
 	github.com/gorilla/websocket v1.4.0 // indirect
 	github.com/hhrutter/pdfcpu v0.1.19
-	github.com/labstack/echo v0.0.0-20181123063703-c7eb8da9ec73
+	github.com/labstack/echo v0.0.0-20190126223945-739700bf4ef7
 	github.com/labstack/gommon v0.2.8
 	github.com/mafredri/cdp v0.20.0
 	github.com/microcosm-cc/bluemonday v1.0.1
