@@ -29,7 +29,7 @@ import "github.com/thecodingmachine/gotenberg/pkg"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req, _ := gotenberg.NewMergeRequest([]string{"file.pdf", "file2.pdf"})
+    req, _ := gotenberg.NewMergeRequest("file.pdf", "file2.pdf")
     dest := "result.pdf"
     c.Store(req, dest)
 }
