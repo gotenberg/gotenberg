@@ -185,7 +185,7 @@ But this won't:
 You may also use *remote* paths for Google fonts, images and so on.
 
 > If you want to install fonts directly in the Gotenberg Docker image,
-> see to the [fonts section](#office.fonts).
+> see to the [fonts section](#fonts).
 
 ### cURL
 

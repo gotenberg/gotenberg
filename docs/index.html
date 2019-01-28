@@ -74,6 +74,10 @@
                 </div>
               
                 <div class="item">
+                  <a href="#fonts">Fonts</a>
+                </div>
+              
+                <div class="item">
                   <a href="#links">Links</a>
                 </div>
               
@@ -358,7 +362,7 @@ are on the same level as the <code>index.html</code> file.</p>
 
 <blockquote>
 <p>If you want to install fonts directly in the Gotenberg Docker image,
-see to the <a href="#office.fonts">fonts section</a>.</p>
+see to the <a href="#fonts">fonts section</a>.</p>
 </blockquote>
 
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.assets.c_url" href="#html.assets.c_url">
@@ -756,19 +760,6 @@ $dirPath = &#34;/foo&#34;;
 $filename = $client-&gt;store($request, $dirPath);
 </pre>
 
-<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="office.fonts" href="#office.fonts">
-	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-</a>Fonts</h2>
-
-<p>By default, only <code>ttf-mscorefonts</code> fonts are installed.</p>
-
-<p>If you wish to use more fonts, you will have to create your own image:</p>
-
-<pre class="chroma"><span class="k">FROM</span><span class="s"> thecodingmachine/gotenberg:3</span><span class="err">
-</span><span class="err">
-</span><span class="err"></span><span class="k">RUN</span> apt-get -y install yourfonts<span class="err">
-</span></pre>
-
               </div>
             
               <div class="Page" id="merge">
@@ -931,6 +922,21 @@ a simple <code>GET</code> request.</p>
 <li><a href="https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes">Pod lifecycle</a></li>
 <li><a href="https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/">Configure Liveness and Readiness Probes</a></li>
 </ul>
+
+              </div>
+            
+              <div class="Page" id="fonts">
+                <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="fonts" href="#fonts">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Fonts</h1>
+                <p>By default, a handful of fonts are installed. Asian characters are also supported out of the box.</p>
+
+<p>If you wish to use more fonts, you will have to create your own image:</p>
+
+<pre class="chroma"><span class="k">FROM</span><span class="s"> thecodingmachine/gotenberg:4</span><span class="err">
+</span><span class="err">
+</span><span class="err"></span><span class="k">RUN</span> apt-get -y install yourfonts<span class="err">
+</span></pre>
 
               </div>
             

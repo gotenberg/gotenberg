@@ -116,15 +116,3 @@ $request->setLandscape(true);
 $dirPath = "/foo";
 $filename = $client->store($request, $dirPath);
 ```
-
-## Fonts
-
-By default, only `ttf-mscorefonts` fonts are installed.
-
-If you wish to use more fonts, you will have to create your own image:
-
-```Dockerfile
-FROM thecodingmachine/gotenberg:3
-
-RUN apt-get -y install yourfonts
-```
