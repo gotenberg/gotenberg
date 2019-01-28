@@ -48,6 +48,6 @@ $files = [
     DocumentFactory::makeFromPath('file2.pdf', 'file2.pdf'),
 ];
 $request = new MergeRequest($files);
-$dirPath = "/foo";
-$filename = $client->store($request, $dirPath);
+$dest = "result.pdf";
+$filename = $client->store($request, $dest);
 ```

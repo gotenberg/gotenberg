@@ -65,6 +65,6 @@ $markdowns = [
     DocumentFactory::makeFromPath('file.md', 'file.md'),
 ];
 $request = new MarkdownRequest($index, $markdowns);
-$dirPath = "/foo";
-$filename = $client->store($request, $dirPath);
+$dest = "result.pdf";
+$filename = $client->store($request, $dest);
 ```

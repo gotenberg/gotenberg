@@ -51,6 +51,6 @@ use TheCodingMachine\Gotenberg\URLRequest;
 $client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
 $request = new URLRequest('https://google.com');
 $request->setMargins(Request::NO_MARGINS);
-$dirPath = "/foo";
-$filename = $client->store($request, $dirPath);
+$dest = "result.pdf";
+$filename = $client->store($request, $dest);
 ```

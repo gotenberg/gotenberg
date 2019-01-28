@@ -230,8 +230,8 @@ $assets = [
 ];
 $request = new HTMLRequest($index);
 $request->setAssets($assets);
-$dirPath = "/foo";
-$filename = $client->store($request, $dirPath);
+$dest = "result.pdf";
+$client->store($request, $dest);
 ```
 
 ## Paper size, margins, orientation
@@ -290,6 +290,6 @@ $request = new HTMLRequest($index);
 $request->setPaperSize(Request::A4);
 $request->setMargins(Request::NO_MARGINS);
 $request->setLandscape(true);
-$dirPath = "/foo";
-$filename = $client->store($request, $dirPath);
+$dest = "result.pdf";
+$client->store($request, $dest);
 ```

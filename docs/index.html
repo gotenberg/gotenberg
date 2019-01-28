@@ -411,8 +411,8 @@ $assets = [
 ];
 $request = new HTMLRequest($index);
 $request-&gt;setAssets($assets);
-$dirPath = &#34;/foo&#34;;
-$filename = $client-&gt;store($request, $dirPath);
+$dest = &#34;result.pdf&#34;;
+$client-&gt;store($request, $dest);
 </pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.paper_size_margins_orientation" href="#html.paper_size_margins_orientation">
@@ -478,8 +478,8 @@ $request = new HTMLRequest($index);
 $request-&gt;setPaperSize(Request::A4);
 $request-&gt;setMargins(Request::NO_MARGINS);
 $request-&gt;setLandscape(true);
-$dirPath = &#34;/foo&#34;;
-$filename = $client-&gt;store($request, $dirPath);
+$dest = &#34;result.pdf&#34;;
+$client-&gt;store($request, $dest);
 </pre>
 
               </div>
@@ -544,8 +544,8 @@ use TheCodingMachine\Gotenberg\URLRequest;
 $client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
 $request = new URLRequest(&#39;https://google.com&#39;);
 $request-&gt;setMargins(Request::NO_MARGINS);
-$dirPath = &#34;/foo&#34;;
-$filename = $client-&gt;store($request, $dirPath);
+$dest = &#34;result.pdf&#34;;
+$filename = $client-&gt;store($request, $dest);
 </pre>
 
               </div>
@@ -621,8 +621,8 @@ $markdowns = [
     DocumentFactory::makeFromPath(&#39;file.md&#39;, &#39;file.md&#39;),
 ];
 $request = new MarkdownRequest($index, $markdowns);
-$dirPath = &#34;/foo&#34;;
-$filename = $client-&gt;store($request, $dirPath);
+$dest = &#34;result.pdf&#34;;
+$filename = $client-&gt;store($request, $dest);
 </pre>
 
               </div>
@@ -703,8 +703,8 @@ $files = [
     DocumentFactory::makeFromPath(&#39;document2.docx&#39;, &#39;document2.docx&#39;),
 ];
 $request = new OfficeRequest($files);
-$dirPath = &#34;/foo&#34;;
-$filename = $client-&gt;store($request, $dirPath);
+$dest = &#34;result.pdf&#34;;
+$filename = $client-&gt;store($request, $dest);
 </pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="office.orientation" href="#office.orientation">
@@ -756,8 +756,8 @@ $files = [
 ];
 $request = new OfficeRequest($files);
 $request-&gt;setLandscape(true);
-$dirPath = &#34;/foo&#34;;
-$filename = $client-&gt;store($request, $dirPath);
+$dest = &#34;result.pdf&#34;;
+$filename = $client-&gt;store($request, $dest);
 </pre>
 
               </div>
@@ -817,8 +817,8 @@ $files = [
     DocumentFactory::makeFromPath(&#39;file2.pdf&#39;, &#39;file2.pdf&#39;),
 ];
 $request = new MergeRequest($files);
-$dirPath = &#34;/foo&#34;;
-$filename = $client-&gt;store($request, $dirPath);
+$dest = &#34;result.pdf&#34;;
+$filename = $client-&gt;store($request, $dest);
 </pre>
 
               </div>
@@ -896,7 +896,7 @@ $resp = $client-&gt;post($request);
 </span><span class="w">  </span><span class="c"># your others services</span><span class="w">
 </span><span class="w">
 </span><span class="w">  </span>gotenberg<span class="p">:</span><span class="w">
-</span><span class="w">    </span>image<span class="p">:</span><span class="w"> </span>thecodingmachine/gotenberg<span class="p">:</span><span class="m">3</span><span class="w">
+</span><span class="w">    </span>image<span class="p">:</span><span class="w"> </span>thecodingmachine/gotenberg<span class="p">:</span><span class="m">4</span><span class="w">
 </span></pre>
 
 <p>You may now launch your services using:</p>

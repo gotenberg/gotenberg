@@ -65,8 +65,8 @@ $files = [
     DocumentFactory::makeFromPath('document2.docx', 'document2.docx'),
 ];
 $request = new OfficeRequest($files);
-$dirPath = "/foo";
-$filename = $client->store($request, $dirPath);
+$dest = "result.pdf";
+$filename = $client->store($request, $dest);
 ```
 
 ## Orientation
@@ -113,6 +113,6 @@ $files = [
 ];
 $request = new OfficeRequest($files);
 $request->setLandscape(true);
-$dirPath = "/foo";
-$filename = $client->store($request, $dirPath);
+$dest = "result.pdf";
+$filename = $client->store($request, $dest);
 ```
