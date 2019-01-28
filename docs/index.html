@@ -384,11 +384,7 @@ see to the <a href="#office.fonts">fonts section</a>.</p>
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
     <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewHTMLRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">)</span>
-    <span class="nx">req</span><span class="p">.</span><span class="nf">SetAssets</span><span class="p">([]</span><span class="kt">string</span><span class="p">{</span>
-        <span class="s">&#34;font.woff&#34;</span><span class="p">,</span>
-        <span class="s">&#34;img.gif&#34;</span><span class="p">,</span>
-        <span class="s">&#34;style.css&#34;</span><span class="p">,</span>
-    <span class="p">})</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nf">SetAssets</span><span class="p">(</span><span class="s">&#34;font.woff&#34;</span><span class="p">,</span> <span class="s">&#34;img.gif&#34;</span><span class="p">,</span> <span class="s">&#34;style.css&#34;</span><span class="p">)</span>
     <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
     <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
 <span class="p">}</span>

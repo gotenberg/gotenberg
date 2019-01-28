@@ -208,11 +208,7 @@ import "github.com/thecodingmachine/gotenberg/pkg"
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
     req, _ := gotenberg.NewHTMLRequest("index.html")
-    req.SetAssets([]string{
-        "font.woff",
-        "img.gif",
-        "style.css",
-    })
+    req.SetAssets("font.woff", "img.gif", "style.css")
     dest := "result.pdf"
     c.Store(req, dest)
 }
