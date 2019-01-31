@@ -107,10 +107,13 @@ func (html *HTML) Print(destination string) error {
 		document.fonts.ready.then(function () {
 			resolve('fonts loaded');
 		});
-		setTimeout(resolve.bind(resolve, 'timeout'), %.0f);
+		setTimeout(resolve.bind(resolve, 'timeout'), 500);
 	});`
 	scriptArg := runtime.NewEvaluateArgs(script).SetAwaitPromise(true)
 	returnObj, _ := c.Runtime.Evaluate(html.Context, scriptArg)
+	if returnObj.ExceptionDetails != nil {
+		return fmt.Errorf("script evaluated with exception: %+v", returnObj.ExceptionDetails)
+	}
 	loadFontsResult := string(returnObj.Result.Value)
 	if strings.Contains(loadFontsResult, "timeout") {
 		return errors.New("timed out loading fonts")
