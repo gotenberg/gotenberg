@@ -63,6 +63,11 @@ func (url *URLRequest) SetLandscape(isLandscape bool) {
 	url.values[landscape] = strconv.FormatBool(isLandscape)
 }
 
+// SetWebFontsTimeout sets webFontsTimeout form field.
+func (url *URLRequest) SetWebFontsTimeout(timeout int64) {
+	url.values[webFontsTimeout] = strconv.FormatInt(timeout, 10)
+}
+
 func (url *URLRequest) getPostURL() string {
 	return "/convert/url"
 }

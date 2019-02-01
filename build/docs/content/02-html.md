@@ -187,6 +187,9 @@ You may also use *remote* paths for Google fonts, images and so on.
 > If you want to install fonts directly in the Gotenberg Docker image,
 > see to the [fonts section](#fonts).
 
+> For web fonts, there is a timeout of 500ms by default. You may update
+> this value thanks to the form field `webFontsTimeout`.
+
 ### cURL
 
 ```bash

@@ -15,17 +15,18 @@ import (
 
 // Markdown facilitates Markdown to PDF conversion.
 type Markdown struct {
-	Context      context.Context
-	TemplatePath string
-	HeaderHTML   string
-	FooterHTML   string
-	PaperWidth   float64
-	PaperHeight  float64
-	MarginTop    float64
-	MarginBottom float64
-	MarginLeft   float64
-	MarginRight  float64
-	Landscape    bool
+	Context         context.Context
+	TemplatePath    string
+	HeaderHTML      string
+	FooterHTML      string
+	PaperWidth      float64
+	PaperHeight     float64
+	MarginTop       float64
+	MarginBottom    float64
+	MarginLeft      float64
+	MarginRight     float64
+	Landscape       bool
+	WebFontsTimeout int64
 
 	html *HTML
 }
@@ -52,6 +53,7 @@ func (md *Markdown) Print(destination string) error {
 	md.html.MarginLeft = md.MarginLeft
 	md.html.MarginRight = md.MarginRight
 	md.html.Landscape = md.Landscape
+	md.html.WebFontsTimeout = md.WebFontsTimeout
 	tmpl, err := template.
 		New(filepath.Base(md.TemplatePath)).
 		Funcs(template.FuncMap{"toHTML": toHTML}).

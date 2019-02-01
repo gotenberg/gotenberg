@@ -88,6 +88,11 @@ func (markdown *MarkdownRequest) SetLandscape(isLandscape bool) {
 	markdown.values[landscape] = strconv.FormatBool(isLandscape)
 }
 
+// SetWebFontsTimeout sets webFontsTimeout form field.
+func (markdown *MarkdownRequest) SetWebFontsTimeout(timeout int64) {
+	markdown.values[webFontsTimeout] = strconv.FormatInt(timeout, 10)
+}
+
 func (markdown *MarkdownRequest) getPostURL() string {
 	return "/convert/markdown"
 }

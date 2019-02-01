@@ -78,6 +78,11 @@ func (html *HTMLRequest) SetLandscape(isLandscape bool) {
 	html.values[landscape] = strconv.FormatBool(isLandscape)
 }
 
+// SetWebFontsTimeout sets webFontsTimeout form field.
+func (html *HTMLRequest) SetWebFontsTimeout(timeout int64) {
+	html.values[webFontsTimeout] = strconv.FormatInt(timeout, 10)
+}
+
 func (html *HTMLRequest) getPostURL() string {
 	return "/convert/html"
 }

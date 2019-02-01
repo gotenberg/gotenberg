@@ -13,15 +13,16 @@ import (
 )
 
 const (
-	remoteURL    string = "remoteURL"
-	webhookURL   string = "webhookURL"
-	paperWidth   string = "paperWidth"
-	paperHeight  string = "paperHeight"
-	marginTop    string = "marginTop"
-	marginBottom string = "marginBottom"
-	marginLeft   string = "marginLeft"
-	marginRight  string = "marginRight"
-	landscape    string = "landscape"
+	remoteURL       string = "remoteURL"
+	webhookURL      string = "webhookURL"
+	paperWidth      string = "paperWidth"
+	paperHeight     string = "paperHeight"
+	marginTop       string = "marginTop"
+	marginBottom    string = "marginBottom"
+	marginLeft      string = "marginLeft"
+	marginRight     string = "marginRight"
+	landscape       string = "landscape"
+	webFontsTimeout string = "webFontsTimeout"
 )
 
 // resource facilitates storing and accessing
@@ -42,6 +43,7 @@ func newResource(c echo.Context) (*resource, error) {
 	v[marginLeft] = c.FormValue(marginLeft)
 	v[marginRight] = c.FormValue(marginRight)
 	v[landscape] = c.FormValue(landscape)
+	v[webFontsTimeout] = c.FormValue(webFontsTimeout)
 	dirPath, err := rand.Get()
 	if err != nil {
 		return nil, err
@@ -188,6 +190,18 @@ func (r *resource) remoteURL() (string, error) {
 		return "", errors.New("no remote URL")
 	}
 	return r.values[remoteURL], nil
+}
+
+func (r *resource) webFontsTimeout() (int64, error) {
+	webFontsTimeoutStr := r.values[webFontsTimeout]
+	if webFontsTimeoutStr == "" {
+		return 500, nil
+	}
+	timeout, err := strconv.ParseInt(webFontsTimeoutStr, 10, 64)
+	if err != nil {
+		return 500, fmt.Errorf("web fonts timeout: %v", err)
+	}
+	return timeout, nil
 }
 
 func (r *resource) webhookURL() string { return r.values[webhookURL] }

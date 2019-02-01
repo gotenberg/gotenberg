@@ -13,15 +13,16 @@ import (
 )
 
 const (
-	remoteURL    string = "remoteURL"
-	webhookURL   string = "webhookURL"
-	paperWidth   string = "paperWidth"
-	paperHeight  string = "paperHeight"
-	marginTop    string = "marginTop"
-	marginBottom string = "marginBottom"
-	marginLeft   string = "marginLeft"
-	marginRight  string = "marginRight"
-	landscape    string = "landscape"
+	remoteURL       string = "remoteURL"
+	webhookURL      string = "webhookURL"
+	paperWidth      string = "paperWidth"
+	paperHeight     string = "paperHeight"
+	marginTop       string = "marginTop"
+	marginBottom    string = "marginBottom"
+	marginLeft      string = "marginLeft"
+	marginRight     string = "marginRight"
+	landscape       string = "landscape"
+	webFontsTimeout string = "webFontsTimeout"
 )
 
 var (
@@ -75,6 +76,7 @@ type ChromeRequest interface {
 	SetPaperSize(size [2]float64)
 	SetMargins(margins [4]float64)
 	SetLandscape(isLandscape bool)
+	SetWebFontsTimeout(timeout int64)
 }
 
 // UnoconvRequest is a type for sending

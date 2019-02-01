@@ -46,5 +46,10 @@ func convertMarkdown(c echo.Context) error {
 		return hijackErr(err, r)
 	}
 	p.Landscape = landscape
+	chromeWebFontsTimeout, err := r.webFontsTimeout()
+	if err != nil {
+		return hijackErr(err, r)
+	}
+	p.WebFontsTimeout = chromeWebFontsTimeout
 	return print(c, p, r)
 }

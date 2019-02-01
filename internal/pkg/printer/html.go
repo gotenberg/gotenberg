@@ -18,17 +18,18 @@ import (
 
 // HTML facilitates HTML to PDF conversion.
 type HTML struct {
-	Context      context.Context
-	URL          string
-	HeaderHTML   string
-	FooterHTML   string
-	PaperWidth   float64
-	PaperHeight  float64
-	MarginTop    float64
-	MarginBottom float64
-	MarginLeft   float64
-	MarginRight  float64
-	Landscape    bool
+	Context         context.Context
+	URL             string
+	HeaderHTML      string
+	FooterHTML      string
+	PaperWidth      float64
+	PaperHeight     float64
+	MarginTop       float64
+	MarginBottom    float64
+	MarginLeft      float64
+	MarginRight     float64
+	Landscape       bool
+	WebFontsTimeout int64
 }
 
 const defaultHeaderFooterHTML string = "<html><head></head><body></body></html>"
@@ -103,12 +104,12 @@ func (html *HTML) Print(destination string) error {
 		return fmt.Errorf("waiting for page loading: %v", err)
 	}
 	// inject a script to make sure web fonts are loaded.
-	script := `new Promise((resolve, reject) => {
+	script := fmt.Sprintf(`new Promise((resolve, reject) => {
 		document.fonts.ready.then(function () {
 			resolve('fonts loaded');
 		});
-		setTimeout(resolve.bind(resolve, 'timeout'), 500);
-	});`
+		setTimeout(resolve.bind(resolve, 'timeout'), %d);
+	});`, html.WebFontsTimeout)
 	scriptArg := runtime.NewEvaluateArgs(script).SetAwaitPromise(true)
 	returnObj, _ := c.Runtime.Evaluate(html.Context, scriptArg)
 	if returnObj.ExceptionDetails != nil {
