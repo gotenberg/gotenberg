@@ -21,11 +21,13 @@ docker build -t thecodingmachine/gotenberg:base -f build/base/Dockerfile .
 docker build \
     --build-arg GOLANG_VERSION=${GOLANG_VERSION} \
     --build-arg VERSION=${VERSION} \
+    -t thecodingmachine/gotenberg:latest \
     -t thecodingmachine/gotenberg:${SEMVER[0]} \
     -t thecodingmachine/gotenberg:${SEMVER[0]}.${SEMVER[1]} \
     -t thecodingmachine/gotenberg:${SEMVER[0]}.${SEMVER[1]}.${SEMVER[2]} \
     -f build/package/Dockerfile .
 
+docker push "thecodingmachine/gotenberg:latest"
 docker push "thecodingmachine/gotenberg:${SEMVER[0]}"
 docker push "thecodingmachine/gotenberg:${SEMVER[0]}.${SEMVER[1]}"
 docker push "thecodingmachine/gotenberg:${SEMVER[0]}.${SEMVER[1]}.${SEMVER[2]}"
