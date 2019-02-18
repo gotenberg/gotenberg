@@ -12,6 +12,7 @@ You may send one or more Office documents. Following file extensions are accepte
 
 * `.txt`
 * `.rtf`
+* `.fodt`
 * `.doc`
 * `.docx`
 * `.odt`

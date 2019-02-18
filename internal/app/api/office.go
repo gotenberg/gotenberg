@@ -10,6 +10,7 @@ import (
 var officeExts = []string{
 	".txt",
 	".rtf",
+	".fodt",
 	".doc",
 	".docx",
 	".odt",
