@@ -69,6 +69,7 @@ func setup() *echo.Echo {
 	})
 	e.GET("/ping", func(c echo.Context) error { return nil })
 	e.POST("/merge", merge)
+	e.POST("/repair", repairPDF)
 	g := e.Group("/convert")
 	g.POST("/html", convertHTML)
 	g.POST("/url", convertURL)
