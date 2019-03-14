@@ -9,6 +9,7 @@ DOCKER_PASSWORD="$4"
 
 docker login -u "$DOCKER_USER" -p "$DOCKER_PASSWORD"
 
+VERSION="${VERSION//v}"
 SEMVER=( ${VERSION//./ } )   
 VERSION_LENGTH=${#SEMVER[@]}
 
