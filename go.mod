@@ -1,5 +1,7 @@
 module github.com/thecodingmachine/gotenberg
 
+go 1.12
+
 require (
 	github.com/google/go-cmp v0.2.0 // indirect
 	github.com/gorilla/websocket v1.4.0 // indirect

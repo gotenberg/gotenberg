@@ -45,4 +45,4 @@ COPY go.sum .
 # Install module dependencies.
 RUN go mod download
 
-ENTRYPOINT ["build/tests/docker-entrypoint.sh"]
+ENTRYPOINT [ "build/tests/docker-entrypoint.sh" ]

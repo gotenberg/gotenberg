@@ -138,36 +138,6 @@ func copyDir(t *testing.T, kind string) string {
 	return tmpDirPath
 }
 
-// HTMLTestFilePath returns the absolute file path
-// of a file in "html" folder in test/testdata.
-func HTMLTestFilePath(t *testing.T, filename string) string {
-	return abs(t, "html", filename)
-}
-
-// URLTestFilePath returns the absolute file path
-// of a file in "url" folder in test/testdata.
-func URLTestFilePath(t *testing.T, filename string) string {
-	return abs(t, "url", filename)
-}
-
-// MarkdownTestFilePath returns the absolute file path
-// of a file in "markdown" folder in test/testdata.
-func MarkdownTestFilePath(t *testing.T, filename string) string {
-	return abs(t, "markdown", filename)
-}
-
-// OfficeTestFilePath returns the absolute file path
-// of a file in "office" folder in test/testdata.
-func OfficeTestFilePath(t *testing.T, filename string) string {
-	return abs(t, "office", filename)
-}
-
-// PDFTestFilePath returns the absolute file path
-// of a file in "pdf" folder in test/testdata.
-func PDFTestFilePath(t *testing.T, filename string) string {
-	return abs(t, "pdf", filename)
-}
-
 func abs(t *testing.T, kind, filename string) string {
 	_, gofilename, _, ok := runtime.Caller(0)
 	require.Equal(t, ok, true, "got no caller information")

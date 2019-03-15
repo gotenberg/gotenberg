@@ -16,10 +16,3 @@ go test -race -cover -covermode=atomic github.com/thecodingmachine/gotenberg/int
 # Finally testing processes shutdown.
 go test github.com/thecodingmachine/gotenberg/internal/pkg/pm2 -run TestChromeShutdown
 go test github.com/thecodingmachine/gotenberg/internal/pkg/pm2 -run TestUnoconvShutdown
-
-# Testing Go client.
-go build -o /usr/local/bin/gotenberg cmd/gotenberg/main.go
-gotenberg &
-sleep 10
-go test -race -cover -covermode=atomic github.com/thecodingmachine/gotenberg/pkg
-sleep 5 # allows Gotenberg to remove generated files (concurrent requests).

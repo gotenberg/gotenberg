@@ -1,4 +1,4 @@
-GOLANG_VERSION=1.11.2
+GOLANG_VERSION=1.12
 VERSION=snapshot
 DOCKER_USER=
 DOCKER_PASSWORD=
@@ -11,6 +11,7 @@ doc:
 # gofmt and goimports all go files.
 fmt:
 	go fmt ./...
+	go mod tidy
 
 # run all linters.
 lint:

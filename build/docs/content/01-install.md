@@ -35,7 +35,7 @@ Gotenberg API is available at [http://localhost:3000](http://localhost:3000).
 ## Go client
 
 ```bash
-$ go get -u github.com/thecodingmachine/gotenberg
+$ go get -u github.com/thecodingmachine/gotenberg-go-client/v4
 ```
 
 ## PHP client

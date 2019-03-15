@@ -10,7 +10,7 @@ FROM golang:${GOLANG_VERSION}-stretch
 # | than gometalinter.
 # |
 
-ENV GOLANGCI_LINT_VERSION 1.12.3
+ENV GOLANGCI_LINT_VERSION 1.15.0
 
 RUN curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b /usr/local/bin v${GOLANGCI_LINT_VERSION} &&\
     golangci-lint --version

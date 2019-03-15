@@ -16,7 +16,7 @@ At TheCodingMachine, we build a lot of web applications (intranets, extranets an
 * Performance :zap:: Google Chrome and Libreoffice (unoconv) started once in the background thanks to PM2
 * Failure prevention :broken_heart:: PM2 automatically restarts previous processes if they fail
 * Assets :package:: send your header, footer, images, fonts, stylesheets and so on for converting your HTML and Markdown to beaufitul PDFs!
-* Easily interact with the API using our [Go](/pkg) and [PHP](https://github.com/thecodingmachine/gotenberg-php-client) libraries
+* Easily interact with the API using our [Go](https://github.com/thecodingmachine/gotenberg-go-client) and [PHP](https://github.com/thecodingmachine/gotenberg-php-client) libraries
 
 ## Quick start
 
