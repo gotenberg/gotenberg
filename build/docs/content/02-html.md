@@ -39,7 +39,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg/pkg"
+import "github.com/thecodingmachine/gotenberg-go-client/v4"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
@@ -113,7 +113,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg/pkg"
+import "github.com/thecodingmachine/gotenberg-go-client/v4"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
@@ -266,7 +266,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg/pkg"
+import "github.com/thecodingmachine/gotenberg-go-client/v4"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
