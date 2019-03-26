@@ -8,8 +8,8 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/labstack/echo"
-	"github.com/labstack/echo/middleware"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/notify"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/pm2"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/printer"
@@ -93,13 +93,16 @@ func print(c echo.Context, p printer.Printer, r *resource) error {
 	}
 	filename := fmt.Sprintf("%s.pdf", baseFilename)
 	fpath := fmt.Sprintf("%s/%s", r.dirPath, filename)
+	// if no webhook URL given, run conversion
+	// and directly return the resulting PDF file
+	// or an error.
 	if r.webhookURL() == "" {
 		defer r.removeAll()
-		// if no webhook URL given, run conversion
-		// and directly return the resulting PDF file
-		// or an error.
 		if err := p.Print(fpath); err != nil {
 			return err
+		}
+		if r.filename() != "" {
+			filename = r.filename()
 		}
 		return c.Attachment(fpath, filename)
 	}

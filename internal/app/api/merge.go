@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/printer"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/rand"
 )
@@ -29,13 +29,16 @@ func merge(c echo.Context) error {
 	}
 	filename := fmt.Sprintf("%s.pdf", baseFilename)
 	fpath := fmt.Sprintf("%s/%s", r.dirPath, filename)
+	// if no webhook URL given, run merge
+	// and directly return the resulting PDF file
+	// or an error.
 	if r.webhookURL() == "" {
 		defer r.removeAll()
-		// if no webhook URL given, run merge
-		// and directly return the resulting PDF file
-		// or an error.
 		if err := printer.Merge(fpaths, fpath); err != nil {
 			return err
+		}
+		if r.filename() != "" {
+			filename = r.filename()
 		}
 		return c.Attachment(fpath, filename)
 	}
