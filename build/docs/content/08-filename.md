@@ -11,7 +11,7 @@ Otherwise a random filename is used.
 > However, you may hijack the response from the API or store the resulting PDF
 > using a custom filename.
 >
-> **Attention:** this feature does not work if a form field `webhookURL` is given.
+> **Attention:** this feature does not work if the form field `webhookURL` is given.
 
 ## Examples
 
