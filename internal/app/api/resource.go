@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/rand"
 )
 
@@ -23,6 +23,7 @@ const (
 	marginRight     string = "marginRight"
 	landscape       string = "landscape"
 	webFontsTimeout string = "webFontsTimeout"
+	filename        string = "filename"
 )
 
 // resource facilitates storing and accessing
@@ -33,17 +34,6 @@ type resource struct {
 }
 
 func newResource(c echo.Context) (*resource, error) {
-	v := make(map[string]string)
-	v[remoteURL] = c.FormValue(remoteURL)
-	v[webhookURL] = c.FormValue(webhookURL)
-	v[paperWidth] = c.FormValue(paperWidth)
-	v[paperHeight] = c.FormValue(paperHeight)
-	v[marginTop] = c.FormValue(marginTop)
-	v[marginBottom] = c.FormValue(marginBottom)
-	v[marginLeft] = c.FormValue(marginLeft)
-	v[marginRight] = c.FormValue(marginRight)
-	v[landscape] = c.FormValue(landscape)
-	v[webFontsTimeout] = c.FormValue(webFontsTimeout)
 	dirPath, err := rand.Get()
 	if err != nil {
 		return nil, err
@@ -51,7 +41,7 @@ func newResource(c echo.Context) (*resource, error) {
 	if err := os.MkdirAll(dirPath, 0755); err != nil {
 		return nil, fmt.Errorf("%s: making directory: %v", dirPath, err)
 	}
-	r := &resource{values: v, dirPath: dirPath}
+	r := &resource{values: values(c), dirPath: dirPath}
 	form, err := c.MultipartForm()
 	if err != nil {
 		return r, fmt.Errorf("getting multipart form: %v", err)
@@ -69,6 +59,22 @@ func newResource(c echo.Context) (*resource, error) {
 		}
 	}
 	return r, nil
+}
+
+func values(c echo.Context) map[string]string {
+	v := make(map[string]string)
+	v[remoteURL] = c.FormValue(remoteURL)
+	v[webhookURL] = c.FormValue(webhookURL)
+	v[paperWidth] = c.FormValue(paperWidth)
+	v[paperHeight] = c.FormValue(paperHeight)
+	v[marginTop] = c.FormValue(marginTop)
+	v[marginBottom] = c.FormValue(marginBottom)
+	v[marginLeft] = c.FormValue(marginLeft)
+	v[marginRight] = c.FormValue(marginRight)
+	v[landscape] = c.FormValue(landscape)
+	v[webFontsTimeout] = c.FormValue(webFontsTimeout)
+	v[filename] = c.FormValue(filename)
+	return v
 }
 
 func (r *resource) writeFile(filename string, in io.Reader) error {
@@ -205,4 +211,5 @@ func (r *resource) webFontsTimeout() (int64, error) {
 }
 
 func (r *resource) webhookURL() string { return r.values[webhookURL] }
+func (r *resource) filename() string   { return r.values[filename] }
 func (r *resource) removeAll() error   { return os.RemoveAll(r.dirPath) }

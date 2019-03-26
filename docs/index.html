@@ -75,6 +75,10 @@
                 </div>
               
                 <div class="item">
+                  <a href="#filename">Filename</a>
+                </div>
+              
+                <div class="item">
                   <a href="#scalability">Scalability</a>
                 </div>
               
@@ -894,6 +898,41 @@ $index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39
 $request = new HTMLRequest($index);
 $request-&gt;setWebhookURL(&#39;http://myapp.com/webhook/&#39;);
 $resp = $client-&gt;post($request);
+</pre>
+
+              </div>
+            
+              <div class="Page" id="filename">
+                <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="filename" href="#filename">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Filename</h1>
+                <p>All endpoints accept a form field named <code>filename</code>.</p>
+
+<p>If provided, the API will return the resulting PDF file with the given filename.
+Otherwise a random filename is used.</p>
+
+<blockquote>
+<p>The Go and PHP libraries do not provide a way to set this form field.
+However, you may hijack the response from the API or store the resulting PDF
+using a custom filename.</p>
+
+<p><strong>Attention:</strong> this feature does not work if a form field <code>webhookURL</code> is given.</p>
+</blockquote>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="filename.examples" href="#filename.examples">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Examples</h2>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="filename.examples.c_url" href="#filename.examples.c_url">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>cURL</h3>
+
+<pre class="chroma">$ curl --request POST <span class="se">\
+</span><span class="se"></span>    --url http://localhost:3000/convert/html <span class="se">\
+</span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">filename</span><span class="o">=</span><span class="s1">&#39;result.pdf&#39;</span> <span class="se">\
+</span><span class="se"></span>    -o result.pdf
 </pre>
 
               </div>
