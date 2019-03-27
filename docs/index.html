@@ -149,6 +149,13 @@
 
 <p>It may also be deployed with Kubernetes.</p>
 
+<blockquote>
+<p>In Kubernetes, make sure to provide enough memory and CPU requests (for instance <code>512Mi</code> and <code>0.2</code> CPU).
+Otherwise the API will not be able to launch Google Chrome and Libreoffice (unoconv).</p>
+
+<p>Also note the more resources are granted, the quicker will be the conversions.</p>
+</blockquote>
+
 <p>In the following examples, we will assume your
 Gotenberg API is available at <a href="http://localhost:3000">http://localhost:3000</a>.</p>
 
@@ -918,22 +925,6 @@ using a custom filename.</p>
 
 <p><strong>Attention:</strong> this feature does not work if the form field <code>webhookURL</code> is given.</p>
 </blockquote>
-
-<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="filename.examples" href="#filename.examples">
-	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-</a>Examples</h2>
-
-<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="filename.examples.c_url" href="#filename.examples.c_url">
-	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-</a>cURL</h3>
-
-<pre class="chroma">$ curl --request POST <span class="se">\
-</span><span class="se"></span>    --url http://localhost:3000/convert/html <span class="se">\
-</span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
-</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html <span class="se">\
-</span><span class="se"></span>    --form <span class="nv">filename</span><span class="o">=</span><span class="s1">&#39;result.pdf&#39;</span> <span class="se">\
-</span><span class="se"></span>    -o result.pdf
-</pre>
 
               </div>
             

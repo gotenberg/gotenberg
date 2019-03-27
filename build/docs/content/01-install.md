@@ -29,6 +29,11 @@ services:
 
 It may also be deployed with Kubernetes.
 
+> In Kubernetes, make sure to provide enough memory and CPU requests (for instance `512Mi` and `0.2` CPU).
+> Otherwise the API will not be able to launch Google Chrome and Libreoffice (unoconv).
+>
+> Also note the more resources are granted, the quicker will be the conversions.
+
 In the following examples, we will assume your
 Gotenberg API is available at [http://localhost:3000](http://localhost:3000).
 

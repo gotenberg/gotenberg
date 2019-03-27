@@ -12,16 +12,3 @@ Otherwise a random filename is used.
 > using a custom filename.
 >
 > **Attention:** this feature does not work if the form field `webhookURL` is given.
-
-## Examples
-
-### cURL
-
-```bash
-$ curl --request POST \
-    --url http://localhost:3000/convert/html \
-    --header 'Content-Type: multipart/form-data' \
-    --form files=@index.html \
-    --form filename='result.pdf' \
-    -o result.pdf
-```
