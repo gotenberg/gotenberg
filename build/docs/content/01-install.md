@@ -37,6 +37,18 @@ It may also be deployed with Kubernetes.
 In the following examples, we will assume your
 Gotenberg API is available at [http://localhost:3000](http://localhost:3000).
 
+## Disabling Google Chrome and/or Libreoffice (unoconv)
+
+In order to save some resources, the Gotenberg image accepts two environment variables: `DISABLE_GOOGLE_CHROME` and `DISABLE_UNOCONV`.
+
+Both accept the string `"1"` as value.
+
+> If Google Chrome is disabled, the following conversions will **not** be available anymore:
+> [HTML](#html), [URL](#url) and [Markdown](#markdown)
+>
+> If Libreoffice (unoconv) is disabled, the following conversion will **not** be available anymore:
+> [Office](#office)
+
 ## Go client
 
 ```bash

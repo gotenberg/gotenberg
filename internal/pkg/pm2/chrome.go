@@ -11,21 +11,33 @@ import (
 
 // Chrome facilitates starting or shutting down
 // Chrome headless with PM2.
-type Chrome struct{}
+type Chrome struct {
+	heuristicState int32
+}
 
-// Launch starts Chrome headless with PM2.
-func (c *Chrome) Launch() error {
-	return launch(c)
+// Start starts Chrome headless with PM2.
+func (c *Chrome) Start() error {
+	return startProcess(c)
 }
 
 // Shutdown stops Chrome headless and
 // removes it from the list of PM2
 // processes.
 func (c *Chrome) Shutdown() error {
-	return shutdown(c)
+	return shutdownProcess(c)
 }
 
-func (c *Chrome) getArgs() []string {
+// State returns the current state of
+// Chrome headless process.
+func (c *Chrome) State() int32 {
+	return c.heuristicState
+}
+
+func (c *Chrome) state(state int32) {
+	c.heuristicState = state
+}
+
+func (c *Chrome) args() []string {
 	return []string{
 		"--no-sandbox",
 		"--headless",
@@ -44,15 +56,15 @@ func (c *Chrome) getArgs() []string {
 	}
 }
 
-func (c *Chrome) getName() string {
+func (c *Chrome) name() string {
 	return "google-chrome-stable"
 }
 
-func (c *Chrome) getFullname() string {
+func (c *Chrome) fullname() string {
 	return "Chrome headless"
 }
 
-func (c *Chrome) isViable() bool {
+func (c *Chrome) viable() bool {
 	// check if Chrome is correctly running.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -61,7 +73,7 @@ func (c *Chrome) isViable() bool {
 }
 
 func (c *Chrome) warmup() {
-	notify.Println(fmt.Sprintf("warming-up %s", c.getFullname()))
+	notify.Println(fmt.Sprintf("warming-up %s", c.fullname()))
 	time.Sleep(5 * time.Second)
 }
 

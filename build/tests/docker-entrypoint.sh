@@ -16,3 +16,4 @@ go test -race -cover -covermode=atomic github.com/thecodingmachine/gotenberg/int
 # Finally testing processes shutdown.
 go test github.com/thecodingmachine/gotenberg/internal/pkg/pm2 -run TestChromeShutdown
 go test github.com/thecodingmachine/gotenberg/internal/pkg/pm2 -run TestUnoconvShutdown
+

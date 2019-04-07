@@ -5,58 +5,89 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/signal"
-	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/notify"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/pm2"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/printer"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/rand"
 )
 
-// Start starts the API server on port 3000.
-func Start() error {
-	e := setup()
-	// start Chrome headless and
-	// unoconv listener with PM2.
-	chrome := &pm2.Chrome{}
-	unoconv := &pm2.Unoconv{}
-	if err := chrome.Launch(); err != nil {
-		return err
-	}
-	if err := unoconv.Launch(); err != nil {
-		return err
-	}
-	// run our API in a goroutine so that it doesn't block.
-	go func() {
-		notify.Println("http server started on port 3000")
-		if err := e.Start(":3000"); err != nil {
-			e.Logger.Fatalf("%v", err)
-			os.Exit(1)
-		}
-	}()
-	quit := make(chan os.Signal, 1)
-	// we'll accept graceful shutdowns when quit via SIGINT (Ctrl+C)
-	// SIGKILL, SIGQUIT or SIGTERM (Ctrl+/) will not be caught.
-	signal.Notify(quit, os.Interrupt)
-	// block until we receive our signal.
-	<-quit
-	// create a deadline to wait for.
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	defer cancel()
-	// doesn't block if no connections, but will otherwise wait
-	// until the timeout deadline.
-	notify.Println("shutting down http server... (Ctrl+C to force)")
-	return e.Shutdown(ctx)
+// API describes a Gotenberg API.
+type API struct {
+	srv     *echo.Echo
+	chrome  pm2.Process
+	unoconv pm2.Process
+	opts    *Options
 }
 
-func setup() *echo.Echo {
+// Options allows to customize the behaviour
+// of the API.
+type Options struct {
+	DisableGoogleChrome bool
+	DisableUnoconv      bool
+}
+
+// New returns a new API.
+func New(opts *Options) *API {
+	if opts == nil {
+		opts = &Options{
+			DisableGoogleChrome: false,
+			DisableUnoconv:      false,
+		}
+	}
+	return &API{
+		chrome:  &pm2.Chrome{},
+		unoconv: &pm2.Unoconv{},
+		opts:    opts,
+	}
+}
+
+// Start starts the API.
+func (api *API) Start(port string) error {
+	if !api.opts.DisableGoogleChrome {
+		if err := api.chrome.Start(); err != nil {
+			return err
+		}
+	}
+	if !api.opts.DisableUnoconv {
+		if err := api.unoconv.Start(); err != nil {
+			return err
+		}
+	}
+	api.srv = createEchoHTTPServer(api.opts)
+	return api.srv.Start(port)
+}
+
+// Shutdown shutdowns the API.
+func (api *API) Shutdown(ctx context.Context) error {
+	// shutdown the HTTP server first with a deadline to
+	// wait for.
+	if api.srv != nil {
+		if err := api.srv.Shutdown(ctx); err != nil {
+			return err
+		}
+	}
+	// then our PM2 processes.
+	if api.chrome.State() == pm2.RunningState {
+		if err := api.chrome.Shutdown(); err != nil {
+			return err
+		}
+	}
+	if api.unoconv.State() == pm2.RunningState {
+		if err := api.unoconv.Shutdown(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func createEchoHTTPServer(opts *Options) *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
 	e.Use(middleware.Logger())
+	// FIXME is this middleware required? (see https://echo.labstack.com/guide/error-handling)
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			if err := next(c); err != nil {
@@ -69,21 +100,19 @@ func setup() *echo.Echo {
 	})
 	e.GET("/ping", func(c echo.Context) error { return nil })
 	e.POST("/merge", merge)
-	g := e.Group("/convert")
-	g.POST("/html", convertHTML)
-	g.POST("/url", convertURL)
-	g.POST("/markdown", convertMarkdown)
-	g.POST("/office", convertOffice)
-	return e
-}
-
-func newContext(r *resource) (context.Context, context.CancelFunc) {
-	webhookURL := r.webhookURL()
-	if webhookURL == "" {
-		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-		return ctx, cancel
+	if opts.DisableGoogleChrome && opts.DisableUnoconv {
+		return e
 	}
-	return context.Background(), nil
+	g := e.Group("/convert")
+	if !opts.DisableGoogleChrome {
+		g.POST("/html", convertHTML)
+		g.POST("/url", convertURL)
+		g.POST("/markdown", convertMarkdown)
+	}
+	if !opts.DisableUnoconv {
+		g.POST("/office", convertOffice)
+	}
+	return e
 }
 
 func print(c echo.Context, p printer.Printer, r *resource) error {

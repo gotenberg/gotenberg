@@ -1,8 +1,8 @@
 /*
-Package api starts a HTTP server on port 3000.
+Package api starts a HTTP server with Google Chrome and Unoconv in background.
 
 It accepts POST requests with a multipart/form-data Content-Type
-for converting HTML, Markdown and Office documents to PDF.
+for converting various sources to PDF.
 
 It is also able to merge a list of PDF files.
 */

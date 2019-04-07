@@ -26,6 +26,20 @@ const (
 	filename        string = "filename"
 )
 
+type resource struct {
+	resultFilename string
+	webhookURL     string
+	waitTimeout    float64
+	dirPath        string
+}
+
+type chromeResource struct {
+	resource
+	paperWidth  float64
+	paperHeight float64
+	marginTop   float64
+}
+
 // resource facilitates storing and accessing
 // data from a multipart/form-data request.
 type resource struct {

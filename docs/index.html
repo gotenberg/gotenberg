@@ -159,6 +159,22 @@ Otherwise the API will not be able to launch Google Chrome and Libreoffice (unoc
 <p>In the following examples, we will assume your
 Gotenberg API is available at <a href="http://localhost:3000">http://localhost:3000</a>.</p>
 
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="install.disabling_google_chrome_and_or_libreoffice_unoconv" href="#install.disabling_google_chrome_and_or_libreoffice_unoconv">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Disabling Google Chrome and/or Libreoffice (unoconv)</h2>
+
+<p>In order to save some resources, the Gotenberg image accepts two environment variables: <code>DISABLE_GOOGLE_CHROME</code> and <code>DISABLE_UNOCONV</code>.</p>
+
+<p>Both accept the string <code>&#34;1&#34;</code> as value.</p>
+
+<blockquote>
+<p>If Google Chrome is disabled, the following conversions will <strong>not</strong> be available anymore:
+<a href="#html">HTML</a>, <a href="#url">URL</a> and <a href="#markdown">Markdown</a></p>
+
+<p>If Libreoffice (unoconv) is disabled, the following conversion will <strong>not</strong> be available anymore:
+<a href="#office">Office</a></p>
+</blockquote>
+
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="install.go_client" href="#install.go_client">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Go client</h2>

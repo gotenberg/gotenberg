@@ -2,36 +2,48 @@ package pm2
 
 // Unoconv facilitates starting or shutting down
 // unoconv listener with PM2.
-type Unoconv struct{}
+type Unoconv struct {
+	heuristicState int32
+}
 
-// Launch starts unoconv listener with PM2.
-func (u *Unoconv) Launch() error {
-	return launch(u)
+// Start starts unoconv listener with PM2.
+func (u *Unoconv) Start() error {
+	return startProcess(u)
 }
 
 // Shutdown stops unoconv listener and
 // removes it from the list of PM2
 // processes.
 func (u *Unoconv) Shutdown() error {
-	return shutdown(u)
+	return shutdownProcess(u)
 }
 
-func (u *Unoconv) getArgs() []string {
+// State returns the current state of
+// unoconv listener process.
+func (u *Unoconv) State() int32 {
+	return u.heuristicState
+}
+
+func (u *Unoconv) state(state int32) {
+	u.heuristicState = state
+}
+
+func (u *Unoconv) args() []string {
 	return []string{
 		"--listener",
 		"--verbose",
 	}
 }
 
-func (u *Unoconv) getName() string {
+func (u *Unoconv) name() string {
 	return "unoconv"
 }
 
-func (u *Unoconv) getFullname() string {
+func (u *Unoconv) fullname() string {
 	return "unoconv listener"
 }
 
-func (u *Unoconv) isViable() bool {
+func (u *Unoconv) viable() bool {
 	// TODO find a way to check if
 	// unoconv is correctly started?
 	return true
