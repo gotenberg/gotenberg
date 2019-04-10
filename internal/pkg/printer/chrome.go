@@ -3,34 +3,27 @@ package printer
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"time"
 
 	"github.com/mafredri/cdp"
 	"github.com/mafredri/cdp/devtool"
 	"github.com/mafredri/cdp/protocol/network"
 	"github.com/mafredri/cdp/protocol/page"
-	"github.com/mafredri/cdp/protocol/runtime"
+	"github.com/mafredri/cdp/protocol/target"
 	"github.com/mafredri/cdp/rpcc"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/file"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/hijackable"
 	"golang.org/x/sync/errgroup"
 )
 
 type chrome struct {
 	url  string
 	opts *ChromeOptions
-
-	conn                 *rpcc.Conn
-	client               *cdp.Client
-	exceptionThrown      runtime.ExceptionThrownClient
-	loadingFailed        network.LoadingFailedClient
-	domContentEventFired page.DOMContentEventFiredClient
-	loadEventFired       page.LoadEventFiredClient
 }
 
 // ChromeOptions helps customizing the
-// Chrome printer behaviour.
+// Google Chrome printer behaviour.
 type ChromeOptions struct {
+	WaitTimeout  float64
 	HeaderHTML   string
 	FooterHTML   string
 	PaperWidth   float64
@@ -40,220 +33,123 @@ type ChromeOptions struct {
 	MarginLeft   float64
 	MarginRight  float64
 	Landscape    bool
-	WaitTimeout  float64
 }
 
-const defaultHeaderFooterHTML string = "<html><head></head><body></body></html>"
-
-func newChrome(URL string, opts *ChromeOptions) (Printer, error) {
-	if URL == "" {
-		return nil, fmt.Errorf("URL should not be empty: got %s", URL)
-	}
-	// if no header or footer, use the default template
-	// for avoiding displaying default Chrome templates.
-	if opts.HeaderHTML == "" {
-		opts.HeaderHTML = defaultHeaderFooterHTML
-	}
-	if opts.FooterHTML == "" {
-		opts.FooterHTML = defaultHeaderFooterHTML
-	}
-	// if no custom paper size, set default size to A4.
-	if opts.PaperWidth == 0.0 && opts.PaperHeight == 0.0 {
-		opts.PaperWidth, opts.PaperHeight = 8.27, 11.7
-	}
-	// if no custom margins, set default margins to 1 inch.
-	if opts.MarginTop == 0.0 && opts.MarginBottom == 0.0 && opts.MarginLeft == 0.0 && opts.MarginRight == 0.0 {
-		opts.MarginTop, opts.MarginBottom, opts.MarginLeft, opts.MarginRight = 1, 1, 1, 1
-	}
-	// if no custom timeout, set default timeout to 30 seconds.
-	if opts.WaitTimeout == 0.0 {
-		opts.WaitTimeout = 30.0
-	}
-	return &chrome{
-		url:  URL,
-		opts: opts,
-	}, nil
-}
-
-func (c *chrome) Print(destination string) error {
-	ctx, cancel := context.WithCancel(context.Background())
+func (p *chrome) Print(destination string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(p.opts.WaitTimeout)*time.Second)
 	defer cancel()
-	devt := devtool.New("http://localhost:9222")
-	pt, err := devt.Get(ctx, devtool.Page)
+	devt, err := devtool.New("http://localhost:9222").Version(ctx)
 	if err != nil {
 		return err
 	}
 	// connect to WebSocket URL (page) that speaks the Chrome DevTools Protocol.
-	conn, err := rpcc.DialContext(ctx, pt.WebSocketDebuggerURL)
+	devtConn, err := rpcc.DialContext(ctx, devt.WebSocketDebuggerURL)
 	if err != nil {
 		return err
 	}
-	c.conn = conn
+	defer devtConn.Close() // nolint: errcheck
 	// create a new CDP Client that uses conn.
-	c.client = cdp.NewClient(conn)
-	// give enough capacity to avoid blocking any event listeners.
-	abort := make(chan error, 2)
-	// watch the abort channel.
-	go func() {
-		select {
-		case <-ctx.Done():
-		case <-abort:
-			cancel()
-		}
-	}()
-	// setup event handlers early because domain events can be sent as
-	// soon as Enable is called on the domain.
-	if err := c.abortOnErrors(ctx, abort); err != nil {
-		return hijackable.HijackOnError(c, err)
+	devtClient := cdp.NewClient(devtConn)
+	newContextTarget, err := devtClient.Target.CreateBrowserContext(ctx)
+	if err != nil {
+		return fmt.Errorf("creating new browser context: %v", err)
 	}
-	if err := chromeEnableEvents(
+	// create a new blank target with the new browser context.
+	createTargetArgs := target.
+		NewCreateTargetArgs("about:blank").
+		SetBrowserContextID(newContextTarget.BrowserContextID)
+	newTarget, err := devtClient.Target.CreateTarget(ctx, createTargetArgs)
+	if err != nil {
+		return fmt.Errorf("creating new blank target: %v", err)
+	}
+	// connect the client to the new target.
+	newTargetWsURL := fmt.Sprintf("ws://127.0.0.1:9222/devtools/page/%s", newTarget.TargetID)
+	newContextConn, err := rpcc.DialContext(ctx, newTargetWsURL)
+	if err != nil {
+		return fmt.Errorf("connecting client to blank target: %v", err)
+	}
+	defer newContextConn.Close() // nolint: errcheck
+	// create a new CDP Client that uses newContextConn.
+	targetClient := cdp.NewClient(newContextConn)
+	closeTargetArgs := target.NewCloseTargetArgs(newTarget.TargetID)
+	// close the target when done.
+	defer targetClient.Target.CloseTarget(ctx, closeTargetArgs) // nolint: errcheck
+	if err := runBatch(
 		// enable all the domain events that we're interested in.
-		func() error { return c.client.DOM.Enable(ctx) },
-		func() error { return c.client.Network.Enable(ctx, nil) },
-		func() error { return c.client.Page.Enable(ctx) },
-		func() error { return c.client.Runtime.Enable(ctx) },
+		func() error { return targetClient.DOM.Enable(ctx) },
+		func() error { return targetClient.Network.Enable(ctx, network.NewEnableArgs()) },
+		func() error { return targetClient.Page.Enable(ctx) },
+		func() error { return targetClient.Runtime.Enable(ctx) },
 	); err != nil {
-		return hijackable.HijackOnError(c, err)
+		return err
 	}
-	if err := c.navigate(ctx); err != nil {
-		return hijackable.HijackOnError(c, err)
+	if err := p.navigate(ctx, targetClient); err != nil {
+		return err
 	}
-	print, err := c.client.Page.PrintToPDF(
+	print, err := targetClient.Page.PrintToPDF(
 		ctx,
 		page.NewPrintToPDFArgs().
-			SetPaperWidth(c.opts.PaperWidth).
-			SetPaperHeight(c.opts.PaperHeight).
-			SetMarginTop(c.opts.MarginTop).
-			SetMarginBottom(c.opts.MarginBottom).
-			SetMarginLeft(c.opts.MarginLeft).
-			SetMarginRight(c.opts.MarginRight).
-			SetLandscape(c.opts.Landscape).
+			SetPaperWidth(p.opts.PaperWidth).
+			SetPaperHeight(p.opts.PaperHeight).
+			SetMarginTop(p.opts.MarginTop).
+			SetMarginBottom(p.opts.MarginBottom).
+			SetMarginLeft(p.opts.MarginLeft).
+			SetMarginRight(p.opts.MarginRight).
+			SetLandscape(p.opts.Landscape).
 			SetDisplayHeaderFooter(true).
-			SetHeaderTemplate(c.opts.HeaderHTML).
-			SetFooterTemplate(c.opts.FooterHTML).
+			SetHeaderTemplate(p.opts.HeaderHTML).
+			SetFooterTemplate(p.opts.FooterHTML).
 			SetPrintBackground(true),
 	)
 	if err != nil {
-		return hijackable.HijackOnError(c, fmt.Errorf("printing page to PDF: %v", err))
+		return fmt.Errorf("printing page to PDF: %v", err)
 	}
-	if err := file.WriteBytesToFile(destination, print.Data); err != nil {
-		return hijackable.HijackOnError(c, err)
-	}
-	return c.Hijack()
-}
-
-func (c *chrome) Hijack() error {
-	if c.loadEventFired != nil {
-		if err := c.loadEventFired.Close(); err != nil {
-			return err
-		}
-	}
-	if c.domContentEventFired != nil {
-		if err := c.domContentEventFired.Close(); err != nil {
-			return err
-		}
-	}
-	if c.loadingFailed != nil {
-		if err := c.loadingFailed.Close(); err != nil {
-			return err
-		}
-	}
-	if c.exceptionThrown != nil {
-		if err := c.exceptionThrown.Close(); err != nil {
-			return err
-		}
-	}
-	if c.conn != nil {
-		if err := c.conn.Close(); err != nil {
-			return err
-		}
+	if err := ioutil.WriteFile(destination, print.Data, 0644); err != nil {
+		return fmt.Errorf("%s: writing file: %v", destination, err)
 	}
 	return nil
 }
 
-func (c *chrome) abortOnErrors(ctx context.Context, abort chan<- error) error {
-	exceptionThrown, err := c.client.Runtime.ExceptionThrown(ctx)
-	if err != nil {
-		return err
-	}
-	c.exceptionThrown = exceptionThrown
-	loadingFailed, err := c.client.Network.LoadingFailed(ctx)
-	if err != nil {
-		return err
-	}
-	c.loadingFailed = loadingFailed
-	go func() {
-		for {
-			select {
-			// check for exceptions so we can abort as soon
-			// as one is encountered.
-			case <-c.exceptionThrown.Ready():
-				ev, err := c.exceptionThrown.Recv()
-				if err != nil {
-					// this could be any one of: stream closed,
-					// connection closed, context deadline or
-					// unmarshal failed.
-					abort <- err
-					return
-				}
-				// ruh-roh! Let the caller know something went wrong.
-				abort <- ev.ExceptionDetails
-			// check for non-canceled resources that failed
-			// to load.
-			case <-c.loadingFailed.Ready():
-				ev, err := c.loadingFailed.Recv()
-				if err != nil {
-					abort <- err
-					return
-				}
-				// for now, most optional fields are pointers
-				// and must be checked for nil.
-				canceled := ev.Canceled != nil && *ev.Canceled
-				if !canceled {
-					abort <- fmt.Errorf("request %s failed: %s", ev.RequestID, ev.ErrorText)
-				}
-			}
-		}
-	}()
-	return nil
-}
-
-func (c *chrome) navigate(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(c.opts.WaitTimeout)*time.Second)
-	defer cancel()
+func (p *chrome) navigate(ctx context.Context, client *cdp.Client) error {
 	// make sure Page events are enabled.
-	if err := c.client.Page.Enable(ctx); err != nil {
+	if err := client.Page.Enable(ctx); err != nil {
 		return err
 	}
-	// open client for DOMContentEventFired to block until DOM has fully loaded.
-	domContentEventFired, err := c.client.Page.DOMContentEventFired(ctx)
+	// make sure Network events are enabled.
+	if err := client.Network.Enable(ctx, nil); err != nil {
+		return err
+	}
+	// create all clients for events.
+	domContentEventFired, err := client.Page.DOMContentEventFired(ctx)
 	if err != nil {
 		return err
 	}
-	c.domContentEventFired = domContentEventFired
-	// open client for LoadEventFired to block until navigation is finished.
-	loadEventFired, err := c.client.Page.LoadEventFired(ctx)
+	defer domContentEventFired.Close() // nolint: errcheck
+	loadEventFired, err := client.Page.LoadEventFired(ctx)
 	if err != nil {
 		return err
 	}
-	c.loadEventFired = loadEventFired
-	// TODO check c.client.Network.LoadingFinished
-	_, err = c.client.Page.Navigate(ctx, page.NewNavigateArgs(c.url))
+	defer loadEventFired.Close() // nolint: errcheck
+	loadingFinished, err := client.Network.LoadingFinished(ctx)
 	if err != nil {
 		return err
 	}
-	if _, err := c.domContentEventFired.Recv(); err != nil {
+	defer loadingFinished.Close() // nolint: errcheck
+	if _, err := client.Page.Navigate(ctx, page.NewNavigateArgs(p.url)); err != nil {
 		return err
 	}
-	if _, err := c.loadEventFired.Recv(); err != nil {
+	if err := runBatch(
+		// wait for all events.
+		func() error { _, err := domContentEventFired.Recv(); return err },
+		func() error { _, err := loadEventFired.Recv(); return err },
+		func() error { _, err := loadingFinished.Recv(); return err },
+	); err != nil {
 		return err
 	}
 	return nil
 }
 
-type chomeEnableEventsFunc func() error
-
-func chromeEnableEvents(fn ...chomeEnableEventsFunc) error {
+func runBatch(fn ...func() error) error {
 	// run all functions simultaneously and wait until
 	// execution has completed or an error is encountered.
 	eg := errgroup.Group{}
@@ -266,5 +162,4 @@ func chromeEnableEvents(fn ...chomeEnableEventsFunc) error {
 // Compile-time checks to ensure type implements desired interfaces.
 var (
 	_ = Printer(new(chrome))
-	_ = hijackable.Hijackable(new(chrome))
 )

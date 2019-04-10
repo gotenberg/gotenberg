@@ -1,6 +1,9 @@
 package printer
 
 // NewURL returns a URL printer.
-func NewURL(URL string, opts *ChromeOptions) (Printer, error) {
-	return newChrome(URL, opts)
+func NewURL(url string, opts *ChromeOptions) Printer {
+	return &chrome{
+		url:  url,
+		opts: opts,
+	}
 }

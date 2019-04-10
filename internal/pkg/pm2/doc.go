@@ -2,7 +2,7 @@
 Package pm2 facilitates starting external
 processes on which our API depends.
 
-For instance, it starts Chrome headless and
+For instance, it may start Google Chrome headless and
 unoconv listener with PM2.
 
 The PM2 process manager launch those processes and keep

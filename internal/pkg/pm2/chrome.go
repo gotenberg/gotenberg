@@ -2,42 +2,36 @@ package pm2
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/mafredri/cdp/devtool"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/notify"
 )
 
-// Chrome facilitates starting or shutting down
-// Chrome headless with PM2.
-type Chrome struct {
-	heuristicState int32
+type chrome struct {
+	manager *processManager
 }
 
-// Start starts Chrome headless with PM2.
-func (c *Chrome) Start() error {
-	return startProcess(c)
+// NewChrome retruns a Google Chromes
+// headless process.
+func NewChrome() Process {
+	return &chrome{
+		manager: &processManager{},
+	}
 }
 
-// Shutdown stops Chrome headless and
-// removes it from the list of PM2
-// processes.
-func (c *Chrome) Shutdown() error {
-	return shutdownProcess(c)
+func (p *chrome) Fullname() string {
+	return "Google Chrome headless"
 }
 
-// State returns the current state of
-// Chrome headless process.
-func (c *Chrome) State() int32 {
-	return c.heuristicState
+func (p *chrome) Start() error {
+	return p.manager.start(p)
 }
 
-func (c *Chrome) state(state int32) {
-	c.heuristicState = state
+func (p *chrome) Shutdown() error {
+	return p.manager.shutdown(p)
 }
 
-func (c *Chrome) args() []string {
+func (p *chrome) args() []string {
 	return []string{
 		"--no-sandbox",
 		"--headless",
@@ -56,28 +50,23 @@ func (c *Chrome) args() []string {
 	}
 }
 
-func (c *Chrome) name() string {
+func (p *chrome) name() string {
 	return "google-chrome-stable"
 }
 
-func (c *Chrome) fullname() string {
-	return "Chrome headless"
-}
-
-func (c *Chrome) viable() bool {
-	// check if Chrome is correctly running.
+func (p *chrome) viable() bool {
+	// check if Google Chrome is correctly running.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	_, err := devtool.New("http://localhost:9222").Version(ctx)
 	return err == nil
 }
 
-func (c *Chrome) warmup() {
-	notify.Println(fmt.Sprintf("warming-up %s", c.fullname()))
+func (p *chrome) warmup() {
 	time.Sleep(5 * time.Second)
 }
 
 // Compile-time checks to ensure type implements desired interfaces.
 var (
-	_ = Process(new(Chrome))
+	_ = Process(new(chrome))
 )

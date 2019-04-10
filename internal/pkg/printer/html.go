@@ -5,7 +5,10 @@ import (
 )
 
 // NewHTML returns an HTML printer.
-func NewHTML(fpath string, opts *ChromeOptions) (Printer, error) {
+func NewHTML(fpath string, opts *ChromeOptions) Printer {
 	URL := fmt.Sprintf("file://%s", fpath)
-	return newChrome(URL, opts)
+	return &chrome{
+		url:  URL,
+		opts: opts,
+	}
 }

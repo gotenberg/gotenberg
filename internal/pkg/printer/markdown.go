@@ -9,7 +9,6 @@ import (
 
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/file"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/rand"
 )
 
@@ -33,11 +32,14 @@ func NewMarkdown(fpath string, opts *ChromeOptions) (Printer, error) {
 		return nil, err
 	}
 	dst := fmt.Sprintf("%s/%s.html", dirPath, baseFilename)
-	if err := file.WriteBytesToFile(dst, buffer.Bytes()); err != nil {
-		return nil, err
+	if err := ioutil.WriteFile(dst, buffer.Bytes(), 0644); err != nil {
+		return nil, fmt.Errorf("%s: writing file: %v", dst, err)
 	}
 	URL := fmt.Sprintf("file://%s", dst)
-	return newChrome(URL, opts)
+	return &chrome{
+		url:  URL,
+		opts: opts,
+	}, nil
 }
 
 type templateData struct {
@@ -51,6 +53,7 @@ func markdownToHTML(dirPath, filename string) (template.HTML, error) {
 		return "", fmt.Errorf("%s: reading file: %v", fpath, err)
 	}
 	unsafe := blackfriday.Run(b)
-	contentHTML := bluemonday.UGCPolicy().SanitizeBytes(unsafe)
-	return template.HTML(contentHTML), nil
+	content := bluemonday.UGCPolicy().SanitizeBytes(unsafe)
+	/* #nosec */
+	return template.HTML(content), nil
 }

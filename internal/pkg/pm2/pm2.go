@@ -3,66 +3,67 @@ package pm2
 import (
 	"fmt"
 	"os/exec"
-
-	"github.com/thecodingmachine/gotenberg/internal/pkg/notify"
 )
 
 const (
-	// RunningState describes a running PM2 process.
-	RunningState = iota
-	// StoppedState describes a stopped PM2 process.
-	StoppedState
-	// ErrorState describes a PM2 process in error.
-	ErrorState
+	stoppedState = iota
+	runningState
+	errorState
 )
 
 // Process is a type that can start or
 // shutdown a process with PM2.
 type Process interface {
+	Fullname() string
 	Start() error
 	Shutdown() error
-	State() int32
-	state(state int32)
 	args() []string
 	name() string
-	fullname() string
 	viable() bool
 	warmup()
 }
 
-const maxRestartAttempts int = 5
+type processManager struct {
+	heuristicState int32
+}
 
-func startProcess(p Process) error {
-	if err := startPM2Command(p, "start"); err != nil {
+func (m *processManager) start(p Process) error {
+	if err := m.pm2(p, "start"); err != nil {
 		return err
 	}
 	p.warmup()
 	if !p.viable() {
 		attempts := 0
-		for attempts < maxRestartAttempts && !p.viable() {
-			if err := startPM2Command(p, "restart"); err != nil {
-				p.state(ErrorState)
+		for attempts < 5 && !p.viable() {
+			if err := m.pm2(p, "restart"); err != nil {
+				m.heuristicState = errorState
 				return err
 			}
 			p.warmup()
 			attempts++
 		}
 		if !p.viable() {
-			p.state(ErrorState)
-			return fmt.Errorf("failed to launch %s", p.fullname())
+			m.heuristicState = errorState
+			return fmt.Errorf("failed to launch %s", p.Fullname())
 		}
 	}
-	p.state(RunningState)
+	m.heuristicState = runningState
 	return nil
 }
 
-var notifyCommandNames = map[string]string{
-	"stop":    "stopped",
-	"restart": "restarted",
-	"start":   "started",
+func (m *processManager) shutdown(p Process) error {
+	if m.heuristicState != runningState {
+		return nil
+	}
+	if err := m.pm2(p, "stop"); err != nil {
+		m.heuristicState = errorState
+		return err
+	}
+	m.heuristicState = stoppedState
+	return nil
 }
 
-func startPM2Command(p Process, cmdName string) error {
+func (m *processManager) pm2(p Process, cmdName string) error {
 	cmdArgs := []string{
 		cmdName,
 		p.name(),
@@ -76,17 +77,7 @@ func startPM2Command(p Process, cmdName string) error {
 		cmdArgs...,
 	)
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("%s %s with PM2: %v", cmdName, p.fullname(), err)
+		return fmt.Errorf("%s %s with PM2: %v", cmdName, p.Fullname(), err)
 	}
-	notify.Println(fmt.Sprintf("%s %s with PM2", p.fullname(), notifyCommandNames[cmdName]))
-	return nil
-}
-
-func shutdownProcess(p Process) error {
-	if err := startPM2Command(p, "stop"); err != nil {
-		p.state(ErrorState)
-		return err
-	}
-	p.state(StoppedState)
 	return nil
 }

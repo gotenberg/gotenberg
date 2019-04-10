@@ -57,13 +57,14 @@ func multipartForm(t *testing.T, kind string) (*bytes.Buffer, string) {
 	defer writer.Close()
 	dirPath := abs(t, kind, "")
 	fpaths := make(map[string]string)
-	filepath.Walk(dirPath, func(path string, info os.FileInfo, _ error) error {
+	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, _ error) error {
 		if info.IsDir() {
 			return nil
 		}
 		fpaths[info.Name()] = abs(t, kind, info.Name())
 		return nil
 	})
+	require.Nil(t, err)
 	for filename, fpath := range fpaths {
 		file, err := os.Open(fpath)
 		require.Nil(t, err)
@@ -115,7 +116,7 @@ func copyDir(t *testing.T, kind string) string {
 	err = os.MkdirAll(tmpDirPath, 0755)
 	require.Nil(t, err)
 	dirPath := abs(t, kind, "")
-	filepath.Walk(dirPath, func(path string, info os.FileInfo, _ error) error {
+	err = filepath.Walk(dirPath, func(path string, info os.FileInfo, _ error) error {
 		if info.IsDir() {
 			return nil
 		}
@@ -135,6 +136,7 @@ func copyDir(t *testing.T, kind string) string {
 		require.Nil(t, err)
 		return nil
 	})
+	require.Nil(t, err)
 	return tmpDirPath
 }
 

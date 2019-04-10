@@ -1,59 +1,51 @@
 package pm2
 
-// Unoconv facilitates starting or shutting down
-// unoconv listener with PM2.
-type Unoconv struct {
-	heuristicState int32
+type unoconv struct {
+	manager *processManager
 }
 
-// Start starts unoconv listener with PM2.
-func (u *Unoconv) Start() error {
-	return startProcess(u)
+// NewUnoconv retruns a unoconv listener
+// process.
+func NewUnoconv() Process {
+	return &unoconv{
+		manager: &processManager{},
+	}
 }
 
-// Shutdown stops unoconv listener and
-// removes it from the list of PM2
-// processes.
-func (u *Unoconv) Shutdown() error {
-	return shutdownProcess(u)
+func (p *unoconv) Fullname() string {
+	return "unoconv listener"
 }
 
-// State returns the current state of
-// unoconv listener process.
-func (u *Unoconv) State() int32 {
-	return u.heuristicState
+func (p *unoconv) Start() error {
+	return p.manager.start(p)
 }
 
-func (u *Unoconv) state(state int32) {
-	u.heuristicState = state
+func (p *unoconv) Shutdown() error {
+	return p.manager.shutdown(p)
 }
 
-func (u *Unoconv) args() []string {
+func (p *unoconv) args() []string {
 	return []string{
 		"--listener",
 		"--verbose",
 	}
 }
 
-func (u *Unoconv) name() string {
+func (p *unoconv) name() string {
 	return "unoconv"
 }
 
-func (u *Unoconv) fullname() string {
-	return "unoconv listener"
-}
-
-func (u *Unoconv) viable() bool {
+func (p *unoconv) viable() bool {
 	// TODO find a way to check if
 	// unoconv is correctly started?
 	return true
 }
 
-func (u *Unoconv) warmup() {
+func (p *unoconv) warmup() {
 	// let's do nothing.
 }
 
 // Compile-time checks to ensure type implements desired interfaces.
 var (
-	_ = Process(new(Unoconv))
+	_ = Process(new(unoconv))
 )

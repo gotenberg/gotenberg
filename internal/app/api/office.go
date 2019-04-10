@@ -1,48 +1,33 @@
 package api
 
 import (
-	"errors"
-
 	"github.com/labstack/echo/v4"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/printer"
 )
 
-var officeExts = []string{
-	".txt",
-	".rtf",
-	".fodt",
-	".doc",
-	".docx",
-	".odt",
-	".xls",
-	".xlsx",
-	".ods",
-	".ppt",
-	".pptx",
-	".odp",
-}
-
 func convertOffice(c echo.Context) error {
-	r, err := newResource(c)
+	ctx := c.(*resourceContext)
+	opts, err := ctx.resource.officePrinterOptions()
 	if err != nil {
-		return hijackErr(err, r)
+		return err
 	}
-	ctx, cancel := newContext(r)
-	if cancel != nil {
-		defer cancel()
-	}
-	fpaths, err := r.filePaths(officeExts)
+	fpaths, err := ctx.resource.fpaths(
+		".txt",
+		".rtf",
+		".fodt",
+		".doc",
+		".docx",
+		".odt",
+		".xls",
+		".xlsx",
+		".ods",
+		".ppt",
+		".pptx",
+		".odp",
+	)
 	if err != nil {
-		return hijackErr(err, r)
+		return err
 	}
-	if len(fpaths) == 0 {
-		return hijackErr(errors.New("no suitable office documents to convert"), r)
-	}
-	p := &printer.Office{Context: ctx, FilePaths: fpaths}
-	landscape, err := r.landscape()
-	if err != nil {
-		return hijackErr(err, r)
-	}
-	p.Landscape = landscape
-	return print(c, p, r)
+	p := printer.NewOffice(fpaths, opts)
+	return convert(ctx, p)
 }
