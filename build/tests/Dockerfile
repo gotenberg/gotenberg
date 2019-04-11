@@ -45,7 +45,4 @@ COPY go.sum .
 # Install module dependencies.
 RUN go mod download
 
-# Install Gotenberg
-RUN go install
-
 ENTRYPOINT [ "build/tests/docker-entrypoint.sh" ]

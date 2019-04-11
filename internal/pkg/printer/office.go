@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/thecodingmachine/gotenberg/internal/pkg/rand"
@@ -15,7 +14,6 @@ import (
 type office struct {
 	fpaths []string
 	opts   *OfficeOptions
-	mu     sync.Mutex
 }
 
 // OfficeOptions helps customizing the
@@ -34,8 +32,6 @@ func NewOffice(fpaths []string, opts *OfficeOptions) Printer {
 }
 
 func (p *office) Print(destination string) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(p.opts.WaitTimeout)*time.Second)
 	defer cancel()
 	fpaths := make([]string, len(p.fpaths))

@@ -11,7 +11,7 @@ type chrome struct {
 	manager *processManager
 }
 
-// NewChrome retruns a Google Chromes
+// NewChrome retruns a Google Chrome
 // headless process.
 func NewChrome() Process {
 	return &chrome{

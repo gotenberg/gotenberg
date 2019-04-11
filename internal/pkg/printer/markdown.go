@@ -12,7 +12,7 @@ import (
 	"github.com/thecodingmachine/gotenberg/internal/pkg/rand"
 )
 
-// NewMarkdown returns a markdown printer.
+// NewMarkdown returns a Markdown printer.
 func NewMarkdown(fpath string, opts *ChromeOptions) (Printer, error) {
 	tmpl, err := template.
 		New(filepath.Base(fpath)).

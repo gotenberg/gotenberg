@@ -37,7 +37,8 @@ func (p *unoconv) name() string {
 
 func (p *unoconv) viable() bool {
 	// TODO find a way to check if
-	// unoconv is correctly started?
+	// the unoconv listener
+	// is correctly started?
 	return true
 }
 

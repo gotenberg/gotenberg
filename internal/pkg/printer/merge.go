@@ -14,7 +14,7 @@ type merge struct {
 }
 
 // MergeOptions helps customizing the
-// Merge printer behaviour.
+// merge printer behaviour.
 type MergeOptions struct {
 	WaitTimeout float64
 }

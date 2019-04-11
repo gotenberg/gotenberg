@@ -20,7 +20,7 @@ RUN echo "deb http://httpredir.debian.org/debian/ stretch main contrib non-free"
 # | recovering. In our case: Chrome (headless) and Office (headless). 
 # |
 
-# Yep, this is dirty. The following script does not work anymore (see https://github.com/Unitech/pm2/issues/4127).
+# Yep, this is dirty. The following script does not work anymore (see https://github.com/Unitech/pm2/issues/4127):
 #RUN curl -sL https://raw.githubusercontent.com/Unitech/pm2/master/packager/setup.deb.sh | bash -
 
 # Installing PM2 with Node.js and npm breaks something which prevents Google Chrome to work as expected.
@@ -38,7 +38,7 @@ COPY --from=hack /etc/systemd/system/pm2.service /etc/systemd/system/pm2.service
 # | Chrome
 # |--------------------------------------------------------------------------
 # |
-# | Installs Chrome for HTML and Markdown conversions.
+# | Installs Chrome.
 # |
 
 RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - &&\
@@ -50,7 +50,7 @@ RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add
 # | Unoconv
 # |--------------------------------------------------------------------------
 # |
-# | Installs unoconv and LibreOffice for Office documents conversions.
+# | Installs unoconv and LibreOffice.
 # |
 
 RUN pip3 install unoconv &&\

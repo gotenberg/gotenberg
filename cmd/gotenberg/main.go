@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/labstack/echo/v4"
 	"github.com/thecodingmachine/gotenberg/internal/app/api"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/notify"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/pm2"
@@ -25,24 +26,28 @@ const (
 )
 
 func mustParseEnvVar() *api.Options {
-	opts := &api.Options{
-		DefaultWaitTimeout:     10,
-		EnableChromeEndpoints:  true,
-		EnableUnoconvEndpoints: true,
-	}
+	opts := api.DefaultOptions()
 	if os.Getenv(defaultWaitTimeoutEnvVar) != "" {
 		defaultWaitTimeout, err := strconv.ParseFloat(os.Getenv(defaultWaitTimeoutEnvVar), 64)
 		if err != nil {
-			notify.ErrPrint(fmt.Errorf("%s: wrong value: %v", defaultWaitTimeoutEnvVar, err))
+			notify.ErrPrint(fmt.Errorf("%s: wrong value: want float got %v", defaultWaitTimeoutEnvVar, err))
 			os.Exit(1)
 		}
 		opts.DefaultWaitTimeout = defaultWaitTimeout
 	}
-	if os.Getenv(disableGoogleChromeEnvVar) == "1" {
-		opts.EnableChromeEndpoints = false
+	if v, ok := os.LookupEnv(disableGoogleChromeEnvVar); ok {
+		if v != "1" && v != "0" {
+			notify.ErrPrint(fmt.Errorf("%s: wrong value: want \"0\" or \"1\" got %v", defaultWaitTimeoutEnvVar, v))
+			os.Exit(1)
+		}
+		opts.EnableChromeEndpoints = v != "1"
 	}
-	if os.Getenv(disableUnoconvEnvVar) == "1" {
-		opts.EnableUnoconvEndpoints = false
+	if v, ok := os.LookupEnv(disableUnoconvEnvVar); ok {
+		if v != "1" && v != "0" {
+			notify.ErrPrint(fmt.Errorf("%s: wrong value: want \"0\" or \"1\" got %v", disableUnoconvEnvVar, v))
+			os.Exit(1)
+		}
+		opts.EnableUnoconvEndpoints = v != "1"
 	}
 	return opts
 }
@@ -65,7 +70,7 @@ func mustStartProcesses(opts *api.Options) []pm2.Process {
 	return processes
 }
 
-func mustStartAPI(srv *api.API) {
+func mustStartAPI(srv *echo.Echo) {
 	notify.Print("http server started on port 3000")
 	if err := srv.Start(":3000"); err != nil {
 		if err != http.ErrServerClosed {
@@ -85,7 +90,7 @@ func mustShutdownProcesses(processes []pm2.Process) {
 	}
 }
 
-func mustShutdownAPI(srv *api.API) {
+func mustShutdownAPI(srv *echo.Echo) {
 	// create a deadline to wait for.
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
