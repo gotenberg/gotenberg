@@ -26,6 +26,14 @@ type Options struct {
 	EnableUnoconvEndpoints bool
 }
 
+type errBadRequest struct {
+	err error
+}
+
+func (e *errBadRequest) Error() string {
+	return e.err.Error()
+}
+
 // New returns an API.
 func New(opts *Options) *API {
 	api := &API{}
@@ -34,6 +42,8 @@ func New(opts *Options) *API {
 	api.srv.HidePort = true
 	api.srv.Use(middleware.Logger())
 	api.srv.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		// middleware for extending default context with our
+		// custom constext.
 		return func(c echo.Context) error {
 			ctx := &resourceContext{c, opts, nil}
 			r, err := newResource(ctx)
@@ -48,18 +58,31 @@ func New(opts *Options) *API {
 		}
 	})
 	api.srv.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		// middleware for handling errors and removing resources
+		// once the request has been handled.
 		return func(c echo.Context) error {
 			err := next(c)
 			ctx := c.(*resourceContext)
-			if resourceErr := ctx.resource.close(); resourceErr != nil {
-				c.Logger().Error(resourceErr)
+			// if a webhookURL has been given,
+			// do not remove the resources here because
+			// we don't know if the result file has been
+			// generated or sent.
+			if !ctx.resource.has(webhookURL) {
+				if resourceErr := ctx.resource.close(); resourceErr != nil {
+					c.Logger().Error(resourceErr)
+				}
 			}
 			if err != nil {
-				// TODO 400
+				if _, ok := err.(*echo.HTTPError); ok {
+					return err
+				}
+				if _, ok := err.(*errBadRequest); ok {
+					return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+				}
 				if strings.Contains(err.Error(), context.DeadlineExceeded.Error()) {
 					return echo.NewHTTPError(http.StatusRequestTimeout)
 				}
-				return err
+				return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 			}
 			return nil
 		}
@@ -113,7 +136,7 @@ func convert(ctx *resourceContext, p printer.Printer) error {
 		if ctx.resource.has(resultFilename) {
 			filename, err = ctx.resource.get(resultFilename)
 			if err != nil {
-				return err
+				return &errBadRequest{err}
 			}
 		}
 		return ctx.Attachment(fpath, filename)
@@ -122,6 +145,7 @@ func convert(ctx *resourceContext, p printer.Printer) error {
 	// run the following lines in a goroutine so that
 	// it doesn't block.
 	go func() {
+		defer ctx.resource.close() // nolint: errcheck
 		if err := p.Print(fpath); err != nil {
 			ctx.Logger().Error(err)
 			return

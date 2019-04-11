@@ -9,7 +9,7 @@ func convertOffice(c echo.Context) error {
 	ctx := c.(*resourceContext)
 	opts, err := ctx.resource.officePrinterOptions()
 	if err != nil {
-		return err
+		return &errBadRequest{err}
 	}
 	fpaths, err := ctx.resource.fpaths(
 		".txt",
@@ -26,7 +26,7 @@ func convertOffice(c echo.Context) error {
 		".odp",
 	)
 	if err != nil {
-		return err
+		return &errBadRequest{err}
 	}
 	p := printer.NewOffice(fpaths, opts)
 	return convert(ctx, p)

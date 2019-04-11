@@ -9,11 +9,11 @@ func convertURL(c echo.Context) error {
 	ctx := c.(*resourceContext)
 	opts, err := ctx.resource.chromePrinterOptions()
 	if err != nil {
-		return err
+		return &errBadRequest{err}
 	}
 	remote, err := ctx.resource.get(remoteURL)
 	if err != nil {
-		return err
+		return &errBadRequest{err}
 	}
 	p := printer.NewURL(remote, opts)
 	return convert(ctx, p)

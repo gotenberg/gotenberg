@@ -9,11 +9,11 @@ func convertMarkdown(c echo.Context) error {
 	ctx := c.(*resourceContext)
 	opts, err := ctx.resource.chromePrinterOptions()
 	if err != nil {
-		return err
+		return &errBadRequest{err}
 	}
 	fpath, err := ctx.resource.fpath("index.html")
 	if err != nil {
-		return err
+		return &errBadRequest{err}
 	}
 	p, err := printer.NewMarkdown(fpath, opts)
 	if err != nil {

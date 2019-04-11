@@ -9,11 +9,11 @@ func merge(c echo.Context) error {
 	ctx := c.(*resourceContext)
 	opts, err := ctx.resource.mergePrinterOptions()
 	if err != nil {
-		return err
+		return &errBadRequest{err}
 	}
 	fpaths, err := ctx.resource.fpaths(".pdf")
 	if err != nil {
-		return err
+		return &errBadRequest{err}
 	}
 	p := printer.NewMerge(fpaths, opts)
 	return convert(ctx, p)
