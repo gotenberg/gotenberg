@@ -10,7 +10,7 @@ FROM debian:9.5-slim
 
 RUN echo "deb http://httpredir.debian.org/debian/ stretch main contrib non-free" > /etc/apt/sources.list &&\
     apt-get update &&\
-    apt-get install -y curl wget python3-pip ttf-mscorefonts-installer
+    apt-get install -y --allow-unauthenticated curl wget python3-pip ttf-mscorefonts-installer
 
 # |--------------------------------------------------------------------------
 # | PM2
@@ -27,7 +27,7 @@ RUN echo "deb http://httpredir.debian.org/debian/ stretch main contrib non-free"
 # So we just copy all PM2 related files from a previous version of Gotenberg.
 
 RUN curl -sL https://deb.nodesource.com/setup_9.x | bash - &&\
-    apt-get install -y nodejs
+    apt-get install -y --allow-unauthenticated nodejs
 
 COPY --from=hack /usr/bin/pm2 /usr/bin/pm2
 COPY --from=hack /usr/share/pm2 /usr/share/pm2
@@ -44,7 +44,7 @@ COPY --from=hack /etc/systemd/system/pm2.service /etc/systemd/system/pm2.service
 RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - &&\
     echo "deb http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list &&\
     apt-get update &&\
-    apt-get -y install google-chrome-stable
+    apt-get -y --allow-unauthenticated install google-chrome-stable
 
 # |--------------------------------------------------------------------------
 # | Unoconv
@@ -56,7 +56,7 @@ RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add
 RUN pip3 install unoconv &&\
     # https://github.com/nextcloud/docker/issues/380
     mkdir -p /usr/share/man/man1mkdir -p /usr/share/man/man1 &&\
-    apt-get -y install libreoffice
+    apt-get -y --allow-unauthenticated install libreoffice
 
 # |--------------------------------------------------------------------------
 # | PDFtk
@@ -66,7 +66,7 @@ RUN pip3 install unoconv &&\
 # | https://github.com/thecodingmachine/gotenberg/issues/29
 # |
 
-RUN apt-get -y install pdftk
+RUN apt-get -y --allow-unauthenticated install pdftk
 
 # |--------------------------------------------------------------------------
 # | Fonts
@@ -79,7 +79,7 @@ RUN apt-get -y install pdftk
 # Credits: 
 # https://github.com/arachnys/athenapdf/blob/master/cli/Dockerfile
 # https://help.accusoft.com/PrizmDoc/v12.1/HTML/Installing_Asian_Fonts_on_Ubuntu_and_Debian.html
-RUN apt-get install -y \
+RUN apt-get install -y --allow-unauthenticated \
     culmus \
     fonts-beng \
     fonts-hosny-amiri \
