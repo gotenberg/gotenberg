@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/thecodingmachine/gotenberg/internal/pkg/rand"
@@ -42,7 +43,7 @@ func (p *office) Print(destination string) error {
 			return err
 		}
 		tmpDest := fmt.Sprintf("%s/%d%s.pdf", dirPath, i, baseFilename)
-		if err := p.print(ctx, fpath, tmpDest); err != nil {
+		if err := unoconv(ctx, fpath, tmpDest, p.opts); err != nil {
 			return err
 		}
 		fpaths[i] = tmpDest
@@ -57,12 +58,17 @@ func (p *office) Print(destination string) error {
 	return m.Print(destination)
 }
 
-func (p *office) print(ctx context.Context, fpath, destination string) error {
+// nolint: gochecknoglobals
+var mu sync.Mutex
+
+func unoconv(ctx context.Context, fpath, destination string, opts *OfficeOptions) error {
+	mu.Lock()
+	defer mu.Unlock()
 	cmdArgs := []string{
 		"--format",
 		"pdf",
 	}
-	if p.opts.Landscape {
+	if opts.Landscape {
 		cmdArgs = append(cmdArgs, "--printer", "PaperOrientation=landscape")
 	}
 	cmdArgs = append(cmdArgs, "--output", destination, fpath)

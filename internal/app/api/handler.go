@@ -141,7 +141,6 @@ func convert(ctx *resourceContext, p printer.Printer) error {
 			return
 		}
 		defer f.Close() // nolint: errcheck
-		// TODO post with resultFilename
 		webhook, err := ctx.resource.get(webhookURL)
 		if err != nil {
 			ctx.Logger().Error(err)

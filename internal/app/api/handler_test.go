@@ -219,6 +219,7 @@ func TestOffice(t *testing.T) {
 
 func TestConcurrent(t *testing.T) {
 	opts := DefaultOptions()
+	opts.DefaultWaitTimeout = 30
 	srv := New(opts)
 	// Merge.
 	test.AssertConcurrent(
@@ -303,23 +304,23 @@ func TestConcurrent(t *testing.T) {
 }
 
 func TestWebhook(t *testing.T) {
-	abort := make(chan error, 2)
+	status := make(chan error, 2)
 	rcv := echo.New()
 	rcv.POST("/foo", func(c echo.Context) error {
 		if c.Request().Header.Get("Content-type") != "application/pdf" {
-			abort <- fmt.Errorf("wrong Content-type: got %s want %s", c.Request().Header.Get("Content-type"), "application/pdf")
+			status <- fmt.Errorf("wrong Content-type: got %s want %s", c.Request().Header.Get("Content-type"), "application/pdf")
 			return nil
 		}
 		body, err := ioutil.ReadAll(c.Request().Body)
 		if err != nil {
-			abort <- err
+			status <- err
 			return nil
 		}
 		if body == nil || len(body) == 0 {
-			abort <- errors.New("empty body")
+			status <- errors.New("empty body")
 			return nil
 		}
-		abort <- nil
+		status <- nil
 		return nil
 	})
 	go func() {
@@ -331,6 +332,17 @@ func TestWebhook(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/convert/merge", body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)
-	err := <-abort
+	err := <-status
 	assert.NoError(t, err)
+}
+
+func TestResultFilename(t *testing.T) {
+	opts := DefaultOptions()
+	srv := New(opts)
+	body, contentType := test.PDFTestMultipartForm(t, map[string]string{resultFilename: "foo.pdf"})
+	req := httptest.NewRequest(http.MethodPost, "/convert/merge", body)
+	req.Header.Set(echo.HeaderContentType, contentType)
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	assert.Equal(t, "attachment; filename=\"foo.pdf\"", rec.Header().Get("Content-Disposition"))
 }

@@ -14,7 +14,6 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
@@ -22,7 +21,7 @@ import (
 
 // AssertStatusCode checks if the given request
 // returns the expected status code.
-func AssertStatusCode(t *testing.T, expectedStatusCode int, srv *echo.Echo, req *http.Request) {
+func AssertStatusCode(t *testing.T, expectedStatusCode int, srv http.Handler, req *http.Request) {
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
 	assert.Equal(t, expectedStatusCode, rec.Code)
