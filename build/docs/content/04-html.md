@@ -39,7 +39,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v4"
+import "github.com/thecodingmachine/gotenberg-go-client/v5"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
@@ -113,7 +113,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v4"
+import "github.com/thecodingmachine/gotenberg-go-client/v5"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
@@ -186,9 +186,6 @@ You may also use *remote* paths for Google fonts, images and so on.
 
 > If you want to install fonts directly in the Gotenberg Docker image,
 > see to the [fonts section](#fonts).
->
-> For web fonts (Google fonts), there is a timeout of 500ms by default. You may update
-> this value thanks to the form field `webFontsTimeout`.
 
 ### cURL
 
@@ -206,7 +203,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v4"
+import "github.com/thecodingmachine/gotenberg-go-client/v5"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
@@ -266,7 +263,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v4"
+import "github.com/thecodingmachine/gotenberg-go-client/v5"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}

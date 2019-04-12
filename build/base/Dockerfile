@@ -10,7 +10,7 @@ FROM debian:9.5-slim
 
 RUN echo "deb http://httpredir.debian.org/debian/ stretch main contrib non-free" > /etc/apt/sources.list &&\
     apt-get update &&\
-    apt-get install -y --allow-unauthenticated curl wget python3-pip ttf-mscorefonts-installer
+    apt-get install -y curl wget python3-pip ttf-mscorefonts-installer
 
 # |--------------------------------------------------------------------------
 # | PM2
@@ -56,7 +56,7 @@ RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add
 RUN pip3 install unoconv &&\
     # https://github.com/nextcloud/docker/issues/380
     mkdir -p /usr/share/man/man1mkdir -p /usr/share/man/man1 &&\
-    apt-get -y --allow-unauthenticated install libreoffice
+    apt-get -y install libreoffice
 
 # |--------------------------------------------------------------------------
 # | PDFtk
@@ -66,7 +66,7 @@ RUN pip3 install unoconv &&\
 # | https://github.com/thecodingmachine/gotenberg/issues/29
 # |
 
-RUN apt-get -y --allow-unauthenticated install pdftk
+RUN apt-get -y install pdftk
 
 # |--------------------------------------------------------------------------
 # | Fonts
@@ -79,7 +79,7 @@ RUN apt-get -y --allow-unauthenticated install pdftk
 # Credits: 
 # https://github.com/arachnys/athenapdf/blob/master/cli/Dockerfile
 # https://help.accusoft.com/PrizmDoc/v12.1/HTML/Installing_Asian_Fonts_on_Ubuntu_and_Debian.html
-RUN apt-get install -y --allow-unauthenticated \
+RUN apt-get install -y \
     culmus \
     fonts-beng \
     fonts-hosny-amiri \

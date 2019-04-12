@@ -2,7 +2,7 @@
 title: Webhook
 ---
 
-All endpoints accept a form field named `webhookURL`.
+All endpoints accept a form value named `webhookURL`.
 
 If provided, the API will send the resulting PDF file in a `POST` request with the `application/pdf` Content-Type
 to given URL.
@@ -24,7 +24,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v4"
+import "github.com/thecodingmachine/gotenberg-go-client/v5"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}

@@ -13,10 +13,10 @@ At TheCodingMachine, we build a lot of web applications (intranets, extranets an
 
 * HTML and Markdown conversions using Google Chrome headless
 * Office conversions (.txt, .rtf, .docx, .doc, .odt, .pptx, .ppt, .odp and so on) using [unoconv](https://github.com/dagwieers/unoconv)
-* Performance :zap:: Google Chrome and Libreoffice (unoconv) started once in the background thanks to PM2
+* Performance :zap:: Google Chrome and LibreOffice (unoconv) started once in the background thanks to PM2
 * Failure prevention :broken_heart:: PM2 automatically restarts previous processes if they fail
 * Assets :package:: send your header, footer, images, fonts, stylesheets and so on for converting your HTML and Markdown to beaufitul PDFs!
-* Easily interact with the API using our [Go](https://github.com/thecodingmachine/gotenberg-go-client), [Node.js]() and [PHP](https://github.com/thecodingmachine/gotenberg-php-client) libraries
+* Easily interact with the API using our [Go](https://github.com/thecodingmachine/gotenberg-go-client), [Node.js](https://github.com/thecodingmachine/gotenberg-js-client) and [PHP](https://github.com/thecodingmachine/gotenberg-php-client) libraries
 
 ## Quick start
 
@@ -33,7 +33,7 @@ to learn how to interact with it!
 
 ## Badges
 
-[![Docker image layers](https://images.microbadger.com/badges/image/thecodingmachine/gotenberg:4.svg)](https://microbadger.com/images/thecodingmachine/gotenberg:4)
+[![Docker image layers](https://images.microbadger.com/badges/image/thecodingmachine/gotenberg:5.svg)](https://microbadger.com/images/thecodingmachine/gotenberg:5)
 [![Travis CI](https://travis-ci.org/thecodingmachine/gotenberg.svg?branch=master)](https://travis-ci.org/thecodingmachine/gotenberg)
 [![GoDoc](https://godoc.org/github.com/thecodingmachine/gotenberg?status.svg)](https://godoc.org/github.com/thecodingmachine/gotenberg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thecodingmachine/gotenberg)](https://goreportcard.com/report/thecodingmachine/gotenberg)
