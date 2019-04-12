@@ -23,11 +23,11 @@ You may also disable LibreOffice (unoconv) with `DISABLE_UNOCONV`.
 
 ## Default wait timeout
 
-By default, the API will wait 10 seconds before it considers the conversion to be unsucessful.
+By default, the API will wait 10 seconds before it considers the conversion to be unsuccessful.
 
 You may customize this timeout thanks to the environment variable `DEFAULT_WAIT_TIMEOUT`.
 
-It takes a string representation of a float as value (e.g `30` for 30 seconds).
+It takes a string representation of a float as value (e.g `"2.5"` for 2.5 seconds).
 
-> The default timeout may also be overridden per request thanks to the form value `waitTimeout`.
+> The default timeout may also be overridden per request thanks to the form field `waitTimeout`.
 > See the [timeout section](#timeout).

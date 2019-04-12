@@ -2,7 +2,7 @@
 title: Webhook
 ---
 
-All endpoints accept a form value named `webhookURL`.
+All endpoints accept a form field named `webhookURL`.
 
 If provided, the API will send the resulting PDF file in a `POST` request with the `application/pdf` Content-Type
 to given URL.

@@ -240,8 +240,7 @@ You may also customize the resulting PDF format.
 
 By default, it will be rendered with `A4` size, `1 inch` margins and `portrait` orientation.
 
-> Paper size and margins have to be provided in `inches`.
-> Also, you have to set both `paperWidth` and `paperHeight`. Same for margins.
+> Paper size and margins have to be provided in `inches`. Same for margins.
 
 ### cURL
 
@@ -292,4 +291,34 @@ $request->setMargins(Request::NO_MARGINS);
 $request->setLandscape(true);
 $dest = "result.pdf";
 $client->store($request, $dest);
+```
+
+## Wait delay
+
+In some cases, you may want to wait a certain amount of time to make sure the
+page you're trying to generate is fully rendered.
+
+> The wait delay is a duration in **seconds** (e.g `2.5` for 2.5 seconds).
+
+### cURL
+
+```bash
+$ curl --request POST \
+    --url http://localhost:3000/convert/html \
+    --header 'Content-Type: multipart/form-data' \
+    --form files=@index.html \
+    --form waitDelay=5.5 \
+    -o result.pdf
+```
+
+### Go
+
+```golang
+// TODO
+```
+
+### PHP
+
+```php
+// TODO
 ```

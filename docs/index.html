@@ -123,7 +123,7 @@
 <li>Performance: Google Chrome and LibreOffice (unoconv) started once in the background thanks to PM2</li>
 <li>Failure prevention: PM2 automatically restarts previous processes if they fail</li>
 <li>Assets: send your header, footer, images, fonts, stylesheets and so on for converting your HTML and Markdown to beaufitul PDFs!</li>
-<li>Easily interact with the API using our <a href="https://github.com/thecodingmachine/gotenberg-go-client">Go</a>, <a href="https://github.com/thecodingmachine/gotenberg-js-client">Node.js</a> and <a href="https://github.com/thecodingmachine/gotenberg-php-client">PHP</a> libraries</li>
+<li>Easily interact with the API using our <a href="https://github.com/thecodingmachine/gotenberg-go-client">Go</a> and <a href="https://github.com/thecodingmachine/gotenberg-php-client">PHP</a> libraries</li>
 </ul>
 
               </div>
@@ -194,12 +194,6 @@ Gotenberg API is available at <a href="http://localhost:3000">http://localhost:3
 <pre class="chroma">$ go get -u github.com/thecodingmachine/gotenberg-go-client/v5
 </pre>
 
-<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="clients.node_js_client" href="#clients.node_js_client">
-	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-</a>Node.js client</h2>
-
-<p>// TODO</p>
-
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="clients.php_client" href="#clients.php_client">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP client</h2>
@@ -250,14 +244,14 @@ Gotenberg API is available at <a href="http://localhost:3000">http://localhost:3
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Default wait timeout</h2>
 
-<p>By default, the API will wait 10 seconds before it considers the conversion to be unsucessful.</p>
+<p>By default, the API will wait 10 seconds before it considers the conversion to be unsuccessful.</p>
 
 <p>You may customize this timeout thanks to the environment variable <code>DEFAULT_WAIT_TIMEOUT</code>.</p>
 
-<p>It takes a string representation of a float as value (e.g <code>30</code> for 30 seconds).</p>
+<p>It takes a string representation of a float as value (e.g <code>&#34;2.5&#34;</code> for 2.5 seconds).</p>
 
 <blockquote>
-<p>The default timeout may also be overridden per request thanks to the form value <code>waitTimeout</code>.
+<p>The default timeout may also be overridden per request thanks to the form field <code>waitTimeout</code>.
 See the <a href="#timeout">timeout section</a>.</p>
 </blockquote>
 
@@ -525,8 +519,7 @@ $client-&gt;store($request, $dest);
 <p>By default, it will be rendered with <code>A4</code> size, <code>1 inch</code> margins and <code>portrait</code> orientation.</p>
 
 <blockquote>
-<p>Paper size and margins have to be provided in <code>inches</code>.
-Also, you have to set both <code>paperWidth</code> and <code>paperHeight</code>. Same for margins.</p>
+<p>Paper size and margins have to be provided in <code>inches</code>. Same for margins.</p>
 </blockquote>
 
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.paper_size_margins_orientation.c_url" href="#html.paper_size_margins_orientation.c_url">
@@ -581,6 +574,43 @@ $request-&gt;setMargins(Request::NO_MARGINS);
 $request-&gt;setLandscape(true);
 $dest = &#34;result.pdf&#34;;
 $client-&gt;store($request, $dest);
+</pre>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.wait_delay" href="#html.wait_delay">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Wait delay</h2>
+
+<p>In some cases, you may want to wait a certain amount of time to make sure the
+page you’re trying to generate is fully rendered.</p>
+
+<blockquote>
+<p>The wait delay is a duration in <strong>seconds</strong> (e.g <code>2.5</code> for 2.5 seconds).</p>
+</blockquote>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.wait_delay.c_url" href="#html.wait_delay.c_url">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>cURL</h3>
+
+<pre class="chroma">$ curl --request POST <span class="se">\
+</span><span class="se"></span>    --url http://localhost:3000/convert/html <span class="se">\
+</span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">waitDelay</span><span class="o">=</span><span class="m">5</span>.5 <span class="se">\
+</span><span class="se"></span>    -o result.pdf
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.wait_delay.go" href="#html.wait_delay.go">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Go</h3>
+
+<pre class="chroma"><span class="c1">// TODO
+</span></pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.wait_delay.php" href="#html.wait_delay.php">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>PHP</h3>
+
+<pre class="chroma">// TODO
 </pre>
 
               </div>
@@ -933,11 +963,11 @@ $client-&gt;store($request, $dest);
                 <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="timeout" href="#timeout">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Timeout</h1>
-                <p>All endpoints accept a form value named <code>waitTimeout</code>.</p>
+                <p>All endpoints accept a form field named <code>waitTimeout</code>.</p>
 
-<p>The API will wait the given seconds before it considers the conversion to be unsucessful.</p>
+<p>The API will wait the given <strong>seconds</strong> before it considers the conversion to be unsucessful.</p>
 
-<p>It takes a string representation of a float as value (e.g <code>30</code> for 30 seconds).</p>
+<p>It takes a float as value (e.g <code>2.5</code> for 2.5 seconds).</p>
 
 <blockquote>
 <p>You may also define this value globally: see the <a href="#environment_variables.default_wait_timeout">environment variables</a> section.</p>
@@ -949,7 +979,7 @@ $client-&gt;store($request, $dest);
                 <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook" href="#webhook">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Webhook</h1>
-                <p>All endpoints accept a form value named <code>webhookURL</code>.</p>
+                <p>All endpoints accept a form field named <code>webhookURL</code>.</p>
 
 <p>If provided, the API will send the resulting PDF file in a <code>POST</code> request with the <code>application/pdf</code> Content-Type
 to given URL.</p>
@@ -1007,13 +1037,13 @@ $resp = $client-&gt;post($request);
                 <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="result_filename" href="#result_filename">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Result filename</h1>
-                <p>All endpoints accept a form value named <code>resultFilename</code>.</p>
+                <p>All endpoints accept a form field named <code>resultFilename</code>.</p>
 
 <p>If provided, the API will return the resulting PDF file with the given filename.
 Otherwise a random filename is used.</p>
 
 <blockquote>
-<p><strong>Attention:</strong> this feature does not work if the form value <code>webhookURL</code> is given.</p>
+<p><strong>Attention:</strong> this feature does not work if the form field <code>webhookURL</code> is given.</p>
 </blockquote>
 
               </div>

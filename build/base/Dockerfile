@@ -27,7 +27,7 @@ RUN echo "deb http://httpredir.debian.org/debian/ stretch main contrib non-free"
 # So we just copy all PM2 related files from a previous version of Gotenberg.
 
 RUN curl -sL https://deb.nodesource.com/setup_9.x | bash - &&\
-    apt-get install -y --allow-unauthenticated nodejs
+    apt-get install -y nodejs
 
 COPY --from=hack /usr/bin/pm2 /usr/bin/pm2
 COPY --from=hack /usr/share/pm2 /usr/share/pm2

@@ -24,6 +24,7 @@ type chrome struct {
 // Google Chrome printer behaviour.
 type ChromeOptions struct {
 	WaitTimeout  float64
+	WaitDelay    float64
 	HeaderHTML   string
 	FooterHTML   string
 	PaperWidth   float64
@@ -36,7 +37,8 @@ type ChromeOptions struct {
 }
 
 func (p *chrome) Print(destination string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(p.opts.WaitTimeout)*time.Second)
+	duration := time.Duration(p.opts.WaitTimeout+p.opts.WaitDelay) * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
 	devt, err := devtool.New("http://localhost:9222").Version(ctx)
 	if err != nil {
@@ -146,6 +148,8 @@ func (p *chrome) navigate(ctx context.Context, client *cdp.Client) error {
 	); err != nil {
 		return err
 	}
+	// wait for a given amount of time (useful for javascript delay).
+	time.Sleep(time.Duration(p.opts.WaitDelay) * time.Second)
 	return nil
 }
 

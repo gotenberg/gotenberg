@@ -18,6 +18,7 @@ const (
 	waitTimeout    string = "waitTimeout"
 	webhookURL     string = "webhookURL"
 	remoteURL      string = "remoteURL"
+	waitDelay      string = "waitDelay"
 	paperWidth     string = "paperWidth"
 	paperHeight    string = "paperHeight"
 	marginTop      string = "marginTop"
@@ -64,6 +65,7 @@ func formValues(ctx *resourceContext) map[string]string {
 	v[waitTimeout] = ctx.FormValue(waitTimeout)
 	v[webhookURL] = ctx.FormValue(webhookURL)
 	v[remoteURL] = ctx.FormValue(remoteURL)
+	v[waitDelay] = ctx.FormValue(waitDelay)
 	v[paperWidth] = ctx.FormValue(paperWidth)
 	v[paperHeight] = ctx.FormValue(paperHeight)
 	v[marginTop] = ctx.FormValue(marginTop)
@@ -120,6 +122,10 @@ func (r *resource) chromePrinterOptions() (*printer.ChromeOptions, error) {
 	if err != nil {
 		return nil, err
 	}
+	delay, err := r.float64(waitDelay, 0.0)
+	if err != nil {
+		return nil, err
+	}
 	header, err := r.content("header.html", defaultHeaderFooterHTML)
 	if err != nil {
 		return nil, err
@@ -158,6 +164,7 @@ func (r *resource) chromePrinterOptions() (*printer.ChromeOptions, error) {
 	}
 	return &printer.ChromeOptions{
 		WaitTimeout:  timeout,
+		WaitDelay:    delay,
 		HeaderHTML:   header,
 		FooterHTML:   footer,
 		PaperWidth:   width,

@@ -10,10 +10,6 @@ We provide clients in various languages for easing the interactions with the API
 $ go get -u github.com/thecodingmachine/gotenberg-go-client/v5
 ```
 
-## Node.js client
-
-// TODO
-
 ## PHP client
 
 Unless your project already has a PSR7 `HttpClient`, install `php-http/guzzle6-adapter`:
