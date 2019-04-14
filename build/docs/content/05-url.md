@@ -20,7 +20,7 @@ named `remoteURL` instead. Otherwise, URL conversions work the same as HTML conv
 $ curl --request POST \
     --url http://localhost:3000/convert/url \
     --header 'Content-Type: multipart/form-data' \
-    --form remoteURL=https://google.com
+    --form remoteURL=https://google.com \
     --form marginTop=0 \
     --form marginBottom=0 \
     --form marginLeft=0 \
