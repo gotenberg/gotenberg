@@ -118,8 +118,8 @@ import "github.com/thecodingmachine/gotenberg-go-client/v5"
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
     req, _ := gotenberg.NewHTMLRequest("index.html")
-    req.SetHeader("header.html")
-    req.SetFooter("footer.html")
+    req.Header("header.html")
+    req.Footer("footer.html")
     dest := "result.pdf"
     c.Store(req, dest)
 }
@@ -208,7 +208,7 @@ import "github.com/thecodingmachine/gotenberg-go-client/v5"
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
     req, _ := gotenberg.NewHTMLRequest("index.html")
-    req.SetAssets("font.woff", "img.gif", "style.css")
+    req.Assets("font.woff", "img.gif", "style.css")
     dest := "result.pdf"
     c.Store(req, dest)
 }
@@ -267,9 +267,9 @@ import "github.com/thecodingmachine/gotenberg-go-client/v5"
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
     req, _ := gotenberg.NewHTMLRequest("index.html")
-    req.SetPaperSize(gotenberg.A4)
-    req.SetMargins(gotenberg.NoMargins)
-    req.SetLandscape(true)
+    req.PaperSize(gotenberg.A4)
+    req.Margins(gotenberg.NoMargins)
+    req.Landscape(true)
     dest := "result.pdf"
     c.Store(req, dest)
 }
@@ -314,11 +314,29 @@ $ curl --request POST \
 ### Go
 
 ```golang
-// TODO
+import "github.com/thecodingmachine/gotenberg-go-client/v5"
+
+func main() {
+    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+    req, _ := gotenberg.NewHTMLRequest("index.html")
+    req.WaitDelay(5.5)
+    dest := "result.pdf"
+    c.Store(req, dest)
+}
 ```
 
 ### PHP
 
 ```php
-// TODO
+use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\HTMLRequest;
+use TheCodingMachine\Gotenberg\Request;
+
+$client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath('index.html', 'index.html');
+$request = new HTMLRequest($index);
+$request->setWaitDelay(5.5);
+$dest = "result.pdf";
+$client->store($request, $dest);
 ```

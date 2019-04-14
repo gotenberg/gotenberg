@@ -29,8 +29,7 @@ import "github.com/thecodingmachine/gotenberg-go-client/v5"
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
     req, _ := gotenberg.NewHTMLRequest("index.html")
-    req.SetWebhookURL("http://myapp.com/webhook/")
-    dest := "result.pdf"
+    req.WebhookURL("http://myapp.com/webhook/")
     resp, _ := c.Post(req)
 }
 ```
