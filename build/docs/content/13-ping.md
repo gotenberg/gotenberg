@@ -1,5 +1,5 @@
 ---
-title: Liveness
+title: Ping
 ---
 
 Gotenberg provides the endpoint `/ping` for checking the API availability with

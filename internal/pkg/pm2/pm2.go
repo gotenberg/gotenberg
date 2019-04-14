@@ -3,69 +3,81 @@ package pm2
 import (
 	"fmt"
 	"os/exec"
-
-	"github.com/thecodingmachine/gotenberg/internal/pkg/notify"
 )
 
-// Process is a type that can launch or
+const (
+	stoppedState = iota
+	runningState
+	errorState
+)
+
+// Process is a type that can start or
 // shutdown a process with PM2.
 type Process interface {
-	Launch() error
+	Fullname() string
+	Start() error
 	Shutdown() error
-	getArgs() []string
-	getName() string
-	getFullname() string
-	isViable() bool
+	args() []string
+	name() string
+	viable() bool
 	warmup()
 }
 
-const maxRestartAttempts int = 5
-
-var humanNames = map[string]string{
-	"start":   "started",
-	"restart": "restarted",
-	"stop":    "stopped",
+type processManager struct {
+	heuristicState int32
 }
 
-func launch(p Process) error {
-	if err := run(p, "start"); err != nil {
+func (m *processManager) start(p Process) error {
+	if err := m.pm2(p, "start"); err != nil {
 		return err
 	}
 	p.warmup()
-	if !p.isViable() {
+	if !p.viable() {
 		attempts := 0
-		for attempts < maxRestartAttempts && !p.isViable() {
-			run(p, "restart")
+		for attempts < 5 && !p.viable() {
+			if err := m.pm2(p, "restart"); err != nil {
+				m.heuristicState = errorState
+				return err
+			}
 			p.warmup()
 			attempts++
 		}
-		if !p.isViable() {
-			return fmt.Errorf("failed to launch %s", p.getFullname())
+		if !p.viable() {
+			m.heuristicState = errorState
+			return fmt.Errorf("failed to launch %s", p.Fullname())
 		}
 	}
+	m.heuristicState = runningState
 	return nil
 }
 
-func shutdown(p Process) error {
-	return run(p, "stop")
+func (m *processManager) shutdown(p Process) error {
+	if m.heuristicState != runningState {
+		return nil
+	}
+	if err := m.pm2(p, "stop"); err != nil {
+		m.heuristicState = errorState
+		return err
+	}
+	m.heuristicState = stoppedState
+	return nil
 }
 
-func run(p Process, cmdName string) error {
+func (m *processManager) pm2(p Process, cmdName string) error {
 	cmdArgs := []string{
 		cmdName,
-		p.getName(),
+		p.name(),
 	}
 	if cmdName == "start" {
 		cmdArgs = append(cmdArgs, "--interpreter none", "--")
-		cmdArgs = append(cmdArgs, p.getArgs()...)
+		cmdArgs = append(cmdArgs, p.args()...)
 	}
 	cmd := exec.Command(
 		"pm2",
 		cmdArgs...,
 	)
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("%s %s with PM2: %v", cmdName, p.getFullname(), err)
+		return fmt.Errorf("%s %s with PM2: %v", cmdName, p.Fullname(), err)
 	}
-	notify.Println(fmt.Sprintf("%s %s with PM2", p.getFullname(), humanNames[cmdName]))
 	return nil
 }

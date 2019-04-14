@@ -7,24 +7,29 @@ import (
 	"github.com/labstack/gommon/color"
 )
 
-var (
-	stdout *color.Color
-	stderr *color.Color
-)
-
-func init() {
-	stdout = color.New()
+// Print prints a message to stdout.
+func Print(message string) {
+	stdout := color.New()
 	stdout.SetOutput(os.Stdout)
-	stderr = color.New()
-	stderr.SetOutput(os.Stderr)
-}
-
-// Println prints a message to stdout.
-func Println(message string) {
 	stdout.Printf("⇨ %s\n", message)
 }
 
-// ErrPrintln prints an error to stderr.
-func ErrPrintln(err error) {
+// Printf prints a formatted message to stdout.
+func Printf(format string, a ...interface{}) {
+	message := fmt.Sprintf(format, a...)
+	Print(message)
+}
+
+// WarnPrint prints a warning to stderr.
+func WarnPrint(err error) {
+	stderr := color.New()
+	stderr.SetOutput(os.Stderr)
+	stderr.Printf("%s\n", color.Yellow(fmt.Sprintf("⇨ warn: %v", err)))
+}
+
+// ErrPrint prints an error to stderr.
+func ErrPrint(err error) {
+	stderr := color.New()
+	stderr.SetOutput(os.Stderr)
 	stderr.Printf("%s\n", color.Red(fmt.Sprintf("⇨ error: %v", err)))
 }

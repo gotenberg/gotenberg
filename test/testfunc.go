@@ -6,64 +6,88 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path"
 	"path/filepath"
 	"runtime"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/rand"
+	"golang.org/x/sync/errgroup"
 )
+
+// AssertStatusCode checks if the given request
+// returns the expected status code.
+func AssertStatusCode(t *testing.T, expectedStatusCode int, srv http.Handler, req *http.Request) {
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	assert.Equal(t, expectedStatusCode, rec.Code)
+}
+
+// AssertConcurrent runs all functions simultaneously
+// and wait until execution has completed
+// or an error is encountered.
+func AssertConcurrent(t *testing.T, fn func() error, amount int) {
+	eg := errgroup.Group{}
+	for i := 0; i < amount; i++ {
+		eg.Go(fn)
+	}
+	err := eg.Wait()
+	assert.NoError(t, err)
+}
 
 // HTMLTestMultipartForm returns the body
 // for a multipate/form-data request with all
 // files under "html" folder.
-func HTMLTestMultipartForm(t *testing.T) (*bytes.Buffer, string) {
-	return multipartForm(t, "html")
+func HTMLTestMultipartForm(t *testing.T, formValues map[string]string) (*bytes.Buffer, string) {
+	return multipartForm(t, "html", formValues)
 }
 
 // URLTestMultipartForm returns the body
 // for a multipate/form-data request with all
 // files under "url" folder.
-func URLTestMultipartForm(t *testing.T) (*bytes.Buffer, string) {
-	return multipartForm(t, "url")
+func URLTestMultipartForm(t *testing.T, formValues map[string]string) (*bytes.Buffer, string) {
+	return multipartForm(t, "url", formValues)
 }
 
 // MarkdownTestMultipartForm returns the body
 // for a multipate/form-data request with all
 // files under "markdown" folder.
-func MarkdownTestMultipartForm(t *testing.T) (*bytes.Buffer, string) {
-	return multipartForm(t, "markdown")
+func MarkdownTestMultipartForm(t *testing.T, formValues map[string]string) (*bytes.Buffer, string) {
+	return multipartForm(t, "markdown", formValues)
 }
 
 // OfficeTestMultipartForm returns the body
 // for a multipate/form-data request with all
 // files under "office" folder.
-func OfficeTestMultipartForm(t *testing.T) (*bytes.Buffer, string) {
-	return multipartForm(t, "office")
+func OfficeTestMultipartForm(t *testing.T, formValues map[string]string) (*bytes.Buffer, string) {
+	return multipartForm(t, "office", formValues)
 }
 
 // PDFTestMultipartForm returns the body
 // for a multipate/form-data request with all
 // files under "pdf" folder.
-func PDFTestMultipartForm(t *testing.T) (*bytes.Buffer, string) {
-	return multipartForm(t, "pdf")
+func PDFTestMultipartForm(t *testing.T, formValues map[string]string) (*bytes.Buffer, string) {
+	return multipartForm(t, "pdf", formValues)
 }
 
-func multipartForm(t *testing.T, kind string) (*bytes.Buffer, string) {
+func multipartForm(t *testing.T, kind string, formValues map[string]string) (*bytes.Buffer, string) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	defer writer.Close()
 	dirPath := abs(t, kind, "")
 	fpaths := make(map[string]string)
-	filepath.Walk(dirPath, func(path string, info os.FileInfo, _ error) error {
+	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, _ error) error {
 		if info.IsDir() {
 			return nil
 		}
 		fpaths[info.Name()] = abs(t, kind, info.Name())
 		return nil
 	})
+	require.Nil(t, err)
 	for filename, fpath := range fpaths {
 		file, err := os.Open(fpath)
 		require.Nil(t, err)
@@ -76,66 +100,11 @@ func multipartForm(t *testing.T, kind string) (*bytes.Buffer, string) {
 		err := writer.WriteField("remoteURL", "http://google.com")
 		require.Nil(t, err)
 	}
+	for k, v := range formValues {
+		err := writer.WriteField(k, v)
+		require.Nil(t, err)
+	}
 	return body, writer.FormDataContentType()
-}
-
-// HTMLTestDirPath creates a copy
-// of "html" folder in test/testdata.
-func HTMLTestDirPath(t *testing.T) string {
-	return copyDir(t, "html")
-}
-
-// URLTestDirPath creates a copy
-// of "url" folder in test/testdata.
-func URLTestDirPath(t *testing.T) string {
-	return copyDir(t, "url")
-}
-
-// MarkdownTestDirPath creates a copy
-// of "markdown" folder in test/testdata.
-func MarkdownTestDirPath(t *testing.T) string {
-	return copyDir(t, "markdown")
-}
-
-// OfficeTestDirPath creates a copy
-// of "office" folder in test/testdata.
-func OfficeTestDirPath(t *testing.T) string {
-	return copyDir(t, "office")
-}
-
-// PDFTestDirPath creates a copy
-// of "pdf" folder in test/testdata.
-func PDFTestDirPath(t *testing.T) string {
-	return copyDir(t, "pdf")
-}
-
-func copyDir(t *testing.T, kind string) string {
-	tmpDirPath, err := rand.Get()
-	require.Nil(t, err)
-	err = os.MkdirAll(tmpDirPath, 0755)
-	require.Nil(t, err)
-	dirPath := abs(t, kind, "")
-	filepath.Walk(dirPath, func(path string, info os.FileInfo, _ error) error {
-		if info.IsDir() {
-			return nil
-		}
-		fpath := abs(t, kind, info.Name())
-		in, err := os.Open(fpath)
-		require.Nil(t, err)
-		defer in.Close()
-		tmpFpath := fmt.Sprintf("%s/%s", tmpDirPath, info.Name())
-		out, err := os.Create(tmpFpath)
-		require.Nil(t, err)
-		defer out.Close()
-		err = out.Chmod(0644)
-		require.Nil(t, err)
-		_, err = io.Copy(out, in)
-		require.Nil(t, err)
-		_, err = out.Seek(0, 0)
-		require.Nil(t, err)
-		return nil
-	})
-	return tmpDirPath
 }
 
 func abs(t *testing.T, kind, filename string) string {

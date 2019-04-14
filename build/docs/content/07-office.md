@@ -43,7 +43,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v4"
+import "github.com/thecodingmachine/gotenberg-go-client/v5"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
@@ -90,12 +90,12 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v4"
+import "github.com/thecodingmachine/gotenberg-go-client/v5"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
     req, _ := gotenberg.NewOfficeRequest("document.docx")
-    req.SetLandscape(true)
+    req.Landscape(true)
     dest := "result.pdf"
     c.Store(req, dest)
 }

@@ -6,14 +6,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestChromeLaunch(t *testing.T) {
-	p := &Chrome{}
-	err := p.Launch()
+func TestChromeStart(t *testing.T) {
+	p := NewChrome()
+	err := p.Start()
 	require.Nil(t, err)
 }
 
 func TestChromeShutdown(t *testing.T) {
-	p := &Chrome{}
+	p := NewChrome()
 	err := p.Shutdown()
 	require.Nil(t, err)
 }

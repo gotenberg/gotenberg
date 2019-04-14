@@ -39,7 +39,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v4"
+import "github.com/thecodingmachine/gotenberg-go-client/v5"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
@@ -113,13 +113,13 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v4"
+import "github.com/thecodingmachine/gotenberg-go-client/v5"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
     req, _ := gotenberg.NewHTMLRequest("index.html")
-    req.SetHeader("header.html")
-    req.SetFooter("footer.html")
+    req.Header("header.html")
+    req.Footer("footer.html")
     dest := "result.pdf"
     c.Store(req, dest)
 }
@@ -186,9 +186,6 @@ You may also use *remote* paths for Google fonts, images and so on.
 
 > If you want to install fonts directly in the Gotenberg Docker image,
 > see to the [fonts section](#fonts).
->
-> For web fonts (Google fonts), there is a timeout of 500ms by default. You may update
-> this value thanks to the form field `webFontsTimeout`.
 
 ### cURL
 
@@ -206,12 +203,12 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v4"
+import "github.com/thecodingmachine/gotenberg-go-client/v5"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
     req, _ := gotenberg.NewHTMLRequest("index.html")
-    req.SetAssets("font.woff", "img.gif", "style.css")
+    req.Assets("font.woff", "img.gif", "style.css")
     dest := "result.pdf"
     c.Store(req, dest)
 }
@@ -243,8 +240,7 @@ You may also customize the resulting PDF format.
 
 By default, it will be rendered with `A4` size, `1 inch` margins and `portrait` orientation.
 
-> Paper size and margins have to be provided in `inches`.
-> Also, you have to set both `paperWidth` and `paperHeight`. Same for margins.
+> Paper size and margins have to be provided in `inches`. Same for margins.
 
 ### cURL
 
@@ -266,14 +262,14 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v4"
+import "github.com/thecodingmachine/gotenberg-go-client/v5"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
     req, _ := gotenberg.NewHTMLRequest("index.html")
-    req.SetPaperSize(gotenberg.A4)
-    req.SetMargins(gotenberg.NoMargins)
-    req.SetLandscape(true)
+    req.PaperSize(gotenberg.A4)
+    req.Margins(gotenberg.NoMargins)
+    req.Landscape(true)
     dest := "result.pdf"
     c.Store(req, dest)
 }
@@ -293,6 +289,54 @@ $request = new HTMLRequest($index);
 $request->setPaperSize(Request::A4);
 $request->setMargins(Request::NO_MARGINS);
 $request->setLandscape(true);
+$dest = "result.pdf";
+$client->store($request, $dest);
+```
+
+## Wait delay
+
+In some cases, you may want to wait a certain amount of time to make sure the
+page you're trying to generate is fully rendered.
+
+> The wait delay is a duration in **seconds** (e.g `2.5` for 2.5 seconds).
+
+### cURL
+
+```bash
+$ curl --request POST \
+    --url http://localhost:3000/convert/html \
+    --header 'Content-Type: multipart/form-data' \
+    --form files=@index.html \
+    --form waitDelay=5.5 \
+    -o result.pdf
+```
+
+### Go
+
+```golang
+import "github.com/thecodingmachine/gotenberg-go-client/v5"
+
+func main() {
+    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+    req, _ := gotenberg.NewHTMLRequest("index.html")
+    req.WaitDelay(5.5)
+    dest := "result.pdf"
+    c.Store(req, dest)
+}
+```
+
+### PHP
+
+```php
+use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\HTMLRequest;
+use TheCodingMachine\Gotenberg\Request;
+
+$client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath('index.html', 'index.html');
+$request = new HTMLRequest($index);
+$request->setWaitDelay(5.5);
 $dest = "result.pdf";
 $client->store($request, $dest);
 ```
