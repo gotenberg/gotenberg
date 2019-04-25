@@ -37,7 +37,7 @@ func mustParseEnvVar() *api.Options {
 	}
 	if v, ok := os.LookupEnv(disableGoogleChromeEnvVar); ok {
 		if v != "1" && v != "0" {
-			notify.ErrPrint(fmt.Errorf("%s: wrong value: want \"0\" or \"1\" got %v", defaultWaitTimeoutEnvVar, v))
+			notify.ErrPrint(fmt.Errorf("%s: wrong value: want \"0\" or \"1\" got %v", disableGoogleChromeEnvVar, v))
 			os.Exit(1)
 		}
 		opts.EnableChromeEndpoints = v != "1"
