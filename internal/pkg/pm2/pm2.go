@@ -69,7 +69,7 @@ func (m *processManager) pm2(p Process, cmdName string) error {
 		p.name(),
 	}
 	if cmdName == "start" {
-		cmdArgs = append(cmdArgs, "--interpreter none", "--")
+		cmdArgs = append(cmdArgs, "--interpreter=none", "--")
 		cmdArgs = append(cmdArgs, p.args()...)
 	}
 	cmd := exec.Command(
