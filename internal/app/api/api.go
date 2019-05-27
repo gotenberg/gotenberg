@@ -11,6 +11,7 @@ const pingEndpoint = "/ping"
 // of the API.
 type Options struct {
 	DefaultWaitTimeout     float64
+	DefaultListenPort      string
 	EnableChromeEndpoints  bool
 	EnableUnoconvEndpoints bool
 	EnablePingLogging      bool
@@ -20,6 +21,7 @@ type Options struct {
 func DefaultOptions() *Options {
 	return &Options{
 		DefaultWaitTimeout:     10,
+		DefaultListenPort:      "3000",
 		EnableChromeEndpoints:  true,
 		EnableUnoconvEndpoints: true,
 		EnablePingLogging:      true,
