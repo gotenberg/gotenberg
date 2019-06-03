@@ -31,3 +31,11 @@ It takes a string representation of a float as value (e.g `"2.5"` for 2.5 second
 
 > The default timeout may also be overridden per request thanks to the form field `waitTimeout`.
 > See the [timeout section](#timeout).
+
+## Disable logging on healthcheck
+
+By default, the API will add a log entry when the [healthcheck endpoint](#ping) is called.
+
+You may turn off this logging so as to avoid unnecessary entries in your logs with the environment variable `DISABLE_HEALTHCHECK_LOGGING`.
+
+This environment variable operates in the same manner as the `DISABLE_GOOGLE_CHROME` and `DISABLE_UNOCONV` variables operate in that it accepts the strings `"0"` or `"1"` as values. 
