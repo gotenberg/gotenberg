@@ -24,7 +24,7 @@ const (
 	defaultListenPortEnvVar         = "DEFAULT_LISTEN_PORT"
 	disableGoogleChromeEnvVar       = "DISABLE_GOOGLE_CHROME"
 	disableUnoconvEnvVar            = "DISABLE_UNOCONV"
-	disableHealthCheckLoggingEnvVar = "DISABLE_HEALTHCHECK_LOGGING"
+	disableHealthcheckLoggingEnvVar = "DISABLE_HEALTHCHECK_LOGGING"
 )
 
 func mustParseEnvVar() *api.Options {
@@ -63,9 +63,9 @@ func mustParseEnvVar() *api.Options {
 		}
 		opts.EnableUnoconvEndpoints = v != "1"
 	}
-	if v, ok := os.LookupEnv(disableHealthCheckLoggingEnvVar); ok {
+	if v, ok := os.LookupEnv(disableHealthcheckLoggingEnvVar); ok {
 		if v != "1" && v != "0" {
-			notify.ErrPrint(fmt.Errorf("%s: wrong value: want \"0\" or \"1\" got %v", disableHealthCheckLoggingEnvVar, v))
+			notify.ErrPrint(fmt.Errorf("%s: wrong value: want \"0\" or \"1\" got %v", disableHealthcheckLoggingEnvVar, v))
 			os.Exit(1)
 		}
 		opts.EnableHealthcheckLogging = v != "1"
