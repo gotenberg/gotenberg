@@ -46,4 +46,4 @@ By default, the API will listen on port 3000. For most use cases this is perfect
 
 You may customize this port location with the environment variable `DEFAULT_LISTEN_PORT`. 
 
-This environment variable accepts any string that can be turned into a port number (e.g., the string `"0"` up to the string `"65535"`). 
+This environment variable accepts any string that can be turned into a port number (e.g., the string `"0"` up to the string `"65535"`).
