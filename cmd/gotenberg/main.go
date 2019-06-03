@@ -20,9 +20,11 @@ import (
 var version = "snapshot"
 
 const (
-	defaultWaitTimeoutEnvVar  = "DEFAULT_WAIT_TIMEOUT"
-	disableGoogleChromeEnvVar = "DISABLE_GOOGLE_CHROME"
-	disableUnoconvEnvVar      = "DISABLE_UNOCONV"
+	defaultWaitTimeoutEnvVar        = "DEFAULT_WAIT_TIMEOUT"
+	defaultListenPortEnvVar         = "DEFAULT_LISTEN_PORT"
+	disableGoogleChromeEnvVar       = "DISABLE_GOOGLE_CHROME"
+	disableUnoconvEnvVar            = "DISABLE_UNOCONV"
+	disableHealthcheckLoggingEnvVar = "DISABLE_HEALTHCHECK_LOGGING"
 )
 
 func mustParseEnvVar() *api.Options {
@@ -34,6 +36,18 @@ func mustParseEnvVar() *api.Options {
 			os.Exit(1)
 		}
 		opts.DefaultWaitTimeout = defaultWaitTimeout
+	}
+	if v, ok := os.LookupEnv(defaultListenPortEnvVar); ok {
+		defaultListener, err := strconv.ParseUint(os.Getenv(defaultListenPortEnvVar), 10, 64)
+		if err != nil {
+			notify.ErrPrint(fmt.Errorf("%s: wrong value: want uint got %v", defaultListenPortEnvVar, err))
+			os.Exit(1)
+		}
+		if defaultListener > 65535 {
+			notify.ErrPrint(fmt.Errorf("%s: wrong value: want uint < 65535 got %v", defaultListenPortEnvVar, defaultListener))
+			os.Exit(1)
+		}
+		opts.DefaultListenPort = v
 	}
 	if v, ok := os.LookupEnv(disableGoogleChromeEnvVar); ok {
 		if v != "1" && v != "0" {
@@ -48,6 +62,13 @@ func mustParseEnvVar() *api.Options {
 			os.Exit(1)
 		}
 		opts.EnableUnoconvEndpoints = v != "1"
+	}
+	if v, ok := os.LookupEnv(disableHealthcheckLoggingEnvVar); ok {
+		if v != "1" && v != "0" {
+			notify.ErrPrint(fmt.Errorf("%s: wrong value: want \"0\" or \"1\" got %v", disableHealthcheckLoggingEnvVar, v))
+			os.Exit(1)
+		}
+		opts.EnableHealthcheckLogging = v != "1"
 	}
 	return opts
 }
@@ -70,9 +91,9 @@ func mustStartProcesses(opts *api.Options) []pm2.Process {
 	return processes
 }
 
-func mustStartAPI(srv *echo.Echo) {
-	notify.Print("http server started on port 3000")
-	if err := srv.Start(":3000"); err != nil {
+func mustStartAPI(srv *echo.Echo, port string) {
+	notify.Printf("http server started on port %v", port)
+	if err := srv.Start(fmt.Sprintf(":%v", port)); err != nil {
 		if err != http.ErrServerClosed {
 			notify.ErrPrint(err)
 			os.Exit(1)
@@ -110,7 +131,7 @@ func main() {
 	processes := mustStartProcesses(opts)
 	// run our API in a goroutine so that it doesn't block.s
 	go func() {
-		mustStartAPI(srv)
+		mustStartAPI(srv, opts.DefaultListenPort)
 	}()
 	quit := make(chan os.Signal, 1)
 	// we'll accept graceful shutdowns when quit via SIGINT (Ctrl+C)

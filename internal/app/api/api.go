@@ -2,23 +2,28 @@ package api
 
 import (
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 )
+
+const pingEndpoint = "/ping"
 
 // Options allows to customize the behaviour
 // of the API.
 type Options struct {
-	DefaultWaitTimeout     float64
-	EnableChromeEndpoints  bool
-	EnableUnoconvEndpoints bool
+	DefaultWaitTimeout       float64
+	DefaultListenPort        string
+	EnableChromeEndpoints    bool
+	EnableUnoconvEndpoints   bool
+	EnableHealthcheckLogging bool
 }
 
 // DefaultOptions returns default options.
 func DefaultOptions() *Options {
 	return &Options{
-		DefaultWaitTimeout:     10,
-		EnableChromeEndpoints:  true,
-		EnableUnoconvEndpoints: true,
+		DefaultWaitTimeout:       10,
+		DefaultListenPort:        "3000",
+		EnableChromeEndpoints:    true,
+		EnableUnoconvEndpoints:   true,
+		EnableHealthcheckLogging: true,
 	}
 }
 
@@ -27,8 +32,8 @@ func New(opts *Options) *echo.Echo {
 	api := echo.New()
 	api.HideBanner = true
 	api.HidePort = true
-	api.Use(middleware.Logger())
-	api.GET("/ping", func(c echo.Context) error { return nil })
+	api.Use(handleLogging(opts.EnableHealthcheckLogging))
+	api.GET(pingEndpoint, func(c echo.Context) error { return nil })
 	g := api.Group("/convert")
 	g.Use(handleContext(opts))
 	g.Use(handleError())
