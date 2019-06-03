@@ -13,7 +13,6 @@ It takes the strings `"0"` or `"1"` as value.
 > If Google Chrome is disabled, the following conversions will **not** be available anymore:
 > [HTML](#html), [URL](#url) and [Markdown](#markdown)
 
-
 ## Disable LibreOffice (unoconv)
 
 You may also disable LibreOffice (unoconv) with `DISABLE_UNOCONV`.
@@ -42,8 +41,8 @@ This environment variable operates in the same manner as the `DISABLE_GOOGLE_CHR
 
 ## Default listen port
 
-By default, the API will listen on port 3000. For most use cases this is perfectly fine, but at times there may be cases where you need to change this due to port conflicts.
+By default, the API will listen on port `3000`. For most use cases this is perfectly fine, but at times there may be cases where you need to change this due to port conflicts.
 
-You may customize this port location with the environment variable `DEFAULT_LISTEN_PORT`. 
+You may customize this port location with the environment variable `DEFAULT_LISTEN_PORT`.
 
 This environment variable accepts any string that can be turned into a port number (e.g., the string `"0"` up to the string `"65535"`).

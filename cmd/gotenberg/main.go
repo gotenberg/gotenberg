@@ -20,11 +20,11 @@ import (
 var version = "snapshot"
 
 const (
-	defaultWaitTimeoutEnvVar  = "DEFAULT_WAIT_TIMEOUT"
-	defaultListenPortEnvVar   = "DEFAULT_LISTEN_PORT"
-	disableGoogleChromeEnvVar = "DISABLE_GOOGLE_CHROME"
-	disableUnoconvEnvVar      = "DISABLE_UNOCONV"
-	disablePingLoggingEnvVar  = "DISABLE_HEALTHCHECK_LOGGING"
+	defaultWaitTimeoutEnvVar        = "DEFAULT_WAIT_TIMEOUT"
+	defaultListenPortEnvVar         = "DEFAULT_LISTEN_PORT"
+	disableGoogleChromeEnvVar       = "DISABLE_GOOGLE_CHROME"
+	disableUnoconvEnvVar            = "DISABLE_UNOCONV"
+	disableHealthCheckLoggingEnvVar = "DISABLE_HEALTHCHECK_LOGGING"
 )
 
 func mustParseEnvVar() *api.Options {
@@ -44,7 +44,7 @@ func mustParseEnvVar() *api.Options {
 			os.Exit(1)
 		}
 		if defaultListener > 65535 {
-			notify.ErrPrint(fmt.Errorf("%s: wrong value: want uint < 65535; got %v", defaultListenPortEnvVar, defaultListener))
+			notify.ErrPrint(fmt.Errorf("%s: wrong value: want uint < 65535 got %v", defaultListenPortEnvVar, defaultListener))
 			os.Exit(1)
 		}
 		opts.DefaultListenPort = v
@@ -63,12 +63,12 @@ func mustParseEnvVar() *api.Options {
 		}
 		opts.EnableUnoconvEndpoints = v != "1"
 	}
-	if v, ok := os.LookupEnv(disablePingLoggingEnvVar); ok {
+	if v, ok := os.LookupEnv(disableHealthCheckLoggingEnvVar); ok {
 		if v != "1" && v != "0" {
-			notify.ErrPrint(fmt.Errorf("%s: wrong value: want \"0\" or \"1\" got %v", disablePingLoggingEnvVar, v))
+			notify.ErrPrint(fmt.Errorf("%s: wrong value: want \"0\" or \"1\" got %v", disableHealthCheckLoggingEnvVar, v))
 			os.Exit(1)
 		}
-		opts.EnablePingLogging = v != "1"
+		opts.EnableHealthcheckLogging = v != "1"
 	}
 	return opts
 }

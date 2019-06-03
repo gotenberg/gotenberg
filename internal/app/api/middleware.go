@@ -6,7 +6,21 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
+
+func handleLogging(enableHealthcheckLogging bool) echo.MiddlewareFunc {
+	if enableHealthcheckLogging {
+		// default logging middleware.
+		return middleware.Logger()
+	}
+	// middleware for skipping logging when the ping endpoint is called.
+	return middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Skipper: func(c echo.Context) bool {
+			return c.Request().URL.Path == pingEndpoint
+		},
+	})
+}
 
 func handleContext(opts *Options) echo.MiddlewareFunc {
 	// middleware for extending default context with our

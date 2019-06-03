@@ -255,6 +255,26 @@ Gotenberg API is available at <a href="http://localhost:3000">http://localhost:3
 See the <a href="#timeout">timeout section</a>.</p>
 </blockquote>
 
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="environment_variables.disable_logging_on_healthcheck" href="#environment_variables.disable_logging_on_healthcheck">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Disable logging on healthcheck</h2>
+
+<p>By default, the API will add a log entry when the <a href="#ping">healthcheck endpoint</a> is called.</p>
+
+<p>You may turn off this logging so as to avoid unnecessary entries in your logs with the environment variable <code>DISABLE_HEALTHCHECK_LOGGING</code>.</p>
+
+<p>This environment variable operates in the same manner as the <code>DISABLE_GOOGLE_CHROME</code> and <code>DISABLE_UNOCONV</code> variables operate in that it accepts the strings <code>&#34;0&#34;</code> or <code>&#34;1&#34;</code> as values.</p>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="environment_variables.default_listen_port" href="#environment_variables.default_listen_port">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Default listen port</h2>
+
+<p>By default, the API will listen on port <code>3000</code>. For most use cases this is perfectly fine, but at times there may be cases where you need to change this due to port conflicts.</p>
+
+<p>You may customize this port location with the environment variable <code>DEFAULT_LISTEN_PORT</code>.</p>
+
+<p>This environment variable accepts any string that can be turned into a port number (e.g., the string <code>&#34;0&#34;</code> up to the string <code>&#34;65535&#34;</code>).</p>
+
               </div>
             
               <div class="Page" id="html">
