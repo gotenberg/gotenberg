@@ -1,15 +1,16 @@
 # Contributing
 
-Hi! Thank your for considering contributing to Gotenberg. You'll
+Hi! Thank you for considering contributing to Gotenberg. You'll
 find below useful information about how to contribute to the Gotenberg project.
 
 ## Contributing code
 
 ### Install from sources
 
-1. Fork this repository
-2. Clone it to your local Go environment (requires *Go* >= 1.10)
-3. Install the latest [Orbit](https://github.com/gulien/orbit) release
+1. Install and run the latest version of Docker
+2. Verify your Go version (>= 1.12)
+3. Fork this repository
+4. Clone it outside of your `GOPATH` (we're using Go modules)
 
 ### Working with git
 
@@ -17,6 +18,11 @@ find below useful information about how to contribute to the Gotenberg project.
 2. Commit your changes (`git commit -am 'Add some feature'`)
 3. Push to the branch (`git push origin my-new-feature`)
 4. Create a new pull request
+
+### Testing
+
+1. Run all linters (`make lint`)
+2. Run all tests (`make tests`)
 
 ## Reporting bugs and feature request
 
