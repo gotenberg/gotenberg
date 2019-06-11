@@ -109,7 +109,11 @@ func convert(ctx *resourceContext, p printer.Printer) error {
 	if err != nil {
 		return err
 	}
-	filename := fmt.Sprintf("%s.pdf", baseFilename)
+	format, err := ctx.resource.get(outputFormat)
+	if err != nil {
+		return err
+	}
+	filename := fmt.Sprintf("%s.%s", baseFilename, format)
 	fpath := fmt.Sprintf("%s/%s", ctx.resource.formFilesDirPath, filename)
 	// if no webhook URL given, run conversion
 	// and directly return the resulting PDF file

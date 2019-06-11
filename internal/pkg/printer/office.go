@@ -20,8 +20,9 @@ type office struct {
 // OfficeOptions helps customizing the
 // Office printer behaviour.
 type OfficeOptions struct {
-	WaitTimeout float64
-	Landscape   bool
+	WaitTimeout  float64
+	Landscape    bool
+	OutputFormat string
 }
 
 // NewOffice returns an Office printer.
@@ -42,7 +43,7 @@ func (p *office) Print(destination string) error {
 		if err != nil {
 			return err
 		}
-		tmpDest := fmt.Sprintf("%s/%d%s.pdf", dirPath, i, baseFilename)
+		tmpDest := fmt.Sprintf("%s/%d%s.%s", dirPath, i, baseFilename, p.opts.OutputFormat)
 		if err := unoconv(ctx, fpath, tmpDest, p.opts); err != nil {
 			return err
 		}
@@ -66,7 +67,7 @@ func unoconv(ctx context.Context, fpath, destination string, opts *OfficeOptions
 	defer mu.Unlock()
 	cmdArgs := []string{
 		"--format",
-		"pdf",
+		opts.OutputFormat,
 	}
 	if opts.Landscape {
 		cmdArgs = append(cmdArgs, "--printer", "PaperOrientation=landscape")

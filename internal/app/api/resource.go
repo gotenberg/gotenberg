@@ -26,6 +26,7 @@ const (
 	marginLeft     string = "marginLeft"
 	marginRight    string = "marginRight"
 	landscape      string = "landscape"
+	outputFormat   string = "outputFormat"
 )
 
 type resource struct {
@@ -73,6 +74,7 @@ func formValues(ctx *resourceContext) map[string]string {
 	v[marginLeft] = ctx.FormValue(marginLeft)
 	v[marginRight] = ctx.FormValue(marginRight)
 	v[landscape] = ctx.FormValue(landscape)
+	v[outputFormat] = ctx.FormValue(outputFormat)
 	return v
 }
 
@@ -186,9 +188,14 @@ func (r *resource) officePrinterOptions() (*printer.OfficeOptions, error) {
 	if err != nil {
 		return nil, err
 	}
+	format := "pdf"
+	if r.has(outputFormat) {
+		format, _ = r.get(outputFormat)
+	}
 	return &printer.OfficeOptions{
-		WaitTimeout: timeout,
-		Landscape:   landscape,
+		WaitTimeout:  timeout,
+		Landscape:    landscape,
+		OutputFormat: format,
 	}, nil
 }
 
