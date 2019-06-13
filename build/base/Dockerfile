@@ -1,4 +1,4 @@
-FROM debian:9.5-slim
+FROM debian:9-slim
 
 # |--------------------------------------------------------------------------
 # | Common libraries
@@ -91,3 +91,9 @@ RUN apt-get install -y \
     fonts-unfonts-core
 
 COPY build/base/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
+
+RUN groupadd --gid 1001 gotenberg \
+  && useradd --uid 1001 --gid gotenberg --shell /bin/bash --no-create-home gotenberg \
+  && mkdir /gotenberg \
+  && chown gotenberg: /gotenberg
+
