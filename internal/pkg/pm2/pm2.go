@@ -1,8 +1,14 @@
 package pm2
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os/exec"
+	"strings"
+	"time"
+
+	"github.com/thecodingmachine/gotenberg/internal/pkg/notify"
 )
 
 const (
@@ -25,6 +31,7 @@ type Process interface {
 
 type processManager struct {
 	heuristicState int32
+	verbose        bool
 }
 
 func (m *processManager) start(p Process) error {
@@ -76,8 +83,43 @@ func (m *processManager) pm2(p Process, cmdName string) error {
 		"pm2",
 		cmdArgs...,
 	)
+	m.notifyf("executing command '%v'", strings.Join(cmd.Args, " "))
+	if m.verbose {
+		chromeStdErr, err := cmd.StderrPipe()
+		if err != nil {
+			return fmt.Errorf("failed getting Chrome stderr: %v", err)
+		}
+		chromeStdOut, err := cmd.StdoutPipe()
+		if err != nil {
+			return fmt.Errorf("failed getting Chrome stdout: %v", err)
+		}
+		readFromPipe := func(name string, reader io.ReadCloser) {
+			r := bufio.NewReader(reader)
+			defer reader.Close()
+			for {
+				line, _, err := r.ReadLine()
+				if err != nil {
+					if err != io.EOF {
+						m.notifyf("error reading from %v for process %v", name, p.name())
+					}
+					break
+				}
+				if len(line) != 0 {
+					m.notifyf("%v %v: %s", p.name(), name, string(line))
+				}
+			}
+		}
+		go readFromPipe("stdout", chromeStdOut)
+		go readFromPipe("stderr", chromeStdErr)
+	}
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("%s %s with PM2: %v", cmdName, p.Fullname(), err)
 	}
 	return nil
+}
+
+func (m *processManager) notifyf(format string, args ...interface{}) {
+	if m.verbose {
+		notify.Printf(fmt.Sprintf("%v: %s", time.Now().Format(time.RFC3339), format), args...)
+	}
 }

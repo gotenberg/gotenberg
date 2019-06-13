@@ -1,8 +1,6 @@
 package api
 
-import (
-	"github.com/labstack/echo/v4"
-)
+import "github.com/labstack/echo/v4"
 
 const pingEndpoint = "/ping"
 
@@ -14,6 +12,7 @@ type Options struct {
 	EnableChromeEndpoints    bool
 	EnableUnoconvEndpoints   bool
 	EnableHealthcheckLogging bool
+	DebugProcessStartup      bool
 }
 
 // DefaultOptions returns default options.

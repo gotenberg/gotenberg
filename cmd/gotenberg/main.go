@@ -25,6 +25,7 @@ const (
 	disableGoogleChromeEnvVar       = "DISABLE_GOOGLE_CHROME"
 	disableUnoconvEnvVar            = "DISABLE_UNOCONV"
 	disableHealthcheckLoggingEnvVar = "DISABLE_HEALTHCHECK_LOGGING"
+	debugProcessStartup             = "DEBUG_PROCESS_STARTUP"
 )
 
 func mustParseEnvVar() *api.Options {
@@ -49,37 +50,31 @@ func mustParseEnvVar() *api.Options {
 		}
 		opts.DefaultListenPort = v
 	}
-	if v, ok := os.LookupEnv(disableGoogleChromeEnvVar); ok {
-		if v != "1" && v != "0" {
-			notify.ErrPrint(fmt.Errorf("%s: wrong value: want \"0\" or \"1\" got %v", disableGoogleChromeEnvVar, v))
-			os.Exit(1)
+	//checkBoolEnv is a convenience function for reading an env var with a bool value where `1` is true and `0` is false
+	checkBoolEnv := func(name string) bool {
+		if v, ok := os.LookupEnv(name); ok {
+			if v != "1" && v != "0" {
+				notify.ErrPrint(fmt.Errorf("%s: wrong value: want \"0\" or \"1\" got %v", name, v))
+				os.Exit(1)
+			}
+			return v == "1"
 		}
-		opts.EnableChromeEndpoints = v != "1"
+		return false
 	}
-	if v, ok := os.LookupEnv(disableUnoconvEnvVar); ok {
-		if v != "1" && v != "0" {
-			notify.ErrPrint(fmt.Errorf("%s: wrong value: want \"0\" or \"1\" got %v", disableUnoconvEnvVar, v))
-			os.Exit(1)
-		}
-		opts.EnableUnoconvEndpoints = v != "1"
-	}
-	if v, ok := os.LookupEnv(disableHealthcheckLoggingEnvVar); ok {
-		if v != "1" && v != "0" {
-			notify.ErrPrint(fmt.Errorf("%s: wrong value: want \"0\" or \"1\" got %v", disableHealthcheckLoggingEnvVar, v))
-			os.Exit(1)
-		}
-		opts.EnableHealthcheckLogging = v != "1"
-	}
+	opts.EnableChromeEndpoints = !checkBoolEnv(disableGoogleChromeEnvVar)
+	opts.EnableUnoconvEndpoints = !checkBoolEnv(disableUnoconvEnvVar)
+	opts.EnableHealthcheckLogging = !checkBoolEnv(disableHealthcheckLoggingEnvVar)
+	opts.DebugProcessStartup = checkBoolEnv(debugProcessStartup)
 	return opts
 }
 
 func mustStartProcesses(opts *api.Options) []pm2.Process {
 	var processes []pm2.Process
 	if opts.EnableChromeEndpoints {
-		processes = append(processes, pm2.NewChrome())
+		processes = append(processes, pm2.NewChrome(opts.DebugProcessStartup))
 	}
 	if opts.EnableUnoconvEndpoints {
-		processes = append(processes, pm2.NewUnoconv())
+		processes = append(processes, pm2.NewUnoconv(opts.DebugProcessStartup))
 	}
 	for _, p := range processes {
 		notify.Printf("starting %s with PM2...", p.Fullname())

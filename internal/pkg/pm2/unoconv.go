@@ -6,9 +6,9 @@ type unoconv struct {
 
 // NewUnoconv retruns a unoconv listener
 // process.
-func NewUnoconv() Process {
+func NewUnoconv(debug bool) Process {
 	return &unoconv{
-		manager: &processManager{},
+		manager: &processManager{verbose: debug},
 	}
 }
 
