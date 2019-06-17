@@ -87,11 +87,11 @@ func (m *processManager) pm2(p Process, cmdName string) error {
 	if m.verbose {
 		processStdErr, err := cmd.StderrPipe()
 		if err != nil {
-			return fmt.Errorf("failed getting Chrome stderr: %v", err)
+			return fmt.Errorf("failed getting stderr from '%s': %v", p.Fullname(), err)
 		}
-		chromeStdOut, err := cmd.StdoutPipe()
+		processStdOut, err := cmd.StdoutPipe()
 		if err != nil {
-			return fmt.Errorf("failed getting Chrome stdout: %v", err)
+			return fmt.Errorf("failed getting stdout from '%s': %v", p.Fullname(), err)
 		}
 		readFromPipe := func(name string, reader io.ReadCloser) {
 			r := bufio.NewReader(reader)
@@ -100,7 +100,7 @@ func (m *processManager) pm2(p Process, cmdName string) error {
 				line, _, err := r.ReadLine()
 				if err != nil {
 					if err != io.EOF {
-						m.notifyf("error reading from %v for process %v", name, p.name())
+						m.notifyf("error reading from %v for process '%v'", name, p.Fullname())
 					}
 					break
 				}
@@ -109,8 +109,8 @@ func (m *processManager) pm2(p Process, cmdName string) error {
 				}
 			}
 		}
-		go readFromPipe("stdout", chromeStdOut)
-		go readFromPipe("stderr", chromeStdErr)
+		go readFromPipe("stdout", processStdOut)
+		go readFromPipe("stderr", processStdErr)
 	}
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("%s %s with PM2: %v", cmdName, p.Fullname(), err)
