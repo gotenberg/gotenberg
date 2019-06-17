@@ -92,6 +92,13 @@ RUN apt-get install -y \
 
 COPY build/base/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 
+# |--------------------------------------------------------------------------
+# | Default user
+# |--------------------------------------------------------------------------
+# |
+# | TODO find a correct description for why we're doing this.
+# |
+
 RUN groupadd --gid 1001 gotenberg \
   && useradd --uid 1001 --gid gotenberg --shell /bin/bash --no-create-home gotenberg \
   && mkdir /gotenberg \

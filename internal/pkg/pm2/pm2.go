@@ -85,7 +85,7 @@ func (m *processManager) pm2(p Process, cmdName string) error {
 	)
 	m.notifyf("executing command '%v'", strings.Join(cmd.Args, " "))
 	if m.verbose {
-		chromeStdErr, err := cmd.StderrPipe()
+		processStdErr, err := cmd.StderrPipe()
 		if err != nil {
 			return fmt.Errorf("failed getting Chrome stderr: %v", err)
 		}
@@ -95,7 +95,7 @@ func (m *processManager) pm2(p Process, cmdName string) error {
 		}
 		readFromPipe := func(name string, reader io.ReadCloser) {
 			r := bufio.NewReader(reader)
-			defer reader.Close()
+			defer reader.Close() // nolint: errcheck
 			for {
 				line, _, err := r.ReadLine()
 				if err != nil {

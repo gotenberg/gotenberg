@@ -66,15 +66,15 @@ func (p *chrome) viable() bool {
 'http://localhost:9222/json/version'`, p.name())
 	v, err := devtool.New("http://localhost:9222").Version(ctx)
 	if err != nil {
-		p.manager.notifyf("%v: Chrome version endpoint returned error: %v", p.name(), err)
+		p.manager.notifyf("%s: %s version endpoint returned error: %v", p.name(), p.Fullname(), err)
 		return false
 	}
-	p.manager.notifyf("%v: Chrome returned version info: %+v", p.name(), *v)
+	p.manager.notifyf("%s: %s returned version info: %+v", p.name(), p.Fullname(), *v)
 	return true
 }
 
 func (p *chrome) warmup() {
-	p.manager.notifyf("%v: allowing Chrome %v to startup", p.name(), warmupTime)
+	p.manager.notifyf("%s: allowing %s %v to startup", p.name(), p.Fullname(), warmupTime)
 	time.Sleep(warmupTime)
 }
 
