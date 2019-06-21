@@ -7,13 +7,13 @@ import (
 )
 
 func TestUnoconvStart(t *testing.T) {
-	p := NewUnoconv()
+	p := NewUnoconv(false)
 	err := p.Start()
 	require.Nil(t, err)
 }
 
 func TestUnoconvShutdown(t *testing.T) {
-	p := NewUnoconv()
+	p := NewUnoconv(false)
 	err := p.Shutdown()
 	require.Nil(t, err)
 }

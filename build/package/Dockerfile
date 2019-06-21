@@ -19,7 +19,11 @@ ENV GOOS=linux \
 WORKDIR /gotenberg
 
 # Copy our source code.
-COPY . .
+COPY internal ./internal
+COPY cmd ./cmd
+COPY go.sum go.sum
+COPY go.mod go.mod
+
 
 # Build our binary.
 RUN go build -o /gotenberg/gotenberg -ldflags "-X main.version=${VERSION}" cmd/gotenberg/main.go
@@ -37,6 +41,8 @@ LABEL authors="Julien Neuhart <j.neuhart@thecodingmachine.com>"
 
 COPY --from=golang /gotenberg/gotenberg /usr/local/bin/
 
+ENV PM2_HOME=/gotenberg/.pm2
+USER gotenberg
 WORKDIR /gotenberg
 
 EXPOSE 3000

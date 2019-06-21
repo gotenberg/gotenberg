@@ -7,13 +7,13 @@ import (
 )
 
 func TestChromeStart(t *testing.T) {
-	p := NewChrome()
+	p := NewChrome(false)
 	err := p.Start()
 	require.Nil(t, err)
 }
 
 func TestChromeShutdown(t *testing.T) {
-	p := NewChrome()
+	p := NewChrome(false)
 	err := p.Shutdown()
 	require.Nil(t, err)
 }
