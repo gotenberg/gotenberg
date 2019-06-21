@@ -7,15 +7,13 @@ import (
 	"github.com/mafredri/cdp/devtool"
 )
 
-const (
-	warmupTime = 10 * time.Second
-)
+const warmupTime = 10 * time.Second
 
 type chrome struct {
 	manager *processManager
 }
 
-// NewChrome retruns a Google Chrome
+// NewChrome returns a Google Chrome
 // headless process.
 func NewChrome(debug bool) Process {
 	return &chrome{

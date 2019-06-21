@@ -87,11 +87,11 @@ func (m *processManager) pm2(p Process, cmdName string) error {
 	if m.verbose {
 		processStdErr, err := cmd.StderrPipe()
 		if err != nil {
-			return fmt.Errorf("failed getting stderr from '%s': %v", p.Fullname(), err)
+			return fmt.Errorf("failed getting stderr from %s: %s", p.Fullname(), err)
 		}
 		processStdOut, err := cmd.StdoutPipe()
 		if err != nil {
-			return fmt.Errorf("failed getting stdout from '%s': %v", p.Fullname(), err)
+			return fmt.Errorf("failed getting stdout from %s: %s", p.Fullname(), err)
 		}
 		readFromPipe := func(name string, reader io.ReadCloser) {
 			r := bufio.NewReader(reader)
@@ -100,12 +100,12 @@ func (m *processManager) pm2(p Process, cmdName string) error {
 				line, _, err := r.ReadLine()
 				if err != nil {
 					if err != io.EOF {
-						m.notifyf("error reading from %v for process '%v'", name, p.Fullname())
+						m.notifyf("error reading from %s for process %s", name, p.Fullname())
 					}
 					break
 				}
 				if len(line) != 0 {
-					m.notifyf("%v %v: %s", p.name(), name, string(line))
+					m.notifyf("%s %s: %s", p.name(), name, string(line))
 				}
 			}
 		}

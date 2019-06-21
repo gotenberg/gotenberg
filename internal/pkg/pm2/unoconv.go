@@ -4,7 +4,7 @@ type unoconv struct {
 	manager *processManager
 }
 
-// NewUnoconv retruns a unoconv listener
+// NewUnoconv returns a unoconv listener
 // process.
 func NewUnoconv(debug bool) Process {
 	return &unoconv{

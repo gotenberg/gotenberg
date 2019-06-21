@@ -24,7 +24,6 @@ COPY cmd ./cmd
 COPY go.sum go.sum
 COPY go.mod go.mod
 
-
 # Build our binary.
 RUN go build -o /gotenberg/gotenberg -ldflags "-X main.version=${VERSION}" cmd/gotenberg/main.go
 

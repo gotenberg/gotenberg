@@ -139,7 +139,7 @@
 <pre class="chroma">$ docker run --rm -p <span class="m">3000</span>:3000 thecodingmachine/gotenberg:5
 </pre>
 
-<p>All processes in the docker container runs as a dedicated non-root user called <code>gotenberg</code> with user id <code>1001</code> from the working dir <code>/gotenberg</code>.</p>
+<p>All processes in the Docker container runs as a dedicated non-root user called <code>gotenberg</code> with user id <code>1001</code> from the working dir <code>/gotenberg</code>.</p>
 
 <blockquote>
 <p>The API will be available at <a href="http://localhost:3000">http://localhost:3000</a>.</p>
@@ -180,9 +180,9 @@ Otherwise the API will not be able to launch Google Chrome and LibreOffice (unoc
 
 <p>Also, in the deployment spec of the pod, specify the uid <code>1001</code> of the user <code>gotenberg</code>:</p>
 
-<pre class="chroma">        securityContext:
-          privileged: false
-          runAsUser: 1001
+<pre class="chroma">securityContext:
+  privileged: false
+  runAsUser: 1001
 </pre>
 
 <p>In the following examples, we will assume your
@@ -288,7 +288,7 @@ See the <a href="#timeout">timeout section</a>.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Debug logging of process startup</h2>
 
-<p>By default, stdout and stderr messages from the started processes are disabled.</p>
+<p>By default, <code>stdout</code> and <code>stderr</code> messages from the started processes are disabled.</p>
 
 <p>You may enable some debug logging from starting the process by setting the environment variable <code>DEBUG_PROCESS_STARTUP</code>.</p>
 

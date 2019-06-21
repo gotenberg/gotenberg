@@ -50,7 +50,9 @@ func mustParseEnvVar() *api.Options {
 		}
 		opts.DefaultListenPort = v
 	}
-	//checkBoolEnv is a convenience function for reading an env var with a bool value where `1` is true and `0` is false
+	// checkBoolEnv is a convenience function for reading
+	// an env var with a bool value where
+	// `1` is true and `0` is false.
 	checkBoolEnv := func(name string) bool {
 		if v, ok := os.LookupEnv(name); ok {
 			if v != "1" && v != "0" {

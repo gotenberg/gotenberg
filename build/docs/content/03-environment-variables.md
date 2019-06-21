@@ -48,7 +48,7 @@ This environment variable accepts any string that can be turned into a port numb
 
 ## Debug logging of process startup
 
-By default, stdout and stderr messages from the started processes are disabled.
+By default, `stdout` and `stderr` messages from the started processes are disabled.
 
 You may enable some debug logging from starting the process by setting the environment variable `DEBUG_PROCESS_STARTUP`.
 
