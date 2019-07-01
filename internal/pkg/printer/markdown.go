@@ -7,9 +7,9 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
+	"github.com/labstack/gommon/random"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/rand"
 )
 
 // NewMarkdown returns a Markdown printer.
@@ -27,10 +27,7 @@ func NewMarkdown(fpath string, opts *ChromeOptions) (Printer, error) {
 	if err := tmpl.Execute(&buffer, data); err != nil {
 		return nil, fmt.Errorf("%s: executing template: %v", fpath, err)
 	}
-	baseFilename, err := rand.Get()
-	if err != nil {
-		return nil, err
-	}
+	baseFilename := random.String(32)
 	dst := fmt.Sprintf("%s/%s.html", dirPath, baseFilename)
 	if err := ioutil.WriteFile(dst, buffer.Bytes(), 0644); err != nil {
 		return nil, fmt.Errorf("%s: writing file: %v", dst, err)

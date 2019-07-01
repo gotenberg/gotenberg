@@ -10,7 +10,6 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/printer"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/rand"
 )
 
 const (
@@ -31,53 +30,41 @@ const (
 type resource struct {
 	formValues       map[string]string
 	formFilesDirPath string
-	opts             *Options
 }
 
-type resourceContext struct {
-	echo.Context
-	opts     *Options
-	resource *resource
-}
-
-func newResource(ctx *resourceContext) (*resource, error) {
+func newResource(c echo.Context, dirPath string) (*resource, error) {
 	r := &resource{
-		formValues: formValues(ctx),
-		opts:       ctx.opts,
-	}
-	dirPath, err := rand.Get()
-	if err != nil {
-		return r, err
+		formValues: formValues(c),
 	}
 	r.formFilesDirPath = dirPath
 	if err := os.MkdirAll(dirPath, 0755); err != nil {
 		return nil, fmt.Errorf("%s: making directory: %v", dirPath, err)
 	}
-	if err := formFiles(ctx, dirPath); err != nil {
+	if err := formFiles(c, dirPath); err != nil {
 		return r, err
 	}
 	return r, nil
 }
 
-func formValues(ctx *resourceContext) map[string]string {
+func formValues(c echo.Context) map[string]string {
 	v := make(map[string]string)
-	v[resultFilename] = ctx.FormValue(resultFilename)
-	v[waitTimeout] = ctx.FormValue(waitTimeout)
-	v[webhookURL] = ctx.FormValue(webhookURL)
-	v[remoteURL] = ctx.FormValue(remoteURL)
-	v[waitDelay] = ctx.FormValue(waitDelay)
-	v[paperWidth] = ctx.FormValue(paperWidth)
-	v[paperHeight] = ctx.FormValue(paperHeight)
-	v[marginTop] = ctx.FormValue(marginTop)
-	v[marginBottom] = ctx.FormValue(marginBottom)
-	v[marginLeft] = ctx.FormValue(marginLeft)
-	v[marginRight] = ctx.FormValue(marginRight)
-	v[landscape] = ctx.FormValue(landscape)
+	v[resultFilename] = c.FormValue(resultFilename)
+	v[waitTimeout] = c.FormValue(waitTimeout)
+	v[webhookURL] = c.FormValue(webhookURL)
+	v[remoteURL] = c.FormValue(remoteURL)
+	v[waitDelay] = c.FormValue(waitDelay)
+	v[paperWidth] = c.FormValue(paperWidth)
+	v[paperHeight] = c.FormValue(paperHeight)
+	v[marginTop] = c.FormValue(marginTop)
+	v[marginBottom] = c.FormValue(marginBottom)
+	v[marginLeft] = c.FormValue(marginLeft)
+	v[marginRight] = c.FormValue(marginRight)
+	v[landscape] = c.FormValue(landscape)
 	return v
 }
 
-func formFiles(ctx *resourceContext, dirPath string) error {
-	form, err := ctx.MultipartForm()
+func formFiles(c echo.Context, dirPath string) error {
+	form, err := c.MultipartForm()
 	if err != nil {
 		return fmt.Errorf("getting multipart form: %v", err)
 	}
@@ -117,8 +104,8 @@ func (r *resource) close() error {
 
 const defaultHeaderFooterHTML string = "<html><head></head><body></body></html>"
 
-func (r *resource) chromePrinterOptions() (*printer.ChromeOptions, error) {
-	timeout, err := r.float64(waitTimeout, r.opts.DefaultWaitTimeout)
+func (r *resource) chromePrinterOptions(defaultWaitTimeout float64) (*printer.ChromeOptions, error) {
+	timeout, err := r.float64(waitTimeout, defaultWaitTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -177,8 +164,8 @@ func (r *resource) chromePrinterOptions() (*printer.ChromeOptions, error) {
 	}, nil
 }
 
-func (r *resource) officePrinterOptions() (*printer.OfficeOptions, error) {
-	timeout, err := r.float64(waitTimeout, r.opts.DefaultWaitTimeout)
+func (r *resource) officePrinterOptions(defaultWaitTimeout float64) (*printer.OfficeOptions, error) {
+	timeout, err := r.float64(waitTimeout, defaultWaitTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -192,8 +179,8 @@ func (r *resource) officePrinterOptions() (*printer.OfficeOptions, error) {
 	}, nil
 }
 
-func (r *resource) mergePrinterOptions() (*printer.MergeOptions, error) {
-	timeout, err := r.float64(waitTimeout, r.opts.DefaultWaitTimeout)
+func (r *resource) mergePrinterOptions(defaultWaitTimeout float64) (*printer.MergeOptions, error) {
+	timeout, err := r.float64(waitTimeout, defaultWaitTimeout)
 	if err != nil {
 		return nil, err
 	}

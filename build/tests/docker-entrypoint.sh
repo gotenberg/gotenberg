@@ -10,7 +10,6 @@ go test github.com/thecodingmachine/gotenberg/internal/pkg/pm2 -run TestUnoconvS
 
 # Running others tests.
 go test -race -cover -covermode=atomic github.com/thecodingmachine/gotenberg/internal/app/api
-go test -race -cover -covermode=atomic github.com/thecodingmachine/gotenberg/internal/pkg/rand
 
 # Finally testing processes shutdown.
 go test github.com/thecodingmachine/gotenberg/internal/pkg/pm2 -run TestChromeShutdown

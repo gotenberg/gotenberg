@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thecodingmachine/gotenberg/internal/pkg/rand"
+	"github.com/labstack/gommon/random"
 )
 
 type office struct {
@@ -38,10 +38,7 @@ func (p *office) Print(destination string) error {
 	fpaths := make([]string, len(p.fpaths))
 	dirPath := filepath.Dir(destination)
 	for i, fpath := range p.fpaths {
-		baseFilename, err := rand.Get()
-		if err != nil {
-			return err
-		}
+		baseFilename := random.String(32)
 		tmpDest := fmt.Sprintf("%s/%d%s.pdf", dirPath, i, baseFilename)
 		if err := unoconv(ctx, fpath, tmpDest, p.opts); err != nil {
 			return err

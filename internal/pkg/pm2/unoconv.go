@@ -1,14 +1,18 @@
 package pm2
 
+import (
+	log "github.com/thecodingmachine/gotenberg/internal/pkg/logger"
+)
+
 type unoconv struct {
 	manager *processManager
 }
 
 // NewUnoconv returns a unoconv listener
 // process.
-func NewUnoconv(debug bool) Process {
+func NewUnoconv(logger *log.StandardLogger) Process {
 	return &unoconv{
-		manager: &processManager{verbose: debug},
+		manager: &processManager{logger: logger},
 	}
 }
 

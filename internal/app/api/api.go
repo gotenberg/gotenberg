@@ -1,51 +1,32 @@
 package api
 
-import "github.com/labstack/echo/v4"
+import (
+	"github.com/labstack/echo/v4"
+	conf "github.com/thecodingmachine/gotenberg/internal/pkg/config"
+)
 
 const pingEndpoint = "/ping"
 
-// Options allows to customize the behaviour
-// of the API.
-type Options struct {
-	DefaultWaitTimeout       float64
-	DefaultListenPort        string
-	EnableChromeEndpoints    bool
-	EnableUnoconvEndpoints   bool
-	EnableHealthcheckLogging bool
-	DebugProcessStartup      bool
-}
-
-// DefaultOptions returns default options.
-func DefaultOptions() *Options {
-	return &Options{
-		DefaultWaitTimeout:       10,
-		DefaultListenPort:        "3000",
-		EnableChromeEndpoints:    true,
-		EnableUnoconvEndpoints:   true,
-		EnableHealthcheckLogging: true,
-	}
-}
-
 // New returns an API.
-func New(opts *Options) *echo.Echo {
+func New(config *conf.Config) *echo.Echo {
 	api := echo.New()
 	api.HideBanner = true
 	api.HidePort = true
-	api.Use(handleLogging(opts.EnableHealthcheckLogging))
+	api.Use(contextMiddleware(config))
+	api.Use(loggingMiddleware())
+	api.Use(finalizeMiddleware())
 	api.GET(pingEndpoint, func(c echo.Context) error { return nil })
-	g := api.Group("/convert")
-	g.Use(handleContext(opts))
-	g.Use(handleError())
-	g.POST("/merge", merge)
-	if !opts.EnableChromeEndpoints && !opts.EnableUnoconvEndpoints {
+	api.POST("/merge", merge)
+	if !config.EnableChromeEndpoints() && !config.EnableUnoconvEndpoints() {
 		return api
 	}
-	if opts.EnableChromeEndpoints {
+	g := api.Group("/convert")
+	if config.EnableChromeEndpoints() {
 		g.POST("/html", convertHTML)
 		g.POST("/url", convertURL)
 		g.POST("/markdown", convertMarkdown)
 	}
-	if opts.EnableUnoconvEndpoints {
+	if config.EnableUnoconvEndpoints() {
 		g.POST("/office", convertOffice)
 	}
 	return api

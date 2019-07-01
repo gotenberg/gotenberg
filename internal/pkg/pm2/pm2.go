@@ -6,9 +6,8 @@ import (
 	"io"
 	"os/exec"
 	"strings"
-	"time"
 
-	"github.com/thecodingmachine/gotenberg/internal/pkg/notify"
+	log "github.com/thecodingmachine/gotenberg/internal/pkg/logger"
 )
 
 const (
@@ -31,7 +30,7 @@ type Process interface {
 
 type processManager struct {
 	heuristicState int32
-	verbose        bool
+	logger         *log.StandardLogger
 }
 
 func (m *processManager) start(p Process) error {
@@ -83,43 +82,35 @@ func (m *processManager) pm2(p Process, cmdName string) error {
 		"pm2",
 		cmdArgs...,
 	)
-	m.notifyf("executing command '%v'", strings.Join(cmd.Args, " "))
-	if m.verbose {
-		processStdErr, err := cmd.StderrPipe()
-		if err != nil {
-			return fmt.Errorf("failed getting stderr from %s: %s", p.Fullname(), err)
-		}
-		processStdOut, err := cmd.StdoutPipe()
-		if err != nil {
-			return fmt.Errorf("failed getting stdout from %s: %s", p.Fullname(), err)
-		}
-		readFromPipe := func(name string, reader io.ReadCloser) {
-			r := bufio.NewReader(reader)
-			defer reader.Close() // nolint: errcheck
-			for {
-				line, _, err := r.ReadLine()
-				if err != nil {
-					if err != io.EOF {
-						m.notifyf("error reading from %s for process %s", name, p.Fullname())
-					}
-					break
+	m.logger.Debugf("executing command: %v", strings.Join(cmd.Args, " "))
+	processStdOut, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("failed getting stdout from %s: %s", p.Fullname(), err)
+	}
+	processStdErr, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("failed getting stderr from %s: %s", p.Fullname(), err)
+	}
+	readFromPipe := func(outputType string, reader io.ReadCloser) {
+		r := bufio.NewReader(reader)
+		defer reader.Close() // nolint: errcheck
+		for {
+			line, _, err := r.ReadLine()
+			if err != nil {
+				if err != io.EOF {
+					m.logger.Errorf("error reading from %s for process %s", outputType, p.Fullname())
 				}
-				if len(line) != 0 {
-					m.notifyf("%s %s: %s", p.name(), name, string(line))
-				}
+				break
+			}
+			if len(line) != 0 {
+				m.logger.Debugf("%s %s: %s", p.Fullname(), outputType, string(line))
 			}
 		}
-		go readFromPipe("stdout", processStdOut)
-		go readFromPipe("stderr", processStdErr)
 	}
+	go readFromPipe("stdout", processStdOut)
+	go readFromPipe("stderr", processStdErr)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("%s %s with PM2: %v", cmdName, p.Fullname(), err)
 	}
 	return nil
-}
-
-func (m *processManager) notifyf(format string, args ...interface{}) {
-	if m.verbose {
-		notify.Printf(fmt.Sprintf("%v: %s", time.Now().Format(time.RFC3339), format), args...)
-	}
 }

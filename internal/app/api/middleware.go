@@ -6,70 +6,84 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	"github.com/labstack/gommon/random"
+	conf "github.com/thecodingmachine/gotenberg/internal/pkg/config"
+	log "github.com/thecodingmachine/gotenberg/internal/pkg/logger"
 )
 
-func handleLogging(enableHealthcheckLogging bool) echo.MiddlewareFunc {
-	if enableHealthcheckLogging {
-		// default logging middleware.
-		return middleware.Logger()
-	}
-	// middleware for skipping logging when the ping endpoint is called.
-	return middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Skipper: func(c echo.Context) bool {
-			return c.Request().URL.Path == pingEndpoint
-		},
-	})
-}
-
-func handleContext(opts *Options) echo.MiddlewareFunc {
-	// middleware for extending default context with our
-	// custom constext.
+func contextMiddleware(config *conf.Config) echo.MiddlewareFunc {
+	// middleware for extending the default context
+	// with one of our own context.
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			ctx := &resourceContext{c, opts, nil}
-			r, err := newResource(ctx)
-			if err != nil {
-				if resourceErr := r.close(); resourceErr != nil {
-					c.Logger().Error(resourceErr)
+			// generate a unique identifier for our request.
+			trace := random.String(32)
+			// create the logger for this request using
+			// the previous identifier as trace.
+			logger := log.New(config.LogLevel(), trace)
+			// extend the current echo context with our standard
+			// context.
+			ctx := newStandardContext(c, logger, config)
+			// if the endpoint is not for liveness, make a
+			// context with resource.
+			if ctx.Path() != pingEndpoint {
+				ctx, err := ctx.withResource(trace)
+				if err != nil {
+					ctx.Error(err)
+					return ctx.logEndOfRequest(err)
 				}
-				return err
 			}
-			ctx.resource = r
 			return next(ctx)
 		}
 	}
 }
 
-func handleError() echo.MiddlewareFunc {
-	// middleware for handling errors and removing resources
-	// once the request has been handled.
+func loggingMiddleware() echo.MiddlewareFunc {
+	// middleware for enabling logging.
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			ctx := c.(*standardContext)
+			err := next(ctx)
+			if err != nil {
+				ctx.Error(err)
+			}
+			return ctx.logEndOfRequest(err)
+		}
+	}
+}
+
+func finalizeMiddleware() echo.MiddlewareFunc {
+	// middleware for removing resources at the end of a request
+	// and for improving response in case of error.
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			err := next(c)
-			ctx := c.(*resourceContext)
-			// if a webhookURL has been given,
-			// do not remove the resources here because
-			// we don't know if the result file has been
-			// generated or sent.
-			if !ctx.resource.has(webhookURL) {
-				if resourceErr := ctx.resource.close(); resourceErr != nil {
-					c.Logger().Error(resourceErr)
+			ctx, ok := c.(*resourceContext)
+			// a resource is associated with the context.
+			if ok {
+				// if a webhookURL has been given,
+				// do not remove the resources here because
+				// we don't know if the result file has been
+				// generated or sent.
+				if !ctx.resource.has(webhookURL) {
+					if resourceErr := ctx.resource.close(); resourceErr != nil {
+						ctx.logger.Error(err)
+					}
 				}
 			}
-			if err != nil {
-				if _, ok := err.(*echo.HTTPError); ok {
-					return err
-				}
-				if _, ok := err.(*errBadRequest); ok {
-					return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-				}
-				if strings.Contains(err.Error(), context.DeadlineExceeded.Error()) {
-					return echo.NewHTTPError(http.StatusRequestTimeout)
-				}
-				return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+			if err == nil {
+				return nil
 			}
-			return nil
+			if _, ok := err.(*echo.HTTPError); ok {
+				return err
+			}
+			if _, ok := err.(*errBadRequest); ok {
+				return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+			}
+			if strings.Contains(err.Error(), context.DeadlineExceeded.Error()) {
+				return echo.NewHTTPError(http.StatusRequestTimeout, err.Error())
+			}
+			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 		}
 	}
 }

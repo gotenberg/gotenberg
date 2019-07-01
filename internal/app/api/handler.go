@@ -6,8 +6,8 @@ import (
 	"os"
 
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/gommon/random"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/printer"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/rand"
 )
 
 type errBadRequest struct {
@@ -20,7 +20,7 @@ func (e *errBadRequest) Error() string {
 
 func merge(c echo.Context) error {
 	ctx := c.(*resourceContext)
-	opts, err := ctx.resource.mergePrinterOptions()
+	opts, err := ctx.resource.mergePrinterOptions(ctx.config.DefaultWaitTimeout())
 	if err != nil {
 		return &errBadRequest{err}
 	}
@@ -34,7 +34,7 @@ func merge(c echo.Context) error {
 
 func convertHTML(c echo.Context) error {
 	ctx := c.(*resourceContext)
-	opts, err := ctx.resource.chromePrinterOptions()
+	opts, err := ctx.resource.chromePrinterOptions(ctx.config.DefaultWaitTimeout())
 	if err != nil {
 		return &errBadRequest{err}
 	}
@@ -48,7 +48,7 @@ func convertHTML(c echo.Context) error {
 
 func convertMarkdown(c echo.Context) error {
 	ctx := c.(*resourceContext)
-	opts, err := ctx.resource.chromePrinterOptions()
+	opts, err := ctx.resource.chromePrinterOptions(ctx.config.DefaultWaitTimeout())
 	if err != nil {
 		return &errBadRequest{err}
 	}
@@ -65,7 +65,7 @@ func convertMarkdown(c echo.Context) error {
 
 func convertURL(c echo.Context) error {
 	ctx := c.(*resourceContext)
-	opts, err := ctx.resource.chromePrinterOptions()
+	opts, err := ctx.resource.chromePrinterOptions(ctx.config.DefaultWaitTimeout())
 	if err != nil {
 		return &errBadRequest{err}
 	}
@@ -79,7 +79,7 @@ func convertURL(c echo.Context) error {
 
 func convertOffice(c echo.Context) error {
 	ctx := c.(*resourceContext)
-	opts, err := ctx.resource.officePrinterOptions()
+	opts, err := ctx.resource.officePrinterOptions(ctx.config.DefaultWaitTimeout())
 	if err != nil {
 		return &errBadRequest{err}
 	}
@@ -105,10 +105,7 @@ func convertOffice(c echo.Context) error {
 }
 
 func convert(ctx *resourceContext, p printer.Printer) error {
-	baseFilename, err := rand.Get()
-	if err != nil {
-		return err
-	}
+	baseFilename := random.String(32)
 	filename := fmt.Sprintf("%s.pdf", baseFilename)
 	fpath := fmt.Sprintf("%s/%s", ctx.resource.formFilesDirPath, filename)
 	// if no webhook URL given, run conversion
@@ -118,11 +115,12 @@ func convert(ctx *resourceContext, p printer.Printer) error {
 		if err := p.Print(fpath); err != nil {
 			return err
 		}
-		if ctx.resource.has(resultFilename) {
-			filename, err = ctx.resource.get(resultFilename)
-			if err != nil {
-				return &errBadRequest{err}
-			}
+		if !ctx.resource.has(resultFilename) {
+			return ctx.Attachment(fpath, filename)
+		}
+		filename, err := ctx.resource.get(resultFilename)
+		if err != nil {
+			return &errBadRequest{err}
 		}
 		return ctx.Attachment(fpath, filename)
 	}
@@ -132,23 +130,23 @@ func convert(ctx *resourceContext, p printer.Printer) error {
 	go func() {
 		defer ctx.resource.close() // nolint: errcheck
 		if err := p.Print(fpath); err != nil {
-			ctx.Logger().Error(err)
+			ctx.logger.Error(err)
 			return
 		}
 		f, err := os.Open(fpath)
 		if err != nil {
-			ctx.Logger().Error(err)
+			ctx.logger.Error(err)
 			return
 		}
 		defer f.Close() // nolint: errcheck
 		webhook, err := ctx.resource.get(webhookURL)
 		if err != nil {
-			ctx.Logger().Error(err)
+			ctx.logger.Error(err)
 			return
 		}
 		resp, err := http.Post(webhook, "application/pdf", f) /* #nosec */
 		if err != nil {
-			ctx.Logger().Error(err)
+			ctx.logger.Error(err)
 			return
 		}
 		defer resp.Body.Close() // nolint: errcheck
