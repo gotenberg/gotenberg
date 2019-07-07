@@ -74,11 +74,11 @@ func (ctx *Context) WithResource(resourceDirPath string) error {
 // LogRequestResult logs the result of a request.
 // This method should only be used by a middleware!
 func (ctx *Context) LogRequestResult(err error, isDebug bool) error {
+	const op = "context.LogRequestResult"
 	req := ctx.Request()
 	resp := ctx.Response()
 	stopTime := time.Now()
 	fields := map[string]interface{}{
-		"time_rfc3339":  timeRFC3339(), // FIXME required?
 		"remote_ip":     ctx.RealIP(),
 		"host":          req.Host,
 		"uri":           req.RequestURI,
@@ -93,19 +93,15 @@ func (ctx *Context) LogRequestResult(err error, isDebug bool) error {
 		"bytes_out":     bytesOut(resp),
 	}
 	if err != nil {
-		ctx.logger.WithFields(fields).Error("request failed")
+		ctx.logger.WithFields(fields).ErrorfOp(op, "request failed")
 		return err
 	}
 	if isDebug {
-		ctx.logger.WithFields(fields).Debug("request handled")
+		ctx.logger.WithFields(fields).DebugfOp(op, "request handled")
 		return nil
 	}
-	ctx.logger.WithFields(fields).Info("request handled")
+	ctx.logger.WithFields(fields).InfofOp(op, "request handled")
 	return nil
-}
-
-func timeRFC3339() string {
-	return time.Now().Format(time.RFC3339)
 }
 
 func path(r *http.Request) string {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/mafredri/cdp/devtool"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/logger"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/standarderror"
 )
 
 const warmupTime = 10 * time.Second
@@ -27,11 +28,19 @@ func (p *chrome) Fullname() string {
 }
 
 func (p *chrome) Start() error {
-	return p.manager.start(p)
+	const op = "chrome.Start"
+	if err := p.manager.start(p); err != nil {
+		return &standarderror.Error{Op: op, Err: err}
+	}
+	return nil
 }
 
 func (p *chrome) Shutdown() error {
-	return p.manager.shutdown(p)
+	const op = "chrome.Shutdown"
+	if err := p.manager.shutdown(p); err != nil {
+		return &standarderror.Error{Op: op, Err: err}
+	}
+	return nil
 }
 
 func (p *chrome) args() []string {
@@ -58,24 +67,38 @@ func (p *chrome) name() string {
 }
 
 func (p *chrome) viable() bool {
+	const debugOp = "chrome.viable"
 	// check if Google Chrome is correctly running.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	p.manager.logger.Debugf(
-		"%s: checking liveness via debug version endpoint http://localhost:9222/json/version",
-		p.Fullname(),
+	p.manager.logger.DebugfOp(
+		debugOp,
+		"checking liveness via debug version endpoint http://localhost:9222/json/version",
 	)
 	v, err := devtool.New("http://localhost:9222").Version(ctx)
 	if err != nil {
-		p.manager.logger.Debugf("%s: debug version endpoint returned error: %v", p.Fullname(), err)
+		p.manager.logger.DebugfOp(
+			debugOp,
+			"debug version endpoint returned error: %v",
+			err,
+		)
 		return false
 	}
-	p.manager.logger.Debugf("%s: debug version endpoint returned version info: %+v", p.Fullname(), *v)
+	p.manager.logger.DebugfOp(
+		debugOp,
+		"debug version endpoint returned version info: %+v",
+		*v,
+	)
 	return true
 }
 
 func (p *chrome) warmup() {
-	p.manager.logger.Debugf("%s: allowing %v to startup", p.Fullname(), warmupTime)
+	const debugOp = "chrome.warmup"
+	p.manager.logger.DebugfOp(
+		debugOp,
+		"allowing %v to startup",
+		warmupTime,
+	)
 	time.Sleep(warmupTime)
 }
 

@@ -9,6 +9,7 @@ require (
 	github.com/labstack/echo/v4 v4.1.6
 	github.com/labstack/gommon v0.2.9
 	github.com/mafredri/cdp v0.23.4
+	github.com/mattn/go-isatty v0.0.8
 	github.com/microcosm-cc/bluemonday v1.0.2
 	github.com/russross/blackfriday/v2 v2.0.1
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect

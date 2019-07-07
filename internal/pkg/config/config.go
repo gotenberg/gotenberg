@@ -5,7 +5,8 @@ import (
 	"os"
 	"strconv"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/standarderror"
 )
 
 const (
@@ -16,12 +17,14 @@ const (
 	logLevelEnvVar            = "LOG_LEVEL"
 )
 
+// Config contains the application
+// configuration.
 type Config struct {
 	defaultWaitTimeout     float64
 	defaultListenPort      string
 	enableChromeEndpoints  bool
 	enableUnoconvEndpoints bool
-	logLevel               log.Level
+	logLevel               logrus.Level
 }
 
 func defaultConfig() *Config {
@@ -30,51 +33,85 @@ func defaultConfig() *Config {
 		defaultListenPort:      "3000",
 		enableChromeEndpoints:  true,
 		enableUnoconvEndpoints: true,
-		logLevel:               log.InfoLevel,
+		logLevel:               logrus.InfoLevel,
 	}
 }
 
+// FromEnv fetches configuration
+// from environment variables.
 func FromEnv() (*Config, error) {
+	const op = "config.FromEnv"
 	c := defaultConfig()
 	defaultWaitTimeout, err := defaultWaitTimeoutFromEnv(defaultWaitTimeoutEnvVar, c.DefaultWaitTimeout())
 	c.defaultWaitTimeout = defaultWaitTimeout
 	if err != nil {
-		return c, err
+		return c, &standarderror.Error{Op: op, Err: err}
 	}
 	defaultListenPort, err := defaultListenPortFromEnv(defaultListenPortEnvVar, c.DefaultListenPort())
 	c.defaultListenPort = defaultListenPort
 	if err != nil {
-		return c, err
+		return c, &standarderror.Error{Op: op, Err: err}
 	}
 	disableChromeEndpoints, err := boolFromEnv(disableGoogleChromeEnvVar, c.EnableChromeEndpoints())
 	c.enableChromeEndpoints = !disableChromeEndpoints
 	if err != nil {
-		return c, err
+		return c, &standarderror.Error{Op: op, Err: err}
 	}
 	disableUnoconvEndpoints, err := boolFromEnv(disableUnoconvEnvVar, c.EnableUnoconvEndpoints())
 	c.enableUnoconvEndpoints = !disableUnoconvEndpoints
 	if err != nil {
-		return c, err
+		return c, &standarderror.Error{Op: op, Err: err}
 	}
 	logLevel, err := logLevelFromEnv(logLevelEnvVar, c.LogLevel())
 	c.logLevel = logLevel
 	if err != nil {
-		return c, err
+		return c, &standarderror.Error{Op: op, Err: err}
 	}
 	return c, nil
 }
 
-func (c *Config) DefaultWaitTimeout() float64  { return c.defaultWaitTimeout }
-func (c *Config) DefaultListenPort() string    { return c.defaultListenPort }
-func (c *Config) EnableChromeEndpoints() bool  { return c.enableChromeEndpoints }
-func (c *Config) EnableUnoconvEndpoints() bool { return c.enableUnoconvEndpoints }
-func (c *Config) LogLevel() log.Level          { return c.logLevel }
+// DefaultWaitTimeout returns the default
+// wait timeout from the configuration.
+func (c *Config) DefaultWaitTimeout() float64 {
+	return c.defaultWaitTimeout
+}
+
+// DefaultListenPort returns the default
+// listen port from the configuration.
+func (c *Config) DefaultListenPort() string {
+	return c.defaultListenPort
+}
+
+// EnableChromeEndpoints returns true if
+// Chrome endpoints are enabled in the
+// configuration.
+func (c *Config) EnableChromeEndpoints() bool {
+	return c.enableChromeEndpoints
+}
+
+// EnableUnoconvEndpoints returns true if
+// Unoconv endpoints are enabled in the
+// configuration.
+func (c *Config) EnableUnoconvEndpoints() bool {
+	return c.enableUnoconvEndpoints
+}
+
+// LogLevel returns the logrus.Level from
+// the configuration.
+func (c *Config) LogLevel() logrus.Level {
+	return c.logLevel
+}
 
 func defaultWaitTimeoutFromEnv(envVar string, defaultValue float64) (float64, error) {
+	const op = "defaultWaitTimeoutFromEnv"
 	if v, ok := os.LookupEnv(envVar); ok {
 		waitTimeout, err := strconv.ParseFloat(v, 64)
 		if err != nil {
-			return defaultValue, fmt.Errorf("%s: wrong value: want float got %v", envVar, err)
+			return defaultValue, &standarderror.Error{
+				Code:    standarderror.Invalid,
+				Message: fmt.Sprintf("'%s' is not a float, got '%s'", envVar, v),
+				Op:      op,
+			}
 		}
 		return waitTimeout, nil
 	}
@@ -82,13 +119,22 @@ func defaultWaitTimeoutFromEnv(envVar string, defaultValue float64) (float64, er
 }
 
 func defaultListenPortFromEnv(envVar string, defaultValue string) (string, error) {
+	const op = "defaultListenPortFromEnv"
 	if v, ok := os.LookupEnv(envVar); ok {
 		portAsUint, err := strconv.ParseUint(v, 10, 64)
 		if err != nil {
-			return defaultValue, fmt.Errorf("%s: wrong value: want uint got %v", envVar, err)
+			return defaultValue, &standarderror.Error{
+				Code:    standarderror.Invalid,
+				Message: fmt.Sprintf("'%s' is not a uint, got '%s'", envVar, v),
+				Op:      op,
+			}
 		}
 		if portAsUint > 65535 {
-			return defaultValue, fmt.Errorf("%s: wrong value: want uint < 65535 got %d", envVar, portAsUint)
+			return defaultValue, &standarderror.Error{
+				Code:    standarderror.Invalid,
+				Message: fmt.Sprintf("'%s' is not a uint < 65535, got '%d'", envVar, portAsUint),
+				Op:      op,
+			}
 		}
 		return v, nil
 	}
@@ -96,26 +142,36 @@ func defaultListenPortFromEnv(envVar string, defaultValue string) (string, error
 }
 
 func boolFromEnv(envVar string, defaultValue bool) (bool, error) {
+	const op = "boolFromEnv"
 	if v, ok := os.LookupEnv(envVar); ok {
 		if v != "1" && v != "0" {
-			return defaultValue, fmt.Errorf("%s: wrong value: want \"0\" or \"1\" got %s", envVar, v)
+			return defaultValue, &standarderror.Error{
+				Code:    standarderror.Invalid,
+				Message: fmt.Sprintf("'%s' is not '0' or '1', got %s", envVar, v),
+				Op:      op,
+			}
 		}
 		return v == "1", nil
 	}
 	return defaultValue, nil
 }
 
-func logLevelFromEnv(envVar string, defaultValue log.Level) (log.Level, error) {
+func logLevelFromEnv(envVar string, defaultValue logrus.Level) (logrus.Level, error) {
+	const op = "logLevelFromEnv"
 	if v, ok := os.LookupEnv(envVar); ok {
 		switch v {
 		case "DEBUG":
-			return log.DebugLevel, nil
+			return logrus.DebugLevel, nil
 		case "INFO":
-			return log.InfoLevel, nil
+			return logrus.InfoLevel, nil
 		case "ERROR":
-			return log.ErrorLevel, nil
+			return logrus.ErrorLevel, nil
 		default:
-			return defaultValue, fmt.Errorf("%s: wrong value: want \"DEBUG\",\"INFO\" or \"ERROR\" got %s", envVar, v)
+			return defaultValue, &standarderror.Error{
+				Code:    standarderror.Invalid,
+				Message: fmt.Sprintf("'%s' is not 'DEBUG', 'INFO' or 'ERROR', got '%s'", envVar, v),
+				Op:      op,
+			}
 		}
 	}
 	return defaultValue, nil

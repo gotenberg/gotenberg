@@ -20,8 +20,9 @@ func Error() echo.MiddlewareFunc {
 			}
 			// we log the initial error before returning
 			// the HTTP error.
+			errOp := standarderror.Op(err)
 			logger := ctx.StandardLogger()
-			logger.Error(err.Error())
+			logger.ErrorOp(errOp, err)
 			// handle our custom HTTP error.
 			var httpErr error
 			errCode := standarderror.Code(err)

@@ -318,7 +318,7 @@ func (r *Resource) float64(formField string, defaultValue float64) (float64, err
 	if err != nil {
 		return 0.0, &standarderror.Error{
 			Code:    standarderror.Invalid,
-			Message: fmt.Sprintf("'%s' is not a float", formField),
+			Message: fmt.Sprintf("'%s' is not a float, got '%s'", formField, v),
 			Op:      op,
 		}
 	}
@@ -338,7 +338,7 @@ func (r *Resource) bool(formField string, defaultValue bool) (bool, error) {
 	if err != nil {
 		return false, &standarderror.Error{
 			Code:    standarderror.Invalid,
-			Message: fmt.Sprintf("'%s' is not a boolean", formField),
+			Message: fmt.Sprintf("'%s' is not a boolean, got '%s'", formField, v),
 			Op:      op,
 		}
 	}

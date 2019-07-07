@@ -35,10 +35,6 @@ type Error struct {
 // Error returns the string representation of the error message.
 func (err *Error) Error() string {
 	var buf bytes.Buffer
-	// print the current operation in our stack, if any.
-	if err.Op != "" {
-		fmt.Fprintf(&buf, "%s: ", err.Op)
-	}
 	// if wrapping an error, print its Error() message.
 	// Otherwise print the error code & message.
 	if err.Err != nil {
@@ -83,3 +79,31 @@ func Message(err error) string {
 	}
 	return "An internal error has occurred. Please contact technical support."
 }
+
+// Op returns the logical operation of the error, if available.
+// Otherwise returns an empty string.
+// FIXME: "resource.ChromePrinterOptions: float64: : "
+func Op(err error) string {
+	if err == nil {
+		return ""
+	}
+	e, ok := err.(*Error)
+	if !ok {
+		return ""
+	}
+	var buf bytes.Buffer
+	if e.Op != "" {
+		fmt.Fprintf(&buf, "%s: ", e.Op)
+	}
+	if e.Err != nil {
+		if wrappedOp := Op(e.Err); wrappedOp != "" {
+			fmt.Fprintf(&buf, "%s: ", wrappedOp)
+		}
+	}
+	return buf.String()
+}
+
+// Compile-time checks to ensure type implements desired interfaces.
+var (
+	_ = error(new(Error))
+)

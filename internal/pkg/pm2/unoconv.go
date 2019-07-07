@@ -2,6 +2,7 @@ package pm2
 
 import (
 	"github.com/thecodingmachine/gotenberg/internal/pkg/logger"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/standarderror"
 )
 
 type unoconv struct {
@@ -21,11 +22,19 @@ func (p *unoconv) Fullname() string {
 }
 
 func (p *unoconv) Start() error {
-	return p.manager.start(p)
+	const op = "unoconv.Start"
+	if err := p.manager.start(p); err != nil {
+		return &standarderror.Error{Op: op, Err: err}
+	}
+	return nil
 }
 
 func (p *unoconv) Shutdown() error {
-	return p.manager.shutdown(p)
+	const op = "unoconv.Shutdown"
+	if err := p.manager.shutdown(p); err != nil {
+		return &standarderror.Error{Op: op, Err: err}
+	}
+	return nil
 }
 
 func (p *unoconv) args() []string {

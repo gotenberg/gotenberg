@@ -35,7 +35,7 @@ ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 # | Last instructions of this build.
 # |
 
-# Define our workding outside of $GOPATH (we're using go modules).
+# Define our working directory outside of $GOPATH (we're using go modules).
 WORKDIR /tests
 
 # Copy our module dependencies definitions.

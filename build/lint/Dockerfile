@@ -22,7 +22,7 @@ RUN curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.s
 # | Last instructions of this build.
 # |
 
-# Define our workding outside of $GOPATH (we're using go modules).
+# Define our working directory outside of $GOPATH (we're using go modules).
 WORKDIR /lint
 
 # Copy our module dependencies definitions.
