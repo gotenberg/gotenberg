@@ -2,32 +2,33 @@ package api
 
 import (
 	"github.com/labstack/echo/v4"
-	conf "github.com/thecodingmachine/gotenberg/internal/pkg/config"
+	"github.com/thecodingmachine/gotenberg/internal/app/api/pkg/handler"
+	"github.com/thecodingmachine/gotenberg/internal/app/api/pkg/middleware"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/config"
 )
 
-const pingEndpoint = "/ping"
-
 // New returns an API.
-func New(config *conf.Config) *echo.Echo {
+func New(config *config.Config) *echo.Echo {
 	api := echo.New()
 	api.HideBanner = true
 	api.HidePort = true
-	api.Use(contextMiddleware(config))
-	api.Use(loggingMiddleware())
-	api.Use(finalizeMiddleware())
-	api.GET(pingEndpoint, func(c echo.Context) error { return nil })
-	api.POST("/merge", merge)
+	api.Use(middleware.Context(config))
+	api.Use(middleware.Logger())
+	api.Use(middleware.Cleanup())
+	api.Use(middleware.Error())
+	api.GET(handler.PingEndpoint, handler.Ping)
+	api.POST(handler.MergeEndpoint, handler.Merge)
 	if !config.EnableChromeEndpoints() && !config.EnableUnoconvEndpoints() {
 		return api
 	}
-	g := api.Group("/convert")
+	g := api.Group(handler.ConvertGroupEndpoint)
 	if config.EnableChromeEndpoints() {
-		g.POST("/html", convertHTML)
-		g.POST("/url", convertURL)
-		g.POST("/markdown", convertMarkdown)
+		g.POST(handler.HTMLEndpoint, handler.HTML)
+		g.POST(handler.URLEndpoint, handler.URL)
+		g.POST(handler.MarkdownEndpoint, handler.Markdown)
 	}
 	if config.EnableUnoconvEndpoints() {
-		g.POST("/office", convertOffice)
+		g.POST(handler.OfficeEndpoint, handler.Office)
 	}
 	return api
 }

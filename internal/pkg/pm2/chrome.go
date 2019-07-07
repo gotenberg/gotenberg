@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/mafredri/cdp/devtool"
-	log "github.com/thecodingmachine/gotenberg/internal/pkg/logger"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/logger"
 )
 
 const warmupTime = 10 * time.Second
@@ -16,7 +16,7 @@ type chrome struct {
 
 // NewChrome returns a Google Chrome
 // headless process.
-func NewChrome(logger *log.StandardLogger) Process {
+func NewChrome(logger *logger.Logger) Process {
 	return &chrome{
 		manager: &processManager{logger: logger},
 	}
@@ -61,7 +61,10 @@ func (p *chrome) viable() bool {
 	// check if Google Chrome is correctly running.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	p.manager.logger.Debugf("%s: checking liveness via debug version endpoint http://localhost:9222/json/version", p.Fullname())
+	p.manager.logger.Debugf(
+		"%s: checking liveness via debug version endpoint http://localhost:9222/json/version",
+		p.Fullname(),
+	)
 	v, err := devtool.New("http://localhost:9222").Version(ctx)
 	if err != nil {
 		p.manager.logger.Debugf("%s: debug version endpoint returned error: %v", p.Fullname(), err)

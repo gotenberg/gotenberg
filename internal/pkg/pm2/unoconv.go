@@ -1,7 +1,7 @@
 package pm2
 
 import (
-	log "github.com/thecodingmachine/gotenberg/internal/pkg/logger"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/logger"
 )
 
 type unoconv struct {
@@ -10,7 +10,7 @@ type unoconv struct {
 
 // NewUnoconv returns a unoconv listener
 // process.
-func NewUnoconv(logger *log.StandardLogger) Process {
+func NewUnoconv(logger *logger.Logger) Process {
 	return &unoconv{
 		manager: &processManager{logger: logger},
 	}

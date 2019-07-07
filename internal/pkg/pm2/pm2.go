@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
-	log "github.com/thecodingmachine/gotenberg/internal/pkg/logger"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/logger"
 )
 
 const (
@@ -30,7 +30,7 @@ type Process interface {
 
 type processManager struct {
 	heuristicState int32
-	logger         *log.StandardLogger
+	logger         *logger.Logger
 }
 
 func (m *processManager) start(p Process) error {
