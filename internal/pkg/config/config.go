@@ -103,7 +103,7 @@ func (c *Config) LogLevel() logrus.Level {
 }
 
 func defaultWaitTimeoutFromEnv(envVar string, defaultValue float64) (float64, error) {
-	const op = "defaultWaitTimeoutFromEnv"
+	const op = "config.defaultWaitTimeoutFromEnv"
 	if v, ok := os.LookupEnv(envVar); ok {
 		waitTimeout, err := strconv.ParseFloat(v, 64)
 		if err != nil {
@@ -119,7 +119,7 @@ func defaultWaitTimeoutFromEnv(envVar string, defaultValue float64) (float64, er
 }
 
 func defaultListenPortFromEnv(envVar string, defaultValue string) (string, error) {
-	const op = "defaultListenPortFromEnv"
+	const op = "config.defaultListenPortFromEnv"
 	if v, ok := os.LookupEnv(envVar); ok {
 		portAsUint, err := strconv.ParseUint(v, 10, 64)
 		if err != nil {
@@ -142,7 +142,7 @@ func defaultListenPortFromEnv(envVar string, defaultValue string) (string, error
 }
 
 func boolFromEnv(envVar string, defaultValue bool) (bool, error) {
-	const op = "boolFromEnv"
+	const op = "config.boolFromEnv"
 	if v, ok := os.LookupEnv(envVar); ok {
 		if v != "1" && v != "0" {
 			return defaultValue, &standarderror.Error{
@@ -157,7 +157,7 @@ func boolFromEnv(envVar string, defaultValue bool) (bool, error) {
 }
 
 func logLevelFromEnv(envVar string, defaultValue logrus.Level) (logrus.Level, error) {
-	const op = "logLevelFromEnv"
+	const op = "config.logLevelFromEnv"
 	if v, ok := os.LookupEnv(envVar); ok {
 		switch v {
 		case "DEBUG":

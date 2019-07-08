@@ -35,10 +35,7 @@ const (
 )
 
 func convert(ctx *context.Context, p printer.Printer) error {
-	const (
-		op      = "convert"
-		debugOp = "handler.convert"
-	)
+	const op = "handler.convert"
 	r := ctx.Resource()
 	logger := ctx.StandardLogger()
 	baseFilename := random.Get()
@@ -48,7 +45,7 @@ func convert(ctx *context.Context, p printer.Printer) error {
 	// and directly return the resulting PDF file
 	// or an error.
 	if !r.Has(resource.WebhookURLFormField) {
-		logger.DebugfOp(debugOp, "no '%s' found, converting synchronously", resource.WebhookURLFormField)
+		logger.DebugfOp(op, "no '%s' found, converting synchronously", resource.WebhookURLFormField)
 		if err := convertSync(filename, fpath, ctx, p); err != nil {
 			return &standarderror.Error{Op: op, Err: err}
 		}
@@ -57,15 +54,12 @@ func convert(ctx *context.Context, p printer.Printer) error {
 	// as a webhook URL has been given, we
 	// run the following lines in a goroutine so that
 	// it doesn't block.
-	logger.DebugfOp(debugOp, "'%s' found, converting asynchronously", resource.WebhookURLFormField)
+	logger.DebugfOp(op, "'%s' found, converting asynchronously", resource.WebhookURLFormField)
 	return convertAsync(filename, fpath, ctx, p)
 }
 
 func convertSync(filename, fpath string, ctx *context.Context, p printer.Printer) error {
-	const (
-		op      = "convertSync"
-		debugOp = "handler.convertSync"
-	)
+	const op = "handler.convertSync"
 	r := ctx.Resource()
 	logger := ctx.StandardLogger()
 	if err := p.Print(fpath); err != nil {
@@ -73,7 +67,7 @@ func convertSync(filename, fpath string, ctx *context.Context, p printer.Printer
 	}
 	if !r.Has(resource.ResultFilenameFormField) {
 		logger.DebugfOp(
-			debugOp,
+			op,
 			"no '%s' found, using generated filename '%s'",
 			resource.ResultFilenameFormField,
 			filename,
@@ -84,7 +78,7 @@ func convertSync(filename, fpath string, ctx *context.Context, p printer.Printer
 		return nil
 	}
 	logger.DebugfOp(
-		debugOp,
+		op,
 		"'%s' found, so not using generated filename",
 		resource.ResultFilenameFormField,
 	)
@@ -99,10 +93,7 @@ func convertSync(filename, fpath string, ctx *context.Context, p printer.Printer
 }
 
 func convertAsync(filename, fpath string, ctx *context.Context, p printer.Printer) error {
-	const (
-		op      = "convertAsync"
-		debugOp = "handler.convertAsync"
-	)
+	const op = "handler.convertAsync"
 	r := ctx.Resource()
 	logger := ctx.StandardLogger()
 	go func() {
@@ -132,7 +123,7 @@ func convertAsync(filename, fpath string, ctx *context.Context, p printer.Printe
 			return
 		}
 		logger.DebugfOp(
-			debugOp,
+			op,
 			"sending result file '%s' to '%s'",
 			filename,
 			webhookURL,

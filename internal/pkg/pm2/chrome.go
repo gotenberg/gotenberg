@@ -28,7 +28,7 @@ func (p *chrome) Fullname() string {
 }
 
 func (p *chrome) Start() error {
-	const op = "chrome.Start"
+	const op = "pm2.chrome.Start"
 	if err := p.manager.start(p); err != nil {
 		return &standarderror.Error{Op: op, Err: err}
 	}
@@ -36,7 +36,7 @@ func (p *chrome) Start() error {
 }
 
 func (p *chrome) Shutdown() error {
-	const op = "chrome.Shutdown"
+	const op = "pm2.chrome.Shutdown"
 	if err := p.manager.shutdown(p); err != nil {
 		return &standarderror.Error{Op: op, Err: err}
 	}
@@ -67,25 +67,25 @@ func (p *chrome) name() string {
 }
 
 func (p *chrome) viable() bool {
-	const debugOp = "chrome.viable"
+	const op = "pm2.chrome.viable"
 	// check if Google Chrome is correctly running.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	p.manager.logger.DebugfOp(
-		debugOp,
+		op,
 		"checking liveness via debug version endpoint http://localhost:9222/json/version",
 	)
 	v, err := devtool.New("http://localhost:9222").Version(ctx)
 	if err != nil {
 		p.manager.logger.DebugfOp(
-			debugOp,
+			op,
 			"debug version endpoint returned error: %v",
 			err,
 		)
 		return false
 	}
 	p.manager.logger.DebugfOp(
-		debugOp,
+		op,
 		"debug version endpoint returned version info: %+v",
 		*v,
 	)
@@ -93,7 +93,7 @@ func (p *chrome) viable() bool {
 }
 
 func (p *chrome) warmup() {
-	const debugOp = "chrome.warmup"
+	const debugOp = "pm2.chrome.warmup"
 	p.manager.logger.DebugfOp(
 		debugOp,
 		"allowing %v to startup",

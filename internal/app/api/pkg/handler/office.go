@@ -4,16 +4,18 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/thecodingmachine/gotenberg/internal/app/api/pkg/context"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/printer"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/standarderror"
 )
 
 // Office is the endpoint for converting
 // Office files to PDF.
 func Office(c echo.Context) error {
+	const op = "handler.Office"
 	ctx := context.MustCastFromEchoContext(c)
 	r := ctx.Resource()
 	opts, err := r.OfficePrinterOptions()
 	if err != nil {
-		return err
+		return &standarderror.Error{Op: op, Err: err}
 	}
 	fpaths, err := r.Fpaths(
 		".txt",
@@ -30,8 +32,11 @@ func Office(c echo.Context) error {
 		".odp",
 	)
 	if err != nil {
-		return err
+		return &standarderror.Error{Op: op, Err: err}
 	}
 	p := printer.NewOffice(fpaths, opts)
-	return convert(ctx, p)
+	if err := convert(ctx, p); err != nil {
+		return &standarderror.Error{Op: op, Err: err}
+	}
+	return nil
 }

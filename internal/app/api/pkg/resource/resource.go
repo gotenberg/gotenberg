@@ -83,7 +83,7 @@ func New(c echo.Context, logger *logger.Logger, config *config.Config, dirPath s
 }
 
 func formValues(c echo.Context, logger *logger.Logger) map[string]string {
-	const debugOp = "resource.formValues"
+	const op = "resource.formValues"
 	v := make(map[string]string)
 	v[ResultFilenameFormField] = c.FormValue(ResultFilenameFormField)
 	v[WaitTimeoutFormField] = c.FormValue(WaitTimeoutFormField)
@@ -97,15 +97,12 @@ func formValues(c echo.Context, logger *logger.Logger) map[string]string {
 	v[MarginLeftFormField] = c.FormValue(MarginLeftFormField)
 	v[MarginRightFormField] = c.FormValue(MarginRightFormField)
 	v[LandscapeFormField] = c.FormValue(LandscapeFormField)
-	logger.DebugfOp(debugOp, "%v", v)
+	logger.DebugfOp(op, "%v", v)
 	return v
 }
 
 func formFiles(c echo.Context, logger *logger.Logger, dirPath string) error {
-	const (
-		op      = "formFiles"
-		debugOp = "resource.formFiles"
-	)
+	const op = "resource.formFiles"
 	form, err := c.MultipartForm()
 	if err != nil {
 		return &standarderror.Error{Op: op, Err: err}
@@ -132,7 +129,7 @@ func formFiles(c echo.Context, logger *logger.Logger, dirPath string) error {
 			if _, err := out.Seek(0, 0); err != nil {
 				return &standarderror.Error{Op: op, Err: err}
 			}
-			logger.DebugfOp(debugOp, "'%s' created", fh.Filename)
+			logger.DebugfOp(op, "'%s' created", fh.Filename)
 		}
 	}
 	return nil
@@ -293,7 +290,7 @@ func (r *Resource) Get(formField string) (string, error) {
 }
 
 func (r *Resource) value(formField string) (string, error) {
-	const op = "value"
+	const op = "resource.value"
 	v, ok := r.formValues[formField]
 	if !ok {
 		return "", &standarderror.Error{
@@ -306,7 +303,7 @@ func (r *Resource) value(formField string) (string, error) {
 }
 
 func (r *Resource) float64(formField string, defaultValue float64) (float64, error) {
-	const op = "float64"
+	const op = "resource.float64"
 	if !r.Has(formField) {
 		return defaultValue, nil
 	}
@@ -326,7 +323,7 @@ func (r *Resource) float64(formField string, defaultValue float64) (float64, err
 }
 
 func (r *Resource) bool(formField string, defaultValue bool) (bool, error) {
-	const op = "bool"
+	const op = "resource.bool"
 	if !r.Has(formField) {
 		return defaultValue, nil
 	}
@@ -366,7 +363,7 @@ func (r *Resource) Fpath(filename string) (string, error) {
 }
 
 func (r *Resource) content(filename string, defaultValue string) (string, error) {
-	const op = "content"
+	const op = "resource.content"
 	if !r.hasFile(filename) {
 		return defaultValue, nil
 	}
@@ -387,7 +384,7 @@ func (r *Resource) Fpaths(exts ...string) ([]string, error) {
 	const op = "resource.Fpaths"
 	var fpaths []string
 	err := filepath.Walk(r.formFilesDirPath, func(path string, info os.FileInfo, _ error) error {
-		const walkOp = "filepath.Walk"
+		const walkOp = "resource.filepath.Walk"
 		if info.IsDir() {
 			return nil
 		}

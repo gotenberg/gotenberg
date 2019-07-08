@@ -82,7 +82,6 @@ func Message(err error) string {
 
 // Op returns the logical operation of the error, if available.
 // Otherwise returns an empty string.
-// FIXME: "resource.ChromePrinterOptions: float64: : "
 func Op(err error) string {
 	if err == nil {
 		return ""
@@ -93,12 +92,10 @@ func Op(err error) string {
 	}
 	var buf bytes.Buffer
 	if e.Op != "" {
-		fmt.Fprintf(&buf, "%s: ", e.Op)
+		fmt.Fprintf(&buf, "%s", e.Op)
 	}
-	if e.Err != nil {
-		if wrappedOp := Op(e.Err); wrappedOp != "" {
-			fmt.Fprintf(&buf, "%s: ", wrappedOp)
-		}
+	if nestedOp := Op(e.Err); nestedOp != "" {
+		fmt.Fprintf(&buf, ": %s", nestedOp)
 	}
 	return buf.String()
 }

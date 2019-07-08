@@ -22,7 +22,7 @@ func (p *unoconv) Fullname() string {
 }
 
 func (p *unoconv) Start() error {
-	const op = "unoconv.Start"
+	const op = "pm2.unoconv.Start"
 	if err := p.manager.start(p); err != nil {
 		return &standarderror.Error{Op: op, Err: err}
 	}
@@ -30,7 +30,7 @@ func (p *unoconv) Start() error {
 }
 
 func (p *unoconv) Shutdown() error {
-	const op = "unoconv.Shutdown"
+	const op = "pm2.unoconv.Shutdown"
 	if err := p.manager.shutdown(p); err != nil {
 		return &standarderror.Error{Op: op, Err: err}
 	}
