@@ -27,12 +27,12 @@ func TestErr(t *testing.T) {
 	err := Err(ctx)
 	assert.NotNil(t, err)
 	standardized := test.RequireStandardError(t, err)
-	assert.Equal(t, standardized.Code, standarderror.Timeout)
+	assert.Equal(t, standarderror.Timeout, standardized.Code)
 	// should failed.
 	ctx, cancel = Context(5)
 	cancel()
 	err = Err(ctx)
 	assert.NotNil(t, err)
 	standardized = test.RequireStandardError(t, err)
-	assert.Equal(t, standarderror.Code(err), standarderror.Internal)
+	assert.Equal(t, standarderror.Internal, standarderror.Code(err))
 }

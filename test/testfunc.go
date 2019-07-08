@@ -45,7 +45,7 @@ func AssertConcurrent(t *testing.T, fn func() error, amount int) {
 // If so, returns the instance of standarderror.Error.
 func RequireStandardError(t *testing.T, err error) *standarderror.Error {
 	standardized, ok := err.(*standarderror.Error)
-	require.Equal(t, ok, true)
+	require.Equal(t, true, ok)
 	return standardized
 }
 

@@ -64,6 +64,8 @@ func Code(err error) string {
 	return Internal
 }
 
+const defaultMessage = "an internal error has occurred: please contact technical support"
+
 // Message returns the human-readable message of the error, if available.
 // Otherwise returns a generic error message.
 func Message(err error) string {
@@ -77,7 +79,7 @@ func Message(err error) string {
 	if ok && e.Err != nil {
 		return Message(e.Err)
 	}
-	return "An internal error has occurred. Please contact technical support."
+	return defaultMessage
 }
 
 // Op returns the logical operation of the error, if available.
