@@ -10,7 +10,7 @@ func TestGet(t *testing.T) {
 	var rands []string
 	// use case: for 1 000 concurrent
 	// requests (which is a big Gotenberg instance),
-	// none should have the identifier.
+	// none should have the same identifier.
 	for i := 0; i < 1000; i++ {
 		rands = append(rands, Get())
 	}
