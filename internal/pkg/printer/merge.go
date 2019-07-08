@@ -2,9 +2,10 @@ package printer
 
 import (
 	"context"
-	"fmt"
 	"os/exec"
 	"time"
+
+	"github.com/thecodingmachine/gotenberg/internal/pkg/standarderror"
 )
 
 type merge struct {
@@ -28,7 +29,9 @@ func NewMerge(fpaths []string, opts *MergeOptions) Printer {
 }
 
 func (p *merge) Print(destination string) error {
+	const op = "printer.merge.Print"
 	if p.ctx == nil {
+		// FIXME duration not working with float
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(p.opts.WaitTimeout)*time.Second)
 		defer cancel()
 		p.ctx = ctx
@@ -39,7 +42,7 @@ func (p *merge) Print(destination string) error {
 	cmd := exec.CommandContext(p.ctx, "pdftk", cmdArgs...)
 	_, err := cmd.Output()
 	if err != nil {
-		return fmt.Errorf("pdtk: %v", err)
+		return &standarderror.Error{Op: op, Err: err}
 	}
 	return nil
 }

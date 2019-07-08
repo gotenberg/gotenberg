@@ -10,27 +10,29 @@ import (
 	"github.com/labstack/gommon/random"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/standarderror"
 )
 
 // NewMarkdown returns a Markdown printer.
 func NewMarkdown(fpath string, opts *ChromeOptions) (Printer, error) {
+	const op = "printer.NewMarkdown"
 	tmpl, err := template.
 		New(filepath.Base(fpath)).
 		Funcs(template.FuncMap{"toHTML": markdownToHTML}).
 		ParseFiles(fpath)
 	if err != nil {
-		return nil, fmt.Errorf("%s: parsing template: %v", fpath, err)
+		return nil, &standarderror.Error{Op: op, Err: err}
 	}
 	dirPath := filepath.Dir(fpath)
 	data := &templateData{DirPath: dirPath}
 	var buffer bytes.Buffer
 	if err := tmpl.Execute(&buffer, data); err != nil {
-		return nil, fmt.Errorf("%s: executing template: %v", fpath, err)
+		return nil, &standarderror.Error{Op: op, Err: err}
 	}
 	baseFilename := random.String(32)
 	dst := fmt.Sprintf("%s/%s.html", dirPath, baseFilename)
 	if err := ioutil.WriteFile(dst, buffer.Bytes(), 0644); err != nil {
-		return nil, fmt.Errorf("%s: writing file: %v", dst, err)
+		return nil, &standarderror.Error{Op: op, Err: err}
 	}
 	URL := fmt.Sprintf("file://%s", dst)
 	return &chrome{
@@ -44,10 +46,11 @@ type templateData struct {
 }
 
 func markdownToHTML(dirPath, filename string) (template.HTML, error) {
+	const op = "printer.markdownToHTML"
 	fpath := fmt.Sprintf("%s/%s", dirPath, filename)
 	b, err := ioutil.ReadFile(fpath)
 	if err != nil {
-		return "", fmt.Errorf("%s: reading file: %v", fpath, err)
+		return "", &standarderror.Error{Op: op, Err: err}
 	}
 	unsafe := blackfriday.Run(b)
 	content := bluemonday.UGCPolicy().SanitizeBytes(unsafe)

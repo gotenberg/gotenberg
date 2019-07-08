@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/labstack/gommon/random"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/standarderror"
 )
 
 type office struct {
@@ -33,6 +34,8 @@ func NewOffice(fpaths []string, opts *OfficeOptions) Printer {
 }
 
 func (p *office) Print(destination string) error {
+	const op = "printer.office.Print"
+	// FIXME duration not working with float
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(p.opts.WaitTimeout)*time.Second)
 	defer cancel()
 	fpaths := make([]string, len(p.fpaths))
@@ -41,24 +44,31 @@ func (p *office) Print(destination string) error {
 		baseFilename := random.String(32)
 		tmpDest := fmt.Sprintf("%s/%d%s.pdf", dirPath, i, baseFilename)
 		if err := unoconv(ctx, fpath, tmpDest, p.opts); err != nil {
-			return err
+			return &standarderror.Error{Op: op, Err: err}
 		}
 		fpaths[i] = tmpDest
 	}
 	if len(fpaths) == 1 {
-		return os.Rename(fpaths[0], destination)
+		if err := os.Rename(fpaths[0], destination); err != nil {
+			return &standarderror.Error{Op: op, Err: err}
+		}
+		return nil
 	}
 	m := &merge{
 		ctx:    ctx,
 		fpaths: fpaths,
 	}
-	return m.Print(destination)
+	if err := m.Print(destination); err != nil {
+		return &standarderror.Error{Op: op, Err: err}
+	}
+	return nil
 }
 
 // nolint: gochecknoglobals
 var mu sync.Mutex
 
 func unoconv(ctx context.Context, fpath, destination string, opts *OfficeOptions) error {
+	const op = "printer.unoconv"
 	mu.Lock()
 	defer mu.Unlock()
 	cmdArgs := []string{
@@ -76,7 +86,7 @@ func unoconv(ctx context.Context, fpath, destination string, opts *OfficeOptions
 	)
 	_, err := cmd.Output()
 	if err != nil {
-		return fmt.Errorf("unoconv: %v", err)
+		return &standarderror.Error{Op: op, Err: err}
 	}
 	return nil
 }

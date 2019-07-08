@@ -12,6 +12,7 @@ import (
 	"github.com/mafredri/cdp/protocol/page"
 	"github.com/mafredri/cdp/protocol/target"
 	"github.com/mafredri/cdp/rpcc"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/standarderror"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -37,24 +38,26 @@ type ChromeOptions struct {
 }
 
 func (p *chrome) Print(destination string) error {
+	const op = "printer.chrome.Print"
+	// FIXME duration not working with float
 	duration := time.Duration(p.opts.WaitTimeout+p.opts.WaitDelay) * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
 	devt, err := devtool.New("http://localhost:9222").Version(ctx)
 	if err != nil {
-		return err
+		return &standarderror.Error{Op: op, Err: err}
 	}
 	// connect to WebSocket URL (page) that speaks the Chrome DevTools Protocol.
 	devtConn, err := rpcc.DialContext(ctx, devt.WebSocketDebuggerURL)
 	if err != nil {
-		return err
+		return &standarderror.Error{Op: op, Err: err}
 	}
 	defer devtConn.Close() // nolint: errcheck
 	// create a new CDP Client that uses conn.
 	devtClient := cdp.NewClient(devtConn)
 	newContextTarget, err := devtClient.Target.CreateBrowserContext(ctx)
 	if err != nil {
-		return fmt.Errorf("creating new browser context: %v", err)
+		return &standarderror.Error{Op: op, Err: err}
 	}
 	// create a new blank target with the new browser context.
 	createTargetArgs := target.
@@ -62,13 +65,13 @@ func (p *chrome) Print(destination string) error {
 		SetBrowserContextID(newContextTarget.BrowserContextID)
 	newTarget, err := devtClient.Target.CreateTarget(ctx, createTargetArgs)
 	if err != nil {
-		return fmt.Errorf("creating new blank target: %v", err)
+		return &standarderror.Error{Op: op, Err: err}
 	}
 	// connect the client to the new target.
 	newTargetWsURL := fmt.Sprintf("ws://127.0.0.1:9222/devtools/page/%s", newTarget.TargetID)
 	newContextConn, err := rpcc.DialContext(ctx, newTargetWsURL)
 	if err != nil {
-		return fmt.Errorf("connecting client to blank target: %v", err)
+		return &standarderror.Error{Op: op, Err: err}
 	}
 	defer newContextConn.Close() // nolint: errcheck
 	// create a new CDP Client that uses newContextConn.
@@ -83,10 +86,10 @@ func (p *chrome) Print(destination string) error {
 		func() error { return targetClient.Page.Enable(ctx) },
 		func() error { return targetClient.Runtime.Enable(ctx) },
 	); err != nil {
-		return err
+		return &standarderror.Error{Op: op, Err: err}
 	}
 	if err := p.navigate(ctx, targetClient); err != nil {
-		return err
+		return &standarderror.Error{Op: op, Err: err}
 	}
 	print, err := targetClient.Page.PrintToPDF(
 		ctx,
@@ -104,41 +107,42 @@ func (p *chrome) Print(destination string) error {
 			SetPrintBackground(true),
 	)
 	if err != nil {
-		return fmt.Errorf("printing page to PDF: %v", err)
+		return &standarderror.Error{Op: op, Err: err}
 	}
 	if err := ioutil.WriteFile(destination, print.Data, 0644); err != nil {
-		return fmt.Errorf("%s: writing file: %v", destination, err)
+		return &standarderror.Error{Op: op, Err: err}
 	}
 	return nil
 }
 
 func (p *chrome) navigate(ctx context.Context, client *cdp.Client) error {
+	const op = "printer.chrome.navigate"
 	// make sure Page events are enabled.
 	if err := client.Page.Enable(ctx); err != nil {
-		return err
+		return &standarderror.Error{Op: op, Err: err}
 	}
 	// make sure Network events are enabled.
 	if err := client.Network.Enable(ctx, nil); err != nil {
-		return err
+		return &standarderror.Error{Op: op, Err: err}
 	}
 	// create all clients for events.
 	domContentEventFired, err := client.Page.DOMContentEventFired(ctx)
 	if err != nil {
-		return err
+		return &standarderror.Error{Op: op, Err: err}
 	}
 	defer domContentEventFired.Close() // nolint: errcheck
 	loadEventFired, err := client.Page.LoadEventFired(ctx)
 	if err != nil {
-		return err
+		return &standarderror.Error{Op: op, Err: err}
 	}
 	defer loadEventFired.Close() // nolint: errcheck
 	loadingFinished, err := client.Network.LoadingFinished(ctx)
 	if err != nil {
-		return err
+		return &standarderror.Error{Op: op, Err: err}
 	}
 	defer loadingFinished.Close() // nolint: errcheck
 	if _, err := client.Page.Navigate(ctx, page.NewNavigateArgs(p.url)); err != nil {
-		return err
+		return &standarderror.Error{Op: op, Err: err}
 	}
 	if err := runBatch(
 		// wait for all events.
@@ -146,9 +150,10 @@ func (p *chrome) navigate(ctx context.Context, client *cdp.Client) error {
 		func() error { _, err := loadEventFired.Recv(); return err },
 		func() error { _, err := loadingFinished.Recv(); return err },
 	); err != nil {
-		return err
+		return &standarderror.Error{Op: op, Err: err}
 	}
 	// wait for a given amount of time (useful for javascript delay).
+	// FIXME duration not working with float
 	time.Sleep(time.Duration(p.opts.WaitDelay) * time.Second)
 	return nil
 }
