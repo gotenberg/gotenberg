@@ -37,7 +37,8 @@ By default, the API will add a log entry when the [healthcheck endpoint](#ping) 
 
 You may turn off this logging so as to avoid unnecessary entries in your logs with the environment variable `DISABLE_HEALTHCHECK_LOGGING`.
 
-This environment variable operates in the same manner as the `DISABLE_GOOGLE_CHROME` and `DISABLE_UNOCONV` variables operate in that it accepts the strings `"0"` or `"1"` as values, where `1` is enabled. 
+This environment variable operates in the same manner as the `DISABLE_GOOGLE_CHROME` and `DISABLE_UNOCONV` variables operate in that it accepts the strings `"0"` or `"1"` as values, where `"1"` is enabled.
+
 ## Default listen port
 
 By default, the API will listen on port `3000`. For most use cases this is perfectly fine, but at times there may be cases where you need to change this due to port conflicts.
@@ -52,4 +53,4 @@ By default, `stdout` and `stderr` messages from the started processes are disabl
 
 You may enable some debug logging from starting the process by setting the environment variable `DEBUG_PROCESS_STARTUP`.
 
-This environment variable operates in the same manner as the `DISABLE_GOOGLE_CHROME` and `DISABLE_UNOCONV` variables operate in that it accepts the strings `"0"` or `"1"` as values, where `1` means `true`. 
+This environment variable operates in the same manner as the `DISABLE_GOOGLE_CHROME` and `DISABLE_UNOCONV` variables operate in that it accepts the strings `"0"` or `"1"` as values, where `1` means `true`.

@@ -7,10 +7,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
-	"time"
 
 	"github.com/labstack/gommon/random"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/standarderror"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/timeout"
 )
 
 type office struct {
@@ -35,8 +35,7 @@ func NewOffice(fpaths []string, opts *OfficeOptions) Printer {
 
 func (p *office) Print(destination string) error {
 	const op = "printer.office.Print"
-	// FIXME duration not working with float
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(p.opts.WaitTimeout)*time.Second)
+	ctx, cancel := timeout.Context(p.opts.WaitTimeout)
 	defer cancel()
 	fpaths := make([]string, len(p.fpaths))
 	dirPath := filepath.Dir(destination)

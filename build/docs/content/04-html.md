@@ -296,7 +296,8 @@ $client->store($request, $dest);
 ## Wait delay
 
 In some cases, you may want to wait a certain amount of time to make sure the
-page you're trying to generate is fully rendered.
+page you're trying to generate is fully rendered. For instance, if your page relies
+a lot on JavaScript for rendering.
 
 > The wait delay is a duration in **seconds** (e.g `2.5` for 2.5 seconds).
 

@@ -16,6 +16,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/standarderror"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -37,6 +38,15 @@ func AssertConcurrent(t *testing.T, fn func() error, amount int) {
 	}
 	err := eg.Wait()
 	assert.NoError(t, err)
+}
+
+// RequireStandardError validates that given error
+// is of an instance of standarderror.Error.
+// If so, returns the instance of standarderror.Error.
+func RequireStandardError(t *testing.T, err error) *standarderror.Error {
+	standardized, ok := err.(*standarderror.Error)
+	require.Equal(t, ok, true)
+	return standardized
 }
 
 // HTMLTestMultipartForm returns the body

@@ -3,9 +3,9 @@ package printer
 import (
 	"context"
 	"os/exec"
-	"time"
 
 	"github.com/thecodingmachine/gotenberg/internal/pkg/standarderror"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/timeout"
 )
 
 type merge struct {
@@ -31,8 +31,7 @@ func NewMerge(fpaths []string, opts *MergeOptions) Printer {
 func (p *merge) Print(destination string) error {
 	const op = "printer.merge.Print"
 	if p.ctx == nil {
-		// FIXME duration not working with float
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(p.opts.WaitTimeout)*time.Second)
+		ctx, cancel := timeout.Context(p.opts.WaitTimeout)
 		defer cancel()
 		p.ctx = ctx
 	}

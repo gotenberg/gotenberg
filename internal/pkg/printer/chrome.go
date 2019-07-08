@@ -13,6 +13,7 @@ import (
 	"github.com/mafredri/cdp/protocol/target"
 	"github.com/mafredri/cdp/rpcc"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/standarderror"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/timeout"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -39,9 +40,7 @@ type ChromeOptions struct {
 
 func (p *chrome) Print(destination string) error {
 	const op = "printer.chrome.Print"
-	// FIXME duration not working with float
-	duration := time.Duration(p.opts.WaitTimeout+p.opts.WaitDelay) * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), duration)
+	ctx, cancel := timeout.Context(p.opts.WaitTimeout + p.opts.WaitDelay)
 	defer cancel()
 	devt, err := devtool.New("http://localhost:9222").Version(ctx)
 	if err != nil {
@@ -153,8 +152,7 @@ func (p *chrome) navigate(ctx context.Context, client *cdp.Client) error {
 		return &standarderror.Error{Op: op, Err: err}
 	}
 	// wait for a given amount of time (useful for javascript delay).
-	// FIXME duration not working with float
-	time.Sleep(time.Duration(p.opts.WaitDelay) * time.Second)
+	time.Sleep(timeout.Duration(p.opts.WaitDelay))
 	return nil
 }
 

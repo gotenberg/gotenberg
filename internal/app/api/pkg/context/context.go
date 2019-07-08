@@ -23,7 +23,6 @@ type Context struct {
 
 // New creates a new context.
 func New(c echo.Context, logger *logger.Logger, config *config.Config) *Context {
-	// TODO timeout context?
 	return &Context{
 		c,
 		logger,
