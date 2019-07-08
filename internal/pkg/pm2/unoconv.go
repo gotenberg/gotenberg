@@ -1,9 +1,13 @@
 package pm2
 
 import (
+	"time"
+
 	"github.com/thecodingmachine/gotenberg/internal/pkg/logger"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/standarderror"
 )
+
+const unoconvWarmupTime = 5 * time.Second
 
 type unoconv struct {
 	manager *processManager
@@ -56,7 +60,13 @@ func (p *unoconv) viable() bool {
 }
 
 func (p *unoconv) warmup() {
-	// let's do nothing.
+	const op = "pm2.unoconv.warmup"
+	p.manager.logger.DebugfOp(
+		op,
+		"allowing %v to startup",
+		unoconvWarmupTime,
+	)
+	time.Sleep(unoconvWarmupTime)
 }
 
 // Compile-time checks to ensure type implements desired interfaces.

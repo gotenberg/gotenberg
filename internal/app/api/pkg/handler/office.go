@@ -12,6 +12,7 @@ import (
 func Office(c echo.Context) error {
 	const op = "handler.Office"
 	ctx := context.MustCastFromEchoContext(c)
+	ctx.StandardLogger().DebugfOp(op, "office request")
 	r := ctx.Resource()
 	opts, err := r.OfficePrinterOptions()
 	if err != nil {

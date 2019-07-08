@@ -12,6 +12,7 @@ import (
 func HTML(c echo.Context) error {
 	const op = "handler.HTML"
 	ctx := context.MustCastFromEchoContext(c)
+	ctx.StandardLogger().DebugfOp(op, "html request")
 	r := ctx.Resource()
 	opts, err := r.ChromePrinterOptions()
 	if err != nil {

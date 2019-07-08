@@ -35,8 +35,7 @@ func Error() echo.MiddlewareFunc {
 			default:
 				httpErr = echo.NewHTTPError(http.StatusInternalServerError, errMessage)
 			}
-			// required to have a correct status code
-			// in the logs.
+			// required to have a correct status code.
 			ctx.Error(httpErr)
 			return httpErr
 		}

@@ -13,6 +13,7 @@ import (
 func URL(c echo.Context) error {
 	const op = "handler.URL"
 	ctx := context.MustCastFromEchoContext(c)
+	ctx.StandardLogger().DebugfOp(op, "url request")
 	r := ctx.Resource()
 	opts, err := r.ChromePrinterOptions()
 	if err != nil {

@@ -12,6 +12,7 @@ import (
 func Markdown(c echo.Context) error {
 	const op = "handler.Markdown"
 	ctx := context.MustCastFromEchoContext(c)
+	ctx.StandardLogger().DebugfOp(op, "markdown request")
 	r := ctx.Resource()
 	opts, err := r.ChromePrinterOptions()
 	if err != nil {

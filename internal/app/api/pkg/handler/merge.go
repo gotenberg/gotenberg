@@ -12,6 +12,7 @@ import (
 func Merge(c echo.Context) error {
 	const op = "handler.Merge"
 	ctx := context.MustCastFromEchoContext(c)
+	ctx.StandardLogger().DebugfOp(op, "merge request")
 	r := ctx.Resource()
 	opts, err := r.MergePrinterOptions()
 	if err != nil {

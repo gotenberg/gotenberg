@@ -26,6 +26,7 @@ func main() {
 		systemLogger.FatalOp(op, err)
 	}
 	systemLogger.InfofOp(op, "Gotenberg %s", version)
+	systemLogger.DebugfOp(op, "configuration: %+v", config)
 	// start PM2 processes.
 	var processes []pm2.Process
 	if config.EnableChromeEndpoints() {

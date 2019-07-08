@@ -85,19 +85,27 @@ func New(c echo.Context, logger *logger.Logger, config *config.Config, dirPath s
 func formValues(c echo.Context, logger *logger.Logger) map[string]string {
 	const op = "resource.formValues"
 	v := make(map[string]string)
-	v[ResultFilenameFormField] = c.FormValue(ResultFilenameFormField)
-	v[WaitTimeoutFormField] = c.FormValue(WaitTimeoutFormField)
-	v[WebhookURLFormField] = c.FormValue(WebhookURLFormField)
-	v[RemoteURLFormField] = c.FormValue(RemoteURLFormField)
-	v[WaitDelayFormField] = c.FormValue(WaitDelayFormField)
-	v[PaperWidthFormField] = c.FormValue(PaperWidthFormField)
-	v[PaperHeightFormField] = c.FormValue(PaperHeightFormField)
-	v[MarginTopFormField] = c.FormValue(MarginTopFormField)
-	v[MarginBottomFormField] = c.FormValue(MarginBottomFormField)
-	v[MarginLeftFormField] = c.FormValue(MarginLeftFormField)
-	v[MarginRightFormField] = c.FormValue(MarginRightFormField)
-	v[LandscapeFormField] = c.FormValue(LandscapeFormField)
-	logger.DebugfOp(op, "%v", v)
+	fetch := func(formField string) string {
+		value := c.FormValue(formField)
+		if value == "" {
+			logger.DebugfOp(op, "'%s' is empty", formField)
+			return value
+		}
+		logger.DebugfOp(op, "'%s' retrieved, got '%s'", formField, value)
+		return value
+	}
+	v[ResultFilenameFormField] = fetch(ResultFilenameFormField)
+	v[WaitTimeoutFormField] = fetch(WaitTimeoutFormField)
+	v[WebhookURLFormField] = fetch(WebhookURLFormField)
+	v[RemoteURLFormField] = fetch(RemoteURLFormField)
+	v[WaitDelayFormField] = fetch(WaitDelayFormField)
+	v[PaperWidthFormField] = fetch(PaperWidthFormField)
+	v[PaperHeightFormField] = fetch(PaperHeightFormField)
+	v[MarginTopFormField] = fetch(MarginTopFormField)
+	v[MarginBottomFormField] = fetch(MarginBottomFormField)
+	v[MarginLeftFormField] = fetch(MarginLeftFormField)
+	v[MarginRightFormField] = fetch(MarginRightFormField)
+	v[LandscapeFormField] = fetch(LandscapeFormField)
 	return v
 }
 
@@ -221,7 +229,7 @@ func (r *Resource) ChromePrinterOptions() (*printer.ChromeOptions, error) {
 		MarginRight:  marginRight,
 		Landscape:    landscape,
 	}
-	r.logger.DebugfOp(op, "%v", opts)
+	r.logger.DebugfOp(op, "printer options: %+v", opts)
 	return opts, nil
 }
 
@@ -242,7 +250,7 @@ func (r *Resource) OfficePrinterOptions() (*printer.OfficeOptions, error) {
 		WaitTimeout: waitTimeout,
 		Landscape:   landscape,
 	}
-	r.logger.DebugfOp(op, "%v", opts)
+	r.logger.DebugfOp(op, "printer options: %+v", opts)
 	return opts, nil
 }
 
@@ -258,7 +266,7 @@ func (r *Resource) MergePrinterOptions() (*printer.MergeOptions, error) {
 	opts := &printer.MergeOptions{
 		WaitTimeout: waitTimeout,
 	}
-	r.logger.DebugfOp(op, "%v", opts)
+	r.logger.DebugfOp(op, "printer options: %+v", opts)
 	return opts, nil
 }
 
@@ -384,13 +392,12 @@ func (r *Resource) Fpaths(exts ...string) ([]string, error) {
 	const op = "resource.Fpaths"
 	var fpaths []string
 	err := filepath.Walk(r.formFilesDirPath, func(path string, info os.FileInfo, _ error) error {
-		const walkOp = "resource.filepath.Walk"
 		if info.IsDir() {
 			return nil
 		}
 		fpath, err := r.Fpath(info.Name())
 		if err != nil {
-			return &standarderror.Error{Op: walkOp, Err: err}
+			return &standarderror.Error{Op: op, Err: err}
 		}
 		for _, ext := range exts {
 			if filepath.Ext(fpath) == ext {

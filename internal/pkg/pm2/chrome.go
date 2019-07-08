@@ -9,7 +9,7 @@ import (
 	"github.com/thecodingmachine/gotenberg/internal/pkg/standarderror"
 )
 
-const warmupTime = 10 * time.Second
+const chromeWarmupTime = 10 * time.Second
 
 type chrome struct {
 	manager *processManager
@@ -93,13 +93,13 @@ func (p *chrome) viable() bool {
 }
 
 func (p *chrome) warmup() {
-	const debugOp = "pm2.chrome.warmup"
+	const op = "pm2.chrome.warmup"
 	p.manager.logger.DebugfOp(
-		debugOp,
+		op,
 		"allowing %v to startup",
-		warmupTime,
+		chromeWarmupTime,
 	)
-	time.Sleep(warmupTime)
+	time.Sleep(chromeWarmupTime)
 }
 
 // Compile-time checks to ensure type implements desired interfaces.

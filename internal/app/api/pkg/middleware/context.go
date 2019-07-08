@@ -30,8 +30,7 @@ func Context(config *config.Config) echo.MiddlewareFunc {
 			// if the endpoint is not for healthcheck, associate a
 			// resource to our custom context.
 			if err := ctx.WithResource(trace); err != nil {
-				// required to have a correct status code
-				// in the logs.
+				// required to have a correct status code.
 				ctx.Error(err)
 				return ctx.LogRequestResult(err, false)
 			}
