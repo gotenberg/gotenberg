@@ -14,8 +14,10 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/logger"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/standarderror"
 	"golang.org/x/sync/errgroup"
 )
@@ -47,6 +49,12 @@ func RequireStandardError(t *testing.T, err error) *standarderror.Error {
 	standardized, ok := err.(*standarderror.Error)
 	require.Equal(t, true, ok)
 	return standardized
+}
+
+// CreateTestLogger create a default logger
+// for our tests.
+func CreateTestLogger() *logger.Logger {
+	return logger.New(logrus.DebugLevel, "tests")
 }
 
 // HTMLTestMultipartForm returns the body
