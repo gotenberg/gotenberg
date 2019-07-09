@@ -30,6 +30,16 @@ func AssertStatusCode(t *testing.T, expectedStatusCode int, srv http.Handler, re
 	assert.Equal(t, expectedStatusCode, rec.Code)
 }
 
+// AssertDirectoryEmpty checks if given directory
+// is empty.
+func AssertDirectoryEmpty(t *testing.T, directory string) {
+	f, err := os.Open(directory)
+	assert.Nil(t, err)
+	defer f.Close() // nolint: errcheck
+	_, err = f.Readdir(1)
+	assert.Equal(t, io.EOF, err)
+}
+
 // AssertConcurrent runs all functions simultaneously
 // and wait until execution has completed
 // or an error is encountered.

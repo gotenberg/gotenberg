@@ -12,8 +12,11 @@ import (
 
 func TestDefaultWaitTimeout(t *testing.T) {
 	// should be OK.
-	os.Setenv(defaultWaitTimeoutEnvVar, "1.5")
 	config, err := FromEnv()
+	assert.Nil(t, err)
+	assert.Equal(t, 10.0, config.DefaultWaitTimeout())
+	os.Setenv(defaultWaitTimeoutEnvVar, "1.5")
+	config, err = FromEnv()
 	assert.Nil(t, err)
 	assert.Equal(t, 1.5, config.DefaultWaitTimeout())
 	// should failed.
@@ -27,8 +30,11 @@ func TestDefaultWaitTimeout(t *testing.T) {
 
 func TestDefaultListenPort(t *testing.T) {
 	// should be OK.
-	os.Setenv(defaultListenPortEnvVar, "4000")
 	config, err := FromEnv()
+	assert.Nil(t, err)
+	assert.Equal(t, "3000", config.DefaultListenPort())
+	os.Setenv(defaultListenPortEnvVar, "4000")
+	config, err = FromEnv()
 	assert.Nil(t, err)
 	assert.Equal(t, "4000", config.DefaultListenPort())
 	// should failed.
@@ -47,8 +53,11 @@ func TestDefaultListenPort(t *testing.T) {
 
 func TestEnableChromeEndpoints(t *testing.T) {
 	// should be OK.
-	os.Setenv(disableGoogleChromeEnvVar, "1")
 	config, err := FromEnv()
+	assert.Nil(t, err)
+	assert.Equal(t, true, config.EnableChromeEndpoints())
+	os.Setenv(disableGoogleChromeEnvVar, "1")
+	config, err = FromEnv()
 	assert.Nil(t, err)
 	assert.Equal(t, false, config.EnableChromeEndpoints())
 	os.Setenv(disableGoogleChromeEnvVar, "0")
@@ -66,8 +75,11 @@ func TestEnableChromeEndpoints(t *testing.T) {
 
 func TestEnableUnoconvEndpoints(t *testing.T) {
 	// should be OK.
-	os.Setenv(disableUnoconvEnvVar, "1")
 	config, err := FromEnv()
+	assert.Nil(t, err)
+	assert.Equal(t, true, config.EnableUnoconvEndpoints())
+	os.Setenv(disableUnoconvEnvVar, "1")
+	config, err = FromEnv()
 	assert.Nil(t, err)
 	assert.Equal(t, false, config.EnableUnoconvEndpoints())
 	os.Setenv(disableUnoconvEnvVar, "0")
@@ -85,8 +97,11 @@ func TestEnableUnoconvEndpoints(t *testing.T) {
 
 func TestLogLevel(t *testing.T) {
 	// should be OK.
-	os.Setenv(logLevelEnvVar, "DEBUG")
 	config, err := FromEnv()
+	assert.Nil(t, err)
+	assert.Equal(t, logrus.InfoLevel, config.LogLevel())
+	os.Setenv(logLevelEnvVar, "DEBUG")
+	config, err = FromEnv()
 	assert.Nil(t, err)
 	assert.Equal(t, logrus.DebugLevel, config.LogLevel())
 	os.Setenv(logLevelEnvVar, "INFO")

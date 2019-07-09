@@ -36,7 +36,7 @@ func New(c echo.Context, logger *logger.Logger, config *config.Config) *Context 
 // MustCastFromEchoContext cast an echo.Context to our custom
 // context. If something goes wrong, panic.
 func MustCastFromEchoContext(c echo.Context) *Context {
-	const op = "MustCastFromEchoContext"
+	const op = "context.MustCastFromEchoContext"
 	ctx, ok := c.(*Context)
 	if !ok {
 		panic(fmt.Sprintf("%s: unable to cast an echo.Context to a custom context", op))

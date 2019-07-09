@@ -52,12 +52,12 @@ func FromEnv() (*Config, error) {
 	if err != nil {
 		return c, &standarderror.Error{Op: op, Err: err}
 	}
-	disableChromeEndpoints, err := boolFromEnv(disableGoogleChromeEnvVar, c.EnableChromeEndpoints())
+	disableChromeEndpoints, err := boolFromEnv(disableGoogleChromeEnvVar, !c.EnableChromeEndpoints())
 	c.enableChromeEndpoints = !disableChromeEndpoints
 	if err != nil {
 		return c, &standarderror.Error{Op: op, Err: err}
 	}
-	disableUnoconvEndpoints, err := boolFromEnv(disableUnoconvEnvVar, c.EnableUnoconvEndpoints())
+	disableUnoconvEndpoints, err := boolFromEnv(disableUnoconvEnvVar, !c.EnableUnoconvEndpoints())
 	c.enableUnoconvEndpoints = !disableUnoconvEndpoints
 	if err != nil {
 		return c, &standarderror.Error{Op: op, Err: err}

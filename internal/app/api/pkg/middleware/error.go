@@ -18,6 +18,11 @@ func Error() echo.MiddlewareFunc {
 				// so far so good!
 				return nil
 			}
+			// if it's an error from echo
+			// like 404 not found and so on.
+			if echoHTTPErr, ok := err.(*echo.HTTPError); ok {
+				return echoHTTPErr
+			}
 			// we log the initial error before returning
 			// the HTTP error.
 			errOp := standarderror.Op(err)

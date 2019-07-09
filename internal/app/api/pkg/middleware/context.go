@@ -1,6 +1,9 @@
 package middleware
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/labstack/echo/v4"
 	"github.com/thecodingmachine/gotenberg/internal/app/api/pkg/context"
 	"github.com/thecodingmachine/gotenberg/internal/app/api/pkg/handler"
@@ -9,13 +12,30 @@ import (
 	"github.com/thecodingmachine/gotenberg/internal/pkg/random"
 )
 
+const (
+	// TestingTraceEnvVar is an environment
+	// variable used in some tests.
+	TestingTraceEnvVar = "TESTING_TRACE"
+	// TestsTracePrefix helps
+	// creating all resources inside a prefix.
+	// Only used in some tests
+	// to check if the resources
+	// have been removed.
+	TestsTracePrefix = "tmp"
+)
+
 // Context helps extending the default echo.Context with
 // our custom context.
 func Context(config *config.Config) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			// generate a unique identifier for the request.
-			trace := random.Get()
+			var trace string
+			if os.Getenv(TestingTraceEnvVar) == "1" {
+				trace = fmt.Sprintf("%s/%s", TestsTracePrefix, random.Get())
+			} else {
+				// generate a unique identifier for the request.
+				trace = random.Get()
+			}
 			// create the logger for this request using
 			// the previous identifier as trace.
 			logger := logger.New(config.LogLevel(), trace)
