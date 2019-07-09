@@ -44,19 +44,19 @@ func (p *chrome) Print(destination string) error {
 	defer cancel()
 	devt, err := devtool.New("http://localhost:9222").Version(ctx)
 	if err != nil {
-		return &standarderror.Error{Op: op, Err: err}
+		return handleErrContext(ctx, &standarderror.Error{Op: op, Err: err})
 	}
 	// connect to WebSocket URL (page) that speaks the Chrome DevTools Protocol.
 	devtConn, err := rpcc.DialContext(ctx, devt.WebSocketDebuggerURL)
 	if err != nil {
-		return &standarderror.Error{Op: op, Err: err}
+		return handleErrContext(ctx, &standarderror.Error{Op: op, Err: err})
 	}
 	defer devtConn.Close() // nolint: errcheck
 	// create a new CDP Client that uses conn.
 	devtClient := cdp.NewClient(devtConn)
 	newContextTarget, err := devtClient.Target.CreateBrowserContext(ctx)
 	if err != nil {
-		return &standarderror.Error{Op: op, Err: err}
+		return handleErrContext(ctx, &standarderror.Error{Op: op, Err: err})
 	}
 	// create a new blank target with the new browser context.
 	createTargetArgs := target.
@@ -64,13 +64,13 @@ func (p *chrome) Print(destination string) error {
 		SetBrowserContextID(newContextTarget.BrowserContextID)
 	newTarget, err := devtClient.Target.CreateTarget(ctx, createTargetArgs)
 	if err != nil {
-		return &standarderror.Error{Op: op, Err: err}
+		return handleErrContext(ctx, &standarderror.Error{Op: op, Err: err})
 	}
 	// connect the client to the new target.
 	newTargetWsURL := fmt.Sprintf("ws://127.0.0.1:9222/devtools/page/%s", newTarget.TargetID)
 	newContextConn, err := rpcc.DialContext(ctx, newTargetWsURL)
 	if err != nil {
-		return &standarderror.Error{Op: op, Err: err}
+		return handleErrContext(ctx, &standarderror.Error{Op: op, Err: err})
 	}
 	defer newContextConn.Close() // nolint: errcheck
 	// create a new CDP Client that uses newContextConn.
@@ -85,10 +85,10 @@ func (p *chrome) Print(destination string) error {
 		func() error { return targetClient.Page.Enable(ctx) },
 		func() error { return targetClient.Runtime.Enable(ctx) },
 	); err != nil {
-		return &standarderror.Error{Op: op, Err: err}
+		return handleErrContext(ctx, &standarderror.Error{Op: op, Err: err})
 	}
 	if err := p.navigate(ctx, targetClient); err != nil {
-		return &standarderror.Error{Op: op, Err: err}
+		return handleErrContext(ctx, &standarderror.Error{Op: op, Err: err})
 	}
 	print, err := targetClient.Page.PrintToPDF(
 		ctx,
@@ -106,7 +106,7 @@ func (p *chrome) Print(destination string) error {
 			SetPrintBackground(true),
 	)
 	if err != nil {
-		return &standarderror.Error{Op: op, Err: err}
+		return handleErrContext(ctx, &standarderror.Error{Op: op, Err: err})
 	}
 	if err := ioutil.WriteFile(destination, print.Data, 0644); err != nil {
 		return &standarderror.Error{Op: op, Err: err}

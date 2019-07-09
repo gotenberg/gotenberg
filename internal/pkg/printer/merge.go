@@ -41,7 +41,7 @@ func (p *merge) Print(destination string) error {
 	cmd := exec.CommandContext(p.ctx, "pdftk", cmdArgs...)
 	_, err := cmd.Output()
 	if err != nil {
-		return &standarderror.Error{Op: op, Err: err}
+		return handleErrContext(p.ctx, &standarderror.Error{Op: op, Err: err})
 	}
 	return nil
 }

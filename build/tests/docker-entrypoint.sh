@@ -13,6 +13,7 @@ go test -race -cover -covermode=atomic github.com/thecodingmachine/gotenberg/int
 go test -race -cover -covermode=atomic github.com/thecodingmachine/gotenberg/internal/pkg/random
 go test -race -cover -covermode=atomic github.com/thecodingmachine/gotenberg/internal/pkg/standarderror
 go test -race -cover -covermode=atomic github.com/thecodingmachine/gotenberg/internal/pkg/timeout
+go test -race -cover -covermode=atomic github.com/thecodingmachine/gotenberg/internal/pkg/printer
 go test -race -cover -covermode=atomic github.com/thecodingmachine/gotenberg/internal/app/api
 
 # Finally testing processes shutdown.

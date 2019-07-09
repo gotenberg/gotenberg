@@ -43,7 +43,7 @@ func (p *office) Print(destination string) error {
 		baseFilename := random.String(32)
 		tmpDest := fmt.Sprintf("%s/%d%s.pdf", dirPath, i, baseFilename)
 		if err := unoconv(ctx, fpath, tmpDest, p.opts); err != nil {
-			return &standarderror.Error{Op: op, Err: err}
+			return handleErrContext(ctx, &standarderror.Error{Op: op, Err: err})
 		}
 		fpaths[i] = tmpDest
 	}
