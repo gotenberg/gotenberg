@@ -15,7 +15,7 @@ import (
 
 // NewMarkdown returns a Markdown printer.
 func NewMarkdown(fpath string, opts *ChromeOptions) (Printer, error) {
-	const op = "printer.NewMarkdown"
+	const op string = "printer.NewMarkdown"
 	tmpl, err := template.
 		New(filepath.Base(fpath)).
 		Funcs(template.FuncMap{"toHTML": markdownToHTML}).
@@ -46,7 +46,7 @@ type templateData struct {
 }
 
 func markdownToHTML(dirPath, filename string) (template.HTML, error) {
-	const op = "printer.markdownToHTML"
+	const op string = "printer.markdownToHTML"
 	fpath := fmt.Sprintf("%s/%s", dirPath, filename)
 	b, err := ioutil.ReadFile(fpath)
 	if err != nil {

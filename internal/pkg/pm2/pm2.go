@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	stoppedState = iota
+	stoppedState int32 = iota
 	runningState
 	errorState
 )
@@ -35,7 +35,7 @@ type processManager struct {
 }
 
 func (m *processManager) start(p Process) error {
-	const op = "pm2.start"
+	const op string = "pm2.start"
 	if err := m.pm2(p, "start"); err != nil {
 		return &standarderror.Error{Op: op, Err: err}
 	}
@@ -63,7 +63,7 @@ func (m *processManager) start(p Process) error {
 }
 
 func (m *processManager) shutdown(p Process) error {
-	const op = "pm2.shutdown"
+	const op string = "pm2.shutdown"
 	if m.heuristicState != runningState {
 		return nil
 	}
@@ -76,7 +76,7 @@ func (m *processManager) shutdown(p Process) error {
 }
 
 func (m *processManager) pm2(p Process, cmdName string) error {
-	const op = "pm2.pm2"
+	const op string = "pm2.pm2"
 	cmdArgs := []string{
 		cmdName,
 		p.name(),

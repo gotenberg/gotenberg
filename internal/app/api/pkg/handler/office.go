@@ -10,7 +10,7 @@ import (
 // Office is the endpoint for converting
 // Office files to PDF.
 func Office(c echo.Context) error {
-	const op = "handler.Office"
+	const op string = "handler.Office"
 	ctx := context.MustCastFromEchoContext(c)
 	ctx.StandardLogger().DebugfOp(op, "office request")
 	r := ctx.Resource()

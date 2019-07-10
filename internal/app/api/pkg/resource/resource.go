@@ -65,7 +65,7 @@ type Resource struct {
 
 // New creates a new resource.
 func New(c echo.Context, logger *logger.Logger, config *config.Config, dirPath string) (*Resource, error) {
-	const op = "resource.New"
+	const op string = "resource.New"
 	r := &Resource{
 		logger:           logger,
 		config:           config,
@@ -83,7 +83,7 @@ func New(c echo.Context, logger *logger.Logger, config *config.Config, dirPath s
 }
 
 func formValues(c echo.Context, logger *logger.Logger) map[string]string {
-	const op = "resource.formValues"
+	const op string = "resource.formValues"
 	v := make(map[string]string)
 	fetch := func(formField string) string {
 		value := c.FormValue(formField)
@@ -110,7 +110,7 @@ func formValues(c echo.Context, logger *logger.Logger) map[string]string {
 }
 
 func formFiles(c echo.Context, logger *logger.Logger, dirPath string) error {
-	const op = "resource.formFiles"
+	const op string = "resource.formFiles"
 	form, err := c.MultipartForm()
 	if err != nil {
 		return &standarderror.Error{Op: op, Err: err}
@@ -153,7 +153,7 @@ func (r *Resource) DirPath() string {
 // Close deletes the working directory of the
 // resource if it exists.
 func (r *Resource) Close() error {
-	const op = "resource.Close"
+	const op string = "resource.Close"
 	if _, err := os.Stat(r.formFilesDirPath); os.IsNotExist(err) {
 		r.logger.DebugfOp(op, "directory '%s' does not exist, nothing to remove", r.formFilesDirPath)
 		return nil
@@ -171,7 +171,7 @@ const defaultHeaderFooterHTML string = "<html><head></head><body></body></html>"
 // thanks to the form values and form files from the request
 // plus the default values from the configuration.
 func (r *Resource) ChromePrinterOptions() (*printer.ChromeOptions, error) {
-	const op = "resource.ChromePrinterOptions"
+	const op string = "resource.ChromePrinterOptions"
 	waitTimeout, err := r.float64(WaitTimeoutFormField, r.config.DefaultWaitTimeout())
 	if err != nil {
 		return nil, &standarderror.Error{Op: op, Err: err}
@@ -237,7 +237,7 @@ func (r *Resource) ChromePrinterOptions() (*printer.ChromeOptions, error) {
 // thanks to the form values from the request
 // plus the default values from the configuration.
 func (r *Resource) OfficePrinterOptions() (*printer.OfficeOptions, error) {
-	const op = "resource.OfficePrinterOptions"
+	const op string = "resource.OfficePrinterOptions"
 	waitTimeout, err := r.float64(WaitTimeoutFormField, r.config.DefaultWaitTimeout())
 	if err != nil {
 		return nil, &standarderror.Error{Op: op, Err: err}
@@ -258,7 +258,7 @@ func (r *Resource) OfficePrinterOptions() (*printer.OfficeOptions, error) {
 // thanks to the form values from the request
 // plus the default values from the configuration.
 func (r *Resource) MergePrinterOptions() (*printer.MergeOptions, error) {
-	const op = "resource.MergePrinterOptions"
+	const op string = "resource.MergePrinterOptions"
 	waitTimeout, err := r.float64(WaitTimeoutFormField, r.config.DefaultWaitTimeout())
 	if err != nil {
 		return nil, &standarderror.Error{Op: op, Err: err}
@@ -289,7 +289,7 @@ func (r *Resource) hasFile(filename string) bool {
 
 // Get returns the form field value.
 func (r *Resource) Get(formField string) (string, error) {
-	const op = "resource.Get"
+	const op string = "resource.Get"
 	v, err := r.value(formField)
 	if err != nil {
 		return "", &standarderror.Error{Op: op, Err: err}
@@ -298,7 +298,7 @@ func (r *Resource) Get(formField string) (string, error) {
 }
 
 func (r *Resource) value(formField string) (string, error) {
-	const op = "resource.value"
+	const op string = "resource.value"
 	v, ok := r.formValues[formField]
 	if !ok {
 		return "", &standarderror.Error{
@@ -311,7 +311,7 @@ func (r *Resource) value(formField string) (string, error) {
 }
 
 func (r *Resource) float64(formField string, defaultValue float64) (float64, error) {
-	const op = "resource.float64"
+	const op string = "resource.float64"
 	if !r.Has(formField) {
 		return defaultValue, nil
 	}
@@ -331,7 +331,7 @@ func (r *Resource) float64(formField string, defaultValue float64) (float64, err
 }
 
 func (r *Resource) bool(formField string, defaultValue bool) (bool, error) {
-	const op = "resource.bool"
+	const op string = "resource.bool"
 	if !r.Has(formField) {
 		return defaultValue, nil
 	}
@@ -353,7 +353,7 @@ func (r *Resource) bool(formField string, defaultValue bool) (bool, error) {
 // Fpath returns the path of the given filename.
 // This filename should be the name of a form file.
 func (r *Resource) Fpath(filename string) (string, error) {
-	const op = "resource.Fpath"
+	const op string = "resource.Fpath"
 	fpath := fmt.Sprintf("%s/%s", r.formFilesDirPath, filename)
 	_, err := os.Stat(fpath)
 	if os.IsNotExist(err) {
@@ -371,7 +371,7 @@ func (r *Resource) Fpath(filename string) (string, error) {
 }
 
 func (r *Resource) content(filename string, defaultValue string) (string, error) {
-	const op = "resource.content"
+	const op string = "resource.content"
 	if !r.hasFile(filename) {
 		return defaultValue, nil
 	}
@@ -389,7 +389,7 @@ func (r *Resource) content(filename string, defaultValue string) (string, error)
 // Fpaths returns the list of files of the resource
 // according to given file extensions.
 func (r *Resource) Fpaths(exts ...string) ([]string, error) {
-	const op = "resource.Fpaths"
+	const op string = "resource.Fpaths"
 	var fpaths []string
 	err := filepath.Walk(r.formFilesDirPath, func(path string, info os.FileInfo, _ error) error {
 		if info.IsDir() {

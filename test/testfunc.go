@@ -37,6 +37,9 @@ func AssertDirectoryEmpty(t *testing.T, directory string) {
 	assert.Nil(t, err)
 	defer f.Close() // nolint: errcheck
 	_, err = f.Readdir(1)
+	if err == nil {
+		return
+	}
 	assert.Equal(t, io.EOF, err)
 }
 

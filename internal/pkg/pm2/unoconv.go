@@ -7,7 +7,7 @@ import (
 	"github.com/thecodingmachine/gotenberg/internal/pkg/standarderror"
 )
 
-const unoconvWarmupTime = 5 * time.Second
+const unoconvWarmupTime time.Duration = 5 * time.Second
 
 type unoconv struct {
 	manager *processManager
@@ -26,7 +26,7 @@ func (p *unoconv) Fullname() string {
 }
 
 func (p *unoconv) Start() error {
-	const op = "pm2.unoconv.Start"
+	const op string = "pm2.unoconv.Start"
 	if err := p.manager.start(p); err != nil {
 		return &standarderror.Error{Op: op, Err: err}
 	}
@@ -34,7 +34,7 @@ func (p *unoconv) Start() error {
 }
 
 func (p *unoconv) Shutdown() error {
-	const op = "pm2.unoconv.Shutdown"
+	const op string = "pm2.unoconv.Shutdown"
 	if err := p.manager.shutdown(p); err != nil {
 		return &standarderror.Error{Op: op, Err: err}
 	}
@@ -60,7 +60,7 @@ func (p *unoconv) viable() bool {
 }
 
 func (p *unoconv) warmup() {
-	const op = "pm2.unoconv.warmup"
+	const op string = "pm2.unoconv.warmup"
 	p.manager.logger.DebugfOp(
 		op,
 		"allowing %v to startup",

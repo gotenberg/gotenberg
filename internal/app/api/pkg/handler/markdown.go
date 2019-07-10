@@ -10,7 +10,7 @@ import (
 // Markdown is the endpoint for converting
 // Markdown to PDF.
 func Markdown(c echo.Context) error {
-	const op = "handler.Markdown"
+	const op string = "handler.Markdown"
 	ctx := context.MustCastFromEchoContext(c)
 	ctx.StandardLogger().DebugfOp(op, "markdown request")
 	r := ctx.Resource()

@@ -29,19 +29,25 @@ func NewMerge(fpaths []string, opts *MergeOptions) Printer {
 }
 
 func (p *merge) Print(destination string) error {
-	const op = "printer.merge.Print"
+	const op string = "printer.merge.Print"
 	if p.ctx == nil {
 		ctx, cancel := timeout.Context(p.opts.WaitTimeout)
 		defer cancel()
 		p.ctx = ctx
 	}
-	var cmdArgs []string
-	cmdArgs = append(cmdArgs, p.fpaths...)
-	cmdArgs = append(cmdArgs, "cat", "output", destination)
-	cmd := exec.CommandContext(p.ctx, "pdftk", cmdArgs...)
-	_, err := cmd.Output()
-	if err != nil {
-		return handleErrContext(p.ctx, &standarderror.Error{Op: op, Err: err})
+	resolver := func() error {
+		var cmdArgs []string
+		cmdArgs = append(cmdArgs, p.fpaths...)
+		cmdArgs = append(cmdArgs, "cat", "output", destination)
+		cmd := exec.CommandContext(p.ctx, "pdftk", cmdArgs...)
+		_, err := cmd.Output()
+		if err != nil {
+			return &standarderror.Error{Op: op, Err: err}
+		}
+		return nil
+	}
+	if err := resolver(); err != nil {
+		return timeout.Err(p.ctx, err)
 	}
 	return nil
 }

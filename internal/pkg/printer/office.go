@@ -34,18 +34,24 @@ func NewOffice(fpaths []string, opts *OfficeOptions) Printer {
 }
 
 func (p *office) Print(destination string) error {
-	const op = "printer.office.Print"
+	const op string = "printer.office.Print"
 	ctx, cancel := timeout.Context(p.opts.WaitTimeout)
 	defer cancel()
 	fpaths := make([]string, len(p.fpaths))
-	dirPath := filepath.Dir(destination)
-	for i, fpath := range p.fpaths {
-		baseFilename := random.String(32)
-		tmpDest := fmt.Sprintf("%s/%d%s.pdf", dirPath, i, baseFilename)
-		if err := unoconv(ctx, fpath, tmpDest, p.opts); err != nil {
-			return handleErrContext(ctx, &standarderror.Error{Op: op, Err: err})
+	resolver := func() error {
+		dirPath := filepath.Dir(destination)
+		for i, fpath := range p.fpaths {
+			baseFilename := random.String(32)
+			tmpDest := fmt.Sprintf("%s/%d%s.pdf", dirPath, i, baseFilename)
+			if err := unoconv(ctx, fpath, tmpDest, p.opts); err != nil {
+				return &standarderror.Error{Op: op, Err: err}
+			}
+			fpaths[i] = tmpDest
 		}
-		fpaths[i] = tmpDest
+		return nil
+	}
+	if err := resolver(); err != nil {
+		return timeout.Err(ctx, err)
 	}
 	if len(fpaths) == 1 {
 		if err := os.Rename(fpaths[0], destination); err != nil {
@@ -67,7 +73,7 @@ func (p *office) Print(destination string) error {
 var mu sync.Mutex
 
 func unoconv(ctx context.Context, fpath, destination string, opts *OfficeOptions) error {
-	const op = "printer.unoconv"
+	const op string = "printer.unoconv"
 	mu.Lock()
 	defer mu.Unlock()
 	cmdArgs := []string{

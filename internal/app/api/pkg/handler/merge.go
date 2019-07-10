@@ -10,7 +10,7 @@ import (
 // Merge is the endpoint for
 // merging PDF files.
 func Merge(c echo.Context) error {
-	const op = "handler.Merge"
+	const op string = "handler.Merge"
 	ctx := context.MustCastFromEchoContext(c)
 	ctx.StandardLogger().DebugfOp(op, "merge request")
 	r := ctx.Resource()

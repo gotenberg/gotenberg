@@ -15,13 +15,13 @@ import (
 const (
 	// TestingTraceEnvVar is an environment
 	// variable used in some tests.
-	TestingTraceEnvVar = "TESTING_TRACE"
+	TestingTraceEnvVar string = "TESTING_TRACE"
 	// TestsTracePrefix helps
 	// creating all resources inside a prefix.
 	// Only used in some tests
 	// to check if the resources
 	// have been removed.
-	TestsTracePrefix = "tmp"
+	TestsTracePrefix string = "tmp"
 )
 
 // Context helps extending the default echo.Context with

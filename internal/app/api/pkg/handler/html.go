@@ -10,7 +10,7 @@ import (
 // HTML is the endpoint for converting
 // HTML to PDF.
 func HTML(c echo.Context) error {
-	const op = "handler.HTML"
+	const op string = "handler.HTML"
 	ctx := context.MustCastFromEchoContext(c)
 	ctx.StandardLogger().DebugfOp(op, "html request")
 	r := ctx.Resource()

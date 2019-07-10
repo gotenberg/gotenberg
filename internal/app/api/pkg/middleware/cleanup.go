@@ -11,7 +11,7 @@ import (
 func Cleanup() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			const op = "middleware.Cleanup"
+			const op string = "middleware.Cleanup"
 			err := next(c)
 			ctx := context.MustCastFromEchoContext(c)
 			r := ctx.Resource()

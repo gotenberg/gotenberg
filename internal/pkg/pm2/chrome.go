@@ -9,7 +9,7 @@ import (
 	"github.com/thecodingmachine/gotenberg/internal/pkg/standarderror"
 )
 
-const chromeWarmupTime = 10 * time.Second
+const chromeWarmupTime time.Duration = 10 * time.Second
 
 type chrome struct {
 	manager *processManager
@@ -28,7 +28,7 @@ func (p *chrome) Fullname() string {
 }
 
 func (p *chrome) Start() error {
-	const op = "pm2.chrome.Start"
+	const op string = "pm2.chrome.Start"
 	if err := p.manager.start(p); err != nil {
 		return &standarderror.Error{Op: op, Err: err}
 	}
@@ -36,7 +36,7 @@ func (p *chrome) Start() error {
 }
 
 func (p *chrome) Shutdown() error {
-	const op = "pm2.chrome.Shutdown"
+	const op string = "pm2.chrome.Shutdown"
 	if err := p.manager.shutdown(p); err != nil {
 		return &standarderror.Error{Op: op, Err: err}
 	}
@@ -67,7 +67,7 @@ func (p *chrome) name() string {
 }
 
 func (p *chrome) viable() bool {
-	const op = "pm2.chrome.viable"
+	const op string = "pm2.chrome.viable"
 	// check if Google Chrome is correctly running.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -93,7 +93,7 @@ func (p *chrome) viable() bool {
 }
 
 func (p *chrome) warmup() {
-	const op = "pm2.chrome.warmup"
+	const op string = "pm2.chrome.warmup"
 	p.manager.logger.DebugfOp(
 		op,
 		"allowing %v to startup",

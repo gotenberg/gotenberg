@@ -11,7 +11,7 @@ import (
 // URL is the endpoint for converting
 // a URL to PDF.
 func URL(c echo.Context) error {
-	const op = "handler.URL"
+	const op string = "handler.URL"
 	ctx := context.MustCastFromEchoContext(c)
 	ctx.StandardLogger().DebugfOp(op, "url request")
 	r := ctx.Resource()

@@ -35,7 +35,7 @@ const (
 )
 
 func convert(ctx *context.Context, p printer.Printer) error {
-	const op = "handler.convert"
+	const op string = "handler.convert"
 	r := ctx.Resource()
 	logger := ctx.StandardLogger()
 	baseFilename := random.Get()

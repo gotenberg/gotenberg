@@ -10,11 +10,11 @@ import (
 )
 
 const (
-	defaultWaitTimeoutEnvVar  = "DEFAULT_WAIT_TIMEOUT"
-	defaultListenPortEnvVar   = "DEFAULT_LISTEN_PORT"
-	disableGoogleChromeEnvVar = "DISABLE_GOOGLE_CHROME"
-	disableUnoconvEnvVar      = "DISABLE_UNOCONV"
-	logLevelEnvVar            = "LOG_LEVEL"
+	defaultWaitTimeoutEnvVar  string = "DEFAULT_WAIT_TIMEOUT"
+	defaultListenPortEnvVar   string = "DEFAULT_LISTEN_PORT"
+	disableGoogleChromeEnvVar string = "DISABLE_GOOGLE_CHROME"
+	disableUnoconvEnvVar      string = "DISABLE_UNOCONV"
+	logLevelEnvVar            string = "LOG_LEVEL"
 )
 
 // Config contains the application
@@ -40,7 +40,7 @@ func defaultConfig() *Config {
 // FromEnv fetches configuration
 // from environment variables.
 func FromEnv() (*Config, error) {
-	const op = "config.FromEnv"
+	const op string = "config.FromEnv"
 	c := defaultConfig()
 	defaultWaitTimeout, err := defaultWaitTimeoutFromEnv(defaultWaitTimeoutEnvVar, c.DefaultWaitTimeout())
 	c.defaultWaitTimeout = defaultWaitTimeout
@@ -103,7 +103,7 @@ func (c *Config) LogLevel() logrus.Level {
 }
 
 func defaultWaitTimeoutFromEnv(envVar string, defaultValue float64) (float64, error) {
-	const op = "config.defaultWaitTimeoutFromEnv"
+	const op string = "config.defaultWaitTimeoutFromEnv"
 	if v, ok := os.LookupEnv(envVar); ok {
 		waitTimeout, err := strconv.ParseFloat(v, 64)
 		if err != nil {
@@ -119,7 +119,7 @@ func defaultWaitTimeoutFromEnv(envVar string, defaultValue float64) (float64, er
 }
 
 func defaultListenPortFromEnv(envVar string, defaultValue string) (string, error) {
-	const op = "config.defaultListenPortFromEnv"
+	const op string = "config.defaultListenPortFromEnv"
 	if v, ok := os.LookupEnv(envVar); ok {
 		portAsUint, err := strconv.ParseUint(v, 10, 64)
 		if err != nil {
@@ -142,7 +142,7 @@ func defaultListenPortFromEnv(envVar string, defaultValue string) (string, error
 }
 
 func boolFromEnv(envVar string, defaultValue bool) (bool, error) {
-	const op = "config.boolFromEnv"
+	const op string = "config.boolFromEnv"
 	if v, ok := os.LookupEnv(envVar); ok {
 		if v != "1" && v != "0" {
 			return defaultValue, &standarderror.Error{
@@ -157,7 +157,7 @@ func boolFromEnv(envVar string, defaultValue bool) (bool, error) {
 }
 
 func logLevelFromEnv(envVar string, defaultValue logrus.Level) (logrus.Level, error) {
-	const op = "config.logLevelFromEnv"
+	const op string = "config.logLevelFromEnv"
 	if v, ok := os.LookupEnv(envVar); ok {
 		switch v {
 		case "DEBUG":

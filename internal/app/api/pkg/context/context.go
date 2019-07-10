@@ -36,7 +36,7 @@ func New(c echo.Context, logger *logger.Logger, config *config.Config) *Context 
 // MustCastFromEchoContext cast an echo.Context to our custom
 // context. If something goes wrong, panic.
 func MustCastFromEchoContext(c echo.Context) *Context {
-	const op = "context.MustCastFromEchoContext"
+	const op string = "context.MustCastFromEchoContext"
 	ctx, ok := c.(*Context)
 	if !ok {
 		panic(fmt.Sprintf("%s: unable to cast an echo.Context to a custom context", op))
@@ -60,7 +60,7 @@ func (ctx *Context) Resource() *resource.Resource {
 
 // WithResource adds a resource to the context.
 func (ctx *Context) WithResource(resourceDirPath string) error {
-	const op = "context.WithResource"
+	const op string = "context.WithResource"
 	r, err := resource.New(ctx, ctx.logger, ctx.config, resourceDirPath)
 	ctx.resource = r
 	if err != nil {
@@ -75,7 +75,7 @@ func (ctx *Context) WithResource(resourceDirPath string) error {
 // LogRequestResult logs the result of a request.
 // This method should only be used by a middleware!
 func (ctx *Context) LogRequestResult(err error, isDebug bool) error {
-	const op = "context.LogRequestResult"
+	const op string = "context.LogRequestResult"
 	req := ctx.Request()
 	resp := ctx.Response()
 	stopTime := time.Now()
