@@ -35,6 +35,7 @@ func (p *chrome) args() []string {
 	return []string{
 		"--no-sandbox",
 		"--headless",
+		"--font-render-hinting=medium",
 		"--remote-debugging-port=9222",
 		"--disable-gpu",
 		"--disable-translate",
