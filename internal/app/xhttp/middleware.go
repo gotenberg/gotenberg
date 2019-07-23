@@ -115,8 +115,7 @@ func errorMiddleware() echo.MiddlewareFunc {
 			case xerror.InvalidCode:
 				httpErr = echo.NewHTTPError(http.StatusBadRequest, errMessage)
 			case xerror.TimeoutCode:
-				// TODO status
-				httpErr = echo.NewHTTPError(http.StatusBadGateway, errMessage)
+				httpErr = echo.NewHTTPError(http.StatusGatewayTimeout, errMessage)
 			default:
 				httpErr = echo.NewHTTPError(http.StatusInternalServerError, errMessage)
 			}
