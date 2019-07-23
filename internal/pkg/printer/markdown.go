@@ -28,12 +28,14 @@ func NewMarkdownPrinter(logger xlog.Logger, fpath string, opts ChromePrinterOpti
 		}
 		dirPath := filepath.Dir(fpath)
 		data := &templateData{DirPath: dirPath}
+		logger.DebugOp(op, "converting Markdown files to HTML...")
 		var buffer bytes.Buffer
 		if err := tmpl.Execute(&buffer, data); err != nil {
 			return "", err
 		}
 		baseFilename := xrand.Get()
 		dst := fmt.Sprintf("%s/%s.html", dirPath, baseFilename)
+		logger.DebugOp(op, "writing the HTML from previous conversion into new file...")
 		if err := ioutil.WriteFile(dst, buffer.Bytes(), 0644); err != nil {
 			return "", err
 		}
