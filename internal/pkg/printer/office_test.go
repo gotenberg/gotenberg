@@ -32,6 +32,17 @@ func TestOfficePrinter(t *testing.T) {
 	assert.Nil(t, err)
 	err = os.RemoveAll(dest)
 	assert.Nil(t, err)
+	// using one file.
+	opts = OfficePrinterOptions{
+		WaitTimeout: 10.0,
+		Landscape:   false,
+	}
+	p = NewOfficePrinter(logger, []string{fpaths[0]}, opts)
+	dest = printertest.GenerateDestination()
+	err = p.Print(dest)
+	assert.Nil(t, err)
+	err = os.RemoveAll(dest)
+	assert.Nil(t, err)
 	// options with landscape.
 	opts = OfficePrinterOptions{
 		WaitTimeout: 10.0,
@@ -46,7 +57,7 @@ func TestOfficePrinter(t *testing.T) {
 	// should not be OK as context.Context
 	// should timeout.
 	opts = OfficePrinterOptions{
-		WaitTimeout: 1.0,
+		WaitTimeout: 0.0,
 		Landscape:   true,
 	}
 	p = NewOfficePrinter(logger, fpaths, opts)

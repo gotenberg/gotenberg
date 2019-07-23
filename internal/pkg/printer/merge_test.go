@@ -34,7 +34,7 @@ func TestMergePrinter(t *testing.T) {
 	// should not be OK as context.Context
 	// should timeout.
 	opts = MergePrinterOptions{
-		WaitTimeout: 0.1,
+		WaitTimeout: 0.0,
 	}
 	p = NewMergePrinter(logger, fpaths, opts)
 	dest = printertest.GenerateDestination()
