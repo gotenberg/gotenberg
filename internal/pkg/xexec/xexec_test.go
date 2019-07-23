@@ -27,7 +27,7 @@ func TestCommandContext(t *testing.T) {
 	logger := xlogtest.DebugLogger()
 	// should pipe command output as
 	// xlog.Logger has a xlog.DebugLevel.
-	cmd, err := CommandContext(context.Background(), logger, "echo")
+	cmd, err := CommandContext(context.Background(), logger, "echo", "Hello", "World")
 	assert.Nil(t, err)
 	LogBeforeExecute(logger, cmd)
 	// should not pipe command output as

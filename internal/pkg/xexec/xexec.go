@@ -2,6 +2,7 @@ package xexec
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -75,13 +76,12 @@ func pipe(logger xlog.Logger, cmd *exec.Cmd) error {
 }
 
 func logCommandOutput(logger xlog.Logger, reader io.ReadCloser, outputType string, cmd *exec.Cmd) {
-	var op string
-	if len(cmd.Args) >= 2 {
-		op = fmt.Sprintf("%s.%s.%s", cmd.Args[0], cmd.Args[1], outputType)
-	} else {
-		// len(cmd.Args) should always be >= 1.
-		op = fmt.Sprintf("%s.%s", cmd.Args[0], outputType)
+	var buf bytes.Buffer
+	buf.WriteString(fmt.Sprintf("%s", outputType))
+	for _, arg := range cmd.Args {
+		buf.WriteString(fmt.Sprintf(".%s", arg))
 	}
+	op := buf.String()
 	r := bufio.NewReader(reader)
 	defer reader.Close() // nolint: errcheck
 	for {
