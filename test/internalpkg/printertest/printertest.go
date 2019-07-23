@@ -8,12 +8,26 @@ import (
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xrand"
 )
 
+/*
+testdataDirectoryPath should be
+the absolute of the testdata INSIDE
+the Docker image.
+*/
 const testdataDirectoryPath string = "/gotenberg/tests/test/testdata"
 
 // GenerateDestination simply generates
 // a path for a resulting PDF file.
 func GenerateDestination() string {
 	return fmt.Sprintf("/tmp/%s.pdf", xrand.Get())
+}
+
+// MergeFpaths return the paths
+// of the PDF files used in tests.
+func MergeFpaths(t *testing.T) []string {
+	return []string{
+		fpath(t, "pdf", "gotenberg.pdf"),
+		fpath(t, "pdf", "gotenberg_bis.pdf"),
+	}
 }
 
 // OfficeFpaths return the paths
