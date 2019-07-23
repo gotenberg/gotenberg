@@ -34,13 +34,13 @@ func NewMergePrinter(logger xlog.Logger, fpaths []string, opts MergePrinterOptio
 
 func (p mergePrinter) Print(destination string) error {
 	const op string = "printer.mergePrinter.Print"
-	logOptions(p.logger, p.opts)
 	/*
 		context.Context may be providen from
 		an officePrinter which needs to merge
 		its result files.
 	*/
 	if p.ctx == nil {
+		logOptions(p.logger, p.opts)
 		ctx, cancel := xcontext.WithTimeout(p.logger, p.opts.WaitTimeout)
 		defer cancel()
 		p.ctx = ctx

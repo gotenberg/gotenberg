@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xcontext"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
@@ -63,6 +62,7 @@ func (p officePrinter) Print(destination string) error {
 			return nil
 		}
 		m := mergePrinter{
+			logger: p.logger,
 			ctx:    ctx,
 			fpaths: fpaths,
 		}
@@ -78,15 +78,10 @@ func (p officePrinter) Print(destination string) error {
 }
 
 // nolint: gochecknoglobals
-var mu sync.Mutex
+var lock = make(chan struct{}, 1)
 
 func unoconv(ctx context.Context, logger xlog.Logger, fpath, destination string, opts OfficePrinterOptions) error {
 	const op string = "printer.unoconv"
-	// TODO check if timeout while waiting for the lock.
-	logger.DebugOp(op, "waiting lock to be released...")
-	mu.Lock()
-	defer mu.Unlock()
-	logger.DebugOp(op, "lock released")
 	resolver := func() error {
 		args := []string{
 			"--format",
@@ -108,10 +103,23 @@ func unoconv(ctx context.Context, logger xlog.Logger, fpath, destination string,
 		xexec.LogBeforeExecute(logger, cmd)
 		return cmd.Run()
 	}
-	if err := resolver(); err != nil {
-		return xerror.New(op, err)
+	logger.DebugOp(op, "waiting lock to be acquired...")
+	select {
+	case lock <- struct{}{}:
+		// lock acquired.
+		logger.DebugOp(op, "lock acquired")
+		if err := resolver(); err != nil {
+			<-lock // we release the lock.
+			return xerror.New(op, err)
+		}
+		<-lock // we release the lock.
+		return nil
+	case <-ctx.Done():
+		// failed to acquire lock before
+		// deadline.
+		logger.DebugOp(op, "failed to acquire lock before context.Context deadline")
+		return xerror.New(op, ctx.Err())
 	}
-	return nil
 }
 
 // Compile-time checks to ensure type implements desired interfaces.
