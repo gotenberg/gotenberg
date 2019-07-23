@@ -17,9 +17,7 @@ stages:
 jobs:
   include:
     - stage: tests
-      script: make lint
-    - stage: tests
-      script: make tests
+      script: make lint tests
     - stage: publish
       if: tag IS present
       script: make publish VERSION=$TRAVIS_TAG DOCKER_USER=$DOCKER_USER DOCKER_PASSWORD=$DOCKER_PASS

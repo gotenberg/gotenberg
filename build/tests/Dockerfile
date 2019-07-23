@@ -1,48 +1,14 @@
-ARG GOLANG_VERSION
+FROM thecodingmachine/gotenberg:workspace
 
-FROM golang:${GOLANG_VERSION}-stretch AS golang
+# Define our workding outside of $GOPATH (we're using go modules).
+USER gotenberg
+WORKDIR /gotenberg/tests
 
-FROM thecodingmachine/gotenberg:base
-
-# |--------------------------------------------------------------------------
-# | Common libraries
-# |--------------------------------------------------------------------------
-# |
-# | Libraries used in the build process of this image.
-# |
-
-RUN apt-get install -y git gcc
-
-# |--------------------------------------------------------------------------
-# | Golang
-# |--------------------------------------------------------------------------
-# |
-# | Installs Golang.
-# |
-
-COPY --from=golang /usr/local/go /usr/local/go
-
-RUN export PATH="/usr/local/go/bin:$PATH" &&\
-    go version
-
-ENV GOPATH /go
-ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
-
-# |--------------------------------------------------------------------------
-# | Final touch
-# |--------------------------------------------------------------------------
-# |
-# | Last instructions of this build.
-# |
-
-# Define our working directory outside of $GOPATH (we're using go modules).
-WORKDIR /tests
-
-# Copy our module dependencies definitions.
-COPY go.mod .
-COPY go.sum .
+# Copy our code source.
+COPY --chown=gotenberg:gotenberg . .
 
 # Install module dependencies.
-RUN go mod download
+RUN go mod download &&\
+    go mod verify
 
 ENTRYPOINT [ "build/tests/docker-entrypoint.sh" ]

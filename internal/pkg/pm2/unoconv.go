@@ -3,73 +3,75 @@ package pm2
 import (
 	"time"
 
-	"github.com/thecodingmachine/gotenberg/internal/pkg/logger"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/standarderror"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
 )
 
-const unoconvWarmupTime time.Duration = 5 * time.Second
-
-type unoconv struct {
-	manager *processManager
+type unoconvProcess struct {
+	logger xlog.Logger
 }
 
-// NewUnoconv returns a unoconv listener
+// NewUnoconvProcess returns a unoconv listener
 // process.
-func NewUnoconv(logger *logger.Logger) Process {
-	return &unoconv{
-		manager: &processManager{logger: logger},
+func NewUnoconvProcess(logger xlog.Logger) Process {
+	return unoconvProcess{
+		logger: logger,
 	}
 }
 
-func (p *unoconv) Fullname() string {
+func (p unoconvProcess) Fullname() string {
 	return "unoconv listener"
 }
 
-func (p *unoconv) Start() error {
-	const op string = "pm2.unoconv.Start"
-	if err := p.manager.start(p); err != nil {
-		return &standarderror.Error{Op: op, Err: err}
+func (p unoconvProcess) Start() error {
+	const op string = "pm2.unoconvProcess.Start"
+	if err := start(p.logger, p); err != nil {
+		return xerror.New(op, err)
 	}
 	return nil
 }
 
-func (p *unoconv) Shutdown() error {
-	const op string = "pm2.unoconv.Shutdown"
-	if err := p.manager.shutdown(p); err != nil {
-		return &standarderror.Error{Op: op, Err: err}
-	}
-	return nil
-}
-
-func (p *unoconv) args() []string {
-	return []string{
-		"--listener",
-		"--verbose",
-	}
-}
-
-func (p *unoconv) name() string {
-	return "unoconv"
-}
-
-func (p *unoconv) viable() bool {
+func (p unoconvProcess) IsViable() bool {
 	// TODO find a way to check if
 	// the unoconv listener
 	// is correctly started?
 	return true
 }
 
-func (p *unoconv) warmup() {
-	const op string = "pm2.unoconv.warmup"
-	p.manager.logger.DebugfOp(
-		op,
-		"allowing %v to startup",
-		unoconvWarmupTime,
+func (p unoconvProcess) Stop() error {
+	const op string = "pm2.unoconvProcess.Stop"
+	if err := stop(p.logger, p); err != nil {
+		return xerror.New(op, err)
+	}
+	return nil
+}
+
+func (p unoconvProcess) args() []string {
+	return []string{
+		"--listener",
+		"--verbose",
+	}
+}
+
+func (p unoconvProcess) binary() string {
+	return "unoconv"
+}
+
+func (p unoconvProcess) warmup() {
+	const (
+		op         string        = "pm2.unoconvProcess.warmup"
+		warmupTime time.Duration = 3 * time.Second
 	)
-	time.Sleep(unoconvWarmupTime)
+	p.logger.DebugfOp(
+		op,
+		"waiting '%v' for allowing '%s' to warmup",
+		warmupTime,
+		p.Fullname(),
+	)
+	time.Sleep(warmupTime)
 }
 
 // Compile-time checks to ensure type implements desired interfaces.
 var (
-	_ = Process(new(unoconv))
+	_ = Process(new(unoconvProcess))
 )

@@ -1,6 +1,4 @@
-ARG GOLANG_VERSION
-
-FROM golang:${GOLANG_VERSION}-stretch
+FROM thecodingmachine/gotenberg:workspace
 
 # |--------------------------------------------------------------------------
 # | static
@@ -19,6 +17,6 @@ RUN go get github.com/apex/static/cmd/static-docs
 # | Last instructions of this build.
 # |
 
-WORKDIR /docs
+WORKDIR /gotenberg/docs
 
 CMD [ "static-docs", "--in", "build/docs/content", "--out", "docs", "--theme", "gotenberg", "--title", "Gotenberg", "--subtitle", "A Docker-powered stateless API for converting HTML, Markdown and Office documents to PDF." ]

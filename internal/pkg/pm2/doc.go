@@ -1,6 +1,6 @@
 /*
 Package pm2 facilitates starting external
-processes on which our API depends.
+processes on which our application depends.
 
 For instance, it may start Google Chrome headless and
 unoconv listener with PM2.

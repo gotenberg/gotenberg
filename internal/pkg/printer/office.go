@@ -4,67 +4,75 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sync"
 
-	"github.com/labstack/gommon/random"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/standarderror"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/timeout"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xcontext"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xexec"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xrand"
 )
 
-type office struct {
+type officePrinter struct {
+	logger xlog.Logger
 	fpaths []string
-	opts   *OfficeOptions
+	opts   OfficePrinterOptions
 }
 
-// OfficeOptions helps customizing the
-// Office printer behaviour.
-type OfficeOptions struct {
+// OfficePrinterOptions helps customizing the
+// Office Printer behaviour.
+type OfficePrinterOptions struct {
 	WaitTimeout float64
 	Landscape   bool
 }
 
-// NewOffice returns an Office printer.
-func NewOffice(fpaths []string, opts *OfficeOptions) Printer {
-	return &office{
+// NewOfficePrinter returns a Printer which
+// is able to convert Office documents to PDF.
+func NewOfficePrinter(logger xlog.Logger, fpaths []string, opts OfficePrinterOptions) Printer {
+	return officePrinter{
+		logger: logger,
 		fpaths: fpaths,
 		opts:   opts,
 	}
 }
 
-func (p *office) Print(destination string) error {
-	const op string = "printer.office.Print"
-	ctx, cancel := timeout.Context(p.opts.WaitTimeout)
+func (p officePrinter) Print(destination string) error {
+	const op string = "printer.officePrinter.Print"
+	logOptions(p.logger, p.opts)
+	ctx, cancel := xcontext.WithTimeout(p.logger, p.opts.WaitTimeout)
 	defer cancel()
-	fpaths := make([]string, len(p.fpaths))
 	resolver := func() error {
+		fpaths := make([]string, len(p.fpaths))
 		dirPath := filepath.Dir(destination)
 		for i, fpath := range p.fpaths {
-			baseFilename := random.String(32)
+			baseFilename := xrand.Get()
 			tmpDest := fmt.Sprintf("%s/%d%s.pdf", dirPath, i, baseFilename)
-			if err := unoconv(ctx, fpath, tmpDest, p.opts); err != nil {
-				return &standarderror.Error{Op: op, Err: err}
+			p.logger.DebugfOp(op, "converting '%s' to PDF...", fpath)
+			if err := unoconv(ctx, p.logger, fpath, tmpDest, p.opts); err != nil {
+				return err
 			}
+			p.logger.DebugfOp(op, "'%s.pdf' created", baseFilename)
 			fpaths[i] = tmpDest
 		}
-		return nil
+		if len(fpaths) == 1 {
+			p.logger.DebugOp(op, "only one PDF created, nothing to merge")
+			if err := os.Rename(fpaths[0], destination); err != nil {
+				return err
+			}
+			return nil
+		}
+		m := mergePrinter{
+			ctx:    ctx,
+			fpaths: fpaths,
+		}
+		return m.Print(destination)
 	}
 	if err := resolver(); err != nil {
-		return timeout.Err(ctx, err)
-	}
-	if len(fpaths) == 1 {
-		if err := os.Rename(fpaths[0], destination); err != nil {
-			return &standarderror.Error{Op: op, Err: err}
-		}
-		return nil
-	}
-	m := &merge{
-		ctx:    ctx,
-		fpaths: fpaths,
-	}
-	if err := m.Print(destination); err != nil {
-		return &standarderror.Error{Op: op, Err: err}
+		return xcontext.MustHandleError(
+			ctx,
+			xerror.New(op, err),
+		)
 	}
 	return nil
 }
@@ -72,31 +80,41 @@ func (p *office) Print(destination string) error {
 // nolint: gochecknoglobals
 var mu sync.Mutex
 
-func unoconv(ctx context.Context, fpath, destination string, opts *OfficeOptions) error {
+func unoconv(ctx context.Context, logger xlog.Logger, fpath, destination string, opts OfficePrinterOptions) error {
 	const op string = "printer.unoconv"
+	// TODO check if timeout while waiting for the lock.
+	logger.DebugOp(op, "waiting lock to be released...")
 	mu.Lock()
 	defer mu.Unlock()
-	cmdArgs := []string{
-		"--format",
-		"pdf",
+	logger.DebugOp(op, "lock released")
+	resolver := func() error {
+		args := []string{
+			"--format",
+			"pdf",
+		}
+		if opts.Landscape {
+			args = append(args, "--printer", "PaperOrientation=landscape")
+		}
+		args = append(args, "--output", destination, fpath)
+		cmd, err := xexec.CommandContext(
+			ctx,
+			logger,
+			"unoconv",
+			args...,
+		)
+		if err != nil {
+			return err
+		}
+		xexec.LogBeforeExecute(logger, cmd)
+		return cmd.Run()
 	}
-	if opts.Landscape {
-		cmdArgs = append(cmdArgs, "--printer", "PaperOrientation=landscape")
-	}
-	cmdArgs = append(cmdArgs, "--output", destination, fpath)
-	cmd := exec.CommandContext(
-		ctx,
-		"unoconv",
-		cmdArgs...,
-	)
-	_, err := cmd.Output()
-	if err != nil {
-		return &standarderror.Error{Op: op, Err: err}
+	if err := resolver(); err != nil {
+		return xerror.New(op, err)
 	}
 	return nil
 }
 
 // Compile-time checks to ensure type implements desired interfaces.
 var (
-	_ = Printer(new(office))
+	_ = Printer(new(officePrinter))
 )

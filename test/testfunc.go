@@ -1,4 +1,3 @@
-// Package test contains useful functions used across tests.
 package test
 
 import (
@@ -14,11 +13,9 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/logger"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/standarderror"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -55,19 +52,14 @@ func AssertConcurrent(t *testing.T, fn func() error, amount int) {
 	assert.NoError(t, err)
 }
 
-// RequireStandardError validates that given error
-// is of an instance of standarderror.Error.
-// If so, returns the instance of standarderror.Error.
-func RequireStandardError(t *testing.T, err error) *standarderror.Error {
-	standardized, ok := err.(*standarderror.Error)
-	require.Equal(t, true, ok)
+// AssertStandardError validates that given error
+// is of an instance of xerror.Error.
+// If so, returns the instance of xerror.Error.
+func AssertStandardError(t *testing.T, err error) *xerror.Error {
+	assert.NotNil(t, err)
+	standardized, ok := err.(*xerror.Error)
+	assert.Equal(t, true, ok)
 	return standardized
-}
-
-// CreateTestLogger create a default logger
-// for our tests.
-func CreateTestLogger() *logger.Logger {
-	return logger.New(logrus.DebugLevel, "tests")
 }
 
 // HTMLTestMultipartForm returns the body

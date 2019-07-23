@@ -1,17 +1,16 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
-	"time"
 
-	"github.com/thecodingmachine/gotenberg/internal/app/api"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/config"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/logger"
+	"github.com/thecodingmachine/gotenberg/internal/app/xhttp"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/pm2"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xcontext"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
 )
 
 // version will be set on build time.
@@ -20,8 +19,8 @@ var version = "snapshot"
 
 func main() {
 	const op = "main"
-	config, err := config.FromEnv()
-	systemLogger := logger.New(config.LogLevel(), "system")
+	config, err := conf.FromEnv()
+	systemLogger := xlog.New(config.LogLevel(), "system")
 	if err != nil {
 		systemLogger.FatalOp(op, err)
 	}
@@ -29,24 +28,24 @@ func main() {
 	systemLogger.DebugfOp(op, "configuration: %+v", config)
 	// start PM2 processes.
 	var processes []pm2.Process
-	if config.EnableChromeEndpoints() {
-		processes = append(processes, pm2.NewChrome(systemLogger))
+	if !config.DisableGoogleChrome() {
+		processes = append(processes, pm2.NewChromeProcess(systemLogger))
 	}
-	if config.EnableUnoconvEndpoints() {
-		processes = append(processes, pm2.NewUnoconv(systemLogger))
+	if !config.DisableUnoconv() {
+		processes = append(processes, pm2.NewUnoconvProcess(systemLogger))
 	}
 	for _, p := range processes {
-		systemLogger.InfofOp(op, "starting %s with PM2...", p.Fullname())
+		systemLogger.InfofOp(op, "starting '%s' with PM2...", p.Fullname())
 		if err := p.Start(); err != nil {
 			systemLogger.FatalOp(op, err)
 		}
 	}
-	// run our API in a goroutine so that it doesn't block.
 	// create our API.
-	srv := api.New(config)
+	srv := xhttp.New(config, processes...)
+	// run our API in a goroutine so that it doesn't block.
 	go func() {
-		systemLogger.InfofOp(op, "http server started on port %s", config.DefaultListenPort())
-		if err := srv.Start(fmt.Sprintf(":%s", config.DefaultListenPort())); err != nil {
+		systemLogger.InfofOp(op, "http server started on port '%d'", config.DefaultListenPort())
+		if err := srv.Start(fmt.Sprintf(":%d", config.DefaultListenPort())); err != nil {
 			if err != http.ErrServerClosed {
 				systemLogger.FatalOp(op, err)
 			}
@@ -59,21 +58,21 @@ func main() {
 	// block until we receive our signal.
 	<-quit
 	// create a deadline to wait for.
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := xcontext.WithTimeout(systemLogger, 120)
 	defer cancel()
 	// doesn't block if no connections, but will otherwise wait
 	// until the timeout deadline.
-	systemLogger.InfofOp(op, "shutting down http server...")
+	systemLogger.InfoOp(op, "shutting down http server...")
 	if err := srv.Shutdown(ctx); err != nil {
 		systemLogger.FatalOp(op, err)
 	}
 	// shutdown PM2 processes.
 	for _, p := range processes {
-		systemLogger.InfofOp(op, "shutting down %s with PM2...", p.Fullname())
-		if err := p.Shutdown(); err != nil {
+		systemLogger.InfofOp(op, "shutting down '%s' with PM2...", p.Fullname())
+		if err := p.Stop(); err != nil {
 			systemLogger.FatalOp(op, err)
 		}
 	}
-	systemLogger.InfofOp(op, "bye!")
+	systemLogger.InfoOp(op, "bye!")
 	os.Exit(0)
 }

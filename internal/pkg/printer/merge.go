@@ -2,57 +2,71 @@ package printer
 
 import (
 	"context"
-	"os/exec"
 
-	"github.com/thecodingmachine/gotenberg/internal/pkg/standarderror"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/timeout"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xcontext"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xexec"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
 )
 
-type merge struct {
+type mergePrinter struct {
 	ctx    context.Context
+	logger xlog.Logger
 	fpaths []string
-	opts   *MergeOptions
+	opts   MergePrinterOptions
 }
 
-// MergeOptions helps customizing the
-// merge printer behaviour.
-type MergeOptions struct {
+// MergePrinterOptions helps customizing the
+// merge Printer behaviour.
+type MergePrinterOptions struct {
 	WaitTimeout float64
 }
 
-// NewMerge returns a merge printer.
-func NewMerge(fpaths []string, opts *MergeOptions) Printer {
-	return &merge{
+// NewMergePrinter returns a Printer which
+// is able to merge PDFs.
+func NewMergePrinter(logger xlog.Logger, fpaths []string, opts MergePrinterOptions) Printer {
+	return mergePrinter{
+		logger: logger,
 		fpaths: fpaths,
 		opts:   opts,
 	}
 }
 
-func (p *merge) Print(destination string) error {
-	const op string = "printer.merge.Print"
+func (p mergePrinter) Print(destination string) error {
+	const op string = "printer.mergePrinter.Print"
+	logOptions(p.logger, p.opts)
+	/*
+		context.Context may be providen from
+		an officePrinter which needs to merge
+		its result files.
+	*/
 	if p.ctx == nil {
-		ctx, cancel := timeout.Context(p.opts.WaitTimeout)
+		ctx, cancel := xcontext.WithTimeout(p.logger, p.opts.WaitTimeout)
 		defer cancel()
 		p.ctx = ctx
 	}
+	p.logger.DebugfOp(op, "merging '%v'...", p.fpaths)
 	resolver := func() error {
-		var cmdArgs []string
-		cmdArgs = append(cmdArgs, p.fpaths...)
-		cmdArgs = append(cmdArgs, "cat", "output", destination)
-		cmd := exec.CommandContext(p.ctx, "pdftk", cmdArgs...)
-		_, err := cmd.Output()
+		var args []string
+		args = append(args, p.fpaths...)
+		args = append(args, "cat", "output", destination)
+		cmd, err := xexec.CommandContext(p.ctx, p.logger, "pdftk", args...)
 		if err != nil {
-			return &standarderror.Error{Op: op, Err: err}
+			return err
 		}
-		return nil
+		xexec.LogBeforeExecute(p.logger, cmd)
+		return cmd.Run()
 	}
 	if err := resolver(); err != nil {
-		return timeout.Err(p.ctx, err)
+		return xcontext.MustHandleError(
+			p.ctx,
+			xerror.New(op, err),
+		)
 	}
 	return nil
 }
 
 // Compile-time checks to ensure type implements desired interfaces.
 var (
-	_ = Printer(new(merge))
+	_ = Printer(new(mergePrinter))
 )
