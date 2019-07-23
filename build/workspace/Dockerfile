@@ -1,6 +1,8 @@
-FROM thecodingmachine/gotenberg:base
-
 ARG GOLANG_VERSION
+
+FROM golang:${GOLANG_VERSION}-stretch as golang
+
+FROM thecodingmachine/gotenberg:base
 
 # |--------------------------------------------------------------------------
 # | Common libraries
@@ -25,9 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # | Installs Golang.
 # |
 
-RUN wget https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz &&\
-    tar -xvf go${GOLANG_VERSION}.linux-amd64.tar.gz &&\
-    mv go /usr/local
+COPY --from=golang /usr/local/go /usr/local/go
 
 ENV GOPATH /gotenberg/go
 ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH

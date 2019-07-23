@@ -31,6 +31,7 @@ func pingHandler(c echo.Context) error {
 	if err := ctx.ProcessesHealthcheck(); err != nil {
 		return xerror.New(op, err)
 	}
+	// TODO return processes info
 	return nil
 }
 
