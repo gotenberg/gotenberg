@@ -77,7 +77,7 @@ func pipe(logger xlog.Logger, cmd *exec.Cmd) error {
 
 func logCommandOutput(logger xlog.Logger, reader io.ReadCloser, outputType string, cmd *exec.Cmd) {
 	var buf bytes.Buffer
-	buf.WriteString(fmt.Sprintf("%s", outputType))
+	buf.WriteString(outputType)
 	for _, arg := range cmd.Args {
 		buf.WriteString(fmt.Sprintf(".%s", arg))
 	}
