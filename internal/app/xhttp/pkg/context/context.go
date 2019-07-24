@@ -3,6 +3,7 @@ package context
 import (
 	"fmt"
 	"net/http"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -124,6 +125,12 @@ func (ctx *Context) WithResource(directoryName string) error {
 	return nil
 }
 
+// HasResource returns true if the Context
+// has a resource.Resource.
+func (ctx Context) HasResource() bool {
+	return !reflect.DeepEqual(ctx.resource, resource.Resource{})
+}
+
 /*
 MustResource returns the resource.Resource
 associated with the Context.
@@ -136,12 +143,6 @@ func (ctx Context) MustResource() resource.Resource {
 		panic(fmt.Sprintf("%s: unable to retrieve the resource.Resource from our custom context.Context", op))
 	}
 	return ctx.resource
-}
-
-// HasResource returns true if the Context
-// has a resource.Resource.
-func (ctx Context) HasResource() bool {
-	return &ctx.resource != nil
 }
 
 /*
