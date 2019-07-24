@@ -7,15 +7,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
-	"github.com/thecodingmachine/gotenberg/test/internalpkg/printertest"
-	"github.com/thecodingmachine/gotenberg/test/internalpkg/xerrortest"
-	"github.com/thecodingmachine/gotenberg/test/internalpkg/xlogtest"
+	"github.com/thecodingmachine/gotenberg/test"
 )
 
 func TestOfficePrinter(t *testing.T) {
 	var (
-		logger xlog.Logger = xlogtest.DebugLogger()
-		fpaths []string    = printertest.OfficeFpaths(t)
+		logger xlog.Logger = test.DebugLogger()
+		fpaths []string    = test.OfficeFpaths(t)
 		opts   OfficePrinterOptions
 		dest   string
 		p      Printer
@@ -27,7 +25,7 @@ func TestOfficePrinter(t *testing.T) {
 		Landscape:   false,
 	}
 	p = NewOfficePrinter(logger, fpaths, opts)
-	dest = printertest.GenerateDestination()
+	dest = test.GenerateDestination()
 	err = p.Print(dest)
 	assert.Nil(t, err)
 	err = os.RemoveAll(dest)
@@ -38,7 +36,7 @@ func TestOfficePrinter(t *testing.T) {
 		Landscape:   false,
 	}
 	p = NewOfficePrinter(logger, []string{fpaths[0]}, opts)
-	dest = printertest.GenerateDestination()
+	dest = test.GenerateDestination()
 	err = p.Print(dest)
 	assert.Nil(t, err)
 	err = os.RemoveAll(dest)
@@ -49,7 +47,7 @@ func TestOfficePrinter(t *testing.T) {
 		Landscape:   true,
 	}
 	p = NewOfficePrinter(logger, fpaths, opts)
-	dest = printertest.GenerateDestination()
+	dest = test.GenerateDestination()
 	err = p.Print(dest)
 	assert.Nil(t, err)
 	err = os.RemoveAll(dest)
@@ -61,9 +59,9 @@ func TestOfficePrinter(t *testing.T) {
 		Landscape:   true,
 	}
 	p = NewOfficePrinter(logger, fpaths, opts)
-	dest = printertest.GenerateDestination()
+	dest = test.GenerateDestination()
 	err = p.Print(dest)
-	xerrortest.AssertError(t, err)
+	test.AssertError(t, err)
 	assert.Equal(t, xerror.TimeoutCode, xerror.Code(err))
 	err = os.RemoveAll(dest)
 	assert.Nil(t, err)

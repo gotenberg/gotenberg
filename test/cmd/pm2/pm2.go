@@ -2,11 +2,11 @@ package main
 
 import (
 	"github.com/thecodingmachine/gotenberg/internal/pkg/pm2"
-	"github.com/thecodingmachine/gotenberg/test/internalpkg/xlogtest"
+	"github.com/thecodingmachine/gotenberg/test"
 )
 
 func main() {
-	logger := xlogtest.DebugLogger()
+	logger := test.DebugLogger()
 	process := pm2.NewChromeProcess(logger)
 	if err := process.Start(); err != nil {
 		panic(err)

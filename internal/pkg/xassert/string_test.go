@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/thecodingmachine/gotenberg/test/internalpkg/xerrortest"
+	"github.com/thecodingmachine/gotenberg/test"
 )
 
 func TestStringOfOne(t *testing.T) {
@@ -16,5 +16,5 @@ func TestStringOfOne(t *testing.T) {
 	// should not be OK.
 	rule.with("FOO", "qux")
 	err = rule.validate()
-	xerrortest.AssertError(t, err)
+	test.AssertError(t, err)
 }

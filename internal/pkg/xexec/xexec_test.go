@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/thecodingmachine/gotenberg/test/internalpkg/xlogtest"
+	"github.com/thecodingmachine/gotenberg/test"
 )
 
 func TestCommand(t *testing.T) {
-	logger := xlogtest.DebugLogger()
+	logger := test.DebugLogger()
 	// should pipe command output as
 	// xlog.Logger has a xlog.DebugLevel.
 	cmd, err := Command(logger, "echo", "Hello", "World")
@@ -17,14 +17,14 @@ func TestCommand(t *testing.T) {
 	LogBeforeExecute(logger, cmd)
 	// should not pipe command output as
 	// xlog.Logger has a xlog.InfoLevel.
-	logger = xlogtest.InfoLogger()
+	logger = test.InfoLogger()
 	cmd, err = Command(logger, "echo", "Hello", "World")
 	LogBeforeExecute(logger, cmd)
 	assert.Nil(t, err)
 }
 
 func TestCommandContext(t *testing.T) {
-	logger := xlogtest.DebugLogger()
+	logger := test.DebugLogger()
 	// should pipe command output as
 	// xlog.Logger has a xlog.DebugLevel.
 	cmd, err := CommandContext(context.Background(), logger, "echo", "Hello", "World")
@@ -32,7 +32,7 @@ func TestCommandContext(t *testing.T) {
 	LogBeforeExecute(logger, cmd)
 	// should not pipe command output as
 	// xlog.Logger has a xlog.InfoLevel.
-	logger = xlogtest.InfoLogger()
+	logger = test.InfoLogger()
 	cmd, err = CommandContext(context.Background(), logger, "echo", "Hello", "World")
 	LogBeforeExecute(logger, cmd)
 	assert.Nil(t, err)

@@ -32,7 +32,9 @@ type Config struct {
 	logLevel                 xlog.Level
 }
 
-func defaultConfig() Config {
+// DefaultConfig returns the default
+// configuration.
+func DefaultConfig() Config {
 	return Config{
 		maximumWaitTimeout:       30.0,
 		maximumWaitDelay:         10.0,
@@ -53,7 +55,7 @@ to environment variables.
 func FromEnv() (Config, error) {
 	const op string = "conf.FromEnv"
 	resolver := func() (Config, error) {
-		c := defaultConfig()
+		c := DefaultConfig()
 		maximumWaitTimeout, err := xassert.Float64FromEnv(
 			maximumWaitTimeoutEnvVar,
 			c.maximumWaitTimeout,

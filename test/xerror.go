@@ -1,4 +1,4 @@
-package xerrortest
+package test
 
 import (
 	"testing"

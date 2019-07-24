@@ -1,4 +1,4 @@
-package printertest
+package test
 
 import (
 	"fmt"

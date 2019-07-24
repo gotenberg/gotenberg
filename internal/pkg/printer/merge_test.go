@@ -7,15 +7,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
-	"github.com/thecodingmachine/gotenberg/test/internalpkg/printertest"
-	"github.com/thecodingmachine/gotenberg/test/internalpkg/xerrortest"
-	"github.com/thecodingmachine/gotenberg/test/internalpkg/xlogtest"
+	"github.com/thecodingmachine/gotenberg/test"
 )
 
 func TestMergePrinter(t *testing.T) {
 	var (
-		logger xlog.Logger = xlogtest.DebugLogger()
-		fpaths []string    = printertest.MergeFpaths(t)
+		logger xlog.Logger = test.DebugLogger()
+		fpaths []string    = test.MergeFpaths(t)
 		opts   MergePrinterOptions
 		dest   string
 		p      Printer
@@ -26,7 +24,7 @@ func TestMergePrinter(t *testing.T) {
 		WaitTimeout: 10.0,
 	}
 	p = NewMergePrinter(logger, fpaths, opts)
-	dest = printertest.GenerateDestination()
+	dest = test.GenerateDestination()
 	err = p.Print(dest)
 	assert.Nil(t, err)
 	err = os.RemoveAll(dest)
@@ -37,9 +35,9 @@ func TestMergePrinter(t *testing.T) {
 		WaitTimeout: 0.0,
 	}
 	p = NewMergePrinter(logger, fpaths, opts)
-	dest = printertest.GenerateDestination()
+	dest = test.GenerateDestination()
 	err = p.Print(dest)
-	xerrortest.AssertError(t, err)
+	test.AssertError(t, err)
 	assert.Equal(t, xerror.TimeoutCode, xerror.Code(err))
 	err = os.RemoveAll(dest)
 	assert.Nil(t, err)

@@ -1,4 +1,4 @@
-package xlogtest
+package test
 
 import (
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"

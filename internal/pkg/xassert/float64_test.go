@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/thecodingmachine/gotenberg/test/internalpkg/xerrortest"
+	"github.com/thecodingmachine/gotenberg/test"
 )
 
 func TestFloat64NotInferiorTo(t *testing.T) {
@@ -16,7 +16,7 @@ func TestFloat64NotInferiorTo(t *testing.T) {
 	// should not be OK.
 	rule.with("FOO", -10.0)
 	err = rule.validate()
-	xerrortest.AssertError(t, err)
+	test.AssertError(t, err)
 }
 
 func TestFloat64NotSuperiorTo(t *testing.T) {
@@ -28,5 +28,5 @@ func TestFloat64NotSuperiorTo(t *testing.T) {
 	// should not be OK.
 	rule.with("FOO", 10.0)
 	err = rule.validate()
-	xerrortest.AssertError(t, err)
+	test.AssertError(t, err)
 }

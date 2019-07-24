@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/thecodingmachine/gotenberg/test/internalpkg/xerrortest"
+	"github.com/thecodingmachine/gotenberg/test"
 )
 
 func TestString(t *testing.T) {
@@ -31,7 +31,7 @@ func TestString(t *testing.T) {
 	v, err = String("foo", "BAZ", defaultValue, rule)
 	expected = defaultValue
 	assert.Equal(t, expected, v)
-	xerrortest.AssertError(t, err)
+	test.AssertError(t, err)
 }
 
 func TestStringFromEnv(t *testing.T) {
@@ -61,7 +61,7 @@ func TestStringFromEnv(t *testing.T) {
 	v, err = StringFromEnv(envVar, defaultValue, rule)
 	expected = defaultValue
 	assert.Equal(t, expected, v)
-	xerrortest.AssertError(t, err)
+	test.AssertError(t, err)
 	os.Unsetenv(envVar)
 }
 
@@ -88,13 +88,13 @@ func TestInt64(t *testing.T) {
 	v, err = Int64("foo", "foo", defaultValue)
 	expected = defaultValue
 	assert.Equal(t, expected, v)
-	xerrortest.AssertError(t, err)
+	test.AssertError(t, err)
 	// should not be OK as given value does not
 	// validate the rule x >= 6.
 	v, err = Int64("foo", "5", defaultValue, rule)
 	expected = defaultValue
 	assert.Equal(t, expected, v)
-	xerrortest.AssertError(t, err)
+	test.AssertError(t, err)
 }
 
 func TestInt64FromEnv(t *testing.T) {
@@ -124,7 +124,7 @@ func TestInt64FromEnv(t *testing.T) {
 	v, err = Int64FromEnv(envVar, defaultValue)
 	expected = defaultValue
 	assert.Equal(t, expected, v)
-	xerrortest.AssertError(t, err)
+	test.AssertError(t, err)
 	os.Unsetenv(envVar)
 	// should not be OK as environment variable
 	// value does not validate the rule x >= 6.
@@ -132,7 +132,7 @@ func TestInt64FromEnv(t *testing.T) {
 	v, err = Int64FromEnv(envVar, defaultValue, rule)
 	expected = defaultValue
 	assert.Equal(t, expected, v)
-	xerrortest.AssertError(t, err)
+	test.AssertError(t, err)
 	os.Unsetenv(envVar)
 }
 
@@ -157,13 +157,13 @@ func TestFloat64(t *testing.T) {
 	v, err = Float64("foo", "foo", defaultValue)
 	expected = defaultValue
 	assert.Equal(t, expected, v)
-	xerrortest.AssertError(t, err)
+	test.AssertError(t, err)
 	// should not be OK as given value does not
 	// validate the rule x >= 6.
 	v, err = Float64("foo", "5", defaultValue, rule)
 	expected = defaultValue
 	assert.Equal(t, expected, v)
-	xerrortest.AssertError(t, err)
+	test.AssertError(t, err)
 }
 
 func TestFloat64FromEnv(t *testing.T) {
@@ -193,7 +193,7 @@ func TestFloat64FromEnv(t *testing.T) {
 	v, err = Float64FromEnv(envVar, defaultValue)
 	expected = defaultValue
 	assert.Equal(t, expected, v)
-	xerrortest.AssertError(t, err)
+	test.AssertError(t, err)
 	os.Unsetenv(envVar)
 	// should not be OK as environment variable
 	// value does not validate the rule x >= 6.
@@ -201,7 +201,7 @@ func TestFloat64FromEnv(t *testing.T) {
 	v, err = Float64FromEnv(envVar, defaultValue, rule)
 	expected = defaultValue
 	assert.Equal(t, expected, v)
-	xerrortest.AssertError(t, err)
+	test.AssertError(t, err)
 	os.Unsetenv(envVar)
 }
 
@@ -237,7 +237,7 @@ func TestBool(t *testing.T) {
 	v, err = Bool("foo", "foo", defaultValue)
 	expected = defaultValue
 	assert.Equal(t, expected, v)
-	xerrortest.AssertError(t, err)
+	test.AssertError(t, err)
 }
 
 func TestBoolFromEnv(t *testing.T) {
@@ -284,6 +284,6 @@ func TestBoolFromEnv(t *testing.T) {
 	v, err = BoolFromEnv(envVar, defaultValue)
 	expected = defaultValue
 	assert.Equal(t, expected, v)
-	xerrortest.AssertError(t, err)
+	test.AssertError(t, err)
 	os.Unsetenv(envVar)
 }
