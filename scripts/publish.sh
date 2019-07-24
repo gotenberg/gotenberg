@@ -18,9 +18,7 @@ if [ $VERSION_LENGTH -ne 3 ]; then
     exit 1
 fi
 
-docker build -t thecodingmachine/gotenberg:base -f build/base/Dockerfile .
 docker build \
-    --build-arg GOLANG_VERSION=${GOLANG_VERSION} \
     --build-arg VERSION=${VERSION} \
     -t thecodingmachine/gotenberg:latest \
     -t thecodingmachine/gotenberg:${SEMVER[0]} \

@@ -1,4 +1,4 @@
-FROM debian:9.5-slim
+FROM debian:9-slim
 
 # |--------------------------------------------------------------------------
 # | Common libraries
@@ -16,7 +16,7 @@ RUN echo "deb http://httpredir.debian.org/debian/ stretch main contrib non-free"
 # |--------------------------------------------------------------------------
 # |
 # | Installs PM2 for launching programs in background and with failure 
-# | recovering. In our case: Chrome (headless) and Office (headless). 
+# | recovering. In our case: Google Chrome (headless) and unoconv.
 # |
 
 RUN curl -sL https://deb.nodesource.com/setup_9.x | bash - &&\
@@ -94,3 +94,17 @@ COPY build/base/* /usr/share/fonts/
 
 COPY build/base/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 
+# |--------------------------------------------------------------------------
+# | Default user
+# |--------------------------------------------------------------------------
+# |
+# | All processes in the Docker container will run as a dedicated 
+# | non-root user.
+# |
+
+RUN groupadd --gid 1001 gotenberg \
+  && useradd --uid 1001 --gid gotenberg --shell /bin/bash --home /gotenberg --no-create-home gotenberg \
+  && mkdir /gotenberg \
+  && chown gotenberg: /gotenberg
+
+ENV PM2_HOME=/gotenberg/.pm2

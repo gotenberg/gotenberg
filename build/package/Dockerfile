@@ -1,5 +1,3 @@
-ARG GOLANG_VERSION
-
 # |--------------------------------------------------------------------------
 # | Binary
 # |--------------------------------------------------------------------------
@@ -7,7 +5,7 @@ ARG GOLANG_VERSION
 # | Buils Gotenberg binary.
 # |
 
-FROM golang:${GOLANG_VERSION}-stretch AS golang
+FROM thecodingmachine/gotenberg:workspace AS workspace
 
 ARG VERSION
 
@@ -16,13 +14,16 @@ ENV GOOS=linux \
     CGO_ENABLED=0
 
 # Define our workding outside of $GOPATH (we're using go modules).
-WORKDIR /gotenberg
+WORKDIR /gotenberg/package
 
 # Copy our source code.
-COPY . .
+COPY internal ./internal
+COPY cmd ./cmd
+COPY go.sum go.sum
+COPY go.mod go.mod
 
 # Build our binary.
-RUN go build -o /gotenberg/gotenberg -ldflags "-X main.version=${VERSION}" cmd/gotenberg/main.go
+RUN go build -o gotenberg -ldflags "-X main.version=${VERSION}" cmd/gotenberg/main.go
 
 # |--------------------------------------------------------------------------
 # | Final touch
@@ -35,8 +36,9 @@ FROM thecodingmachine/gotenberg:base
 
 LABEL authors="Julien Neuhart <j.neuhart@thecodingmachine.com>"
 
-COPY --from=golang /gotenberg/gotenberg /usr/local/bin/
+COPY --from=workspace /gotenberg/package/gotenberg /usr/local/bin/
 
+USER gotenberg
 WORKDIR /gotenberg
 
 EXPOSE 3000

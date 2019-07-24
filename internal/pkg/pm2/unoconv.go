@@ -1,52 +1,77 @@
 package pm2
 
-type unoconv struct {
-	manager *processManager
+import (
+	"time"
+
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
+)
+
+type unoconvProcess struct {
+	logger xlog.Logger
 }
 
-// NewUnoconv retruns a unoconv listener
+// NewUnoconvProcess returns a unoconv listener
 // process.
-func NewUnoconv() Process {
-	return &unoconv{
-		manager: &processManager{},
+func NewUnoconvProcess(logger xlog.Logger) Process {
+	return unoconvProcess{
+		logger: logger,
 	}
 }
 
-func (p *unoconv) Fullname() string {
+func (p unoconvProcess) Fullname() string {
 	return "unoconv listener"
 }
 
-func (p *unoconv) Start() error {
-	return p.manager.start(p)
-}
-
-func (p *unoconv) Shutdown() error {
-	return p.manager.shutdown(p)
-}
-
-func (p *unoconv) args() []string {
-	return []string{
-		"--listener",
-		"--verbose",
+func (p unoconvProcess) Start() error {
+	const op string = "pm2.unoconvProcess.Start"
+	if err := start(p.logger, p); err != nil {
+		return xerror.New(op, err)
 	}
+	return nil
 }
 
-func (p *unoconv) name() string {
-	return "unoconv"
-}
-
-func (p *unoconv) viable() bool {
+func (p unoconvProcess) IsViable() bool {
 	// TODO find a way to check if
 	// the unoconv listener
 	// is correctly started?
 	return true
 }
 
-func (p *unoconv) warmup() {
-	// let's do nothing.
+func (p unoconvProcess) Stop() error {
+	const op string = "pm2.unoconvProcess.Stop"
+	if err := stop(p.logger, p); err != nil {
+		return xerror.New(op, err)
+	}
+	return nil
+}
+
+func (p unoconvProcess) args() []string {
+	return []string{
+		"--listener",
+		"--verbose",
+	}
+}
+
+func (p unoconvProcess) binary() string {
+	return "unoconv"
+}
+
+func (p unoconvProcess) warmup() {
+	const (
+		op         string        = "pm2.unoconvProcess.warmup"
+		warmupTime time.Duration = 3 * time.Second
+	)
+	p.logger.DebugfOp(
+		op,
+		"waiting '%v' for allowing '%s' to warmup",
+		warmupTime,
+		p.Fullname(),
+	)
+	time.Sleep(warmupTime)
 }
 
 // Compile-time checks to ensure type implements desired interfaces.
 var (
-	_ = Process(new(unoconv))
+	_ = Process(new(unoconvProcess))
 )

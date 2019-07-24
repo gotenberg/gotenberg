@@ -5,33 +5,72 @@ import (
 	"time"
 
 	"github.com/mafredri/cdp/devtool"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
 )
 
-type chrome struct {
-	manager *processManager
+type chromeProcess struct {
+	logger xlog.Logger
 }
 
-// NewChrome retruns a Google Chrome
+// NewChromeProcess returns a Google Chrome
 // headless process.
-func NewChrome() Process {
-	return &chrome{
-		manager: &processManager{},
+func NewChromeProcess(logger xlog.Logger) Process {
+	return chromeProcess{
+		logger: logger,
 	}
 }
 
-func (p *chrome) Fullname() string {
+func (p chromeProcess) Fullname() string {
 	return "Google Chrome headless"
 }
 
-func (p *chrome) Start() error {
-	return p.manager.start(p)
+func (p chromeProcess) Start() error {
+	const op string = "pm2.chromeProcess.Start"
+	if err := start(p.logger, p); err != nil {
+		return xerror.New(op, err)
+	}
+	return nil
 }
 
-func (p *chrome) Shutdown() error {
-	return p.manager.shutdown(p)
+func (p chromeProcess) IsViable() bool {
+	const op string = "pm2.chromeProcess.IsViable"
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	p.logger.DebugfOp(
+		op,
+		"checking '%s' viability via endpoint '%s'",
+		p.Fullname(),
+		"http://localhost:9222/json/version",
+	)
+	v, err := devtool.New("http://localhost:9222").Version(ctx)
+	if err != nil {
+		p.logger.ErrorfOp(
+			op,
+			"'%s' is not viable as endpoint returned '%v'",
+			p.Fullname(),
+			err,
+		)
+		return false
+	}
+	p.logger.DebugfOp(
+		op,
+		"'%s' is viable as endpoint returned '%v'",
+		p.Fullname(),
+		v,
+	)
+	return true
 }
 
-func (p *chrome) args() []string {
+func (p chromeProcess) Stop() error {
+	const op string = "pm2.chromeProcess.Stop"
+	if err := stop(p.logger, p); err != nil {
+		return xerror.New(op, err)
+	}
+	return nil
+}
+
+func (p chromeProcess) args() []string {
 	return []string{
 		"--no-sandbox",
 		"--headless",
@@ -50,23 +89,25 @@ func (p *chrome) args() []string {
 	}
 }
 
-func (p *chrome) name() string {
+func (p chromeProcess) binary() string {
 	return "google-chrome-stable"
 }
 
-func (p *chrome) viable() bool {
-	// check if Google Chrome is correctly running.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	_, err := devtool.New("http://localhost:9222").Version(ctx)
-	return err == nil
-}
-
-func (p *chrome) warmup() {
-	time.Sleep(5 * time.Second)
+func (p chromeProcess) warmup() {
+	const (
+		op         string        = "pm2.chromeProcess.warmup"
+		warmupTime time.Duration = 10 * time.Second
+	)
+	p.logger.DebugfOp(
+		op,
+		"waiting '%v' for allowing '%s' to warmup",
+		warmupTime,
+		p.Fullname(),
+	)
+	time.Sleep(warmupTime)
 }
 
 // Compile-time checks to ensure type implements desired interfaces.
 var (
-	_ = Process(new(chrome))
+	_ = Process(new(chromeProcess))
 )

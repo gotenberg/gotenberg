@@ -1,4 +1,3 @@
-// Package test contains useful functions used across tests.
 package test
 
 import (
@@ -16,6 +15,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -25,6 +25,19 @@ func AssertStatusCode(t *testing.T, expectedStatusCode int, srv http.Handler, re
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
 	assert.Equal(t, expectedStatusCode, rec.Code)
+}
+
+// AssertDirectoryEmpty checks if given directory
+// is empty.
+func AssertDirectoryEmpty(t *testing.T, directory string) {
+	f, err := os.Open(directory)
+	assert.Nil(t, err)
+	defer f.Close() // nolint: errcheck
+	_, err = f.Readdir(1)
+	if err == nil {
+		return
+	}
+	assert.Equal(t, io.EOF, err)
 }
 
 // AssertConcurrent runs all functions simultaneously
@@ -37,6 +50,16 @@ func AssertConcurrent(t *testing.T, fn func() error, amount int) {
 	}
 	err := eg.Wait()
 	assert.NoError(t, err)
+}
+
+// AssertStandardError validates that given error
+// is of an instance of xerror.Error.
+// If so, returns the instance of xerror.Error.
+func AssertStandardError(t *testing.T, err error) *xerror.Error {
+	assert.NotNil(t, err)
+	standardized, ok := err.(*xerror.Error)
+	assert.Equal(t, true, ok)
+	return standardized
 }
 
 // HTMLTestMultipartForm returns the body

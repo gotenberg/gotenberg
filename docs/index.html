@@ -139,6 +139,8 @@
 <pre class="chroma">$ docker run --rm -p <span class="m">3000</span>:3000 thecodingmachine/gotenberg:5
 </pre>
 
+<p>All processes in the Docker container runs as a dedicated non-root user called <code>gotenberg</code> with user id <code>1001</code> from the working dir <code>/gotenberg</code>.</p>
+
 <blockquote>
 <p>The API will be available at <a href="http://localhost:3000">http://localhost:3000</a>.</p>
 </blockquote>
@@ -175,6 +177,13 @@ Otherwise the API will not be able to launch Google Chrome and LibreOffice (unoc
 <blockquote>
 <p>The more resources are granted, the quicker will be the conversions.</p>
 </blockquote>
+
+<p>Also, in the deployment spec of the pod, specify the uid <code>1001</code> of the user <code>gotenberg</code>:</p>
+
+<pre class="chroma">securityContext:
+  privileged: false
+  runAsUser: 1001
+</pre>
 
 <p>In the following examples, we will assume your
 Gotenberg API is available at <a href="http://localhost:3000">http://localhost:3000</a>.</p>
@@ -222,7 +231,7 @@ Gotenberg API is available at <a href="http://localhost:3000">http://localhost:3
 
 <p>In order to save some resources, the Gotenberg image accepts the environment variable <code>DISABLE_GOOGLE_CHROME</code>.</p>
 
-<p>It takes the strings <code>&#34;0&#34;</code> or <code>&#34;1&#34;</code> as value.</p>
+<p>It takes the strings <code>&#34;0&#34;</code> or <code>&#34;1&#34;</code> as value where <code>1</code> means <code>true</code></p>
 
 <blockquote>
 <p>If Google Chrome is disabled, the following conversions will <strong>not</strong> be available anymore:
@@ -263,7 +272,7 @@ See the <a href="#timeout">timeout section</a>.</p>
 
 <p>You may turn off this logging so as to avoid unnecessary entries in your logs with the environment variable <code>DISABLE_HEALTHCHECK_LOGGING</code>.</p>
 
-<p>This environment variable operates in the same manner as the <code>DISABLE_GOOGLE_CHROME</code> and <code>DISABLE_UNOCONV</code> variables operate in that it accepts the strings <code>&#34;0&#34;</code> or <code>&#34;1&#34;</code> as values.</p>
+<p>This environment variable operates in the same manner as the <code>DISABLE_GOOGLE_CHROME</code> and <code>DISABLE_UNOCONV</code> variables operate in that it accepts the strings <code>&#34;0&#34;</code> or <code>&#34;1&#34;</code> as values, where <code>&#34;1&#34;</code> is enabled.</p>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="environment_variables.default_listen_port" href="#environment_variables.default_listen_port">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
@@ -274,6 +283,16 @@ See the <a href="#timeout">timeout section</a>.</p>
 <p>You may customize this port location with the environment variable <code>DEFAULT_LISTEN_PORT</code>.</p>
 
 <p>This environment variable accepts any string that can be turned into a port number (e.g., the string <code>&#34;0&#34;</code> up to the string <code>&#34;65535&#34;</code>).</p>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="environment_variables.debug_logging_of_process_startup" href="#environment_variables.debug_logging_of_process_startup">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Debug logging of process startup</h2>
+
+<p>By default, <code>stdout</code> and <code>stderr</code> messages from the started processes are disabled.</p>
+
+<p>You may enable some debug logging from starting the process by setting the environment variable <code>DEBUG_PROCESS_STARTUP</code>.</p>
+
+<p>This environment variable operates in the same manner as the <code>DISABLE_GOOGLE_CHROME</code> and <code>DISABLE_UNOCONV</code> variables operate in that it accepts the strings <code>&#34;0&#34;</code> or <code>&#34;1&#34;</code> as values, where <code>1</code> means <code>true</code>.</p>
 
               </div>
             
@@ -601,7 +620,8 @@ $client-&gt;store($request, $dest);
 </a>Wait delay</h2>
 
 <p>In some cases, you may want to wait a certain amount of time to make sure the
-page you’re trying to generate is fully rendered.</p>
+page you’re trying to generate is fully rendered. For instance, if your page relies
+a lot on JavaScript for rendering.</p>
 
 <blockquote>
 <p>The wait delay is a duration in <strong>seconds</strong> (e.g <code>2.5</code> for 2.5 seconds).</p>

@@ -2,82 +2,101 @@ package pm2
 
 import (
 	"fmt"
-	"os/exec"
-)
 
-const (
-	stoppedState = iota
-	runningState
-	errorState
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xexec"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
 )
 
 // Process is a type that can start or
-// shutdown a process with PM2.
+// stop a process with PM2.
 type Process interface {
 	Fullname() string
 	Start() error
-	Shutdown() error
+	IsViable() bool
+	Stop() error
 	args() []string
-	name() string
-	viable() bool
+	binary() string
 	warmup()
 }
 
-type processManager struct {
-	heuristicState int32
-}
+type pm2Command string
 
-func (m *processManager) start(p Process) error {
-	if err := m.pm2(p, "start"); err != nil {
-		return err
-	}
-	p.warmup()
-	if !p.viable() {
-		attempts := 0
-		for attempts < 5 && !p.viable() {
-			if err := m.pm2(p, "restart"); err != nil {
-				m.heuristicState = errorState
-				return err
+const (
+	startCommand   pm2Command = "start"
+	restartCommand pm2Command = "restart"
+	stopCommand    pm2Command = "stop"
+	logsCommand    pm2Command = "logs"
+)
+
+func start(logger xlog.Logger, process Process) error {
+	const (
+		op              string = "pm2.start"
+		maximumAttempts int    = 3
+	)
+	resolver := func() error {
+		// first, we try to start the process.
+		if err := run(logger, startCommand, process); err != nil {
+			return err
+		}
+		// we wait the process to be ready.
+		process.warmup()
+		// if  the process failed to start correctly,
+		// we have to restart it.
+		if !process.IsViable() {
+			attempts := 0
+			for attempts < maximumAttempts && !process.IsViable() {
+				if err := run(logger, restartCommand, process); err != nil {
+					return err
+				}
+				process.warmup()
+				attempts++
 			}
-			p.warmup()
-			attempts++
+			if !process.IsViable() {
+				return fmt.Errorf("failed to start '%s'", process.Fullname())
+			}
 		}
-		if !p.viable() {
-			m.heuristicState = errorState
-			return fmt.Errorf("failed to launch %s", p.Fullname())
+		// the process is viable, let's log its
+		// output.
+		if err := run(logger, logsCommand, process); err != nil {
+			return err
 		}
-	}
-	m.heuristicState = runningState
-	return nil
-}
-
-func (m *processManager) shutdown(p Process) error {
-	if m.heuristicState != runningState {
 		return nil
 	}
-	if err := m.pm2(p, "stop"); err != nil {
-		m.heuristicState = errorState
-		return err
+	if err := resolver(); err != nil {
+		return xerror.New(op, err)
 	}
-	m.heuristicState = stoppedState
 	return nil
 }
 
-func (m *processManager) pm2(p Process, cmdName string) error {
-	cmdArgs := []string{
-		cmdName,
-		p.name(),
+func stop(logger xlog.Logger, process Process) error {
+	const op string = "pm2.stop"
+	if err := run(logger, stopCommand, process); err != nil {
+		return xerror.New(op, err)
 	}
-	if cmdName == "start" {
-		cmdArgs = append(cmdArgs, "--interpreter=none", "--")
-		cmdArgs = append(cmdArgs, p.args()...)
+	return nil
+}
+
+func run(logger xlog.Logger, pm2Cmd pm2Command, process Process) error {
+	const op string = "pm2.run"
+	resolver := func() error {
+		args := []string{
+			string(pm2Cmd),
+			process.binary(),
+		}
+		if pm2Cmd == startCommand {
+			args = append(args, "--interpreter=none", "--")
+			args = append(args, process.args()...)
+		}
+		cmd, err := xexec.Command(logger, "pm2", args...)
+		if err != nil {
+			return err
+		}
+		xexec.LogBeforeExecute(logger, cmd)
+		return cmd.Start()
 	}
-	cmd := exec.Command(
-		"pm2",
-		cmdArgs...,
-	)
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("%s %s with PM2: %v", cmdName, p.Fullname(), err)
+	if err := resolver(); err != nil {
+		return xerror.New(op, err)
 	}
 	return nil
 }

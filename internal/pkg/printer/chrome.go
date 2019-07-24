@@ -12,17 +12,22 @@ import (
 	"github.com/mafredri/cdp/protocol/page"
 	"github.com/mafredri/cdp/protocol/target"
 	"github.com/mafredri/cdp/rpcc"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xcontext"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xtime"
 	"golang.org/x/sync/errgroup"
 )
 
-type chrome struct {
-	url  string
-	opts *ChromeOptions
+type chromePrinter struct {
+	logger xlog.Logger
+	url    string
+	opts   ChromePrinterOptions
 }
 
-// ChromeOptions helps customizing the
+// ChromePrinterOptions helps customizing the
 // Google Chrome printer behaviour.
-type ChromeOptions struct {
+type ChromePrinterOptions struct {
 	WaitTimeout  float64
 	WaitDelay    float64
 	HeaderHTML   string
@@ -36,120 +41,137 @@ type ChromeOptions struct {
 	Landscape    bool
 }
 
-func (p *chrome) Print(destination string) error {
-	duration := time.Duration(p.opts.WaitTimeout+p.opts.WaitDelay) * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), duration)
+func (p chromePrinter) Print(destination string) error {
+	const op string = "printer.chromePrinter.Print"
+	logOptions(p.logger, p.opts)
+	ctx, cancel := xcontext.WithTimeout(p.logger, p.opts.WaitTimeout+p.opts.WaitDelay)
 	defer cancel()
-	devt, err := devtool.New("http://localhost:9222").Version(ctx)
-	if err != nil {
-		return err
+	resolver := func() error {
+		devt, err := devtool.New("http://localhost:9222").Version(ctx)
+		if err != nil {
+			return err
+		}
+		// connect to WebSocket URL (page) that speaks the Chrome DevTools Protocol.
+		devtConn, err := rpcc.DialContext(ctx, devt.WebSocketDebuggerURL)
+		if err != nil {
+			return err
+		}
+		defer devtConn.Close() // nolint: errcheck
+		// create a new CDP Client that uses conn.
+		devtClient := cdp.NewClient(devtConn)
+		newContextTarget, err := devtClient.Target.CreateBrowserContext(ctx)
+		if err != nil {
+			return err
+		}
+		// create a new blank target with the new browser context.
+		createTargetArgs := target.
+			NewCreateTargetArgs("about:blank").
+			SetBrowserContextID(newContextTarget.BrowserContextID)
+		newTarget, err := devtClient.Target.CreateTarget(ctx, createTargetArgs)
+		if err != nil {
+			return err
+		}
+		// connect the client to the new target.
+		newTargetWsURL := fmt.Sprintf("ws://127.0.0.1:9222/devtools/page/%s", newTarget.TargetID)
+		newContextConn, err := rpcc.DialContext(ctx, newTargetWsURL)
+		if err != nil {
+			return err
+		}
+		defer newContextConn.Close() // nolint: errcheck
+		// create a new CDP Client that uses newContextConn.
+		targetClient := cdp.NewClient(newContextConn)
+		closeTargetArgs := target.NewCloseTargetArgs(newTarget.TargetID)
+		// close the target when done.
+		defer targetClient.Target.CloseTarget(ctx, closeTargetArgs) // nolint: errcheck
+		if err := runBatch(
+			// enable all the domain events that we're interested in.
+			func() error { return targetClient.DOM.Enable(ctx) },
+			func() error { return targetClient.Network.Enable(ctx, network.NewEnableArgs()) },
+			func() error { return targetClient.Page.Enable(ctx) },
+			func() error { return targetClient.Runtime.Enable(ctx) },
+		); err != nil {
+			return err
+		}
+		if err := p.navigate(ctx, targetClient); err != nil {
+			return err
+		}
+		print, err := targetClient.Page.PrintToPDF(
+			ctx,
+			page.NewPrintToPDFArgs().
+				SetPaperWidth(p.opts.PaperWidth).
+				SetPaperHeight(p.opts.PaperHeight).
+				SetMarginTop(p.opts.MarginTop).
+				SetMarginBottom(p.opts.MarginBottom).
+				SetMarginLeft(p.opts.MarginLeft).
+				SetMarginRight(p.opts.MarginRight).
+				SetLandscape(p.opts.Landscape).
+				SetDisplayHeaderFooter(true).
+				SetHeaderTemplate(p.opts.HeaderHTML).
+				SetFooterTemplate(p.opts.FooterHTML).
+				SetPrintBackground(true),
+		)
+		if err != nil {
+			return err
+		}
+		if err := ioutil.WriteFile(destination, print.Data, 0644); err != nil {
+			return err
+		}
+		return nil
 	}
-	// connect to WebSocket URL (page) that speaks the Chrome DevTools Protocol.
-	devtConn, err := rpcc.DialContext(ctx, devt.WebSocketDebuggerURL)
-	if err != nil {
-		return err
-	}
-	defer devtConn.Close() // nolint: errcheck
-	// create a new CDP Client that uses conn.
-	devtClient := cdp.NewClient(devtConn)
-	newContextTarget, err := devtClient.Target.CreateBrowserContext(ctx)
-	if err != nil {
-		return fmt.Errorf("creating new browser context: %v", err)
-	}
-	// create a new blank target with the new browser context.
-	createTargetArgs := target.
-		NewCreateTargetArgs("about:blank").
-		SetBrowserContextID(newContextTarget.BrowserContextID)
-	newTarget, err := devtClient.Target.CreateTarget(ctx, createTargetArgs)
-	if err != nil {
-		return fmt.Errorf("creating new blank target: %v", err)
-	}
-	// connect the client to the new target.
-	newTargetWsURL := fmt.Sprintf("ws://127.0.0.1:9222/devtools/page/%s", newTarget.TargetID)
-	newContextConn, err := rpcc.DialContext(ctx, newTargetWsURL)
-	if err != nil {
-		return fmt.Errorf("connecting client to blank target: %v", err)
-	}
-	defer newContextConn.Close() // nolint: errcheck
-	// create a new CDP Client that uses newContextConn.
-	targetClient := cdp.NewClient(newContextConn)
-	closeTargetArgs := target.NewCloseTargetArgs(newTarget.TargetID)
-	// close the target when done.
-	defer targetClient.Target.CloseTarget(ctx, closeTargetArgs) // nolint: errcheck
-	if err := runBatch(
-		// enable all the domain events that we're interested in.
-		func() error { return targetClient.DOM.Enable(ctx) },
-		func() error { return targetClient.Network.Enable(ctx, network.NewEnableArgs()) },
-		func() error { return targetClient.Page.Enable(ctx) },
-		func() error { return targetClient.Runtime.Enable(ctx) },
-	); err != nil {
-		return err
-	}
-	if err := p.navigate(ctx, targetClient); err != nil {
-		return err
-	}
-	print, err := targetClient.Page.PrintToPDF(
-		ctx,
-		page.NewPrintToPDFArgs().
-			SetPaperWidth(p.opts.PaperWidth).
-			SetPaperHeight(p.opts.PaperHeight).
-			SetMarginTop(p.opts.MarginTop).
-			SetMarginBottom(p.opts.MarginBottom).
-			SetMarginLeft(p.opts.MarginLeft).
-			SetMarginRight(p.opts.MarginRight).
-			SetLandscape(p.opts.Landscape).
-			SetDisplayHeaderFooter(true).
-			SetHeaderTemplate(p.opts.HeaderHTML).
-			SetFooterTemplate(p.opts.FooterHTML).
-			SetPrintBackground(true),
-	)
-	if err != nil {
-		return fmt.Errorf("printing page to PDF: %v", err)
-	}
-	if err := ioutil.WriteFile(destination, print.Data, 0644); err != nil {
-		return fmt.Errorf("%s: writing file: %v", destination, err)
+	if err := resolver(); err != nil {
+		return xcontext.MustHandleError(
+			ctx,
+			xerror.New(op, err),
+		)
 	}
 	return nil
 }
 
-func (p *chrome) navigate(ctx context.Context, client *cdp.Client) error {
-	// make sure Page events are enabled.
-	if err := client.Page.Enable(ctx); err != nil {
-		return err
+func (p chromePrinter) navigate(ctx context.Context, client *cdp.Client) error {
+	const op string = "printer.chromePrinter.navigate"
+	resolver := func() error {
+		// make sure Page events are enabled.
+		if err := client.Page.Enable(ctx); err != nil {
+			return err
+		}
+		// make sure Network events are enabled.
+		if err := client.Network.Enable(ctx, nil); err != nil {
+			return err
+		}
+		// create all clients for events.
+		domContentEventFired, err := client.Page.DOMContentEventFired(ctx)
+		if err != nil {
+			return err
+		}
+		defer domContentEventFired.Close() // nolint: errcheck
+		loadEventFired, err := client.Page.LoadEventFired(ctx)
+		if err != nil {
+			return err
+		}
+		defer loadEventFired.Close() // nolint: errcheck
+		loadingFinished, err := client.Network.LoadingFinished(ctx)
+		if err != nil {
+			return err
+		}
+		defer loadingFinished.Close() // nolint: errcheck
+		if _, err := client.Page.Navigate(ctx, page.NewNavigateArgs(p.url)); err != nil {
+			return err
+		}
+		if err := runBatch(
+			// wait for all events.
+			func() error { _, err := domContentEventFired.Recv(); return err },
+			func() error { _, err := loadEventFired.Recv(); return err },
+			func() error { _, err := loadingFinished.Recv(); return err },
+		); err != nil {
+			return err
+		}
+		// wait for a given amount of time (useful for javascript delay).
+		time.Sleep(xtime.Duration(p.opts.WaitDelay))
+		return nil
 	}
-	// make sure Network events are enabled.
-	if err := client.Network.Enable(ctx, nil); err != nil {
-		return err
+	if err := resolver(); err != nil {
+		return xerror.New(op, err)
 	}
-	// create all clients for events.
-	domContentEventFired, err := client.Page.DOMContentEventFired(ctx)
-	if err != nil {
-		return err
-	}
-	defer domContentEventFired.Close() // nolint: errcheck
-	loadEventFired, err := client.Page.LoadEventFired(ctx)
-	if err != nil {
-		return err
-	}
-	defer loadEventFired.Close() // nolint: errcheck
-	loadingFinished, err := client.Network.LoadingFinished(ctx)
-	if err != nil {
-		return err
-	}
-	defer loadingFinished.Close() // nolint: errcheck
-	if _, err := client.Page.Navigate(ctx, page.NewNavigateArgs(p.url)); err != nil {
-		return err
-	}
-	if err := runBatch(
-		// wait for all events.
-		func() error { _, err := domContentEventFired.Recv(); return err },
-		func() error { _, err := loadEventFired.Recv(); return err },
-		func() error { _, err := loadingFinished.Recv(); return err },
-	); err != nil {
-		return err
-	}
-	// wait for a given amount of time (useful for javascript delay).
-	time.Sleep(time.Duration(p.opts.WaitDelay) * time.Second)
 	return nil
 }
 
@@ -165,5 +187,5 @@ func runBatch(fn ...func() error) error {
 
 // Compile-time checks to ensure type implements desired interfaces.
 var (
-	_ = Printer(new(chrome))
+	_ = Printer(new(chromePrinter))
 )

@@ -1,6 +1,4 @@
-ARG GOLANG_VERSION
-
-FROM golang:${GOLANG_VERSION}-stretch
+FROM thecodingmachine/gotenberg:workspace
 
 # |--------------------------------------------------------------------------
 # | GolangCI-Lint
@@ -10,7 +8,7 @@ FROM golang:${GOLANG_VERSION}-stretch
 # | than gometalinter.
 # |
 
-ENV GOLANGCI_LINT_VERSION 1.16.0
+ARG GOLANGCI_LINT_VERSION
 
 RUN curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b /usr/local/bin v${GOLANGCI_LINT_VERSION} &&\
     golangci-lint --version
@@ -22,14 +20,15 @@ RUN curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.s
 # | Last instructions of this build.
 # |
 
-# Define our workding outside of $GOPATH (we're using go modules).
-WORKDIR /lint
+# Define our working directory outside of $GOPATH (we're using go modules).
+USER gotenberg
+WORKDIR /gotenberg/lint
 
-# Copy our module dependencies definitions.
-COPY go.mod .
-COPY go.sum .
+# Copy our code source.
+COPY --chown=gotenberg:gotenberg . .
 
 # Install module dependencies.
-RUN go mod download
+RUN go mod download &&\
+    go mod verify
 
 CMD ["golangci-lint", "run" ,"--tests=false", "--enable-all", "--disable=dupl" ]
