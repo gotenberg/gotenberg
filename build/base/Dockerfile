@@ -90,8 +90,7 @@ RUN apt-get install -y \
     fonts-ipafont-gothic \
     fonts-unfonts-core
 
-COPY build/base/* /usr/share/fonts/
-
+COPY build/base/fonts/* /usr/local/share/fonts/
 COPY build/base/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 
 # |--------------------------------------------------------------------------
