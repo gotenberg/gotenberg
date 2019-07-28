@@ -160,7 +160,7 @@ func TestFloat64(t *testing.T) {
 	test.AssertError(t, err)
 	// should not be OK as given value does not
 	// validate the rule x >= 6.
-	v, err = Float64("foo", "5", defaultValue, rule)
+	v, err = Float64("foo", "5.0", defaultValue, rule)
 	expected = defaultValue
 	assert.Equal(t, expected, v)
 	test.AssertError(t, err)
@@ -197,7 +197,7 @@ func TestFloat64FromEnv(t *testing.T) {
 	os.Unsetenv(envVar)
 	// should not be OK as environment variable
 	// value does not validate the rule x >= 6.
-	os.Setenv(envVar, "5")
+	os.Setenv(envVar, "5.0")
 	v, err = Float64FromEnv(envVar, defaultValue, rule)
 	expected = defaultValue
 	assert.Equal(t, expected, v)
