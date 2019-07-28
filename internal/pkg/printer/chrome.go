@@ -88,6 +88,9 @@ func (p chromePrinter) Print(destination string) error {
 			func() error { return targetClient.DOM.Enable(ctx) },
 			func() error { return targetClient.Network.Enable(ctx, network.NewEnableArgs()) },
 			func() error { return targetClient.Page.Enable(ctx) },
+			func() error {
+				return targetClient.Page.SetLifecycleEventsEnabled(ctx, page.NewSetLifecycleEventsEnabledArgs(true))
+			},
 			func() error { return targetClient.Runtime.Enable(ctx) },
 		); err != nil {
 			return err
@@ -149,6 +152,11 @@ func (p chromePrinter) navigate(ctx context.Context, client *cdp.Client) error {
 			return err
 		}
 		defer loadEventFired.Close() // nolint: errcheck
+		lifecycleEvent, err := client.Page.LifecycleEvent(ctx)
+		if err != nil {
+			return err
+		}
+		defer lifecycleEvent.Close() // nolint: errcheck
 		loadingFinished, err := client.Network.LoadingFinished(ctx)
 		if err != nil {
 			return err
@@ -161,12 +169,31 @@ func (p chromePrinter) navigate(ctx context.Context, client *cdp.Client) error {
 			// wait for all events.
 			func() error { _, err := domContentEventFired.Recv(); return err },
 			func() error { _, err := loadEventFired.Recv(); return err },
+			func() error {
+				const networkIdleEventName string = "networkIdle"
+				for {
+					ev, err := lifecycleEvent.Recv()
+					if err != nil {
+						return err
+					}
+					if ev.Name == networkIdleEventName {
+						break
+					}
+				}
+				return nil
+			},
 			func() error { _, err := loadingFinished.Recv(); return err },
 		); err != nil {
 			return err
 		}
-		// wait for a given amount of time (useful for javascript delay).
-		time.Sleep(xtime.Duration(p.opts.WaitDelay))
+
+		if p.opts.WaitDelay > 0.0 {
+			// wait for a given amount of time (useful for javascript delay).
+			p.logger.DebugfOp(op, "applying a wait delay of '%.2fs'...", p.opts.WaitDelay)
+			time.Sleep(xtime.Duration(p.opts.WaitDelay))
+		} else {
+			p.logger.DebugOp(op, "no wait delay to apply, moving on...")
+		}
 		return nil
 	}
 	if err := resolver(); err != nil {
