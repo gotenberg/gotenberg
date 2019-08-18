@@ -10,6 +10,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/thecodingmachine/gotenberg/internal/app/xhttp/pkg/resource"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/normalize"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/pm2"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
@@ -110,7 +111,11 @@ func (ctx *Context) WithResource(directoryName string) error {
 					return r, err
 				}
 				defer in.Close() // nolint: errcheck
-				if err := r.WithFile(fh.Filename, in); err != nil {
+				filename, err := normalize.String(fh.Filename)
+				if err != nil {
+					return r, err
+				}
+				if err := r.WithFile(filename, in); err != nil {
 					return r, err
 				}
 			}
