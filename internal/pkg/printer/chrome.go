@@ -12,6 +12,7 @@ import (
 	"github.com/mafredri/cdp/protocol/page"
 	"github.com/mafredri/cdp/protocol/target"
 	"github.com/mafredri/cdp/rpcc"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xcontext"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
@@ -26,7 +27,7 @@ type chromePrinter struct {
 }
 
 // ChromePrinterOptions helps customizing the
-// Google Chrome printer behaviour.
+// Google Chrome Printer behaviour.
 type ChromePrinterOptions struct {
 	WaitTimeout  float64
 	WaitDelay    float64
@@ -39,6 +40,25 @@ type ChromePrinterOptions struct {
 	MarginLeft   float64
 	MarginRight  float64
 	Landscape    bool
+}
+
+// DefaultChromePrinterOptions returns the default
+// Google Chrome Printer options.
+func DefaultChromePrinterOptions(config conf.Config) ChromePrinterOptions {
+	const defaultHeaderFooterHTML string = "<html><head></head><body></body></html>"
+	return ChromePrinterOptions{
+		WaitTimeout:  config.DefaultWaitTimeout(),
+		WaitDelay:    0.0,
+		HeaderHTML:   defaultHeaderFooterHTML,
+		FooterHTML:   defaultHeaderFooterHTML,
+		PaperWidth:   8.27,
+		PaperHeight:  11.7,
+		MarginTop:    1.0,
+		MarginBottom: 1.0,
+		MarginLeft:   1.0,
+		MarginRight:  1.0,
+		Landscape:    false,
+	}
 }
 
 func (p chromePrinter) Print(destination string) error {
@@ -83,21 +103,23 @@ func (p chromePrinter) Print(destination string) error {
 		closeTargetArgs := target.NewCloseTargetArgs(newTarget.TargetID)
 		// close the target when done.
 		defer targetClient.Target.CloseTarget(ctx, closeTargetArgs) // nolint: errcheck
-		if err := runBatch(
-			// enable all the domain events that we're interested in.
-			func() error { return targetClient.DOM.Enable(ctx) },
-			func() error { return targetClient.Network.Enable(ctx, network.NewEnableArgs()) },
-			func() error { return targetClient.Page.Enable(ctx) },
-			func() error {
-				return targetClient.Page.SetLifecycleEventsEnabled(ctx, page.NewSetLifecycleEventsEnabledArgs(true))
-			},
-			func() error { return targetClient.Runtime.Enable(ctx) },
-		); err != nil {
+		// enable all events.
+		if err := p.enableEvents(ctx, targetClient); err != nil {
 			return err
 		}
-		if err := p.navigate(ctx, targetClient); err != nil {
+		// listen for all events.
+		if err := p.listenEvents(ctx, targetClient); err != nil {
 			return err
 		}
+		// apply a wait delay (if any).
+		if p.opts.WaitDelay > 0.0 {
+			// wait for a given amount of time (useful for javascript delay).
+			p.logger.DebugfOp(op, "applying a wait delay of '%.2fs'...", p.opts.WaitDelay)
+			time.Sleep(xtime.Duration(p.opts.WaitDelay))
+		} else {
+			p.logger.DebugOp(op, "no wait delay to apply, moving on...")
+		}
+		// print the page to PDF.
 		print, err := targetClient.Page.PrintToPDF(
 			ctx,
 			page.NewPrintToPDFArgs().
@@ -130,8 +152,25 @@ func (p chromePrinter) Print(destination string) error {
 	return nil
 }
 
-func (p chromePrinter) navigate(ctx context.Context, client *cdp.Client) error {
-	const op string = "printer.chromePrinter.navigate"
+func (p chromePrinter) enableEvents(ctx context.Context, client *cdp.Client) error {
+	const op string = "printer.chromePrinter.enableEvents"
+	// enable all the domain events that we're interested in.
+	if err := runBatch(
+		func() error { return client.DOM.Enable(ctx) },
+		func() error { return client.Network.Enable(ctx, network.NewEnableArgs()) },
+		func() error { return client.Page.Enable(ctx) },
+		func() error {
+			return client.Page.SetLifecycleEventsEnabled(ctx, page.NewSetLifecycleEventsEnabledArgs(true))
+		},
+		func() error { return client.Runtime.Enable(ctx) },
+	); err != nil {
+		return xerror.New(op, err)
+	}
+	return nil
+}
+
+func (p chromePrinter) listenEvents(ctx context.Context, client *cdp.Client) error {
+	const op string = "printer.chromePrinter.listenEvents"
 	resolver := func() error {
 		// make sure Page events are enabled.
 		if err := client.Page.Enable(ctx); err != nil {
@@ -165,10 +204,24 @@ func (p chromePrinter) navigate(ctx context.Context, client *cdp.Client) error {
 		if _, err := client.Page.Navigate(ctx, page.NewNavigateArgs(p.url)); err != nil {
 			return err
 		}
-		if err := runBatch(
-			// wait for all events.
-			func() error { _, err := domContentEventFired.Recv(); return err },
-			func() error { _, err := loadEventFired.Recv(); return err },
+		// wait for all events.
+		return runBatch(
+			func() error {
+				_, err := domContentEventFired.Recv()
+				if err != nil {
+					return err
+				}
+				p.logger.DebugOp(op, "event 'domContentEventFired' received")
+				return nil
+			},
+			func() error {
+				_, err := loadEventFired.Recv()
+				if err != nil {
+					return err
+				}
+				p.logger.DebugOp(op, "event 'loadEventFired' received")
+				return nil
+			},
 			func() error {
 				const networkIdleEventName string = "networkIdle"
 				for {
@@ -176,25 +229,22 @@ func (p chromePrinter) navigate(ctx context.Context, client *cdp.Client) error {
 					if err != nil {
 						return err
 					}
+					p.logger.DebugfOp(op, "event '%s' received", ev.Name)
 					if ev.Name == networkIdleEventName {
 						break
 					}
 				}
 				return nil
 			},
-			func() error { _, err := loadingFinished.Recv(); return err },
-		); err != nil {
-			return err
-		}
-
-		if p.opts.WaitDelay > 0.0 {
-			// wait for a given amount of time (useful for javascript delay).
-			p.logger.DebugfOp(op, "applying a wait delay of '%.2fs'...", p.opts.WaitDelay)
-			time.Sleep(xtime.Duration(p.opts.WaitDelay))
-		} else {
-			p.logger.DebugOp(op, "no wait delay to apply, moving on...")
-		}
-		return nil
+			func() error {
+				_, err := loadingFinished.Recv()
+				if err != nil {
+					return err
+				}
+				p.logger.DebugOp(op, "event 'loadingFinished' received")
+				return nil
+			},
+		)
 	}
 	if err := resolver(); err != nil {
 		return xerror.New(op, err)

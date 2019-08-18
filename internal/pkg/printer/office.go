@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xcontext"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xexec"
@@ -24,6 +25,15 @@ type officePrinter struct {
 type OfficePrinterOptions struct {
 	WaitTimeout float64
 	Landscape   bool
+}
+
+// DefaultOfficePrinterOptions returns the default
+// Office Printer options.
+func DefaultOfficePrinterOptions(config conf.Config) OfficePrinterOptions {
+	return OfficePrinterOptions{
+		WaitTimeout: config.DefaultWaitTimeout(),
+		Landscape:   false,
+	}
 }
 
 // NewOfficePrinter returns a Printer which

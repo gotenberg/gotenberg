@@ -11,19 +11,28 @@ import (
 	"github.com/thecodingmachine/gotenberg/test"
 )
 
-func TestMergePrinter(t *testing.T) {
+func TestHTMLPrinter(t *testing.T) {
 	var (
 		logger xlog.Logger = test.DebugLogger()
 		config conf.Config = conf.DefaultConfig()
-		fpaths []string    = test.MergeFpaths(t)
-		opts   MergePrinterOptions
+		fpath  string      = test.HTMLFpaths(t)[0]
+		opts   ChromePrinterOptions
 		dest   string
 		p      Printer
 		err    error
 	)
 	// default options.
-	opts = DefaultMergePrinterOptions(config)
-	p = NewMergePrinter(logger, fpaths, opts)
+	opts = DefaultChromePrinterOptions(config)
+	p = NewHTMLPrinter(logger, fpath, opts)
+	dest = test.GenerateDestination()
+	err = p.Print(dest)
+	assert.Nil(t, err)
+	err = os.RemoveAll(dest)
+	assert.Nil(t, err)
+	// options with a wait delay.
+	opts = DefaultChromePrinterOptions(config)
+	opts.WaitDelay = 0.5
+	p = NewHTMLPrinter(logger, fpath, opts)
 	dest = test.GenerateDestination()
 	err = p.Print(dest)
 	assert.Nil(t, err)
@@ -31,9 +40,9 @@ func TestMergePrinter(t *testing.T) {
 	assert.Nil(t, err)
 	// should not be OK as context.Context
 	// should timeout.
-	opts = DefaultMergePrinterOptions(config)
+	opts = DefaultChromePrinterOptions(config)
 	opts.WaitTimeout = 0.0
-	p = NewMergePrinter(logger, fpaths, opts)
+	p = NewHTMLPrinter(logger, fpath, opts)
 	dest = test.GenerateDestination()
 	err = p.Print(dest)
 	test.AssertError(t, err)

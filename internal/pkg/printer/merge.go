@@ -3,6 +3,7 @@ package printer
 import (
 	"context"
 
+	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xcontext"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xexec"
@@ -20,6 +21,14 @@ type mergePrinter struct {
 // merge Printer behaviour.
 type MergePrinterOptions struct {
 	WaitTimeout float64
+}
+
+// DefaultMergePrinterOptions returns the default
+// merge Printer options.
+func DefaultMergePrinterOptions(config conf.Config) MergePrinterOptions {
+	return MergePrinterOptions{
+		WaitTimeout: config.DefaultWaitTimeout(),
+	}
 }
 
 // NewMergePrinter returns a Printer which

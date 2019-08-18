@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
 	"github.com/thecodingmachine/gotenberg/test"
@@ -13,6 +14,7 @@ import (
 func TestOfficePrinter(t *testing.T) {
 	var (
 		logger xlog.Logger = test.DebugLogger()
+		config conf.Config = conf.DefaultConfig()
 		fpaths []string    = test.OfficeFpaths(t)
 		opts   OfficePrinterOptions
 		dest   string
@@ -20,10 +22,7 @@ func TestOfficePrinter(t *testing.T) {
 		err    error
 	)
 	// default options.
-	opts = OfficePrinterOptions{
-		WaitTimeout: 10.0,
-		Landscape:   false,
-	}
+	opts = DefaultOfficePrinterOptions(config)
 	p = NewOfficePrinter(logger, fpaths, opts)
 	dest = test.GenerateDestination()
 	err = p.Print(dest)
@@ -31,10 +30,7 @@ func TestOfficePrinter(t *testing.T) {
 	err = os.RemoveAll(dest)
 	assert.Nil(t, err)
 	// using one file.
-	opts = OfficePrinterOptions{
-		WaitTimeout: 10.0,
-		Landscape:   false,
-	}
+	opts = DefaultOfficePrinterOptions(config)
 	p = NewOfficePrinter(logger, []string{fpaths[0]}, opts)
 	dest = test.GenerateDestination()
 	err = p.Print(dest)
@@ -42,10 +38,8 @@ func TestOfficePrinter(t *testing.T) {
 	err = os.RemoveAll(dest)
 	assert.Nil(t, err)
 	// options with landscape.
-	opts = OfficePrinterOptions{
-		WaitTimeout: 10.0,
-		Landscape:   true,
-	}
+	opts = DefaultOfficePrinterOptions(config)
+	opts.Landscape = true
 	p = NewOfficePrinter(logger, fpaths, opts)
 	dest = test.GenerateDestination()
 	err = p.Print(dest)
@@ -54,10 +48,8 @@ func TestOfficePrinter(t *testing.T) {
 	assert.Nil(t, err)
 	// should not be OK as context.Context
 	// should timeout.
-	opts = OfficePrinterOptions{
-		WaitTimeout: 0.0,
-		Landscape:   true,
-	}
+	opts = DefaultOfficePrinterOptions(config)
+	opts.WaitTimeout = 0.0
 	p = NewOfficePrinter(logger, fpaths, opts)
 	dest = test.GenerateDestination()
 	err = p.Print(dest)

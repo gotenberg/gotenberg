@@ -21,8 +21,8 @@ func GenerateDestination() string {
 	return fmt.Sprintf("/tmp/%s.pdf", xrand.Get())
 }
 
-// MergeFpaths return the paths
-// of the PDF files used in tests.
+// MergeFpaths return the paths of all
+// files under "testdata/pdf" folder.
 func MergeFpaths(t *testing.T) []string {
 	return []string{
 		fpath(t, "pdf", "gotenberg.pdf"),
@@ -30,8 +30,46 @@ func MergeFpaths(t *testing.T) []string {
 	}
 }
 
-// OfficeFpaths return the paths
-// of the Office documents used in tests.
+// HTMLFpaths return the paths of all
+// files under "testdata/html" folder.
+func HTMLFpaths(t *testing.T) []string {
+	return []string{
+		fpath(t, "html", "index.html"),
+		fpath(t, "html", "header.html"),
+		fpath(t, "html", "footer.html"),
+		fpath(t, "html", "style.css"),
+		fpath(t, "html", "img.gif"),
+		fpath(t, "html", "font.woff"),
+	}
+}
+
+// URLFpaths return the paths of all
+// files under "testdata/url" folder.
+func URLFpaths(t *testing.T) []string {
+	return []string{
+		fpath(t, "url", "header.html"),
+		fpath(t, "url", "footer.html"),
+	}
+}
+
+// MarkdownFpaths return the paths of all
+// files under "testdata/markdown" folder.
+func MarkdownFpaths(t *testing.T) []string {
+	return []string{
+		fpath(t, "markdown", "index.html"),
+		fpath(t, "markdown", "header.html"),
+		fpath(t, "markdown", "footer.html"),
+		fpath(t, "markdown", "style.css"),
+		fpath(t, "markdown", "img.gif"),
+		fpath(t, "markdown", "font.woff"),
+		fpath(t, "markdown", "paragraph1.md"),
+		fpath(t, "markdown", "paragraph2.md"),
+		fpath(t, "markdown", "paragraph3.md"),
+	}
+}
+
+// OfficeFpaths return the paths of all
+// files under "testdata/office" folder.
 func OfficeFpaths(t *testing.T) []string {
 	return []string{
 		fpath(t, "office", "document.docx"),
