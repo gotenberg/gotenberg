@@ -30,17 +30,17 @@ func chromePrinterOptions(r resource.Resource, config conf.Config) (printer.Chro
 			return printer.ChromePrinterOptions{}, err
 		}
 		headerHTML, footerHTML,
-			err := resource.HeaderFooterContents(r)
+			err := resource.HeaderFooterContents(r, config)
 		if err != nil {
 			return printer.ChromePrinterOptions{}, err
 		}
 		paperWidth, paperHeight,
-			err := resource.PaperSizeArgs(r)
+			err := resource.PaperSizeArgs(r, config)
 		if err != nil {
 			return printer.ChromePrinterOptions{}, err
 		}
 		marginTop, marginBottom, marginLeft, marginRight,
-			err := resource.MarginArgs(r)
+			err := resource.MarginArgs(r, config)
 		if err != nil {
 			return printer.ChromePrinterOptions{}, err
 		}

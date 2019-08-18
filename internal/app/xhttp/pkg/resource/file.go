@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/printer"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 )
 
@@ -56,22 +58,20 @@ HeaderFooterContents is a helper for retrieving
 the content of the files "header.html"
 and "footer.html".
 */
-func HeaderFooterContents(r Resource) (string, string, error) {
-	const (
-		op                      string = "resource.HeaderFooterContents"
-		defaultHeaderFooterHTML string = "<html><head></head><body></body></html>"
-	)
+func HeaderFooterContents(r Resource, config conf.Config) (string, string, error) {
+	const op string = "resource.HeaderFooterContents"
+	opts := printer.DefaultChromePrinterOptions(config)
 	resolver := func() (string, string, error) {
-		headerHTML, err := r.Fcontent("header.html", defaultHeaderFooterHTML)
+		headerHTML, err := r.Fcontent("header.html", opts.HeaderHTML)
 		if err != nil {
-			return defaultHeaderFooterHTML,
-				defaultHeaderFooterHTML,
+			return opts.HeaderHTML,
+				opts.FooterHTML,
 				err
 		}
-		footerHTML, err := r.Fcontent("footer.html", defaultHeaderFooterHTML)
+		footerHTML, err := r.Fcontent("footer.html", opts.FooterHTML)
 		if err != nil {
-			return defaultHeaderFooterHTML,
-				defaultHeaderFooterHTML,
+			return opts.HeaderHTML,
+				opts.FooterHTML,
 				err
 		}
 		return headerHTML,

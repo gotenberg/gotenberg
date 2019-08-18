@@ -2,6 +2,7 @@ package resource
 
 import (
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/printer"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xassert"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 )
@@ -125,31 +126,28 @@ PaperSizeArgs is a helper for retrieving
 the "paperWidth" and "paperHeight" arguments
 as float64.
 */
-func PaperSizeArgs(r Resource) (float64, float64, error) {
-	const (
-		op                 string  = "resource.PaperSizeArgs"
-		defaultPaperWidth  float64 = 8.27
-		defaultPaperHeight float64 = 11.7
-	)
+func PaperSizeArgs(r Resource, config conf.Config) (float64, float64, error) {
+	const op string = "resource.PaperSizeArgs"
+	opts := printer.DefaultChromePrinterOptions(config)
 	resolver := func() (float64, float64, error) {
 		paperWidth, err := r.Float64Arg(
 			PaperWidthArgKey,
-			defaultPaperWidth,
+			opts.PaperWidth,
 			xassert.Float64NotInferiorTo(0.0),
 		)
 		if err != nil {
-			return defaultPaperWidth,
-				defaultPaperHeight,
+			return opts.PaperWidth,
+				opts.PaperHeight,
 				err
 		}
 		paperHeight, err := r.Float64Arg(
 			PaperHeightArgKey,
-			defaultPaperHeight,
+			opts.PaperHeight,
 			xassert.Float64NotInferiorTo(0.0),
 		)
 		if err != nil {
-			return defaultPaperWidth,
-				defaultPaperHeight,
+			return opts.PaperWidth,
+				opts.PaperHeight,
 				err
 		}
 		return paperWidth,
@@ -173,61 +171,56 @@ MarginArgs is a helper for retrieving
 the "marginTop", "marginBottom", "marginLeft"
 and "marginRight" arguments as float64.
 */
-func MarginArgs(r Resource) (float64, float64, float64, float64, error) {
-	const (
-		op                  string  = "resource.MarginArgs"
-		defaultMarginTop    float64 = 1.0
-		defaultMarginBottom float64 = 1.0
-		defaultMarginLeft   float64 = 1.0
-		defaultMarginRight  float64 = 1.0
-	)
+func MarginArgs(r Resource, config conf.Config) (float64, float64, float64, float64, error) {
+	const op string = "resource.MarginArgs"
+	opts := printer.DefaultChromePrinterOptions(config)
 	resolver := func() (float64, float64, float64, float64, error) {
 		marginTop, err := r.Float64Arg(
 			MarginTopArgKey,
-			defaultMarginTop,
+			opts.MarginTop,
 			xassert.Float64NotInferiorTo(0.0),
 		)
 		if err != nil {
-			return defaultMarginTop,
-				defaultMarginBottom,
-				defaultMarginLeft,
-				defaultMarginRight,
+			return opts.MarginTop,
+				opts.MarginBottom,
+				opts.MarginLeft,
+				opts.MarginRight,
 				err
 		}
 		marginBottom, err := r.Float64Arg(
 			MarginBottomArgKey,
-			defaultMarginBottom,
+			opts.MarginBottom,
 			xassert.Float64NotInferiorTo(0.0),
 		)
 		if err != nil {
-			return defaultMarginTop,
-				defaultMarginBottom,
-				defaultMarginLeft,
-				defaultMarginRight,
+			return opts.MarginTop,
+				opts.MarginBottom,
+				opts.MarginLeft,
+				opts.MarginRight,
 				err
 		}
 		marginLeft, err := r.Float64Arg(
 			MarginLeftArgKey,
-			defaultMarginLeft,
+			opts.MarginLeft,
 			xassert.Float64NotInferiorTo(0.0),
 		)
 		if err != nil {
-			return defaultMarginTop,
-				defaultMarginBottom,
-				defaultMarginLeft,
-				defaultMarginRight,
+			return opts.MarginTop,
+				opts.MarginBottom,
+				opts.MarginLeft,
+				opts.MarginRight,
 				err
 		}
 		marginRight, err := r.Float64Arg(
 			MarginRightArgKey,
-			defaultMarginRight,
+			opts.MarginRight,
 			xassert.Float64NotInferiorTo(0.0),
 		)
 		if err != nil {
-			return defaultMarginTop,
-				defaultMarginBottom,
-				defaultMarginLeft,
-				defaultMarginRight,
+			return opts.MarginTop,
+				opts.MarginBottom,
+				opts.MarginLeft,
+				opts.MarginRight,
 				err
 		}
 		return marginTop,
