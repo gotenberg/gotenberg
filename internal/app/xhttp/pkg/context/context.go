@@ -26,12 +26,12 @@ type Context struct {
 }
 
 // New creates a new Context.
-func New(c echo.Context, logger xlog.Logger, config conf.Config, processess ...pm2.Process) Context {
+func New(c echo.Context, logger xlog.Logger, config conf.Config, processes ...pm2.Process) Context {
 	return Context{
 		c,
 		logger,
 		config,
-		processess,
+		processes,
 		resource.Resource{},
 		time.Now(),
 	}
