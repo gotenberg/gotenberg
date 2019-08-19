@@ -289,10 +289,10 @@ func convertAsync(ctx context.Context, p printer.Printer, filename, fpath string
 			filename,
 			webhookURL,
 		)
-		httpclient := &http.Client{
+		httpClient := &http.Client{
 			Timeout: xtime.Duration(webhookURLTimeout),
 		}
-		resp, err := httpclient.Post(webhookURL, "application/pdf", f) /* #nosec */
+		resp, err := httpClient.Post(webhookURL, "application/pdf", f) /* #nosec */
 		if err != nil {
 			xerr := xerror.New(op, err)
 			logger.ErrorOp(xerror.Op(xerr), xerr)
