@@ -122,6 +122,27 @@ func WaitDelayArg(r Resource, config conf.Config) (float64, error) {
 }
 
 /*
+WebhookURLTimeoutArg is a helper for retrieving
+the "webhookURLTimeout" argument as float64.
+
+It also validates it against the application
+configuration.
+*/
+func WebhookURLTimeoutArg(r Resource, config conf.Config) (float64, error) {
+	const op string = "resource.WebhookURLTimeoutArg"
+	result, err := r.Float64Arg(
+		WebhookURLTimeoutArgKey,
+		config.DefaultWebhookURLTimeout(),
+		xassert.Float64NotInferiorTo(0),
+		xassert.Float64NotSuperiorTo(config.MaximumWebhookURLTimeout()),
+	)
+	if err != nil {
+		return result, xerror.New(op, err)
+	}
+	return result, nil
+}
+
+/*
 PaperSizeArgs is a helper for retrieving
 the "paperWidth" and "paperHeight" arguments
 as float64.

@@ -101,7 +101,7 @@ func TestWaitDelayArg(t *testing.T) {
 	test.AssertError(t, err)
 	assert.Equal(t, expected, v)
 	// shoul not be OK as argument
-	// value is > config.MaximumWaitTimeout().
+	// value is > config.MaximumWaitDelay().
 	expected = defaultValue
 	r.WithArg(WaitDelayArgKey, "31.0")
 	v, err = WaitDelayArg(r, config)
@@ -112,6 +112,50 @@ func TestWaitDelayArg(t *testing.T) {
 	expected = defaultValue
 	r.WithArg(WaitDelayArgKey, "foo")
 	v, err = WaitDelayArg(r, config)
+	test.AssertError(t, err)
+	assert.Equal(t, expected, v)
+	// finally...
+	err = r.Close()
+	assert.Nil(t, err)
+}
+
+func TestWebhookURLTimeoutArg(t *testing.T) {
+	const resourceDirectoryName string = "foo"
+	var expected float64
+	logger := test.DebugLogger()
+	config := conf.DefaultConfig()
+	r, err := New(logger, resourceDirectoryName)
+	assert.Nil(t, err)
+	// argument does not exist.
+	expected = config.DefaultWebhookURLTimeout()
+	v, err := WebhookURLTimeoutArg(r, config)
+	assert.Nil(t, err)
+	assert.Equal(t, expected, v)
+	// argument exist.
+	expected = 5.0
+	r.WithArg(WebhookURLTimeoutArgKey, "5.0")
+	v, err = WebhookURLTimeoutArg(r, config)
+	assert.Nil(t, err)
+	assert.Equal(t, expected, v)
+	// shoul not be OK as argument
+	// value is < 0.
+	expected = config.DefaultWebhookURLTimeout()
+	r.WithArg(WebhookURLTimeoutArgKey, "-1.0")
+	v, err = WebhookURLTimeoutArg(r, config)
+	test.AssertError(t, err)
+	assert.Equal(t, expected, v)
+	// shoul not be OK as argument
+	// value is > config.MaximumWebhookURLTimeout().
+	expected = config.DefaultWebhookURLTimeout()
+	r.WithArg(WebhookURLTimeoutArgKey, "31.0")
+	v, err = WebhookURLTimeoutArg(r, config)
+	test.AssertError(t, err)
+	assert.Equal(t, expected, v)
+	// should not be OK as
+	// argument value is invalid.
+	expected = config.DefaultWebhookURLTimeout()
+	r.WithArg(WebhookURLTimeoutArgKey, "foo")
+	v, err = WebhookURLTimeoutArg(r, config)
 	test.AssertError(t, err)
 	assert.Equal(t, expected, v)
 	// finally...
