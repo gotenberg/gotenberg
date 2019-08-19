@@ -2,9 +2,11 @@ package context
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -102,6 +104,14 @@ func (ctx *Context) WithResource(directoryName string) error {
 		// write form files from request.
 		form, err := ctx.MultipartForm()
 		if err != nil {
+			/*
+				(very) special case: one and
+				only one file has been sent
+				and it is empty.
+			*/
+			if strings.Contains(err.Error(), io.EOF.Error()) {
+				return r, xerror.Invalid(op, "one file has been sent but it is empty: does it exist?", err)
+			}
 			return r, err
 		}
 		for _, files := range form.File {

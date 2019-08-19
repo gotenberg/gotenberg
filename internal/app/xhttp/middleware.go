@@ -34,9 +34,10 @@ func contextMiddleware(config conf.Config, processes ...pm2.Process) echo.Middle
 			// if the endpoint is not for healthcheck, create a
 			// Resource.
 			if err := ctx.WithResource(trace); err != nil {
-				// required to have a correct status code.
-				ctx.Error(err)
+				err = doCleanup(ctx, err)
+				err = doErr(ctx, err)
 				return ctx.LogRequestResult(err, false)
+
 			}
 			return next(ctx)
 		}
@@ -62,27 +63,9 @@ func loggerMiddleware() echo.MiddlewareFunc {
 func cleanupMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			const op string = "xhttp.cleanupMiddleware"
 			err := next(c)
 			ctx := context.MustCastFromEchoContext(c)
-			if !ctx.HasResource() {
-				// nothing to remove.
-				return err
-			}
-			r := ctx.MustResource()
-			// if a webhook URL has been given,
-			// do not remove the resource.Resource here because
-			// we don't know if the result file has been
-			// generated or sent.
-			if r.HasArg(resource.WebhookURLArgKey) {
-				return err
-			}
-			// a resource.Resource is associated with our custom context.
-			if resourceErr := r.Close(); resourceErr != nil {
-				xerr := xerror.New(op, resourceErr)
-				ctx.XLogger().ErrorOp(xerror.Op(xerr), xerr)
-			}
-			return err
+			return doCleanup(ctx, err)
 		}
 	}
 }
@@ -97,31 +80,57 @@ func errorMiddleware() echo.MiddlewareFunc {
 				// so far so good!
 				return nil
 			}
-			// if it's an error from echo
-			// like 404 not found and so on.
-			if echoHTTPErr, ok := err.(*echo.HTTPError); ok {
-				return echoHTTPErr
-			}
-			// we log the initial error before returning
-			// the HTTP error.
-			errOp := xerror.Op(err)
-			logger := ctx.XLogger()
-			logger.ErrorOp(errOp, err)
-			// handle our custom HTTP error.
-			var httpErr error
-			errCode := xerror.Code(err)
-			errMessage := xerror.Message(err)
-			switch errCode {
-			case xerror.InvalidCode:
-				httpErr = echo.NewHTTPError(http.StatusBadRequest, errMessage)
-			case xerror.TimeoutCode:
-				httpErr = echo.NewHTTPError(http.StatusGatewayTimeout, errMessage)
-			default:
-				httpErr = echo.NewHTTPError(http.StatusInternalServerError, errMessage)
-			}
-			// required to have a correct status code.
-			ctx.Error(httpErr)
-			return httpErr
+			return doErr(ctx, err)
 		}
 	}
+}
+
+func doCleanup(ctx context.Context, err error) error {
+	const op string = "xhttp.cleanup"
+	if !ctx.HasResource() {
+		// nothing to remove.
+		return err
+	}
+	r := ctx.MustResource()
+	// if a webhook URL has been given,
+	// do not remove the resource.Resource here because
+	// we don't know if the result file has been
+	// generated or sent.
+	if r.HasArg(resource.WebhookURLArgKey) {
+		return err
+	}
+	// a resource.Resource is associated with our custom context.
+	if resourceErr := r.Close(); resourceErr != nil {
+		xerr := xerror.New(op, resourceErr)
+		ctx.XLogger().ErrorOp(xerror.Op(xerr), xerr)
+	}
+	return err
+}
+
+func doErr(ctx context.Context, err error) error {
+	// if it's an error from echo
+	// like 404 not found and so on.
+	if echoHTTPErr, ok := err.(*echo.HTTPError); ok {
+		return echoHTTPErr
+	}
+	// we log the initial error before returning
+	// the HTTP error.
+	errOp := xerror.Op(err)
+	logger := ctx.XLogger()
+	logger.ErrorOp(errOp, err)
+	// handle our custom HTTP error.
+	var httpErr error
+	errCode := xerror.Code(err)
+	errMessage := xerror.Message(err)
+	switch errCode {
+	case xerror.InvalidCode:
+		httpErr = echo.NewHTTPError(http.StatusBadRequest, errMessage)
+	case xerror.TimeoutCode:
+		httpErr = echo.NewHTTPError(http.StatusGatewayTimeout, errMessage)
+	default:
+		httpErr = echo.NewHTTPError(http.StatusInternalServerError, errMessage)
+	}
+	// required to have a correct status code.
+	ctx.Error(httpErr)
+	return httpErr
 }
