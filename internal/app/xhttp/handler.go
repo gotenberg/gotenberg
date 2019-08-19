@@ -11,6 +11,7 @@ import (
 	"github.com/thecodingmachine/gotenberg/internal/pkg/printer"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xrand"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xtime"
 )
 
 const (
@@ -260,6 +261,14 @@ func convertAsync(ctx context.Context, p printer.Printer, filename, fpath string
 	const op = "xhttp.convertAsync"
 	logger := ctx.XLogger()
 	r := ctx.MustResource()
+	webhookURL, err := r.StringArg(resource.WebhookURLArgKey, "")
+	if err != nil {
+		return xerror.New(op, err)
+	}
+	webhookURLTimeout, err := resource.WebhookURLTimeoutArg(r, ctx.Config())
+	if err != nil {
+		return xerror.New(op, err)
+	}
 	go func() {
 		defer r.Close() // nolint: errcheck
 		if err := p.Print(fpath); err != nil {
@@ -274,20 +283,16 @@ func convertAsync(ctx context.Context, p printer.Printer, filename, fpath string
 			return
 		}
 		defer f.Close() // nolint: errcheck
-		webhookURL, err := r.StringArg(resource.WebhookURLArgKey, "")
-		if err != nil {
-			xerr := xerror.New(op, err)
-			logger.ErrorOp(xerror.Op(xerr), xerr)
-			return
-		}
 		logger.DebugfOp(
 			op,
 			"sending result file '%s' to '%s'",
 			filename,
 			webhookURL,
 		)
-		// TODO timeout
-		resp, err := http.Post(webhookURL, "application/pdf", f) /* #nosec */
+		httpclient := &http.Client{
+			Timeout: xtime.Duration(webhookURLTimeout),
+		}
+		resp, err := httpclient.Post(webhookURL, "application/pdf", f) /* #nosec */
 		if err != nil {
 			xerr := xerror.New(op, err)
 			logger.ErrorOp(xerror.Op(xerr), xerr)
