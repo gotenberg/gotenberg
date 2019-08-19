@@ -7,15 +7,33 @@ import (
 )
 
 const (
-	maximumWaitTimeoutEnvVar       string = "MAXIMUM_WAIT_TIMEOUT"
-	maximumWaitDelayEnvVar         string = "MAXIMUM_WAIT_DELAY"
-	maximumWebhookURLTimeoutEnvVar string = "MAXIMUM_WEBHOOK_URL_TIMEOUT"
-	defaultWaitTimeoutEnvVar       string = "DEFAULT_WAIT_TIMEOUT"
-	defaultWebhookURLTimeoutEnvVar string = "DEFAULT_WEBHOOK_URL_TIMEOUT"
-	defaultListenPortEnvVar        string = "DEFAULT_LISTEN_PORT"
-	disableGoogleChromeEnvVar      string = "DISABLE_GOOGLE_CHROME"
-	disableUnoconvEnvVar           string = "DISABLE_UNOCONV"
-	logLevelEnvVar                 string = "LOG_LEVEL"
+	// MaximumWaitTimeoutEnvVar contains the name
+	// of the environment variable "MAXIMUM_WAIT_TIMEOUT".
+	MaximumWaitTimeoutEnvVar string = "MAXIMUM_WAIT_TIMEOUT"
+	// MaximumWaitDelayEnvVar contains the name
+	// of the environment variable "MAXIMUM_WAIT_DELAY".
+	MaximumWaitDelayEnvVar string = "MAXIMUM_WAIT_DELAY"
+	// MaximumWebhookURLTimeoutEnvVar contains the name
+	// of the environment variable "MAXIMUM_WEBHOOK_URL_TIMEOUT".
+	MaximumWebhookURLTimeoutEnvVar string = "MAXIMUM_WEBHOOK_URL_TIMEOUT"
+	// DefaultWaitTimeoutEnvVar contains the name
+	// of the environment variable "DEFAULT_WAIT_TIMEOUT".
+	DefaultWaitTimeoutEnvVar string = "DEFAULT_WAIT_TIMEOUT"
+	// DefaultWebhookURLTimeoutEnvVar contains the name
+	// of the environment variable "DEFAULT_WEBHOOK_URL_TIMEOUT".
+	DefaultWebhookURLTimeoutEnvVar string = "DEFAULT_WEBHOOK_URL_TIMEOUT"
+	// DefaultListenPortEnvVar contains the name
+	// of the environment variable "DEFAULT_LISTEN_PORT".
+	DefaultListenPortEnvVar string = "DEFAULT_LISTEN_PORT"
+	// DisableGoogleChromeEnvVar contains the name
+	// of the environment variable "DISABLE_GOOGLE_CHROME".
+	DisableGoogleChromeEnvVar string = "DISABLE_GOOGLE_CHROME"
+	// DisableUnoconvEnvVar contains the name
+	// of the environment variable "DISABLE_UNOCONV".
+	DisableUnoconvEnvVar string = "DISABLE_UNOCONV"
+	// LogLevelEnvVar contains the name
+	// of the environment variable "LOG_LEVEL".
+	LogLevelEnvVar string = "LOG_LEVEL"
 )
 
 // Config contains the application
@@ -57,7 +75,7 @@ func FromEnv() (Config, error) {
 	resolver := func() (Config, error) {
 		c := DefaultConfig()
 		maximumWaitTimeout, err := xassert.Float64FromEnv(
-			maximumWaitTimeoutEnvVar,
+			MaximumWaitTimeoutEnvVar,
 			c.maximumWaitTimeout,
 			xassert.Float64NotInferiorTo(0.0),
 		)
@@ -66,7 +84,7 @@ func FromEnv() (Config, error) {
 			return c, err
 		}
 		maximumWaitDelay, err := xassert.Float64FromEnv(
-			maximumWaitDelayEnvVar,
+			MaximumWaitDelayEnvVar,
 			c.maximumWaitDelay,
 			xassert.Float64NotInferiorTo(0.0),
 		)
@@ -75,7 +93,7 @@ func FromEnv() (Config, error) {
 			return c, err
 		}
 		maximumWebhookURLTimeout, err := xassert.Float64FromEnv(
-			maximumWebhookURLTimeoutEnvVar,
+			MaximumWebhookURLTimeoutEnvVar,
 			c.maximumWebhookURLTimeout,
 			xassert.Float64NotInferiorTo(0.0),
 		)
@@ -84,7 +102,7 @@ func FromEnv() (Config, error) {
 			return c, err
 		}
 		defaultWaitTimeout, err := xassert.Float64FromEnv(
-			defaultWaitTimeoutEnvVar,
+			DefaultWaitTimeoutEnvVar,
 			c.defaultWaitTimeout,
 			xassert.Float64NotInferiorTo(0.0),
 			xassert.Float64NotSuperiorTo(c.maximumWaitTimeout),
@@ -94,7 +112,7 @@ func FromEnv() (Config, error) {
 			return c, err
 		}
 		defaultWebhookURLTimeout, err := xassert.Float64FromEnv(
-			defaultWebhookURLTimeoutEnvVar,
+			DefaultWebhookURLTimeoutEnvVar,
 			c.defaultWebhookURLTimeout,
 			xassert.Float64NotInferiorTo(0.0),
 			xassert.Float64NotSuperiorTo(c.defaultWebhookURLTimeout),
@@ -104,7 +122,7 @@ func FromEnv() (Config, error) {
 			return c, err
 		}
 		defaultListenPort, err := xassert.Int64FromEnv(
-			defaultListenPortEnvVar,
+			DefaultListenPortEnvVar,
 			c.defaultListenPort,
 			xassert.Int64NotInferiorTo(0),
 			xassert.Int64NotSuperiorTo(65535),
@@ -114,7 +132,7 @@ func FromEnv() (Config, error) {
 			return c, err
 		}
 		disableGoogleChrome, err := xassert.BoolFromEnv(
-			disableGoogleChromeEnvVar,
+			DisableGoogleChromeEnvVar,
 			c.disableGoogleChrome,
 		)
 		c.disableGoogleChrome = disableGoogleChrome
@@ -122,7 +140,7 @@ func FromEnv() (Config, error) {
 			return c, err
 		}
 		disableUnoconv, err := xassert.BoolFromEnv(
-			disableUnoconvEnvVar,
+			DisableUnoconvEnvVar,
 			c.disableUnoconv,
 		)
 		c.disableUnoconv = disableUnoconv
@@ -130,7 +148,7 @@ func FromEnv() (Config, error) {
 			return c, err
 		}
 		logLevel, err := xassert.StringFromEnv(
-			logLevelEnvVar,
+			LogLevelEnvVar,
 			string(c.logLevel),
 			xassert.StringOneOf(xlog.Levels()),
 		)

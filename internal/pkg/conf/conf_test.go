@@ -30,27 +30,27 @@ func TestMaximumWaitTimeoutFromEnv(t *testing.T) {
 		err      error
 	)
 	// MAXIMUM_WAIT_TIMEOUT correctly set.
-	os.Setenv(maximumWaitTimeoutEnvVar, "10.0")
+	os.Setenv(MaximumWaitTimeoutEnvVar, "10.0")
 	expected = DefaultConfig()
 	expected.maximumWaitTimeout = 10.0
 	result, err = FromEnv()
 	assert.Nil(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(maximumWaitTimeoutEnvVar)
+	os.Unsetenv(MaximumWaitTimeoutEnvVar)
 	// MAXIMUM_WAIT_TIMEOUT wrongly set.
-	os.Setenv(maximumWaitTimeoutEnvVar, "foo")
+	os.Setenv(MaximumWaitTimeoutEnvVar, "foo")
 	expected = DefaultConfig()
 	result, err = FromEnv()
 	test.AssertError(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(maximumWaitTimeoutEnvVar)
+	os.Unsetenv(MaximumWaitTimeoutEnvVar)
 	// MAXIMUM_WAIT_TIMEOUT < 0.
-	os.Setenv(maximumWaitTimeoutEnvVar, "-1.0")
+	os.Setenv(MaximumWaitTimeoutEnvVar, "-1.0")
 	expected = DefaultConfig()
 	result, err = FromEnv()
 	test.AssertError(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(maximumWaitTimeoutEnvVar)
+	os.Unsetenv(MaximumWaitTimeoutEnvVar)
 }
 
 func TestMaximumWaitDelayFromEnv(t *testing.T) {
@@ -60,27 +60,27 @@ func TestMaximumWaitDelayFromEnv(t *testing.T) {
 		err      error
 	)
 	// MAXIMUM_WAIT_DELAY correctly set.
-	os.Setenv(maximumWaitDelayEnvVar, "10.0")
+	os.Setenv(MaximumWaitDelayEnvVar, "10.0")
 	expected = DefaultConfig()
 	expected.maximumWaitDelay = 10.0
 	result, err = FromEnv()
 	assert.Nil(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(maximumWaitDelayEnvVar)
+	os.Unsetenv(MaximumWaitDelayEnvVar)
 	// MAXIMUM_WAIT_DELAY wrongly set.
-	os.Setenv(maximumWaitDelayEnvVar, "foo")
+	os.Setenv(MaximumWaitDelayEnvVar, "foo")
 	expected = DefaultConfig()
 	result, err = FromEnv()
 	test.AssertError(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(maximumWaitDelayEnvVar)
+	os.Unsetenv(MaximumWaitDelayEnvVar)
 	// MAXIMUM_WAIT_DELAY < 0.
-	os.Setenv(maximumWaitDelayEnvVar, "-1.0")
+	os.Setenv(MaximumWaitDelayEnvVar, "-1.0")
 	expected = DefaultConfig()
 	result, err = FromEnv()
 	test.AssertError(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(maximumWaitDelayEnvVar)
+	os.Unsetenv(MaximumWaitDelayEnvVar)
 }
 
 func TestMaximumWebhookURLTimeoutFromEnv(t *testing.T) {
@@ -90,27 +90,27 @@ func TestMaximumWebhookURLTimeoutFromEnv(t *testing.T) {
 		err      error
 	)
 	// MAXIMUM_WEBHOOK_URL_TIMEOUT correctly set.
-	os.Setenv(maximumWebhookURLTimeoutEnvVar, "10.0")
+	os.Setenv(MaximumWebhookURLTimeoutEnvVar, "10.0")
 	expected = DefaultConfig()
 	expected.maximumWebhookURLTimeout = 10.0
 	result, err = FromEnv()
 	assert.Nil(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(maximumWebhookURLTimeoutEnvVar)
+	os.Unsetenv(MaximumWebhookURLTimeoutEnvVar)
 	// MAXIMUM_WEBHOOK_URL_TIMEOUT wrongly set.
-	os.Setenv(maximumWebhookURLTimeoutEnvVar, "foo")
+	os.Setenv(MaximumWebhookURLTimeoutEnvVar, "foo")
 	expected = DefaultConfig()
 	result, err = FromEnv()
 	test.AssertError(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(maximumWebhookURLTimeoutEnvVar)
+	os.Unsetenv(MaximumWebhookURLTimeoutEnvVar)
 	// MAXIMUM_WEBHOOK_URL_TIMEOUT < 0.
-	os.Setenv(maximumWebhookURLTimeoutEnvVar, "-1.0")
+	os.Setenv(MaximumWebhookURLTimeoutEnvVar, "-1.0")
 	expected = DefaultConfig()
 	result, err = FromEnv()
 	test.AssertError(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(maximumWebhookURLTimeoutEnvVar)
+	os.Unsetenv(MaximumWebhookURLTimeoutEnvVar)
 }
 
 func TestDefaultWaitTimeoutFromEnv(t *testing.T) {
@@ -120,34 +120,34 @@ func TestDefaultWaitTimeoutFromEnv(t *testing.T) {
 		err      error
 	)
 	// DEFAULT_WAIT_TIMEOUT correctly set.
-	os.Setenv(defaultWaitTimeoutEnvVar, "10.0")
+	os.Setenv(DefaultWaitTimeoutEnvVar, "10.0")
 	expected = DefaultConfig()
 	expected.defaultWaitTimeout = 10.0
 	result, err = FromEnv()
 	assert.Nil(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(defaultWaitTimeoutEnvVar)
+	os.Unsetenv(DefaultWaitTimeoutEnvVar)
 	// DEFAULT_WAIT_TIMEOUT wrongly set.
-	os.Setenv(defaultWaitTimeoutEnvVar, "foo")
+	os.Setenv(DefaultWaitTimeoutEnvVar, "foo")
 	expected = DefaultConfig()
 	result, err = FromEnv()
 	test.AssertError(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(defaultWaitTimeoutEnvVar)
+	os.Unsetenv(DefaultWaitTimeoutEnvVar)
 	// DEFAULT_WAIT_TIMEOUT < 0.
-	os.Setenv(defaultWaitTimeoutEnvVar, "-1.0")
+	os.Setenv(DefaultWaitTimeoutEnvVar, "-1.0")
 	expected = DefaultConfig()
 	result, err = FromEnv()
 	test.AssertError(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(defaultWaitTimeoutEnvVar)
+	os.Unsetenv(DefaultWaitTimeoutEnvVar)
 	// DEFAULT_WAIT_TIMEOUT > MAXIMUM_WAIT_TIMEOUT.
-	os.Setenv(defaultWaitTimeoutEnvVar, "40.0")
+	os.Setenv(DefaultWaitTimeoutEnvVar, "40.0")
 	expected = DefaultConfig()
 	result, err = FromEnv()
 	test.AssertError(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(defaultWaitTimeoutEnvVar)
+	os.Unsetenv(DefaultWaitTimeoutEnvVar)
 }
 
 func TestDefaultWebhookURLTimeoutFromEnv(t *testing.T) {
@@ -157,34 +157,34 @@ func TestDefaultWebhookURLTimeoutFromEnv(t *testing.T) {
 		err      error
 	)
 	// DEFAULT_WEBHOOK_URL_TIMEOUT correctly set.
-	os.Setenv(defaultWebhookURLTimeoutEnvVar, "10.0")
+	os.Setenv(DefaultWebhookURLTimeoutEnvVar, "10.0")
 	expected = DefaultConfig()
 	expected.defaultWebhookURLTimeout = 10.0
 	result, err = FromEnv()
 	assert.Nil(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(defaultWebhookURLTimeoutEnvVar)
+	os.Unsetenv(DefaultWebhookURLTimeoutEnvVar)
 	// DEFAULT_WEBHOOK_URL_TIMEOUT wrongly set.
-	os.Setenv(defaultWebhookURLTimeoutEnvVar, "foo")
+	os.Setenv(DefaultWebhookURLTimeoutEnvVar, "foo")
 	expected = DefaultConfig()
 	result, err = FromEnv()
 	test.AssertError(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(defaultWebhookURLTimeoutEnvVar)
+	os.Unsetenv(DefaultWebhookURLTimeoutEnvVar)
 	// DEFAULT_WEBHOOK_URL_TIMEOUT < 0.
-	os.Setenv(defaultWebhookURLTimeoutEnvVar, "-1.0")
+	os.Setenv(DefaultWebhookURLTimeoutEnvVar, "-1.0")
 	expected = DefaultConfig()
 	result, err = FromEnv()
 	test.AssertError(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(defaultWebhookURLTimeoutEnvVar)
+	os.Unsetenv(DefaultWebhookURLTimeoutEnvVar)
 	// DEFAULT_WEBHOOK_URL_TIMEOUT > MAXIMUM_WEBHOOK_URL_TIMEOUT.
-	os.Setenv(defaultWebhookURLTimeoutEnvVar, "40.0")
+	os.Setenv(DefaultWebhookURLTimeoutEnvVar, "40.0")
 	expected = DefaultConfig()
 	result, err = FromEnv()
 	test.AssertError(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(defaultWebhookURLTimeoutEnvVar)
+	os.Unsetenv(DefaultWebhookURLTimeoutEnvVar)
 }
 
 func TestDefaultListenPortFromEnv(t *testing.T) {
@@ -194,34 +194,34 @@ func TestDefaultListenPortFromEnv(t *testing.T) {
 		err      error
 	)
 	// DEFAULT_LISTEN_PORT correctly set.
-	os.Setenv(defaultListenPortEnvVar, "80")
+	os.Setenv(DefaultListenPortEnvVar, "80")
 	expected = DefaultConfig()
 	expected.defaultListenPort = 80
 	result, err = FromEnv()
 	assert.Nil(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(defaultListenPortEnvVar)
+	os.Unsetenv(DefaultListenPortEnvVar)
 	// DEFAULT_LISTEN_PORT wrongly set.
-	os.Setenv(defaultListenPortEnvVar, "foo")
+	os.Setenv(DefaultListenPortEnvVar, "foo")
 	expected = DefaultConfig()
 	result, err = FromEnv()
 	test.AssertError(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(defaultListenPortEnvVar)
+	os.Unsetenv(DefaultListenPortEnvVar)
 	// DEFAULT_LISTEN_PORT < 0.
-	os.Setenv(defaultListenPortEnvVar, "-1.0")
+	os.Setenv(DefaultListenPortEnvVar, "-1.0")
 	expected = DefaultConfig()
 	result, err = FromEnv()
 	test.AssertError(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(defaultListenPortEnvVar)
+	os.Unsetenv(DefaultListenPortEnvVar)
 	// DEFAULT_LISTEN_PORT > 65535.
-	os.Setenv(defaultListenPortEnvVar, "65536")
+	os.Setenv(DefaultListenPortEnvVar, "65536")
 	expected = DefaultConfig()
 	result, err = FromEnv()
 	test.AssertError(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(defaultListenPortEnvVar)
+	os.Unsetenv(DefaultListenPortEnvVar)
 }
 
 func TestDisableGoogleChromeFromEnv(t *testing.T) {
@@ -231,27 +231,27 @@ func TestDisableGoogleChromeFromEnv(t *testing.T) {
 		err      error
 	)
 	// DISABLE_GOOGLE_CHROME correctly set.
-	os.Setenv(disableGoogleChromeEnvVar, "1")
+	os.Setenv(DisableGoogleChromeEnvVar, "1")
 	expected = DefaultConfig()
 	expected.disableGoogleChrome = true
 	result, err = FromEnv()
 	assert.Nil(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(disableGoogleChromeEnvVar)
-	os.Setenv(disableGoogleChromeEnvVar, "0")
+	os.Unsetenv(DisableGoogleChromeEnvVar)
+	os.Setenv(DisableGoogleChromeEnvVar, "0")
 	expected = DefaultConfig()
 	expected.disableGoogleChrome = false
 	result, err = FromEnv()
 	assert.Nil(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(disableGoogleChromeEnvVar)
+	os.Unsetenv(DisableGoogleChromeEnvVar)
 	// DISABLE_GOOGLE_CHROME wrongly set.
-	os.Setenv(disableGoogleChromeEnvVar, "foo")
+	os.Setenv(DisableGoogleChromeEnvVar, "foo")
 	expected = DefaultConfig()
 	result, err = FromEnv()
 	test.AssertError(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(disableGoogleChromeEnvVar)
+	os.Unsetenv(DisableGoogleChromeEnvVar)
 }
 
 func TestDisableUnoconvFromEnv(t *testing.T) {
@@ -261,27 +261,27 @@ func TestDisableUnoconvFromEnv(t *testing.T) {
 		err      error
 	)
 	// DISABLE_UNOCONV correctly set.
-	os.Setenv(disableUnoconvEnvVar, "1")
+	os.Setenv(DisableUnoconvEnvVar, "1")
 	expected = DefaultConfig()
 	expected.disableUnoconv = true
 	result, err = FromEnv()
 	assert.Nil(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(disableUnoconvEnvVar)
-	os.Setenv(disableUnoconvEnvVar, "0")
+	os.Unsetenv(DisableUnoconvEnvVar)
+	os.Setenv(DisableUnoconvEnvVar, "0")
 	expected = DefaultConfig()
 	expected.disableUnoconv = false
 	result, err = FromEnv()
 	assert.Nil(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(disableUnoconvEnvVar)
+	os.Unsetenv(DisableUnoconvEnvVar)
 	// DISABLE_UNOCONV wrongly set.
-	os.Setenv(disableUnoconvEnvVar, "foo")
+	os.Setenv(DisableUnoconvEnvVar, "foo")
 	expected = DefaultConfig()
 	result, err = FromEnv()
 	test.AssertError(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(disableUnoconvEnvVar)
+	os.Unsetenv(DisableUnoconvEnvVar)
 }
 
 func TestLogLevelFromEnv(t *testing.T) {
@@ -291,33 +291,33 @@ func TestLogLevelFromEnv(t *testing.T) {
 		err      error
 	)
 	// LOG_LEVEL correctly set.
-	os.Setenv(logLevelEnvVar, "DEBUG")
+	os.Setenv(LogLevelEnvVar, "DEBUG")
 	expected = DefaultConfig()
 	expected.logLevel = xlog.DebugLevel
 	result, err = FromEnv()
 	assert.Nil(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(logLevelEnvVar)
-	os.Setenv(logLevelEnvVar, "INFO")
+	os.Unsetenv(LogLevelEnvVar)
+	os.Setenv(LogLevelEnvVar, "INFO")
 	expected = DefaultConfig()
 	result, err = FromEnv()
 	assert.Nil(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(logLevelEnvVar)
-	os.Setenv(logLevelEnvVar, "ERROR")
+	os.Unsetenv(LogLevelEnvVar)
+	os.Setenv(LogLevelEnvVar, "ERROR")
 	expected = DefaultConfig()
 	expected.logLevel = xlog.ErrorLevel
 	result, err = FromEnv()
 	assert.Nil(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(logLevelEnvVar)
+	os.Unsetenv(LogLevelEnvVar)
 	// LOG_LEVEL wrongly set.
-	os.Setenv(logLevelEnvVar, "foo")
+	os.Setenv(LogLevelEnvVar, "foo")
 	expected = DefaultConfig()
 	result, err = FromEnv()
 	test.AssertError(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(logLevelEnvVar)
+	os.Unsetenv(LogLevelEnvVar)
 }
 
 func TestGetters(t *testing.T) {
