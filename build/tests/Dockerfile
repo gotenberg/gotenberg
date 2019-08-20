@@ -4,11 +4,13 @@ FROM thecodingmachine/gotenberg:workspace
 USER gotenberg
 WORKDIR /gotenberg/tests
 
-# Copy our code source.
-COPY --chown=gotenberg:gotenberg . .
-
 # Install module dependencies.
+COPY --chown=gotenberg:gotenberg go.mod go.sum ./
+
 RUN go mod download &&\
     go mod verify
+
+# Copy our code source.
+COPY --chown=gotenberg:gotenberg . .
 
 ENTRYPOINT [ "build/tests/docker-entrypoint.sh" ]

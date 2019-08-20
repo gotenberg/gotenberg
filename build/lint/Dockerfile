@@ -24,11 +24,13 @@ RUN curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.s
 USER gotenberg
 WORKDIR /gotenberg/lint
 
-# Copy our code source.
-COPY --chown=gotenberg:gotenberg . .
-
 # Install module dependencies.
+COPY --chown=gotenberg:gotenberg go.mod go.sum ./
+
 RUN go mod download &&\
     go mod verify
+
+# Copy our code source.
+COPY --chown=gotenberg:gotenberg . .
 
 CMD ["golangci-lint", "run" ,"--tests=false", "--enable-all", "--disable=dupl" ]
