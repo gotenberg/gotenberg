@@ -21,6 +21,9 @@ Please search on the [issue tracker](../../../issues) before creating one.
 3.
 4.
 
+## Logs (LOG_LEVEL="DEBUG")
+<!--- Include here a relevant snippet of the log entries of your Gotenberg instance -->
+
 ## Context
 <!--- How has this issue affected you? What are you trying to accomplish? -->
 <!--- Providing context helps us come up with a solution that is most useful in the real world -->
