@@ -42,7 +42,6 @@ tests:
 
 # generate documentation.
 doc:
-	make workspace
 	docker build -t $(DOCKER_REPOSITORY)/gotenberg:docs -f build/docs/Dockerfile . 
 	docker run --rm -it -v "$(PWD):/gotenberg/docs" $(DOCKER_REPOSITORY)/gotenberg:docs
 

@@ -14,7 +14,7 @@ services:
   # your others services
 
   gotenberg:
-    image: thecodingmachine/gotenberg:5
+    image: thecodingmachine/gotenberg:6
 ```
 
 You may now launch your services using:

@@ -23,7 +23,7 @@ At TheCodingMachine, we build a lot of web applications (intranets, extranets an
 Open a terminal and run the following command:
 
 ```bash
-$ docker run --rm -p 3000:3000 thecodingmachine/gotenberg:5
+$ docker run --rm -p 3000:3000 thecodingmachine/gotenberg:6
 ```
 
 The API is now available on your host at `http://localhost:3000`.
@@ -33,9 +33,10 @@ to learn how to interact with it!
 
 ## Badges
 
-[![Docker image layers](https://images.microbadger.com/badges/image/thecodingmachine/gotenberg:5.svg)](https://microbadger.com/images/thecodingmachine/gotenberg:5)
+[![Docker image layers](https://images.microbadger.com/badges/image/thecodingmachine/gotenberg:6.svg)](https://microbadger.com/images/thecodingmachine/gotenberg:6)
 [![Actions Status](https://github.com/thecodingmachine/gotenberg/workflows/Push/badge.svg)](https://github.com/thecodingmachine/gotenberg/actions)
 [![GoDoc](https://godoc.org/github.com/thecodingmachine/gotenberg?status.svg)](https://godoc.org/github.com/thecodingmachine/gotenberg)
+[![Codecov](https://codecov.io/gh/thecodingmachine/gotenberg/branch/master/graph/badge.svg)](https://codecov.io/gh/thecodingmachine/gotenberg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thecodingmachine/gotenberg)](https://goreportcard.com/report/thecodingmachine/gotenberg)
 
 ---

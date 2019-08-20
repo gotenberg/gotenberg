@@ -4,13 +4,13 @@ title: Install
 
 Gotenberg is shipped within a Docker image.
 
+> It uses a dedicated non-root user called `gotenberg` with uid and gid `1001`.
+
 You may start it with:
 
 ```bash
-$ docker run --rm -p 3000:3000 thecodingmachine/gotenberg:5
+$ docker run --rm -p 3000:3000 thecodingmachine/gotenberg:6
 ```
-
-All processes in the Docker container runs as a dedicated non-root user called `gotenberg` with user id `1001` from the working dir `/gotenberg`.
 
 > The API will be available at [http://localhost:3000](http://localhost:3000).
 
@@ -26,7 +26,7 @@ services:
   # your others services
 
   gotenberg:
-    image: thecodingmachine/gotenberg:5
+    image: thecodingmachine/gotenberg:6
 ```
 
 > The API will be available under `gotenberg:3000` in your Docker Compose network.
@@ -40,7 +40,8 @@ Otherwise the API will not be able to launch Google Chrome and LibreOffice (unoc
 
 > The more resources are granted, the quicker will be the conversions.
 
-Also, in the deployment spec of the pod, specify the uid `1001` of the user `gotenberg`:
+In the deployment specification of the pod, also specify the uid `1001` of the user `gotenberg`:
+
 ```
 securityContext:
   privileged: false

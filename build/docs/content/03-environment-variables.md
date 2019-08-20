@@ -4,6 +4,25 @@ title: Environment variables
 
 You may customize the API behaviour thanks to environment variables.
 
+## Log level
+
+The API provides structured logging allowing you to have relevant information
+about what's going on.
+
+> If a TTY is attached, the log entries are displayed in text format with colors, otherwise in JSON format.
+
+You may customize the severity of the log entries thanks to the environment variable `LOG_LEVEL`.
+
+It accepts one of the following severities: `"DEBUG"`, `"INFO"` (default) and `"ERROR"`.
+
+## Default listen port
+
+By default, the API will listen on port `3000`.
+
+You may customize this value with the environment variable `DEFAULT_LISTEN_PORT`.
+
+This environment variable accepts any string that can be turned into a port number.
+
 ## Disable Google Chrome
 
 In order to save some resources, the Gotenberg image accepts the environment variable `DISABLE_GOOGLE_CHROME`.
@@ -31,26 +50,41 @@ It takes a string representation of a float as value (e.g `"2.5"` for 2.5 second
 > The default timeout may also be overridden per request thanks to the form field `waitTimeout`.
 > See the [timeout section](#timeout).
 
-## Disable logging on healthcheck
+## Maximum wait timeout
 
-By default, the API will add a log entry when the [healthcheck endpoint](#ping) is called.
+By default, the value of the form field `waitTimeout` cannot be more than 30 seconds.
 
-You may turn off this logging so as to avoid unnecessary entries in your logs with the environment variable `DISABLE_HEALTHCHECK_LOGGING`.
+You may increase or decrease this limit thanks to the environment variable `MAXIMUM_WAIT_TIMEOUT`.
 
-This environment variable operates in the same manner as the `DISABLE_GOOGLE_CHROME` and `DISABLE_UNOCONV` variables operate in that it accepts the strings `"0"` or `"1"` as values, where `"1"` is enabled.
+It takes a string representation of a float as value (e.g `"2.5"` for 2.5 seconds).
 
-## Default listen port
+## Default webhook URL timeout
 
-By default, the API will listen on port `3000`. For most use cases this is perfectly fine, but at times there may be cases where you need to change this due to port conflicts.
+By default, the API will wait 10 seconds before it considers the sending of the resulting PDF to be unsuccessful.
 
-You may customize this port location with the environment variable `DEFAULT_LISTEN_PORT`.
+> See the [webhook section](#webhook).
 
-This environment variable accepts any string that can be turned into a port number (e.g., the string `"0"` up to the string `"65535"`).
+You may customize this timeout thanks to the environment variable `DEFAULT_WEBHOOK_URL_TIMEOUT`.
 
-## Debug logging of process startup
+It takes a string representation of a float as value (e.g `"2.5"` for 2.5 seconds).
 
-By default, `stdout` and `stderr` messages from the started processes are disabled.
+> The default timeout may also be overridden per request thanks to the form field `webhookURLTimeout`.
+> See the [webhook timeout section](#webhook.timeout).
 
-You may enable some debug logging from starting the process by setting the environment variable `DEBUG_PROCESS_STARTUP`.
+## Maximum webhook URL timeout
 
-This environment variable operates in the same manner as the `DISABLE_GOOGLE_CHROME` and `DISABLE_UNOCONV` variables operate in that it accepts the strings `"0"` or `"1"` as values, where `1` means `true`.
+By default, the value of the form field `webhookURLTimeout` cannot be more than 30 seconds.
+
+You may increase or decrease this limit thanks to the environment variable `MAXIMUM_WEBHOOK_URL_TIMEOUT`.
+
+It takes a string representation of a float as value (e.g `"2.5"` for 2.5 seconds).
+
+## Maximum wait delay
+
+By default, the value of the form field `waitDelay` cannot be more than 10 seconds.
+
+> See the [wait delay section](#html.wait_delay).
+
+You may increase or decrease this limit thanks to the environment variable `MAXIMUM_WAIT_DELAY`.
+
+It takes a string representation of a float as value (e.g `"2.5"` for 2.5 seconds).
