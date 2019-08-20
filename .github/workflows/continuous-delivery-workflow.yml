@@ -1,8 +1,8 @@
 name: Gotenberg continuous delivery
-on: push
-push:
-  branches:
-   - releases/*
+on: 
+  push:
+    branches:
+      - releases/*
 
 jobs:
   publish:
