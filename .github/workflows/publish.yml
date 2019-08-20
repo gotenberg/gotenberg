@@ -1,4 +1,4 @@
-name: Gotenberg continuous delivery
+name: Publish
 on: 
   push:
     branches:

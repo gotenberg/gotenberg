@@ -1,5 +1,5 @@
-name: Gotenberg continuous integration
-on: [push, pull_request]
+name: Push
+on: push
 
 jobs:
   tests:
