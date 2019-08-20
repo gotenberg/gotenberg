@@ -46,14 +46,14 @@ func TestWaitTimeoutArg(t *testing.T) {
 	v, err = WaitTimeoutArg(r, config)
 	assert.Nil(t, err)
 	assert.Equal(t, expected, v)
-	// shoul not be OK as argument
+	// should not be OK as argument
 	// value is < 0.
 	expected = config.DefaultWaitTimeout()
 	r.WithArg(WaitTimeoutArgKey, "-1.0")
 	v, err = WaitTimeoutArg(r, config)
 	test.AssertError(t, err)
 	assert.Equal(t, expected, v)
-	// shoul not be OK as argument
+	// should not be OK as argument
 	// value is > config.MaximumWaitTimeout().
 	expected = config.DefaultWaitTimeout()
 	r.WithArg(WaitTimeoutArgKey, "31.0")
@@ -93,14 +93,14 @@ func TestWaitDelayArg(t *testing.T) {
 	v, err = WaitDelayArg(r, config)
 	assert.Nil(t, err)
 	assert.Equal(t, expected, v)
-	// shoul not be OK as argument
+	// should not be OK as argument
 	// value is < 0.
 	expected = defaultValue
 	r.WithArg(WaitDelayArgKey, "-1.0")
 	v, err = WaitDelayArg(r, config)
 	test.AssertError(t, err)
 	assert.Equal(t, expected, v)
-	// shoul not be OK as argument
+	// should not be OK as argument
 	// value is > config.MaximumWaitDelay().
 	expected = defaultValue
 	r.WithArg(WaitDelayArgKey, "31.0")
@@ -137,14 +137,14 @@ func TestWebhookURLTimeoutArg(t *testing.T) {
 	v, err = WebhookURLTimeoutArg(r, config)
 	assert.Nil(t, err)
 	assert.Equal(t, expected, v)
-	// shoul not be OK as argument
+	// should not be OK as argument
 	// value is < 0.
 	expected = config.DefaultWebhookURLTimeout()
 	r.WithArg(WebhookURLTimeoutArgKey, "-1.0")
 	v, err = WebhookURLTimeoutArg(r, config)
 	test.AssertError(t, err)
 	assert.Equal(t, expected, v)
-	// shoul not be OK as argument
+	// should not be OK as argument
 	// value is > config.MaximumWebhookURLTimeout().
 	expected = config.DefaultWebhookURLTimeout()
 	r.WithArg(WebhookURLTimeoutArgKey, "31.0")
@@ -184,7 +184,7 @@ func TestPaperSizeArgs(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, expected, width)
 	assert.Equal(t, expected, height)
-	// shoul not be OK as arguments
+	// should not be OK as arguments
 	// value are < 0.
 	expected = opts.PaperWidth
 	r.WithArg(PaperWidthArgKey, "-1.0")
@@ -244,7 +244,7 @@ func TestMarginArgs(t *testing.T) {
 	assert.Equal(t, expected, bottom)
 	assert.Equal(t, expected, left)
 	assert.Equal(t, expected, right)
-	// shoul not be OK as arguments
+	// should not be OK as arguments
 	// value are < 0.
 	expected = opts.MarginTop
 	r.WithArg(MarginTopArgKey, "-1.0")
