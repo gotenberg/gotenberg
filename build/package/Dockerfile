@@ -16,11 +16,15 @@ ENV GOOS=linux \
 # Define our workding outside of $GOPATH (we're using go modules).
 WORKDIR /gotenberg/package
 
+# Install module dependencies.
+COPY go.mod go.sum ./
+
+RUN go mod download &&\
+    go mod verify
+
 # Copy our source code.
 COPY internal ./internal
 COPY cmd ./cmd
-COPY go.sum go.sum
-COPY go.mod go.mod
 
 # Build our binary.
 RUN go build -o gotenberg -ldflags "-X main.version=${VERSION}" cmd/gotenberg/main.go
