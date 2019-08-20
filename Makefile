@@ -4,6 +4,7 @@ DOCKER_USER=
 DOCKER_PASSWORD=
 DOCKER_REPOSITORY=thecodingmachine
 GOLANGCI_LINT_VERSION=1.17.1
+CODE_COVERAGE=0
 MAXIMUM_WAIT_TIMEOUT=30.0
 MAXIMUM_WAIT_DELAY=10.0
 MAXIMUM_WEBHOOK_URL_TIMEOUT=30.0
@@ -37,8 +38,7 @@ lint:
 # run all tests.
 tests:
 	make workspace
-	docker build -t $(DOCKER_REPOSITORY)/gotenberg:tests -f build/tests/Dockerfile .
-	docker run --rm $(DOCKER_REPOSITORY)/gotenberg:tests
+	./scripts/tests.sh $(DOCKER_REPOSITORY) $(CODE_COVERAGE)
 
 # generate documentation.
 doc:

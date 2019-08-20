@@ -8,4 +8,5 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - run: make lint
-      - run: make tests
+      - run: make tests CODE_COVERAGE=1
+      - run: bash <(curl -s https://codecov.io/bash)

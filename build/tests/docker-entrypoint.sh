@@ -14,4 +14,8 @@ fi
 go run github.com/thecodingmachine/gotenberg/test/cmd/pm2
 
 # Run our tests.
-go test -race -cover ./...
+if [ "$CODE_COVERAGE" = "1" ]; then
+    go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+else
+    go test -race -cover ./...
+fi
