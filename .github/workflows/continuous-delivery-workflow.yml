@@ -1,0 +1,13 @@
+name: Gotenberg continuous delivery
+on: push
+push:
+  branches:
+   - releases/*
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v1
+        run: make publish VERSION=$GITHUB_REF DOCKER_USER=${{ secrets.DOCKER_USER }} DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD }}
