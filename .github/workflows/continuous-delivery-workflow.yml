@@ -6,7 +6,7 @@ on:
 
 jobs:
   publish:
-    name: Publish
+    name: Publish to Docker Hub
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v1
