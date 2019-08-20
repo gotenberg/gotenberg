@@ -32,10 +32,36 @@ func (p unoconvProcess) Start() error {
 }
 
 func (p unoconvProcess) IsViable() bool {
-	// TODO find a way to check if
-	// the unoconv listener
-	// is correctly started?
-	return true
+	const op string = "pm2.unoconvProcess.IsViable"
+	p.logger.DebugfOp(
+		op,
+		"checking '%s' viability via PM2",
+		p.Fullname(),
+	)
+	list, err := List()
+	if err != nil {
+		p.logger.ErrorfOp(
+			op,
+			"'%s' seems not viable as retrieving the list of processes via 'pm2 jlist' returned '%v'",
+			p.Fullname(),
+			err,
+		)
+		return false
+	}
+	if list.isOnline(p) {
+		p.logger.DebugfOp(
+			op,
+			"'%s' is viable as its status is 'online'",
+			p.Fullname(),
+		)
+		return true
+	}
+	p.logger.DebugfOp(
+		op,
+		"'%s' is not viable as its status is not 'online'",
+		p.Fullname(),
+	)
+	return false
 }
 
 func (p unoconvProcess) Stop() error {

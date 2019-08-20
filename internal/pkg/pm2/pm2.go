@@ -1,7 +1,9 @@
 package pm2
 
 import (
+	"encoding/json"
 	"fmt"
+	"os/exec"
 
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xexec"
@@ -27,7 +29,67 @@ const (
 	restartCommand pm2Command = "restart"
 	stopCommand    pm2Command = "stop"
 	logsCommand    pm2Command = "logs"
+	jlistCommand   pm2Command = "jlist"
 )
+
+/*
+JListItem is a struct
+used for unmarshaling
+ONE item of the result
+of the command "pm2 jlist".
+*/
+type JListItem struct {
+	Name   string `json:"name"`
+	PM2Env struct {
+		Status string `json:"status"`
+	} `json:"pm2_env"`
+	Monit struct {
+		Memory int64   `json:"memory"`
+		CPU    float64 `json:"cpu"`
+	} `json:"monit"`
+}
+
+/*
+JList is a struct
+used for unmarshaling
+the result of the command
+"pm2 jlist".
+*/
+type JList []JListItem
+
+func (list JList) isOnline(p Process) bool {
+	const onlineStatus string = "online"
+	for _, item := range list {
+		if item.Name == p.binary() {
+			return item.PM2Env.Status == onlineStatus
+		}
+	}
+	return false
+}
+
+// List returns the
+// processes details.
+func List() (*JList, error) {
+	const op = "pm2.List"
+	resolver := func() (*JList, error) {
+		out, err := exec.
+			Command("pm2", string(jlistCommand)).
+			Output()
+		if err != nil {
+			return nil, err
+		}
+		data := &JList{}
+		if err := json.Unmarshal(out, data); err != nil {
+			return nil, err
+		}
+		return data, nil
+	}
+	list, err := resolver()
+	if err != nil {
+		return nil, xerror.New(op, err)
+	}
+	return list, nil
+}
 
 func start(logger xlog.Logger, process Process) error {
 	const (

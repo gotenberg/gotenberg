@@ -8,8 +8,10 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/thecodingmachine/gotenberg/internal/app/xhttp/pkg/context"
 	"github.com/thecodingmachine/gotenberg/internal/app/xhttp/pkg/resource"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/pm2"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/printer"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xrand"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xtime"
 )
@@ -28,11 +30,24 @@ const (
 func pingHandler(c echo.Context) error {
 	const op string = "xhttp.pingHandler"
 	ctx := context.MustCastFromEchoContext(c)
-	ctx.XLogger().DebugOp(op, "handling ping request...")
-	if err := ctx.ProcessesHealthcheck(); err != nil {
+	logger := ctx.XLogger()
+	logger.DebugOp(op, "handling ping request...")
+	resolver := func() error {
+		if err := ctx.ProcessesHealthcheck(); err != nil {
+			return err
+		}
+		if logger.Level() != xlog.DebugLevel {
+			return nil
+		}
+		list, err := pm2.List()
+		if err != nil {
+			return err
+		}
+		return ctx.JSON(http.StatusOK, list)
+	}
+	if err := resolver(); err != nil {
 		return xerror.New(op, err)
 	}
-	// TODO return processes info
 	return nil
 }
 
