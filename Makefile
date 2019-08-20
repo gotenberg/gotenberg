@@ -32,13 +32,13 @@ fmt:
 lint:
 	make workspace
 	docker build --build-arg GOLANGCI_LINT_VERSION=$(GOLANGCI_LINT_VERSION) -t $(DOCKER_REPOSITORY)/gotenberg:lint -f build/lint/Dockerfile .
-	docker run --rm -it $(DOCKER_REPOSITORY)/gotenberg:lint
+	docker run --rm $(DOCKER_REPOSITORY)/gotenberg:lint
 
 # run all tests.
 tests:
 	make workspace
 	docker build -t $(DOCKER_REPOSITORY)/gotenberg:tests -f build/tests/Dockerfile .
-	docker run --rm -it $(DOCKER_REPOSITORY)/gotenberg:tests
+	docker run --rm $(DOCKER_REPOSITORY)/gotenberg:tests
 
 # generate documentation.
 doc:
