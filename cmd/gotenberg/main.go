@@ -18,7 +18,7 @@ import (
 var version = "snapshot"
 
 func main() {
-	const op = "main"
+	const op string = "main"
 	config, err := conf.FromEnv()
 	systemLogger := xlog.New(config.LogLevel(), "system")
 	if err != nil {
