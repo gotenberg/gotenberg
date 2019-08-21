@@ -41,7 +41,8 @@ of the command "pm2 jlist".
 type JListItem struct {
 	Name   string `json:"name"`
 	PM2Env struct {
-		Status string `json:"status"`
+		Status      string `json:"status"`
+		RestartTime int64  `json:"restart_time"`
 	} `json:"pm2_env"`
 	Monit struct {
 		Memory int64   `json:"memory"`

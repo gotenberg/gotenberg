@@ -18,20 +18,22 @@ For instance:
     {
         "name": "google-chrome-stable",
         "pm2_env": {
-            "status": "online"
+            "status": "online",
+            "restart_time": 0
         },
         "monit": {
-            "memory": 73826304,
+            "memory": 72294400,
             "cpu": 0
         }
     },
     {
         "name": "unoconv",
         "pm2_env": {
-            "status": "online"
+            "status": "online",
+            "restart_time": 0
         },
         "monit": {
-            "memory": 70914048,
+            "memory": 71000064,
             "cpu": 0
         }
     }
