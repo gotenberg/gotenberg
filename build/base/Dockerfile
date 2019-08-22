@@ -1,4 +1,4 @@
-FROM debian:9-slim
+FROM debian:buster-slim
 
 # |--------------------------------------------------------------------------
 # | Common libraries
@@ -7,7 +7,7 @@ FROM debian:9-slim
 # | Libraries used in the build process of this image.
 # |
 
-RUN echo "deb http://httpredir.debian.org/debian/ stretch main contrib non-free" > /etc/apt/sources.list &&\
+RUN echo "deb http://httpredir.debian.org/debian/ buster main contrib non-free" > /etc/apt/sources.list &&\
     apt-get update &&\
     apt-get install -y curl wget python3-pip ttf-mscorefonts-installer
 
@@ -19,7 +19,7 @@ RUN echo "deb http://httpredir.debian.org/debian/ stretch main contrib non-free"
 # | recovering. In our case: Google Chrome (headless) and unoconv.
 # |
 
-RUN curl -sL https://deb.nodesource.com/setup_9.x | bash - &&\
+RUN curl -sL https://deb.nodesource.com/setup_12.x | bash - &&\
     apt-get install -y nodejs &&\
     npm install -g pm2
 
@@ -45,7 +45,9 @@ RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add
 RUN pip3 install unoconv &&\
     # https://github.com/nextcloud/docker/issues/380
     mkdir -p /usr/share/man/man1mkdir -p /usr/share/man/man1 &&\
-    apt-get -y install libreoffice
+    echo "deb http://httpredir.debian.org/debian/ buster-backports main contrib non-free" >> /etc/apt/sources.list &&\
+    apt-get update &&\
+    apt-get -t buster-backports -y install libreoffice
 
 # |--------------------------------------------------------------------------
 # | PDFtk
@@ -83,7 +85,7 @@ RUN apt-get install -y \
     fonts-sil-padauk \
     fonts-telu \
     fonts-thai-tlwg \
-    ttf-liberation \
+    fonts-liberation \
     ttf-wqy-zenhei \
     fonts-arphic-uming \
     fonts-ipafont-mincho \
