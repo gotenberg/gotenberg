@@ -83,6 +83,15 @@ func (p chromePrinter) Print(destination string) error {
 		if err != nil {
 			return err
 		}
+		/*
+			close the browser context when done.
+			we're not using the "default" context
+			as it may timeout before actually closing
+			the browser context.
+			see: https://github.com/mafredri/cdp/issues/101#issuecomment-524533670
+		*/
+		disposeBrowserContextArgs := target.NewDisposeBrowserContextArgs(newContextTarget.BrowserContextID)
+		defer devtClient.Target.DisposeBrowserContext(context.Background(), disposeBrowserContextArgs) // nolint: errcheck
 		// create a new blank target with the new browser context.
 		createTargetArgs := target.
 			NewCreateTargetArgs("about:blank").
@@ -101,8 +110,14 @@ func (p chromePrinter) Print(destination string) error {
 		// create a new CDP Client that uses newContextConn.
 		targetClient := cdp.NewClient(newContextConn)
 		closeTargetArgs := target.NewCloseTargetArgs(newTarget.TargetID)
-		// close the target when done.
-		defer targetClient.Target.CloseTarget(ctx, closeTargetArgs) // nolint: errcheck
+		/*
+			close the target when done.
+			we're not using the "default" context
+			as it may timeout before actually closing
+			the target.
+			see: https://github.com/mafredri/cdp/issues/101#issuecomment-524533670
+		*/
+		defer targetClient.Target.CloseTarget(context.Background(), closeTargetArgs) // nolint: errcheck
 		// enable all events.
 		if err := p.enableEvents(ctx, targetClient); err != nil {
 			return err
