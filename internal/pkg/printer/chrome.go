@@ -109,7 +109,6 @@ func (p chromePrinter) Print(destination string) error {
 		defer newContextConn.Close() // nolint: errcheck
 		// create a new CDP Client that uses newContextConn.
 		targetClient := cdp.NewClient(newContextConn)
-		closeTargetArgs := target.NewCloseTargetArgs(newTarget.TargetID)
 		/*
 			close the target when done.
 			we're not using the "default" context
@@ -117,6 +116,7 @@ func (p chromePrinter) Print(destination string) error {
 			the target.
 			see: https://github.com/mafredri/cdp/issues/101#issuecomment-524533670
 		*/
+		closeTargetArgs := target.NewCloseTargetArgs(newTarget.TargetID)
 		defer targetClient.Target.CloseTarget(context.Background(), closeTargetArgs) // nolint: errcheck
 		// enable all events.
 		if err := p.enableEvents(ctx, targetClient); err != nil {
