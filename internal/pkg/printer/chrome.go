@@ -61,6 +61,14 @@ func DefaultChromePrinterOptions(config conf.Config) ChromePrinterOptions {
 	}
 }
 
+// nolint: gochecknoglobals
+var lockChrome = make(chan struct{}, 1)
+
+const maxDevtConnections int = 5
+
+// nolint: gochecknoglobals
+var devtConnections int
+
 func (p chromePrinter) Print(destination string) error {
 	const op string = "printer.chromePrinter.Print"
 	logOptions(p.logger, p.opts)
@@ -158,13 +166,44 @@ func (p chromePrinter) Print(destination string) error {
 		}
 		return nil
 	}
-	if err := resolver(); err != nil {
+	if devtConnections < maxDevtConnections {
+		p.logger.DebugOp(op, "skipping lock acquisition...")
+		devtConnections++
+		err := resolver()
+		devtConnections--
+		if err != nil {
+			return xcontext.MustHandleError(
+				ctx,
+				xerror.New(op, err),
+			)
+		}
+		return nil
+	}
+	p.logger.DebugOp(op, "waiting lock to be acquired...")
+	select {
+	case lockChrome <- struct{}{}:
+		// lock acquired.
+		p.logger.DebugOp(op, "lock acquired")
+		devtConnections++
+		err := resolver()
+		devtConnections--
+		<-lockChrome // we release the lock.
+		if err != nil {
+			return xcontext.MustHandleError(
+				ctx,
+				xerror.New(op, err),
+			)
+		}
+		return nil
+	case <-ctx.Done():
+		// failed to acquire lock before
+		// deadline.
+		p.logger.DebugOp(op, "failed to acquire lock before context.Context deadline")
 		return xcontext.MustHandleError(
 			ctx,
-			xerror.New(op, err),
+			ctx.Err(),
 		)
 	}
-	return nil
 }
 
 func (p chromePrinter) enableEvents(ctx context.Context, client *cdp.Client) error {

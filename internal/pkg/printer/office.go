@@ -88,7 +88,7 @@ func (p officePrinter) Print(destination string) error {
 }
 
 // nolint: gochecknoglobals
-var lock = make(chan struct{}, 1)
+var lockUnoconv = make(chan struct{}, 1)
 
 func unoconv(ctx context.Context, logger xlog.Logger, fpath, destination string, opts OfficePrinterOptions) error {
 	const op string = "printer.unoconv"
@@ -115,14 +115,14 @@ func unoconv(ctx context.Context, logger xlog.Logger, fpath, destination string,
 	}
 	logger.DebugOp(op, "waiting lock to be acquired...")
 	select {
-	case lock <- struct{}{}:
+	case lockUnoconv <- struct{}{}:
 		// lock acquired.
 		logger.DebugOp(op, "lock acquired")
 		if err := resolver(); err != nil {
-			<-lock // we release the lock.
+			<-lockUnoconv // we release the lock.
 			return xerror.New(op, err)
 		}
-		<-lock // we release the lock.
+		<-lockUnoconv // we release the lock.
 		return nil
 	case <-ctx.Done():
 		// failed to acquire lock before
