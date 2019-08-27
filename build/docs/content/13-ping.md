@@ -35,4 +35,4 @@ For instance:
 ]
 ```
 
-> if `LOG_LEVEL` is NOT `"DEBUG"`, no log entries are written.
+> if `LOG_LEVEL` is **not** `"DEBUG"`, no log entries are written.

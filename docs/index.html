@@ -256,7 +256,8 @@ about what’s going on.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Disable Google Chrome</h2>
 
-<p>In order to save some resources, the Gotenberg image accepts the environment variable <code>DISABLE_GOOGLE_CHROME</code>.</p>
+<p>In order to save some resources, the Gotenberg image accepts the environment variable <code>DISABLE_GOOGLE_CHROME</code>
+for disabling Google Chrome.</p>
 
 <p>It takes the strings <code>&#34;0&#34;</code> or <code>&#34;1&#34;</code> as value where <code>1</code> means <code>true</code></p>
 
@@ -356,7 +357,7 @@ See the <a href="#webhook.timeout">webhook timeout section</a>.</p>
 <p>It accepts <code>POST</code> requests with a <code>multipart/form-data</code> Content-Type.</p>
 
 <blockquote>
-<p><strong>Attention:</strong> currently, Google Chrome headless misbehaves if there are too many concurrent conversions.
+<p><strong>Attention:</strong> currently, Google Chrome misbehaves if there are too many concurrent conversions.
 That’s why for HTML, <a href="#url">URL</a> and <a href="#markdown">Markdown</a> conversions, the API does only 6 conversions at a time.
 The more concurrent requests, the more <code>504</code> HTTP codes the API will return.</p>
 
@@ -1390,7 +1391,7 @@ For instance:</p>
 </pre>
 
 <blockquote>
-<p>if <code>LOG_LEVEL</code> is NOT <code>&#34;DEBUG&#34;</code>, no log entries are written.</p>
+<p>if <code>LOG_LEVEL</code> is <strong>not</strong> <code>&#34;DEBUG&#34;</code>, no log entries are written.</p>
 </blockquote>
 
               </div>

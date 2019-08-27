@@ -25,7 +25,8 @@ This environment variable accepts any string that can be turned into a port numb
 
 ## Disable Google Chrome
 
-In order to save some resources, the Gotenberg image accepts the environment variable `DISABLE_GOOGLE_CHROME`.
+In order to save some resources, the Gotenberg image accepts the environment variable `DISABLE_GOOGLE_CHROME`
+for disabling Google Chrome.
 
 It takes the strings `"0"` or `"1"` as value where `1` means `true`
 
