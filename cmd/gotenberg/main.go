@@ -31,9 +31,9 @@ func main() {
 	if !config.DisableGoogleChrome() {
 		processes = append(processes, pm2.NewChromeProcess(systemLogger))
 	}
-	if !config.DisableUnoconv() {
+	/*if !config.DisableUnoconv() {
 		processes = append(processes, pm2.NewUnoconvProcess(systemLogger))
-	}
+	}*/
 	for _, p := range processes {
 		systemLogger.InfofOp(op, "starting '%s' with PM2...", p.Fullname())
 		if err := p.Start(); err != nil {
