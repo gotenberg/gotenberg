@@ -111,6 +111,8 @@ func doErr(ctx context.Context, err error) error {
 	// if it's an error from echo
 	// like 404 not found and so on.
 	if echoHTTPErr, ok := err.(*echo.HTTPError); ok {
+		// required to have a correct status code.
+		ctx.Error(echoHTTPErr)
 		return echoHTTPErr
 	}
 	// we log the initial error before returning
