@@ -34,7 +34,7 @@ to learn how to interact with it!
 ## Badges
 
 [![Docker image layers](https://images.microbadger.com/badges/image/thecodingmachine/gotenberg:6.svg)](https://microbadger.com/images/thecodingmachine/gotenberg:6)
-[![Actions Status](https://github.com/thecodingmachine/gotenberg/workflows/Push/badge.svg)](https://github.com/thecodingmachine/gotenberg/actions)
+[![Travis CI](https://travis-ci.org/thecodingmachine/gotenberg.svg?branch=master)](https://travis-ci.org/thecodingmachine/gotenberg)
 [![GoDoc](https://godoc.org/github.com/thecodingmachine/gotenberg?status.svg)](https://godoc.org/github.com/thecodingmachine/gotenberg)
 [![Codecov](https://codecov.io/gh/thecodingmachine/gotenberg/branch/master/graph/badge.svg)](https://codecov.io/gh/thecodingmachine/gotenberg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thecodingmachine/gotenberg)](https://goreportcard.com/report/thecodingmachine/gotenberg)
