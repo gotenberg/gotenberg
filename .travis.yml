@@ -17,7 +17,10 @@ stages:
 jobs:
   include:
     - stage: tests
-      script: make lint tests
+      script: 
+        - make lint
+        - make tests CODE_COVERAGE=1
+        - bash <(curl -s https://codecov.io/bash)
     - stage: publish
       if: tag IS present
       script: make publish VERSION=$TRAVIS_TAG DOCKER_USER=$DOCKER_USER DOCKER_PASSWORD=$DOCKER_PASS

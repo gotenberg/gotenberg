@@ -7,6 +7,6 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v1
-      - run: make lint
-      - run: make tests CODE_COVERAGE=1
-      - run: bash <(curl -s https://codecov.io/bash) -t ${{ secrets.CODECOV_TOKEN }}
+      #- run: make lint
+      #- run: make tests CODE_COVERAGE=1
+      #- run: bash <(curl -s https://codecov.io/bash) -t ${{ secrets.CODECOV_TOKEN }}
