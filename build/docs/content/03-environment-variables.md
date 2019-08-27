@@ -42,6 +42,7 @@ You may also disable LibreOffice (unoconv) with `DISABLE_UNOCONV`.
 ## Default wait timeout
 
 By default, the API will wait 10 seconds before it considers the conversion to be unsuccessful.
+If unsucessful, it returns a `504` HTTP code.
 
 You may customize this timeout thanks to the environment variable `DEFAULT_WAIT_TIMEOUT`.
 

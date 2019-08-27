@@ -6,6 +6,13 @@ Gotenberg provides the endpoint `/convert/office` for Office document conversion
 
 It accepts `POST` requests with a `multipart/form-data` Content-Type.
 
+> **Attention:** currently, `unoconv` cannot perform concurrent conversions.
+> That's why for Office conversions, the API does only one conversion at a time.
+> The more concurrent requests, the more `504` HTTP codes the API will return.
+>
+> See the [scalability section](#scalability) to find how to mitigate this issue.
+> You may also take a look at the [timeout section](#timeout).
+
 ## Basic
 
 You may send one or more Office documents. Following file extensions are accepted:
@@ -25,9 +32,7 @@ You may send one or more Office documents. Following file extensions are accepte
 
 All files will be merged into a single resulting PDF.
 
-> **Attention:** currently, `unoconv` cannot perform concurrent conversions.
-> That's why for Office conversions, the API does only one conversion at a time.
-> See the [scalability section](#scalability) to find how to mitigate this issue.
+> **Attention:** Gotenberg merges the PDF files alphabetically.
 
 ### cURL
 

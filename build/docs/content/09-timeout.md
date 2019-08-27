@@ -5,6 +5,7 @@ title: Timeout
 All endpoints accept a form field named `waitTimeout`.
 
 The API will wait the given **seconds** before it considers the conversion to be unsucessful.
+If unsucessful, it returns a `504` HTTP code.
 
 It takes a float as value (e.g `2.5` for 2.5 seconds).
 

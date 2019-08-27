@@ -6,6 +6,13 @@ Gotenberg provides the endpoint `/convert/html` for HTML conversions.
 
 It accepts `POST` requests with a `multipart/form-data` Content-Type.
 
+> **Attention:** currently, Google Chrome headless misbehaves if there are too many concurrent conversions.
+> That's why for HTML, [URL](#url) and [Markdown](#markdown) conversions, the API does only 6 conversions at a time.
+> The more concurrent requests, the more `504` HTTP codes the API will return.
+>
+> See the [scalability section](#scalability) to find how to mitigate this issue.
+> You may also take a look at the [timeout section](#timeout).
+
 ## Basic
 
 The only requirement is to send a file named `index.html`: it is the file

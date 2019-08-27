@@ -280,7 +280,8 @@ about what’s going on.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Default wait timeout</h2>
 
-<p>By default, the API will wait 10 seconds before it considers the conversion to be unsuccessful.</p>
+<p>By default, the API will wait 10 seconds before it considers the conversion to be unsuccessful.
+If unsucessful, it returns a <code>504</code> HTTP code.</p>
 
 <p>You may customize this timeout thanks to the environment variable <code>DEFAULT_WAIT_TIMEOUT</code>.</p>
 
@@ -353,6 +354,15 @@ See the <a href="#webhook.timeout">webhook timeout section</a>.</p>
                 <p>Gotenberg provides the endpoint <code>/convert/html</code> for HTML conversions.</p>
 
 <p>It accepts <code>POST</code> requests with a <code>multipart/form-data</code> Content-Type.</p>
+
+<blockquote>
+<p><strong>Attention:</strong> currently, Google Chrome headless misbehaves if there are too many concurrent conversions.
+That’s why for HTML, <a href="#url">URL</a> and <a href="#markdown">Markdown</a> conversions, the API does only 6 conversions at a time.
+The more concurrent requests, the more <code>504</code> HTTP codes the API will return.</p>
+
+<p>See the <a href="#scalability">scalability section</a> to find how to mitigate this issue.
+You may also take a look at the <a href="#timeout">timeout section</a>.</p>
+</blockquote>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.basic" href="#html.basic">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
@@ -874,6 +884,15 @@ $client-&gt;store($request, $dest);
 
 <p>It accepts <code>POST</code> requests with a <code>multipart/form-data</code> Content-Type.</p>
 
+<blockquote>
+<p><strong>Attention:</strong> currently, <code>unoconv</code> cannot perform concurrent conversions.
+That’s why for Office conversions, the API does only one conversion at a time.
+The more concurrent requests, the more <code>504</code> HTTP codes the API will return.</p>
+
+<p>See the <a href="#scalability">scalability section</a> to find how to mitigate this issue.
+You may also take a look at the <a href="#timeout">timeout section</a>.</p>
+</blockquote>
+
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="office.basic" href="#office.basic">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Basic</h2>
@@ -898,9 +917,7 @@ $client-&gt;store($request, $dest);
 <p>All files will be merged into a single resulting PDF.</p>
 
 <blockquote>
-<p><strong>Attention:</strong> currently, <code>unoconv</code> cannot perform concurrent conversions.
-That’s why for Office conversions, the API does only one conversion at a time.
-See the <a href="#scalability">scalability section</a> to find how to mitigate this issue.</p>
+<p><strong>Attention:</strong> Gotenberg merges the PDF files alphabetically.</p>
 </blockquote>
 
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="office.basic.c_url" href="#office.basic.c_url">
@@ -1073,7 +1090,8 @@ $client-&gt;store($request, $dest);
 </a>Timeout</h1>
                 <p>All endpoints accept a form field named <code>waitTimeout</code>.</p>
 
-<p>The API will wait the given <strong>seconds</strong> before it considers the conversion to be unsucessful.</p>
+<p>The API will wait the given <strong>seconds</strong> before it considers the conversion to be unsucessful.
+If unsucessful, it returns a <code>504</code> HTTP code.</p>
 
 <p>It takes a float as value (e.g <code>2.5</code> for 2.5 seconds).</p>
 
@@ -1342,13 +1360,6 @@ redirect a request to a Gotenberg container according to the round-robin strateg
                 <p>Gotenberg provides the endpoint <code>/ping</code> for checking the API availability with
 a simple <code>GET</code> request.</p>
 
-<p>This feature is especially useful for liveness/readiness probes in Kubernetes:</p>
-
-<ul>
-<li><a href="https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes">Pod lifecycle</a></li>
-<li><a href="https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/">Configure Liveness and Readiness Probes</a></li>
-</ul>
-
 <p>If <code>LOG_LEVEL</code> is <code>&#34;DEBUG&#34;</code>, it also returns details about the PM2 processes in JSON format.
 For instance:</p>
 
@@ -1378,6 +1389,10 @@ For instance:</p>
 <span class="p">]</span>
 </pre>
 
+<blockquote>
+<p>if <code>LOG_LEVEL</code> is NOT <code>&#34;DEBUG&#34;</code>, no log entries are written.</p>
+</blockquote>
+
               </div>
             
               <div class="Page" id="fonts">
@@ -1388,7 +1403,7 @@ For instance:</p>
 
 <p>If you wish to use more fonts, you will have to create your own image:</p>
 
-<pre class="chroma"><span class="k">FROM</span><span class="s"> thecodingmachine/gotenberg:5</span><span class="err">
+<pre class="chroma"><span class="k">FROM</span><span class="s"> thecodingmachine/gotenberg:6</span><span class="err">
 </span><span class="err">
 </span><span class="err"></span><span class="k">RUN</span> apt-get -y install yourfonts<span class="err">
 </span></pre>

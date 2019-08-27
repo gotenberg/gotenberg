@@ -7,7 +7,7 @@ By default, a handful of fonts are installed. Asian characters are also supporte
 If you wish to use more fonts, you will have to create your own image:
 
 ```Dockerfile
-FROM thecodingmachine/gotenberg:5
+FROM thecodingmachine/gotenberg:6
 
 RUN apt-get -y install yourfonts
 ```
