@@ -12,6 +12,7 @@ You may send one or more Office documents. Following file extensions are accepte
 
 * `.txt`
 * `.rtf`
+* `.fodt`
 * `.doc`
 * `.docx`
 * `.odt`
@@ -42,11 +43,11 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg/pkg"
+import "github.com/thecodingmachine/gotenberg-go-client/v5"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req, _ := gotenberg.NewOfficeRequest([]string{"document.docx", "document2.docx"})
+    req, _ := gotenberg.NewOfficeRequest("document.docx", "document2.docx")
     dest := "result.pdf"
     c.Store(req, dest)
 }
@@ -65,18 +66,15 @@ $files = [
     DocumentFactory::makeFromPath('document2.docx', 'document2.docx'),
 ];
 $request = new OfficeRequest($files);
-$dirPath = "/foo";
-$filename = $client->store($request, $dirPath);
+$dest = "result.pdf";
+$client->store($request, $dest);
 ```
 
-## Paper size and orientation
+## Orientation
 
 You may also customize the resulting PDF format.
 
-By default, it will be rendered with `A4` size and `portrait` orientation.
-
-> Paper size has to be provided in `inches`.
-> Also, you have to set both `paperWidth` and `paperHeight`.
+By default, it will be rendered with `portrait` orientation.
 
 ### cURL
 
@@ -85,8 +83,6 @@ $ curl --request POST \
     --url http://localhost:3000/convert/office \
     --header 'Content-Type: multipart/form-data' \
     --form files=@document.docx \
-    --form paperWidth=8.27 \
-    --form paperHeight=11.27 \
     --form landscape=true \
     -o result.pdf
 ```
@@ -94,13 +90,12 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg/pkg"
+import "github.com/thecodingmachine/gotenberg-go-client/v5"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req, _ := gotenberg.NewOfficeRequest([]string{"document.docx"})
-    req.SetPaperSize(gotenberg.A4)
-    req.SetLandscape(true)
+    req, _ := gotenberg.NewOfficeRequest("document.docx")
+    req.Landscape(true)
     dest := "result.pdf"
     c.Store(req, dest)
 }
@@ -118,20 +113,7 @@ $files = [
     DocumentFactory::makeFromPath('document.docx', 'document.docx'),
 ];
 $request = new OfficeRequest($files);
-$request->setPaperSize(Request::A4);
 $request->setLandscape(true);
-$dirPath = "/foo";
-$filename = $client->store($request, $dirPath);
-```
-
-## Fonts
-
-By default, only `ttf-mscorefonts` fonts are installed.
-
-If you wish to use more fonts, you will have to create your own image:
-
-```Dockerfile
-FROM thecodingmachine/gotenberg:3
-
-RUN apt-get -y install yourfonts
+$dest = "result.pdf";
+$client->store($request, $dest);
 ```

@@ -1,47 +1,52 @@
 package pm2
 
-// Unoconv facilitates starting or shutting down
-// unoconv listener with PM2.
-type Unoconv struct{}
-
-// Launch starts unoconv listener with PM2.
-func (u *Unoconv) Launch() error {
-	return launch(u)
+type unoconv struct {
+	manager *processManager
 }
 
-// Shutdown stops unoconv listener and
-// removes it from the list of PM2
-// processes.
-func (u *Unoconv) Shutdown() error {
-	return shutdown(u)
+// NewUnoconv retruns a unoconv listener
+// process.
+func NewUnoconv() Process {
+	return &unoconv{
+		manager: &processManager{},
+	}
 }
 
-func (u *Unoconv) getArgs() []string {
+func (p *unoconv) Fullname() string {
+	return "unoconv listener"
+}
+
+func (p *unoconv) Start() error {
+	return p.manager.start(p)
+}
+
+func (p *unoconv) Shutdown() error {
+	return p.manager.shutdown(p)
+}
+
+func (p *unoconv) args() []string {
 	return []string{
 		"--listener",
 		"--verbose",
 	}
 }
 
-func (u *Unoconv) getName() string {
+func (p *unoconv) name() string {
 	return "unoconv"
 }
 
-func (u *Unoconv) getFullname() string {
-	return "unoconv listener"
-}
-
-func (u *Unoconv) isViable() bool {
+func (p *unoconv) viable() bool {
 	// TODO find a way to check if
-	// unoconv is correctly started?
+	// the unoconv listener
+	// is correctly started?
 	return true
 }
 
-func (u *Unoconv) warmup() {
+func (p *unoconv) warmup() {
 	// let's do nothing.
 }
 
 // Compile-time checks to ensure type implements desired interfaces.
 var (
-	_ = Process(new(Unoconv))
+	_ = Process(new(unoconv))
 )

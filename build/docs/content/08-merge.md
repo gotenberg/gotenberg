@@ -2,20 +2,22 @@
 title: Merge
 ---
 
-Gotenberg provides the endpoint `/merge` for merging PDFs.
+Gotenberg provides the endpoint `/convert/merge` for merging PDFs.
 
 It accepts `POST` requests with a `multipart/form-data` Content-Type.
 
 ## Basic
 
-Nothing special here: you may send one or more PDF files and the API
+Nothing fancy here: you may send one or more PDF files and the API
 will merge them and return the resulting PDF file.
+
+> **Attention:** Gotenberg merges the PDF files alphabetically.
 
 ### cURL
 
 ```bash
 $ curl --request POST \
-    --url http://localhost:3000/merge \
+    --url http://localhost:3000/convert/merge \
     --header 'Content-Type: multipart/form-data' \
     --form files=@file.pdf \
     --form files=@file2.pdf \
@@ -25,11 +27,11 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg/pkg"
+import "github.com/thecodingmachine/gotenberg-go-client/v5"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req, _ := gotenberg.NewMergeRequest([]string{"file.pdf", "file2.pdf"})
+    req, _ := gotenberg.NewMergeRequest("file.pdf", "file2.pdf")
     dest := "result.pdf"
     c.Store(req, dest)
 }
@@ -48,6 +50,6 @@ $files = [
     DocumentFactory::makeFromPath('file2.pdf', 'file2.pdf'),
 ];
 $request = new MergeRequest($files);
-$dirPath = "/foo";
-$filename = $client->store($request, $dirPath);
+$dest = "result.pdf";
+$client->store($request, $dest);
 ```

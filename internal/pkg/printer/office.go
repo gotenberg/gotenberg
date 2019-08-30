@@ -2,87 +2,89 @@ package printer
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"sync"
+	"time"
 
 	"github.com/thecodingmachine/gotenberg/internal/pkg/rand"
 )
 
-var mu sync.Mutex
+type office struct {
+	fpaths []string
+	opts   *OfficeOptions
+}
 
-// Office facilitates Office documents to PDF conversion.
-type Office struct {
-	Context     context.Context
-	FilePaths   []string
-	PaperWidth  float64
-	PaperHeight float64
+// OfficeOptions helps customizing the
+// Office printer behaviour.
+type OfficeOptions struct {
+	WaitTimeout float64
 	Landscape   bool
 }
 
-// Print converts Office documents to PDF.
-func (o *Office) Print(destination string) error {
-	mu.Lock()
-	defer mu.Unlock()
-	fpaths := make([]string, len(o.FilePaths))
+// NewOffice returns an Office printer.
+func NewOffice(fpaths []string, opts *OfficeOptions) Printer {
+	return &office{
+		fpaths: fpaths,
+		opts:   opts,
+	}
+}
+
+func (p *office) Print(destination string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(p.opts.WaitTimeout)*time.Second)
+	defer cancel()
+	fpaths := make([]string, len(p.fpaths))
 	dirPath := filepath.Dir(destination)
-	for i, fpath := range o.FilePaths {
+	for i, fpath := range p.fpaths {
 		baseFilename, err := rand.Get()
 		if err != nil {
 			return err
 		}
-		tmpDest := fmt.Sprintf("%s/%s.pdf", dirPath, baseFilename)
-		paperSize, err := unoconvPaperSize(o.PaperWidth, o.PaperHeight)
-		if err != nil {
+		tmpDest := fmt.Sprintf("%s/%d%s.pdf", dirPath, i, baseFilename)
+		if err := unoconv(ctx, fpath, tmpDest, p.opts); err != nil {
 			return err
-		}
-		cmdArgs := []string{
-			"--format",
-			"pdf",
-			"--printer",
-			paperSize,
-		}
-		if o.Landscape {
-			cmdArgs = append(cmdArgs, "--printer", "PaperOrientation=landscape")
-		}
-		cmdArgs = append(cmdArgs, "--output", tmpDest, fpath)
-		cmd := exec.CommandContext(
-			o.Context,
-			"unoconv",
-			cmdArgs...,
-		)
-		_, err = cmd.Output()
-		if o.Context.Err() == context.DeadlineExceeded {
-			return errors.New("unoconv: command timed out")
-		}
-		if err != nil {
-			return fmt.Errorf("unoconv: non-zero exit code: %v", err)
 		}
 		fpaths[i] = tmpDest
 	}
 	if len(fpaths) == 1 {
 		return os.Rename(fpaths[0], destination)
 	}
-	return Merge(fpaths, destination)
+	m := &merge{
+		ctx:    ctx,
+		fpaths: fpaths,
+	}
+	return m.Print(destination)
 }
 
-func unoconvPaperSize(paperWidth, paperHeight float64) (string, error) {
-	width, err := strconv.Atoi(fmt.Sprintf("%.0f", paperWidth*25.4))
-	if err != nil {
-		return "", fmt.Errorf("%0.f: converting width to millimiter: %v", paperWidth, err)
+// nolint: gochecknoglobals
+var mu sync.Mutex
+
+func unoconv(ctx context.Context, fpath, destination string, opts *OfficeOptions) error {
+	mu.Lock()
+	defer mu.Unlock()
+	cmdArgs := []string{
+		"--format",
+		"pdf",
 	}
-	height, err := strconv.Atoi(fmt.Sprintf("%.0f", paperHeight*25.4))
-	if err != nil {
-		return "", fmt.Errorf("%0.f: converting height to millimiter: %v", paperHeight, err)
+	if opts.Landscape {
+		cmdArgs = append(cmdArgs, "--printer", "PaperOrientation=landscape")
 	}
-	return fmt.Sprintf("PaperSize=%dx%d", width, height), nil
+	cmdArgs = append(cmdArgs, "--output", destination, fpath)
+	cmd := exec.CommandContext(
+		ctx,
+		"unoconv",
+		cmdArgs...,
+	)
+	_, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("unoconv: %v", err)
+	}
+	return nil
 }
 
 // Compile-time checks to ensure type implements desired interfaces.
 var (
-	_ = Printer(new(Office))
+	_ = Printer(new(office))
 )
