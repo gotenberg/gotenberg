@@ -733,7 +733,7 @@ $client-&gt;store($request, $dest);
 
 <p>Markdown conversions work the same as HTML conversions.</p>
 
-<p>Only difference is that you have access to the Go template function <code>toHTML</code>
+<p>Only difference is that you have access to the Go template function <code>toHTML</code>
 in the file <code>index.html</code>. This function will convert a given markdown file to HTML.</p>
 
 <p>For instance:</p>
@@ -1063,9 +1063,9 @@ $client-&gt;store($request, $dest);
                 <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook" href="#webhook">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Webhook</h1>
-                <p>All endpoints accept a form field named <code>webhookURL</code>.</p>
+                <p>All endpoints accept a form field named <code>webhookURL</code>.</p>
 
-<p>If provided, the API will send the resulting PDF file in a <code>POST</code> request with the <code>application/pdf</code> Content-Type
+<p>If provided, the API will send the resulting PDF file in a <code>POST</code> request with the <code>application/pdf</code> Content-Type
 to given URL.</p>
 
 <p>By doing so, your requests to the API will be over before the conversions are actually done!</p>
