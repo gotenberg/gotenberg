@@ -3,15 +3,21 @@ package xhttp
 import (
 	"github.com/labstack/echo/v4"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/pm2"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/prinery"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/process"
 )
 
 // New returns a custom echo.Echo.
-func New(config conf.Config, processes ...pm2.Process) *echo.Echo {
+func New(
+	config conf.Config,
+	manager process.Manager,
+	chromePrinery *prinery.Prinery,
+	sofficePrinery *prinery.Prinery,
+) *echo.Echo {
 	srv := echo.New()
 	srv.HideBanner = true
 	srv.HidePort = true
-	srv.Use(contextMiddleware(config, processes...))
+	srv.Use(contextMiddleware(config, manager, chromePrinery, sofficePrinery))
 	srv.Use(loggerMiddleware())
 	srv.Use(cleanupMiddleware())
 	srv.Use(errorMiddleware())

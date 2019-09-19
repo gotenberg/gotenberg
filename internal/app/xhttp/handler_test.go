@@ -19,8 +19,8 @@ import (
 func TestPingHandler(t *testing.T) {
 	// should return 200.
 	config := conf.DefaultConfig()
-	srv := New(config)
-	srv = New(config)
+	// TODO
+	srv := New(config, nil, nil)
 	req := httptest.NewRequest(http.MethodGet, pingEndpoint, nil)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)
 	// should returns a JSON as
@@ -28,7 +28,8 @@ func TestPingHandler(t *testing.T) {
 	os.Setenv(conf.LogLevelEnvVar, "DEBUG")
 	config, err := conf.FromEnv()
 	assert.Nil(t, err)
-	srv = New(config)
+	// TODO
+	srv = New(config, nil, nil)
 	req = httptest.NewRequest(http.MethodGet, pingEndpoint, nil)
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
@@ -39,7 +40,8 @@ func TestPingHandler(t *testing.T) {
 
 func TestMergeHandler(t *testing.T) {
 	config := conf.DefaultConfig()
-	srv := New(config)
+	// TODO
+	srv := New(config, nil, nil)
 	// should return 200.
 	body, contentType := test.MergeMultipartForm(t, nil)
 	req := httptest.NewRequest(http.MethodPost, mergeEndpoint, body)
@@ -72,7 +74,8 @@ func TestMergeHandler(t *testing.T) {
 
 func TestHTMLHandler(t *testing.T) {
 	config := conf.DefaultConfig()
-	srv := New(config)
+	// TODO
+	srv := New(config, nil, nil)
 	endpoint := fmt.Sprintf("%s%s", convertGroupEndpoint, htmlEndpoint)
 	// should return 200.
 	body, contentType := test.HTMLMultipartForm(t, nil)
@@ -202,7 +205,8 @@ func TestHTMLHandler(t *testing.T) {
 
 func TestURLHandler(t *testing.T) {
 	config := conf.DefaultConfig()
-	srv := New(config)
+	// TODO
+	srv := New(config, nil, nil)
 	endpoint := fmt.Sprintf("%s%s", convertGroupEndpoint, urlEndpoint)
 	// should return 200.
 	body, contentType := test.URLMultipartForm(t, nil)
@@ -332,7 +336,8 @@ func TestURLHandler(t *testing.T) {
 
 func TestMarkdownHandler(t *testing.T) {
 	config := conf.DefaultConfig()
-	srv := New(config)
+	// TODO
+	srv := New(config, nil, nil)
 	endpoint := fmt.Sprintf("%s%s", convertGroupEndpoint, markdownEndpoint)
 	// should return 200.
 	body, contentType := test.MarkdownMultipartForm(t, nil)
@@ -462,7 +467,8 @@ func TestMarkdownHandler(t *testing.T) {
 
 func TestOfficeHandler(t *testing.T) {
 	config := conf.DefaultConfig()
-	srv := New(config)
+	// TODO
+	srv := New(config, nil, nil)
 	endpoint := fmt.Sprintf("%s%s", convertGroupEndpoint, officeEndpoint)
 	// should return 200.
 	body, contentType := test.OfficeMultipartForm(t, nil)
@@ -524,7 +530,8 @@ func TestWebhook(t *testing.T) {
 		rcv.Start(":3001")
 	}()
 	config := conf.DefaultConfig()
-	srv := New(config)
+	// TODO
+	srv := New(config, nil, nil)
 	// our custom server should receive the PDF.
 	body, contentType := test.MergeMultipartForm(t, map[string]string{string(resource.WebhookURLArgKey): "http://localhost:3001/foo"})
 	req := httptest.NewRequest(http.MethodPost, mergeEndpoint, body)
@@ -536,7 +543,8 @@ func TestWebhook(t *testing.T) {
 
 func TestResultFilename(t *testing.T) {
 	config := conf.DefaultConfig()
-	srv := New(config)
+	// TODO
+	srv := New(config, nil, nil)
 	body, contentType := test.MergeMultipartForm(t, map[string]string{string(resource.ResultFilenameArgKey): "foo.pdf"})
 	req := httptest.NewRequest(http.MethodPost, mergeEndpoint, body)
 	req.Header.Set(echo.HeaderContentType, contentType)

@@ -8,7 +8,8 @@ import (
 
 	"github.com/thecodingmachine/gotenberg/internal/app/xhttp"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/pm2"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/prinery"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/process"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xcontext"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
 )
@@ -26,22 +27,30 @@ func main() {
 	}
 	systemLogger.InfofOp(op, "Gotenberg %s", version)
 	systemLogger.DebugfOp(op, "configuration: %+v", config)
-	// start PM2 processes.
-	var processes []pm2.Process
-	if !config.DisableGoogleChrome() {
-		processes = append(processes, pm2.NewChromeProcess(systemLogger))
+	// create PM2 manager and start processes.
+	manager := process.NewPM2Manager(systemLogger, config)
+	if err := manager.Start(); err != nil {
+		systemLogger.FatalOp(op, err)
 	}
-	/*if !config.DisableUnoconv() {
-		processes = append(processes, pm2.NewUnoconvProcess(systemLogger))
-	}*/
-	for _, p := range processes {
-		systemLogger.InfofOp(op, "starting '%s' with PM2...", p.Fullname())
-		if err := p.Start(); err != nil {
+	// create prineries.
+	var chromePrinery *prinery.Prinery
+	if !config.DisableGoogleChrome() {
+		chromePrinery, err = prinery.New(systemLogger, manager, process.ChromeKey)
+		if err != nil {
 			systemLogger.FatalOp(op, err)
 		}
+		go chromePrinery.Start()
+	}
+	var sofficePrinery *prinery.Prinery
+	if !config.DisableUnoconv() {
+		sofficePrinery, err = prinery.New(systemLogger, manager, process.SofficeKey)
+		if err != nil {
+			systemLogger.FatalOp(op, err)
+		}
+		go sofficePrinery.Start()
 	}
 	// create our API.
-	srv := xhttp.New(config, processes...)
+	srv := xhttp.New(config, manager, chromePrinery, sofficePrinery)
 	// run our API in a goroutine so that it doesn't block.
 	go func() {
 		systemLogger.InfofOp(op, "http server started on port '%d'", config.DefaultListenPort())
@@ -65,13 +74,6 @@ func main() {
 	systemLogger.InfoOp(op, "shutting down http server...")
 	if err := srv.Shutdown(ctx); err != nil {
 		systemLogger.FatalOp(op, err)
-	}
-	// shutdown PM2 processes.
-	for _, p := range processes {
-		systemLogger.InfofOp(op, "shutting down '%s' with PM2...", p.Fullname())
-		if err := p.Stop(); err != nil {
-			systemLogger.FatalOp(op, err)
-		}
 	}
 	systemLogger.InfoOp(op, "bye!")
 	os.Exit(0)
