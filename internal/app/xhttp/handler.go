@@ -1,6 +1,7 @@
 package xhttp
 
 import (
+	timeoutContext "context"
 	"fmt"
 	"net/http"
 	"os"
@@ -9,8 +10,6 @@ import (
 	"github.com/thecodingmachine/gotenberg/internal/app/xhttp/pkg/context"
 	"github.com/thecodingmachine/gotenberg/internal/app/xhttp/pkg/resource"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/pm2"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/prinery"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/print"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xcontext"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
@@ -72,8 +71,11 @@ func mergeHandler(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		p := print.NewMergePrint(logger, fpaths)
-		return convert(ctx, nil, p, timeout)
+		prinry := ctx.Prinery()
+		printFunc := func(ctx timeoutContext.Context, logger xlog.Logger, dest string) error {
+			return prinry.Merge(ctx, logger, dest, fpaths)
+		}
+		return convert(ctx, timeout, printFunc)
 	}
 	if err := resolver(); err != nil {
 		return xerror.New(op, err)
@@ -87,7 +89,6 @@ func htmlHandler(c echo.Context) error {
 	const op string = "xhttp.htmlHandler"
 	resolver := func() error {
 		ctx := context.MustCastFromEchoContext(c)
-		prinry := ctx.MustChromePrinery()
 		logger := ctx.XLogger()
 		logger.DebugOp(op, "handling HTML request...")
 		config := ctx.Config()
@@ -104,8 +105,11 @@ func htmlHandler(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		p := print.NewHTMLPrint(logger, fpath, opts)
-		return convert(ctx, prinry, p, timeout)
+		prinry := ctx.Prinery()
+		printFunc := func(ctx timeoutContext.Context, logger xlog.Logger, dest string) error {
+			return prinry.HTML(ctx, logger, dest, fpath, opts)
+		}
+		return convert(ctx, timeout, printFunc)
 	}
 	if err := resolver(); err != nil {
 		return xerror.New(op, err)
@@ -119,7 +123,6 @@ func urlHandler(c echo.Context) error {
 	const op string = "xhttp.urlHandler"
 	resolver := func() error {
 		ctx := context.MustCastFromEchoContext(c)
-		prinry := ctx.MustChromePrinery()
 		logger := ctx.XLogger()
 		logger.DebugOp(op, "handling URL request...")
 		config := ctx.Config()
@@ -143,8 +146,11 @@ func urlHandler(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		p := print.NewURLPrint(logger, remoteURL, opts)
-		return convert(ctx, prinry, p, timeout)
+		prinry := ctx.Prinery()
+		printFunc := func(ctx timeoutContext.Context, logger xlog.Logger, dest string) error {
+			return prinry.URL(ctx, logger, dest, remoteURL, opts)
+		}
+		return convert(ctx, timeout, printFunc)
 	}
 	if err := resolver(); err != nil {
 		return xerror.New(op, err)
@@ -158,7 +164,6 @@ func markdownHandler(c echo.Context) error {
 	const op string = "xhttp.markdownHandler"
 	resolver := func() error {
 		ctx := context.MustCastFromEchoContext(c)
-		prinry := ctx.MustChromePrinery()
 		logger := ctx.XLogger()
 		logger.DebugOp(op, "handling Markdown request...")
 		config := ctx.Config()
@@ -175,11 +180,11 @@ func markdownHandler(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		p, err := print.NewMarkdownPrint(logger, fpath, opts)
-		if err != nil {
-			return err
+		prinry := ctx.Prinery()
+		printFunc := func(ctx timeoutContext.Context, logger xlog.Logger, dest string) error {
+			return prinry.Markdown(ctx, logger, dest, fpath, opts)
 		}
-		return convert(ctx, prinry, p, timeout)
+		return convert(ctx, timeout, printFunc)
 	}
 	if err := resolver(); err != nil {
 		return xerror.New(op, err)
@@ -193,7 +198,6 @@ func officeHandler(c echo.Context) error {
 	const op string = "xhttp.officeHandler"
 	resolver := func() error {
 		ctx := context.MustCastFromEchoContext(c)
-		prinry := ctx.MustSofficePrinery()
 		logger := ctx.XLogger()
 		logger.DebugOp(op, "handling Office request...")
 		config := ctx.Config()
@@ -202,7 +206,7 @@ func officeHandler(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		opts, err := officePrintOptions(r, config)
+		opts, err := unoconvPrintOptions(r, config)
 		if err != nil {
 			return err
 		}
@@ -223,8 +227,11 @@ func officeHandler(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		p := print.NewOfficePrint(logger, fpaths, opts)
-		return convert(ctx, prinry, p, timeout)
+		prinry := ctx.Prinery()
+		printFunc := func(ctx timeoutContext.Context, logger xlog.Logger, dest string) error {
+			return prinry.Office(ctx, logger, dest, fpaths, opts)
+		}
+		return convert(ctx, timeout, printFunc)
 	}
 	if err := resolver(); err != nil {
 		return xerror.New(op, err)
@@ -232,7 +239,11 @@ func officeHandler(c echo.Context) error {
 	return nil
 }
 
-func convert(ctx context.Context, prinry *prinery.Prinery, prnt print.Print, timeout float64) error {
+func convert(
+	ctx context.Context,
+	timeout float64,
+	printFunc func(ctx timeoutContext.Context, logger xlog.Logger, dest string) error,
+) error {
 	const op string = "xhttp.convert"
 	resolver := func() error {
 		logger := ctx.XLogger()
@@ -245,13 +256,13 @@ func convert(ctx context.Context, prinry *prinery.Prinery, prnt print.Print, tim
 		// or an error.
 		if !r.HasArg(resource.WebhookURLArgKey) {
 			logger.DebugfOp(op, "no '%s' found, converting synchronously", resource.WebhookURLArgKey)
-			return convertSync(ctx, prinry, prnt, timeout, filename, fpath)
+			return convertSync(ctx, timeout, filename, fpath, printFunc)
 		}
 		// as a webhook URL has been given, we
 		// run the following lines in a goroutine so that
 		// it doesn't block.
 		logger.DebugfOp(op, "'%s' found, converting asynchronously", resource.WebhookURLArgKey)
-		return convertAsync(ctx, prinry, prnt, timeout, filename, fpath)
+		return convertAsync(ctx, timeout, filename, fpath, printFunc)
 	}
 	if err := resolver(); err != nil {
 		return xerror.New(op, err)
@@ -259,19 +270,19 @@ func convert(ctx context.Context, prinry *prinery.Prinery, prnt print.Print, tim
 	return nil
 }
 
-func convertSync(ctx context.Context, prinry *prinery.Prinery, prnt print.Print, timeout float64, filename, fpath string) error {
+func convertSync(
+	ctx context.Context,
+	timeout float64,
+	filename, dest string,
+	printFunc func(ctx timeoutContext.Context, logger xlog.Logger, dest string) error,
+) error {
 	const op = "xhttp.convertSync"
 	logger := ctx.XLogger()
 	r := ctx.MustResource()
 	timeoutCtx, cancel := xcontext.WithTimeout(logger, timeout)
 	defer cancel()
 	resolver := func() error {
-		if prinry == nil {
-			// case: merge.
-			if err := prnt.Print(timeoutCtx, fpath, nil); err != nil {
-				return err
-			}
-		} else if err := prinry.PrintRequest(timeoutCtx, logger, prnt, fpath); err != nil {
+		if err := printFunc(timeoutCtx, logger, dest); err != nil {
 			return err
 		}
 		if !r.HasArg(resource.ResultFilenameArgKey) {
@@ -281,7 +292,7 @@ func convertSync(ctx context.Context, prinry *prinery.Prinery, prnt print.Print,
 				resource.RemoteURLArgKey,
 				filename,
 			)
-			if err := ctx.Attachment(fpath, filename); err != nil {
+			if err := ctx.Attachment(dest, filename); err != nil {
 				return err
 			}
 			return nil
@@ -295,7 +306,7 @@ func convertSync(ctx context.Context, prinry *prinery.Prinery, prnt print.Print,
 		if err != nil {
 			return err
 		}
-		if err := ctx.Attachment(fpath, filename); err != nil {
+		if err := ctx.Attachment(dest, filename); err != nil {
 			return err
 		}
 		return nil
@@ -309,7 +320,12 @@ func convertSync(ctx context.Context, prinry *prinery.Prinery, prnt print.Print,
 	return nil
 }
 
-func convertAsync(ctx context.Context, prinry *prinery.Prinery, prnt print.Print, timeout float64, filename, fpath string) error {
+func convertAsync(
+	ctx context.Context,
+	timeout float64,
+	filename, dest string,
+	printFunc func(ctx timeoutContext.Context, logger xlog.Logger, dest string) error,
+) error {
 	const op = "xhttp.convertAsync"
 	logger := ctx.XLogger()
 	r := ctx.MustResource()
@@ -325,19 +341,12 @@ func convertAsync(ctx context.Context, prinry *prinery.Prinery, prnt print.Print
 		defer r.Close() // nolint: errcheck
 		timeoutCtx, cancel := xcontext.WithTimeout(logger, timeout)
 		defer cancel()
-		if prinry == nil {
-			// case: merge.
-			if err := prnt.Print(timeoutCtx, fpath, nil); err != nil {
-				xerr := xerror.New(op, err)
-				logger.ErrorOp(xerror.Op(xerr), xerr)
-				return
-			}
-		} else if err := prinry.PrintRequest(timeoutCtx, logger, prnt, fpath); err != nil {
+		if err := printFunc(timeoutCtx, logger, dest); err != nil {
 			xerr := xerror.New(op, err)
 			logger.ErrorOp(xerror.Op(xerr), xerr)
 			return
 		}
-		f, err := os.Open(fpath)
+		f, err := os.Open(dest)
 		if err != nil {
 			xerr := xerror.New(op, err)
 			logger.ErrorOp(xerror.Op(xerr), xerr)

@@ -9,7 +9,6 @@ import (
 	"github.com/thecodingmachine/gotenberg/internal/app/xhttp"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/prinery"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/process"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xcontext"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
 )
@@ -27,30 +26,18 @@ func main() {
 	}
 	systemLogger.InfofOp(op, "Gotenberg %s", version)
 	systemLogger.DebugfOp(op, "configuration: %+v", config)
-	// create PM2 manager and start processes.
-	manager := process.NewPM2Manager(systemLogger, config)
-	if err := manager.Start(); err != nil {
+	// create our prinery.
+	prinry, err := prinery.NewPM2Prinery(systemLogger, config)
+	if err != nil {
 		systemLogger.FatalOp(op, err)
 	}
-	// create prineries.
-	var chromePrinery *prinery.Prinery
-	if !config.DisableGoogleChrome() {
-		chromePrinery, err = prinery.New(systemLogger, manager, process.ChromeKey)
-		if err != nil {
-			systemLogger.FatalOp(op, err)
-		}
-		go chromePrinery.Start()
-	}
-	var sofficePrinery *prinery.Prinery
-	if !config.DisableUnoconv() {
-		sofficePrinery, err = prinery.New(systemLogger, manager, process.SofficeKey)
-		if err != nil {
-			systemLogger.FatalOp(op, err)
-		}
-		go sofficePrinery.Start()
+	// TODO use chan
+	// TODO stop prinery
+	if err = prinry.Start(make(chan error, 1)); err != nil {
+		systemLogger.FatalOp(op, err)
 	}
 	// create our API.
-	srv := xhttp.New(config, manager, chromePrinery, sofficePrinery)
+	srv := xhttp.New(config, prinry)
 	// run our API in a goroutine so that it doesn't block.
 	go func() {
 		systemLogger.InfofOp(op, "http server started on port '%d'", config.DefaultListenPort())

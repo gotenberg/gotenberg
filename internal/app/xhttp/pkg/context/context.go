@@ -14,7 +14,6 @@ import (
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/normalize"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/prinery"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/process"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
 )
@@ -22,13 +21,11 @@ import (
 // Context extends the default echo.Context.
 type Context struct {
 	echo.Context
-	logger         xlog.Logger
-	config         conf.Config
-	manager        process.Manager
-	chromePrinery  *prinery.Prinery
-	sofficePrinery *prinery.Prinery
-	resource       resource.Resource
-	startTime      time.Time
+	logger    xlog.Logger
+	config    conf.Config
+	prinry    prinery.Prinery
+	resource  resource.Resource
+	startTime time.Time
 }
 
 // New creates a new Context.
@@ -36,17 +33,13 @@ func New(
 	c echo.Context,
 	logger xlog.Logger,
 	config conf.Config,
-	manager process.Manager,
-	chromePrinery *prinery.Prinery,
-	sofficePrinery *prinery.Prinery,
+	prinry prinery.Prinery,
 ) Context {
 	return Context{
 		c,
 		logger,
 		config,
-		manager,
-		chromePrinery,
-		sofficePrinery,
+		prinry,
 		resource.Resource{},
 		time.Now(),
 	}
@@ -89,7 +82,8 @@ func (ctx Context) Config() conf.Config {
 // one of the processes is not viable.
 func (ctx Context) ProcessesHealthcheck() error {
 	const op string = "context.Context.ProcessesHealthcheck"
-	processes := ctx.manager.All()
+	// TODO
+	/*processes := ctx.manager.All()
 	for _, p := range processes {
 		if !ctx.manager.IsViable(p) {
 			return xerror.New(
@@ -97,42 +91,14 @@ func (ctx Context) ProcessesHealthcheck() error {
 				fmt.Errorf("'%s' is not viable", p.ID()),
 			)
 		}
-	}
+	}*/
 	return nil
 }
 
-/*
-MustChromePrinery returns the instance of
-prinery.Prinery associated with the Context.
-
-This prinery.Prinery handles Google Chrome
-headless.
-
-It panics if no instance of prinery.Prinery.
-*/
-func (ctx Context) MustChromePrinery() *prinery.Prinery {
-	const op string = "context.Context.MustChromePrinery"
-	if ctx.chromePrinery == nil {
-		panic(fmt.Sprintf("%s: unable to retrieve the instance of Google Chrome Headless prinery.Prinery from our custom context.Context", op))
-	}
-	return ctx.chromePrinery
-}
-
-/*
-MustSofficePrinery returns the instance of
-prinery.Prinery associated with the Context.
-
-This prinery.Prinery handles LibreOffice
-headless.
-
-It panics if no instance of prinery.Prinery.
-*/
-func (ctx Context) MustSofficePrinery() *prinery.Prinery {
-	const op string = "context.Context.MustSofficePrinery"
-	if ctx.sofficePrinery == nil {
-		panic(fmt.Sprintf("%s: unable to retrieve the instance of LibreOffice Headless prinery.Prinery from our custom context.Context", op))
-	}
-	return ctx.sofficePrinery
+// Prinery returns the instance of prinery.Prinery
+// associated with the Context.
+func (ctx Context) Prinery() prinery.Prinery {
+	return ctx.prinry
 }
 
 // WithResource creates a resource.Resource and

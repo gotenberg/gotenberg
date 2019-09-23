@@ -3,37 +3,37 @@ package xhttp
 import (
 	"github.com/thecodingmachine/gotenberg/internal/app/xhttp/pkg/resource"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/print"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/prinery"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 )
 
-func chromePrintOptions(r resource.Resource, config conf.Config) (print.ChromePrintOptions, error) {
+func chromePrintOptions(r resource.Resource, config conf.Config) (prinery.ChromePrintOptions, error) {
 	const op string = "xhttp.chromePrintOptions"
-	resolver := func() (print.ChromePrintOptions, error) {
+	resolver := func() (prinery.ChromePrintOptions, error) {
 		waitDelay, err := resource.WaitDelayArg(r, config)
 		if err != nil {
-			return print.ChromePrintOptions{}, err
+			return prinery.ChromePrintOptions{}, err
 		}
 		headerHTML, footerHTML,
 			err := resource.HeaderFooterContents(r, config)
 		if err != nil {
-			return print.ChromePrintOptions{}, err
+			return prinery.ChromePrintOptions{}, err
 		}
 		paperWidth, paperHeight,
 			err := resource.PaperSizeArgs(r, config)
 		if err != nil {
-			return print.ChromePrintOptions{}, err
+			return prinery.ChromePrintOptions{}, err
 		}
 		marginTop, marginBottom, marginLeft, marginRight,
 			err := resource.MarginArgs(r, config)
 		if err != nil {
-			return print.ChromePrintOptions{}, err
+			return prinery.ChromePrintOptions{}, err
 		}
 		landscape, err := r.BoolArg(resource.LandscapeArgKey, false)
 		if err != nil {
-			return print.ChromePrintOptions{}, err
+			return prinery.ChromePrintOptions{}, err
 		}
-		return print.ChromePrintOptions{
+		return prinery.ChromePrintOptions{
 			WaitDelay:    waitDelay,
 			HeaderHTML:   headerHTML,
 			FooterHTML:   footerHTML,
@@ -53,14 +53,14 @@ func chromePrintOptions(r resource.Resource, config conf.Config) (print.ChromePr
 	return opts, nil
 }
 
-func officePrintOptions(r resource.Resource, config conf.Config) (print.OfficePrintOptions, error) {
-	const op string = "xhttp.officePrintOptions"
-	resolver := func() (print.OfficePrintOptions, error) {
+func unoconvPrintOptions(r resource.Resource, config conf.Config) (prinery.UnoconvPrintOptions, error) {
+	const op string = "xhttp.unoconvPrintOptions"
+	resolver := func() (prinery.UnoconvPrintOptions, error) {
 		landscape, err := r.BoolArg(resource.LandscapeArgKey, false)
 		if err != nil {
-			return print.OfficePrintOptions{}, err
+			return prinery.UnoconvPrintOptions{}, err
 		}
-		return print.OfficePrintOptions{
+		return prinery.UnoconvPrintOptions{
 			Landscape: landscape,
 		}, nil
 	}

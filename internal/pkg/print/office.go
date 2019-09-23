@@ -52,7 +52,14 @@ func (p officePrint) Print(ctx context.Context, dest string, proc process.Proces
 			baseFilename := xrand.Get()
 			tmpDest := fmt.Sprintf("%s/%d%s.pdf", dirPath, i, baseFilename)
 			p.logger.DebugfOp(op, "converting '%s' to PDF...", fpath)
-			if err := unoconv(ctx, p.logger, fpath, tmpDest, p.opts); err != nil {
+			if err := unoconv(
+				ctx,
+				p.logger,
+				proc,
+				p.opts,
+				fpath,
+				tmpDest,
+			); err != nil {
 				return err
 			}
 			p.logger.DebugfOp(op, "'%s.pdf' created", baseFilename)
@@ -74,10 +81,20 @@ func (p officePrint) Print(ctx context.Context, dest string, proc process.Proces
 	return nil
 }
 
-func unoconv(ctx context.Context, logger xlog.Logger, fpath, dest string, opts OfficePrintOptions) error {
+func unoconv(
+	ctx context.Context,
+	logger xlog.Logger,
+	proc process.Process,
+	opts OfficePrintOptions,
+	fpath, dest string,
+) error {
 	const op string = "print.unoconv"
 	resolver := func() error {
 		args := []string{
+			"--server",
+			proc.Host(),
+			"--port",
+			fmt.Sprintf("%d", proc.Port()),
 			"--format",
 			"pdf",
 		}

@@ -4,20 +4,14 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/prinery"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/process"
 )
 
 // New returns a custom echo.Echo.
-func New(
-	config conf.Config,
-	manager process.Manager,
-	chromePrinery *prinery.Prinery,
-	sofficePrinery *prinery.Prinery,
-) *echo.Echo {
+func New(config conf.Config, prinry prinery.Prinery) *echo.Echo {
 	srv := echo.New()
 	srv.HideBanner = true
 	srv.HidePort = true
-	srv.Use(contextMiddleware(config, manager, chromePrinery, sofficePrinery))
+	srv.Use(contextMiddleware(config, prinry))
 	srv.Use(loggerMiddleware())
 	srv.Use(cleanupMiddleware())
 	srv.Use(errorMiddleware())

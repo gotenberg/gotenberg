@@ -2,122 +2,89 @@ package prinery
 
 import (
 	"context"
-	"fmt"
+	"time"
 
-	"github.com/thecodingmachine/gotenberg/internal/pkg/print"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/process"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
 )
 
-type request struct {
-	ctx    context.Context
-	logger xlog.Logger
-	print  print.Print
-	dest   string
-	result chan error
+type processSpec interface {
+	id() string
+	host() string
+	port() uint
 }
 
-type worker struct {
-	work chan request
-	proc process.Process
+type process interface {
+	spec() processSpec
+	binary() string
+	args() []string
+	warmupTime() time.Duration
+	viabilityFunc() func(logger xlog.Logger) bool
 }
 
-func (w *worker) do(done chan *worker) {
-	for {
-		req := <-w.work
-		req.result <- req.print.Print(req.ctx, req.dest, w.proc)
-		done <- w
+func processesToSpecs(processes []process) []processSpec {
+	specs := make([]processSpec, len(processes))
+	for i, p := range processes {
+		specs[i] = p.spec()
+	}
+	return specs
+}
+
+type printer interface {
+	print(ctx context.Context, spec processSpec, dest string) error
+}
+
+// ChromePrintOptions helps customizing the
+// Google Chrome print result.
+type ChromePrintOptions struct {
+	WaitDelay    float64
+	HeaderHTML   string
+	FooterHTML   string
+	PaperWidth   float64
+	PaperHeight  float64
+	MarginTop    float64
+	MarginBottom float64
+	MarginLeft   float64
+	MarginRight  float64
+	Landscape    bool
+}
+
+// DefaultChromePrintOptions returns the default
+// Google Chrome print options.
+func DefaultChromePrintOptions() ChromePrintOptions {
+	const defaultHeaderFooterHTML string = "<html><head></head><body></body></html>"
+	return ChromePrintOptions{
+		WaitDelay:    0.0,
+		HeaderHTML:   defaultHeaderFooterHTML,
+		FooterHTML:   defaultHeaderFooterHTML,
+		PaperWidth:   8.27,
+		PaperHeight:  11.7,
+		MarginTop:    1.0,
+		MarginBottom: 1.0,
+		MarginLeft:   1.0,
+		MarginRight:  1.0,
+		Landscape:    false,
 	}
 }
 
-type Prinery struct {
-	logger  xlog.Logger
-	manager process.Manager
-	work    chan request
-	pool    chan *worker
-	done    chan *worker
+// UnoconvPrintOptions helps customizing the
+// LibreOffice print result.
+type UnoconvPrintOptions struct {
+	Landscape bool
 }
 
-func New(logger xlog.Logger, manager process.Manager, key process.Key) (*Prinery, error) {
-	const op string = "prinery.New"
-	processes := manager.Processes(key)
-	nWorkers := len(processes)
-	if nWorkers == 0 {
-		err := fmt.Errorf("no processes found for key '%s'", string(key))
-		return nil, xerror.New(op, err)
-	}
-	logger.DebugfOp(op, "found '%d' processes for key '%s'", nWorkers, string(key))
-	work := make(chan request, 1)
-	pool := make(chan *worker, nWorkers)
-	done := make(chan *worker, nWorkers)
-	for _, p := range processes {
-		w := &worker{
-			work: work,
-			proc: p,
-		}
-		pool <- w
-		go w.do(done)
-	}
-	return &Prinery{
-		logger:  logger,
-		manager: manager,
-		work:    work,
-		pool:    pool,
-		done:    done,
-	}, nil
-}
-
-func (p *Prinery) PrintRequest(ctx context.Context, logger xlog.Logger, prnt print.Print, dest string) error {
-	const op string = "prinery.Prinery.PrintRequest"
-	req := request{
-		ctx:    ctx,
-		logger: logger,
-		print:  prnt,
-		dest:   dest,
-		result: make(chan error),
-	}
-	p.dispatch(req)
-	err := <-req.result
-	if err != nil {
-		return xerror.New(op, err)
-	}
-	return nil
-}
-
-func (p *Prinery) Start() {
-	for {
-		select {
-		case req := <-p.work:
-			p.dispatch(req)
-		case w := <-p.done:
-			p.completed(w)
-		}
+// DefaultUnoconvPrinterOptions returns the default
+// LibreOffice print options.
+func DefaultUnoconvPrinterOptions() UnoconvPrintOptions {
+	return UnoconvPrintOptions{
+		Landscape: false,
 	}
 }
 
-func (p *Prinery) dispatch(req request) {
-	const op string = "prinery.Prinery.dispatch"
-	select {
-	case w := <-p.pool:
-		w.work <- req
-	case <-req.ctx.Done():
-		req.result <- xerror.New(op, req.ctx.Err())
-	}
-}
-
-func (p *Prinery) completed(w *worker) {
-	const op string = "prinery.Prinerty.completed"
-	go func() {
-		// check process viability.
-		isViable := p.manager.IsViable(w.proc)
-		// check process memory usage.
-		// TODO handle error.
-		memory, _ := p.manager.Memory(w.proc)
-		p.logger.DebugfOp(op, "%s: isViable = %t, memory = %d", w.proc.ID(), isViable, memory)
-		// TODO manage viability and memory usage.
-		// pushing back the worker.
-		p.pool <- w
-	}()
-
+type Prinery interface {
+	Start(emergency chan error) error
+	HTML(ctx context.Context, logger xlog.Logger, dest, fpath string, opts ChromePrintOptions) error
+	URL(ctx context.Context, logger xlog.Logger, dest, URL string, opts ChromePrintOptions) error
+	Markdown(ctx context.Context, logger xlog.Logger, dest, fpath string, opts ChromePrintOptions) error
+	Office(ctx context.Context, logger xlog.Logger, dest string, fpaths []string, opts UnoconvPrintOptions) error
+	Merge(ctx context.Context, logger xlog.Logger, dest string, fpaths []string) error
 }
