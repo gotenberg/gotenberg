@@ -357,7 +357,7 @@ from requests_toolbet import MultipartEncoder
 m = MultipartEncoder(fields=(&#39;files&#39;: {&#39;test.html&#39;, open(&#39;index.html&#39;, &#39;rb&#39;), &#39;text/plain&#39;), &#39;waitTimeout&#39;: &#39;600&#39;})
 
 response = requests.post(&#39;http://localhost:3000/convert/html&#39;, data=m, headers={&#39;Content-Type&#39;: m.content_type})
-stream.stream_response_to_file(response, path=pat_to_file)
+stream.stream_response_to_file(response, path=path_to_file)
 </pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.header_and_footer" href="#html.header_and_footer">
