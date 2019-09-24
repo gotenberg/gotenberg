@@ -25,6 +25,7 @@ const (
 	disableGoogleChromeEnvVar       = "DISABLE_GOOGLE_CHROME"
 	disableUnoconvEnvVar            = "DISABLE_UNOCONV"
 	disableHealthcheckLoggingEnvVar = "DISABLE_HEALTHCHECK_LOGGING"
+	enableDebugModeEnvVar           = "ENABLE_DEBUG_MODE"
 )
 
 func mustParseEnvVar() *api.Options {
@@ -70,6 +71,13 @@ func mustParseEnvVar() *api.Options {
 		}
 		opts.EnableHealthcheckLogging = v != "1"
 	}
+	if v, ok := os.LookupEnv(enableDebugModeEnvVar); ok {
+		if v != "1" && v != "0" {
+			notify.ErrPrint(fmt.Errorf("%s: wrong value: want \"0\" or \"1\" got %v", enableDebugModeEnvVar, v))
+			os.Exit(1)
+		}
+		opts.EnableDebugMode = v != "1"
+	}
 	return opts
 }
 
@@ -91,7 +99,8 @@ func mustStartProcesses(opts *api.Options) []pm2.Process {
 	return processes
 }
 
-func mustStartAPI(srv *echo.Echo, port string) {
+func mustStartAPI(srv *echo.Echo, port string, debug bool) {
+	srv.Debug = debug
 	notify.Printf("http server started on port %v", port)
 	if err := srv.Start(fmt.Sprintf(":%v", port)); err != nil {
 		if err != http.ErrServerClosed {
@@ -131,7 +140,7 @@ func main() {
 	processes := mustStartProcesses(opts)
 	// run our API in a goroutine so that it doesn't block.s
 	go func() {
-		mustStartAPI(srv, opts.DefaultListenPort)
+		mustStartAPI(srv, opts.DefaultListenPort, opts.EnableDebugMode)
 	}()
 	quit := make(chan os.Signal, 1)
 	// we'll accept graceful shutdowns when quit via SIGINT (Ctrl+C)

@@ -14,6 +14,7 @@ type Options struct {
 	EnableChromeEndpoints    bool
 	EnableUnoconvEndpoints   bool
 	EnableHealthcheckLogging bool
+	EnableDebugMode          bool
 }
 
 // DefaultOptions returns default options.
@@ -24,6 +25,7 @@ func DefaultOptions() *Options {
 		EnableChromeEndpoints:    true,
 		EnableUnoconvEndpoints:   true,
 		EnableHealthcheckLogging: true,
+		EnableDebugMode:          false,
 	}
 }
 
