@@ -76,7 +76,7 @@ func mustParseEnvVar() *api.Options {
 			notify.ErrPrint(fmt.Errorf("%s: wrong value: want \"0\" or \"1\" got %v", enableDebugModeEnvVar, v))
 			os.Exit(1)
 		}
-		opts.EnableDebugMode = v != "1"
+		opts.EnableDebugMode = v == "1"
 	}
 	return opts
 }
