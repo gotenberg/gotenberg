@@ -9,19 +9,7 @@ FROM debian:buster-slim
 
 RUN echo "deb http://httpredir.debian.org/debian/ buster main contrib non-free" > /etc/apt/sources.list &&\
     apt-get update &&\
-    apt-get install -y curl wget python3-pip ttf-mscorefonts-installer
-
-# |--------------------------------------------------------------------------
-# | PM2
-# |--------------------------------------------------------------------------
-# |
-# | Installs PM2 for launching programs in background and with failure 
-# | recovering. In our case: Google Chrome (headless) and unoconv.
-# |
-
-RUN curl -sL https://deb.nodesource.com/setup_12.x | bash - &&\
-    apt-get install -y nodejs &&\
-    npm install -g pm2
+    apt-get install -y curl wget gnupg ttf-mscorefonts-installer
 
 # |--------------------------------------------------------------------------
 # | Chrome
@@ -36,18 +24,32 @@ RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add
     apt-get -y --allow-unauthenticated install google-chrome-stable
 
 # |--------------------------------------------------------------------------
-# | Unoconv
+# | LibreOffice
 # |--------------------------------------------------------------------------
 # |
-# | Installs unoconv and LibreOffice.
+# | Installs LibreOffice.
 # |
 
-RUN pip3 install unoconv &&\
-    # https://github.com/nextcloud/docker/issues/380
-    mkdir -p /usr/share/man/man1mkdir -p /usr/share/man/man1 &&\
+# https://github.com/nextcloud/docker/issues/380
+RUN mkdir -p /usr/share/man/man1mkdir -p /usr/share/man/man1 &&\ 
     echo "deb http://httpredir.debian.org/debian/ buster-backports main contrib non-free" >> /etc/apt/sources.list &&\
     apt-get update &&\
     apt-get -t buster-backports -y install libreoffice
+
+# |--------------------------------------------------------------------------
+# | Unoconv
+# |--------------------------------------------------------------------------
+# |
+# | Installs unoconv.
+# |
+
+ENV UNO_URL=https://raw.githubusercontent.com/dagwieers/unoconv/master/unoconv
+
+RUN apt-get install -y python3 &&\
+    curl -Ls $UNO_URL -o /usr/bin/unoconv &&\
+    chmod +x /usr/bin/unoconv &&\
+    ln -s /usr/bin/python3 /usr/bin/python &&\
+    unoconv --version
 
 # |--------------------------------------------------------------------------
 # | PDFtk
@@ -108,4 +110,4 @@ RUN groupadd --gid 1001 gotenberg \
   && mkdir /gotenberg \
   && chown gotenberg: /gotenberg
 
-ENV PM2_HOME=/gotenberg/.pm2
+RUN apt-get install -y procps

@@ -3,37 +3,53 @@ package xhttp
 import (
 	"github.com/thecodingmachine/gotenberg/internal/app/xhttp/pkg/resource"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/prinery"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/printer"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 )
 
-func chromePrintOptions(r resource.Resource, config conf.Config) (prinery.ChromePrintOptions, error) {
-	const op string = "xhttp.chromePrintOptions"
-	resolver := func() (prinery.ChromePrintOptions, error) {
+func mergePrinterOptions(r resource.Resource, config conf.Config) (printer.MergePrinterOptions, error) {
+	const op string = "xhttp.mergePrinterOptions"
+	waitTimeout, err := resource.WaitTimeoutArg(r, config)
+	if err != nil {
+		return printer.MergePrinterOptions{}, xerror.New(op, err)
+	}
+	return printer.MergePrinterOptions{
+		WaitTimeout: waitTimeout,
+	}, nil
+}
+
+func chromePrinterOptions(r resource.Resource, config conf.Config) (printer.ChromePrinterOptions, error) {
+	const op string = "xhttp.chromePrinterOptions"
+	resolver := func() (printer.ChromePrinterOptions, error) {
+		waitTimeout, err := resource.WaitTimeoutArg(r, config)
+		if err != nil {
+			return printer.ChromePrinterOptions{}, err
+		}
 		waitDelay, err := resource.WaitDelayArg(r, config)
 		if err != nil {
-			return prinery.ChromePrintOptions{}, err
+			return printer.ChromePrinterOptions{}, err
 		}
 		headerHTML, footerHTML,
 			err := resource.HeaderFooterContents(r, config)
 		if err != nil {
-			return prinery.ChromePrintOptions{}, err
+			return printer.ChromePrinterOptions{}, err
 		}
 		paperWidth, paperHeight,
 			err := resource.PaperSizeArgs(r, config)
 		if err != nil {
-			return prinery.ChromePrintOptions{}, err
+			return printer.ChromePrinterOptions{}, err
 		}
 		marginTop, marginBottom, marginLeft, marginRight,
 			err := resource.MarginArgs(r, config)
 		if err != nil {
-			return prinery.ChromePrintOptions{}, err
+			return printer.ChromePrinterOptions{}, err
 		}
 		landscape, err := r.BoolArg(resource.LandscapeArgKey, false)
 		if err != nil {
-			return prinery.ChromePrintOptions{}, err
+			return printer.ChromePrinterOptions{}, err
 		}
-		return prinery.ChromePrintOptions{
+		return printer.ChromePrinterOptions{
+			WaitTimeout:  waitTimeout,
 			WaitDelay:    waitDelay,
 			HeaderHTML:   headerHTML,
 			FooterHTML:   footerHTML,
@@ -53,15 +69,20 @@ func chromePrintOptions(r resource.Resource, config conf.Config) (prinery.Chrome
 	return opts, nil
 }
 
-func unoconvPrintOptions(r resource.Resource, config conf.Config) (prinery.UnoconvPrintOptions, error) {
-	const op string = "xhttp.unoconvPrintOptions"
-	resolver := func() (prinery.UnoconvPrintOptions, error) {
+func officePrinterOptions(r resource.Resource, config conf.Config) (printer.OfficePrinterOptions, error) {
+	const op string = "xhttp.officePrinterOptions"
+	resolver := func() (printer.OfficePrinterOptions, error) {
+		waitTimeout, err := resource.WaitTimeoutArg(r, config)
+		if err != nil {
+			return printer.OfficePrinterOptions{}, err
+		}
 		landscape, err := r.BoolArg(resource.LandscapeArgKey, false)
 		if err != nil {
-			return prinery.UnoconvPrintOptions{}, err
+			return printer.OfficePrinterOptions{}, err
 		}
-		return prinery.UnoconvPrintOptions{
-			Landscape: landscape,
+		return printer.OfficePrinterOptions{
+			WaitTimeout: waitTimeout,
+			Landscape:   landscape,
 		}, nil
 	}
 	opts, err := resolver()

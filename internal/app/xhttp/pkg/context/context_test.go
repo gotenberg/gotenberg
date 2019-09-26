@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/pm2"
 	"github.com/thecodingmachine/gotenberg/test"
 )
 
@@ -25,27 +24,6 @@ func TestMustCastFromEchoContext(t *testing.T) {
 	assert.Panics(t, func() {
 		MustCastFromEchoContext(test.DummyEchoContext())
 	})
-}
-
-func TestProcessesHealthcheck(t *testing.T) {
-	// process is viable.
-	ctx := New(
-		test.DummyEchoContext(),
-		test.DebugLogger(),
-		conf.DefaultConfig(),
-		pm2.NewDummyProcess(true),
-	)
-	err := ctx.ProcessesHealthcheck()
-	assert.Nil(t, err)
-	// process is not viable.
-	ctx = New(
-		test.DummyEchoContext(),
-		test.DebugLogger(),
-		conf.DefaultConfig(),
-		pm2.NewDummyProcess(false),
-	)
-	err = ctx.ProcessesHealthcheck()
-	test.AssertError(t, err)
 }
 
 func TestLogRequestResult(t *testing.T) {

@@ -77,34 +77,6 @@ func ArgKeys() []ArgKey {
 }
 
 /*
-WaitTimeoutAndWaitDelayArg is a helper for retrieving
-the sum of "waitTimeout" and "waitDelay" arguments
-as float64.
-
-It also validates them against the application
-configuration.
-*/
-func WaitTimeoutAndWaitDelayArg(r Resource, config conf.Config) (float64, error) {
-	const op string = "resource.WaitTimeoutAndWaitDelayArg"
-	resolver := func() (float64, error) {
-		waitTimeout, err := WaitTimeoutArg(r, config)
-		if err != nil {
-			return waitTimeout, err
-		}
-		waitDelay, err := WaitDelayArg(r, config)
-		if err != nil {
-			return waitDelay, err
-		}
-		return waitTimeout + waitDelay, nil
-	}
-	combined, err := resolver()
-	if err != nil {
-		return combined, xerror.New(op, err)
-	}
-	return combined, nil
-}
-
-/*
 WaitTimeoutArg is a helper for retrieving
 the "waitTimeout" argument as float64.
 

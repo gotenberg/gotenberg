@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"syscall"
 
+	"github.com/phayes/freeport"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xcontext"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
@@ -66,10 +68,7 @@ func (p officePrinter) Print(destination string) error {
 		}
 		if len(fpaths) == 1 {
 			p.logger.DebugOp(op, "only one PDF created, nothing to merge")
-			if err := os.Rename(fpaths[0], destination); err != nil {
-				return err
-			}
-			return nil
+			return os.Rename(fpaths[0], destination)
 		}
 		m := mergePrinter{
 			logger: p.logger,
@@ -87,13 +86,18 @@ func (p officePrinter) Print(destination string) error {
 	return nil
 }
 
-// nolint: gochecknoglobals
-var lockUnoconv = make(chan struct{}, 1)
-
 func unoconv(ctx context.Context, logger xlog.Logger, fpath, destination string, opts OfficePrinterOptions) error {
 	const op string = "printer.unoconv"
 	resolver := func() error {
+		port, err := freeport.GetFreePort()
+		if err != nil {
+			return err
+		}
 		args := []string{
+			"--user-profile",
+			fmt.Sprintf("///tmp/%d", port),
+			"--port",
+			fmt.Sprintf("%d", port),
 			"--format",
 			"pdf",
 		}
@@ -101,35 +105,36 @@ func unoconv(ctx context.Context, logger xlog.Logger, fpath, destination string,
 			args = append(args, "--printer", "PaperOrientation=landscape")
 		}
 		args = append(args, "--output", destination, fpath)
-		cmd, err := xexec.CommandContext(
-			ctx,
+		cmd, err := xexec.Command(
 			logger,
 			"unoconv",
 			args...,
 		)
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		if err != nil {
 			return err
 		}
 		xexec.LogBeforeExecute(logger, cmd)
-		return cmd.Run()
-	}
-	logger.DebugOp(op, "waiting lock to be acquired...")
-	select {
-	case lockUnoconv <- struct{}{}:
-		// lock acquired.
-		logger.DebugOp(op, "lock acquired")
-		if err := resolver(); err != nil {
-			<-lockUnoconv // we release the lock.
-			return xerror.New(op, err)
+		if err := cmd.Start(); err != nil {
+			return err
 		}
-		<-lockUnoconv // we release the lock.
-		return nil
-	case <-ctx.Done():
-		// failed to acquire lock before
-		// deadline.
-		logger.DebugOp(op, "failed to acquire lock before context.Context deadline")
-		return xerror.New(op, ctx.Err())
+		result := make(chan error, 1)
+		go func() {
+			result <- cmd.Wait()
+		}()
+		select {
+		case err := <-result:
+			syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+			return err
+		case <-ctx.Done():
+			syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+			return ctx.Err()
+		}
 	}
+	if err := resolver(); err != nil {
+		return xerror.New(op, err)
+	}
+	return nil
 }
 
 // Compile-time checks to ensure type implements desired interfaces.

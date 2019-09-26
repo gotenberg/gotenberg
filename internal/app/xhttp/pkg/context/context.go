@@ -13,7 +13,6 @@ import (
 	"github.com/thecodingmachine/gotenberg/internal/app/xhttp/pkg/resource"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/normalize"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/prinery"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
 )
@@ -23,23 +22,16 @@ type Context struct {
 	echo.Context
 	logger    xlog.Logger
 	config    conf.Config
-	prinry    prinery.Prinery
 	resource  resource.Resource
 	startTime time.Time
 }
 
 // New creates a new Context.
-func New(
-	c echo.Context,
-	logger xlog.Logger,
-	config conf.Config,
-	prinry prinery.Prinery,
-) Context {
+func New(c echo.Context, logger xlog.Logger, config conf.Config) Context {
 	return Context{
 		c,
 		logger,
 		config,
-		prinry,
 		resource.Resource{},
 		time.Now(),
 	}
@@ -76,29 +68,6 @@ func (ctx Context) XLogger() xlog.Logger {
 // with the Context.
 func (ctx Context) Config() conf.Config {
 	return ctx.config
-}
-
-// ProcessesHealthcheck returns an error if
-// one of the processes is not viable.
-func (ctx Context) ProcessesHealthcheck() error {
-	const op string = "context.Context.ProcessesHealthcheck"
-	// TODO
-	/*processes := ctx.manager.All()
-	for _, p := range processes {
-		if !ctx.manager.IsViable(p) {
-			return xerror.New(
-				op,
-				fmt.Errorf("'%s' is not viable", p.ID()),
-			)
-		}
-	}*/
-	return nil
-}
-
-// Prinery returns the instance of prinery.Prinery
-// associated with the Context.
-func (ctx Context) Prinery() prinery.Prinery {
-	return ctx.prinry
 }
 
 // WithResource creates a resource.Resource and

@@ -1,14 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 
 	"github.com/thecodingmachine/gotenberg/internal/app/xhttp"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/chrome"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/prinery"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xcontext"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
 )
@@ -26,18 +27,14 @@ func main() {
 	}
 	systemLogger.InfofOp(op, "Gotenberg %s", version)
 	systemLogger.DebugfOp(op, "configuration: %+v", config)
-	// create our prinery.
-	prinry, err := prinery.NewPM2Prinery(systemLogger, config)
+	// start Google Chrome.
+	// TODO kill proc.
+	_, err = chrome.Start(context.Background(), systemLogger)
 	if err != nil {
 		systemLogger.FatalOp(op, err)
 	}
-	// TODO use chan
-	// TODO stop prinery
-	if err = prinry.Start(make(chan error, 1)); err != nil {
-		systemLogger.FatalOp(op, err)
-	}
 	// create our API.
-	srv := xhttp.New(config, prinry)
+	srv := xhttp.New(config)
 	// run our API in a goroutine so that it doesn't block.
 	go func() {
 		systemLogger.InfofOp(op, "http server started on port '%d'", config.DefaultListenPort())

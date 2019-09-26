@@ -3,6 +3,7 @@ module github.com/thecodingmachine/gotenberg
 go 1.12
 
 require (
+	github.com/dustin/go-humanize v1.0.0
 	github.com/google/go-cmp v0.3.1 // indirect
 	github.com/gorilla/websocket v1.4.0 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
@@ -12,6 +13,7 @@ require (
 	github.com/mafredri/cdp v0.24.2
 	github.com/mattn/go-isatty v0.0.9
 	github.com/microcosm-cc/bluemonday v1.0.2
+	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	github.com/russross/blackfriday/v2 v2.0.1
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.4.2

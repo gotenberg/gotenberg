@@ -11,6 +11,7 @@ fi
 
 # Start the PM2 processes 
 # (Google Chrome headless & unoconv listener).
+# TODO just start chrome
 go run github.com/thecodingmachine/gotenberg/test/cmd/pm2
 
 # Run our tests.

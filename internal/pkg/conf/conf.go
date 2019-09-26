@@ -201,16 +201,6 @@ func (c Config) DefaultListenPort() int64 {
 	return c.defaultListenPort
 }
 
-func (c Config) GoogleChromeInstances() int64 {
-	// TODO: replace DisableGoogleChrome
-	return 2
-}
-
-func (c Config) SofficeInstances() int64 {
-	// TODO: replace DisableUnoconv
-	return 2
-}
-
 /*
 DisableGoogleChrome returns true if
 Google Chrome is disabled in the

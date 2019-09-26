@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/dustin/go-humanize"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 )
 
@@ -178,6 +179,54 @@ func BoolFromEnv(envVar string, defaultValue bool) (bool, error) {
 	const op string = "xassert.BoolFromEnv"
 	value := os.Getenv(envVar)
 	result, err := Bool(envVar, value, defaultValue)
+	if err != nil {
+		return result, xerror.New(op, err)
+	}
+	return result, nil
+}
+
+/*
+Bytes tries to convert a string to a int64.
+
+If string is empty or conversion fails, returns the
+default value.
+
+The key is used to identify the value.
+*/
+func Bytes(key, value string, defaultValue int64, rules ...RuleInt64) (int64, error) {
+	const op string = "xassert.Bytes"
+	result := defaultValue
+	if value != "" {
+		parsedValue, err := humanize.ParseBigBytes(value)
+		if err != nil {
+			return defaultValue, xerror.Invalid(
+				op,
+				fmt.Sprintf("'%s' is not a correct bytes representation, got '%s'", key, value),
+				err,
+			)
+		}
+		result = parsedValue.Int64()
+	}
+	for _, rule := range rules {
+		rule.with(key, result)
+		if err := rule.validate(); err != nil {
+			return defaultValue, xerror.New(op, err)
+		}
+	}
+	return result, nil
+}
+
+/*
+BytesFromEnv returns the int64 representation of the
+value of given environment variable.
+
+If not found, empty or conversion fails, returns the
+default value.
+*/
+func BytesFromEnv(envVar string, defaultValue int64, rules ...RuleInt64) (int64, error) {
+	const op string = "xassert.BytesFromEnv"
+	value := os.Getenv(envVar)
+	result, err := Bytes(envVar, value, defaultValue)
 	if err != nil {
 		return result, xerror.New(op, err)
 	}

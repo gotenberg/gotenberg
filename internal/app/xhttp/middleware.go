@@ -7,7 +7,6 @@ import (
 	"github.com/thecodingmachine/gotenberg/internal/app/xhttp/pkg/context"
 	"github.com/thecodingmachine/gotenberg/internal/app/xhttp/pkg/resource"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/prinery"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xrand"
@@ -15,7 +14,7 @@ import (
 
 // contextMiddleware extends the default echo.Context with
 // our custom context.Context.
-func contextMiddleware(config conf.Config, prinry prinery.Prinery) echo.MiddlewareFunc {
+func contextMiddleware(config conf.Config) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			// generate a unique identifier for the request.
@@ -25,7 +24,7 @@ func contextMiddleware(config conf.Config, prinry prinery.Prinery) echo.Middlewa
 			logger := xlog.New(config.LogLevel(), trace)
 			// extend the current echo context with our custom
 			// context.
-			ctx := context.New(c, logger, config, prinry)
+			ctx := context.New(c, logger, config)
 			// if its an healthcheck request, there
 			// is no need to create a Resource.
 			if ctx.Path() == pingEndpoint {
