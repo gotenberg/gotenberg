@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"syscall"
 
 	"github.com/phayes/freeport"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
@@ -110,26 +109,11 @@ func unoconv(ctx context.Context, logger xlog.Logger, fpath, destination string,
 			"unoconv",
 			args...,
 		)
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		if err != nil {
 			return err
 		}
 		xexec.LogBeforeExecute(logger, cmd)
-		if err := cmd.Start(); err != nil {
-			return err
-		}
-		result := make(chan error, 1)
-		go func() {
-			result <- cmd.Wait()
-		}()
-		select {
-		case err := <-result:
-			syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-			return err
-		case <-ctx.Done():
-			syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-			return ctx.Err()
-		}
+		return cmd.Run()
 	}
 	if err := resolver(); err != nil {
 		return xerror.New(op, err)
