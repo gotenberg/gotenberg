@@ -33,4 +33,4 @@ RUN go mod download &&\
 # Copy our code source.
 COPY --chown=gotenberg:gotenberg . .
 
-CMD ["golangci-lint", "run" ,"--tests=false", "--enable-all", "--disable=dupl" ]
+CMD ["golangci-lint", "run" ,"--tests=false", "--enable-all", "--disable=dupl", "--disable=funlen" ]
