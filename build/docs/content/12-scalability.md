@@ -14,6 +14,8 @@ The more concurrent requests, the more `504` HTTP codes the API will return.
 On another hand, for [Office](#office) conversions, the API will start as many unoconv (LibreOffice) instances as there are
 requests. The limitation here is the available memory.
 
+> See our [load testing use case](../loadtesting) for more details about the API behaviour under heavy load.
+
 ## Strategies
 
 ### Increase timeout
