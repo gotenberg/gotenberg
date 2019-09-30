@@ -98,6 +98,12 @@ The following classes allow you to inject printing values:
 > **Attention:** the CSS properties are independant of the ones used in the `index.html` file.
 > Also, `footer.html` CSS properties override the ones from `header.html`.
 
+For images, the only solution currently is to use a `base64` encoded source:
+
+```html
+<img src="data:image/png;base64, iVBORw0KGgoAAAANSUhEUgAAAAUA AAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO 9TXL0Y4OHwAAAABJRU5ErkJggg==" alt="Red dot" />
+```
+
 ### cURL
 
 ```bash

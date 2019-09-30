@@ -454,6 +454,11 @@ Respectively, a file named <code>header.html</code> and <code>footer.html</code>
 Also, <code>footer.html</code> CSS properties override the ones from <code>header.html</code>.</p>
 </blockquote>
 
+<p>For images, the only solution currently is to use a <code>base64</code> encoded source:</p>
+
+<pre class="chroma"><span class="p">&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="s">&#34;data:image/png;base64, iVBORw0KGgoAAAANSUhEUgAAAAUA AAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO 9TXL0Y4OHwAAAABJRU5ErkJggg==&#34;</span> <span class="na">alt</span><span class="o">=</span><span class="s">&#34;Red dot&#34;</span> <span class="p">/&gt;</span>
+</pre>
+
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.header_and_footer.c_url" href="#html.header_and_footer.c_url">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>cURL</h3>
