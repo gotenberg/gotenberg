@@ -9,10 +9,8 @@ if [ "$CURRENT_USER" != "gotenberg" ]; then
     exit 1
 fi
 
-# Start the PM2 processes 
-# (Google Chrome headless & unoconv listener).
-# TODO just start chrome
-go run github.com/thecodingmachine/gotenberg/test/cmd/pm2
+# Start Google Chrome headless.
+go run test/cmd/chrome.go
 
 # Run our tests.
 if [ "$CODE_COVERAGE" = "1" ]; then

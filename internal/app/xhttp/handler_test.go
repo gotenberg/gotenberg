@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/labstack/echo/v4"
@@ -23,18 +22,6 @@ func TestPingHandler(t *testing.T) {
 	srv = New(config)
 	req := httptest.NewRequest(http.MethodGet, pingEndpoint, nil)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)
-	// should returns a JSON as
-	// LOG_LEVEL is "DEBUG".
-	os.Setenv(conf.LogLevelEnvVar, "DEBUG")
-	config, err := conf.FromEnv()
-	assert.Nil(t, err)
-	srv = New(config)
-	req = httptest.NewRequest(http.MethodGet, pingEndpoint, nil)
-	rec := httptest.NewRecorder()
-	srv.ServeHTTP(rec, req)
-	assert.Equal(t, "application/json; charset=UTF-8", rec.Header().Get("Content-type"))
-	assert.Equal(t, http.StatusOK, rec.Code)
-	os.Unsetenv(conf.LogLevelEnvVar)
 }
 
 func TestMergeHandler(t *testing.T) {
