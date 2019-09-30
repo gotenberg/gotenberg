@@ -36,7 +36,6 @@ services:
 It may also be deployed with Kubernetes.
 
 Make sure to provide enough memory and CPU requests (for instance `512Mi` and `0.2` CPU).
-Otherwise the API will not be able to launch Google Chrome and LibreOffice (unoconv).
 
 > The more resources are granted, the quicker will be the conversions.
 
