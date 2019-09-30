@@ -5,6 +5,7 @@ DOCKER_PASSWORD=
 DOCKER_REPOSITORY=thecodingmachine
 GOLANGCI_LINT_VERSION=1.19.1
 CODE_COVERAGE=0
+TINI_VERSION=v0.18.0
 MAXIMUM_WAIT_TIMEOUT=30.0
 MAXIMUM_WAIT_DELAY=10.0
 MAXIMUM_WEBHOOK_URL_TIMEOUT=30.0
@@ -48,7 +49,7 @@ doc:
 # build Gotenberg Docker image.
 image:
 	make workspace
-	docker build --build-arg VERSION=$(VERSION) -t $(DOCKER_REPOSITORY)/gotenberg:$(VERSION) -f build/package/Dockerfile .
+	docker build --build-arg VERSION=$(VERSION) --build-arg TINI_VERSION=$(TINI_VERSION) -t $(DOCKER_REPOSITORY)/gotenberg:$(VERSION) -f build/package/Dockerfile .
 
 # start the API using previously built Docker image.
 gotenberg:
