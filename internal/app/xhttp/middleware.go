@@ -36,7 +36,6 @@ func contextMiddleware(config conf.Config) echo.MiddlewareFunc {
 				err = doCleanup(ctx, err)
 				err = doErr(ctx, err)
 				return ctx.LogRequestResult(err, false)
-
 			}
 			return next(ctx)
 		}
