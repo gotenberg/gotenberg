@@ -27,11 +27,12 @@ func main() {
 	}
 	systemLogger.InfofOp(op, "Gotenberg %s", version)
 	systemLogger.DebugfOp(op, "configuration: %+v", config)
-	// start Google Chrome.
-	// TODO kill proc.
-	_, err = chrome.Start(context.Background(), systemLogger)
-	if err != nil {
-		systemLogger.FatalOp(op, err)
+	if !config.DisableGoogleChrome() {
+		// start Google Chrome.
+		_, err = chrome.Start(context.Background(), systemLogger)
+		if err != nil {
+			systemLogger.FatalOp(op, err)
+		}
 	}
 	// create our API.
 	srv := xhttp.New(config)
