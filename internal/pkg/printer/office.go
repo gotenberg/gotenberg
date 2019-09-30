@@ -104,7 +104,8 @@ func unoconv(ctx context.Context, logger xlog.Logger, fpath, destination string,
 			args = append(args, "--printer", "PaperOrientation=landscape")
 		}
 		args = append(args, "--output", destination, fpath)
-		cmd, err := xexec.Command(
+		cmd, err := xexec.CommandContext(
+			ctx,
 			logger,
 			"unoconv",
 			args...,
