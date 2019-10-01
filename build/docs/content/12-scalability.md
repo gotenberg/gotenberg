@@ -22,7 +22,7 @@ requests. The limitation here is the available memory.
 
 This strategy is mostly for [HTML](#html), [URL](#url) and [Markdown](#markdown) conversions.
 
-You may increase the conversion timeout. In other word, you accept that a conversion takes more time
+You may increase the conversion timeout. In other words, you accept that a conversion takes more time
 if there are more than 6 conversions in parallel.
 
 > See [timeout section](#timeout).
