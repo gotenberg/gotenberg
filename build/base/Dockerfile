@@ -9,7 +9,7 @@ FROM debian:buster-slim
 
 RUN echo "deb http://httpredir.debian.org/debian/ buster main contrib non-free" > /etc/apt/sources.list &&\
     apt-get update &&\
-    apt-get install -y curl wget gnupg ttf-mscorefonts-installer
+    apt-get install -y curl wget gnupg ttf-mscorefonts-installer procps
 
 # |--------------------------------------------------------------------------
 # | Chrome
@@ -108,6 +108,3 @@ RUN groupadd --gid 1001 gotenberg \
   && useradd --uid 1001 --gid gotenberg --shell /bin/bash --home /gotenberg --no-create-home gotenberg \
   && mkdir /gotenberg \
   && chown gotenberg: /gotenberg
-
-# TODO remove.
-RUN apt-get install -y procps

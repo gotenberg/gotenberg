@@ -42,9 +42,9 @@ LABEL authors="Julien Neuhart <j.neuhart@thecodingmachine.com>"
 
 ARG TINI_VERSION
 
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+ADD https://github.com/krallin/tini/releases/download/v${TINI_VERSION}/tini /tini
 RUN chmod +x /tini
-ENTRYPOINT ["/tini", "--"]
+ENTRYPOINT [ "/tini", "--" ]
 
 # |--------------------------------------------------------------------------
 # | Final touch
