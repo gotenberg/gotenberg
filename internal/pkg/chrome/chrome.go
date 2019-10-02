@@ -123,7 +123,7 @@ func restart(logger xlog.Logger, proc *os.Process) error {
 func isViable(logger xlog.Logger) bool {
 	const (
 		op                string = "chrome.isViable"
-		maxViabilityTests int    = 5
+		maxViabilityTests int    = 20
 	)
 	viable := func() bool {
 		ctx, cancel := context.WithCancel(context.Background())
@@ -131,21 +131,21 @@ func isViable(logger xlog.Logger) bool {
 		endpoint := "http://localhost:9222"
 		logger.DebugfOp(
 			op,
-			"checking Google Chrome process viability via endpoint '%s/json/version'",
+			"checking Google Chrome headless process viability via endpoint '%s/json/version'",
 			endpoint,
 		)
 		v, err := devtool.New(endpoint).Version(ctx)
 		if err != nil {
-			logger.ErrorfOp(
+			logger.DebugfOp(
 				op,
-				"Google Chrome is not viable as endpoint returned '%v'",
-				err,
+				"Google Chrome headless is not viable as endpoint returned '%v'",
+				err.Error(),
 			)
 			return false
 		}
 		logger.DebugfOp(
 			op,
-			"Google Chrome is viable as endpoint returned '%v'",
+			"Google Chrome headless is viable as endpoint returned '%v'",
 			v,
 		)
 		return true
