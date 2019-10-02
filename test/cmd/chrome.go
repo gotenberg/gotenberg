@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-
 	"github.com/thecodingmachine/gotenberg/internal/pkg/chrome"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
@@ -15,9 +13,8 @@ func main() {
 	if err != nil {
 		systemLogger.FatalOp(op, err)
 	}
-	// start Google Chrome.
-	_, err = chrome.Start(context.Background(), systemLogger)
-	if err != nil {
+	// start Google Chrome headless.
+	if err := chrome.Start(systemLogger); err != nil {
 		systemLogger.FatalOp(op, err)
 	}
 }

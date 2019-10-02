@@ -59,12 +59,7 @@ func (p mergePrinter) Print(destination string) error {
 		var args []string
 		args = append(args, p.fpaths...)
 		args = append(args, "cat", "output", destination)
-		cmd, err := xexec.CommandContext(p.ctx, p.logger, "pdftk", args...)
-		if err != nil {
-			return err
-		}
-		xexec.LogBeforeExecute(p.logger, cmd)
-		return cmd.Run()
+		return xexec.Run(p.ctx, p.logger, "pdftk", args...)
 	}
 	if err := resolver(); err != nil {
 		return xcontext.MustHandleError(

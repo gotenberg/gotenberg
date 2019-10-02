@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
-	"syscall"
 
 	"github.com/phayes/freeport"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
@@ -106,43 +104,7 @@ func unoconv(ctx context.Context, logger xlog.Logger, fpath, destination string,
 			args = append(args, "--printer", "PaperOrientation=landscape")
 		}
 		args = append(args, "--output", destination, fpath)
-		cmd, err := xexec.Command(
-			logger,
-			"unoconv",
-			args...,
-		)
-		if err != nil {
-			return err
-		}
-		xexec.LogBeforeExecute(logger, cmd)
-		// see https://medium.com/@felixge/killing-a-child-process-and-all-of-its-children-in-go-54079af94773.
-		kill := func() {
-			err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-			if err == nil {
-				return
-			}
-			if !strings.Contains(err.Error(), "no such process") {
-				logger.ErrorOp(op, err)
-			}
-		}
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-		if err := cmd.Start(); err != nil {
-			return err
-		}
-		result := make(chan error, 1)
-		go func() {
-			result <- cmd.Wait()
-		}()
-		select {
-		case err := <-result:
-			logger.DebugfOp(op, "command '%s' finished", strings.Join(cmd.Args, " "))
-			kill()
-			return err
-		case <-ctx.Done():
-			logger.DebugfOp(op, "command '%s' failed to finish before context.Context deadline", strings.Join(cmd.Args, " "))
-			kill()
-			return ctx.Err()
-		}
+		return xexec.Run(ctx, logger, "unoconv", args...)
 	}
 	if err := resolver(); err != nil {
 		return xerror.New(op, err)

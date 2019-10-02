@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -28,9 +27,8 @@ func main() {
 	systemLogger.InfofOp(op, "Gotenberg %s", version)
 	systemLogger.DebugfOp(op, "configuration: %+v", config)
 	if !config.DisableGoogleChrome() {
-		// start Google Chrome.
-		_, err = chrome.Start(context.Background(), systemLogger)
-		if err != nil {
+		// start Google Chrome headless.
+		if err := chrome.Start(systemLogger); err != nil {
 			systemLogger.FatalOp(op, err)
 		}
 	}
