@@ -58,4 +58,4 @@ gotenberg:
 # publish Gotenberg images according to version.
 publish:
 	make workspace
-	./scripts/publish.sh $(GOLANG_VERSION) $(VERSION) $(DOCKER_USER) $(DOCKER_PASSWORD)
+	./scripts/publish.sh $(GOLANG_VERSION) $(TINI_VERSION) $(DOCKER_REPOSITORY) $(VERSION) $(DOCKER_USER) $(DOCKER_PASSWORD)

@@ -3,9 +3,11 @@
 set -e
 
 GOLANG_VERSION="$1"
-VERSION="$2"
-DOCKER_USER="$3"
-DOCKER_PASSWORD="$4"
+TINI_VERSION="$2"
+DOCKER_REPOSITORY="$3"
+VERSION="$4"
+DOCKER_USER="$5"
+DOCKER_PASSWORD="$6"
 
 docker login -u "$DOCKER_USER" -p "$DOCKER_PASSWORD"
 
@@ -20,13 +22,14 @@ fi
 
 docker build \
     --build-arg VERSION=${VERSION} \
-    -t thecodingmachine/gotenberg:latest \
-    -t thecodingmachine/gotenberg:${SEMVER[0]} \
-    -t thecodingmachine/gotenberg:${SEMVER[0]}.${SEMVER[1]} \
-    -t thecodingmachine/gotenberg:${SEMVER[0]}.${SEMVER[1]}.${SEMVER[2]} \
+    --build-arg TINI_VERSION=${TINI_VERSION} \
+    -t ${DOCKER_REPOSITORY}/gotenberg:latest \
+    -t ${DOCKER_REPOSITORY}/gotenberg:${SEMVER[0]} \
+    -t ${DOCKER_REPOSITORY}/gotenberg:${SEMVER[0]}.${SEMVER[1]} \
+    -t ${DOCKER_REPOSITORY}/gotenberg:${SEMVER[0]}.${SEMVER[1]}.${SEMVER[2]} \
     -f build/package/Dockerfile .
 
-docker push "thecodingmachine/gotenberg:latest"
-docker push "thecodingmachine/gotenberg:${SEMVER[0]}"
-docker push "thecodingmachine/gotenberg:${SEMVER[0]}.${SEMVER[1]}"
-docker push "thecodingmachine/gotenberg:${SEMVER[0]}.${SEMVER[1]}.${SEMVER[2]}"
+docker push "${DOCKER_REPOSITORY}/gotenberg:latest"
+docker push "${DOCKER_REPOSITORY}/gotenberg:${SEMVER[0]}"
+docker push "${DOCKER_REPOSITORY}/gotenberg:${SEMVER[0]}.${SEMVER[1]}"
+docker push "${DOCKER_REPOSITORY}/gotenberg:${SEMVER[0]}.${SEMVER[1]}.${SEMVER[2]}"
