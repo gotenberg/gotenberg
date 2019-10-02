@@ -39,7 +39,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v5"
+import "github.com/thecodingmachine/gotenberg-go-client/v6"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
@@ -98,6 +98,12 @@ The following classes allow you to inject printing values:
 > **Attention:** the CSS properties are independant of the ones used in the `index.html` file.
 > Also, `footer.html` CSS properties override the ones from `header.html`.
 
+For images, the only solution currently is to use a `base64` encoded source:
+
+```html
+<img src="data:image/png;base64, iVBORw0KGgoAAAANSUhEUgAAAAUA AAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO 9TXL0Y4OHwAAAABJRU5ErkJggg==" alt="Red dot" />
+```
+
 ### cURL
 
 ```bash
@@ -113,7 +119,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v5"
+import "github.com/thecodingmachine/gotenberg-go-client/v6"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
@@ -203,7 +209,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v5"
+import "github.com/thecodingmachine/gotenberg-go-client/v6"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
@@ -262,7 +268,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v5"
+import "github.com/thecodingmachine/gotenberg-go-client/v6"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
@@ -296,7 +302,8 @@ $client->store($request, $dest);
 ## Wait delay
 
 In some cases, you may want to wait a certain amount of time to make sure the
-page you're trying to generate is fully rendered.
+page you're trying to generate is fully rendered. For instance, if your page relies
+a lot on JavaScript for rendering.
 
 > The wait delay is a duration in **seconds** (e.g `2.5` for 2.5 seconds).
 
@@ -314,7 +321,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v5"
+import "github.com/thecodingmachine/gotenberg-go-client/v6"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}

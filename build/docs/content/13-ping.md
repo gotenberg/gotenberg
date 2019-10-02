@@ -5,7 +5,8 @@ title: Ping
 Gotenberg provides the endpoint `/ping` for checking the API availability with
 a simple `GET` request.
 
-This feature is especially useful for liveness/readiness probes in Kubernetes:
+Currently this endpoint does nothing special. A better way to monitor
+Gotenberg would be by checking the memory usage.
 
-* [Pod lifecycle](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes)
-* [Configure Liveness and Readiness Probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/)
+Also, as the API uses under the hood intricate programs, you should
+restart your Gotenberg instances from time to time to ensure a nominal behaviour.

@@ -120,8 +120,6 @@
 <ul>
 <li>HTML and Markdown conversions using Google Chrome headless</li>
 <li>Office conversions (.txt, .rtf, .docx, .doc, .odt, .pptx, .ppt, .odp and so on) using <a href="https://github.com/dagwieers/unoconv">unoconv</a></li>
-<li>Performance: Google Chrome and LibreOffice (unoconv) started once in the background thanks to PM2</li>
-<li>Failure prevention: PM2 automatically restarts previous processes if they fail</li>
 <li>Assets: send your header, footer, images, fonts, stylesheets and so on for converting your HTML and Markdown to beaufitul PDFs!</li>
 <li>Easily interact with the API using our <a href="https://github.com/thecodingmachine/gotenberg-go-client">Go</a> and <a href="https://github.com/thecodingmachine/gotenberg-php-client">PHP</a> libraries</li>
 </ul>
@@ -134,9 +132,13 @@
 </a>Install</h1>
                 <p>Gotenberg is shipped within a Docker image.</p>
 
+<blockquote>
+<p>It uses a dedicated non-root user called <code>gotenberg</code> with uid and gid <code>1001</code>.</p>
+</blockquote>
+
 <p>You may start it with:</p>
 
-<pre class="chroma">$ docker run --rm -p <span class="m">3000</span>:3000 thecodingmachine/gotenberg:5
+<pre class="chroma">$ docker run --rm -p <span class="m">3000</span>:3000 thecodingmachine/gotenberg:6
 </pre>
 
 <blockquote>
@@ -156,7 +158,7 @@
 </span><span class="w">  </span><span class="c"># your others services</span><span class="w">
 </span><span class="w">
 </span><span class="w">  </span>gotenberg<span class="p">:</span><span class="w">
-</span><span class="w">    </span>image<span class="p">:</span><span class="w"> </span>thecodingmachine/gotenberg<span class="p">:</span><span class="m">5</span><span class="w">
+</span><span class="w">    </span>image<span class="p">:</span><span class="w"> </span>thecodingmachine/gotenberg<span class="p">:</span><span class="m">6</span><span class="w">
 </span></pre>
 
 <blockquote>
@@ -169,12 +171,18 @@
 
 <p>It may also be deployed with Kubernetes.</p>
 
-<p>Make sure to provide enough memory and CPU requests (for instance <code>512Mi</code> and <code>0.2</code> CPU).
-Otherwise the API will not be able to launch Google Chrome and LibreOffice (unoconv).</p>
+<p>Make sure to provide enough memory and CPU requests (for instance <code>512Mi</code> and <code>0.2</code> CPU).</p>
 
 <blockquote>
 <p>The more resources are granted, the quicker will be the conversions.</p>
 </blockquote>
+
+<p>In the deployment specification of the pod, also specify the uid <code>1001</code> of the user <code>gotenberg</code>:</p>
+
+<pre class="chroma">securityContext:
+  privileged: false
+  runAsUser: 1001
+</pre>
 
 <p>In the following examples, we will assume your
 Gotenberg API is available at <a href="http://localhost:3000">http://localhost:3000</a>.</p>
@@ -191,7 +199,7 @@ Gotenberg API is available at <a href="http://localhost:3000">http://localhost:3
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Go client</h2>
 
-<pre class="chroma">$ go get -u github.com/thecodingmachine/gotenberg-go-client/v5
+<pre class="chroma">$ go get -u github.com/thecodingmachine/gotenberg-go-client/v6
 </pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="clients.php_client" href="#clients.php_client">
@@ -216,13 +224,39 @@ Gotenberg API is available at <a href="http://localhost:3000">http://localhost:3
 </a>Environment variables</h1>
                 <p>You may customize the API behaviour thanks to environment variables.</p>
 
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="environment_variables.log_level" href="#environment_variables.log_level">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Log level</h2>
+
+<p>The API provides structured logging allowing you to have relevant information
+about what’s going on.</p>
+
+<blockquote>
+<p>If a TTY is attached, the log entries are displayed in text format with colors, otherwise in JSON format.</p>
+</blockquote>
+
+<p>You may customize the severity of the log entries thanks to the environment variable <code>LOG_LEVEL</code>.</p>
+
+<p>It accepts one of the following severities: <code>&#34;DEBUG&#34;</code>, <code>&#34;INFO&#34;</code> (default) and <code>&#34;ERROR&#34;</code>.</p>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="environment_variables.default_listen_port" href="#environment_variables.default_listen_port">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Default listen port</h2>
+
+<p>By default, the API will listen on port <code>3000</code>.</p>
+
+<p>You may customize this value with the environment variable <code>DEFAULT_LISTEN_PORT</code>.</p>
+
+<p>This environment variable accepts any string that can be turned into a port number.</p>
+
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="environment_variables.disable_google_chrome" href="#environment_variables.disable_google_chrome">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Disable Google Chrome</h2>
 
-<p>In order to save some resources, the Gotenberg image accepts the environment variable <code>DISABLE_GOOGLE_CHROME</code>.</p>
+<p>In order to save some resources, the Gotenberg image accepts the environment variable <code>DISABLE_GOOGLE_CHROME</code>
+for disabling Google Chrome.</p>
 
-<p>It takes the strings <code>&#34;0&#34;</code> or <code>&#34;1&#34;</code> as value.</p>
+<p>It takes the strings <code>&#34;0&#34;</code> or <code>&#34;1&#34;</code> as value where <code>1</code> means <code>true</code></p>
 
 <blockquote>
 <p>If Google Chrome is disabled, the following conversions will <strong>not</strong> be available anymore:
@@ -244,7 +278,8 @@ Gotenberg API is available at <a href="http://localhost:3000">http://localhost:3
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Default wait timeout</h2>
 
-<p>By default, the API will wait 10 seconds before it considers the conversion to be unsuccessful.</p>
+<p>By default, the API will wait 10 seconds before it considers the conversion to be unsuccessful.
+If unsucessful, it returns a <code>504</code> HTTP code.</p>
 
 <p>You may customize this timeout thanks to the environment variable <code>DEFAULT_WAIT_TIMEOUT</code>.</p>
 
@@ -255,25 +290,58 @@ Gotenberg API is available at <a href="http://localhost:3000">http://localhost:3
 See the <a href="#timeout">timeout section</a>.</p>
 </blockquote>
 
-<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="environment_variables.disable_logging_on_healthcheck" href="#environment_variables.disable_logging_on_healthcheck">
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="environment_variables.maximum_wait_timeout" href="#environment_variables.maximum_wait_timeout">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-</a>Disable logging on healthcheck</h2>
+</a>Maximum wait timeout</h2>
 
-<p>By default, the API will add a log entry when the <a href="#ping">healthcheck endpoint</a> is called.</p>
+<p>By default, the value of the form field <code>waitTimeout</code> cannot be more than 30 seconds.</p>
 
-<p>You may turn off this logging so as to avoid unnecessary entries in your logs with the environment variable <code>DISABLE_HEALTHCHECK_LOGGING</code>.</p>
+<p>You may increase or decrease this limit thanks to the environment variable <code>MAXIMUM_WAIT_TIMEOUT</code>.</p>
 
-<p>This environment variable operates in the same manner as the <code>DISABLE_GOOGLE_CHROME</code> and <code>DISABLE_UNOCONV</code> variables operate in that it accepts the strings <code>&#34;0&#34;</code> or <code>&#34;1&#34;</code> as values.</p>
+<p>It takes a string representation of a float as value (e.g <code>&#34;2.5&#34;</code> for 2.5 seconds).</p>
 
-<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="environment_variables.default_listen_port" href="#environment_variables.default_listen_port">
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="environment_variables.default_webhook_url_timeout" href="#environment_variables.default_webhook_url_timeout">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-</a>Default listen port</h2>
+</a>Default webhook URL timeout</h2>
 
-<p>By default, the API will listen on port <code>3000</code>. For most use cases this is perfectly fine, but at times there may be cases where you need to change this due to port conflicts.</p>
+<p>By default, the API will wait 10 seconds before it considers the sending of the resulting PDF to be unsuccessful.</p>
 
-<p>You may customize this port location with the environment variable <code>DEFAULT_LISTEN_PORT</code>.</p>
+<blockquote>
+<p>See the <a href="#webhook">webhook section</a>.</p>
+</blockquote>
 
-<p>This environment variable accepts any string that can be turned into a port number (e.g., the string <code>&#34;0&#34;</code> up to the string <code>&#34;65535&#34;</code>).</p>
+<p>You may customize this timeout thanks to the environment variable <code>DEFAULT_WEBHOOK_URL_TIMEOUT</code>.</p>
+
+<p>It takes a string representation of a float as value (e.g <code>&#34;2.5&#34;</code> for 2.5 seconds).</p>
+
+<blockquote>
+<p>The default timeout may also be overridden per request thanks to the form field <code>webhookURLTimeout</code>.
+See the <a href="#webhook.timeout">webhook timeout section</a>.</p>
+</blockquote>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="environment_variables.maximum_webhook_url_timeout" href="#environment_variables.maximum_webhook_url_timeout">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Maximum webhook URL timeout</h2>
+
+<p>By default, the value of the form field <code>webhookURLTimeout</code> cannot be more than 30 seconds.</p>
+
+<p>You may increase or decrease this limit thanks to the environment variable <code>MAXIMUM_WEBHOOK_URL_TIMEOUT</code>.</p>
+
+<p>It takes a string representation of a float as value (e.g <code>&#34;2.5&#34;</code> for 2.5 seconds).</p>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="environment_variables.maximum_wait_delay" href="#environment_variables.maximum_wait_delay">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Maximum wait delay</h2>
+
+<p>By default, the value of the form field <code>waitDelay</code> cannot be more than 10 seconds.</p>
+
+<blockquote>
+<p>See the <a href="#html.wait_delay">wait delay section</a>.</p>
+</blockquote>
+
+<p>You may increase or decrease this limit thanks to the environment variable <code>MAXIMUM_WAIT_DELAY</code>.</p>
+
+<p>It takes a string representation of a float as value (e.g <code>&#34;2.5&#34;</code> for 2.5 seconds).</p>
 
               </div>
             
@@ -321,7 +389,7 @@ which will be converted to PDF.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Go</h3>
 
-<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v5&#34;</span>
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v6&#34;</span>
 
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
@@ -386,6 +454,11 @@ Respectively, a file named <code>header.html</code> and <code>footer.html</code>
 Also, <code>footer.html</code> CSS properties override the ones from <code>header.html</code>.</p>
 </blockquote>
 
+<p>For images, the only solution currently is to use a <code>base64</code> encoded source:</p>
+
+<pre class="chroma"><span class="p">&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="s">&#34;data:image/png;base64, iVBORw0KGgoAAAANSUhEUgAAAAUA AAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO 9TXL0Y4OHwAAAABJRU5ErkJggg==&#34;</span> <span class="na">alt</span><span class="o">=</span><span class="s">&#34;Red dot&#34;</span> <span class="p">/&gt;</span>
+</pre>
+
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.header_and_footer.c_url" href="#html.header_and_footer.c_url">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>cURL</h3>
@@ -403,7 +476,7 @@ Also, <code>footer.html</code> CSS properties override the ones from <code>heade
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Go</h3>
 
-<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v5&#34;</span>
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v6&#34;</span>
 
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
@@ -498,7 +571,7 @@ see to the <a href="#fonts">fonts section</a>.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Go</h3>
 
-<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v5&#34;</span>
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v6&#34;</span>
 
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
@@ -564,7 +637,7 @@ $client-&gt;store($request, $dest);
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Go</h3>
 
-<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v5&#34;</span>
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v6&#34;</span>
 
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
@@ -601,7 +674,8 @@ $client-&gt;store($request, $dest);
 </a>Wait delay</h2>
 
 <p>In some cases, you may want to wait a certain amount of time to make sure the
-page you’re trying to generate is fully rendered.</p>
+page you’re trying to generate is fully rendered. For instance, if your page relies
+a lot on JavaScript for rendering.</p>
 
 <blockquote>
 <p>The wait delay is a duration in <strong>seconds</strong> (e.g <code>2.5</code> for 2.5 seconds).</p>
@@ -623,7 +697,7 @@ page you’re trying to generate is fully rendered.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Go</h3>
 
-<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v5&#34;</span>
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v6&#34;</span>
 
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
@@ -692,7 +766,7 @@ If not, some of the content of the page might be hidden.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Go</h3>
 
-<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v5&#34;</span>
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v6&#34;</span>
 
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
@@ -766,7 +840,7 @@ in the file <code>index.html</code>. This function will convert a given markdown
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Go</h3>
 
-<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v5&#34;</span>
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v6&#34;</span>
 
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
@@ -828,9 +902,7 @@ $client-&gt;store($request, $dest);
 <p>All files will be merged into a single resulting PDF.</p>
 
 <blockquote>
-<p><strong>Attention:</strong> currently, <code>unoconv</code> cannot perform concurrent conversions.
-That’s why for Office conversions, the API does only one conversion at a time.
-See the <a href="#scalability">scalability section</a> to find how to mitigate this issue.</p>
+<p><strong>Attention:</strong> Gotenberg merges the PDF files alphabetically.</p>
 </blockquote>
 
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="office.basic.c_url" href="#office.basic.c_url">
@@ -849,7 +921,7 @@ See the <a href="#scalability">scalability section</a> to find how to mitigate t
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Go</h3>
 
-<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v5&#34;</span>
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v6&#34;</span>
 
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
@@ -901,7 +973,7 @@ $client-&gt;store($request, $dest);
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Go</h3>
 
-<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v5&#34;</span>
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v6&#34;</span>
 
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
@@ -936,7 +1008,7 @@ $client-&gt;store($request, $dest);
                 <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="merge" href="#merge">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Merge</h1>
-                <p>Gotenberg provides the endpoint <code>/convert/merge</code> for merging PDFs.</p>
+                <p>Gotenberg provides the endpoint <code>/merge</code> for merging PDFs.</p>
 
 <p>It accepts <code>POST</code> requests with a <code>multipart/form-data</code> Content-Type.</p>
 
@@ -956,7 +1028,7 @@ will merge them and return the resulting PDF file.</p>
 </a>cURL</h3>
 
 <pre class="chroma">$ curl --request POST <span class="se">\
-</span><span class="se"></span>    --url http://localhost:3000/convert/merge <span class="se">\
+</span><span class="se"></span>    --url http://localhost:3000/merge <span class="se">\
 </span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
 </span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@file.pdf <span class="se">\
 </span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@file2.pdf <span class="se">\
@@ -967,7 +1039,7 @@ will merge them and return the resulting PDF file.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Go</h3>
 
-<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v5&#34;</span>
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v6&#34;</span>
 
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
@@ -1003,7 +1075,8 @@ $client-&gt;store($request, $dest);
 </a>Timeout</h1>
                 <p>All endpoints accept a form field named <code>waitTimeout</code>.</p>
 
-<p>The API will wait the given <strong>seconds</strong> before it considers the conversion to be unsucessful.</p>
+<p>The API will wait the given <strong>seconds</strong> before it considers the conversion to be unsucessful.
+If unsucessful, it returns a <code>504</code> HTTP code.</p>
 
 <p>It takes a float as value (e.g <code>2.5</code> for 2.5 seconds).</p>
 
@@ -1030,7 +1103,7 @@ $client-&gt;store($request, $dest);
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Go</h3>
 
-<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v5&#34;</span>
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v6&#34;</span>
 
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
@@ -1089,7 +1162,7 @@ to given URL.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Go</h3>
 
-<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v5&#34;</span>
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v6&#34;</span>
 
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
@@ -1111,6 +1184,67 @@ $client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\
 $index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
 $request = new HTMLRequest($index);
 $request-&gt;setWebhookURL(&#39;http://myapp.com/webhook/&#39;);
+$resp = $client-&gt;post($request);
+</pre>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.timeout" href="#webhook.timeout">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Timeout</h2>
+
+<p>If a <code>webhookURL</code> is provided, you may also send a form field named <code>webhookURLTimeout</code>.</p>
+
+<p>The API will wait the given <strong>seconds</strong> before it considers the sending of the resulting PDF to be unsucessful.</p>
+
+<p>It takes a float as value (e.g <code>2.5</code> for 2.5 seconds).</p>
+
+<blockquote>
+<p>You may also define this value globally: see the <a href="#environment_variables.default_webhook_url_timeout">environment variables</a> section.</p>
+</blockquote>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.timeout.examples" href="#webhook.timeout.examples">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Examples</h3>
+
+<h4 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.timeout.examples.c_url" href="#webhook.timeout.examples.c_url">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>cURL</h4>
+
+<pre class="chroma">$ curl --request POST <span class="se">\
+</span><span class="se"></span>    --url http://localhost:3000/convert/html <span class="se">\
+</span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">webhookURL</span><span class="o">=</span><span class="s1">&#39;http://myapp.com/webhook/&#39;</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">webhookURLTimeout</span><span class="o">=</span><span class="m">2</span>.5
+</pre>
+
+<h4 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.timeout.examples.go" href="#webhook.timeout.examples.go">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Go</h4>
+
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v6&#34;</span>
+
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
+    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewHTMLRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nf">WebhookURL</span><span class="p">(</span><span class="s">&#34;http://myapp.com/webhook/&#34;</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nf">WebhookURLTimeout</span><span class="p">(</span><span class="mf">2.5</span><span class="p">)</span>
+    <span class="nx">resp</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">c</span><span class="p">.</span><span class="nf">Post</span><span class="p">(</span><span class="nx">req</span><span class="p">)</span>
+<span class="p">}</span>
+</pre>
+
+<h4 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.timeout.examples.php" href="#webhook.timeout.examples.php">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>PHP</h4>
+
+<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\HTMLRequest;
+
+$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
+$request = new HTMLRequest($index);
+$request-&gt;setWebhookURL(&#39;http://myapp.com/webhook/&#39;);
+$request-&gt;setWebhookURLTimeout(2.5);
 $resp = $client-&gt;post($request);
 </pre>
 
@@ -1148,7 +1282,7 @@ Otherwise a random filename is used.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Go</h3>
 
-<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v5&#34;</span>
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v6&#34;</span>
 
 <span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
@@ -1180,7 +1314,43 @@ $resp = $client-&gt;post($request);
                 <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="scalability" href="#scalability">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Scalability</h1>
-                <p>The API being stateless, you may scale it as much as you want.</p>
+                <p>The API uses under the hood intricate programs.</p>
+
+<p>Gotenberg tries to abstract as much complexity as possible but it can
+only do it to a certain extend.</p>
+
+<p>For instance, <a href="#office">Office</a> and <a href="#merge">Merge</a> endpoints will start respectively as many LibreOffice (unoconv) and PDTk
+instances are there are requests. The limitation here is the available memory and CPU usage.</p>
+
+<p>On another hand, for the <a href="#html">HTML</a>, <a href="#url">URL</a> and <a href="#markdown">Markdown</a> endpoints, the API does only 6 conversions in parallel.
+Indeed, Google Chrome misbehaves if there are too many concurrent conversions.</p>
+
+<p><strong>The more concurrent requests, the more <code>504</code> HTTP codes the API will return.</strong></p>
+
+<blockquote>
+<p>See our <a href="../loadtesting">load testing use case</a> for more details about the API behaviour under heavy load.</p>
+</blockquote>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="scalability.strategies" href="#scalability.strategies">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Strategies</h2>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="scalability.strategies.increase_timeout" href="#scalability.strategies.increase_timeout">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Increase timeout</h3>
+
+<p>You may increase the conversion timeout. In other words, you accept that a conversion takes more time
+if the API is under heavy load.</p>
+
+<blockquote>
+<p>See <a href="#timeout">timeout section</a>.</p>
+</blockquote>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="scalability.strategies.scaling" href="#scalability.strategies.scaling">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Scaling</h3>
+
+<p>The API being stateless, you may scale it as much as you want.</p>
 
 <p>For instance, using the following Docker Compose file:</p>
 
@@ -1191,7 +1361,7 @@ $resp = $client-&gt;post($request);
 </span><span class="w">  </span><span class="c"># your others services</span><span class="w">
 </span><span class="w">
 </span><span class="w">  </span>gotenberg<span class="p">:</span><span class="w">
-</span><span class="w">    </span>image<span class="p">:</span><span class="w"> </span>thecodingmachine/gotenberg<span class="p">:</span><span class="m">5</span><span class="w">
+</span><span class="w">    </span>image<span class="p">:</span><span class="w"> </span>thecodingmachine/gotenberg<span class="p">:</span><span class="m">6</span><span class="w">
 </span></pre>
 
 <p>You may now launch your services using:</p>
@@ -1211,12 +1381,11 @@ redirect a request to a Gotenberg container according to the round-robin strateg
                 <p>Gotenberg provides the endpoint <code>/ping</code> for checking the API availability with
 a simple <code>GET</code> request.</p>
 
-<p>This feature is especially useful for liveness/readiness probes in Kubernetes:</p>
+<p>Currently this endpoint does nothing special. A better way to monitor
+Gotenberg would be by checking the memory usage.</p>
 
-<ul>
-<li><a href="https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes">Pod lifecycle</a></li>
-<li><a href="https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/">Configure Liveness and Readiness Probes</a></li>
-</ul>
+<p>Also, as the API uses under the hood intricate programs, you should
+restart your Gotenberg instances from time to time to ensure a nominal behaviour.</p>
 
               </div>
             
@@ -1228,7 +1397,7 @@ a simple <code>GET</code> request.</p>
 
 <p>If you wish to use more fonts, you will have to create your own image:</p>
 
-<pre class="chroma"><span class="k">FROM</span><span class="s"> thecodingmachine/gotenberg:5</span><span class="err">
+<pre class="chroma"><span class="k">FROM</span><span class="s"> thecodingmachine/gotenberg:6</span><span class="err">
 </span><span class="err">
 </span><span class="err"></span><span class="k">RUN</span> apt-get -y install yourfonts<span class="err">
 </span></pre>
@@ -1242,6 +1411,7 @@ a simple <code>GET</code> request.</p>
                 <ul>
 <li>Follow the progress on the <a href="https://github.com/thecodingmachine/gotenberg">GitHub repository</a></li>
 <li>Follow <a href="https://twitter.com/gulnap">@gulnap</a> on Twitter</li>
+<li>Thanks to <a href="https://github.com/mafredri">@mafredri</a> for its help and its wonderful <a href="https://github.com/mafredri/cdp">cdp</a> library</li>
 </ul>
 
 <p>Psst: TheCodingMachine is always looking for <a href="https://coders.thecodingmachine.com">talented coders</a>.</p>

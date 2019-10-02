@@ -2,7 +2,7 @@
 title: Merge
 ---
 
-Gotenberg provides the endpoint `/convert/merge` for merging PDFs.
+Gotenberg provides the endpoint `/merge` for merging PDFs.
 
 It accepts `POST` requests with a `multipart/form-data` Content-Type.
 
@@ -17,7 +17,7 @@ will merge them and return the resulting PDF file.
 
 ```bash
 $ curl --request POST \
-    --url http://localhost:3000/convert/merge \
+    --url http://localhost:3000/merge \
     --header 'Content-Type: multipart/form-data' \
     --form files=@file.pdf \
     --form files=@file2.pdf \
@@ -27,7 +27,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v5"
+import "github.com/thecodingmachine/gotenberg-go-client/v6"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}

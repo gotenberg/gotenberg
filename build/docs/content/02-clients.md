@@ -7,7 +7,7 @@ We provide clients in various languages for easing the interactions with the API
 ## Go client
 
 ```bash
-$ go get -u github.com/thecodingmachine/gotenberg-go-client/v5
+$ go get -u github.com/thecodingmachine/gotenberg-go-client/v6
 ```
 
 ## PHP client
