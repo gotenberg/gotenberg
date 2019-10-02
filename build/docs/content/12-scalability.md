@@ -2,17 +2,18 @@
 title: Scalability
 ---
 
-Google Chrome and unoconv (LibreOffice) are intricate programs.
+The API uses under the hood intricate programs.
 
 Gotenberg tries to abstract as much complexity as possible but it can
 only do it to a certain extend.
 
-For instance, Google Chrome misbehaves if there are too many concurrent conversions.
-That's why for [HTML](#html), [URL](#url) and [Markdown](#markdown) conversions, the API does only 6 conversions in parallel.
-The more concurrent requests, the more `504` HTTP codes the API will return.
+For instance, [Office](#office) and [Merge](#merge) endpoints will start respectively as many LibreOffice (unoconv) and PDTk
+instances are there are requests. The limitation here is the available memory and CPU usage.
 
-On another hand, for [Office](#office) conversions, the API will start as many unoconv (LibreOffice) instances as there are
-requests. The limitation here is the available memory.
+On another hand, for the [HTML](#html), [URL](#url) and [Markdown](#markdown) endpoints, the API does only 6 conversions in parallel.
+Indeed, Google Chrome misbehaves if there are too many concurrent conversions.
+
+**The more concurrent requests, the more `504` HTTP codes the API will return.**
 
 > See our [load testing use case](../loadtesting) for more details about the API behaviour under heavy load.
 
@@ -20,10 +21,8 @@ requests. The limitation here is the available memory.
 
 ### Increase timeout
 
-This strategy is mostly for [HTML](#html), [URL](#url) and [Markdown](#markdown) conversions.
-
 You may increase the conversion timeout. In other words, you accept that a conversion takes more time
-if there are more than 6 conversions in parallel.
+if the API is under heavy load.
 
 > See [timeout section](#timeout).
 

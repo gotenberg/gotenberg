@@ -1314,17 +1314,18 @@ $resp = $client-&gt;post($request);
                 <h1 class="Heading"><a class="Anchor" aria-hidden="true" id="scalability" href="#scalability">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Scalability</h1>
-                <p>Google Chrome and unoconv (LibreOffice) are intricate programs.</p>
+                <p>The API uses under the hood intricate programs.</p>
 
 <p>Gotenberg tries to abstract as much complexity as possible but it can
 only do it to a certain extend.</p>
 
-<p>For instance, Google Chrome misbehaves if there are too many concurrent conversions.
-That’s why for <a href="#html">HTML</a>, <a href="#url">URL</a> and <a href="#markdown">Markdown</a> conversions, the API does only 6 conversions in parallel.
-The more concurrent requests, the more <code>504</code> HTTP codes the API will return.</p>
+<p>For instance, <a href="#office">Office</a> and <a href="#merge">Merge</a> endpoints will start respectively as many LibreOffice (unoconv) and PDTk
+instances are there are requests. The limitation here is the available memory and CPU usage.</p>
 
-<p>On another hand, for <a href="#office">Office</a> conversions, the API will start as many unoconv (LibreOffice) instances as there are
-requests. The limitation here is the available memory.</p>
+<p>On another hand, for the <a href="#html">HTML</a>, <a href="#url">URL</a> and <a href="#markdown">Markdown</a> endpoints, the API does only 6 conversions in parallel.
+Indeed, Google Chrome misbehaves if there are too many concurrent conversions.</p>
+
+<p><strong>The more concurrent requests, the more <code>504</code> HTTP codes the API will return.</strong></p>
 
 <blockquote>
 <p>See our <a href="../loadtesting">load testing use case</a> for more details about the API behaviour under heavy load.</p>
@@ -1338,10 +1339,8 @@ requests. The limitation here is the available memory.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Increase timeout</h3>
 
-<p>This strategy is mostly for <a href="#html">HTML</a>, <a href="#url">URL</a> and <a href="#markdown">Markdown</a> conversions.</p>
-
 <p>You may increase the conversion timeout. In other words, you accept that a conversion takes more time
-if there are more than 6 conversions in parallel.</p>
+if the API is under heavy load.</p>
 
 <blockquote>
 <p>See <a href="#timeout">timeout section</a>.</p>
@@ -1385,7 +1384,7 @@ a simple <code>GET</code> request.</p>
 <p>Currently this endpoint does nothing special. A better way to monitor
 Gotenberg would be by checking the memory usage.</p>
 
-<p>Also, as Google Chrome and unoconv (LibreOffice) are intricate programs, you should
+<p>Also, as the API uses under the hood intricate programs, you should
 restart your Gotenberg instances from time to time to ensure a nominal behaviour.</p>
 
               </div>
@@ -1412,6 +1411,7 @@ restart your Gotenberg instances from time to time to ensure a nominal behaviour
                 <ul>
 <li>Follow the progress on the <a href="https://github.com/thecodingmachine/gotenberg">GitHub repository</a></li>
 <li>Follow <a href="https://twitter.com/gulnap">@gulnap</a> on Twitter</li>
+<li>Thanks to <a href="https://github.com/mafredri">@mafredri</a> for its help and its wonderful <a href="https://github.com/mafredri/cdp">cdp</a> library</li>
 </ul>
 
 <p>Psst: TheCodingMachine is always looking for <a href="https://coders.thecodingmachine.com">talented coders</a>.</p>
