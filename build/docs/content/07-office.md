@@ -25,9 +25,7 @@ You may send one or more Office documents. Following file extensions are accepte
 
 All files will be merged into a single resulting PDF.
 
-> **Attention:** currently, `unoconv` cannot perform concurrent conversions.
-> That's why for Office conversions, the API does only one conversion at a time.
-> See the [scalability section](#scalability) to find how to mitigate this issue.
+> **Attention:** Gotenberg merges the PDF files alphabetically.
 
 ### cURL
 
@@ -43,7 +41,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v5"
+import "github.com/thecodingmachine/gotenberg-go-client/v6"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
@@ -90,7 +88,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v5"
+import "github.com/thecodingmachine/gotenberg-go-client/v6"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}

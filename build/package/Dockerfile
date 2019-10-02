@@ -1,5 +1,3 @@
-ARG GOLANG_VERSION
-
 # |--------------------------------------------------------------------------
 # | Binary
 # |--------------------------------------------------------------------------
@@ -7,7 +5,7 @@ ARG GOLANG_VERSION
 # | Buils Gotenberg binary.
 # |
 
-FROM golang:${GOLANG_VERSION}-stretch AS golang
+FROM thecodingmachine/gotenberg:workspace AS workspace
 
 ARG VERSION
 
@@ -16,13 +14,37 @@ ENV GOOS=linux \
     CGO_ENABLED=0
 
 # Define our workding outside of $GOPATH (we're using go modules).
-WORKDIR /gotenberg
+WORKDIR /gotenberg/package
+
+# Install module dependencies.
+COPY go.mod go.sum ./
+
+RUN go mod download &&\
+    go mod verify
 
 # Copy our source code.
-COPY . .
+COPY internal ./internal
+COPY cmd ./cmd
 
 # Build our binary.
-RUN go build -o /gotenberg/gotenberg -ldflags "-X main.version=${VERSION}" cmd/gotenberg/main.go
+RUN go build -o gotenberg -ldflags "-X main.version=${VERSION}" cmd/gotenberg/main.go
+
+FROM thecodingmachine/gotenberg:base
+
+LABEL authors="Julien Neuhart <j.neuhart@thecodingmachine.com>"
+
+# |--------------------------------------------------------------------------
+# | Tini
+# |--------------------------------------------------------------------------
+# |
+# | An helper for reaping zombie processes.
+# |
+
+ARG TINI_VERSION
+
+ADD https://github.com/krallin/tini/releases/download/v${TINI_VERSION}/tini /tini
+RUN chmod +x /tini
+ENTRYPOINT [ "/tini", "--" ]
 
 # |--------------------------------------------------------------------------
 # | Final touch
@@ -31,12 +53,9 @@ RUN go build -o /gotenberg/gotenberg -ldflags "-X main.version=${VERSION}" cmd/g
 # | Last instructions of this build.
 # |
 
-FROM thecodingmachine/gotenberg:base
+COPY --from=workspace /gotenberg/package/gotenberg /usr/local/bin/
 
-LABEL authors="Julien Neuhart <j.neuhart@thecodingmachine.com>"
-
-COPY --from=golang /gotenberg/gotenberg /usr/local/bin/
-
+USER gotenberg
 WORKDIR /gotenberg
 
 EXPOSE 3000
