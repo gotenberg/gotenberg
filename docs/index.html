@@ -449,15 +449,16 @@ Respectively, a file named <code>header.html</code> and <code>footer.html</code>
 <li><code>totalPage</code>: total pages in the document</li>
 </ul>
 
-<blockquote>
-<p><strong>Attention:</strong> the CSS properties are independant of the ones used in the <code>index.html</code> file.
-Also, <code>footer.html</code> CSS properties override the ones from <code>header.html</code>.</p>
-</blockquote>
+<p>There are some limitations:</p>
 
-<p>For images, the only solution currently is to use a <code>base64</code> encoded source:</p>
-
-<pre class="chroma"><span class="p">&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="s">&#34;data:image/png;base64, iVBORw0KGgoAAAANSUhEUgAAAAUA AAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO 9TXL0Y4OHwAAAABJRU5ErkJggg==&#34;</span> <span class="na">alt</span><span class="o">=</span><span class="s">&#34;Red dot&#34;</span> <span class="p">/&gt;</span>
-</pre>
+<ul>
+<li>JavaScript is not executed</li>
+<li>external resources are not loaded</li>
+<li>the CSS properties are independant of the ones used in the <code>index.html</code> file</li>
+<li><code>footer.html</code> CSS properties override the ones from <code>header.html</code></li>
+<li>only fonts installed in the Docker image are loaded (see the <a href="#fonts">fonts section</a>)</li>
+<li>images only work using a <code>base64</code> encoded source (<code>&lt;img src=&#34;data:image/png;base64, iVBORw0K... /&gt;</code>)</li>
+</ul>
 
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.header_and_footer.c_url" href="#html.header_and_footer.c_url">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
@@ -624,7 +625,7 @@ $client-&gt;store($request, $dest);
 </span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
 </span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html <span class="se">\
 </span><span class="se"></span>    --form <span class="nv">paperWidth</span><span class="o">=</span><span class="m">8</span>.27 <span class="se">\
-</span><span class="se"></span>    --form <span class="nv">paperHeight</span><span class="o">=</span><span class="m">11</span>.27 <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">paperHeight</span><span class="o">=</span><span class="m">11</span>.69 <span class="se">\
 </span><span class="se"></span>    --form <span class="nv">marginTop</span><span class="o">=</span><span class="m">0</span> <span class="se">\
 </span><span class="se"></span>    --form <span class="nv">marginBottom</span><span class="o">=</span><span class="m">0</span> <span class="se">\
 </span><span class="se"></span>    --form <span class="nv">marginLeft</span><span class="o">=</span><span class="m">0</span> <span class="se">\
@@ -1399,7 +1400,11 @@ restart your Gotenberg instances from time to time to ensure a nominal behaviour
 
 <pre class="chroma"><span class="k">FROM</span><span class="s"> thecodingmachine/gotenberg:6</span><span class="err">
 </span><span class="err">
+</span><span class="err"></span><span class="k">USER</span><span class="s"> root</span><span class="err">
+</span><span class="err">
 </span><span class="err"></span><span class="k">RUN</span> apt-get -y install yourfonts<span class="err">
+</span><span class="err">
+</span><span class="err"></span><span class="k">USER</span><span class="s"> gotenberg</span><span class="err">
 </span></pre>
 
               </div>

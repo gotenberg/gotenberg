@@ -95,14 +95,14 @@ The following classes allow you to inject printing values:
 * `pageNumber`: current page number
 * `totalPage`: total pages in the document
 
-> **Attention:** the CSS properties are independant of the ones used in the `index.html` file.
-> Also, `footer.html` CSS properties override the ones from `header.html`.
+There are some limitations:
 
-For images, the only solution currently is to use a `base64` encoded source:
-
-```html
-<img src="data:image/png;base64, iVBORw0KGgoAAAANSUhEUgAAAAUA AAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO 9TXL0Y4OHwAAAABJRU5ErkJggg==" alt="Red dot" />
-```
+* JavaScript is not executed
+* external resources are not loaded
+* the CSS properties are independant of the ones used in the `index.html` file
+* `footer.html` CSS properties override the ones from `header.html`
+* only fonts installed in the Docker image are loaded (see the [fonts section](#fonts))
+* images only work using a `base64` encoded source (`<img src="data:image/png;base64, iVBORw0K... />`)
 
 ### cURL
 
@@ -256,7 +256,7 @@ $ curl --request POST \
     --header 'Content-Type: multipart/form-data' \
     --form files=@index.html \
     --form paperWidth=8.27 \
-    --form paperHeight=11.27 \
+    --form paperHeight=11.69 \
     --form marginTop=0 \
     --form marginBottom=0 \
     --form marginLeft=0 \
