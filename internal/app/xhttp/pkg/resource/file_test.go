@@ -35,6 +35,7 @@ func TestHeaderFooterContents(t *testing.T) {
 	assert.Nil(t, err)
 	defer f2.Close() // nolint: errcheck
 	err = r.WithFile("footer.html", f2)
+	assert.Nil(t, err)
 	header, footer, err = HeaderFooterContents(r, config)
 	assert.Nil(t, err)
 	assert.Contains(t, header, expected)

@@ -19,7 +19,6 @@ func TestPingHandler(t *testing.T) {
 	// should return 200.
 	config := conf.DefaultConfig()
 	srv := New(config)
-	srv = New(config)
 	req := httptest.NewRequest(http.MethodGet, pingEndpoint, nil)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)
 }

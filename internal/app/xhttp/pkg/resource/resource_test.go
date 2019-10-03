@@ -261,6 +261,7 @@ func TestFcontent(t *testing.T) {
 	err = r.WithFile(filename, f)
 	assert.Nil(t, err)
 	v, err = r.Fcontent(filename, defaultValue)
+	assert.Nil(t, err)
 	assert.Contains(t, v, defaultValue)
 	// finally...
 	err = r.Close()
