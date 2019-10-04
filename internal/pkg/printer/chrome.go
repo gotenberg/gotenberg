@@ -110,7 +110,18 @@ func (p chromePrinter) Print(destination string) error {
 		}
 		// connect the client to the new target.
 		newTargetWsURL := fmt.Sprintf("ws://127.0.0.1:9222/devtools/page/%s", newTarget.TargetID)
-		newContextConn, err := rpcc.DialContext(ctx, newTargetWsURL)
+		newContextConn, err := rpcc.DialContext(
+			ctx,
+			newTargetWsURL,
+			/*
+				see:
+				https://github.com/thecodingmachine/gotenberg/issues/108
+				https://github.com/mafredri/cdp/issues/4
+				https://github.com/ChromeDevTools/devtools-protocol/issues/24
+			*/
+			rpcc.WithWriteBufferSize(1024*1024),
+			rpcc.WithCompression(),
+		)
 		if err != nil {
 			return err
 		}
