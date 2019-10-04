@@ -15,7 +15,7 @@ Indeed, Google Chrome misbehaves if there are too many concurrent conversions.
 
 **The more concurrent requests, the more `504` HTTP codes the API will return.**
 
-> See our [load testing use case](../loadtesting) for more details about the API behaviour under heavy load.
+> See our [load testing use case](https://github.com/thecodingmachine/gotenberg/tree/master/loadtesting) for more details about the API behaviour under heavy load.
 
 ## Strategies
 
