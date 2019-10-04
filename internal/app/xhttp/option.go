@@ -48,6 +48,10 @@ func chromePrinterOptions(r resource.Resource, config conf.Config) (printer.Chro
 		if err != nil {
 			return printer.ChromePrinterOptions{}, err
 		}
+		pageRanges, err := r.StringArg(resource.PageRangesArgKey, "")
+		if err != nil {
+			return printer.ChromePrinterOptions{}, err
+		}
 		return printer.ChromePrinterOptions{
 			WaitTimeout:  waitTimeout,
 			WaitDelay:    waitDelay,
@@ -60,6 +64,7 @@ func chromePrinterOptions(r resource.Resource, config conf.Config) (printer.Chro
 			MarginLeft:   marginLeft,
 			MarginRight:  marginRight,
 			Landscape:    landscape,
+			PageRanges:   pageRanges,
 		}, nil
 	}
 	opts, err := resolver()
@@ -80,9 +85,14 @@ func officePrinterOptions(r resource.Resource, config conf.Config) (printer.Offi
 		if err != nil {
 			return printer.OfficePrinterOptions{}, err
 		}
+		pageRanges, err := r.StringArg(resource.PageRangesArgKey, "")
+		if err != nil {
+			return printer.OfficePrinterOptions{}, err
+		}
 		return printer.OfficePrinterOptions{
 			WaitTimeout: waitTimeout,
 			Landscape:   landscape,
+			PageRanges:  pageRanges,
 		}, nil
 	}
 	opts, err := resolver()

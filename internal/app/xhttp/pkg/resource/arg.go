@@ -51,6 +51,9 @@ const (
 	// LandscapeArgKey is the key
 	// of the argument "landscape".
 	LandscapeArgKey ArgKey = "landscape"
+	// PageRangesArgKey is the key
+	// of the argument "pageRanges".
+	PageRangesArgKey ArgKey = "pageRanges"
 )
 
 /*
@@ -73,6 +76,7 @@ func ArgKeys() []ArgKey {
 		MarginLeftArgKey,
 		MarginRightArgKey,
 		LandscapeArgKey,
+		PageRangesArgKey,
 	}
 }
 
