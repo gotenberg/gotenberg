@@ -347,3 +347,51 @@ $request->setWaitDelay(5.5);
 $dest = "result.pdf";
 $client->store($request, $dest);
 ```
+
+## Page ranges
+
+You may specify the page ranges to convert.
+
+The format is the same as the one from the print options
+of Google Chrome, e.g. `1-5,8,11-13`.
+
+### cURL
+
+```bash
+$ curl --request POST \
+    --url http://localhost:3000/convert/html \
+    --header 'Content-Type: multipart/form-data' \
+    --form files=@index.html \
+    --form pageRanges='1-3,5' \
+    -o result.pdf
+```
+
+### Go
+
+```golang
+import "github.com/thecodingmachine/gotenberg-go-client/v6"
+
+func main() {
+    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+    req, _ := gotenberg.NewHTMLRequest("index.html")
+    req.PageRanges("1-3,5")
+    dest := "result.pdf"
+    c.Store(req, dest)
+}
+```
+
+### PHP
+
+```php
+use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\HTMLRequest;
+use TheCodingMachine\Gotenberg\Request;
+
+$client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath('index.html', 'index.html');
+$request = new HTMLRequest($index);
+$request->setPageRanges("1-3,5");
+$dest = "result.pdf";
+$client->store($request, $dest);
+```

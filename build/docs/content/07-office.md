@@ -115,3 +115,55 @@ $request->setLandscape(true);
 $dest = "result.pdf";
 $client->store($request, $dest);
 ```
+
+## Page ranges
+
+You may specify the page ranges to convert.
+
+The format is the same as the one from the print options
+of LibreOffice, e.g. `1-1` or `1-4`.
+
+> This feature does not work in there is more
+> than one document to convert.
+
+### cURL
+
+```bash
+$ curl --request POST \
+    --url http://localhost:3000/convert/office \
+    --header 'Content-Type: multipart/form-data' \
+    --form files=@document.docx \
+    --form pageRanges='1-3' \
+    -o result.pdf
+```
+
+### Go
+
+```golang
+import "github.com/thecodingmachine/gotenberg-go-client/v6"
+
+func main() {
+    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+    req, _ := gotenberg.NewOfficeRequest("document.docx")
+    req.PageRanges("1-3")
+    dest := "result.pdf"
+    c.Store(req, dest)
+}
+```
+
+### PHP
+
+```php
+use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\OfficeRequest;
+
+$client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
+$files = [
+    DocumentFactory::makeFromPath('document.docx', 'document.docx'),
+];
+$request = new OfficeRequest($files);
+$request->setPageRanges("1-3");
+$dest = "result.pdf";
+$client->store($request, $dest);
+```
