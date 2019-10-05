@@ -24,6 +24,7 @@ func TestArgKeys(t *testing.T) {
 		MarginLeftArgKey,
 		MarginRightArgKey,
 		LandscapeArgKey,
+		PageRangesArgKey,
 	}
 	assert.Equal(t, expected, ArgKeys())
 }

@@ -161,15 +161,15 @@ func (p chromePrinter) Print(destination string) error {
 			printToPdfArgs.SetPageRanges(p.opts.PageRanges)
 		}
 		// print the page to PDF.
-		// TODO catch page range error?
 		print, err := targetClient.Page.PrintToPDF(
 			ctx,
 			printToPdfArgs,
 		)
 		if err != nil {
+			// TODO: find a way to check it in the handlers.
 			if strings.Contains(err.Error(), "Page range syntax error") {
 				return xerror.Invalid(
-					"",
+					op,
 					fmt.Sprintf("'%s' is not a valid Google Chrome page ranges", p.opts.PageRanges),
 					err,
 				)

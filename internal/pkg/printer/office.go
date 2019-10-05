@@ -91,9 +91,6 @@ func (p officePrinter) Print(destination string) error {
 func (p officePrinter) unoconv(ctx context.Context, fpath, destination string) error {
 	const op string = "printer.unoconv"
 	resolver := func() error {
-		hasPageRanges := func() bool {
-			return p.opts.PageRanges != "" && len(p.fpaths) == 1
-		}
 		port, err := freeport.GetFreePort()
 		if err != nil {
 			return err
@@ -109,14 +106,15 @@ func (p officePrinter) unoconv(ctx context.Context, fpath, destination string) e
 		if p.opts.Landscape {
 			args = append(args, "--printer", "PaperOrientation=landscape")
 		}
-		if hasPageRanges() {
+		if p.opts.PageRanges != "" {
 			args = append(args, "--export", fmt.Sprintf("PageRange=%s", p.opts.PageRanges))
 		}
 		args = append(args, "--output", destination, fpath)
 		if err := xexec.Run(ctx, p.logger, "unoconv", args...); err != nil {
-			if hasPageRanges() && strings.Contains(err.Error(), "exit status 5") {
+			// TODO: find a way to check it in the handlers.
+			if p.opts.PageRanges != "" && strings.Contains(err.Error(), "exit status 5") {
 				return xerror.Invalid(
-					"",
+					op,
 					fmt.Sprintf("'%s' is not a valid LibreOffice page ranges", p.opts.PageRanges),
 					err,
 				)
