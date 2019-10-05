@@ -123,8 +123,8 @@ You may specify the page ranges to convert.
 The format is the same as the one from the print options
 of LibreOffice, e.g. `1-1` or `1-4`.
 
-> **Attention:** this feature does not work in there is more
-> than one document to convert.
+> **Attention:** if more than one document, the page ranges will be
+> applied for each document.
 
 ### cURL
 
