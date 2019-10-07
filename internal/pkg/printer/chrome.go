@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"strings"
 	"time"
 
 	"github.com/mafredri/cdp"
@@ -29,17 +30,18 @@ type chromePrinter struct {
 // ChromePrinterOptions helps customizing the
 // Google Chrome Printer behaviour.
 type ChromePrinterOptions struct {
-	WaitTimeout  float64
-	WaitDelay    float64
-	HeaderHTML   string
-	FooterHTML   string
-	PaperWidth   float64
-	PaperHeight  float64
-	MarginTop    float64
-	MarginBottom float64
-	MarginLeft   float64
-	MarginRight  float64
-	Landscape    bool
+	WaitTimeout    float64
+	WaitDelay      float64
+	HeaderHTML     string
+	FooterHTML     string
+	PaperWidth     float64
+	PaperHeight    float64
+	MarginTop      float64
+	MarginBottom   float64
+	MarginLeft     float64
+	MarginRight    float64
+	Landscape      bool
+	RpccBufferSize int64
 }
 
 // DefaultChromePrinterOptions returns the default
@@ -47,17 +49,18 @@ type ChromePrinterOptions struct {
 func DefaultChromePrinterOptions(config conf.Config) ChromePrinterOptions {
 	const defaultHeaderFooterHTML string = "<html><head></head><body></body></html>"
 	return ChromePrinterOptions{
-		WaitTimeout:  config.DefaultWaitTimeout(),
-		WaitDelay:    0.0,
-		HeaderHTML:   defaultHeaderFooterHTML,
-		FooterHTML:   defaultHeaderFooterHTML,
-		PaperWidth:   8.27,
-		PaperHeight:  11.7,
-		MarginTop:    1.0,
-		MarginBottom: 1.0,
-		MarginLeft:   1.0,
-		MarginRight:  1.0,
-		Landscape:    false,
+		WaitTimeout:    config.DefaultWaitTimeout(),
+		WaitDelay:      0.0,
+		HeaderHTML:     defaultHeaderFooterHTML,
+		FooterHTML:     defaultHeaderFooterHTML,
+		PaperWidth:     8.27,
+		PaperHeight:    11.7,
+		MarginTop:      1.0,
+		MarginBottom:   1.0,
+		MarginLeft:     1.0,
+		MarginRight:    1.0,
+		Landscape:      false,
+		RpccBufferSize: config.DefaultGoogleChromeRpccBufferSize(),
 	}
 }
 
@@ -110,7 +113,18 @@ func (p chromePrinter) Print(destination string) error {
 		}
 		// connect the client to the new target.
 		newTargetWsURL := fmt.Sprintf("ws://127.0.0.1:9222/devtools/page/%s", newTarget.TargetID)
-		newContextConn, err := rpcc.DialContext(ctx, newTargetWsURL)
+		newContextConn, err := rpcc.DialContext(
+			ctx,
+			newTargetWsURL,
+			/*
+				see:
+				https://github.com/thecodingmachine/gotenberg/issues/108
+				https://github.com/mafredri/cdp/issues/4
+				https://github.com/ChromeDevTools/devtools-protocol/issues/24
+			*/
+			rpcc.WithWriteBufferSize(int(p.opts.RpccBufferSize)),
+			rpcc.WithCompression(),
+		)
 		if err != nil {
 			return err
 		}
@@ -159,6 +173,16 @@ func (p chromePrinter) Print(destination string) error {
 				SetPrintBackground(true),
 		)
 		if err != nil {
+			if strings.Contains(err.Error(), "rpcc: message too large") {
+				return xerror.Invalid(
+					op,
+					fmt.Sprintf(
+						"'%d' bytes are not enough: increase the Google Chrome rpcc buffer size (up to 100 MB)",
+						p.opts.RpccBufferSize,
+					),
+					err,
+				)
+			}
 			return err
 		}
 		if err := ioutil.WriteFile(destination, print.Data, 0644); err != nil {

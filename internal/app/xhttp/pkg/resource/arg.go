@@ -51,6 +51,9 @@ const (
 	// LandscapeArgKey is the key
 	// of the argument "landscape".
 	LandscapeArgKey ArgKey = "landscape"
+	// GoogleChromeRpccBufferSizeArgKey is the key
+	// of the argument "googleChromeRpccBufferSize".
+	GoogleChromeRpccBufferSizeArgKey ArgKey = "googleChromeRpccBufferSize"
 )
 
 /*
@@ -73,6 +76,7 @@ func ArgKeys() []ArgKey {
 		MarginLeftArgKey,
 		MarginRightArgKey,
 		LandscapeArgKey,
+		GoogleChromeRpccBufferSizeArgKey,
 	}
 }
 
@@ -264,4 +268,25 @@ func MarginArgs(r Resource, config conf.Config) (float64, float64, float64, floa
 		marginLeft,
 		marginRight,
 		nil
+}
+
+/*
+GoogleChromeRpccBufferSizeArg is a helper for retrieving
+the "googleChromeRpccBufferSize" argument as int64.
+
+It also validates it against the application
+configuration.
+*/
+func GoogleChromeRpccBufferSizeArg(r Resource, config conf.Config) (int64, error) {
+	const op string = "resource.GoogleChromeRpccBufferSizeArg"
+	result, err := r.Int64Arg(
+		GoogleChromeRpccBufferSizeArgKey,
+		config.DefaultGoogleChromeRpccBufferSize(),
+		xassert.Int64NotInferiorTo(0.0),
+		xassert.Int64NotSuperiorTo(config.MaximumGoogleChromeRpccBufferSize()),
+	)
+	if err != nil {
+		return result, xerror.New(op, err)
+	}
+	return result, nil
 }
