@@ -263,6 +263,23 @@ for disabling Google Chrome.</p>
 <a href="#html">HTML</a>, <a href="#url">URL</a> and <a href="#markdown">Markdown</a></p>
 </blockquote>
 
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="environment_variables.default_google_chrome_rpcc_buffer_size" href="#environment_variables.default_google_chrome_rpcc_buffer_size">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Default Google Chrome rpcc buffer size</h2>
+
+<p>When performing a <a href="#html">HTML</a>, <a href="#url">URL</a> or <a href="#markdown">Markdown</a> conversion, the API might return
+a <code>400</code> HTTP code with the message <code>increase the Google Chrome rpcc buffer size</code>.</p>
+
+<p>If so, you may increase this buffer size with the environment variable <code>DEFAULT_GOOGLE_CHROME_RPCC_BUFFER_SIZE</code>.</p>
+
+<p>It takes a string representation of an int as value (e.g. <code>&#34;1048576&#34;</code> for 1 MB).
+The hard limit is 100 MB and is defined by Google Chrome itself.</p>
+
+<blockquote>
+<p>The default Google Chrome rpcc buffer size may also be overridden per request thanks to the form field <code>googleChromeRpccBufferSize</code>.
+See the <a href="#html.rpcc_buffer_size">rpcc buffer size section</a>.</p>
+</blockquote>
+
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="environment_variables.disable_libre_office_unoconv" href="#environment_variables.disable_libre_office_unoconv">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Disable LibreOffice (unoconv)</h2>
@@ -722,6 +739,65 @@ $client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\
 $index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
 $request = new HTMLRequest($index);
 $request-&gt;setWaitDelay(5.5);
+$dest = &#34;result.pdf&#34;;
+$client-&gt;store($request, $dest);
+</pre>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.rpcc_buffer_size" href="#html.rpcc_buffer_size">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Rpcc buffer size</h2>
+
+<p>The API might return a <code>400</code> HTTP code with the message <code>increase the Google Chrome rpcc buffer size</code>.</p>
+
+<p>If so, you may increase this buffer size with a form field named <code>googleChromeRpccBufferSize</code>.</p>
+
+<p>It takes an int as value (e.g. <code>1048576</code> for 1 MB).
+The hard limit is 100 MB and is defined by Google Chrome itself.</p>
+
+<blockquote>
+<p>You may also define this value globally: see the <a href="#environment_variables.default_google_chrome_rpcc_buffer_size">environment variables</a> section.</p>
+</blockquote>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.rpcc_buffer_size.c_url" href="#html.rpcc_buffer_size.c_url">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>cURL</h3>
+
+<pre class="chroma">$ curl --request POST <span class="se">\
+</span><span class="se"></span>    --url http://localhost:3000/convert/html <span class="se">\
+</span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">googleChromeRpccBufferSize</span><span class="o">=</span><span class="m">1048576</span> <span class="se">\
+</span><span class="se"></span>    -o result.pdf
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.rpcc_buffer_size.go" href="#html.rpcc_buffer_size.go">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Go</h3>
+
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v6&#34;</span>
+
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
+    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewHTMLRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nf">GoogleChromeRpccBufferSize</span><span class="p">(</span><span class="mi">1048576</span><span class="p">)</span>
+    <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
+    <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+<span class="p">}</span>
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.rpcc_buffer_size.php" href="#html.rpcc_buffer_size.php">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>PHP</h3>
+
+<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\HTMLRequest;
+use TheCodingMachine\Gotenberg\Request;
+
+$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
+$request = new HTMLRequest($index);
+$request-&gt;setGoogleChromeRpccBufferSize(1048576);
 $dest = &#34;result.pdf&#34;;
 $client-&gt;store($request, $dest);
 </pre>

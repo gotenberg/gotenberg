@@ -184,6 +184,24 @@ func TestHTMLHandler(t *testing.T) {
 	req = httptest.NewRequest(http.MethodPost, endpoint, body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusBadRequest, srv, req)
+	// should return 400 as "googleChromeRpccBufferSize" form field
+	// value is < 0.
+	body, contentType = test.HTMLMultipartForm(t, map[string]string{string(resource.GoogleChromeRpccBufferSizeArgKey): "-1"})
+	req = httptest.NewRequest(http.MethodPost, endpoint, body)
+	req.Header.Set(echo.HeaderContentType, contentType)
+	test.AssertStatusCode(t, http.StatusBadRequest, srv, req)
+	// should return 400 as "googleChromeRpccBufferSize" form field
+	// value is is > config.MaximumGoogleChromeRpccBufferSize().
+	body, contentType = test.HTMLMultipartForm(t, map[string]string{string(resource.GoogleChromeRpccBufferSizeArgKey): "104857601"})
+	req = httptest.NewRequest(http.MethodPost, endpoint, body)
+	req.Header.Set(echo.HeaderContentType, contentType)
+	test.AssertStatusCode(t, http.StatusBadRequest, srv, req)
+	// should return 400 as "googleChromeRpccBufferSize" form field
+	// value is invalid.
+	body, contentType = test.HTMLMultipartForm(t, map[string]string{string(resource.GoogleChromeRpccBufferSizeArgKey): "not an int"})
+	req = httptest.NewRequest(http.MethodPost, endpoint, body)
+	req.Header.Set(echo.HeaderContentType, contentType)
+	test.AssertStatusCode(t, http.StatusBadRequest, srv, req)
 }
 
 func TestURLHandler(t *testing.T) {
@@ -314,6 +332,24 @@ func TestURLHandler(t *testing.T) {
 	req = httptest.NewRequest(http.MethodPost, endpoint, body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusBadRequest, srv, req)
+	// should return 400 as "googleChromeRpccBufferSize" form field
+	// value is < 0.
+	body, contentType = test.URLMultipartForm(t, map[string]string{string(resource.GoogleChromeRpccBufferSizeArgKey): "-1"})
+	req = httptest.NewRequest(http.MethodPost, endpoint, body)
+	req.Header.Set(echo.HeaderContentType, contentType)
+	test.AssertStatusCode(t, http.StatusBadRequest, srv, req)
+	// should return 400 as "googleChromeRpccBufferSize" form field
+	// value is is > config.MaximumGoogleChromeRpccBufferSize().
+	body, contentType = test.URLMultipartForm(t, map[string]string{string(resource.GoogleChromeRpccBufferSizeArgKey): "104857601"})
+	req = httptest.NewRequest(http.MethodPost, endpoint, body)
+	req.Header.Set(echo.HeaderContentType, contentType)
+	test.AssertStatusCode(t, http.StatusBadRequest, srv, req)
+	// should return 400 as "googleChromeRpccBufferSize" form field
+	// value is invalid.
+	body, contentType = test.URLMultipartForm(t, map[string]string{string(resource.GoogleChromeRpccBufferSizeArgKey): "not an int"})
+	req = httptest.NewRequest(http.MethodPost, endpoint, body)
+	req.Header.Set(echo.HeaderContentType, contentType)
+	test.AssertStatusCode(t, http.StatusBadRequest, srv, req)
 }
 
 func TestMarkdownHandler(t *testing.T) {
@@ -441,6 +477,24 @@ func TestMarkdownHandler(t *testing.T) {
 	// should return 400 as "landscape" form field
 	// value is invalid.
 	body, contentType = test.MarkdownMultipartForm(t, map[string]string{string(resource.LandscapeArgKey): "not a boolean"})
+	req = httptest.NewRequest(http.MethodPost, endpoint, body)
+	req.Header.Set(echo.HeaderContentType, contentType)
+	test.AssertStatusCode(t, http.StatusBadRequest, srv, req)
+	// should return 400 as "googleChromeRpccBufferSize" form field
+	// value is < 0.
+	body, contentType = test.MarkdownMultipartForm(t, map[string]string{string(resource.GoogleChromeRpccBufferSizeArgKey): "-1"})
+	req = httptest.NewRequest(http.MethodPost, endpoint, body)
+	req.Header.Set(echo.HeaderContentType, contentType)
+	test.AssertStatusCode(t, http.StatusBadRequest, srv, req)
+	// should return 400 as "googleChromeRpccBufferSize" form field
+	// value is is > config.MaximumGoogleChromeRpccBufferSize().
+	body, contentType = test.MarkdownMultipartForm(t, map[string]string{string(resource.GoogleChromeRpccBufferSizeArgKey): "104857601"})
+	req = httptest.NewRequest(http.MethodPost, endpoint, body)
+	req.Header.Set(echo.HeaderContentType, contentType)
+	test.AssertStatusCode(t, http.StatusBadRequest, srv, req)
+	// should return 400 as "googleChromeRpccBufferSize" form field
+	// value is invalid.
+	body, contentType = test.MarkdownMultipartForm(t, map[string]string{string(resource.GoogleChromeRpccBufferSizeArgKey): "not an int"})
 	req = httptest.NewRequest(http.MethodPost, endpoint, body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusBadRequest, srv, req)

@@ -347,3 +347,55 @@ $request->setWaitDelay(5.5);
 $dest = "result.pdf";
 $client->store($request, $dest);
 ```
+
+## Rpcc buffer size
+
+The API might return a `400` HTTP code with the message `increase the Google Chrome rpcc buffer size`.
+
+If so, you may increase this buffer size with a form field named `googleChromeRpccBufferSize`.
+
+It takes an int as value (e.g. `1048576` for 1 MB).
+The hard limit is 100 MB and is defined by Google Chrome itself.
+
+> You may also define this value globally: see the [environment variables](#environment_variables.default_google_chrome_rpcc_buffer_size) section.
+
+### cURL
+
+```bash
+$ curl --request POST \
+    --url http://localhost:3000/convert/html \
+    --header 'Content-Type: multipart/form-data' \
+    --form files=@index.html \
+    --form googleChromeRpccBufferSize=1048576 \
+    -o result.pdf
+```
+
+### Go
+
+```golang
+import "github.com/thecodingmachine/gotenberg-go-client/v6"
+
+func main() {
+    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+    req, _ := gotenberg.NewHTMLRequest("index.html")
+    req.GoogleChromeRpccBufferSize(1048576)
+    dest := "result.pdf"
+    c.Store(req, dest)
+}
+```
+
+### PHP
+
+```php
+use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\HTMLRequest;
+use TheCodingMachine\Gotenberg\Request;
+
+$client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath('index.html', 'index.html');
+$request = new HTMLRequest($index);
+$request->setGoogleChromeRpccBufferSize(1048576);
+$dest = "result.pdf";
+$client->store($request, $dest);
+```

@@ -320,6 +320,43 @@ func TestLogLevelFromEnv(t *testing.T) {
 	os.Unsetenv(LogLevelEnvVar)
 }
 
+func TestDefaultGoogleChromeRpccBufferSizeFromEnv(t *testing.T) {
+	var (
+		expected Config
+		result   Config
+		err      error
+	)
+	// DEFAULT_GOOGLE_CHROME_RPCC_BUFFER_SIZE correctly set.
+	os.Setenv(DefaultGoogleChromeRpccBufferSizeEnvVar, "100")
+	expected = DefaultConfig()
+	expected.defaultGoogleChromeRpccBufferSize = 100
+	result, err = FromEnv()
+	assert.Nil(t, err)
+	assert.Equal(t, expected, result)
+	os.Unsetenv(DefaultGoogleChromeRpccBufferSizeEnvVar)
+	// DEFAULT_GOOGLE_CHROME_RPCC_BUFFER_SIZE wrongly set.
+	os.Setenv(DefaultGoogleChromeRpccBufferSizeEnvVar, "foo")
+	expected = DefaultConfig()
+	result, err = FromEnv()
+	test.AssertError(t, err)
+	assert.Equal(t, expected, result)
+	os.Unsetenv(DefaultGoogleChromeRpccBufferSizeEnvVar)
+	// DEFAULT_GOOGLE_CHROME_RPCC_BUFFER_SIZE < 0.
+	os.Setenv(DefaultGoogleChromeRpccBufferSizeEnvVar, "-1")
+	expected = DefaultConfig()
+	result, err = FromEnv()
+	test.AssertError(t, err)
+	assert.Equal(t, expected, result)
+	os.Unsetenv(DefaultGoogleChromeRpccBufferSizeEnvVar)
+	// DEFAULT_GOOGLE_CHROME_RPCC_BUFFER_SIZE > 100 MB (maximumGoogleChromeRpccBufferSize).
+	os.Setenv(DefaultGoogleChromeRpccBufferSizeEnvVar, "104857601")
+	expected = DefaultConfig()
+	result, err = FromEnv()
+	test.AssertError(t, err)
+	assert.Equal(t, expected, result)
+	os.Unsetenv(DefaultGoogleChromeRpccBufferSizeEnvVar)
+}
+
 func TestGetters(t *testing.T) {
 	result := DefaultConfig()
 	assert.Equal(t, result.maximumWaitTimeout, result.MaximumWaitTimeout())
@@ -331,4 +368,6 @@ func TestGetters(t *testing.T) {
 	assert.Equal(t, result.disableGoogleChrome, result.DisableGoogleChrome())
 	assert.Equal(t, result.disableUnoconv, result.DisableUnoconv())
 	assert.Equal(t, result.logLevel, result.LogLevel())
+	assert.Equal(t, result.maximumGoogleChromeRpccBufferSize, result.MaximumGoogleChromeRpccBufferSize())
+	assert.Equal(t, result.defaultGoogleChromeRpccBufferSize, result.DefaultGoogleChromeRpccBufferSize())
 }

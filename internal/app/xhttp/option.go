@@ -48,18 +48,23 @@ func chromePrinterOptions(r resource.Resource, config conf.Config) (printer.Chro
 		if err != nil {
 			return printer.ChromePrinterOptions{}, err
 		}
+		googleChromeRpccBufferSize, err := resource.GoogleChromeRpccBufferSizeArg(r, config)
+		if err != nil {
+			return printer.ChromePrinterOptions{}, err
+		}
 		return printer.ChromePrinterOptions{
-			WaitTimeout:  waitTimeout,
-			WaitDelay:    waitDelay,
-			HeaderHTML:   headerHTML,
-			FooterHTML:   footerHTML,
-			PaperWidth:   paperWidth,
-			PaperHeight:  paperHeight,
-			MarginTop:    marginTop,
-			MarginBottom: marginBottom,
-			MarginLeft:   marginLeft,
-			MarginRight:  marginRight,
-			Landscape:    landscape,
+			WaitTimeout:    waitTimeout,
+			WaitDelay:      waitDelay,
+			HeaderHTML:     headerHTML,
+			FooterHTML:     footerHTML,
+			PaperWidth:     paperWidth,
+			PaperHeight:    paperHeight,
+			MarginTop:      marginTop,
+			MarginBottom:   marginBottom,
+			MarginLeft:     marginLeft,
+			MarginRight:    marginRight,
+			Landscape:      landscape,
+			RpccBufferSize: googleChromeRpccBufferSize,
 		}, nil
 	}
 	opts, err := resolver()
