@@ -21,6 +21,9 @@ func TestPingHandler(t *testing.T) {
 	srv := New(config)
 	req := httptest.NewRequest(http.MethodGet, pingEndpoint, nil)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)
+	// should return 405 as Method is wrong.
+	req = httptest.NewRequest(http.MethodPost, pingEndpoint, nil)
+	test.AssertStatusCode(t, http.StatusMethodNotAllowed, srv, req)
 }
 
 func TestMergeHandler(t *testing.T) {
@@ -31,6 +34,13 @@ func TestMergeHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, mergeEndpoint, body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)
+	// should return 405 as Method is wrong.
+	req = httptest.NewRequest(http.MethodGet, mergeEndpoint, nil)
+	test.AssertStatusCode(t, http.StatusMethodNotAllowed, srv, req)
+	// should return 415 as Content-Type is wrong.
+	body, _ = test.MergeMultipartForm(t, nil)
+	req = httptest.NewRequest(http.MethodPost, mergeEndpoint, body)
+	test.AssertStatusCode(t, http.StatusUnsupportedMediaType, srv, req)
 	// should return 400 as "waitTimeout" form field
 	// value is < 0.
 	body, contentType = test.MergeMultipartForm(t, map[string]string{string(resource.WaitTimeoutArgKey): "-1"})
@@ -65,6 +75,13 @@ func TestHTMLHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, endpoint, body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)
+	// should return 405 as Method is wrong.
+	req = httptest.NewRequest(http.MethodGet, endpoint, nil)
+	test.AssertStatusCode(t, http.StatusMethodNotAllowed, srv, req)
+	// should return 415 as Content-Type is wrong.
+	body, _ = test.HTMLMultipartForm(t, nil)
+	req = httptest.NewRequest(http.MethodPost, endpoint, body)
+	test.AssertStatusCode(t, http.StatusUnsupportedMediaType, srv, req)
 	// should return 400 as "waitTimeout" form field
 	// value is < 0.
 	body, contentType = test.HTMLMultipartForm(t, map[string]string{string(resource.WaitTimeoutArgKey): "-1"})
@@ -213,6 +230,13 @@ func TestURLHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, endpoint, body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)
+	// should return 405 as Method is wrong.
+	req = httptest.NewRequest(http.MethodGet, endpoint, nil)
+	test.AssertStatusCode(t, http.StatusMethodNotAllowed, srv, req)
+	// should return 415 as Content-Type is wrong.
+	body, _ = test.URLMultipartForm(t, nil)
+	req = httptest.NewRequest(http.MethodPost, endpoint, body)
+	test.AssertStatusCode(t, http.StatusUnsupportedMediaType, srv, req)
 	// should return 400 as "waitTimeout" form field
 	// value is < 0.
 	body, contentType = test.URLMultipartForm(t, map[string]string{string(resource.WaitTimeoutArgKey): "-1"})
@@ -361,6 +385,13 @@ func TestMarkdownHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, endpoint, body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)
+	// should return 405 as Method is wrong.
+	req = httptest.NewRequest(http.MethodGet, endpoint, nil)
+	test.AssertStatusCode(t, http.StatusMethodNotAllowed, srv, req)
+	// should return 415 as Content-Type is wrong.
+	body, _ = test.MarkdownMultipartForm(t, nil)
+	req = httptest.NewRequest(http.MethodPost, endpoint, body)
+	test.AssertStatusCode(t, http.StatusUnsupportedMediaType, srv, req)
 	// should return 400 as "waitTimeout" form field
 	// value is < 0.
 	body, contentType = test.MarkdownMultipartForm(t, map[string]string{string(resource.WaitTimeoutArgKey): "-1"})
@@ -509,6 +540,13 @@ func TestOfficeHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, endpoint, body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)
+	// should return 405 as Method is wrong.
+	req = httptest.NewRequest(http.MethodGet, endpoint, nil)
+	test.AssertStatusCode(t, http.StatusMethodNotAllowed, srv, req)
+	// should return 415 as Content-Type is wrong.
+	body, _ = test.OfficeMultipartForm(t, nil)
+	req = httptest.NewRequest(http.MethodPost, endpoint, body)
+	test.AssertStatusCode(t, http.StatusUnsupportedMediaType, srv, req)
 	// should return 400 as "waitTimeout" form field
 	// value is < 0.
 	body, contentType = test.OfficeMultipartForm(t, map[string]string{string(resource.WaitTimeoutArgKey): "-1"})

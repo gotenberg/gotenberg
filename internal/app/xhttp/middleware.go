@@ -2,6 +2,7 @@ package xhttp
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/thecodingmachine/gotenberg/internal/app/xhttp/pkg/context"
@@ -25,12 +26,28 @@ func contextMiddleware(config conf.Config) echo.MiddlewareFunc {
 			// extend the current echo context with our custom
 			// context.
 			ctx := context.New(c, logger, config)
-			// if its an healthcheck request, there
-			// is no need to create a Resource.
-			if ctx.Path() == pingEndpoint {
+			// if it's not a multipart/form-data request,
+			// there is no need to create a Resource.
+			if !isMultipartFormDataEndpoint(config, ctx.Path()) {
+				// validate method for healthcheck endpoint.
+				if ctx.Path() == pingEndpoint && ctx.Request().Method != http.MethodGet {
+					err := doErr(ctx, echo.NewHTTPError(http.StatusMethodNotAllowed))
+					return ctx.LogRequestResult(err, false)
+				}
 				return next(ctx)
 			}
-			// if the endpoint is not for healthcheck, create a
+			// validate method.
+			if ctx.Request().Method != http.MethodPost {
+				err := doErr(ctx, echo.NewHTTPError(http.StatusMethodNotAllowed))
+				return ctx.LogRequestResult(err, false)
+			}
+			// validate Content-Type.
+			contentType := ctx.Request().Header.Get("Content-Type")
+			if !strings.Contains(contentType, "multipart/form-data") {
+				err := doErr(ctx, echo.NewHTTPError(http.StatusUnsupportedMediaType))
+				return ctx.LogRequestResult(err, false)
+			}
+			// it's a multipart/form-data request, create a
 			// Resource.
 			if err := ctx.WithResource(trace); err != nil {
 				err = doCleanup(ctx, err)
