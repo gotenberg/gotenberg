@@ -8,6 +8,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/thecodingmachine/gotenberg/internal/app/xhttp/pkg/context"
 	"github.com/thecodingmachine/gotenberg/internal/app/xhttp/pkg/resource"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/printer"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xrand"
@@ -23,6 +24,31 @@ const (
 	markdownEndpoint     string = "/markdown"
 	officeEndpoint       string = "/office"
 )
+
+func isMultipartFormDataEndpoint(config conf.Config, path string) bool {
+	var multipartFormDataEndpoints []string
+	multipartFormDataEndpoints = append(multipartFormDataEndpoints, mergeEndpoint)
+	if !config.DisableGoogleChrome() {
+		multipartFormDataEndpoints = append(
+			multipartFormDataEndpoints,
+			fmt.Sprintf("%s%s", convertGroupEndpoint, htmlEndpoint),
+			fmt.Sprintf("%s%s", convertGroupEndpoint, urlEndpoint),
+			fmt.Sprintf("%s%s", convertGroupEndpoint, markdownEndpoint),
+		)
+	}
+	if !config.DisableUnoconv() {
+		multipartFormDataEndpoints = append(
+			multipartFormDataEndpoints,
+			fmt.Sprintf("%s%s", convertGroupEndpoint, officeEndpoint),
+		)
+	}
+	for _, endpoint := range multipartFormDataEndpoints {
+		if endpoint == path {
+			return true
+		}
+	}
+	return false
+}
 
 // pingHandler is the handler for healthcheck.
 func pingHandler(c echo.Context) error {

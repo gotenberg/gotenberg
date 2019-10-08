@@ -13,6 +13,15 @@ import (
 	"github.com/thecodingmachine/gotenberg/test"
 )
 
+func TestNonExistingEndpoint(t *testing.T) {
+	config, err := conf.FromEnv()
+	assert.Nil(t, err)
+	srv := New(config)
+	// "/" endpoint should return 404.
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	test.AssertStatusCode(t, http.StatusNotFound, srv, req)
+}
+
 func TestDisableChromeEndpoints(t *testing.T) {
 	os.Setenv(conf.DisableGoogleChromeEnvVar, "1")
 	config, err := conf.FromEnv()
@@ -73,7 +82,7 @@ func TestDisableUnoconvEndpoints(t *testing.T) {
 	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("%s%s", convertGroupEndpoint, urlEndpoint), body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)
-	// Markdown endpoint should return 404.
+	// Markdown endpoint should return 200.
 	body, contentType = test.MarkdownMultipartForm(t, nil)
 	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("%s%s", convertGroupEndpoint, markdownEndpoint), body)
 	req.Header.Set(echo.HeaderContentType, contentType)
