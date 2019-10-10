@@ -5,6 +5,7 @@ title: Timeout
 All endpoints accept a form field named `waitTimeout`.
 
 The API will wait the given **seconds** before it considers the conversion to be unsucessful.
+If unsucessful, it returns a `504` HTTP code.
 
 It takes a float as value (e.g `2.5` for 2.5 seconds).
 
@@ -25,7 +26,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v5"
+import "github.com/thecodingmachine/gotenberg-go-client/v6"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}

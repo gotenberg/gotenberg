@@ -39,7 +39,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v5"
+import "github.com/thecodingmachine/gotenberg-go-client/v6"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
@@ -95,8 +95,14 @@ The following classes allow you to inject printing values:
 * `pageNumber`: current page number
 * `totalPage`: total pages in the document
 
-> **Attention:** the CSS properties are independant of the ones used in the `index.html` file.
-> Also, `footer.html` CSS properties override the ones from `header.html`.
+There are some limitations:
+
+* JavaScript is not executed
+* external resources are not loaded
+* the CSS properties are independant of the ones used in the `index.html` file
+* `footer.html` CSS properties override the ones from `header.html`
+* only fonts installed in the Docker image are loaded (see the [fonts section](#fonts))
+* images only work using a `base64` encoded source (`<img src="data:image/png;base64, iVBORw0K... />`)
 
 ### cURL
 
@@ -113,7 +119,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v5"
+import "github.com/thecodingmachine/gotenberg-go-client/v6"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
@@ -203,7 +209,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v5"
+import "github.com/thecodingmachine/gotenberg-go-client/v6"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
@@ -250,7 +256,7 @@ $ curl --request POST \
     --header 'Content-Type: multipart/form-data' \
     --form files=@index.html \
     --form paperWidth=8.27 \
-    --form paperHeight=11.27 \
+    --form paperHeight=11.69 \
     --form marginTop=0 \
     --form marginBottom=0 \
     --form marginLeft=0 \
@@ -262,7 +268,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v5"
+import "github.com/thecodingmachine/gotenberg-go-client/v6"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
@@ -296,7 +302,8 @@ $client->store($request, $dest);
 ## Wait delay
 
 In some cases, you may want to wait a certain amount of time to make sure the
-page you're trying to generate is fully rendered.
+page you're trying to generate is fully rendered. For instance, if your page relies
+a lot on JavaScript for rendering.
 
 > The wait delay is a duration in **seconds** (e.g `2.5` for 2.5 seconds).
 
@@ -314,7 +321,7 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v5"
+import "github.com/thecodingmachine/gotenberg-go-client/v6"
 
 func main() {
     c := &gotenberg.Client{Hostname: "http://localhost:3000"}
@@ -337,6 +344,58 @@ $client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client()
 $index = DocumentFactory::makeFromPath('index.html', 'index.html');
 $request = new HTMLRequest($index);
 $request->setWaitDelay(5.5);
+$dest = "result.pdf";
+$client->store($request, $dest);
+```
+
+## Rpcc buffer size
+
+The API might return a `400` HTTP code with the message `increase the Google Chrome rpcc buffer size`.
+
+If so, you may increase this buffer size with a form field named `googleChromeRpccBufferSize`.
+
+It takes an int as value (e.g. `1048576` for 1 MB).
+The hard limit is 100 MB and is defined by Google Chrome itself.
+
+> You may also define this value globally: see the [environment variables](#environment_variables.default_google_chrome_rpcc_buffer_size) section.
+
+### cURL
+
+```bash
+$ curl --request POST \
+    --url http://localhost:3000/convert/html \
+    --header 'Content-Type: multipart/form-data' \
+    --form files=@index.html \
+    --form googleChromeRpccBufferSize=1048576 \
+    -o result.pdf
+```
+
+### Go
+
+```golang
+import "github.com/thecodingmachine/gotenberg-go-client/v6"
+
+func main() {
+    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+    req, _ := gotenberg.NewHTMLRequest("index.html")
+    req.GoogleChromeRpccBufferSize(1048576)
+    dest := "result.pdf"
+    c.Store(req, dest)
+}
+```
+
+### PHP
+
+```php
+use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\HTMLRequest;
+use TheCodingMachine\Gotenberg\Request;
+
+$client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath('index.html', 'index.html');
+$request = new HTMLRequest($index);
+$request->setGoogleChromeRpccBufferSize(1048576);
 $dest = "result.pdf";
 $client->store($request, $dest);
 ```
