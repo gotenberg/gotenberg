@@ -224,6 +224,78 @@ func TestDefaultListenPortFromEnv(t *testing.T) {
 	os.Unsetenv(DefaultListenPortEnvVar)
 }
 
+func TestEnableAuthenticationFromEnv(t *testing.T) {
+	var (
+		expected Config
+		result   Config
+		err      error
+	)
+	// ENABLE_AUTH correctly set.
+	os.Setenv(EnableAuthEnvVar, "1")
+	expected = DefaultConfig()
+	expected.enableAuthentication = true
+	result, err = FromEnv()
+	assert.Nil(t, err)
+	assert.Equal(t, expected, result)
+	os.Unsetenv(EnableAuthEnvVar)
+	os.Setenv(EnableAuthEnvVar, "0")
+	expected = DefaultConfig()
+	expected.enableAuthentication = false
+	result, err = FromEnv()
+	assert.Nil(t, err)
+	assert.Equal(t, expected, result)
+	os.Unsetenv(EnableAuthEnvVar)
+	// DISABLE_GOOGLE_CHROME wrongly set.
+	os.Setenv(EnableAuthEnvVar, "foo")
+	expected = DefaultConfig()
+	result, err = FromEnv()
+	test.AssertError(t, err)
+	assert.Equal(t, expected, result)
+	os.Unsetenv(EnableAuthEnvVar)
+}
+
+func TestAuthUsernameFromEnv(t *testing.T) {
+	var (
+		expected Config
+		result   Config
+		err      error
+	)
+	// AUTH_USERNAME correctly set.
+	os.Setenv(AuthUsernameEnvVar, "foo")
+	expected = DefaultConfig()
+	expected.authenticationUsername = "foo"
+	result, err = FromEnv()
+	assert.Nil(t, err)
+	assert.Equal(t, expected, result)
+	os.Unsetenv(AuthUsernameEnvVar)
+	expected = DefaultConfig()
+	expected.authenticationUsername = ""
+	result, err = FromEnv()
+	assert.Nil(t, err)
+	assert.Equal(t, expected, result)
+}
+
+func TestAuthPasswordFromEnv(t *testing.T) {
+	var (
+		expected Config
+		result   Config
+		err      error
+	)
+	// AUTH_PASSWORD correctly set.
+	os.Setenv(AuthPasswordEnvVar, "foo")
+	expected = DefaultConfig()
+	expected.authenticationPassword = "foo"
+	result, err = FromEnv()
+	assert.Nil(t, err)
+	assert.Equal(t, expected, result)
+	os.Unsetenv(AuthPasswordEnvVar)
+	expected = DefaultConfig()
+	expected.authenticationPassword = ""
+	result, err = FromEnv()
+	assert.Nil(t, err)
+	assert.Equal(t, expected, result)
+}
+
 func TestDisableGoogleChromeFromEnv(t *testing.T) {
 	var (
 		expected Config
@@ -365,6 +437,9 @@ func TestGetters(t *testing.T) {
 	assert.Equal(t, result.defaultWaitTimeout, result.DefaultWaitTimeout())
 	assert.Equal(t, result.defaultWebhookURLTimeout, result.DefaultWebhookURLTimeout())
 	assert.Equal(t, result.defaultListenPort, result.DefaultListenPort())
+	assert.Equal(t, result.enableAuthentication, result.EnableAuthentication())
+	assert.Equal(t, result.authenticationUsername, result.AuthenticationUsername())
+	assert.Equal(t, result.authenticationPassword, result.AuthenticationPassword())
 	assert.Equal(t, result.disableGoogleChrome, result.DisableGoogleChrome())
 	assert.Equal(t, result.disableUnoconv, result.DisableUnoconv())
 	assert.Equal(t, result.logLevel, result.LogLevel())

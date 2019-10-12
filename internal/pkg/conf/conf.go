@@ -205,7 +205,7 @@ func FromEnv() (Config, error) {
 			return c, err
 		}
 		authenticationPassword, err := xassert.StringFromEnv(
-			AuthUsernameEnvVar,
+			AuthPasswordEnvVar,
 			c.authenticationPassword,
 		)
 		c.authenticationPassword = authenticationPassword
