@@ -249,6 +249,20 @@ about what’s going on.</p>
 
 <p>This environment variable accepts any string that can be turned into a port number.</p>
 
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="environment_variables.enable_authentication" href="#environment_variables.enable_authentication">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Enable authentication</h2>
+
+<p>In order protect the API exposed by Gotenberg, you can use the <code>ENABLE_AUTH</code> environment
+variable and set your desired username and password on <code>AUTH_USERNAME</code> and <code>AUTH_PASSWORD</code>.</p>
+
+<p>The <code>ENABLE_AUTH</code> environment variable takes the strings <code>&#34;0&#34;</code> or <code>&#34;1&#34;</code> as value
+where <code>1</code> means <code>true</code></p>
+
+<blockquote>
+<p>This configuration enables Basic HTTP Authentication on all HTTP endpoints.</p>
+</blockquote>
+
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="environment_variables.disable_google_chrome" href="#environment_variables.disable_google_chrome">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Disable Google Chrome</h2>
