@@ -245,7 +245,7 @@ func TestEnableAuthenticationFromEnv(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, expected, result)
 	os.Unsetenv(EnableAuthEnvVar)
-	// DISABLE_GOOGLE_CHROME wrongly set.
+	// ENABLE_AUTH wrongly set.
 	os.Setenv(EnableAuthEnvVar, "foo")
 	expected = DefaultConfig()
 	result, err = FromEnv()
