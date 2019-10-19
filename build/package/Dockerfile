@@ -2,7 +2,7 @@
 # | Binary
 # |--------------------------------------------------------------------------
 # |
-# | Buils Gotenberg binary.
+# | Builds Gotenberg binary.
 # |
 
 FROM thecodingmachine/gotenberg:workspace AS workspace
