@@ -42,7 +42,7 @@ LABEL authors="Julien Neuhart <j.neuhart@thecodingmachine.com>"
 
 ARG TINI_VERSION
 
-ADD https://github.com/krallin/tini/releases/download/v${TINI_VERSION}/tini-static /usr/local/bin/tini
+ADD --chown=gotenberg https://github.com/krallin/tini/releases/download/v${TINI_VERSION}/tini-static /usr/local/bin/tini
 RUN chmod +x /usr/local/bin/tini
 ENTRYPOINT [ "tini", "--" ]
 
