@@ -10,8 +10,8 @@ FROM thecodingmachine/gotenberg:workspace AS workspace
 ARG VERSION
 
 ENV GOOS=linux \
-    GOARCH=amd64 \
-    CGO_ENABLED=0
+  GOARCH=amd64 \
+  CGO_ENABLED=0
 
 # Define our workding outside of $GOPATH (we're using go modules).
 WORKDIR /gotenberg/package
@@ -20,7 +20,7 @@ WORKDIR /gotenberg/package
 COPY go.mod go.sum ./
 
 RUN go mod download &&\
-    go mod verify
+  go mod verify
 
 # Copy our source code.
 COPY internal ./internal
@@ -42,9 +42,9 @@ LABEL authors="Julien Neuhart <j.neuhart@thecodingmachine.com>"
 
 ARG TINI_VERSION
 
-ADD --chown=gotenberg https://github.com/krallin/tini/releases/download/v${TINI_VERSION}/tini /tini
-RUN chmod +x /tini
-ENTRYPOINT [ "/tini", "--" ]
+ADD --chown=gotenberg https://github.com/krallin/tini/releases/download/v${TINI_VERSION}/tini-static /usr/local/bin/tini
+RUN chmod +x /usr/local/bin/tini
+ENTRYPOINT [ "tini", "--" ]
 
 # |--------------------------------------------------------------------------
 # | Final touch

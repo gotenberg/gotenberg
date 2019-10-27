@@ -22,6 +22,24 @@ func TestNonExistingEndpoint(t *testing.T) {
 	test.AssertStatusCode(t, http.StatusNotFound, srv, req)
 }
 
+func TestHttpAuthentication(t *testing.T) {
+	os.Setenv(conf.EnableAuthEnvVar, "1")
+	os.Setenv(conf.AuthUsernameEnvVar, "foo")
+	os.Setenv(conf.AuthPasswordEnvVar, "bar")
+	config, err := conf.FromEnv()
+	assert.Nil(t, err)
+	srv := New(config)
+	// "/ping" endpoint should return 401 without auth.
+	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
+	test.AssertStatusCode(t, http.StatusUnauthorized, srv, req)
+	// "/ping" endpoint should return 200 with auth.
+	req = httptest.NewRequest(http.MethodGet, "/ping", nil)
+	req.Header.Set("Authorization", "Basic Zm9vOmJhcg==")
+	test.AssertStatusCode(t, http.StatusOK, srv, req)
+
+	os.Setenv(conf.EnableAuthEnvVar, "0")
+}
+
 func TestDisableChromeEndpoints(t *testing.T) {
 	os.Setenv(conf.DisableGoogleChromeEnvVar, "1")
 	config, err := conf.FromEnv()
