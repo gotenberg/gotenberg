@@ -1394,10 +1394,10 @@ $resp = $client-&gt;post($request);
                 <p>The API uses under the hood intricate programs.</p>
 
 <p>Gotenberg tries to abstract as much complexity as possible but it can
-only do it to a certain extend.</p>
+only do it to a certain extent.</p>
 
 <p>For instance, <a href="#office">Office</a> and <a href="#merge">Merge</a> endpoints will start respectively as many LibreOffice (unoconv) and PDTk
-instances are there are requests. The limitation here is the available memory and CPU usage.</p>
+instances as there are requests. The limitation here is the available memory and CPU usage.</p>
 
 <p>On another hand, for the <a href="#html">HTML</a>, <a href="#url">URL</a> and <a href="#markdown">Markdown</a> endpoints, the API does only 6 conversions in parallel.
 Indeed, Google Chrome misbehaves if there are too many concurrent conversions.</p>
