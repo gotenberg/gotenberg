@@ -47,5 +47,9 @@ securityContext:
   runAsUser: 1001
 ```
 
+## Cloud Run (Google Cloud)
+
+If you're looking for cost savings, you might be interested by [Cloud Run](https://cloud.google.com/run).
+
 In the following examples, we will assume your
 Gotenberg API is available at [http://localhost:3000](http://localhost:3000).
