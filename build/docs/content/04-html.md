@@ -103,6 +103,7 @@ There are some limitations:
 * `footer.html` CSS properties override the ones from `header.html`
 * only fonts installed in the Docker image are loaded (see the [fonts section](#fonts))
 * images only work using a `base64` encoded source (`<img src="data:image/png;base64, iVBORw0K... />`)
+* `background-color` and `color` CSS properties require an additional `-webkit-print-color-adjust: exact` CSS property in order to work
 
 ### cURL
 

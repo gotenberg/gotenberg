@@ -483,6 +483,7 @@ Respectively, a file named <code>header.html</code> and <code>footer.html</code>
 <li><code>footer.html</code> CSS properties override the ones from <code>header.html</code></li>
 <li>only fonts installed in the Docker image are loaded (see the <a href="#fonts">fonts section</a>)</li>
 <li>images only work using a <code>base64</code> encoded source (<code>&lt;img src=&#34;data:image/png;base64, iVBORw0K... /&gt;</code>)</li>
+<li><code>background-color</code> and <code>color</code> CSS properties require an additional <code>-webkit-print-color-adjust: exact</code> CSS property in order to work</li>
 </ul>
 
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.header_and_footer.c_url" href="#html.header_and_footer.c_url">
