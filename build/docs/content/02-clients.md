@@ -23,3 +23,7 @@ Then the PHP client:
 ```bash
 $ composer require thecodingmachine/gotenberg-php-client
 ```
+
+## Community clients
+
+* [JavaScript/TypeScript client](https://github.com/yumauri/gotenberg-js-client) by [yumauri](https://github.com/yumauri)
