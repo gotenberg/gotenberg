@@ -184,6 +184,12 @@
   runAsUser: 1001
 </pre>
 
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="install.cloud_run_google_cloud" href="#install.cloud_run_google_cloud">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Cloud Run (Google Cloud)</h2>
+
+<p>If you’re looking for cost savings, you might be interested by <a href="https://cloud.google.com/run">Cloud Run</a>.</p>
+
 <p>In the following examples, we will assume your
 Gotenberg API is available at <a href="http://localhost:3000">http://localhost:3000</a>.</p>
 
@@ -215,6 +221,14 @@ Gotenberg API is available at <a href="http://localhost:3000">http://localhost:3
 
 <pre class="chroma">$ composer require thecodingmachine/gotenberg-php-client
 </pre>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="clients.community_clients" href="#clients.community_clients">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Community clients</h2>
+
+<ul>
+<li><a href="https://github.com/yumauri/gotenberg-js-client">JavaScript/TypeScript client</a> by <a href="https://github.com/yumauri">yumauri</a></li>
+</ul>
 
               </div>
             
@@ -475,6 +489,7 @@ Respectively, a file named <code>header.html</code> and <code>footer.html</code>
 <li><code>footer.html</code> CSS properties override the ones from <code>header.html</code></li>
 <li>only fonts installed in the Docker image are loaded (see the <a href="#fonts">fonts section</a>)</li>
 <li>images only work using a <code>base64</code> encoded source (<code>&lt;img src=&#34;data:image/png;base64, iVBORw0K... /&gt;</code>)</li>
+<li><code>background-color</code> and <code>color</code> CSS properties require an additional <code>-webkit-print-color-adjust: exact</code> CSS property in order to work</li>
 </ul>
 
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.header_and_footer.c_url" href="#html.header_and_footer.c_url">
@@ -1394,10 +1409,10 @@ $resp = $client-&gt;post($request);
                 <p>The API uses under the hood intricate programs.</p>
 
 <p>Gotenberg tries to abstract as much complexity as possible but it can
-only do it to a certain extend.</p>
+only do it to a certain extent.</p>
 
 <p>For instance, <a href="#office">Office</a> and <a href="#merge">Merge</a> endpoints will start respectively as many LibreOffice (unoconv) and PDTk
-instances are there are requests. The limitation here is the available memory and CPU usage.</p>
+instances as there are requests. The limitation here is the available memory and CPU usage.</p>
 
 <p>On another hand, for the <a href="#html">HTML</a>, <a href="#url">URL</a> and <a href="#markdown">Markdown</a> endpoints, the API does only 6 conversions in parallel.
 Indeed, Google Chrome misbehaves if there are too many concurrent conversions.</p>

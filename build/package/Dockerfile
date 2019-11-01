@@ -2,7 +2,7 @@
 # | Binary
 # |--------------------------------------------------------------------------
 # |
-# | Buils Gotenberg binary.
+# | Builds Gotenberg binary.
 # |
 
 FROM thecodingmachine/gotenberg:workspace AS workspace
@@ -42,7 +42,7 @@ LABEL authors="Julien Neuhart <j.neuhart@thecodingmachine.com>"
 
 ARG TINI_VERSION
 
-ADD https://github.com/krallin/tini/releases/download/v${TINI_VERSION}/tini /tini
+ADD --chown=gotenberg https://github.com/krallin/tini/releases/download/v${TINI_VERSION}/tini-static /tini
 RUN chmod +x /tini
 ENTRYPOINT [ "/tini", "--" ]
 

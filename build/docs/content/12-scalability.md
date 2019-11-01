@@ -5,10 +5,10 @@ title: Scalability
 The API uses under the hood intricate programs.
 
 Gotenberg tries to abstract as much complexity as possible but it can
-only do it to a certain extend.
+only do it to a certain extent.
 
 For instance, [Office](#office) and [Merge](#merge) endpoints will start respectively as many LibreOffice (unoconv) and PDTk
-instances are there are requests. The limitation here is the available memory and CPU usage.
+instances as there are requests. The limitation here is the available memory and CPU usage.
 
 On another hand, for the [HTML](#html), [URL](#url) and [Markdown](#markdown) endpoints, the API does only 6 conversions in parallel.
 Indeed, Google Chrome misbehaves if there are too many concurrent conversions.
