@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/phayes/freeport"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
@@ -53,6 +54,8 @@ func (p officePrinter) Print(destination string) error {
 	ctx, cancel := xcontext.WithTimeout(p.logger, p.opts.WaitTimeout)
 	defer cancel()
 	resolver := func() error {
+		// see https://github.com/thecodingmachine/gotenberg/issues/139.
+		sort.Strings(p.fpaths)
 		fpaths := make([]string, len(p.fpaths))
 		dirPath := filepath.Dir(destination)
 		for i, fpath := range p.fpaths {
