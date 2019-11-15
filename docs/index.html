@@ -442,7 +442,7 @@ $client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\
 $index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
 $request = new HTMLRequest($index);
 $dest = &#34;result.pdf&#34;;
-$filename = $client-&gt;store($request, $dest);
+$client-&gt;store($request, $dest);
 </pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.header_and_footer" href="#html.header_and_footer">
@@ -537,7 +537,7 @@ $request = new HTMLRequest($index);
 $request-&gt;setHeader($header);
 $request-&gt;setFooter($footer);
 $dest = &#34;result.pdf&#34;;
-$filename = $client-&gt;store($request, $dest);
+$client-&gt;store($request, $dest);
 </pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.assets" href="#html.assets">
