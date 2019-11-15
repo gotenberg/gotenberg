@@ -441,8 +441,8 @@ use TheCodingMachine\Gotenberg\HTMLRequest;
 $client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
 $index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
 $request = new HTMLRequest($index);
-$dirPath = &#34;/foo&#34;;
-$filename = $client-&gt;store($request, $dirPath);
+$dest = &#34;result.pdf&#34;;
+$filename = $client-&gt;store($request, $dest);
 </pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.header_and_footer" href="#html.header_and_footer">
@@ -536,8 +536,8 @@ $footer = DocumentFactory::makeFromPath(&#39;footer.html&#39;, &#39;footer.html&
 $request = new HTMLRequest($index);
 $request-&gt;setHeader($header);
 $request-&gt;setFooter($footer);
-$dirPath = &#34;/foo&#34;;
-$filename = $client-&gt;store($request, $dirPath);
+$dest = &#34;result.pdf&#34;;
+$filename = $client-&gt;store($request, $dest);
 </pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.assets" href="#html.assets">
