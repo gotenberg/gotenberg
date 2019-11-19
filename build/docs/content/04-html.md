@@ -59,8 +59,8 @@ use TheCodingMachine\Gotenberg\HTMLRequest;
 $client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
 $index = DocumentFactory::makeFromPath('index.html', 'index.html');
 $request = new HTMLRequest($index);
-$dirPath = "/foo";
-$filename = $client->store($request, $dirPath);
+$dest = "result.pdf";
+$client->store($request, $dest);
 ```
 
 ## Header and footer
@@ -146,8 +146,8 @@ $footer = DocumentFactory::makeFromPath('footer.html', 'footer.html');
 $request = new HTMLRequest($index);
 $request->setHeader($header);
 $request->setFooter($footer);
-$dirPath = "/foo";
-$filename = $client->store($request, $dirPath);
+$dest = "result.pdf";
+$client->store($request, $dest);
 ```
 
 ## Assets
