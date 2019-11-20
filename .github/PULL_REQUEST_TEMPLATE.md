@@ -40,6 +40,6 @@ Fixes #
 - [ ] Have you lint your code locally prior to submission (`make lint`)?
 - [ ] Have you written new tests for your core changes, as applicable?
 - [ ] Have you successfully ran tests with your changes locally (`make tests`)?
-- [ ] Have you updated the documentation (`make doc`)?
+- [ ] Have you updated the documentation (Markdown files under `build > docs > content` and then `make doc`)?
 - [ ] I have squashed any insignificant commits
 - [ ] This change has comments for package types, values, functions, and non-obvious lines of code
