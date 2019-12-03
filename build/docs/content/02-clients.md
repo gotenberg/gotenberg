@@ -27,3 +27,4 @@ $ composer require thecodingmachine/gotenberg-php-client
 ## Community clients
 
 * [JavaScript/TypeScript client](https://github.com/yumauri/gotenberg-js-client) by [yumauri](https://github.com/yumauri)
+* [C# client](https://github.com/ChangemakerStudios/GotenbergSharpApiClient) by [ChangemakerStudios](https://github.com/ChangemakerStudios)
