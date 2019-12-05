@@ -308,20 +308,47 @@ func convertAsync(ctx context.Context, p printer.Printer, filename, fpath string
 		defer f.Close() // nolint: errcheck
 		logger.DebugfOp(
 			op,
-			"sending result file '%s' to '%s'",
+			"preparing to send result file '%s' to '%s'...",
 			filename,
 			webhookURL,
 		)
 		httpClient := &http.Client{
 			Timeout: xtime.Duration(webhookURLTimeout),
 		}
-		resp, err := httpClient.Post(webhookURL, "application/pdf", f) /* #nosec */
+		req, err := http.NewRequest(http.MethodPost, webhookURL, f)
+		if err != nil {
+			xerr := xerror.New(op, err)
+			logger.ErrorOp(xerror.Op(xerr), xerr)
+			return
+		}
+		req.Header.Set(echo.HeaderContentType, "application/pdf")
+		// set custom headers (if any).
+		for key, value := range resource.WebhookURLCustomHeaders(r) {
+			for _, v := range value {
+				req.Header.Add(key, v)
+				logger.DebugfOp(op, "added '%s' to custom header '%s'", v, key)
+			}
+		}
+		// send the result file.
+		logger.DebugfOp(
+			op,
+			"sending result file '%s' to '%s'...",
+			filename,
+			webhookURL,
+		)
+		resp, err := httpClient.Do(req) /* #nosec */
 		if err != nil {
 			xerr := xerror.New(op, err)
 			logger.ErrorOp(xerror.Op(xerr), xerr)
 			return
 		}
 		defer resp.Body.Close() // nolint: errcheck
+		logger.DebugfOp(
+			op,
+			"result file '%s' sent to '%s'",
+			filename,
+			webhookURL,
+		)
 	}()
 	return nil
 }

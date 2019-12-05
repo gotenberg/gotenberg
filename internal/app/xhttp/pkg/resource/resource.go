@@ -5,7 +5,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/thecodingmachine/gotenberg/internal/pkg/normalize"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xassert"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
@@ -21,10 +23,11 @@ const TemporaryDirectory string = "tmp"
 // Resource helps managing
 // arguments and files for a conversion.
 type Resource struct {
-	logger  xlog.Logger
-	dirPath string
-	args    map[ArgKey]string
-	files   map[string]file
+	logger        xlog.Logger
+	dirPath       string
+	customHeaders map[string][]string
+	args          map[ArgKey]string
+	files         map[string]file
 }
 
 // New creates a Resource where its files will
@@ -48,10 +51,11 @@ func New(logger xlog.Logger, directoryName string) (Resource, error) {
 	}
 	logger.DebugfOp(op, "resource directory '%s' created", directoryName)
 	return Resource{
-		logger:  logger,
-		dirPath: dirPath,
-		args:    make(map[ArgKey]string),
-		files:   make(map[string]file),
+		logger:        logger,
+		dirPath:       dirPath,
+		customHeaders: make(map[string][]string),
+		args:          make(map[ArgKey]string),
+		files:         make(map[string]file),
 	}, nil
 }
 
@@ -70,6 +74,19 @@ func (r Resource) Close() error {
 	return nil
 }
 
+// WithCustomHeader add a new custom header to the Resource.
+// Given key should be in canonical format.
+func (r *Resource) WithCustomHeader(key string, value []string) {
+	const op string = "resource.Resource.WithCustomHeader"
+	if strings.Contains(key, RemoteURLCustomHeaderCanonicalBaseKey) ||
+		strings.Contains(key, WebhookURLCustomHeaderCanonicalBaseKey) {
+		r.customHeaders[key] = value
+		r.logger.DebugfOp(op, "added '%s' with value '%s' to resource custom headers", key, value)
+		return
+	}
+	r.logger.DebugfOp(op, "skipping '%s' as it is not a custom header...", key)
+}
+
 // WithArg add a new argument to the Resource.
 func (r *Resource) WithArg(key ArgKey, value string) {
 	const op string = "resource.Resource.WithArg"
@@ -80,13 +97,24 @@ func (r *Resource) WithArg(key ArgKey, value string) {
 // WithFile add a new file to the Resource.
 func (r *Resource) WithFile(filename string, in io.Reader) error {
 	const op string = "resource.Resource.WithFile"
-	fpath := fmt.Sprintf("%s/%s", r.dirPath, filename)
-	file := file{fpath: fpath}
-	if err := file.write(in); err != nil {
+	resolver := func() error {
+		// see https://github.com/thecodingmachine/gotenberg/issues/104.
+		normalized, err := normalize.String(filename)
+		if err != nil {
+			return err
+		}
+		fpath := fmt.Sprintf("%s/%s", r.dirPath, normalized)
+		file := file{fpath: fpath}
+		if err := file.write(in); err != nil {
+			return err
+		}
+		r.files[filename] = file
+		r.logger.DebugfOp(op, "resource file '%s' created", filename)
+		return nil
+	}
+	if err := resolver(); err != nil {
 		return xerror.New(op, err)
 	}
-	r.files[filename] = file
-	r.logger.DebugfOp(op, "resource file '%s' created", filename)
 	return nil
 }
 

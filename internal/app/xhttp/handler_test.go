@@ -579,11 +579,18 @@ func TestOfficeHandler(t *testing.T) {
 }
 
 func TestWebhook(t *testing.T) {
+	customHeaderRealKey := http.CanonicalHeaderKey("MyCustomHeader")
+	customHeaderKey := fmt.Sprintf("%s%s", resource.WebhookURLCustomHeaderCanonicalBaseKey, customHeaderRealKey)
+	customHeaderValue := "foo"
 	status := make(chan error, 2)
 	rcv := echo.New()
 	rcv.POST("/foo", func(c echo.Context) error {
-		if c.Request().Header.Get("Content-type") != "application/pdf" {
-			status <- fmt.Errorf("wrong Content-type: got %s want %s", c.Request().Header.Get("Content-type"), "application/pdf")
+		if c.Request().Header.Get(echo.HeaderContentType) != "application/pdf" {
+			status <- fmt.Errorf("wrong Content-type: got '%s' want '%s'", c.Request().Header.Get(echo.HeaderContentType), "application/pdf")
+			return nil
+		}
+		if c.Request().Header.Get(customHeaderRealKey) != customHeaderValue {
+			status <- fmt.Errorf("wrong '%s': got '%s' want '%s'", customHeaderRealKey, c.Request().Header.Get(customHeaderRealKey), customHeaderValue)
 			return nil
 		}
 		body, err := ioutil.ReadAll(c.Request().Body)
@@ -607,6 +614,7 @@ func TestWebhook(t *testing.T) {
 	body, contentType := test.MergeMultipartForm(t, map[string]string{string(resource.WebhookURLArgKey): "http://localhost:3001/foo"})
 	req := httptest.NewRequest(http.MethodPost, mergeEndpoint, body)
 	req.Header.Set(echo.HeaderContentType, contentType)
+	req.Header.Set(customHeaderKey, customHeaderValue)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)
 	err := <-status
 	assert.NoError(t, err)
@@ -620,5 +628,5 @@ func TestResultFilename(t *testing.T) {
 	req.Header.Set(echo.HeaderContentType, contentType)
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
-	assert.Equal(t, "attachment; filename=\"foo.pdf\"", rec.Header().Get("Content-Disposition"))
+	assert.Equal(t, "attachment; filename=\"foo.pdf\"", rec.Header().Get(echo.HeaderContentDisposition))
 }
