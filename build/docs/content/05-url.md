@@ -54,3 +54,35 @@ $request->setMargins(Request::NO_MARGINS);
 $dest = "result.pdf";
 $client->store($request, $dest);
 ```
+
+## Custom HTTP headers
+
+You may send your own HTTP headers to the `remoteURL`.
+
+For instance, by adding the HTTP header `Gotenberg-Remoteurl-Your-Header` to your request,
+the API will send a request to the `remoteURL` with the HTTP header `Your-Header`.
+
+> **Attention:** the API uses a canonical format for the HTTP headers:
+> it transforms the first
+> letter and any letter following a hyphen to upper case;
+> the rest are converted to lowercase. For example, the
+> canonical key for `accept-encoding` is `Accept-Encoding`.
+
+### cURL
+
+```bash
+$ curl --request POST \
+    --url http://localhost:3000/convert/url \
+    --header 'Content-Type: multipart/form-data' \
+    --header 'Gotenberg-Remoteurl-Your-Header: Foo' \
+    --form remoteURL=https://google.com \
+    -o result.pdf
+```
+
+### Go
+
+// TODO
+
+### PHP
+
+// TODO
