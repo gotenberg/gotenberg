@@ -2,6 +2,7 @@ package printer
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"strings"
@@ -42,6 +43,7 @@ type ChromePrinterOptions struct {
 	MarginRight    float64
 	Landscape      bool
 	RpccBufferSize int64
+	CustomHeaders  map[string]string
 }
 
 // DefaultChromePrinterOptions returns the default
@@ -61,6 +63,7 @@ func DefaultChromePrinterOptions(config conf.Config) ChromePrinterOptions {
 		MarginRight:    1.0,
 		Landscape:      false,
 		RpccBufferSize: config.DefaultGoogleChromeRpccBufferSize(),
+		CustomHeaders: make(map[string]string),
 	}
 }
 
@@ -142,6 +145,10 @@ func (p chromePrinter) Print(destination string) error {
 		defer targetClient.Target.CloseTarget(context.Background(), closeTargetArgs) // nolint: errcheck
 		// enable all events.
 		if err := p.enableEvents(ctx, targetClient); err != nil {
+			return err
+		}
+		// add custom headers (if any).
+		if err := p.setCustomHeaders(ctx, targetClient); err != nil {
 			return err
 		}
 		// listen for all events.
@@ -242,6 +249,32 @@ func (p chromePrinter) enableEvents(ctx context.Context, client *cdp.Client) err
 		},
 		func() error { return client.Runtime.Enable(ctx) },
 	); err != nil {
+		return xerror.New(op, err)
+	}
+	return nil
+}
+
+func (p chromePrinter) setCustomHeaders(ctx context.Context, client *cdp.Client) error {
+	const op string = "printer.chromePrinter.setCustomHeaders"
+	resolver := func() error {
+		if len(p.opts.CustomHeaders) == 0 {
+			p.logger.DebugOp(op, "skipping custom headers as none have been provided...")
+			return nil
+		}
+		customHeaders := make(map[string]string)
+		// useless but for the logs.
+		for key, value := range p.opts.CustomHeaders {
+			customHeaders[key] = value
+			p.logger.DebugfOp(op, "set '%s' to custom header '%s'", value, key)
+		}
+		b, err := json.Marshal(customHeaders)
+		if err != nil {
+			return err
+		}
+		// should always be called after client.Network.Enable.
+		return client.Network.SetExtraHTTPHeaders(ctx, network.NewSetExtraHTTPHeadersArgs(b))
+	}
+	if err := resolver(); err != nil {
 		return xerror.New(op, err)
 	}
 	return nil

@@ -18,17 +18,13 @@ func TestRemoteURLCustomHeaders(t *testing.T) {
 	customHeaderValue := "bar"
 	customHeaderCanonicalRealKey := "Foo"
 	customHeaderCanonicalKey := http.CanonicalHeaderKey(fmt.Sprintf("%s%s", RemoteURLCustomHeaderCanonicalBaseKey, customHeaderCanonicalRealKey))
-	r.WithCustomHeader(customHeaderCanonicalKey, []string{customHeaderValue})
-	r.WithCustomHeader("Bar", []string{"Bar"})
-	expected := map[string][]string{
-		customHeaderCanonicalRealKey: []string{
-			customHeaderValue,
-		},
+	r.WithCustomHeader(customHeaderCanonicalKey, customHeaderValue)
+	r.WithCustomHeader("Bar", "Bar")
+	expected := map[string]string{
+		customHeaderCanonicalRealKey: customHeaderValue,
 	}
-	notExpected := map[string][]string{
-		customHeaderCanonicalKey: []string{
-			customHeaderValue,
-		},
+	notExpected := map[string]string{
+		customHeaderCanonicalKey: customHeaderValue,
 	}
 	v := RemoteURLCustomHeaders(r)
 	assert.Equal(t, expected, v)
@@ -44,17 +40,13 @@ func TestWebhookURLCustomHeaders(t *testing.T) {
 	customHeaderValue := "bar"
 	customHeaderCanonicalRealKey := "Foo"
 	customHeaderCanonicalKey := http.CanonicalHeaderKey(fmt.Sprintf("%s%s", WebhookURLCustomHeaderCanonicalBaseKey, customHeaderCanonicalRealKey))
-	r.WithCustomHeader(customHeaderCanonicalKey, []string{customHeaderValue})
-	r.WithCustomHeader("Bar", []string{"Bar"})
-	expected := map[string][]string{
-		customHeaderCanonicalRealKey: []string{
-			customHeaderValue,
-		},
+	r.WithCustomHeader(customHeaderCanonicalKey, customHeaderValue)
+	r.WithCustomHeader("Bar", "Bar")
+	expected := map[string]string{
+		customHeaderCanonicalRealKey: customHeaderValue,
 	}
-	notExpected := map[string][]string{
-		customHeaderCanonicalKey: []string{
-			customHeaderValue,
-		},
+	notExpected := map[string]string{
+		customHeaderCanonicalKey: customHeaderValue,
 	}
 	v := WebhookURLCustomHeaders(r)
 	assert.Equal(t, expected, v)

@@ -3,6 +3,7 @@ package resource
 import (
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,7 +26,7 @@ const TemporaryDirectory string = "tmp"
 type Resource struct {
 	logger        xlog.Logger
 	dirPath       string
-	customHeaders map[string][]string
+	customHeaders map[string]string
 	args          map[ArgKey]string
 	files         map[string]file
 }
@@ -53,7 +54,7 @@ func New(logger xlog.Logger, directoryName string) (Resource, error) {
 	return Resource{
 		logger:        logger,
 		dirPath:       dirPath,
-		customHeaders: make(map[string][]string),
+		customHeaders: make(map[string]string),
 		args:          make(map[ArgKey]string),
 		files:         make(map[string]file),
 	}, nil
@@ -76,15 +77,17 @@ func (r Resource) Close() error {
 
 // WithCustomHeader add a new custom header to the Resource.
 // Given key should be in canonical format.
-func (r *Resource) WithCustomHeader(key string, value []string) {
+func (r *Resource) WithCustomHeader(key string, value string) {
 	const op string = "resource.Resource.WithCustomHeader"
-	if strings.Contains(key, RemoteURLCustomHeaderCanonicalBaseKey) ||
-		strings.Contains(key, WebhookURLCustomHeaderCanonicalBaseKey) {
-		r.customHeaders[key] = value
-		r.logger.DebugfOp(op, "added '%s' with value '%s' to resource custom headers", key, value)
+	// should already be in canonical format.
+	canonicalKey := http.CanonicalHeaderKey(key)
+	if strings.Contains(canonicalKey, RemoteURLCustomHeaderCanonicalBaseKey) ||
+		strings.Contains(canonicalKey, WebhookURLCustomHeaderCanonicalBaseKey) {
+		r.customHeaders[canonicalKey] = value
+		r.logger.DebugfOp(op, "added '%s' with value '%s' to resource custom headers", canonicalKey, value)
 		return
 	}
-	r.logger.DebugfOp(op, "skipping '%s' as it is not a custom header...", key)
+	r.logger.DebugfOp(op, "skipping '%s' as it is not a custom header...", canonicalKey)
 }
 
 // WithArg add a new argument to the Resource.

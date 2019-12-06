@@ -79,8 +79,8 @@ func (ctx *Context) WithResource(directoryName string) error {
 			return r, err
 		}
 		// retrieve custom headers from request.
-		for name, value := range ctx.Request().Header {
-			r.WithCustomHeader(name, value)
+		for key, value := range ctx.Request().Header {
+			r.WithCustomHeader(key, value[0])
 		}
 		// retrieve form values from request.
 		for _, key := range resource.ArgKeys() {
