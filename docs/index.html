@@ -233,7 +233,7 @@ Gotenberg API is available at <a href="http://localhost:3000">http://localhost:3
 <pre class="chroma">$ composer require php-http/guzzle6-adapter
 </pre>
 
-<p>Then the PHP client:</p>
+<p>Then the <a href="https://github.com/thecodingmachine/gotenberg-php-client">PHP client</a>:</p>
 
 <pre class="chroma">$ composer require thecodingmachine/gotenberg-php-client
 </pre>
@@ -474,7 +474,7 @@ use TheCodingMachine\Gotenberg\HTMLRequest;
 $client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
 $index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
 $request = new HTMLRequest($index);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -569,7 +569,7 @@ $footer = DocumentFactory::makeFromPath(&#39;footer.html&#39;, &#39;footer.html&
 $request = new HTMLRequest($index);
 $request-&gt;setHeader($header);
 $request-&gt;setFooter($footer);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -665,7 +665,7 @@ $assets = [
 ];
 $request = new HTMLRequest($index);
 $request-&gt;setAssets($assets);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -731,7 +731,7 @@ $request = new HTMLRequest($index);
 $request-&gt;setPaperSize(Request::A4);
 $request-&gt;setMargins(Request::NO_MARGINS);
 $request-&gt;setLandscape(true);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -787,7 +787,7 @@ $client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\
 $index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
 $request = new HTMLRequest($index);
 $request-&gt;setWaitDelay(5.5);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -846,7 +846,7 @@ $client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\
 $index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
 $request = new HTMLRequest($index);
 $request-&gt;setGoogleChromeRpccBufferSize(1048576);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -912,7 +912,7 @@ use TheCodingMachine\Gotenberg\URLRequest;
 $client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
 $request = new URLRequest(&#39;https://google.com&#39;);
 $request-&gt;setMargins(Request::NO_MARGINS);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -955,7 +955,15 @@ canonical key for <code>accept-encoding</code> is <code>Accept-Encoding</code>.<
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<p>// TODO</p>
+<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\URLRequest;
+
+$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+$request = new URLRequest(&#39;https://google.com&#39;);
+$request-&gt;addRemoteURLHTTPHeader(&#39;Your-Header&#39;, &#39;Foo&#39;)
+$dest = &#39;result.pdf&#39;;
+$client-&gt;store($request, $dest);
+</pre>
 
               </div>
             
@@ -1030,7 +1038,7 @@ $markdowns = [
     DocumentFactory::makeFromPath(&#39;file.md&#39;, &#39;file.md&#39;),
 ];
 $request = new MarkdownRequest($index, $markdowns);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -1111,7 +1119,7 @@ $files = [
     DocumentFactory::makeFromPath(&#39;document2.docx&#39;, &#39;document2.docx&#39;),
 ];
 $request = new OfficeRequest($files);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -1164,7 +1172,7 @@ $files = [
 ];
 $request = new OfficeRequest($files);
 $request-&gt;setLandscape(true);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -1229,7 +1237,7 @@ $files = [
     DocumentFactory::makeFromPath(&#39;file2.pdf&#39;, &#39;file2.pdf&#39;),
 ];
 $request = new MergeRequest($files);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -1292,7 +1300,7 @@ $client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\
 $index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
 $request = new HTMLRequest($index);
 $request-&gt;setWaitTimeout(2.5);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -1449,7 +1457,17 @@ canonical key for <code>accept-encoding</code> is <code>Accept-Encoding</code>.<
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<p>// TODO</p>
+<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\HTMLRequest;
+
+$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
+$request = new HTMLRequest($index);
+$request-&gt;setWebhookURL(&#39;http://myapp.com/webhook/&#39;);
+$request-&gt;addWebhookURLHTTPHeader(&#39;Your-Header&#39;, &#39;Foo&#39;);
+$resp = $client-&gt;post($request);
+</pre>
 
               </div>
             

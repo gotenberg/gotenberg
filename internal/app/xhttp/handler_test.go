@@ -582,7 +582,7 @@ func TestOfficeHandler(t *testing.T) {
 
 func TestWebhook(t *testing.T) {
 	customHeaderRealKey := http.CanonicalHeaderKey("MyCustomHeader")
-	customHeaderKey := fmt.Sprintf("%s%s", resource.WebhookURLCustomHeaderCanonicalBaseKey, customHeaderRealKey)
+	customHeaderKey := fmt.Sprintf("%s%s", resource.WebhookURLCustomHTTPHeaderCanonicalBaseKey, customHeaderRealKey)
 	customHeaderValue := "foo"
 	status := make(chan error, 2)
 	rcv := echo.New()

@@ -75,19 +75,19 @@ func (r Resource) Close() error {
 	return nil
 }
 
-// WithCustomHeader add a new custom header to the Resource.
+// WithCustomHTTPHeader add a new custom header to the Resource.
 // Given key should be in canonical format.
-func (r *Resource) WithCustomHeader(key string, value string) {
-	const op string = "resource.Resource.WithCustomHeader"
+func (r *Resource) WithCustomHTTPHeader(key string, value string) {
+	const op string = "resource.Resource.WithCustomHTTPHeader"
 	// should already be in canonical format.
 	canonicalKey := http.CanonicalHeaderKey(key)
-	if strings.Contains(canonicalKey, RemoteURLCustomHeaderCanonicalBaseKey) ||
-		strings.Contains(canonicalKey, WebhookURLCustomHeaderCanonicalBaseKey) {
+	if strings.Contains(canonicalKey, RemoteURLCustomHTTPHeaderCanonicalBaseKey) ||
+		strings.Contains(canonicalKey, WebhookURLCustomHTTPHeaderCanonicalBaseKey) {
 		r.customHeaders[canonicalKey] = value
-		r.logger.DebugfOp(op, "added '%s' with value '%s' to resource custom headers", canonicalKey, value)
+		r.logger.DebugfOp(op, "added '%s' with value '%s' to resource custom HTTP headers", canonicalKey, value)
 		return
 	}
-	r.logger.DebugfOp(op, "skipping '%s' as it is not a custom header...", canonicalKey)
+	r.logger.DebugfOp(op, "skipping '%s' as it is not a custom HTTP header...", canonicalKey)
 }
 
 // WithArg add a new argument to the Resource.

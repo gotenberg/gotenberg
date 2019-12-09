@@ -80,7 +80,7 @@ func (ctx *Context) WithResource(directoryName string) error {
 		}
 		// retrieve custom headers from request.
 		for key, value := range ctx.Request().Header {
-			r.WithCustomHeader(key, value[0])
+			r.WithCustomHTTPHeader(key, value[0])
 		}
 		// retrieve form values from request.
 		for _, key := range resource.ArgKeys() {

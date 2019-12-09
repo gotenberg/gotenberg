@@ -59,7 +59,7 @@ use TheCodingMachine\Gotenberg\HTMLRequest;
 $client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
 $index = DocumentFactory::makeFromPath('index.html', 'index.html');
 $request = new HTMLRequest($index);
-$dest = "result.pdf";
+$dest = 'result.pdf';
 $client->store($request, $dest);
 ```
 
@@ -146,7 +146,7 @@ $footer = DocumentFactory::makeFromPath('footer.html', 'footer.html');
 $request = new HTMLRequest($index);
 $request->setHeader($header);
 $request->setFooter($footer);
-$dest = "result.pdf";
+$dest = 'result.pdf';
 $client->store($request, $dest);
 ```
 
@@ -237,7 +237,7 @@ $assets = [
 ];
 $request = new HTMLRequest($index);
 $request->setAssets($assets);
-$dest = "result.pdf";
+$dest = 'result.pdf';
 $client->store($request, $dest);
 ```
 
@@ -296,7 +296,7 @@ $request = new HTMLRequest($index);
 $request->setPaperSize(Request::A4);
 $request->setMargins(Request::NO_MARGINS);
 $request->setLandscape(true);
-$dest = "result.pdf";
+$dest = 'result.pdf';
 $client->store($request, $dest);
 ```
 
@@ -345,7 +345,7 @@ $client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client()
 $index = DocumentFactory::makeFromPath('index.html', 'index.html');
 $request = new HTMLRequest($index);
 $request->setWaitDelay(5.5);
-$dest = "result.pdf";
+$dest = 'result.pdf';
 $client->store($request, $dest);
 ```
 
@@ -397,6 +397,6 @@ $client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client()
 $index = DocumentFactory::makeFromPath('index.html', 'index.html');
 $request = new HTMLRequest($index);
 $request->setGoogleChromeRpccBufferSize(1048576);
-$dest = "result.pdf";
+$dest = 'result.pdf';
 $client->store($request, $dest);
 ```

@@ -51,7 +51,7 @@ use TheCodingMachine\Gotenberg\URLRequest;
 $client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
 $request = new URLRequest('https://google.com');
 $request->setMargins(Request::NO_MARGINS);
-$dest = "result.pdf";
+$dest = 'result.pdf';
 $client->store($request, $dest);
 ```
 
@@ -85,4 +85,13 @@ $ curl --request POST \
 
 ### PHP
 
-// TODO
+```php
+use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\URLRequest;
+
+$client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
+$request = new URLRequest('https://google.com');
+$request->addRemoteURLHTTPHeader('Your-Header', 'Foo')
+$dest = 'result.pdf';
+$client->store($request, $dest);
+```

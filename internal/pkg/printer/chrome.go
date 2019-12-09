@@ -31,19 +31,19 @@ type chromePrinter struct {
 // ChromePrinterOptions helps customizing the
 // Google Chrome Printer behaviour.
 type ChromePrinterOptions struct {
-	WaitTimeout    float64
-	WaitDelay      float64
-	HeaderHTML     string
-	FooterHTML     string
-	PaperWidth     float64
-	PaperHeight    float64
-	MarginTop      float64
-	MarginBottom   float64
-	MarginLeft     float64
-	MarginRight    float64
-	Landscape      bool
-	RpccBufferSize int64
-	CustomHeaders  map[string]string
+	WaitTimeout       float64
+	WaitDelay         float64
+	HeaderHTML        string
+	FooterHTML        string
+	PaperWidth        float64
+	PaperHeight       float64
+	MarginTop         float64
+	MarginBottom      float64
+	MarginLeft        float64
+	MarginRight       float64
+	Landscape         bool
+	RpccBufferSize    int64
+	CustomHTTPHeaders map[string]string
 }
 
 // DefaultChromePrinterOptions returns the default
@@ -51,19 +51,19 @@ type ChromePrinterOptions struct {
 func DefaultChromePrinterOptions(config conf.Config) ChromePrinterOptions {
 	const defaultHeaderFooterHTML string = "<html><head></head><body></body></html>"
 	return ChromePrinterOptions{
-		WaitTimeout:    config.DefaultWaitTimeout(),
-		WaitDelay:      0.0,
-		HeaderHTML:     defaultHeaderFooterHTML,
-		FooterHTML:     defaultHeaderFooterHTML,
-		PaperWidth:     8.27,
-		PaperHeight:    11.7,
-		MarginTop:      1.0,
-		MarginBottom:   1.0,
-		MarginLeft:     1.0,
-		MarginRight:    1.0,
-		Landscape:      false,
-		RpccBufferSize: config.DefaultGoogleChromeRpccBufferSize(),
-		CustomHeaders: make(map[string]string),
+		WaitTimeout:       config.DefaultWaitTimeout(),
+		WaitDelay:         0.0,
+		HeaderHTML:        defaultHeaderFooterHTML,
+		FooterHTML:        defaultHeaderFooterHTML,
+		PaperWidth:        8.27,
+		PaperHeight:       11.7,
+		MarginTop:         1.0,
+		MarginBottom:      1.0,
+		MarginLeft:        1.0,
+		MarginRight:       1.0,
+		Landscape:         false,
+		RpccBufferSize:    config.DefaultGoogleChromeRpccBufferSize(),
+		CustomHTTPHeaders: make(map[string]string),
 	}
 }
 
@@ -148,7 +148,7 @@ func (p chromePrinter) Print(destination string) error {
 			return err
 		}
 		// add custom headers (if any).
-		if err := p.setCustomHeaders(ctx, targetClient); err != nil {
+		if err := p.setCustomHTTPHeaders(ctx, targetClient); err != nil {
 			return err
 		}
 		// listen for all events.
@@ -254,18 +254,18 @@ func (p chromePrinter) enableEvents(ctx context.Context, client *cdp.Client) err
 	return nil
 }
 
-func (p chromePrinter) setCustomHeaders(ctx context.Context, client *cdp.Client) error {
-	const op string = "printer.chromePrinter.setCustomHeaders"
+func (p chromePrinter) setCustomHTTPHeaders(ctx context.Context, client *cdp.Client) error {
+	const op string = "printer.chromePrinter.setCustomHTTPHeaders"
 	resolver := func() error {
-		if len(p.opts.CustomHeaders) == 0 {
-			p.logger.DebugOp(op, "skipping custom headers as none have been provided...")
+		if len(p.opts.CustomHTTPHeaders) == 0 {
+			p.logger.DebugOp(op, "skipping custom HTTP headers as none have been provided...")
 			return nil
 		}
 		customHeaders := make(map[string]string)
 		// useless but for the logs.
-		for key, value := range p.opts.CustomHeaders {
+		for key, value := range p.opts.CustomHTTPHeaders {
 			customHeaders[key] = value
-			p.logger.DebugfOp(op, "set '%s' to custom header '%s'", value, key)
+			p.logger.DebugfOp(op, "set '%s' to custom HTTP header '%s'", value, key)
 		}
 		b, err := json.Marshal(customHeaders)
 		if err != nil {

@@ -138,7 +138,7 @@ func urlHandler(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		opts.CustomHeaders = resource.RemoteURLCustomHeaders(r)
+		opts.CustomHTTPHeaders = resource.RemoteURLCustomHTTPHeaders(r)
 		if !r.HasArg(resource.RemoteURLArgKey) {
 			return xerror.Invalid(
 				op,
@@ -338,14 +338,14 @@ func convertAsync(ctx context.Context, p printer.Printer, filename, fpath string
 		}
 		req.Header.Set(echo.HeaderContentType, "application/pdf")
 		// set custom headers (if any).
-		customHeaders := resource.WebhookURLCustomHeaders(r)
+		customHeaders := resource.WebhookURLCustomHTTPHeaders(r)
 		if len(customHeaders) > 0 {
 			for key, value := range customHeaders {
 				req.Header.Set(key, value)
-				logger.DebugfOp(op, "set '%s' to custom header '%s'", value, key)
+				logger.DebugfOp(op, "set '%s' to custom HTTP header '%s'", value, key)
 			}
 		} else {
-			logger.DebugOp(op, "skipping custom headers as none have been provided...")
+			logger.DebugOp(op, "skipping custom HTTP headers as none have been provided...")
 		}
 		// send the result file.
 		logger.DebugfOp(
