@@ -124,7 +124,17 @@ $ curl --request POST \
 
 ### Go
 
-// TODO
+```golang
+import "github.com/thecodingmachine/gotenberg-go-client/v6"
+
+func main() {
+    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+    req, _ := gotenberg.NewHTMLRequest("index.html")
+    req.WebhookURL("http://myapp.com/webhook/")
+    req.AddWebhookURLHTTPHeader("Your-Header", "Foo")
+    resp, _ := c.Post(req)
+}
+```
 
 ### PHP
 

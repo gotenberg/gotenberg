@@ -81,7 +81,17 @@ $ curl --request POST \
 
 ### Go
 
-// TODO
+```golang
+import "github.com/thecodingmachine/gotenberg-go-client/v6"
+
+func main() {
+    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+    req := gotenberg.NewURLRequest("https://google.com")
+    req.AddRemoteURLHTTPHeader("Your-Header", "Foo")
+    dest := "result.pdf"
+    c.Store(req, dest)
+}
+```
 
 ### PHP
 

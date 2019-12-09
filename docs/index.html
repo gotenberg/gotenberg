@@ -949,7 +949,16 @@ canonical key for <code>accept-encoding</code> is <code>Accept-Encoding</code>.<
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Go</h3>
 
-<p>// TODO</p>
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v6&#34;</span>
+
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
+    <span class="nx">req</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewURLRequest</span><span class="p">(</span><span class="s">&#34;https://google.com&#34;</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nf">AddRemoteURLHTTPHeader</span><span class="p">(</span><span class="s">&#34;Your-Header&#34;</span><span class="p">,</span> <span class="s">&#34;Foo&#34;</span><span class="p">)</span>
+    <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
+    <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+<span class="p">}</span>
+</pre>
 
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="url.custom_http_headers.php" href="#url.custom_http_headers.php">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
@@ -1451,7 +1460,16 @@ canonical key for <code>accept-encoding</code> is <code>Accept-Encoding</code>.<
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Go</h3>
 
-<p>// TODO</p>
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v6&#34;</span>
+
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
+    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewHTMLRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nf">WebhookURL</span><span class="p">(</span><span class="s">&#34;http://myapp.com/webhook/&#34;</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nf">AddWebhookURLHTTPHeader</span><span class="p">(</span><span class="s">&#34;Your-Header&#34;</span><span class="p">,</span> <span class="s">&#34;Foo&#34;</span><span class="p">)</span>
+    <span class="nx">resp</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">c</span><span class="p">.</span><span class="nf">Post</span><span class="p">(</span><span class="nx">req</span><span class="p">)</span>
+<span class="p">}</span>
+</pre>
 
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.custom_http_headers.php" href="#webhook.custom_http_headers.php">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
