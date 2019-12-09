@@ -34,6 +34,9 @@ const (
 	// LogLevelEnvVar contains the name
 	// of the environment variable "LOG_LEVEL".
 	LogLevelEnvVar string = "LOG_LEVEL"
+	// RootPathEnvVar contains the name
+	// of the environment variable "ROOT_PATH".
+	RootPathEnvVar string = "ROOT_PATH"
 	// DefaultGoogleChromeRpccBufferSizeEnvVar contains the name
 	// of the environment variable "DEFAULT_GOOGLE_CHROME_RPCC_BUFFER_SIZE".
 	DefaultGoogleChromeRpccBufferSizeEnvVar string = "DEFAULT_GOOGLE_CHROME_RPCC_BUFFER_SIZE"
@@ -51,6 +54,7 @@ type Config struct {
 	disableGoogleChrome               bool
 	disableUnoconv                    bool
 	logLevel                          xlog.Level
+	rootPath                          string
 	maximumGoogleChromeRpccBufferSize int64
 	defaultGoogleChromeRpccBufferSize int64
 }
@@ -68,6 +72,7 @@ func DefaultConfig() Config {
 		disableGoogleChrome:               false,
 		disableUnoconv:                    false,
 		logLevel:                          xlog.InfoLevel,
+		rootPath:                          "/",
 		maximumGoogleChromeRpccBufferSize: 104857600, // ~100 MB
 		defaultGoogleChromeRpccBufferSize: 1048576,   // 1 MB
 	}
@@ -163,6 +168,16 @@ func FromEnv() (Config, error) {
 		if err != nil {
 			return c, err
 		}
+		rootPath, err := xassert.StringFromEnv(
+			RootPathEnvVar,
+			c.rootPath,
+			xassert.StringStartWith("/"),
+			xassert.StringEndWith("/"),
+		)
+		c.rootPath = rootPath
+		if err != nil {
+			return c, err
+		}
 		defaultGoogleChromeRpccBufferSize, err := xassert.Int64FromEnv(
 			DefaultGoogleChromeRpccBufferSizeEnvVar,
 			c.defaultGoogleChromeRpccBufferSize,
@@ -240,6 +255,12 @@ func (c Config) DisableUnoconv() bool {
 // the configuration.
 func (c Config) LogLevel() xlog.Level {
 	return c.logLevel
+}
+
+// RootPath returns the rooth path from
+// the configuration.
+func (c Config) RootPath() string {
+	return c.rootPath
 }
 
 // MaximumGoogleChromeRpccBufferSize returns the maximum

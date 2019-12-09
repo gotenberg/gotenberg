@@ -23,6 +23,18 @@ You may customize this value with the environment variable `DEFAULT_LISTEN_PORT`
 
 This environment variable accepts any string that can be turned into a port number.
 
+## Root path
+
+By default, the API root path is `/`.
+
+You may customize this value with the environment variable `ROOT_PATH`.
+
+This environment variable accepts a string starting and ending with `/`.
+
+For instance, `/gotenberg/` is a valid value while `gotenberg` is not.
+
+> This is useful if you wish to do service discovery via URL paths.
+
 ## Disable Google Chrome
 
 In order to save some resources, the Gotenberg image accepts the environment variable `DISABLE_GOOGLE_CHROME`
