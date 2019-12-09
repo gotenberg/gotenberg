@@ -132,17 +132,33 @@
 </a>Install</h1>
                 <p>Gotenberg is shipped within a Docker image.</p>
 
-<blockquote>
-<p>It uses a dedicated non-root user called <code>gotenberg</code> with uid and gid <code>1001</code>.</p>
-</blockquote>
-
 <p>You may start it with:</p>
 
-<pre class="chroma">$ docker run --rm -p <span class="m">3000</span>:3000 thecodingmachine/gotenberg:6
+<pre class="chroma">$ docker run --rm -p 3000:3000 thecodingmachine/gotenberg:6
 </pre>
 
 <blockquote>
 <p>The API will be available at <a href="http://localhost:3000">http://localhost:3000</a>.</p>
+</blockquote>
+
+<p>The image uses a dedicated non-root user called <code>gotenberg</code> with uid and gid <code>1001</code>.</p>
+
+<p>If you wish to change those uid and gid, you will have to:</p>
+
+<ul>
+<li>clone the project</li>
+<li>re-build the image</li>
+<li>publish the image in your own Docker registry</li>
+</ul>
+
+<p>For instance:</p>
+
+<pre class="chroma">$ git clone https://github.com/thecodingmachine/gotenberg.git
+$ make publish <span class="nv">GOTENBERG_USER_GID</span><span class="o">=</span>your_custom_gid <span class="nv">GOTENBERG_USER_UID</span><span class="o">=</span>your_custom_uid <span class="nv">DOCKER_REGISTRY</span><span class="o">=</span>your_registry <span class="nv">DOCKER_USER</span><span class="o">=</span>registry_user <span class="nv">DOCKER_PASSWORD</span><span class="o">=</span>registry_password <span class="nv">VERSION</span><span class="o">=</span>6.1.0 
+</pre>
+
+<blockquote>
+<p><code>master</code> branch is always up-to-date with the latest version of the API.</p>
 </blockquote>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="install.docker_compose" href="#install.docker_compose">
@@ -151,14 +167,14 @@
 
 <p>You may also add it in your Docker Compose stack:</p>
 
-<pre class="chroma">version<span class="p">:</span><span class="w"> </span><span class="s1">&#39;3&#39;</span><span class="w">
+<pre class="chroma"><span class="k">version</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;3&#39;</span><span class="w">
 </span><span class="w">
-</span><span class="w"></span>services<span class="p">:</span><span class="w">
+</span><span class="w"></span><span class="k">services</span><span class="p">:</span><span class="w">
 </span><span class="w">
 </span><span class="w">  </span><span class="c"># your others services</span><span class="w">
 </span><span class="w">
-</span><span class="w">  </span>gotenberg<span class="p">:</span><span class="w">
-</span><span class="w">    </span>image<span class="p">:</span><span class="w"> </span>thecodingmachine/gotenberg<span class="p">:</span><span class="m">6</span><span class="w">
+</span><span class="w">  </span><span class="k">gotenberg</span><span class="p">:</span><span class="w">
+</span><span class="w">    </span><span class="k">image</span><span class="p">:</span><span class="w"> </span>thecodingmachine/gotenberg<span class="p">:</span><span class="m">6</span><span class="w">
 </span></pre>
 
 <blockquote>
@@ -177,7 +193,7 @@
 <p>The more resources are granted, the quicker will be the conversions.</p>
 </blockquote>
 
-<p>In the deployment specification of the pod, also specify the uid <code>1001</code> of the user <code>gotenberg</code>:</p>
+<p>In the deployment specification of the pod, also specify the uid of the user <code>gotenberg</code>:</p>
 
 <pre class="chroma">securityContext:
   privileged: false
@@ -657,8 +673,8 @@ $client-&gt;store($request, $dest);
 </span><span class="se"></span>    --url http://localhost:3000/convert/html <span class="se">\
 </span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
 </span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html <span class="se">\
-</span><span class="se"></span>    --form <span class="nv">paperWidth</span><span class="o">=</span><span class="m">8</span>.27 <span class="se">\
-</span><span class="se"></span>    --form <span class="nv">paperHeight</span><span class="o">=</span><span class="m">11</span>.69 <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">paperWidth</span><span class="o">=</span>8.27 <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">paperHeight</span><span class="o">=</span>11.69 <span class="se">\
 </span><span class="se"></span>    --form <span class="nv">marginTop</span><span class="o">=</span><span class="m">0</span> <span class="se">\
 </span><span class="se"></span>    --form <span class="nv">marginBottom</span><span class="o">=</span><span class="m">0</span> <span class="se">\
 </span><span class="se"></span>    --form <span class="nv">marginLeft</span><span class="o">=</span><span class="m">0</span> <span class="se">\
@@ -723,7 +739,7 @@ a lot on JavaScript for rendering.</p>
 </span><span class="se"></span>    --url http://localhost:3000/convert/html <span class="se">\
 </span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
 </span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html <span class="se">\
-</span><span class="se"></span>    --form <span class="nv">waitDelay</span><span class="o">=</span><span class="m">5</span>.5 <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">waitDelay</span><span class="o">=</span>5.5 <span class="se">\
 </span><span class="se"></span>    -o result.pdf
 </pre>
 
@@ -1189,7 +1205,7 @@ If unsucessful, it returns a <code>504</code> HTTP code.</p>
 </span><span class="se"></span>    --url http://localhost:3000/convert/html <span class="se">\
 </span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
 </span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html <span class="se">\
-</span><span class="se"></span>    --form <span class="nv">waitTimeout</span><span class="o">=</span><span class="m">2</span>.5
+</span><span class="se"></span>    --form <span class="nv">waitTimeout</span><span class="o">=</span>2.5
 </pre>
 
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="timeout.examples.go" href="#timeout.examples.go">
@@ -1307,7 +1323,7 @@ $resp = $client-&gt;post($request);
 </span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
 </span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html <span class="se">\
 </span><span class="se"></span>    --form <span class="nv">webhookURL</span><span class="o">=</span><span class="s1">&#39;http://myapp.com/webhook/&#39;</span> <span class="se">\
-</span><span class="se"></span>    --form <span class="nv">webhookURLTimeout</span><span class="o">=</span><span class="m">2</span>.5
+</span><span class="se"></span>    --form <span class="nv">webhookURLTimeout</span><span class="o">=</span>2.5
 </pre>
 
 <h4 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.timeout.examples.go" href="#webhook.timeout.examples.go">
@@ -1447,14 +1463,14 @@ if the API is under heavy load.</p>
 
 <p>For instance, using the following Docker Compose file:</p>
 
-<pre class="chroma">version<span class="p">:</span><span class="w"> </span><span class="s1">&#39;3&#39;</span><span class="w">
+<pre class="chroma"><span class="k">version</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;3&#39;</span><span class="w">
 </span><span class="w">
-</span><span class="w"></span>services<span class="p">:</span><span class="w">
+</span><span class="w"></span><span class="k">services</span><span class="p">:</span><span class="w">
 </span><span class="w">
 </span><span class="w">  </span><span class="c"># your others services</span><span class="w">
 </span><span class="w">
-</span><span class="w">  </span>gotenberg<span class="p">:</span><span class="w">
-</span><span class="w">    </span>image<span class="p">:</span><span class="w"> </span>thecodingmachine/gotenberg<span class="p">:</span><span class="m">6</span><span class="w">
+</span><span class="w">  </span><span class="k">gotenberg</span><span class="p">:</span><span class="w">
+</span><span class="w">    </span><span class="k">image</span><span class="p">:</span><span class="w"> </span>thecodingmachine/gotenberg<span class="p">:</span><span class="m">6</span><span class="w">
 </span></pre>
 
 <p>You may now launch your services using:</p>
