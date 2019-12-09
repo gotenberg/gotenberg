@@ -15,31 +15,45 @@ import (
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xtime"
 )
 
-const (
-	pingEndpoint         string = "/ping"
-	mergeEndpoint        string = "/merge"
-	convertGroupEndpoint string = "/convert"
-	htmlEndpoint         string = "/html"
-	urlEndpoint          string = "/url"
-	markdownEndpoint     string = "/markdown"
-	officeEndpoint       string = "/office"
-)
+func pingEndpoint(config conf.Config) string {
+	return fmt.Sprintf("%s%s", config.RootPath(), "ping")
+}
+
+func mergeEndpoint(config conf.Config) string {
+	return fmt.Sprintf("%s%s", config.RootPath(), "merge")
+}
+
+func htmlEndpoint(config conf.Config) string {
+	return fmt.Sprintf("%s%s", config.RootPath(), "convert/html")
+}
+
+func urlEndpoint(config conf.Config) string {
+	return fmt.Sprintf("%s%s", config.RootPath(), "convert/url")
+}
+
+func markdownEndpoint(config conf.Config) string {
+	return fmt.Sprintf("%s%s", config.RootPath(), "convert/markdown")
+}
+
+func officeEndpoint(config conf.Config) string {
+	return fmt.Sprintf("%s%s", config.RootPath(), "convert/office")
+}
 
 func isMultipartFormDataEndpoint(config conf.Config, path string) bool {
 	var multipartFormDataEndpoints []string
-	multipartFormDataEndpoints = append(multipartFormDataEndpoints, mergeEndpoint)
+	multipartFormDataEndpoints = append(multipartFormDataEndpoints, mergeEndpoint(config))
 	if !config.DisableGoogleChrome() {
 		multipartFormDataEndpoints = append(
 			multipartFormDataEndpoints,
-			fmt.Sprintf("%s%s", convertGroupEndpoint, htmlEndpoint),
-			fmt.Sprintf("%s%s", convertGroupEndpoint, urlEndpoint),
-			fmt.Sprintf("%s%s", convertGroupEndpoint, markdownEndpoint),
+			htmlEndpoint(config),
+			urlEndpoint(config),
+			markdownEndpoint(config),
 		)
 	}
 	if !config.DisableUnoconv() {
 		multipartFormDataEndpoints = append(
 			multipartFormDataEndpoints,
-			fmt.Sprintf("%s%s", convertGroupEndpoint, officeEndpoint),
+			officeEndpoint(config),
 		)
 	}
 	for _, endpoint := range multipartFormDataEndpoints {
