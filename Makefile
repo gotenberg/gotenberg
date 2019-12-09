@@ -2,7 +2,9 @@ GOLANG_VERSION=1.13
 VERSION=snapshot
 DOCKER_USER=
 DOCKER_PASSWORD=
-DOCKER_REPOSITORY=thecodingmachine
+DOCKER_REGISTRY=thecodingmachine
+GOTENBERG_USER_GID=1001
+GOTENBERG_USER_UID=1001
 GOLANGCI_LINT_VERSION=1.20.1
 CODE_COVERAGE=0
 TINI_VERSION=0.18.0
@@ -20,12 +22,12 @@ DEFAULT_GOOGLE_CHROME_RPCC_BUFFER_SIZE=1048576
 
 # build the base Docker image.
 base:
-	docker build -t $(DOCKER_REPOSITORY)/gotenberg:base -f build/base/Dockerfile .
+	docker build --build-arg GOTENBERG_USER_GID=$(GOTENBERG_USER_GID) --build-arg GOTENBERG_USER_UID=$(GOTENBERG_USER_UID) -t $(DOCKER_REGISTRY)/gotenberg:base -f build/base/Dockerfile .
 
 # build the workspace Docker image.
 workspace:
 	make base
-	docker build --build-arg GOLANG_VERSION=$(GOLANG_VERSION) -t $(DOCKER_REPOSITORY)/gotenberg:workspace -f build/workspace/Dockerfile . 
+	docker build --build-arg GOLANG_VERSION=$(GOLANG_VERSION) -t $(DOCKER_REGISTRY)/gotenberg:workspace -f build/workspace/Dockerfile . 
 
 # gofmt and goimports all go files.
 fmt:
@@ -35,24 +37,24 @@ fmt:
 # run all linters.
 lint:
 	make workspace
-	docker build --build-arg GOLANGCI_LINT_VERSION=$(GOLANGCI_LINT_VERSION) -t $(DOCKER_REPOSITORY)/gotenberg:lint -f build/lint/Dockerfile .
-	docker run --rm $(DOCKER_REPOSITORY)/gotenberg:lint
+	docker build --build-arg GOLANGCI_LINT_VERSION=$(GOLANGCI_LINT_VERSION) -t $(DOCKER_REGISTRY)/gotenberg:lint -f build/lint/Dockerfile .
+	docker run --rm $(DOCKER_REGISTRY)/gotenberg:lint
 
 # run all tests.
 tests:
 	make workspace
-	./scripts/tests.sh $(DOCKER_REPOSITORY) $(CODE_COVERAGE)
+	./scripts/tests.sh $(DOCKER_REGISTRY) $(CODE_COVERAGE)
 
 # generate documentation.
 doc:
 	make workspace
-	docker build -t $(DOCKER_REPOSITORY)/gotenberg:docs -f build/docs/Dockerfile . 
-	docker run --rm -it -v "$(PWD):/gotenberg/docs" $(DOCKER_REPOSITORY)/gotenberg:docs
+	docker build -t $(DOCKER_REGISTRY)/gotenberg:docs -f build/docs/Dockerfile . 
+	docker run --rm -it -v "$(PWD):/gotenberg/docs" $(DOCKER_REGISTRY)/gotenberg:docs
 
 # build Gotenberg Docker image.
 image:
 	make workspace
-	docker build --build-arg VERSION=$(VERSION) --build-arg TINI_VERSION=$(TINI_VERSION) -t $(DOCKER_REPOSITORY)/gotenberg:$(VERSION) -f build/package/Dockerfile .
+	docker build --build-arg VERSION=$(VERSION) --build-arg TINI_VERSION=$(TINI_VERSION) -t $(DOCKER_REGISTRY)/gotenberg:$(VERSION) -f build/package/Dockerfile .
 
 # start the API using previously built Docker image.
 gotenberg:
@@ -61,4 +63,4 @@ gotenberg:
 # publish Gotenberg images according to version.
 publish:
 	make workspace
-	./scripts/publish.sh $(GOLANG_VERSION) $(TINI_VERSION) $(DOCKER_REPOSITORY) $(VERSION) $(DOCKER_USER) $(DOCKER_PASSWORD)
+	./scripts/publish.sh $(GOLANG_VERSION) $(TINI_VERSION) $(DOCKER_REGISTRY) $(VERSION) $(DOCKER_USER) $(DOCKER_PASSWORD)
