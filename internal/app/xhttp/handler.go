@@ -338,9 +338,9 @@ func convertAsync(ctx context.Context, p printer.Printer, filename, fpath string
 		}
 		req.Header.Set(echo.HeaderContentType, "application/pdf")
 		// set custom headers (if any).
-		customHeaders := resource.WebhookURLCustomHTTPHeaders(r)
-		if len(customHeaders) > 0 {
-			for key, value := range customHeaders {
+		customHTTPHeaders := resource.WebhookURLCustomHTTPHeaders(r)
+		if len(customHTTPHeaders) > 0 {
+			for key, value := range customHTTPHeaders {
 				req.Header.Set(key, value)
 				logger.DebugfOp(op, "set '%s' to custom HTTP header '%s'", value, key)
 			}

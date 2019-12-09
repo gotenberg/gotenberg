@@ -261,13 +261,13 @@ func (p chromePrinter) setCustomHTTPHeaders(ctx context.Context, client *cdp.Cli
 			p.logger.DebugOp(op, "skipping custom HTTP headers as none have been provided...")
 			return nil
 		}
-		customHeaders := make(map[string]string)
+		customHTTPHeaders := make(map[string]string)
 		// useless but for the logs.
 		for key, value := range p.opts.CustomHTTPHeaders {
-			customHeaders[key] = value
+			customHTTPHeaders[key] = value
 			p.logger.DebugfOp(op, "set '%s' to custom HTTP header '%s'", value, key)
 		}
-		b, err := json.Marshal(customHeaders)
+		b, err := json.Marshal(customHTTPHeaders)
 		if err != nil {
 			return err
 		}
