@@ -104,7 +104,10 @@ COPY build/base/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 # | non-root user.
 # |
 
-RUN groupadd --gid 1001 gotenberg \
-  && useradd --uid 1001 --gid gotenberg --shell /bin/bash --home /gotenberg --no-create-home gotenberg \
+ARG GOTENBERG_USER_GID=1001
+ARG GOTENBERG_USER_UID=1001
+
+RUN groupadd --gid ${GOTENBERG_USER_GID} gotenberg \
+  && useradd --uid ${GOTENBERG_USER_UID} --gid gotenberg --shell /bin/bash --home /gotenberg --no-create-home gotenberg \
   && mkdir /gotenberg \
   && chown gotenberg: /gotenberg

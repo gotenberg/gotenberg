@@ -75,6 +75,7 @@ func OfficeFpaths(t *testing.T) []string {
 		fpath(t, "office", "document.docx"),
 		fpath(t, "office", "document.rtf"),
 		fpath(t, "office", "document.txt"),
+		fpath(t, "office", "document_with_special_éà.txt"),
 	}
 }
 

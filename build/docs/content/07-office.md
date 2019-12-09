@@ -64,7 +64,7 @@ $files = [
     DocumentFactory::makeFromPath('document2.docx', 'document2.docx'),
 ];
 $request = new OfficeRequest($files);
-$dest = "result.pdf";
+$dest = 'result.pdf';
 $client->store($request, $dest);
 ```
 
@@ -112,6 +112,6 @@ $files = [
 ];
 $request = new OfficeRequest($files);
 $request->setLandscape(true);
-$dest = "result.pdf";
+$dest = 'result.pdf';
 $client->store($request, $dest);
 ```

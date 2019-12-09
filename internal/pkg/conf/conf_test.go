@@ -320,6 +320,29 @@ func TestLogLevelFromEnv(t *testing.T) {
 	os.Unsetenv(LogLevelEnvVar)
 }
 
+func TestRootPathFromEnv(t *testing.T) {
+	var (
+		expected Config
+		result   Config
+		err      error
+	)
+	// ROOT_PATH correctly set.
+	os.Setenv(RootPathEnvVar, "/foo/")
+	expected = DefaultConfig()
+	expected.rootPath = "/foo/"
+	result, err = FromEnv()
+	assert.Nil(t, err)
+	assert.Equal(t, expected, result)
+	os.Unsetenv(RootPathEnvVar)
+	// ROOT_PATH wrongly set.
+	os.Setenv(RootPathEnvVar, "foo")
+	expected = DefaultConfig()
+	result, err = FromEnv()
+	test.AssertError(t, err)
+	assert.Equal(t, expected, result)
+	os.Unsetenv(RootPathEnvVar)
+}
+
 func TestDefaultGoogleChromeRpccBufferSizeFromEnv(t *testing.T) {
 	var (
 		expected Config
@@ -368,6 +391,7 @@ func TestGetters(t *testing.T) {
 	assert.Equal(t, result.disableGoogleChrome, result.DisableGoogleChrome())
 	assert.Equal(t, result.disableUnoconv, result.DisableUnoconv())
 	assert.Equal(t, result.logLevel, result.LogLevel())
+	assert.Equal(t, result.rootPath, result.RootPath())
 	assert.Equal(t, result.maximumGoogleChromeRpccBufferSize, result.MaximumGoogleChromeRpccBufferSize())
 	assert.Equal(t, result.defaultGoogleChromeRpccBufferSize, result.DefaultGoogleChromeRpccBufferSize())
 }

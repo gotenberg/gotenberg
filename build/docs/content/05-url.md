@@ -51,6 +51,57 @@ use TheCodingMachine\Gotenberg\URLRequest;
 $client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
 $request = new URLRequest('https://google.com');
 $request->setMargins(Request::NO_MARGINS);
-$dest = "result.pdf";
+$dest = 'result.pdf';
+$client->store($request, $dest);
+```
+
+## Custom HTTP headers
+
+You may send your own HTTP headers to the `remoteURL`.
+
+For instance, by adding the HTTP header `Gotenberg-Remoteurl-Your-Header` to your request,
+the API will send a request to the `remoteURL` with the HTTP header `Your-Header`.
+
+> **Attention:** the API uses a canonical format for the HTTP headers:
+> it transforms the first
+> letter and any letter following a hyphen to upper case;
+> the rest are converted to lowercase. For example, the
+> canonical key for `accept-encoding` is `Accept-Encoding`.
+
+### cURL
+
+```bash
+$ curl --request POST \
+    --url http://localhost:3000/convert/url \
+    --header 'Content-Type: multipart/form-data' \
+    --header 'Gotenberg-Remoteurl-Your-Header: Foo' \
+    --form remoteURL=https://google.com \
+    -o result.pdf
+```
+
+### Go
+
+```golang
+import "github.com/thecodingmachine/gotenberg-go-client/v6"
+
+func main() {
+    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+    req := gotenberg.NewURLRequest("https://google.com")
+    req.AddRemoteURLHTTPHeader("Your-Header", "Foo")
+    dest := "result.pdf"
+    c.Store(req, dest)
+}
+```
+
+### PHP
+
+```php
+use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\URLRequest;
+
+$client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
+$request = new URLRequest('https://google.com');
+$request->addRemoteURLHTTPHeader('Your-Header', 'Foo')
+$dest = 'result.pdf';
 $client->store($request, $dest);
 ```

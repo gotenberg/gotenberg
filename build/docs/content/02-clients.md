@@ -18,7 +18,7 @@ Unless your project already has a PSR7 `HttpClient`, install `php-http/guzzle6-a
 $ composer require php-http/guzzle6-adapter
 ```
 
-Then the PHP client:
+Then the [PHP client](https://github.com/thecodingmachine/gotenberg-php-client):
 
 ```bash
 $ composer require thecodingmachine/gotenberg-php-client
@@ -27,3 +27,4 @@ $ composer require thecodingmachine/gotenberg-php-client
 ## Community clients
 
 * [JavaScript/TypeScript client](https://github.com/yumauri/gotenberg-js-client) by [yumauri](https://github.com/yumauri)
+* [C# client](https://github.com/ChangemakerStudios/GotenbergSharpApiClient) by [ChangemakerStudios](https://github.com/ChangemakerStudios)

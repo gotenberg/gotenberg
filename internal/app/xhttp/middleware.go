@@ -30,7 +30,7 @@ func contextMiddleware(config conf.Config) echo.MiddlewareFunc {
 			// there is no need to create a Resource.
 			if !isMultipartFormDataEndpoint(config, ctx.Path()) {
 				// validate method for healthcheck endpoint.
-				if ctx.Path() == pingEndpoint && ctx.Request().Method != http.MethodGet {
+				if ctx.Path() == pingEndpoint(config) && ctx.Request().Method != http.MethodGet {
 					err := doErr(ctx, echo.NewHTTPError(http.StatusMethodNotAllowed))
 					return ctx.LogRequestResult(err, false)
 				}
@@ -60,14 +60,14 @@ func contextMiddleware(config conf.Config) echo.MiddlewareFunc {
 }
 
 // loggerMiddleware logs the result of a request.
-func loggerMiddleware() echo.MiddlewareFunc {
+func loggerMiddleware(config conf.Config) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			ctx := context.MustCastFromEchoContext(c)
 			err := next(ctx)
 			// we do not want to log healthcheck requests if
 			// log level is not set to DEBUG.
-			isDebug := ctx.Path() == pingEndpoint
+			isDebug := ctx.Path() == pingEndpoint(config)
 			return ctx.LogRequestResult(err, isDebug)
 		}
 	}

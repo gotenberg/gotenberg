@@ -11,22 +11,21 @@ func New(config conf.Config) *echo.Echo {
 	srv.HideBanner = true
 	srv.HidePort = true
 	srv.Use(contextMiddleware(config))
-	srv.Use(loggerMiddleware())
+	srv.Use(loggerMiddleware(config))
 	srv.Use(cleanupMiddleware())
 	srv.Use(errorMiddleware())
-	srv.GET(pingEndpoint, pingHandler)
-	srv.POST(mergeEndpoint, mergeHandler)
+	srv.GET(pingEndpoint(config), pingHandler)
+	srv.POST(mergeEndpoint(config), mergeHandler)
 	if config.DisableGoogleChrome() && config.DisableUnoconv() {
 		return srv
 	}
-	g := srv.Group(convertGroupEndpoint)
 	if !config.DisableGoogleChrome() {
-		g.POST(htmlEndpoint, htmlHandler)
-		g.POST(urlEndpoint, urlHandler)
-		g.POST(markdownEndpoint, markdownHandler)
+		srv.POST(htmlEndpoint(config), htmlHandler)
+		srv.POST(urlEndpoint(config), urlHandler)
+		srv.POST(markdownEndpoint(config), markdownHandler)
 	}
 	if !config.DisableUnoconv() {
-		g.POST(officeEndpoint, officeHandler)
+		srv.POST(officeEndpoint(config), officeHandler)
 	}
 	return srv
 }

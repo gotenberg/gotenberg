@@ -15,31 +15,45 @@ import (
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xtime"
 )
 
-const (
-	pingEndpoint         string = "/ping"
-	mergeEndpoint        string = "/merge"
-	convertGroupEndpoint string = "/convert"
-	htmlEndpoint         string = "/html"
-	urlEndpoint          string = "/url"
-	markdownEndpoint     string = "/markdown"
-	officeEndpoint       string = "/office"
-)
+func pingEndpoint(config conf.Config) string {
+	return fmt.Sprintf("%s%s", config.RootPath(), "ping")
+}
+
+func mergeEndpoint(config conf.Config) string {
+	return fmt.Sprintf("%s%s", config.RootPath(), "merge")
+}
+
+func htmlEndpoint(config conf.Config) string {
+	return fmt.Sprintf("%s%s", config.RootPath(), "convert/html")
+}
+
+func urlEndpoint(config conf.Config) string {
+	return fmt.Sprintf("%s%s", config.RootPath(), "convert/url")
+}
+
+func markdownEndpoint(config conf.Config) string {
+	return fmt.Sprintf("%s%s", config.RootPath(), "convert/markdown")
+}
+
+func officeEndpoint(config conf.Config) string {
+	return fmt.Sprintf("%s%s", config.RootPath(), "convert/office")
+}
 
 func isMultipartFormDataEndpoint(config conf.Config, path string) bool {
 	var multipartFormDataEndpoints []string
-	multipartFormDataEndpoints = append(multipartFormDataEndpoints, mergeEndpoint)
+	multipartFormDataEndpoints = append(multipartFormDataEndpoints, mergeEndpoint(config))
 	if !config.DisableGoogleChrome() {
 		multipartFormDataEndpoints = append(
 			multipartFormDataEndpoints,
-			fmt.Sprintf("%s%s", convertGroupEndpoint, htmlEndpoint),
-			fmt.Sprintf("%s%s", convertGroupEndpoint, urlEndpoint),
-			fmt.Sprintf("%s%s", convertGroupEndpoint, markdownEndpoint),
+			htmlEndpoint(config),
+			urlEndpoint(config),
+			markdownEndpoint(config),
 		)
 	}
 	if !config.DisableUnoconv() {
 		multipartFormDataEndpoints = append(
 			multipartFormDataEndpoints,
-			fmt.Sprintf("%s%s", convertGroupEndpoint, officeEndpoint),
+			officeEndpoint(config),
 		)
 	}
 	for _, endpoint := range multipartFormDataEndpoints {
@@ -124,6 +138,7 @@ func urlHandler(c echo.Context) error {
 		if err != nil {
 			return err
 		}
+		opts.CustomHTTPHeaders = resource.RemoteURLCustomHTTPHeaders(r)
 		if !r.HasArg(resource.RemoteURLArgKey) {
 			return xerror.Invalid(
 				op,
@@ -308,20 +323,50 @@ func convertAsync(ctx context.Context, p printer.Printer, filename, fpath string
 		defer f.Close() // nolint: errcheck
 		logger.DebugfOp(
 			op,
-			"sending result file '%s' to '%s'",
+			"preparing to send result file '%s' to '%s'...",
 			filename,
 			webhookURL,
 		)
 		httpClient := &http.Client{
 			Timeout: xtime.Duration(webhookURLTimeout),
 		}
-		resp, err := httpClient.Post(webhookURL, "application/pdf", f) /* #nosec */
+		req, err := http.NewRequest(http.MethodPost, webhookURL, f)
+		if err != nil {
+			xerr := xerror.New(op, err)
+			logger.ErrorOp(xerror.Op(xerr), xerr)
+			return
+		}
+		req.Header.Set(echo.HeaderContentType, "application/pdf")
+		// set custom headers (if any).
+		customHTTPHeaders := resource.WebhookURLCustomHTTPHeaders(r)
+		if len(customHTTPHeaders) > 0 {
+			for key, value := range customHTTPHeaders {
+				req.Header.Set(key, value)
+				logger.DebugfOp(op, "set '%s' to custom HTTP header '%s'", value, key)
+			}
+		} else {
+			logger.DebugOp(op, "skipping custom HTTP headers as none have been provided...")
+		}
+		// send the result file.
+		logger.DebugfOp(
+			op,
+			"sending result file '%s' to '%s'...",
+			filename,
+			webhookURL,
+		)
+		resp, err := httpClient.Do(req) /* #nosec */
 		if err != nil {
 			xerr := xerror.New(op, err)
 			logger.ErrorOp(xerror.Op(xerr), xerr)
 			return
 		}
 		defer resp.Body.Close() // nolint: errcheck
+		logger.DebugfOp(
+			op,
+			"result file '%s' sent to '%s'",
+			filename,
+			webhookURL,
+		)
 	}()
 	return nil
 }

@@ -58,9 +58,7 @@ It takes a float as value (e.g `2.5` for 2.5 seconds).
 
 > You may also define this value globally: see the [environment variables](#environment_variables.default_webhook_url_timeout) section.
 
-### Examples
-
-#### cURL
+### cURL
 
 ```bash
 $ curl --request POST \
@@ -71,7 +69,7 @@ $ curl --request POST \
     --form webhookURLTimeout=2.5
 ```
 
-#### Go
+### Go
 
 ```golang
 import "github.com/thecodingmachine/gotenberg-go-client/v6"
@@ -85,7 +83,7 @@ func main() {
 }
 ```
 
-#### PHP
+### PHP
 
 ```php
 use TheCodingMachine\Gotenberg\Client;
@@ -97,5 +95,58 @@ $index = DocumentFactory::makeFromPath('index.html', 'index.html');
 $request = new HTMLRequest($index);
 $request->setWebhookURL('http://myapp.com/webhook/');
 $request->setWebhookURLTimeout(2.5);
+$resp = $client->post($request);
+```
+
+## Custom HTTP headers
+
+You may send your own HTTP headers to the `webhookURL`.
+
+For instance, by adding the HTTP header `Gotenberg-Webhookurl-Your-Header` to your request,
+the API will send a request to the `webhookURL` with the HTTP header `Your-Header`.
+
+> **Attention:** the API uses a canonical format for the HTTP headers:
+> it transforms the first
+> letter and any letter following a hyphen to upper case;
+> the rest are converted to lowercase. For example, the
+> canonical key for `accept-encoding` is `Accept-Encoding`.
+
+### cURL
+
+```bash
+$ curl --request POST \
+    --url http://localhost:3000/convert/html \
+    --header 'Content-Type: multipart/form-data' \
+    --header 'Gotenberg-Webhookurl-Your-Header: Foo' \
+    --form files=@index.html \
+    --form webhookURL='http://myapp.com/webhook/'
+```
+
+### Go
+
+```golang
+import "github.com/thecodingmachine/gotenberg-go-client/v6"
+
+func main() {
+    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+    req, _ := gotenberg.NewHTMLRequest("index.html")
+    req.WebhookURL("http://myapp.com/webhook/")
+    req.AddWebhookURLHTTPHeader("Your-Header", "Foo")
+    resp, _ := c.Post(req)
+}
+```
+
+### PHP
+
+```php
+use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\HTMLRequest;
+
+$client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath('index.html', 'index.html');
+$request = new HTMLRequest($index);
+$request->setWebhookURL('http://myapp.com/webhook/');
+$request->addWebhookURLHTTPHeader('Your-Header', 'Foo');
 $resp = $client->post($request);
 ```
