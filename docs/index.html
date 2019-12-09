@@ -233,7 +233,7 @@ Gotenberg API is available at <a href="http://localhost:3000">http://localhost:3
 <pre class="chroma">$ composer require php-http/guzzle6-adapter
 </pre>
 
-<p>Then the PHP client:</p>
+<p>Then the <a href="https://github.com/thecodingmachine/gotenberg-php-client">PHP client</a>:</p>
 
 <pre class="chroma">$ composer require thecodingmachine/gotenberg-php-client
 </pre>
@@ -474,7 +474,7 @@ use TheCodingMachine\Gotenberg\HTMLRequest;
 $client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
 $index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
 $request = new HTMLRequest($index);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -569,7 +569,7 @@ $footer = DocumentFactory::makeFromPath(&#39;footer.html&#39;, &#39;footer.html&
 $request = new HTMLRequest($index);
 $request-&gt;setHeader($header);
 $request-&gt;setFooter($footer);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -665,7 +665,7 @@ $assets = [
 ];
 $request = new HTMLRequest($index);
 $request-&gt;setAssets($assets);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -731,7 +731,7 @@ $request = new HTMLRequest($index);
 $request-&gt;setPaperSize(Request::A4);
 $request-&gt;setMargins(Request::NO_MARGINS);
 $request-&gt;setLandscape(true);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -787,7 +787,7 @@ $client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\
 $index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
 $request = new HTMLRequest($index);
 $request-&gt;setWaitDelay(5.5);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -846,7 +846,7 @@ $client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\
 $index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
 $request = new HTMLRequest($index);
 $request-&gt;setGoogleChromeRpccBufferSize(1048576);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -912,7 +912,65 @@ use TheCodingMachine\Gotenberg\URLRequest;
 $client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
 $request = new URLRequest(&#39;https://google.com&#39;);
 $request-&gt;setMargins(Request::NO_MARGINS);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
+$client-&gt;store($request, $dest);
+</pre>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="url.custom_http_headers" href="#url.custom_http_headers">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Custom HTTP headers</h2>
+
+<p>You may send your own HTTP headers to the <code>remoteURL</code>.</p>
+
+<p>For instance, by adding the HTTP header <code>Gotenberg-Remoteurl-Your-Header</code> to your request,
+the API will send a request to the <code>remoteURL</code> with the HTTP header <code>Your-Header</code>.</p>
+
+<blockquote>
+<p><strong>Attention:</strong> the API uses a canonical format for the HTTP headers:
+it transforms the first
+letter and any letter following a hyphen to upper case;
+the rest are converted to lowercase. For example, the
+canonical key for <code>accept-encoding</code> is <code>Accept-Encoding</code>.</p>
+</blockquote>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="url.custom_http_headers.c_url" href="#url.custom_http_headers.c_url">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>cURL</h3>
+
+<pre class="chroma">$ curl --request POST <span class="se">\
+</span><span class="se"></span>    --url http://localhost:3000/convert/url <span class="se">\
+</span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
+</span><span class="se"></span>    --header <span class="s1">&#39;Gotenberg-Remoteurl-Your-Header: Foo&#39;</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">remoteURL</span><span class="o">=</span>https://google.com <span class="se">\
+</span><span class="se"></span>    -o result.pdf
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="url.custom_http_headers.go" href="#url.custom_http_headers.go">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Go</h3>
+
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v6&#34;</span>
+
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
+    <span class="nx">req</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewURLRequest</span><span class="p">(</span><span class="s">&#34;https://google.com&#34;</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nf">AddRemoteURLHTTPHeader</span><span class="p">(</span><span class="s">&#34;Your-Header&#34;</span><span class="p">,</span> <span class="s">&#34;Foo&#34;</span><span class="p">)</span>
+    <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
+    <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+<span class="p">}</span>
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="url.custom_http_headers.php" href="#url.custom_http_headers.php">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>PHP</h3>
+
+<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\URLRequest;
+
+$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+$request = new URLRequest(&#39;https://google.com&#39;);
+$request-&gt;addRemoteURLHTTPHeader(&#39;Your-Header&#39;, &#39;Foo&#39;)
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -989,7 +1047,7 @@ $markdowns = [
     DocumentFactory::makeFromPath(&#39;file.md&#39;, &#39;file.md&#39;),
 ];
 $request = new MarkdownRequest($index, $markdowns);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -1070,7 +1128,7 @@ $files = [
     DocumentFactory::makeFromPath(&#39;document2.docx&#39;, &#39;document2.docx&#39;),
 ];
 $request = new OfficeRequest($files);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -1123,7 +1181,7 @@ $files = [
 ];
 $request = new OfficeRequest($files);
 $request-&gt;setLandscape(true);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -1188,7 +1246,7 @@ $files = [
     DocumentFactory::makeFromPath(&#39;file2.pdf&#39;, &#39;file2.pdf&#39;),
 ];
 $request = new MergeRequest($files);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -1251,7 +1309,7 @@ $client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\
 $index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
 $request = new HTMLRequest($index);
 $request-&gt;setWaitTimeout(2.5);
-$dest = &#34;result.pdf&#34;;
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -1326,13 +1384,9 @@ $resp = $client-&gt;post($request);
 <p>You may also define this value globally: see the <a href="#environment_variables.default_webhook_url_timeout">environment variables</a> section.</p>
 </blockquote>
 
-<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.timeout.examples" href="#webhook.timeout.examples">
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.timeout.c_url" href="#webhook.timeout.c_url">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-</a>Examples</h3>
-
-<h4 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.timeout.examples.c_url" href="#webhook.timeout.examples.c_url">
-	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-</a>cURL</h4>
+</a>cURL</h3>
 
 <pre class="chroma">$ curl --request POST <span class="se">\
 </span><span class="se"></span>    --url http://localhost:3000/convert/html <span class="se">\
@@ -1342,9 +1396,9 @@ $resp = $client-&gt;post($request);
 </span><span class="se"></span>    --form <span class="nv">webhookURLTimeout</span><span class="o">=</span>2.5
 </pre>
 
-<h4 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.timeout.examples.go" href="#webhook.timeout.examples.go">
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.timeout.go" href="#webhook.timeout.go">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-</a>Go</h4>
+</a>Go</h3>
 
 <pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v6&#34;</span>
 
@@ -1357,9 +1411,9 @@ $resp = $client-&gt;post($request);
 <span class="p">}</span>
 </pre>
 
-<h4 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.timeout.examples.php" href="#webhook.timeout.examples.php">
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.timeout.php" href="#webhook.timeout.php">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-</a>PHP</h4>
+</a>PHP</h3>
 
 <pre class="chroma">use TheCodingMachine\Gotenberg\Client;
 use TheCodingMachine\Gotenberg\DocumentFactory;
@@ -1370,6 +1424,66 @@ $index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39
 $request = new HTMLRequest($index);
 $request-&gt;setWebhookURL(&#39;http://myapp.com/webhook/&#39;);
 $request-&gt;setWebhookURLTimeout(2.5);
+$resp = $client-&gt;post($request);
+</pre>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.custom_http_headers" href="#webhook.custom_http_headers">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Custom HTTP headers</h2>
+
+<p>You may send your own HTTP headers to the <code>webhookURL</code>.</p>
+
+<p>For instance, by adding the HTTP header <code>Gotenberg-Webhookurl-Your-Header</code> to your request,
+the API will send a request to the <code>webhookURL</code> with the HTTP header <code>Your-Header</code>.</p>
+
+<blockquote>
+<p><strong>Attention:</strong> the API uses a canonical format for the HTTP headers:
+it transforms the first
+letter and any letter following a hyphen to upper case;
+the rest are converted to lowercase. For example, the
+canonical key for <code>accept-encoding</code> is <code>Accept-Encoding</code>.</p>
+</blockquote>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.custom_http_headers.c_url" href="#webhook.custom_http_headers.c_url">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>cURL</h3>
+
+<pre class="chroma">$ curl --request POST <span class="se">\
+</span><span class="se"></span>    --url http://localhost:3000/convert/html <span class="se">\
+</span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
+</span><span class="se"></span>    --header <span class="s1">&#39;Gotenberg-Webhookurl-Your-Header: Foo&#39;</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">webhookURL</span><span class="o">=</span><span class="s1">&#39;http://myapp.com/webhook/&#39;</span>
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.custom_http_headers.go" href="#webhook.custom_http_headers.go">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Go</h3>
+
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v6&#34;</span>
+
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
+    <span class="nx">req</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewHTMLRequest</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nf">WebhookURL</span><span class="p">(</span><span class="s">&#34;http://myapp.com/webhook/&#34;</span><span class="p">)</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nf">AddWebhookURLHTTPHeader</span><span class="p">(</span><span class="s">&#34;Your-Header&#34;</span><span class="p">,</span> <span class="s">&#34;Foo&#34;</span><span class="p">)</span>
+    <span class="nx">resp</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">c</span><span class="p">.</span><span class="nf">Post</span><span class="p">(</span><span class="nx">req</span><span class="p">)</span>
+<span class="p">}</span>
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.custom_http_headers.php" href="#webhook.custom_http_headers.php">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>PHP</h3>
+
+<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\HTMLRequest;
+
+$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;index.html&#39;);
+$request = new HTMLRequest($index);
+$request-&gt;setWebhookURL(&#39;http://myapp.com/webhook/&#39;);
+$request-&gt;addWebhookURLHTTPHeader(&#39;Your-Header&#39;, &#39;Foo&#39;);
 $resp = $client-&gt;post($request);
 </pre>
 

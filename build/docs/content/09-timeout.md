@@ -48,6 +48,6 @@ $client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client()
 $index = DocumentFactory::makeFromPath('index.html', 'index.html');
 $request = new HTMLRequest($index);
 $request->setWaitTimeout(2.5);
-$dest = "result.pdf";
+$dest = 'result.pdf';
 $client->store($request, $dest);
 ```
