@@ -27,14 +27,14 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v6"
+import "github.com/thecodingmachine/gotenberg-go-client/v7"
 
-func main() {
-    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req, _ := gotenberg.NewMergeRequest("file.pdf", "file2.pdf")
-    dest := "result.pdf"
-    c.Store(req, dest)
-}
+c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+pdf, _ := gotenberg.NewDocumentFromPath("file.pdf", "/path/to/file")
+pdf2, _ := gotenberg.NewDocumentFromPath("file2.pdf", "/path/to/file")
+req := gotenberg.NewMergeRequest(pdf, pdf2)
+dest := "result.pdf"
+c.Store(req, dest)
 ```
 
 ### PHP
@@ -46,10 +46,10 @@ use TheCodingMachine\Gotenberg\MergeRequest;
 
 $client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
 $files = [
-    DocumentFactory::makeFromPath('file.pdf', 'file.pdf'),
-    DocumentFactory::makeFromPath('file2.pdf', 'file2.pdf'),
+    DocumentFactory::makeFromPath('file.pdf', '/path/to/file'),
+    DocumentFactory::makeFromPath('file2.pdf', '/path/to/file'),
 ];
 $request = new MergeRequest($files);
-$dest = "result.pdf";
+$dest = 'result.pdf';
 $client->store($request, $dest);
 ```

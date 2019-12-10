@@ -46,6 +46,26 @@ func TestOfficePrinter(t *testing.T) {
 	assert.Nil(t, err)
 	err = os.RemoveAll(dest)
 	assert.Nil(t, err)
+	// options with page ranges.
+	opts = DefaultOfficePrinterOptions(config)
+	opts.PageRanges = "1-1"
+	p = NewOfficePrinter(logger, []string{fpaths[0]}, opts)
+	dest = test.GenerateDestination()
+	err = p.Print(dest)
+	assert.Nil(t, err)
+	err = os.RemoveAll(dest)
+	assert.Nil(t, err)
+	// should not be OK as options have
+	// a wrong page ranges.
+	opts = DefaultOfficePrinterOptions(config)
+	opts.PageRanges = "foo"
+	p = NewOfficePrinter(logger, []string{fpaths[0]}, opts)
+	dest = test.GenerateDestination()
+	err = p.Print(dest)
+	test.AssertError(t, err)
+	assert.Equal(t, xerror.InvalidCode, xerror.Code(err))
+	err = os.RemoveAll(dest)
+	assert.Nil(t, err)
 	// should not be OK as context.Context
 	// should timeout.
 	opts = DefaultOfficePrinterOptions(config)

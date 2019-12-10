@@ -41,14 +41,14 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v6"
+import "github.com/thecodingmachine/gotenberg-go-client/v7"
 
-func main() {
-    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req, _ := gotenberg.NewOfficeRequest("document.docx", "document2.docx")
-    dest := "result.pdf"
-    c.Store(req, dest)
-}
+c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+doc, _ := gotenberg.NewDocumentFromPath("document.docx", "/path/to/file")
+doc2, _ := gotenberg.NewDocumentFromPath("document2.docx", "/path/to/file")
+req := gotenberg.NewOfficeRequest(doc, doc2)
+dest := "result.pdf"
+c.Store(req, dest)
 ```
 
 ### PHP
@@ -60,11 +60,11 @@ use TheCodingMachine\Gotenberg\OfficeRequest;
 
 $client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
 $files = [
-    DocumentFactory::makeFromPath('document.docx', 'document.docx'),
-    DocumentFactory::makeFromPath('document2.docx', 'document2.docx'),
+    DocumentFactory::makeFromPath('document.docx', '/path/to/file'),
+    DocumentFactory::makeFromPath('document2.docx', '/path/to/file'),
 ];
 $request = new OfficeRequest($files);
-$dest = "result.pdf";
+$dest = 'result.pdf';
 $client->store($request, $dest);
 ```
 
@@ -88,15 +88,14 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v6"
+import "github.com/thecodingmachine/gotenberg-go-client/v7"
 
-func main() {
-    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req, _ := gotenberg.NewOfficeRequest("document.docx")
-    req.Landscape(true)
-    dest := "result.pdf"
-    c.Store(req, dest)
-}
+c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+doc, _ := gotenberg.NewDocumentFromPath("document.docx", "/path/to/file")
+req := gotenberg.NewOfficeRequest(doc)
+req.Landscape(true)
+dest := "result.pdf"
+c.Store(req, dest)
 ```
 
 ### PHP
@@ -108,10 +107,61 @@ use TheCodingMachine\Gotenberg\OfficeRequest;
 
 $client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
 $files = [
-    DocumentFactory::makeFromPath('document.docx', 'document.docx'),
+    DocumentFactory::makeFromPath('document.docx', '/path/to/file'),
 ];
 $request = new OfficeRequest($files);
 $request->setLandscape(true);
-$dest = "result.pdf";
+$dest = 'result.pdf';
+$client->store($request, $dest);
+```
+
+## Page ranges
+
+You may specify the page ranges to convert.
+
+The format is the same as the one from the print options
+of LibreOffice, e.g. `1-1` or `1-4`.
+
+> **Attention:** if more than one document, the page ranges will be
+> applied for each document.
+
+### cURL
+
+```bash
+$ curl --request POST \
+    --url http://localhost:3000/convert/office \
+    --header 'Content-Type: multipart/form-data' \
+    --form files=@document.docx \
+    --form pageRanges='1-3' \
+    -o result.pdf
+```
+
+### Go
+
+```golang
+import "github.com/thecodingmachine/gotenberg-go-client/v7"
+
+c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+doc, _ := gotenberg.NewDocumentFromPath("document.docx", "/path/to/file")
+req := gotenberg.NewOfficeRequest(doc)
+req.PageRanges("1-3")
+dest := "result.pdf"
+c.Store(req, dest)
+```
+
+### PHP
+
+```php
+use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\OfficeRequest;
+
+$client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
+$files = [
+    DocumentFactory::makeFromPath('document.docx', '/path/to/file'),
+];
+$request = new OfficeRequest($files);
+$request->setPageRanges('1-3');
+$dest = 'result.pdf';
 $client->store($request, $dest);
 ```

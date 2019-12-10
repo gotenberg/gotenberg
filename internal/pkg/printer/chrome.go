@@ -2,6 +2,7 @@ package printer
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"strings"
@@ -30,18 +31,20 @@ type chromePrinter struct {
 // ChromePrinterOptions helps customizing the
 // Google Chrome Printer behaviour.
 type ChromePrinterOptions struct {
-	WaitTimeout    float64
-	WaitDelay      float64
-	HeaderHTML     string
-	FooterHTML     string
-	PaperWidth     float64
-	PaperHeight    float64
-	MarginTop      float64
-	MarginBottom   float64
-	MarginLeft     float64
-	MarginRight    float64
-	Landscape      bool
-	RpccBufferSize int64
+	WaitTimeout       float64
+	WaitDelay         float64
+	HeaderHTML        string
+	FooterHTML        string
+	PaperWidth        float64
+	PaperHeight       float64
+	MarginTop         float64
+	MarginBottom      float64
+	MarginLeft        float64
+	MarginRight       float64
+	Landscape         bool
+	PageRanges        string
+	RpccBufferSize    int64
+	CustomHTTPHeaders map[string]string
 }
 
 // DefaultChromePrinterOptions returns the default
@@ -49,18 +52,20 @@ type ChromePrinterOptions struct {
 func DefaultChromePrinterOptions(config conf.Config) ChromePrinterOptions {
 	const defaultHeaderFooterHTML string = "<html><head></head><body></body></html>"
 	return ChromePrinterOptions{
-		WaitTimeout:    config.DefaultWaitTimeout(),
-		WaitDelay:      0.0,
-		HeaderHTML:     defaultHeaderFooterHTML,
-		FooterHTML:     defaultHeaderFooterHTML,
-		PaperWidth:     8.27,
-		PaperHeight:    11.7,
-		MarginTop:      1.0,
-		MarginBottom:   1.0,
-		MarginLeft:     1.0,
-		MarginRight:    1.0,
-		Landscape:      false,
-		RpccBufferSize: config.DefaultGoogleChromeRpccBufferSize(),
+		WaitTimeout:       config.DefaultWaitTimeout(),
+		WaitDelay:         0.0,
+		HeaderHTML:        defaultHeaderFooterHTML,
+		FooterHTML:        defaultHeaderFooterHTML,
+		PaperWidth:        8.27,
+		PaperHeight:       11.7,
+		MarginTop:         1.0,
+		MarginBottom:      1.0,
+		MarginLeft:        1.0,
+		MarginRight:       1.0,
+		Landscape:         false,
+		PageRanges:        "",
+		RpccBufferSize:    config.DefaultGoogleChromeRpccBufferSize(),
+		CustomHTTPHeaders: make(map[string]string),
 	}
 }
 
@@ -144,6 +149,10 @@ func (p chromePrinter) Print(destination string) error {
 		if err := p.enableEvents(ctx, targetClient); err != nil {
 			return err
 		}
+		// add custom headers (if any).
+		if err := p.setCustomHTTPHeaders(ctx, targetClient); err != nil {
+			return err
+		}
 		// listen for all events.
 		if err := p.listenEvents(ctx, targetClient); err != nil {
 			return err
@@ -156,23 +165,35 @@ func (p chromePrinter) Print(destination string) error {
 		} else {
 			p.logger.DebugOp(op, "no wait delay to apply, moving on...")
 		}
+		printToPdfArgs := page.NewPrintToPDFArgs().
+			SetPaperWidth(p.opts.PaperWidth).
+			SetPaperHeight(p.opts.PaperHeight).
+			SetMarginTop(p.opts.MarginTop).
+			SetMarginBottom(p.opts.MarginBottom).
+			SetMarginLeft(p.opts.MarginLeft).
+			SetMarginRight(p.opts.MarginRight).
+			SetLandscape(p.opts.Landscape).
+			SetDisplayHeaderFooter(true).
+			SetHeaderTemplate(p.opts.HeaderHTML).
+			SetFooterTemplate(p.opts.FooterHTML).
+			SetPrintBackground(true)
+		if p.opts.PageRanges != "" {
+			printToPdfArgs.SetPageRanges(p.opts.PageRanges)
+		}
 		// print the page to PDF.
 		print, err := targetClient.Page.PrintToPDF(
 			ctx,
-			page.NewPrintToPDFArgs().
-				SetPaperWidth(p.opts.PaperWidth).
-				SetPaperHeight(p.opts.PaperHeight).
-				SetMarginTop(p.opts.MarginTop).
-				SetMarginBottom(p.opts.MarginBottom).
-				SetMarginLeft(p.opts.MarginLeft).
-				SetMarginRight(p.opts.MarginRight).
-				SetLandscape(p.opts.Landscape).
-				SetDisplayHeaderFooter(true).
-				SetHeaderTemplate(p.opts.HeaderHTML).
-				SetFooterTemplate(p.opts.FooterHTML).
-				SetPrintBackground(true),
+			printToPdfArgs,
 		)
 		if err != nil {
+			// find a way to check it in the handlers?
+			if strings.Contains(err.Error(), "Page range syntax error") {
+				return xerror.Invalid(
+					op,
+					fmt.Sprintf("'%s' is not a valid Google Chrome page ranges", p.opts.PageRanges),
+					err,
+				)
+			}
 			if strings.Contains(err.Error(), "rpcc: message too large") {
 				return xerror.Invalid(
 					op,
@@ -242,6 +263,32 @@ func (p chromePrinter) enableEvents(ctx context.Context, client *cdp.Client) err
 		},
 		func() error { return client.Runtime.Enable(ctx) },
 	); err != nil {
+		return xerror.New(op, err)
+	}
+	return nil
+}
+
+func (p chromePrinter) setCustomHTTPHeaders(ctx context.Context, client *cdp.Client) error {
+	const op string = "printer.chromePrinter.setCustomHTTPHeaders"
+	resolver := func() error {
+		if len(p.opts.CustomHTTPHeaders) == 0 {
+			p.logger.DebugOp(op, "skipping custom HTTP headers as none have been provided...")
+			return nil
+		}
+		customHTTPHeaders := make(map[string]string)
+		// useless but for the logs.
+		for key, value := range p.opts.CustomHTTPHeaders {
+			customHTTPHeaders[key] = value
+			p.logger.DebugfOp(op, "set '%s' to custom HTTP header '%s'", value, key)
+		}
+		b, err := json.Marshal(customHTTPHeaders)
+		if err != nil {
+			return err
+		}
+		// should always be called after client.Network.Enable.
+		return client.Network.SetExtraHTTPHeaders(ctx, network.NewSetExtraHTTPHeadersArgs(b))
+	}
+	if err := resolver(); err != nil {
 		return xerror.New(op, err)
 	}
 	return nil

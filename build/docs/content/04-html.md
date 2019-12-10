@@ -39,14 +39,13 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v6"
+import "github.com/thecodingmachine/gotenberg-go-client/v7"
 
-func main() {
-    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req, _ := gotenberg.NewHTMLRequest("index.html")
-    dest := "result.pdf"
-    c.Store(req, dest)
-}
+c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+index, _ := gotenberg.NewDocumentFromPath("index.html", "/path/to/file")
+req := gotenberg.NewHTMLRequest(index)
+dest := "result.pdf"
+c.Store(req, dest)
 ```
 
 ### PHP
@@ -57,9 +56,9 @@ use TheCodingMachine\Gotenberg\DocumentFactory;
 use TheCodingMachine\Gotenberg\HTMLRequest;
 
 $client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
-$index = DocumentFactory::makeFromPath('index.html', 'index.html');
+$index = DocumentFactory::makeFromPath('index.html', '/path/to/file');
 $request = new HTMLRequest($index);
-$dest = "result.pdf";
+$dest = 'result.pdf';
 $client->store($request, $dest);
 ```
 
@@ -120,16 +119,17 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v6"
+import "github.com/thecodingmachine/gotenberg-go-client/v7"
 
-func main() {
-    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req, _ := gotenberg.NewHTMLRequest("index.html")
-    req.Header("header.html")
-    req.Footer("footer.html")
-    dest := "result.pdf"
-    c.Store(req, dest)
-}
+c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+index, _ := gotenberg.NewDocumentFromPath("index.html", "/path/to/file")
+header, _ := gotenberg.NewDocumentFromPath("header.html", "/path/to/file")
+footer, _ := gotenberg.NewDocumentFromPath("footer.html", "/path/to/file")
+req := gotenberg.NewHTMLRequest(index)
+req.Header(header)
+req.Footer(footer)
+dest := "result.pdf"
+c.Store(req, dest)
 ```
 
 ### PHP
@@ -140,13 +140,13 @@ use TheCodingMachine\Gotenberg\DocumentFactory;
 use TheCodingMachine\Gotenberg\HTMLRequest;
 
 $client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
-$index = DocumentFactory::makeFromPath('index.html', 'index.html');
-$header = DocumentFactory::makeFromPath('header.html', 'header.html');
-$footer = DocumentFactory::makeFromPath('footer.html', 'footer.html');
+$index = DocumentFactory::makeFromPath('index.html', '/path/to/file');
+$header = DocumentFactory::makeFromPath('header.html', '/path/to/file');
+$footer = DocumentFactory::makeFromPath('footer.html', '/path/to/file');
 $request = new HTMLRequest($index);
 $request->setHeader($header);
 $request->setFooter($footer);
-$dest = "result.pdf";
+$dest = 'result.pdf';
 $client->store($request, $dest);
 ```
 
@@ -210,15 +210,17 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v6"
+import "github.com/thecodingmachine/gotenberg-go-client/v7"
 
-func main() {
-    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req, _ := gotenberg.NewHTMLRequest("index.html")
-    req.Assets("font.woff", "img.gif", "style.css")
-    dest := "result.pdf"
-    c.Store(req, dest)
-}
+c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+index, _ := gotenberg.NewDocumentFromPath("index.html", "/path/to/file")
+style, _ := gotenberg.NewDocumentFromPath("style.css", "/path/to/file")
+img, _ := gotenberg.NewDocumentFromPath("img.png", "/path/to/file")
+font, _ := gotenberg.NewDocumentFromPath("font.woff", "/path/to/file")
+req := gotenberg.NewHTMLRequest(index)
+req.Assets(style, img, font)
+dest := "result.pdf"
+c.Store(req, dest)
 ```
 
 ### PHP
@@ -229,15 +231,15 @@ use TheCodingMachine\Gotenberg\DocumentFactory;
 use TheCodingMachine\Gotenberg\HTMLRequest;
 
 $client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
-$index = DocumentFactory::makeFromPath('index.html', 'index.html');
+$index = DocumentFactory::makeFromPath('index.html', '/path/to/file');
 $assets = [
-    DocumentFactory::makeFromPath('style.css', 'style.css'),
-    DocumentFactory::makeFromPath('img.png', 'img.png'),
-    DocumentFactory::makeFromPath('font.woff', 'font.woff'),
+    DocumentFactory::makeFromPath('style.css', '/path/to/file'),
+    DocumentFactory::makeFromPath('img.png', '/path/to/file'),
+    DocumentFactory::makeFromPath('font.woff', '/path/to/file'),
 ];
 $request = new HTMLRequest($index);
 $request->setAssets($assets);
-$dest = "result.pdf";
+$dest = 'result.pdf';
 $client->store($request, $dest);
 ```
 
@@ -269,17 +271,16 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v6"
+import "github.com/thecodingmachine/gotenberg-go-client/v7"
 
-func main() {
-    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req, _ := gotenberg.NewHTMLRequest("index.html")
-    req.PaperSize(gotenberg.A4)
-    req.Margins(gotenberg.NoMargins)
-    req.Landscape(true)
-    dest := "result.pdf"
-    c.Store(req, dest)
-}
+c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+index, _ := gotenberg.NewDocumentFromPath("index.html", "/path/to/file")
+req := gotenberg.NewHTMLRequest(index)
+req.PaperSize(gotenberg.A4)
+req.Margins(gotenberg.NoMargins)
+req.Landscape(true)
+dest := "result.pdf"
+c.Store(req, dest)
 ```
 
 ### PHP
@@ -291,12 +292,59 @@ use TheCodingMachine\Gotenberg\HTMLRequest;
 use TheCodingMachine\Gotenberg\Request;
 
 $client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
-$index = DocumentFactory::makeFromPath('index.html', 'index.html');
+$index = DocumentFactory::makeFromPath('index.html', '/path/to/file');
 $request = new HTMLRequest($index);
 $request->setPaperSize(Request::A4);
 $request->setMargins(Request::NO_MARGINS);
 $request->setLandscape(true);
-$dest = "result.pdf";
+$dest = 'result.pdf';
+$client->store($request, $dest);
+```
+
+## Page ranges
+
+You may specify the page ranges to convert.
+
+The format is the same as the one from the print options
+of Google Chrome, e.g. `1-5,8,11-13`.
+
+### cURL
+
+```bash
+$ curl --request POST \
+    --url http://localhost:3000/convert/html \
+    --header 'Content-Type: multipart/form-data' \
+    --form files=@index.html \
+    --form pageRanges='1-3,5' \
+    -o result.pdf
+```
+
+### Go
+
+```golang
+import "github.com/thecodingmachine/gotenberg-go-client/v7"
+
+c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+index, _ := gotenberg.NewDocumentFromPath("index.html", "/path/to/file")
+req := gotenberg.NewHTMLRequest(index)
+req.PageRanges("1-3,5")
+dest := "result.pdf"
+c.Store(req, dest)
+```
+
+### PHP
+
+```php
+use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\HTMLRequest;
+use TheCodingMachine\Gotenberg\Request;
+
+$client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath('index.html', '/path/to/file');
+$request = new HTMLRequest($index);
+$request->setPageRanges('1-3,5');
+$dest = 'result.pdf';
 $client->store($request, $dest);
 ```
 
@@ -322,15 +370,14 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v6"
+import "github.com/thecodingmachine/gotenberg-go-client/v7"
 
-func main() {
-    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req, _ := gotenberg.NewHTMLRequest("index.html")
-    req.WaitDelay(5.5)
-    dest := "result.pdf"
-    c.Store(req, dest)
-}
+c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+index, _ := gotenberg.NewDocumentFromPath("index.html", "/path/to/file")
+req := gotenberg.NewHTMLRequest(index)
+req.WaitDelay(5.5)
+dest := "result.pdf"
+c.Store(req, dest)
 ```
 
 ### PHP
@@ -342,10 +389,10 @@ use TheCodingMachine\Gotenberg\HTMLRequest;
 use TheCodingMachine\Gotenberg\Request;
 
 $client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
-$index = DocumentFactory::makeFromPath('index.html', 'index.html');
+$index = DocumentFactory::makeFromPath('index.html', '/path/to/file');
 $request = new HTMLRequest($index);
 $request->setWaitDelay(5.5);
-$dest = "result.pdf";
+$dest = 'result.pdf';
 $client->store($request, $dest);
 ```
 
@@ -374,15 +421,14 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v6"
+import "github.com/thecodingmachine/gotenberg-go-client/v7"
 
-func main() {
-    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req, _ := gotenberg.NewHTMLRequest("index.html")
-    req.GoogleChromeRpccBufferSize(1048576)
-    dest := "result.pdf"
-    c.Store(req, dest)
-}
+c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+index, _ := gotenberg.NewDocumentFromPath("index.html", "/path/to/file")
+req := gotenberg.NewHTMLRequest(index)
+req.GoogleChromeRpccBufferSize(1048576)
+dest := "result.pdf"
+c.Store(req, dest)
 ```
 
 ### PHP
@@ -394,9 +440,9 @@ use TheCodingMachine\Gotenberg\HTMLRequest;
 use TheCodingMachine\Gotenberg\Request;
 
 $client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
-$index = DocumentFactory::makeFromPath('index.html', 'index.html');
+$index = DocumentFactory::makeFromPath('index.html', '/path/to/file');
 $request = new HTMLRequest($index);
 $request->setGoogleChromeRpccBufferSize(1048576);
-$dest = "result.pdf";
+$dest = 'result.pdf';
 $client->store($request, $dest);
 ```

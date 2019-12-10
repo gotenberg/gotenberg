@@ -12,7 +12,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/thecodingmachine/gotenberg/internal/app/xhttp/pkg/resource"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
-	"github.com/thecodingmachine/gotenberg/internal/pkg/normalize"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
 )
@@ -79,6 +78,10 @@ func (ctx *Context) WithResource(directoryName string) error {
 		if err != nil {
 			return r, err
 		}
+		// retrieve custom headers from request.
+		for key, value := range ctx.Request().Header {
+			r.WithCustomHTTPHeader(key, value[0])
+		}
 		// retrieve form values from request.
 		for _, key := range resource.ArgKeys() {
 			r.WithArg(key, ctx.FormValue(string(key)))
@@ -103,11 +106,7 @@ func (ctx *Context) WithResource(directoryName string) error {
 					return r, err
 				}
 				defer in.Close() // nolint: errcheck
-				filename, err := normalize.String(fh.Filename)
-				if err != nil {
-					return r, err
-				}
-				if err := r.WithFile(filename, in); err != nil {
+				if err := r.WithFile(fh.Filename, in); err != nil {
 					return r, err
 				}
 			}

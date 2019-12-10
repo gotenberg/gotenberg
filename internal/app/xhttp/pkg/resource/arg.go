@@ -51,6 +51,9 @@ const (
 	// LandscapeArgKey is the key
 	// of the argument "landscape".
 	LandscapeArgKey ArgKey = "landscape"
+	// PageRangesArgKey is the key
+	// of the argument "pageRanges".
+	PageRangesArgKey ArgKey = "pageRanges"
 	// GoogleChromeRpccBufferSizeArgKey is the key
 	// of the argument "googleChromeRpccBufferSize".
 	GoogleChromeRpccBufferSizeArgKey ArgKey = "googleChromeRpccBufferSize"
@@ -76,6 +79,7 @@ func ArgKeys() []ArgKey {
 		MarginLeftArgKey,
 		MarginRightArgKey,
 		LandscapeArgKey,
+		PageRangesArgKey,
 		GoogleChromeRpccBufferSizeArgKey,
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/phayes/freeport"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
@@ -27,6 +28,7 @@ type officePrinter struct {
 type OfficePrinterOptions struct {
 	WaitTimeout float64
 	Landscape   bool
+	PageRanges  string
 }
 
 // DefaultOfficePrinterOptions returns the default
@@ -35,6 +37,7 @@ func DefaultOfficePrinterOptions(config conf.Config) OfficePrinterOptions {
 	return OfficePrinterOptions{
 		WaitTimeout: config.DefaultWaitTimeout(),
 		Landscape:   false,
+		PageRanges:  "",
 	}
 }
 
@@ -62,7 +65,7 @@ func (p officePrinter) Print(destination string) error {
 			baseFilename := xrand.Get()
 			tmpDest := fmt.Sprintf("%s/%d%s.pdf", dirPath, i, baseFilename)
 			p.logger.DebugfOp(op, "converting '%s' to PDF...", fpath)
-			if err := unoconv(ctx, p.logger, fpath, tmpDest, p.opts); err != nil {
+			if err := p.unoconv(ctx, fpath, tmpDest); err != nil {
 				return err
 			}
 			p.logger.DebugfOp(op, "'%s.pdf' created", baseFilename)
@@ -88,7 +91,7 @@ func (p officePrinter) Print(destination string) error {
 	return nil
 }
 
-func unoconv(ctx context.Context, logger xlog.Logger, fpath, destination string, opts OfficePrinterOptions) error {
+func (p officePrinter) unoconv(ctx context.Context, fpath, destination string) error {
 	const op string = "printer.unoconv"
 	resolver := func() error {
 		port, err := freeport.GetFreePort()
@@ -103,11 +106,25 @@ func unoconv(ctx context.Context, logger xlog.Logger, fpath, destination string,
 			"--format",
 			"pdf",
 		}
-		if opts.Landscape {
+		if p.opts.Landscape {
 			args = append(args, "--printer", "PaperOrientation=landscape")
 		}
+		if p.opts.PageRanges != "" {
+			args = append(args, "--export", fmt.Sprintf("PageRange=%s", p.opts.PageRanges))
+		}
 		args = append(args, "--output", destination, fpath)
-		return xexec.Run(ctx, logger, "unoconv", args...)
+		if err := xexec.Run(ctx, p.logger, "unoconv", args...); err != nil {
+			// find a way to check it in the handlers?
+			if p.opts.PageRanges != "" && strings.Contains(err.Error(), "exit status 5") {
+				return xerror.Invalid(
+					op,
+					fmt.Sprintf("'%s' is not a valid LibreOffice page ranges", p.opts.PageRanges),
+					err,
+				)
+			}
+			return err
+		}
+		return nil
 	}
 	if err := resolver(); err != nil {
 		return xerror.New(op, err)
