@@ -31,15 +31,13 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v6"
+import "github.com/thecodingmachine/gotenberg-go-client/v7"
 
-func main() {
-    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req := gotenberg.NewURLRequest("https://google.com")
-    req.Margins(gotenberg.NoMargins)
-    dest := "result.pdf"
-    c.Store(req, dest)
-}
+c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+req := gotenberg.NewURLRequest("https://google.com")
+req.Margins(gotenberg.NoMargins)
+dest := "result.pdf"
+c.Store(req, dest)
 ```
 
 ### PHP
@@ -82,15 +80,13 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v6"
+import "github.com/thecodingmachine/gotenberg-go-client/v7"
 
-func main() {
-    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req := gotenberg.NewURLRequest("https://google.com")
-    req.AddRemoteURLHTTPHeader("Your-Header", "Foo")
-    dest := "result.pdf"
-    c.Store(req, dest)
-}
+c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+req := gotenberg.NewURLRequest("https://google.com")
+req.AddRemoteURLHTTPHeader("Your-Header", "Foo")
+dest := "result.pdf"
+c.Store(req, dest)
 ```
 
 ### PHP

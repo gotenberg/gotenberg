@@ -7,8 +7,10 @@ We provide clients in various languages for easing the interactions with the API
 ## Go client
 
 ```bash
-$ go get -u github.com/thecodingmachine/gotenberg-go-client/v6
+$ go get -u github.com/thecodingmachine/gotenberg-go-client/v7
 ```
+
+See also the example from the [README](https://github.com/thecodingmachine/gotenberg-go-client/blob/master/README.md).
 
 ## PHP client
 
@@ -23,6 +25,8 @@ Then the [PHP client](https://github.com/thecodingmachine/gotenberg-php-client):
 ```bash
 $ composer require thecodingmachine/gotenberg-php-client
 ```
+
+See also the example from the [README](https://github.com/thecodingmachine/gotenberg-php-client/blob/master/README.md).
 
 ## Community clients
 
