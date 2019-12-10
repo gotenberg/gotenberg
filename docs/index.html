@@ -787,8 +787,8 @@ use TheCodingMachine\Gotenberg\Request;
 $client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
 $index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;/path/to/file&#39;);
 $request = new HTMLRequest($index);
-$request-&gt;setPageRanges(&#34;1-3,5&#34;);
-$dest = &#34;result.pdf&#34;;
+$request-&gt;setPageRanges(&#39;1-3,5&#39;);
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
@@ -1288,8 +1288,8 @@ $files = [
     DocumentFactory::makeFromPath(&#39;document.docx&#39;, &#39;/path/to/file&#39;),
 ];
 $request = new OfficeRequest($files);
-$request-&gt;setPageRanges(&#34;1-3&#34;);
-$dest = &#34;result.pdf&#34;;
+$request-&gt;setPageRanges(&#39;1-3&#39;);
+$dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 

@@ -161,7 +161,7 @@ $files = [
     DocumentFactory::makeFromPath('document.docx', '/path/to/file'),
 ];
 $request = new OfficeRequest($files);
-$request->setPageRanges("1-3");
-$dest = "result.pdf";
+$request->setPageRanges('1-3');
+$dest = 'result.pdf';
 $client->store($request, $dest);
 ```

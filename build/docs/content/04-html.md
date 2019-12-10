@@ -343,8 +343,8 @@ use TheCodingMachine\Gotenberg\Request;
 $client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
 $index = DocumentFactory::makeFromPath('index.html', '/path/to/file');
 $request = new HTMLRequest($index);
-$request->setPageRanges("1-3,5");
-$dest = "result.pdf";
+$request->setPageRanges('1-3,5');
+$dest = 'result.pdf';
 $client->store($request, $dest);
 ```
 
