@@ -34,35 +34,47 @@ const (
 	// LogLevelEnvVar contains the name
 	// of the environment variable "LOG_LEVEL".
 	LogLevelEnvVar string = "LOG_LEVEL"
+	// RootPathEnvVar contains the name
+	// of the environment variable "ROOT_PATH".
+	RootPathEnvVar string = "ROOT_PATH"
+	// DefaultGoogleChromeRpccBufferSizeEnvVar contains the name
+	// of the environment variable "DEFAULT_GOOGLE_CHROME_RPCC_BUFFER_SIZE".
+	DefaultGoogleChromeRpccBufferSizeEnvVar string = "DEFAULT_GOOGLE_CHROME_RPCC_BUFFER_SIZE"
 )
 
 // Config contains the application
 // configuration.
 type Config struct {
-	maximumWaitTimeout       float64
-	maximumWaitDelay         float64
-	maximumWebhookURLTimeout float64
-	defaultWaitTimeout       float64
-	defaultWebhookURLTimeout float64
-	defaultListenPort        int64
-	disableGoogleChrome      bool
-	disableUnoconv           bool
-	logLevel                 xlog.Level
+	maximumWaitTimeout                float64
+	maximumWaitDelay                  float64
+	maximumWebhookURLTimeout          float64
+	defaultWaitTimeout                float64
+	defaultWebhookURLTimeout          float64
+	defaultListenPort                 int64
+	disableGoogleChrome               bool
+	disableUnoconv                    bool
+	logLevel                          xlog.Level
+	rootPath                          string
+	maximumGoogleChromeRpccBufferSize int64
+	defaultGoogleChromeRpccBufferSize int64
 }
 
 // DefaultConfig returns the default
 // configuration.
 func DefaultConfig() Config {
 	return Config{
-		maximumWaitTimeout:       30.0,
-		maximumWaitDelay:         10.0,
-		maximumWebhookURLTimeout: 30.0,
-		defaultWaitTimeout:       10.0,
-		defaultWebhookURLTimeout: 10.0,
-		defaultListenPort:        3000,
-		disableGoogleChrome:      false,
-		disableUnoconv:           false,
-		logLevel:                 xlog.InfoLevel,
+		maximumWaitTimeout:                30.0,
+		maximumWaitDelay:                  10.0,
+		maximumWebhookURLTimeout:          30.0,
+		defaultWaitTimeout:                10.0,
+		defaultWebhookURLTimeout:          10.0,
+		defaultListenPort:                 3000,
+		disableGoogleChrome:               false,
+		disableUnoconv:                    false,
+		logLevel:                          xlog.InfoLevel,
+		rootPath:                          "/",
+		maximumGoogleChromeRpccBufferSize: 104857600, // ~100 MB
+		defaultGoogleChromeRpccBufferSize: 1048576,   // 1 MB
 	}
 }
 
@@ -156,6 +168,26 @@ func FromEnv() (Config, error) {
 		if err != nil {
 			return c, err
 		}
+		rootPath, err := xassert.StringFromEnv(
+			RootPathEnvVar,
+			c.rootPath,
+			xassert.StringStartWith("/"),
+			xassert.StringEndWith("/"),
+		)
+		c.rootPath = rootPath
+		if err != nil {
+			return c, err
+		}
+		defaultGoogleChromeRpccBufferSize, err := xassert.Int64FromEnv(
+			DefaultGoogleChromeRpccBufferSizeEnvVar,
+			c.defaultGoogleChromeRpccBufferSize,
+			xassert.Int64NotInferiorTo(0),
+			xassert.Int64NotSuperiorTo(c.MaximumGoogleChromeRpccBufferSize()),
+		)
+		c.defaultGoogleChromeRpccBufferSize = defaultGoogleChromeRpccBufferSize
+		if err != nil {
+			return c, err
+		}
 		return c, nil
 	}
 	result, err := resolver()
@@ -223,4 +255,22 @@ func (c Config) DisableUnoconv() bool {
 // the configuration.
 func (c Config) LogLevel() xlog.Level {
 	return c.logLevel
+}
+
+// RootPath returns the rooth path from
+// the configuration.
+func (c Config) RootPath() string {
+	return c.rootPath
+}
+
+// MaximumGoogleChromeRpccBufferSize returns the maximum
+// Google Chrome rpcc buffer size from the configuration.
+func (c Config) MaximumGoogleChromeRpccBufferSize() int64 {
+	return c.maximumGoogleChromeRpccBufferSize
+}
+
+// DefaultGoogleChromeRpccBufferSize returns the default
+//  Google Chrome rpcc buffer size from the configuration.
+func (c Config) DefaultGoogleChromeRpccBufferSize() int64 {
+	return c.defaultGoogleChromeRpccBufferSize
 }

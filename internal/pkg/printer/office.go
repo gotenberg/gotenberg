@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/phayes/freeport"
@@ -56,6 +57,8 @@ func (p officePrinter) Print(destination string) error {
 	ctx, cancel := xcontext.WithTimeout(p.logger, p.opts.WaitTimeout)
 	defer cancel()
 	resolver := func() error {
+		// see https://github.com/thecodingmachine/gotenberg/issues/139.
+		sort.Strings(p.fpaths)
 		fpaths := make([]string, len(p.fpaths))
 		dirPath := filepath.Dir(destination)
 		for i, fpath := range p.fpaths {
@@ -111,7 +114,7 @@ func (p officePrinter) unoconv(ctx context.Context, fpath, destination string) e
 		}
 		args = append(args, "--output", destination, fpath)
 		if err := xexec.Run(ctx, p.logger, "unoconv", args...); err != nil {
-			// TODO: find a way to check it in the handlers.
+			// find a way to check it in the handlers?
 			if p.opts.PageRanges != "" && strings.Contains(err.Error(), "exit status 5") {
 				return xerror.Invalid(
 					op,

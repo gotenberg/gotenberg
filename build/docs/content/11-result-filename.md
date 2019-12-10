@@ -24,14 +24,13 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v6"
+import "github.com/thecodingmachine/gotenberg-go-client/v7"
 
-func main() {
-    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req, _ := gotenberg.NewHTMLRequest("index.html")
-    req.ResultFilename("foo.pdf")
-    resp, _ := c.Post(req)
-}
+c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+index, _ := gotenberg.NewDocumentFromPath("index.html", "/path/to/file")
+req := gotenberg.NewHTMLRequest(index)
+req.ResultFilename("foo.pdf")
+resp, _ := c.Post(req)
 ```
 
 ### PHP
@@ -43,7 +42,7 @@ use TheCodingMachine\Gotenberg\HTMLRequest;
 use TheCodingMachine\Gotenberg\Request;
 
 $client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
-$index = DocumentFactory::makeFromPath('index.html', 'index.html');
+$index = DocumentFactory::makeFromPath('index.html', '/path/to/file');
 $request = new HTMLRequest($index);
 $request->setResultFilename('foo.pdf');
 $resp = $client->post($request);

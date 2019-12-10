@@ -25,6 +25,7 @@ func TestArgKeys(t *testing.T) {
 		MarginRightArgKey,
 		LandscapeArgKey,
 		PageRangesArgKey,
+		GoogleChromeRpccBufferSizeArgKey,
 	}
 	assert.Equal(t, expected, ArgKeys())
 }
@@ -297,6 +298,50 @@ func TestMarginArgs(t *testing.T) {
 	test.AssertError(t, err)
 	assert.Equal(t, expected, right)
 	r.WithArg(MarginRightArgKey, "5.0")
+	// finally...
+	err = r.Close()
+	assert.Nil(t, err)
+}
+
+func TestGoogleChromeRpccBufferSizeArg(t *testing.T) {
+	const resourceDirectoryName string = "foo"
+	var expected int64
+	logger := test.DebugLogger()
+	config := conf.DefaultConfig()
+	r, err := New(logger, resourceDirectoryName)
+	assert.Nil(t, err)
+	// argument does not exist.
+	expected = config.DefaultGoogleChromeRpccBufferSize()
+	v, err := GoogleChromeRpccBufferSizeArg(r, config)
+	assert.Nil(t, err)
+	assert.Equal(t, expected, v)
+	// argument exist.
+	expected = 10
+	r.WithArg(GoogleChromeRpccBufferSizeArgKey, "10")
+	v, err = GoogleChromeRpccBufferSizeArg(r, config)
+	assert.Nil(t, err)
+	assert.Equal(t, expected, v)
+	// should not be OK as argument
+	// value is < 0.
+	expected = config.DefaultGoogleChromeRpccBufferSize()
+	r.WithArg(GoogleChromeRpccBufferSizeArgKey, "-1")
+	v, err = GoogleChromeRpccBufferSizeArg(r, config)
+	test.AssertError(t, err)
+	assert.Equal(t, expected, v)
+	// should not be OK as argument
+	// value is > config.MaximumGoogleChromeRpccBufferSize().
+	expected = config.DefaultGoogleChromeRpccBufferSize()
+	r.WithArg(GoogleChromeRpccBufferSizeArgKey, "104857601")
+	v, err = GoogleChromeRpccBufferSizeArg(r, config)
+	test.AssertError(t, err)
+	assert.Equal(t, expected, v)
+	// should not be OK as
+	// argument value is invalid.
+	expected = config.DefaultGoogleChromeRpccBufferSize()
+	r.WithArg(GoogleChromeRpccBufferSizeArgKey, "foo")
+	v, err = GoogleChromeRpccBufferSizeArg(r, config)
+	test.AssertError(t, err)
+	assert.Equal(t, expected, v)
 	// finally...
 	err = r.Close()
 	assert.Nil(t, err)

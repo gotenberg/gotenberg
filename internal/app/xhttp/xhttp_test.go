@@ -1,7 +1,6 @@
 package xhttp
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,37 +12,46 @@ import (
 	"github.com/thecodingmachine/gotenberg/test"
 )
 
+func TestNonExistingEndpoint(t *testing.T) {
+	config, err := conf.FromEnv()
+	assert.Nil(t, err)
+	srv := New(config)
+	// "/" endpoint should return 404.
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	test.AssertStatusCode(t, http.StatusNotFound, srv, req)
+}
+
 func TestDisableChromeEndpoints(t *testing.T) {
 	os.Setenv(conf.DisableGoogleChromeEnvVar, "1")
 	config, err := conf.FromEnv()
 	assert.Nil(t, err)
 	srv := New(config)
 	// Ping endpoint should return 200.
-	req := httptest.NewRequest(http.MethodGet, pingEndpoint, nil)
+	req := httptest.NewRequest(http.MethodGet, pingEndpoint(config), nil)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)
 	// Merge endpoint should return 200.
 	body, contentType := test.MergeMultipartForm(t, nil)
-	req = httptest.NewRequest(http.MethodPost, mergeEndpoint, body)
+	req = httptest.NewRequest(http.MethodPost, mergeEndpoint(config), body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)
 	// HTML endpoint should return 404.
 	body, contentType = test.HTMLMultipartForm(t, nil)
-	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("%s%s", convertGroupEndpoint, htmlEndpoint), body)
+	req = httptest.NewRequest(http.MethodPost, htmlEndpoint(config), body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusNotFound, srv, req)
 	// URL endpoint should return 404.
 	body, contentType = test.URLMultipartForm(t, nil)
-	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("%s%s", convertGroupEndpoint, urlEndpoint), body)
+	req = httptest.NewRequest(http.MethodPost, urlEndpoint(config), body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusNotFound, srv, req)
 	// Markdown endpoint should return 404.
 	body, contentType = test.MarkdownMultipartForm(t, nil)
-	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("%s%s", convertGroupEndpoint, markdownEndpoint), body)
+	req = httptest.NewRequest(http.MethodPost, markdownEndpoint(config), body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusNotFound, srv, req)
 	// Office endpoint should return 200.
 	body, contentType = test.OfficeMultipartForm(t, nil)
-	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("%s%s", convertGroupEndpoint, officeEndpoint), body)
+	req = httptest.NewRequest(http.MethodPost, officeEndpoint(config), body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)
 	// finally...
@@ -56,31 +64,31 @@ func TestDisableUnoconvEndpoints(t *testing.T) {
 	assert.Nil(t, err)
 	srv := New(config)
 	// Ping endpoint should return 200.
-	req := httptest.NewRequest(http.MethodGet, pingEndpoint, nil)
+	req := httptest.NewRequest(http.MethodGet, pingEndpoint(config), nil)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)
 	// Merge endpoint should return 200.
 	body, contentType := test.MergeMultipartForm(t, nil)
-	req = httptest.NewRequest(http.MethodPost, mergeEndpoint, body)
+	req = httptest.NewRequest(http.MethodPost, mergeEndpoint(config), body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)
 	// HTML endpoint should return 200.
 	body, contentType = test.HTMLMultipartForm(t, nil)
-	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("%s%s", convertGroupEndpoint, htmlEndpoint), body)
+	req = httptest.NewRequest(http.MethodPost, htmlEndpoint(config), body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)
 	// URL endpoint should return 200.
 	body, contentType = test.URLMultipartForm(t, nil)
-	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("%s%s", convertGroupEndpoint, urlEndpoint), body)
+	req = httptest.NewRequest(http.MethodPost, urlEndpoint(config), body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)
-	// Markdown endpoint should return 404.
+	// Markdown endpoint should return 200.
 	body, contentType = test.MarkdownMultipartForm(t, nil)
-	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("%s%s", convertGroupEndpoint, markdownEndpoint), body)
+	req = httptest.NewRequest(http.MethodPost, markdownEndpoint(config), body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)
 	// Office endpoint should return 404.
 	body, contentType = test.OfficeMultipartForm(t, nil)
-	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("%s%s", convertGroupEndpoint, officeEndpoint), body)
+	req = httptest.NewRequest(http.MethodPost, officeEndpoint(config), body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusNotFound, srv, req)
 	// finally...
@@ -93,34 +101,71 @@ func TestDisableChromeAndUnoconvEndpoints(t *testing.T) {
 	assert.Nil(t, err)
 	srv := New(config)
 	// Ping endpoint should return 200.
-	req := httptest.NewRequest(http.MethodGet, pingEndpoint, nil)
+	req := httptest.NewRequest(http.MethodGet, pingEndpoint(config), nil)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)
 	// Merge endpoint should return 200.
 	body, contentType := test.MergeMultipartForm(t, nil)
-	req = httptest.NewRequest(http.MethodPost, mergeEndpoint, body)
+	req = httptest.NewRequest(http.MethodPost, mergeEndpoint(config), body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)
 	// HTML endpoint should return 404.
 	body, contentType = test.HTMLMultipartForm(t, nil)
-	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("%s%s", convertGroupEndpoint, htmlEndpoint), body)
+	req = httptest.NewRequest(http.MethodPost, htmlEndpoint(config), body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusNotFound, srv, req)
 	// URL endpoint should return 404.
 	body, contentType = test.URLMultipartForm(t, nil)
-	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("%s%s", convertGroupEndpoint, urlEndpoint), body)
+	req = httptest.NewRequest(http.MethodPost, urlEndpoint(config), body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusNotFound, srv, req)
 	// Markdown endpoint should return 404.
 	body, contentType = test.MarkdownMultipartForm(t, nil)
-	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("%s%s", convertGroupEndpoint, markdownEndpoint), body)
+	req = httptest.NewRequest(http.MethodPost, markdownEndpoint(config), body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusNotFound, srv, req)
 	// Office endpoint should return 404.
 	body, contentType = test.OfficeMultipartForm(t, nil)
-	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("%s%s", convertGroupEndpoint, officeEndpoint), body)
+	req = httptest.NewRequest(http.MethodPost, officeEndpoint(config), body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusNotFound, srv, req)
 	// finally...
 	os.Setenv(conf.DisableGoogleChromeEnvVar, "0")
 	os.Setenv(conf.DisableUnoconvEnvVar, "0")
+}
+
+func TestCustomRootPath(t *testing.T) {
+	os.Setenv(conf.RootPathEnvVar, "/foo/")
+	config, err := conf.FromEnv()
+	assert.Nil(t, err)
+	srv := New(config)
+	// Ping endpoint should return 200.
+	req := httptest.NewRequest(http.MethodGet, pingEndpoint(config), nil)
+	test.AssertStatusCode(t, http.StatusOK, srv, req)
+	// Merge endpoint should return 200.
+	body, contentType := test.MergeMultipartForm(t, nil)
+	req = httptest.NewRequest(http.MethodPost, mergeEndpoint(config), body)
+	req.Header.Set(echo.HeaderContentType, contentType)
+	test.AssertStatusCode(t, http.StatusOK, srv, req)
+	// HTML endpoint should return 200.
+	body, contentType = test.HTMLMultipartForm(t, nil)
+	req = httptest.NewRequest(http.MethodPost, htmlEndpoint(config), body)
+	req.Header.Set(echo.HeaderContentType, contentType)
+	test.AssertStatusCode(t, http.StatusOK, srv, req)
+	// URL endpoint should return 200.
+	body, contentType = test.URLMultipartForm(t, nil)
+	req = httptest.NewRequest(http.MethodPost, urlEndpoint(config), body)
+	req.Header.Set(echo.HeaderContentType, contentType)
+	test.AssertStatusCode(t, http.StatusOK, srv, req)
+	// Markdown endpoint should return 200.
+	body, contentType = test.MarkdownMultipartForm(t, nil)
+	req = httptest.NewRequest(http.MethodPost, markdownEndpoint(config), body)
+	req.Header.Set(echo.HeaderContentType, contentType)
+	test.AssertStatusCode(t, http.StatusOK, srv, req)
+	// Office endpoint should return 200.
+	body, contentType = test.OfficeMultipartForm(t, nil)
+	req = httptest.NewRequest(http.MethodPost, officeEndpoint(config), body)
+	req.Header.Set(echo.HeaderContentType, contentType)
+	test.AssertStatusCode(t, http.StatusOK, srv, req)
+	// finally...
+	os.Setenv(conf.RootPathEnvVar, "/")
 }

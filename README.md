@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="https://user-images.githubusercontent.com/8983173/50009948-84b01e00-ffb8-11e8-850b-fc240382c626.png" alt="Gotenberg logo" width="250" height="250" />
+    <img src="https://user-images.githubusercontent.com/8983173/69229423-ac731300-0b85-11ea-8c2e-2cc00ecdb269.PNG" alt="Gotenberg logo" width="250" height="250" />
 </p>
 <h3 align="center">Gotenberg</h3>
 <p align="center">A Docker-powered stateless API for converting HTML, Markdown and Office documents to PDF.</p>
@@ -39,4 +39,6 @@ to learn how to interact with it!
 
 ---
 
-Psst: TheCodingMachine is always looking for [talented coders](https://coders.thecodingmachine.com).
+<p align="center">
+    <img src="https://user-images.githubusercontent.com/8983173/50009948-84b01e00-ffb8-11e8-850b-fc240382c626.png" alt="Gotenberg logo" width="150" height="150" />
+</p>

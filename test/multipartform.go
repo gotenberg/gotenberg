@@ -79,7 +79,7 @@ func multipartForm(
 		require.Nil(t, err)
 	}
 	if kind == "url" {
-		err := writer.WriteField("remoteURL", "http://google.com")
+		err := writer.WriteField("remoteURL", "https://google.com")
 		require.Nil(t, err)
 	}
 	for k, v := range formValues {

@@ -2,6 +2,7 @@ package printer
 
 import (
 	"context"
+	"sort"
 
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xcontext"
@@ -54,6 +55,8 @@ func (p mergePrinter) Print(destination string) error {
 		defer cancel()
 		p.ctx = ctx
 	}
+	// see https://github.com/thecodingmachine/gotenberg/issues/139.
+	sort.Strings(p.fpaths)
 	p.logger.DebugfOp(op, "merging '%v'...", p.fpaths)
 	resolver := func() error {
 		var args []string
