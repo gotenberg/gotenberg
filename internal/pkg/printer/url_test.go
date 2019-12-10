@@ -38,6 +38,26 @@ func TestURLPrinter(t *testing.T) {
 	assert.Nil(t, err)
 	err = os.RemoveAll(dest)
 	assert.Nil(t, err)
+	// options with a pages ranges.
+	opts = DefaultChromePrinterOptions(config)
+	opts.PageRanges = "1"
+	p = NewURLPrinter(logger, URL, opts)
+	dest = test.GenerateDestination()
+	err = p.Print(dest)
+	assert.Nil(t, err)
+	err = os.RemoveAll(dest)
+	assert.Nil(t, err)
+	// should not be OK as options have
+	// a wrong page ranges.
+	opts = DefaultChromePrinterOptions(config)
+	opts.PageRanges = "foo"
+	p = NewURLPrinter(logger, URL, opts)
+	dest = test.GenerateDestination()
+	err = p.Print(dest)
+	test.AssertError(t, err)
+	assert.Equal(t, xerror.InvalidCode, xerror.Code(err))
+	err = os.RemoveAll(dest)
+	assert.Nil(t, err)
 	// should not be OK as context.Context
 	// should timeout.
 	opts = DefaultChromePrinterOptions(config)

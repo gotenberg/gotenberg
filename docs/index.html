@@ -740,6 +740,58 @@ $dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.page_ranges" href="#html.page_ranges">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Page ranges</h2>
+
+<p>You may specify the page ranges to convert.</p>
+
+<p>The format is the same as the one from the print options
+of Google Chrome, e.g. <code>1-5,8,11-13</code>.</p>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.page_ranges.c_url" href="#html.page_ranges.c_url">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>cURL</h3>
+
+<pre class="chroma">$ curl --request POST <span class="se">\
+</span><span class="se"></span>    --url http://localhost:3000/convert/html <span class="se">\
+</span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@index.html <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">pageRanges</span><span class="o">=</span><span class="s1">&#39;1-3,5&#39;</span> <span class="se">\
+</span><span class="se"></span>    -o result.pdf
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.page_ranges.go" href="#html.page_ranges.go">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Go</h3>
+
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v7&#34;</span>
+
+<span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
+<span class="nx">index</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewDocumentFromPath</span><span class="p">(</span><span class="s">&#34;index.html&#34;</span><span class="p">,</span> <span class="s">&#34;/path/to/file&#34;</span><span class="p">)</span>
+<span class="nx">req</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewHTMLRequest</span><span class="p">(</span><span class="nx">index</span><span class="p">)</span>
+<span class="nx">req</span><span class="p">.</span><span class="nf">PageRanges</span><span class="p">(</span><span class="s">&#34;1-3,5&#34;</span><span class="p">)</span>
+<span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
+<span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.page_ranges.php" href="#html.page_ranges.php">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>PHP</h3>
+
+<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\HTMLRequest;
+use TheCodingMachine\Gotenberg\Request;
+
+$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;/path/to/file&#39;);
+$request = new HTMLRequest($index);
+$request-&gt;setPageRanges(&#39;1-3,5&#39;);
+$dest = &#39;result.pdf&#39;;
+$client-&gt;store($request, $dest);
+</pre>
+
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.wait_delay" href="#html.wait_delay">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Wait delay</h2>
@@ -1179,6 +1231,64 @@ $files = [
 ];
 $request = new OfficeRequest($files);
 $request-&gt;setLandscape(true);
+$dest = &#39;result.pdf&#39;;
+$client-&gt;store($request, $dest);
+</pre>
+
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="office.page_ranges" href="#office.page_ranges">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Page ranges</h2>
+
+<p>You may specify the page ranges to convert.</p>
+
+<p>The format is the same as the one from the print options
+of LibreOffice, e.g. <code>1-1</code> or <code>1-4</code>.</p>
+
+<blockquote>
+<p><strong>Attention:</strong> if more than one document, the page ranges will be
+applied for each document.</p>
+</blockquote>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="office.page_ranges.c_url" href="#office.page_ranges.c_url">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>cURL</h3>
+
+<pre class="chroma">$ curl --request POST <span class="se">\
+</span><span class="se"></span>    --url http://localhost:3000/convert/office <span class="se">\
+</span><span class="se"></span>    --header <span class="s1">&#39;Content-Type: multipart/form-data&#39;</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">files</span><span class="o">=</span>@document.docx <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">pageRanges</span><span class="o">=</span><span class="s1">&#39;1-3&#39;</span> <span class="se">\
+</span><span class="se"></span>    -o result.pdf
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="office.page_ranges.go" href="#office.page_ranges.go">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>Go</h3>
+
+<pre class="chroma"><span class="kn">import</span> <span class="s">&#34;github.com/thecodingmachine/gotenberg-go-client/v6&#34;</span>
+
+<span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span><span class="nx">Hostname</span><span class="p">:</span> <span class="s">&#34;http://localhost:3000&#34;</span><span class="p">}</span>
+<span class="nx">doc</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewDocumentFromPath</span><span class="p">(</span><span class="s">&#34;document.docx&#34;</span><span class="p">,</span> <span class="s">&#34;/path/to/file&#34;</span><span class="p">)</span>
+<span class="nx">req</span> <span class="o">:=</span> <span class="nx">gotenberg</span><span class="p">.</span><span class="nf">NewOfficeRequest</span><span class="p">(</span><span class="nx">doc</span><span class="p">)</span>
+<span class="nx">req</span><span class="p">.</span><span class="nf">PageRanges</span><span class="p">(</span><span class="s">&#34;1-3&#34;</span><span class="p">)</span>
+<span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
+<span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
+</pre>
+
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="office.page_ranges.php" href="#office.page_ranges.php">
+	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+</a>PHP</h3>
+
+<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
+use TheCodingMachine\Gotenberg\DocumentFactory;
+use TheCodingMachine\Gotenberg\OfficeRequest;
+
+$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
+$files = [
+    DocumentFactory::makeFromPath(&#39;document.docx&#39;, &#39;/path/to/file&#39;),
+];
+$request = new OfficeRequest($files);
+$request-&gt;setPageRanges(&#39;1-3&#39;);
 $dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
