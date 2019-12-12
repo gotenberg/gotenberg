@@ -538,7 +538,8 @@ func TestOfficeHandler(t *testing.T) {
 	srv := New(config)
 	endpoint := officeEndpoint(config)
 	// should return 200.
-	body, contentType := test.OfficeMultipartForm(t, nil)
+	// note: increased the wait timeout as it happens to timeout from time to time.
+	body, contentType := test.OfficeMultipartForm(t, map[string]string{string(resource.WaitTimeoutArgKey): "30"})
 	req := httptest.NewRequest(http.MethodPost, endpoint, body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusOK, srv, req)

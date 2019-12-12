@@ -48,6 +48,8 @@ func cmd(logger xlog.Logger) (*exec.Cmd, error) {
 	args := []string{
 		"--no-sandbox",
 		"--headless",
+		// see https://github.com/thecodingmachine/gotenberg/issues/157.
+		"--disable-dev-shm-usage",
 		// see https://github.com/GoogleChrome/puppeteer/issues/2410.
 		"--font-render-hinting=medium",
 		"--remote-debugging-port=9222",
