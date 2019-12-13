@@ -42,14 +42,14 @@ $ curl --request POST \
 ### Go
 
 ```golang
-import "github.com/thecodingmachine/gotenberg-go-client/v6"
+import "github.com/thecodingmachine/gotenberg-go-client/v7"
 
-func main() {
-    c := &gotenberg.Client{Hostname: "http://localhost:3000"}
-    req, _ := gotenberg.NewMarkdownRequest("index.html", "file.md")
-    dest := "result.pdf"
-    c.Store(req, dest)
-}
+c := &gotenberg.Client{Hostname: "http://localhost:3000"}
+index, _ := gotenberg.NewDocumentFromPath("index.html", "/path/to/file")
+markdown, _ := gotenberg.NewDocumentFromPath("file.md", "/path/to/file")
+req := gotenberg.NewMarkdownRequest(index, markdown)
+dest := "result.pdf"
+c.Store(req, dest)
 ```
 
 ### PHP
@@ -60,9 +60,9 @@ use TheCodingMachine\Gotenberg\DocumentFactory;
 use TheCodingMachine\Gotenberg\MarkdownRequest;
 
 $client = new Client('http://localhost:3000', new \Http\Adapter\Guzzle6\Client());
-$index = DocumentFactory::makeFromPath('index.html', 'index.html');
+$index = DocumentFactory::makeFromPath('index.html', '/path/to/file');
 $markdowns = [
-    DocumentFactory::makeFromPath('file.md', 'file.md'),
+    DocumentFactory::makeFromPath('file.md', '/path/to/file'),
 ];
 $request = new MarkdownRequest($index, $markdowns);
 $dest = 'result.pdf';

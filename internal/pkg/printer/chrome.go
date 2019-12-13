@@ -42,6 +42,7 @@ type ChromePrinterOptions struct {
 	MarginLeft        float64
 	MarginRight       float64
 	Landscape         bool
+	PageRanges        string
 	RpccBufferSize    int64
 	CustomHTTPHeaders map[string]string
 }
@@ -62,6 +63,7 @@ func DefaultChromePrinterOptions(config conf.Config) ChromePrinterOptions {
 		MarginLeft:        1.0,
 		MarginRight:       1.0,
 		Landscape:         false,
+		PageRanges:        "",
 		RpccBufferSize:    config.DefaultGoogleChromeRpccBufferSize(),
 		CustomHTTPHeaders: make(map[string]string),
 	}
@@ -163,23 +165,35 @@ func (p chromePrinter) Print(destination string) error {
 		} else {
 			p.logger.DebugOp(op, "no wait delay to apply, moving on...")
 		}
+		printToPdfArgs := page.NewPrintToPDFArgs().
+			SetPaperWidth(p.opts.PaperWidth).
+			SetPaperHeight(p.opts.PaperHeight).
+			SetMarginTop(p.opts.MarginTop).
+			SetMarginBottom(p.opts.MarginBottom).
+			SetMarginLeft(p.opts.MarginLeft).
+			SetMarginRight(p.opts.MarginRight).
+			SetLandscape(p.opts.Landscape).
+			SetDisplayHeaderFooter(true).
+			SetHeaderTemplate(p.opts.HeaderHTML).
+			SetFooterTemplate(p.opts.FooterHTML).
+			SetPrintBackground(true)
+		if p.opts.PageRanges != "" {
+			printToPdfArgs.SetPageRanges(p.opts.PageRanges)
+		}
 		// print the page to PDF.
 		print, err := targetClient.Page.PrintToPDF(
 			ctx,
-			page.NewPrintToPDFArgs().
-				SetPaperWidth(p.opts.PaperWidth).
-				SetPaperHeight(p.opts.PaperHeight).
-				SetMarginTop(p.opts.MarginTop).
-				SetMarginBottom(p.opts.MarginBottom).
-				SetMarginLeft(p.opts.MarginLeft).
-				SetMarginRight(p.opts.MarginRight).
-				SetLandscape(p.opts.Landscape).
-				SetDisplayHeaderFooter(true).
-				SetHeaderTemplate(p.opts.HeaderHTML).
-				SetFooterTemplate(p.opts.FooterHTML).
-				SetPrintBackground(true),
+			printToPdfArgs,
 		)
 		if err != nil {
+			// find a way to check it in the handlers?
+			if strings.Contains(err.Error(), "Page range syntax error") {
+				return xerror.Invalid(
+					op,
+					fmt.Sprintf("'%s' is not a valid Google Chrome page ranges", p.opts.PageRanges),
+					err,
+				)
+			}
 			if strings.Contains(err.Error(), "rpcc: message too large") {
 				return xerror.Invalid(
 					op,
