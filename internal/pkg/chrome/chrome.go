@@ -50,8 +50,9 @@ func cmd(logger xlog.Logger) (*exec.Cmd, error) {
 		"--headless",
 		// see https://github.com/thecodingmachine/gotenberg/issues/157.
 		"--disable-dev-shm-usage",
-		// see https://github.com/GoogleChrome/puppeteer/issues/2410.
-		"--font-render-hinting=medium",
+		// See https://github.com/puppeteer/puppeteer/issues/661
+		// and https://github.com/puppeteer/puppeteer/issues/2410.
+		"--font-render-hinting=none",
 		"--remote-debugging-port=9222",
 		"--disable-gpu",
 		"--disable-translate",
