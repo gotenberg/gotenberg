@@ -45,6 +45,7 @@ type ChromePrinterOptions struct {
 	PageRanges        string
 	RpccBufferSize    int64
 	CustomHTTPHeaders map[string]string
+	Scale             float64
 }
 
 // DefaultChromePrinterOptions returns the default
@@ -66,6 +67,7 @@ func DefaultChromePrinterOptions(config conf.Config) ChromePrinterOptions {
 		PageRanges:        "",
 		RpccBufferSize:    config.DefaultGoogleChromeRpccBufferSize(),
 		CustomHTTPHeaders: make(map[string]string),
+		Scale:             1.0,
 	}
 }
 
@@ -176,7 +178,8 @@ func (p chromePrinter) Print(destination string) error {
 			SetDisplayHeaderFooter(true).
 			SetHeaderTemplate(p.opts.HeaderHTML).
 			SetFooterTemplate(p.opts.FooterHTML).
-			SetPrintBackground(true)
+			SetPrintBackground(true).
+			SetScale(p.opts.Scale)
 		if p.opts.PageRanges != "" {
 			printToPdfArgs.SetPageRanges(p.opts.PageRanges)
 		}

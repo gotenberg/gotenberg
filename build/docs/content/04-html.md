@@ -243,11 +243,11 @@ $dest = 'result.pdf';
 $client->store($request, $dest);
 ```
 
-## Paper size, margins, orientation
+## Paper size, margins, orientation, scaling
 
 You may also customize the resulting PDF format.
 
-By default, it will be rendered with `A4` size, `1 inch` margins and `portrait` orientation.
+By default, it will be rendered with `A4` size, `1 inch` margins and `portrait` orientation and 100% (`1.0`) page scale.
 
 > Paper size and margins have to be provided in `inches`. Same for margins.
 
@@ -265,6 +265,7 @@ $ curl --request POST \
     --form marginLeft=0 \
     --form marginRight=0 \
     --form landscape=true \
+    --form scale=0.75 \
     -o result.pdf
 ```
 
@@ -279,6 +280,7 @@ req := gotenberg.NewHTMLRequest(index)
 req.PaperSize(gotenberg.A4)
 req.Margins(gotenberg.NoMargins)
 req.Landscape(true)
+req.Scale(0.75)
 dest := "result.pdf"
 c.Store(req, dest)
 ```
@@ -297,6 +299,7 @@ $request = new HTMLRequest($index);
 $request->setPaperSize(Request::A4);
 $request->setMargins(Request::NO_MARGINS);
 $request->setLandscape(true);
+$request->setScale(0.75);
 $dest = 'result.pdf';
 $client->store($request, $dest);
 ```
