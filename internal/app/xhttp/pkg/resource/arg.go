@@ -302,18 +302,13 @@ func GoogleChromeRpccBufferSizeArg(r Resource, config conf.Config) (int64, error
 /*
 ScaleArg is a helper for retrieving
 the "scale" argument as float64.
-
-It also validates it against the application
-configuration.
 */
 func ScaleArg(r Resource, config conf.Config) (float64, error) {
-	const (
-		op           string  = "resource.ScaleArg"
-		defaultScale float64 = 1.0
-	)
+	const op string = "resource.ScaleArg"
+	opts := printer.DefaultChromePrinterOptions(config)
 	result, err := r.Float64Arg(
 		ScaleArgKey,
-		defaultScale,
+		opts.Scale,
 		xassert.Float64NotInferiorTo(0.1),
 		xassert.Float64NotSuperiorTo(2.0),
 	)

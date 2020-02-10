@@ -24,7 +24,7 @@ For instance:
 
 ```bash
 $ git clone https://github.com/thecodingmachine/gotenberg.git
-$ make publish GOTENBERG_USER_GID=your_custom_gid GOTENBERG_USER_UID=your_custom_uid DOCKER_REGISTRY=your_registry DOCKER_USER=registry_user DOCKER_PASSWORD=registry_password VERSION=6.1.0 
+$ make publish GOTENBERG_USER_GID=your_custom_gid GOTENBERG_USER_UID=your_custom_uid DOCKER_REGISTRY=your_registry DOCKER_USER=registry_user DOCKER_PASSWORD=registry_password VERSION=6.2.0
 ```
 
 > `master` branch is always up-to-date with the latest version of the API.
