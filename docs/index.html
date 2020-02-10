@@ -675,19 +675,19 @@ $dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
 
-<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.paper_size_margins_orientation" href="#html.paper_size_margins_orientation">
+<h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.paper_size_margins_orientation_scaling" href="#html.paper_size_margins_orientation_scaling">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-</a>Paper size, margins, orientation</h2>
+</a>Paper size, margins, orientation, scaling</h2>
 
 <p>You may also customize the resulting PDF format.</p>
 
-<p>By default, it will be rendered with <code>A4</code> size, <code>1 inch</code> margins and <code>portrait</code> orientation.</p>
+<p>By default, it will be rendered with <code>A4</code> size, <code>1 inch</code> margins and <code>portrait</code> orientation and 100% (<code>1.0</code>) page scale.</p>
 
 <blockquote>
 <p>Paper size and margins have to be provided in <code>inches</code>. Same for margins.</p>
 </blockquote>
 
-<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.paper_size_margins_orientation.c_url" href="#html.paper_size_margins_orientation.c_url">
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.paper_size_margins_orientation_scaling.c_url" href="#html.paper_size_margins_orientation_scaling.c_url">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>cURL</h3>
 
@@ -702,10 +702,11 @@ $client-&gt;store($request, $dest);
 </span><span class="se"></span>    --form <span class="nv">marginLeft</span><span class="o">=</span><span class="m">0</span> <span class="se">\
 </span><span class="se"></span>    --form <span class="nv">marginRight</span><span class="o">=</span><span class="m">0</span> <span class="se">\
 </span><span class="se"></span>    --form <span class="nv">landscape</span><span class="o">=</span><span class="nb">true</span> <span class="se">\
+</span><span class="se"></span>    --form <span class="nv">scale</span><span class="o">=</span>0.75 <span class="se">\
 </span><span class="se"></span>    -o result.pdf
 </pre>
 
-<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.paper_size_margins_orientation.go" href="#html.paper_size_margins_orientation.go">
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.paper_size_margins_orientation_scaling.go" href="#html.paper_size_margins_orientation_scaling.go">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Go</h3>
 
@@ -717,11 +718,12 @@ $client-&gt;store($request, $dest);
 <span class="nx">req</span><span class="p">.</span><span class="nf">PaperSize</span><span class="p">(</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">A4</span><span class="p">)</span>
 <span class="nx">req</span><span class="p">.</span><span class="nf">Margins</span><span class="p">(</span><span class="nx">gotenberg</span><span class="p">.</span><span class="nx">NoMargins</span><span class="p">)</span>
 <span class="nx">req</span><span class="p">.</span><span class="nf">Landscape</span><span class="p">(</span><span class="kc">true</span><span class="p">)</span>
+<span class="nx">req</span><span class="p">.</span><span class="nf">Scale</span><span class="p">(</span><span class="mf">0.75</span><span class="p">)</span>
 <span class="nx">dest</span> <span class="o">:=</span> <span class="s">&#34;result.pdf&#34;</span>
 <span class="nx">c</span><span class="p">.</span><span class="nf">Store</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">dest</span><span class="p">)</span>
 </pre>
 
-<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.paper_size_margins_orientation.php" href="#html.paper_size_margins_orientation.php">
+<h3 class="Heading"><a class="Anchor" aria-hidden="true" id="html.paper_size_margins_orientation_scaling.php" href="#html.paper_size_margins_orientation_scaling.php">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
@@ -736,6 +738,7 @@ $request = new HTMLRequest($index);
 $request-&gt;setPaperSize(Request::A4);
 $request-&gt;setMargins(Request::NO_MARGINS);
 $request-&gt;setLandscape(true);
+$request-&gt;setScale(0.75);
 $dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
