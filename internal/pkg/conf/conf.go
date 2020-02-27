@@ -24,7 +24,7 @@ const (
 	DefaultWebhookURLTimeoutEnvVar string = "DEFAULT_WEBHOOK_URL_TIMEOUT"
 	// DefaultListenPortEnvVar contains the name
 	// of the environment variable "DEFAULT_LISTEN_PORT".
-	DefaultListenPortEnvVar string = "DEFAULT_LISTEN_PORT"
+	DefaultListenPortEnvVar string = "PORT"
 	// DisableGoogleChromeEnvVar contains the name
 	// of the environment variable "DISABLE_GOOGLE_CHROME".
 	DisableGoogleChromeEnvVar string = "DISABLE_GOOGLE_CHROME"
