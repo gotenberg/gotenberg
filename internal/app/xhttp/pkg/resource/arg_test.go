@@ -24,6 +24,7 @@ func TestArgKeys(t *testing.T) {
 		MarginLeftArgKey,
 		MarginRightArgKey,
 		LandscapeArgKey,
+		SelectPdfVersionArgKey,
 		PageRangesArgKey,
 		GoogleChromeRpccBufferSizeArgKey,
 		ScaleArgKey,
@@ -391,6 +392,40 @@ func TestScaleArg(t *testing.T) {
 	test.AssertError(t, err)
 	assert.Equal(t, expected, v)
 	// finally...
+	err = r.Close()
+	assert.Nil(t, err)
+}
+
+func TestSelectPdfVersiontArg(t *testing.T) {
+	const resourceDirectoryName string = "foo"
+	var expected int64
+	logger := test.DebugLogger()
+	config := conf.DefaultConfig()
+	r, err := New(logger, resourceDirectoryName)
+	assert.Nil(t, err)
+	// argument does not exist.
+	expected = 0
+	v, err := SelectPdfVersionArg(r, config)
+	assert.Nil(t, err)
+	assert.Equal(t, expected, v)
+	//argument exist.
+	expected = 1
+	r.WithArg(SelectPdfVersionArgKey, "1")
+	v, err = SelectPdfVersionArg(r, config)
+	assert.Nil(t, err)
+	assert.Equal(t, expected, v)
+	//argument < 0.
+	expected = 0
+	r.WithArg(SelectPdfVersionArgKey, "-1")
+	v, err = SelectPdfVersionArg(r, config)
+	test.AssertError(t, err)
+	assert.Equal(t, expected, v)
+	//argument > 1.
+	expected = 0
+	r.WithArg(SelectPdfVersionArgKey, "2")
+	v, err = SelectPdfVersionArg(r, config)
+	test.AssertError(t, err)
+	assert.Equal(t, expected, v)
 	err = r.Close()
 	assert.Nil(t, err)
 }

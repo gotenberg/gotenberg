@@ -26,18 +26,20 @@ type officePrinter struct {
 // OfficePrinterOptions helps customizing the
 // Office Printer behaviour.
 type OfficePrinterOptions struct {
-	WaitTimeout float64
-	Landscape   bool
-	PageRanges  string
+	WaitTimeout      float64
+	Landscape        bool
+	SelectPdfVersion int64
+	PageRanges       string
 }
 
 // DefaultOfficePrinterOptions returns the default
 // Office Printer options.
 func DefaultOfficePrinterOptions(config conf.Config) OfficePrinterOptions {
 	return OfficePrinterOptions{
-		WaitTimeout: config.DefaultWaitTimeout(),
-		Landscape:   false,
-		PageRanges:  "",
+		WaitTimeout:      config.DefaultWaitTimeout(),
+		SelectPdfVersion: 0,
+		Landscape:        false,
+		PageRanges:       "",
 	}
 }
 
@@ -108,6 +110,9 @@ func (p officePrinter) unoconv(ctx context.Context, fpath, destination string) e
 		}
 		if p.opts.Landscape {
 			args = append(args, "--printer", "PaperOrientation=landscape")
+		}
+		if p.opts.SelectPdfVersion >= 0 && p.opts.SelectPdfVersion <= 1 {
+			args = append(args, "--export", fmt.Sprintf("SelectPdfVersion=%d", p.opts.SelectPdfVersion))
 		}
 		if p.opts.PageRanges != "" {
 			args = append(args, "--export", fmt.Sprintf("PageRange=%s", p.opts.PageRanges))

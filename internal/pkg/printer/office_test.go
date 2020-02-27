@@ -46,6 +46,15 @@ func TestOfficePrinter(t *testing.T) {
 	assert.Nil(t, err)
 	err = os.RemoveAll(dest)
 	assert.Nil(t, err)
+	// options with selectPdfVersion.
+	opts = DefaultOfficePrinterOptions(config)
+	opts.SelectPdfVersion = 1
+	p = NewOfficePrinter(logger, fpaths, opts)
+	dest = test.GenerateDestination()
+	err = p.Print(dest)
+	assert.Nil(t, err)
+	err = os.RemoveAll(dest)
+	assert.Nil(t, err)
 	// options with page ranges.
 	opts = DefaultOfficePrinterOptions(config)
 	opts.PageRanges = "1-1"

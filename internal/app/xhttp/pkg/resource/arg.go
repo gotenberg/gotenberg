@@ -51,6 +51,9 @@ const (
 	// LandscapeArgKey is the key
 	// of the argument "landscape".
 	LandscapeArgKey ArgKey = "landscape"
+	// SelectPdfVersionArgKey is the key
+	// of the argument "selectPdfVersion".
+	SelectPdfVersionArgKey ArgKey = "selectPdfVersion"
 	// PageRangesArgKey is the key
 	// of the argument "pageRanges".
 	PageRangesArgKey ArgKey = "pageRanges"
@@ -82,6 +85,7 @@ func ArgKeys() []ArgKey {
 		MarginLeftArgKey,
 		MarginRightArgKey,
 		LandscapeArgKey,
+		SelectPdfVersionArgKey,
 		PageRangesArgKey,
 		GoogleChromeRpccBufferSizeArgKey,
 		ScaleArgKey,
@@ -147,6 +151,27 @@ func WebhookURLTimeoutArg(r Resource, config conf.Config) (float64, error) {
 		config.DefaultWebhookURLTimeout(),
 		xassert.Float64NotInferiorTo(0),
 		xassert.Float64NotSuperiorTo(config.MaximumWebhookURLTimeout()),
+	)
+	if err != nil {
+		return result, xerror.New(op, err)
+	}
+	return result, nil
+}
+
+/*
+SelectPdfVersionArg is a helper for retrieving
+the "selectPdfVersionArg" argument as int64.
+
+It also validates it against the application
+configuration.
+*/
+func SelectPdfVersionArg(r Resource, config conf.Config) (int64, error) {
+	const op string = "resource.SelectPdfVersionArg"
+	result, err := r.Int64Arg(
+		SelectPdfVersionArgKey,
+		0,
+		xassert.Int64NotInferiorTo(0),
+		xassert.Int64NotSuperiorTo(1),
 	)
 	if err != nil {
 		return result, xerror.New(op, err)

@@ -96,14 +96,19 @@ func officePrinterOptions(r resource.Resource, config conf.Config) (printer.Offi
 		if err != nil {
 			return printer.OfficePrinterOptions{}, err
 		}
+		selectPdfVersion, err := r.Int64Arg(resource.SelectPdfVersionArgKey, 0)
+		if err != nil {
+			return printer.OfficePrinterOptions{}, err
+		}
 		pageRanges, err := r.StringArg(resource.PageRangesArgKey, "")
 		if err != nil {
 			return printer.OfficePrinterOptions{}, err
 		}
 		return printer.OfficePrinterOptions{
-			WaitTimeout: waitTimeout,
-			Landscape:   landscape,
-			PageRanges:  pageRanges,
+			WaitTimeout:      waitTimeout,
+			Landscape:        landscape,
+			SelectPdfVersion: selectPdfVersion,
+			PageRanges:       pageRanges,
 		}, nil
 	}
 	opts, err := resolver()

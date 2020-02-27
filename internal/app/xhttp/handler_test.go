@@ -579,6 +579,13 @@ func TestOfficeHandler(t *testing.T) {
 	req = httptest.NewRequest(http.MethodPost, endpoint, body)
 	req.Header.Set(echo.HeaderContentType, contentType)
 	test.AssertStatusCode(t, http.StatusBadRequest, srv, req)
+	// should return 400 as "selectPdfVersion" form field
+	// value is not an int.
+	body, contentType = test.OfficeMultipartForm(t, map[string]string{string(resource.SelectPdfVersionArgKey): "not an integer"})
+	req = httptest.NewRequest(http.MethodPost, endpoint, body)
+	req.Header.Set(echo.HeaderContentType, contentType)
+	test.AssertStatusCode(t, http.StatusBadRequest, srv, req)
+
 }
 
 func TestWebhook(t *testing.T) {
