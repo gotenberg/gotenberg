@@ -214,6 +214,7 @@ func officeHandler(c echo.Context) error {
 			".ppt",
 			".pptx",
 			".odp",
+			".html",
 		)
 		if err != nil {
 			return err
