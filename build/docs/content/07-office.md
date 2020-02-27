@@ -22,6 +22,7 @@ You may send one or more Office documents. Following file extensions are accepte
 * `.ppt`
 * `.pptx`
 * `.odp`
+* `.html`
 
 All files will be merged into a single resulting PDF.
 
@@ -164,4 +165,24 @@ $request = new OfficeRequest($files);
 $request->setPageRanges('1-3');
 $dest = 'result.pdf';
 $client->store($request, $dest);
+```
+
+## PDF/A-1 (ISO 19005-1:2005) compliant
+
+You can specify the rendered output to be PDF/A-1 (ISO 19005-1:2005) compliant.
+
+By default, the rendered output will not be not PDF/A-1 compliant
+
+The format is the same as the one from the export filter SelectPdfVersion of 
+LibreOffice, `0` PDF 1.x compliant or `1` PDF/A-1 compliant
+
+### cURL
+
+```bash
+$ curl --request POST \
+    --url http://localhost:3000/convert/office \
+    --header 'Content-Type: multipart/form-data' \
+    --form files=@document.docx \
+    --form selectPdfVersion='1' \
+    -o result.pdf
 ```
