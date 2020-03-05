@@ -13,7 +13,7 @@ At TheCodingMachine, we build a lot of web applications (intranets, extranets an
 
 * HTML and Markdown conversions using Google Chrome headless
 * Office conversions (.txt, .rtf, .docx, .doc, .odt, .pptx, .ppt, .odp and so on) using [unoconv](https://github.com/dagwieers/unoconv)
-* Assets :package:: send your header, footer, images, fonts, stylesheets and so on for converting your HTML and Markdown to beaufitul PDFs!
+* Assets :package:: send your header, footer, images, fonts, stylesheets and so on for converting your HTML and Markdown to beautiful PDFs!
 * Easily interact with the API using our [Go](https://github.com/thecodingmachine/gotenberg-go-client) and [PHP](https://github.com/thecodingmachine/gotenberg-php-client) libraries
 
 ## Quick start
