@@ -38,7 +38,7 @@ version: '3'
 
 services:
 
-  # your others services
+  # your other services
 
   gotenberg:
     image: thecodingmachine/gotenberg:6
@@ -65,6 +65,7 @@ securityContext:
 ## Cloud Run (Google Cloud)
 
 If you're looking for cost savings, you might be interested by [Cloud Run](https://cloud.google.com/run).
+However, according to some users, doing asynchronous conversion (with a webhook) might not working.
 
 In the following examples, we will assume your
 Gotenberg API is available at [http://localhost:3000](http://localhost:3000).

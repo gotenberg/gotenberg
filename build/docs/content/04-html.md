@@ -157,7 +157,7 @@ You may also send additional files. For instance: images, fonts, stylesheets and
 The only requirement is to make sure that their paths
 are on the same level as the `index.html` file.
 
-In others words, this will work:
+In other words, this will work:
 
 ```html
 <!doctype html>
