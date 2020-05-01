@@ -31,6 +31,7 @@ to learn how to interact with it!
 
 ## Badges
 
+[![Docker pulls](https://img.shields.io/docker/pulls/thecodingmachine/gotenberg)](https://hub.docker.com/r/thecodingmachine/gotenberg)
 [![Docker image layers](https://images.microbadger.com/badges/image/thecodingmachine/gotenberg:6.svg)](https://microbadger.com/images/thecodingmachine/gotenberg:6)
 [![Travis CI](https://travis-ci.org/thecodingmachine/gotenberg.svg?branch=master)](https://travis-ci.org/thecodingmachine/gotenberg)
 [![GoDoc](https://godoc.org/github.com/thecodingmachine/gotenberg?status.svg)](https://godoc.org/github.com/thecodingmachine/gotenberg)
