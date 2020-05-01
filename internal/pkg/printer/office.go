@@ -119,7 +119,7 @@ func (p officePrinter) unoconv(ctx context.Context, fpath, destination string) e
 		userProfileDirPath := fmt.Sprintf("/tmp/%d", port)
 		if err := os.RemoveAll(userProfileDirPath); err != nil {
 			// find a way to bubble up this error?
-			p.logger.ErrorOpf(op, "failed to remove user profile directory '%s'", userProfileDirPath)
+			p.logger.ErrorOpf(op, "failed to remove user profile directory '%s': %s", userProfileDirPath, err.Error())
 		}
 		if err != nil {
 			// find a way to check it in the handlers?
