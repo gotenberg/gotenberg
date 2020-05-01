@@ -113,7 +113,15 @@ func (p officePrinter) unoconv(ctx context.Context, fpath, destination string) e
 			args = append(args, "--export", fmt.Sprintf("PageRange=%s", p.opts.PageRanges))
 		}
 		args = append(args, "--output", destination, fpath)
-		if err := xexec.Run(ctx, p.logger, "unoconv", args...); err != nil {
+		err = xexec.Run(ctx, p.logger, "unoconv", args...)
+		// always remove user profile folders created by LibreOffice.
+		// see https://github.com/thecodingmachine/gotenberg/issues/192.
+		userProfileDirPath := fmt.Sprintf("/tmp/%d", port)
+		if err := os.RemoveAll(userProfileDirPath); err != nil {
+			// find a way to bubble up this error?
+			p.logger.ErrorOpf(op, "failed to remove user profile directory '%s'", userProfileDirPath)
+		}
+		if err != nil {
 			// find a way to check it in the handlers?
 			if p.opts.PageRanges != "" && strings.Contains(err.Error(), "exit status 5") {
 				return xerror.Invalid(
