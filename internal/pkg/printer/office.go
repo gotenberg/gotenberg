@@ -64,11 +64,11 @@ func (p officePrinter) Print(destination string) error {
 		for i, fpath := range p.fpaths {
 			baseFilename := xrand.Get()
 			tmpDest := fmt.Sprintf("%s/%d%s.pdf", dirPath, i, baseFilename)
-			p.logger.DebugfOp(op, "converting '%s' to PDF...", fpath)
+			p.logger.DebugOpf(op, "converting '%s' to PDF...", fpath)
 			if err := p.unoconv(ctx, fpath, tmpDest); err != nil {
 				return err
 			}
-			p.logger.DebugfOp(op, "'%s.pdf' created", baseFilename)
+			p.logger.DebugOpf(op, "'%s.pdf' created", baseFilename)
 			fpaths[i] = tmpDest
 		}
 		if len(fpaths) == 1 {

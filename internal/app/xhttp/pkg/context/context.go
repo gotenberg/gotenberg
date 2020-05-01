@@ -167,14 +167,14 @@ func (ctx Context) LogRequestResult(err error, isDebug bool) error {
 		"bytes_out":     bytesOut(resp),
 	}
 	if err != nil {
-		ctx.logger.WithFields(fields).ErrorfOp(op, "request failed")
+		ctx.logger.WithFields(fields).ErrorOpf(op, "request failed")
 		return err
 	}
 	if isDebug {
-		ctx.logger.WithFields(fields).DebugfOp(op, "request handled")
+		ctx.logger.WithFields(fields).DebugOpf(op, "request handled")
 		return nil
 	}
-	ctx.logger.WithFields(fields).InfofOp(op, "request handled")
+	ctx.logger.WithFields(fields).InfoOpf(op, "request handled")
 	return nil
 }
 

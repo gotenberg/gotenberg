@@ -132,21 +132,21 @@ func isViable(logger xlog.Logger) bool {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		endpoint := "http://localhost:9222"
-		logger.DebugfOp(
+		logger.DebugOpf(
 			op,
 			"checking Google Chrome headless process viability via endpoint '%s/json/version'",
 			endpoint,
 		)
 		v, err := devtool.New(endpoint).Version(ctx)
 		if err != nil {
-			logger.DebugfOp(
+			logger.DebugOpf(
 				op,
 				"Google Chrome headless is not viable as endpoint returned '%v'",
 				err.Error(),
 			)
 			return false
 		}
-		logger.DebugfOp(
+		logger.DebugOpf(
 			op,
 			"Google Chrome headless is viable as endpoint returned '%v'",
 			v,
@@ -162,9 +162,12 @@ func isViable(logger xlog.Logger) bool {
 }
 
 func warmup(logger xlog.Logger) {
-	const op string = "chrome.warmup"
-	warmupTime := xtime.Duration(0.5)
-	logger.DebugfOp(
+	const (
+		op      string  = "chrome.warmup"
+		seconds float64 = 0.5
+	)
+	warmupTime := xtime.Duration(seconds)
+	logger.DebugOpf(
 		op,
 		"waiting '%v' for allowing Google Chrome to warmup",
 		warmupTime,

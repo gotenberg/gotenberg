@@ -84,11 +84,11 @@ func Run(ctx context.Context, logger xlog.Logger, binary string, args ...string)
 		}()
 		select {
 		case err := <-result:
-			logger.DebugfOp(op, "command '%s' finished", strings.Join(cmd.Args, " "))
+			logger.DebugOpf(op, "command '%s' finished", strings.Join(cmd.Args, " "))
 			kill()
 			return err
 		case <-ctx.Done():
-			logger.DebugfOp(op, "command '%s' failed to finish before context.Context deadline", strings.Join(cmd.Args, " "))
+			logger.DebugOpf(op, "command '%s' failed to finish before context.Context deadline", strings.Join(cmd.Args, " "))
 			kill()
 			return ctx.Err()
 		}
@@ -102,7 +102,7 @@ func Run(ctx context.Context, logger xlog.Logger, binary string, args ...string)
 // LogBeforeExecute logs a command before its execution.
 func LogBeforeExecute(logger xlog.Logger, cmd *exec.Cmd) {
 	const op string = "xexec.LogBeforeExecute"
-	logger.DebugfOp(op, "executing command: %s", strings.Join(cmd.Args, " "))
+	logger.DebugOpf(op, "executing command: %s", strings.Join(cmd.Args, " "))
 }
 
 func pipe(logger xlog.Logger, cmd *exec.Cmd) error {

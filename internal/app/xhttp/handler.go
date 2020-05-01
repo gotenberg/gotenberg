@@ -239,13 +239,13 @@ func convert(ctx context.Context, p printer.Printer) error {
 		// and directly return the resulting PDF file
 		// or an error.
 		if !r.HasArg(resource.WebhookURLArgKey) {
-			logger.DebugfOp(op, "no '%s' found, converting synchronously", resource.WebhookURLArgKey)
+			logger.DebugOpf(op, "no '%s' found, converting synchronously", resource.WebhookURLArgKey)
 			return convertSync(ctx, p, filename, fpath)
 		}
 		// as a webhook URL has been given, we
 		// run the following lines in a goroutine so that
 		// it doesn't block.
-		logger.DebugfOp(op, "'%s' found, converting asynchronously", resource.WebhookURLArgKey)
+		logger.DebugOpf(op, "'%s' found, converting asynchronously", resource.WebhookURLArgKey)
 		return convertAsync(ctx, p, filename, fpath)
 	}
 	if err := resolver(); err != nil {
@@ -264,7 +264,7 @@ func convertSync(ctx context.Context, p printer.Printer, filename, fpath string)
 			return err
 		}
 		if !r.HasArg(resource.ResultFilenameArgKey) {
-			logger.DebugfOp(
+			logger.DebugOpf(
 				op,
 				"no '%s' found, using generated filename '%s'",
 				resource.RemoteURLArgKey,
@@ -275,7 +275,7 @@ func convertSync(ctx context.Context, p printer.Printer, filename, fpath string)
 			}
 			return nil
 		}
-		logger.DebugfOp(
+		logger.DebugOpf(
 			op,
 			"'%s' found, so not using generated filename",
 			resource.ResultFilenameArgKey,
@@ -321,7 +321,7 @@ func convertAsync(ctx context.Context, p printer.Printer, filename, fpath string
 			return
 		}
 		defer f.Close() // nolint: errcheck
-		logger.DebugfOp(
+		logger.DebugOpf(
 			op,
 			"preparing to send result file '%s' to '%s'...",
 			filename,
@@ -342,13 +342,13 @@ func convertAsync(ctx context.Context, p printer.Printer, filename, fpath string
 		if len(customHTTPHeaders) > 0 {
 			for key, value := range customHTTPHeaders {
 				req.Header.Set(key, value)
-				logger.DebugfOp(op, "set '%s' to custom HTTP header '%s'", value, key)
+				logger.DebugOpf(op, "set '%s' to custom HTTP header '%s'", value, key)
 			}
 		} else {
 			logger.DebugOp(op, "skipping custom HTTP headers as none have been provided...")
 		}
 		// send the result file.
-		logger.DebugfOp(
+		logger.DebugOpf(
 			op,
 			"sending result file '%s' to '%s'...",
 			filename,
@@ -361,7 +361,7 @@ func convertAsync(ctx context.Context, p printer.Printer, filename, fpath string
 			return
 		}
 		defer resp.Body.Close() // nolint: errcheck
-		logger.DebugfOp(
+		logger.DebugOpf(
 			op,
 			"result file '%s' sent to '%s'",
 			filename,

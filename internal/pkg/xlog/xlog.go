@@ -104,9 +104,9 @@ func (l Logger) DebugOp(op, message string) {
 	l.entry.WithField("op", op).Debug(message)
 }
 
-// DebugfOp logs a debug message for given
+// DebugOpf logs a debug message for given
 // logical operation and format.
-func (l Logger) DebugfOp(op, format string, args ...interface{}) {
+func (l Logger) DebugOpf(op, format string, args ...interface{}) {
 	l.entry.WithField("op", op).Debugf(format, args...)
 }
 
@@ -116,9 +116,9 @@ func (l Logger) InfoOp(op, message string) {
 	l.entry.WithField("op", op).Info(message)
 }
 
-// InfofOp logs an info message for given
+// InfoOpf logs an info message for given
 // logical operation and format.
-func (l Logger) InfofOp(op, format string, args ...interface{}) {
+func (l Logger) InfoOpf(op, format string, args ...interface{}) {
 	l.entry.WithField("op", op).Infof(format, args...)
 }
 
@@ -128,9 +128,9 @@ func (l Logger) ErrorOp(op string, err error) {
 	l.entry.WithField("op", op).Error(err.Error())
 }
 
-// ErrorfOp logs an error message for given
+// ErrorOpf logs an error message for given
 // logical operation and format.
-func (l Logger) ErrorfOp(op, format string, args ...interface{}) {
+func (l Logger) ErrorOpf(op, format string, args ...interface{}) {
 	l.entry.WithField("op", op).Errorf(format, args...)
 }
 

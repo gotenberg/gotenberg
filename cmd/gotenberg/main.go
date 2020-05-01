@@ -24,8 +24,8 @@ func main() {
 	if err != nil {
 		systemLogger.FatalOp(op, err)
 	}
-	systemLogger.InfofOp(op, "Gotenberg %s", version)
-	systemLogger.DebugfOp(op, "configuration: %+v", config)
+	systemLogger.InfoOpf(op, "Gotenberg %s", version)
+	systemLogger.DebugOpf(op, "configuration: %+v", config)
 	if !config.DisableGoogleChrome() {
 		// start Google Chrome headless.
 		if err := chrome.Start(systemLogger); err != nil {
@@ -36,7 +36,7 @@ func main() {
 	srv := xhttp.New(config)
 	// run our API in a goroutine so that it doesn't block.
 	go func() {
-		systemLogger.InfofOp(op, "http server started on port '%d'", config.DefaultListenPort())
+		systemLogger.InfoOpf(op, "http server started on port '%d'", config.DefaultListenPort())
 		if err := srv.Start(fmt.Sprintf(":%d", config.DefaultListenPort())); err != nil {
 			if err != http.ErrServerClosed {
 				systemLogger.FatalOp(op, err)
