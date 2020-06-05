@@ -10,7 +10,7 @@ FROM thecodingmachine/gotenberg:workspace AS workspace
 ARG VERSION
 
 ENV GOOS=linux \
-    GOARCH=amd64 \
+    GOARCH=amd64 \
     CGO_ENABLED=0
 
 # Define our workding outside of $GOPATH (we're using go modules).
@@ -42,7 +42,7 @@ LABEL authors="Julien Neuhart <j.neuhart@thecodingmachine.com>"
 
 ARG TINI_VERSION
 
-ADD --chown=gotenberg https://github.com/krallin/tini/releases/download/v${TINI_VERSION}/tini-static /tini
+ADD https://github.com/krallin/tini/releases/download/v${TINI_VERSION}/tini-static /tini
 RUN chmod +x /tini
 ENTRYPOINT [ "/tini", "--" ]
 
