@@ -94,13 +94,14 @@ func (p officePrinter) Print(destination string) error {
 func (p officePrinter) unoconv(ctx context.Context, fpath, destination string) error {
 	const op string = "printer.unoconv"
 	resolver := func() error {
+		dirName := xrand.Get()
 		port, err := freeport.GetFreePort()
 		if err != nil {
 			return err
 		}
 		args := []string{
 			"--user-profile",
-			fmt.Sprintf("///tmp/%d", port),
+			fmt.Sprintf("///tmp/%s", dirName),
 			"--port",
 			fmt.Sprintf("%d", port),
 			"--format",
@@ -116,11 +117,7 @@ func (p officePrinter) unoconv(ctx context.Context, fpath, destination string) e
 		err = xexec.Run(ctx, p.logger, "unoconv", args...)
 		// always remove user profile folders created by LibreOffice.
 		// see https://github.com/thecodingmachine/gotenberg/issues/192.
-		userProfileDirPath := fmt.Sprintf("/tmp/%d", port)
-		if err := os.RemoveAll(userProfileDirPath); err != nil {
-			// find a way to bubble up this error?
-			p.logger.ErrorOpf(op, "failed to remove user profile directory '%s': %s", userProfileDirPath, err.Error())
-		}
+		go cleanupUserProfile(p.logger, dirName)
 		if err != nil {
 			// find a way to check it in the handlers?
 			if p.opts.PageRanges != "" && strings.Contains(err.Error(), "exit status 5") {
@@ -138,6 +135,15 @@ func (p officePrinter) unoconv(ctx context.Context, fpath, destination string) e
 		return xerror.New(op, err)
 	}
 	return nil
+}
+
+func cleanupUserProfile(logger xlog.Logger, dirName string) {
+	const op = "printer.cleanupUserProfile"
+	path := fmt.Sprintf("/tmp/%s", dirName)
+	if err := os.RemoveAll(path); err != nil {
+		// find a way to bubble up this error?
+		logger.ErrorOpf(op, "failed to remove user profile directory '%s': %s", path, err.Error())
+	}
 }
 
 // Compile-time checks to ensure type implements desired interfaces.
