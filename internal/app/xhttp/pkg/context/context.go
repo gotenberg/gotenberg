@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"path/filepath"
 
 	"github.com/labstack/echo/v4"
 	"github.com/thecodingmachine/gotenberg/internal/app/xhttp/pkg/resource"
@@ -106,7 +107,9 @@ func (ctx *Context) WithResource(directoryName string) error {
 					return r, err
 				}
 				defer in.Close() // nolint: errcheck
-				if err := r.WithFile(fh.Filename, in); err != nil {
+				// avoid directory traversal.
+				filename := filepath.Base(fh.Filename)
+				if err := r.WithFile(filename, in); err != nil {
 					return r, err
 				}
 			}
