@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
-	"path/filepath"
 
 	"github.com/labstack/echo/v4"
 	"github.com/thecodingmachine/gotenberg/internal/app/xhttp/pkg/resource"
