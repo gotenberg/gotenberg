@@ -57,6 +57,7 @@ type templateData struct {
 
 func markdownToHTML(dirPath, filename string) (template.HTML, error) {
 	const op string = "printer.markdownToHTML"
+	// avoid directory traversal.
 	filename = filepath.Base(filename)
 	fpath := fmt.Sprintf("%s/%s", dirPath, filename)
 	b, err := ioutil.ReadFile(fpath)
