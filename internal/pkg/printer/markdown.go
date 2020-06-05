@@ -3,15 +3,14 @@ package printer
 import (
 	"bytes"
 	"fmt"
-	"html/template"
-	"io/ioutil"
-	"path/filepath"
-
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xrand"
+	"html/template"
+	"io/ioutil"
+	"path/filepath"
 )
 
 // NewMarkdownPrinter returns a Printer which
@@ -58,6 +57,7 @@ type templateData struct {
 
 func markdownToHTML(dirPath, filename string) (template.HTML, error) {
 	const op string = "printer.markdownToHTML"
+	filename = filepath.Base(filename)
 	fpath := fmt.Sprintf("%s/%s", dirPath, filename)
 	b, err := ioutil.ReadFile(fpath)
 	if err != nil {
