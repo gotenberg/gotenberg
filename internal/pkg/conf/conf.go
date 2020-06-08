@@ -40,8 +40,9 @@ const (
 	// DefaultGoogleChromeRpccBufferSizeEnvVar contains the name
 	// of the environment variable "DEFAULT_GOOGLE_CHROME_RPCC_BUFFER_SIZE".
 	DefaultGoogleChromeRpccBufferSizeEnvVar string = "DEFAULT_GOOGLE_CHROME_RPCC_BUFFER_SIZE"
-	// Allow self signed certificates when using a remote url
-	URLIgnoreCertificateErrorsEnvVar string = "URL_IGNORE_CERTIFICATE_ERRORS"
+      // GoogleChromeIgnoreCertificateErrorsEnvVar contains the name
+      // of the environment variable "GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS".
+	GoogleChromeIgnoreCertificateErrorsEnvVar string = "GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS"
 )
 
 // Config contains the application
@@ -55,7 +56,7 @@ type Config struct {
 	defaultListenPort                 int64
 	disableGoogleChrome               bool
 	disableUnoconv                    bool
-	urlIgnoreCertificateErrors        bool
+	googleChromeIgnoreCertificateErrors        bool
 	logLevel                          xlog.Level
 	rootPath                          string
 	maximumGoogleChromeRpccBufferSize int64
@@ -78,7 +79,7 @@ func DefaultConfig() Config {
 		rootPath:                          "/",
 		maximumGoogleChromeRpccBufferSize: 104857600, // ~100 MB
 		defaultGoogleChromeRpccBufferSize: 1048576,   // 1 MB
-		urlIgnoreCertificateErrors:        false,
+		googleChromeIgnoreCertificateErrors:        false,
 	}
 }
 
@@ -192,11 +193,11 @@ func FromEnv() (Config, error) {
 		if err != nil {
 			return c, err
 		}
-		urlIgnoreCertificateErrors, err := xassert.BoolFromEnv(
-			URLIgnoreCertificateErrorsEnvVar,
-			c.urlIgnoreCertificateErrors,
+		googleChromeIgnoreCertificateErrors, err := xassert.BoolFromEnv(
+			GoogleChromeIgnoreCertificateErrorsEnvVar,
+			c.googleChromeIgnoreCertificateErrors,
 		)
-		c.urlIgnoreCertificateErrors = urlIgnoreCertificateErrors
+		c.googleChromeIgnoreCertificateErrors = googleChromeIgnoreCertificateErrors
 		if err != nil {
 			return c, err
 		}
@@ -287,9 +288,6 @@ func (c Config) DefaultGoogleChromeRpccBufferSize() int64 {
 	return c.defaultGoogleChromeRpccBufferSize
 }
 
-// IgnoreCertificateErrors returns true if
-// Google Chrome should ignore certificate errors
-// in case of self signed certificates for example.
-func (c Config) IgnoreCertificateErrors() bool {
+func (c Config) GoogleChromeIgnoreCertificateErrors() bool {
 	return c.urlIgnoreCertificateErrors
 }

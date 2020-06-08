@@ -58,9 +58,11 @@ The hard limit is 100 MB and is defined by Google Chrome itself.
 > The default Google Chrome rpcc buffer size may also be overridden per request thanks to the form field `googleChromeRpccBufferSize`.
 > See the [rpcc buffer size section](#html.rpcc_buffer_size).
 
-## Ignore certificate errors
+## Google Chrome ignore certificate errors
 
-By default Chrome will not accept certificate errors when using the URL print method. Setting this environment variable to `"1"` will allow insecure connections to be used. In dev environment for example. Be careful with this! Do not use in production.
+When performing a [URL](#url) conversion, Google Chrome will not accept certificate errors . 
+
+You may allow insecure connections by setting `GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS` variable to `"1"`. **You should be careful with this feature and only enable it in your development environment.**
 
 ## Disable LibreOffice (unoconv)
 

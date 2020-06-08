@@ -16,11 +16,11 @@ import (
 )
 
 // Start starts Google Chrome headless in background.
-func Start(logger xlog.Logger, urlIgnoreCertificateErrors bool) error {
+func Start(logger xlog.Logger, ignoreCertificateErrors bool) error {
 	const op string = "chrome.Start"
 	logger.DebugOp(op, "starting new Google Chrome headless process on port 9222...")
 	resolver := func() error {
-		cmd, err := cmd(logger, urlIgnoreCertificateErrors)
+		cmd, err := cmd(logger, ignoreCertificateErrors)
 		if err != nil {
 			return err
 		}
@@ -32,7 +32,7 @@ func Start(logger xlog.Logger, urlIgnoreCertificateErrors bool) error {
 		// if the process failed to start correctly,
 		// we have to restart it.
 		if !isViable(logger) {
-			return restart(logger, cmd.Process, urlIgnoreCertificateErrors)
+			return restart(logger, cmd.Process, ignoreCertificateErrors)
 		}
 		return nil
 	}
@@ -42,7 +42,7 @@ func Start(logger xlog.Logger, urlIgnoreCertificateErrors bool) error {
 	return nil
 }
 
-func cmd(logger xlog.Logger, urlIgnoreCertificateErrors bool) (*exec.Cmd, error) {
+func cmd(logger xlog.Logger, ignoreCertificateErrors bool) (*exec.Cmd, error) {
 	const op string = "chrome.cmd"
 	binary := "google-chrome-stable"
 	args := []string{
@@ -67,7 +67,7 @@ func cmd(logger xlog.Logger, urlIgnoreCertificateErrors bool) (*exec.Cmd, error)
 		"--no-first-run",
 	}
 
-	if urlIgnoreCertificateErrors {
+	if ignoreCertificateErrors {
 		args = append(args, "--ignore-certificate-errors")
 	}
 
@@ -98,7 +98,7 @@ func kill(logger xlog.Logger, proc *os.Process) error {
 	return nil
 }
 
-func restart(logger xlog.Logger, proc *os.Process, urlIgnoreCertificateErrors bool) error {
+func restart(logger xlog.Logger, proc *os.Process, ignoreCertificateErrors bool) error {
 	const op string = "chrome.restart"
 	logger.DebugOp(op, "restarting Google Chrome headless process using port 9222...")
 	resolver := func() error {
@@ -106,7 +106,7 @@ func restart(logger xlog.Logger, proc *os.Process, urlIgnoreCertificateErrors bo
 		if err := kill(logger, proc); err != nil {
 			return err
 		}
-		cmd, err := cmd(logger, urlIgnoreCertificateErrors)
+		cmd, err := cmd(logger, ignoreCertificateErrors)
 		if err != nil {
 			return err
 		}
@@ -118,7 +118,7 @@ func restart(logger xlog.Logger, proc *os.Process, urlIgnoreCertificateErrors bo
 		// if the process failed to restart correctly,
 		// we have to restart it again.
 		if !isViable(logger) {
-			return restart(logger, cmd.Process, urlIgnoreCertificateErrors)
+			return restart(logger, cmd.Process, ignoreCertificateErrors)
 		}
 		return nil
 	}

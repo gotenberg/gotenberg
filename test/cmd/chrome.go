@@ -14,7 +14,7 @@ func main() {
 		systemLogger.FatalOp(op, err)
 	}
 	// start Google Chrome headless.
-	if err := chrome.Start(systemLogger, config.IgnoreCertificateErrors()); err != nil {
+	if err := chrome.Start(systemLogger, config.GoogleChromeIgnoreCertificateErrors()); err != nil {
 		systemLogger.FatalOp(op, err)
 	}
 }

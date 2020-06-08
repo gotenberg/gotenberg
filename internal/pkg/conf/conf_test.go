@@ -380,38 +380,38 @@ func TestDefaultGoogleChromeRpccBufferSizeFromEnv(t *testing.T) {
 	os.Unsetenv(DefaultGoogleChromeRpccBufferSizeEnvVar)
 }
 
-func TestIgnoreCertificateErrorsFromEnv(t *testing.T) {
+func TestGoogleChromeIgnoreCertificateErrorsFromEnv(t *testing.T) {
 	var (
 		expected Config
 		result   Config
 		err      error
 	)
-	// URL_IGNORE_CERTIFICATE_ERRORS correctly set to true.
-	os.Setenv(URLIgnoreCertificateErrorsEnvVar, "1")
+	// GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS correctly set to true.
+	os.Setenv(GoogleChromeIgnoreCertificateErrorsEnvVar, "1")
 	expected = DefaultConfig()
-	expected.urlIgnoreCertificateErrors = true
+	expected.googleChromeIgnoreCertificateErrors = true
 	result, err = FromEnv()
 	assert.Nil(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(URLIgnoreCertificateErrorsEnvVar)
-	// URL_IGNORE_CERTIFICATE_ERRORS correctly set to false.
-	os.Setenv(URLIgnoreCertificateErrorsEnvVar, "0")
+	os.Unsetenv(GoogleChromeIgnoreCertificateErrorsEnvVar)
+	// GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS correctly set to false.
+	os.Setenv(GooleChromeIgnoreCertificateErrorsEnvVar, "0")
 	expected = DefaultConfig()
-	expected.urlIgnoreCertificateErrors = false
+	expected.googleChromeIgnoreCertificateErrors = false
 	result, err = FromEnv()
 	assert.Nil(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(URLIgnoreCertificateErrorsEnvVar)
-	// URL_IGNORE_CERTIFICATE_ERRORS wrongly set.
-	os.Setenv(URLIgnoreCertificateErrorsEnvVar, "foo")
+	os.Unsetenv(GoogleChromeIgnoreCertificateErrorsEnvVar)
+	// GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS wrongly set.
+	os.Setenv(GoogleChromeIgnoreCertificateErrorsEnvVar, "foo")
 	expected = DefaultConfig()
 	result, err = FromEnv()
 	test.AssertError(t, err)
 	assert.Equal(t, expected, result)
-	os.Unsetenv(URLIgnoreCertificateErrorsEnvVar)
-	// URL_IGNORE_CERTIFICATE_ERRORS not set at all.
+	os.Unsetenv(GoogleChromeIgnoreCertificateErrorsEnvVar)
+	// GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS not set at all.
 	expected = DefaultConfig()
-	expected.urlIgnoreCertificateErrors = false
+	expected.googleChromeIgnoreCertificateErrors = false
 	result, err = FromEnv()
 	assert.Nil(t, err)
 	assert.Equal(t, expected, result)
@@ -431,5 +431,5 @@ func TestGetters(t *testing.T) {
 	assert.Equal(t, result.rootPath, result.RootPath())
 	assert.Equal(t, result.maximumGoogleChromeRpccBufferSize, result.MaximumGoogleChromeRpccBufferSize())
 	assert.Equal(t, result.defaultGoogleChromeRpccBufferSize, result.DefaultGoogleChromeRpccBufferSize())
-	assert.Equal(t, result.urlIgnoreCertificateErrors, result.IgnoreCertificateErrors())
+	assert.Equal(t, result.googleChromeIgnoreCertificateErrors, result.GoogleChromeIgnoreCertificateErrors())
 }
