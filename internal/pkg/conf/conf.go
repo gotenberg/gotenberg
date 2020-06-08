@@ -40,46 +40,46 @@ const (
 	// DefaultGoogleChromeRpccBufferSizeEnvVar contains the name
 	// of the environment variable "DEFAULT_GOOGLE_CHROME_RPCC_BUFFER_SIZE".
 	DefaultGoogleChromeRpccBufferSizeEnvVar string = "DEFAULT_GOOGLE_CHROME_RPCC_BUFFER_SIZE"
-      // GoogleChromeIgnoreCertificateErrorsEnvVar contains the name
-      // of the environment variable "GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS".
+	// GoogleChromeIgnoreCertificateErrorsEnvVar contains the name
+	// of the environment variable "GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS".
 	GoogleChromeIgnoreCertificateErrorsEnvVar string = "GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS"
 )
 
 // Config contains the application
 // configuration.
 type Config struct {
-	maximumWaitTimeout                float64
-	maximumWaitDelay                  float64
-	maximumWebhookURLTimeout          float64
-	defaultWaitTimeout                float64
-	defaultWebhookURLTimeout          float64
-	defaultListenPort                 int64
-	disableGoogleChrome               bool
-	disableUnoconv                    bool
-	googleChromeIgnoreCertificateErrors        bool
-	logLevel                          xlog.Level
-	rootPath                          string
-	maximumGoogleChromeRpccBufferSize int64
-	defaultGoogleChromeRpccBufferSize int64
+	maximumWaitTimeout                  float64
+	maximumWaitDelay                    float64
+	maximumWebhookURLTimeout            float64
+	defaultWaitTimeout                  float64
+	defaultWebhookURLTimeout            float64
+	defaultListenPort                   int64
+	disableGoogleChrome                 bool
+	disableUnoconv                      bool
+	googleChromeIgnoreCertificateErrors bool
+	logLevel                            xlog.Level
+	rootPath                            string
+	maximumGoogleChromeRpccBufferSize   int64
+	defaultGoogleChromeRpccBufferSize   int64
 }
 
 // DefaultConfig returns the default
 // configuration.
 func DefaultConfig() Config {
 	return Config{
-		maximumWaitTimeout:                30.0,
-		maximumWaitDelay:                  10.0,
-		maximumWebhookURLTimeout:          30.0,
-		defaultWaitTimeout:                10.0,
-		defaultWebhookURLTimeout:          10.0,
-		defaultListenPort:                 3000,
-		disableGoogleChrome:               false,
-		disableUnoconv:                    false,
-		logLevel:                          xlog.InfoLevel,
-		rootPath:                          "/",
-		maximumGoogleChromeRpccBufferSize: 104857600, // ~100 MB
-		defaultGoogleChromeRpccBufferSize: 1048576,   // 1 MB
-		googleChromeIgnoreCertificateErrors:        false,
+		maximumWaitTimeout:                  30.0,
+		maximumWaitDelay:                    10.0,
+		maximumWebhookURLTimeout:            30.0,
+		defaultWaitTimeout:                  10.0,
+		defaultWebhookURLTimeout:            10.0,
+		defaultListenPort:                   3000,
+		disableGoogleChrome:                 false,
+		disableUnoconv:                      false,
+		logLevel:                            xlog.InfoLevel,
+		rootPath:                            "/",
+		maximumGoogleChromeRpccBufferSize:   104857600, // ~100 MB
+		defaultGoogleChromeRpccBufferSize:   1048576,   // 1 MB
+		googleChromeIgnoreCertificateErrors: false,
 	}
 }
 
