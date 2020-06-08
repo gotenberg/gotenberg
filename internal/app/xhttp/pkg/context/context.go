@@ -106,7 +106,7 @@ func (ctx *Context) WithResource(directoryName string) error {
 				if err != nil {
 					return r, err
 				}
-				defer in.Close() // nolint: errcheck
+				defer in.Close()
 				// avoid directory traversal.
 				filename := filepath.Base(fh.Filename)
 				if err := r.WithFile(filename, in); err != nil {

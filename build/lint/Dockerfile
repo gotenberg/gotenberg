@@ -19,4 +19,4 @@ COPY . .
 RUN go mod download &&\
     go mod verify
 
-CMD ["golangci-lint", "run" ,"--tests=false", "--enable-all", "--disable=dupl", "--disable=funlen", "--disable=wsl", "--disable=gocognit", "--disable=gomnd" ]
+CMD ["golangci-lint", "run" ,"--tests=false", "--enable-all", "--disable=dupl", "--disable=funlen", "--disable=wsl", "--disable=gocognit", "--disable=gomnd", "--disable=goimports" ]

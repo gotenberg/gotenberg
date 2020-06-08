@@ -395,7 +395,7 @@ func TestGoogleChromeIgnoreCertificateErrorsFromEnv(t *testing.T) {
 	assert.Equal(t, expected, result)
 	os.Unsetenv(GoogleChromeIgnoreCertificateErrorsEnvVar)
 	// GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS correctly set to false.
-	os.Setenv(GooleChromeIgnoreCertificateErrorsEnvVar, "0")
+	os.Setenv(GoogleChromeIgnoreCertificateErrorsEnvVar, "0")
 	expected = DefaultConfig()
 	expected.googleChromeIgnoreCertificateErrors = false
 	result, err = FromEnv()

@@ -139,7 +139,7 @@ func logCommandOutput(logger xlog.Logger, reader io.ReadCloser, outputType strin
 	}
 	op := buf.String()
 	r := bufio.NewReader(reader)
-	defer reader.Close() // nolint: errcheck
+	defer reader.Close()
 	for {
 		line, _, err := r.ReadLine()
 		if err != nil {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -38,7 +39,7 @@ func main() {
 	go func() {
 		systemLogger.InfoOpf(op, "http server started on port '%d'", config.DefaultListenPort())
 		if err := srv.Start(fmt.Sprintf(":%d", config.DefaultListenPort())); err != nil {
-			if err != http.ErrServerClosed {
+			if errors.Is(err, http.ErrServerClosed) {
 				systemLogger.FatalOp(op, err)
 			}
 		}

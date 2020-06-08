@@ -289,5 +289,5 @@ func (c Config) DefaultGoogleChromeRpccBufferSize() int64 {
 }
 
 func (c Config) GoogleChromeIgnoreCertificateErrors() bool {
-	return c.urlIgnoreCertificateErrors
+	return c.googleChromeIgnoreCertificateErrors
 }
