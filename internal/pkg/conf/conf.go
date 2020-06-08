@@ -40,6 +40,9 @@ const (
 	// DefaultGoogleChromeRpccBufferSizeEnvVar contains the name
 	// of the environment variable "DEFAULT_GOOGLE_CHROME_RPCC_BUFFER_SIZE".
 	DefaultGoogleChromeRpccBufferSizeEnvVar string = "DEFAULT_GOOGLE_CHROME_RPCC_BUFFER_SIZE"
+      // GoogleChromeIgnoreCertificateErrorsEnvVar contains the name
+      // of the environment variable "GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS".
+	GoogleChromeIgnoreCertificateErrorsEnvVar string = "GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS"
 )
 
 // Config contains the application
@@ -53,6 +56,7 @@ type Config struct {
 	defaultListenPort                 int64
 	disableGoogleChrome               bool
 	disableUnoconv                    bool
+	googleChromeIgnoreCertificateErrors        bool
 	logLevel                          xlog.Level
 	rootPath                          string
 	maximumGoogleChromeRpccBufferSize int64
@@ -75,6 +79,7 @@ func DefaultConfig() Config {
 		rootPath:                          "/",
 		maximumGoogleChromeRpccBufferSize: 104857600, // ~100 MB
 		defaultGoogleChromeRpccBufferSize: 1048576,   // 1 MB
+		googleChromeIgnoreCertificateErrors:        false,
 	}
 }
 
@@ -188,6 +193,14 @@ func FromEnv() (Config, error) {
 		if err != nil {
 			return c, err
 		}
+		googleChromeIgnoreCertificateErrors, err := xassert.BoolFromEnv(
+			GoogleChromeIgnoreCertificateErrorsEnvVar,
+			c.googleChromeIgnoreCertificateErrors,
+		)
+		c.googleChromeIgnoreCertificateErrors = googleChromeIgnoreCertificateErrors
+		if err != nil {
+			return c, err
+		}
 		return c, nil
 	}
 	result, err := resolver()
@@ -273,4 +286,8 @@ func (c Config) MaximumGoogleChromeRpccBufferSize() int64 {
 //  Google Chrome rpcc buffer size from the configuration.
 func (c Config) DefaultGoogleChromeRpccBufferSize() int64 {
 	return c.defaultGoogleChromeRpccBufferSize
+}
+
+func (c Config) GoogleChromeIgnoreCertificateErrors() bool {
+	return c.urlIgnoreCertificateErrors
 }

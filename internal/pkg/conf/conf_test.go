@@ -380,6 +380,43 @@ func TestDefaultGoogleChromeRpccBufferSizeFromEnv(t *testing.T) {
 	os.Unsetenv(DefaultGoogleChromeRpccBufferSizeEnvVar)
 }
 
+func TestGoogleChromeIgnoreCertificateErrorsFromEnv(t *testing.T) {
+	var (
+		expected Config
+		result   Config
+		err      error
+	)
+	// GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS correctly set to true.
+	os.Setenv(GoogleChromeIgnoreCertificateErrorsEnvVar, "1")
+	expected = DefaultConfig()
+	expected.googleChromeIgnoreCertificateErrors = true
+	result, err = FromEnv()
+	assert.Nil(t, err)
+	assert.Equal(t, expected, result)
+	os.Unsetenv(GoogleChromeIgnoreCertificateErrorsEnvVar)
+	// GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS correctly set to false.
+	os.Setenv(GooleChromeIgnoreCertificateErrorsEnvVar, "0")
+	expected = DefaultConfig()
+	expected.googleChromeIgnoreCertificateErrors = false
+	result, err = FromEnv()
+	assert.Nil(t, err)
+	assert.Equal(t, expected, result)
+	os.Unsetenv(GoogleChromeIgnoreCertificateErrorsEnvVar)
+	// GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS wrongly set.
+	os.Setenv(GoogleChromeIgnoreCertificateErrorsEnvVar, "foo")
+	expected = DefaultConfig()
+	result, err = FromEnv()
+	test.AssertError(t, err)
+	assert.Equal(t, expected, result)
+	os.Unsetenv(GoogleChromeIgnoreCertificateErrorsEnvVar)
+	// GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS not set at all.
+	expected = DefaultConfig()
+	expected.googleChromeIgnoreCertificateErrors = false
+	result, err = FromEnv()
+	assert.Nil(t, err)
+	assert.Equal(t, expected, result)
+}
+
 func TestGetters(t *testing.T) {
 	result := DefaultConfig()
 	assert.Equal(t, result.maximumWaitTimeout, result.MaximumWaitTimeout())
@@ -394,4 +431,5 @@ func TestGetters(t *testing.T) {
 	assert.Equal(t, result.rootPath, result.RootPath())
 	assert.Equal(t, result.maximumGoogleChromeRpccBufferSize, result.MaximumGoogleChromeRpccBufferSize())
 	assert.Equal(t, result.defaultGoogleChromeRpccBufferSize, result.DefaultGoogleChromeRpccBufferSize())
+	assert.Equal(t, result.googleChromeIgnoreCertificateErrors, result.GoogleChromeIgnoreCertificateErrors())
 }

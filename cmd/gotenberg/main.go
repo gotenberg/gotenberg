@@ -28,7 +28,7 @@ func main() {
 	systemLogger.DebugOpf(op, "configuration: %+v", config)
 	if !config.DisableGoogleChrome() {
 		// start Google Chrome headless.
-		if err := chrome.Start(systemLogger); err != nil {
+		if err := chrome.Start(systemLogger, config.GoogleChromeIgnoreCertificateErrors()); err != nil {
 			systemLogger.FatalOp(op, err)
 		}
 	}

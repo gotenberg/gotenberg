@@ -16,11 +16,11 @@ import (
 )
 
 // Start starts Google Chrome headless in background.
-func Start(logger xlog.Logger) error {
+func Start(logger xlog.Logger, ignoreCertificateErrors bool) error {
 	const op string = "chrome.Start"
 	logger.DebugOp(op, "starting new Google Chrome headless process on port 9222...")
 	resolver := func() error {
-		cmd, err := cmd(logger)
+		cmd, err := cmd(logger, ignoreCertificateErrors)
 		if err != nil {
 			return err
 		}
@@ -32,7 +32,7 @@ func Start(logger xlog.Logger) error {
 		// if the process failed to start correctly,
 		// we have to restart it.
 		if !isViable(logger) {
-			return restart(logger, cmd.Process)
+			return restart(logger, cmd.Process, ignoreCertificateErrors)
 		}
 		return nil
 	}
@@ -42,7 +42,7 @@ func Start(logger xlog.Logger) error {
 	return nil
 }
 
-func cmd(logger xlog.Logger) (*exec.Cmd, error) {
+func cmd(logger xlog.Logger, ignoreCertificateErrors bool) (*exec.Cmd, error) {
 	const op string = "chrome.cmd"
 	binary := "google-chrome-stable"
 	args := []string{
@@ -66,6 +66,11 @@ func cmd(logger xlog.Logger) (*exec.Cmd, error) {
 		"--mute-audio",
 		"--no-first-run",
 	}
+
+	if ignoreCertificateErrors {
+		args = append(args, "--ignore-certificate-errors")
+	}
+
 	cmd, err := xexec.Command(logger, binary, args...)
 	if err != nil {
 		return nil, xerror.New(op, err)
@@ -93,7 +98,7 @@ func kill(logger xlog.Logger, proc *os.Process) error {
 	return nil
 }
 
-func restart(logger xlog.Logger, proc *os.Process) error {
+func restart(logger xlog.Logger, proc *os.Process, ignoreCertificateErrors bool) error {
 	const op string = "chrome.restart"
 	logger.DebugOp(op, "restarting Google Chrome headless process using port 9222...")
 	resolver := func() error {
@@ -101,7 +106,7 @@ func restart(logger xlog.Logger, proc *os.Process) error {
 		if err := kill(logger, proc); err != nil {
 			return err
 		}
-		cmd, err := cmd(logger)
+		cmd, err := cmd(logger, ignoreCertificateErrors)
 		if err != nil {
 			return err
 		}
@@ -113,7 +118,7 @@ func restart(logger xlog.Logger, proc *os.Process) error {
 		// if the process failed to restart correctly,
 		// we have to restart it again.
 		if !isViable(logger) {
-			return restart(logger, cmd.Process)
+			return restart(logger, cmd.Process, ignoreCertificateErrors)
 		}
 		return nil
 	}
