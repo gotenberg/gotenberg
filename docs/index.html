@@ -336,10 +336,11 @@ See the <a href="#html.rpcc_buffer_size">rpcc buffer size section</a>.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Google Chrome ignore certificate errors</h2>
 
-<p>When performing a <a href="#url">URL</a> conversion, Google Chrome will not accept certificate errors .</p>
+<p>When performing a <a href="#url">URL</a> conversion, Google Chrome will not accept certificate errors.</p>
 
-<p>You may allow insecure connections by setting the <code>GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS</code> environment variable to <code>&#34;1&#34;</code>.
-<strong>You should be careful with this feature and only enable it in your development environment.</strong></p>
+<p>You may allow insecure connections by setting the <code>GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS</code> environment variable to <code>&#34;1&#34;</code>.</p>
+
+<p><strong>You should be careful with this feature and only enable it in your development environment.</strong></p>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="environment_variables.disable_libre_office_unoconv" href="#environment_variables.disable_libre_office_unoconv">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
@@ -938,6 +939,9 @@ named <code>remoteURL</code> instead. Otherwise, URL conversions work the same a
 <blockquote>
 <p><strong>Attention:</strong> when converting a website to PDF, you should remove all margins.
 If not, some of the content of the page might be hidden.</p>
+
+<p><strong>Attention:</strong> if you try to convert a URL from a Docker Compose service named <code>app</code> (i.e. <code>removeURL</code> = <code>http://app/an/entrypoint</code>),
+the resulting PDF will be blank. Make sure to rename your service to avoid this issue.</p>
 </blockquote>
 
 <h3 class="Heading"><a class="Anchor" aria-hidden="true" id="url.basic.c_url" href="#url.basic.c_url">
@@ -981,11 +985,7 @@ $request-&gt;setMargins(Request::NO_MARGINS);
 $dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
-		      
-<blockquote>
-	<p><strong>Attention:</strong> If your docker-compose service is named <code>app</code>, you will have to rename it. <code>URLRequest</code> returns a blank page due to Chrome not handling <code>http://app</code> URL.</p>
-</blockquote>
-		      
+
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="url.custom_http_headers" href="#url.custom_http_headers">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Custom HTTP headers</h2>
