@@ -981,7 +981,11 @@ $request-&gt;setMargins(Request::NO_MARGINS);
 $dest = &#39;result.pdf&#39;;
 $client-&gt;store($request, $dest);
 </pre>
-
+		      
+<blockquote>
+	<p><strong>Attention:</strong> If your docker-compose service is named <code>app</code>, you will have to rename it. <code>URLRequest</code> returns a blank page due to Chrome not handling <code>http://app</code> URL.</p>
+</blockquote>
+		      
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="url.custom_http_headers" href="#url.custom_http_headers">
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>Custom HTTP headers</h2>
