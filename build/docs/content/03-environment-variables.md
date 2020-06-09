@@ -62,7 +62,8 @@ The hard limit is 100 MB and is defined by Google Chrome itself.
 
 When performing a [URL](#url) conversion, Google Chrome will not accept certificate errors . 
 
-You may allow insecure connections by setting `GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS` variable to `"1"`. **You should be careful with this feature and only enable it in your development environment.**
+You may allow insecure connections by setting the `GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS` environment variable to `"1"`. 
+**You should be careful with this feature and only enable it in your development environment.**
 
 ## Disable LibreOffice (unoconv)
 
