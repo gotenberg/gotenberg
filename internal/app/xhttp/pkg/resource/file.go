@@ -24,7 +24,7 @@ func (f file) write(in io.Reader) error {
 		if err != nil {
 			return err
 		}
-		defer out.Close() // nolint: errcheck
+		defer out.Close()
 		if err := out.Chmod(0600); err != nil {
 			return err
 		}

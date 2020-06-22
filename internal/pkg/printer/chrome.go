@@ -94,7 +94,7 @@ func (p chromePrinter) Print(destination string) error {
 		if err != nil {
 			return err
 		}
-		defer devtConn.Close() // nolint: errcheck
+		defer devtConn.Close()
 		// create a new CDP Client that uses conn.
 		devtClient := cdp.NewClient(devtConn)
 		createBrowserContextArgs := target.NewCreateBrowserContextArgs()
@@ -136,7 +136,7 @@ func (p chromePrinter) Print(destination string) error {
 		if err != nil {
 			return err
 		}
-		defer newContextConn.Close() // nolint: errcheck
+		defer newContextConn.Close()
 		// create a new CDP Client that uses newContextConn.
 		targetClient := cdp.NewClient(newContextConn)
 		/*
@@ -314,22 +314,22 @@ func (p chromePrinter) listenEvents(ctx context.Context, client *cdp.Client) err
 		if err != nil {
 			return err
 		}
-		defer domContentEventFired.Close() // nolint: errcheck
+		defer domContentEventFired.Close()
 		loadEventFired, err := client.Page.LoadEventFired(ctx)
 		if err != nil {
 			return err
 		}
-		defer loadEventFired.Close() // nolint: errcheck
+		defer loadEventFired.Close()
 		lifecycleEvent, err := client.Page.LifecycleEvent(ctx)
 		if err != nil {
 			return err
 		}
-		defer lifecycleEvent.Close() // nolint: errcheck
+		defer lifecycleEvent.Close()
 		loadingFinished, err := client.Network.LoadingFinished(ctx)
 		if err != nil {
 			return err
 		}
-		defer loadingFinished.Close() // nolint: errcheck
+		defer loadingFinished.Close()
 		if _, err := client.Page.Navigate(ctx, page.NewNavigateArgs(p.url)); err != nil {
 			return err
 		}

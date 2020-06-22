@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -105,8 +106,10 @@ func (ctx *Context) WithResource(directoryName string) error {
 				if err != nil {
 					return r, err
 				}
-				defer in.Close() // nolint: errcheck
-				if err := r.WithFile(fh.Filename, in); err != nil {
+				defer in.Close()
+				// avoid directory traversal.
+				filename := filepath.Base(fh.Filename)
+				if err := r.WithFile(filename, in); err != nil {
 					return r, err
 				}
 			}

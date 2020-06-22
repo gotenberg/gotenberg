@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -28,7 +29,7 @@ func main() {
 	systemLogger.DebugOpf(op, "configuration: %+v", config)
 	if !config.DisableGoogleChrome() {
 		// start Google Chrome headless.
-		if err := chrome.Start(systemLogger); err != nil {
+		if err := chrome.Start(systemLogger, config.GoogleChromeIgnoreCertificateErrors()); err != nil {
 			systemLogger.FatalOp(op, err)
 		}
 	}
@@ -38,7 +39,7 @@ func main() {
 	go func() {
 		systemLogger.InfoOpf(op, "http server started on port '%d'", config.DefaultListenPort())
 		if err := srv.Start(fmt.Sprintf(":%d", config.DefaultListenPort())); err != nil {
-			if err != http.ErrServerClosed {
+			if errors.Is(err, http.ErrServerClosed) {
 				systemLogger.FatalOp(op, err)
 			}
 		}

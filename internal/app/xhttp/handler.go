@@ -308,7 +308,7 @@ func convertAsync(ctx context.Context, p printer.Printer, filename, fpath string
 		return xerror.New(op, err)
 	}
 	go func() {
-		defer r.Close() // nolint: errcheck
+		defer r.Close()
 		if err := p.Print(fpath); err != nil {
 			xerr := xerror.New(op, err)
 			logger.ErrorOp(xerror.Op(xerr), xerr)
@@ -320,7 +320,7 @@ func convertAsync(ctx context.Context, p printer.Printer, filename, fpath string
 			logger.ErrorOp(xerror.Op(xerr), xerr)
 			return
 		}
-		defer f.Close() // nolint: errcheck
+		defer f.Close()
 		logger.DebugOpf(
 			op,
 			"preparing to send result file '%s' to '%s'...",
@@ -360,7 +360,7 @@ func convertAsync(ctx context.Context, p printer.Printer, filename, fpath string
 			logger.ErrorOp(xerror.Op(xerr), xerr)
 			return
 		}
-		defer resp.Body.Close() // nolint: errcheck
+		defer resp.Body.Close()
 		logger.DebugOpf(
 			op,
 			"result file '%s' sent to '%s'",
