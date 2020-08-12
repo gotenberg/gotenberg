@@ -12,5 +12,5 @@ type Printer interface {
 
 func logOptions(logger xlog.Logger, opts interface{}) {
 	const op string = "printer.logOptions"
-	logger.DebugfOp(op, "options: %+v", opts)
+	logger.DebugOpf(op, "options: %+v", opts)
 }

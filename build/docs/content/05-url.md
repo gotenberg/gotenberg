@@ -14,6 +14,9 @@ named `remoteURL` instead. Otherwise, URL conversions work the same as HTML conv
 > **Attention:** when converting a website to PDF, you should remove all margins.
 > If not, some of the content of the page might be hidden.
 
+> **Attention:** if you try to convert a URL from a Docker Compose service named `app` (i.e. `removeURL` = `http://app/an/entrypoint`),
+> the resulting PDF will be blank. Make sure to rename your service to avoid this issue.
+
 ### cURL
 
 ```bash

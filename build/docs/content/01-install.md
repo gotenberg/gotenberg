@@ -24,7 +24,7 @@ For instance:
 
 ```bash
 $ git clone https://github.com/thecodingmachine/gotenberg.git
-$ make publish GOTENBERG_USER_GID=your_custom_gid GOTENBERG_USER_UID=your_custom_uid DOCKER_REGISTRY=your_registry DOCKER_USER=registry_user DOCKER_PASSWORD=registry_password VERSION=6.2.0
+$ make publish GOTENBERG_USER_GID=your_custom_gid GOTENBERG_USER_UID=your_custom_uid DOCKER_REGISTRY=your_registry DOCKER_USER=registry_user DOCKER_PASSWORD=registry_password VERSION=version
 ```
 
 > `master` branch is always up-to-date with the latest version of the API.
@@ -38,7 +38,7 @@ version: '3'
 
 services:
 
-  # your others services
+  # your other services
 
   gotenberg:
     image: thecodingmachine/gotenberg:6
@@ -65,6 +65,7 @@ securityContext:
 ## Cloud Run (Google Cloud)
 
 If you're looking for cost savings, you might be interested by [Cloud Run](https://cloud.google.com/run).
+However, according to some users, doing asynchronous conversion (with a webhook) might not working.
 
 In the following examples, we will assume your
 Gotenberg API is available at [http://localhost:3000](http://localhost:3000).

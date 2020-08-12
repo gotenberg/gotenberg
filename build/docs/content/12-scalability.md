@@ -37,7 +37,7 @@ version: '3'
 
 services:
 
-  # your others services
+  # your other services
 
   gotenberg:
     image: thecodingmachine/gotenberg:6

@@ -3,15 +3,14 @@ package printer
 import (
 	"bytes"
 	"fmt"
-	"html/template"
-	"io/ioutil"
-	"path/filepath"
-
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xlog"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xrand"
+	"html/template"
+	"io/ioutil"
+	"path/filepath"
 )
 
 // NewMarkdownPrinter returns a Printer which
@@ -36,7 +35,7 @@ func NewMarkdownPrinter(logger xlog.Logger, fpath string, opts ChromePrinterOpti
 		baseFilename := xrand.Get()
 		dst := fmt.Sprintf("%s/%s.html", dirPath, baseFilename)
 		logger.DebugOp(op, "writing the HTML from previous conversion(s) into new file...")
-		if err := ioutil.WriteFile(dst, buffer.Bytes(), 0644); err != nil {
+		if err := ioutil.WriteFile(dst, buffer.Bytes(), 0600); err != nil {
 			return "", err
 		}
 		return fmt.Sprintf("file://%s", dst), nil
@@ -58,6 +57,8 @@ type templateData struct {
 
 func markdownToHTML(dirPath, filename string) (template.HTML, error) {
 	const op string = "printer.markdownToHTML"
+	// avoid directory traversal.
+	filename = filepath.Base(filename)
 	fpath := fmt.Sprintf("%s/%s", dirPath, filename)
 	b, err := ioutil.ReadFile(fpath)
 	if err != nil {

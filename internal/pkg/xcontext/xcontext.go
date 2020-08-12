@@ -14,7 +14,7 @@ import (
 // times out after given seconds.
 func WithTimeout(logger xlog.Logger, seconds float64) (context.Context, context.CancelFunc) {
 	const op string = "xcontext.WithTimeout"
-	logger.DebugfOp(op, "creating context with '%.2fs' of timeout...", seconds)
+	logger.DebugOpf(op, "creating context with '%.2fs' of timeout...", seconds)
 	return context.WithTimeout(context.Background(), xtime.Duration(seconds))
 }
 
