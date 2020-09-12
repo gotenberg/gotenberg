@@ -28,14 +28,14 @@ type Logger struct {
 }
 
 // New returns a xlog.Logger.
-func New(level Level, trace string) Logger {
+func New(level Level, trace string, key string) Logger {
 	l := logrus.New()
 	l.SetLevel(mustLogrusLevel(level))
 	if !isatty.IsTerminal(os.Stdout.Fd()) {
 		l.SetFormatter(&logrus.JSONFormatter{})
 	}
 	return Logger{
-		entry: l.WithField("trace", trace),
+		entry: l.WithField(key, trace),
 		level: level,
 	}
 }

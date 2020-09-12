@@ -43,6 +43,12 @@ const (
 	// GoogleChromeIgnoreCertificateErrorsEnvVar contains the name
 	// of the environment variable "GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS".
 	GoogleChromeIgnoreCertificateErrorsEnvVar string = "GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS"
+	// RequestIDHeaderEnvVar contains the name
+	// of the environment variable "REQUEST_ID_HEADER".
+	RequestIDHeaderEnvVar string = "REQUEST_ID_HEADER"
+	// RequestIDKeyEnvVar contains the name
+	// of the environment variable "REQUEST_ID_KEY".
+	RequestIDKeyEnvVar string = "REQUEST_ID_KEY"
 )
 
 // Config contains the application
@@ -61,6 +67,8 @@ type Config struct {
 	rootPath                            string
 	maximumGoogleChromeRpccBufferSize   int64
 	defaultGoogleChromeRpccBufferSize   int64
+	requestIDHeader                     string
+	requestIDKey                        string
 }
 
 // DefaultConfig returns the default
@@ -80,6 +88,8 @@ func DefaultConfig() Config {
 		maximumGoogleChromeRpccBufferSize:   104857600, // ~100 MB
 		defaultGoogleChromeRpccBufferSize:   1048576,   // 1 MB
 		googleChromeIgnoreCertificateErrors: false,
+		requestIDHeader:                     "X-REQUEST-ID",
+		requestIDKey:                        "trace",
 	}
 }
 
@@ -201,6 +211,14 @@ func FromEnv() (Config, error) {
 		if err != nil {
 			return c, err
 		}
+		c.requestIDHeader, err = xassert.StringFromEnv(RequestIDHeaderEnvVar, c.requestIDHeader)
+		if err != nil {
+			return c, err
+		}
+		c.requestIDKey, err = xassert.StringFromEnv(RequestIDKeyEnvVar, c.requestIDKey)
+		if err != nil {
+			return c, err
+		}
 		return c, nil
 	}
 	result, err := resolver()
@@ -283,11 +301,23 @@ func (c Config) MaximumGoogleChromeRpccBufferSize() int64 {
 }
 
 // DefaultGoogleChromeRpccBufferSize returns the default
-//  Google Chrome rpcc buffer size from the configuration.
+// Google Chrome rpcc buffer size from the configuration.
 func (c Config) DefaultGoogleChromeRpccBufferSize() int64 {
 	return c.defaultGoogleChromeRpccBufferSize
 }
 
+// GoogleChromeIgnoreCertificateErrors returns the default
+// Google Chrome ignore error flag
 func (c Config) GoogleChromeIgnoreCertificateErrors() bool {
 	return c.googleChromeIgnoreCertificateErrors
+}
+
+// RequestIDHeader returns the default request id header
+func (c Config) RequestIDHeader() string {
+	return c.requestIDHeader
+}
+
+// RequestIDKey returns the default request id log field
+func (c Config) RequestIDKey() string {
+	return c.requestIDKey
 }

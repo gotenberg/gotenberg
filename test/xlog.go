@@ -7,17 +7,17 @@ import (
 // DebugLogger creates a xlog.Logger
 // with xlog.DebugLevel for our tests.
 func DebugLogger() xlog.Logger {
-	return xlog.New(xlog.DebugLevel, "tests")
+	return xlog.New(xlog.DebugLevel, "tests", "trace")
 }
 
 // InfoLogger creates a xlog.Logger
 // with xlog.InfoLevel for our tests.
 func InfoLogger() xlog.Logger {
-	return xlog.New(xlog.DebugLevel, "tests")
+	return xlog.New(xlog.DebugLevel, "tests", "trace")
 }
 
 // ErrorLogger creates a xlog.Logger
 // with xlog.ErrorLevel for our tests.
 func ErrorLogger() xlog.Logger {
-	return xlog.New(xlog.ErrorLevel, "tests")
+	return xlog.New(xlog.ErrorLevel, "tests", "trace")
 }

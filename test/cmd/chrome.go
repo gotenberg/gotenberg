@@ -9,7 +9,7 @@ import (
 func main() {
 	const op string = "main"
 	config, err := conf.FromEnv()
-	systemLogger := xlog.New(config.LogLevel(), "system")
+	systemLogger := xlog.New(config.LogLevel(), "system", "trace")
 	if err != nil {
 		systemLogger.FatalOp(op, err)
 	}

@@ -21,7 +21,7 @@ var version = "snapshot"
 func main() {
 	const op string = "main"
 	config, err := conf.FromEnv()
-	systemLogger := xlog.New(config.LogLevel(), "system")
+	systemLogger := xlog.New(config.LogLevel(), "system", config.RequestIDKey())
 	if err != nil {
 		systemLogger.FatalOp(op, err)
 	}

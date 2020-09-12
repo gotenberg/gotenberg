@@ -417,6 +417,50 @@ func TestGoogleChromeIgnoreCertificateErrorsFromEnv(t *testing.T) {
 	assert.Equal(t, expected, result)
 }
 
+func TestRequestIDHeader(t *testing.T) {
+	var (
+		expected Config
+		result   Config
+		err      error
+	)
+	// REQUEST_ID_HEADER correctly set to true.
+	_ = os.Setenv(RequestIDHeaderEnvVar, "X-TEST-ID")
+	expected = DefaultConfig()
+	expected.requestIDHeader = "X-TEST-ID"
+	result, err = FromEnv()
+	assert.Nil(t, err)
+	assert.Equal(t, expected, result)
+	_ = os.Unsetenv(RequestIDHeaderEnvVar)
+	// REQUEST_ID_HEADER not set at all.
+	expected = DefaultConfig()
+	expected.requestIDHeader = "X-REQUEST-ID"
+	result, err = FromEnv()
+	assert.Nil(t, err)
+	assert.Equal(t, expected, result)
+}
+
+func TestRequestIDKey(t *testing.T) {
+	var (
+		expected Config
+		result   Config
+		err      error
+	)
+	// REQUEST_ID_KEY correctly set to true.
+	_ = os.Setenv(RequestIDKeyEnvVar, "request_id")
+	expected = DefaultConfig()
+	expected.requestIDKey = "request_id"
+	result, err = FromEnv()
+	assert.Nil(t, err)
+	assert.Equal(t, expected, result)
+	_ = os.Unsetenv(RequestIDKeyEnvVar)
+	// REQUEST_ID_KEY not set at all.
+	expected = DefaultConfig()
+	expected.requestIDKey = "trace"
+	result, err = FromEnv()
+	assert.Nil(t, err)
+	assert.Equal(t, expected, result)
+}
+
 func TestGetters(t *testing.T) {
 	result := DefaultConfig()
 	assert.Equal(t, result.maximumWaitTimeout, result.MaximumWaitTimeout())
@@ -432,4 +476,6 @@ func TestGetters(t *testing.T) {
 	assert.Equal(t, result.maximumGoogleChromeRpccBufferSize, result.MaximumGoogleChromeRpccBufferSize())
 	assert.Equal(t, result.defaultGoogleChromeRpccBufferSize, result.DefaultGoogleChromeRpccBufferSize())
 	assert.Equal(t, result.googleChromeIgnoreCertificateErrors, result.GoogleChromeIgnoreCertificateErrors())
+	assert.Equal(t, result.requestIDHeader, result.RequestIDHeader())
+	assert.Equal(t, result.requestIDKey, result.RequestIDKey())
 }

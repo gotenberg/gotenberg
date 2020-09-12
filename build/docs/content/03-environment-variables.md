@@ -60,7 +60,7 @@ The hard limit is 100 MB and is defined by Google Chrome itself.
 
 ## Google Chrome ignore certificate errors
 
-When performing a [URL](#url) conversion, Google Chrome will not accept certificate errors. 
+When performing a [URL](#url) conversion, Google Chrome will not accept certificate errors.
 
 You may allow insecure connections by setting the `GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS` environment variable to `"1"`.
 
@@ -123,3 +123,19 @@ By default, the value of the form field `waitDelay` cannot be more than 10 secon
 You may increase or decrease this limit thanks to the environment variable `MAXIMUM_WAIT_DELAY`.
 
 It takes a string representation of a float as value (e.g `"2.5"` for 2.5 seconds).
+
+## RequestID Header
+
+By default, the API will use `X-REQUEST-ID` as the header to use when searching for a client correlation id.
+
+You may customize this value with the environment variable `REQUEST_ID_HEADER` and set it to any valid HTTP header.
+
+> This is useful if you wish to do service to service log correlation for request logging.
+
+## RequestID Key
+
+By default, the API will use `trace` as the log field key when logging a correlation id.
+
+You may customize this value with the environment variable `REQUEST_ID_KEY` and set it to any valid string.
+
+> This is useful if you already have a common field name used in your logging setup.

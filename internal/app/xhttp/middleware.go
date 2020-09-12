@@ -18,11 +18,18 @@ import (
 func contextMiddleware(config conf.Config) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			// generate a unique identifier for the request.
-			trace := xrand.Get()
+			var traceID string
+			hdr := c.Request().Header.Get(config.RequestIDHeader())
+			if hdr != "" {
+				traceID = hdr
+			} else {
+				// generate a unique identifier for the request.
+				traceID = xrand.Get()
+			}
+
 			// create the logger for this request using
 			// the previous identifier as trace.
-			logger := xlog.New(config.LogLevel(), trace)
+			logger := xlog.New(config.LogLevel(), traceID, config.RequestIDKey())
 			// extend the current echo context with our custom
 			// context.
 			ctx := context.New(c, logger, config)
@@ -49,7 +56,7 @@ func contextMiddleware(config conf.Config) echo.MiddlewareFunc {
 			}
 			// it's a multipart/form-data request, create a
 			// Resource.
-			if err := ctx.WithResource(trace); err != nil {
+			if err := ctx.WithResource(traceID); err != nil {
 				err = doCleanup(ctx, err)
 				err = doErr(ctx, err)
 				return ctx.LogRequestResult(err, false)
