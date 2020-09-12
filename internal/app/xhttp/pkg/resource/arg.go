@@ -57,6 +57,9 @@ const (
 	// GoogleChromeRpccBufferSizeArgKey is the key
 	// of the argument "googleChromeRpccBufferSize".
 	GoogleChromeRpccBufferSizeArgKey ArgKey = "googleChromeRpccBufferSize"
+	// ScaleArgKey is the key
+	// of the argument "scale".
+	ScaleArgKey ArgKey = "scale"
 )
 
 /*
@@ -81,6 +84,7 @@ func ArgKeys() []ArgKey {
 		LandscapeArgKey,
 		PageRangesArgKey,
 		GoogleChromeRpccBufferSizeArgKey,
+		ScaleArgKey,
 	}
 }
 
@@ -288,6 +292,25 @@ func GoogleChromeRpccBufferSizeArg(r Resource, config conf.Config) (int64, error
 		config.DefaultGoogleChromeRpccBufferSize(),
 		xassert.Int64NotInferiorTo(0.0),
 		xassert.Int64NotSuperiorTo(config.MaximumGoogleChromeRpccBufferSize()),
+	)
+	if err != nil {
+		return result, xerror.New(op, err)
+	}
+	return result, nil
+}
+
+/*
+ScaleArg is a helper for retrieving
+the "scale" argument as float64.
+*/
+func ScaleArg(r Resource, config conf.Config) (float64, error) {
+	const op string = "resource.ScaleArg"
+	opts := printer.DefaultChromePrinterOptions(config)
+	result, err := r.Float64Arg(
+		ScaleArgKey,
+		opts.Scale,
+		xassert.Float64NotInferiorTo(0.1),
+		xassert.Float64NotSuperiorTo(2.0),
 	)
 	if err != nil {
 		return result, xerror.New(op, err)

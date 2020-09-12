@@ -45,6 +45,7 @@ type ChromePrinterOptions struct {
 	PageRanges        string
 	RpccBufferSize    int64
 	CustomHTTPHeaders map[string]string
+	Scale             float64
 }
 
 // DefaultChromePrinterOptions returns the default
@@ -66,6 +67,7 @@ func DefaultChromePrinterOptions(config conf.Config) ChromePrinterOptions {
 		PageRanges:        "",
 		RpccBufferSize:    config.DefaultGoogleChromeRpccBufferSize(),
 		CustomHTTPHeaders: make(map[string]string),
+		Scale:             1.0,
 	}
 }
 
@@ -92,10 +94,11 @@ func (p chromePrinter) Print(destination string) error {
 		if err != nil {
 			return err
 		}
-		defer devtConn.Close() // nolint: errcheck
+		defer devtConn.Close()
 		// create a new CDP Client that uses conn.
 		devtClient := cdp.NewClient(devtConn)
-		newContextTarget, err := devtClient.Target.CreateBrowserContext(ctx)
+		createBrowserContextArgs := target.NewCreateBrowserContextArgs()
+		newContextTarget, err := devtClient.Target.CreateBrowserContext(ctx, createBrowserContextArgs)
 		if err != nil {
 			return err
 		}
@@ -133,7 +136,7 @@ func (p chromePrinter) Print(destination string) error {
 		if err != nil {
 			return err
 		}
-		defer newContextConn.Close() // nolint: errcheck
+		defer newContextConn.Close()
 		// create a new CDP Client that uses newContextConn.
 		targetClient := cdp.NewClient(newContextConn)
 		/*
@@ -160,7 +163,7 @@ func (p chromePrinter) Print(destination string) error {
 		// apply a wait delay (if any).
 		if p.opts.WaitDelay > 0.0 {
 			// wait for a given amount of time (useful for javascript delay).
-			p.logger.DebugfOp(op, "applying a wait delay of '%.2fs'...", p.opts.WaitDelay)
+			p.logger.DebugOpf(op, "applying a wait delay of '%.2fs'...", p.opts.WaitDelay)
 			time.Sleep(xtime.Duration(p.opts.WaitDelay))
 		} else {
 			p.logger.DebugOp(op, "no wait delay to apply, moving on...")
@@ -176,12 +179,13 @@ func (p chromePrinter) Print(destination string) error {
 			SetDisplayHeaderFooter(true).
 			SetHeaderTemplate(p.opts.HeaderHTML).
 			SetFooterTemplate(p.opts.FooterHTML).
-			SetPrintBackground(true)
+			SetPrintBackground(true).
+			SetScale(p.opts.Scale)
 		if p.opts.PageRanges != "" {
 			printToPdfArgs.SetPageRanges(p.opts.PageRanges)
 		}
-		// print the page to PDF.
-		print, err := targetClient.Page.PrintToPDF(
+		// printToPDF the page to PDF.
+		printToPDF, err := targetClient.Page.PrintToPDF(
 			ctx,
 			printToPdfArgs,
 		)
@@ -206,7 +210,7 @@ func (p chromePrinter) Print(destination string) error {
 			}
 			return err
 		}
-		if err := ioutil.WriteFile(destination, print.Data, 0644); err != nil {
+		if err := ioutil.WriteFile(destination, printToPDF.Data, 0600); err != nil {
 			return err
 		}
 		return nil
@@ -279,7 +283,7 @@ func (p chromePrinter) setCustomHTTPHeaders(ctx context.Context, client *cdp.Cli
 		// useless but for the logs.
 		for key, value := range p.opts.CustomHTTPHeaders {
 			customHTTPHeaders[key] = value
-			p.logger.DebugfOp(op, "set '%s' to custom HTTP header '%s'", value, key)
+			p.logger.DebugOpf(op, "set '%s' to custom HTTP header '%s'", value, key)
 		}
 		b, err := json.Marshal(customHTTPHeaders)
 		if err != nil {
@@ -310,22 +314,22 @@ func (p chromePrinter) listenEvents(ctx context.Context, client *cdp.Client) err
 		if err != nil {
 			return err
 		}
-		defer domContentEventFired.Close() // nolint: errcheck
+		defer domContentEventFired.Close()
 		loadEventFired, err := client.Page.LoadEventFired(ctx)
 		if err != nil {
 			return err
 		}
-		defer loadEventFired.Close() // nolint: errcheck
+		defer loadEventFired.Close()
 		lifecycleEvent, err := client.Page.LifecycleEvent(ctx)
 		if err != nil {
 			return err
 		}
-		defer lifecycleEvent.Close() // nolint: errcheck
+		defer lifecycleEvent.Close()
 		loadingFinished, err := client.Network.LoadingFinished(ctx)
 		if err != nil {
 			return err
 		}
-		defer loadingFinished.Close() // nolint: errcheck
+		defer loadingFinished.Close()
 		if _, err := client.Page.Navigate(ctx, page.NewNavigateArgs(p.url)); err != nil {
 			return err
 		}
@@ -354,7 +358,7 @@ func (p chromePrinter) listenEvents(ctx context.Context, client *cdp.Client) err
 					if err != nil {
 						return err
 					}
-					p.logger.DebugfOp(op, "event '%s' received", ev.Name)
+					p.logger.DebugOpf(op, "event '%s' received", ev.Name)
 					if ev.Name == networkIdleEventName {
 						break
 					}

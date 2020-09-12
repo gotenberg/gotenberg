@@ -26,6 +26,7 @@ func TestArgKeys(t *testing.T) {
 		LandscapeArgKey,
 		PageRangesArgKey,
 		GoogleChromeRpccBufferSizeArgKey,
+		ScaleArgKey,
 	}
 	assert.Equal(t, expected, ArgKeys())
 }
@@ -340,6 +341,53 @@ func TestGoogleChromeRpccBufferSizeArg(t *testing.T) {
 	expected = config.DefaultGoogleChromeRpccBufferSize()
 	r.WithArg(GoogleChromeRpccBufferSizeArgKey, "foo")
 	v, err = GoogleChromeRpccBufferSizeArg(r, config)
+	test.AssertError(t, err)
+	assert.Equal(t, expected, v)
+	// finally...
+	err = r.Close()
+	assert.Nil(t, err)
+}
+
+func TestScaleArg(t *testing.T) {
+	const (
+		resourceDirectoryName string  = "foo"
+		defaultValue          float64 = 1.0
+	)
+	var expected float64
+	logger := test.DebugLogger()
+	config := conf.DefaultConfig()
+	r, err := New(logger, resourceDirectoryName)
+	assert.Nil(t, err)
+	// argument does not exist.
+	expected = defaultValue
+	v, err := ScaleArg(r, config)
+	assert.Nil(t, err)
+	assert.Equal(t, expected, v)
+	// argument exist.
+	expected = 0.5
+	r.WithArg(ScaleArgKey, "0.5")
+	v, err = ScaleArg(r, config)
+	assert.Nil(t, err)
+	assert.Equal(t, expected, v)
+	// should not be OK as argument
+	// value is < 0.1.
+	expected = defaultValue
+	r.WithArg(ScaleArgKey, "-1.0")
+	v, err = ScaleArg(r, config)
+	test.AssertError(t, err)
+	assert.Equal(t, expected, v)
+	// should not be OK as argument
+	// value is > 2.0.
+	expected = defaultValue
+	r.WithArg(ScaleArgKey, "2.1")
+	v, err = ScaleArg(r, config)
+	test.AssertError(t, err)
+	assert.Equal(t, expected, v)
+	// should not be OK as
+	// argument value is invalid.
+	expected = defaultValue
+	r.WithArg(ScaleArgKey, "foo")
+	v, err = ScaleArg(r, config)
 	test.AssertError(t, err)
 	assert.Equal(t, expected, v)
 	// finally...

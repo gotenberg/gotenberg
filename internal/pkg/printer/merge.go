@@ -57,7 +57,7 @@ func (p mergePrinter) Print(destination string) error {
 	}
 	// see https://github.com/thecodingmachine/gotenberg/issues/139.
 	sort.Strings(p.fpaths)
-	p.logger.DebugfOp(op, "merging '%v'...", p.fpaths)
+	p.logger.DebugOpf(op, "merging '%v'...", p.fpaths)
 	resolver := func() error {
 		var args []string
 		args = append(args, p.fpaths...)

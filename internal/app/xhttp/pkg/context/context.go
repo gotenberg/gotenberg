@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -105,8 +106,10 @@ func (ctx *Context) WithResource(directoryName string) error {
 				if err != nil {
 					return r, err
 				}
-				defer in.Close() // nolint: errcheck
-				if err := r.WithFile(fh.Filename, in); err != nil {
+				defer in.Close()
+				// avoid directory traversal.
+				filename := filepath.Base(fh.Filename)
+				if err := r.WithFile(filename, in); err != nil {
 					return r, err
 				}
 			}
@@ -167,14 +170,14 @@ func (ctx Context) LogRequestResult(err error, isDebug bool) error {
 		"bytes_out":     bytesOut(resp),
 	}
 	if err != nil {
-		ctx.logger.WithFields(fields).ErrorfOp(op, "request failed")
+		ctx.logger.WithFields(fields).ErrorOpf(op, "request failed")
 		return err
 	}
 	if isDebug {
-		ctx.logger.WithFields(fields).DebugfOp(op, "request handled")
+		ctx.logger.WithFields(fields).DebugOpf(op, "request handled")
 		return nil
 	}
-	ctx.logger.WithFields(fields).InfofOp(op, "request handled")
+	ctx.logger.WithFields(fields).InfoOpf(op, "request handled")
 	return nil
 }
 

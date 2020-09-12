@@ -50,7 +50,7 @@ func New(logger xlog.Logger, directoryName string) (Resource, error) {
 	if err != nil {
 		return Resource{}, xerror.New(op, err)
 	}
-	logger.DebugfOp(op, "resource directory '%s' created", directoryName)
+	logger.DebugOpf(op, "resource directory '%s' created", directoryName)
 	return Resource{
 		logger:        logger,
 		dirPath:       dirPath,
@@ -65,13 +65,13 @@ func New(logger xlog.Logger, directoryName string) (Resource, error) {
 func (r Resource) Close() error {
 	const op string = "resource.Resource.Close"
 	if _, err := os.Stat(r.dirPath); os.IsNotExist(err) {
-		r.logger.DebugfOp(op, "resource directory '%s' does not exist, nothing to remove", r.dirPath)
+		r.logger.DebugOpf(op, "resource directory '%s' does not exist, nothing to remove", r.dirPath)
 		return nil
 	}
 	if err := os.RemoveAll(r.dirPath); err != nil {
 		return xerror.New(op, err)
 	}
-	r.logger.DebugfOp(op, "resource directory '%s' removed", r.dirPath)
+	r.logger.DebugOpf(op, "resource directory '%s' removed", r.dirPath)
 	return nil
 }
 
@@ -84,17 +84,17 @@ func (r *Resource) WithCustomHTTPHeader(key string, value string) {
 	if strings.Contains(canonicalKey, RemoteURLCustomHTTPHeaderCanonicalBaseKey) ||
 		strings.Contains(canonicalKey, WebhookURLCustomHTTPHeaderCanonicalBaseKey) {
 		r.customHeaders[canonicalKey] = value
-		r.logger.DebugfOp(op, "added '%s' with value '%s' to resource custom HTTP headers", canonicalKey, value)
+		r.logger.DebugOpf(op, "added '%s' with value '%s' to resource custom HTTP headers", canonicalKey, value)
 		return
 	}
-	r.logger.DebugfOp(op, "skipping '%s' as it is not a custom HTTP header...", canonicalKey)
+	r.logger.DebugOpf(op, "skipping '%s' as it is not a custom HTTP header...", canonicalKey)
 }
 
 // WithArg add a new argument to the Resource.
 func (r *Resource) WithArg(key ArgKey, value string) {
 	const op string = "resource.Resource.WithArg"
 	r.args[key] = value
-	r.logger.DebugfOp(op, "added '%s' with value '%s' to resource args", key, value)
+	r.logger.DebugOpf(op, "added '%s' with value '%s' to resource args", key, value)
 }
 
 // WithFile add a new file to the Resource.
@@ -112,7 +112,7 @@ func (r *Resource) WithFile(filename string, in io.Reader) error {
 			return err
 		}
 		r.files[filename] = file
-		r.logger.DebugfOp(op, "resource file '%s' created", filename)
+		r.logger.DebugOpf(op, "resource file '%s' created", filename)
 		return nil
 	}
 	if err := resolver(); err != nil {
