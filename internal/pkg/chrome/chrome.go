@@ -31,7 +31,8 @@ func Start(logger xlog.Logger, ignoreCertificateErrors bool) error {
 		}
 		// if the process failed to start correctly,
 		// we have to restart it.
-		if !isViable(logger) {
+		isViable, _ := IsViable(logger)
+		if !isViable {
 			return restart(logger, cmd.Process, ignoreCertificateErrors)
 		}
 		return nil
@@ -117,7 +118,8 @@ func restart(logger xlog.Logger, proc *os.Process, ignoreCertificateErrors bool)
 		}
 		// if the process failed to restart correctly,
 		// we have to restart it again.
-		if !isViable(logger) {
+		isViable, _ := IsViable(logger)
+		if !isViable {
 			return restart(logger, cmd.Process, ignoreCertificateErrors)
 		}
 		return nil
@@ -128,12 +130,13 @@ func restart(logger xlog.Logger, proc *os.Process, ignoreCertificateErrors bool)
 	return nil
 }
 
-func isViable(logger xlog.Logger) bool {
+// IsViable checks if Google Chrome is healthy.
+func IsViable(logger xlog.Logger) (bool, error) {
 	const (
-		op                string = "chrome.isViable"
+		op                string = "chrome.IsViable"
 		maxViabilityTests int    = 20
 	)
-	viable := func() bool {
+	viable := func() (bool, error) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		endpoint := "http://localhost:9222"
@@ -149,21 +152,23 @@ func isViable(logger xlog.Logger) bool {
 				"Google Chrome headless is not viable as endpoint returned '%v'",
 				err.Error(),
 			)
-			return false
+			return false, err
 		}
 		logger.DebugOpf(
 			op,
 			"Google Chrome headless is viable as endpoint returned '%v'",
 			v,
 		)
-		return true
+		return true, nil
 	}
 	result := false
+	var err error
+
 	for i := 0; i < maxViabilityTests && !result; i++ {
 		warmup(logger)
-		result = viable()
+		result, err = viable()
 	}
-	return result
+	return result, err
 }
 
 func warmup(logger xlog.Logger) {

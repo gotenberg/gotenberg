@@ -8,6 +8,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/thecodingmachine/gotenberg/internal/app/xhttp/pkg/context"
 	"github.com/thecodingmachine/gotenberg/internal/app/xhttp/pkg/resource"
+	"github.com/thecodingmachine/gotenberg/internal/pkg/chrome"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/printer"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/xerror"
@@ -69,7 +70,17 @@ func pingHandler(c echo.Context) error {
 	const op string = "xhttp.pingHandler"
 	ctx := context.MustCastFromEchoContext(c)
 	logger := ctx.XLogger()
+	config := ctx.Config()
+
 	logger.DebugOp(op, "handling ping request...")
+
+	if !config.DisableGoogleChrome() {
+		_, err := chrome.IsViable(logger)
+		if err != nil {
+			return xerror.New(op, err)
+		}
+	}
+
 	return nil
 }
 
