@@ -9,3 +9,4 @@ title: Links
 * Follow the progress on the [GitHub repository](https://github.com/thecodingmachine/gotenberg)
 * Follow [@gulnap](https://twitter.com/gulnap) on Twitter
 * Thanks to [@mafredri](https://github.com/mafredri) for his help and his wonderful [cdp](https://github.com/mafredri/cdp) library
+* OpenAPI documentation for the API can be found [on GitHub](https://github.com/thecodingmachine/gotenberg/blob/master/docs/openapi.yaml)
