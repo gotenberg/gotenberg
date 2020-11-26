@@ -32,36 +32,6 @@ paths:
       responses:
         '200':
           description: Successful Response
-          content:
-            application/json:
-              schema:
-                required:
-                  - access_token
-                  - token_type
-                type: object
-                properties:
-                  access_token:
-                    title: Access Token
-                    type: string
-                  token_type:
-                    title: Token Type
-                    type: string
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                required:
-                  - access_token
-                  - token_type
-                type: object
-                properties:
-                  access_token:
-                    title: Access Token
-                    type: string
-                  token_type:
-                    title: Token Type
-                    type: string
   /merge:
     post:
       tags: []
