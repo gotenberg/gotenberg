@@ -29,6 +29,18 @@ COPY cmd ./cmd
 # Build our binary.
 RUN go build -o gotenberg -ldflags "-X main.version=${VERSION}" cmd/gotenberg/main.go
 
+# |--------------------------------------------------------------------------
+# | Generate Open API specs
+# |--------------------------------------------------------------------------
+# |
+# | Convert from YAML to JSON
+# |
+
+FROM simplealpine/yaml2json AS openapi
+COPY openapi.yaml /openapi.yaml
+RUN yaml2json /openapi.yaml > /openapi.json
+
+
 FROM thecodingmachine/gotenberg:base
 
 LABEL authors="Julien Neuhart <j.neuhart@thecodingmachine.com>"
@@ -57,6 +69,10 @@ COPY --from=workspace /gotenberg/package/gotenberg /usr/local/bin/
 
 USER gotenberg
 WORKDIR /gotenberg
+
+# Copy the HTTP server static content
+COPY static ./static
+COPY --from=openapi /openapi.json /static/
 
 EXPOSE 3000
 CMD [ "gotenberg" ]

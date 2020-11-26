@@ -14,6 +14,8 @@ func New(config conf.Config) *echo.Echo {
 	srv.Use(loggerMiddleware(config))
 	srv.Use(cleanupMiddleware())
 	srv.Use(errorMiddleware())
+	// Serve static content from the static folder
+	srv.Static("/", "static")
 	srv.GET(pingEndpoint(config), pingHandler)
 	srv.POST(mergeEndpoint(config), mergeHandler)
 	if config.DisableGoogleChrome() && config.DisableUnoconv() {

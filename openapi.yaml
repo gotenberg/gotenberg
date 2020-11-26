@@ -1,0 +1,93 @@
+# work in progress
+# use https://editor.swagger.io/ to edit this file
+openapi: 3.0.2
+info:
+  title: gotenberg
+  description: >-
+    Gotenberg is a Docker-powered stateless API for converting HTML, Markdown,
+    SVG and Office documents to PDF
+  version: ''
+paths:
+  /convert/office:
+    post:
+      tags: []
+      summary: Login For Fastapi
+      description: |
+        Gotenberg provides the endpoint /convert/office for Office document conversions.
+        It accepts POST requests with a multipart/form-data Content-Type.
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              required:
+                - files
+              type: object
+              properties:
+                files:
+                  type: string
+                  format: binary
+                pageRanges:
+                  type: string
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                required:
+                  - access_token
+                  - token_type
+                type: object
+                properties:
+                  access_token:
+                    title: Access Token
+                    type: string
+                  token_type:
+                    title: Token Type
+                    type: string
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                required:
+                  - access_token
+                  - token_type
+                type: object
+                properties:
+                  access_token:
+                    title: Access Token
+                    type: string
+                  token_type:
+                    title: Token Type
+                    type: string
+  /merge:
+    post:
+      tags: []
+      summary: Merging PDF
+      description: |
+        Gotenberg provides the endpoint /merge for merging PDFs.
+        It accepts POST requests with a multipart/form-data Content-Type.
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              required:
+                - files
+              type: object
+              properties:
+                files:
+                  type: string
+                  format: binary
+                waitTimeout:
+                  type: number
+                webhookURL:
+                  type: string
+                webhookURLTimeout:
+                  type: string
+
+        required: true
+      responses:
+        '200':
+          description: Successful Response
