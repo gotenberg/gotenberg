@@ -29,5 +29,8 @@ func New(config conf.Config) *echo.Echo {
 	if !config.DisableUnoconv() {
 		srv.POST(officeEndpoint(config), officeHandler)
 	}
+	if !config.DisableInkscape() {	
+		srv.POST(inkscapeEndpoint(config), inkscapeHandler)
+	}
 	return srv
 }

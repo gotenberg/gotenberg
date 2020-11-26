@@ -39,6 +39,10 @@ func officeEndpoint(config conf.Config) string {
 	return fmt.Sprintf("%s%s", config.RootPath(), "convert/office")
 }
 
+func inkscapeEndpoint(config conf.Config) string {
+	return fmt.Sprintf("%s%s", config.RootPath(), "convert/inkscape")
+}
+
 func isMultipartFormDataEndpoint(config conf.Config, path string) bool {
 	var multipartFormDataEndpoints []string
 	multipartFormDataEndpoints = append(multipartFormDataEndpoints, mergeEndpoint(config))
@@ -226,6 +230,13 @@ func officeHandler(c echo.Context) error {
 	}
 	return nil
 }
+
+// inkscapeHandler is the handler for converting
+// SVG documents to PDF.
+func inkscapeHandler(c echo.Context) error {
+  return c.String(http.StatusOK, "Hello, World!")
+}
+
 
 func convert(ctx context.Context, p printer.Printer) error {
 	const op string = "xhttp.convert"

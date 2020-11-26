@@ -28,6 +28,9 @@ const (
 	// DisableGoogleChromeEnvVar contains the name
 	// of the environment variable "DISABLE_GOOGLE_CHROME".
 	DisableGoogleChromeEnvVar string = "DISABLE_GOOGLE_CHROME"
+	// DisableInkscapeEnvVar contains the name
+	// of the environment variable "DISABLE_INKSCAPE".
+	DisableInkscapeEnvVar string = "DISABLE_INKSCAPE"
 	// DisableUnoconvEnvVar contains the name
 	// of the environment variable "DISABLE_UNOCONV".
 	DisableUnoconvEnvVar string = "DISABLE_UNOCONV"
@@ -52,6 +55,7 @@ type Config struct {
 	defaultWebhookURLTimeout          float64
 	defaultListenPort                 int64
 	disableGoogleChrome               bool
+	disableInkscape                   bool
 	disableUnoconv                    bool
 	logLevel                          xlog.Level
 	rootPath                          string
@@ -70,6 +74,7 @@ func DefaultConfig() Config {
 		defaultWebhookURLTimeout:          10.0,
 		defaultListenPort:                 3000,
 		disableGoogleChrome:               false,
+		disableInkscape:                   false,
 		disableUnoconv:                    false,
 		logLevel:                          xlog.InfoLevel,
 		rootPath:                          "/",
@@ -148,6 +153,14 @@ func FromEnv() (Config, error) {
 			c.disableGoogleChrome,
 		)
 		c.disableGoogleChrome = disableGoogleChrome
+		if err != nil {
+			return c, err
+		}
+		disableInkscape, err := xassert.BoolFromEnv(
+			DisableInkscapeEnvVar,
+			c.disableInkscape,
+		)
+		c.disableInkscape = disableInkscape
 		if err != nil {
 			return c, err
 		}
@@ -240,6 +253,15 @@ configuration.
 */
 func (c Config) DisableGoogleChrome() bool {
 	return c.disableGoogleChrome
+}
+
+/*
+DisableInkscape returns true if
+Inkscape is disabled in the
+configuration.
+*/
+func (c Config) DisableInkscape() bool {
+	return c.disableInkscape
 }
 
 /*
