@@ -103,6 +103,34 @@ func mergeHandler(c echo.Context) error {
 	return nil
 }
 
+
+// inkscapeHandler is the handler for converting
+// SVG documents to PDF.
+func inkscapeHandler(c echo.Context) error {
+	const op string = "xhttp.inkscapeHandler"
+	resolver := func() error {
+		ctx := context.MustCastFromEchoContext(c)
+		logger := ctx.XLogger()
+		logger.DebugOp(op, "handling inkscape request...")
+		r := ctx.MustResource()
+		opts, err := inkscapePrinterOptions(r, ctx.Config())
+		if err != nil {
+			return xerror.New(op, err)
+		}
+		fpaths, err := r.Fpaths(".pdf")
+		if err != nil {
+			return err
+		}
+		p := printer.NewInkscapePrinter(logger, fpaths, opts)
+		return convert(ctx, p)
+	}
+	if err := resolver(); err != nil {
+		return xerror.New(op, err)
+	}
+	return nil
+}
+
+
 // htmlHandler is the handler for converting
 // HTML to PDF.
 func htmlHandler(c echo.Context) error {
@@ -229,12 +257,6 @@ func officeHandler(c echo.Context) error {
 		return xerror.New(op, err)
 	}
 	return nil
-}
-
-// inkscapeHandler is the handler for converting
-// SVG documents to PDF.
-func inkscapeHandler(c echo.Context) error {
-  return c.String(http.StatusOK, "Hello, World!")
 }
 
 

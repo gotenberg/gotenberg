@@ -18,6 +18,17 @@ func mergePrinterOptions(r resource.Resource, config conf.Config) (printer.Merge
 	}, nil
 }
 
+func inkscapePrinterOptions(r resource.Resource, config conf.Config) (printer.InkscapePrinterOptions, error) {
+	const op string = "xhttp.inkscapePrinterOptions"
+	waitTimeout, err := resource.WaitTimeoutArg(r, config)
+	if err != nil {
+		return printer.InkscapePrinterOptions{}, xerror.New(op, err)
+	}
+	return printer.InkscapePrinterOptions{
+		WaitTimeout: waitTimeout,
+	}, nil
+}
+
 func chromePrinterOptions(r resource.Resource, config conf.Config) (printer.ChromePrinterOptions, error) {
 	const op string = "xhttp.chromePrinterOptions"
 	resolver := func() (printer.ChromePrinterOptions, error) {
