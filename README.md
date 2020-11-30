@@ -23,7 +23,7 @@ Detailed features :
 * [ ] API option to convert from SVG to PNG
 * [ ] API option to set PNG dpi
 * [ ] document inkscape SVG convertion
-* [ ] /redoc openAPI frontend integration
+* [x] /redoc openAPI frontend integration
 * [ ] swagger /docs openAPI frontend integration
 * [ ] openAPI specs for /convert/inkscape
 * [ ] openAPI specs for /merge
@@ -46,13 +46,21 @@ curl --request POST \
     --url http://localhost:3000/convert/inkscape \
     --header 'Content-Type: multipart/form-data' \
     --form files=@gotenberg.svg \
-    --form files=@gotenberg_bis.svg \
     -o result.pdf
 ```
 
 ```
 LOG_LEVEL=DEBUG make gotenberg
 ```
+
+### documentation
+
+[Swagger UI v3.37.2](https://github.com/swagger-api/swagger-ui/releases/tag/v3.37.2)
+
+
+http://localhost:3000/docs/index.html
+
+http://localhost:3000/redoc.html
 
 ## Features
 
