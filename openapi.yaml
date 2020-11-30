@@ -5,7 +5,7 @@ info:
   title: gotenberg
   description: >-
     Gotenberg is a Docker-powered stateless API for converting HTML, Markdown,
-    SVG and Office documents to PDF
+    SVG and Office documents to PDF.
   version: ''
 paths:
   /convert/office:
@@ -48,8 +48,11 @@ paths:
               type: object
               properties:
                 files:
-                  type: string
-                  format: binary
+                  description: some description
+                  type: array
+                  items:
+                    type: string
+                    format: binary
                 waitTimeout:
                   type: number
                 webhookURL:
