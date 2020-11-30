@@ -72,7 +72,7 @@ WORKDIR /gotenberg
 
 # Copy the HTTP server static content
 COPY static ./static
-COPY --from=openapi /openapi.json /static/
+COPY --from=openapi /openapi.json ./static/
 
 EXPOSE 3000
 CMD [ "gotenberg" ]

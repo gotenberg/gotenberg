@@ -31,6 +31,29 @@ Detailed features :
 * [ ] add tests
 * [ ] integrate sample code snippets in openAPI specs
 
+
+```
+curl --request POST \
+    --url http://localhost:3000/merge \
+    --header 'Content-Type: multipart/form-data' \
+    --form files=@gotenberg.pdf \
+    --form files=@gotenberg_bis.pdf \
+    -o result.pdf
+```
+
+```
+curl --request POST \
+    --url http://localhost:3000/convert/inkscape \
+    --header 'Content-Type: multipart/form-data' \
+    --form files=@gotenberg.svg \
+    --form files=@gotenberg_bis.svg \
+    -o result.pdf
+```
+
+```
+LOG_LEVEL=DEBUG make gotenberg
+```
+
 ## Features
 
 * HTML and Markdown conversions using Google Chrome headless

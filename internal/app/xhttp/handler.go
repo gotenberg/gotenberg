@@ -112,16 +112,23 @@ func inkscapeHandler(c echo.Context) error {
 		ctx := context.MustCastFromEchoContext(c)
 		logger := ctx.XLogger()
 		logger.DebugOp(op, "handling inkscape request...")
+		logger.DebugOp(op, "xxxxxxxxxxxx dbg 0")
 		r := ctx.MustResource()
+		logger.DebugOp(op, "xxxxxxxxxxxx dbg 1")
 		opts, err := inkscapePrinterOptions(r, ctx.Config())
+		logger.DebugOp(op, "xxxxxxxxxxxx dbg 2")
 		if err != nil {
 			return xerror.New(op, err)
 		}
+		logger.DebugOp(op, "xxxxxxxxxxxx dbg 3")
 		fpaths, err := r.Fpaths(".pdf")
+		logger.DebugOp(op, "xxxxxxxxxxxx dbg 4")
 		if err != nil {
 			return err
 		}
+		logger.DebugOp(op, "xxxxxxxxxxxx dbg 5")
 		p := printer.NewInkscapePrinter(logger, fpaths, opts)
+		logger.DebugOp(op, "xxxxxxxxxxxx dbg 6")
 		return convert(ctx, p)
 	}
 	if err := resolver(); err != nil {
