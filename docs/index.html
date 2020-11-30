@@ -167,14 +167,14 @@ $ make publish <span class="nv">GOTENBERG_USER_GID</span><span class="o">=</span
 
 <p>You may also add it in your Docker Compose stack:</p>
 
-<pre class="chroma"><span class="k">version</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;3&#39;</span><span class="w">
+<pre class="chroma"><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;3&#39;</span><span class="w">
 </span><span class="w">
-</span><span class="w"></span><span class="k">services</span><span class="p">:</span><span class="w">
+</span><span class="w"></span><span class="nt">services</span><span class="p">:</span><span class="w">
 </span><span class="w">
 </span><span class="w">  </span><span class="c"># your other services</span><span class="w">
 </span><span class="w">
-</span><span class="w">  </span><span class="k">gotenberg</span><span class="p">:</span><span class="w">
-</span><span class="w">    </span><span class="k">image</span><span class="p">:</span><span class="w"> </span>thecodingmachine/gotenberg<span class="p">:</span><span class="m">6</span><span class="w">
+</span><span class="w">  </span><span class="nt">gotenberg</span><span class="p">:</span><span class="w">
+</span><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l">thecodingmachine/gotenberg:6</span><span class="w">
 </span></pre>
 
 <blockquote>
@@ -481,15 +481,15 @@ which will be converted to PDF.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
-use TheCodingMachine\Gotenberg\DocumentFactory;
-use TheCodingMachine\Gotenberg\HTMLRequest;
+<pre class="chroma"><span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Client</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\DocumentFactory</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\HTMLRequest</span><span class="p">;</span>
 
-$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;/path/to/file&#39;);
-$request = new HTMLRequest($index);
-$dest = &#39;result.pdf&#39;;
-$client-&gt;store($request, $dest);
+<span class="nv">$client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Client</span><span class="p">(</span><span class="s1">&#39;http://localhost:3000&#39;</span><span class="p">,</span> <span class="k">new</span> <span class="nx">\Http\Adapter\Guzzle6\Client</span><span class="p">());</span>
+<span class="nv">$index</span> <span class="o">=</span> <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;index.html&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">);</span>
+<span class="nv">$request</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">HTMLRequest</span><span class="p">(</span><span class="nv">$index</span><span class="p">);</span>
+<span class="nv">$dest</span> <span class="o">=</span> <span class="s1">&#39;result.pdf&#39;</span><span class="p">;</span>
+<span class="nv">$client</span><span class="o">-&gt;</span><span class="na">store</span><span class="p">(</span><span class="nv">$request</span><span class="p">,</span> <span class="nv">$dest</span><span class="p">);</span>
 </pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.header_and_footer" href="#html.header_and_footer">
@@ -573,19 +573,19 @@ Respectively, a file named <code>header.html</code> and <code>footer.html</code>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
-use TheCodingMachine\Gotenberg\DocumentFactory;
-use TheCodingMachine\Gotenberg\HTMLRequest;
+<pre class="chroma"><span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Client</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\DocumentFactory</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\HTMLRequest</span><span class="p">;</span>
 
-$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;/path/to/file&#39;);
-$header = DocumentFactory::makeFromPath(&#39;header.html&#39;, &#39;/path/to/file&#39;);
-$footer = DocumentFactory::makeFromPath(&#39;footer.html&#39;, &#39;/path/to/file&#39;);
-$request = new HTMLRequest($index);
-$request-&gt;setHeader($header);
-$request-&gt;setFooter($footer);
-$dest = &#39;result.pdf&#39;;
-$client-&gt;store($request, $dest);
+<span class="nv">$client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Client</span><span class="p">(</span><span class="s1">&#39;http://localhost:3000&#39;</span><span class="p">,</span> <span class="k">new</span> <span class="nx">\Http\Adapter\Guzzle6\Client</span><span class="p">());</span>
+<span class="nv">$index</span> <span class="o">=</span> <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;index.html&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">);</span>
+<span class="nv">$header</span> <span class="o">=</span> <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;header.html&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">);</span>
+<span class="nv">$footer</span> <span class="o">=</span> <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;footer.html&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">);</span>
+<span class="nv">$request</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">HTMLRequest</span><span class="p">(</span><span class="nv">$index</span><span class="p">);</span>
+<span class="nv">$request</span><span class="o">-&gt;</span><span class="na">setHeader</span><span class="p">(</span><span class="nv">$header</span><span class="p">);</span>
+<span class="nv">$request</span><span class="o">-&gt;</span><span class="na">setFooter</span><span class="p">(</span><span class="nv">$footer</span><span class="p">);</span>
+<span class="nv">$dest</span> <span class="o">=</span> <span class="s1">&#39;result.pdf&#39;</span><span class="p">;</span>
+<span class="nv">$client</span><span class="o">-&gt;</span><span class="na">store</span><span class="p">(</span><span class="nv">$request</span><span class="p">,</span> <span class="nv">$dest</span><span class="p">);</span>
 </pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.assets" href="#html.assets">
@@ -669,21 +669,21 @@ see to the <a href="#fonts">fonts section</a>.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
-use TheCodingMachine\Gotenberg\DocumentFactory;
-use TheCodingMachine\Gotenberg\HTMLRequest;
+<pre class="chroma"><span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Client</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\DocumentFactory</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\HTMLRequest</span><span class="p">;</span>
 
-$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;/path/to/file&#39;);
-$assets = [
-    DocumentFactory::makeFromPath(&#39;style.css&#39;, &#39;/path/to/file&#39;),
-    DocumentFactory::makeFromPath(&#39;img.png&#39;, &#39;/path/to/file&#39;),
-    DocumentFactory::makeFromPath(&#39;font.woff&#39;, &#39;/path/to/file&#39;),
-];
-$request = new HTMLRequest($index);
-$request-&gt;setAssets($assets);
-$dest = &#39;result.pdf&#39;;
-$client-&gt;store($request, $dest);
+<span class="nv">$client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Client</span><span class="p">(</span><span class="s1">&#39;http://localhost:3000&#39;</span><span class="p">,</span> <span class="k">new</span> <span class="nx">\Http\Adapter\Guzzle6\Client</span><span class="p">());</span>
+<span class="nv">$index</span> <span class="o">=</span> <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;index.html&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">);</span>
+<span class="nv">$assets</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;style.css&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">),</span>
+    <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;img.png&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">),</span>
+    <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;font.woff&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">),</span>
+<span class="p">];</span>
+<span class="nv">$request</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">HTMLRequest</span><span class="p">(</span><span class="nv">$index</span><span class="p">);</span>
+<span class="nv">$request</span><span class="o">-&gt;</span><span class="na">setAssets</span><span class="p">(</span><span class="nv">$assets</span><span class="p">);</span>
+<span class="nv">$dest</span> <span class="o">=</span> <span class="s1">&#39;result.pdf&#39;</span><span class="p">;</span>
+<span class="nv">$client</span><span class="o">-&gt;</span><span class="na">store</span><span class="p">(</span><span class="nv">$request</span><span class="p">,</span> <span class="nv">$dest</span><span class="p">);</span>
 </pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.paper_size_margins_orientation_scaling" href="#html.paper_size_margins_orientation_scaling">
@@ -738,20 +738,20 @@ $client-&gt;store($request, $dest);
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
-use TheCodingMachine\Gotenberg\DocumentFactory;
-use TheCodingMachine\Gotenberg\HTMLRequest;
-use TheCodingMachine\Gotenberg\Request;
+<pre class="chroma"><span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Client</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\DocumentFactory</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\HTMLRequest</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Request</span><span class="p">;</span>
 
-$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;/path/to/file&#39;);
-$request = new HTMLRequest($index);
-$request-&gt;setPaperSize(Request::A4);
-$request-&gt;setMargins(Request::NO_MARGINS);
-$request-&gt;setLandscape(true);
-$request-&gt;setScale(0.75);
-$dest = &#39;result.pdf&#39;;
-$client-&gt;store($request, $dest);
+<span class="nv">$client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Client</span><span class="p">(</span><span class="s1">&#39;http://localhost:3000&#39;</span><span class="p">,</span> <span class="k">new</span> <span class="nx">\Http\Adapter\Guzzle6\Client</span><span class="p">());</span>
+<span class="nv">$index</span> <span class="o">=</span> <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;index.html&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">);</span>
+<span class="nv">$request</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">HTMLRequest</span><span class="p">(</span><span class="nv">$index</span><span class="p">);</span>
+<span class="nv">$request</span><span class="o">-&gt;</span><span class="na">setPaperSize</span><span class="p">(</span><span class="nx">Request</span><span class="o">::</span><span class="na">A4</span><span class="p">);</span>
+<span class="nv">$request</span><span class="o">-&gt;</span><span class="na">setMargins</span><span class="p">(</span><span class="nx">Request</span><span class="o">::</span><span class="na">NO_MARGINS</span><span class="p">);</span>
+<span class="nv">$request</span><span class="o">-&gt;</span><span class="na">setLandscape</span><span class="p">(</span><span class="k">true</span><span class="p">);</span>
+<span class="nv">$request</span><span class="o">-&gt;</span><span class="na">setScale</span><span class="p">(</span><span class="mf">0.75</span><span class="p">);</span>
+<span class="nv">$dest</span> <span class="o">=</span> <span class="s1">&#39;result.pdf&#39;</span><span class="p">;</span>
+<span class="nv">$client</span><span class="o">-&gt;</span><span class="na">store</span><span class="p">(</span><span class="nv">$request</span><span class="p">,</span> <span class="nv">$dest</span><span class="p">);</span>
 </pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.page_ranges" href="#html.page_ranges">
@@ -793,17 +793,17 @@ of Google Chrome, e.g. <code>1-5,8,11-13</code>.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
-use TheCodingMachine\Gotenberg\DocumentFactory;
-use TheCodingMachine\Gotenberg\HTMLRequest;
-use TheCodingMachine\Gotenberg\Request;
+<pre class="chroma"><span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Client</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\DocumentFactory</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\HTMLRequest</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Request</span><span class="p">;</span>
 
-$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;/path/to/file&#39;);
-$request = new HTMLRequest($index);
-$request-&gt;setPageRanges(&#39;1-3,5&#39;);
-$dest = &#39;result.pdf&#39;;
-$client-&gt;store($request, $dest);
+<span class="nv">$client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Client</span><span class="p">(</span><span class="s1">&#39;http://localhost:3000&#39;</span><span class="p">,</span> <span class="k">new</span> <span class="nx">\Http\Adapter\Guzzle6\Client</span><span class="p">());</span>
+<span class="nv">$index</span> <span class="o">=</span> <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;index.html&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">);</span>
+<span class="nv">$request</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">HTMLRequest</span><span class="p">(</span><span class="nv">$index</span><span class="p">);</span>
+<span class="nv">$request</span><span class="o">-&gt;</span><span class="na">setPageRanges</span><span class="p">(</span><span class="s1">&#39;1-3,5&#39;</span><span class="p">);</span>
+<span class="nv">$dest</span> <span class="o">=</span> <span class="s1">&#39;result.pdf&#39;</span><span class="p">;</span>
+<span class="nv">$client</span><span class="o">-&gt;</span><span class="na">store</span><span class="p">(</span><span class="nv">$request</span><span class="p">,</span> <span class="nv">$dest</span><span class="p">);</span>
 </pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.wait_delay" href="#html.wait_delay">
@@ -848,17 +848,17 @@ a lot on JavaScript for rendering.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
-use TheCodingMachine\Gotenberg\DocumentFactory;
-use TheCodingMachine\Gotenberg\HTMLRequest;
-use TheCodingMachine\Gotenberg\Request;
+<pre class="chroma"><span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Client</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\DocumentFactory</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\HTMLRequest</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Request</span><span class="p">;</span>
 
-$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;/path/to/file&#39;);
-$request = new HTMLRequest($index);
-$request-&gt;setWaitDelay(5.5);
-$dest = &#39;result.pdf&#39;;
-$client-&gt;store($request, $dest);
+<span class="nv">$client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Client</span><span class="p">(</span><span class="s1">&#39;http://localhost:3000&#39;</span><span class="p">,</span> <span class="k">new</span> <span class="nx">\Http\Adapter\Guzzle6\Client</span><span class="p">());</span>
+<span class="nv">$index</span> <span class="o">=</span> <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;index.html&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">);</span>
+<span class="nv">$request</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">HTMLRequest</span><span class="p">(</span><span class="nv">$index</span><span class="p">);</span>
+<span class="nv">$request</span><span class="o">-&gt;</span><span class="na">setWaitDelay</span><span class="p">(</span><span class="mf">5.5</span><span class="p">);</span>
+<span class="nv">$dest</span> <span class="o">=</span> <span class="s1">&#39;result.pdf&#39;</span><span class="p">;</span>
+<span class="nv">$client</span><span class="o">-&gt;</span><span class="na">store</span><span class="p">(</span><span class="nv">$request</span><span class="p">,</span> <span class="nv">$dest</span><span class="p">);</span>
 </pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="html.rpcc_buffer_size" href="#html.rpcc_buffer_size">
@@ -906,17 +906,17 @@ The hard limit is 100 MB and is defined by Google Chrome itself.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
-use TheCodingMachine\Gotenberg\DocumentFactory;
-use TheCodingMachine\Gotenberg\HTMLRequest;
-use TheCodingMachine\Gotenberg\Request;
+<pre class="chroma"><span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Client</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\DocumentFactory</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\HTMLRequest</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Request</span><span class="p">;</span>
 
-$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;/path/to/file&#39;);
-$request = new HTMLRequest($index);
-$request-&gt;setGoogleChromeRpccBufferSize(1048576);
-$dest = &#39;result.pdf&#39;;
-$client-&gt;store($request, $dest);
+<span class="nv">$client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Client</span><span class="p">(</span><span class="s1">&#39;http://localhost:3000&#39;</span><span class="p">,</span> <span class="k">new</span> <span class="nx">\Http\Adapter\Guzzle6\Client</span><span class="p">());</span>
+<span class="nv">$index</span> <span class="o">=</span> <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;index.html&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">);</span>
+<span class="nv">$request</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">HTMLRequest</span><span class="p">(</span><span class="nv">$index</span><span class="p">);</span>
+<span class="nv">$request</span><span class="o">-&gt;</span><span class="na">setGoogleChromeRpccBufferSize</span><span class="p">(</span><span class="mi">1048576</span><span class="p">);</span>
+<span class="nv">$dest</span> <span class="o">=</span> <span class="s1">&#39;result.pdf&#39;</span><span class="p">;</span>
+<span class="nv">$client</span><span class="o">-&gt;</span><span class="na">store</span><span class="p">(</span><span class="nv">$request</span><span class="p">,</span> <span class="nv">$dest</span><span class="p">);</span>
 </pre>
 
               </div>
@@ -976,14 +976,14 @@ the resulting PDF will be blank. Make sure to rename your service to avoid this 
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
-use TheCodingMachine\Gotenberg\URLRequest;
+<pre class="chroma"><span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Client</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\URLRequest</span><span class="p">;</span>
 
-$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-$request = new URLRequest(&#39;https://google.com&#39;);
-$request-&gt;setMargins(Request::NO_MARGINS);
-$dest = &#39;result.pdf&#39;;
-$client-&gt;store($request, $dest);
+<span class="nv">$client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Client</span><span class="p">(</span><span class="s1">&#39;http://localhost:3000&#39;</span><span class="p">,</span> <span class="k">new</span> <span class="nx">\Http\Adapter\Guzzle6\Client</span><span class="p">());</span>
+<span class="nv">$request</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">URLRequest</span><span class="p">(</span><span class="s1">&#39;https://google.com&#39;</span><span class="p">);</span>
+<span class="nv">$request</span><span class="o">-&gt;</span><span class="na">setMargins</span><span class="p">(</span><span class="nx">Request</span><span class="o">::</span><span class="na">NO_MARGINS</span><span class="p">);</span>
+<span class="nv">$dest</span> <span class="o">=</span> <span class="s1">&#39;result.pdf&#39;</span><span class="p">;</span>
+<span class="nv">$client</span><span class="o">-&gt;</span><span class="na">store</span><span class="p">(</span><span class="nv">$request</span><span class="p">,</span> <span class="nv">$dest</span><span class="p">);</span>
 </pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="url.custom_http_headers" href="#url.custom_http_headers">
@@ -1032,14 +1032,14 @@ canonical key for <code>accept-encoding</code> is <code>Accept-Encoding</code>.<
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
-use TheCodingMachine\Gotenberg\URLRequest;
+<pre class="chroma"><span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Client</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\URLRequest</span><span class="p">;</span>
 
-$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-$request = new URLRequest(&#39;https://google.com&#39;);
-$request-&gt;addRemoteURLHTTPHeader(&#39;Your-Header&#39;, &#39;Foo&#39;)
-$dest = &#39;result.pdf&#39;;
-$client-&gt;store($request, $dest);
+<span class="nv">$client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Client</span><span class="p">(</span><span class="s1">&#39;http://localhost:3000&#39;</span><span class="p">,</span> <span class="k">new</span> <span class="nx">\Http\Adapter\Guzzle6\Client</span><span class="p">());</span>
+<span class="nv">$request</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">URLRequest</span><span class="p">(</span><span class="s1">&#39;https://google.com&#39;</span><span class="p">);</span>
+<span class="nv">$request</span><span class="o">-&gt;</span><span class="na">addRemoteURLHTTPHeader</span><span class="p">(</span><span class="s1">&#39;Your-Header&#39;</span><span class="p">,</span> <span class="s1">&#39;Foo&#39;</span><span class="p">)</span>
+<span class="nv">$dest</span> <span class="o">=</span> <span class="s1">&#39;result.pdf&#39;</span><span class="p">;</span>
+<span class="nv">$client</span><span class="o">-&gt;</span><span class="na">store</span><span class="p">(</span><span class="nv">$request</span><span class="p">,</span> <span class="nv">$dest</span><span class="p">);</span>
 </pre>
 
               </div>
@@ -1105,18 +1105,18 @@ in the file <code>index.html</code>. This function will convert a given markdown
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
-use TheCodingMachine\Gotenberg\DocumentFactory;
-use TheCodingMachine\Gotenberg\MarkdownRequest;
+<pre class="chroma"><span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Client</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\DocumentFactory</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\MarkdownRequest</span><span class="p">;</span>
 
-$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;/path/to/file&#39;);
-$markdowns = [
-    DocumentFactory::makeFromPath(&#39;file.md&#39;, &#39;/path/to/file&#39;),
-];
-$request = new MarkdownRequest($index, $markdowns);
-$dest = &#39;result.pdf&#39;;
-$client-&gt;store($request, $dest);
+<span class="nv">$client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Client</span><span class="p">(</span><span class="s1">&#39;http://localhost:3000&#39;</span><span class="p">,</span> <span class="k">new</span> <span class="nx">\Http\Adapter\Guzzle6\Client</span><span class="p">());</span>
+<span class="nv">$index</span> <span class="o">=</span> <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;index.html&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">);</span>
+<span class="nv">$markdowns</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;file.md&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">),</span>
+<span class="p">];</span>
+<span class="nv">$request</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">MarkdownRequest</span><span class="p">(</span><span class="nv">$index</span><span class="p">,</span> <span class="nv">$markdowns</span><span class="p">);</span>
+<span class="nv">$dest</span> <span class="o">=</span> <span class="s1">&#39;result.pdf&#39;</span><span class="p">;</span>
+<span class="nv">$client</span><span class="o">-&gt;</span><span class="na">store</span><span class="p">(</span><span class="nv">$request</span><span class="p">,</span> <span class="nv">$dest</span><span class="p">);</span>
 </pre>
 
               </div>
@@ -1186,18 +1186,18 @@ $client-&gt;store($request, $dest);
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
-use TheCodingMachine\Gotenberg\DocumentFactory;
-use TheCodingMachine\Gotenberg\OfficeRequest;
+<pre class="chroma"><span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Client</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\DocumentFactory</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\OfficeRequest</span><span class="p">;</span>
 
-$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-$files = [
-    DocumentFactory::makeFromPath(&#39;document.docx&#39;, &#39;/path/to/file&#39;),
-    DocumentFactory::makeFromPath(&#39;document2.docx&#39;, &#39;/path/to/file&#39;),
-];
-$request = new OfficeRequest($files);
-$dest = &#39;result.pdf&#39;;
-$client-&gt;store($request, $dest);
+<span class="nv">$client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Client</span><span class="p">(</span><span class="s1">&#39;http://localhost:3000&#39;</span><span class="p">,</span> <span class="k">new</span> <span class="nx">\Http\Adapter\Guzzle6\Client</span><span class="p">());</span>
+<span class="nv">$files</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;document.docx&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">),</span>
+    <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;document2.docx&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">),</span>
+<span class="p">];</span>
+<span class="nv">$request</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">OfficeRequest</span><span class="p">(</span><span class="nv">$files</span><span class="p">);</span>
+<span class="nv">$dest</span> <span class="o">=</span> <span class="s1">&#39;result.pdf&#39;</span><span class="p">;</span>
+<span class="nv">$client</span><span class="o">-&gt;</span><span class="na">store</span><span class="p">(</span><span class="nv">$request</span><span class="p">,</span> <span class="nv">$dest</span><span class="p">);</span>
 </pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="office.orientation" href="#office.orientation">
@@ -1238,18 +1238,18 @@ $client-&gt;store($request, $dest);
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
-use TheCodingMachine\Gotenberg\DocumentFactory;
-use TheCodingMachine\Gotenberg\OfficeRequest;
+<pre class="chroma"><span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Client</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\DocumentFactory</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\OfficeRequest</span><span class="p">;</span>
 
-$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-$files = [
-    DocumentFactory::makeFromPath(&#39;document.docx&#39;, &#39;/path/to/file&#39;),
-];
-$request = new OfficeRequest($files);
-$request-&gt;setLandscape(true);
-$dest = &#39;result.pdf&#39;;
-$client-&gt;store($request, $dest);
+<span class="nv">$client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Client</span><span class="p">(</span><span class="s1">&#39;http://localhost:3000&#39;</span><span class="p">,</span> <span class="k">new</span> <span class="nx">\Http\Adapter\Guzzle6\Client</span><span class="p">());</span>
+<span class="nv">$files</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;document.docx&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">),</span>
+<span class="p">];</span>
+<span class="nv">$request</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">OfficeRequest</span><span class="p">(</span><span class="nv">$files</span><span class="p">);</span>
+<span class="nv">$request</span><span class="o">-&gt;</span><span class="na">setLandscape</span><span class="p">(</span><span class="k">true</span><span class="p">);</span>
+<span class="nv">$dest</span> <span class="o">=</span> <span class="s1">&#39;result.pdf&#39;</span><span class="p">;</span>
+<span class="nv">$client</span><span class="o">-&gt;</span><span class="na">store</span><span class="p">(</span><span class="nv">$request</span><span class="p">,</span> <span class="nv">$dest</span><span class="p">);</span>
 </pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="office.page_ranges" href="#office.page_ranges">
@@ -1296,18 +1296,18 @@ applied for each document.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
-use TheCodingMachine\Gotenberg\DocumentFactory;
-use TheCodingMachine\Gotenberg\OfficeRequest;
+<pre class="chroma"><span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Client</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\DocumentFactory</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\OfficeRequest</span><span class="p">;</span>
 
-$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-$files = [
-    DocumentFactory::makeFromPath(&#39;document.docx&#39;, &#39;/path/to/file&#39;),
-];
-$request = new OfficeRequest($files);
-$request-&gt;setPageRanges(&#39;1-3&#39;);
-$dest = &#39;result.pdf&#39;;
-$client-&gt;store($request, $dest);
+<span class="nv">$client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Client</span><span class="p">(</span><span class="s1">&#39;http://localhost:3000&#39;</span><span class="p">,</span> <span class="k">new</span> <span class="nx">\Http\Adapter\Guzzle6\Client</span><span class="p">());</span>
+<span class="nv">$files</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;document.docx&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">),</span>
+<span class="p">];</span>
+<span class="nv">$request</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">OfficeRequest</span><span class="p">(</span><span class="nv">$files</span><span class="p">);</span>
+<span class="nv">$request</span><span class="o">-&gt;</span><span class="na">setPageRanges</span><span class="p">(</span><span class="s1">&#39;1-3&#39;</span><span class="p">);</span>
+<span class="nv">$dest</span> <span class="o">=</span> <span class="s1">&#39;result.pdf&#39;</span><span class="p">;</span>
+<span class="nv">$client</span><span class="o">-&gt;</span><span class="na">store</span><span class="p">(</span><span class="nv">$request</span><span class="p">,</span> <span class="nv">$dest</span><span class="p">);</span>
 </pre>
 
               </div>
@@ -1361,18 +1361,18 @@ will merge them and return the resulting PDF file.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
-use TheCodingMachine\Gotenberg\DocumentFactory;
-use TheCodingMachine\Gotenberg\MergeRequest;
+<pre class="chroma"><span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Client</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\DocumentFactory</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\MergeRequest</span><span class="p">;</span>
 
-$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-$files = [
-    DocumentFactory::makeFromPath(&#39;file.pdf&#39;, &#39;/path/to/file&#39;),
-    DocumentFactory::makeFromPath(&#39;file2.pdf&#39;, &#39;/path/to/file&#39;),
-];
-$request = new MergeRequest($files);
-$dest = &#39;result.pdf&#39;;
-$client-&gt;store($request, $dest);
+<span class="nv">$client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Client</span><span class="p">(</span><span class="s1">&#39;http://localhost:3000&#39;</span><span class="p">,</span> <span class="k">new</span> <span class="nx">\Http\Adapter\Guzzle6\Client</span><span class="p">());</span>
+<span class="nv">$files</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;file.pdf&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">),</span>
+    <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;file2.pdf&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">),</span>
+<span class="p">];</span>
+<span class="nv">$request</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">MergeRequest</span><span class="p">(</span><span class="nv">$files</span><span class="p">);</span>
+<span class="nv">$dest</span> <span class="o">=</span> <span class="s1">&#39;result.pdf&#39;</span><span class="p">;</span>
+<span class="nv">$client</span><span class="o">-&gt;</span><span class="na">store</span><span class="p">(</span><span class="nv">$request</span><span class="p">,</span> <span class="nv">$dest</span><span class="p">);</span>
 </pre>
 
               </div>
@@ -1424,17 +1424,17 @@ If unsucessful, it returns a <code>504</code> HTTP code.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
-use TheCodingMachine\Gotenberg\DocumentFactory;
-use TheCodingMachine\Gotenberg\HTMLRequest;
-use TheCodingMachine\Gotenberg\Request;
+<pre class="chroma"><span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Client</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\DocumentFactory</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\HTMLRequest</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Request</span><span class="p">;</span>
 
-$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;/path/to/file&#39;);
-$request = new HTMLRequest($index);
-$request-&gt;setWaitTimeout(2.5);
-$dest = &#39;result.pdf&#39;;
-$client-&gt;store($request, $dest);
+<span class="nv">$client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Client</span><span class="p">(</span><span class="s1">&#39;http://localhost:3000&#39;</span><span class="p">,</span> <span class="k">new</span> <span class="nx">\Http\Adapter\Guzzle6\Client</span><span class="p">());</span>
+<span class="nv">$index</span> <span class="o">=</span> <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;index.html&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">);</span>
+<span class="nv">$request</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">HTMLRequest</span><span class="p">(</span><span class="nv">$index</span><span class="p">);</span>
+<span class="nv">$request</span><span class="o">-&gt;</span><span class="na">setWaitTimeout</span><span class="p">(</span><span class="mf">2.5</span><span class="p">);</span>
+<span class="nv">$dest</span> <span class="o">=</span> <span class="s1">&#39;result.pdf&#39;</span><span class="p">;</span>
+<span class="nv">$client</span><span class="o">-&gt;</span><span class="na">store</span><span class="p">(</span><span class="nv">$request</span><span class="p">,</span> <span class="nv">$dest</span><span class="p">);</span>
 </pre>
 
               </div>
@@ -1482,15 +1482,15 @@ to given URL.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
-use TheCodingMachine\Gotenberg\DocumentFactory;
-use TheCodingMachine\Gotenberg\HTMLRequest;
+<pre class="chroma"><span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Client</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\DocumentFactory</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\HTMLRequest</span><span class="p">;</span>
 
-$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;/path/to/file&#39;);
-$request = new HTMLRequest($index);
-$request-&gt;setWebhookURL(&#39;http://myapp.com/webhook/&#39;);
-$resp = $client-&gt;post($request);
+<span class="nv">$client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Client</span><span class="p">(</span><span class="s1">&#39;http://localhost:3000&#39;</span><span class="p">,</span> <span class="k">new</span> <span class="nx">\Http\Adapter\Guzzle6\Client</span><span class="p">());</span>
+<span class="nv">$index</span> <span class="o">=</span> <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;index.html&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">);</span>
+<span class="nv">$request</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">HTMLRequest</span><span class="p">(</span><span class="nv">$index</span><span class="p">);</span>
+<span class="nv">$request</span><span class="o">-&gt;</span><span class="na">setWebhookURL</span><span class="p">(</span><span class="s1">&#39;http://myapp.com/webhook/&#39;</span><span class="p">);</span>
+<span class="nv">$resp</span> <span class="o">=</span> <span class="nv">$client</span><span class="o">-&gt;</span><span class="na">post</span><span class="p">(</span><span class="nv">$request</span><span class="p">);</span>
 </pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.timeout" href="#webhook.timeout">
@@ -1537,16 +1537,16 @@ $resp = $client-&gt;post($request);
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
-use TheCodingMachine\Gotenberg\DocumentFactory;
-use TheCodingMachine\Gotenberg\HTMLRequest;
+<pre class="chroma"><span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Client</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\DocumentFactory</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\HTMLRequest</span><span class="p">;</span>
 
-$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;/path/to/file&#39;);
-$request = new HTMLRequest($index);
-$request-&gt;setWebhookURL(&#39;http://myapp.com/webhook/&#39;);
-$request-&gt;setWebhookURLTimeout(2.5);
-$resp = $client-&gt;post($request);
+<span class="nv">$client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Client</span><span class="p">(</span><span class="s1">&#39;http://localhost:3000&#39;</span><span class="p">,</span> <span class="k">new</span> <span class="nx">\Http\Adapter\Guzzle6\Client</span><span class="p">());</span>
+<span class="nv">$index</span> <span class="o">=</span> <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;index.html&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">);</span>
+<span class="nv">$request</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">HTMLRequest</span><span class="p">(</span><span class="nv">$index</span><span class="p">);</span>
+<span class="nv">$request</span><span class="o">-&gt;</span><span class="na">setWebhookURL</span><span class="p">(</span><span class="s1">&#39;http://myapp.com/webhook/&#39;</span><span class="p">);</span>
+<span class="nv">$request</span><span class="o">-&gt;</span><span class="na">setWebhookURLTimeout</span><span class="p">(</span><span class="mf">2.5</span><span class="p">);</span>
+<span class="nv">$resp</span> <span class="o">=</span> <span class="nv">$client</span><span class="o">-&gt;</span><span class="na">post</span><span class="p">(</span><span class="nv">$request</span><span class="p">);</span>
 </pre>
 
 <h2 class="Heading"><a class="Anchor" aria-hidden="true" id="webhook.custom_http_headers" href="#webhook.custom_http_headers">
@@ -1596,16 +1596,16 @@ canonical key for <code>accept-encoding</code> is <code>Accept-Encoding</code>.<
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
-use TheCodingMachine\Gotenberg\DocumentFactory;
-use TheCodingMachine\Gotenberg\HTMLRequest;
+<pre class="chroma"><span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Client</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\DocumentFactory</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\HTMLRequest</span><span class="p">;</span>
 
-$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;/path/to/file&#39;);
-$request = new HTMLRequest($index);
-$request-&gt;setWebhookURL(&#39;http://myapp.com/webhook/&#39;);
-$request-&gt;addWebhookURLHTTPHeader(&#39;Your-Header&#39;, &#39;Foo&#39;);
-$resp = $client-&gt;post($request);
+<span class="nv">$client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Client</span><span class="p">(</span><span class="s1">&#39;http://localhost:3000&#39;</span><span class="p">,</span> <span class="k">new</span> <span class="nx">\Http\Adapter\Guzzle6\Client</span><span class="p">());</span>
+<span class="nv">$index</span> <span class="o">=</span> <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;index.html&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">);</span>
+<span class="nv">$request</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">HTMLRequest</span><span class="p">(</span><span class="nv">$index</span><span class="p">);</span>
+<span class="nv">$request</span><span class="o">-&gt;</span><span class="na">setWebhookURL</span><span class="p">(</span><span class="s1">&#39;http://myapp.com/webhook/&#39;</span><span class="p">);</span>
+<span class="nv">$request</span><span class="o">-&gt;</span><span class="na">addWebhookURLHTTPHeader</span><span class="p">(</span><span class="s1">&#39;Your-Header&#39;</span><span class="p">,</span> <span class="s1">&#39;Foo&#39;</span><span class="p">);</span>
+<span class="nv">$resp</span> <span class="o">=</span> <span class="nv">$client</span><span class="o">-&gt;</span><span class="na">post</span><span class="p">(</span><span class="nv">$request</span><span class="p">);</span>
 </pre>
 
               </div>
@@ -1655,16 +1655,16 @@ Otherwise a random filename is used.</p>
 	<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 </a>PHP</h3>
 
-<pre class="chroma">use TheCodingMachine\Gotenberg\Client;
-use TheCodingMachine\Gotenberg\DocumentFactory;
-use TheCodingMachine\Gotenberg\HTMLRequest;
-use TheCodingMachine\Gotenberg\Request;
+<pre class="chroma"><span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Client</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\DocumentFactory</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\HTMLRequest</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">TheCodingMachine\Gotenberg\Request</span><span class="p">;</span>
 
-$client = new Client(&#39;http://localhost:3000&#39;, new \Http\Adapter\Guzzle6\Client());
-$index = DocumentFactory::makeFromPath(&#39;index.html&#39;, &#39;/path/to/file&#39;);
-$request = new HTMLRequest($index);
-$request-&gt;setResultFilename(&#39;foo.pdf&#39;);
-$resp = $client-&gt;post($request);
+<span class="nv">$client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Client</span><span class="p">(</span><span class="s1">&#39;http://localhost:3000&#39;</span><span class="p">,</span> <span class="k">new</span> <span class="nx">\Http\Adapter\Guzzle6\Client</span><span class="p">());</span>
+<span class="nv">$index</span> <span class="o">=</span> <span class="nx">DocumentFactory</span><span class="o">::</span><span class="na">makeFromPath</span><span class="p">(</span><span class="s1">&#39;index.html&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/file&#39;</span><span class="p">);</span>
+<span class="nv">$request</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">HTMLRequest</span><span class="p">(</span><span class="nv">$index</span><span class="p">);</span>
+<span class="nv">$request</span><span class="o">-&gt;</span><span class="na">setResultFilename</span><span class="p">(</span><span class="s1">&#39;foo.pdf&#39;</span><span class="p">);</span>
+<span class="nv">$resp</span> <span class="o">=</span> <span class="nv">$client</span><span class="o">-&gt;</span><span class="na">post</span><span class="p">(</span><span class="nv">$request</span><span class="p">);</span>
 </pre>
 
               </div>
@@ -1713,14 +1713,14 @@ if the API is under heavy load.</p>
 
 <p>For instance, using the following Docker Compose file:</p>
 
-<pre class="chroma"><span class="k">version</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;3&#39;</span><span class="w">
+<pre class="chroma"><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;3&#39;</span><span class="w">
 </span><span class="w">
-</span><span class="w"></span><span class="k">services</span><span class="p">:</span><span class="w">
+</span><span class="w"></span><span class="nt">services</span><span class="p">:</span><span class="w">
 </span><span class="w">
 </span><span class="w">  </span><span class="c"># your other services</span><span class="w">
 </span><span class="w">
-</span><span class="w">  </span><span class="k">gotenberg</span><span class="p">:</span><span class="w">
-</span><span class="w">    </span><span class="k">image</span><span class="p">:</span><span class="w"> </span>thecodingmachine/gotenberg<span class="p">:</span><span class="m">6</span><span class="w">
+</span><span class="w">  </span><span class="nt">gotenberg</span><span class="p">:</span><span class="w">
+</span><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l">thecodingmachine/gotenberg:6</span><span class="w">
 </span></pre>
 
 <p>You may now launch your services using:</p>
@@ -1778,7 +1778,8 @@ restart your Gotenberg instances from time to time to ensure a nominal behaviour
 <ul>
 <li>Follow the progress on the <a href="https://github.com/thecodingmachine/gotenberg">GitHub repository</a></li>
 <li>Follow <a href="https://twitter.com/gulnap">@gulnap</a> on Twitter</li>
-<li>Thanks to <a href="https://github.com/mafredri">@mafredri</a> for its help and its wonderful <a href="https://github.com/mafredri/cdp">cdp</a> library</li>
+<li>Thanks to <a href="https://github.com/mafredri">@mafredri</a> for his help and his wonderful <a href="https://github.com/mafredri/cdp">cdp</a> library</li>
+<li>OpenAPI documentation for the API can be found <a href="https://github.com/thecodingmachine/gotenberg/blob/master/docs/openapi.yaml">on GitHub</a></li>
 </ul>
 
               </div>
