@@ -46,6 +46,7 @@ func inkscapeEndpoint(config conf.Config) string {
 func isMultipartFormDataEndpoint(config conf.Config, path string) bool {
 	var multipartFormDataEndpoints []string
 	multipartFormDataEndpoints = append(multipartFormDataEndpoints, mergeEndpoint(config))
+	multipartFormDataEndpoints = append(multipartFormDataEndpoints, inkscapeEndpoint(config))
 	if !config.DisableGoogleChrome() {
 		multipartFormDataEndpoints = append(
 			multipartFormDataEndpoints,
@@ -103,7 +104,6 @@ func mergeHandler(c echo.Context) error {
 	return nil
 }
 
-
 // inkscapeHandler is the handler for converting
 // SVG documents to PDF.
 func inkscapeHandler(c echo.Context) error {
@@ -112,23 +112,16 @@ func inkscapeHandler(c echo.Context) error {
 		ctx := context.MustCastFromEchoContext(c)
 		logger := ctx.XLogger()
 		logger.DebugOp(op, "handling inkscape request...")
-		logger.DebugOp(op, "xxxxxxxxxxxx dbg 0")
 		r := ctx.MustResource()
-		logger.DebugOp(op, "xxxxxxxxxxxx dbg 1")
 		opts, err := inkscapePrinterOptions(r, ctx.Config())
-		logger.DebugOp(op, "xxxxxxxxxxxx dbg 2")
 		if err != nil {
 			return xerror.New(op, err)
 		}
-		logger.DebugOp(op, "xxxxxxxxxxxx dbg 3")
-		fpaths, err := r.Fpaths(".pdf")
-		logger.DebugOp(op, "xxxxxxxxxxxx dbg 4")
+		fpaths, err := r.Fpaths(".svg")
 		if err != nil {
 			return err
 		}
-		logger.DebugOp(op, "xxxxxxxxxxxx dbg 5")
 		p := printer.NewInkscapePrinter(logger, fpaths, opts)
-		logger.DebugOp(op, "xxxxxxxxxxxx dbg 6")
 		return convert(ctx, p)
 	}
 	if err := resolver(); err != nil {
@@ -136,7 +129,6 @@ func inkscapeHandler(c echo.Context) error {
 	}
 	return nil
 }
-
 
 // htmlHandler is the handler for converting
 // HTML to PDF.
@@ -265,7 +257,6 @@ func officeHandler(c echo.Context) error {
 	}
 	return nil
 }
-
 
 func convert(ctx context.Context, p printer.Printer) error {
 	const op string = "xhttp.convert"

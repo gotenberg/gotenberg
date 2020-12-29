@@ -97,6 +97,17 @@ COPY build/base/fonts/* /usr/local/share/fonts/
 COPY build/base/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 
 # |--------------------------------------------------------------------------
+# | Inkscape
+# |--------------------------------------------------------------------------
+# |
+# | Installs Inkscape.
+# |
+# TODO: move up in this dockerfile (keep here while not stable)
+
+RUN apt-get -t buster-backports -y install inkscape
+
+
+# |--------------------------------------------------------------------------
 # | Default user
 # |--------------------------------------------------------------------------
 # |
@@ -111,13 +122,3 @@ RUN groupadd --gid ${GOTENBERG_USER_GID} gotenberg \
   && useradd --uid ${GOTENBERG_USER_UID} --gid gotenberg --shell /bin/bash --home /gotenberg --no-create-home gotenberg \
   && mkdir /gotenberg \
   && chown gotenberg: /gotenberg
-
-# |--------------------------------------------------------------------------
-# | Inkscape
-# |--------------------------------------------------------------------------
-# |
-# | Installs Inkscape.
-# |
-# TODO: move up in this dockerfile (keep here while not stable)
-
-RUN apt-get -t buster-backports -y install inkscape

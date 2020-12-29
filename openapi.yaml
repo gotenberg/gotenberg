@@ -64,13 +64,12 @@ paths:
       responses:
         '200':
           description: Successful Response
-  /inkscape:
+  /convert/inkscape:
     post:
       tags: []
-      summary: Convert SVG file
+      summary: Convert SVG to PDF
       description: |
-        Gotenberg provides the endpoint /merge for merging PDFs.
-        It accepts POST requests with a multipart/form-data Content-Type.
+        Convert a SVG file to a PDF file with Inkscape.
       requestBody:
         content:
           multipart/form-data:

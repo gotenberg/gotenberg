@@ -57,16 +57,16 @@ func (p inkscapePrinter) Print(destination string) error {
 	}
 	// see https://github.com/thecodingmachine/gotenberg/issues/139.
 	/*
-		command to output a pdf :
-        	inkscape --without-gui --export-pdf={out_filename} {svg_filename}
-		command to output a png :
-        	inkscape --without-gui --export-area-page --export-dpi=100 --export-png={out_filename} {svg_filename}
+			command to output a pdf :
+	        	inkscape --without-gui --export-pdf={out_filename} {svg_filename}
+			command to output a png :
+	        	inkscape --without-gui --export-area-page --export-dpi=100 --export-png={out_filename} {svg_filename}
 	*/
 	sort.Strings(p.fpaths)
-	p.logger.DebugOpf(op, "merging '%v'...", p.fpaths)
+	p.logger.DebugOpf(op, "inkscape converting '%v'...", p.fpaths)
 	resolver := func() error {
 		var args []string
-		args = append(args, "--without-gui", "--export-pdf=" + destination)
+		args = append(args, "--without-gui", "--export-pdf="+destination)
 		args = append(args, p.fpaths...)
 		//args = append(args, "cat", "output", destination)
 		return xexec.Run(p.ctx, p.logger, "inkscape", args...)

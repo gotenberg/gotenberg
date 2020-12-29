@@ -19,7 +19,7 @@ An upstream merge request will be made.
 
 Detailed features :
 * [x] add inkscape in Dockerfile
-* [ ] API option to convert from SVG to PDF
+* [x] API option to convert from SVG to PDF
 * [ ] API option to convert from SVG to PNG
 * [ ] API option to set PNG dpi
 * [ ] document inkscape SVG convertion
@@ -32,25 +32,25 @@ Detailed features :
 * [ ] integrate sample code snippets in openAPI specs
 
 
-```
+
+```shell
+# compile/build image
+LOG_LEVEL=DEBUG make image
+# launch a local server
+LOG_LEVEL=DEBUG make gotenberg
+# try a classic API call
 curl --request POST \
     --url http://localhost:3000/merge \
     --header 'Content-Type: multipart/form-data' \
-    --form files=@gotenberg.pdf \
-    --form files=@gotenberg_bis.pdf \
-    -o result.pdf
-```
-
-```
+    --form files=@test/testdata/pdf/gotenberg.pdf \
+    --form files=@test/testdata/pdf/gotenberg_bis.pdf \
+    -o test/testdata/pdf/result.pdf
+# try a new API call
 curl --request POST \
     --url http://localhost:3000/convert/inkscape \
     --header 'Content-Type: multipart/form-data' \
-    --form files=@gotenberg.svg \
-    -o result.pdf
-```
-
-```
-LOG_LEVEL=DEBUG make gotenberg
+    --form files=@test/testdata/svg/gotenberg.svg \
+    -o test/testdata/svg/result.pdf
 ```
 
 ### documentation
