@@ -104,8 +104,8 @@ COPY build/base/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 # |
 # TODO: move up in this dockerfile (keep here while not stable)
 
-RUN apt-get -t buster-backports -y install inkscape
-
+RUN apt-get update \
+    && apt-get -t buster-backports -y install inkscape
 
 # |--------------------------------------------------------------------------
 # | Default user
