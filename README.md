@@ -9,58 +9,6 @@
 
 At TheCodingMachine, we build a lot of web applications (intranets, extranets and so on) which require to generate PDF from various sources. Each time, we ended up using some well known libraries and kind of lost time by reimplementing a solution from a project to another project. Meh.
 
-## CURRENT FORK
-
-This project is a fork to add thoses features :
-* inkscape support to convert from SVG files
-* openAPI specs
-
-An upstream merge request will be made.
-
-Detailed features :
-* [x] add inkscape in Dockerfile
-* [x] API option to convert from SVG to PDF
-* [ ] API option to convert from SVG to PNG
-* [ ] API option to set PNG dpi
-* [ ] document inkscape SVG convertion
-* [x] /redoc openAPI frontend integration
-* [ ] swagger /docs openAPI frontend integration
-* [ ] openAPI specs for /convert/inkscape
-* [ ] openAPI specs for /merge
-* [ ] openAPI specs for all other paths
-* [ ] add tests
-* [ ] integrate sample code snippets in openAPI specs
-
-
-
-```shell
-# compile/build image
-LOG_LEVEL=DEBUG make image
-# launch a local server
-LOG_LEVEL=DEBUG make gotenberg
-# try a classic API call
-curl --request POST \
-    --url http://localhost:3000/merge \
-    --header 'Content-Type: multipart/form-data' \
-    --form files=@test/testdata/pdf/gotenberg.pdf \
-    --form files=@test/testdata/pdf/gotenberg_bis.pdf \
-    -o test/testdata/pdf/result.pdf
-# try a new API call
-curl --request POST \
-    --url http://localhost:3000/convert/inkscape \
-    --header 'Content-Type: multipart/form-data' \
-    --form files=@test/testdata/svg/gotenberg.svg \
-    -o test/testdata/svg/result.pdf
-```
-
-### documentation
-
-[Swagger UI v3.37.2](https://github.com/swagger-api/swagger-ui/releases/tag/v3.37.2)
-
-
-http://localhost:3000/docs/index.html
-
-http://localhost:3000/redoc.html
 
 ## Features
 
