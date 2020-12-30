@@ -4,6 +4,8 @@ title: Install
 
 Gotenberg is shipped within a Docker image.
 
+**[Gotenberg should ONLY be used in a trusted network by trusted applications. Do NOT expose Gotenberg to the external world.](https://blazej-adamczyk.medium.com/0-day-bug-breaks-multi-million-dollar-system-38c9e31b27e9)**
+
 You may start it with:
 
 ```bash
