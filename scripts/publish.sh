@@ -21,7 +21,7 @@ if [ $VERSION_LENGTH -ne 3 ]; then
 fi
 
 docker build \
-    --build-arg VERSION=${VERSION} \
+    --build-arg VERSION=${VERSION} \
     --build-arg TINI_VERSION=${TINI_VERSION} \
     -t ${DOCKER_REGISTRY}/gotenberg:latest \
     -t ${DOCKER_REGISTRY}/gotenberg:${SEMVER[0]} \
