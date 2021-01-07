@@ -58,7 +58,10 @@ RUN curl -Ls $UNO_URL -o /usr/bin/unoconv &&\
 # | https://github.com/thecodingmachine/gotenberg/issues/29
 # |
 
-RUN apt-get -y install pdftk
+ARG PDFTK_VERSION=924565150
+
+RUN wget -O /usr/bin/pdftk "https://gitlab.com/pdftk-java/pdftk/-/jobs/${PDFTK_VERSION}/artifacts/raw/build/native-image/pdftk" \
+    && chmod a+x /usr/bin/pdftk
 
 # |--------------------------------------------------------------------------
 # | Fonts
