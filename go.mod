@@ -7,7 +7,7 @@ require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/labstack/echo/v4 v4.1.16
 	github.com/labstack/gommon v0.3.0
-	github.com/mafredri/cdp v0.28.0
+	github.com/mafredri/cdp v0.30.0
 	github.com/mattn/go-isatty v0.0.12
 	github.com/microcosm-cc/bluemonday v1.0.2
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
