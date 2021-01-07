@@ -9,7 +9,7 @@ require (
 	github.com/labstack/gommon v0.3.0
 	github.com/mafredri/cdp v0.28.0
 	github.com/mattn/go-isatty v0.0.12
-	github.com/microcosm-cc/bluemonday v1.0.2
+	github.com/microcosm-cc/bluemonday v1.0.4
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	github.com/russross/blackfriday/v2 v2.0.1
