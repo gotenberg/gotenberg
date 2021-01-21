@@ -1,9 +1,27 @@
+
+
 <p align="center">
     <img src="https://user-images.githubusercontent.com/8983173/69229423-ac731300-0b85-11ea-8c2e-2cc00ecdb269.PNG" alt="Gotenberg logo" width="250" height="250" />
 </p>
 <h3 align="center">Gotenberg</h3>
 <p align="center">A Docker-powered stateless API for converting HTML, Markdown and Office documents to PDF.</p>
 <p align="center"><a href="https://thecodingmachine.github.io/gotenberg">Documentation</a> &#183; <a href="/.github/CONTRIBUTING.md">Contributing</a></p>
+
+---
+
+## CURRENT FORK STATUS
+
+This project is a fork of the mainstream project to add thoses features :
+* [X] inkscape support to convert from SVG files
+* [X] SVG external images support
+* [X] openAPI specs
+* [X] embed swagger UI to document/test the API
+* [ ] give file with S3 URL
+* [ ] store result file with S3 URL
+* [ ] provide a prometheus exporter
+* [ ] provide a readyness and liveliness endpoint (K8S style)
+
+An upstream merge request will be made.
 
 ---
 
