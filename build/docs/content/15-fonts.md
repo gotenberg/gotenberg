@@ -11,7 +11,11 @@ FROM thecodingmachine/gotenberg:6
 
 USER root
 
+# add fonts from repo
 RUN apt-get -y install yourfonts
+
+# add fonts directly
+COPY my/fonts/* /usr/local/share/fonts/
 
 USER gotenberg
 ```
