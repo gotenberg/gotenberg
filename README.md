@@ -21,6 +21,7 @@ This project is a fork of the mainstream project to add thoses features :
 * [ ] provide a prometheus exporter
 * [ ] provide a readyness and liveliness endpoint (K8S style)
 * [ ] SVG to png
+* [ ] add more fonts
 
 
 An upstream merge request will be made.
