@@ -9,7 +9,7 @@ FROM debian:buster-slim
 
 RUN echo "deb http://httpredir.debian.org/debian/ buster main contrib non-free" > /etc/apt/sources.list &&\
     apt-get update &&\
-    apt-get install -y curl wget gnupg ttf-mscorefonts-installer procps
+    apt-get install --no-install-recommends -y curl wget gnupg ttf-mscorefonts-installer procps
 
 # |--------------------------------------------------------------------------
 # | Chrome
@@ -21,7 +21,7 @@ RUN echo "deb http://httpredir.debian.org/debian/ buster main contrib non-free" 
 RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - &&\
     echo "deb http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list &&\
     apt-get update &&\
-    apt-get -y --allow-unauthenticated install google-chrome-stable
+    apt-get install --no-install-recommends -y --allow-unauthenticated google-chrome-stable
 
 # |--------------------------------------------------------------------------
 # | LibreOffice
@@ -34,7 +34,7 @@ RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add
 RUN mkdir -p /usr/share/man/man1mkdir -p /usr/share/man/man1 &&\ 
     echo "deb http://httpredir.debian.org/debian/ buster-backports main contrib non-free" >> /etc/apt/sources.list &&\
     apt-get update &&\
-    apt-get -t buster-backports -y install libreoffice
+    apt-get --no-install-recommends -t buster-backports -y install libreoffice
 
 # |--------------------------------------------------------------------------
 # | Unoconv
@@ -74,7 +74,8 @@ RUN wget -O /usr/bin/pdftk "https://gitlab.com/pdftk-java/pdftk/-/jobs/${PDFTK_V
 # Credits: 
 # https://github.com/arachnys/athenapdf/blob/master/cli/Dockerfile
 # https://help.accusoft.com/PrizmDoc/v12.1/HTML/Installing_Asian_Fonts_on_Ubuntu_and_Debian.html
-RUN apt-get install -y \
+RUN apt-get update &&\
+    apt-get install --no-install-recommends -y \
     culmus \
     fonts-beng \
     fonts-hosny-amiri \
