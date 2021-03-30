@@ -7,7 +7,7 @@ FROM debian:buster-slim
 # | Libraries used in the build process of this image.
 # |
 RUN apt-get update &&\
-    apt-get --no-install-recommends install -y ca-certificates wget curl gnupg procps &&\
+    apt-get --no-install-recommends install -y ca-certificates curl gnupg procps &&\
     rm -rf /var/lib/apt/lists/*
 
 # |--------------------------------------------------------------------------
@@ -24,8 +24,7 @@ RUN apt-get update &&\
 # |
 # | Installs Chrome.
 # |
-
-RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - &&\
+RUN curl https://dl.google.com/linux/linux_signing_key.pub | apt-key add - &&\
     echo "deb http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list &&\
     apt-get update &&\
     apt-get install --no-install-recommends -y --allow-unauthenticated google-chrome-stable &&\
@@ -69,7 +68,7 @@ RUN curl -Ls $UNO_URL -o /usr/bin/unoconv &&\
 
 ARG PDFTK_VERSION=924565150
 
-RUN wget -O /usr/bin/pdftk "https://gitlab.com/pdftk-java/pdftk/-/jobs/${PDFTK_VERSION}/artifacts/raw/build/native-image/pdftk" \
+RUN curl -o /usr/bin/pdftk "https://gitlab.com/pdftk-java/pdftk/-/jobs/${PDFTK_VERSION}/artifacts/raw/build/native-image/pdftk" \
     && chmod a+x /usr/bin/pdftk
 
 # |--------------------------------------------------------------------------
