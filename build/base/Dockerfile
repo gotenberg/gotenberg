@@ -6,10 +6,16 @@ FROM debian:buster-slim
 # |
 # | Libraries used in the build process of this image.
 # |
+RUN apt-get update &&\
+    apt-get --no-install-recommends install -y ca-certificates wget curl gnupg procps &&\
+    rm -rf /var/lib/apt/lists/*
 
-RUN echo "deb http://httpredir.debian.org/debian/ buster main contrib non-free" > /etc/apt/sources.list &&\
-    apt-get update &&\
-    apt-get install --no-install-recommends -y curl wget gnupg ttf-mscorefonts-installer procps &&\
+# |--------------------------------------------------------------------------
+# | Microsoft font installer
+# |--------------------------------------------------------------------------
+RUN apt-get update &&\
+    curl -o ./ttf-mscorefonts-installer_3.8_all.deb http://httpredir.debian.org/debian/pool/contrib/m/msttcorefonts/ttf-mscorefonts-installer_3.8_all.deb &&\
+    apt --no-install-recommends install -y ./ttf-mscorefonts-installer_3.8_all.deb && rm ./ttf-mscorefonts-installer_3.8_all.deb &&\
     rm -rf /var/lib/apt/lists/*
 
 # |--------------------------------------------------------------------------
