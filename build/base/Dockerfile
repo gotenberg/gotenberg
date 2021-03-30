@@ -9,7 +9,8 @@ FROM debian:buster-slim
 
 RUN echo "deb http://httpredir.debian.org/debian/ buster main contrib non-free" > /etc/apt/sources.list &&\
     apt-get update &&\
-    apt-get install --no-install-recommends -y curl wget gnupg ttf-mscorefonts-installer procps
+    apt-get install --no-install-recommends -y curl wget gnupg ttf-mscorefonts-installer procps &&\
+    rm -rf /var/lib/apt/lists/*
 
 # |--------------------------------------------------------------------------
 # | Chrome
@@ -21,7 +22,8 @@ RUN echo "deb http://httpredir.debian.org/debian/ buster main contrib non-free" 
 RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - &&\
     echo "deb http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list &&\
     apt-get update &&\
-    apt-get install --no-install-recommends -y --allow-unauthenticated google-chrome-stable
+    apt-get install --no-install-recommends -y --allow-unauthenticated google-chrome-stable &&\
+    rm -rf /var/lib/apt/lists/*
 
 # |--------------------------------------------------------------------------
 # | LibreOffice
@@ -34,7 +36,8 @@ RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add
 RUN mkdir -p /usr/share/man/man1mkdir -p /usr/share/man/man1 &&\ 
     echo "deb http://httpredir.debian.org/debian/ buster-backports main contrib non-free" >> /etc/apt/sources.list &&\
     apt-get update &&\
-    apt-get --no-install-recommends -t buster-backports -y install libreoffice
+    apt-get --no-install-recommends -t buster-backports -y install libreoffice &&\
+    rm -rf /var/lib/apt/lists/*
 
 # |--------------------------------------------------------------------------
 # | Unoconv
@@ -95,7 +98,8 @@ RUN apt-get update &&\
     fonts-arphic-uming \
     fonts-ipafont-mincho \
     fonts-ipafont-gothic \
-    fonts-unfonts-core
+    fonts-unfonts-core &&\
+    rm -rf /var/lib/apt/lists/*
 
 COPY build/base/fonts/* /usr/local/share/fonts/
 COPY build/base/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
