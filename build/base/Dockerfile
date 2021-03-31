@@ -6,10 +6,17 @@ FROM debian:buster-slim
 # |
 # | Libraries used in the build process of this image.
 # |
+RUN apt-get update &&\
+    apt-get --no-install-recommends install -y ca-certificates curl gnupg procps &&\
+    rm -rf /var/lib/apt/lists/*
 
-RUN echo "deb http://httpredir.debian.org/debian/ buster main contrib non-free" > /etc/apt/sources.list &&\
-    apt-get update &&\
-    apt-get install -y curl wget gnupg ttf-mscorefonts-installer procps
+# |--------------------------------------------------------------------------
+# | Microsoft font installer
+# |--------------------------------------------------------------------------
+RUN apt-get update &&\
+    curl -o ./ttf-mscorefonts-installer_3.8_all.deb http://httpredir.debian.org/debian/pool/contrib/m/msttcorefonts/ttf-mscorefonts-installer_3.8_all.deb &&\
+    apt --no-install-recommends install -y ./ttf-mscorefonts-installer_3.8_all.deb && rm ./ttf-mscorefonts-installer_3.8_all.deb &&\
+    rm -rf /var/lib/apt/lists/*
 
 # |--------------------------------------------------------------------------
 # | Chrome
@@ -17,11 +24,11 @@ RUN echo "deb http://httpredir.debian.org/debian/ buster main contrib non-free" 
 # |
 # | Installs Chrome.
 # |
-
-RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - &&\
+RUN curl https://dl.google.com/linux/linux_signing_key.pub | apt-key add - &&\
     echo "deb http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list &&\
     apt-get update &&\
-    apt-get -y --allow-unauthenticated install google-chrome-stable
+    apt-get install --no-install-recommends -y --allow-unauthenticated google-chrome-stable &&\
+    rm -rf /var/lib/apt/lists/*
 
 # |--------------------------------------------------------------------------
 # | LibreOffice
@@ -34,7 +41,8 @@ RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add
 RUN mkdir -p /usr/share/man/man1mkdir -p /usr/share/man/man1 &&\ 
     echo "deb http://httpredir.debian.org/debian/ buster-backports main contrib non-free" >> /etc/apt/sources.list &&\
     apt-get update &&\
-    apt-get -t buster-backports -y install libreoffice
+    apt-get --no-install-recommends -t buster-backports -y install libreoffice &&\
+    rm -rf /var/lib/apt/lists/*
 
 # |--------------------------------------------------------------------------
 # | Unoconv
@@ -60,7 +68,7 @@ RUN curl -Ls $UNO_URL -o /usr/bin/unoconv &&\
 
 ARG PDFTK_VERSION=924565150
 
-RUN wget -O /usr/bin/pdftk "https://gitlab.com/pdftk-java/pdftk/-/jobs/${PDFTK_VERSION}/artifacts/raw/build/native-image/pdftk" \
+RUN curl -o /usr/bin/pdftk "https://gitlab.com/pdftk-java/pdftk/-/jobs/${PDFTK_VERSION}/artifacts/raw/build/native-image/pdftk" \
     && chmod a+x /usr/bin/pdftk
 
 # |--------------------------------------------------------------------------
@@ -74,7 +82,8 @@ RUN wget -O /usr/bin/pdftk "https://gitlab.com/pdftk-java/pdftk/-/jobs/${PDFTK_V
 # Credits: 
 # https://github.com/arachnys/athenapdf/blob/master/cli/Dockerfile
 # https://help.accusoft.com/PrizmDoc/v12.1/HTML/Installing_Asian_Fonts_on_Ubuntu_and_Debian.html
-RUN apt-get install -y \
+RUN apt-get update &&\
+    apt-get install --no-install-recommends -y \
     culmus \
     fonts-beng \
     fonts-hosny-amiri \
@@ -94,7 +103,8 @@ RUN apt-get install -y \
     fonts-arphic-uming \
     fonts-ipafont-mincho \
     fonts-ipafont-gothic \
-    fonts-unfonts-core
+    fonts-unfonts-core &&\
+    rm -rf /var/lib/apt/lists/*
 
 COPY build/base/fonts/* /usr/local/share/fonts/
 COPY build/base/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
