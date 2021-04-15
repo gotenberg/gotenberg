@@ -98,12 +98,24 @@ RUN apt-get update &&\
     fonts-sil-padauk \
     fonts-telu \
     fonts-thai-tlwg \
-    fonts-liberation \
     ttf-wqy-zenhei \
     fonts-arphic-uming \
     fonts-ipafont-mincho \
     fonts-ipafont-gothic \
-    fonts-unfonts-core &&\
+    fonts-unfonts-core \
+    # LibreOffice recommends.
+    fonts-crosextra-caladea \
+    fonts-crosextra-carlito \
+    fonts-dejavu \
+    fonts-dejavu-extra \
+    fonts-liberation \
+    fonts-liberation2 \
+    fonts-linuxlibertine \
+    fonts-noto-core \
+    fonts-noto-mono \
+    fonts-noto-ui-core \
+    fonts-sil-gentium \
+    fonts-sil-gentium-basic &&\
     rm -rf /var/lib/apt/lists/*
 
 COPY build/base/fonts/* /usr/local/share/fonts/
