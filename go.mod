@@ -12,7 +12,7 @@ require (
 	github.com/microcosm-cc/bluemonday v1.0.2
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
-	github.com/russross/blackfriday/v2 v2.0.1
+	github.com/russross/blackfriday/v2 v2.1.0
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/testify v1.6.1
