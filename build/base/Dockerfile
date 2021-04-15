@@ -98,7 +98,6 @@ RUN apt-get update &&\
     fonts-sil-padauk \
     fonts-telu \
     fonts-thai-tlwg \
-    fonts-liberation \
     ttf-wqy-zenhei \
     fonts-arphic-uming \
     fonts-ipafont-mincho \
