@@ -1,0 +1,32 @@
+version: 2
+updates:
+- package-ecosystem: gomod
+  directory: "/"
+  schedule:
+    interval: daily
+    time: "04:00"
+  open-pull-requests-limit: 10
+  ignore:
+  - dependency-name: github.com/microcosm-cc/bluemonday
+    versions:
+    - 1.0.4
+    - 1.0.5
+    - 1.0.6
+    - 1.0.7
+    - 1.0.8
+  - dependency-name: golang.org/x/text
+    versions:
+    - 0.3.5
+  - dependency-name: github.com/labstack/echo/v4
+    versions:
+    - 4.1.17
+    - 4.2.0
+    - 4.2.1
+  - dependency-name: github.com/sirupsen/logrus
+    versions:
+    - 1.7.0
+    - 1.7.1
+    - 1.8.0
+  - dependency-name: github.com/mafredri/cdp
+    versions:
+    - 0.30.0
