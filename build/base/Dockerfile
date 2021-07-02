@@ -14,7 +14,7 @@ RUN apt-get update &&\
 # | Microsoft font installer
 # |--------------------------------------------------------------------------
 RUN apt-get update &&\
-    curl -o ./ttf-mscorefonts-installer_3.8_all.deb http://httpredir.debian.org/debian/pool/contrib/m/msttcorefonts/ttf-mscorefonts-installer_3.8_all.deb &&\
+    curl -o ./ttf-mscorefonts-installer_3.8_all.deb https://httpredir.debian.org/debian/pool/contrib/m/msttcorefonts/ttf-mscorefonts-installer_3.8_all.deb &&\
     apt --no-install-recommends install -y ./ttf-mscorefonts-installer_3.8_all.deb && rm ./ttf-mscorefonts-installer_3.8_all.deb &&\
     rm -rf /var/lib/apt/lists/*
 
@@ -25,7 +25,7 @@ RUN apt-get update &&\
 # | Installs Chrome.
 # |
 RUN curl https://dl.google.com/linux/linux_signing_key.pub | apt-key add - &&\
-    echo "deb http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list &&\
+    echo "deb https://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list &&\
     apt-get update &&\
     apt-get install --no-install-recommends -y --allow-unauthenticated google-chrome-stable &&\
     rm -rf /var/lib/apt/lists/*
@@ -39,7 +39,7 @@ RUN curl https://dl.google.com/linux/linux_signing_key.pub | apt-key add - &&\
 
 # https://github.com/nextcloud/docker/issues/380
 RUN mkdir -p /usr/share/man/man1mkdir -p /usr/share/man/man1 &&\ 
-    echo "deb http://httpredir.debian.org/debian/ buster-backports main contrib non-free" >> /etc/apt/sources.list &&\
+    echo "deb https://httpredir.debian.org/debian/ buster-backports main contrib non-free" >> /etc/apt/sources.list &&\
     apt-get update &&\
     apt-get --no-install-recommends -t buster-backports -y install libreoffice &&\
     rm -rf /var/lib/apt/lists/*
