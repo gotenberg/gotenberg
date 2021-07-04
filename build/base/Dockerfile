@@ -1,4 +1,5 @@
-FROM debian:buster-slim
+ARG ARCH=
+FROM ${ARCH}debian:buster-slim
 
 # |--------------------------------------------------------------------------
 # | Common libraries
@@ -19,15 +20,13 @@ RUN apt-get update &&\
     rm -rf /var/lib/apt/lists/*
 
 # |--------------------------------------------------------------------------
-# | Chrome
+# | Chromium
 # |--------------------------------------------------------------------------
 # |
-# | Installs Chrome.
+# | Installs Chromium as Chrome replacement
 # |
-RUN curl https://dl.google.com/linux/linux_signing_key.pub | apt-key add - &&\
-    echo "deb https://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list &&\
-    apt-get update &&\
-    apt-get install --no-install-recommends -y --allow-unauthenticated google-chrome-stable &&\
+RUN apt-get update &&\
+    apt-get --no-install-recommends install -y chromium &&\
     rm -rf /var/lib/apt/lists/*
 
 # |--------------------------------------------------------------------------

@@ -20,7 +20,9 @@ if [ $VERSION_LENGTH -ne 3 ]; then
     exit 1
 fi
 
-docker build \
+docker buildx build \
+    --platform linux/arm/v7,linux/arm64/v8,linux/amd64
+    --push
     --build-arg VERSION=${VERSION} \
     --build-arg TINI_VERSION=${TINI_VERSION} \
     -t ${DOCKER_REGISTRY}/gotenberg:latest \
@@ -29,7 +31,3 @@ docker build \
     -t ${DOCKER_REGISTRY}/gotenberg:${SEMVER[0]}.${SEMVER[1]}.${SEMVER[2]} \
     -f build/package/Dockerfile .
 
-docker push "${DOCKER_REGISTRY}/gotenberg:latest"
-docker push "${DOCKER_REGISTRY}/gotenberg:${SEMVER[0]}"
-docker push "${DOCKER_REGISTRY}/gotenberg:${SEMVER[0]}.${SEMVER[1]}"
-docker push "${DOCKER_REGISTRY}/gotenberg:${SEMVER[0]}.${SEMVER[1]}.${SEMVER[2]}"

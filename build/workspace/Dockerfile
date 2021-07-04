@@ -1,6 +1,6 @@
 ARG GOLANG_VERSION
-
-FROM golang:${GOLANG_VERSION}-stretch as golang
+ARG ARCH=
+FROM ${ARCH}golang:${GOLANG_VERSION}-stretch as golang
 
 FROM thecodingmachine/gotenberg:base
 

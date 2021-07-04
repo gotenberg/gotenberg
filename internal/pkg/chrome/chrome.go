@@ -45,7 +45,7 @@ func Start(logger xlog.Logger, ignoreCertificateErrors bool) error {
 
 func cmd(logger xlog.Logger, ignoreCertificateErrors bool) (*exec.Cmd, error) {
 	const op string = "chrome.cmd"
-	binary := "google-chrome-stable"
+	binary := "chromium"
 	args := []string{
 		"--no-sandbox",
 		"--headless",
