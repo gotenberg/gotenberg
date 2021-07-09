@@ -141,7 +141,7 @@ paths:
   /convert/markdown:
     post:
       tags:
-        - Html2Pdf
+        - Gotenberg
       summary: Convert a Markdown file to PDF
       description: >-
         Send an HTML file called `index.html` as a multipart form request and
@@ -311,7 +311,6 @@ paths:
       tags:
         - Gotenberg
       summary: Your GET endpoint
-      tags: []
       responses:
         '200':
           description: The API is working fine.
