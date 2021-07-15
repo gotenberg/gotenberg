@@ -16,6 +16,8 @@ servers:
 paths:
   /convert/html:
     post:
+      tags:
+        - Gotenberg
       summary: Convert a given HTML file to PDF
       description: >-
         Send an HTML file called `index.html` as a multipart form request, and
@@ -114,6 +116,8 @@ paths:
           $ref: '#/components/responses/SuccessfulPDF'
   /convert/url:
     post:
+      tags:
+        - Gotenberg
       summary: Convert the contents of a given URL to PDF
       description: >-
         Send a remote URL in your API request via the `remoteURL` parameter, and
@@ -136,6 +140,8 @@ paths:
           $ref: '#/components/responses/SuccessfulPDF'
   /convert/markdown:
     post:
+      tags:
+        - Gotenberg
       summary: Convert a Markdown file to PDF
       description: >-
         Send an HTML file called `index.html` as a multipart form request and
@@ -195,6 +201,8 @@ paths:
           $ref: '#/components/responses/SuccessfulPDF'
   /convert/office:
     post:
+      tags:
+        - Gotenberg
       summary: Convert an Office document to PDF
       description: >-
         Send one or more Office documents and get the resulting PDF file by
@@ -257,6 +265,8 @@ paths:
                 properties: {}
   /convert/merge:
     post:
+      tags:
+        - Gotenberg
       summary: Merge multiple PDFs into a single PDF
       description: >-
         You can send multiple PDF files to this endpoint, the API will merge
@@ -298,8 +308,9 @@ paths:
           $ref: '#/components/responses/SuccessfulPDF'
   /ping:
     get:
+      tags:
+        - Gotenberg
       summary: Your GET endpoint
-      tags: []
       responses:
         '200':
           description: The API is working fine.
