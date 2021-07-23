@@ -3,7 +3,7 @@
 </p>
 <h3 align="center">Gotenberg</h3>
 <p align="center">A Docker-powered stateless API for converting HTML, Markdown and Office documents to PDF.</p>
-<p align="center"><a href="https://thecodingmachine.github.io/gotenberg">Documentation</a> &#183; <a href="/.github/CONTRIBUTING.md">Contributing</a></p>
+<p align="center"><a href="https://gotenberg.dev/">Documentation</a> &#183; <a href="/.github/CONTRIBUTING.md">Contributing</a></p>
 
 ---
 
@@ -26,7 +26,7 @@ $ docker run --rm -p 3000:3000 thecodingmachine/gotenberg:6
 
 The API is now available on your host at `http://localhost:3000`.
 
-Head to the [documentation](https://thecodingmachine.github.io/gotenberg)
+Head to the [documentation](https://gotenberg.dev/)
 to learn how to interact with it!
 
 ## Badges
