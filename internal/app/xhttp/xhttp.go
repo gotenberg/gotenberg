@@ -2,6 +2,7 @@ package xhttp
 
 import (
 	"github.com/labstack/echo/v4"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
 )
 
@@ -16,6 +17,7 @@ func New(config conf.Config) *echo.Echo {
 	srv.Use(errorMiddleware())
 	srv.GET(pingEndpoint(config), pingHandler)
 	srv.POST(mergeEndpoint(config), mergeHandler)
+	srv.GET(metricEndpoint(config), echo.WrapHandler(promhttp.Handler()))
 	if config.DisableGoogleChrome() && config.DisableUnoconv() {
 		return srv
 	}

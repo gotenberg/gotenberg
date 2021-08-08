@@ -35,6 +35,8 @@ func main() {
 	}
 	// create our API.
 	srv := xhttp.New(config)
+	// run custom metrics
+	xhttp.StartCustomMonitoring()
 	// run our API in a goroutine so that it doesn't block.
 	go func() {
 		systemLogger.InfoOpf(op, "http server started on port '%d'", config.DefaultListenPort())

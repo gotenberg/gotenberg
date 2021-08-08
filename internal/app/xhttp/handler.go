@@ -40,6 +40,10 @@ func officeEndpoint(config conf.Config) string {
 	return fmt.Sprintf("%s%s", config.RootPath(), "convert/office")
 }
 
+func metricEndpoint(config conf.Config) string {
+	return fmt.Sprintf("%s%s", config.RootPath(), "metrics")
+}
+
 func isMultipartFormDataEndpoint(config conf.Config, path string) bool {
 	var multipartFormDataEndpoints []string
 	multipartFormDataEndpoints = append(multipartFormDataEndpoints, mergeEndpoint(config))

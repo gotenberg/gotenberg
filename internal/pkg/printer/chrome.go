@@ -48,6 +48,11 @@ type ChromePrinterOptions struct {
 	Scale             float64
 }
 
+type ChromeStatus struct {
+	CurrentRendering int64
+	UnderQueue       bool
+}
+
 // DefaultChromePrinterOptions returns the default
 // Google Chrome Printer options.
 func DefaultChromePrinterOptions(config conf.Config) ChromePrinterOptions {
@@ -78,6 +83,13 @@ const maxDevtConnections int = 5
 
 // nolint: gochecknoglobals
 var devtConnections int
+
+func GetChromeStatus() ChromeStatus {
+	return ChromeStatus{
+		CurrentRendering: int64(devtConnections),
+		UnderQueue:       devtConnections >= maxDevtConnections,
+	}
+}
 
 func (p chromePrinter) Print(destination string) error {
 	const op string = "printer.chromePrinter.Print"
