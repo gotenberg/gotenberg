@@ -7,8 +7,9 @@ import (
 	"github.com/thecodingmachine/gotenberg/internal/pkg/printer"
 )
 
+// nolint: gochecknoglobals
 var (
-	chrome_current_rendering = prometheus.NewGauge(
+	chromeCurrentRendering = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: "golang",
 			Name:      "chrome_current_rendering",
@@ -17,11 +18,11 @@ var (
 )
 
 func StartCustomMonitoring() {
-	prometheus.MustRegister(chrome_current_rendering)
+	prometheus.MustRegister(chromeCurrentRendering)
 
 	go func() {
 		for {
-			chrome_current_rendering.Set(float64(printer.GetChromeStatus().CurrentRendering))
+			chromeCurrentRendering.Set(float64(printer.GetChromeStatus().CurrentRendering))
 			time.Sleep(time.Second)
 		}
 	}()
