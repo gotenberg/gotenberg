@@ -9,6 +9,7 @@ import (
 
 // nolint: gochecknoglobals
 var (
+	// chromeCurrentRendering is a custom metric that tracks the number of current chrome renderings.
 	chromeCurrentRendering = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: "golang",
@@ -17,6 +18,7 @@ var (
 		})
 )
 
+// Start watching custom metrics.
 func StartCustomMonitoring() {
 	prometheus.MustRegister(chromeCurrentRendering)
 
