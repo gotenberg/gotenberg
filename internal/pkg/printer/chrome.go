@@ -48,6 +48,7 @@ type ChromePrinterOptions struct {
 	Scale             float64
 }
 
+// ChromeStatus represents the current status of the Google Chrome Printer.
 type ChromeStatus struct {
 	CurrentRendering int64
 }
