@@ -166,7 +166,7 @@ func (mod Unoconv) PDF(ctx context.Context, logger *zap.Logger, inputPath, outpu
 	err = cmd.Exec()
 
 	// Always remove the user profile directory created by LibreOffice.
-	// See https://github.com/thecodingmachine/gotenberg/issues/192.
+	// See https://github.com/gotenberg/gotenberg/issues/192.
 	go func() {
 		logger.Debug(fmt.Sprintf("remove user profile directory '%s'", userProfileDirPath))
 

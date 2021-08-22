@@ -9,7 +9,7 @@ USER root
 
 # For security reasons, the non-root user gotenberg does not own the Tini binary by default.
 # However, some providers like Cloud Run from Google Cloud cannot start a Docker container in that case.
-# See https://github.com/thecodingmachine/gotenberg/issues/90#issuecomment-543551353.
+# See https://github.com/gotenberg/gotenberg/issues/90#issuecomment-543551353.
 RUN chown gotenberg: /usr/bin/tini
 
 USER gotenberg

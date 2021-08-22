@@ -297,14 +297,14 @@ func (form *FormData) MandatoryPaths(extensions []string, target *[]string) *For
 func (form *FormData) paths(extensions []string, target *[]string) *FormData {
 	for filename, path := range form.files {
 		for _, ext := range extensions {
-			// See https://github.com/thecodingmachine/gotenberg/issues/228.
+			// See https://github.com/gotenberg/gotenberg/issues/228.
 			if strings.ToLower(filepath.Ext(filename)) == ext {
 				*target = append(*target, path)
 			}
 		}
 	}
 
-	// See https://github.com/thecodingmachine/gotenberg/issues/139.
+	// See https://github.com/gotenberg/gotenberg/issues/139.
 	sort.Strings(*target)
 
 	return form
