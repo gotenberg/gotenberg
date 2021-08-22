@@ -149,6 +149,6 @@ func TestUnoconv_Extensions(t *testing.T) {
 	expect := 73
 
 	if actual != expect {
-		t.Errorf("expected %d extentions but got %d", expect, actual)
+		t.Errorf("expected %d extensions but got %d", expect, actual)
 	}
 }
