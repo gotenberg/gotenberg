@@ -1,45 +1,46 @@
 <p align="center">
-    <img src="https://user-images.githubusercontent.com/8983173/69229423-ac731300-0b85-11ea-8c2e-2cc00ecdb269.PNG" alt="Gotenberg logo" width="250" height="250" />
-</p>
+    <img src="https://user-images.githubusercontent.com/8983173/130322857-185831e2-f041-46eb-a17f-0a69d066c4e5.png" alt="Gotenberg Logo" width="150" height="150" />
 <h3 align="center">Gotenberg</h3>
-<p align="center">A Docker-powered stateless API for converting HTML, Markdown and Office documents to PDF.</p>
-<p align="center"><a href="https://gotenberg.dev/">Documentation</a> &#183; <a href="/.github/CONTRIBUTING.md">Contributing</a></p>
+<p align="center">A Docker-powered stateless API for PDF files</p>
+<p align="center"><a href="https://gotenberg.dev/docs/about">Documentation</a><!-- &#183; <a href="#">OpenAPI</a></p>-->
+</p>
 
 ---
 
-At TheCodingMachine, we build a lot of web applications (intranets, extranets and so on) which require to generate PDF from various sources. Each time, we ended up using some well known libraries and kind of lost time by reimplementing a solution from a project to another project. Meh.
+Gotenberg provides a developer-friendly API to interact with powerful tools like Chromium and LibreOffice to convert many
+documents to PDF, transform them, merge them, and more!
 
-## Features
-
-* HTML and Markdown conversions using Google Chrome headless
-* Office conversions (.txt, .rtf, .docx, .doc, .odt, .pptx, .ppt, .odp and so on) using [unoconv](https://github.com/dagwieers/unoconv)
-* Assets :package:: send your header, footer, images, fonts, stylesheets and so on for converting your HTML and Markdown to beautiful PDFs!
-* Easily interact with the API using our [Go](https://github.com/thecodingmachine/gotenberg-go-client) and [PHP](https://github.com/thecodingmachine/gotenberg-php-client) libraries
-
-## Quick start
+## Quick Start
 
 Open a terminal and run the following command:
 
-```bash
-$ docker run --rm -p 3000:3000 thecodingmachine/gotenberg:6
+```
+docker run --rm -p 3000:3000 gotenberg/gotenberg:7
 ```
 
-The API is now available on your host at `http://localhost:3000`.
+Alternatively, using the historic Docker registry from our sponsor [TheCodingMachine](https://www.thecodingmachine.com):
 
-Head to the [documentation](https://gotenberg.dev/)
-to learn how to interact with it!
+```
+docker run --rm -p 3000:3000 thecodingmachine/gotenberg:7
+```
+
+The API is now available on your host at http://localhost:3000.
+
+Head to the [documentation](https://gotenberg.dev/docs/about) to learn how to interact with it 🚀
+
+## Sponsors
+
+<p align="center">
+    <a href="https://thecodingmachine.com">
+        <img src="https://user-images.githubusercontent.com/8983173/130324668-9d6e7b35-53a3-49c7-a574-38190d2bd6b0.png" alt="TheCodingMachine Logo" width="429" height="210" />
+    </a>
+</p>
 
 ## Badges
 
+[![Docker pulls](https://img.shields.io/docker/pulls/gotenberg/gotenberg)](https://hub.docker.com/r/gotenberg/gotenberg)
 [![Docker pulls](https://img.shields.io/docker/pulls/thecodingmachine/gotenberg)](https://hub.docker.com/r/thecodingmachine/gotenberg)
-[![Docker image layers](https://images.microbadger.com/badges/image/thecodingmachine/gotenberg:6.svg)](https://microbadger.com/images/thecodingmachine/gotenberg:6)
-[![GitHub Actions](https://github.com/thecodingmachine/gotenberg/workflows/tests_maybe_release/badge.svg)](https://github.com/thecodingmachine/gotenberg/workflows/tests_maybe_release)
-[![GoDoc](https://godoc.org/github.com/thecodingmachine/gotenberg?status.svg)](https://godoc.org/github.com/thecodingmachine/gotenberg)
-[![Codecov](https://codecov.io/gh/thecodingmachine/gotenberg/branch/master/graph/badge.svg)](https://codecov.io/gh/thecodingmachine/gotenberg)
-[![Go Report Card](https://goreportcard.com/badge/github.com/thecodingmachine/gotenberg)](https://goreportcard.com/report/thecodingmachine/gotenberg)
-
----
-
-<p align="center">
-    <img src="https://user-images.githubusercontent.com/8983173/50009948-84b01e00-ffb8-11e8-850b-fc240382c626.png" alt="Gotenberg logo" width="150" height="150" />
-</p>
+[![Continuous Integration](https://github.com/gotenberg/gotenberg/actions/workflows/continuous_integration.yml/badge.svg)](https://github.com/gotenberg/gotenberg/actions/workflows/continuous_integration.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/gotenberg/gotenberg.svg)](https://pkg.go.dev/github.com/gotenberg/gotenberg/v7)
+[![Codecov](https://codecov.io/gh/gotenberg/gotenberg/branch/main/graph/badge.svg)](https://codecov.io/gh/gotenberg/gotenberg)
+[![Go Report Card](https://goreportcard.com/badge/github.com/gotenberg/gotenberg)](https://goreportcard.com/report/gotenberg/gotenberg)

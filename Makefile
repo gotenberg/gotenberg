@@ -1,66 +1,133 @@
-GOLANG_VERSION=1.14
-VERSION=snapshot
-DOCKER_USER=
-DOCKER_PASSWORD=
-DOCKER_REGISTRY=thecodingmachine
+.PHONY: help
+help: ## Show the help
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+
+.PHONY: it
+it: build build-tests ## Initialize the development environment
+
+GOLANG_VERSION=1.16
+DOCKER_REGISTRY=gotenberg
+GOTENBERG_VERSION=snapshot
 GOTENBERG_USER_GID=1001
 GOTENBERG_USER_UID=1001
-GOLANGCI_LINT_VERSION=1.27.0
-CODE_COVERAGE=0
-TINI_VERSION=0.19.0
-MAXIMUM_WAIT_TIMEOUT=30.0
-MAXIMUM_WAIT_DELAY=10.0
-MAXIMUM_WEBHOOK_URL_TIMEOUT=30.0
-DEFAULT_WAIT_TIMEOUT=10.0
-DEFAULT_WEBHOOK_URL_TIMEOUT=10.0
-DEFAULT_LISTEN_PORT=3000
-DISABLE_GOOGLE_CHROME=0
-DISABLE_UNOCONV=0
-LOG_LEVEL=INFO
-ROOT_PATH=/
-DEFAULT_GOOGLE_CHROME_RPCC_BUFFER_SIZE=1048576
-GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS=0
+PDFTK_VERSION=1353200058 # See https://gitlab.com/pdftk-java/pdftk/-/releases - Binary package.
+GOLANGCI_LINT_VERSION=v1.39.0 # See https://github.com/golangci/golangci-lint/releases.
 
-# build the base Docker image.
-base:
-	docker build --build-arg GOTENBERG_USER_GID=$(GOTENBERG_USER_GID) --build-arg GOTENBERG_USER_UID=$(GOTENBERG_USER_UID) -t $(DOCKER_REGISTRY)/gotenberg:base -f build/base/Dockerfile .
+.PHONY: build
+build: ## Build the Gotenberg's Docker image
+	docker build \
+	--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
+	--build-arg GOTENBERG_VERSION=$(GOTENBERG_VERSION) \
+	--build-arg GOTENBERG_USER_GID=$(GOTENBERG_USER_GID) \
+	--build-arg GOTENBERG_USER_UID=$(GOTENBERG_USER_UID) \
+	--build-arg PDFTK_VERSION=$(PDFTK_VERSION) \
+	-t $(DOCKER_REGISTRY)/gotenberg:$(GOTENBERG_VERSION) \
+	-f build/Dockerfile .
 
-# build the workspace Docker image.
-workspace:
-	make base
-	docker build --build-arg GOLANG_VERSION=$(GOLANG_VERSION) -t $(DOCKER_REGISTRY)/gotenberg:workspace -f build/workspace/Dockerfile . 
+GOTENBERG_GRACEFUL_SHUTDOWN_DURATION=30s
+API_PORT=3000
+API_PORT_FROM_ENV=
+API_READ_TIMEOUT=30s
+API_PROCESS_TIMEOUT=30s
+API_WRITE_TIMEOUT=30s
+API_ROOT_PATH=/
+API_TRACE_HEADER=Gotenberg-Trace
+API_DISABLE_HEALTH_CHECK_LOGGING=false
+API_WEBHOOK_ALLOW_LIST=
+API_WEBHOOK_DENY_LIST=
+API_WEBHOOK_ERROR_ALLOW_LIST=
+API_WEBHOOK_ERROR_DENY_LIST=
+API_WEBHOOK_MAX_RETRY=4
+API_WEBHOOK_RETRY_MIN_WAIT=1s
+API_WEBHOOK_RETRY_MAX_WAIT=30s
+API_DISABLE_WEBHOOK=false
+CHROMIUM_USER_AGENT=
+CHROMIUM_INCOGNITO=false
+CHROMIUM_IGNORE_CERTIFICATE_ERRORS=false
+CHROMIUM_ALLOW_LIST=
+CHROMIUM_DENY_LIST="^file:///[^tmp].*"
+CHROMIUM_DISABLE_ROUTES=false
+LIBREOFFICE_DISABLES_ROUTES=false
+LOG_LEVEL=info
+LOG_FORMAT=auto
+PDFENGINES_ENGINES=
+PDFENGINES_DISABLE_ROUTES=false
 
-# gofmt and goimports all go files.
-fmt:
+.PHONY: run
+run: ## Start a Gotenberg container
+	docker run --rm -it \
+	-p $(API_PORT):$(API_PORT) \
+	$(DOCKER_REGISTRY)/gotenberg:$(GOTENBERG_VERSION) \
+	gotenberg \
+	--gotenberg-graceful-shutdown-duration=$(GOTENBERG_GRACEFUL_SHUTDOWN_DURATION) \
+	--api-port=$(API_PORT) \
+	--api-port-from-env=$(API_PORT_FROM_ENV) \
+	--api-read-timeout=$(API_READ_TIMEOUT) \
+	--api-process-timeout=$(API_PROCESS_TIMEOUT) \
+	--api-write-timeout=$(API_WRITE_TIMEOUT) \
+	--api-root-path=$(API_ROOT_PATH) \
+	--api-trace-header=$(API_TRACE_HEADER) \
+	--api-disable-health-check-logging=$(API_DISABLE_HEALTH_CHECK_LOGGING) \
+	--api-webhook-allow-list=$(API_WEBHOOK_ALLOW_LIST) \
+	--api-webhook-deny-list=$(API_WEBHOOK_DENY_LIST) \
+	--api-webhook-error-allow-list=$(API_WEBHOOK_ERROR_ALLOW_LIST) \
+	--api-webhook-error-deny-list=$(API_WEBHOOK_ERROR_DENY_LIST) \
+	--api-webhook-max-retry=$(API_WEBHOOK_MAX_RETRY) \
+	--api-webhook-retry-min-wait=$(API_WEBHOOK_RETRY_MIN_WAIT) \
+	--api-webhook-retry-max-wait=$(API_WEBHOOK_RETRY_MAX_WAIT) \
+	--api-disable-webhook=$(API_DISABLE_WEBHOOK) \
+	--chromium-user-agent=$(CHROMIUM_USER_AGENT) \
+	--chromium-incognito=$(CHROMIUM_INCOGNITO) \
+	--chromium-ignore-certificate-errors=$(CHROMIUM_IGNORE_CERTIFICATE_ERRORS) \
+	--chromium-allow-list=$(CHROMIUM_ALLOW_LIST) \
+	--chromium-deny-list=$(CHROMIUM_DENY_LIST) \
+	--chromium-disable-routes=$(CHROMIUM_DISABLE_ROUTES) \
+	--libreoffice-disable-routes=$(LIBREOFFICE_DISABLES_ROUTES) \
+	--log-level=$(LOG_LEVEL) \
+	--log-format=$(LOG_FORMAT) \
+	--pdfengines-engines=$(PDFENGINES_ENGINES) \
+	--pdfengines-disable-routes=$(PDFENGINES_DISABLE_ROUTES)
+
+.PHONY: build-tests
+build-tests: ## Build the tests' Docker image
+	docker build \
+	--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
+	--build-arg DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
+	--build-arg GOTENBERG_VERSION=$(GOTENBERG_VERSION) \
+	--build-arg GOLANGCI_LINT_VERSION=$(GOLANGCI_LINT_VERSION) \
+	-t $(DOCKER_REGISTRY)/gotenberg:$(GOTENBERG_VERSION)-tests \
+	-f test/Dockerfile .
+
+.PHONY: tests
+tests: ## Start the testing environment
+	docker run --rm -it \
+	-v $(PWD):/tests \
+	$(DOCKER_REGISTRY)/gotenberg:$(GOTENBERG_VERSION)-tests \
+	bash
+
+.PHONY: tests-once
+tests-once: ## Run the tests once (prefer the "tests" command while developing)
+	docker run --rm  \
+	-v $(PWD):/tests \
+	$(DOCKER_REGISTRY)/gotenberg:$(GOTENBERG_VERSION)-tests \
+	gotest
+
+.PHONY: fmt
+fmt: ## Format the code and "optimize" the dependencies
 	go fmt ./...
 	go mod tidy
 
-# run all linters.
-lint:
-	docker build --build-arg GOLANGCI_LINT_VERSION=$(GOLANGCI_LINT_VERSION) -t $(DOCKER_REGISTRY)/gotenberg:lint -f build/lint/Dockerfile .
-	docker run --rm $(DOCKER_REGISTRY)/gotenberg:lint
+.PHONY: godoc
+godoc: ## Run a webserver with Gotenberg godoc (go get golang.org/x/tools/cmd/godoc)
+	$(info http://localhost:6060/pkg/github.com/gotenberg/gotenberg/v7)
+	godoc -http=:6060
 
-# run all tests.
-tests:
-	make workspace
-	./scripts/tests.sh $(DOCKER_REGISTRY) $(CODE_COVERAGE)
-
-# generate documentation.
-doc:
-	make workspace
-	docker build -t $(DOCKER_REGISTRY)/gotenberg:docs -f build/docs/Dockerfile . 
-	docker run --rm -it -v "$(PWD):/gotenberg/docs" $(DOCKER_REGISTRY)/gotenberg:docs
-
-# build Gotenberg Docker image.
-image:
-	make workspace
-	docker build --build-arg VERSION=$(VERSION) --build-arg TINI_VERSION=$(TINI_VERSION) -t $(DOCKER_REGISTRY)/gotenberg:$(VERSION) -f build/package/Dockerfile .
-
-# start the API using previously built Docker image.
-gotenberg:
-	docker run -it --rm -e MAXIMUM_WAIT_TIMEOUT=$(MAXIMUM_WAIT_TIMEOUT) -e MAXIMUM_WAIT_DELAY=$(MAXIMUM_WAIT_DELAY) -e MAXIMUM_WEBHOOK_URL_TIMEOUT=$(MAXIMUM_WEBHOOK_URL_TIMEOUT) -e DEFAULT_WEBHOOK_URL_TIMEOUT=$(DEFAULT_WEBHOOK_URL_TIMEOUT) -e MAXIMUM_WEBHOOK_URL_TIMEOUT=$(MAXIMUM_WEBHOOK_URL_TIMEOUT) -e DEFAULT_LISTEN_PORT=$(DEFAULT_LISTEN_PORT) -e DISABLE_GOOGLE_CHROME=$(DISABLE_GOOGLE_CHROME) -e DISABLE_UNOCONV=$(DISABLE_UNOCONV) -e LOG_LEVEL=$(LOG_LEVEL) -e ROOT_PATH=$(ROOT_PATH) -e DEFAULT_GOOGLE_CHROME_RPCC_BUFFER_SIZE=$(DEFAULT_GOOGLE_CHROME_RPCC_BUFFER_SIZE) -e GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS=$(GOOGLE_CHROME_IGNORE_CERTIFICATE_ERRORS)  -p "$(DEFAULT_LISTEN_PORT):$(DEFAULT_LISTEN_PORT)" $(DOCKER_REGISTRY)/gotenberg:$(VERSION)
-
-# publish Gotenberg images according to version.
-publish:
-	make workspace
-	./scripts/publish.sh $(GOLANG_VERSION) $(TINI_VERSION) $(DOCKER_REGISTRY) $(VERSION) $(DOCKER_USER) $(DOCKER_PASSWORD)
+.PHONY: release
+release: ## Build the Gotenberg's Docker image for linux/amd64 and linux/arm64 platforms, then push it to a Docker Registry
+	./scripts/release.sh \
+ 	$(GOLANG_VERSION) \
+	$(GOTENBERG_VERSION) \
+	$(GOTENBERG_USER_GID) \
+	$(GOTENBERG_USER_UID) \
+	$(PDFTK_VERSION) \
+	$(DOCKER_REGISTRY)

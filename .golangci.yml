@@ -1,0 +1,30 @@
+linters:
+  disable-all: true
+  enable:
+    - bodyclose
+    - deadcode
+    - errcheck
+    - gofmt
+    - goimports
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - misspell
+    - prealloc
+    - staticcheck
+    - structcheck
+    - typecheck
+    - unconvert
+    - unused
+    - varcheck
+
+run:
+  deadline: 5m
+  issues-exit-code: 1
+  tests: false
+
+output:
+  format: 'colored-line-number'
+  print-issued-lines: true
+  print-linter-name: true
