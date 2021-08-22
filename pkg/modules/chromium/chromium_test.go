@@ -222,26 +222,25 @@ func TestChromium_PDF(t *testing.T) {
 		expectErr               bool
 	}{
 		{
-			URL:       "https://google.com",
-			allowList: regexp.MustCompile("https://google.fr"),
+			URL:       "file:///tests/test/testdata/chromium/html/sample4/index.html",
+			allowList: regexp.MustCompile("file:///tmp/*"),
 			expectErr: true,
 		},
 		{
-			URL:       "https://google.com",
-			denyList:  regexp.MustCompile("https://google.com"),
+			URL:       "file:///tests/test/testdata/chromium/html/sample4/index.html",
+			denyList:  regexp.MustCompile("file:///tests/*"),
 			expectErr: true,
 		},
 		{
-			URL: "",
+			URL: "file:///tests/test/testdata/chromium/html/sample4/index.html",
 			options: Options{
 				ExtraHTTPHeaders: map[string]string{
 					"foo": "bar",
 				},
 			},
-			expectErr: true,
 		},
 		{
-			URL: "https://google.com",
+			URL: "file:///tests/test/testdata/chromium/html/sample4/index.html",
 			options: Options{
 				WaitDelay: time.Duration(1) * time.Nanosecond,
 			},
@@ -262,21 +261,21 @@ func TestChromium_PDF(t *testing.T) {
 			},
 		},
 		{
-			URL: "https://google.com",
+			URL: "file:///tests/test/testdata/chromium/html/sample4/index.html",
 			options: Options{
 				MarginBottom: 100,
 			},
 			expectErr: true,
 		},
 		{
-			URL: "https://google.com",
+			URL: "file:///tests/test/testdata/chromium/html/sample4/index.html",
 			options: Options{
 				PageRanges: "foo",
 			},
 			expectErr: true,
 		},
 		{
-			URL:                     "https://google.com",
+			URL:                     "file:///tests/test/testdata/chromium/html/sample4/index.html",
 			userAgent:               "foo",
 			incognito:               true,
 			ignoreCertificateErrors: true,
@@ -285,7 +284,15 @@ func TestChromium_PDF(t *testing.T) {
 			URL: "file:///tests/test/testdata/chromium/html/sample1/index.html",
 		},
 		{
-			URL: "https://google.com",
+			URL:       "file:///tests/test/testdata/chromium/html/sample3/index.html",
+			allowList: regexp.MustCompile("file:///tests/*"),
+		},
+		{
+			URL:      "file:///tests/test/testdata/chromium/html/sample3/index.html",
+			denyList: regexp.MustCompile("file:///etc/*"),
+		},
+		{
+			URL: "file:///tests/test/testdata/chromium/html/sample4/index.html",
 			options: Options{
 				HeaderTemplate: func() string {
 					b, err := ioutil.ReadFile("/tests/test/testdata/chromium/url/sample2/header.html")

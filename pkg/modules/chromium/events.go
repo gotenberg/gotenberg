@@ -3,13 +3,61 @@ package chromium
 import (
 	"context"
 	"fmt"
+	"regexp"
 
+	"github.com/chromedp/cdproto/cdp"
+	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
+
+// listenForEventRequestPaused listens for requests to check if they are
+// allowed or not.
+func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, allowList *regexp.Regexp, denyList *regexp.Regexp) {
+	chromedp.ListenTarget(ctx, func(ev interface{}) {
+		switch e := ev.(type) {
+		case *fetch.EventRequestPaused:
+			go func() {
+				logger.Debug(fmt.Sprintf("event EventRequestPaused fired for '%s'", e.Request.URL))
+				allow := true
+
+				if !allowList.MatchString(e.Request.URL) {
+					logger.Warn(fmt.Sprintf("'%s' does not match the expression from the allowed list", e.Request.URL))
+					allow = false
+				}
+
+				if denyList.String() != "" && denyList.MatchString(e.Request.URL) {
+					logger.Warn(fmt.Sprintf("'%s' matches the expression from the denied list", e.Request.URL))
+					allow = false
+				}
+
+				cctx := chromedp.FromContext(ctx)
+				executorCtx := cdp.WithExecutor(ctx, cctx.Target)
+
+				if allow {
+					req := fetch.ContinueRequest(e.RequestID)
+					err := req.Do(executorCtx)
+
+					if err != nil {
+						logger.Error(fmt.Sprintf("continue request: %s", err))
+					}
+
+					return
+				}
+
+				req := fetch.FailRequest(e.RequestID, network.ErrorReasonAccessDenied)
+				err := req.Do(executorCtx)
+
+				if err != nil {
+					logger.Error(fmt.Sprintf("fail request: %s", err))
+				}
+			}()
+		}
+	})
+}
 
 // waitForEventDomContentEventFired waits until the event DomContentEventFired
 // is fired or the context timeout.

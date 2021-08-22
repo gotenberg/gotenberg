@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
@@ -183,7 +184,7 @@ func (mod Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Bool("chromium-incognito", false, "Start Chromium with incognito mode")
 			fs.Bool("chromium-ignore-certificate-errors", false, "Ignore the certificate errors")
 			fs.String("chromium-allow-list", "", "Set the allowed URLs for Chromium using a regular expression")
-			fs.String("chromium-deny-list", "", "Set the denied URLs for Chromium using a regular expression")
+			fs.String("chromium-deny-list", "^file:///[^tmp].*", "Set the denied URLs for Chromium using a regular expression")
 			fs.Bool("chromium-disable-routes", false, "Disable the routes")
 
 			return fs
@@ -286,6 +287,7 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 	taskCtx, cancel := chromedp.NewContext(allocatorCtx)
 	defer cancel()
 
+	// We validate the "main" URL against our allow / deny lists.
 	if !mod.allowList.MatchString(URL) {
 		return fmt.Errorf("'%s' does not match the expression from the allowed list: %w", URL, ErrURLNotAuthorized)
 	}
@@ -295,8 +297,13 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 	}
 
 	printToPDF := func(URL string, options Options, result *[]byte) chromedp.Tasks {
+		// We validate the underlying requests against our allow / deny lists.
+		// If a request does not pass the validation, we make it fail.
+		listenForEventRequestPaused(taskCtx, logger, mod.allowList, mod.denyList)
+
 		return chromedp.Tasks{
 			network.Enable(),
+			fetch.Enable(),
 			chromedp.ActionFunc(func(ctx context.Context) error {
 				if len(options.ExtraHTTPHeaders) == 0 {
 					logger.Debug("no extra HTTP headers")
