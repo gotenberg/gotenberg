@@ -1,6 +1,7 @@
 # Note: ARG instructions do not create additional layers.
 # Instead, next layers will concatenate them.
 ARG GOLANG_VERSION
+# Note: we have to repeat ARG instructions in each build stage that uses them.
 ARG GOTENBERG_VERSION
 
 FROM golang:$GOLANG_VERSION AS builder
@@ -22,14 +23,18 @@ COPY internal ./internal
 COPY pkg ./pkg
 
 # Build the binary.
-RUN go build -o gotenberg -ldflags "-X gotenberg.version=$GOTENBERG_VERSION" cmd/gotenberg/main.go
+ARG GOTENBERG_VERSION
+
+RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v7/internal/app/gotenberg.version=$GOTENBERG_VERSION'" cmd/gotenberg/main.go
 
 FROM debian:buster-slim
+
+ARG GOTENBERG_VERSION
 
 LABEL author="Julien Neuhart" \
       description="A Docker-powered stateless API for PDF files." \
       github="https://github.com/gotenberg/gotenberg" \
-      version="$GOTENBER_VERSION" \
+      version="$GOTENBERG_VERSION" \
       website="https://gotenberg.dev"
 
 # Improve fonts subpixel hinting and smoothing.
