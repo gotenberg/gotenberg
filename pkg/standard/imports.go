@@ -8,4 +8,8 @@ import (
 	_ "github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/unoconv"
 	_ "github.com/gotenberg/gotenberg/v7/pkg/modules/logging"
 	_ "github.com/gotenberg/gotenberg/v7/pkg/modules/pdfengines"
+	// PDF engines.
+	_ "github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/pdfengine"
+	_ "github.com/gotenberg/gotenberg/v7/pkg/modules/pdfcpu"
+	_ "github.com/gotenberg/gotenberg/v7/pkg/modules/pdftk"
 )

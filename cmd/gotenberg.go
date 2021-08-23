@@ -1,4 +1,4 @@
-package gotenberg
+package gotenbergcmd
 
 import (
 	"context"
@@ -25,10 +25,13 @@ Version: %s
 -------------------------------------------------------
 `
 
-var version = "snapshot"
+// Version is the... version of the Gotenberg application. We set it at the
+// build stage of the Docker image.
+var Version = "snapshot"
 
+// Run starts the Gotenberg application. Call this in the main of your program.
 func Run() {
-	fmt.Printf(banner, version)
+	fmt.Printf(banner, Version)
 
 	// Creates the roo` FlagSet and adds the modules flags to it.
 	fs := flag.NewFlagSet("gotenberg", flag.ExitOnError)

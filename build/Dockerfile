@@ -19,13 +19,12 @@ RUN go mod download &&\
 
 # Copy the source code.
 COPY cmd ./cmd
-COPY internal ./internal
 COPY pkg ./pkg
 
 # Build the binary.
 ARG GOTENBERG_VERSION
 
-RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v7/internal/app/gotenberg.version=$GOTENBERG_VERSION'" cmd/gotenberg/main.go
+RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v7/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg/main.go
 
 FROM debian:buster-slim
 
