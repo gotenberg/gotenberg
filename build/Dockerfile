@@ -102,11 +102,15 @@ RUN \
     fonts-sil-gentium \
     fonts-sil-gentium-basic &&\
     rm -f ./ttf-mscorefonts-installer_3.8_all.deb &&\
-    echo "deb https://httpredir.debian.org/debian/ buster-backports main contrib non-free" >> /etc/apt/sources.list &&\
+    # See https://github.com/nextcloud/docker/issues/380.
+    mkdir -p /usr/share/man/man1mkdir -p /usr/share/man/man1 &&\
+    curl -L "https://download.documentfoundation.org/libreoffice/stable/7.2.0/deb/x86_64/LibreOffice_7.2.0_Linux_x86-64_deb.tar.gz" | tar -xz &&\
     apt-get update -qq &&\
     # Install Chromium and LibreOffice.
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t buster-backports libreoffice &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends python3 default-jre-headless libatk-wrapper-java-jni ./LibreOffice_7.2*/DEBS/*.deb &&\
+    ln -s /opt/libreoffice7.2/program/soffice /usr/bin/libreoffice &&\
+    rm -rf ./LibreOffice_7.2* &&\
     # Download unoconv (Python script).
     curl -Ls https://raw.githubusercontent.com/dagwieers/unoconv/master/unoconv -o /usr/bin/unoconv &&\
     chmod +x /usr/bin/unoconv &&\
@@ -116,9 +120,6 @@ RUN \
     # Credits: https://github.com/thecodingmachine/gotenberg/pull/273.
     curl -o /usr/bin/pdftk-all.jar "https://gitlab.com/pdftk-java/pdftk/-/jobs/$PDFTK_VERSION/artifacts/raw/build/libs/pdftk-all.jar" &&\
     chmod a+x /usr/bin/pdftk-all.jar &&\
-    # See https://github.com/nextcloud/docker/issues/380.
-    mkdir -p /usr/share/man/man1mkdir -p /usr/share/man/man1 &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends default-jre-headless &&\
     # Cleanup.
     # Note: the Debian image does automatically a clean after each install thanks to a hook.
     # Therefore, there is no need for apt-get clean.
