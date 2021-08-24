@@ -432,6 +432,29 @@ func TestConvertMarkdownHandler(t *testing.T) {
 			outputDir:              "/tmp/foo",
 			expectOutputPathsCount: 1,
 		},
+		{
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
+
+				ctx.SetDirPath("/tmp/foo")
+				ctx.SetFiles(map[string]string{
+					"index.html":   "/tests/test/testdata/chromium/markdown/sample3/index.html",
+					"markdown1.md": "/tests/test/testdata/chromium/markdown/sample3/markdown.md",
+				})
+
+				return ctx
+			}(),
+			api: func() API {
+				chromiumAPI := struct{ ProtoAPI }{}
+				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ Options) error {
+					return nil
+				}
+
+				return chromiumAPI
+			}(),
+			outputDir:              "/tmp/foo",
+			expectOutputPathsCount: 1,
+		},
 	} {
 		func() {
 			if tc.outputDir != "" {
