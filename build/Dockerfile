@@ -107,8 +107,7 @@ RUN \
     curl -L "https://download.documentfoundation.org/libreoffice/stable/7.2.0/deb/x86_64/LibreOffice_7.2.0_Linux_x86-64_deb.tar.gz" | tar -xz &&\
     apt-get update -qq &&\
     # Install Chromium and LibreOffice.
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends python3 default-jre-headless libatk-wrapper-java-jni ./LibreOffice_7.2*/DEBS/*.deb &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium python3 default-jre-headless libatk-wrapper-java-jni ./LibreOffice_7.2*/DEBS/*.deb &&\
     ln -s /opt/libreoffice7.2/program/soffice /usr/bin/libreoffice &&\
     rm -rf ./LibreOffice_7.2* &&\
     # Download unoconv (Python script).
