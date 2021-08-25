@@ -382,11 +382,7 @@ func (a *API) Start() error {
 			checks := append(a.healthChecks, health.WithTimeout(a.processTimeout))
 			checker := health.NewChecker(checks...)
 
-			return func(echoCtx echo.Context) error {
-				health.NewHandler(checker).ServeHTTP(echoCtx.Response().Writer, echoCtx.Request())
-
-				return nil
-			}
+			return echo.WrapHandler(health.NewHandler(checker))
 		}(),
 		timeoutMiddleware(hardTimeout),
 	)
