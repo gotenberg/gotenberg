@@ -257,11 +257,17 @@ func (mod Chromium) Routes() ([]api.MultipartFormDataRoute, error) {
 // drastically. In such a scenario, the given context may also be done before
 // the end of the conversion.
 func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath string, options Options) error {
+	debug := debugLogger{logger: logger.Named("chromium.debug")}
 	userProfileDirPath := gotenberg.NewDirPath()
 
 	args := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.CombinedOutput(debug),
 		chromedp.ExecPath(mod.binPath),
 		chromedp.NoSandbox,
+		// See:
+		// https://github.com/gotenberg/gotenberg/issues/327
+		// https://github.com/chromedp/chromedp/issues/904
+		chromedp.DisableGPU,
 		// See:
 		// https://github.com/puppeteer/puppeteer/issues/661
 		// https://github.com/puppeteer/puppeteer/issues/2410
@@ -284,7 +290,9 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 	allocatorCtx, cancel := chromedp.NewExecAllocator(ctx, args...)
 	defer cancel()
 
-	taskCtx, cancel := chromedp.NewContext(allocatorCtx)
+	taskCtx, cancel := chromedp.NewContext(allocatorCtx,
+		chromedp.WithDebugf(debug.Printf),
+	)
 	defer cancel()
 
 	// We validate the "main" URL against our allow / deny lists.
