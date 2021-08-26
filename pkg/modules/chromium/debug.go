@@ -8,7 +8,7 @@ import (
 )
 
 // debugLogger is wrapper around a zap.Logger which is used for debugging
-// chromium.
+// Chromium.
 type debugLogger struct {
 	logger *zap.Logger
 }
