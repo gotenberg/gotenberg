@@ -51,7 +51,7 @@ ARG GOTENBERG_USER_UID
 ARG PDFTK_VERSION
 
 # Script for installing either Google Chrome stable on amd64 architecture or
-# Chromium on arch64 architecture.
+# Chromium on arm64 architecture.
 # See https://github.com/gotenberg/gotenberg/issues/328.
 COPY build/install-chromium.sh /tmp/install-chromium.sh
 
