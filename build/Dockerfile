@@ -55,11 +55,6 @@ ARG PDFTK_VERSION
 # See https://github.com/gotenberg/gotenberg/issues/328.
 COPY build/install-chromium.sh /tmp/install-chromium.sh
 
-# Script for installing either LibreOffice 7.2 on amd64 architecture or
-# LibreOffice 7.0 on arch64 architecture.
-# See https://github.com/gotenberg/gotenberg/issues/328.
-COPY build/install-libreoffice.sh /tmp/install-libreoffice.sh
-
 RUN \
     # Create a non-root user.
     # All processes in the Docker container will run with this dedicated user.
