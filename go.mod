@@ -1,11 +1,11 @@
 module github.com/gotenberg/gotenberg/v7
 
-go 1.16
+go 1.17
 
 require (
 	github.com/alexliesenfeld/health v0.6.0
 	github.com/andybalholm/brotli v1.0.3 // indirect
-	github.com/chromedp/cdproto v0.0.0-20210808225517-c36c1bd4c35e
+	github.com/chromedp/cdproto v0.0.0-20210823203301-2c0adcc9edc4
 	github.com/chromedp/chromedp v0.7.4
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.3.0
@@ -35,4 +35,24 @@ require (
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
 	golang.org/x/text v0.3.7
 	golang.org/x/tools v0.1.5 // indirect
+)
+
+require (
+	github.com/aymerick/douceur v0.2.0 // indirect
+	github.com/chromedp/sysutil v1.0.0 // indirect
+	github.com/dsnet/compress v0.0.1 // indirect
+	github.com/gobwas/httphead v0.1.0 // indirect
+	github.com/gobwas/pool v0.2.1 // indirect
+	github.com/gobwas/ws v1.1.0 // indirect
+	github.com/gorilla/css v1.0.0 // indirect
+	github.com/hhrutter/lzw v0.0.0-20190829144645-6f07a24e8650 // indirect
+	github.com/hhrutter/tiff v0.0.0-20190829141212-736cae8d0bc7 // indirect
+	github.com/josharian/intern v1.0.0 // indirect
+	github.com/mailru/easyjson v0.7.7 // indirect
+	github.com/mattn/go-colorable v0.1.8 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/valyala/bytebufferpool v1.0.0 // indirect
+	github.com/valyala/fasttemplate v1.2.1 // indirect
+	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

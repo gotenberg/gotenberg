@@ -5,7 +5,7 @@ help: ## Show the help
 .PHONY: it
 it: build build-tests ## Initialize the development environment
 
-GOLANG_VERSION=1.16
+GOLANG_VERSION=1.17
 DOCKER_REGISTRY=gotenberg
 GOTENBERG_VERSION=snapshot
 GOTENBERG_USER_GID=1001
