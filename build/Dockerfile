@@ -66,7 +66,7 @@ RUN \
     # Note: procps for "top" command (useful when debugging processes).
     # Note: tini is a helper for reaping zombie processes.
     apt-get update -qq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg procps tini &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg procps tini python3 default-jre-headless &&\
     # Install fonts.
     # Credits:
     # https://github.com/arachnys/athenapdf/blob/master/cli/Dockerfile.
@@ -111,19 +111,22 @@ RUN \
     # Install Google Chrome / Chromium.
     /tmp/install-chromium.sh &&\
     # Install LibreOffice.
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends libreoffice &&\
+    # Note: we use the sid distribution to get the latest LibreOffice version.
+    # See https://github.com/gotenberg/gotenberg/pull/322.
+    echo "deb https://httpredir.debian.org/debian/ sid main contrib non-free" >> /etc/apt/sources.list &&\
+    apt-get update -qq &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t sid libreoffice &&\
     # Download unoconv (Python script).
     curl -Ls https://raw.githubusercontent.com/dagwieers/unoconv/master/unoconv -o /usr/bin/unoconv &&\
     chmod +x /usr/bin/unoconv &&\
     # unoconv will look for the Python binary, which has to be at version 3.
     ln -s /usr/bin/python3 /usr/bin/python &&\
     # Download PDFtk.
-    # Credits: https://github.com/gotenberg/gotenberg/pull/273.
+    # See https://github.com/gotenberg/gotenberg/pull/273.
     curl -o /usr/bin/pdftk-all.jar "https://gitlab.com/pdftk-java/pdftk/-/jobs/$PDFTK_VERSION/artifacts/raw/build/libs/pdftk-all.jar" &&\
     chmod a+x /usr/bin/pdftk-all.jar &&\
     # See https://github.com/nextcloud/docker/issues/380.
     mkdir -p /usr/share/man/man1mkdir -p /usr/share/man/man1 &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends default-jre-headless &&\
     # Cleanup.
     # Note: the Debian image does automatically a clean after each install thanks to a hook.
     # Therefore, there is no need for apt-get clean.
