@@ -7,7 +7,7 @@ GOTENBERG_VERSION="$2"
 GOTENBERG_USER_GID="$3"
 GOTENBERG_USER_UID="$4"
 PDFTK_VERSION="$5"
-DOCKER_REGISTRY="$6"
+DOCKER_REPOSITORY="$6"
 
 GOTENBERG_VERSION="${GOTENBERG_VERSION//v}"
 SEMVER=( ${GOTENBERG_VERSION//./ } )
@@ -26,22 +26,22 @@ docker buildx build \
   --build-arg PDFTK_VERSION="$PDFTK_VERSION" \
   --platform linux/amd64 \
   --platform linux/arm64 \
-  -t "$DOCKER_REGISTRY/gotenberg:latest" \
-  -t "$DOCKER_REGISTRY/gotenberg:${SEMVER[0]}" \
-  -t "$DOCKER_REGISTRY/gotenberg:${SEMVER[0]}.${SEMVER[1]}" \
-  -t "$DOCKER_REGISTRY/gotenberg:${SEMVER[0]}.${SEMVER[1]}.${SEMVER[2]}" \
+  -t "$DOCKER_REPOSITORY/gotenberg:latest" \
+  -t "$DOCKER_REPOSITORY/gotenberg:${SEMVER[0]}" \
+  -t "$DOCKER_REPOSITORY/gotenberg:${SEMVER[0]}.${SEMVER[1]}" \
+  -t "$DOCKER_REPOSITORY/gotenberg:${SEMVER[0]}.${SEMVER[1]}.${SEMVER[2]}" \
   --push \
   -f build/Dockerfile .
 
 # Cloud Run variant.
 docker buildx build \
-  --build-arg DOCKER_REGISTRY="$DOCKER_REGISTRY" \
+  --build-arg DOCKER_REPOSITORY="$DOCKER_REPOSITORY" \
   --build-arg GOTENBERG_VERSION="$GOTENBERG_VERSION" \
   --platform linux/amd64 \
   --platform linux/arm64 \
-  -t "$DOCKER_REGISTRY/gotenberg:latest-cloudrun" \
-  -t "$DOCKER_REGISTRY/gotenberg:${SEMVER[0]}-cloudrun" \
-  -t "$DOCKER_REGISTRY/gotenberg:${SEMVER[0]}.${SEMVER[1]}-cloudrun" \
-  -t "$DOCKER_REGISTRY/gotenberg:${SEMVER[0]}.${SEMVER[1]}.${SEMVER[2]}-cloudrun" \
+  -t "$DOCKER_REPOSITORY/gotenberg:latest-cloudrun" \
+  -t "$DOCKER_REPOSITORY/gotenberg:${SEMVER[0]}-cloudrun" \
+  -t "$DOCKER_REPOSITORY/gotenberg:${SEMVER[0]}.${SEMVER[1]}-cloudrun" \
+  -t "$DOCKER_REPOSITORY/gotenberg:${SEMVER[0]}.${SEMVER[1]}.${SEMVER[2]}-cloudrun" \
   --push \
   -f build/Dockerfile.cloudrun .

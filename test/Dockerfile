@@ -1,5 +1,5 @@
 ARG GOLANG_VERSION
-ARG DOCKER_REGISTRY
+ARG DOCKER_REPOSITORY
 ARG GOTENBERG_VERSION
 ARG GOLANGCI_LINT_VERSION
 
@@ -7,7 +7,7 @@ FROM golang:$GOLANG_VERSION-stretch as golang
 
 # We're extending the Gotenberg's Docker image because our code relies on external
 # dependencies like Google Chrome, LibreOffice, etc.
-FROM $DOCKER_REGISTRY/gotenberg:$GOTENBERG_VERSION
+FROM $DOCKER_REPOSITORY/gotenberg:$GOTENBERG_VERSION
 
 USER root
 

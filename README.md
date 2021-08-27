@@ -18,7 +18,7 @@ Open a terminal and run the following command:
 docker run --rm -p 3000:3000 gotenberg/gotenberg:7
 ```
 
-Alternatively, using the historic Docker registry from our sponsor [TheCodingMachine](https://www.thecodingmachine.com):
+Alternatively, using the historic Docker repository from our sponsor [TheCodingMachine](https://www.thecodingmachine.com):
 
 ```
 docker run --rm -p 3000:3000 thecodingmachine/gotenberg:7

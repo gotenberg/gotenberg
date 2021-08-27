@@ -1,9 +1,9 @@
 # Note: ARG instructions do not create additional layers.
 # Instead, next layers will concatenate them.
-ARG DOCKER_REGISTRY
+ARG DOCKER_REPOSITORY
 ARG GOTENBERG_VERSION
 
-FROM $DOCKER_REGISTRY/gotenberg:$GOTENBERG_VERSION
+FROM $DOCKER_REPOSITORY/gotenberg:$GOTENBERG_VERSION
 
 USER root
 
