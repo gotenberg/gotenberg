@@ -50,6 +50,11 @@ ARG GOTENBERG_USER_GID
 ARG GOTENBERG_USER_UID
 ARG PDFTK_VERSION
 
+# Script for installing either Google Chrome stable on amd64 architecture or
+# Chromium on arch64 architecture.
+# See https://github.com/gotenberg/gotenberg/issues/328.
+COPY build/install-chromium.sh /tmp/install-chromium.sh
+
 RUN \
     # Create a non-root user.
     # All processes in the Docker container will run with this dedicated user.
@@ -103,15 +108,17 @@ RUN \
     fonts-sil-gentium \
     fonts-sil-gentium-basic &&\
     rm -f ./ttf-mscorefonts-installer_3.8_all.deb &&\
-    # Install Chromium and LibreOffice.
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium libreoffice &&\
+    # Install Google Chrome / Chromium.
+    /tmp/install-chromium.sh &&\
+    # Install LibreOffice.
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends libreoffice &&\
     # Download unoconv (Python script).
     curl -Ls https://raw.githubusercontent.com/dagwieers/unoconv/master/unoconv -o /usr/bin/unoconv &&\
     chmod +x /usr/bin/unoconv &&\
     # unoconv will look for the Python binary, which has to be at version 3.
     ln -s /usr/bin/python3 /usr/bin/python &&\
     # Download PDFtk.
-    # Credits: https://github.com/thecodingmachine/gotenberg/pull/273.
+    # Credits: https://github.com/gotenberg/gotenberg/pull/273.
     curl -o /usr/bin/pdftk-all.jar "https://gitlab.com/pdftk-java/pdftk/-/jobs/$PDFTK_VERSION/artifacts/raw/build/libs/pdftk-all.jar" &&\
     chmod a+x /usr/bin/pdftk-all.jar &&\
     # See https://github.com/nextcloud/docker/issues/380.
