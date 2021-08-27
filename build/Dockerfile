@@ -26,7 +26,7 @@ ARG GOTENBERG_VERSION
 
 RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v7/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg/main.go
 
-FROM debian:buster-slim
+FROM debian:bullseye-slim
 
 ARG GOTENBERG_VERSION
 
@@ -84,6 +84,7 @@ RUN \
     fonts-telu \
     fonts-thai-tlwg \
     ttf-wqy-zenhei \
+    fonts-arphic-ukai \
     fonts-arphic-uming \
     fonts-ipafont-mincho \
     fonts-ipafont-gothic \
@@ -102,11 +103,8 @@ RUN \
     fonts-sil-gentium \
     fonts-sil-gentium-basic &&\
     rm -f ./ttf-mscorefonts-installer_3.8_all.deb &&\
-    echo "deb https://httpredir.debian.org/debian/ buster-backports main contrib non-free" >> /etc/apt/sources.list &&\
-    apt-get update -qq &&\
     # Install Chromium and LibreOffice.
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t buster-backports libreoffice &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium libreoffice &&\
     # Download unoconv (Python script).
     curl -Ls https://raw.githubusercontent.com/dagwieers/unoconv/master/unoconv -o /usr/bin/unoconv &&\
     chmod +x /usr/bin/unoconv &&\

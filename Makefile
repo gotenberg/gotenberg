@@ -11,7 +11,7 @@ GOTENBERG_VERSION=snapshot
 GOTENBERG_USER_GID=1001
 GOTENBERG_USER_UID=1001
 PDFTK_VERSION=1353200058 # See https://gitlab.com/pdftk-java/pdftk/-/releases - Binary package.
-GOLANGCI_LINT_VERSION=v1.39.0 # See https://github.com/golangci/golangci-lint/releases.
+GOLANGCI_LINT_VERSION=v1.42.0 # See https://github.com/golangci/golangci-lint/releases.
 
 .PHONY: build
 build: ## Build the Gotenberg's Docker image
