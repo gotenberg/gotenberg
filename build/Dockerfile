@@ -84,6 +84,7 @@ RUN \
     fonts-telu \
     fonts-thai-tlwg \
     ttf-wqy-zenhei \
+    fonts-arphic-ukai \
     fonts-arphic-uming \
     fonts-ipafont-mincho \
     fonts-ipafont-gothic \
