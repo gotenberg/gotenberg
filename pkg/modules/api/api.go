@@ -89,7 +89,7 @@ const (
 // Middleware is a middleware which can be added to the API's middlewares
 // chain.
 //
-//  middleware := &Middleware{
+//  middleware := Middleware{
 //    Handler: func() echo.MiddlewareFunc {
 //      return func(next echo.HandlerFunc) echo.HandlerFunc {
 //        return func(c echo.Context) error {
