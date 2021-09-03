@@ -26,7 +26,7 @@ ARG GOTENBERG_VERSION
 
 RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v7/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg/main.go
 
-FROM debian:bullseye-slim
+FROM debian:11-slim
 
 ARG GOTENBERG_VERSION
 
