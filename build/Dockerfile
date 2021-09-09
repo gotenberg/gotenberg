@@ -42,18 +42,13 @@ LABEL author="Julien Neuhart" \
 # https://github.com/arachnys/athenapdf/commit/ba25a8d80a25d08d58865519c4cd8756dc9a336d.
 COPY build/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 
-# Add Color and Black-and-White Noto emoji font.
-# Credits:
-# https://github.com/gotenberg/gotenberg/pull/325.
-# https://github.com/googlefonts/noto-emoji.
-COPY build/NotoColorEmoji.ttf /usr/local/share/fonts/NotoColorEmoji.ttf
-
 # Simple wrapper around Java and PDFtk.
 COPY build/pdftk.sh /usr/bin/pdftk
 
 # Setup the Docker image.
 ARG GOTENBERG_USER_GID
 ARG GOTENBERG_USER_UID
+ARG NOTO_COLOR_EMOJI_VERSION
 ARG PDFTK_VERSION
 
 # Script for installing either Google Chrome stable on amd64 architecture or
@@ -114,6 +109,11 @@ RUN \
     fonts-sil-gentium \
     fonts-sil-gentium-basic &&\
     rm -f ./ttf-mscorefonts-installer_3.8_all.deb &&\
+    # Add Color and Black-and-White Noto emoji font.
+    # Credits:
+    # https://github.com/gotenberg/gotenberg/pull/325.
+    # https://github.com/googlefonts/noto-emoji.
+    curl -o /usr/local/share/fonts/NotoColorEmoji.ttf "https://github.com/googlefonts/noto-emoji/raw/$NOTO_COLOR_EMOJI_VERSION/fonts/NotoColorEmoji.ttf" &&\
     # Install Google Chrome / Chromium.
     /tmp/install-chromium.sh &&\
     # Install LibreOffice.
