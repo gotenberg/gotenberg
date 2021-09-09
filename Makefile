@@ -21,6 +21,7 @@ build: ## Build the Gotenberg's Docker image
 	--build-arg GOTENBERG_VERSION=$(GOTENBERG_VERSION) \
 	--build-arg GOTENBERG_USER_GID=$(GOTENBERG_USER_GID) \
 	--build-arg GOTENBERG_USER_UID=$(GOTENBERG_USER_UID) \
+	--build-arg NOTO_COLOR_EMOJI_VERSION=$(NOTO_COLOR_EMOJI_VERSION) \
 	--build-arg PDFTK_VERSION=$(PDFTK_VERSION) \
 	-t $(DOCKER_REPOSITORY)/gotenberg:$(GOTENBERG_VERSION) \
 	-f build/Dockerfile .
