@@ -48,6 +48,7 @@ COPY build/pdftk.sh /usr/bin/pdftk
 # Setup the Docker image.
 ARG GOTENBERG_USER_GID
 ARG GOTENBERG_USER_UID
+ARG NOTO_COLOR_EMOJI_VERSION
 ARG PDFTK_VERSION
 
 # Script for installing either Google Chrome stable on amd64 architecture or
@@ -108,6 +109,11 @@ RUN \
     fonts-sil-gentium \
     fonts-sil-gentium-basic &&\
     rm -f ./ttf-mscorefonts-installer_3.8_all.deb &&\
+    # Add Color and Black-and-White Noto emoji font.
+    # Credits:
+    # https://github.com/gotenberg/gotenberg/pull/325.
+    # https://github.com/googlefonts/noto-emoji.
+    curl -Ls "https://github.com/googlefonts/noto-emoji/raw/$NOTO_COLOR_EMOJI_VERSION/fonts/NotoColorEmoji.ttf" -o /usr/local/share/fonts/NotoColorEmoji.ttf &&\
     # Install Google Chrome / Chromium.
     /tmp/install-chromium.sh &&\
     # Install LibreOffice.
