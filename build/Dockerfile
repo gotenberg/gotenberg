@@ -113,7 +113,7 @@ RUN \
     # Credits:
     # https://github.com/gotenberg/gotenberg/pull/325.
     # https://github.com/googlefonts/noto-emoji.
-    curl -o /usr/local/share/fonts/NotoColorEmoji.ttf "https://github.com/googlefonts/noto-emoji/raw/$NOTO_COLOR_EMOJI_VERSION/fonts/NotoColorEmoji.ttf" &&\
+    curl -Ls "https://github.com/googlefonts/noto-emoji/raw/$NOTO_COLOR_EMOJI_VERSION/fonts/NotoColorEmoji.ttf" -o /usr/local/share/fonts/NotoColorEmoji.ttf &&\
     # Install Google Chrome / Chromium.
     /tmp/install-chromium.sh &&\
     # Install LibreOffice.
