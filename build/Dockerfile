@@ -42,6 +42,12 @@ LABEL author="Julien Neuhart" \
 # https://github.com/arachnys/athenapdf/commit/ba25a8d80a25d08d58865519c4cd8756dc9a336d.
 COPY build/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 
+# Add Color and Black-and-White Noto emoji font.
+# Credits:
+# https://github.com/gotenberg/gotenberg/pull/325.
+# https://github.com/googlefonts/noto-emoji.
+COPY build/NotoColorEmoji.ttf /usr/local/share/fonts/NotoColorEmoji.ttf
+
 # Simple wrapper around Java and PDFtk.
 COPY build/pdftk.sh /usr/bin/pdftk
 
