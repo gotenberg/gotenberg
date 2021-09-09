@@ -146,7 +146,7 @@ func DefaultOptions() Options {
 		PrintBackground:   false,
 		Scale:             1.0,
 		PaperWidth:        8.3,
-        PaperHeight:       11.7,
+		PaperHeight:       11.7,
 		MarginTop:         0.39,
 		MarginBottom:      0.39,
 		MarginLeft:        0.39,
