@@ -397,7 +397,7 @@ func (form *FormData) mustAssign(key, value string, target interface{}) *FormDat
 func (form *FormData) path(filename string, target *string) *FormData {
 	for name, path := range form.files {
 		// See https://github.com/gotenberg/gotenberg/issues/228.
-		nameLowerExt := strings.TrimSuffix(name, filepath.Ext(name)) + strings.ToLower(filepath.Base(name))
+		nameLowerExt := strings.TrimSuffix(name, filepath.Ext(name)) + strings.ToLower(filepath.Ext(name))
 		if name == filename || nameLowerExt == filename {
 			*target = path
 			return form
