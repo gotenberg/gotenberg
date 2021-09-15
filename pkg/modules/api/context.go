@@ -125,10 +125,9 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, timeout time.Duration)
 	copyToDisk := func(fh *multipart.FileHeader) error {
 		// Avoid directory traversal and normalize filename.
 		// See https://github.com/gotenberg/gotenberg/issues/104.
-		// See https://github.com/gotenberg/gotenberg/issues/228.
 		t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
 
-		filename, _, err := transform.String(t, strings.ToLower(filepath.Base(fh.Filename)))
+		filename, _, err := transform.String(t, filepath.Base(fh.Filename))
 		if err != nil {
 			return fmt.Errorf("transform filename: %w", err)
 		}
