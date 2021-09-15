@@ -312,6 +312,9 @@ func TestChromium_PDF(t *testing.T) {
 				}(),
 			},
 		},
+		{
+			URL: "file:///tests/test/testdata/chromium/html/sample5/index.html",
+		},
 	} {
 		func() {
 			mod := new(Chromium)

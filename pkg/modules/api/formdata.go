@@ -396,7 +396,9 @@ func (form *FormData) mustAssign(key, value string, target interface{}) *FormDat
 // path binds the absolute path of a form data file to a string variable.
 func (form *FormData) path(filename string, target *string) *FormData {
 	for name, path := range form.files {
-		if name == filename {
+		// See https://github.com/gotenberg/gotenberg/issues/228.
+		nameLowerExt := strings.TrimSuffix(name, filepath.Ext(name)) + strings.ToLower(filepath.Ext(name))
+		if name == filename || nameLowerExt == filename {
 			*target = path
 			return form
 		}

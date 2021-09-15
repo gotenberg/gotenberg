@@ -111,7 +111,7 @@ func TestHttpErrorHandler(t *testing.T) {
 
 		func() {
 			rand.Seed(time.Now().UnixNano())
-			webhookPort := rand.Intn(65535 - 1025 + 1) + 1025
+			webhookPort := rand.Intn(65535-1025+1) + 1025
 
 			tc.webhookClient.errorURL = fmt.Sprintf(tc.webhookClient.errorURL, webhookPort)
 
@@ -825,7 +825,7 @@ func TestContextMiddlewareWithWebhook(t *testing.T) {
 			webhook.HidePort = true
 
 			rand.Seed(time.Now().UnixNano())
-			webhookPort := rand.Intn(65535 - 1025 + 1) + 1025
+			webhookPort := rand.Intn(65535-1025+1) + 1025
 
 			if tc.autoWebhookURLs {
 				c.Request().Header.Set("Gotenberg-Webhook-Url", fmt.Sprintf("http://localhost:%d/", webhookPort))

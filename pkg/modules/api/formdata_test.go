@@ -850,6 +850,7 @@ func TestFormData_MandatoryPath(t *testing.T) {
 func TestFormData_Content(t *testing.T) {
 	for i, tc := range []struct {
 		form         *FormData
+		filename     string
 		defaultValue string
 		expect       string
 		expectErr    bool
@@ -863,6 +864,7 @@ func TestFormData_Content(t *testing.T) {
 					"bar": "/bar",
 				},
 			},
+			filename: "foo",
 		},
 		{
 			form: &FormData{
@@ -870,6 +872,7 @@ func TestFormData_Content(t *testing.T) {
 					"bar": "/bar",
 				},
 			},
+			filename:     "foo",
 			defaultValue: "foo",
 			expect:       "foo",
 		},
@@ -879,6 +882,7 @@ func TestFormData_Content(t *testing.T) {
 					"foo": "/foo",
 				},
 			},
+			filename:  "foo",
 			expectErr: true,
 		},
 		{
@@ -887,12 +891,31 @@ func TestFormData_Content(t *testing.T) {
 					"foo": "/tests/test/testdata/api/sample1.txt",
 				},
 			},
-			expect: "foo",
+			filename: "foo",
+			expect:   "foo",
+		},
+		{
+			form: &FormData{
+				files: map[string]string{
+					"foo.TXT": "/tests/test/testdata/api/sample1.txt",
+				},
+			},
+			filename: "foo.txt",
+			expect:   "foo",
+		},
+		{
+			form: &FormData{
+				files: map[string]string{
+					"foo.txt": "/tests/test/testdata/api/sample1.txt",
+				},
+			},
+			filename: "foo.txt",
+			expect:   "foo",
 		},
 	} {
 		var actual string
 
-		tc.form.Content("foo", &actual, tc.defaultValue)
+		tc.form.Content(tc.filename, &actual, tc.defaultValue)
 
 		if actual != tc.expect {
 			t.Errorf("test %d: expected '%s' but got '%s'", i, tc.expect, actual)
@@ -911,11 +934,13 @@ func TestFormData_Content(t *testing.T) {
 func TestFormData_MandatoryContent(t *testing.T) {
 	for i, tc := range []struct {
 		form      *FormData
+		filename  string
 		expect    string
 		expectErr bool
 	}{
 		{
 			form:      &FormData{},
+			filename:  "foo",
 			expectErr: true,
 		},
 		{
@@ -924,6 +949,7 @@ func TestFormData_MandatoryContent(t *testing.T) {
 					"bar": "/bar",
 				},
 			},
+			filename:  "foo",
 			expectErr: true,
 		},
 		{
@@ -932,6 +958,7 @@ func TestFormData_MandatoryContent(t *testing.T) {
 					"foo": "/foo",
 				},
 			},
+			filename:  "foo",
 			expectErr: true,
 		},
 		{
@@ -940,12 +967,31 @@ func TestFormData_MandatoryContent(t *testing.T) {
 					"foo": "/tests/test/testdata/api/sample1.txt",
 				},
 			},
-			expect: "foo",
+			filename: "foo",
+			expect:   "foo",
+		},
+		{
+			form: &FormData{
+				files: map[string]string{
+					"foo.TXT": "/tests/test/testdata/api/sample1.txt",
+				},
+			},
+			filename: "foo.txt",
+			expect:   "foo",
+		},
+		{
+			form: &FormData{
+				files: map[string]string{
+					"foo.txt": "/tests/test/testdata/api/sample1.txt",
+				},
+			},
+			filename: "foo.txt",
+			expect:   "foo",
 		},
 	} {
 		var actual string
 
-		tc.form.MandatoryContent("foo", &actual)
+		tc.form.MandatoryContent(tc.filename, &actual)
 
 		if actual != tc.expect {
 			t.Errorf("test %d: expected '%s' but got '%s'", i, tc.expect, actual)
@@ -992,6 +1038,21 @@ func TestFormData_Paths(t *testing.T) {
 			expect: []string{
 				"/a.pdf",
 				"/b.pdf",
+			},
+			expectCount: 2,
+		},
+		{
+			form: &FormData{
+				files: map[string]string{
+					"foo.zip": "/foo.zip",
+					"b.PDF":   "/b.PDF",
+					"a.pdf":   "/a.pdf",
+				},
+			},
+			extensions: []string{".pdf"},
+			expect: []string{
+				"/a.pdf",
+				"/b.PDF",
 			},
 			expectCount: 2,
 		},
@@ -1048,6 +1109,21 @@ func TestFormData_MandatoryPaths(t *testing.T) {
 			expect: []string{
 				"/a.pdf",
 				"/b.pdf",
+			},
+			expectCount: 2,
+		},
+		{
+			form: &FormData{
+				files: map[string]string{
+					"foo.zip": "/foo.zip",
+					"b.PDF":   "/b.PDF",
+					"a.pdf":   "/a.pdf",
+				},
+			},
+			extensions: []string{".pdf"},
+			expect: []string{
+				"/a.pdf",
+				"/b.PDF",
 			},
 			expectCount: 2,
 		},
