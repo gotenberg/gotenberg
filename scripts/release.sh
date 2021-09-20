@@ -26,6 +26,8 @@ docker buildx build \
   --build-arg PDFTK_VERSION="$PDFTK_VERSION" \
   --platform linux/amd64 \
   --platform linux/arm64 \
+  --platform linux/arm/v7 \
+  --platform linux/386 \
   -t "$DOCKER_REPOSITORY/gotenberg:latest" \
   -t "$DOCKER_REPOSITORY/gotenberg:${SEMVER[0]}" \
   -t "$DOCKER_REPOSITORY/gotenberg:${SEMVER[0]}.${SEMVER[1]}" \
@@ -39,6 +41,8 @@ docker buildx build \
   --build-arg GOTENBERG_VERSION="$GOTENBERG_VERSION" \
   --platform linux/amd64 \
   --platform linux/arm64 \
+  --platform linux/arm/v7 \
+  --platform linux/386 \
   -t "$DOCKER_REPOSITORY/gotenberg:latest-cloudrun" \
   -t "$DOCKER_REPOSITORY/gotenberg:${SEMVER[0]}-cloudrun" \
   -t "$DOCKER_REPOSITORY/gotenberg:${SEMVER[0]}.${SEMVER[1]}-cloudrun" \
