@@ -210,16 +210,17 @@ func TestChromium_Routes(t *testing.T) {
 
 func TestChromium_PDF(t *testing.T) {
 	for i, tc := range []struct {
-		timeout                 time.Duration
-		cancel                  context.CancelFunc
-		URL                     string
-		options                 Options
-		userAgent               string
-		incognito               bool
-		ignoreCertificateErrors bool
-		allowList               *regexp.Regexp
-		denyList                *regexp.Regexp
-		expectErr               bool
+		timeout                  time.Duration
+		cancel                   context.CancelFunc
+		URL                      string
+		options                  Options
+		userAgent                string
+		incognito                bool
+		ignoreCertificateErrors  bool
+		allowFileAccessFromFiles bool
+		allowList                *regexp.Regexp
+		denyList                 *regexp.Regexp
+		expectErr                bool
 	}{
 		{
 			URL:       "file:///tests/test/testdata/chromium/html/sample4/index.html",
@@ -275,10 +276,11 @@ func TestChromium_PDF(t *testing.T) {
 			expectErr: true,
 		},
 		{
-			URL:                     "file:///tests/test/testdata/chromium/html/sample4/index.html",
-			userAgent:               "foo",
-			incognito:               true,
-			ignoreCertificateErrors: true,
+			URL:                      "file:///tests/test/testdata/chromium/html/sample4/index.html",
+			userAgent:                "foo",
+			incognito:                true,
+			ignoreCertificateErrors:  true,
+			allowFileAccessFromFiles: true,
 		},
 		{
 			URL: "file:///tests/test/testdata/chromium/html/sample1/index.html",
@@ -315,6 +317,10 @@ func TestChromium_PDF(t *testing.T) {
 		{
 			URL: "file:///tests/test/testdata/chromium/html/sample5/index.html",
 		},
+		{
+			URL:                      "file:///tests/test/testdata/chromium/html/sample6/index.html",
+			allowFileAccessFromFiles: true,
+		},
 	} {
 		func() {
 			mod := new(Chromium)
@@ -322,6 +328,7 @@ func TestChromium_PDF(t *testing.T) {
 			mod.userAgent = tc.userAgent
 			mod.incognito = tc.incognito
 			mod.ignoreCertificateErrors = tc.ignoreCertificateErrors
+			mod.allowFileAccessFromFiles = tc.allowFileAccessFromFiles
 
 			if tc.allowList == nil {
 				tc.allowList = regexp.MustCompile("")
