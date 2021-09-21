@@ -52,7 +52,7 @@ ARG NOTO_COLOR_EMOJI_VERSION
 ARG PDFTK_VERSION
 
 # Script for installing either Google Chrome stable on amd64 architecture or
-# Chromium on arm64 architecture.
+# Chromium on other architectures.
 # See https://github.com/gotenberg/gotenberg/issues/328.
 COPY build/install-chromium.sh /tmp/install-chromium.sh
 

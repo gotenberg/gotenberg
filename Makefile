@@ -46,6 +46,7 @@ API_DISABLE_WEBHOOK=false
 CHROMIUM_USER_AGENT=
 CHROMIUM_INCOGNITO=false
 CHROMIUM_IGNORE_CERTIFICATE_ERRORS=false
+CHROMIUM_ALLOW_FILE_ACCESS_FROM_FILES=false
 CHROMIUM_ALLOW_LIST=
 CHROMIUM_DENY_LIST="^file:///[^tmp].*"
 CHROMIUM_DISABLE_ROUTES=false
@@ -81,6 +82,7 @@ run: ## Start a Gotenberg container
 	--chromium-user-agent=$(CHROMIUM_USER_AGENT) \
 	--chromium-incognito=$(CHROMIUM_INCOGNITO) \
 	--chromium-ignore-certificate-errors=$(CHROMIUM_IGNORE_CERTIFICATE_ERRORS) \
+	--chromium-allow-file-access-from-files=$(CHROMIUM_ALLOW_FILE_ACCESS_FROM_FILES) \
 	--chromium-allow-list=$(CHROMIUM_ALLOW_LIST) \
 	--chromium-deny-list=$(CHROMIUM_DENY_LIST) \
 	--chromium-disable-routes=$(CHROMIUM_DISABLE_ROUTES) \
@@ -125,7 +127,7 @@ godoc: ## Run a webserver with Gotenberg godoc (go get golang.org/x/tools/cmd/go
 	godoc -http=:6060
 
 .PHONY: release
-release: ## Build the Gotenberg's Docker image for linux/amd64 and linux/arm64 platforms, then push it to a Docker repository
+release: ## Build the Gotenberg's Docker image for many platforms, then push it to a Docker repository
 	./scripts/release.sh \
  	$(GOLANG_VERSION) \
 	$(GOTENBERG_VERSION) \
