@@ -45,14 +45,15 @@ var (
 // Chromium is a module which provides both an API and routes for converting
 // HTML document to PDF.
 type Chromium struct {
-	binPath                 string
-	engine                  gotenberg.PDFEngine
-	userAgent               string
-	incognito               bool
-	ignoreCertificateErrors bool
-	allowList               *regexp.Regexp
-	denyList                *regexp.Regexp
-	disableRoutes           bool
+	binPath                  string
+	engine                   gotenberg.PDFEngine
+	userAgent                string
+	incognito                bool
+	ignoreCertificateErrors  bool
+	allowFileAccessFromFiles bool
+	allowList                *regexp.Regexp
+	denyList                 *regexp.Regexp
+	disableRoutes            bool
 }
 
 // Options are the available options for converting HTML document to PDF.
@@ -183,6 +184,7 @@ func (mod Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.String("chromium-user-agent", "", "Override the default User-Agent header")
 			fs.Bool("chromium-incognito", false, "Start Chromium with incognito mode")
 			fs.Bool("chromium-ignore-certificate-errors", false, "Ignore the certificate errors")
+			fs.Bool("chromium-allow-file-access-from-files", false, "Allow file:// URIs to read other file:// URIs")
 			fs.String("chromium-allow-list", "", "Set the allowed URLs for Chromium using a regular expression")
 			fs.String("chromium-deny-list", "^file:///[^tmp].*", "Set the denied URLs for Chromium using a regular expression")
 			fs.Bool("chromium-disable-routes", false, "Disable the routes")
@@ -197,6 +199,7 @@ func (mod Chromium) Descriptor() gotenberg.ModuleDescriptor {
 func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	mod.ignoreCertificateErrors = flags.MustBool("chromium-ignore-certificate-errors")
+	mod.allowFileAccessFromFiles = flags.MustBool("chromium-allow-file-access-from-files")
 	mod.allowList = flags.MustRegexp("chromium-allow-list")
 	mod.denyList = flags.MustRegexp("chromium-deny-list")
 	mod.disableRoutes = flags.MustBool("chromium-disable-routes")
@@ -285,6 +288,11 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 
 	if mod.ignoreCertificateErrors {
 		args = append(args, chromedp.IgnoreCertErrors)
+	}
+
+	if mod.allowFileAccessFromFiles {
+		// See https://github.com/gotenberg/gotenberg/issues/356.
+		args = append(args, chromedp.Flag("allow-file-access-from-files", true))
 	}
 
 	allocatorCtx, cancel := chromedp.NewExecAllocator(ctx, args...)
