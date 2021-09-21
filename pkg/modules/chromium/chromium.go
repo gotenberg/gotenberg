@@ -364,6 +364,31 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 				return fmt.Errorf("wait for events: %w", err)
 			}),
 			chromedp.ActionFunc(func(ctx context.Context) error {
+				// See:
+				// https://github.com/gotenberg/gotenberg/issues/354
+				// https://github.com/puppeteer/puppeteer/issues/2685
+				// https://github.com/chromedp/chromedp/issues/520
+				script := `
+(() => {
+	const css = 'html { -webkit-print-color-adjust: exact !important; }';
+
+	const style = document.createElement('style');
+	style.type = 'text/css';
+	style.appendChild(document.createTextNode(css));
+	document.head.appendChild(style);
+})();
+`
+
+				evaluate := chromedp.Evaluate(script, nil)
+				err := evaluate.Do(ctx)
+
+				if err == nil {
+					return nil
+				}
+
+				return fmt.Errorf("add CSS for exact colors: %w", err)
+			}),
+			chromedp.ActionFunc(func(ctx context.Context) error {
 				if options.WaitDelay > 0 {
 					// We wait for a given amount of time so that JavaScript
 					// scripts have a chance to finish before printing the page

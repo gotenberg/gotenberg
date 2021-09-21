@@ -321,6 +321,9 @@ func TestChromium_PDF(t *testing.T) {
 			URL:                      "file:///tests/test/testdata/chromium/html/sample6/index.html",
 			allowFileAccessFromFiles: true,
 		},
+		{
+			URL: "file:///tests/test/testdata/chromium/html/sample7/index.html",
+		},
 	} {
 		func() {
 			mod := new(Chromium)
