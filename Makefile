@@ -125,7 +125,7 @@ godoc: ## Run a webserver with Gotenberg godoc (go get golang.org/x/tools/cmd/go
 	godoc -http=:6060
 
 .PHONY: release
-release: ## Build the Gotenberg's Docker image for linux/amd64 and linux/arm64 platforms, then push it to a Docker repository
+release: ## Build the Gotenberg's Docker image for many platforms, then push it to a Docker repository
 	./scripts/release.sh \
  	$(GOLANG_VERSION) \
 	$(GOTENBERG_VERSION) \
