@@ -19,11 +19,19 @@ import (
 	flag "github.com/spf13/pflag"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
+	"golang.org/x/net/http2"
 )
 
 func init() {
 	gotenberg.MustRegisterModule(API{})
 }
+
+type HTTPVersion uint
+
+const (
+	HTTP1 HTTPVersion = iota
+	H2C   HTTPVersion = iota
+)
 
 // API is a module which provides an HTTP server. Other modules may add
 // "multipart/form-data" routes, middlewares or health checks.
@@ -43,6 +51,7 @@ type API struct {
 	webhookRetryMinWait       time.Duration
 	webhookRetryMaxWait       time.Duration
 	disableWebhook            bool
+	httpVersion               HTTPVersion
 
 	multipartFormDataRoutes []MultipartFormDataRoute
 	externalMiddlewares     []Middleware
@@ -158,6 +167,7 @@ func (API) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Duration("api-webhook-retry-min-wait", time.Duration(1)*time.Second, "Set the minimum duration to wait before trying to call the webhook again")
 			fs.Duration("api-webhook-retry-max-wait", time.Duration(30)*time.Second, "Set the maximum duration to wait before trying to call the webhook again")
 			fs.Bool("api-disable-webhook", false, "Disable the webhook feature")
+			fs.String("api-http-version", "http1", "Set the HTTP version (http1|h2c)")
 
 			return fs
 		}(),
@@ -183,6 +193,15 @@ func (a *API) Provision(ctx *gotenberg.Context) error {
 	a.webhookRetryMinWait = flags.MustDuration("api-webhook-retry-min-wait")
 	a.webhookRetryMaxWait = flags.MustDuration("api-webhook-retry-max-wait")
 	a.disableWebhook = flags.MustBool("api-disable-webhook")
+
+	switch flags.MustString("api-http-version") {
+	case "http1":
+		a.httpVersion = HTTP1
+	case "h2c":
+		a.httpVersion = H2C
+	default:
+		return fmt.Errorf("invalid value for 'api-http-version': %s", flags.MustString("api-http-version"))
+	}
 
 	// Port from env?
 	portEnvVar := flags.MustString("api-port-from-env")
@@ -444,7 +463,18 @@ func (a *API) Start() error {
 
 	// As the listen method is blocking, run it in a goroutine.
 	go func() {
-		err := a.srv.Start(fmt.Sprintf(":%d", a.port))
+		var err error
+		address := fmt.Sprintf(":%d", a.port)
+		switch a.httpVersion {
+		case HTTP1:
+			err = a.srv.Start(address)
+		case H2C:
+			server := &http2.Server{}
+			err = a.srv.StartH2CServer(address, server)
+		default:
+			err = errors.New("invalid HTTP version specified")
+		}
+
 		if !errors.Is(err, http.ErrServerClosed) {
 			a.logger.Fatal(err.Error())
 		}
