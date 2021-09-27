@@ -19,6 +19,7 @@ import (
 	flag "github.com/spf13/pflag"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
+	"golang.org/x/net/http2"
 )
 
 func init() {
@@ -444,7 +445,8 @@ func (a *API) Start() error {
 
 	// As the listen method is blocking, run it in a goroutine.
 	go func() {
-		err := a.srv.Start(fmt.Sprintf(":%d", a.port))
+		server := &http2.Server{}
+		err := a.srv.StartH2CServer(fmt.Sprintf(":%d", a.port), server)
 		if !errors.Is(err, http.ErrServerClosed) {
 			a.logger.Fatal(err.Error())
 		}
