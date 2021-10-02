@@ -1,17 +1,16 @@
 openapi: 3.0.3
 info:
   title: Gotenberg
-  version: 7.0.6
+  version: 7.x
   license:
     name: MIT
     url: 'https://github.com/gotenberg/gotenberg/blob/main/LICENSE'
   contact:
     url: 'https://github.com/gotenberg/gotenberg'
   description: >-
-    A Docker-powered stateless API for converting HTML, Markdown and Office
-    documents to PDF.
+    A Docker-powered stateless API for PDF files.
 externalDocs:
-  url: https://gotenberg.dev/docs/about
+  url: https://gotenberg.dev
 servers:
   - url: 'http://localhost:3000'
     description: Local server with the default Docker image and port
@@ -34,10 +33,15 @@ paths:
       tags:
         - chromium
       summary: Convert the contents of a given URL to PDF
+      externalDocs:
+        url: https://gotenberg.dev/docs/modules/chromium
       description: >-
+        Send a URL in your API request via the `url` form field
         Send a remote URL in your API request via the `remoteURL` parameter, and
         get the resulting PDF file. The API will fetch the given URL and render
         the page to PDF using the underlying headless Chrome instance.
+        You can optionally include `header.html` and `footer.html` files as part of the request as well.
+        See externalDocs for more details.
       parameters:
         - in: header
           name: Gotenberg-Output-Filename
@@ -62,10 +66,9 @@ paths:
       requestBody:
         required: true
         description: >-
-          The URL conversion request has to be a `multipart/form-data` request
-          that includes a `remoteURL`. The API uses a headless Chrome instance
-          to do the conversion, therefore print parameter such as margins and
-          paper size are also accepted as optional parameters.
+          The request must be  `multipart/form-data` that includes a `url` form field.
+          The API uses a headless Chrome instance to do the conversion, therefore print
+          parameter such as margins and paper size are also accepted as optional parameters.
         content:
           multipart/form-data:
             schema:
@@ -82,88 +85,13 @@ paths:
       tags:
         - chromium
       summary: Convert a given HTML file to PDF
+      externalDocs:
+        url: https://gotenberg.dev/docs/modules/chromium
       description: >-
         Send an HTML file called `index.html` as a multipart form request, and
         get the resulting PDF file. You can optionally include `header.html` and
         `footer.html` files as part of the request as well.
-
-
-        An example `index.html` file can be as follows:
-
-        ```html
-
-        <!doctype html>
-
-        <html lang="en">
-          <head>
-            <meta charset="utf-8">
-            <title>My PDF</title>
-          </head>
-          <body>
-            <h1>Hello world!</h1>
-          </body>
-        </html>
-
-        ```
-
-
-        You may also add a header and/or a footer in the resulting PDF  by
-        sending a file named `header.html` and `footer.html` respectively. Both
-        the header and the footer files has to be a complete HTML document. An
-        example `footer.html` can be as follows:
-
-        ```html
-
-        <html>
-            <head>
-                <style>
-                    body {
-                        font-size: 8rem;
-                        margin: 4rem auto;
-                    }
-                </style>
-            </head>
-            <body>
-                <p>
-                    <span class="pageNumber"></span> of <span class="totalPages"></span>
-                </p>
-            </body>
-        </html>
-
-        ```
-
-
-        The following classes will allow you to inject printing values in your
-        document:
-
-        - `date`: Formatted print date.
-
-        - `title`: Document title.
-
-        - `pageNumber`: Current page number.
-
-        - `totalPage`: Total pages in the document.
-
-
-        There are some limitations with header and footer files:
-
-        - JavaScript is not executed.
-
-        - External resources are not loaded.
-
-        - The CSS properties are independant of the ones used in the
-        `index.html` file.
-
-        - `footer.html` CSS properties override the ones from `header.html`.
-
-        - Only fonts installed in the Docker image are loaded (see the fonts
-        section)
-
-        - Images only work using a `base64` encoded source, e.g. `<img
-        src="data:image/png;base64, iVBORw0K... />`
-
-        - `background-color` and `color` CSS properties require an additional
-        `-webkit-print-color-adjust: exact` CSS property in order to work.
+        See externalDocs for more details.
       parameters:
         - in: header
           name: Gotenberg-Output-Filename
@@ -206,50 +134,18 @@ paths:
       tags:
         - chromium
       summary: Convert a Markdown file to PDF
+      externalDocs:
+        url: https://gotenberg.dev/docs/modules/chromium
       description: >-
         Send an HTML file called `index.html` as a multipart form request and
         embed a markdown file into the HTML file using the Golang template
-        function `toHTML`, the API will convert the markdown and embed it into
-        the HTML this way and render the resulting page. Markdown conversion
-        works almost exactly the same way as HTML conversion, therefore refer to
-        the HTML conversion page for all the options you can use when converting
+        function `toHTML`.
+        The API will convert the markdown to HTML and embed it into your `index.html` file,
+        then render the resulting page. You can include your own styling and more in your HTML file.
+        Refer to the HTML conversion page for all the options you can use when converting
         Markdown documents as well. You can optionally include `header.html` and
         `footer.html` files as part of the request as well.
-
-
-        An example `index.html` file can be as follows:
-
-        ```html
-
-        <!doctype html>
-
-        <html lang="en">
-          <head>
-            <meta charset="utf-8">
-            <title>My PDF</title>
-          </head>
-          <body>
-            {{ toHTML .DirPath "file.md" }}
-          </body>
-        </html>
-
-        ```
-
-
-        Whereas your `file.md` file in the same level would be like:
-
-        ```md
-
-        # Title
-
-        Content
-
-        ```
-
-
-        The API will convert the markdown to HTML and embed it into your
-        `index.html` file, then render the resulting page. You can include your
-        own styling and more in your HTML file.
+        See externalDocs for more details.
       parameters:
         - in: header
           name: Gotenberg-Output-Filename
@@ -291,6 +187,8 @@ paths:
       tags:
         - libreoffice
       summary: Convert an Office document to PDF
+      externalDocs:
+        url: https://gotenberg.dev/docs/modules/libreoffice
       description: >-
         This route accepts multipart/form-data requests and files with the following extensions:
 
@@ -313,6 +211,8 @@ paths:
 
         > **Attention:** if more than one document, the page ranges will be
         applied for each document.
+
+        See externalDocs for more details.
       parameters:
         - in: header
           name: Gotenberg-Output-Filename
@@ -350,6 +250,8 @@ paths:
       tags:
         - pdfengines
       summary: Merge multiple PDFs into a single PDF
+      externalDocs:
+        url: https://gotenberg.dev/docs/modules/pdf-engines
       description: >-
         You can send multiple PDF files to this endpoint, the API will merge
         them into a single PDF and return the resulting PDF file.
@@ -404,6 +306,8 @@ paths:
       tags:
         - pdfengines
       summary: Convert PDFs into the given formats
+      externalDocs:
+        url: https://gotenberg.dev/docs/modules/pdf-engines
       description: >-
         This route accepts PDF files and a form field pdfFormat for converting them into the specified format.
       parameters:
