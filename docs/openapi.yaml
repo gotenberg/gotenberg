@@ -137,8 +137,8 @@ paths:
       externalDocs:
         url: https://gotenberg.dev/docs/modules/chromium
       description: >-
-        Send an HTML file called `index.html` as a multipart form request and
-        embed a markdown file into the HTML file using the Golang template
+        Accepts an HTML file called `index.html` plus markdown files as a multipart
+        form request and embeds the markdown files into the HTML file using the Golang template
         function `toHTML`.
         The API will convert the markdown to HTML and embed it into your `index.html` file,
         then render the resulting page. You can include your own styling and more in your HTML file.
