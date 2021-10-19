@@ -173,6 +173,22 @@ func TestChromium_Validate(t *testing.T) {
 	}
 }
 
+func TestChromium_Metrics(t *testing.T) {
+	metrics, err := new(Chromium).Metrics()
+	if err != nil {
+		t.Errorf("expected no error but got: %v", err)
+	}
+
+	if len(metrics) != 1 {
+		t.Errorf("expected %d metrics, but got %d", 1, len(metrics))
+	}
+
+	actual := metrics[0].Read()
+	if actual != 0 {
+		t.Errorf("expected %d Chromium instances, but got %f", 0, actual)
+	}
+}
+
 func TestChromium_Chromium(t *testing.T) {
 	mod := new(Chromium)
 

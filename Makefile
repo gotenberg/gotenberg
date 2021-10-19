@@ -11,8 +11,8 @@ GOTENBERG_VERSION=snapshot
 GOTENBERG_USER_GID=1001
 GOTENBERG_USER_UID=1001
 NOTO_COLOR_EMOJI_VERSION=v2.028 # See https://github.com/googlefonts/noto-emoji/releases.
-PDFTK_VERSION=1353200058 # See https://gitlab.com/pdftk-java/pdftk/-/releases - Binary package.
-GOLANGCI_LINT_VERSION=v1.42.0 # See https://github.com/golangci/golangci-lint/releases.
+PDFTK_VERSION=1527259628 # See https://gitlab.com/pdftk-java/pdftk/-/releases - Binary package.
+GOLANGCI_LINT_VERSION=v1.42.1 # See https://github.com/golangci/golangci-lint/releases.
 
 .PHONY: build
 build: ## Build the Gotenberg's Docker image
@@ -35,14 +35,6 @@ API_WRITE_TIMEOUT=30s
 API_ROOT_PATH=/
 API_TRACE_HEADER=Gotenberg-Trace
 API_DISABLE_HEALTH_CHECK_LOGGING=false
-API_WEBHOOK_ALLOW_LIST=
-API_WEBHOOK_DENY_LIST=
-API_WEBHOOK_ERROR_ALLOW_LIST=
-API_WEBHOOK_ERROR_DENY_LIST=
-API_WEBHOOK_MAX_RETRY=4
-API_WEBHOOK_RETRY_MIN_WAIT=1s
-API_WEBHOOK_RETRY_MAX_WAIT=30s
-API_DISABLE_WEBHOOK=false
 CHROMIUM_USER_AGENT=
 CHROMIUM_INCOGNITO=false
 CHROMIUM_IGNORE_CERTIFICATE_ERRORS=false
@@ -55,6 +47,18 @@ LOG_LEVEL=info
 LOG_FORMAT=auto
 PDFENGINES_ENGINES=
 PDFENGINES_DISABLE_ROUTES=false
+PROMETHEUS_NAMESPACE=gotenberg
+PROMETHEUS_COLLECT_INTERVAL=1s
+PROMETHEUS_DISABLE_ROUTE_LOGGING=false
+PROMETHEUS_DISABLE_COLLECT=false
+WEBHOOK_ALLOW_LIST=
+WEBHOOK_DENY_LIST=
+WEBHOOK_ERROR_ALLOW_LIST=
+WEBHOOK_ERROR_DENY_LIST=
+WEBHOOK_MAX_RETRY=4
+WEBHOOK_RETRY_MIN_WAIT=1s
+WEBHOOK_RETRY_MAX_WAIT=30s
+WEBHOOK_DISABLE=false
 
 .PHONY: run
 run: ## Start a Gotenberg container
@@ -71,14 +75,6 @@ run: ## Start a Gotenberg container
 	--api-root-path=$(API_ROOT_PATH) \
 	--api-trace-header=$(API_TRACE_HEADER) \
 	--api-disable-health-check-logging=$(API_DISABLE_HEALTH_CHECK_LOGGING) \
-	--api-webhook-allow-list=$(API_WEBHOOK_ALLOW_LIST) \
-	--api-webhook-deny-list=$(API_WEBHOOK_DENY_LIST) \
-	--api-webhook-error-allow-list=$(API_WEBHOOK_ERROR_ALLOW_LIST) \
-	--api-webhook-error-deny-list=$(API_WEBHOOK_ERROR_DENY_LIST) \
-	--api-webhook-max-retry=$(API_WEBHOOK_MAX_RETRY) \
-	--api-webhook-retry-min-wait=$(API_WEBHOOK_RETRY_MIN_WAIT) \
-	--api-webhook-retry-max-wait=$(API_WEBHOOK_RETRY_MAX_WAIT) \
-	--api-disable-webhook=$(API_DISABLE_WEBHOOK) \
 	--chromium-user-agent=$(CHROMIUM_USER_AGENT) \
 	--chromium-incognito=$(CHROMIUM_INCOGNITO) \
 	--chromium-ignore-certificate-errors=$(CHROMIUM_IGNORE_CERTIFICATE_ERRORS) \
@@ -90,7 +86,19 @@ run: ## Start a Gotenberg container
 	--log-level=$(LOG_LEVEL) \
 	--log-format=$(LOG_FORMAT) \
 	--pdfengines-engines=$(PDFENGINES_ENGINES) \
-	--pdfengines-disable-routes=$(PDFENGINES_DISABLE_ROUTES)
+	--pdfengines-disable-routes=$(PDFENGINES_DISABLE_ROUTES) \
+	--prometheus-namespace=$(PROMETHEUS_NAMESPACE) \
+	--prometheus-collect-interval=$(PROMETHEUS_COLLECT_INTERVAL) \
+	--prometheus-disable-route-logging=$(PROMETHEUS_DISABLE_ROUTE_LOGGING) \
+	--prometheus-disable-collect=$(PROMETHEUS_DISABLE_COLLECT) \
+	--webhook-allow-list=$(WEBHOOK_ALLOW_LIST) \
+	--webhook-deny-list=$(WEBHOOK_DENY_LIST) \
+	--webhook-error-allow-list=$(WEBHOOK_ERROR_ALLOW_LIST) \
+	--webhook-error-deny-list=$(WEBHOOK_ERROR_DENY_LIST) \
+	--webhook-max-retry=$(WEBHOOK_MAX_RETRY) \
+	--webhook-retry-min-wait=$(WEBHOOK_RETRY_MIN_WAIT) \
+	--webhook-retry-max-wait=$(WEBHOOK_RETRY_MAX_WAIT) \
+	--webhook-disable=$(WEBHOOK_DISABLE)
 
 .PHONY: build-tests
 build-tests: ## Build the tests' Docker image

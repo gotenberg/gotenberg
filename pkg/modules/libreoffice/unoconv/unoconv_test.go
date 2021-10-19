@@ -61,6 +61,22 @@ func TestUnoconv_Validate(t *testing.T) {
 	}
 }
 
+func TestChromium_Metrics(t *testing.T) {
+	metrics, err := new(Unoconv).Metrics()
+	if err != nil {
+		t.Errorf("expected no error but got: %v", err)
+	}
+
+	if len(metrics) != 1 {
+		t.Errorf("expected %d metrics, but got %d", 1, len(metrics))
+	}
+
+	actual := metrics[0].Read()
+	if actual != 0 {
+		t.Errorf("expected %d unoconv instances, but got %f", 0, actual)
+	}
+}
+
 func TestUnoconv_Unoconv(t *testing.T) {
 	mod := new(Unoconv)
 

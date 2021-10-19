@@ -1,4 +1,4 @@
-package api
+package webhook
 
 import (
 	"fmt"
@@ -11,8 +11,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// webhookClient gathers all the data required to send a request to a webhook.
-type webhookClient struct {
+// client gathers all the data required to send a request to a webhook.
+type client struct {
 	url              string
 	method           string
 	errorURL         string
@@ -25,15 +25,15 @@ type webhookClient struct {
 }
 
 // send call the webhook either to send the success response or the error response.
-func (webhook webhookClient) send(body io.Reader, headers map[string]string, erroed bool) error {
-	URL := webhook.url
+func (c client) send(body io.Reader, headers map[string]string, erroed bool) error {
+	URL := c.url
 	if erroed {
-		URL = webhook.errorURL
+		URL = c.errorURL
 	}
 
-	method := webhook.method
+	method := c.method
 	if erroed {
-		method = webhook.errorMethod
+		method = c.errorMethod
 	}
 
 	req, err := retryablehttp.NewRequest(method, URL, body)
@@ -44,7 +44,7 @@ func (webhook webhookClient) send(body io.Reader, headers map[string]string, err
 	req.Header.Set("User-Agent", "Gotenberg")
 
 	// Extra HTTP headers are the custom headers from the user.
-	for key, value := range webhook.extraHTTPHeaders {
+	for key, value := range c.extraHTTPHeaders {
 		req.Header.Set(key, value)
 	}
 
@@ -73,7 +73,7 @@ func (webhook webhookClient) send(body io.Reader, headers map[string]string, err
 		req.Header.Set(key, value)
 	}
 
-	resp, err := webhook.client.Do(req)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("send '%s' request to '%s': %w", method, URL, err)
 	}
@@ -81,7 +81,7 @@ func (webhook webhookClient) send(body io.Reader, headers map[string]string, err
 	defer func() {
 		err := resp.Body.Close()
 		if err != nil {
-			webhook.logger.Error(fmt.Sprintf("close response body from '%s': %s", URL, err))
+			c.logger.Error(fmt.Sprintf("close response body from '%s': %s", URL, err))
 		}
 	}()
 
@@ -92,17 +92,17 @@ func (webhook webhookClient) send(body io.Reader, headers map[string]string, err
 	fields := make([]zap.Field, 5)
 	fields[0] = zap.String("webhook_url", URL)
 	fields[1] = zap.String("method", method)
-	fields[2] = zap.Int64("latency", int64(finishTime.Sub(webhook.startTime)))
-	fields[3] = zap.String("latency_human", finishTime.Sub(webhook.startTime).String())
+	fields[2] = zap.Int64("latency", int64(finishTime.Sub(c.startTime)))
+	fields[3] = zap.String("latency_human", finishTime.Sub(c.startTime).String())
 	fields[4] = zap.Int64("bytes_out", req.ContentLength)
 
 	if erroed {
-		webhook.logger.Warn("request to webhook with error details handled", fields...)
+		c.logger.Warn("request to webhook with error details handled", fields...)
 
 		return nil
 	}
 
-	webhook.logger.Info("request to webhook handled", fields...)
+	c.logger.Info("request to webhook handled", fields...)
 
 	return nil
 }

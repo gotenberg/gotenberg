@@ -9,6 +9,7 @@ import (
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/unoconv"
+	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 )
 
@@ -506,7 +507,10 @@ func TestConvertHandler(t *testing.T) {
 			expectOutputPathsCount: 2,
 		},
 	} {
-		err := convertRoute(tc.api, tc.engine).Handler(tc.ctx.Context)
+		c := echo.New().NewContext(nil, nil)
+		c.Set("context", tc.ctx.Context)
+
+		err := convertRoute(tc.api, tc.engine).Handler(c)
 
 		if tc.expectErr && err == nil {
 			t.Errorf("test %d: expected error but got: %v", i, err)

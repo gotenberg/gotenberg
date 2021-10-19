@@ -8,6 +8,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/chromedp/cdproto/fetch"
@@ -236,19 +237,35 @@ func (mod Chromium) Validate() error {
 	return nil
 }
 
+// Metrics returns the metrics.
+func (mod Chromium) Metrics() ([]gotenberg.Metric, error) {
+	return []gotenberg.Metric{
+		{
+			Name:        "chromium_active_instances_count",
+			Description: "Current number of active Chromium instances.",
+			Read: func() float64 {
+				activeInstancesCountMu.RLock()
+				defer activeInstancesCountMu.RUnlock()
+
+				return activeInstancesCount
+			},
+		},
+	}, nil
+}
+
 // Chromium returns an API for interacting with Chromium for converting HTML
 // documents to PDF.
 func (mod Chromium) Chromium() (API, error) {
 	return mod, nil
 }
 
-// Routes returns the API routes.
-func (mod Chromium) Routes() ([]api.MultipartFormDataRoute, error) {
+// Routes returns the HTTP routes.
+func (mod Chromium) Routes() ([]api.Route, error) {
 	if mod.disableRoutes {
 		return nil, nil
 	}
 
-	return []api.MultipartFormDataRoute{
+	return []api.Route{
 		convertURLRoute(mod, mod.engine),
 		convertHTMLRoute(mod, mod.engine),
 		convertMarkdownRoute(mod, mod.engine),
@@ -475,8 +492,16 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 		}
 	}
 
+	activeInstancesCountMu.Lock()
+	activeInstancesCount += 1
+	activeInstancesCountMu.Unlock()
+
 	var buffer []byte
 	err := chromedp.Run(taskCtx, printToPDF(URL, options, &buffer))
+
+	activeInstancesCountMu.Lock()
+	activeInstancesCount -= 1
+	activeInstancesCountMu.Unlock()
 
 	// Always remove the user profile directory created by Chromium.
 	go func() {
@@ -514,12 +539,18 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 	return nil
 }
 
+var (
+	activeInstancesCount   float64
+	activeInstancesCountMu sync.RWMutex
+)
+
 // Interface guards.
 var (
-	_ gotenberg.Module            = (*Chromium)(nil)
-	_ gotenberg.Provisioner       = (*Chromium)(nil)
-	_ gotenberg.Validator         = (*Chromium)(nil)
-	_ api.MultipartFormDataRouter = (*Chromium)(nil)
-	_ API                         = (*Chromium)(nil)
-	_ Provider                    = (*Chromium)(nil)
+	_ gotenberg.Module          = (*Chromium)(nil)
+	_ gotenberg.Provisioner     = (*Chromium)(nil)
+	_ gotenberg.Validator       = (*Chromium)(nil)
+	_ gotenberg.MetricsProvider = (*Chromium)(nil)
+	_ api.Router                = (*Chromium)(nil)
+	_ API                       = (*Chromium)(nil)
+	_ Provider                  = (*Chromium)(nil)
 )

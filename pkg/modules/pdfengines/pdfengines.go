@@ -131,8 +131,8 @@ func (mod PDFEngines) PDFEngine() (gotenberg.PDFEngine, error) {
 	return newMultiPDFEngines(engines...), nil
 }
 
-// Routes returns the API routes.
-func (mod PDFEngines) Routes() ([]api.MultipartFormDataRoute, error) {
+// Routes returns the HTTP routes.
+func (mod PDFEngines) Routes() ([]api.Route, error) {
 	if mod.disableRoutes {
 		return nil, nil
 	}
@@ -144,7 +144,7 @@ func (mod PDFEngines) Routes() ([]api.MultipartFormDataRoute, error) {
 		return nil, fmt.Errorf("get pdf engine: %w", err)
 	}
 
-	return []api.MultipartFormDataRoute{
+	return []api.Route{
 		mergeRoute(engine),
 		convertRoute(engine),
 	}, nil
@@ -156,5 +156,5 @@ var (
 	_ gotenberg.Provisioner       = (*PDFEngines)(nil)
 	_ gotenberg.Validator         = (*PDFEngines)(nil)
 	_ gotenberg.PDFEngineProvider = (*PDFEngines)(nil)
-	_ api.MultipartFormDataRouter = (*PDFEngines)(nil)
+	_ api.Router                  = (*PDFEngines)(nil)
 )

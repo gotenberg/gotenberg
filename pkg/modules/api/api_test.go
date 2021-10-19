@@ -35,12 +35,12 @@ func (mod ProtoValidator) Validate() error {
 	return mod.validate()
 }
 
-type ProtoMultipartFormDataRouter struct {
+type ProtoRouter struct {
 	ProtoValidator
-	routes func() ([]MultipartFormDataRoute, error)
+	routes func() ([]Route, error)
 }
 
-func (mod ProtoMultipartFormDataRouter) Routes() ([]MultipartFormDataRoute, error) {
+func (mod ProtoRouter) Routes() ([]Route, error) {
 	return mod.routes()
 }
 
@@ -60,6 +60,15 @@ type ProtoHealthChecker struct {
 
 func (mod ProtoHealthChecker) Checks() ([]health.CheckerOption, error) {
 	return mod.checks()
+}
+
+type ProtoGarbageCollectorGraceDurationIncrementer struct {
+	ProtoValidator
+	addGraceDuration func() time.Duration
+}
+
+func (mod ProtoGarbageCollectorGraceDurationIncrementer) AddGraceDuration() time.Duration {
+	return mod.addGraceDuration()
 }
 
 type ProtoLoggerProvider struct {
@@ -84,11 +93,12 @@ func TestAPI_Descriptor(t *testing.T) {
 
 func TestAPI_Provision(t *testing.T) {
 	for i, tc := range []struct {
-		ctx               *gotenberg.Context
-		setEnv            func(i int)
-		expectPort        int
-		expectMiddlewares []Middleware
-		expectErr         bool
+		ctx                 *gotenberg.Context
+		setEnv              func(i int)
+		expectPort          int
+		expectMiddlewares   []Middleware
+		expectGraceDuration time.Duration
+		expectErr           bool
 	}{
 		{
 			ctx: func() *gotenberg.Context {
@@ -183,14 +193,14 @@ func TestAPI_Provision(t *testing.T) {
 		},
 		{
 			ctx: func() *gotenberg.Context {
-				mod := struct{ ProtoMultipartFormDataRouter }{}
+				mod := struct{ ProtoRouter }{}
 				mod.descriptor = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod }}
 				}
 				mod.validate = func() error {
 					return errors.New("foo")
 				}
-				mod.routes = func() ([]MultipartFormDataRoute, error) {
+				mod.routes = func() ([]Route, error) {
 					return nil, nil
 				}
 
@@ -255,14 +265,14 @@ func TestAPI_Provision(t *testing.T) {
 		},
 		{
 			ctx: func() *gotenberg.Context {
-				mod := struct{ ProtoMultipartFormDataRouter }{}
+				mod := struct{ ProtoRouter }{}
 				mod.descriptor = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod }}
 				}
 				mod.validate = func() error {
 					return nil
 				}
-				mod.routes = func() ([]MultipartFormDataRoute, error) {
+				mod.routes = func() ([]Route, error) {
 					return nil, errors.New("foo")
 				}
 
@@ -324,6 +334,60 @@ func TestAPI_Provision(t *testing.T) {
 				)
 			}(),
 			expectErr: true,
+		},
+
+		{
+			ctx: func() *gotenberg.Context {
+				mod := struct {
+					ProtoGarbageCollectorGraceDurationIncrementer
+				}{}
+				mod.descriptor = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod }}
+				}
+				mod.validate = func() error {
+					return errors.New("foo")
+				}
+				mod.addGraceDuration = func() time.Duration {
+					return 0
+				}
+
+				return gotenberg.NewContext(
+					gotenberg.ParsedFlags{
+						FlagSet: new(API).Descriptor().FlagSet,
+					},
+					[]gotenberg.ModuleDescriptor{
+						mod.Descriptor(),
+					},
+				)
+			}(),
+			expectErr: true,
+		},
+		{
+			ctx: func() *gotenberg.Context {
+				mod := struct {
+					ProtoGarbageCollectorGraceDurationIncrementer
+				}{}
+				mod.descriptor = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod }}
+				}
+				mod.validate = func() error {
+					return nil
+				}
+				mod.addGraceDuration = func() time.Duration {
+					return time.Duration(3) * time.Second
+				}
+
+				return gotenberg.NewContext(
+					gotenberg.ParsedFlags{
+						FlagSet: new(API).Descriptor().FlagSet,
+					},
+					[]gotenberg.ModuleDescriptor{
+						mod.Descriptor(),
+					},
+				)
+			}(),
+			expectGraceDuration: time.Duration(93) * time.Second,
+			expectErr:           true,
 		},
 		{
 			ctx: func() *gotenberg.Context {
@@ -359,15 +423,15 @@ func TestAPI_Provision(t *testing.T) {
 		},
 		{
 			ctx: func() *gotenberg.Context {
-				mod1 := struct{ ProtoMultipartFormDataRouter }{}
+				mod1 := struct{ ProtoRouter }{}
 				mod1.descriptor = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod1 }}
 				}
 				mod1.validate = func() error {
 					return nil
 				}
-				mod1.routes = func() ([]MultipartFormDataRoute, error) {
-					return []MultipartFormDataRoute{{}}, nil
+				mod1.routes = func() ([]Route, error) {
+					return []Route{{}}, nil
 				}
 
 				mod2 := struct{ ProtoMiddlewareProvider }{}
@@ -455,11 +519,15 @@ func TestAPI_Provision(t *testing.T) {
 		err := mod.Provision(tc.ctx)
 
 		if tc.expectPort != 0 && mod.port != tc.expectPort {
-			t.Errorf("expected port %d but got %d", tc.expectPort, mod.port)
+			t.Errorf("test %d: expected port %d but got %d", i, tc.expectPort, mod.port)
 		}
 
 		if !reflect.DeepEqual(mod.externalMiddlewares, tc.expectMiddlewares) {
-			t.Errorf("expected %+v, but got: %+v", tc.expectMiddlewares, mod.externalMiddlewares)
+			t.Errorf("test %d: expected %+v, but got: %+v", i, tc.expectMiddlewares, mod.externalMiddlewares)
+		}
+
+		if tc.expectGraceDuration != 0 && mod.gcGraceDuration != tc.expectGraceDuration {
+			t.Errorf("test %d: expected gc grace duration '%s' but got '%s'", i, tc.expectGraceDuration, mod.gcGraceDuration)
 		}
 
 		if tc.expectErr && err == nil {
@@ -477,7 +545,7 @@ func TestAPI_Validate(t *testing.T) {
 		port        int
 		rootPath    string
 		traceHeader string
-		routes      []MultipartFormDataRoute
+		routes      []Route
 		middlewares []Middleware
 		expectErr   bool
 	}{
@@ -494,7 +562,7 @@ func TestAPI_Validate(t *testing.T) {
 			port:        10,
 			rootPath:    "/foo/",
 			traceHeader: "foo",
-			routes: []MultipartFormDataRoute{
+			routes: []Route{
 				{
 					Path: "",
 				},
@@ -505,7 +573,7 @@ func TestAPI_Validate(t *testing.T) {
 			port:        10,
 			rootPath:    "/foo/",
 			traceHeader: "foo",
-			routes: []MultipartFormDataRoute{
+			routes: []Route{
 				{
 					Path: "foo",
 				},
@@ -516,9 +584,10 @@ func TestAPI_Validate(t *testing.T) {
 			port:        10,
 			rootPath:    "/foo/",
 			traceHeader: "foo",
-			routes: []MultipartFormDataRoute{
+			routes: []Route{
 				{
-					Path: "/foo",
+					Path:        "/foo",
+					IsMultipart: true,
 				},
 			},
 			expectErr: true,
@@ -527,14 +596,41 @@ func TestAPI_Validate(t *testing.T) {
 			port:        10,
 			rootPath:    "/foo/",
 			traceHeader: "foo",
-			routes: []MultipartFormDataRoute{
+			routes: []Route{
 				{
+					Path:        "/forms/foo",
+					IsMultipart: true,
+				},
+			},
+			expectErr: true,
+		},
+		{
+			port:        10,
+			rootPath:    "/foo/",
+			traceHeader: "foo",
+			routes: []Route{
+				{
+					Method:      http.MethodPost,
+					Path:        "/forms/foo",
+					IsMultipart: true,
+				},
+			},
+			expectErr: true,
+		},
+		{
+			port:        10,
+			rootPath:    "/foo/",
+			traceHeader: "foo",
+			routes: []Route{
+				{
+					Method:  http.MethodPost,
 					Path:    "/foo",
-					Handler: func(_ *Context) error { return nil },
+					Handler: func(_ echo.Context) error { return nil },
 				},
 				{
+					Method:  http.MethodPost,
 					Path:    "/foo",
-					Handler: func(_ *Context) error { return nil },
+					Handler: func(_ echo.Context) error { return nil },
 				},
 			},
 			expectErr: true,
@@ -554,10 +650,11 @@ func TestAPI_Validate(t *testing.T) {
 			port:        10,
 			rootPath:    "/foo/",
 			traceHeader: "foo",
-			routes: []MultipartFormDataRoute{
+			routes: []Route{
 				{
+					Method:  http.MethodGet,
 					Path:    "/foo",
-					Handler: func(_ *Context) error { return nil },
+					Handler: func(_ echo.Context) error { return nil },
 				},
 			},
 			middlewares: []Middleware{
@@ -575,11 +672,11 @@ func TestAPI_Validate(t *testing.T) {
 		},
 	} {
 		mod := API{
-			port:                    tc.port,
-			rootPath:                tc.rootPath,
-			traceHeader:             tc.traceHeader,
-			multipartFormDataRoutes: tc.routes,
-			externalMiddlewares:     tc.middlewares,
+			port:                tc.port,
+			rootPath:            tc.rootPath,
+			traceHeader:         tc.traceHeader,
+			routes:              tc.routes,
+			externalMiddlewares: tc.middlewares,
 		}
 
 		err := mod.Validate()
@@ -598,10 +695,15 @@ func TestAPI_Start(t *testing.T) {
 	mod := new(API)
 	mod.port = 3000
 	mod.rootPath = "/"
-	mod.multipartFormDataRoutes = []MultipartFormDataRoute{
+	mod.disableHealthCheckLogging = true
+	mod.routes = []Route{
 		{
-			Path: "/foo",
-			Handler: func(ctx *Context) error {
+			Method:         http.MethodPost,
+			Path:           "/forms/foo",
+			IsMultipart:    true,
+			DisableLogging: true,
+			Handler: func(c echo.Context) error {
+				ctx := c.Get("context").(*Context)
 				ctx.outputPaths = []string{
 					"/tests/test/testdata/api/sample1.txt",
 				}
@@ -610,13 +712,35 @@ func TestAPI_Start(t *testing.T) {
 			},
 		},
 		{
-			Path:    "/bar",
-			Handler: func(_ *Context) error { return errors.New("foo") },
+			Method:      http.MethodPost,
+			Path:        "/forms/bar",
+			IsMultipart: true,
+			Handler:     func(_ echo.Context) error { return errors.New("foo") },
 		},
 	}
 	mod.externalMiddlewares = []Middleware{
 		{
-			RunBeforeRouter: true,
+			Stack: PreRouterStack,
+			Handler: func() echo.MiddlewareFunc {
+				return func(next echo.HandlerFunc) echo.HandlerFunc {
+					return func(c echo.Context) error {
+						return next(c)
+					}
+				}
+			}(),
+		},
+		{
+			Stack: MultipartStack,
+			Handler: func() echo.MiddlewareFunc {
+				return func(next echo.HandlerFunc) echo.HandlerFunc {
+					return func(c echo.Context) error {
+						return next(c)
+					}
+				}
+			}(),
+		},
+		{
+			Stack: DefaultStack,
 			Handler: func() echo.MiddlewareFunc {
 				return func(next echo.HandlerFunc) echo.HandlerFunc {
 					return func(c echo.Context) error {
@@ -721,10 +845,11 @@ func TestAPI_StartupMessage(t *testing.T) {
 func TestAPI_Stop(t *testing.T) {
 	mod := API{
 		port: 3000,
-		multipartFormDataRoutes: []MultipartFormDataRoute{
+		routes: []Route{
 			{
+				Method:  http.MethodGet,
 				Path:    "/foo",
-				Handler: func(_ *Context) error { return nil },
+				Handler: func(_ echo.Context) error { return nil },
 			},
 		},
 		logger: zap.NewNop(),
@@ -742,52 +867,35 @@ func TestAPI_Stop(t *testing.T) {
 }
 
 func TestAPI_GraceDuration(t *testing.T) {
-	for i, tc := range []struct {
-		mod    API
-		expect time.Duration
-	}{
-		{
-			mod: API{
-				readTimeout:    time.Duration(1) * time.Second,
-				processTimeout: time.Duration(1) * time.Second,
-				writeTimeout:   time.Duration(1) * time.Second,
-				disableWebhook: true,
-			},
-			expect: time.Duration(3) * time.Second,
-		},
-		{
-			mod: API{
-				readTimeout:         time.Duration(1) * time.Second,
-				processTimeout:      time.Duration(1) * time.Second,
-				writeTimeout:        time.Duration(1) * time.Second,
-				webhookMaxRetry:     5,
-				webhookRetryMaxWait: time.Duration(5) * time.Second,
-			},
-			expect: time.Duration(28) * time.Second,
-		},
-	} {
-		actual := tc.mod.GraceDuration()
+	mod := API{
+		gcGraceDuration: time.Duration(3) * time.Second,
+	}
 
-		if actual != tc.expect {
-			t.Errorf("test %d: expected '%s' but got '%s'", i, tc.expect, actual)
-		}
+	expect := time.Duration(3) * time.Second
+	actual := mod.GraceDuration()
+
+	if actual != expect {
+		t.Errorf("expected '%s' but got '%s'", expect, actual)
 	}
 }
 
 // Interface guards.
 var (
-	_ gotenberg.Module         = (*ProtoModule)(nil)
-	_ gotenberg.Validator      = (*ProtoValidator)(nil)
-	_ gotenberg.Module         = (*ProtoValidator)(nil)
-	_ MultipartFormDataRouter  = (*ProtoMultipartFormDataRouter)(nil)
-	_ gotenberg.Module         = (*ProtoMultipartFormDataRouter)(nil)
-	_ gotenberg.Validator      = (*ProtoMultipartFormDataRouter)(nil)
-	_ MiddlewareProvider       = (*ProtoMiddlewareProvider)(nil)
-	_ gotenberg.Module         = (*ProtoMiddlewareProvider)(nil)
-	_ gotenberg.Validator      = (*ProtoMiddlewareProvider)(nil)
-	_ HealthChecker            = (*ProtoHealthChecker)(nil)
-	_ gotenberg.Module         = (*ProtoHealthChecker)(nil)
-	_ gotenberg.Validator      = (*ProtoHealthChecker)(nil)
-	_ gotenberg.LoggerProvider = (*ProtoLoggerProvider)(nil)
-	_ gotenberg.Module         = (*ProtoLoggerProvider)(nil)
+	_ gotenberg.Module                         = (*ProtoModule)(nil)
+	_ gotenberg.Validator                      = (*ProtoValidator)(nil)
+	_ gotenberg.Module                         = (*ProtoValidator)(nil)
+	_ Router                                   = (*ProtoRouter)(nil)
+	_ gotenberg.Module                         = (*ProtoRouter)(nil)
+	_ gotenberg.Validator                      = (*ProtoRouter)(nil)
+	_ MiddlewareProvider                       = (*ProtoMiddlewareProvider)(nil)
+	_ gotenberg.Module                         = (*ProtoMiddlewareProvider)(nil)
+	_ gotenberg.Validator                      = (*ProtoMiddlewareProvider)(nil)
+	_ HealthChecker                            = (*ProtoHealthChecker)(nil)
+	_ gotenberg.Module                         = (*ProtoHealthChecker)(nil)
+	_ gotenberg.Validator                      = (*ProtoHealthChecker)(nil)
+	_ GarbageCollectorGraceDurationIncrementer = (*ProtoGarbageCollectorGraceDurationIncrementer)(nil)
+	_ gotenberg.Module                         = (*ProtoGarbageCollectorGraceDurationIncrementer)(nil)
+	_ gotenberg.Validator                      = (*ProtoGarbageCollectorGraceDurationIncrementer)(nil)
+	_ gotenberg.LoggerProvider                 = (*ProtoLoggerProvider)(nil)
+	_ gotenberg.Module                         = (*ProtoLoggerProvider)(nil)
 )

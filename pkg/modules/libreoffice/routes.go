@@ -8,14 +8,19 @@ import (
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/unoconv"
+	"github.com/labstack/echo/v4"
 )
 
-// convertRoute returns an api.MultipartFormDataRoute which can convert
-// LibreOffice documents to PDF.
-func convertRoute(uno unoconv.API, engine gotenberg.PDFEngine) api.MultipartFormDataRoute {
-	return api.MultipartFormDataRoute{
-		Path: "/libreoffice/convert",
-		Handler: func(ctx *api.Context) error {
+// convertRoute returns an api.Route which can convert LibreOffice documents
+// to PDF.
+func convertRoute(uno unoconv.API, engine gotenberg.PDFEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/libreoffice/convert",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
 			// Let's get the data from the form and validate them.
 			var (
 				inputPaths         []string

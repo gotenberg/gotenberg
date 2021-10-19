@@ -7,13 +7,18 @@ import (
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
+	"github.com/labstack/echo/v4"
 )
 
-// mergeRoute returns an api.MultipartFormDataRoute which can merge PDFs.
-func mergeRoute(engine gotenberg.PDFEngine) api.MultipartFormDataRoute {
-	return api.MultipartFormDataRoute{
-		Path: "/pdfengines/merge",
-		Handler: func(ctx *api.Context) error {
+// mergeRoute returns an api.Route which can merge PDFs.
+func mergeRoute(engine gotenberg.PDFEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/merge",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
 			// Let's get the data from the form and validate them.
 			var (
 				inputPaths []string
@@ -79,12 +84,16 @@ func mergeRoute(engine gotenberg.PDFEngine) api.MultipartFormDataRoute {
 	}
 }
 
-// convertRoute returns an api.MultipartFormDataRoute which can convert a PDF
-// to a specific PDF format.
-func convertRoute(engine gotenberg.PDFEngine) api.MultipartFormDataRoute {
-	return api.MultipartFormDataRoute{
-		Path: "/pdfengines/convert",
-		Handler: func(ctx *api.Context) error {
+// convertRoute returns an api.Route which can convert a PDF to a specific PDF
+// format.
+func convertRoute(engine gotenberg.PDFEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/convert",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
 			// Let's get the data from the form and validate them.
 			var (
 				inputPaths []string
