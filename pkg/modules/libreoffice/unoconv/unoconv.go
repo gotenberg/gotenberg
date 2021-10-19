@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"go.uber.org/zap"
@@ -94,6 +95,22 @@ func (mod Unoconv) Validate() error {
 	return nil
 }
 
+// Metrics returns the metrics.
+func (mod Unoconv) Metrics() ([]gotenberg.Metric, error) {
+	return []gotenberg.Metric{
+		{
+			Name:        "unoconv_active_instances_count",
+			Description: "Current number of active LibreOffice instances.",
+			Read: func() float64 {
+				activeInstancesCountMu.RLock()
+				defer activeInstancesCountMu.RUnlock()
+
+				return activeInstancesCount
+			},
+		},
+	}, nil
+}
+
 // Unoconv returns an API for interacting with unoconv.
 func (mod Unoconv) Unoconv() (API, error) {
 	return mod, nil
@@ -163,7 +180,15 @@ func (mod Unoconv) PDF(ctx context.Context, logger *zap.Logger, inputPath, outpu
 
 	logger.Debug(fmt.Sprintf("print to PDF with: %+v", options))
 
+	activeInstancesCountMu.Lock()
+	activeInstancesCount += 1
+	activeInstancesCountMu.Unlock()
+
 	err = cmd.Exec()
+
+	activeInstancesCountMu.Lock()
+	activeInstancesCount -= 1
+	activeInstancesCountMu.Unlock()
 
 	// Always remove the user profile directory created by LibreOffice.
 	// See https://github.com/gotenberg/gotenberg/issues/192.
@@ -280,11 +305,17 @@ func (mod Unoconv) Extensions() []string {
 	}
 }
 
+var (
+	activeInstancesCount   float64
+	activeInstancesCountMu sync.RWMutex
+)
+
 // Interface guards.
 var (
-	_ gotenberg.Module      = (*Unoconv)(nil)
-	_ gotenberg.Provisioner = (*Unoconv)(nil)
-	_ gotenberg.Validator   = (*Unoconv)(nil)
-	_ API                   = (*Unoconv)(nil)
-	_ Provider              = (*Unoconv)(nil)
+	_ gotenberg.Module          = (*Unoconv)(nil)
+	_ gotenberg.Provisioner     = (*Unoconv)(nil)
+	_ gotenberg.Validator       = (*Unoconv)(nil)
+	_ gotenberg.MetricsProvider = (*Unoconv)(nil)
+	_ API                       = (*Unoconv)(nil)
+	_ Provider                  = (*Unoconv)(nil)
 )

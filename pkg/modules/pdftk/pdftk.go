@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"go.uber.org/zap"
@@ -21,7 +22,7 @@ type PDFtk struct {
 }
 
 // Descriptor returns a PDFtk's module descriptor.
-func (engine PDFtk) Descriptor() gotenberg.ModuleDescriptor {
+func (PDFtk) Descriptor() gotenberg.ModuleDescriptor {
 	return gotenberg.ModuleDescriptor{
 		ID:  "pdftk",
 		New: func() gotenberg.Module { return new(PDFtk) },
@@ -51,6 +52,22 @@ func (engine PDFtk) Validate() error {
 	return nil
 }
 
+// Metrics returns the metrics.
+func (engine PDFtk) Metrics() ([]gotenberg.Metric, error) {
+	return []gotenberg.Metric{
+		{
+			Name:        "pdftk_active_instances_count",
+			Description: "Current number of active PDFtk instances.",
+			Read: func() float64 {
+				activeInstancesCountMu.RLock()
+				defer activeInstancesCountMu.RUnlock()
+
+				return activeInstancesCount
+			},
+		},
+	}, nil
+}
+
 // Merge merges the given PDFs into a unique PDF.
 func (engine PDFtk) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 	var args []string
@@ -62,7 +79,16 @@ func (engine PDFtk) Merge(ctx context.Context, logger *zap.Logger, inputPaths []
 		return fmt.Errorf("create command: %w", err)
 	}
 
+	activeInstancesCountMu.Lock()
+	activeInstancesCount += 1
+	activeInstancesCountMu.Unlock()
+
 	err = cmd.Exec()
+
+	activeInstancesCountMu.Lock()
+	activeInstancesCount -= 1
+	activeInstancesCountMu.Unlock()
+
 	if err == nil {
 		return nil
 	}
@@ -75,10 +101,16 @@ func (engine PDFtk) Convert(_ context.Context, _ *zap.Logger, format, _, _ strin
 	return fmt.Errorf("convert PDF to '%s' with PDFtk: %w", format, gotenberg.ErrPDFEngineMethodNotAvailable)
 }
 
+var (
+	activeInstancesCount   float64
+	activeInstancesCountMu sync.RWMutex
+)
+
 // Interface guards.
 var (
-	_ gotenberg.Module      = (*PDFtk)(nil)
-	_ gotenberg.Provisioner = (*PDFtk)(nil)
-	_ gotenberg.Validator   = (*PDFtk)(nil)
-	_ gotenberg.PDFEngine   = (*PDFtk)(nil)
+	_ gotenberg.Module          = (*PDFtk)(nil)
+	_ gotenberg.Provisioner     = (*PDFtk)(nil)
+	_ gotenberg.Validator       = (*PDFtk)(nil)
+	_ gotenberg.MetricsProvider = (*PDFtk)(nil)
+	_ gotenberg.PDFEngine       = (*PDFtk)(nil)
 )

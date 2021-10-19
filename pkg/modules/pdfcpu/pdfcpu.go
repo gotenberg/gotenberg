@@ -22,7 +22,7 @@ type PDFcpu struct {
 }
 
 // Descriptor returns a PDFcpu's module descriptor.
-func (engine PDFcpu) Descriptor() gotenberg.ModuleDescriptor {
+func (PDFcpu) Descriptor() gotenberg.ModuleDescriptor {
 	return gotenberg.ModuleDescriptor{
 		ID:  "pdfcpu",
 		New: func() gotenberg.Module { return new(PDFcpu) },

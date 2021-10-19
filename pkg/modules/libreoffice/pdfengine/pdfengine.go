@@ -20,7 +20,7 @@ type UnoconvPDFEngine struct {
 }
 
 // Descriptor returns a UnoconvPDFEngine's module descriptor.
-func (engine UnoconvPDFEngine) Descriptor() gotenberg.ModuleDescriptor {
+func (UnoconvPDFEngine) Descriptor() gotenberg.ModuleDescriptor {
 	return gotenberg.ModuleDescriptor{
 		ID:  "unoconv-pdfengine",
 		New: func() gotenberg.Module { return new(UnoconvPDFEngine) },

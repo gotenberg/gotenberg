@@ -227,9 +227,9 @@ func (ctx Context) Log() *zap.Logger {
 	return ctx.logger
 }
 
-// buildOutputFile builds the output file according to the output paths
+// BuildOutputFile builds the output file according to the output paths
 // registered in the context. If many output paths, an archive is created.
-func (ctx Context) buildOutputFile() (string, error) {
+func (ctx Context) BuildOutputFile() (string, error) {
 	if ctx.cancelled {
 		return "", ErrContextAlreadyClosed
 	}
@@ -263,6 +263,18 @@ func (ctx Context) buildOutputFile() (string, error) {
 	ctx.logger.Debug(fmt.Sprintf("archive '%s' created", archivePath))
 
 	return archivePath, nil
+}
+
+// OutputFilename returns the filename based on the given output path or the
+// "Gotenberg-Output-Filename" header's value.
+func (ctx Context) OutputFilename(outputPath string) string {
+	filename := ctx.echoCtx.Request().Header.Get("Gotenberg-Output-Filename")
+
+	if filename == "" {
+		return filepath.Base(outputPath)
+	}
+
+	return fmt.Sprintf("%s%s", filename, filepath.Ext(outputPath))
 }
 
 // MockContext is a helper for tests.
@@ -315,4 +327,20 @@ func (ctx *MockContext) SetCancelled(cancelled bool) {
 //  outputPaths := ctx.OutputPaths()
 func (ctx MockContext) OutputPaths() []string {
 	return ctx.outputPaths
+}
+
+// SetLogger sets the logger.
+//
+//  ctx := &api.MockContext{Context: &api.Context{}}
+//  ctx.SetLogger(zap.NewNop())
+func (ctx *MockContext) SetLogger(logger *zap.Logger) {
+	ctx.logger = logger
+}
+
+// SetEchoContext sets the echo.Context.
+//
+//  ctx := &api.MockContext{Context: &api.Context{}}
+//  ctx.setEchoContext(c)
+func (ctx *MockContext) SetEchoContext(c echo.Context) {
+	ctx.Context.echoCtx = c
 }

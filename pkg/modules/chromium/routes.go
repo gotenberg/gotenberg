@@ -14,6 +14,7 @@ import (
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
+	"github.com/labstack/echo/v4"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
 	"go.uber.org/multierr"
@@ -89,12 +90,14 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 	return form, options
 }
 
-// convertURLRoute returns an api.MultipartFormDataRoute route which can
-// convert a URL to PDF.
-func convertURLRoute(chromium API, engine gotenberg.PDFEngine) api.MultipartFormDataRoute {
-	return api.MultipartFormDataRoute{
-		Path: "/chromium/convert/url",
-		Handler: func(ctx *api.Context) error {
+// convertURLRoute returns an api.Route which can convert a URL to PDF.
+func convertURLRoute(chromium API, engine gotenberg.PDFEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/chromium/convert/url",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPDFOptions(ctx)
 
 			var (
@@ -121,12 +124,14 @@ func convertURLRoute(chromium API, engine gotenberg.PDFEngine) api.MultipartForm
 	}
 }
 
-// convertHTMLRoute returns an api.MultipartFormDataRoute route which can
-// convert an HTML file to PDF.
-func convertHTMLRoute(chromium API, engine gotenberg.PDFEngine) api.MultipartFormDataRoute {
-	return api.MultipartFormDataRoute{
-		Path: "/chromium/convert/html",
-		Handler: func(ctx *api.Context) error {
+// convertHTMLRoute returns an api.Route which can convert an HTML file to PDF.
+func convertHTMLRoute(chromium API, engine gotenberg.PDFEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/chromium/convert/html",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPDFOptions(ctx)
 
 			var (
@@ -155,12 +160,15 @@ func convertHTMLRoute(chromium API, engine gotenberg.PDFEngine) api.MultipartFor
 	}
 }
 
-// convertMarkdownRoute returns an api.MultipartFormDataRoute route which can
-// convert markdown files to PDF.
-func convertMarkdownRoute(chromium API, engine gotenberg.PDFEngine) api.MultipartFormDataRoute {
-	return api.MultipartFormDataRoute{
-		Path: "/chromium/convert/markdown",
-		Handler: func(ctx *api.Context) error {
+// convertMarkdownRoute returns an api.Route which can convert markdown files
+// to PDF.
+func convertMarkdownRoute(chromium API, engine gotenberg.PDFEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/chromium/convert/markdown",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPDFOptions(ctx)
 
 			var (

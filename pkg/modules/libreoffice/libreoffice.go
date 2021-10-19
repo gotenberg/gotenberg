@@ -67,20 +67,20 @@ func (mod *LibreOffice) Provision(ctx *gotenberg.Context) error {
 	return nil
 }
 
-// Routes returns the API routes.
-func (mod LibreOffice) Routes() ([]api.MultipartFormDataRoute, error) {
+// Routes returns the HTTP routes.
+func (mod LibreOffice) Routes() ([]api.Route, error) {
 	if mod.disableRoutes {
 		return nil, nil
 	}
 
-	return []api.MultipartFormDataRoute{
+	return []api.Route{
 		convertRoute(mod.unoconv, mod.engine),
 	}, nil
 }
 
 // Interface guards.
 var (
-	_ gotenberg.Module            = (*LibreOffice)(nil)
-	_ gotenberg.Provisioner       = (*LibreOffice)(nil)
-	_ api.MultipartFormDataRouter = (*LibreOffice)(nil)
+	_ gotenberg.Module      = (*LibreOffice)(nil)
+	_ gotenberg.Provisioner = (*LibreOffice)(nil)
+	_ api.Router            = (*LibreOffice)(nil)
 )

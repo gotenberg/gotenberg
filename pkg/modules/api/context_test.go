@@ -248,7 +248,7 @@ func TestContext_Log(t *testing.T) {
 	}
 }
 
-func TestContext_buildOutputFile(t *testing.T) {
+func TestContext_BuildOutputFile(t *testing.T) {
 	for i, tc := range []struct {
 		ctx       *Context
 		expectErr bool
@@ -285,7 +285,7 @@ func TestContext_buildOutputFile(t *testing.T) {
 		tc.ctx.dirPath = dirPath
 		tc.ctx.logger = zap.NewNop()
 
-		_, err = tc.ctx.buildOutputFile()
+		_, err = tc.ctx.BuildOutputFile()
 
 		if tc.expectErr && err == nil {
 			t.Errorf("test %d: expected error but got: %v", i, err)
@@ -298,6 +298,39 @@ func TestContext_buildOutputFile(t *testing.T) {
 		err = os.RemoveAll(dirPath)
 		if err != nil {
 			t.Fatalf("%d: expected no erro but got: %v", i, err)
+		}
+	}
+}
+
+func TestContext_OutputFilename(t *testing.T) {
+	for i, tc := range []struct {
+		ctx                  *Context
+		outputPath           string
+		expectOutputFilename string
+	}{
+		{
+			ctx: func() *Context {
+				c := echo.New().NewContext(httptest.NewRequest(http.MethodGet, "/foo", nil), nil)
+				c.Request().Header.Set("Gotenberg-Output-Filename", "foo")
+
+				return &Context{echoCtx: c}
+			}(),
+			outputPath:           "/foo/bar.txt",
+			expectOutputFilename: "foo.txt",
+		},
+		{
+			ctx: func() *Context {
+				c := echo.New().NewContext(httptest.NewRequest(http.MethodGet, "/foo", nil), nil)
+				return &Context{echoCtx: c}
+			}(),
+			outputPath:           "/foo/foo.txt",
+			expectOutputFilename: "foo.txt",
+		},
+	} {
+		actual := tc.ctx.OutputFilename(tc.outputPath)
+
+		if actual != tc.expectOutputFilename {
+			t.Errorf("test %d: expected '%s' but got '%s'", i, tc.expectOutputFilename, actual)
 		}
 	}
 }
@@ -369,5 +402,31 @@ func TestMockContext_OutputPaths(t *testing.T) {
 
 	if !reflect.DeepEqual(actual, expect) {
 		t.Errorf("expected %+v but got: %+v", expect, actual)
+	}
+}
+
+func TestMockContext_SetLogger(t *testing.T) {
+	mock := MockContext{&Context{}}
+
+	expect := zap.NewNop()
+	mock.SetLogger(expect)
+
+	actual := mock.logger
+
+	if actual != expect {
+		t.Errorf("expected %v but got %v", expect, actual)
+	}
+}
+
+func TestMockContext_SetEchoContext(t *testing.T) {
+	mock := MockContext{&Context{}}
+
+	expect := echo.New().NewContext(nil, nil)
+	mock.SetEchoContext(expect)
+
+	actual := mock.echoCtx
+
+	if actual != expect {
+		t.Errorf("expected %v but got %v", expect, actual)
 	}
 }

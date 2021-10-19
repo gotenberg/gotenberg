@@ -3,13 +3,14 @@ package chromium
 import (
 	"context"
 	"errors"
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"net/http"
 	"os"
 	"reflect"
 	"testing"
 
+	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
+	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 )
 
@@ -137,7 +138,10 @@ func TestConvertURLHandler(t *testing.T) {
 			expectOutputPathsCount: 1,
 		},
 	} {
-		err := convertURLRoute(tc.api, nil).Handler(tc.ctx.Context)
+		c := echo.New().NewContext(nil, nil)
+		c.Set("context", tc.ctx.Context)
+
+		err := convertURLRoute(tc.api, nil).Handler(c)
 
 		if tc.expectErr && err == nil {
 			t.Errorf("test %d: expected error but got: %v", i, err)
@@ -238,7 +242,10 @@ func TestConvertHTMLHandler(t *testing.T) {
 			expectOutputPathsCount: 1,
 		},
 	} {
-		err := convertHTMLRoute(tc.api, nil).Handler(tc.ctx.Context)
+		c := echo.New().NewContext(nil, nil)
+		c.Set("context", tc.ctx.Context)
+
+		err := convertHTMLRoute(tc.api, nil).Handler(c)
 
 		if tc.expectErr && err == nil {
 			t.Errorf("test %d: expected error but got: %v", i, err)
@@ -472,7 +479,10 @@ func TestConvertMarkdownHandler(t *testing.T) {
 				}()
 			}
 
-			err := convertMarkdownRoute(tc.api, nil).Handler(tc.ctx.Context)
+			c := echo.New().NewContext(nil, nil)
+			c.Set("context", tc.ctx.Context)
+
+			err := convertMarkdownRoute(tc.api, nil).Handler(c)
 
 			if tc.expectErr && err == nil {
 				t.Errorf("test %d: expected error but got: %v", i, err)
