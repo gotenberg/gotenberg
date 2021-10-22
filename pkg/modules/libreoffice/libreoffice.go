@@ -5,6 +5,7 @@ import (
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
+	"github.com/gotenberg/gotenberg/v7/pkg/modules/exiftool"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/unoconv"
 	flag "github.com/spf13/pflag"
 )
@@ -18,6 +19,7 @@ func init() {
 type LibreOffice struct {
 	unoconv       unoconv.API
 	engine        gotenberg.PDFEngine
+	exiftool      exiftool.API
 	disableRoutes bool
 }
 
@@ -64,6 +66,18 @@ func (mod *LibreOffice) Provision(ctx *gotenberg.Context) error {
 
 	mod.engine = engine
 
+	provider, err = ctx.Module(new(exiftool.Provider))
+	if err != nil {
+		return fmt.Errorf("get exif provider: %w", err)
+	}
+
+	exif, err := provider.(exiftool.Provider).Exiftool()
+	if err != nil {
+		return fmt.Errorf("get exif API: %w", err)
+	}
+
+	mod.exiftool = exif
+
 	return nil
 }
 
@@ -74,7 +88,7 @@ func (mod LibreOffice) Routes() ([]api.Route, error) {
 	}
 
 	return []api.Route{
-		convertRoute(mod.unoconv, mod.engine),
+		convertRoute(mod.unoconv, mod.engine, mod.exiftool),
 	}, nil
 }
 

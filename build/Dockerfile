@@ -133,6 +133,8 @@ RUN \
     chmod a+x /usr/bin/pdftk-all.jar &&\
     # See https://github.com/nextcloud/docker/issues/380.
     mkdir -p /usr/share/man/man1mkdir -p /usr/share/man/man1 &&\
+    # Install Exiftool. \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends exiftool && \
     # Cleanup.
     # Note: the Debian image does automatically a clean after each install thanks to a hook.
     # Therefore, there is no need for apt-get clean.
@@ -142,7 +144,8 @@ RUN \
     chromium --version &&\
     libreoffice --version &&\
     unoconv --version &&\
-    pdftk --version
+    pdftk --version &&\
+    exiftool --version
 
 # Copy the Gotenberg binary from the builder stage.
 COPY --from=builder /home/gotenberg /usr/bin/
@@ -152,6 +155,7 @@ ENV GC_EXCLUDE_SUBSTR "hsperfdata_root,hsperfdata_gotenberg"
 ENV CHROMIUM_BIN_PATH /usr/bin/chromium
 ENV UNOCONV_BIN_PATH /usr/bin/unoconv
 ENV PDFTK_BIN_PATH /usr/bin/pdftk
+ENV EXIF_BIN_PATH /usr/bin/exiftool
 
 USER gotenberg
 WORKDIR /home/gotenberg

@@ -1,19 +1,23 @@
 package libreoffice
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"go.uber.org/zap"
 	"net/http"
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
+	"github.com/gotenberg/gotenberg/v7/pkg/modules/exiftool"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/unoconv"
 	"github.com/labstack/echo/v4"
 )
 
 // convertRoute returns an api.Route which can convert LibreOffice documents
 // to PDF.
-func convertRoute(uno unoconv.API, engine gotenberg.PDFEngine) api.Route {
+func convertRoute(uno unoconv.API, engine gotenberg.PDFEngine, exif exiftool.API) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
 		Path:        "/forms/libreoffice/convert",
@@ -29,6 +33,7 @@ func convertRoute(uno unoconv.API, engine gotenberg.PDFEngine) api.Route {
 				nativePDFA1aFormat bool
 				PDFformat          string
 				merge              bool
+				rawMetadata        map[string]interface{}
 			)
 
 			err := ctx.FormData().
@@ -38,6 +43,14 @@ func convertRoute(uno unoconv.API, engine gotenberg.PDFEngine) api.Route {
 				Bool("nativePdfA1aFormat", &nativePDFA1aFormat, false).
 				String("pdfFormat", &PDFformat, "").
 				Bool("merge", &merge, false).
+				Custom("metadata", func(value string) error {
+					parsedMetadata, err := parseMetadata(value, ctx.Log())
+					if err != nil {
+						return err
+					}
+					rawMetadata = parsedMetadata
+					return nil
+				}).
 				Validate()
 
 			if err != nil {
@@ -121,6 +134,18 @@ func convertRoute(uno unoconv.API, engine gotenberg.PDFEngine) api.Route {
 					outputPath = convertOutputPath
 				}
 
+				// Writes metadata specified in the user request to the output PDF.
+
+				// Note: Any matching existing metadata entries (identified by key)
+				// will be overwritten by user specified entries during this operation.
+
+				if len(rawMetadata) > 0 {
+					err = writeMetadata(ctx, ctx.Log(), rawMetadata, []string{outputPath}, exif)
+					if err != nil {
+						return err
+					}
+				}
+
 				// Last but not least, add the output path to the context so that
 				// the API is able to send it as a response to the client.
 
@@ -168,6 +193,18 @@ func convertRoute(uno unoconv.API, engine gotenberg.PDFEngine) api.Route {
 				outputPaths = convertOutputPaths
 			}
 
+			// Writes metadata specified in the user request to the outputted PDFs.
+
+			// Note: Any matching existing metadata entries (identified by key)
+			// will be overwritten by user specified entries during this operation.
+
+			if len(rawMetadata) > 0 {
+				err = writeMetadata(ctx, ctx.Log(), rawMetadata, outputPaths, exif)
+				if err != nil {
+					return err
+				}
+			}
+
 			// Last but not least, add the output paths to the context so that
 			// the API is able to send them as a response to the client.
 
@@ -179,4 +216,46 @@ func convertRoute(uno unoconv.API, engine gotenberg.PDFEngine) api.Route {
 			return nil
 		},
 	}
+}
+
+// parseMetadata parses string-encoded JSON into a Go representation, i.e. map[string]interface{}.
+// Should the string-encoded JSON be invalid an error will be returned.
+func parseMetadata(rawInput string, logger *zap.Logger) (map[string]interface{}, error) {
+	parsed := make(map[string]interface{})
+	if rawInput == "" {
+		return parsed, nil
+	}
+
+	err := json.Unmarshal([]byte(rawInput), &parsed)
+	if err != nil {
+		logger.Warn(fmt.Sprintf("unable to unmarshall provided JSON metadata: %s", err))
+		return nil, errors.New("metadata provided is invalid JSON and cannot be processed")
+	}
+
+	return parsed, nil
+}
+
+// writeMetadata takes the user specified metadata (rawMetadata parameter) and
+// writes it to files identified by the paths parameter.
+func writeMetadata(ctx context.Context, logger *zap.Logger, rawMetadata map[string]interface{}, paths []string, exif exiftool.API) error {
+	logger.Debug(fmt.Sprintf("writing new metadata %s to %s", rawMetadata, paths))
+
+	for _, path := range paths {
+
+		err := exif.WriteMetadata(ctx, logger, []string{path}, &rawMetadata)
+		if err != nil {
+			if customErr, ok := err.(*exiftool.MetadataValueTypeError); ok {
+				return api.WrapError(
+					fmt.Errorf("write metadata: %w", err),
+					api.NewSentinelHTTPError(
+						http.StatusBadRequest,
+						fmt.Sprintf("Invalid metdata value types supplied by keys '%s'", customErr.GetKeys()),
+					),
+				)
+			}
+			return err
+		}
+
+	}
+	return nil
 }

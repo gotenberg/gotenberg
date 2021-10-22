@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v7/pkg/modules/exiftool"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/unoconv"
 	"go.uber.org/zap"
 )
@@ -61,6 +62,28 @@ func (mod ProtoPDFEngine) Merge(ctx context.Context, logger *zap.Logger, inputPa
 
 func (mod ProtoPDFEngine) Convert(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
 	return mod.convert(ctx, logger, format, inputPath, outputPath)
+}
+
+type ProtoExiftoolProvider struct {
+	ProtoModule
+	exiftool func() (exiftool.API, error)
+}
+
+func (mod ProtoExiftoolProvider) Exiftool() (exiftool.API, error) {
+	return mod.exiftool()
+}
+
+type ProtoExiftoolAPI struct {
+	readMetadata  func(_ context.Context, _ *zap.Logger, _ []string) (*[]exiftool.FileMetadata, error)
+	writeMetadata func(_ context.Context, _ *zap.Logger, _ []string, _ *map[string]interface{}) error
+}
+
+func (mod ProtoExiftoolAPI) ReadMetadata(ctx context.Context, logger *zap.Logger, paths []string) (*[]exiftool.FileMetadata, error) {
+	return mod.readMetadata(ctx, logger, paths)
+}
+
+func (mod ProtoExiftoolAPI) WriteMetadata(ctx context.Context, logger *zap.Logger, paths []string, newMetadata *map[string]interface{}) error {
+	return mod.writeMetadata(ctx, logger, paths, newMetadata)
 }
 
 func TestLibreOffice_Descriptor(t *testing.T) {
@@ -194,6 +217,162 @@ func TestLibreOffice_Provision(t *testing.T) {
 					[]gotenberg.ModuleDescriptor{
 						mod1.Descriptor(),
 						mod2.Descriptor(),
+					},
+				)
+			}(),
+			expectErr: true,
+		},
+		{
+			ctx: func() *gotenberg.Context {
+				mod1 := struct{ ProtoUnoconvProvider }{}
+				mod1.descriptor = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod1 }}
+				}
+				mod1.unoconv = func() (unoconv.API, error) {
+					return nil, errors.New("foo")
+				}
+
+				mod2 := struct{ ProtoPDFEngineProvider }{}
+				mod2.descriptor = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return mod2 }}
+				}
+				mod2.pdfEngine = func() (gotenberg.PDFEngine, error) {
+					return struct{ ProtoPDFEngine }{}, nil
+				}
+
+				mod3 := struct{ ProtoExiftoolProvider }{}
+				mod3.descriptor = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "baz", New: func() gotenberg.Module { return mod3 }}
+				}
+				mod3.exiftool = func() (exiftool.API, error) {
+					return struct{ ProtoExiftoolAPI }{}, nil
+				}
+
+				return gotenberg.NewContext(
+					gotenberg.ParsedFlags{
+						FlagSet: new(LibreOffice).Descriptor().FlagSet,
+					},
+					[]gotenberg.ModuleDescriptor{
+						mod1.Descriptor(),
+						mod2.Descriptor(),
+						mod3.Descriptor(),
+					},
+				)
+			}(),
+			expectErr: true,
+		},
+		{
+			ctx: func() *gotenberg.Context {
+				mod1 := struct{ ProtoUnoconvProvider }{}
+				mod1.descriptor = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod1 }}
+				}
+				mod1.unoconv = func() (unoconv.API, error) {
+					return struct{ ProtoUnoconvAPI }{}, nil
+				}
+
+				mod2 := struct{ ProtoPDFEngineProvider }{}
+				mod2.descriptor = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return mod2 }}
+				}
+				mod2.pdfEngine = func() (gotenberg.PDFEngine, error) {
+					return nil, errors.New("foo")
+				}
+
+				mod3 := struct{ ProtoExiftoolProvider }{}
+				mod3.descriptor = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "baz", New: func() gotenberg.Module { return mod3 }}
+				}
+				mod3.exiftool = func() (exiftool.API, error) {
+					return struct{ ProtoExiftoolAPI }{}, nil
+				}
+
+				return gotenberg.NewContext(
+					gotenberg.ParsedFlags{
+						FlagSet: new(LibreOffice).Descriptor().FlagSet,
+					},
+					[]gotenberg.ModuleDescriptor{
+						mod1.Descriptor(),
+						mod2.Descriptor(),
+						mod3.Descriptor(),
+					},
+				)
+			}(),
+			expectErr: true,
+		},
+		{
+			ctx: func() *gotenberg.Context {
+				mod1 := struct{ ProtoUnoconvProvider }{}
+				mod1.descriptor = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod1 }}
+				}
+				mod1.unoconv = func() (unoconv.API, error) {
+					return struct{ ProtoUnoconvAPI }{}, nil
+				}
+
+				mod2 := struct{ ProtoPDFEngineProvider }{}
+				mod2.descriptor = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return mod2 }}
+				}
+				mod2.pdfEngine = func() (gotenberg.PDFEngine, error) {
+					return struct{ ProtoPDFEngine }{}, nil
+				}
+
+				mod3 := struct{ ProtoExiftoolProvider }{}
+				mod3.descriptor = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "baz", New: func() gotenberg.Module { return mod3 }}
+				}
+				mod3.exiftool = func() (exiftool.API, error) {
+					return nil, errors.New("foo")
+				}
+
+				return gotenberg.NewContext(
+					gotenberg.ParsedFlags{
+						FlagSet: new(LibreOffice).Descriptor().FlagSet,
+					},
+					[]gotenberg.ModuleDescriptor{
+						mod1.Descriptor(),
+						mod2.Descriptor(),
+						mod3.Descriptor(),
+					},
+				)
+			}(),
+			expectErr: true,
+		},
+		{
+			ctx: func() *gotenberg.Context {
+				mod1 := struct{ ProtoUnoconvProvider }{}
+				mod1.descriptor = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod1 }}
+				}
+				mod1.unoconv = func() (unoconv.API, error) {
+					return struct{ ProtoUnoconvAPI }{}, nil
+				}
+
+				mod2 := struct{ ProtoPDFEngineProvider }{}
+				mod2.descriptor = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return mod2 }}
+				}
+				mod2.pdfEngine = func() (gotenberg.PDFEngine, error) {
+					return struct{ ProtoPDFEngine }{}, nil
+				}
+
+				mod3 := struct{ ProtoExiftoolProvider }{}
+				mod3.descriptor = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "baz", New: func() gotenberg.Module { return mod3 }}
+				}
+				mod3.exiftool = func() (exiftool.API, error) {
+					return struct{ ProtoExiftoolAPI }{}, nil
+				}
+
+				return gotenberg.NewContext(
+					gotenberg.ParsedFlags{
+						FlagSet: new(LibreOffice).Descriptor().FlagSet,
+					},
+					[]gotenberg.ModuleDescriptor{
+						mod1.Descriptor(),
+						mod2.Descriptor(),
+						mod3.Descriptor(),
 					},
 				)
 			}(),
