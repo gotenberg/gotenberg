@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+
 	exiftoolLib "github.com/barasher/go-exiftool"
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"go.uber.org/zap"
-	"os"
 )
 
 func init() {
@@ -177,19 +178,19 @@ func (mod Exiftool) WriteMetadata(ctx context.Context, logger *zap.Logger, paths
 	}
 	for _, metadata := range *fileMetadata {
 		for key, value := range *newMetadata {
-			switch value.(type) {
+			switch v := value.(type) {
 			case string:
-				metadata.SetString(key, value.(string))
+				metadata.SetString(key, v)
 			case int:
-				metadata.SetInt(key, int64(value.(int)))
+				metadata.SetInt(key, int64(v))
 			case int64:
-				metadata.SetInt(key, value.(int64))
+				metadata.SetInt(key, v)
 			case float32:
-				metadata.SetFloat(key, float64(value.(float32)))
+				metadata.SetFloat(key, float64(v))
 			case float64:
-				metadata.SetFloat(key, value.(float64))
+				metadata.SetFloat(key, v)
 			case []string:
-				metadata.SetStrings(key, value.([]string))
+				metadata.SetStrings(key, v)
 			// TODO: support more complex cases, e.g. arrays and nested objects (limitations in underlying library)
 			default:
 				metadataValueErrors.Entries[key] = value

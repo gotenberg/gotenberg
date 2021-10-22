@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"net/http"
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
@@ -13,6 +12,7 @@ import (
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/exiftool"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/unoconv"
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 )
 
 // convertRoute returns an api.Route which can convert LibreOffice documents
