@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/alexliesenfeld/health v0.6.0
 	github.com/andybalholm/brotli v1.0.3 // indirect
-	github.com/chromedp/cdproto v0.0.0-20211019232255-96776d03ee97
+	github.com/chromedp/cdproto v0.0.0-20211025030258-2570df970243
 	github.com/chromedp/chromedp v0.7.4
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.3.0
@@ -16,7 +16,7 @@ require (
 	github.com/labstack/echo/v4 v4.6.1
 	github.com/labstack/gommon v0.3.0
 	github.com/mattn/go-isatty v0.0.14 // indirect
-	github.com/mholt/archiver/v3 v3.5.0
+	github.com/mholt/archiver/v3 v3.5.1
 	github.com/microcosm-cc/bluemonday v1.0.16
 	github.com/nwaples/rardecode v1.1.2 // indirect
 	github.com/pdfcpu/pdfcpu v0.3.12
@@ -29,7 +29,7 @@ require (
 	go.uber.org/multierr v1.7.0
 	go.uber.org/zap v1.19.1
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
-	golang.org/x/image v0.0.0-20210628002857-a66eb6448b8d // indirect
+	golang.org/x/image v0.0.0-20211028202545-6944b10bf410 // indirect
 	golang.org/x/net v0.0.0-20210913180222-943fd674d43e
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20210927094055-39ccf1dd6fa6 // indirect
@@ -42,7 +42,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/chromedp/sysutil v1.0.0 // indirect
-	github.com/dsnet/compress v0.0.1 // indirect
+	github.com/dsnet/compress v0.0.2-0.20210315054119-f66993602bf5 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.1.0 // indirect
