@@ -231,8 +231,8 @@ github.com/orisano/pixelmatch v0.0.0-20210112091706-4fa4c7ba91d5/go.mod h1:nZgzb
 github.com/pdfcpu/pdfcpu v0.3.12 h1:B+MdKisilWNSk5OCO58Z9U6H93usH73xqk6hMOaZCls=
 github.com/pdfcpu/pdfcpu v0.3.12/go.mod h1:8XVBtVxuuIuSZL4Ez15Q4QoC+H8zeAaGnuiOEwAk8jA=
 github.com/pierrec/lz4/v4 v4.1.2/go.mod h1:gZWDp/Ze/IJXGXf23ltt2EXimqmTUXEy0GFuRQyBid4=
-github.com/pierrec/lz4/v4 v4.1.9 h1:xkrjwpOP5xg1k4Nn4GX4a4YFGhscyQL/3EddJ1Xxqm8=
-github.com/pierrec/lz4/v4 v4.1.9/go.mod h1:gZWDp/Ze/IJXGXf23ltt2EXimqmTUXEy0GFuRQyBid4=
+github.com/pierrec/lz4/v4 v4.1.10 h1:H0LgOg/8kTVhiN8ESXFa+gvt9udNp1hQ+mYNDdcMPTM=
+github.com/pierrec/lz4/v4 v4.1.10/go.mod h1:gZWDp/Ze/IJXGXf23ltt2EXimqmTUXEy0GFuRQyBid4=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=

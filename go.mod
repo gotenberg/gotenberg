@@ -20,7 +20,7 @@ require (
 	github.com/microcosm-cc/bluemonday v1.0.16
 	github.com/nwaples/rardecode v1.1.2 // indirect
 	github.com/pdfcpu/pdfcpu v0.3.12
-	github.com/pierrec/lz4/v4 v4.1.9 // indirect
+	github.com/pierrec/lz4/v4 v4.1.10 // indirect
 	github.com/prometheus/client_golang v1.11.0
 	github.com/russross/blackfriday/v2 v2.1.0
 	github.com/spf13/pflag v1.0.5
