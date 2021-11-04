@@ -39,6 +39,7 @@ CHROMIUM_USER_AGENT=
 CHROMIUM_INCOGNITO=false
 CHROMIUM_IGNORE_CERTIFICATE_ERRORS=false
 CHROMIUM_ALLOW_FILE_ACCESS_FROM_FILES=false
+CHROMIUM_PROXY_SERVER=
 CHROMIUM_ALLOW_LIST=
 CHROMIUM_DENY_LIST="^file:///[^tmp].*"
 CHROMIUM_DISABLE_ROUTES=false
@@ -79,6 +80,7 @@ run: ## Start a Gotenberg container
 	--chromium-incognito=$(CHROMIUM_INCOGNITO) \
 	--chromium-ignore-certificate-errors=$(CHROMIUM_IGNORE_CERTIFICATE_ERRORS) \
 	--chromium-allow-file-access-from-files=$(CHROMIUM_ALLOW_FILE_ACCESS_FROM_FILES) \
+	--chromium-proxy-server=$(CHROMIUM_PROXY_SERVER) \
 	--chromium-allow-list=$(CHROMIUM_ALLOW_LIST) \
 	--chromium-deny-list=$(CHROMIUM_DENY_LIST) \
 	--chromium-disable-routes=$(CHROMIUM_DISABLE_ROUTES) \
