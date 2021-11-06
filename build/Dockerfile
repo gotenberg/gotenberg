@@ -67,7 +67,7 @@ RUN \
     # Note: procps for "top" command (useful when debugging processes).
     # Note: tini is a helper for reaping zombie processes.
     apt-get update -qq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg procps tini python3 default-jre-headless &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg procps tini python3 qpdf default-jre-headless &&\
     # Install fonts.
     # Credits:
     # https://github.com/arachnys/athenapdf/blob/master/cli/Dockerfile.
@@ -142,7 +142,8 @@ RUN \
     chromium --version &&\
     libreoffice --version &&\
     unoconv --version &&\
-    pdftk --version
+    pdftk --version &&\
+    qpdf --version
 
 # Copy the Gotenberg binary from the builder stage.
 COPY --from=builder /home/gotenberg /usr/bin/
@@ -152,6 +153,7 @@ ENV GC_EXCLUDE_SUBSTR "hsperfdata_root,hsperfdata_gotenberg"
 ENV CHROMIUM_BIN_PATH /usr/bin/chromium
 ENV UNOCONV_BIN_PATH /usr/bin/unoconv
 ENV PDFTK_BIN_PATH /usr/bin/pdftk
+ENV QPDF_BIN_PATH /usr/bin/qpdf
 
 USER gotenberg
 WORKDIR /home/gotenberg
