@@ -4,8 +4,8 @@ go 1.17
 
 require (
 	github.com/alexliesenfeld/health v0.6.0
-	github.com/andybalholm/brotli v1.0.3 // indirect
-	github.com/chromedp/cdproto v0.0.0-20211025030258-2570df970243
+	github.com/andybalholm/brotli v1.0.4 // indirect
+	github.com/chromedp/cdproto v0.0.0-20211112223831-e508c7bf6446
 	github.com/chromedp/chromedp v0.7.4
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.3.0
@@ -14,13 +14,13 @@ require (
 	github.com/klauspost/compress v1.13.6 // indirect
 	github.com/klauspost/pgzip v1.2.5 // indirect
 	github.com/labstack/echo/v4 v4.6.1
-	github.com/labstack/gommon v0.3.0
+	github.com/labstack/gommon v0.3.1
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mholt/archiver/v3 v3.5.1
 	github.com/microcosm-cc/bluemonday v1.0.16
 	github.com/nwaples/rardecode v1.1.2 // indirect
 	github.com/pdfcpu/pdfcpu v0.3.12
-	github.com/pierrec/lz4/v4 v4.1.10 // indirect
+	github.com/pierrec/lz4/v4 v4.1.11 // indirect
 	github.com/prometheus/client_golang v1.11.0
 	github.com/russross/blackfriday/v2 v2.1.0
 	github.com/spf13/pflag v1.0.5
@@ -32,7 +32,7 @@ require (
 	golang.org/x/image v0.0.0-20211028202545-6944b10bf410 // indirect
 	golang.org/x/net v0.0.0-20210913180222-943fd674d43e
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20210927094055-39ccf1dd6fa6 // indirect
+	golang.org/x/sys v0.0.0-20211103235746-7861aae1554b // indirect
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
 	golang.org/x/text v0.3.7
 )
