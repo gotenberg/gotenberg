@@ -28,6 +28,7 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 	var (
 		waitDelay                                        time.Duration
 		waitWindowStatus                                 string
+		waitForExpression                                string
 		userAgent                                        string
 		extraHTTPHeaders                                 map[string]string
 		landscape, printBackground                       bool
@@ -41,6 +42,7 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 	form := ctx.FormData().
 		Duration("waitDelay", &waitDelay, defaultOptions.WaitDelay).
 		String("waitWindowStatus", &waitWindowStatus, defaultOptions.WaitWindowStatus).
+		String("waitForExpression", &waitForExpression, defaultOptions.WaitForExpression).
 		String("userAgent", &userAgent, defaultOptions.UserAgent).
 		Custom("extraHttpHeaders", func(value string) error {
 			if value == "" {
@@ -73,6 +75,7 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 	options := Options{
 		WaitDelay:         waitDelay,
 		WaitWindowStatus:  waitWindowStatus,
+		WaitForExpression: waitForExpression,
 		UserAgent:         userAgent,
 		ExtraHTTPHeaders:  extraHTTPHeaders,
 		Landscape:         landscape,
@@ -287,6 +290,23 @@ func convertURL(ctx *api.Context, chromium API, engine gotenberg.PDFEngine, URL,
 				api.NewSentinelHTTPError(
 					http.StatusForbidden,
 					fmt.Sprintf("'%s' does not match the authorized URLs", URL),
+				),
+			)
+		}
+
+		if errors.Is(err, ErrInvalidEvaluationExpression) {
+			if options.WaitForExpression == "" {
+				// We do not expect the 'waitWindowStatus' form field to return
+				// an ErrInvalidEvaluationExpression error. In such a scenario,
+				// we return a 500.
+				return fmt.Errorf("convert to PDF: %w", err)
+			}
+
+			return api.WrapError(
+				fmt.Errorf("convert to PDF: %w", err),
+				api.NewSentinelHTTPError(
+					http.StatusBadRequest,
+					fmt.Sprintf("The expression '%s' (waitForExpression) returned an exception or undefined", options.WaitForExpression),
 				),
 			)
 		}

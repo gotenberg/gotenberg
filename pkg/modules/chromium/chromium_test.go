@@ -286,6 +286,21 @@ func TestChromium_PDF(t *testing.T) {
 			},
 		},
 		{
+			timeout: time.Duration(3) * time.Second,
+			URL:     "file:///tests/test/testdata/chromium/html/sample2/index.html",
+			options: Options{
+				WaitForExpression: "window.status === 'foo'",
+			},
+			expectErr: true,
+		},
+		{
+			timeout: time.Duration(3) * time.Second,
+			URL:     "file:///tests/test/testdata/chromium/html/sample2/index.html",
+			options: Options{
+				WaitForExpression: "window.status === 'ready'",
+			},
+		},
+		{
 			URL: "file:///tests/test/testdata/chromium/html/sample4/index.html",
 			options: Options{
 				MarginBottom: 100,
