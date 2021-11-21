@@ -26,9 +26,9 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 	defaultOptions := DefaultOptions()
 
 	var (
-		userAgent                                        string
 		waitDelay                                        time.Duration
 		waitWindowStatus                                 string
+		userAgent                                        string
 		extraHTTPHeaders                                 map[string]string
 		landscape, printBackground                       bool
 		scale, paperWidth, paperHeight                   float64
@@ -39,9 +39,9 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 	)
 
 	form := ctx.FormData().
-		String("userAgent", &userAgent, defaultOptions.UserAgent).
 		Duration("waitDelay", &waitDelay, defaultOptions.WaitDelay).
 		String("waitWindowStatus", &waitWindowStatus, defaultOptions.WaitWindowStatus).
+		String("userAgent", &userAgent, defaultOptions.UserAgent).
 		Custom("extraHttpHeaders", func(value string) error {
 			if value == "" {
 				extraHTTPHeaders = defaultOptions.ExtraHTTPHeaders
@@ -71,9 +71,9 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 		Bool("preferCssPageSize", &preferCSSPageSize, defaultOptions.PreferCSSPageSize)
 
 	options := Options{
-		UserAgent:         userAgent,
 		WaitDelay:         waitDelay,
 		WaitWindowStatus:  waitWindowStatus,
+		UserAgent:         userAgent,
 		ExtraHTTPHeaders:  extraHTTPHeaders,
 		Landscape:         landscape,
 		PrintBackground:   printBackground,

@@ -61,10 +61,6 @@ type Chromium struct {
 
 // Options are the available options for converting HTML document to PDF.
 type Options struct {
-	// UserAgent overrides the default User-Agent header.
-	// Optional.
-	UserAgent string
-
 	// WaitDelay is the duration to wait when loading an HTML document before
 	// converting it to PDF.
 	// Optional.
@@ -74,6 +70,10 @@ type Options struct {
 	// converting an HTML document to PDF.
 	// Optional.
 	WaitWindowStatus string
+
+	// UserAgent overrides the default User-Agent header.
+	// Optional.
+	UserAgent string
 
 	// ExtraHTTPHeaders are the HTTP headers to send by Chromium while loading
 	// the HTML document.
@@ -147,9 +147,9 @@ type Options struct {
 // DefaultOptions returns the default values for Options.
 func DefaultOptions() Options {
 	return Options{
-		UserAgent:         "",
 		WaitDelay:         0,
 		WaitWindowStatus:  "",
+		UserAgent:         "",
 		ExtraHTTPHeaders:  nil,
 		Landscape:         false,
 		PrintBackground:   false,
