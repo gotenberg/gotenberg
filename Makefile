@@ -38,6 +38,7 @@ API_DISABLE_HEALTH_CHECK_LOGGING=false
 CHROMIUM_USER_AGENT=
 CHROMIUM_INCOGNITO=false
 CHROMIUM_IGNORE_CERTIFICATE_ERRORS=false
+CHROMIUM_DISABLE_WEB_SECURITY=false
 CHROMIUM_ALLOW_FILE_ACCESS_FROM_FILES=false
 CHROMIUM_PROXY_SERVER=
 CHROMIUM_ALLOW_LIST=
@@ -79,6 +80,7 @@ run: ## Start a Gotenberg container
 	--chromium-user-agent=$(CHROMIUM_USER_AGENT) \
 	--chromium-incognito=$(CHROMIUM_INCOGNITO) \
 	--chromium-ignore-certificate-errors=$(CHROMIUM_IGNORE_CERTIFICATE_ERRORS) \
+	--chromium-disable-web-security=$(CHROMIUM_DISABLE_WEB_SECURITY) \
 	--chromium-allow-file-access-from-files=$(CHROMIUM_ALLOW_FILE_ACCESS_FROM_FILES) \
 	--chromium-proxy-server=$(CHROMIUM_PROXY_SERVER) \
 	--chromium-allow-list=$(CHROMIUM_ALLOW_LIST) \

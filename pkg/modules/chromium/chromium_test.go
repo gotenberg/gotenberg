@@ -233,6 +233,7 @@ func TestChromium_PDF(t *testing.T) {
 		userAgent                string
 		incognito                bool
 		ignoreCertificateErrors  bool
+		disableWebSecurity       bool
 		allowFileAccessFromFiles bool
 		proxyServer              string
 		allowList                *regexp.Regexp
@@ -297,6 +298,7 @@ func TestChromium_PDF(t *testing.T) {
 			userAgent:                "foo",
 			incognito:                true,
 			ignoreCertificateErrors:  true,
+			disableWebSecurity:       true,
 			allowFileAccessFromFiles: true,
 			proxyServer:              "foo",
 		},
@@ -349,6 +351,7 @@ func TestChromium_PDF(t *testing.T) {
 			mod.userAgent = tc.userAgent
 			mod.incognito = tc.incognito
 			mod.ignoreCertificateErrors = tc.ignoreCertificateErrors
+			mod.disableWebSecurity = tc.disableWebSecurity
 			mod.allowFileAccessFromFiles = tc.allowFileAccessFromFiles
 			mod.proxyServer = tc.proxyServer
 
