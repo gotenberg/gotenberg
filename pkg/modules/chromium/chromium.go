@@ -51,6 +51,7 @@ type Chromium struct {
 	userAgent                string
 	incognito                bool
 	ignoreCertificateErrors  bool
+	disableWebSecurity       bool
 	allowFileAccessFromFiles bool
 	proxyServer              string
 	allowList                *regexp.Regexp
@@ -186,6 +187,7 @@ func (mod Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.String("chromium-user-agent", "", "Override the default User-Agent header")
 			fs.Bool("chromium-incognito", false, "Start Chromium with incognito mode")
 			fs.Bool("chromium-ignore-certificate-errors", false, "Ignore the certificate errors")
+			fs.Bool("chromium-disable-web-security", false, "Don't enforce the same-origin policy")
 			fs.Bool("chromium-allow-file-access-from-files", false, "Allow file:// URIs to read other file:// URIs")
 			fs.String("chromium-proxy-server", "", "Set the outbound proxy server; this switch only affects HTTP and HTTPS requests")
 			fs.String("chromium-allow-list", "", "Set the allowed URLs for Chromium using a regular expression")
@@ -203,6 +205,7 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	mod.userAgent = flags.MustString("chromium-user-agent")
 	mod.ignoreCertificateErrors = flags.MustBool("chromium-ignore-certificate-errors")
+	mod.disableWebSecurity = flags.MustBool("chromium-disable-web-security")
 	mod.allowFileAccessFromFiles = flags.MustBool("chromium-allow-file-access-from-files")
 	mod.proxyServer = flags.MustString("chromium-proxy-server")
 	mod.allowList = flags.MustRegexp("chromium-allow-list")
@@ -309,6 +312,10 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 
 	if mod.ignoreCertificateErrors {
 		args = append(args, chromedp.IgnoreCertErrors)
+	}
+
+	if mod.disableWebSecurity {
+		args = append(args, chromedp.Flag("disable-web-security", true))
 	}
 
 	if mod.allowFileAccessFromFiles {
