@@ -61,6 +61,10 @@ type Chromium struct {
 
 // Options are the available options for converting HTML document to PDF.
 type Options struct {
+	// UserAgent overrides the default User-Agent header.
+	// Optional.
+	UserAgent string
+
 	// WaitDelay is the duration to wait when loading an HTML document before
 	// converting it to PDF.
 	// Optional.
@@ -143,6 +147,7 @@ type Options struct {
 // DefaultOptions returns the default values for Options.
 func DefaultOptions() Options {
 	return Options{
+		UserAgent:         "",
 		WaitDelay:         0,
 		WaitWindowStatus:  "",
 		ExtraHTTPHeaders:  nil,
@@ -193,6 +198,11 @@ func (mod Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.String("chromium-allow-list", "", "Set the allowed URLs for Chromium using a regular expression")
 			fs.String("chromium-deny-list", "^file:///[^tmp].*", "Set the denied URLs for Chromium using a regular expression")
 			fs.Bool("chromium-disable-routes", false, "Disable the routes")
+
+			err := fs.MarkDeprecated("chromium-user-agent", "use the userAgent form field instead")
+			if err != nil {
+				panic(fmt.Errorf("create deprecated flags for chromium module: %v", err))
+			}
 
 			return fs
 		}(),
@@ -302,7 +312,8 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 		chromedp.UserDataDir(userProfileDirPath),
 	)
 
-	if mod.userAgent != "" {
+	if mod.userAgent != "" && options.UserAgent == "" {
+		// Deprecated.
 		args = append(args, chromedp.UserAgent(mod.userAgent))
 	}
 
@@ -326,6 +337,10 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 	if mod.proxyServer != "" {
 		// See https://github.com/gotenberg/gotenberg/issues/376.
 		args = append(args, chromedp.ProxyServer(mod.proxyServer))
+	}
+
+	if options.UserAgent != "" {
+		args = append(args, chromedp.UserAgent(options.UserAgent))
 	}
 
 	allocatorCtx, cancel := chromedp.NewExecAllocator(ctx, args...)
