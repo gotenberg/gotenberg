@@ -35,7 +35,6 @@ API_WRITE_TIMEOUT=30s
 API_ROOT_PATH=/
 API_TRACE_HEADER=Gotenberg-Trace
 API_DISABLE_HEALTH_CHECK_LOGGING=false
-CHROMIUM_USER_AGENT=
 CHROMIUM_INCOGNITO=false
 CHROMIUM_IGNORE_CERTIFICATE_ERRORS=false
 CHROMIUM_DISABLE_WEB_SECURITY=false
@@ -77,7 +76,6 @@ run: ## Start a Gotenberg container
 	--api-root-path=$(API_ROOT_PATH) \
 	--api-trace-header=$(API_TRACE_HEADER) \
 	--api-disable-health-check-logging=$(API_DISABLE_HEALTH_CHECK_LOGGING) \
-	--chromium-user-agent=$(CHROMIUM_USER_AGENT) \
 	--chromium-incognito=$(CHROMIUM_INCOGNITO) \
 	--chromium-ignore-certificate-errors=$(CHROMIUM_IGNORE_CERTIFICATE_ERRORS) \
 	--chromium-disable-web-security=$(CHROMIUM_DISABLE_WEB_SECURITY) \

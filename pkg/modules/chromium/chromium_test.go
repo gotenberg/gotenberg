@@ -253,6 +253,12 @@ func TestChromium_PDF(t *testing.T) {
 		{
 			URL: "file:///tests/test/testdata/chromium/html/sample4/index.html",
 			options: Options{
+				UserAgent: "foo",
+			},
+		},
+		{
+			URL: "file:///tests/test/testdata/chromium/html/sample4/index.html",
+			options: Options{
 				ExtraHTTPHeaders: map[string]string{
 					"foo": "bar",
 				},
