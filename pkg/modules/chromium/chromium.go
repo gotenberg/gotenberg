@@ -30,6 +30,10 @@ var (
 	// allowed/denied lists.
 	ErrURLNotAuthorized = errors.New("URL not authorized")
 
+	// ErrInvalidEvaluationExpression happens if an evaluation expression
+	// returns an exception or undefined.
+	ErrInvalidEvaluationExpression = errors.New("invalid evaluation expression")
+
 	// ErrInvalidPrinterSettings happens if the Options have one or more
 	// aberrant values.
 	ErrInvalidPrinterSettings = errors.New("invalid printer settings")
@@ -70,6 +74,11 @@ type Options struct {
 	// converting an HTML document to PDF.
 	// Optional.
 	WaitWindowStatus string
+
+	// WaitForExpression is the custom JavaScript expression to wait before
+	// converting an HTML document to PDF until it returns true
+	// Optional.
+	WaitForExpression string
 
 	// UserAgent overrides the default User-Agent header.
 	// Optional.
@@ -149,6 +158,7 @@ func DefaultOptions() Options {
 	return Options{
 		WaitDelay:         0,
 		WaitWindowStatus:  "",
+		WaitForExpression: "",
 		UserAgent:         "",
 		ExtraHTTPHeaders:  nil,
 		Landscape:         false,
@@ -454,42 +464,61 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 				return nil
 			}),
 			chromedp.ActionFunc(func(ctx context.Context) error {
-				if options.WaitWindowStatus == "" {
+				if options.WaitWindowStatus == "" && options.WaitForExpression == "" {
 					return nil
 				}
 
-				// We wait until the evaluation of
-				// "window.status === options.WaitWindowStatus" is true or
-				// until the context is done.
-				logger.Debug(fmt.Sprintf("wait for window.status === '%s' before print", options.WaitWindowStatus))
+				evaluate := func(expression string) error {
+					// We wait until the evaluation of the expression is true or
+					// until the context is done.
+					logger.Debug(fmt.Sprintf("wait until '%s' is true before print", expression))
 
-				ticker := time.NewTicker(time.Duration(100) * time.Millisecond)
+					ticker := time.NewTicker(time.Duration(100) * time.Millisecond)
 
-				for {
-					select {
-					case <-ctx.Done():
-						ticker.Stop()
-
-						return fmt.Errorf("wait for window.status === '%s': %w", options.WaitWindowStatus, ctx.Err())
-					case <-ticker.C:
-						var ok bool
-
-						evaluate := chromedp.Evaluate(fmt.Sprintf("window.status === '%s'", options.WaitWindowStatus), &ok)
-						err := evaluate.Do(ctx)
-
-						if err != nil {
-							return fmt.Errorf("evaluate: %w", err)
-						}
-
-						if ok {
+					for {
+						select {
+						case <-ctx.Done():
 							ticker.Stop()
 
-							return nil
-						}
+							return fmt.Errorf("context done while evaluating '%s': %w", expression, ctx.Err())
+						case <-ticker.C:
+							var ok bool
 
-						continue
+							evaluate := chromedp.Evaluate(expression, &ok)
+							err := evaluate.Do(ctx)
+
+							if err != nil {
+								return fmt.Errorf("evaluate: %v: %w", err, ErrInvalidEvaluationExpression)
+							}
+
+							if ok {
+								ticker.Stop()
+
+								return nil
+							}
+
+							continue
+						}
 					}
 				}
+
+				if options.WaitWindowStatus != "" {
+					logger.Warn("option 'WaitWindowStatus' is deprecated; prefer 'WaitForExpression' instead")
+
+					err := evaluate(fmt.Sprintf("window.status === '%s'", options.WaitWindowStatus))
+					if err != nil {
+						return fmt.Errorf("wait for window.status === '%s': %w", options.WaitWindowStatus, err)
+					}
+				}
+
+				if options.WaitForExpression != "" {
+					err := evaluate(options.WaitForExpression)
+					if err != nil {
+						return fmt.Errorf("wait for expression '%s': %w", options.WaitForExpression, err)
+					}
+				}
+
+				return nil
 			}),
 			chromedp.ActionFunc(func(ctx context.Context) error {
 				printToPDF := page.PrintToPDF().

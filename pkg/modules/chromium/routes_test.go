@@ -523,6 +523,7 @@ func TestConvertURL(t *testing.T) {
 		api                    API
 		engine                 gotenberg.PDFEngine
 		PDFformat              string
+		options                Options
 		expectErr              bool
 		expectHTTPErr          bool
 		expectHTTPStatus       int
@@ -538,9 +539,43 @@ func TestConvertURL(t *testing.T) {
 
 				return chromiumAPI
 			}(),
+			options:          DefaultOptions(),
 			expectErr:        true,
 			expectHTTPErr:    true,
 			expectHTTPStatus: http.StatusForbidden,
+		},
+		{
+			ctx: &api.MockContext{Context: &api.Context{}},
+			api: func() API {
+				chromiumAPI := struct{ ProtoAPI }{}
+				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ Options) error {
+					return ErrInvalidEvaluationExpression
+				}
+
+				return chromiumAPI
+			}(),
+			options:   DefaultOptions(),
+			expectErr: true,
+		},
+		{
+			ctx: &api.MockContext{Context: &api.Context{}},
+			api: func() API {
+				chromiumAPI := struct{ ProtoAPI }{}
+				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ Options) error {
+					return ErrInvalidEvaluationExpression
+				}
+
+				return chromiumAPI
+			}(),
+			options: func() Options {
+				options := DefaultOptions()
+				options.WaitForExpression = "foo"
+
+				return options
+			}(),
+			expectErr:        true,
+			expectHTTPErr:    true,
+			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
 			ctx: &api.MockContext{Context: &api.Context{}},
@@ -552,6 +587,7 @@ func TestConvertURL(t *testing.T) {
 
 				return chromiumAPI
 			}(),
+			options:          DefaultOptions(),
 			expectErr:        true,
 			expectHTTPErr:    true,
 			expectHTTPStatus: http.StatusBadRequest,
@@ -566,6 +602,7 @@ func TestConvertURL(t *testing.T) {
 
 				return chromiumAPI
 			}(),
+			options:          DefaultOptions(),
 			expectErr:        true,
 			expectHTTPErr:    true,
 			expectHTTPStatus: http.StatusBadRequest,
@@ -580,6 +617,7 @@ func TestConvertURL(t *testing.T) {
 
 				return chromiumAPI
 			}(),
+			options:   DefaultOptions(),
 			expectErr: true,
 		},
 		{
@@ -600,6 +638,7 @@ func TestConvertURL(t *testing.T) {
 				}
 			}(),
 			PDFformat:        "foo",
+			options:          DefaultOptions(),
 			expectErr:        true,
 			expectHTTPErr:    true,
 			expectHTTPStatus: http.StatusBadRequest,
@@ -622,6 +661,7 @@ func TestConvertURL(t *testing.T) {
 				}
 			}(),
 			PDFformat: "foo",
+			options:   DefaultOptions(),
 			expectErr: true,
 		},
 		{
@@ -642,6 +682,7 @@ func TestConvertURL(t *testing.T) {
 				}
 			}(),
 			PDFformat:              "foo",
+			options:                DefaultOptions(),
 			expectOutputPathsCount: 1,
 		},
 		{
@@ -659,6 +700,7 @@ func TestConvertURL(t *testing.T) {
 
 				return chromiumAPI
 			}(),
+			options:   DefaultOptions(),
 			expectErr: true,
 		},
 		{
@@ -671,10 +713,11 @@ func TestConvertURL(t *testing.T) {
 
 				return chromiumAPI
 			}(),
+			options:                DefaultOptions(),
 			expectOutputPathsCount: 1,
 		},
 	} {
-		err := convertURL(tc.ctx.Context, tc.api, tc.engine, "", tc.PDFformat, DefaultOptions())
+		err := convertURL(tc.ctx.Context, tc.api, tc.engine, "", tc.PDFformat, tc.options)
 
 		if tc.expectErr && err == nil {
 			t.Errorf("test %d: expected error but got: %v", i, err)
