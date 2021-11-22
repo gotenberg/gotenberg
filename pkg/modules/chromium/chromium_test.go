@@ -265,6 +265,25 @@ func TestChromium_PDF(t *testing.T) {
 			},
 		},
 		{
+			URL: "file:///tests/test/testdata/chromium/html/sample8/index.html",
+			options: Options{
+				EmulatedMediaType: "foo",
+			},
+			expectErr: true,
+		},
+		{
+			URL: "file:///tests/test/testdata/chromium/html/sample8/index.html",
+			options: Options{
+				EmulatedMediaType: "screen",
+			},
+		},
+		{
+			URL: "file:///tests/test/testdata/chromium/html/sample8/index.html",
+			options: Options{
+				EmulatedMediaType: "print",
+			},
+		},
+		{
 			URL: "file:///tests/test/testdata/chromium/html/sample4/index.html",
 			options: Options{
 				WaitDelay: time.Duration(1) * time.Nanosecond,
@@ -299,6 +318,13 @@ func TestChromium_PDF(t *testing.T) {
 			options: Options{
 				WaitForExpression: "window.status === 'ready'",
 			},
+		},
+		{
+			URL: "file:///tests/test/testdata/chromium/html/sample4/index.html",
+			options: Options{
+				WaitForExpression: "return undefined",
+			},
+			expectErr: true,
 		},
 		{
 			URL: "file:///tests/test/testdata/chromium/html/sample4/index.html",

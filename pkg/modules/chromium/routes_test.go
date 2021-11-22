@@ -549,6 +549,21 @@ func TestConvertURL(t *testing.T) {
 			api: func() API {
 				chromiumAPI := struct{ ProtoAPI }{}
 				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ Options) error {
+					return ErrInvalidEmulatedMediaType
+				}
+
+				return chromiumAPI
+			}(),
+			options:          DefaultOptions(),
+			expectErr:        true,
+			expectHTTPErr:    true,
+			expectHTTPStatus: http.StatusBadRequest,
+		},
+		{
+			ctx: &api.MockContext{Context: &api.Context{}},
+			api: func() API {
+				chromiumAPI := struct{ ProtoAPI }{}
+				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ Options) error {
 					return ErrInvalidEvaluationExpression
 				}
 

@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
@@ -29,6 +30,10 @@ var (
 	// ErrURLNotAuthorized happens if a URL is not acceptable according to the
 	// allowed/denied lists.
 	ErrURLNotAuthorized = errors.New("URL not authorized")
+
+	// ErrInvalidEmulatedMediaType happens if the emulated media type is not
+	// "screen" nor "print". Empty value are allowed though.
+	ErrInvalidEmulatedMediaType = errors.New("invalid emulated media type")
 
 	// ErrInvalidEvaluationExpression happens if an evaluation expression
 	// returns an exception or undefined.
@@ -88,6 +93,11 @@ type Options struct {
 	// the HTML document.
 	// Optional.
 	ExtraHTTPHeaders map[string]string
+
+	// EmulatedMediaType is the media type to emulate, either "screen" or
+	// "print".
+	// Optional.
+	EmulatedMediaType string
 
 	// Landscape sets the paper orientation.
 	// Optional.
@@ -161,6 +171,7 @@ func DefaultOptions() Options {
 		WaitForExpression: "",
 		UserAgent:         "",
 		ExtraHTTPHeaders:  nil,
+		EmulatedMediaType: "",
 		Landscape:         false,
 		PrintBackground:   false,
 		Scale:             1.0,
@@ -445,6 +456,28 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 				}
 
 				return fmt.Errorf("add CSS for exact colors: %w", err)
+			}),
+			chromedp.ActionFunc(func(ctx context.Context) error {
+				if options.EmulatedMediaType == "" {
+					logger.Debug("no emulated media type")
+
+					return nil
+				}
+
+				if options.EmulatedMediaType != "screen" && options.EmulatedMediaType != "print" {
+					return fmt.Errorf("validate emulated media type '%s': %w", options.EmulatedMediaType, ErrInvalidEmulatedMediaType)
+				}
+
+				logger.Debug(fmt.Sprintf("emulate media type '%s'", options.EmulatedMediaType))
+
+				emulatedMedia := emulation.SetEmulatedMedia()
+
+				err := emulatedMedia.WithMedia(options.EmulatedMediaType).Do(ctx)
+				if err == nil {
+					return nil
+				}
+
+				return fmt.Errorf("emulate media type '%s': %w", options.EmulatedMediaType, err)
 			}),
 			chromedp.ActionFunc(func(ctx context.Context) error {
 				if options.WaitDelay > 0 {
