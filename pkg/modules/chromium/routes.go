@@ -31,6 +31,7 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 		waitForExpression                                string
 		userAgent                                        string
 		extraHTTPHeaders                                 map[string]string
+		emulatedMediaType                                string
 		landscape, printBackground                       bool
 		scale, paperWidth, paperHeight                   float64
 		marginTop, marginBottom, marginLeft, marginRight float64
@@ -58,6 +59,7 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 
 			return nil
 		}).
+		String("emulatedMediaType", &emulatedMediaType, defaultOptions.EmulatedMediaType).
 		Bool("landscape", &landscape, defaultOptions.Landscape).
 		Bool("printBackground", &printBackground, defaultOptions.PrintBackground).
 		Float64("scale", &scale, defaultOptions.Scale).
@@ -78,6 +80,7 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 		WaitForExpression: waitForExpression,
 		UserAgent:         userAgent,
 		ExtraHTTPHeaders:  extraHTTPHeaders,
+		EmulatedMediaType: emulatedMediaType,
 		Landscape:         landscape,
 		PrintBackground:   printBackground,
 		Scale:             scale,
@@ -290,6 +293,16 @@ func convertURL(ctx *api.Context, chromium API, engine gotenberg.PDFEngine, URL,
 				api.NewSentinelHTTPError(
 					http.StatusForbidden,
 					fmt.Sprintf("'%s' does not match the authorized URLs", URL),
+				),
+			)
+		}
+
+		if errors.Is(err, ErrInvalidEmulatedMediaType) {
+			return api.WrapError(
+				fmt.Errorf("convert to PDF: %w", err),
+				api.NewSentinelHTTPError(
+					http.StatusBadRequest,
+					fmt.Sprintf("The media type '%s' (emulatedMediaType) is invalid: allowed values are 'screen' or 'print'", options.EmulatedMediaType),
 				),
 			)
 		}
