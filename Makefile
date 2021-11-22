@@ -42,6 +42,7 @@ CHROMIUM_ALLOW_FILE_ACCESS_FROM_FILES=false
 CHROMIUM_PROXY_SERVER=
 CHROMIUM_ALLOW_LIST=
 CHROMIUM_DENY_LIST="^file:///[^tmp].*"
+CHROMIUM_DISABLE_JAVASCRIPT=false
 CHROMIUM_DISABLE_ROUTES=false
 LIBREOFFICE_DISABLES_ROUTES=false
 LOG_LEVEL=info
@@ -83,6 +84,7 @@ run: ## Start a Gotenberg container
 	--chromium-proxy-server=$(CHROMIUM_PROXY_SERVER) \
 	--chromium-allow-list=$(CHROMIUM_ALLOW_LIST) \
 	--chromium-deny-list=$(CHROMIUM_DENY_LIST) \
+	--chromium-disable-javascript=$(CHROMIUM_DISABLE_JAVASCRIPT) \
 	--chromium-disable-routes=$(CHROMIUM_DISABLE_ROUTES) \
 	--libreoffice-disable-routes=$(LIBREOFFICE_DISABLES_ROUTES) \
 	--log-level=$(LOG_LEVEL) \
