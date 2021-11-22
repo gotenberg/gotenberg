@@ -238,6 +238,7 @@ func TestChromium_PDF(t *testing.T) {
 		proxyServer              string
 		allowList                *regexp.Regexp
 		denyList                 *regexp.Regexp
+		disableJavaScript        bool
 		expectErr                bool
 	}{
 		{
@@ -255,6 +256,10 @@ func TestChromium_PDF(t *testing.T) {
 			options: Options{
 				UserAgent: "foo",
 			},
+		},
+		{
+			URL:               "file:///tests/test/testdata/chromium/html/sample9/index.html",
+			disableJavaScript: true,
 		},
 		{
 			URL: "file:///tests/test/testdata/chromium/html/sample4/index.html",
@@ -412,6 +417,7 @@ func TestChromium_PDF(t *testing.T) {
 
 			mod.allowList = tc.allowList
 			mod.denyList = tc.denyList
+			mod.disableJavaScript = tc.disableJavaScript
 
 			outputDir, err := gotenberg.MkdirAll()
 			if err != nil {

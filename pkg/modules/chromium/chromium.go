@@ -65,6 +65,7 @@ type Chromium struct {
 	proxyServer              string
 	allowList                *regexp.Regexp
 	denyList                 *regexp.Regexp
+	disableJavaScript        bool
 	disableRoutes            bool
 }
 
@@ -218,6 +219,7 @@ func (mod Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.String("chromium-proxy-server", "", "Set the outbound proxy server; this switch only affects HTTP and HTTPS requests")
 			fs.String("chromium-allow-list", "", "Set the allowed URLs for Chromium using a regular expression")
 			fs.String("chromium-deny-list", "^file:///[^tmp].*", "Set the denied URLs for Chromium using a regular expression")
+			fs.Bool("chromium-disable-javascript", false, "Disable JavaScript")
 			fs.Bool("chromium-disable-routes", false, "Disable the routes")
 
 			err := fs.MarkDeprecated("chromium-user-agent", "use the userAgent form field instead")
@@ -241,6 +243,7 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 	mod.proxyServer = flags.MustString("chromium-proxy-server")
 	mod.allowList = flags.MustRegexp("chromium-allow-list")
 	mod.denyList = flags.MustRegexp("chromium-deny-list")
+	mod.disableJavaScript = flags.MustBool("chromium-disable-javascript")
 	mod.disableRoutes = flags.MustBool("chromium-disable-routes")
 
 	binPath, ok := os.LookupEnv("CHROMIUM_BIN_PATH")
@@ -390,6 +393,23 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 			network.Enable(),
 			fetch.Enable(),
 			chromedp.ActionFunc(func(ctx context.Context) error {
+				// See https://github.com/gotenberg/gotenberg/issues/175.
+				if !mod.disableJavaScript {
+					logger.Debug("JavaScript not disabled")
+
+					return nil
+				}
+
+				logger.Debug("disable JavaScript")
+
+				err := emulation.SetScriptExecutionDisabled(true).Do(ctx)
+				if err == nil {
+					return nil
+				}
+
+				return fmt.Errorf("disable JavaScript: %w", err)
+			}),
+			chromedp.ActionFunc(func(ctx context.Context) error {
 				if len(options.ExtraHTTPHeaders) == 0 {
 					logger.Debug("no extra HTTP headers")
 
@@ -407,6 +427,8 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 				if err == nil {
 					return nil
 				}
+
+				emulation.SetScriptExecutionDisabled(true)
 
 				return fmt.Errorf("set extra HTTP headers: %w", err)
 			}),
