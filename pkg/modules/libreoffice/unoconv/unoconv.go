@@ -159,6 +159,11 @@ func (mod Unoconv) PDF(ctx context.Context, logger *zap.Logger, inputPath, outpu
 		"pdf",
 	}
 
+	checkedEntry := logger.Check(zap.DebugLevel, "check for debug level before setting high verbosity")
+	if checkedEntry != nil {
+		args = append(args, "-vvv")
+	}
+
 	if options.Landscape {
 		args = append(args, "--printer", "PaperOrientation=landscape")
 	}
