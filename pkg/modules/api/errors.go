@@ -14,7 +14,7 @@ type SentinelHTTPError struct {
 }
 
 // NewSentinelHTTPError creates a SentinelHTTPError. The message will be sent
-// as the response's body if returned from an handler, so make sure to not leak
+// as the response's body if returned from a handler, so make sure to not leak
 // sensible information.
 func NewSentinelHTTPError(status int, message string) SentinelHTTPError {
 	return SentinelHTTPError{
