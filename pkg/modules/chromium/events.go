@@ -4,12 +4,15 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"sync"
 
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
+	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
@@ -55,6 +58,23 @@ func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, allowL
 					logger.Error(fmt.Sprintf("fail request: %s", err))
 				}
 			}()
+		}
+	})
+}
+
+// listenForEventExceptionThrown listens for exceptions in the console and
+// appends those exceptions to the given error pointer.
+// See https://github.com/gotenberg/gotenberg/issues/262.
+func listenForEventExceptionThrown(ctx context.Context, logger *zap.Logger, consoleExceptions *error, consoleExceptionsMu *sync.RWMutex) {
+	chromedp.ListenTarget(ctx, func(ev interface{}) {
+		switch ev := ev.(type) {
+		case *runtime.EventExceptionThrown:
+			logger.Debug(fmt.Sprintf("event EventExceptionThrown fired: %+v", ev.ExceptionDetails))
+
+			consoleExceptionsMu.Lock()
+			defer consoleExceptionsMu.Unlock()
+
+			*consoleExceptions = multierr.Append(*consoleExceptions, fmt.Errorf("\n%+v", ev.ExceptionDetails))
 		}
 	})
 }

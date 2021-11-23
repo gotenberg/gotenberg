@@ -627,6 +627,21 @@ func TestConvertURL(t *testing.T) {
 			api: func() API {
 				chromiumAPI := struct{ ProtoAPI }{}
 				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ Options) error {
+					return ErrConsoleExceptions
+				}
+
+				return chromiumAPI
+			}(),
+			options:          DefaultOptions(),
+			expectErr:        true,
+			expectHTTPErr:    true,
+			expectHTTPStatus: http.StatusConflict,
+		},
+		{
+			ctx: &api.MockContext{Context: &api.Context{}},
+			api: func() API {
+				chromiumAPI := struct{ ProtoAPI }{}
+				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ Options) error {
 					return errors.New("foo")
 				}
 

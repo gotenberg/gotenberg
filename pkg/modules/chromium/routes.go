@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
@@ -26,6 +27,7 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 	defaultOptions := DefaultOptions()
 
 	var (
+		failOnConsoleExceptions                          bool
 		waitDelay                                        time.Duration
 		waitWindowStatus                                 string
 		waitForExpression                                string
@@ -41,6 +43,7 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 	)
 
 	form := ctx.FormData().
+		Bool("failOnConsoleExceptions", &failOnConsoleExceptions, defaultOptions.FailOnConsoleExceptions).
 		Duration("waitDelay", &waitDelay, defaultOptions.WaitDelay).
 		String("waitWindowStatus", &waitWindowStatus, defaultOptions.WaitWindowStatus).
 		String("waitForExpression", &waitForExpression, defaultOptions.WaitForExpression).
@@ -75,25 +78,26 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 		Bool("preferCssPageSize", &preferCSSPageSize, defaultOptions.PreferCSSPageSize)
 
 	options := Options{
-		WaitDelay:         waitDelay,
-		WaitWindowStatus:  waitWindowStatus,
-		WaitForExpression: waitForExpression,
-		UserAgent:         userAgent,
-		ExtraHTTPHeaders:  extraHTTPHeaders,
-		EmulatedMediaType: emulatedMediaType,
-		Landscape:         landscape,
-		PrintBackground:   printBackground,
-		Scale:             scale,
-		PaperWidth:        paperWidth,
-		PaperHeight:       paperHeight,
-		MarginTop:         marginTop,
-		MarginBottom:      marginBottom,
-		MarginLeft:        marginLeft,
-		MarginRight:       marginRight,
-		PageRanges:        pageRanges,
-		HeaderTemplate:    headerTemplate,
-		FooterTemplate:    footerTemplate,
-		PreferCSSPageSize: preferCSSPageSize,
+		FailOnConsoleExceptions: failOnConsoleExceptions,
+		WaitDelay:               waitDelay,
+		WaitWindowStatus:        waitWindowStatus,
+		WaitForExpression:       waitForExpression,
+		UserAgent:               userAgent,
+		ExtraHTTPHeaders:        extraHTTPHeaders,
+		EmulatedMediaType:       emulatedMediaType,
+		Landscape:               landscape,
+		PrintBackground:         printBackground,
+		Scale:                   scale,
+		PaperWidth:              paperWidth,
+		PaperHeight:             paperHeight,
+		MarginTop:               marginTop,
+		MarginBottom:            marginBottom,
+		MarginLeft:              marginLeft,
+		MarginRight:             marginRight,
+		PageRanges:              pageRanges,
+		HeaderTemplate:          headerTemplate,
+		FooterTemplate:          footerTemplate,
+		PreferCSSPageSize:       preferCSSPageSize,
 	}
 
 	return form, options
@@ -340,6 +344,16 @@ func convertURL(ctx *api.Context, chromium API, engine gotenberg.PDFEngine, URL,
 				api.NewSentinelHTTPError(
 					http.StatusBadRequest,
 					fmt.Sprintf("Chromium does not handle the page ranges '%s' (nativePageRanges)", options.PageRanges),
+				),
+			)
+		}
+
+		if errors.Is(err, ErrConsoleExceptions) {
+			return api.WrapError(
+				fmt.Errorf("convert to PDF: %w", err),
+				api.NewSentinelHTTPError(
+					http.StatusConflict,
+					fmt.Sprintf("Chromium console exceptions:\n %s", strings.ReplaceAll(err.Error(), ErrConsoleExceptions.Error(), "")),
 				),
 			)
 		}

@@ -258,6 +258,13 @@ func TestChromium_PDF(t *testing.T) {
 			},
 		},
 		{
+			URL: "file:///tests/test/testdata/chromium/html/sample10/index.html",
+			options: Options{
+				FailOnConsoleExceptions: true,
+			},
+			expectErr: true,
+		},
+		{
 			URL:               "file:///tests/test/testdata/chromium/html/sample9/index.html",
 			disableJavaScript: true,
 		},

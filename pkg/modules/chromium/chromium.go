@@ -15,6 +15,7 @@ import (
 	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
@@ -50,6 +51,11 @@ var (
 	// ErrRpccMessageTooLarge happens when the messages received by
 	// ChromeDevTools are larger than 100 MB.
 	ErrRpccMessageTooLarge = errors.New("rpcc message too large")
+
+	// ErrConsoleExceptions happens when there are exceptions in the Chromium
+	// console. It also happens only if the Options.FailOnConsoleExceptions is
+	// set to true.
+	ErrConsoleExceptions = errors.New("console exceptions")
 )
 
 // Chromium is a module which provides both an API and routes for converting
@@ -71,6 +77,10 @@ type Chromium struct {
 
 // Options are the available options for converting HTML document to PDF.
 type Options struct {
+	// FailOnConsoleExceptions sets if the conversion should fail if there are
+	// exceptions in the Chromium console.
+	FailOnConsoleExceptions bool
+
 	// WaitDelay is the duration to wait when loading an HTML document before
 	// converting it to PDF.
 	// Optional.
@@ -167,25 +177,26 @@ type Options struct {
 // DefaultOptions returns the default values for Options.
 func DefaultOptions() Options {
 	return Options{
-		WaitDelay:         0,
-		WaitWindowStatus:  "",
-		WaitForExpression: "",
-		UserAgent:         "",
-		ExtraHTTPHeaders:  nil,
-		EmulatedMediaType: "",
-		Landscape:         false,
-		PrintBackground:   false,
-		Scale:             1.0,
-		PaperWidth:        8.5,
-		PaperHeight:       11,
-		MarginTop:         0.39,
-		MarginBottom:      0.39,
-		MarginLeft:        0.39,
-		MarginRight:       0.39,
-		PageRanges:        "",
-		HeaderTemplate:    "<html><head></head><body></body></html>",
-		FooterTemplate:    "<html><head></head><body></body></html>",
-		PreferCSSPageSize: false,
+		FailOnConsoleExceptions: false,
+		WaitDelay:               0,
+		WaitWindowStatus:        "",
+		WaitForExpression:       "",
+		UserAgent:               "",
+		ExtraHTTPHeaders:        nil,
+		EmulatedMediaType:       "",
+		Landscape:               false,
+		PrintBackground:         false,
+		Scale:                   1.0,
+		PaperWidth:              8.5,
+		PaperHeight:             11,
+		MarginTop:               0.39,
+		MarginBottom:            0.39,
+		MarginLeft:              0.39,
+		MarginRight:             0.39,
+		PageRanges:              "",
+		HeaderTemplate:          "<html><head></head><body></body></html>",
+		FooterTemplate:          "<html><head></head><body></body></html>",
+		PreferCSSPageSize:       false,
 	}
 }
 
@@ -384,14 +395,25 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 		return fmt.Errorf("'%s' matches the expression from the denied list: %w", URL, ErrURLNotAuthorized)
 	}
 
+	var (
+		consoleExceptions   error
+		consoleExceptionsMu sync.RWMutex
+	)
+
 	printToPDF := func(URL string, options Options, result *[]byte) chromedp.Tasks {
 		// We validate the underlying requests against our allow / deny lists.
 		// If a request does not pass the validation, we make it fail.
 		listenForEventRequestPaused(taskCtx, logger, mod.allowList, mod.denyList)
 
+		// See https://github.com/gotenberg/gotenberg/issues/262.
+		if options.FailOnConsoleExceptions {
+			listenForEventExceptionThrown(taskCtx, logger, &consoleExceptions, &consoleExceptionsMu)
+		}
+
 		return chromedp.Tasks{
 			network.Enable(),
 			fetch.Enable(),
+			runtime.Enable(),
 			chromedp.ActionFunc(func(ctx context.Context) error {
 				// See https://github.com/gotenberg/gotenberg/issues/175.
 				if !mod.disableJavaScript {
@@ -427,8 +449,6 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 				if err == nil {
 					return nil
 				}
-
-				emulation.SetScriptExecutionDisabled(true)
 
 				return fmt.Errorf("set extra HTTP headers: %w", err)
 			}),
@@ -644,6 +664,14 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 		}
 
 		return fmt.Errorf("chromium PDF: %w", err)
+	}
+
+	// See https://github.com/gotenberg/gotenberg/issues/262.
+	consoleExceptionsMu.RLock()
+	defer consoleExceptionsMu.RUnlock()
+
+	if consoleExceptions != nil {
+		return fmt.Errorf("%v: %w", consoleExceptions, ErrConsoleExceptions)
 	}
 
 	err = ioutil.WriteFile(outputPath, buffer, 0600)
