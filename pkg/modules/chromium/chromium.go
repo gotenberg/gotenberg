@@ -432,7 +432,7 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 		listenForEventRequestPaused(taskCtx, logger, mod.allowList, mod.denyList)
 
 		// See https://github.com/gotenberg/gotenberg/issues/262.
-		if options.FailOnConsoleExceptions {
+		if options.FailOnConsoleExceptions && !mod.disableJavaScript {
 			listenForEventExceptionThrown(taskCtx, logger, &consoleExceptions, &consoleExceptionsMu)
 		}
 
