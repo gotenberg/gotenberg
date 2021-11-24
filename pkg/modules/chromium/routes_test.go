@@ -57,6 +57,50 @@ func TestFormDataChromiumPDFOptions(t *testing.T) {
 				return options
 			}(),
 		},
+		{
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
+				ctx.SetValues(map[string][]string{
+					"extraHttpHeaders": {
+						"foo",
+					},
+				})
+
+				return ctx
+			}(),
+			options: DefaultOptions(),
+		},
+		{
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
+				ctx.SetValues(map[string][]string{
+					"emulatedMediaType": {
+						"foo",
+					},
+				})
+
+				return ctx
+			}(),
+			options: DefaultOptions(),
+		},
+		{
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
+				ctx.SetValues(map[string][]string{
+					"emulatedMediaType": {
+						"screen",
+					},
+				})
+
+				return ctx
+			}(),
+			options: func() Options {
+				options := DefaultOptions()
+				options.EmulatedMediaType = "screen"
+
+				return options
+			}(),
+		},
 	} {
 		_, actual := FormDataChromiumPDFOptions(tc.ctx.Context)
 
@@ -764,21 +808,6 @@ func TestConvertURL(t *testing.T) {
 			expectErr:        true,
 			expectHTTPErr:    true,
 			expectHTTPStatus: http.StatusForbidden,
-		},
-		{
-			ctx: &api.MockContext{Context: &api.Context{}},
-			api: func() API {
-				chromiumAPI := struct{ ProtoAPI }{}
-				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ Options) error {
-					return ErrInvalidEmulatedMediaType
-				}
-
-				return chromiumAPI
-			}(),
-			options:          DefaultOptions(),
-			expectErr:        true,
-			expectHTTPErr:    true,
-			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
 			ctx: &api.MockContext{Context: &api.Context{}},
