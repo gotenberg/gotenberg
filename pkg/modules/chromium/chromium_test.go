@@ -277,6 +277,19 @@ func TestChromium_PDF(t *testing.T) {
 			},
 		},
 		{
+			URL: "file:///tests/test/testdata/chromium/html/sample11/index.html",
+			options: Options{
+				ExtraLinkTags: []LinkTag{
+					{
+						Href: "font.woff",
+					},
+					{
+						Href: "style.css",
+					},
+				},
+			},
+		},
+		{
 			URL: "file:///tests/test/testdata/chromium/html/sample8/index.html",
 			options: Options{
 				EmulatedMediaType: "foo",
@@ -293,6 +306,16 @@ func TestChromium_PDF(t *testing.T) {
 			URL: "file:///tests/test/testdata/chromium/html/sample8/index.html",
 			options: Options{
 				EmulatedMediaType: "print",
+			},
+		},
+		{
+			URL: "file:///tests/test/testdata/chromium/html/sample11/index.html",
+			options: Options{
+				ExtraScriptTags: []ScriptTag{
+					{
+						Src: "script.js",
+					},
+				},
 			},
 		},
 		{
