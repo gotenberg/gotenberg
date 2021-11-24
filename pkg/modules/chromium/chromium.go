@@ -21,6 +21,7 @@ import (
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 	flag "github.com/spf13/pflag"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 func init() {
@@ -75,10 +76,25 @@ type Chromium struct {
 	disableRoutes            bool
 }
 
+// LinkTag represents an HTML <link> element.
+type LinkTag struct {
+	// Href is the "href" attribute of the HTML <link> element.
+	// Required.
+	Href string `json:"href"`
+}
+
+// ScriptTag represents an HTML <script> element.
+type ScriptTag struct {
+	// Src is the "src" attribute of the HTML <link> element.
+	// Required.
+	Src string `json:"src"`
+}
+
 // Options are the available options for converting HTML document to PDF.
 type Options struct {
 	// FailOnConsoleExceptions sets if the conversion should fail if there are
 	// exceptions in the Chromium console.
+	// Optional.
 	FailOnConsoleExceptions bool
 
 	// WaitDelay is the duration to wait when loading an HTML document before
@@ -105,10 +121,18 @@ type Options struct {
 	// Optional.
 	ExtraHTTPHeaders map[string]string
 
+	// ExtraLinkTags are HTML <link> attributes that are added on the fly.
+	// Optional.
+	ExtraLinkTags []LinkTag
+
 	// EmulatedMediaType is the media type to emulate, either "screen" or
 	// "print".
 	// Optional.
 	EmulatedMediaType string
+
+	// ExtraScriptTags are HTML <script> attributes that are added on the fly.
+	// Optional.
+	ExtraScriptTags []ScriptTag
 
 	// Landscape sets the paper orientation.
 	// Optional.
@@ -183,7 +207,9 @@ func DefaultOptions() Options {
 		WaitForExpression:       "",
 		UserAgent:               "",
 		ExtraHTTPHeaders:        nil,
+		ExtraLinkTags:           nil,
 		EmulatedMediaType:       "",
+		ExtraScriptTags:         nil,
 		Landscape:               false,
 		PrintBackground:         false,
 		Scale:                   1.0,
@@ -500,6 +526,50 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 				return fmt.Errorf("add CSS for exact colors: %w", err)
 			}),
 			chromedp.ActionFunc(func(ctx context.Context) error {
+				if len(options.ExtraLinkTags) == 0 {
+					logger.Debug("no extra link tags")
+
+					return nil
+				}
+
+				logger.Debug(fmt.Sprintf("extra link tags: %+v", options.ExtraLinkTags))
+
+				addLinkTag := func(i int, linkTag LinkTag) func() error {
+					return func() error {
+						script := `
+(() => {
+	const link = document.createElement('link');
+	link.href = '%s';
+	link.rel = 'stylesheet'
+	document.head.appendChild(link);
+})();
+`
+
+						evaluate := chromedp.Evaluate(fmt.Sprintf(script, linkTag.Href), nil)
+						err := evaluate.Do(ctx)
+
+						if err == nil {
+							return nil
+						}
+
+						return fmt.Errorf("add extra link tag %d: %w", i, err)
+					}
+				}
+
+				eg, _ := errgroup.WithContext(ctx)
+
+				for i, linkTag := range options.ExtraLinkTags {
+					eg.Go(addLinkTag(i, linkTag))
+				}
+
+				err := eg.Wait()
+				if err == nil {
+					return nil
+				}
+
+				return fmt.Errorf("add extra link tags: %w", err)
+			}),
+			chromedp.ActionFunc(func(ctx context.Context) error {
 				if options.EmulatedMediaType == "" {
 					logger.Debug("no emulated media type")
 
@@ -522,24 +592,89 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 				return fmt.Errorf("emulate media type '%s': %w", options.EmulatedMediaType, err)
 			}),
 			chromedp.ActionFunc(func(ctx context.Context) error {
-				if options.WaitDelay > 0 {
-					// We wait for a given amount of time so that JavaScript
-					// scripts have a chance to finish before printing the page
-					// to PDF.
-					logger.Debug(fmt.Sprintf("wait '%s' before print", options.WaitDelay))
+				if mod.disableJavaScript {
+					logger.Debug("JavaScript disabled, skipping extra script tags")
 
-					select {
-					case <-ctx.Done():
-						return fmt.Errorf("wait delay: %w", ctx.Err())
-					case <-time.After(options.WaitDelay):
-						return nil
+					return nil
+				}
+
+				if len(options.ExtraScriptTags) == 0 {
+					logger.Debug("no extra script tags")
+
+					return nil
+				}
+
+				logger.Debug(fmt.Sprintf("extra script tags: %+v", options.ExtraScriptTags))
+
+				addScriptTag := func(i int, scriptTag ScriptTag) func() error {
+					return func() error {
+						script := `
+(() => {
+	const script = document.createElement('script');
+	script.src = '%s';
+	document.head.appendChild(script);
+})();
+`
+
+						evaluate := chromedp.Evaluate(fmt.Sprintf(script, scriptTag.Src), nil)
+						err := evaluate.Do(ctx)
+
+						if err == nil {
+							return nil
+						}
+
+						return fmt.Errorf("add extra script tag %d: %w", i, err)
 					}
 				}
 
-				return nil
+				eg, _ := errgroup.WithContext(ctx)
+
+				for i, scriptTag := range options.ExtraScriptTags {
+					eg.Go(addScriptTag(i, scriptTag))
+				}
+
+				err := eg.Wait()
+				if err == nil {
+					return nil
+				}
+
+				return fmt.Errorf("add extra script tags: %w", err)
 			}),
 			chromedp.ActionFunc(func(ctx context.Context) error {
+				if mod.disableJavaScript {
+					logger.Debug("JavaScript disabled, skipping wait delay")
+
+					return nil
+				}
+
+				if options.WaitDelay <= 0 {
+					logger.Debug("no wait delay")
+
+					return nil
+				}
+
+				// We wait for a given amount of time so that JavaScript
+				// scripts have a chance to finish before printing the page
+				// to PDF.
+				logger.Debug(fmt.Sprintf("wait '%s' before print", options.WaitDelay))
+
+				select {
+				case <-ctx.Done():
+					return fmt.Errorf("wait delay: %w", ctx.Err())
+				case <-time.After(options.WaitDelay):
+					return nil
+				}
+			}),
+			chromedp.ActionFunc(func(ctx context.Context) error {
+				if mod.disableJavaScript {
+					logger.Debug("JavaScript disabled, skipping wait for window status / wait for expression")
+
+					return nil
+				}
+
 				if options.WaitWindowStatus == "" && options.WaitForExpression == "" {
+					logger.Debug("no wait for window status nor wait for expression")
+
 					return nil
 				}
 
