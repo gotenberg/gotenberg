@@ -89,15 +89,18 @@ func TestUnoconv_Unoconv(t *testing.T) {
 func TestUnoconv_PDF(t *testing.T) {
 	for i, tc := range []struct {
 		ctx       context.Context
+		logger    *zap.Logger
 		inputPath string
 		options   Options
 		expectErr bool
 	}{
 		{
+			logger:    zap.NewNop(),
 			expectErr: true,
 		},
 		{
 			ctx:       context.Background(),
+			logger:    zap.NewExample(),
 			inputPath: "/tests/test/testdata/libreoffice/sample1.docx",
 			options: Options{
 				Landscape:  true,
@@ -107,6 +110,7 @@ func TestUnoconv_PDF(t *testing.T) {
 		},
 		{
 			ctx:       context.Background(),
+			logger:    zap.NewNop(),
 			inputPath: "/tests/test/testdata/libreoffice/sample1.docx",
 			options: Options{
 				PageRanges: "foo",
@@ -120,6 +124,7 @@ func TestUnoconv_PDF(t *testing.T) {
 
 				return ctx
 			}(),
+			logger:    zap.NewNop(),
 			inputPath: "/tests/test/testdata/libreoffice/sample1.docx",
 			expectErr: true,
 		},
@@ -144,7 +149,7 @@ func TestUnoconv_PDF(t *testing.T) {
 				}
 			}()
 
-			err = mod.PDF(tc.ctx, zap.NewNop(), tc.inputPath, outputDir+"/foo.pdf", tc.options)
+			err = mod.PDF(tc.ctx, tc.logger, tc.inputPath, outputDir+"/foo.pdf", tc.options)
 
 			if tc.expectErr && err == nil {
 				t.Errorf("test %d: expected error but got: %v", i, err)
