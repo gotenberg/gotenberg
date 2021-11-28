@@ -36,7 +36,7 @@ func (PDFEngines) Descriptor() gotenberg.ModuleDescriptor {
 		ID: "pdfengines",
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("pdfengines", flag.ExitOnError)
-			fs.StringSlice("pdfengines-engines", make([]string, 0), "Set the PDF engines - all by default")
+			fs.StringSlice("pdfengines-engines", make([]string, 0), "Set the PDF engines and their order - all by default")
 			fs.Bool("pdfengines-disable-routes", false, "Disable the routes")
 
 			return fs
