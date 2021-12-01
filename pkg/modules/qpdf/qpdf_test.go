@@ -2,7 +2,6 @@ package qpdf
 
 import (
 	"context"
-	"errors"
 	"os"
 	"reflect"
 	"testing"

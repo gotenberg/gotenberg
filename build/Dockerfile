@@ -67,7 +67,7 @@ RUN \
     # Note: procps for "top" command (useful when debugging processes).
     # Note: tini is a helper for reaping zombie processes.
     apt-get update -qq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg procps tini python3 qpdf default-jre-headless &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg procps tini python3 default-jre-headless &&\
     # Install fonts.
     # Credits:
     # https://github.com/arachnys/athenapdf/blob/master/cli/Dockerfile.
@@ -131,6 +131,8 @@ RUN \
     # See https://github.com/gotenberg/gotenberg/pull/273.
     curl -o /usr/bin/pdftk-all.jar "https://gitlab.com/pdftk-java/pdftk/-/jobs/$PDFTK_VERSION/artifacts/raw/build/libs/pdftk-all.jar" &&\
     chmod a+x /usr/bin/pdftk-all.jar &&\
+    # Download QPDF.
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends qpdf &&\
     # See https://github.com/nextcloud/docker/issues/380.
     mkdir -p /usr/share/man/man1mkdir -p /usr/share/man/man1 &&\
     # Cleanup.

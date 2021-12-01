@@ -72,7 +72,8 @@ func (engine QPDF) Metrics() ([]gotenberg.Metric, error) {
 func (engine QPDF) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 	var args []string
 	args = append(args, "--empty")
-	args = append(args, "--pages", inputPaths...)
+	args = append(args, "--pages")
+	args = append(args, inputPaths...)
 	args = append(args, "--", outputPath)
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
@@ -95,6 +96,11 @@ func (engine QPDF) Merge(ctx context.Context, logger *zap.Logger, inputPaths []s
 	}
 
 	return fmt.Errorf("merge PDFs with QPDF: %w", err)
+}
+
+// Convert is not available for this PDF engine.
+func (engine QPDF) Convert(_ context.Context, _ *zap.Logger, format, _, _ string) error {
+	return fmt.Errorf("convert PDF to '%s' with QPDF: %w", format, gotenberg.ErrPDFEngineMethodNotAvailable)
 }
 
 var (
