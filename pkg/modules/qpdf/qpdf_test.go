@@ -31,7 +31,6 @@ func TestQPDF_Provision(t *testing.T) {
 	}
 }
 
-
 func TestQPDF_Validate(t *testing.T) {
 	for i, tc := range []struct {
 		binPath   string
