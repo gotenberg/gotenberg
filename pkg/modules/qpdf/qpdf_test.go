@@ -2,6 +2,7 @@ package qpdf
 
 import (
 	"context"
+	"errors"
 	"os"
 	"reflect"
 	"testing"
@@ -138,5 +139,14 @@ func TestQPDF_Merge(t *testing.T) {
 				t.Errorf("test %d: expected no error but got: %v", i, err)
 			}
 		}()
+	}
+}
+
+func TestQPDF_Convert(t *testing.T) {
+	mod := new(QPDF)
+	err := mod.Convert(context.TODO(), zap.NewNop(), "", "", "")
+
+	if !errors.Is(err, gotenberg.ErrPDFEngineMethodNotAvailable) {
+		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPDFEngineMethodNotAvailable, err)
 	}
 }
