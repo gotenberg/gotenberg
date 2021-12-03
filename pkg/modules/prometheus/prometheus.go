@@ -150,7 +150,7 @@ func (mod Prometheus) Start() error {
 // StartupMessage returns a custom startup message.
 func (mod Prometheus) StartupMessage() string {
 	if mod.disableCollect {
-		return "application not started (collect disabled by user)"
+		return "collect disabled"
 	}
 
 	return "collecting metrics"
