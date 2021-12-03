@@ -296,8 +296,8 @@ func TestPrometheus_StartupMessage(t *testing.T) {
 		expectMessage  string
 	}{
 		{
-			expectMessage:  "application not started (collect disabled by user)",
 			disableCollect: true,
+			expectMessage:  "collect disabled",
 		},
 		{
 			expectMessage: "collecting metrics",
