@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -202,19 +201,10 @@ func (gc *GarbageCollector) Stop(ctx context.Context) error {
 	}
 
 	// Block until the context is done so that other module may gracefully stop
-	// before we do a shutdown cleanup. We skip this step if we receive a
-	// SIGINT in the meantime.
+	// before we do a shutdown cleanup.
 	gc.logger.Debug("wait for the end of grace duration")
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
-
-	select {
-	case <-quit:
-		return nil
-	case <-ctx.Done():
-		break
-	}
+	<-ctx.Done()
 
 	gc.ticker.Stop()
 	gc.done <- true
