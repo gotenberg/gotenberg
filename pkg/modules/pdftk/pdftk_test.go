@@ -65,11 +65,11 @@ func TestPDFtk_Validate(t *testing.T) {
 func TestPDFtk_Metrics(t *testing.T) {
 	metrics, err := new(PDFtk).Metrics()
 	if err != nil {
-		t.Errorf("expected no error but got: %v", err)
+		t.Fatalf("expected no error but got: %v", err)
 	}
 
 	if len(metrics) != 1 {
-		t.Errorf("expected %d metrics, but got %d", 1, len(metrics))
+		t.Fatalf("expected %d metrics, but got %d", 1, len(metrics))
 	}
 
 	actual := metrics[0].Read()
