@@ -176,11 +176,11 @@ func TestChromium_Validate(t *testing.T) {
 func TestChromium_Metrics(t *testing.T) {
 	metrics, err := new(Chromium).Metrics()
 	if err != nil {
-		t.Errorf("expected no error but got: %v", err)
+		t.Fatalf("expected no error but got: %v", err)
 	}
 
 	if len(metrics) != 1 {
-		t.Errorf("expected %d metrics, but got %d", 1, len(metrics))
+		t.Fatalf("expected %d metrics, but got %d", 1, len(metrics))
 	}
 
 	actual := metrics[0].Read()
