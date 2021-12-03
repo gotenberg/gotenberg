@@ -9,6 +9,7 @@ import (
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	flag "github.com/spf13/pflag"
+	"golang.org/x/sync/errgroup"
 )
 
 // See https://patorjk.com/software/taag/#p=display&f=Small%20Slant&t=Gotenberg.
@@ -117,18 +118,40 @@ func Run() {
 	gracefulShutdownCtx, cancel := context.WithTimeout(context.Background(), gracefulShutdownDuration)
 	defer cancel()
 
+	forceQuit := make(chan os.Signal, 1)
+	signal.Notify(forceQuit, os.Interrupt)
+
+	go func() {
+		// In case of force quit, cancel the context.
+		<-forceQuit
+		cancel()
+	}()
+
 	fmt.Printf("[SYSTEM] graceful shutdown of %s\n", gracefulShutdownDuration)
 
+	eg, _ := errgroup.WithContext(gracefulShutdownCtx)
+
 	for _, a := range apps {
-		id := a.(gotenberg.Module).Descriptor().ID
-		app := a.(gotenberg.App)
+		eg.Go(func(app gotenberg.App) func() error {
+			return func() error {
+				id := app.(gotenberg.Module).Descriptor().ID
 
-		err = app.Stop(gracefulShutdownCtx)
-		if err != nil {
-			fmt.Printf("[ERROR] stopping %s: %s\n", id, err)
-		}
+				err = app.Stop(gracefulShutdownCtx)
+				if err != nil {
+					return fmt.Errorf("stopping %s: %w", id, err)
+				}
 
-		fmt.Printf("[SYSTEM] %s: application stopped\n", id)
+				fmt.Printf("[SYSTEM] %s: application stopped\n", id)
+
+				return nil
+			}
+		}(a.(gotenberg.App)))
+	}
+
+	err = eg.Wait()
+	if err != nil {
+		fmt.Printf("[FATAL] %v\n", err)
+		os.Exit(1)
 	}
 
 	os.Exit(0)
