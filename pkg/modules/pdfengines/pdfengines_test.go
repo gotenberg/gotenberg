@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
@@ -252,11 +253,40 @@ func TestPDFEngine_Validate(t *testing.T) {
 	}
 }
 
+func TestPDFEngines_SystemMessages(t *testing.T) {
+	mod := new(PDFEngines)
+	mod.names = []string{"foo", "bar"}
+
+	messages := mod.SystemMessages()
+	if len(messages) != 1 {
+		t.Errorf("expected one and only one message but got %d", len(messages))
+	}
+
+	expect := strings.Join(mod.names[:], " ")
+	if messages[0] != expect {
+		t.Errorf("expected message '%s' but got '%s'", expect, messages[0])
+	}
+}
+
 func TestPDFEngine_PDFEngine(t *testing.T) {
 	mod := new(PDFEngines)
-	mod.engines = []gotenberg.PDFEngine{
-		struct{ ProtoPDFEngine }{},
-	}
+	mod.names = []string{"foo", "bar"}
+	mod.engines = func() []gotenberg.PDFEngine {
+		engine1 := struct{ ProtoPDFEngine }{}
+		engine1.descriptor = func() gotenberg.ModuleDescriptor {
+			return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return engine1 }}
+		}
+
+		engine2 := struct{ ProtoPDFEngine }{}
+		engine2.descriptor = func() gotenberg.ModuleDescriptor {
+			return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return engine2 }}
+		}
+
+		return []gotenberg.PDFEngine{
+			engine1,
+			engine2,
+		}
+	}()
 
 	_, err := mod.PDFEngine()
 	if err != nil {
