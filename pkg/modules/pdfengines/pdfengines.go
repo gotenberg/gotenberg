@@ -3,6 +3,7 @@ package pdfengines
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
@@ -118,14 +119,25 @@ func (mod PDFEngines) Validate() error {
 	return fmt.Errorf("non-existing PDF engine(s): %s - available PDF engine(s): %s", nonExistingEngines, availableEngines)
 }
 
+// SystemMessages returns one message with the selected gotenberg.PDFEngine
+// modules.
+func (mod PDFEngines) SystemMessages() []string {
+	return []string{
+		strings.Join(mod.names[:], " "),
+	}
+}
+
 // PDFEngine returns a gotenberg.PDFEngine.
 func (mod PDFEngines) PDFEngine() (gotenberg.PDFEngine, error) {
-	engines := make([]gotenberg.PDFEngine, len(mod.engines))
+	engines := make([]gotenberg.PDFEngine, len(mod.names))
 
-	i := 0
-	for _, engine := range mod.engines {
-		engines[i] = engine
-		i++
+	for i, name := range mod.names {
+		for _, engine := range mod.engines {
+			if name == engine.(gotenberg.Module).Descriptor().ID {
+				engines[i] = engine
+				break
+			}
+		}
 	}
 
 	return newMultiPDFEngines(engines...), nil
@@ -155,6 +167,7 @@ var (
 	_ gotenberg.Module            = (*PDFEngines)(nil)
 	_ gotenberg.Provisioner       = (*PDFEngines)(nil)
 	_ gotenberg.Validator         = (*PDFEngines)(nil)
+	_ gotenberg.SystemLogger      = (*PDFEngines)(nil)
 	_ gotenberg.PDFEngineProvider = (*PDFEngines)(nil)
 	_ api.Router                  = (*PDFEngines)(nil)
 )

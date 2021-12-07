@@ -33,7 +33,7 @@ var Version = "snapshot"
 func Run() {
 	fmt.Printf(banner, Version)
 
-	// Creates the roo` FlagSet and adds the modules flags to it.
+	// Create the root FlagSet and adds the modules flags to it.
 	fs := flag.NewFlagSet("gotenberg", flag.ExitOnError)
 	fs.Duration("gotenberg-graceful-shutdown-duration", time.Duration(30)*time.Second, "Set the graceful shutdown duration")
 
@@ -46,14 +46,14 @@ func Run() {
 
 	fmt.Printf("[SYSTEM] modules: %s\n", modsInfo)
 
-	// Parses the flags...
+	// Parse the flags...
 	err := fs.Parse(os.Args[1:])
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	// ...and creates a wrapper around those.
+	// ...and create a wrapper around those.
 	parsedFlags := gotenberg.ParsedFlags{FlagSet: fs}
 
 	// Get the graceful shutdown duration.
@@ -61,7 +61,7 @@ func Run() {
 
 	ctx := gotenberg.NewContext(parsedFlags, descriptors)
 
-	// Starts application modules.
+	// Start application modules.
 	apps, err := ctx.Modules(new(gotenberg.App))
 	if err != nil {
 		fmt.Printf("[FATAL] %s\n", err)
@@ -87,7 +87,23 @@ func Run() {
 
 			fmt.Printf("[SYSTEM] %s: %s\n", id, startupMessage)
 		}(a.(gotenberg.App))
+	}
 
+	// Get modules that want to print system messages.
+	sysLoggers, err := ctx.Modules(new(gotenberg.SystemLogger))
+	if err != nil {
+		fmt.Printf("[FATAL] %s\n", err)
+		os.Exit(1)
+	}
+
+	for _, l := range sysLoggers {
+		go func(logger gotenberg.SystemLogger) {
+			id := logger.(gotenberg.Module).Descriptor().ID
+
+			for _, message := range logger.SystemMessages() {
+				fmt.Printf("[SYSTEM] %s: %s\n", id, message)
+			}
+		}(l.(gotenberg.SystemLogger))
 	}
 
 	quit := make(chan os.Signal, 1)

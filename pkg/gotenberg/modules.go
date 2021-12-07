@@ -69,6 +69,12 @@ type App interface {
 	Stop(ctx context.Context) error
 }
 
+// SystemLogger is a module interface for modules which want to display
+// messages on startup.
+type SystemLogger interface {
+	SystemMessages() []string
+}
+
 // MustRegisterModule registers a module.
 //
 // To register a module, create an init() method in the module main go file:
