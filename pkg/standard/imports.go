@@ -13,5 +13,6 @@ import (
 	_ "github.com/gotenberg/gotenberg/v7/pkg/modules/pdfengines"
 	_ "github.com/gotenberg/gotenberg/v7/pkg/modules/pdftk"
 	_ "github.com/gotenberg/gotenberg/v7/pkg/modules/prometheus"
+	_ "github.com/gotenberg/gotenberg/v7/pkg/modules/qpdf"
 	_ "github.com/gotenberg/gotenberg/v7/pkg/modules/webhook"
 )

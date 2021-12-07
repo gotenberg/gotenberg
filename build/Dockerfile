@@ -131,6 +131,8 @@ RUN \
     # See https://github.com/gotenberg/gotenberg/pull/273.
     curl -o /usr/bin/pdftk-all.jar "https://gitlab.com/pdftk-java/pdftk/-/jobs/$PDFTK_VERSION/artifacts/raw/build/libs/pdftk-all.jar" &&\
     chmod a+x /usr/bin/pdftk-all.jar &&\
+    # Download QPDF.
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends qpdf &&\
     # See https://github.com/nextcloud/docker/issues/380.
     mkdir -p /usr/share/man/man1mkdir -p /usr/share/man/man1 &&\
     # Cleanup.
@@ -142,7 +144,8 @@ RUN \
     chromium --version &&\
     libreoffice --version &&\
     unoconv --version &&\
-    pdftk --version
+    pdftk --version &&\
+    qpdf --version
 
 # Copy the Gotenberg binary from the builder stage.
 COPY --from=builder /home/gotenberg /usr/bin/
@@ -152,6 +155,7 @@ ENV GC_EXCLUDE_SUBSTR "hsperfdata_root,hsperfdata_gotenberg"
 ENV CHROMIUM_BIN_PATH /usr/bin/chromium
 ENV UNOCONV_BIN_PATH /usr/bin/unoconv
 ENV PDFTK_BIN_PATH /usr/bin/pdftk
+ENV QPDF_BIN_PATH /usr/bin/qpdf
 
 USER gotenberg
 WORKDIR /home/gotenberg
