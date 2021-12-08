@@ -15,7 +15,7 @@ func init() {
 	gotenberg.MustRegisterModule(QPDF{})
 }
 
-// QPDF abstracts the CLI tool QPDF and implements the gotenberg.QPDF
+// QPDF abstracts the CLI tool QPDF and implements the gotenberg.PDFEngine
 // interface.
 type QPDF struct {
 	binPath string
