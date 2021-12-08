@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/alexliesenfeld/health v0.6.0
 	github.com/andybalholm/brotli v1.0.4 // indirect
-	github.com/chromedp/cdproto v0.0.0-20211130100048-e5358edf9020
+	github.com/chromedp/cdproto v0.0.0-20211205231339-d2673e93eee4
 	github.com/chromedp/chromedp v0.7.6
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.3.0
