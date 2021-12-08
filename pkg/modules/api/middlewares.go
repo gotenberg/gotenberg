@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -147,10 +148,17 @@ func loggerMiddleware(logger *zap.Logger, disableLoggingForPaths []string) echo.
 		return func(c echo.Context) error {
 			startTime := c.Get("startTime").(time.Time)
 			trace := c.Get("trace").(string)
+			rootPath := c.Get("rootPath").(string)
 
 			// Create the request logger and add it to our locals.
 			reqLogger := logger.With(zap.String("trace", trace))
-			c.Set("logger", reqLogger)
+			c.Set("logger", reqLogger.Named(func() string {
+				return strings.ReplaceAll(
+					strings.ReplaceAll(c.Request().URL.Path, rootPath, ""),
+					"/",
+					"",
+				)
+			}()))
 
 			// Call the next middleware in the chain.
 			err := next(c)
@@ -159,7 +167,6 @@ func loggerMiddleware(logger *zap.Logger, disableLoggingForPaths []string) echo.
 			}
 
 			for _, path := range disableLoggingForPaths {
-				rootPath := c.Get("rootPath").(string)
 				URI := fmt.Sprintf("%s%s", rootPath, path)
 
 				if c.Request().RequestURI == URI {

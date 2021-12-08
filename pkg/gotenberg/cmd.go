@@ -31,7 +31,7 @@ func Command(logger *zap.Logger, binPath string, args ...string) Cmd {
 
 	return Cmd{
 		ctx:     nil,
-		logger:  logger.Named("cmd"),
+		logger:  logger.Named(strings.ReplaceAll(binPath, "/", "")),
 		process: cmd,
 	}
 }
@@ -51,7 +51,7 @@ func CommandContext(ctx context.Context, logger *zap.Logger, binPath string, arg
 
 	return Cmd{
 		ctx:     ctx,
-		logger:  logger.Named("cmd"),
+		logger:  logger.Named(strings.ReplaceAll(binPath, "/", "")),
 		process: cmd,
 	}, nil
 }

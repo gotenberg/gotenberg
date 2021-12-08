@@ -355,7 +355,7 @@ func (mod Chromium) Routes() ([]api.Route, error) {
 // drastically. In such a scenario, the given context may also be done before
 // the end of the conversion.
 func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath string, options Options) error {
-	debug := debugLogger{logger: logger.Named("chromium.debug")}
+	debug := debugLogger{logger: logger.Named("browser")}
 	userProfileDirPath := gotenberg.NewDirPath()
 
 	args := append(chromedp.DefaultExecAllocatorOptions[:],
