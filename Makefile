@@ -147,5 +147,6 @@ release: ## Build the Gotenberg's Docker image for many platforms, then push it 
 	$(GOTENBERG_VERSION) \
 	$(GOTENBERG_USER_GID) \
 	$(GOTENBERG_USER_UID) \
+	$(NOTO_COLOR_EMOJI_VERSION) \
 	$(PDFTK_VERSION) \
 	$(DOCKER_REPOSITORY)
