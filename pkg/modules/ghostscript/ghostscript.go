@@ -67,7 +67,7 @@ func (engine Ghostscript) Metrics() ([]gotenberg.Metric, error) {
 	}, nil
 }
 
-// Merge is not available for this PDF engine.
+// Merge merges PDFs with Ghostscript.
 func (engine Ghostscript) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 	var args []string
 	args = append(args, "-dBATCH")
