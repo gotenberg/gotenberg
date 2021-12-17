@@ -69,7 +69,33 @@ func (engine Ghostscript) Metrics() ([]gotenberg.Metric, error) {
 
 // Merge is not available for this PDF engine.
 func (engine Ghostscript) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-	return fmt.Errorf("merge PDF with Ghostscript: %w", gotenberg.ErrPDFEngineMethodNotAvailable)
+	var args []string
+	args = append(args, "-dBATCH")
+	args = append(args, "-dNOPAUSE")
+	args = append(args, "-sDEVICE=pdfwrite")
+	args = append(args, fmt.Sprintf("-sOutputFile=%s", outputPath))
+	args = append(args, inputPaths...)
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		return fmt.Errorf("create command: %w", err)
+	}
+
+	activeInstancesCountMu.Lock()
+	activeInstancesCount += 1
+	activeInstancesCountMu.Unlock()
+
+	err = cmd.Exec()
+
+	activeInstancesCountMu.Lock()
+	activeInstancesCount -= 1
+	activeInstancesCountMu.Unlock()
+
+	if err == nil {
+		return nil
+	}
+
+	return fmt.Errorf("merge PDFs with Ghostscript: %w", err)
 }
 
 // Convert converts PDF with this engine
