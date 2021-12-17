@@ -222,47 +222,6 @@ func TestTraceMiddleware(t *testing.T) {
 	}
 }
 
-func TestTimeoutsMiddleware(t *testing.T) {
-	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/foo", nil)
-
-	srv := echo.New()
-	srv.HideBanner = true
-	srv.HidePort = true
-
-	c := srv.NewContext(request, recorder)
-
-	expectReadTimeout := time.Duration(1) * time.Second
-	expectProcessTimeout := time.Duration(2) * time.Second
-	expectWriteTimeout := time.Duration(3) * time.Second
-
-	err := timeoutsMiddleware(expectReadTimeout, expectProcessTimeout, expectWriteTimeout)(
-		func(c echo.Context) error {
-			return nil
-		},
-	)(c)
-
-	if err != nil {
-		t.Fatalf("expected no error but got: %v", err)
-	}
-
-	actualReadTimeout := c.Get("readTimeout").(time.Duration)
-	actualProcessTimeout := c.Get("processTimeout").(time.Duration)
-	actualWriteTimeout := c.Get("writeTimeout").(time.Duration)
-
-	if actualReadTimeout != expectReadTimeout {
-		t.Errorf("expected '%s' but got '%s", expectReadTimeout, actualReadTimeout)
-	}
-
-	if actualProcessTimeout != expectProcessTimeout {
-		t.Errorf("expected '%s' but got '%s", expectProcessTimeout, actualProcessTimeout)
-	}
-
-	if actualWriteTimeout != expectWriteTimeout {
-		t.Errorf("expected '%s' but got '%s", actualWriteTimeout, expectWriteTimeout)
-	}
-}
-
 func TestLoggerMiddleware(t *testing.T) {
 	for i, tc := range []struct {
 		request     *http.Request

@@ -120,25 +120,6 @@ func traceMiddleware(header string) echo.MiddlewareFunc {
 	}
 }
 
-// timeoutsMiddleware sets the read, process and write timeouts in the
-// echo.Context under "readTimeout", "processTimeout" and "writeTimeout".
-//
-//  readTimeout := c.Get("readTimeout").(time.Duration)
-//  processTimeout := c.Get("processTimeout").(time.Duration)
-//  writeTimeout := c.Get("writeTimeout").(time.Duration)
-func timeoutsMiddleware(readTimeout, processTimeout, writeTimeout time.Duration) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			c.Set("readTimeout", readTimeout)
-			c.Set("processTimeout", processTimeout)
-			c.Set("writeTimeout", writeTimeout)
-
-			// Call the next middleware in the chain.
-			return next(c)
-		}
-	}
-}
-
 // loggerMiddleware sets the logger in the echo.Context under "logger" and logs
 // a synchronous request result.
 //
@@ -218,14 +199,14 @@ func loggerMiddleware(logger *zap.Logger, disableLoggingForPaths []string) echo.
 //
 //  ctx := c.Get("context").(*api.Context)
 //  cancel := c.Get("cancel").(context.CancelFunc)
-func contextMiddleware(processTimeout time.Duration) echo.MiddlewareFunc {
+func contextMiddleware(timeout time.Duration) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			logger := c.Get("logger").(*zap.Logger)
 
 			// We create a context with a timeout so that underlying processes are
 			// able to stop early and handle correctly a timeout scenario.
-			ctx, cancel, err := newContext(c, logger, processTimeout)
+			ctx, cancel, err := newContext(c, logger, timeout)
 			if err != nil {
 				cancel()
 

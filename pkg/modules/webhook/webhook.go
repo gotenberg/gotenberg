@@ -25,6 +25,7 @@ type Webhook struct {
 	maxRetry       int
 	retryMinWait   time.Duration
 	retryMaxWait   time.Duration
+	clientTimeout  time.Duration
 	disable        bool
 }
 
@@ -55,7 +56,7 @@ func (Webhook) Descriptor() gotenberg.ModuleDescriptor {
 			err = multierr.Append(err, fs.MarkDeprecated("api-disable-webhook", "use webhook-disable instead"))
 
 			if err != nil {
-				panic(fmt.Errorf("create deprecated flags for webhook module: %v", err))
+				panic(fmt.Errorf("create deprecated flags for the webhook module: %v", err))
 			}
 
 			// New flags.
@@ -66,6 +67,7 @@ func (Webhook) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Int("webhook-max-retry", 4, "Set the maximum number of retries for the webhook feature")
 			fs.Duration("webhook-retry-min-wait", time.Duration(1)*time.Second, "Set the minimum duration to wait before trying to call the webhook again")
 			fs.Duration("webhook-retry-max-wait", time.Duration(30)*time.Second, "Set the maximum duration to wait before trying to call the webhook again")
+			fs.Duration("webhook-client-timeout", time.Duration(30)*time.Second, "Set the time limit for requests to the webhook")
 			fs.Bool("webhook-disable", false, "Disable the webhook feature")
 
 			return fs
@@ -84,6 +86,7 @@ func (w *Webhook) Provision(ctx *gotenberg.Context) error {
 	w.maxRetry = flags.MustDeprecatedInt("api-webhook-max-retry", "webhook-max-retry")
 	w.retryMinWait = flags.MustDeprecatedDuration("api-webhook-retry-min-wait", "webhook-retry-min-wait")
 	w.retryMaxWait = flags.MustDeprecatedDuration("api-webhook-retry-min-wait", "webhook-retry-max-wait")
+	w.clientTimeout = flags.MustDuration("webhook-client-timeout")
 	w.disable = flags.MustDeprecatedBool("api-disable-webhook", "webhook-disable")
 
 	return nil

@@ -324,6 +324,7 @@ func TestWebhookMiddlewareAsynchronousProcess(t *testing.T) {
 			maxRetry:       0,
 			retryMinWait:   0,
 			retryMaxWait:   0,
+			clientTimeout:  time.Duration(30) * time.Second,
 			disable:        false,
 		}
 	}
@@ -397,7 +398,6 @@ func TestWebhookMiddlewareAsynchronousProcess(t *testing.T) {
 			c.Set("traceHeader", "Gotenberg-Trace")
 			c.Set("trace", "foo")
 			c.Set("startTime", time.Now())
-			c.Set("writeTimeout", time.Duration(10)*time.Second)
 
 			ctx := &api.MockContext{Context: &api.Context{}}
 			ctx.SetLogger(zap.NewNop())

@@ -29,9 +29,7 @@ build: ## Build the Gotenberg's Docker image
 GOTENBERG_GRACEFUL_SHUTDOWN_DURATION=30s
 API_PORT=3000
 API_PORT_FROM_ENV=
-API_READ_TIMEOUT=30s
-API_PROCESS_TIMEOUT=30s
-API_WRITE_TIMEOUT=30s
+API_TIMEOUT=30s
 API_ROOT_PATH=/
 API_TRACE_HEADER=Gotenberg-Trace
 API_DISABLE_HEALTH_CHECK_LOGGING=false
@@ -61,6 +59,7 @@ WEBHOOK_ERROR_DENY_LIST=
 WEBHOOK_MAX_RETRY=4
 WEBHOOK_RETRY_MIN_WAIT=1s
 WEBHOOK_RETRY_MAX_WAIT=30s
+WEBHOOK_CLIENT_TIMEOUT=30s
 WEBHOOK_DISABLE=false
 
 .PHONY: run
@@ -72,9 +71,7 @@ run: ## Start a Gotenberg container
 	--gotenberg-graceful-shutdown-duration=$(GOTENBERG_GRACEFUL_SHUTDOWN_DURATION) \
 	--api-port=$(API_PORT) \
 	--api-port-from-env=$(API_PORT_FROM_ENV) \
-	--api-read-timeout=$(API_READ_TIMEOUT) \
-	--api-process-timeout=$(API_PROCESS_TIMEOUT) \
-	--api-write-timeout=$(API_WRITE_TIMEOUT) \
+	--api-timeout=$(API_TIMEOUT) \
 	--api-root-path=$(API_ROOT_PATH) \
 	--api-trace-header=$(API_TRACE_HEADER) \
 	--api-disable-health-check-logging=$(API_DISABLE_HEALTH_CHECK_LOGGING) \
@@ -104,6 +101,7 @@ run: ## Start a Gotenberg container
 	--webhook-max-retry=$(WEBHOOK_MAX_RETRY) \
 	--webhook-retry-min-wait=$(WEBHOOK_RETRY_MIN_WAIT) \
 	--webhook-retry-max-wait=$(WEBHOOK_RETRY_MAX_WAIT) \
+	--webhook-client-timeout=$(WEBHOOK_CLIENT_TIMEOUT) \
 	--webhook-disable=$(WEBHOOK_DISABLE)
 
 .PHONY: build-tests

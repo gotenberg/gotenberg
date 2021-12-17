@@ -143,7 +143,7 @@ func webhookMiddleware(w Webhook) api.Middleware {
 
 						client: &retryablehttp.Client{
 							HTTPClient: &http.Client{
-								Timeout: c.Get("writeTimeout").(time.Duration),
+								Timeout: w.clientTimeout,
 							},
 							RetryMax:     w.maxRetry,
 							RetryWaitMin: w.retryMinWait,

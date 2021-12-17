@@ -30,8 +30,8 @@ func init() {
 type API struct {
 	port                      int
 	readTimeout               time.Duration
-	processTimeout            time.Duration
 	writeTimeout              time.Duration
+	timeout                   time.Duration
 	rootPath                  string
 	traceHeader               string
 	disableHealthCheckLogging bool
@@ -166,9 +166,19 @@ func (API) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Duration("api-read-timeout", time.Duration(30)*time.Second, "Set the maximum duration allowed to read a complete request, including the body")
 			fs.Duration("api-process-timeout", time.Duration(30)*time.Second, "Set the maximum duration allowed to process a request")
 			fs.Duration("api-write-timeout", time.Duration(30)*time.Second, "Set the maximum duration before timing out writes of the response")
+			fs.Duration("api-timeout", time.Duration(30)*time.Second, "Set the time limit for requests")
 			fs.String("api-root-path", "/", "Set the root path of the API - for service discovery via URL paths")
 			fs.String("api-trace-header", "Gotenberg-Trace", "Set the header name to use for identifying requests")
 			fs.Bool("api-disable-health-check-logging", false, "Disable health check logging")
+
+			var err error
+			err = multierr.Append(err, fs.MarkDeprecated("api-read-timeout", "use api-timeout instead"))
+			err = multierr.Append(err, fs.MarkDeprecated("api-process-timeout", "use api-timeout instead"))
+			err = multierr.Append(err, fs.MarkDeprecated("api-write-timeout", "use api-timeout instead"))
+
+			if err != nil {
+				panic(fmt.Errorf("create deprecated flags for the api module: %v", err))
+			}
 
 			return fs
 		}(),
@@ -180,9 +190,9 @@ func (API) Descriptor() gotenberg.ModuleDescriptor {
 func (a *API) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	a.port = flags.MustInt("api-port")
-	a.readTimeout = flags.MustDuration("api-read-timeout")
-	a.processTimeout = flags.MustDuration("api-process-timeout")
-	a.writeTimeout = flags.MustDuration("api-write-timeout")
+	a.readTimeout = flags.MustDeprecatedDuration("api-read-timeout", "api-timeout")
+	a.writeTimeout = flags.MustDeprecatedDuration("api-write-timeout", "api-timeout")
+	a.timeout = flags.MustDeprecatedDuration("api-process-timeout", "api-timeout")
 	a.rootPath = flags.MustString("api-root-path")
 	a.traceHeader = flags.MustString("api-trace-header")
 	a.disableHealthCheckLogging = flags.MustBool("api-disable-health-check-logging")
@@ -274,7 +284,7 @@ func (a *API) Provision(ctx *gotenberg.Context) error {
 	}
 
 	// Grace duration.
-	a.gcGraceDuration = a.readTimeout + a.processTimeout + a.writeTimeout
+	a.gcGraceDuration = a.timeout
 
 	mods, err = ctx.Modules(new(GarbageCollectorGraceDurationIncrementer))
 	if err != nil {
@@ -378,7 +388,9 @@ func (a *API) Start() error {
 	a.srv.HideBanner = true
 	a.srv.HidePort = true
 	a.srv.Server.ReadTimeout = a.readTimeout
-	a.srv.Server.WriteTimeout = a.writeTimeout
+	a.srv.Server.IdleTimeout = a.timeout
+	// See https://github.com/gotenberg/gotenberg/issues/396.
+	a.srv.Server.WriteTimeout = a.writeTimeout + a.writeTimeout
 	a.srv.HTTPErrorHandler = httpErrorHandler()
 
 	// Let's prepare the modules' routes.
@@ -402,7 +414,6 @@ func (a *API) Start() error {
 		latencyMiddleware(),
 		rootPathMiddleware(a.rootPath),
 		traceMiddleware(a.traceHeader),
-		timeoutsMiddleware(a.readTimeout, a.processTimeout, a.writeTimeout),
 		loggerMiddleware(a.logger, disableLoggingForPaths),
 	)
 
@@ -419,14 +430,14 @@ func (a *API) Start() error {
 		}
 	}
 
-	hardTimeout := a.processTimeout + (time.Duration(5) * time.Second)
+	hardTimeout := a.timeout + (time.Duration(5) * time.Second)
 
 	// Add the modules' routes and their specific middlewares.
 	for _, route := range a.routes {
 		var middlewares []echo.MiddlewareFunc
 
 		if route.IsMultipart {
-			middlewares = append(middlewares, contextMiddleware(a.processTimeout))
+			middlewares = append(middlewares, contextMiddleware(a.timeout))
 
 			for _, externalMultipartMiddleware := range externalMultipartMiddlewares {
 				middlewares = append(middlewares, externalMultipartMiddleware.Handler)
@@ -447,7 +458,7 @@ func (a *API) Start() error {
 	a.srv.GET(
 		fmt.Sprintf("%s%s", a.rootPath, "health"),
 		func() echo.HandlerFunc {
-			checks := append(a.healthChecks, health.WithTimeout(a.processTimeout))
+			checks := append(a.healthChecks, health.WithTimeout(a.timeout))
 			checker := health.NewChecker(checks...)
 
 			return echo.WrapHandler(health.NewHandler(checker))

@@ -386,7 +386,7 @@ func TestAPI_Provision(t *testing.T) {
 					},
 				)
 			}(),
-			expectGraceDuration: time.Duration(93) * time.Second,
+			expectGraceDuration: time.Duration(33) * time.Second,
 			expectErr:           true,
 		},
 		{
