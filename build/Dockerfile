@@ -50,6 +50,7 @@ ARG GOTENBERG_USER_GID
 ARG GOTENBERG_USER_UID
 ARG NOTO_COLOR_EMOJI_VERSION
 ARG PDFTK_VERSION
+ARG GHOSTSCRIPT_VERSION
 
 # Script for installing either Google Chrome stable on amd64 architecture or
 # Chromium on other architectures.
@@ -121,7 +122,7 @@ RUN \
     # See https://github.com/gotenberg/gotenberg/pull/322.
     echo "deb https://httpredir.debian.org/debian/ sid main contrib non-free" >> /etc/apt/sources.list &&\
     apt-get update -qq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t sid libreoffice &&\
+#    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t sid libreoffice &&\
     # Download unoconv (Python script).
     curl -Ls https://raw.githubusercontent.com/dagwieers/unoconv/master/unoconv -o /usr/bin/unoconv &&\
     chmod +x /usr/bin/unoconv &&\
@@ -133,6 +134,11 @@ RUN \
     chmod a+x /usr/bin/pdftk-all.jar &&\
     # Download QPDF.
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends qpdf &&\
+    # Download Ghostscript
+    wget "https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs9550/ghostscript-$GHOSTSCRIPT_VERSION.tgz"  &&\
+    tar -zxvf ghostscript-$GHOSTSCRIPT_VERSION.tgz &&\
+    cp ghostscript-$GHOSTSCRIPT_VERSION/gs* /usr/bin/ghostscript &&\
+    chmod a+x /usr/bin/ghostscript &&\
     # See https://github.com/nextcloud/docker/issues/380.
     mkdir -p /usr/share/man/man1mkdir -p /usr/share/man/man1 &&\
     # Cleanup.
@@ -142,10 +148,11 @@ RUN \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* &&\
     # Print versions of main dependencies.
     chromium --version &&\
-    libreoffice --version &&\
-    unoconv --version &&\
+#    libreoffice --version &&\
+#    unoconv --version &&\
     pdftk --version &&\
-    qpdf --version
+    qpdf --version &&\
+    ghostscript --version
 
 # Copy the Gotenberg binary from the builder stage.
 COPY --from=builder /home/gotenberg /usr/bin/
@@ -156,6 +163,7 @@ ENV CHROMIUM_BIN_PATH /usr/bin/chromium
 ENV UNOCONV_BIN_PATH /usr/bin/unoconv
 ENV PDFTK_BIN_PATH /usr/bin/pdftk
 ENV QPDF_BIN_PATH /usr/bin/qpdf
+ENV GHOSTSCRIPT_BIN_PATH /usr/bin/ghostscript
 
 USER gotenberg
 WORKDIR /home/gotenberg

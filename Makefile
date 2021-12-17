@@ -12,6 +12,7 @@ GOTENBERG_USER_GID=1001
 GOTENBERG_USER_UID=1001
 NOTO_COLOR_EMOJI_VERSION=v2.028 # See https://github.com/googlefonts/noto-emoji/releases.
 PDFTK_VERSION=1527259628 # See https://gitlab.com/pdftk-java/pdftk/-/releases - Binary package.
+GHOSTSCRIPT_VERSION=9.55.0-linux-x86_64 # See https://github.com/ArtifexSoftware/ghostpdl-downloads/releases
 GOLANGCI_LINT_VERSION=v1.43.0 # See https://github.com/golangci/golangci-lint/releases.
 
 .PHONY: build
@@ -23,6 +24,7 @@ build: ## Build the Gotenberg's Docker image
 	--build-arg GOTENBERG_USER_UID=$(GOTENBERG_USER_UID) \
 	--build-arg NOTO_COLOR_EMOJI_VERSION=$(NOTO_COLOR_EMOJI_VERSION) \
 	--build-arg PDFTK_VERSION=$(PDFTK_VERSION) \
+	--build-arg GHOSTSCRIPT_VERSION=$(GHOSTSCRIPT_VERSION) \
 	-t $(DOCKER_REPOSITORY)/gotenberg:$(GOTENBERG_VERSION) \
 	-f build/Dockerfile .
 
@@ -148,4 +150,5 @@ release: ## Build the Gotenberg's Docker image for many platforms, then push it 
 	$(GOTENBERG_USER_GID) \
 	$(GOTENBERG_USER_UID) \
 	$(PDFTK_VERSION) \
+	$(GHOSTSCRIPT_VERSION) \
 	$(DOCKER_REPOSITORY)

@@ -1,2 +1,5 @@
 /coverage.html
 /coverage.txt
+
+#Intellij IDEA project files
+.idea
