@@ -103,6 +103,7 @@ RUN \
     fonts-liberation \
     fonts-liberation2 \
     fonts-linuxlibertine \
+    fonts-noto-cjk \
     fonts-noto-core \
     fonts-noto-mono \
     fonts-noto-ui-core \
