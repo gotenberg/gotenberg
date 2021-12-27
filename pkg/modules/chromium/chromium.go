@@ -85,7 +85,7 @@ type LinkTag struct {
 
 // ScriptTag represents an HTML <script> element.
 type ScriptTag struct {
-	// Src is the "src" attribute of the HTML <link> element.
+	// Src is the "src" attribute of the HTML <script> element.
 	// Required.
 	Src string `json:"src"`
 }
