@@ -8,7 +8,6 @@ import (
 	"io"
 	"os/exec"
 	"strings"
-	"syscall"
 
 	"go.uber.org/zap"
 )
@@ -27,7 +26,8 @@ type Cmd struct {
 // See https://medium.com/@felixge/killing-a-child-process-and-all-of-its-children-in-go-54079af94773.
 func Command(logger *zap.Logger, binPath string, args ...string) Cmd {
 	cmd := exec.Command(binPath, args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	// Platform-specific SysProcAttr management
+	setProcessGroupID(cmd)
 
 	return Cmd{
 		ctx:     nil,
@@ -47,7 +47,8 @@ func CommandContext(ctx context.Context, logger *zap.Logger, binPath string, arg
 	}
 
 	cmd := exec.CommandContext(ctx, binPath, args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	// Platform-specific SysProcAttr management
+	setProcessGroupID(cmd)
 
 	return Cmd{
 		ctx:     ctx,
@@ -171,7 +172,7 @@ func (cmd Cmd) Kill() error {
 		return nil
 	}
 
-	err := syscall.Kill(-cmd.process.Process.Pid, syscall.SIGKILL)
+	err := terminateProcess(cmd.process.Process.Pid)
 	if err == nil {
 		cmd.logger.Debug("unix process killed")
 		return nil
