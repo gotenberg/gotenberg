@@ -118,11 +118,13 @@ RUN \
     # Install Google Chrome / Chromium.
     /tmp/install-chromium.sh &&\
     # Install LibreOffice.
-    # Note: we use the sid distribution to get the latest LibreOffice version.
-    # See https://github.com/gotenberg/gotenberg/pull/322.
-    echo "deb https://httpredir.debian.org/debian/ sid main contrib non-free" >> /etc/apt/sources.list &&\
+    # Note: we use the bullseye-backports distribution to get the latest LibreOffice version.
+    # See:
+    # https://github.com/gotenberg/gotenberg/pull/322.
+    # https://github.com/gotenberg/gotenberg/issues/403.
+    echo "deb https://httpredir.debian.org/debian/ bullseye-backports main contrib non-free" >> /etc/apt/sources.list &&\
     apt-get update -qq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t sid libreoffice &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t bullseye-backports libreoffice &&\
     # Download unoconv (Python script).
     curl -Ls https://raw.githubusercontent.com/dagwieers/unoconv/master/unoconv -o /usr/bin/unoconv &&\
     chmod +x /usr/bin/unoconv &&\
