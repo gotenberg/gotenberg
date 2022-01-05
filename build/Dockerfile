@@ -64,10 +64,10 @@ RUN \
     mkdir /home/gotenberg &&\
     chown gotenberg: /home/gotenberg &&\
     # Install dependencies required for the next instructions or debugging.
-    # Note: procps for "top" command (useful when debugging processes).
     # Note: tini is a helper for reaping zombie processes.
     apt-get update -qq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg procps tini python3 default-jre-headless &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg htop tini python3 default-jre-headless &&\
+    ln -s /usr/bin/htop /usr/bin/top &&\
     # Install fonts.
     # Credits:
     # https://github.com/arachnys/athenapdf/blob/master/cli/Dockerfile.
