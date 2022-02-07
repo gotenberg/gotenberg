@@ -13,7 +13,8 @@ import (
 )
 
 func TestMergeHandler(t *testing.T) {
-	for i, tc := range []struct {
+	tests := []struct {
+		name                   string
 		ctx                    *api.MockContext
 		engine                 gotenberg.PDFEngine
 		expectErr              bool
@@ -22,34 +23,75 @@ func TestMergeHandler(t *testing.T) {
 		expectOutputPathsCount int
 	}{
 		{
+			name: "nominal behavior",
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.pdf": "/foo/foo.pdf",
+				})
+
+				return ctx
+			}(),
+			engine: gotenberg.PDFEngineMock{
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return nil
+				},
+			},
+			expectOutputPathsCount: 1,
+		},
+		{
+			name:             "invalid form data: no PDF",
 			ctx:              &api.MockContext{Context: &api.Context{}},
 			expectErr:        true,
 			expectHTTPErr:    true,
 			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
+			name: "merge fail",
 			ctx: func() *api.MockContext {
 				ctx := &api.MockContext{Context: &api.Context{}}
-
 				ctx.SetFiles(map[string]string{
 					"foo.pdf": "/foo/foo.pdf",
 				})
 
 				return ctx
 			}(),
-			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					merge: func(_ context.Context, _ *zap.Logger, _ []string, _ string) error {
-						return errors.New("foo")
-					},
-				}
-			}(),
+			engine: gotenberg.PDFEngineMock{
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return errors.New("foo")
+				},
+			},
 			expectErr: true,
 		},
 		{
+			name: "nominal behavior with a PDF format",
 			ctx: func() *api.MockContext {
 				ctx := &api.MockContext{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.pdf": "/foo/foo.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"pdfFormat": {
+						gotenberg.FormatPDFA1a,
+					},
+				})
 
+				return ctx
+			}(),
+			engine: gotenberg.PDFEngineMock{
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return nil
+				},
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+					return nil
+				},
+			},
+			expectOutputPathsCount: 1,
+		},
+		{
+			name: "convert to PDF format fail",
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.pdf": "/foo/foo.pdf",
 				})
@@ -61,153 +103,106 @@ func TestMergeHandler(t *testing.T) {
 
 				return ctx
 			}(),
-			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					merge: func(_ context.Context, _ *zap.Logger, _ []string, _ string) error {
-						return nil
+			engine: gotenberg.PDFEngineMock{
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return nil
+				},
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+					return errors.New("foo")
+				},
+			},
+			expectErr: true,
+		},
+		{
+			name: "invalid PDF format",
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.pdf": "/foo/foo.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"pdfFormat": {
+						"foo",
 					},
-					convert: func(_ context.Context, _ *zap.Logger, _, _, _ string) error {
-						return gotenberg.ErrPDFFormatNotAvailable
-					},
-				}
+				})
+
+				return ctx
 			}(),
+			engine: gotenberg.PDFEngineMock{
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return nil
+				},
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+					return gotenberg.ErrPDFFormatNotAvailable
+				},
+			},
 			expectErr:        true,
 			expectHTTPErr:    true,
 			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
+			name: "cannot add output paths",
 			ctx: func() *api.MockContext {
 				ctx := &api.MockContext{Context: &api.Context{}}
-
 				ctx.SetFiles(map[string]string{
 					"foo.pdf": "/foo/foo.pdf",
 				})
-				ctx.SetValues(map[string][]string{
-					"pdfFormat": {
-						"foo",
-					},
-				})
-
-				return ctx
-			}(),
-			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					merge: func(_ context.Context, _ *zap.Logger, _ []string, _ string) error {
-						return nil
-					},
-					convert: func(_ context.Context, _ *zap.Logger, _, _, _ string) error {
-						return errors.New("foo")
-					},
-				}
-			}(),
-			expectErr: true,
-		},
-		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
-
 				ctx.SetCancelled(true)
-				ctx.SetFiles(map[string]string{
-					"foo.pdf": "/foo/foo.pdf",
-				})
 
 				return ctx
 			}(),
-			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					merge: func(_ context.Context, _ *zap.Logger, _ []string, _ string) error {
-						return nil
-					},
-				}
-			}(),
+			engine: gotenberg.PDFEngineMock{
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return nil
+				},
+			},
 			expectErr: true,
 		},
-		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+	}
 
-				ctx.SetFiles(map[string]string{
-					"foo.pdf": "/foo/foo.pdf",
-				})
-				ctx.SetValues(map[string][]string{
-					"pdfFormat": {
-						"foo",
-					},
-				})
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := echo.New().NewContext(nil, nil)
+			c.Set("context", tc.ctx.Context)
 
-				return ctx
-			}(),
-			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					merge: func(_ context.Context, _ *zap.Logger, _ []string, _ string) error {
-						return nil
-					},
-					convert: func(_ context.Context, _ *zap.Logger, _, _, _ string) error {
-						return nil
-					},
-				}
-			}(),
-			expectOutputPathsCount: 1,
-		},
-		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			err := mergeRoute(tc.engine).Handler(c)
 
-				ctx.SetFiles(map[string]string{
-					"foo.pdf": "/foo/foo.pdf",
-				})
-
-				return ctx
-			}(),
-			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					merge: func(_ context.Context, _ *zap.Logger, _ []string, _ string) error {
-						return nil
-					},
-				}
-			}(),
-			expectOutputPathsCount: 1,
-		},
-	} {
-		c := echo.New().NewContext(nil, nil)
-		c.Set("context", tc.ctx.Context)
-
-		err := mergeRoute(tc.engine).Handler(c)
-
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
-
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
-
-		var httpErr api.HTTPError
-		isHTTPErr := errors.As(err, &httpErr)
-
-		if tc.expectHTTPErr && !isHTTPErr {
-			t.Errorf("test %d: expected HTTP error but got: %v", i, err)
-		}
-
-		if !tc.expectHTTPErr && isHTTPErr {
-			t.Errorf("test %d: expected no HTTP error but got one: %v", i, httpErr)
-		}
-
-		if err != nil && tc.expectHTTPErr && isHTTPErr {
-			status, _ := httpErr.HTTPError()
-			if status != tc.expectHTTPStatus {
-				t.Errorf("test %d: expected %d HTTP status code but got %d", i, tc.expectHTTPStatus, status)
+			if tc.expectErr && err == nil {
+				t.Fatal("expected error from merge handler, but got none")
 			}
-		}
 
-		if tc.expectOutputPathsCount != len(tc.ctx.OutputPaths()) {
-			t.Errorf("test %d: expected %d output paths but got %d", i, tc.expectOutputPathsCount, len(tc.ctx.OutputPaths()))
-		}
+			if !tc.expectErr && err != nil {
+				t.Fatalf("expected no error from merge handler, but got: %v", err)
+			}
+
+			var httpErr api.HTTPError
+			isHTTPErr := errors.As(err, &httpErr)
+
+			if tc.expectHTTPErr && !isHTTPErr {
+				t.Errorf("expected HTTP error from merge handler, but got: %v", err)
+			}
+
+			if !tc.expectHTTPErr && isHTTPErr {
+				t.Errorf("expected no HTTP error from merge handler, but got one: %v", httpErr)
+			}
+
+			if err != nil && tc.expectHTTPErr && isHTTPErr {
+				status, _ := httpErr.HTTPError()
+				if status != tc.expectHTTPStatus {
+					t.Errorf("expected %d HTTP status code from merge handler, but got %d", tc.expectHTTPStatus, status)
+				}
+			}
+
+			if tc.expectOutputPathsCount != len(tc.ctx.OutputPaths()) {
+				t.Errorf("expected %d output paths from merge handler, but got %d", tc.expectOutputPathsCount, len(tc.ctx.OutputPaths()))
+			}
+		})
 	}
 }
 
 func TestConvertHandler(t *testing.T) {
-	for i, tc := range []struct {
+	tests := []struct {
+		name                   string
 		ctx                    *api.MockContext
 		engine                 gotenberg.PDFEngine
 		expectErr              bool
@@ -216,132 +211,109 @@ func TestConvertHandler(t *testing.T) {
 		expectOutputPathsCount int
 	}{
 		{
-			ctx:              &api.MockContext{Context: &api.Context{}},
-			expectErr:        true,
-			expectHTTPErr:    true,
-			expectHTTPStatus: http.StatusBadRequest,
-		},
-		{
+			name: "nominal behavior",
 			ctx: func() *api.MockContext {
 				ctx := &api.MockContext{Context: &api.Context{}}
-				ctx.SetValues(map[string][]string{
-					"pdfFormat": {
-						"foo",
-					},
-				})
-
-				return ctx
-			}(),
-			expectErr:        true,
-			expectHTTPErr:    true,
-			expectHTTPStatus: http.StatusBadRequest,
-		},
-		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
-
 				ctx.SetFiles(map[string]string{
 					"foo.pdf": "/foo/foo.pdf",
 				})
 				ctx.SetValues(map[string][]string{
 					"pdfFormat": {
-						"foo",
+						gotenberg.FormatPDFA1a,
 					},
 				})
 
 				return ctx
 			}(),
-			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					convert: func(_ context.Context, _ *zap.Logger, _, _, _ string) error {
-						return gotenberg.ErrPDFFormatNotAvailable
-					},
-				}
-			}(),
-			expectErr:        true,
-			expectHTTPErr:    true,
-			expectHTTPStatus: http.StatusBadRequest,
-		},
-		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
-
-				ctx.SetFiles(map[string]string{
-					"foo.pdf": "/foo/foo.pdf",
-				})
-				ctx.SetValues(map[string][]string{
-					"pdfFormat": {
-						"foo",
-					},
-				})
-
-				return ctx
-			}(),
-			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					convert: func(_ context.Context, _ *zap.Logger, _, _, _ string) error {
-						return errors.New("foo")
-					},
-				}
-			}(),
-			expectErr: true,
-		},
-		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
-
-				ctx.SetCancelled(true)
-				ctx.SetFiles(map[string]string{
-					"foo.pdf": "/foo/foo.pdf",
-				})
-				ctx.SetValues(map[string][]string{
-					"pdfFormat": {
-						"foo",
-					},
-				})
-
-				return ctx
-			}(),
-			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					convert: func(_ context.Context, _ *zap.Logger, _, _, _ string) error {
-						return nil
-					},
-				}
-			}(),
-			expectErr: true,
-		},
-		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
-
-				ctx.SetFiles(map[string]string{
-					"foo.pdf": "/foo/foo.pdf",
-				})
-				ctx.SetValues(map[string][]string{
-					"pdfFormat": {
-						"foo",
-					},
-				})
-
-				return ctx
-			}(),
-			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					convert: func(_ context.Context, _ *zap.Logger, _, _, _ string) error {
-						return nil
-					},
-				}
-			}(),
+			engine: gotenberg.PDFEngineMock{
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+					return nil
+				},
+			},
 			expectOutputPathsCount: 1,
 		},
 		{
+			name: "nominal behavior, but with 3 PDFs",
 			ctx: func() *api.MockContext {
 				ctx := &api.MockContext{Context: &api.Context{}}
-
 				ctx.SetFiles(map[string]string{
 					"foo.pdf": "/foo/foo.pdf",
-					"bar.pdf": "/foo/bar.pdf",
+					"bar.pdf": "/bar/bar.pdf",
+					"baz.pdf": "/baz/baz.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"pdfFormat": {
+						gotenberg.FormatPDFA1a,
+					},
+				})
+
+				return ctx
+			}(),
+			engine: gotenberg.PDFEngineMock{
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+					return nil
+				},
+			},
+			expectOutputPathsCount: 3,
+		},
+		{
+			name: "invalid form data: no PDF",
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
+				ctx.SetValues(map[string][]string{
+					"pdfFormat": {
+						gotenberg.FormatPDFA1a,
+					},
+				})
+
+				return ctx
+			}(),
+			expectErr:        true,
+			expectHTTPErr:    true,
+			expectHTTPStatus: http.StatusBadRequest,
+		},
+		{
+			name: "invalid form data: no PDF format",
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.pdf": "/foo/foo.pdf",
+				})
+
+				return ctx
+			}(),
+			expectErr:        true,
+			expectHTTPErr:    true,
+			expectHTTPStatus: http.StatusBadRequest,
+		},
+		{
+			name: "convert to PDF format fail",
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.pdf": "/foo/foo.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"pdfFormat": {
+						gotenberg.FormatPDFA1a,
+					},
+				})
+
+				return ctx
+			}(),
+			engine: gotenberg.PDFEngineMock{
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+					return errors.New("foo")
+				},
+			},
+			expectErr: true,
+		},
+		{
+			name: "PDF format not available",
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.pdf": "/foo/foo.pdf",
 				})
 				ctx.SetValues(map[string][]string{
 					"pdfFormat": {
@@ -351,49 +323,76 @@ func TestConvertHandler(t *testing.T) {
 
 				return ctx
 			}(),
-			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					convert: func(_ context.Context, _ *zap.Logger, _, _, _ string) error {
-						return nil
-					},
-				}
-			}(),
-			expectOutputPathsCount: 2,
+			engine: gotenberg.PDFEngineMock{
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+					return gotenberg.ErrPDFFormatNotAvailable
+				},
+			},
+			expectErr:        true,
+			expectHTTPErr:    true,
+			expectHTTPStatus: http.StatusBadRequest,
 		},
-	} {
-		c := echo.New().NewContext(nil, nil)
-		c.Set("context", tc.ctx.Context)
+		{
+			name: "cannot add output paths",
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.pdf": "/foo/foo.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"pdfFormat": {
+						gotenberg.FormatPDFA1a,
+					},
+				})
+				ctx.SetCancelled(true)
 
-		err := convertRoute(tc.engine).Handler(c)
+				return ctx
+			}(),
+			engine: gotenberg.PDFEngineMock{
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+					return nil
+				},
+			},
+			expectErr: true,
+		},
+	}
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := echo.New().NewContext(nil, nil)
+			c.Set("context", tc.ctx.Context)
 
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
+			err := convertRoute(tc.engine).Handler(c)
 
-		var httpErr api.HTTPError
-		isHTTPErr := errors.As(err, &httpErr)
-
-		if tc.expectHTTPErr && !isHTTPErr {
-			t.Errorf("test %d: expected HTTP error but got: %v", i, err)
-		}
-
-		if !tc.expectHTTPErr && isHTTPErr {
-			t.Errorf("test %d: expected no HTTP error but got one: %v", i, httpErr)
-		}
-
-		if err != nil && tc.expectHTTPErr && isHTTPErr {
-			status, _ := httpErr.HTTPError()
-			if status != tc.expectHTTPStatus {
-				t.Errorf("test %d: expected %d HTTP status code but got %d", i, tc.expectHTTPStatus, status)
+			if tc.expectErr && err == nil {
+				t.Fatal("expected error from convert handler, but got none")
 			}
-		}
 
-		if tc.expectOutputPathsCount != len(tc.ctx.OutputPaths()) {
-			t.Errorf("test %d: expected %d output paths but got %d", i, tc.expectOutputPathsCount, len(tc.ctx.OutputPaths()))
-		}
+			if !tc.expectErr && err != nil {
+				t.Fatalf("expected no error from convert handler, but got: %v", err)
+			}
+
+			var httpErr api.HTTPError
+			isHTTPErr := errors.As(err, &httpErr)
+
+			if tc.expectHTTPErr && !isHTTPErr {
+				t.Errorf("expected HTTP error from convert handler, but got: %v", err)
+			}
+
+			if !tc.expectHTTPErr && isHTTPErr {
+				t.Errorf("expected no HTTP error from convert handler, but got one: %v", httpErr)
+			}
+
+			if err != nil && tc.expectHTTPErr && isHTTPErr {
+				status, _ := httpErr.HTTPError()
+				if status != tc.expectHTTPStatus {
+					t.Errorf("expected %d HTTP status code from convert handler, but got %d", tc.expectHTTPStatus, status)
+				}
+			}
+
+			if tc.expectOutputPathsCount != len(tc.ctx.OutputPaths()) {
+				t.Errorf("expected %d output paths from convert handler, but got %d", tc.expectOutputPathsCount, len(tc.ctx.OutputPaths()))
+			}
+		})
 	}
 }

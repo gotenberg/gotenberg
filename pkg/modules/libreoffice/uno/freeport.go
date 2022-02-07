@@ -1,4 +1,4 @@
-package unoconv
+package uno
 
 import (
 	"fmt"
@@ -9,18 +9,18 @@ import (
 )
 
 func freePort(logger *zap.Logger) (int, error) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	netListener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return 0, fmt.Errorf("listen on the local network address: %w", err)
 	}
 	defer func() {
-		err := listener.Close()
+		err := netListener.Close()
 		if err != nil {
-			logger.Error(fmt.Sprintf("close listener: %s", err.Error()))
+			logger.Error(fmt.Sprintf("close network listener: %s", err.Error()))
 		}
 	}()
 
-	addr := listener.Addr().String()
+	addr := netListener.Addr().String()
 
 	_, portStr, err := net.SplitHostPort(addr)
 	if err != nil {

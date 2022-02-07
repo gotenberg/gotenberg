@@ -83,7 +83,7 @@ func (engine PDFtk) Merge(ctx context.Context, logger *zap.Logger, inputPaths []
 	activeInstancesCount += 1
 	activeInstancesCountMu.Unlock()
 
-	err = cmd.Exec()
+	_, err = cmd.Exec()
 
 	activeInstancesCountMu.Lock()
 	activeInstancesCount -= 1

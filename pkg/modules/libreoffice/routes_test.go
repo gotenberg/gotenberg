@@ -8,15 +8,16 @@ import (
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/unoconv"
+	"github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/uno"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 )
 
 func TestConvertHandler(t *testing.T) {
-	for i, tc := range []struct {
+	tests := []struct {
+		name                   string
 		ctx                    *api.MockContext
-		api                    unoconv.API
+		unoAPI                 uno.API
 		engine                 gotenberg.PDFEngine
 		expectErr              bool
 		expectHTTPErr          bool
@@ -24,25 +25,122 @@ func TestConvertHandler(t *testing.T) {
 		expectOutputPathsCount int
 	}{
 		{
-			ctx: &api.MockContext{Context: &api.Context{}},
-			api: func() unoconv.API {
-				unoconvAPI := struct{ ProtoUnoconvAPI }{}
-				unoconvAPI.extensions = func() []string {
-					return []string{
-						".foo",
-					}
-				}
+			name: "nominal behavior",
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.docx": "/foo/foo.docx",
+				})
 
-				return unoconvAPI
+				return ctx
 			}(),
+			unoAPI: uno.APIMock{
+				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+					return nil
+				},
+				ExtensionsMock: func() []string {
+					return []string{
+						".docx",
+					}
+				},
+			},
+			expectOutputPathsCount: 1,
+		},
+		{
+			name: "nominal behavior, but with 3 documents",
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.docx": "/foo/foo.docx",
+					"bar.docx": "/bar/bar.docx",
+					"baz.docx": "/baz/baz.docx",
+				})
+
+				return ctx
+			}(),
+			unoAPI: uno.APIMock{
+				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+					return nil
+				},
+				ExtensionsMock: func() []string {
+					return []string{
+						".docx",
+					}
+				},
+			},
+			expectOutputPathsCount: 3,
+		},
+		{
+			name: "cannot add output paths",
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.docx": "/foo/foo.docx",
+				})
+				ctx.SetCancelled(true)
+
+				return ctx
+			}(),
+			unoAPI: uno.APIMock{
+				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+					return nil
+				},
+				ExtensionsMock: func() []string {
+					return []string{
+						".docx",
+					}
+				},
+			},
+			expectErr: true,
+		},
+		{
+			name: "invalid form data: no documents",
+			ctx:  &api.MockContext{Context: &api.Context{}},
+			unoAPI: uno.APIMock{
+				ExtensionsMock: func() []string {
+					return []string{
+						".docx",
+					}
+				},
+			},
 			expectErr:        true,
 			expectHTTPErr:    true,
 			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
+			name: "invalid form data: both nativePdfA1aFormat and nativePdfFormat are set",
 			ctx: func() *api.MockContext {
 				ctx := &api.MockContext{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.docx": "/foo/foo.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"nativePdfA1aFormat": {
+						"true",
+					},
+					"nativePdfFormat": {
+						gotenberg.FormatPDFA1a,
+					},
+				})
+				ctx.SetLogger(zap.NewNop())
 
+				return ctx
+			}(),
+			unoAPI: uno.APIMock{
+				ExtensionsMock: func() []string {
+					return []string{
+						".docx",
+					}
+				},
+			},
+			expectErr:        true,
+			expectHTTPErr:    true,
+			expectHTTPStatus: http.StatusBadRequest,
+		},
+		{
+			name: "invalid form data: both nativePdfA1aFormat and pdfFormat are set",
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
 				})
@@ -51,303 +149,260 @@ func TestConvertHandler(t *testing.T) {
 						"true",
 					},
 					"pdfFormat": {
-						"foo",
+						gotenberg.FormatPDFA1a,
+					},
+				})
+				ctx.SetLogger(zap.NewNop())
+
+				return ctx
+			}(),
+			unoAPI: uno.APIMock{
+				ExtensionsMock: func() []string {
+					return []string{
+						".docx",
+					}
+				},
+			},
+			expectErr:        true,
+			expectHTTPErr:    true,
+			expectHTTPStatus: http.StatusBadRequest,
+		},
+		{
+			name: "invalid form data: both nativePdfFormat and pdfFormat are set",
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.docx": "/foo/foo.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"nativePdfFormat": {
+						gotenberg.FormatPDFA1a,
+					},
+					"pdfFormat": {
+						gotenberg.FormatPDFA1a,
 					},
 				})
 
 				return ctx
 			}(),
-			api: func() unoconv.API {
-				unoconvAPI := struct{ ProtoUnoconvAPI }{}
-				unoconvAPI.extensions = func() []string {
+			unoAPI: uno.APIMock{
+				ExtensionsMock: func() []string {
 					return []string{
 						".docx",
 					}
-				}
-
-				return unoconvAPI
-			}(),
+				},
+			},
 			expectErr:        true,
 			expectHTTPErr:    true,
 			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
+			name: "convert to PDF fail",
 			ctx: func() *api.MockContext {
 				ctx := &api.MockContext{Context: &api.Context{}}
-
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
 				})
 
 				return ctx
 			}(),
-			api: func() unoconv.API {
-				unoconvAPI := struct{ ProtoUnoconvAPI }{}
-				unoconvAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ unoconv.Options) error {
-					return unoconv.ErrMalformedPageRanges
-				}
-				unoconvAPI.extensions = func() []string {
-					return []string{
-						".docx",
-					}
-				}
-
-				return unoconvAPI
-			}(),
-			expectErr:        true,
-			expectHTTPErr:    true,
-			expectHTTPStatus: http.StatusBadRequest,
-		},
-		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
-
-				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
-				})
-
-				return ctx
-			}(),
-			api: func() unoconv.API {
-				unoconvAPI := struct{ ProtoUnoconvAPI }{}
-				unoconvAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ unoconv.Options) error {
+			unoAPI: uno.APIMock{
+				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 					return errors.New("foo")
-				}
-				unoconvAPI.extensions = func() []string {
+				},
+				ExtensionsMock: func() []string {
 					return []string{
 						".docx",
 					}
-				}
-
-				return unoconvAPI
-			}(),
+				},
+			},
 			expectErr: true,
 		},
 		{
+			name: "invalid page ranges",
 			ctx: func() *api.MockContext {
 				ctx := &api.MockContext{Context: &api.Context{}}
-
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
-					"bar.docx": "/foo/bar.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"merge": {
-						"true",
-					},
 				})
 
 				return ctx
 			}(),
-			api: func() unoconv.API {
-				unoconvAPI := struct{ ProtoUnoconvAPI }{}
-				unoconvAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ unoconv.Options) error {
-					return nil
-				}
-				unoconvAPI.extensions = func() []string {
+			unoAPI: uno.APIMock{
+				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+					return uno.ErrMalformedPageRanges
+				},
+				ExtensionsMock: func() []string {
 					return []string{
 						".docx",
 					}
-				}
-
-				return unoconvAPI
-			}(),
-			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					merge: func(_ context.Context, _ *zap.Logger, _ []string, _ string) error {
-						return errors.New("foo")
-					},
-				}
-			}(),
-			expectErr: true,
-		},
-		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
-
-				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
-					"bar.docx": "/foo/bar.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"merge": {
-						"true",
-					},
-					"pdfFormat": {
-						"foo",
-					},
-				})
-
-				return ctx
-			}(),
-			api: func() unoconv.API {
-				unoconvAPI := struct{ ProtoUnoconvAPI }{}
-				unoconvAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ unoconv.Options) error {
-					return nil
-				}
-				unoconvAPI.extensions = func() []string {
-					return []string{
-						".docx",
-					}
-				}
-
-				return unoconvAPI
-			}(),
-			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					merge: func(_ context.Context, _ *zap.Logger, _ []string, _ string) error {
-						return nil
-					},
-					convert: func(_ context.Context, _ *zap.Logger, _, _, _ string) error {
-						return gotenberg.ErrPDFFormatNotAvailable
-					},
-				}
-			}(),
+				},
+			},
 			expectErr:        true,
 			expectHTTPErr:    true,
 			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
+			name: "convert 3 documents and merge them",
 			ctx: func() *api.MockContext {
 				ctx := &api.MockContext{Context: &api.Context{}}
-
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
-					"bar.docx": "/foo/bar.docx",
+					"bar.docx": "/bar/bar.docx",
+					"baz.docx": "/baz/baz.docx",
 				})
 				ctx.SetValues(map[string][]string{
 					"merge": {
 						"true",
 					},
-					"pdfFormat": {
-						"foo",
-					},
 				})
 
 				return ctx
 			}(),
-			api: func() unoconv.API {
-				unoconvAPI := struct{ ProtoUnoconvAPI }{}
-				unoconvAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ unoconv.Options) error {
+			unoAPI: uno.APIMock{
+				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 					return nil
-				}
-				unoconvAPI.extensions = func() []string {
+				},
+				ExtensionsMock: func() []string {
 					return []string{
 						".docx",
 					}
-				}
-
-				return unoconvAPI
-			}(),
-			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					merge: func(_ context.Context, _ *zap.Logger, _ []string, _ string) error {
-						return nil
-					},
-					convert: func(_ context.Context, _ *zap.Logger, _, _, _ string) error {
-						return errors.New("foo")
-					},
-				}
-			}(),
-			expectErr: true,
-		},
-		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
-
-				ctx.SetCancelled(true)
-				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
-					"bar.docx": "/foo/bar.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"merge": {
-						"true",
-					},
-					"pdfFormat": {
-						"foo",
-					},
-				})
-
-				return ctx
-			}(),
-			api: func() unoconv.API {
-				unoconvAPI := struct{ ProtoUnoconvAPI }{}
-				unoconvAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ unoconv.Options) error {
+				},
+			},
+			engine: gotenberg.PDFEngineMock{
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 					return nil
-				}
-				unoconvAPI.extensions = func() []string {
-					return []string{
-						".docx",
-					}
-				}
-
-				return unoconvAPI
-			}(),
-			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					merge: func(_ context.Context, _ *zap.Logger, _ []string, _ string) error {
-						return nil
-					},
-					convert: func(_ context.Context, _ *zap.Logger, _, _, _ string) error {
-						return nil
-					},
-				}
-			}(),
-			expectErr: true,
-		},
-		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
-
-				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
-					"bar.docx": "/foo/bar.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"merge": {
-						"true",
-					},
-					"pdfFormat": {
-						"foo",
-					},
-				})
-
-				return ctx
-			}(),
-			api: func() unoconv.API {
-				unoconvAPI := struct{ ProtoUnoconvAPI }{}
-				unoconvAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ unoconv.Options) error {
-					return nil
-				}
-				unoconvAPI.extensions = func() []string {
-					return []string{
-						".docx",
-					}
-				}
-
-				return unoconvAPI
-			}(),
-			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					merge: func(_ context.Context, _ *zap.Logger, _ []string, _ string) error {
-						return nil
-					},
-					convert: func(_ context.Context, _ *zap.Logger, _, _, _ string) error {
-						return nil
-					},
-				}
-			}(),
+				},
+			},
 			expectOutputPathsCount: 1,
 		},
 		{
+			name: "merge fail",
 			ctx: func() *api.MockContext {
 				ctx := &api.MockContext{Context: &api.Context{}}
-
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
+					"bar.docx": "/bar/bar.docx",
+					"baz.docx": "/baz/baz.docx",
 				})
 				ctx.SetValues(map[string][]string{
+					"merge": {
+						"true",
+					},
+				})
+
+				return ctx
+			}(),
+			unoAPI: uno.APIMock{
+				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+					return nil
+				},
+				ExtensionsMock: func() []string {
+					return []string{
+						".docx",
+					}
+				},
+			},
+			engine: gotenberg.PDFEngineMock{
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return errors.New("foo")
+				},
+			},
+			expectErr: true,
+		},
+		{
+			name: "convert 3 documents, merge them, and convert them to a PDF format",
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.docx": "/foo/foo.docx",
+					"bar.docx": "/bar/bar.docx",
+					"baz.docx": "/baz/baz.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"merge": {
+						"true",
+					},
+					"pdfFormat": {
+						gotenberg.FormatPDFA1a,
+					},
+				})
+
+				return ctx
+			}(),
+			unoAPI: uno.APIMock{
+				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+					return nil
+				},
+				ExtensionsMock: func() []string {
+					return []string{
+						".docx",
+					}
+				},
+			},
+			engine: gotenberg.PDFEngineMock{
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return nil
+				},
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+					return nil
+				},
+			},
+			expectOutputPathsCount: 1,
+		},
+		{
+			name: "convert 3 documents, merge them, but convert them to PDF format fail",
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.docx": "/foo/foo.docx",
+					"bar.docx": "/bar/bar.docx",
+					"baz.docx": "/baz/baz.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"merge": {
+						"true",
+					},
+					"pdfFormat": {
+						gotenberg.FormatPDFA1a,
+					},
+				})
+
+				return ctx
+			}(),
+			unoAPI: uno.APIMock{
+				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+					return nil
+				},
+				ExtensionsMock: func() []string {
+					return []string{
+						".docx",
+					}
+				},
+			},
+			engine: gotenberg.PDFEngineMock{
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return nil
+				},
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+					return errors.New("foo")
+				},
+			},
+			expectErr: true,
+		},
+		{
+			name: "convert 3 documents, merge them, but PDF format not available",
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.docx": "/foo/foo.docx",
+					"bar.docx": "/bar/bar.docx",
+					"baz.docx": "/baz/baz.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"merge": {
+						"true",
+					},
 					"pdfFormat": {
 						"foo",
 					},
@@ -355,123 +410,166 @@ func TestConvertHandler(t *testing.T) {
 
 				return ctx
 			}(),
-			api: func() unoconv.API {
-				unoconvAPI := struct{ ProtoUnoconvAPI }{}
-				unoconvAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ unoconv.Options) error {
+			unoAPI: uno.APIMock{
+				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 					return nil
-				}
-				unoconvAPI.extensions = func() []string {
+				},
+				ExtensionsMock: func() []string {
 					return []string{
 						".docx",
 					}
-				}
-
-				return unoconvAPI
-			}(),
-			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					merge: func(_ context.Context, _ *zap.Logger, _ []string, _ string) error {
-						return nil
-					},
-					convert: func(_ context.Context, _ *zap.Logger, _, _, _ string) error {
-						return gotenberg.ErrPDFFormatNotAvailable
-					},
-				}
-			}(),
+				},
+			},
+			engine: gotenberg.PDFEngineMock{
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return nil
+				},
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+					return gotenberg.ErrPDFFormatNotAvailable
+				},
+			},
 			expectErr:        true,
 			expectHTTPErr:    true,
 			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
+			name: "convert 3 documents and merge them, but cannot add output paths",
 			ctx: func() *api.MockContext {
 				ctx := &api.MockContext{Context: &api.Context{}}
-
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
-					"bar.docx": "/foo/bar.docx",
+					"bar.docx": "/bar/bar.docx",
+					"baz.docx": "/baz/baz.docx",
 				})
 				ctx.SetValues(map[string][]string{
-					"pdfFormat": {
-						"foo",
+					"merge": {
+						"true",
 					},
 				})
-
-				return ctx
-			}(),
-			api: func() unoconv.API {
-				unoconvAPI := struct{ ProtoUnoconvAPI }{}
-				unoconvAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ unoconv.Options) error {
-					return nil
-				}
-				unoconvAPI.extensions = func() []string {
-					return []string{
-						".docx",
-					}
-				}
-
-				return unoconvAPI
-			}(),
-			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					merge: func(_ context.Context, _ *zap.Logger, _ []string, _ string) error {
-						return nil
-					},
-					convert: func(_ context.Context, _ *zap.Logger, _, _, _ string) error {
-						return errors.New("foo")
-					},
-				}
-			}(),
-			expectErr: true,
-		},
-		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
-
 				ctx.SetCancelled(true)
-				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
-					"bar.docx": "/foo/bar.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"pdfFormat": {
-						"foo",
-					},
-				})
 
 				return ctx
 			}(),
-			api: func() unoconv.API {
-				unoconvAPI := struct{ ProtoUnoconvAPI }{}
-				unoconvAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ unoconv.Options) error {
+			unoAPI: uno.APIMock{
+				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 					return nil
-				}
-				unoconvAPI.extensions = func() []string {
+				},
+				ExtensionsMock: func() []string {
 					return []string{
 						".docx",
 					}
-				}
-
-				return unoconvAPI
-			}(),
-			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					merge: func(_ context.Context, _ *zap.Logger, _ []string, _ string) error {
-						return nil
-					},
-					convert: func(_ context.Context, _ *zap.Logger, _, _, _ string) error {
-						return nil
-					},
-				}
-			}(),
+				},
+			},
+			engine: gotenberg.PDFEngineMock{
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return nil
+				},
+			},
 			expectErr: true,
 		},
 		{
+			name: "convert to PDF format",
 			ctx: func() *api.MockContext {
 				ctx := &api.MockContext{Context: &api.Context{}}
-
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
-					"bar.docx": "/foo/bar.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"pdfFormat": {
+						gotenberg.FormatPDFA1a,
+					},
+				})
+
+				return ctx
+			}(),
+			unoAPI: uno.APIMock{
+				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+					return nil
+				},
+				ExtensionsMock: func() []string {
+					return []string{
+						".docx",
+					}
+				},
+			},
+			engine: gotenberg.PDFEngineMock{
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+					return nil
+				},
+			},
+			expectOutputPathsCount: 1,
+		},
+		{
+			name: "convert to PDF format using nativePdfA1aFormat",
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.docx": "/foo/foo.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"nativePdfA1aFormat": {
+						"true",
+					},
+				})
+				ctx.SetLogger(zap.NewNop())
+
+				return ctx
+			}(),
+			unoAPI: uno.APIMock{
+				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+					return nil
+				},
+				ExtensionsMock: func() []string {
+					return []string{
+						".docx",
+					}
+				},
+			},
+			engine: gotenberg.PDFEngineMock{
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+					return nil
+				},
+			},
+			expectOutputPathsCount: 1,
+		},
+		{
+			name: "convert to PDF format fail",
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.docx": "/foo/foo.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"pdfFormat": {
+						gotenberg.FormatPDFA1a,
+					},
+				})
+
+				return ctx
+			}(),
+			unoAPI: uno.APIMock{
+				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+					return nil
+				},
+				ExtensionsMock: func() []string {
+					return []string{
+						".docx",
+					}
+				},
+			},
+			engine: gotenberg.PDFEngineMock{
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+					return errors.New("foo")
+				},
+			},
+			expectErr: true,
+		},
+		{
+			name: "PDF format not available",
+			ctx: func() *api.MockContext {
+				ctx := &api.MockContext{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.docx": "/foo/foo.docx",
 				})
 				ctx.SetValues(map[string][]string{
 					"pdfFormat": {
@@ -481,65 +579,63 @@ func TestConvertHandler(t *testing.T) {
 
 				return ctx
 			}(),
-			api: func() unoconv.API {
-				unoconvAPI := struct{ ProtoUnoconvAPI }{}
-				unoconvAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ unoconv.Options) error {
+			unoAPI: uno.APIMock{
+				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 					return nil
-				}
-				unoconvAPI.extensions = func() []string {
+				},
+				ExtensionsMock: func() []string {
 					return []string{
 						".docx",
 					}
-				}
-
-				return unoconvAPI
-			}(),
-			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					merge: func(_ context.Context, _ *zap.Logger, _ []string, _ string) error {
-						return nil
-					},
-					convert: func(_ context.Context, _ *zap.Logger, _, _, _ string) error {
-						return nil
-					},
-				}
-			}(),
-			expectOutputPathsCount: 2,
+				},
+			},
+			engine: gotenberg.PDFEngineMock{
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+					return gotenberg.ErrPDFFormatNotAvailable
+				},
+			},
+			expectErr:        true,
+			expectHTTPErr:    true,
+			expectHTTPStatus: http.StatusBadRequest,
 		},
-	} {
-		c := echo.New().NewContext(nil, nil)
-		c.Set("context", tc.ctx.Context)
+	}
 
-		err := convertRoute(tc.api, tc.engine).Handler(c)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := echo.New().NewContext(nil, nil)
+			c.Set("context", tc.ctx.Context)
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
+			err := convertRoute(tc.unoAPI, tc.engine).Handler(c)
 
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
-
-		var httpErr api.HTTPError
-		isHTTPErr := errors.As(err, &httpErr)
-
-		if tc.expectHTTPErr && !isHTTPErr {
-			t.Errorf("test %d: expected HTTP error but got: %v", i, err)
-		}
-
-		if !tc.expectHTTPErr && isHTTPErr {
-			t.Errorf("test %d: expected no HTTP error but got one: %v", i, httpErr)
-		}
-
-		if err != nil && tc.expectHTTPErr && isHTTPErr {
-			status, _ := httpErr.HTTPError()
-			if status != tc.expectHTTPStatus {
-				t.Errorf("test %d: expected %d HTTP status code but got %d", i, tc.expectHTTPStatus, status)
+			if tc.expectErr && err == nil {
+				t.Fatal("expected error from convert handler, but got none")
 			}
-		}
 
-		if tc.expectOutputPathsCount != len(tc.ctx.OutputPaths()) {
-			t.Errorf("test %d: expected %d output paths but got %d", i, tc.expectOutputPathsCount, len(tc.ctx.OutputPaths()))
-		}
+			if !tc.expectErr && err != nil {
+				t.Fatalf("expected no error from convert handler, but got: %v", err)
+			}
+
+			var httpErr api.HTTPError
+			isHTTPErr := errors.As(err, &httpErr)
+
+			if tc.expectHTTPErr && !isHTTPErr {
+				t.Errorf("expected HTTP error from convert handler, but got: %v", err)
+			}
+
+			if !tc.expectHTTPErr && isHTTPErr {
+				t.Errorf("expected no HTTP error from convert handler, but got one: %v", httpErr)
+			}
+
+			if err != nil && tc.expectHTTPErr && isHTTPErr {
+				status, _ := httpErr.HTTPError()
+				if status != tc.expectHTTPStatus {
+					t.Errorf("expected %d HTTP status code from convert handler, but got %d", tc.expectHTTPStatus, status)
+				}
+			}
+
+			if tc.expectOutputPathsCount != len(tc.ctx.OutputPaths()) {
+				t.Errorf("expected %d output paths from convert handler, but got %d", tc.expectOutputPathsCount, len(tc.ctx.OutputPaths()))
+			}
+		})
 	}
 }

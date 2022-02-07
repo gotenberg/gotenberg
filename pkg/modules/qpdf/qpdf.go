@@ -85,7 +85,7 @@ func (engine QPDF) Merge(ctx context.Context, logger *zap.Logger, inputPaths []s
 	activeInstancesCount += 1
 	activeInstancesCountMu.Unlock()
 
-	err = cmd.Exec()
+	_, err = cmd.Exec()
 
 	activeInstancesCountMu.Lock()
 	activeInstancesCount -= 1

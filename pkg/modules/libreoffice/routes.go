@@ -7,13 +7,13 @@ import (
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/unoconv"
+	"github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/uno"
 	"github.com/labstack/echo/v4"
 )
 
 // convertRoute returns an api.Route which can convert LibreOffice documents
 // to PDF.
-func convertRoute(uno unoconv.API, engine gotenberg.PDFEngine) api.Route {
+func convertRoute(unoAPI uno.API, engine gotenberg.PDFEngine) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
 		Path:        "/forms/libreoffice/convert",
@@ -27,15 +27,17 @@ func convertRoute(uno unoconv.API, engine gotenberg.PDFEngine) api.Route {
 				landscape          bool
 				nativePageRanges   string
 				nativePDFA1aFormat bool
+				nativePDFformat    string
 				PDFformat          string
 				merge              bool
 			)
 
 			err := ctx.FormData().
-				MandatoryPaths(uno.Extensions(), &inputPaths).
+				MandatoryPaths(unoAPI.Extensions(), &inputPaths).
 				Bool("landscape", &landscape, false).
 				String("nativePageRanges", &nativePageRanges, "").
 				Bool("nativePdfA1aFormat", &nativePDFA1aFormat, false).
+				String("nativePdfFormat", &nativePDFformat, "").
 				String("pdfFormat", &PDFformat, "").
 				Bool("merge", &merge, false).
 				Validate()
@@ -44,11 +46,33 @@ func convertRoute(uno unoconv.API, engine gotenberg.PDFEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
+			if nativePDFA1aFormat {
+				ctx.Log().Warn("'nativePdfA1aFormat' is deprecated; prefer 'nativePdfFormat' or 'pdfFormat' form fields instead")
+			}
+
+			if nativePDFA1aFormat && nativePDFformat != "" {
+				return api.WrapError(
+					errors.New("got both 'nativePdfFormat' and 'nativePdfA1aFormat' form fields"),
+					api.NewSentinelHTTPError(http.StatusBadRequest, "Both 'nativePdfFormat' and 'nativePdfA1aFormat' form fields are provided"),
+				)
+			}
+
 			if nativePDFA1aFormat && PDFformat != "" {
 				return api.WrapError(
-					errors.New("got both 'pdfFormat' and 'nativePdfA1aFormat' form values"),
-					api.NewSentinelHTTPError(http.StatusBadRequest, "Both 'pdfFormat' and 'nativePdfA1aFormat' form values are provided"),
+					errors.New("got both 'pdfFormat' and 'nativePdfA1aFormat' form fields"),
+					api.NewSentinelHTTPError(http.StatusBadRequest, "Both 'pdfFormat' and 'nativePdfA1aFormat' form fields are provided"),
 				)
+			}
+
+			if nativePDFformat != "" && PDFformat != "" {
+				return api.WrapError(
+					errors.New("got both 'pdfFormat' and 'nativePdfFormat' form fields"),
+					api.NewSentinelHTTPError(http.StatusBadRequest, "Both 'pdfFormat' and 'nativePdfFormat' form fields are provided"),
+				)
+			}
+
+			if nativePDFA1aFormat {
+				nativePDFformat = gotenberg.FormatPDFA1a
 			}
 
 			// Alright, let's convert each document to PDF.
@@ -58,16 +82,16 @@ func convertRoute(uno unoconv.API, engine gotenberg.PDFEngine) api.Route {
 			for i, inputPath := range inputPaths {
 				outputPaths[i] = ctx.GeneratePath(".pdf")
 
-				options := unoconv.Options{
+				options := uno.Options{
 					Landscape:  landscape,
 					PageRanges: nativePageRanges,
-					PDFArchive: nativePDFA1aFormat,
+					PDFformat:  nativePDFformat,
 				}
 
-				err = uno.PDF(ctx, ctx.Log(), inputPath, outputPaths[i], options)
+				err = unoAPI.PDF(ctx, ctx.Log(), inputPath, outputPaths[i], options)
 
 				if err != nil {
-					if errors.Is(err, unoconv.ErrMalformedPageRanges) {
+					if errors.Is(err, uno.ErrMalformedPageRanges) {
 						return api.WrapError(
 							fmt.Errorf("convert to PDF: %w", err),
 							api.NewSentinelHTTPError(http.StatusBadRequest, fmt.Sprintf("Malformed page ranges '%s' (nativePageRanges)", options.PageRanges)),
@@ -92,10 +116,8 @@ func convertRoute(uno unoconv.API, engine gotenberg.PDFEngine) api.Route {
 				// Now, let's check if the client want to convert this result
 				// PDF to a specific PDF format.
 
-				// Note: nativePdfA1aFormat has not been specified if we reach
-				// this part of the code. Indeed, the handler returns early on
-				// an error if both nativePdfA1aFormat and pdfFormat are
-				// present.
+				// Note: nativePdfA1aFormat/nativePdfFormat have not been
+				// specified if PDFformat is not empty.
 
 				if PDFformat != "" {
 					convertInputPath := outputPath
@@ -135,9 +157,8 @@ func convertRoute(uno unoconv.API, engine gotenberg.PDFEngine) api.Route {
 			// Ok, we don't have to merge the PDFs. Let's check if the client
 			// want to convert each PDF to a specific PDF format.
 
-			// Note: nativePdfA1aFormat has not been specified if we reach this
-			// part of the code. Indeed, the handler returns early on an error
-			// if both nativePdfA1aFormat and pdfFormat are present.
+			// Note: nativePdfA1aFormat/nativePdfFormat have not been
+			// specified if PDFformat is not empty.
 
 			if PDFformat != "" {
 				convertOutputPaths := make([]string, len(outputPaths))
