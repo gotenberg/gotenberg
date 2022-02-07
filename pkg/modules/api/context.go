@@ -277,6 +277,8 @@ func (ctx Context) OutputFilename(outputPath string) string {
 	return fmt.Sprintf("%s%s", filename, filepath.Ext(outputPath))
 }
 
+// TODO: move MockContext to mocks.go (and rename it ContextMock).
+
 // MockContext is a helper for tests.
 //
 //  ctx := &api.MockContext{Context: &api.Context{}}

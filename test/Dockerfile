@@ -42,4 +42,4 @@ RUN apt-get update -qq &&\
 # Pristine working directory.
 WORKDIR /tests
 
-ENTRYPOINT [ "docker-entrypoint.sh" ]
+ENTRYPOINT [ "/usr/bin/tini", "--", "docker-entrypoint.sh" ]

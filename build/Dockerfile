@@ -157,6 +157,7 @@ COPY --from=builder /home/gotenberg /usr/bin/
 ENV GC_EXCLUDE_SUBSTR "hsperfdata_root,hsperfdata_gotenberg"
 ENV CHROMIUM_BIN_PATH /usr/bin/chromium
 ENV UNOCONV_BIN_PATH /usr/bin/unoconv
+ENV LIBREOFFICE_BIN_PATH /usr/lib/libreoffice/program/soffice.bin
 ENV PDFTK_BIN_PATH /usr/bin/pdftk
 ENV QPDF_BIN_PATH /usr/bin/qpdf
 

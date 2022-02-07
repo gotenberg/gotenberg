@@ -5,7 +5,7 @@ import (
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/unoconv"
+	"github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/uno"
 	flag "github.com/spf13/pflag"
 )
 
@@ -16,7 +16,7 @@ func init() {
 // LibreOffice is a module which provides a route for converting documents to
 // PDF with LibreOffice.
 type LibreOffice struct {
-	unoconv       unoconv.API
+	unoAPI        uno.API
 	engine        gotenberg.PDFEngine
 	disableRoutes bool
 }
@@ -40,17 +40,17 @@ func (mod *LibreOffice) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	mod.disableRoutes = flags.MustBool("libreoffice-disable-routes")
 
-	provider, err := ctx.Module(new(unoconv.Provider))
+	provider, err := ctx.Module(new(uno.Provider))
 	if err != nil {
-		return fmt.Errorf("get unoconv provider: %w", err)
+		return fmt.Errorf("get unoAPI provider: %w", err)
 	}
 
-	uno, err := provider.(unoconv.Provider).Unoconv()
+	unoAPI, err := provider.(uno.Provider).UNO()
 	if err != nil {
-		return fmt.Errorf("get unoconv API: %w", err)
+		return fmt.Errorf("get unoAPI API: %w", err)
 	}
 
-	mod.unoconv = uno
+	mod.unoAPI = unoAPI
 
 	provider, err = ctx.Module(new(gotenberg.PDFEngineProvider))
 	if err != nil {
@@ -74,7 +74,7 @@ func (mod LibreOffice) Routes() ([]api.Route, error) {
 	}
 
 	return []api.Route{
-		convertRoute(mod.unoconv, mod.engine),
+		convertRoute(mod.unoAPI, mod.engine),
 	}, nil
 }
 

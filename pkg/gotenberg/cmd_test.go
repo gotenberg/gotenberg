@@ -12,209 +12,313 @@ func TestCommand(t *testing.T) {
 	cmd := Command(zap.NewNop(), "foo")
 
 	if !cmd.process.SysProcAttr.Setpgid {
-		t.Error("expected Setpgid to be true")
+		t.Error("expected cmd.process.SysProcAttr.Setpgid to be true")
 	}
 }
 
 func TestCommandContext(t *testing.T) {
-	for i, tc := range []struct {
-		ctx       context.Context
-		expectErr bool
+	tests := []struct {
+		name                    string
+		ctx                     context.Context
+		expectCommandContextErr bool
 	}{
 		{
-			ctx:       nil,
-			expectErr: true,
+			name: "nominal behavior",
+			ctx:  context.Background(),
 		},
 		{
-			ctx: context.TODO(),
+			name:                    "nil context",
+			expectCommandContextErr: true,
 		},
-	} {
-		cmd, err := CommandContext(tc.ctx, zap.NewNop(), "foo")
+	}
 
-		if err == nil && !cmd.process.SysProcAttr.Setpgid {
-			t.Fatalf("test %d: expected Setpgid to be true", i)
-		}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd, err := CommandContext(tc.ctx, zap.NewNop(), "foo")
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
+			if err == nil && !cmd.process.SysProcAttr.Setpgid {
+				t.Fatal("expected cmd.process.SysProcAttr.Setpgid to be true")
+			}
 
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
+			if tc.expectCommandContextErr && err == nil {
+				t.Error("expected error from CommandContext(), but got none")
+			}
+
+			if !tc.expectCommandContextErr && err != nil {
+				t.Errorf("expected no error from CommandContext(), but got: %v", err)
+			}
+		})
 	}
 }
 
 func TestCmd_Start(t *testing.T) {
-	for i, tc := range []struct {
-		cmd       Cmd
-		expectErr bool
+	tests := []struct {
+		name           string
+		cmd            Cmd
+		expectStartErr bool
 	}{
 		{
-			cmd:       Command(zap.NewNop(), "foo"),
-			expectErr: true,
+			name: "nominal behavior",
+			cmd:  Command(zap.NewNop(), "echo", "Hello", "World"),
 		},
 		{
-			cmd: Command(zap.NewNop(), "echo", "Hello", "World"),
+			name:           "start error",
+			cmd:            Command(zap.NewNop(), "foo"),
+			expectStartErr: true,
 		},
-	} {
-		err := tc.cmd.Start()
+	}
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.cmd.Start()
 
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
+			if tc.expectStartErr && err == nil {
+				t.Error("expected error from cmd.Start(), but got none")
+			}
+
+			if !tc.expectStartErr && err != nil {
+				t.Errorf("expected no error from cmd.Start(), but got: %v", err)
+			}
+		})
+	}
+}
+
+func TestCmd_Wait(t *testing.T) {
+	tests := []struct {
+		name          string
+		cmd           Cmd
+		expectWaitErr bool
+	}{
+		{
+			name: "nominal behavior",
+			cmd: func() Cmd {
+				cmd := Command(zap.NewNop(), "echo", "Hello", "World")
+
+				err := cmd.Start()
+				if err != nil {
+					t.Fatalf("expected no error from cmd.Start(), but got: %v", err)
+				}
+
+				return cmd
+			}(),
+		},
+		{
+			name: "wait error",
+			cmd: func() Cmd {
+				cmd := Command(zap.NewNop(), "echo", "Hello", "World")
+
+				err := cmd.Start()
+				if err != nil {
+					t.Fatalf("expected no error from cmd.Start(), but got: %v", err)
+				}
+
+				err = cmd.Kill()
+				if err != nil {
+					t.Fatalf("expected no error from cmd.Kill(), but got: %v", err)
+				}
+
+				return cmd
+			}(),
+			expectWaitErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.cmd.Wait()
+
+			if tc.expectWaitErr && err == nil {
+				t.Error("expected error from cmd.Wait(), but got none")
+			}
+
+			if !tc.expectWaitErr && err != nil {
+				t.Errorf("expected no error from cmd.Wait(), but got: %v", err)
+			}
+		})
 	}
 }
 
 func TestCmd_Exec(t *testing.T) {
-	for i, tc := range []struct {
-		cmd       Cmd
-		timeout   time.Duration
-		expectErr bool
+	tests := []struct {
+		name          string
+		cmd           Cmd
+		timeout       time.Duration
+		expectExecErr bool
 	}{
 		{
-			cmd:       Command(zap.NewNop(), "foo"),
-			expectErr: true,
+			name: "nominal behavior",
+			cmd: func() Cmd {
+				cmd, err := CommandContext(context.Background(), zap.NewNop(), "echo", "Hello", "World")
+				if err != nil {
+					t.Fatalf("expected no error from CommandContext(), but got: %v", err)
+				}
+
+				return cmd
+			}(),
 		},
 		{
-			cmd:       Command(zap.NewNop(), "foo"),
-			timeout:   time.Duration(5) * time.Second,
-			expectErr: true,
+			name:          "nil context",
+			cmd:           Command(zap.NewNop(), "echo", "Hello", "World"),
+			expectExecErr: true,
 		},
 		{
-			cmd:     Command(zap.NewNop(), "echo", "Hello", "World"),
-			timeout: time.Duration(5) * time.Second,
+			name: "start error",
+			cmd: func() Cmd {
+				cmd, err := CommandContext(context.Background(), zap.NewNop(), "foo")
+				if err != nil {
+					t.Fatalf("expected no error from CommandContext(), but got: %v", err)
+				}
+
+				return cmd
+			}(),
+			expectExecErr: true,
 		},
 		{
-			cmd:       Command(zap.NewNop(), "sleep", "3"),
-			timeout:   time.Duration(2) * time.Second,
-			expectErr: true,
+			name:          "context done",
+			cmd:           Command(zap.NewNop(), "sleep", "2"),
+			timeout:       time.Duration(1) * time.Second,
+			expectExecErr: true,
 		},
-	} {
-		if tc.timeout > 0 {
-			ctx, cancel := context.WithTimeout(context.TODO(), tc.timeout)
-			defer cancel()
+	}
 
-			tc.cmd.ctx = ctx
-		}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.timeout > 0 {
+				ctx, cancel := context.WithTimeout(context.TODO(), tc.timeout)
+				defer cancel()
 
-		err := tc.cmd.Exec()
+				tc.cmd.ctx = ctx
+			}
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
+			_, err := tc.cmd.Exec()
 
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
+			if tc.expectExecErr && err == nil {
+				t.Error("expected error from cmd.Exec(), but got none")
+			}
+
+			if !tc.expectExecErr && err != nil {
+				t.Errorf("expected no error from cmd.Exec(), but got: %v", err)
+			}
+		})
 	}
 }
 
 func TestCmd_pipeOutput(t *testing.T) {
-	for i, tc := range []struct {
-		cmd       Cmd
-		run       bool
-		expectErr bool
+	tests := []struct {
+		name                string
+		cmd                 Cmd
+		run                 bool
+		expectPipeOutputErr bool
 	}{
 		{
-			cmd: Command(zap.NewNop(), "echo", "Hello", "World"),
+			name: "nominal behavior",
+			cmd:  Command(zap.NewExample(), "echo", "Hello", "World"),
+			run:  true,
 		},
 		{
+			name: "no debug, no pipe",
+			cmd:  Command(zap.NewNop(), "echo", "Hello", "World"),
+		},
+		{
+			name: "stdout already piped",
 			cmd: func() Cmd {
 				cmd := Command(zap.NewExample(), "echo", "Hello", "World")
+
 				_, err := cmd.process.StdoutPipe()
-
 				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
+					t.Fatalf("expected no error from cmd.process.StdoutPipe(), but got: %v", err)
 				}
 
 				return cmd
 			}(),
-			expectErr: true,
+			expectPipeOutputErr: true,
 		},
 		{
+			name: "stderr already piped",
 			cmd: func() Cmd {
 				cmd := Command(zap.NewExample(), "echo", "Hello", "World")
-				_, err := cmd.process.StderrPipe()
 
+				_, err := cmd.process.StderrPipe()
 				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
+					t.Fatalf("expected no error from cmd.process.StderrPipe(), but got: %v", err)
 				}
 
 				return cmd
 			}(),
-			expectErr: true,
+			expectPipeOutputErr: true,
 		},
-		{
-			cmd: Command(zap.NewExample(), "echo", "Hello", "World"),
-			run: true,
-		},
-	} {
-		err := tc.cmd.pipeOutput()
+	}
 
-		if tc.run {
-			errStart := tc.cmd.process.Start()
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.cmd.pipeOutput()
 
-			if errStart != nil {
-				t.Fatalf("test %d: expected no error but got: %v", i, err)
+			if tc.run {
+				errStart := tc.cmd.process.Start()
+				if errStart != nil {
+					t.Fatalf("expected no error from tc.cmd.process.Start(), but got: %v", errStart)
+				}
 			}
-		}
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
+			if tc.expectPipeOutputErr && err == nil {
+				t.Error("expected error from cmd.pipeOutput(), but got none")
+			}
 
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
+			if !tc.expectPipeOutputErr && err != nil {
+				t.Errorf("expected no error from cmd.pipeOutput(), but got: %v", err)
+			}
+		})
 	}
 }
 
 func TestCmd_Kill(t *testing.T) {
-	for i, tc := range []struct {
-		cmd       Cmd
-		expectErr bool
+	tests := []struct {
+		name string
+		cmd  Cmd
 	}{
 		{
-			cmd: Cmd{logger: zap.NewNop()},
-		},
-		{
+			name: "nominal behavior",
 			cmd: func() Cmd {
 				cmd := Command(zap.NewNop(), "sleep", "60")
-				err := cmd.process.Start()
 
+				err := cmd.process.Start()
 				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
+					t.Fatalf("expected no error from cmd.process.Start(), but got: %v", err)
 				}
 
 				return cmd
 			}(),
 		},
 		{
+			name: "no process",
+			cmd:  Cmd{logger: zap.NewNop()},
+		},
+		{
+			name: "process already killed",
 			cmd: func() Cmd {
-				cmd := Command(zap.NewNop(), "echo", "Hello", "World")
-				err := cmd.process.Run()
+				cmd := Command(zap.NewNop(), "sleep", "60")
 
+				err := cmd.process.Start()
 				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
+					t.Fatalf("expected no error from cmd.process.Start(), but got: %v", err)
+				}
+
+				err = cmd.Kill()
+				if err != nil {
+					t.Fatalf("expected no error from cmd.Kill(), but got: %v", err)
 				}
 
 				return cmd
 			}(),
 		},
-	} {
-		err := tc.cmd.Kill()
+	}
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
-
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.cmd.Kill()
+			if err != nil {
+				t.Errorf("expected no error from cmd.Kill(), but got: %v", err)
+			}
+		})
 	}
 }

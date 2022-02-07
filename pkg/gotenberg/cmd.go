@@ -73,22 +73,37 @@ func (cmd Cmd) Start() error {
 	return nil
 }
 
+// Wait waits for the command to complete. It should be called when using the
+// Start method, so that the command does not leak zombies.
+func (cmd Cmd) Wait() error {
+	err := cmd.process.Wait()
+	if err != nil {
+		return fmt.Errorf("wait for unix process: %w", err)
+	}
+
+	return nil
+}
+
 // Exec executes the command and wait for its completion or until the context
 // is done. In any case, it kills the unix process and all its children.
-func (cmd Cmd) Exec() error {
+func (cmd Cmd) Exec() (int, error) {
 	if cmd.ctx == nil {
-		return errors.New("nil context")
+		return 10, errors.New("nil context")
 	}
 
 	err := cmd.Start()
 	if err != nil {
-		return fmt.Errorf("start command: %w", err)
+		if cmd.process.ProcessState == nil {
+			return 131, fmt.Errorf("start command: %w", err)
+		}
+
+		return cmd.process.ProcessState.ExitCode(), fmt.Errorf("start command: %w", err)
 	}
 
 	errChan := make(chan error, 1)
 
 	go func() {
-		errChan <- cmd.process.Wait()
+		errChan <- cmd.Wait()
 	}()
 
 	select {
@@ -99,17 +114,21 @@ func (cmd Cmd) Exec() error {
 		}
 
 		if err == nil {
-			return nil
+			return 0, nil
 		}
 
-		return fmt.Errorf("unix process error: %w", err)
+		if cmd.process.ProcessState == nil {
+			return 131, fmt.Errorf("unix process error: %w", err)
+		}
+
+		return cmd.process.ProcessState.ExitCode(), fmt.Errorf("unix process error: %w", err)
 	case <-cmd.ctx.Done():
 		errProc := cmd.Kill()
 		if errProc != nil {
 			cmd.logger.Error(errProc.Error())
 		}
 
-		return fmt.Errorf("context done: %w", cmd.ctx.Err())
+		return 62, fmt.Errorf("context done: %w", cmd.ctx.Err())
 	}
 }
 

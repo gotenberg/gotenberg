@@ -1,7 +1,6 @@
 package pdfengines
 
 import (
-	"context"
 	"errors"
 	"reflect"
 	"strings"
@@ -11,38 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type ProtoModule struct {
-	descriptor func() gotenberg.ModuleDescriptor
-}
-
-func (mod ProtoModule) Descriptor() gotenberg.ModuleDescriptor {
-	return mod.descriptor()
-}
-
-type ProtoValidator struct {
-	ProtoModule
-	validate func() error
-}
-
-func (mod ProtoValidator) Validate() error {
-	return mod.validate()
-}
-
-type ProtoPDFEngine struct {
-	ProtoValidator
-	merge   func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error
-	convert func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error
-}
-
-func (mod ProtoPDFEngine) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-	return mod.merge(ctx, logger, inputPaths, outputPath)
-}
-
-func (mod ProtoPDFEngine) Convert(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
-	return mod.convert(ctx, logger, format, inputPath, outputPath)
-}
-
-func TestPDFEngine_Descriptor(t *testing.T) {
+func TestPDFEngines_Descriptor(t *testing.T) {
 	descriptor := PDFEngines{}.Descriptor()
 
 	actual := reflect.TypeOf(descriptor.New())
@@ -53,71 +21,98 @@ func TestPDFEngine_Descriptor(t *testing.T) {
 	}
 }
 
-func TestPDFEngine_Provision(t *testing.T) {
-	for i, tc := range []struct {
-		ctx                *gotenberg.Context
-		expectNames        []string
-		expectEnginesCount int
-		expectErr          bool
+func TestPDFEngines_Provision(t *testing.T) {
+	tests := []struct {
+		name                 string
+		ctx                  *gotenberg.Context
+		expectPDFEngineNames []string
+		expectProvisionErr   bool
 	}{
 		{
+			name: "no selection from user",
 			ctx: func() *gotenberg.Context {
-				engine := struct{ ProtoPDFEngine }{}
-				engine.descriptor = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return engine }}
+				provider := struct {
+					gotenberg.ModuleMock
+					gotenberg.LoggerProviderMock
+				}{}
+				provider.DescriptorMock = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module {
+						return provider
+					}}
 				}
-				engine.validate = func() error { return errors.New("foo") }
+				provider.LoggerMock = func(mod gotenberg.Module) (*zap.Logger, error) {
+					return zap.NewNop(), nil
+				}
+
+				engine := struct {
+					gotenberg.ModuleMock
+					gotenberg.ValidatorMock
+					gotenberg.PDFEngineMock
+				}{}
+				engine.DescriptorMock = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return engine }}
+				}
+				engine.ValidateMock = func() error {
+					return nil
+				}
 
 				return gotenberg.NewContext(
 					gotenberg.ParsedFlags{
 						FlagSet: new(PDFEngines).Descriptor().FlagSet,
 					},
 					[]gotenberg.ModuleDescriptor{
+						provider.Descriptor(),
 						engine.Descriptor(),
 					},
 				)
 			}(),
-			expectErr: true,
+			expectPDFEngineNames: []string{"bar"},
 		},
 		{
+			name: "selection from user",
 			ctx: func() *gotenberg.Context {
-				engine := struct{ ProtoPDFEngine }{}
-				engine.descriptor = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return engine }}
+				provider := struct {
+					gotenberg.ModuleMock
+					gotenberg.LoggerProviderMock
+				}{}
+				provider.DescriptorMock = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module {
+						return provider
+					}}
 				}
-				engine.validate = func() error { return nil }
+				provider.LoggerMock = func(mod gotenberg.Module) (*zap.Logger, error) {
+					return zap.NewNop(), nil
+				}
 
-				return gotenberg.NewContext(
-					gotenberg.ParsedFlags{
-						FlagSet: new(PDFEngines).Descriptor().FlagSet,
-					},
-					[]gotenberg.ModuleDescriptor{
-						engine.Descriptor(),
-					},
-				)
-			}(),
-			expectNames:        []string{"foo"},
-			expectEnginesCount: 1,
-		},
-		{
-			ctx: func() *gotenberg.Context {
-				engine1 := struct{ ProtoPDFEngine }{}
-				engine1.descriptor = func() gotenberg.ModuleDescriptor {
+				engine1 := struct {
+					gotenberg.ModuleMock
+					gotenberg.ValidatorMock
+					gotenberg.PDFEngineMock
+				}{}
+				engine1.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "a", New: func() gotenberg.Module { return engine1 }}
 				}
-				engine1.validate = func() error { return nil }
+				engine1.ValidateMock = func() error {
+					return nil
+				}
 
-				engine2 := struct{ ProtoPDFEngine }{}
-				engine2.descriptor = func() gotenberg.ModuleDescriptor {
+				engine2 := struct {
+					gotenberg.ModuleMock
+					gotenberg.ValidatorMock
+					gotenberg.PDFEngineMock
+				}{}
+				engine2.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "b", New: func() gotenberg.Module { return engine2 }}
 				}
-				engine2.validate = func() error { return nil }
+				engine2.ValidateMock = func() error {
+					return nil
+				}
 
 				fs := new(PDFEngines).Descriptor().FlagSet
 				err := fs.Parse([]string{"--pdfengines-engines=b", "--pdfengines-engines=a"})
 
 				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
+					t.Fatalf("expected no error from fs.Parse(), but got: %v", err)
 				}
 
 				return gotenberg.NewContext(
@@ -125,33 +120,47 @@ func TestPDFEngine_Provision(t *testing.T) {
 						FlagSet: fs,
 					},
 					[]gotenberg.ModuleDescriptor{
+						provider.Descriptor(),
 						engine1.Descriptor(),
 						engine2.Descriptor(),
 					},
 				)
 			}(),
-			expectNames:        []string{"b", "a"},
-			expectEnginesCount: 2,
+			expectPDFEngineNames: []string{"b", "a"},
 		},
 		{
+			name: "user select deprecated unoconv-pdfengine",
 			ctx: func() *gotenberg.Context {
-				engine1 := struct{ ProtoPDFEngine }{}
-				engine1.descriptor = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "a", New: func() gotenberg.Module { return engine1 }}
+				provider := struct {
+					gotenberg.ModuleMock
+					gotenberg.LoggerProviderMock
+				}{}
+				provider.DescriptorMock = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module {
+						return provider
+					}}
 				}
-				engine1.validate = func() error { return nil }
+				provider.LoggerMock = func(mod gotenberg.Module) (*zap.Logger, error) {
+					return zap.NewNop(), nil
+				}
 
-				engine2 := struct{ ProtoPDFEngine }{}
-				engine2.descriptor = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "b", New: func() gotenberg.Module { return engine2 }}
+				engine := struct {
+					gotenberg.ModuleMock
+					gotenberg.ValidatorMock
+					gotenberg.PDFEngineMock
+				}{}
+				engine.DescriptorMock = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "uno-pdfengine", New: func() gotenberg.Module { return engine }}
 				}
-				engine2.validate = func() error { return nil }
+				engine.ValidateMock = func() error {
+					return nil
+				}
 
 				fs := new(PDFEngines).Descriptor().FlagSet
-				err := fs.Parse([]string{"--pdfengines-engines=b"})
+				err := fs.Parse([]string{"--pdfengines-engines=unoconv-pdfengine"})
 
 				if err != nil {
-					t.Fatalf("expected error but got: %v", err)
+					t.Fatalf("expected no error from fs.Parse(), but got: %v", err)
 				}
 
 				return gotenberg.NewContext(
@@ -159,56 +168,136 @@ func TestPDFEngine_Provision(t *testing.T) {
 						FlagSet: fs,
 					},
 					[]gotenberg.ModuleDescriptor{
-						engine1.Descriptor(),
-						engine2.Descriptor(),
+						provider.Descriptor(),
+						engine.Descriptor(),
 					},
 				)
 			}(),
-			expectNames:        []string{"b"},
-			expectEnginesCount: 2,
+			expectPDFEngineNames: []string{"uno-pdfengine"},
 		},
-	} {
-		mod := new(PDFEngines)
-		err := mod.Provision(tc.ctx)
+		{
+			name: "no logger provider",
+			ctx: func() *gotenberg.Context {
+				return gotenberg.NewContext(
+					gotenberg.ParsedFlags{
+						FlagSet: new(PDFEngines).Descriptor().FlagSet,
+					},
+					[]gotenberg.ModuleDescriptor{},
+				)
+			}(),
+			expectProvisionErr: true,
+		},
+		{
+			name: "no logger from logger provider",
+			ctx: func() *gotenberg.Context {
+				provider := struct {
+					gotenberg.ModuleMock
+					gotenberg.LoggerProviderMock
+				}{}
+				provider.DescriptorMock = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module {
+						return provider
+					}}
+				}
+				provider.LoggerMock = func(mod gotenberg.Module) (*zap.Logger, error) {
+					return nil, errors.New("foo")
+				}
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
+				return gotenberg.NewContext(
+					gotenberg.ParsedFlags{
+						FlagSet: new(PDFEngines).Descriptor().FlagSet,
+					},
+					[]gotenberg.ModuleDescriptor{
+						provider.Descriptor(),
+					},
+				)
+			}(),
+			expectProvisionErr: true,
+		},
+		{
+			name: "no valid PDF engines",
+			ctx: func() *gotenberg.Context {
+				provider := struct {
+					gotenberg.ModuleMock
+					gotenberg.LoggerProviderMock
+				}{}
+				provider.DescriptorMock = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module {
+						return provider
+					}}
+				}
+				provider.LoggerMock = func(mod gotenberg.Module) (*zap.Logger, error) {
+					return zap.NewNop(), nil
+				}
 
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
+				engine := struct {
+					gotenberg.ModuleMock
+					gotenberg.ValidatorMock
+					gotenberg.PDFEngineMock
+				}{}
+				engine.DescriptorMock = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return engine }}
+				}
+				engine.ValidateMock = func() error {
+					return errors.New("foo")
+				}
 
-		if len(tc.expectNames) != len(mod.names) {
-			t.Errorf("test %d: expected %d names but got %d", i, len(tc.expectNames), len(mod.names))
-		}
+				return gotenberg.NewContext(
+					gotenberg.ParsedFlags{
+						FlagSet: new(PDFEngines).Descriptor().FlagSet,
+					},
+					[]gotenberg.ModuleDescriptor{
+						provider.Descriptor(),
+						engine.Descriptor(),
+					},
+				)
+			}(),
+			expectProvisionErr: true,
+		},
+	}
 
-		if tc.expectEnginesCount != len(mod.engines) {
-			t.Errorf("test %d: expected %d engines but got %d", i, tc.expectEnginesCount, len(mod.engines))
-		}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mod := new(PDFEngines)
+			err := mod.Provision(tc.ctx)
 
-		for index, name := range mod.names {
-			if name != tc.expectNames[index] {
-				t.Errorf("test %d: expected name at index %d to be %s, but got: %s", i, index, name, tc.expectNames[index])
+			if tc.expectProvisionErr && err == nil {
+				t.Fatal("expected mod.Provision() error, but got none")
 			}
-		}
+
+			if !tc.expectProvisionErr && err != nil {
+				t.Fatalf("expected no error from mod.Provision(), but got: %v", err)
+			}
+
+			if len(tc.expectPDFEngineNames) != len(mod.names) {
+				t.Errorf("expected %d names but got %d", len(tc.expectPDFEngineNames), len(mod.names))
+			}
+
+			for index, name := range mod.names {
+				if name != tc.expectPDFEngineNames[index] {
+					t.Errorf("expected name at index %d to be %s, but got: %s", index, name, tc.expectPDFEngineNames[index])
+				}
+			}
+		})
 	}
 }
 
-func TestPDFEngine_Validate(t *testing.T) {
-	for i, tc := range []struct {
-		names     []string
-		engines   []gotenberg.PDFEngine
-		expectErr bool
+func TestPDFEngines_Validate(t *testing.T) {
+	tests := []struct {
+		name              string
+		names             []string
+		engines           []gotenberg.PDFEngine
+		expectValidateErr bool
 	}{
 		{
-			expectErr: true,
-		},
-		{
+			name:  "existing PDF engine",
 			names: []string{"foo"},
 			engines: func() []gotenberg.PDFEngine {
-				engine := struct{ ProtoPDFEngine }{}
-				engine.descriptor = func() gotenberg.ModuleDescriptor {
+				engine := struct {
+					gotenberg.ModuleMock
+					gotenberg.PDFEngineMock
+				}{}
+				engine.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return engine }}
 				}
 
@@ -218,15 +307,22 @@ func TestPDFEngine_Validate(t *testing.T) {
 			}(),
 		},
 		{
+			name:  "non-existing bar PDF engine",
 			names: []string{"foo", "bar", "baz"},
 			engines: func() []gotenberg.PDFEngine {
-				engine1 := struct{ ProtoPDFEngine }{}
-				engine1.descriptor = func() gotenberg.ModuleDescriptor {
+				engine1 := struct {
+					gotenberg.ModuleMock
+					gotenberg.PDFEngineMock
+				}{}
+				engine1.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return engine1 }}
 				}
 
-				engine2 := struct{ ProtoPDFEngine }{}
-				engine2.descriptor = func() gotenberg.ModuleDescriptor {
+				engine2 := struct {
+					gotenberg.ModuleMock
+					gotenberg.PDFEngineMock
+				}{}
+				engine2.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "baz", New: func() gotenberg.Module { return engine2 }}
 				}
 
@@ -235,21 +331,31 @@ func TestPDFEngine_Validate(t *testing.T) {
 					engine2,
 				}
 			}(),
-			expectErr: true,
+			expectValidateErr: true,
 		},
-	} {
-		mod := new(PDFEngines)
-		mod.names = tc.names
-		mod.engines = tc.engines
-		err := mod.Validate()
+		{
+			name:              "no PDF engine",
+			expectValidateErr: true,
+		},
+	}
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mod := PDFEngines{
+				names:   tc.names,
+				engines: tc.engines,
+			}
 
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
+			err := mod.Validate()
+
+			if tc.expectValidateErr && err == nil {
+				t.Errorf("expected mod.Validate() error, but got none")
+			}
+
+			if !tc.expectValidateErr && err != nil {
+				t.Errorf("expected no error from mod.Validate(), but got: %v", err)
+			}
+		})
 	}
 }
 
@@ -259,76 +365,81 @@ func TestPDFEngines_SystemMessages(t *testing.T) {
 
 	messages := mod.SystemMessages()
 	if len(messages) != 1 {
-		t.Errorf("expected one and only one message but got %d", len(messages))
+		t.Errorf("expected one and only one message from mod.SystemMessages(), but got %d", len(messages))
 	}
 
 	expect := strings.Join(mod.names[:], " ")
 	if messages[0] != expect {
-		t.Errorf("expected message '%s' but got '%s'", expect, messages[0])
+		t.Errorf("expected message '%s' from mod.SystemMessages(), but got '%s'", expect, messages[0])
 	}
 }
 
-func TestPDFEngine_PDFEngine(t *testing.T) {
-	mod := new(PDFEngines)
-	mod.names = []string{"foo", "bar"}
-	mod.engines = func() []gotenberg.PDFEngine {
-		engine1 := struct{ ProtoPDFEngine }{}
-		engine1.descriptor = func() gotenberg.ModuleDescriptor {
-			return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return engine1 }}
-		}
+func TestPDFEngines_PDFEngine(t *testing.T) {
+	mod := PDFEngines{
+		names: []string{"foo", "bar"},
+		engines: func() []gotenberg.PDFEngine {
+			engine1 := struct {
+				gotenberg.ModuleMock
+				gotenberg.PDFEngineMock
+			}{}
+			engine1.DescriptorMock = func() gotenberg.ModuleDescriptor {
+				return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return engine1 }}
+			}
 
-		engine2 := struct{ ProtoPDFEngine }{}
-		engine2.descriptor = func() gotenberg.ModuleDescriptor {
-			return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return engine2 }}
-		}
+			engine2 := struct {
+				gotenberg.ModuleMock
+				gotenberg.PDFEngineMock
+			}{}
+			engine2.DescriptorMock = func() gotenberg.ModuleDescriptor {
+				return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return engine2 }}
+			}
 
-		return []gotenberg.PDFEngine{
-			engine1,
-			engine2,
-		}
-	}()
+			return []gotenberg.PDFEngine{
+				engine1,
+				engine2,
+			}
+		}(),
+	}
 
 	_, err := mod.PDFEngine()
 	if err != nil {
-		t.Errorf("expected no error but got: %v", err)
+		t.Errorf("expected no error from mod.PDFEngine, but got: %v", err)
 	}
 }
 
-func TestPDFEngine_Routes(t *testing.T) {
-	for i, tc := range []struct {
-		expectRoutes  int
-		disableRoutes bool
+func TestPDFEngines_Routes(t *testing.T) {
+	tests := []struct {
+		name              string
+		mod               PDFEngines
+		expectRoutesCount int
 	}{
 		{
-			expectRoutes: 2,
+			name: "route not disabled",
+			mod: PDFEngines{
+				engines: []gotenberg.PDFEngine{
+					gotenberg.PDFEngineMock{},
+				},
+			},
+			expectRoutesCount: 2,
 		},
 		{
-			disableRoutes: true,
+			name: "route disabled",
+			mod: PDFEngines{
+				disableRoutes: true,
+			},
 		},
-	} {
-		mod := new(PDFEngines)
-		mod.engines = []gotenberg.PDFEngine{
-			struct{ ProtoPDFEngine }{},
-		}
-		mod.disableRoutes = tc.disableRoutes
+	}
 
-		routes, err := mod.Routes()
-		if err != nil {
-			t.Fatalf("test %d: expected no error but got: %v", i, err)
-		}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			routes, err := tc.mod.Routes()
+			if err != nil {
+				t.Fatalf("expected no error from mod.Routes(), but got: %v", err)
+			}
 
-		if tc.expectRoutes != len(routes) {
-			t.Errorf("test %d: expected %d routes but got %d", i, tc.expectRoutes, len(routes))
-		}
+			if tc.expectRoutesCount != len(routes) {
+				t.Errorf("expected %d routes from mod.Routes(), but got %d", tc.expectRoutesCount, len(routes))
+			}
+		})
 	}
 }
-
-// Interface guards.
-var (
-	_ gotenberg.Module    = (*ProtoModule)(nil)
-	_ gotenberg.Validator = (*ProtoValidator)(nil)
-	_ gotenberg.Module    = (*ProtoValidator)(nil)
-	_ gotenberg.PDFEngine = (*ProtoPDFEngine)(nil)
-	_ gotenberg.Module    = (*ProtoPDFEngine)(nil)
-	_ gotenberg.Validator = (*ProtoPDFEngine)(nil)
-)

@@ -53,6 +53,18 @@ func (mod *PDFEngines) Provision(ctx *gotenberg.Context) error {
 	names := flags.MustStringSlice("pdfengines-engines")
 	mod.disableRoutes = flags.MustBool("pdfengines-disable-routes")
 
+	loggerProvider, err := ctx.Module(new(gotenberg.LoggerProvider))
+	if err != nil {
+		return fmt.Errorf("get logger provider: %w", err)
+	}
+
+	logger, err := loggerProvider.(gotenberg.LoggerProvider).Logger(mod)
+	if err != nil {
+		return fmt.Errorf("get logger: %w", err)
+	}
+
+	logger = logger.Named("pdfengines")
+
 	engines, err := ctx.Modules(new(gotenberg.PDFEngine))
 	if err != nil {
 		return fmt.Errorf("get PDF engines: %w", err)
@@ -67,6 +79,13 @@ func (mod *PDFEngines) Provision(ctx *gotenberg.Context) error {
 	if len(names) > 0 {
 		// Selection from user.
 		mod.names = names
+
+		for i, name := range names {
+			logger.Warn("unoconv-pdfengine is deprecated; prefer uno-pdfengine instead")
+			if name == "unoconv-pdfengine" {
+				mod.names[i] = "uno-pdfengine"
+			}
+		}
 
 		return nil
 	}
