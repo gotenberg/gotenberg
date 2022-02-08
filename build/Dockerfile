@@ -131,8 +131,8 @@ RUN \
     # unoconv will look for the Python binary, which has to be at version 3.
     ln -s /usr/bin/python3 /usr/bin/python &&\
     # Download PDFtk.
-    # See https://github.com/gotenberg/gotenberg/pull/273.
-    curl -o /usr/bin/pdftk-all.jar "https://gitlab.com/pdftk-java/pdftk/-/jobs/$PDFTK_VERSION/artifacts/raw/build/libs/pdftk-all.jar" &&\
+    # See https://github.com/gotenberg/gotenberg/pull/273. \
+    curl -o /usr/bin/pdftk-all.jar "https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/$PDFTK_VERSION/pdftk-all.jar" &&\
     chmod a+x /usr/bin/pdftk-all.jar &&\
     # Download QPDF.
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends qpdf &&\
