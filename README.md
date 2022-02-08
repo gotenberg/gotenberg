@@ -43,4 +43,3 @@ Head to the [documentation](https://gotenberg.dev/docs/about) to learn how to in
 [![Continuous Integration](https://github.com/gotenberg/gotenberg/actions/workflows/continuous_integration.yml/badge.svg)](https://github.com/gotenberg/gotenberg/actions/workflows/continuous_integration.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/gotenberg/gotenberg.svg)](https://pkg.go.dev/github.com/gotenberg/gotenberg/v7)
 [![Codecov](https://codecov.io/gh/gotenberg/gotenberg/branch/main/graph/badge.svg)](https://codecov.io/gh/gotenberg/gotenberg)
-[![Go Report Card](https://goreportcard.com/badge/github.com/gotenberg/gotenberg)](https://goreportcard.com/report/gotenberg/gotenberg)
