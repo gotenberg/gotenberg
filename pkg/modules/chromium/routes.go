@@ -130,10 +130,8 @@ func convertURLRoute(chromium API, engine gotenberg.PDFEngine) api.Route {
 			form, options := FormDataChromiumPDFOptions(ctx)
 
 			var (
-				URL         string
-				PDFformat   string
-				linkPaths   []string
-				scriptPaths []string
+				URL       string
+				PDFformat string
 			)
 
 			err := form.
@@ -163,175 +161,11 @@ func convertURLRoute(chromium API, engine gotenberg.PDFEngine) api.Route {
 
 					return nil
 				}).
-				Paths([]string{".woff2", ".woff", ".ttf", ".css"}, &linkPaths).
-				Paths([]string{".js"}, &scriptPaths).
 				Validate()
 
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
-
-			// Thanks to Options.LinkTags and Options.ScriptTags, one may
-			// "hijack" the content of a remote HTML document (for instance, a
-			// website) by loading external assets like scripts or CSS
-			// stylesheets.
-			//
-			// There are two possibilities:
-			//
-			// 1. We auto-detect all files sent in the request that match the
-			// following file extensions: ".woff2", ".woff", ".ttf", ".css",
-			// ".css", and ".js".
-			//
-			// 2. The user has sent both files and a JSON mapping via the
-			// "extraLinkTags" and/or "extraScriptTags" form fields. In such a
-			// scenario, the JSON mapping has the priority for ordering, and
-			// files which are a not mapped are added at the end. The user may
-			// also have sent remote URLs in the JSON mapping.
-
-			// First, let's handle the HTML <link> elements.
-			hasExtraLinkTags := len(options.ExtraLinkTags) > 0
-			hasLinkPaths := len(linkPaths) > 0
-
-			if !hasExtraLinkTags && hasLinkPaths {
-				// First scenario: there is no JSON mapping, we simply add the
-				// paths.
-				options.ExtraLinkTags = make([]LinkTag, len(linkPaths))
-
-				for i, path := range linkPaths {
-					options.ExtraLinkTags[i] = LinkTag{
-						Href: filepath.Base(path),
-					}
-				}
-			} else if hasExtraLinkTags && hasLinkPaths {
-				// Second scenario: there are both files and a JSON mapping.
-
-				// First, find the filenames of the files.
-				filenames := make([]string, len(linkPaths))
-				for i, path := range linkPaths {
-					filenames[i] = filepath.Base(path)
-				}
-
-				var extraLinkTags []LinkTag
-
-				// Then, let's find the filenames that exist in the JSON
-				// mapping, plus the entries that do only exist in the JSON
-				// mapping.
-				for _, linkTagFromMapping := range options.ExtraLinkTags {
-					found := false
-
-					for _, filename := range filenames {
-						if linkTagFromMapping.Href == filename {
-							extraLinkTags = append(extraLinkTags, linkTagFromMapping)
-							found = true
-
-							break
-						}
-					}
-
-					if !found {
-						// This entry only exist in the JSON mapping.
-						extraLinkTags = append(extraLinkTags, linkTagFromMapping)
-					}
-				}
-
-				// Then, add the remaining filenames.
-				for _, filename := range filenames {
-					found := false
-
-					for _, linkTag := range extraLinkTags {
-						if linkTag.Href == filename {
-							found = true
-
-							break
-						}
-					}
-
-					if !found {
-						extraLinkTags = append(extraLinkTags, LinkTag{
-							Href: filename,
-						})
-					}
-				}
-
-				// Last but not least, update the options.
-				options.ExtraLinkTags = extraLinkTags
-			}
-
-			// Next, let's handle the HTML <script> elements.
-			hasExtraScriptTags := len(options.ExtraScriptTags) > 0
-			hasScriptPaths := len(scriptPaths) > 0
-
-			if !hasExtraScriptTags && hasScriptPaths {
-				// First scenario: there is no JSON mapping, we simply add the
-				// paths.
-				options.ExtraScriptTags = make([]ScriptTag, len(scriptPaths))
-
-				for i, path := range scriptPaths {
-					options.ExtraScriptTags[i] = ScriptTag{
-						Src: filepath.Base(path),
-					}
-				}
-			} else if hasExtraScriptTags && hasScriptPaths {
-				// Second scenario: there are both files and a JSON mapping.
-
-				// First, find the filenames of the files.
-				filenames := make([]string, len(scriptPaths))
-				for i, path := range scriptPaths {
-					filenames[i] = filepath.Base(path)
-				}
-
-				var extraScriptTags []ScriptTag
-
-				// Then, let's find the filenames that exist in the JSON
-				// mapping, plus the entries that do only exist in the JSON
-				// mapping.
-				for _, scriptTagFromMapping := range options.ExtraScriptTags {
-					found := false
-
-					for _, filename := range filenames {
-						if scriptTagFromMapping.Src == filename {
-							extraScriptTags = append(extraScriptTags, scriptTagFromMapping)
-							found = true
-
-							break
-						}
-					}
-
-					if !found {
-						// This entry only exist in the JSON mapping.
-						extraScriptTags = append(extraScriptTags, scriptTagFromMapping)
-					}
-				}
-
-				// Then, add the remaining filenames.
-				for _, filename := range filenames {
-					found := false
-
-					for _, scriptTag := range extraScriptTags {
-						if scriptTag.Src == filename {
-							found = true
-
-							break
-						}
-					}
-
-					if !found {
-						extraScriptTags = append(extraScriptTags, ScriptTag{
-							Src: filename,
-						})
-					}
-				}
-
-				// Last but not least, update the options.
-				options.ExtraScriptTags = extraScriptTags
-			}
-
-			// For both <link> and <script> HTML elements, other scenarios are:
-			//
-			// 1. No files and no JSON mapping.
-			// 2. No files but JSON mapping.
-			//
-			// Nothing to do in such cases.
 
 			err = convertURL(ctx, chromium, engine, URL, PDFformat, options)
 			if err != nil {

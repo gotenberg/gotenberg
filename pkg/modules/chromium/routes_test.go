@@ -3,7 +3,6 @@ package chromium
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"os"
 	"reflect"
@@ -215,90 +214,6 @@ func TestConvertURLHandler(t *testing.T) {
 					"url": {
 						"foo",
 					},
-				})
-				ctx.SetFiles(map[string]string{
-					"b.css":  "/b.css",
-					"a.woff": "/a.woff",
-				})
-
-				return ctx
-			}(),
-			api: func() API {
-				chromiumAPI := struct{ ProtoAPI }{}
-				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, options Options) error {
-					expectOptions := DefaultOptions()
-					expectOptions.ExtraLinkTags = []LinkTag{
-						{
-							Href: "a.woff",
-						},
-						{
-							Href: "b.css",
-						},
-					}
-
-					if !reflect.DeepEqual(options, expectOptions) {
-						return fmt.Errorf("expected options %+v, but got: %+v", expectOptions, options)
-					}
-
-					return nil
-				}
-
-				return chromiumAPI
-			}(),
-			expectOutputPathsCount: 1,
-		},
-		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
-				ctx.SetValues(map[string][]string{
-					"url": {
-						"foo",
-					},
-					"extraLinkTags": {
-						`[{"href":"https://cdn.foo"},{"href":"b.css"}]`,
-					},
-				})
-				ctx.SetFiles(map[string]string{
-					"b.css":  "/b.css",
-					"a.woff": "/a.woff",
-				})
-
-				return ctx
-			}(),
-			api: func() API {
-				chromiumAPI := struct{ ProtoAPI }{}
-				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, options Options) error {
-					expectOptions := DefaultOptions()
-					expectOptions.ExtraLinkTags = []LinkTag{
-						{
-							Href: "https://cdn.foo",
-						},
-						{
-							Href: "b.css",
-						},
-						{
-							Href: "a.woff",
-						},
-					}
-
-					if !reflect.DeepEqual(options, expectOptions) {
-						return fmt.Errorf("expected options %+v, but got: %+v", expectOptions, options)
-					}
-
-					return nil
-				}
-
-				return chromiumAPI
-			}(),
-			expectOutputPathsCount: 1,
-		},
-		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
-				ctx.SetValues(map[string][]string{
-					"url": {
-						"foo",
-					},
 					"extraScriptTags": {
 						"foo",
 					},
@@ -325,76 +240,19 @@ func TestConvertURLHandler(t *testing.T) {
 					"url": {
 						"foo",
 					},
-				})
-				ctx.SetFiles(map[string]string{
-					"b.js": "/b.js",
-					"a.js": "/a.js",
-				})
-
-				return ctx
-			}(),
-			api: func() API {
-				chromiumAPI := struct{ ProtoAPI }{}
-				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, options Options) error {
-					expectOptions := DefaultOptions()
-					expectOptions.ExtraScriptTags = []ScriptTag{
-						{
-							Src: "a.js",
-						},
-						{
-							Src: "b.js",
-						},
-					}
-
-					if !reflect.DeepEqual(options, expectOptions) {
-						return fmt.Errorf("expected options %+v, but got: %+v", expectOptions, options)
-					}
-
-					return nil
-				}
-
-				return chromiumAPI
-			}(),
-			expectOutputPathsCount: 1,
-		},
-		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
-				ctx.SetValues(map[string][]string{
-					"url": {
-						"foo",
+					"extraLinkTags": {
+						`[{"href":"https://cdn.foo/foo.css"},{"href":"https://cdn.bar/bar.css"}]`,
 					},
 					"extraScriptTags": {
-						`[{"src":"https://cdn.foo"},{"src":"b.js"}]`,
+						`[{"src":"https://cdn.foo/foo.js"},{"src":"https://cdn.bar/bar.js"}]`,
 					},
-				})
-				ctx.SetFiles(map[string]string{
-					"b.js": "/b.js",
-					"a.js": "/a.js",
 				})
 
 				return ctx
 			}(),
 			api: func() API {
 				chromiumAPI := struct{ ProtoAPI }{}
-				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, options Options) error {
-					expectOptions := DefaultOptions()
-					expectOptions.ExtraScriptTags = []ScriptTag{
-						{
-							Src: "https://cdn.foo",
-						},
-						{
-							Src: "b.js",
-						},
-						{
-							Src: "a.js",
-						},
-					}
-
-					if !reflect.DeepEqual(options, expectOptions) {
-						return fmt.Errorf("expected options %+v, but got: %+v", expectOptions, options)
-					}
-
+				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ Options) error {
 					return nil
 				}
 
