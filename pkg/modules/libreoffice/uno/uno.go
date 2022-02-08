@@ -179,10 +179,10 @@ func (mod UNO) Start() error {
 // StartupMessage returns a custom startup message.
 func (mod UNO) StartupMessage() string {
 	if mod.libreOfficeRestartThreshold == 0 {
-		return "Long-running LibreOffice listener disabled"
+		return "long-running LibreOffice listener disabled"
 	}
 
-	return "Long-running LibreOffice listener started"
+	return "long-running LibreOffice listener started"
 }
 
 // Stop stops the long-running LibreOffice Listener if it exists.
@@ -288,10 +288,6 @@ func (mod UNO) Checks() ([]health.CheckerOption, error) {
 
 				return errors.New("long-running LibreOffice listener unhealthy")
 			},
-			// The long-running LibreOffice listener may be restarting, so we
-			// wait a given amount of time until we consider the module
-			// unavailable.
-			MaxTimeInError: mod.libreOfficeStartTimeout,
 		}),
 	}, nil
 }
@@ -339,6 +335,8 @@ func (mod UNO) PDF(ctx context.Context, logger *zap.Logger, inputPath, outputPat
 				err := mod.listener.unlock(logger)
 				if err != nil {
 					mod.logger.Error(fmt.Sprintf("unlock long-running LibreOffice listener: %v", err))
+
+					return
 				}
 			}()
 		}()

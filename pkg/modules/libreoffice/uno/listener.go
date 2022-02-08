@@ -15,6 +15,7 @@ import (
 type listener interface {
 	start(logger *zap.Logger) error
 	stop(logger *zap.Logger) error
+	restart(logger *zap.Logger) error
 	lock(ctx context.Context, logger *zap.Logger) error
 	unlock(logger *zap.Logger) error
 	port() int
@@ -33,6 +34,8 @@ type libreOfficeListener struct {
 	cfgMu              sync.RWMutex
 
 	usage         int
+	restarting    bool
+	restartingMu  sync.RWMutex
 	queueLength   int
 	queueLengthMu sync.RWMutex
 	lockChan      chan struct{}
@@ -106,8 +109,12 @@ func (listener *libreOfficeListener) start(logger *zap.Logger) error {
 			return fmt.Errorf("waiting for the LibreOffice listener socket to be available: %w", ctx.Err())
 		}
 
-		_, err = net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), time.Duration(1)*time.Second)
+		conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), time.Duration(1)*time.Second)
 		if err == nil {
+			err = conn.Close()
+			if err != nil {
+				logger.Debug(fmt.Sprintf("close connection after health checking the LibreOffice listener: %v", err))
+			}
 			break
 		}
 	}
@@ -149,6 +156,32 @@ func (listener *libreOfficeListener) stop(logger *zap.Logger) error {
 	return nil
 }
 
+func (listener *libreOfficeListener) restart(logger *zap.Logger) error {
+	listener.restartingMu.Lock()
+	listener.restarting = true
+	listener.restartingMu.Unlock()
+
+	defer func() {
+		listener.restartingMu.Lock()
+		listener.restarting = false
+		listener.restartingMu.Unlock()
+	}()
+
+	err := listener.stop(logger)
+	if err != nil {
+		return fmt.Errorf("stop LibreOffice listener: %w", err)
+	}
+
+	err = listener.start(logger)
+	if err != nil {
+		return fmt.Errorf("start LibreOffice listener: %w", err)
+	}
+
+	listener.usage = 0
+
+	return nil
+}
+
 func (listener *libreOfficeListener) lock(ctx context.Context, logger *zap.Logger) error {
 	listener.queueLengthMu.Lock()
 	listener.queueLength += 1
@@ -161,6 +194,17 @@ func (listener *libreOfficeListener) lock(ctx context.Context, logger *zap.Logge
 		listener.queueLengthMu.Lock()
 		listener.queueLength -= 1
 		listener.queueLengthMu.Unlock()
+
+		if !listener.healthy() {
+			logger.Debug("LibreOffice listener is unhealthy, restarting it...")
+
+			err := listener.restart(logger)
+			if err == nil {
+				return nil
+			}
+
+			return fmt.Errorf("restart LibreOffice listener: %w", err)
+		}
 
 		return nil
 	case <-ctx.Done():
@@ -175,22 +219,6 @@ func (listener *libreOfficeListener) lock(ctx context.Context, logger *zap.Logge
 }
 
 func (listener *libreOfficeListener) unlock(logger *zap.Logger) error {
-	restart := func() error {
-		err := listener.stop(logger)
-		if err != nil {
-			return fmt.Errorf("stop LibreOffice listener: %w", err)
-		}
-
-		err = listener.start(logger)
-		if err != nil {
-			return fmt.Errorf("start LibreOffice listener: %w", err)
-		}
-
-		listener.usage = 0
-
-		return nil
-	}
-
 	defer func() {
 		<-listener.lockChan
 		logger.Debug("LibreOffice listener lock released")
@@ -199,7 +227,7 @@ func (listener *libreOfficeListener) unlock(logger *zap.Logger) error {
 	if !listener.healthy() {
 		logger.Debug("LibreOffice listener is unhealthy, restarting it...")
 
-		err := restart()
+		err := listener.restart(logger)
 		if err == nil {
 			return nil
 		}
@@ -214,7 +242,7 @@ func (listener *libreOfficeListener) unlock(logger *zap.Logger) error {
 
 	logger.Debug("LibreOffice listener threshold reached, restarting it...")
 
-	err := restart()
+	err := listener.restart(logger)
 	if err == nil {
 		return nil
 	}
@@ -237,9 +265,24 @@ func (listener *libreOfficeListener) queue() int {
 }
 
 func (listener *libreOfficeListener) healthy() bool {
-	_, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", listener.port()), time.Duration(1)*time.Second)
+	listener.restartingMu.RLock()
+	defer listener.restartingMu.RUnlock()
 
-	return err == nil
+	if listener.restarting {
+		return true
+	}
+
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", listener.port()), time.Duration(1)*time.Second)
+	if err == nil {
+		err := conn.Close()
+		if err != nil {
+			listener.logger.Debug(fmt.Sprintf("close connection after health checking the LibreOffice listener: %v", err))
+		}
+
+		return true
+	}
+
+	return false
 }
 
 // Interface guards.

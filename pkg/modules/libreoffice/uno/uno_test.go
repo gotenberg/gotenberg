@@ -258,14 +258,14 @@ func TestUNO_StartupMessage(t *testing.T) {
 			mod: UNO{
 				libreOfficeRestartThreshold: 10,
 			},
-			expectMessage: "Long-running LibreOffice listener started",
+			expectMessage: "long-running LibreOffice listener started",
 		},
 		{
 			name: "long-running LibreOffice listener disabled",
 			mod: UNO{
 				libreOfficeRestartThreshold: 0,
 			},
-			expectMessage: "Long-running LibreOffice listener disabled",
+			expectMessage: "long-running LibreOffice listener disabled",
 		},
 	}
 
@@ -755,7 +755,7 @@ func TestUNO_PDF(t *testing.T) {
 				},
 				logger: zap.NewNop(),
 			},
-			ctx:          nil,
+			ctx:          context.Background(),
 			logger:       zap.NewNop(),
 			inputPath:    "/tests/test/testdata/libreoffice/sample1.docx",
 			expectPDFErr: true,
@@ -824,6 +824,7 @@ func TestUNO_UNO(t *testing.T) {
 type listenerMock struct {
 	startMock   func(logger *zap.Logger) error
 	stopMock    func(logger *zap.Logger) error
+	restartMock func(logger *zap.Logger) error
 	lockMock    func(ctx context.Context, logger *zap.Logger) error
 	unlockMock  func(logger *zap.Logger) error
 	portMock    func() int
@@ -837,6 +838,10 @@ func (listener listenerMock) start(logger *zap.Logger) error {
 
 func (listener listenerMock) stop(logger *zap.Logger) error {
 	return listener.stopMock(logger)
+}
+
+func (listener listenerMock) restart(logger *zap.Logger) error {
+	return listener.restartMock(logger)
 }
 
 func (listener listenerMock) lock(ctx context.Context, logger *zap.Logger) error {

@@ -2,7 +2,6 @@ package uno
 
 import (
 	"context"
-	"errors"
 	"os"
 	"testing"
 	"time"
@@ -74,7 +73,7 @@ func TestListener_stop(t *testing.T) {
 	}
 }
 
-func TestListener_lock(t *testing.T) {
+func TestListener_restart(t *testing.T) {
 	listener := newLibreOfficeListener(
 		zap.NewNop(),
 		os.Getenv("LIBREOFFICE_BIN_PATH"),
@@ -82,18 +81,112 @@ func TestListener_lock(t *testing.T) {
 		10,
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(10)*time.Second)
-
-	err := listener.lock(ctx, zap.NewNop())
+	err := listener.start(zap.NewNop())
 	if err != nil {
-		t.Fatalf("expected no error from listener.lock(), but got: %v", err)
+		t.Fatalf("expected no error from listener.start(), but got: %v", err)
 	}
 
-	cancel()
+	err = listener.restart(zap.NewNop())
+	if err != nil {
+		t.Errorf("expected no error from listener.stop(), but got: %v", err)
+	}
 
-	err = listener.lock(ctx, zap.NewNop())
-	if !errors.Is(err, context.Canceled) {
-		t.Errorf("expected %v error, but got: %v", context.Canceled, err)
+	if !listener.healthy() {
+		t.Error("expected an healthy LibreOffice listener")
+	}
+}
+
+func TestListener_lock(t *testing.T) {
+	tests := []struct {
+		name          string
+		listener      listener
+		ctx           context.Context
+		teardown      func(listener listener) error
+		expectLockErr bool
+	}{
+		{
+			name: "nominal behavior",
+			listener: func() listener {
+				listener := newLibreOfficeListener(zap.NewNop(), os.Getenv("LIBREOFFICE_BIN_PATH"), time.Duration(10)*time.Second, 10)
+
+				err := listener.start(zap.NewNop())
+				if err != nil {
+					t.Fatalf("expected no error from listener.start(), but got: %v", err)
+				}
+
+				return listener
+			}(),
+			ctx: context.Background(),
+			teardown: func(listener listener) error {
+				return listener.stop(zap.NewNop())
+			},
+		},
+		{
+			name: "unhealthy listener",
+			listener: func() listener {
+				listener := newLibreOfficeListener(zap.NewNop(), os.Getenv("LIBREOFFICE_BIN_PATH"), time.Duration(10)*time.Second, 10)
+
+				err := listener.start(zap.NewNop())
+				if err != nil {
+					t.Fatalf("expected no error from listener.start(), but got: %v", err)
+				}
+
+				err = listener.stop(zap.NewNop())
+				if err != nil {
+					t.Fatalf("expected no error from listener.stop(), but got: %v", err)
+				}
+
+				return listener
+			}(),
+			ctx: context.Background(),
+			teardown: func(listener listener) error {
+				return listener.stop(zap.NewNop())
+			},
+		},
+		{
+			name: "context done",
+			listener: func() listener {
+				listener := newLibreOfficeListener(zap.NewNop(), os.Getenv("LIBREOFFICE_BIN_PATH"), time.Duration(10)*time.Second, 10)
+
+				err := listener.start(zap.NewNop())
+				if err != nil {
+					t.Fatalf("expected no error from listener.start(), but got: %v", err)
+				}
+
+				return listener
+			}(),
+			ctx: func() context.Context {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+
+				return ctx
+			}(),
+			expectLockErr: true,
+			teardown: func(listener listener) error {
+				return listener.stop(zap.NewNop())
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				err := tc.teardown(tc.listener)
+				if err != nil {
+					t.Errorf("expected no error from tc.teardown(), but got: %v", err)
+				}
+			}()
+
+			err := tc.listener.lock(tc.ctx, zap.NewNop())
+
+			if tc.expectLockErr && err == nil {
+				t.Fatalf("expected listener.lock() error, but got none")
+			}
+
+			if !tc.expectLockErr && err != nil {
+				t.Fatalf("expected no error from listener.lock(), but got: %v", err)
+			}
+		})
 	}
 }
 
@@ -112,6 +205,12 @@ func TestListener_unlock(t *testing.T) {
 				if err != nil {
 					t.Fatalf("expected no error from listener.start(), but got: %v", err)
 				}
+
+				err = listener.lock(context.Background(), zap.NewNop())
+				if err != nil {
+					t.Fatalf("expected no error from listener.lock(), but got: %v", err)
+				}
+
 				return listener
 			}(),
 			teardown: func(listener listener) error {
@@ -126,6 +225,11 @@ func TestListener_unlock(t *testing.T) {
 				err := listener.start(zap.NewNop())
 				if err != nil {
 					t.Fatalf("expected no error from listener.start(), but got: %v", err)
+				}
+
+				err = listener.lock(context.Background(), zap.NewNop())
+				if err != nil {
+					t.Fatalf("expected no error from listener.lock(), but got: %v", err)
 				}
 
 				err = listener.stop(zap.NewNop())
@@ -148,6 +252,12 @@ func TestListener_unlock(t *testing.T) {
 				if err != nil {
 					t.Fatalf("expected no error from listener.start(), but got: %v", err)
 				}
+
+				err = listener.lock(context.Background(), zap.NewNop())
+				if err != nil {
+					t.Fatalf("expected no error from listener.lock(), but got: %v", err)
+				}
+
 				return listener
 			}(),
 			teardown: func(listener listener) error {
@@ -158,22 +268,16 @@ func TestListener_unlock(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(10)*time.Second)
-			defer cancel()
+			defer func() {
+				err := tc.teardown(tc.listener)
+				if err != nil {
+					t.Errorf("expected no error from tc.teardown(), but got: %v", err)
+				}
+			}()
 
-			err := tc.listener.lock(ctx, zap.NewNop())
-			if err != nil {
-				t.Fatalf("expected no error from listener.lock(), but got: %v", err)
-			}
-
-			err = tc.listener.unlock(zap.NewNop())
+			err := tc.listener.unlock(zap.NewNop())
 			if err != nil {
 				t.Errorf("expected no error from listener.unlock(), but got: %v", err)
-			}
-
-			err = tc.teardown(tc.listener)
-			if err != nil {
-				t.Errorf("expected no error from tc.teardown(), but got: %v", err)
 			}
 		})
 	}
@@ -211,6 +315,18 @@ func TestListener_queue(t *testing.T) {
 		10,
 	)
 
+	err := listener.start(zap.NewNop())
+	if err != nil {
+		t.Fatalf("expected no error from listener.start(), but got: %v", err)
+	}
+
+	defer func() {
+		err := listener.stop(zap.NewNop())
+		if err != nil {
+			t.Errorf("expected no error from listener.stop(), but got: %v", err)
+		}
+	}()
+
 	queueLength := listener.queue()
 	if queueLength != 0 {
 		t.Fatalf("expected a zero value from listener.queue(), but got %d", queueLength)
@@ -218,7 +334,7 @@ func TestListener_queue(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(10)*time.Second)
 
-	err := listener.lock(ctx, zap.NewNop())
+	err = listener.lock(ctx, zap.NewNop())
 	if err != nil {
 		t.Fatalf("expected no error from listener.lock(), but got: %v", err)
 	}
@@ -261,12 +377,13 @@ func TestListener_queue(t *testing.T) {
 }
 
 func TestListener_healthy(t *testing.T) {
-	listener := newLibreOfficeListener(
-		zap.NewNop(),
-		os.Getenv("LIBREOFFICE_BIN_PATH"),
-		time.Duration(10)*time.Second,
-		10,
-	)
+	listener := &libreOfficeListener{
+		binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
+		startTimeout: time.Duration(10) * time.Second,
+		threshold:    10,
+		lockChan:     make(chan struct{}, 1),
+		logger:       zap.NewNop(),
+	}
 
 	err := listener.start(zap.NewNop())
 	if err != nil {
@@ -284,5 +401,11 @@ func TestListener_healthy(t *testing.T) {
 
 	if listener.healthy() {
 		t.Errorf("expected a non-healthy LibreOffice listener")
+	}
+
+	listener.restarting = true
+
+	if !listener.healthy() {
+		t.Error("expected an healthy LibreOffice listener")
 	}
 }
