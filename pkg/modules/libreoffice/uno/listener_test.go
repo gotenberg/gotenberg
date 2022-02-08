@@ -153,6 +153,11 @@ func TestListener_lock(t *testing.T) {
 					t.Fatalf("expected no error from listener.start(), but got: %v", err)
 				}
 
+				err = listener.lock(context.Background(), zap.NewNop())
+				if err != nil {
+					t.Fatalf("expected no error from listener.lock(), but got: %v", err)
+				}
+
 				return listener
 			}(),
 			ctx: func() context.Context {
