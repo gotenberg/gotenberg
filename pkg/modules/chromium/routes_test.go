@@ -16,16 +16,16 @@ import (
 
 func TestFormDataChromiumPDFOptions(t *testing.T) {
 	for i, tc := range []struct {
-		ctx     *api.MockContext
+		ctx     *api.ContextMock
 		options Options
 	}{
 		{
-			ctx:     &api.MockContext{Context: &api.Context{}},
+			ctx:     &api.ContextMock{Context: &api.Context{}},
 			options: DefaultOptions(),
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetValues(map[string][]string{
 					"extraHttpHeaders": {
 						"foo",
@@ -37,8 +37,8 @@ func TestFormDataChromiumPDFOptions(t *testing.T) {
 			options: DefaultOptions(),
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetValues(map[string][]string{
 					"extraHttpHeaders": {
 						`{"foo":"bar"}`,
@@ -57,8 +57,8 @@ func TestFormDataChromiumPDFOptions(t *testing.T) {
 			}(),
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetValues(map[string][]string{
 					"extraHttpHeaders": {
 						"foo",
@@ -70,8 +70,8 @@ func TestFormDataChromiumPDFOptions(t *testing.T) {
 			options: DefaultOptions(),
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetValues(map[string][]string{
 					"emulatedMediaType": {
 						"foo",
@@ -83,8 +83,8 @@ func TestFormDataChromiumPDFOptions(t *testing.T) {
 			options: DefaultOptions(),
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetValues(map[string][]string{
 					"emulatedMediaType": {
 						"screen",
@@ -111,7 +111,7 @@ func TestFormDataChromiumPDFOptions(t *testing.T) {
 
 func TestConvertURLHandler(t *testing.T) {
 	for i, tc := range []struct {
-		ctx                    *api.MockContext
+		ctx                    *api.ContextMock
 		api                    API
 		expectErr              bool
 		expectHTTPErr          bool
@@ -119,14 +119,14 @@ func TestConvertURLHandler(t *testing.T) {
 		expectOutputPathsCount int
 	}{
 		{
-			ctx:              &api.MockContext{Context: &api.Context{}},
+			ctx:              &api.ContextMock{Context: &api.Context{}},
 			expectErr:        true,
 			expectHTTPErr:    true,
 			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetValues(map[string][]string{
 					"url": {
 						"",
@@ -140,8 +140,8 @@ func TestConvertURLHandler(t *testing.T) {
 			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetValues(map[string][]string{
 					"url": {
 						"foo",
@@ -161,8 +161,8 @@ func TestConvertURLHandler(t *testing.T) {
 			expectErr: true,
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetValues(map[string][]string{
 					"url": {
 						"foo",
@@ -182,8 +182,8 @@ func TestConvertURLHandler(t *testing.T) {
 			expectOutputPathsCount: 1,
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetValues(map[string][]string{
 					"url": {
 						"foo",
@@ -208,8 +208,8 @@ func TestConvertURLHandler(t *testing.T) {
 			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetValues(map[string][]string{
 					"url": {
 						"foo",
@@ -234,8 +234,8 @@ func TestConvertURLHandler(t *testing.T) {
 			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetValues(map[string][]string{
 					"url": {
 						"foo",
@@ -300,7 +300,7 @@ func TestConvertURLHandler(t *testing.T) {
 
 func TestConvertHTMLHandler(t *testing.T) {
 	for i, tc := range []struct {
-		ctx                    *api.MockContext
+		ctx                    *api.ContextMock
 		api                    API
 		expectErr              bool
 		expectHTTPErr          bool
@@ -308,14 +308,14 @@ func TestConvertHTMLHandler(t *testing.T) {
 		expectOutputPathsCount int
 	}{
 		{
-			ctx:              &api.MockContext{Context: &api.Context{}},
+			ctx:              &api.ContextMock{Context: &api.Context{}},
 			expectErr:        true,
 			expectHTTPErr:    true,
 			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.html": "/foo/foo.html",
 				})
@@ -327,8 +327,8 @@ func TestConvertHTMLHandler(t *testing.T) {
 			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"index.html": "/foo/foo.html",
 				})
@@ -346,8 +346,8 @@ func TestConvertHTMLHandler(t *testing.T) {
 			expectErr: true,
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"index.html": "/foo/foo.html",
 				})
@@ -404,7 +404,7 @@ func TestConvertHTMLHandler(t *testing.T) {
 
 func TestConvertMarkdownHandler(t *testing.T) {
 	for i, tc := range []struct {
-		ctx                    *api.MockContext
+		ctx                    *api.ContextMock
 		api                    API
 		outputDir              string
 		expectErr              bool
@@ -413,14 +413,14 @@ func TestConvertMarkdownHandler(t *testing.T) {
 		expectOutputPathsCount int
 	}{
 		{
-			ctx:              &api.MockContext{Context: &api.Context{}},
+			ctx:              &api.ContextMock{Context: &api.Context{}},
 			expectErr:        true,
 			expectHTTPErr:    true,
 			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.html": "/foo/foo.html",
 				})
@@ -432,8 +432,8 @@ func TestConvertMarkdownHandler(t *testing.T) {
 			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"index.html": "/foo/foo.html",
 				})
@@ -445,8 +445,8 @@ func TestConvertMarkdownHandler(t *testing.T) {
 			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"index.html":  "/foo/foo.html",
 					"markdown.md": "/foo/markdown.md",
@@ -457,8 +457,8 @@ func TestConvertMarkdownHandler(t *testing.T) {
 			expectErr: true,
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"index.html":   "/tests/test/testdata/chromium/markdown/sample2/index.html",
 					"markdown1.md": "/foo/markdown1.md",
@@ -471,8 +471,8 @@ func TestConvertMarkdownHandler(t *testing.T) {
 			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"index.html":   "/tests/test/testdata/chromium/markdown/sample1/index.html",
 					"markdown1.md": "/foo/markdown1.md",
@@ -491,8 +491,8 @@ func TestConvertMarkdownHandler(t *testing.T) {
 			expectErr: true,
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"index.html":   "/tests/test/testdata/chromium/markdown/sample1/index.html",
 					"markdown1.md": "/tests/test/testdata/chromium/markdown/sample1/markdown1.md",
@@ -513,8 +513,8 @@ func TestConvertMarkdownHandler(t *testing.T) {
 			expectErr: true,
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 
 				ctx.SetDirPath("/tmp/foo")
 				ctx.SetFiles(map[string]string{
@@ -538,8 +538,8 @@ func TestConvertMarkdownHandler(t *testing.T) {
 			expectErr: true,
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 
 				ctx.SetDirPath("/tmp/foo")
 				ctx.SetFiles(map[string]string{
@@ -563,8 +563,8 @@ func TestConvertMarkdownHandler(t *testing.T) {
 			expectOutputPathsCount: 1,
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 
 				ctx.SetDirPath("/tmp/foo")
 				ctx.SetFiles(map[string]string{
@@ -642,7 +642,7 @@ func TestConvertMarkdownHandler(t *testing.T) {
 
 func TestConvertURL(t *testing.T) {
 	for i, tc := range []struct {
-		ctx                    *api.MockContext
+		ctx                    *api.ContextMock
 		api                    API
 		engine                 gotenberg.PDFEngine
 		PDFformat              string
@@ -653,7 +653,7 @@ func TestConvertURL(t *testing.T) {
 		expectOutputPathsCount int
 	}{
 		{
-			ctx: &api.MockContext{Context: &api.Context{}},
+			ctx: &api.ContextMock{Context: &api.Context{}},
 			api: func() API {
 				chromiumAPI := struct{ ProtoAPI }{}
 				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ Options) error {
@@ -668,7 +668,7 @@ func TestConvertURL(t *testing.T) {
 			expectHTTPStatus: http.StatusForbidden,
 		},
 		{
-			ctx: &api.MockContext{Context: &api.Context{}},
+			ctx: &api.ContextMock{Context: &api.Context{}},
 			api: func() API {
 				chromiumAPI := struct{ ProtoAPI }{}
 				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ Options) error {
@@ -681,7 +681,7 @@ func TestConvertURL(t *testing.T) {
 			expectErr: true,
 		},
 		{
-			ctx: &api.MockContext{Context: &api.Context{}},
+			ctx: &api.ContextMock{Context: &api.Context{}},
 			api: func() API {
 				chromiumAPI := struct{ ProtoAPI }{}
 				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ Options) error {
@@ -701,7 +701,7 @@ func TestConvertURL(t *testing.T) {
 			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
-			ctx: &api.MockContext{Context: &api.Context{}},
+			ctx: &api.ContextMock{Context: &api.Context{}},
 			api: func() API {
 				chromiumAPI := struct{ ProtoAPI }{}
 				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ Options) error {
@@ -716,7 +716,7 @@ func TestConvertURL(t *testing.T) {
 			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
-			ctx: &api.MockContext{Context: &api.Context{}},
+			ctx: &api.ContextMock{Context: &api.Context{}},
 			api: func() API {
 				chromiumAPI := struct{ ProtoAPI }{}
 				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ Options) error {
@@ -731,7 +731,7 @@ func TestConvertURL(t *testing.T) {
 			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
-			ctx: &api.MockContext{Context: &api.Context{}},
+			ctx: &api.ContextMock{Context: &api.Context{}},
 			api: func() API {
 				chromiumAPI := struct{ ProtoAPI }{}
 				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ Options) error {
@@ -746,7 +746,7 @@ func TestConvertURL(t *testing.T) {
 			expectHTTPStatus: http.StatusConflict,
 		},
 		{
-			ctx: &api.MockContext{Context: &api.Context{}},
+			ctx: &api.ContextMock{Context: &api.Context{}},
 			api: func() API {
 				chromiumAPI := struct{ ProtoAPI }{}
 				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ Options) error {
@@ -759,7 +759,7 @@ func TestConvertURL(t *testing.T) {
 			expectErr: true,
 		},
 		{
-			ctx: &api.MockContext{Context: &api.Context{}},
+			ctx: &api.ContextMock{Context: &api.Context{}},
 			api: func() API {
 				chromiumAPI := struct{ ProtoAPI }{}
 				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ Options) error {
@@ -782,7 +782,7 @@ func TestConvertURL(t *testing.T) {
 			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
-			ctx: &api.MockContext{Context: &api.Context{}},
+			ctx: &api.ContextMock{Context: &api.Context{}},
 			api: func() API {
 				chromiumAPI := struct{ ProtoAPI }{}
 				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ Options) error {
@@ -803,7 +803,7 @@ func TestConvertURL(t *testing.T) {
 			expectErr: true,
 		},
 		{
-			ctx: &api.MockContext{Context: &api.Context{}},
+			ctx: &api.ContextMock{Context: &api.Context{}},
 			api: func() API {
 				chromiumAPI := struct{ ProtoAPI }{}
 				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ Options) error {
@@ -824,8 +824,8 @@ func TestConvertURL(t *testing.T) {
 			expectOutputPathsCount: 1,
 		},
 		{
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetCancelled(true)
 
 				return ctx
@@ -842,7 +842,7 @@ func TestConvertURL(t *testing.T) {
 			expectErr: true,
 		},
 		{
-			ctx: &api.MockContext{Context: &api.Context{}},
+			ctx: &api.ContextMock{Context: &api.Context{}},
 			api: func() API {
 				chromiumAPI := struct{ ProtoAPI }{}
 				chromiumAPI.pdf = func(_ context.Context, _ *zap.Logger, _, _ string, _ Options) error {

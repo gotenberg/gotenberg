@@ -15,7 +15,7 @@ import (
 func TestMergeHandler(t *testing.T) {
 	tests := []struct {
 		name                   string
-		ctx                    *api.MockContext
+		ctx                    *api.ContextMock
 		engine                 gotenberg.PDFEngine
 		expectErr              bool
 		expectHTTPErr          bool
@@ -24,8 +24,8 @@ func TestMergeHandler(t *testing.T) {
 	}{
 		{
 			name: "nominal behavior",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.pdf": "/foo/foo.pdf",
 				})
@@ -41,15 +41,15 @@ func TestMergeHandler(t *testing.T) {
 		},
 		{
 			name:             "invalid form data: no PDF",
-			ctx:              &api.MockContext{Context: &api.Context{}},
+			ctx:              &api.ContextMock{Context: &api.Context{}},
 			expectErr:        true,
 			expectHTTPErr:    true,
 			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
 			name: "merge fail",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.pdf": "/foo/foo.pdf",
 				})
@@ -65,8 +65,8 @@ func TestMergeHandler(t *testing.T) {
 		},
 		{
 			name: "nominal behavior with a PDF format",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.pdf": "/foo/foo.pdf",
 				})
@@ -90,8 +90,8 @@ func TestMergeHandler(t *testing.T) {
 		},
 		{
 			name: "convert to PDF format fail",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.pdf": "/foo/foo.pdf",
 				})
@@ -115,8 +115,8 @@ func TestMergeHandler(t *testing.T) {
 		},
 		{
 			name: "invalid PDF format",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.pdf": "/foo/foo.pdf",
 				})
@@ -142,8 +142,8 @@ func TestMergeHandler(t *testing.T) {
 		},
 		{
 			name: "cannot add output paths",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.pdf": "/foo/foo.pdf",
 				})
@@ -203,7 +203,7 @@ func TestMergeHandler(t *testing.T) {
 func TestConvertHandler(t *testing.T) {
 	tests := []struct {
 		name                   string
-		ctx                    *api.MockContext
+		ctx                    *api.ContextMock
 		engine                 gotenberg.PDFEngine
 		expectErr              bool
 		expectHTTPErr          bool
@@ -212,8 +212,8 @@ func TestConvertHandler(t *testing.T) {
 	}{
 		{
 			name: "nominal behavior",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.pdf": "/foo/foo.pdf",
 				})
@@ -234,8 +234,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "nominal behavior, but with 3 PDFs",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.pdf": "/foo/foo.pdf",
 					"bar.pdf": "/bar/bar.pdf",
@@ -258,8 +258,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "invalid form data: no PDF",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetValues(map[string][]string{
 					"pdfFormat": {
 						gotenberg.FormatPDFA1a,
@@ -274,8 +274,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "invalid form data: no PDF format",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.pdf": "/foo/foo.pdf",
 				})
@@ -288,8 +288,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "convert to PDF format fail",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.pdf": "/foo/foo.pdf",
 				})
@@ -310,8 +310,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "PDF format not available",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.pdf": "/foo/foo.pdf",
 				})
@@ -334,8 +334,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "cannot add output paths",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.pdf": "/foo/foo.pdf",
 				})

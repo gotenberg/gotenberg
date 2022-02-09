@@ -252,7 +252,7 @@ func TestWebhookMiddlewareGuards(t *testing.T) {
 
 		c := srv.NewContext(tc.request, httptest.NewRecorder())
 
-		ctx := &api.MockContext{Context: &api.Context{}}
+		ctx := &api.ContextMock{Context: &api.Context{}}
 		ctx.SetEchoContext(c)
 
 		c.Set("context", ctx.Context)
@@ -399,7 +399,7 @@ func TestWebhookMiddlewareAsynchronousProcess(t *testing.T) {
 			c.Set("trace", "foo")
 			c.Set("startTime", time.Now())
 
-			ctx := &api.MockContext{Context: &api.Context{}}
+			ctx := &api.ContextMock{Context: &api.Context{}}
 			ctx.SetLogger(zap.NewNop())
 			ctx.SetEchoContext(c)
 

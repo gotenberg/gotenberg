@@ -16,7 +16,7 @@ import (
 func TestConvertHandler(t *testing.T) {
 	tests := []struct {
 		name                   string
-		ctx                    *api.MockContext
+		ctx                    *api.ContextMock
 		unoAPI                 uno.API
 		engine                 gotenberg.PDFEngine
 		expectErr              bool
@@ -26,8 +26,8 @@ func TestConvertHandler(t *testing.T) {
 	}{
 		{
 			name: "nominal behavior",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
 				})
@@ -48,8 +48,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "nominal behavior, but with 3 documents",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
 					"bar.docx": "/bar/bar.docx",
@@ -72,8 +72,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "cannot add output paths",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
 				})
@@ -95,7 +95,7 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "invalid form data: no documents",
-			ctx:  &api.MockContext{Context: &api.Context{}},
+			ctx:  &api.ContextMock{Context: &api.Context{}},
 			unoAPI: uno.APIMock{
 				ExtensionsMock: func() []string {
 					return []string{
@@ -109,8 +109,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "invalid form data: both nativePdfA1aFormat and nativePdfFormat are set",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
 				})
@@ -139,8 +139,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "invalid form data: both nativePdfA1aFormat and pdfFormat are set",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
 				})
@@ -169,8 +169,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "invalid form data: both nativePdfFormat and pdfFormat are set",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
 				})
@@ -198,8 +198,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "convert to PDF fail",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
 				})
@@ -220,8 +220,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "invalid page ranges",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
 				})
@@ -244,8 +244,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "convert 3 documents and merge them",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
 					"bar.docx": "/bar/bar.docx",
@@ -278,8 +278,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "merge fail",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
 					"bar.docx": "/bar/bar.docx",
@@ -312,8 +312,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "convert 3 documents, merge them, and convert them to a PDF format",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
 					"bar.docx": "/bar/bar.docx",
@@ -352,8 +352,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "convert 3 documents, merge them, but convert them to PDF format fail",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
 					"bar.docx": "/bar/bar.docx",
@@ -392,8 +392,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "convert 3 documents, merge them, but PDF format not available",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
 					"bar.docx": "/bar/bar.docx",
@@ -434,8 +434,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "convert 3 documents and merge them, but cannot add output paths",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
 					"bar.docx": "/bar/bar.docx",
@@ -469,8 +469,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "convert to PDF format",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
 				})
@@ -501,8 +501,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "convert to PDF format using nativePdfA1aFormat",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
 				})
@@ -534,8 +534,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "convert to PDF format fail",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
 				})
@@ -566,8 +566,8 @@ func TestConvertHandler(t *testing.T) {
 		},
 		{
 			name: "PDF format not available",
-			ctx: func() *api.MockContext {
-				ctx := &api.MockContext{Context: &api.Context{}}
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
 				ctx.SetFiles(map[string]string{
 					"foo.docx": "/foo/foo.docx",
 				})
