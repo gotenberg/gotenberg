@@ -87,7 +87,7 @@ func (multi multiPDFEngines) Compress(ctx context.Context, logger *zap.Logger, i
 		}(engine)
 
 		select {
-		case mergeErr := <-errChan:
+		case compressErr := <-errChan:
 			errored := multierr.AppendInto(&err, mergeErr)
 			if !errored {
 				return nil
