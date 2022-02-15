@@ -356,6 +356,56 @@ paths:
           description: >-
             Bad Request, e.g. Invalid form data: no form file found for extensions: [.pdf]; form value 'pdfFormat' is required
 
+  /forms/pdfengines/compress:
+    post:
+      tags:
+        - pdfengines
+      summary: Compress a PDF
+      externalDocs:
+        url: https://gotenberg.dev/docs/modules/pdf-engines
+      description: >-
+        This route accepts a PDF file for compressing.
+      parameters:
+        - in: header
+          name: Gotenberg-Output-Filename
+          description: >-
+            By default, the API generates a UUID filename.
+            However, you may also specify the filename per request,
+            thanks to the Gotenberg-Output-Filename header.
+            Caution! The API adds the file extension automatically; you don't have to set it.
+          schema:
+            type: string
+          required: false
+        - in: header
+          name: Gotenberg-Trace
+          description: >-
+            The trace, or request ID, identifies a request in the logs.
+
+            By default, the API generates a UUID trace for each request.
+            However, you may also specify the trace per request, thanks to the Gotenberg-Trace header.
+          schema:
+            type: string
+          required: false
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+              required:
+                - files
+      responses:
+        '200':
+          $ref: '#/components/responses/SuccessfulPDF'
+        '400':
+          description: >-
+            Bad Request, e.g. Invalid form data: no form file found for extensions: [.pdf];
+
 components:
   schemas:
     HTMLConvertRequestBody:

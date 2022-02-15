@@ -101,6 +101,11 @@ func (engine PDFtk) Convert(_ context.Context, _ *zap.Logger, format, _, _ strin
 	return fmt.Errorf("convert PDF to '%s' with PDFtk: %w", format, gotenberg.ErrPDFEngineMethodNotAvailable)
 }
 
+// Compress is not available for this PDF engine.
+func (engine PDFtk) Compress(_ context.Context, _ *zap.Logger, _ string, _ string) error {
+	return fmt.Errorf("compress PDF with PDFtk: %w", gotenberg.ErrPDFEngineMethodNotAvailable)
+}
+
 var (
 	activeInstancesCount   float64
 	activeInstancesCountMu sync.RWMutex

@@ -145,3 +145,54 @@ func convertRoute(engine gotenberg.PDFEngine) api.Route {
 		},
 	}
 }
+
+
+// compressRoute returns an api.Route which can compress a PDF to a specific PDF
+// format.
+func compressRoute(engine gotenberg.PDFEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/compress",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			// Let's get the data from the form and validate them.
+			var (
+				inputPaths []string
+			)
+
+			err := ctx.FormData().
+				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				Validate()
+
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			// Alright, let's merge the PDFs.
+
+			outputPaths := make([]string, len(inputPaths))
+
+			for i, inputPath := range inputPaths {
+				outputPaths[i] = ctx.GeneratePath(".pdf")
+
+				err = engine.Compress(ctx, ctx.Log(), inputPath, outputPaths[i])
+
+				if err != nil {
+					return fmt.Errorf("compress PDF: %w", err)
+				}
+			}
+
+			// Last but not least, add the output paths to the context so that
+			// the API is able to send them as a response to the client.
+
+			err = ctx.AddOutputPaths(outputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
+			}
+
+			return nil
+		},
+	}
+}

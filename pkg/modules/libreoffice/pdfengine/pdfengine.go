@@ -69,6 +69,11 @@ func (engine UNO) Convert(ctx context.Context, logger *zap.Logger, format, input
 	return fmt.Errorf("convert PDF to '%s' with unoconv: %w", format, err)
 }
 
+// Compress is not available for this PDF engine.
+func (engine UNO) Compress(_ context.Context, _ *zap.Logger, _ string, _ string) error {
+	return fmt.Errorf("compress PDF with unoconv: %w", gotenberg.ErrPDFEngineMethodNotAvailable)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*UNO)(nil)

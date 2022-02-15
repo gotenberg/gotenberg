@@ -38,6 +38,9 @@ type PDFEngine interface {
 
 	// Convert converts the given PDF to a specific PDF format.
 	Convert(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error
+
+	// Compress compress the given PDF
+	Compress(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error
 }
 
 // PDFEngineProvider is a module interface which exposes a method for creating a

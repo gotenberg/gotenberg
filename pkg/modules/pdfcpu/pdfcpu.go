@@ -54,6 +54,11 @@ func (engine PDFcpu) Convert(_ context.Context, _ *zap.Logger, format, _, _ stri
 	return fmt.Errorf("convert PDF to '%s' with PDFcpu: %w", format, gotenberg.ErrPDFEngineMethodNotAvailable)
 }
 
+// Compress is not available for this PDF engine.
+func (engine PDFcpu) Compress(_ context.Context, _ *zap.Logger, _ string, _ string) error {
+	return fmt.Errorf("compress PDF with PDFcpu: %w", gotenberg.ErrPDFEngineMethodNotAvailable)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*PDFcpu)(nil)

@@ -103,6 +103,11 @@ func (engine QPDF) Convert(_ context.Context, _ *zap.Logger, format, _, _ string
 	return fmt.Errorf("convert PDF to '%s' with QPDF: %w", format, gotenberg.ErrPDFEngineMethodNotAvailable)
 }
 
+// Compress is not available for this PDF engine.
+func (engine QPDF) Compress(_ context.Context, _ *zap.Logger, _ string, _ string) error {
+	return fmt.Errorf("compress PDF with QPDF: %w", gotenberg.ErrPDFEngineMethodNotAvailable)
+}
+
 var (
 	activeInstancesCount   float64
 	activeInstancesCountMu sync.RWMutex

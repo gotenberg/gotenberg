@@ -75,6 +75,31 @@ func (multi multiPDFEngines) Convert(ctx context.Context, logger *zap.Logger, fo
 	return fmt.Errorf("convert PDF to '%s' with multi PDF engines: %w", format, err)
 }
 
+// Compress compress the given PDF. thanks to its
+// children. If the context is done, it stops and returns an error.
+func (multi multiPDFEngines) Compress(ctx context.Context, logger *zap.Logger, inputPath string, outputPath string) error {
+	var err error
+	errChan := make(chan error, 1)
+
+	for _, engine := range multi.engines {
+		go func(engine gotenberg.PDFEngine) {
+			errChan <- engine.Compress(ctx, logger, inputPath, outputPath)
+		}(engine)
+
+		select {
+		case mergeErr := <-errChan:
+			errored := multierr.AppendInto(&err, mergeErr)
+			if !errored {
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	return fmt.Errorf("compress PDF with multi PDF engines: %w", err)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.PDFEngine = (*multiPDFEngines)(nil)
