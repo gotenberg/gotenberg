@@ -254,8 +254,8 @@ func (mod Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Bool("chromium-disable-web-security", false, "Don't enforce the same-origin policy")
 			fs.Bool("chromium-allow-file-access-from-files", false, "Allow file:// URIs to read other file:// URIs")
 			fs.String("chromium-proxy-server", "", "Set the outbound proxy server; this switch only affects HTTP and HTTPS requests")
-			fs.String("chromium-allow-list", "", "Set the allowed URLs for Chromium using a regular expression")
-			fs.String("chromium-deny-list", "^file:///[^tmp].*", "Set the denied URLs for Chromium using a regular expression")
+			fs.String("chromium-allow-list", "^file:///tmp.*", "Set the allowed URLs for Chromium using a regular expression")
+			fs.String("chromium-deny-list", "", "Set the denied URLs for Chromium using a regular expression")
 			fs.Bool("chromium-disable-javascript", false, "Disable JavaScript")
 			fs.Bool("chromium-disable-routes", false, "Disable the routes")
 
