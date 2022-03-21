@@ -81,7 +81,7 @@ func (UNO) Descriptor() gotenberg.ModuleDescriptor {
 		ID: "uno",
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("uno", flag.ExitOnError)
-			fs.Duration("uno-listener-start-timeout", time.Duration(10)*time.Second, "Time limit for starting the LibreOffice listener")
+			fs.Duration("uno-listener-start-timeout", time.Duration(10)*time.Second, "Time limit for restarting the LibreOffice listener")
 			fs.Int("uno-listener-restart-threshold", 10, "Conversions limit after which the LibreOffice listener is restarted - 0 means no long-running LibreOffice listener")
 			fs.Bool("unoconv-disable-listener", false, "Do not start a long-running listener - save resources in detriment of unitary performance")
 
@@ -161,19 +161,11 @@ func (mod UNO) Validate() error {
 	return err
 }
 
-// Start starts the long-running LibreOffice listener if the threshold is
-// superior to zero.
+// Start does nothing: it is here to validate the contract from the
+// gotenberg.App interface. The long-running LibreOffice Listener will be
+// started on the first call to PDF.
 func (mod UNO) Start() error {
-	if mod.libreOfficeRestartThreshold == 0 {
-		return nil
-	}
-
-	err := mod.listener.start(mod.logger)
-	if err == nil {
-		return nil
-	}
-
-	return fmt.Errorf("start long-running LibreOffice listener: %w", err)
+	return nil
 }
 
 // StartupMessage returns a custom startup message.
@@ -182,7 +174,7 @@ func (mod UNO) StartupMessage() string {
 		return "long-running LibreOffice listener disabled"
 	}
 
-	return "long-running LibreOffice listener started"
+	return "long-running LibreOffice listener ready to start"
 }
 
 // Stop stops the long-running LibreOffice Listener if it exists.
@@ -202,7 +194,7 @@ func (mod UNO) Stop(ctx context.Context) error {
 		return nil
 	}
 
-	return fmt.Errorf("stop long-running LibreOffice supervisor")
+	return fmt.Errorf("stop long-running LibreOffice listener")
 }
 
 // Metrics returns the metrics.

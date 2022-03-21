@@ -23,6 +23,7 @@ type listener interface {
 	healthy() bool
 }
 
+// TODO: this implementation, even if it's working, is way too complex.
 type libreOfficeListener struct {
 	binPath      string
 	startTimeout time.Duration
@@ -33,13 +34,15 @@ type libreOfficeListener struct {
 	cmd                gotenberg.Cmd
 	cfgMu              sync.RWMutex
 
-	usage         int
-	restarting    bool
-	restartingMu  sync.RWMutex
-	queueLength   int
-	queueLengthMu sync.RWMutex
-	lockChan      chan struct{}
-	logger        *zap.Logger
+	usage           int
+	hadFirstStart   bool
+	hadFirstStartMu sync.RWMutex
+	restarting      bool
+	restartingMu    sync.RWMutex
+	queueLength     int
+	queueLengthMu   sync.RWMutex
+	lockChan        chan struct{}
+	logger          *zap.Logger
 }
 
 func newLibreOfficeListener(logger *zap.Logger, binPath string, startTimeout time.Duration, threshold int) listener {
@@ -53,14 +56,17 @@ func newLibreOfficeListener(logger *zap.Logger, binPath string, startTimeout tim
 }
 
 func (listener *libreOfficeListener) start(logger *zap.Logger) error {
+	listener.hadFirstStartMu.Lock()
+	listener.hadFirstStart = true
+	listener.hadFirstStartMu.Unlock()
+
 	port, err := freePort(logger)
 	if err != nil {
 		return fmt.Errorf("get free port: %w", err)
 	}
 
-	// Good to know: when the supervisor manages the LibreOffice listener,
-	// the garbage collector might delete the next directory while it is
-	// still running. It does seem to cause any issue though.
+	// Good to know: the garbage collector might delete the next directory
+	// while it is still running. It does seem to cause any issue though.
 	userProfileDirPath := gotenberg.NewDirPath()
 
 	args := []string{
@@ -100,34 +106,77 @@ func (listener *libreOfficeListener) start(logger *zap.Logger) error {
 		return fmt.Errorf("start LibreOffice listener: %w", err)
 	}
 
-	// As the LibreOffice socket may take some time to be available, we have to
-	// ensure that it is indeed accepting connections.
-	logger.Debug("waiting for the LibreOffice listener socket to be available...")
+	waitChan := make(chan error, 1)
 
-	for {
-		if ctx.Err() != nil {
-			return fmt.Errorf("waiting for the LibreOffice listener socket to be available: %w", ctx.Err())
-		}
+	go func() {
+		// By waiting the process, we avoid the creation of a zombie process
+		// and make sure we catch an early exit if any.
+		waitChan <- cmd.Wait()
+	}()
 
-		conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), time.Duration(1)*time.Second)
-		if err == nil {
+	connChan := make(chan error, 1)
+
+	go func() {
+		// As the LibreOffice socket may take some time to be available, we
+		// have to ensure that it is indeed accepting connections.
+		for {
+			if ctx.Err() != nil {
+				connChan <- ctx.Err()
+				break
+			}
+
+			conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), time.Duration(1)*time.Second)
+			if err != nil {
+				continue
+			}
+
+			connChan <- nil
 			err = conn.Close()
 			if err != nil {
 				logger.Debug(fmt.Sprintf("close connection after health checking the LibreOffice listener: %v", err))
 			}
+
 			break
 		}
+	}()
+
+	var success bool
+
+	defer func() {
+		if success {
+			listener.cfgMu.Lock()
+			listener.socketPort = port
+			listener.userProfileDirPath = userProfileDirPath
+			listener.cmd = cmd
+			listener.cfgMu.Unlock()
+
+			return
+		}
+
+		// Let's make sure the process is killed.
+		err = cmd.Kill()
+		if err != nil {
+			logger.Debug(fmt.Sprintf("kill LibreOffice listener process: %v", err))
+		}
+	}()
+
+	logger.Debug("waiting for the LibreOffice listener socket to be available...")
+
+	for {
+		select {
+		case err = <-connChan:
+			if err != nil {
+				return fmt.Errorf("LibreOffice listener socket not available: %w", err)
+			}
+
+			logger.Debug("LibreOffice listener socket available")
+			success = true
+
+			return nil
+		case err = <-waitChan:
+			return fmt.Errorf("LibreOffice listener process exited: %w", err)
+		}
 	}
-
-	logger.Debug("LibreOffice listener socket available")
-
-	listener.cfgMu.Lock()
-	listener.socketPort = port
-	listener.userProfileDirPath = userProfileDirPath
-	listener.cmd = cmd
-	listener.cfgMu.Unlock()
-
-	return nil
 }
 
 func (listener *libreOfficeListener) stop(logger *zap.Logger) error {
@@ -145,12 +194,6 @@ func (listener *libreOfficeListener) stop(logger *zap.Logger) error {
 	err := listener.cmd.Kill()
 	if err != nil {
 		return fmt.Errorf("kill LibreOffice listener process: %w", err)
-	}
-
-	// Let's wait to make sure the process is no more.
-	err = listener.cmd.Wait()
-	if err != nil {
-		logger.Debug(fmt.Sprintf("wait for the LibreOffice listener: %v", err))
 	}
 
 	return nil
@@ -187,32 +230,70 @@ func (listener *libreOfficeListener) lock(ctx context.Context, logger *zap.Logge
 	listener.queueLength += 1
 	listener.queueLengthMu.Unlock()
 
+	defer func() {
+		listener.queueLengthMu.Lock()
+		listener.queueLength -= 1
+		listener.queueLengthMu.Unlock()
+	}()
+
+	doWithContext := func(ctx context.Context, do func() error) error {
+		doChan := make(chan error, 1)
+
+		go func() {
+			doChan <- do()
+		}()
+
+		for {
+			select {
+			case err := <-doChan:
+				return err
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+
 	select {
 	case listener.lockChan <- struct{}{}:
 		logger.Debug("LibreOffice listener lock acquired")
 
-		listener.queueLengthMu.Lock()
-		listener.queueLength -= 1
-		listener.queueLengthMu.Unlock()
+		listener.hadFirstStartMu.RLock()
 
-		if !listener.healthy() {
-			logger.Debug("LibreOffice listener is unhealthy, restarting it...")
+		if !listener.hadFirstStart {
+			listener.hadFirstStartMu.RUnlock()
 
-			err := listener.restart(logger)
+			logger.Debug("starting LibreOffice listener...")
+
+			err := doWithContext(ctx, func() error {
+				return listener.start(logger)
+			})
+
 			if err == nil {
 				return nil
 			}
 
-			return fmt.Errorf("restart LibreOffice listener: %w", err)
+			return fmt.Errorf("start long-running LibreOffice listener: %w", err)
+		}
+
+		listener.hadFirstStartMu.RUnlock()
+
+		if !listener.healthy() {
+			logger.Debug("LibreOffice listener is unhealthy, restarting it...")
+
+			err := doWithContext(ctx, func() error {
+				return listener.restart(logger)
+			})
+
+			if err == nil {
+				return nil
+			}
+
+			return fmt.Errorf("restart long-running LibreOffice listener: %w", err)
 		}
 
 		return nil
 	case <-ctx.Done():
 		logger.Debug("failed to acquire LibreOffice listener lock before deadline")
-
-		listener.queueLengthMu.Lock()
-		listener.queueLength -= 1
-		listener.queueLengthMu.Unlock()
 
 		return fmt.Errorf("acquire LibreOffice listener lock: %w", ctx.Err())
 	}
@@ -265,6 +346,13 @@ func (listener *libreOfficeListener) queue() int {
 }
 
 func (listener *libreOfficeListener) healthy() bool {
+	listener.hadFirstStartMu.RLock()
+	defer listener.hadFirstStartMu.RUnlock()
+
+	if !listener.hadFirstStart {
+		return true
+	}
+
 	listener.restartingMu.RLock()
 	defer listener.restartingMu.RUnlock()
 

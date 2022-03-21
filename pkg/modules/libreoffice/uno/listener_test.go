@@ -122,6 +122,14 @@ func TestListener_lock(t *testing.T) {
 			},
 		},
 		{
+			name:     "first start",
+			listener: newLibreOfficeListener(zap.NewNop(), os.Getenv("LIBREOFFICE_BIN_PATH"), time.Duration(10)*time.Second, 10),
+			ctx:      context.Background(),
+			teardown: func(listener listener) error {
+				return listener.stop(zap.NewNop())
+			},
+		},
+		{
 			name: "unhealthy listener",
 			listener: func() listener {
 				listener := newLibreOfficeListener(zap.NewNop(), os.Getenv("LIBREOFFICE_BIN_PATH"), time.Duration(10)*time.Second, 10)
@@ -390,6 +398,11 @@ func TestListener_healthy(t *testing.T) {
 		logger:       zap.NewNop(),
 	}
 
+	// i.e., first start.
+	if !listener.healthy() {
+		t.Error("expected an healthy LibreOffice listener")
+	}
+
 	err := listener.start(zap.NewNop())
 	if err != nil {
 		t.Fatalf("expected no error from listener.start(), but got: %v", err)
@@ -403,6 +416,8 @@ func TestListener_healthy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error from listener.stop(), but got: %v", err)
 	}
+
+	time.Sleep(time.Duration(1) * time.Second)
 
 	if listener.healthy() {
 		t.Errorf("expected a non-healthy LibreOffice listener")

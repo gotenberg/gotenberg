@@ -196,55 +196,7 @@ func TestUNO_Validate(t *testing.T) {
 }
 
 func TestUNO_Start(t *testing.T) {
-	tests := []struct {
-		name           string
-		mod            UNO
-		expectStartErr bool
-	}{
-		{
-			name: "nominal behavior",
-			mod: UNO{
-				libreOfficeRestartThreshold: 10,
-				listener: listenerMock{
-					startMock: func(logger *zap.Logger) error {
-						return nil
-					},
-				},
-			},
-		},
-		{
-			name: "no long-running LibreOffice listener",
-			mod: UNO{
-				libreOfficeRestartThreshold: 0,
-			},
-		},
-		{
-			name: "start error",
-			mod: UNO{
-				libreOfficeRestartThreshold: 10,
-				listener: listenerMock{
-					startMock: func(logger *zap.Logger) error {
-						return errors.New("foo")
-					},
-				},
-			},
-			expectStartErr: true,
-		},
-	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			err := tc.mod.Start()
-
-			if tc.expectStartErr && err == nil {
-				t.Errorf("expected mod.Start() error, but got none")
-			}
-
-			if !tc.expectStartErr && err != nil {
-				t.Errorf("expected no error from mod.Start(), but got: %v", err)
-			}
-		})
-	}
 }
 
 func TestUNO_StartupMessage(t *testing.T) {
@@ -254,11 +206,11 @@ func TestUNO_StartupMessage(t *testing.T) {
 		expectMessage string
 	}{
 		{
-			name: "long-running LibreOffice listener started",
+			name: "long-running LibreOffice listener ready to start",
 			mod: UNO{
 				libreOfficeRestartThreshold: 10,
 			},
-			expectMessage: "long-running LibreOffice listener started",
+			expectMessage: "long-running LibreOffice listener ready to start",
 		},
 		{
 			name: "long-running LibreOffice listener disabled",
@@ -548,11 +500,6 @@ func TestUNO_PDF(t *testing.T) {
 					mod.libreOfficeStartTimeout,
 					mod.libreOfficeRestartThreshold,
 				)
-
-				err := mod.Start()
-				if err != nil {
-					t.Fatalf("expected no error from mod.Start(), but got: %v", err)
-				}
 
 				return mod
 			}(),
