@@ -2,6 +2,9 @@
 
 set -e
 
+DOCKER_REPO_GH="ghcr.io/onebrief"
+DOCKER_REPO_HEROKU="registry.heroku.com/gotenberg-test/web"
+
 GOLANG_VERSION="$1"
 GOTENBERG_VERSION="$2"
 GOTENBERG_USER_GID="$3"
@@ -27,27 +30,11 @@ docker buildx build \
   --build-arg NOTO_COLOR_EMOJI_VERSION="$NOTO_COLOR_EMOJI_VERSION" \
   --build-arg PDFTK_VERSION="$PDFTK_VERSION" \
   --platform linux/amd64 \
-  --platform linux/arm64 \
-  --platform linux/arm/v7 \
-  --platform linux/386 \
-  -t "$DOCKER_REPOSITORY/gotenberg:latest" \
-  -t "$DOCKER_REPOSITORY/gotenberg:${SEMVER[0]}" \
-  -t "$DOCKER_REPOSITORY/gotenberg:${SEMVER[0]}.${SEMVER[1]}" \
-  -t "$DOCKER_REPOSITORY/gotenberg:${SEMVER[0]}.${SEMVER[1]}.${SEMVER[2]}" \
+  -t "$DOCKER_REPO_GH/gotenberg:latest" \
+  -t "$DOCKER_REPO_GH/gotenberg:${SEMVER[0]}.${SEMVER[1]}.${SEMVER[2]}" \
+  -t "$DOCKER_REPO_HEROKU" \
   --push \
   -f build/Dockerfile .
 
-# Cloud Run variant.
-docker buildx build \
-  --build-arg DOCKER_REPOSITORY="$DOCKER_REPOSITORY" \
-  --build-arg GOTENBERG_VERSION="$GOTENBERG_VERSION" \
-  --platform linux/amd64 \
-  --platform linux/arm64 \
-  --platform linux/arm/v7 \
-  --platform linux/386 \
-  -t "$DOCKER_REPOSITORY/gotenberg:latest-cloudrun" \
-  -t "$DOCKER_REPOSITORY/gotenberg:${SEMVER[0]}-cloudrun" \
-  -t "$DOCKER_REPOSITORY/gotenberg:${SEMVER[0]}.${SEMVER[1]}-cloudrun" \
-  -t "$DOCKER_REPOSITORY/gotenberg:${SEMVER[0]}.${SEMVER[1]}.${SEMVER[2]}-cloudrun" \
-  --push \
-  -f build/Dockerfile.cloudrun .
+# release app on heroku
+heroku container:release web --app gotenberg-test
