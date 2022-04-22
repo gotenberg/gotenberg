@@ -3,7 +3,7 @@
 set -e
 
 DOCKER_REPO_GH="ghcr.io/onebrief"
-DOCKER_REPO_HEROKU="registry.heroku.com/gotenberg-test/web"
+DOCKER_REPO_HEROKU="registry.heroku.com/bc-gotenberg/web"
 
 GOLANG_VERSION="$1"
 GOTENBERG_VERSION="$2"
@@ -34,7 +34,7 @@ docker buildx build \
   -t "$DOCKER_REPO_GH/gotenberg:${SEMVER[0]}.${SEMVER[1]}.${SEMVER[2]}" \
   -t "$DOCKER_REPO_HEROKU" \
   --push \
-  -f build/Dockerfile .
+  -f build/Dockerfile.bc .
 
 # release app on heroku
-heroku container:release web --app gotenberg-test
+heroku container:release web --app bc-gotenberg
