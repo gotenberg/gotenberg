@@ -168,4 +168,4 @@ WORKDIR /home/gotenberg
 EXPOSE 3000
 
 ENTRYPOINT [ "/usr/bin/tini", "--" ]
-CMD [ "gotenberg" ]
+CMD [ "gotenberg", "--api-port-from-env", "PORT", "--uno-listener-restart-threshold=0" ]
