@@ -201,3 +201,54 @@ func convertRoute(unoAPI uno.API, engine gotenberg.PDFEngine) api.Route {
 		},
 	}
 }
+
+func thumbnailRoute(unoAPI uno.API, engine gotenberg.PDFEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/libreoffice/thumbnail",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			// Let's get the data from the form and validate them.
+			var (
+				inputPaths  []string
+				imageFormat string
+			)
+
+			err := ctx.FormData().
+				MandatoryPaths(unoAPI.Extensions(), &inputPaths).
+				String("imageFormat", &imageFormat, "jpg").
+				Validate()
+
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			// Alright, let's convert each document to target format.
+
+			outputPaths := make([]string, len(inputPaths))
+
+			for i, inputPath := range inputPaths {
+				outputPaths[i] = ctx.GeneratePath("." + imageFormat)
+
+				err = unoAPI.Thumbnail(ctx, ctx.Log(), inputPath, outputPaths[i], imageFormat)
+
+				if err != nil {
+
+					return fmt.Errorf("convert to PNG: %w", err)
+				}
+			}
+
+			// Last but not least, add the output paths to the context so that
+			// the API is able to send them as a response to the client.
+
+			err = ctx.AddOutputPaths(outputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
+			}
+
+			return nil
+		},
+	}
+}

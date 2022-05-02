@@ -75,6 +75,7 @@ func (mod LibreOffice) Routes() ([]api.Route, error) {
 
 	return []api.Route{
 		convertRoute(mod.unoAPI, mod.engine),
+		thumbnailRoute(mod.unoAPI, mod.engine),
 	}, nil
 }
 
