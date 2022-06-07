@@ -741,7 +741,6 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 					WithMarginBottom(options.MarginBottom).
 					WithMarginLeft(options.MarginLeft).
 					WithMarginRight(options.MarginRight).
-					WithIgnoreInvalidPageRanges(false).
 					WithPageRanges(options.PageRanges).
 					WithDisplayHeaderFooter(true).
 					WithHeaderTemplate(options.HeaderTemplate).

@@ -5,13 +5,13 @@ go 1.18
 require (
 	github.com/alexliesenfeld/health v0.6.0
 	github.com/andybalholm/brotli v1.0.4 // indirect
-	github.com/chromedp/cdproto v0.0.0-20220321060548-7bc2623472b3
-	github.com/chromedp/chromedp v0.8.0
+	github.com/chromedp/cdproto v0.0.0-20220530001853-c0f376d894d1
+	github.com/chromedp/chromedp v0.8.2
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
-	github.com/hashicorp/go-retryablehttp v0.7.0
-	github.com/klauspost/compress v1.15.1 // indirect
+	github.com/hashicorp/go-retryablehttp v0.7.1
+	github.com/klauspost/compress v1.15.6 // indirect
 	github.com/klauspost/pgzip v1.2.5 // indirect
 	github.com/labstack/echo/v4 v4.7.2
 	github.com/labstack/gommon v0.3.1
@@ -21,19 +21,19 @@ require (
 	github.com/nwaples/rardecode v1.1.3 // indirect
 	github.com/pdfcpu/pdfcpu v0.3.13
 	github.com/pierrec/lz4/v4 v4.1.14 // indirect
-	github.com/prometheus/client_golang v1.12.1
+	github.com/prometheus/client_golang v1.12.2
 	github.com/russross/blackfriday/v2 v2.1.0
 	github.com/spf13/pflag v1.0.5
 	github.com/ulikunitz/xz v0.5.10 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0
 	go.uber.org/zap v1.21.0
-	golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd // indirect
-	golang.org/x/image v0.0.0-20220321031419-a8550c1d254a // indirect
-	golang.org/x/net v0.0.0-20220225172249-27dd8689420f
-	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8 // indirect
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
+	golang.org/x/image v0.0.0-20220601225756-64ec528b34cd // indirect
+	golang.org/x/net v0.0.0-20220607020251-c690dde0001d
+	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
+	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
+	golang.org/x/term v0.0.0-20220526004731-065cf7ba2467
 	golang.org/x/text v0.3.7
 )
 
@@ -56,11 +56,11 @@ require (
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
-	github.com/prometheus/common v0.32.1 // indirect
+	github.com/prometheus/common v0.34.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.1 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
-	google.golang.org/protobuf v1.27.1 // indirect
+	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
