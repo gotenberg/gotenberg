@@ -2,8 +2,8 @@ package api
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -426,7 +426,7 @@ func (form *FormData) mandatoryPath(filename string, target *string) *FormData {
 // readFile binds the content of a file to a string variable. It populates an
 // error if it fails to read the file content.
 func (form *FormData) readFile(path, filename string, target *string) *FormData {
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		form.append(
 			fmt.Errorf("form file '%s' is invalid (%w)", filename, err),

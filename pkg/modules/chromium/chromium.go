@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
@@ -808,7 +807,7 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 		return fmt.Errorf("%v: %w", consoleExceptions, ErrConsoleExceptions)
 	}
 
-	err = ioutil.WriteFile(outputPath, buffer, 0600)
+	err = os.WriteFile(outputPath, buffer, 0600)
 	if err != nil {
 		return fmt.Errorf("write result to output path: %w", err)
 	}

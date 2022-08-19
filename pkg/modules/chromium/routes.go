@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -271,7 +270,7 @@ func convertMarkdownRoute(chromium API, engine gotenberg.PDFEngine) api.Route {
 							return "", nil
 						}
 
-						b, err := ioutil.ReadFile(path)
+						b, err := os.ReadFile(path)
 						if err != nil {
 							return "", fmt.Errorf("read markdown file '%s': %w", filename, err)
 						}
