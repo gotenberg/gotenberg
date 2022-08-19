@@ -102,28 +102,28 @@ const (
 // Middleware is a middleware which can be added to the API's middlewares
 // chain.
 //
-//  middleware := Middleware{
-//    Handler: func() echo.MiddlewareFunc {
-//      return func(next echo.HandlerFunc) echo.HandlerFunc {
-//        return func(c echo.Context) error {
-//          rootPath := c.Get("rootPath").(string)
-//          healthURI := fmt.Sprintf("%shealth", rootPath)
+//	middleware := Middleware{
+//	  Handler: func() echo.MiddlewareFunc {
+//	    return func(next echo.HandlerFunc) echo.HandlerFunc {
+//	      return func(c echo.Context) error {
+//	        rootPath := c.Get("rootPath").(string)
+//	        healthURI := fmt.Sprintf("%shealth", rootPath)
 //
-//          // Skip the middleware if health check URI.
-//          if c.Request().RequestURI == healthURI {
-//            // Call the next middleware in the chain.
-//            return next(c)
-//          }
+//	        // Skip the middleware if health check URI.
+//	        if c.Request().RequestURI == healthURI {
+//	          // Call the next middleware in the chain.
+//	          return next(c)
+//	        }
 //
-//          // Your middleware process.
-//          // ...
+//	        // Your middleware process.
+//	        // ...
 //
-//          // Call the next middleware in the chain.
-//          return next(c)
-//        }
-//      }
-//    }(),
-//  }
+//	        // Call the next middleware in the chain.
+//	        return next(c)
+//	      }
+//	    }
+//	  }(),
+//	}
 type Middleware struct {
 	// Stack tells in which stack the middleware should be located.
 	// Default to DefaultStack.

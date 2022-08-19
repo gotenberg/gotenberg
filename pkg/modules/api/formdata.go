@@ -16,7 +16,7 @@ import (
 // FormData is a helper for validating and hydrating values from a
 // "multipart/form-data" request.
 //
-//  form := ctx.FormData()
+//	form := ctx.FormData()
 type FormData struct {
 	values map[string][]string
 	files  map[string]string
@@ -27,11 +27,11 @@ type FormData struct {
 // SentinelHTTPError (status code 400, errors' details as message) wrapped
 // inside.
 //
-//  var foo string
+//	var foo string
 //
-//  err := ctx.FormData().
-//     MandatoryString("foo", &foo, "bar").
-//     Validate()
+//	err := ctx.FormData().
+//	   MandatoryString("foo", &foo, "bar").
+//	   Validate()
 func (form FormData) Validate() error {
 	if form.errors == nil {
 		return nil
@@ -45,9 +45,9 @@ func (form FormData) Validate() error {
 
 // String binds a form data value to a string variable.
 //
-//  var foo string
+//	var foo string
 //
-//  ctx.FormData().String("foo", &foo, "bar")
+//	ctx.FormData().String("foo", &foo, "bar")
 func (form *FormData) String(key string, target *string, defaultValue string) *FormData {
 	return form.mustValue(key, target, defaultValue)
 }
@@ -55,9 +55,9 @@ func (form *FormData) String(key string, target *string, defaultValue string) *F
 // MandatoryString binds a form data value to a string variable. It populates
 // an error if the value is empty or the "key" does not exist.
 //
-//  var foo string
+//	var foo string
 //
-//  ctx.FormData().MandatoryString("foo", &foo)
+//	ctx.FormData().MandatoryString("foo", &foo)
 func (form *FormData) MandatoryString(key string, target *string) *FormData {
 	return form.mustMandatoryValue(key, target)
 }
@@ -65,9 +65,9 @@ func (form *FormData) MandatoryString(key string, target *string) *FormData {
 // Bool binds a form data value to a bool variable. It populates an error if
 // the value is not bool.
 //
-//  var foo bool
+//	var foo bool
 //
-//  ctx.FormData().Bool("foo", &foo, true)
+//	ctx.FormData().Bool("foo", &foo, true)
 func (form *FormData) Bool(key string, target *bool, defaultValue bool) *FormData {
 	return form.mustValue(key, target, defaultValue)
 }
@@ -75,9 +75,9 @@ func (form *FormData) Bool(key string, target *bool, defaultValue bool) *FormDat
 // MandatoryBool binds a form data value to a bool variable. It populates an
 // error if the value is not bool, is empty, or the "key" does not exist.
 //
-//  var foo bool
+//	var foo bool
 //
-//  ctx.FormData().MandatoryBool("foo", &foo)
+//	ctx.FormData().MandatoryBool("foo", &foo)
 func (form *FormData) MandatoryBool(key string, target *bool) *FormData {
 	return form.mustMandatoryValue(key, target)
 }
@@ -85,9 +85,9 @@ func (form *FormData) MandatoryBool(key string, target *bool) *FormData {
 // Int binds a form data value to an int variable. It populates an error if the
 // value is not int.
 //
-//  var foo int
+//	var foo int
 //
-//  ctx.FormData().Int("foo", &foo, 2)
+//	ctx.FormData().Int("foo", &foo, 2)
 func (form *FormData) Int(key string, target *int, defaultValue int) *FormData {
 	return form.mustValue(key, target, defaultValue)
 }
@@ -95,9 +95,9 @@ func (form *FormData) Int(key string, target *int, defaultValue int) *FormData {
 // MandatoryInt binds a form data value to an int variable. It populates an
 // error if the value is not int, is empty, or the "key" does not exist.
 //
-//  var foo int
+//	var foo int
 //
-//  ctx.FormData().MandatoryInt("foo", &foo)
+//	ctx.FormData().MandatoryInt("foo", &foo)
 func (form *FormData) MandatoryInt(key string, target *int) *FormData {
 	return form.mustMandatoryValue(key, target)
 }
@@ -105,9 +105,9 @@ func (form *FormData) MandatoryInt(key string, target *int) *FormData {
 // Float64 binds a form data value to a float64 variable. It populates an error
 // if the value is not float64.
 //
-//  var foo float64
+//	var foo float64
 //
-//  ctx.FormData().Float64("foo", &foo, 2.0)
+//	ctx.FormData().Float64("foo", &foo, 2.0)
 func (form *FormData) Float64(key string, target *float64, defaultValue float64) *FormData {
 	return form.mustValue(key, target, defaultValue)
 }
@@ -115,9 +115,9 @@ func (form *FormData) Float64(key string, target *float64, defaultValue float64)
 // MandatoryFloat64 binds a form data value to a float64 variable. It populates
 // an error if the is not float64, is empty, or the "key" does not exist.
 //
-//  var foo float64
+//	var foo float64
 //
-//  ctx.FormData().MandatoryFloat64("foo", &foo)
+//	ctx.FormData().MandatoryFloat64("foo", &foo)
 func (form *FormData) MandatoryFloat64(key string, target *float64) *FormData {
 	return form.mustMandatoryValue(key, target)
 }
@@ -125,9 +125,9 @@ func (form *FormData) MandatoryFloat64(key string, target *float64) *FormData {
 // Duration binds a form data value to a time.Duration variable. It populates
 // an error if the form data value is not time.Duration.
 //
-//  var foo time.Duration
+//	var foo time.Duration
 //
-//  ctx.FormData().Duration("foo", &foo, time.Duration(2) * time.Second)
+//	ctx.FormData().Duration("foo", &foo, time.Duration(2) * time.Second)
 func (form *FormData) Duration(key string, target *time.Duration, defaultValue time.Duration) *FormData {
 	return form.mustValue(key, target, defaultValue)
 }
@@ -136,31 +136,31 @@ func (form *FormData) Duration(key string, target *time.Duration, defaultValue t
 // populates an error if the value is not time.Duration, is empty, or the "key"
 // does not exist.
 //
-//  var foo time.Duration
+//	var foo time.Duration
 //
-//  ctx.FormData().MandatoryDuration("foo", &foo)
+//	ctx.FormData().MandatoryDuration("foo", &foo)
 func (form *FormData) MandatoryDuration(key string, target *time.Duration) *FormData {
 	return form.mustMandatoryValue(key, target)
 }
 
 // Custom helps to define a custom binding function for a form data value.
 //
-//  var foo map[string]string
+//	var foo map[string]string
 //
-//  ctx.FormData().Custom("foo", func(value string) error {
-//    if value == "" {
-//      foo = "bar"
+//	ctx.FormData().Custom("foo", func(value string) error {
+//	  if value == "" {
+//	    foo = "bar"
 //
-//      return nil
-//    }
+//	    return nil
+//	  }
 //
-//    err := json.Unmarshal([]byte(value), &foo)
-//    if err != nil {
-//      return fmt.Errorf("unmarshal foo: %w", err)
-//    }
+//	  err := json.Unmarshal([]byte(value), &foo)
+//	  if err != nil {
+//	    return fmt.Errorf("unmarshal foo: %w", err)
+//	  }
 //
-//    return nil
-//  })
+//	  return nil
+//	})
 func (form *FormData) Custom(key string, assign func(value string) error) *FormData {
 	var value string
 	form.mustValue(key, &value, "")
@@ -179,16 +179,16 @@ func (form *FormData) Custom(key string, assign func(value string) error) *FormD
 // value. It populates an error if the value is empty or the "key" does not
 // exist.
 //
-//  var foo map[string]string
+//	var foo map[string]string
 //
-//  ctx.FormData().MandatoryCustom("foo", func(value string) error {
-//    err := json.Unmarshal([]byte(value), &foo)
-//    if err != nil {
-//      return fmt.Errorf("unmarshal foo: %w", err)
-//    }
+//	ctx.FormData().MandatoryCustom("foo", func(value string) error {
+//	  err := json.Unmarshal([]byte(value), &foo)
+//	  if err != nil {
+//	    return fmt.Errorf("unmarshal foo: %w", err)
+//	  }
 //
-//    return nil
-//  })
+//	  return nil
+//	})
 func (form *FormData) MandatoryCustom(key string, assign func(value string) error) *FormData {
 	var value string
 	form.mustMandatoryValue(key, &value)
@@ -209,9 +209,9 @@ func (form *FormData) MandatoryCustom(key string, assign func(value string) erro
 
 // Path binds the absolute path of a form data file to a string variable.
 //
-//  var path string
+//	var path string
 //
-//  ctx.FormData().Path("foo.txt", &path)
+//	ctx.FormData().Path("foo.txt", &path)
 func (form *FormData) Path(filename string, target *string) *FormData {
 	return form.path(filename, target)
 }
@@ -219,18 +219,18 @@ func (form *FormData) Path(filename string, target *string) *FormData {
 // MandatoryPath binds the absolute path ofa  form data file to a string
 // variable. It populates an error if the file does not exist.
 //
-//  var path string
+//	var path string
 //
-//  ctx.FormData().MandatoryPath("foo.txt", &path)
+//	ctx.FormData().MandatoryPath("foo.txt", &path)
 func (form *FormData) MandatoryPath(filename string, target *string) *FormData {
 	return form.mandatoryPath(filename, target)
 }
 
 // Content binds the content of a form data file to a string variable.
 //
-//  var content string
+//	var content string
 //
-//  ctx.FormData().Content("foo.txt", &content, "bar")
+//	ctx.FormData().Content("foo.txt", &content, "bar")
 func (form *FormData) Content(filename string, target *string, defaultValue string) *FormData {
 	var path string
 	form.path(filename, &path)
@@ -247,9 +247,9 @@ func (form *FormData) Content(filename string, target *string, defaultValue stri
 // MandatoryContent binds the content of a form data file to a string variable.
 // It populates an error if the file does not exist.
 //
-//  var content string
+//	var content string
 //
-//  ctx.FormData().MandatoryContent("foo.txt", &content)
+//	ctx.FormData().MandatoryContent("foo.txt", &content)
 func (form *FormData) MandatoryContent(filename string, target *string) *FormData {
 	var path string
 	form.mandatoryPath(filename, &path)
@@ -264,9 +264,9 @@ func (form *FormData) MandatoryContent(filename string, target *string) *FormDat
 // Paths binds the absolute paths of form data files, according to a list of
 // file extensions, to a string slice variable.
 //
-//  var paths []string
+//	var paths []string
 //
-//  ctx.FormData().Paths([]string{".txt"}, &paths)
+//	ctx.FormData().Paths([]string{".txt"}, &paths)
 func (form *FormData) Paths(extensions []string, target *[]string) *FormData {
 	return form.paths(extensions, target)
 }
@@ -275,9 +275,9 @@ func (form *FormData) Paths(extensions []string, target *[]string) *FormData {
 // list of file extensions, to a string slice variable. It populates an error
 // if there is no file for given file extensions.
 //
-//  var paths []string
+//	var paths []string
 //
-//  ctx.FormData().MandatoryPaths([]string{".txt"}, &paths)
+//	ctx.FormData().MandatoryPaths([]string{".txt"}, &paths)
 func (form *FormData) MandatoryPaths(extensions []string, target *[]string) *FormData {
 	form.paths(extensions, target)
 
