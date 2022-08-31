@@ -5,8 +5,8 @@ go 1.19
 require (
 	github.com/alexliesenfeld/health v0.6.0
 	github.com/andybalholm/brotli v1.0.4 // indirect
-	github.com/chromedp/cdproto v0.0.0-20220816211547-b8b15824df23
-	github.com/chromedp/chromedp v0.8.4
+	github.com/chromedp/cdproto v0.0.0-20220827030233-358ed4af73cf
+	github.com/chromedp/chromedp v0.8.5
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
@@ -27,12 +27,12 @@ require (
 	github.com/ulikunitz/xz v0.5.10 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0
-	go.uber.org/zap v1.22.0
-	golang.org/x/crypto v0.0.0-20220817201139-bc19a97f63c8 // indirect
+	go.uber.org/zap v1.23.0
+	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90 // indirect
 	golang.org/x/image v0.0.0-20220722155232-062f8c9fd539 // indirect
-	golang.org/x/net v0.0.0-20220812174116-3211cb980234
+	golang.org/x/net v0.0.0-20220826154423-83b083e8dc8b
 	golang.org/x/sync v0.0.0-20220819030929-7fc1605a5dde
-	golang.org/x/sys v0.0.0-20220818161305-2296e01440c6 // indirect
+	golang.org/x/sys v0.0.0-20220829200755-d48e67d00261 // indirect
 	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035
 	golang.org/x/text v0.3.7
 )
