@@ -1,6 +1,7 @@
 package chromium
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -425,7 +426,7 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 		consoleExceptionsMu sync.RWMutex
 	)
 
-	printToPDF := func(URL string, options Options, result *[]byte) chromedp.Tasks {
+	printToPDF := func(URL string, options Options, outputPath string) chromedp.Tasks {
 		// We validate the underlying requests against our allow / deny lists.
 		// If a request does not pass the validation, we make it fail.
 		listenForEventRequestPaused(taskCtx, logger, mod.allowList, mod.denyList)
@@ -731,6 +732,7 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 			}),
 			chromedp.ActionFunc(func(ctx context.Context) error {
 				printToPDF := page.PrintToPDF().
+					WithTransferMode(page.PrintToPDFTransferModeReturnAsStream).
 					WithLandscape(options.Landscape).
 					WithPrintBackground(options.PrintBackground).
 					WithScale(options.Scale).
@@ -748,12 +750,44 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 
 				logger.Debug(fmt.Sprintf("print to PDF with: %+v", printToPDF))
 
-				data, _, err := printToPDF.Do(ctx)
+				_, stream, err := printToPDF.Do(ctx)
 				if err != nil {
 					return fmt.Errorf("print to PDF: %w", err)
 				}
 
-				*result = data
+				reader := &streamReader{
+					ctx:    ctx,
+					handle: stream,
+					r:      nil,
+					pos:    0,
+					eof:    false,
+				}
+
+				defer func() {
+					err := reader.Close()
+					if err != nil {
+						logger.Error(fmt.Sprintf("close reader: %s", err))
+					}
+				}()
+
+				file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY, 0600)
+				if err != nil {
+					return fmt.Errorf("open output path: %w", err)
+				}
+
+				defer func() {
+					err := file.Close()
+					if err != nil {
+						logger.Error(fmt.Sprintf("close output path: %s", err))
+					}
+				}()
+
+				buffer := bufio.NewReader(reader)
+
+				_, err = buffer.WriteTo(file)
+				if err != nil {
+					return fmt.Errorf("write result to output path: %w", err)
+				}
 
 				return nil
 			}),
@@ -764,8 +798,7 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 	activeInstancesCount += 1
 	activeInstancesCountMu.Unlock()
 
-	var buffer []byte
-	err := chromedp.Run(taskCtx, printToPDF(URL, options, &buffer))
+	err := chromedp.Run(taskCtx, printToPDF(URL, options, outputPath))
 
 	activeInstancesCountMu.Lock()
 	activeInstancesCount -= 1
@@ -805,11 +838,6 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 
 	if consoleExceptions != nil {
 		return fmt.Errorf("%v: %w", consoleExceptions, ErrConsoleExceptions)
-	}
-
-	err = os.WriteFile(outputPath, buffer, 0600)
-	if err != nil {
-		return fmt.Errorf("write result to output path: %w", err)
 	}
 
 	return nil
