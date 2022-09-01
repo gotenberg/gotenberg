@@ -66,9 +66,11 @@ type Chromium struct {
 	engine                   gotenberg.PDFEngine
 	userAgent                string
 	incognito                bool
+	allowInsecureLocalhost   bool
 	ignoreCertificateErrors  bool
 	disableWebSecurity       bool
 	allowFileAccessFromFiles bool
+	hostResolverRules        string
 	proxyServer              string
 	allowList                *regexp.Regexp
 	denyList                 *regexp.Regexp
@@ -250,9 +252,11 @@ func (mod Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs := flag.NewFlagSet("chromium", flag.ExitOnError)
 			fs.String("chromium-user-agent", "", "Override the default User-Agent header")
 			fs.Bool("chromium-incognito", false, "Start Chromium with incognito mode")
+			fs.Bool("chromium-allow-insecure-localhost", false, "Ignore TLS/SSL errors on localhost")
 			fs.Bool("chromium-ignore-certificate-errors", false, "Ignore the certificate errors")
 			fs.Bool("chromium-disable-web-security", false, "Don't enforce the same-origin policy")
 			fs.Bool("chromium-allow-file-access-from-files", false, "Allow file:// URIs to read other file:// URIs")
+			fs.String("chromium-host-resolver-rules", "", "Set custom mappings to the host resolver")
 			fs.String("chromium-proxy-server", "", "Set the outbound proxy server; this switch only affects HTTP and HTTPS requests")
 			fs.String("chromium-allow-list", "", "Set the allowed URLs for Chromium using a regular expression")
 			fs.String("chromium-deny-list", "^file:///[^tmp].*", "Set the denied URLs for Chromium using a regular expression")
@@ -274,9 +278,11 @@ func (mod Chromium) Descriptor() gotenberg.ModuleDescriptor {
 func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	mod.userAgent = flags.MustString("chromium-user-agent")
+	mod.allowInsecureLocalhost = flags.MustBool("chromium-allow-insecure-localhost")
 	mod.ignoreCertificateErrors = flags.MustBool("chromium-ignore-certificate-errors")
 	mod.disableWebSecurity = flags.MustBool("chromium-disable-web-security")
 	mod.allowFileAccessFromFiles = flags.MustBool("chromium-allow-file-access-from-files")
+	mod.hostResolverRules = flags.MustString("chromium-host-resolver-rules")
 	mod.proxyServer = flags.MustString("chromium-proxy-server")
 	mod.allowList = flags.MustRegexp("chromium-allow-list")
 	mod.denyList = flags.MustRegexp("chromium-deny-list")
@@ -382,6 +388,11 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 		args = append(args, chromedp.Flag("incognito", mod.incognito))
 	}
 
+	if mod.allowInsecureLocalhost {
+		// See https://github.com/gotenberg/gotenberg/issues/488.
+		args = append(args, chromedp.Flag("allow-insecure-localhost", true))
+	}
+
 	if mod.ignoreCertificateErrors {
 		args = append(args, chromedp.IgnoreCertErrors)
 	}
@@ -393,6 +404,11 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 	if mod.allowFileAccessFromFiles {
 		// See https://github.com/gotenberg/gotenberg/issues/356.
 		args = append(args, chromedp.Flag("allow-file-access-from-files", true))
+	}
+
+	if mod.hostResolverRules != "" {
+		// See https://github.com/gotenberg/gotenberg/issues/488.
+		args = append(args, chromedp.Flag("host-resolver-rules", mod.hostResolverRules))
 	}
 
 	if mod.proxyServer != "" {
