@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"mime/multipart"
 	"net/http"
@@ -450,7 +450,7 @@ func TestWebhookMiddlewareAsynchronousProcess(t *testing.T) {
 						}
 
 						if contentType == echo.MIMEApplicationJSONCharsetUTF8 {
-							body, err := ioutil.ReadAll(c.Request().Body)
+							body, err := io.ReadAll(c.Request().Body)
 							if err != nil {
 								errChan <- err
 								return nil
@@ -489,7 +489,7 @@ func TestWebhookMiddlewareAsynchronousProcess(t *testing.T) {
 							t.Errorf("test %d: expected '%s' '%s' to contain '%s'", i, echo.HeaderContentDisposition, contentDisposition, tc.expectWebhookFilename)
 						}
 
-						body, err := ioutil.ReadAll(c.Request().Body)
+						body, err := io.ReadAll(c.Request().Body)
 						if err != nil {
 							errChan <- err
 							return nil

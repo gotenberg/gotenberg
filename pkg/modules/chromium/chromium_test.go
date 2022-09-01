@@ -3,7 +3,6 @@ package chromium
 import (
 	"context"
 	"errors"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"regexp"
@@ -399,7 +398,7 @@ func TestChromium_PDF(t *testing.T) {
 			URL: "file:///tests/test/testdata/chromium/html/sample4/index.html",
 			options: Options{
 				HeaderTemplate: func() string {
-					b, err := ioutil.ReadFile("/tests/test/testdata/chromium/url/sample2/header.html")
+					b, err := os.ReadFile("/tests/test/testdata/chromium/url/sample2/header.html")
 					if err != nil {
 						t.Fatalf("expected no error but got: %v", err)
 					}
@@ -407,7 +406,7 @@ func TestChromium_PDF(t *testing.T) {
 					return string(b)
 				}(),
 				FooterTemplate: func() string {
-					b, err := ioutil.ReadFile("/tests/test/testdata/chromium/url/sample2/footer.html")
+					b, err := os.ReadFile("/tests/test/testdata/chromium/url/sample2/footer.html")
 					if err != nil {
 						t.Fatalf("expected no error but got: %v", err)
 					}
