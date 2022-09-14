@@ -156,10 +156,10 @@ func encryptRoute(engine gotenberg.PDFEngine) api.Route {
 
 			// Let's get the data from the form and validate them.
 			var (
-				inputPaths  []string
+				inputPaths    []string
 				ownerPassword string
-				userPassword string
-				keyLength int
+				userPassword  string
+				keyLength     int
 			)
 
 			err := ctx.FormData().

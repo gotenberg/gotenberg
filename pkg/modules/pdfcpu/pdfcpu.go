@@ -56,13 +56,13 @@ func (engine PDFcpu) Convert(_ context.Context, _ *zap.Logger, format, _, _ stri
 
 func (engine PDFcpu) Encrypt(_ context.Context, _ *zap.Logger, keyLength int, ownerPassword, userPassword, inputPath, outputPath string) error {
 	conf := engine.conf
-	
+
 	conf.EncryptKeyLength = keyLength
 	conf.UserPW = userPassword
 	conf.OwnerPW = ownerPassword
 
 	err := pdfcpuAPI.EncryptFile(inputPath, outputPath, conf)
-	
+
 	if err == nil {
 		return nil
 	}
