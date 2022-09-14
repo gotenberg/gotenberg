@@ -355,6 +355,75 @@ paths:
         '400':
           description: >-
             Bad Request, e.g. Invalid form data: no form file found for extensions: [.pdf]; form value 'pdfFormat' is required
+            
+  /forms/pdfengines/encrypt:
+    post:
+      tags:
+        - pdfengines
+      summary: Encrypts PDFs with given passwords
+      externalDocs:
+        url: https://gotenberg.dev/docs/modules/pdf-engines
+      description: >-
+        This route accepts PDF files and a form field pdfFormat for converting them into the specified format.
+      parameters:
+        - in: header
+          name: Gotenberg-Output-Filename
+          description: >-
+            By default, the API generates a UUID filename.
+            However, you may also specify the filename per request,
+            thanks to the Gotenberg-Output-Filename header.
+            Caution! The API adds the file extension automatically; you don't have to set it.
+          schema:
+            type: string
+          required: false
+        - in: header
+          name: Gotenberg-Trace
+          description: >-
+            The trace, or request ID, identifies a request in the logs.
+
+            By default, the API generates a UUID trace for each request.
+            However, you may also specify the trace per request, thanks to the Gotenberg-Trace header.
+          schema:
+            type: string
+          required: false
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                ownerPassword:
+                  type: string
+                  description: The Password used for permissions.
+                  example: secureOwnerPassword
+                userPassword:
+                  type: string
+                  description: The Password used for access to the PDF
+                  example: secureUserPassword
+                keyLength:
+                  type: integer
+                  description: Keylength for encryption, defaults to 256
+                  enum: 
+                   - 40
+                   - 128
+                   - 256
+                  example: 256
+              required:
+                - files
+                - ownerPassword
+                - userPassword
+
+      responses:
+        '200':
+          $ref: '#/components/responses/SuccessfulPDF'
+        '400':
+          description: >-
+            Bad Request, e.g. Invalid form data: no form file found for extensions: [.pdf]; form value 'ownerPassword' is required; form value 'userPassword' is required;
 
 components:
   schemas:

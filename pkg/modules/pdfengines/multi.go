@@ -75,6 +75,29 @@ func (multi multiPDFEngines) Convert(ctx context.Context, logger *zap.Logger, fo
 	return fmt.Errorf("convert PDF to '%s' with multi PDF engines: %w", format, err)
 }
 
+func (multi multiPDFEngines) Encrypt(ctx context.Context, logger *zap.Logger, keyLength int, ownerPassword, userPassword, inputPath, outputPath string) error {
+	var err error
+	errChan := make(chan error, 1)
+
+	for _, engine := range multi.engines {
+		go func(engine gotenberg.PDFEngine) {
+			errChan <- engine.Encrypt(ctx, logger, keyLength, ownerPassword, userPassword, inputPath, outputPath)
+		}(engine)
+
+		select {
+		case mergeErr := <-errChan:
+			errored := multierr.AppendInto(&err, mergeErr)
+			if !errored {
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	return fmt.Errorf("encrypt PDF with multi PDF engines: %w", err)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.PDFEngine = (*multiPDFEngines)(nil)

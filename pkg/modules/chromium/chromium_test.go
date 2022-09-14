@@ -41,6 +41,7 @@ func (mod ProtoPDFEngineProvider) PDFEngine() (gotenberg.PDFEngine, error) {
 type ProtoPDFEngine struct {
 	merge   func(_ context.Context, _ *zap.Logger, _ []string, _ string) error
 	convert func(_ context.Context, _ *zap.Logger, _, _, _ string) error
+	encrypt func(_ context.Context, _ *zap.Logger, _ int, _, _, _, _ string) error
 }
 
 func (mod ProtoPDFEngine) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
@@ -49,6 +50,10 @@ func (mod ProtoPDFEngine) Merge(ctx context.Context, logger *zap.Logger, inputPa
 
 func (mod ProtoPDFEngine) Convert(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
 	return mod.convert(ctx, logger, format, inputPath, outputPath)
+}
+
+func (mod ProtoPDFEngine) Encrypt(ctx context.Context, logger *zap.Logger, keyLength int, ownerPassword, userPassword, inputPath, outputPath string) error {
+	return mod.encrypt(ctx, logger, keyLength, ownerPassword, userPassword, inputPath, outputPath)
 }
 
 func TestDefaultOptions(t *testing.T) {

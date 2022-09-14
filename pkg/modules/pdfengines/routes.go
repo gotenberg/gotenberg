@@ -145,3 +145,57 @@ func convertRoute(engine gotenberg.PDFEngine) api.Route {
 		},
 	}
 }
+
+func encryptRoute(engine gotenberg.PDFEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/encrypt",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			// Let's get the data from the form and validate them.
+			var (
+				inputPaths  []string
+				ownerPassword string
+				userPassword string
+				keyLength int
+			)
+
+			err := ctx.FormData().
+				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				MandatoryString("ownerPassword", &ownerPassword).
+				MandatoryString("userPassword", &userPassword).
+				Int("keyLength", &keyLength, 256).
+				Validate()
+
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			// Alright, let's encrypt the PDFs.
+
+			outputPaths := make([]string, len(inputPaths))
+
+			for i, inputPath := range inputPaths {
+				outputPaths[i] = ctx.GeneratePath(".pdf")
+
+				err = engine.Encrypt(ctx, ctx.Log(), keyLength, ownerPassword, userPassword, inputPath, outputPaths[i])
+
+				if err != nil {
+					return fmt.Errorf("convert PDF: %w", err)
+				}
+			}
+
+			// Last but not least, add the output paths to the context so that
+			// the API is able to send them as a response to the client.
+
+			err = ctx.AddOutputPaths(outputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
+			}
+
+			return nil
+		},
+	}
+}

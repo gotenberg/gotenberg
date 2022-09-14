@@ -28,6 +28,7 @@ func (mod ValidatorMock) Validate() error {
 type PDFEngineMock struct {
 	MergeMock   func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error
 	ConvertMock func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error
+	EncryptMock func(ctx context.Context, logger *zap.Logger, keyLength int, ownerPassword, userPassword, inputPath, outputPath string) error
 }
 
 func (engine PDFEngineMock) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
@@ -36,6 +37,10 @@ func (engine PDFEngineMock) Merge(ctx context.Context, logger *zap.Logger, input
 
 func (engine PDFEngineMock) Convert(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
 	return engine.ConvertMock(ctx, logger, format, inputPath, outputPath)
+}
+
+func (engine PDFEngineMock) Encrypt(ctx context.Context, logger *zap.Logger, keyLength int, ownerPassword, userPassword, inputPath, outputPath string) error {
+	return engine.EncryptMock(ctx, logger, keyLength, ownerPassword, userPassword, inputPath, outputPath)
 }
 
 // PDFEngineProviderMock is a mock for the PDFEngineProvider interface.

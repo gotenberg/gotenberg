@@ -101,6 +101,10 @@ func (engine PDFtk) Convert(_ context.Context, _ *zap.Logger, format, _, _ strin
 	return fmt.Errorf("convert PDF to '%s' with PDFtk: %w", format, gotenberg.ErrPDFEngineMethodNotAvailable)
 }
 
+func (engine PDFtk) Encrypt(ctx context.Context, logger *zap.Logger, keyLength int, ownerPassword, userPassword, inputPath, outputPath string) error {
+	return fmt.Errorf("encrypt PDF with PDFtk: %w", gotenberg.ErrPDFEngineMethodNotAvailable)
+}
+
 var (
 	activeInstancesCount   float64
 	activeInstancesCountMu sync.RWMutex

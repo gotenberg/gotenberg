@@ -420,7 +420,7 @@ func TestPDFEngines_Routes(t *testing.T) {
 					gotenberg.PDFEngineMock{},
 				},
 			},
-			expectRoutesCount: 2,
+			expectRoutesCount: 3,
 		},
 		{
 			name: "route disabled",

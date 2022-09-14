@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"sync"
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
@@ -101,6 +102,34 @@ func (engine QPDF) Merge(ctx context.Context, logger *zap.Logger, inputPaths []s
 // Convert is not available for this PDF engine.
 func (engine QPDF) Convert(_ context.Context, _ *zap.Logger, format, _, _ string) error {
 	return fmt.Errorf("convert PDF to '%s' with QPDF: %w", format, gotenberg.ErrPDFEngineMethodNotAvailable)
+}
+
+func (engine QPDF) Encrypt(ctx context.Context, logger *zap.Logger, keyLength int, ownerPassword, userPassword, inputPath, outputPath string) error {
+	var args []string
+	args = append(args, "--encrypt", userPassword, ownerPassword, strconv.Itoa(keyLength))
+	args = append(args, "--", inputPath)
+	args = append(args, outputPath)
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		return fmt.Errorf("create command: %w", err)
+	}
+
+	activeInstancesCountMu.Lock()
+	activeInstancesCount += 1
+	activeInstancesCountMu.Unlock()
+
+	_, err = cmd.Exec()
+
+	activeInstancesCountMu.Lock()
+	activeInstancesCount -= 1
+	activeInstancesCountMu.Unlock()
+
+	if err == nil {
+		return nil
+	}
+
+	return fmt.Errorf("encrypt PDF with QPDF: %w", err)
 }
 
 var (

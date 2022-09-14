@@ -54,6 +54,22 @@ func (engine PDFcpu) Convert(_ context.Context, _ *zap.Logger, format, _, _ stri
 	return fmt.Errorf("convert PDF to '%s' with PDFcpu: %w", format, gotenberg.ErrPDFEngineMethodNotAvailable)
 }
 
+func (engine PDFcpu) Encrypt(_ context.Context, _ *zap.Logger, keyLength int, ownerPassword, userPassword, inputPath, outputPath string) error {
+	conf := engine.conf
+	
+	conf.EncryptKeyLength = keyLength
+	conf.UserPW = userPassword
+	conf.OwnerPW = ownerPassword
+
+	err := pdfcpuAPI.EncryptFile(inputPath, outputPath, conf)
+	
+	if err == nil {
+		return nil
+	}
+
+	return fmt.Errorf("encrypt PDF with PDFcpu: %w", err)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*PDFcpu)(nil)
