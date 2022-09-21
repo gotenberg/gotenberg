@@ -379,172 +379,216 @@ func (mod Chromium) Routes() ([]api.Route, error) {
 	}, nil
 }
 
+func convertToImage(URL string, options Options, outputPath string, logger *zap.Logger) chromedp.Tasks {
+	return chromedp.Tasks{
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			_, _, _, _, _, cssContentSize, err := page.GetLayoutMetrics().Do(ctx)
+
+			if err != nil {
+				return err
+			}
+
+			width := options.Width
+			height := options.Height
+			if width == 0 {
+				width = cssContentSize.Width
+			}
+			if height == 0 {
+				height = cssContentSize.Height
+			}
+
+			format := page.CaptureScreenshotFormatPng
+			if options.Quality < 100 {
+				format = page.CaptureScreenshotFormatJpeg
+			}
+
+			buffer, err := page.CaptureScreenshot().
+				WithFormat(format).
+				WithCaptureBeyondViewport(true).
+				WithQuality(int64(options.Quality)).
+				WithClip(&page.Viewport{
+					X:      0,
+					Y:      0,
+					Width:  width,
+					Height: height,
+					Scale:  options.Scale,
+				}).Do(ctx)
+
+			if err != nil {
+				return fmt.Errorf("print to Image: %w", err)
+			}
+
+			file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY, 0600)
+			if err != nil {
+				return fmt.Errorf("open output path: %w", err)
+			}
+
+			defer func() {
+				err := file.Close()
+				if err != nil {
+					logger.Error(fmt.Sprintf("close output path: %s", err))
+				}
+			}()
+
+			_, err = file.Write(buffer)
+
+			if err != nil {
+				return fmt.Errorf("write result to output path: %w", err)
+			}
+
+			return nil
+		}),
+	}
+}
+
+func convertToPDF(URL string, options Options, outputPath string, logger *zap.Logger) chromedp.Tasks {
+	return chromedp.Tasks{
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			printToPDF := page.PrintToPDF().
+				WithTransferMode(page.PrintToPDFTransferModeReturnAsStream).
+				WithLandscape(options.Landscape).
+				WithPrintBackground(options.PrintBackground).
+				WithScale(options.Scale).
+				WithPaperWidth(options.PaperWidth).
+				WithPaperHeight(options.PaperHeight).
+				WithMarginTop(options.MarginTop).
+				WithMarginBottom(options.MarginBottom).
+				WithMarginLeft(options.MarginLeft).
+				WithMarginRight(options.MarginRight).
+				WithPageRanges(options.PageRanges).
+				WithDisplayHeaderFooter(true).
+				WithHeaderTemplate(options.HeaderTemplate).
+				WithFooterTemplate(options.FooterTemplate).
+				WithPreferCSSPageSize(options.PreferCSSPageSize)
+
+			logger.Debug(fmt.Sprintf("print to PDF with: %+v", printToPDF))
+
+			_, stream, err := printToPDF.Do(ctx)
+			if err != nil {
+				return fmt.Errorf("print to PDF: %w", err)
+			}
+
+			reader := &streamReader{
+				ctx:    ctx,
+				handle: stream,
+				r:      nil,
+				pos:    0,
+				eof:    false,
+			}
+
+			defer func() {
+				err := reader.Close()
+				if err != nil {
+					logger.Error(fmt.Sprintf("close reader: %s", err))
+				}
+			}()
+
+			file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY, 0600)
+			if err != nil {
+				return fmt.Errorf("open output path: %w", err)
+			}
+
+			defer func() {
+				err := file.Close()
+				if err != nil {
+					logger.Error(fmt.Sprintf("close output path: %s", err))
+				}
+			}()
+
+			buffer := bufio.NewReader(reader)
+
+			_, err = buffer.WriteTo(file)
+			if err != nil {
+				return fmt.Errorf("write result to output path: %w", err)
+			}
+
+			return nil
+		}),
+	}
+}
+
 // PDF converts a URL to PDF. It creates a dedicated Chromium instance.
 // Substantial calls to this method may increase CPU and memory usage
 // drastically. In such a scenario, the given context may also be done before
 // the end of the conversion.
 func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath string, options Options) error {
-	debug := debugLogger{logger: logger.Named("browser")}
-	userProfileDirPath := gotenberg.NewDirPath()
-
-	args := mod.setupArgs(logger, options)
-
-	allocatorCtx, cancel := chromedp.NewExecAllocator(ctx, args...)
-	defer cancel()
-
-	taskCtx, cancel := chromedp.NewContext(allocatorCtx,
-		chromedp.WithDebugf(debug.Printf),
+	tasks := append(
+		mod.getDefaultSetupTasks(logger, URL, options),
+		convertToPDF(URL, options, outputPath, logger),
 	)
-	defer cancel()
-
-	// We validate the "main" URL against our allow / deny lists.
-	if !mod.allowList.MatchString(URL) {
-		return fmt.Errorf("'%s' does not match the expression from the allowed list: %w", URL, ErrURLNotAuthorized)
-	}
-
-	if mod.denyList.String() != "" && mod.denyList.MatchString(URL) {
-		return fmt.Errorf("'%s' matches the expression from the denied list: %w", URL, ErrURLNotAuthorized)
-	}
-
-	var (
-		consoleExceptions   error
-		consoleExceptionsMu sync.RWMutex
-	)
-
-	printToPDF := func(URL string, options Options, outputPath string) chromedp.Tasks {
-		// We validate the underlying requests against our allow / deny lists.
-		// If a request does not pass the validation, we make it fail.
-		listenForEventRequestPaused(taskCtx, logger, mod.allowList, mod.denyList)
-
-		// See https://github.com/gotenberg/gotenberg/issues/262.
-		if options.FailOnConsoleExceptions && !mod.disableJavaScript {
-			listenForEventExceptionThrown(taskCtx, logger, &consoleExceptions, &consoleExceptionsMu)
-		}
-
-		return chromedp.Tasks{
-			mod.getDefaultSetupTasks(logger, URL, options),
-			chromedp.ActionFunc(func(ctx context.Context) error {
-				printToPDF := page.PrintToPDF().
-					WithTransferMode(page.PrintToPDFTransferModeReturnAsStream).
-					WithLandscape(options.Landscape).
-					WithPrintBackground(options.PrintBackground).
-					WithScale(options.Scale).
-					WithPaperWidth(options.PaperWidth).
-					WithPaperHeight(options.PaperHeight).
-					WithMarginTop(options.MarginTop).
-					WithMarginBottom(options.MarginBottom).
-					WithMarginLeft(options.MarginLeft).
-					WithMarginRight(options.MarginRight).
-					WithPageRanges(options.PageRanges).
-					WithDisplayHeaderFooter(true).
-					WithHeaderTemplate(options.HeaderTemplate).
-					WithFooterTemplate(options.FooterTemplate).
-					WithPreferCSSPageSize(options.PreferCSSPageSize)
-
-				logger.Debug(fmt.Sprintf("print to PDF with: %+v", printToPDF))
-
-				_, stream, err := printToPDF.Do(ctx)
-				if err != nil {
-					return fmt.Errorf("print to PDF: %w", err)
-				}
-
-				reader := &streamReader{
-					ctx:    ctx,
-					handle: stream,
-					r:      nil,
-					pos:    0,
-					eof:    false,
-				}
-
-				defer func() {
-					err := reader.Close()
-					if err != nil {
-						logger.Error(fmt.Sprintf("close reader: %s", err))
-					}
-				}()
-
-				file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY, 0600)
-				if err != nil {
-					return fmt.Errorf("open output path: %w", err)
-				}
-
-				defer func() {
-					err := file.Close()
-					if err != nil {
-						logger.Error(fmt.Sprintf("close output path: %s", err))
-					}
-				}()
-
-				buffer := bufio.NewReader(reader)
-
-				_, err = buffer.WriteTo(file)
-				if err != nil {
-					return fmt.Errorf("write result to output path: %w", err)
-				}
-
-				return nil
-			}),
-		}
-	}
-
-	activeInstancesCountMu.Lock()
-	activeInstancesCount += 1
-	activeInstancesCountMu.Unlock()
-
-	err := chromedp.Run(taskCtx, printToPDF(URL, options, outputPath))
-
-	activeInstancesCountMu.Lock()
-	activeInstancesCount -= 1
-	activeInstancesCountMu.Unlock()
-
-	// Always remove the user profile directory created by Chromium.
-	go func() {
-		logger.Debug(fmt.Sprintf("remove user profile directory '%s'", userProfileDirPath))
-
-		err := os.RemoveAll(userProfileDirPath)
-		if err != nil {
-			logger.Error(fmt.Sprintf("remove user profile directory: %s", err))
-		}
-	}()
-
-	if err != nil {
-		errMessage := err.Error()
-
-		if strings.Contains(errMessage, "Show invalid printer settings error (-32000)") {
-			return ErrInvalidPrinterSettings
-		}
-
-		if strings.Contains(errMessage, "Page range syntax error") {
-			return ErrPageRangesSyntaxError
-		}
-
-		if strings.Contains(errMessage, "rpcc: message too large") {
-			return ErrRpccMessageTooLarge
-		}
-
-		return fmt.Errorf("chromium PDF: %w", err)
-	}
-
-	// See https://github.com/gotenberg/gotenberg/issues/262.
-	consoleExceptionsMu.RLock()
-	defer consoleExceptionsMu.RUnlock()
-
-	if consoleExceptions != nil {
-		return fmt.Errorf("%v: %w", consoleExceptions, ErrConsoleExceptions)
-	}
-
-	return nil
+	return mod.runTasks(ctx, tasks, logger, URL, outputPath, options)
 }
 
-// PDF converts a URL to an Image. It creates a dedicated Chromium instance.
-// Substantial calls to this method may increase CPU and memory usage
-// drastically. In such a scenario, the given context may also be done before
-// the end of the conversion.
+// Image converts a URL to an Image. It creates a dedicated Chromium instance.
+
 func (mod Chromium) Image(ctx context.Context, logger *zap.Logger, URL, outputPath string, options Options) error {
+	tasks := append(
+		mod.getDefaultSetupTasks(logger, URL, options),
+		convertToImage(URL, options, outputPath, logger),
+	)
+	return mod.runTasks(ctx, tasks, logger, URL, outputPath, options)
+
+}
+
+func (mod Chromium) runTasks(ctx context.Context, task chromedp.Tasks, logger *zap.Logger, URL, outputPath string, options Options) error {
 	debug := debugLogger{logger: logger.Named("browser")}
 	userProfileDirPath := gotenberg.NewDirPath()
 
-	args := mod.setupArgs(logger, options)
+	args := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.CombinedOutput(debug),
+		chromedp.ExecPath(mod.binPath),
+		chromedp.NoSandbox,
+		// See:
+		// https://github.com/gotenberg/gotenberg/issues/327
+		// https://github.com/chromedp/chromedp/issues/904
+		chromedp.DisableGPU,
+		// See:
+		// https://github.com/puppeteer/puppeteer/issues/661
+		// https://github.com/puppeteer/puppeteer/issues/2410
+		chromedp.Flag("font-render-hinting", "none"),
+		chromedp.UserDataDir(userProfileDirPath),
+	)
+
+	if mod.userAgent != "" && options.UserAgent == "" {
+		// Deprecated.
+		args = append(args, chromedp.UserAgent(mod.userAgent))
+	}
+
+	if mod.incognito {
+		args = append(args, chromedp.Flag("incognito", mod.incognito))
+	}
+
+	if mod.allowInsecureLocalhost {
+		// See https://github.com/gotenberg/gotenberg/issues/488.
+		args = append(args, chromedp.Flag("allow-insecure-localhost", true))
+	}
+
+	if mod.ignoreCertificateErrors {
+		args = append(args, chromedp.IgnoreCertErrors)
+	}
+
+	if mod.disableWebSecurity {
+		args = append(args, chromedp.Flag("disable-web-security", true))
+	}
+
+	if mod.allowFileAccessFromFiles {
+		// See https://github.com/gotenberg/gotenberg/issues/356.
+		args = append(args, chromedp.Flag("allow-file-access-from-files", true))
+	}
+
+	if mod.hostResolverRules != "" {
+		// See https://github.com/gotenberg/gotenberg/issues/488.
+		args = append(args, chromedp.Flag("host-resolver-rules", mod.hostResolverRules))
+	}
+
+	if mod.proxyServer != "" {
+		// See https://github.com/gotenberg/gotenberg/issues/376.
+		args = append(args, chromedp.ProxyServer(mod.proxyServer))
+	}
+
+	if options.UserAgent != "" {
+		args = append(args, chromedp.UserAgent(options.UserAgent))
+	}
 
 	allocatorCtx, cancel := chromedp.NewExecAllocator(ctx, args...)
 	defer cancel()
@@ -568,83 +612,20 @@ func (mod Chromium) Image(ctx context.Context, logger *zap.Logger, URL, outputPa
 		consoleExceptionsMu sync.RWMutex
 	)
 
-	printToImage := func(URL string, options Options, outputPath string) chromedp.Tasks {
-		// We validate the underlying requests against our allow / deny lists.
-		// If a request does not pass the validation, we make it fail.
-		listenForEventRequestPaused(taskCtx, logger, mod.allowList, mod.denyList)
-
-		// See https://github.com/gotenberg/gotenberg/issues/262.
-		if options.FailOnConsoleExceptions && !mod.disableJavaScript {
-			listenForEventExceptionThrown(taskCtx, logger, &consoleExceptions, &consoleExceptionsMu)
-		}
-
-		return append(
-			mod.getDefaultSetupTasks(logger, URL, options),
-			chromedp.ActionFunc(func(ctx context.Context) error {
-				_, _, _, _, _, cssContentSize, err := page.GetLayoutMetrics().Do(ctx)
-
-				if err != nil {
-					return err
-				}
-
-				width := options.Width
-				height := options.Height
-				if width == 0 {
-					width = cssContentSize.Width
-				}
-				if height == 0 {
-					height = cssContentSize.Height
-				}
-
-				format := page.CaptureScreenshotFormatPng
-				if options.Quality < 100 {
-					format = page.CaptureScreenshotFormatJpeg
-				}
-
-				buffer, err := page.CaptureScreenshot().
-					WithFormat(format).
-					WithCaptureBeyondViewport(true).
-					WithQuality(int64(options.Quality)).
-					WithClip(&page.Viewport{
-						X:      0,
-						Y:      0,
-						Width:  width,
-						Height: height,
-						Scale:  options.Scale,
-					}).Do(ctx)
-
-				if err != nil {
-					return fmt.Errorf("print to Image: %w", err)
-				}
-
-				file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY, 0600)
-				if err != nil {
-					return fmt.Errorf("open output path: %w", err)
-				}
-
-				defer func() {
-					err := file.Close()
-					if err != nil {
-						logger.Error(fmt.Sprintf("close output path: %s", err))
-					}
-				}()
-
-				_, err = file.Write(buffer)
-
-				if err != nil {
-					return fmt.Errorf("write result to output path: %w", err)
-				}
-
-				return nil
-			}),
-		)
-	}
-
 	activeInstancesCountMu.Lock()
 	activeInstancesCount += 1
 	activeInstancesCountMu.Unlock()
 
-	err := chromedp.Run(taskCtx, printToImage(URL, options, outputPath))
+	// We validate the underlying requests against our allow / deny lists.
+	// If a request does not pass the validation, we make it fail.
+	listenForEventRequestPaused(taskCtx, logger, mod.allowList, mod.denyList)
+
+	// See https://github.com/gotenberg/gotenberg/issues/262.
+	if options.FailOnConsoleExceptions && !mod.disableJavaScript {
+		listenForEventExceptionThrown(taskCtx, logger, &consoleExceptions, &consoleExceptionsMu)
+	}
+
+	err := chromedp.Run(taskCtx, append(mod.getDefaultSetupTasks(logger, URL, options), task))
 
 	activeInstancesCountMu.Lock()
 	activeInstancesCount -= 1
@@ -983,69 +964,8 @@ func (mod Chromium) getDefaultSetupTasks(logger *zap.Logger, URL string, options
 			}
 
 			return nil
-		})}
-}
-
-func (mod Chromium) setupArgs(logger *zap.Logger, options Options) []chromedp.ExecAllocatorOption {
-	debug := debugLogger{logger: logger.Named("browser")}
-	userProfileDirPath := gotenberg.NewDirPath()
-
-	args := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.CombinedOutput(debug),
-		chromedp.ExecPath(mod.binPath),
-		chromedp.NoSandbox,
-		// See:
-		// https://github.com/gotenberg/gotenberg/issues/327
-		// https://github.com/chromedp/chromedp/issues/904
-		chromedp.DisableGPU,
-		// See:
-		// https://github.com/puppeteer/puppeteer/issues/661
-		// https://github.com/puppeteer/puppeteer/issues/2410
-		chromedp.Flag("font-render-hinting", "none"),
-		chromedp.UserDataDir(userProfileDirPath),
-	)
-
-	if mod.userAgent != "" && options.UserAgent == "" {
-		// Deprecated.
-		args = append(args, chromedp.UserAgent(mod.userAgent))
+		}),
 	}
-
-	if mod.incognito {
-		args = append(args, chromedp.Flag("incognito", mod.incognito))
-	}
-
-	if mod.allowInsecureLocalhost {
-		// See https://github.com/gotenberg/gotenberg/issues/488.
-		args = append(args, chromedp.Flag("allow-insecure-localhost", true))
-	}
-
-	if mod.ignoreCertificateErrors {
-		args = append(args, chromedp.IgnoreCertErrors)
-	}
-
-	if mod.disableWebSecurity {
-		args = append(args, chromedp.Flag("disable-web-security", true))
-	}
-
-	if mod.allowFileAccessFromFiles {
-		// See https://github.com/gotenberg/gotenberg/issues/356.
-		args = append(args, chromedp.Flag("allow-file-access-from-files", true))
-	}
-
-	if mod.hostResolverRules != "" {
-		// See https://github.com/gotenberg/gotenberg/issues/488.
-		args = append(args, chromedp.Flag("host-resolver-rules", mod.hostResolverRules))
-	}
-
-	if mod.proxyServer != "" {
-		// See https://github.com/gotenberg/gotenberg/issues/376.
-		args = append(args, chromedp.ProxyServer(mod.proxyServer))
-	}
-
-	if options.UserAgent != "" {
-		args = append(args, chromedp.UserAgent(options.UserAgent))
-	}
-	return args
 }
 
 var (
