@@ -364,61 +364,7 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 	debug := debugLogger{logger: logger.Named("browser")}
 	userProfileDirPath := gotenberg.NewDirPath()
 
-	args := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.CombinedOutput(debug),
-		chromedp.ExecPath(mod.binPath),
-		chromedp.NoSandbox,
-		// See:
-		// https://github.com/gotenberg/gotenberg/issues/327
-		// https://github.com/chromedp/chromedp/issues/904
-		chromedp.DisableGPU,
-		// See:
-		// https://github.com/puppeteer/puppeteer/issues/661
-		// https://github.com/puppeteer/puppeteer/issues/2410
-		chromedp.Flag("font-render-hinting", "none"),
-		chromedp.UserDataDir(userProfileDirPath),
-	)
-
-	if mod.userAgent != "" && options.UserAgent == "" {
-		// Deprecated.
-		args = append(args, chromedp.UserAgent(mod.userAgent))
-	}
-
-	if mod.incognito {
-		args = append(args, chromedp.Flag("incognito", mod.incognito))
-	}
-
-	if mod.allowInsecureLocalhost {
-		// See https://github.com/gotenberg/gotenberg/issues/488.
-		args = append(args, chromedp.Flag("allow-insecure-localhost", true))
-	}
-
-	if mod.ignoreCertificateErrors {
-		args = append(args, chromedp.IgnoreCertErrors)
-	}
-
-	if mod.disableWebSecurity {
-		args = append(args, chromedp.Flag("disable-web-security", true))
-	}
-
-	if mod.allowFileAccessFromFiles {
-		// See https://github.com/gotenberg/gotenberg/issues/356.
-		args = append(args, chromedp.Flag("allow-file-access-from-files", true))
-	}
-
-	if mod.hostResolverRules != "" {
-		// See https://github.com/gotenberg/gotenberg/issues/488.
-		args = append(args, chromedp.Flag("host-resolver-rules", mod.hostResolverRules))
-	}
-
-	if mod.proxyServer != "" {
-		// See https://github.com/gotenberg/gotenberg/issues/376.
-		args = append(args, chromedp.ProxyServer(mod.proxyServer))
-	}
-
-	if options.UserAgent != "" {
-		args = append(args, chromedp.UserAgent(options.UserAgent))
-	}
+	args := mod.setupArgs(logger, options)
 
 	allocatorCtx, cancel := chromedp.NewExecAllocator(ctx, args...)
 	defer cancel()
@@ -453,299 +399,7 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 		}
 
 		return chromedp.Tasks{
-			network.Enable(),
-			fetch.Enable(),
-			runtime.Enable(),
-			chromedp.ActionFunc(func(ctx context.Context) error {
-				// See https://github.com/gotenberg/gotenberg/issues/175.
-				if !mod.disableJavaScript {
-					logger.Debug("JavaScript not disabled")
-
-					return nil
-				}
-
-				logger.Debug("disable JavaScript")
-
-				err := emulation.SetScriptExecutionDisabled(true).Do(ctx)
-				if err == nil {
-					return nil
-				}
-
-				return fmt.Errorf("disable JavaScript: %w", err)
-			}),
-			chromedp.ActionFunc(func(ctx context.Context) error {
-				if len(options.ExtraHTTPHeaders) == 0 {
-					logger.Debug("no extra HTTP headers")
-
-					return nil
-				}
-
-				logger.Debug(fmt.Sprintf("extra HTTP headers: %+v", options.ExtraHTTPHeaders))
-
-				headers := make(network.Headers, len(options.ExtraHTTPHeaders))
-				for key, value := range options.ExtraHTTPHeaders {
-					headers[key] = value
-				}
-
-				err := network.SetExtraHTTPHeaders(headers).Do(ctx)
-				if err == nil {
-					return nil
-				}
-
-				return fmt.Errorf("set extra HTTP headers: %w", err)
-			}),
-			chromedp.ActionFunc(func(ctx context.Context) error {
-				logger.Debug(fmt.Sprintf("navigate to '%s'", URL))
-
-				_, _, _, err := page.Navigate(URL).Do(ctx)
-				if err != nil {
-					return fmt.Errorf("navigate to '%s': %w", URL, err)
-				}
-
-				err = runBatch(
-					ctx,
-					waitForEventDomContentEventFired(ctx, logger),
-					waitForEventLoadEventFired(ctx, logger),
-					waitForEventNetworkIdle(ctx, logger),
-					waitForEventLoadingFinished(ctx, logger),
-				)
-
-				if err == nil {
-					return nil
-				}
-
-				return fmt.Errorf("wait for events: %w", err)
-			}),
-			chromedp.ActionFunc(func(ctx context.Context) error {
-				// See:
-				// https://github.com/gotenberg/gotenberg/issues/354
-				// https://github.com/puppeteer/puppeteer/issues/2685
-				// https://github.com/chromedp/chromedp/issues/520
-				script := `
-(() => {
-	const css = 'html { -webkit-print-color-adjust: exact !important; }';
-
-	const style = document.createElement('style');
-	style.type = 'text/css';
-	style.appendChild(document.createTextNode(css));
-	document.head.appendChild(style);
-})();
-`
-
-				evaluate := chromedp.Evaluate(script, nil)
-				err := evaluate.Do(ctx)
-
-				if err == nil {
-					return nil
-				}
-
-				return fmt.Errorf("add CSS for exact colors: %w", err)
-			}),
-			chromedp.ActionFunc(func(ctx context.Context) error {
-				if len(options.ExtraLinkTags) == 0 {
-					logger.Debug("no extra link tags")
-
-					return nil
-				}
-
-				logger.Debug(fmt.Sprintf("extra link tags: %+v", options.ExtraLinkTags))
-
-				addLinkTag := func(i int, linkTag LinkTag) func() error {
-					return func() error {
-						script := `
-(() => {
-	const link = document.createElement('link');
-	link.href = '%s';
-	link.rel = 'stylesheet'
-	document.head.appendChild(link);
-})();
-`
-
-						evaluate := chromedp.Evaluate(fmt.Sprintf(script, linkTag.Href), nil)
-						err := evaluate.Do(ctx)
-
-						if err == nil {
-							return nil
-						}
-
-						return fmt.Errorf("add extra link tag %d: %w", i, err)
-					}
-				}
-
-				eg, _ := errgroup.WithContext(ctx)
-
-				for i, linkTag := range options.ExtraLinkTags {
-					eg.Go(addLinkTag(i, linkTag))
-				}
-
-				err := eg.Wait()
-				if err == nil {
-					return nil
-				}
-
-				return fmt.Errorf("add extra link tags: %w", err)
-			}),
-			chromedp.ActionFunc(func(ctx context.Context) error {
-				if options.EmulatedMediaType == "" {
-					logger.Debug("no emulated media type")
-
-					return nil
-				}
-
-				if options.EmulatedMediaType != "screen" && options.EmulatedMediaType != "print" {
-					return fmt.Errorf("validate emulated media type '%s': %w", options.EmulatedMediaType, ErrInvalidEmulatedMediaType)
-				}
-
-				logger.Debug(fmt.Sprintf("emulate media type '%s'", options.EmulatedMediaType))
-
-				emulatedMedia := emulation.SetEmulatedMedia()
-
-				err := emulatedMedia.WithMedia(options.EmulatedMediaType).Do(ctx)
-				if err == nil {
-					return nil
-				}
-
-				return fmt.Errorf("emulate media type '%s': %w", options.EmulatedMediaType, err)
-			}),
-			chromedp.ActionFunc(func(ctx context.Context) error {
-				if mod.disableJavaScript {
-					logger.Debug("JavaScript disabled, skipping extra script tags")
-
-					return nil
-				}
-
-				if len(options.ExtraScriptTags) == 0 {
-					logger.Debug("no extra script tags")
-
-					return nil
-				}
-
-				logger.Debug(fmt.Sprintf("extra script tags: %+v", options.ExtraScriptTags))
-
-				addScriptTag := func(i int, scriptTag ScriptTag) func() error {
-					return func() error {
-						script := `
-(() => {
-	const script = document.createElement('script');
-	script.src = '%s';
-	document.head.appendChild(script);
-})();
-`
-
-						evaluate := chromedp.Evaluate(fmt.Sprintf(script, scriptTag.Src), nil)
-						err := evaluate.Do(ctx)
-
-						if err == nil {
-							return nil
-						}
-
-						return fmt.Errorf("add extra script tag %d: %w", i, err)
-					}
-				}
-
-				eg, _ := errgroup.WithContext(ctx)
-
-				for i, scriptTag := range options.ExtraScriptTags {
-					eg.Go(addScriptTag(i, scriptTag))
-				}
-
-				err := eg.Wait()
-				if err == nil {
-					return nil
-				}
-
-				return fmt.Errorf("add extra script tags: %w", err)
-			}),
-			chromedp.ActionFunc(func(ctx context.Context) error {
-				if mod.disableJavaScript {
-					logger.Debug("JavaScript disabled, skipping wait delay")
-
-					return nil
-				}
-
-				if options.WaitDelay <= 0 {
-					logger.Debug("no wait delay")
-
-					return nil
-				}
-
-				// We wait for a given amount of time so that JavaScript
-				// scripts have a chance to finish before printing the page
-				// to PDF.
-				logger.Debug(fmt.Sprintf("wait '%s' before print", options.WaitDelay))
-
-				select {
-				case <-ctx.Done():
-					return fmt.Errorf("wait delay: %w", ctx.Err())
-				case <-time.After(options.WaitDelay):
-					return nil
-				}
-			}),
-			chromedp.ActionFunc(func(ctx context.Context) error {
-				if mod.disableJavaScript {
-					logger.Debug("JavaScript disabled, skipping wait for window status / wait for expression")
-
-					return nil
-				}
-
-				if options.WaitWindowStatus == "" && options.WaitForExpression == "" {
-					logger.Debug("no wait for window status nor wait for expression")
-
-					return nil
-				}
-
-				evaluate := func(expression string) error {
-					// We wait until the evaluation of the expression is true or
-					// until the context is done.
-					logger.Debug(fmt.Sprintf("wait until '%s' is true before print", expression))
-
-					ticker := time.NewTicker(time.Duration(100) * time.Millisecond)
-
-					for {
-						select {
-						case <-ctx.Done():
-							ticker.Stop()
-
-							return fmt.Errorf("context done while evaluating '%s': %w", expression, ctx.Err())
-						case <-ticker.C:
-							var ok bool
-
-							evaluate := chromedp.Evaluate(expression, &ok)
-							err := evaluate.Do(ctx)
-
-							if err != nil {
-								return fmt.Errorf("evaluate: %v: %w", err, ErrInvalidEvaluationExpression)
-							}
-
-							if ok {
-								ticker.Stop()
-
-								return nil
-							}
-
-							continue
-						}
-					}
-				}
-
-				if options.WaitWindowStatus != "" {
-					logger.Warn("option 'WaitWindowStatus' is deprecated; prefer 'WaitForExpression' instead")
-
-					err := evaluate(fmt.Sprintf("window.status === '%s'", options.WaitWindowStatus))
-					if err != nil {
-						return fmt.Errorf("wait for window.status === '%s': %w", options.WaitWindowStatus, err)
-					}
-				}
-
-				if options.WaitForExpression != "" {
-					err := evaluate(options.WaitForExpression)
-					if err != nil {
-						return fmt.Errorf("wait for expression '%s': %w", options.WaitForExpression, err)
-					}
-				}
-
-				return nil
-			}),
+			mod.getDefaultSetupTasks(logger, URL, options),
 			chromedp.ActionFunc(func(ctx context.Context) error {
 				printToPDF := page.PrintToPDF().
 					WithTransferMode(page.PrintToPDFTransferModeReturnAsStream).
@@ -857,6 +511,365 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 	}
 
 	return nil
+}
+
+func (mod Chromium) getDefaultSetupTasks(logger *zap.Logger, URL string, options Options) chromedp.Tasks {
+	return chromedp.Tasks{
+		network.Enable(),
+		fetch.Enable(),
+		runtime.Enable(),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			// See https://github.com/gotenberg/gotenberg/issues/175.
+			if !mod.disableJavaScript {
+				logger.Debug("JavaScript not disabled")
+
+				return nil
+			}
+
+			logger.Debug("disable JavaScript")
+
+			err := emulation.SetScriptExecutionDisabled(true).Do(ctx)
+			if err == nil {
+				return nil
+			}
+
+			return fmt.Errorf("disable JavaScript: %w", err)
+		}),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			if len(options.ExtraHTTPHeaders) == 0 {
+				logger.Debug("no extra HTTP headers")
+
+				return nil
+			}
+
+			logger.Debug(fmt.Sprintf("extra HTTP headers: %+v", options.ExtraHTTPHeaders))
+
+			headers := make(network.Headers, len(options.ExtraHTTPHeaders))
+			for key, value := range options.ExtraHTTPHeaders {
+				headers[key] = value
+			}
+
+			err := network.SetExtraHTTPHeaders(headers).Do(ctx)
+			if err == nil {
+				return nil
+			}
+
+			return fmt.Errorf("set extra HTTP headers: %w", err)
+		}),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			logger.Debug(fmt.Sprintf("navigate to '%s'", URL))
+
+			_, _, _, err := page.Navigate(URL).Do(ctx)
+			if err != nil {
+				return fmt.Errorf("navigate to '%s': %w", URL, err)
+			}
+
+			err = runBatch(
+				ctx,
+				waitForEventDomContentEventFired(ctx, logger),
+				waitForEventLoadEventFired(ctx, logger),
+				waitForEventNetworkIdle(ctx, logger),
+				waitForEventLoadingFinished(ctx, logger),
+			)
+
+			if err == nil {
+				return nil
+			}
+
+			return fmt.Errorf("wait for events: %w", err)
+		}),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			// See:
+			// https://github.com/gotenberg/gotenberg/issues/354
+			// https://github.com/puppeteer/puppeteer/issues/2685
+			// https://github.com/chromedp/chromedp/issues/520
+			script := `
+(() => {
+	const css = 'html { -webkit-print-color-adjust: exact !important; }';
+
+	const style = document.createElement('style');
+	style.type = 'text/css';
+	style.appendChild(document.createTextNode(css));
+	document.head.appendChild(style);
+})();
+`
+
+			evaluate := chromedp.Evaluate(script, nil)
+			err := evaluate.Do(ctx)
+
+			if err == nil {
+				return nil
+			}
+
+			return fmt.Errorf("add CSS for exact colors: %w", err)
+		}),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			if len(options.ExtraLinkTags) == 0 {
+				logger.Debug("no extra link tags")
+
+				return nil
+			}
+
+			logger.Debug(fmt.Sprintf("extra link tags: %+v", options.ExtraLinkTags))
+
+			addLinkTag := func(i int, linkTag LinkTag) func() error {
+				return func() error {
+					script := `
+(() => {
+	const link = document.createElement('link');
+	link.href = '%s';
+	link.rel = 'stylesheet'
+	document.head.appendChild(link);
+})();
+`
+
+					evaluate := chromedp.Evaluate(fmt.Sprintf(script, linkTag.Href), nil)
+					err := evaluate.Do(ctx)
+
+					if err == nil {
+						return nil
+					}
+
+					return fmt.Errorf("add extra link tag %d: %w", i, err)
+				}
+			}
+
+			eg, _ := errgroup.WithContext(ctx)
+
+			for i, linkTag := range options.ExtraLinkTags {
+				eg.Go(addLinkTag(i, linkTag))
+			}
+
+			err := eg.Wait()
+			if err == nil {
+				return nil
+			}
+
+			return fmt.Errorf("add extra link tags: %w", err)
+		}),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			if options.EmulatedMediaType == "" {
+				logger.Debug("no emulated media type")
+
+				return nil
+			}
+
+			if options.EmulatedMediaType != "screen" && options.EmulatedMediaType != "print" {
+				return fmt.Errorf("validate emulated media type '%s': %w", options.EmulatedMediaType, ErrInvalidEmulatedMediaType)
+			}
+
+			logger.Debug(fmt.Sprintf("emulate media type '%s'", options.EmulatedMediaType))
+
+			emulatedMedia := emulation.SetEmulatedMedia()
+
+			err := emulatedMedia.WithMedia(options.EmulatedMediaType).Do(ctx)
+			if err == nil {
+				return nil
+			}
+
+			return fmt.Errorf("emulate media type '%s': %w", options.EmulatedMediaType, err)
+		}),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			if mod.disableJavaScript {
+				logger.Debug("JavaScript disabled, skipping extra script tags")
+
+				return nil
+			}
+
+			if len(options.ExtraScriptTags) == 0 {
+				logger.Debug("no extra script tags")
+
+				return nil
+			}
+
+			logger.Debug(fmt.Sprintf("extra script tags: %+v", options.ExtraScriptTags))
+
+			addScriptTag := func(i int, scriptTag ScriptTag) func() error {
+				return func() error {
+					script := `
+(() => {
+	const script = document.createElement('script');
+	script.src = '%s';
+	document.head.appendChild(script);
+})();
+`
+
+					evaluate := chromedp.Evaluate(fmt.Sprintf(script, scriptTag.Src), nil)
+					err := evaluate.Do(ctx)
+
+					if err == nil {
+						return nil
+					}
+
+					return fmt.Errorf("add extra script tag %d: %w", i, err)
+				}
+			}
+
+			eg, _ := errgroup.WithContext(ctx)
+
+			for i, scriptTag := range options.ExtraScriptTags {
+				eg.Go(addScriptTag(i, scriptTag))
+			}
+
+			err := eg.Wait()
+			if err == nil {
+				return nil
+			}
+
+			return fmt.Errorf("add extra script tags: %w", err)
+		}),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			if mod.disableJavaScript {
+				logger.Debug("JavaScript disabled, skipping wait delay")
+
+				return nil
+			}
+
+			if options.WaitDelay <= 0 {
+				logger.Debug("no wait delay")
+
+				return nil
+			}
+
+			// We wait for a given amount of time so that JavaScript
+			// scripts have a chance to finish before printing the page
+			// to PDF.
+			logger.Debug(fmt.Sprintf("wait '%s' before print", options.WaitDelay))
+
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("wait delay: %w", ctx.Err())
+			case <-time.After(options.WaitDelay):
+				return nil
+			}
+		}),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			if mod.disableJavaScript {
+				logger.Debug("JavaScript disabled, skipping wait for window status / wait for expression")
+
+				return nil
+			}
+
+			if options.WaitWindowStatus == "" && options.WaitForExpression == "" {
+				logger.Debug("no wait for window status nor wait for expression")
+
+				return nil
+			}
+
+			evaluate := func(expression string) error {
+				// We wait until the evaluation of the expression is true or
+				// until the context is done.
+				logger.Debug(fmt.Sprintf("wait until '%s' is true before print", expression))
+
+				ticker := time.NewTicker(time.Duration(100) * time.Millisecond)
+
+				for {
+					select {
+					case <-ctx.Done():
+						ticker.Stop()
+
+						return fmt.Errorf("context done while evaluating '%s': %w", expression, ctx.Err())
+					case <-ticker.C:
+						var ok bool
+
+						evaluate := chromedp.Evaluate(expression, &ok)
+						err := evaluate.Do(ctx)
+
+						if err != nil {
+							return fmt.Errorf("evaluate: %v: %w", err, ErrInvalidEvaluationExpression)
+						}
+
+						if ok {
+							ticker.Stop()
+
+							return nil
+						}
+
+						continue
+					}
+				}
+			}
+
+			if options.WaitWindowStatus != "" {
+				logger.Warn("option 'WaitWindowStatus' is deprecated; prefer 'WaitForExpression' instead")
+
+				err := evaluate(fmt.Sprintf("window.status === '%s'", options.WaitWindowStatus))
+				if err != nil {
+					return fmt.Errorf("wait for window.status === '%s': %w", options.WaitWindowStatus, err)
+				}
+			}
+
+			if options.WaitForExpression != "" {
+				err := evaluate(options.WaitForExpression)
+				if err != nil {
+					return fmt.Errorf("wait for expression '%s': %w", options.WaitForExpression, err)
+				}
+			}
+
+			return nil
+		})}
+}
+
+func (mod Chromium) setupArgs(logger *zap.Logger, options Options) []chromedp.ExecAllocatorOption {
+	debug := debugLogger{logger: logger.Named("browser")}
+	userProfileDirPath := gotenberg.NewDirPath()
+
+	args := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.CombinedOutput(debug),
+		chromedp.ExecPath(mod.binPath),
+		chromedp.NoSandbox,
+		// See:
+		// https://github.com/gotenberg/gotenberg/issues/327
+		// https://github.com/chromedp/chromedp/issues/904
+		chromedp.DisableGPU,
+		// See:
+		// https://github.com/puppeteer/puppeteer/issues/661
+		// https://github.com/puppeteer/puppeteer/issues/2410
+		chromedp.Flag("font-render-hinting", "none"),
+		chromedp.UserDataDir(userProfileDirPath),
+	)
+
+	if mod.userAgent != "" && options.UserAgent == "" {
+		// Deprecated.
+		args = append(args, chromedp.UserAgent(mod.userAgent))
+	}
+
+	if mod.incognito {
+		args = append(args, chromedp.Flag("incognito", mod.incognito))
+	}
+
+	if mod.allowInsecureLocalhost {
+		// See https://github.com/gotenberg/gotenberg/issues/488.
+		args = append(args, chromedp.Flag("allow-insecure-localhost", true))
+	}
+
+	if mod.ignoreCertificateErrors {
+		args = append(args, chromedp.IgnoreCertErrors)
+	}
+
+	if mod.disableWebSecurity {
+		args = append(args, chromedp.Flag("disable-web-security", true))
+	}
+
+	if mod.allowFileAccessFromFiles {
+		// See https://github.com/gotenberg/gotenberg/issues/356.
+		args = append(args, chromedp.Flag("allow-file-access-from-files", true))
+	}
+
+	if mod.hostResolverRules != "" {
+		// See https://github.com/gotenberg/gotenberg/issues/488.
+		args = append(args, chromedp.Flag("host-resolver-rules", mod.hostResolverRules))
+	}
+
+	if mod.proxyServer != "" {
+		// See https://github.com/gotenberg/gotenberg/issues/376.
+		args = append(args, chromedp.ProxyServer(mod.proxyServer))
+	}
+
+	if options.UserAgent != "" {
+		args = append(args, chromedp.UserAgent(options.UserAgent))
+	}
+	return args
 }
 
 var (
