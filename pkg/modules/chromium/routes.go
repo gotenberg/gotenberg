@@ -39,6 +39,7 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 		pageRanges                                       string
 		headerTemplate, footerTemplate                   string
 		preferCSSPageSize                                bool
+		format                                           string
 	)
 
 	form := ctx.FormData().
@@ -88,7 +89,8 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 		String("nativePageRanges", &pageRanges, defaultOptions.PageRanges).
 		Content("header.html", &headerTemplate, defaultOptions.HeaderTemplate).
 		Content("footer.html", &footerTemplate, defaultOptions.FooterTemplate).
-		Bool("preferCssPageSize", &preferCSSPageSize, defaultOptions.PreferCSSPageSize)
+		Bool("preferCssPageSize", &preferCSSPageSize, defaultOptions.PreferCSSPageSize).
+		String("format", &format, defaultOptions.Format)
 
 	options := Options{
 		FailOnConsoleExceptions: failOnConsoleExceptions,
@@ -113,6 +115,7 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 		HeaderTemplate:          headerTemplate,
 		FooterTemplate:          footerTemplate,
 		PreferCSSPageSize:       preferCSSPageSize,
+		Format:                  format,
 	}
 
 	return form, options
@@ -325,9 +328,15 @@ func convertMarkdownRoute(chromium API, engine gotenberg.PDFEngine) api.Route {
 
 // convertURL is a stub which is called by the other methods of this file.
 func convertURL(ctx *api.Context, chromium API, engine gotenberg.PDFEngine, URL, PDFformat string, options Options) error {
-	outputPath := ctx.GeneratePath(".pdf")
+	outputPath := ctx.GeneratePath(fmt.Sprintf(".%s", options.Format))
 
-	err := chromium.PDF(ctx, ctx.Log(), URL, outputPath, options)
+	var err error
+	if options.Format == "pdf" {
+		err = chromium.PDF(ctx, ctx.Log(), URL, outputPath, options)
+	} else if options.Format == "png" || options.Format == "jpeg" {
+		err = chromium.Image(ctx, ctx.Log(), URL, outputPath, options)
+	}
+
 	if err != nil {
 
 		if errors.Is(err, ErrURLNotAuthorized) {

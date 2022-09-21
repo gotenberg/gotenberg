@@ -198,6 +198,9 @@ type Options struct {
 	// If false, the content will be scaled to fit the paper size.
 	// Optional.
 	PreferCSSPageSize bool
+
+	// Format (pdf, png, jpeg)
+	Format string
 }
 
 // DefaultOptions returns the default values for Options.
@@ -225,12 +228,14 @@ func DefaultOptions() Options {
 		HeaderTemplate:          "<html><head></head><body></body></html>",
 		FooterTemplate:          "<html><head></head><body></body></html>",
 		PreferCSSPageSize:       false,
+		Format:                  "pdf",
 	}
 }
 
 // API helps to interact with Chromium for converting HTML documents to PDF.
 type API interface {
 	PDF(ctx context.Context, logger *zap.Logger, URL, outputPath string, options Options) error
+	Image(ctx context.Context, logger *zap.Logger, URL, outputPath string, options Options) error
 }
 
 // Provider is a module interface which exposes a method for creating an API
@@ -469,6 +474,145 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 	activeInstancesCountMu.Unlock()
 
 	err := chromedp.Run(taskCtx, printToPDF(URL, options, outputPath))
+
+	activeInstancesCountMu.Lock()
+	activeInstancesCount -= 1
+	activeInstancesCountMu.Unlock()
+
+	// Always remove the user profile directory created by Chromium.
+	go func() {
+		logger.Debug(fmt.Sprintf("remove user profile directory '%s'", userProfileDirPath))
+
+		err := os.RemoveAll(userProfileDirPath)
+		if err != nil {
+			logger.Error(fmt.Sprintf("remove user profile directory: %s", err))
+		}
+	}()
+
+	if err != nil {
+		errMessage := err.Error()
+
+		if strings.Contains(errMessage, "Show invalid printer settings error (-32000)") {
+			return ErrInvalidPrinterSettings
+		}
+
+		if strings.Contains(errMessage, "Page range syntax error") {
+			return ErrPageRangesSyntaxError
+		}
+
+		if strings.Contains(errMessage, "rpcc: message too large") {
+			return ErrRpccMessageTooLarge
+		}
+
+		return fmt.Errorf("chromium PDF: %w", err)
+	}
+
+	// See https://github.com/gotenberg/gotenberg/issues/262.
+	consoleExceptionsMu.RLock()
+	defer consoleExceptionsMu.RUnlock()
+
+	if consoleExceptions != nil {
+		return fmt.Errorf("%v: %w", consoleExceptions, ErrConsoleExceptions)
+	}
+
+	return nil
+}
+
+// PDF converts a URL to an Image. It creates a dedicated Chromium instance.
+// Substantial calls to this method may increase CPU and memory usage
+// drastically. In such a scenario, the given context may also be done before
+// the end of the conversion.
+func (mod Chromium) Image(ctx context.Context, logger *zap.Logger, URL, outputPath string, options Options) error {
+	debug := debugLogger{logger: logger.Named("browser")}
+	userProfileDirPath := gotenberg.NewDirPath()
+
+	args := mod.setupArgs(logger, options)
+
+	allocatorCtx, cancel := chromedp.NewExecAllocator(ctx, args...)
+	defer cancel()
+
+	taskCtx, cancel := chromedp.NewContext(allocatorCtx,
+		chromedp.WithDebugf(debug.Printf),
+	)
+	defer cancel()
+
+	// We validate the "main" URL against our allow / deny lists.
+	if !mod.allowList.MatchString(URL) {
+		return fmt.Errorf("'%s' does not match the expression from the allowed list: %w", URL, ErrURLNotAuthorized)
+	}
+
+	if mod.denyList.String() != "" && mod.denyList.MatchString(URL) {
+		return fmt.Errorf("'%s' matches the expression from the denied list: %w", URL, ErrURLNotAuthorized)
+	}
+
+	var (
+		consoleExceptions   error
+		consoleExceptionsMu sync.RWMutex
+	)
+
+	printToImage := func(URL string, options Options, outputPath string) chromedp.Tasks {
+		// We validate the underlying requests against our allow / deny lists.
+		// If a request does not pass the validation, we make it fail.
+		listenForEventRequestPaused(taskCtx, logger, mod.allowList, mod.denyList)
+
+		// See https://github.com/gotenberg/gotenberg/issues/262.
+		if options.FailOnConsoleExceptions && !mod.disableJavaScript {
+			listenForEventExceptionThrown(taskCtx, logger, &consoleExceptions, &consoleExceptionsMu)
+		}
+
+		return append(
+			mod.getDefaultSetupTasks(logger, URL, options),
+			chromedp.ActionFunc(func(ctx context.Context) error {
+				_, _, _, _, _, cssContentSize, err := page.GetLayoutMetrics().Do(ctx)
+
+				if err != nil {
+					return err
+				}
+
+				buffer, err := page.CaptureScreenshot().
+					WithFormat(page.CaptureScreenshotFormat(options.Format)).
+					WithCaptureBeyondViewport(true).
+					WithQuality(100).
+					WithClip(&page.Viewport{
+						X:      0,
+						Y:      0,
+						Width:  cssContentSize.Width,
+						Height: cssContentSize.Height,
+						Scale:  1,
+					}).Do(ctx)
+
+				if err != nil {
+					return fmt.Errorf("print to Image: %w", err)
+				}
+
+				file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY, 0600)
+				if err != nil {
+					return fmt.Errorf("open output path: %w", err)
+				}
+
+				defer func() {
+					err := file.Close()
+					if err != nil {
+						logger.Error(fmt.Sprintf("close output path: %s", err))
+					}
+				}()
+
+				_, err = file.Write(buffer)
+
+				if err != nil {
+					return fmt.Errorf("write result to output path: %w", err)
+				}
+
+				return nil
+			}),
+		)
+	}
+
+	activeInstancesCountMu.Lock()
+	activeInstancesCount += 1
+	activeInstancesCountMu.Unlock()
+
+	err := chromedp.Run(taskCtx, printToImage(URL, options, outputPath))
 
 	activeInstancesCountMu.Lock()
 	activeInstancesCount -= 1
