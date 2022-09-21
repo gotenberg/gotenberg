@@ -40,6 +40,7 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 		headerTemplate, footerTemplate                   string
 		preferCSSPageSize                                bool
 		format                                           string
+		width, height, quality                           float64
 	)
 
 	form := ctx.FormData().
@@ -90,7 +91,10 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 		Content("header.html", &headerTemplate, defaultOptions.HeaderTemplate).
 		Content("footer.html", &footerTemplate, defaultOptions.FooterTemplate).
 		Bool("preferCssPageSize", &preferCSSPageSize, defaultOptions.PreferCSSPageSize).
-		String("format", &format, defaultOptions.Format)
+		String("format", &format, defaultOptions.Format).
+		Float64("width", &width, defaultOptions.Width).
+		Float64("height", &height, defaultOptions.Height).
+		Float64("quality", &quality, defaultOptions.Quality)
 
 	options := Options{
 		FailOnConsoleExceptions: failOnConsoleExceptions,
@@ -116,6 +120,9 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 		FooterTemplate:          footerTemplate,
 		PreferCSSPageSize:       preferCSSPageSize,
 		Format:                  format,
+		Width:                   width,
+		Height:                  height,
+		Quality:                 quality,
 	}
 
 	return form, options
@@ -326,22 +333,33 @@ func convertMarkdownRoute(chromium API, engine gotenberg.PDFEngine) api.Route {
 	}
 }
 
+// Find the file extension based on the options
+func getOutputExtension(options Options) string {
+	if options.Format == "pdf" {
+		return ".pdf"
+	} else if options.Quality < 100 {
+		return ".jpg"
+	} else {
+		return ".png"
+	}
+}
+
 // convertURL is a stub which is called by the other methods of this file.
 func convertURL(ctx *api.Context, chromium API, engine gotenberg.PDFEngine, URL, PDFformat string, options Options) error {
-	outputPath := ctx.GeneratePath(fmt.Sprintf(".%s", options.Format))
+	outputPath := ctx.GeneratePath(getOutputExtension(options))
 
 	var err error
-	if options.Format == "pdf" {
-		err = chromium.PDF(ctx, ctx.Log(), URL, outputPath, options)
-	} else if options.Format == "png" || options.Format == "jpeg" {
+	if options.Format == "img" {
 		err = chromium.Image(ctx, ctx.Log(), URL, outputPath, options)
+	} else {
+		err = chromium.PDF(ctx, ctx.Log(), URL, outputPath, options)
 	}
 
 	if err != nil {
 
 		if errors.Is(err, ErrURLNotAuthorized) {
 			return api.WrapError(
-				fmt.Errorf("convert to PDF: %w", err),
+				fmt.Errorf("convert to %s: %w", options.Format, err),
 				api.NewSentinelHTTPError(
 					http.StatusForbidden,
 					fmt.Sprintf("'%s' does not match the authorized URLs", URL),
@@ -354,11 +372,11 @@ func convertURL(ctx *api.Context, chromium API, engine gotenberg.PDFEngine, URL,
 				// We do not expect the 'waitWindowStatus' form field to return
 				// an ErrInvalidEvaluationExpression error. In such a scenario,
 				// we return a 500.
-				return fmt.Errorf("convert to PDF: %w", err)
+				return fmt.Errorf("convert to %s: %w", options.Format, err)
 			}
 
 			return api.WrapError(
-				fmt.Errorf("convert to PDF: %w", err),
+				fmt.Errorf("convert to %s: %w", options.Format, err),
 				api.NewSentinelHTTPError(
 					http.StatusBadRequest,
 					fmt.Sprintf("The expression '%s' (waitForExpression) returned an exception or undefined", options.WaitForExpression),
@@ -368,7 +386,7 @@ func convertURL(ctx *api.Context, chromium API, engine gotenberg.PDFEngine, URL,
 
 		if errors.Is(err, ErrInvalidPrinterSettings) {
 			return api.WrapError(
-				fmt.Errorf("convert to PDF: %w", err),
+				fmt.Errorf("convert to %s: %w", options.Format, err),
 				api.NewSentinelHTTPError(
 					http.StatusBadRequest,
 					"Chromium does not handle the provided settings; please check for aberrant form values",
@@ -378,7 +396,7 @@ func convertURL(ctx *api.Context, chromium API, engine gotenberg.PDFEngine, URL,
 
 		if errors.Is(err, ErrPageRangesSyntaxError) {
 			return api.WrapError(
-				fmt.Errorf("convert to PDF: %w", err),
+				fmt.Errorf("convert to %s: %w", options.Format, err),
 				api.NewSentinelHTTPError(
 					http.StatusBadRequest,
 					fmt.Sprintf("Chromium does not handle the page ranges '%s' (nativePageRanges)", options.PageRanges),
@@ -388,7 +406,7 @@ func convertURL(ctx *api.Context, chromium API, engine gotenberg.PDFEngine, URL,
 
 		if errors.Is(err, ErrConsoleExceptions) {
 			return api.WrapError(
-				fmt.Errorf("convert to PDF: %w", err),
+				fmt.Errorf("convert to %s: %w", options.Format, err),
 				api.NewSentinelHTTPError(
 					http.StatusConflict,
 					fmt.Sprintf("Chromium console exceptions:\n %s", strings.ReplaceAll(err.Error(), ErrConsoleExceptions.Error(), "")),
@@ -396,14 +414,14 @@ func convertURL(ctx *api.Context, chromium API, engine gotenberg.PDFEngine, URL,
 			)
 		}
 
-		return fmt.Errorf("convert to PDF: %w", err)
+		return fmt.Errorf("convert to %s: %w", options.Format, err)
 	}
 
 	// So far so good, the URL has been converted to PDF.
 	// Now, let's check if the client want to convert this result PDF
 	// to a specific PDF format.
 
-	if PDFformat != "" {
+	if PDFformat != "" && options.Format == "pdf" {
 		convertInputPath := outputPath
 		convertOutputPath := ctx.GeneratePath(".pdf")
 

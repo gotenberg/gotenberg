@@ -201,6 +201,21 @@ type Options struct {
 
 	// Format (pdf, png, jpeg)
 	Format string
+
+	// For images only
+	// Width of the image in pixels
+	// Optional
+	Width float64
+
+	// For images only
+	// Height of the image in pixels
+	// Optional
+	Height float64
+
+	// For images only
+	// Height of the image in pixels
+	// Optional
+	Quality float64
 }
 
 // DefaultOptions returns the default values for Options.
@@ -229,6 +244,9 @@ func DefaultOptions() Options {
 		FooterTemplate:          "<html><head></head><body></body></html>",
 		PreferCSSPageSize:       false,
 		Format:                  "pdf",
+		Width:                   0,
+		Height:                  0,
+		Quality:                 100,
 	}
 }
 
@@ -569,16 +587,30 @@ func (mod Chromium) Image(ctx context.Context, logger *zap.Logger, URL, outputPa
 					return err
 				}
 
+				width := options.Width
+				height := options.Height
+				if width == 0 {
+					width = cssContentSize.Width
+				}
+				if height == 0 {
+					height = cssContentSize.Height
+				}
+
+				format := page.CaptureScreenshotFormatPng
+				if options.Quality < 100 {
+					format = page.CaptureScreenshotFormatJpeg
+				}
+
 				buffer, err := page.CaptureScreenshot().
-					WithFormat(page.CaptureScreenshotFormat(options.Format)).
+					WithFormat(format).
 					WithCaptureBeyondViewport(true).
-					WithQuality(100).
+					WithQuality(int64(options.Quality)).
 					WithClip(&page.Viewport{
 						X:      0,
 						Y:      0,
-						Width:  cssContentSize.Width,
-						Height: cssContentSize.Height,
-						Scale:  1,
+						Width:  width,
+						Height: height,
+						Scale:  options.Scale,
 					}).Do(ctx)
 
 				if err != nil {
