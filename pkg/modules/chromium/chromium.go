@@ -213,7 +213,7 @@ type Options struct {
 	Height float64
 
 	// For images only
-	// Height of the image in pixels
+	// Compression quality from range [0..100] (jpeg only)
 	// Optional
 	Quality float64
 }
