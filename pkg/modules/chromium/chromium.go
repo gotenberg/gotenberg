@@ -399,6 +399,8 @@ func getImageTask(options Options, outputPath string, logger *zap.Logger) chrome
 				height = cssContentSize.Height
 			}
 
+			// renders a png by default or when quality is 100
+			// renders a jpeg when quality is lower than 100
 			format := page.CaptureScreenshotFormatPng
 			if options.Quality < 100 {
 				format = page.CaptureScreenshotFormatJpeg
