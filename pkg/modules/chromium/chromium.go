@@ -379,7 +379,9 @@ func (mod Chromium) Routes() ([]api.Route, error) {
 	}, nil
 }
 
-func convertToImage(URL string, options Options, outputPath string, logger *zap.Logger) chromedp.Tasks {
+// getImageTask returns the required chromedp task to take a screenshot
+// of a page and write its content to a given output path as an image (png/jpeg)
+func getImageTask(options Options, outputPath string, logger *zap.Logger) chromedp.Tasks {
 	return chromedp.Tasks{
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			_, _, _, _, _, cssContentSize, err := page.GetLayoutMetrics().Do(ctx)
@@ -441,7 +443,9 @@ func convertToImage(URL string, options Options, outputPath string, logger *zap.
 	}
 }
 
-func convertToPDF(URL string, options Options, outputPath string, logger *zap.Logger) chromedp.Tasks {
+// getPDFTask returns the required chromedp task to take a screenshot
+// of a page and write its content to a given output path as a PDF
+func getPDFTask(options Options, outputPath string, logger *zap.Logger) chromedp.Tasks {
 	return chromedp.Tasks{
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			printToPDF := page.PrintToPDF().
@@ -514,22 +518,23 @@ func convertToPDF(URL string, options Options, outputPath string, logger *zap.Lo
 func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath string, options Options) error {
 	tasks := append(
 		mod.getDefaultSetupTasks(logger, URL, options),
-		convertToPDF(URL, options, outputPath, logger),
+		getPDFTask(options, outputPath, logger),
 	)
 	return mod.runTasks(ctx, tasks, logger, URL, outputPath, options)
 }
 
 // Image converts a URL to an Image. It creates a dedicated Chromium instance.
-
 func (mod Chromium) Image(ctx context.Context, logger *zap.Logger, URL, outputPath string, options Options) error {
 	tasks := append(
 		mod.getDefaultSetupTasks(logger, URL, options),
-		convertToImage(URL, options, outputPath, logger),
+		getImageTask(options, outputPath, logger),
 	)
 	return mod.runTasks(ctx, tasks, logger, URL, outputPath, options)
 
 }
 
+// runTasks acts as a wrapper to execute conversion tasks.
+// It sets up the chromium environment before running the given task
 func (mod Chromium) runTasks(ctx context.Context, task chromedp.Tasks, logger *zap.Logger, URL, outputPath string, options Options) error {
 	debug := debugLogger{logger: logger.Named("browser")}
 	userProfileDirPath := gotenberg.NewDirPath()
@@ -670,6 +675,8 @@ func (mod Chromium) runTasks(ctx context.Context, task chromedp.Tasks, logger *z
 	return nil
 }
 
+// getDefaultSetupTasks returns the list of tasks needed to set up
+// the environment before taking a page screenshot
 func (mod Chromium) getDefaultSetupTasks(logger *zap.Logger, URL string, options Options) chromedp.Tasks {
 	return chromedp.Tasks{
 		network.Enable(),
