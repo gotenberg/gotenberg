@@ -70,7 +70,7 @@ func (engine UNO) Convert(ctx context.Context, logger *zap.Logger, format, input
 }
 
 // Encrypt is not available for this PDF engine.
-func (engine UNO) Encrypt(_ context.Context, _ *zap.Logger, _ int, _, _, _, _ string) error {
+func (engine UNO) Encrypt(_ context.Context, _ *zap.Logger, _ gotenberg.EncryptionOptions, _, _ string) error {
 	return fmt.Errorf("encrypt PDF with unoconv: %w", gotenberg.ErrPDFEngineMethodNotAvailable)
 }
 

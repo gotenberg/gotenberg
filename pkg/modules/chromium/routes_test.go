@@ -647,6 +647,7 @@ func TestConvertURL(t *testing.T) {
 		engine                 gotenberg.PDFEngine
 		PDFformat              string
 		options                Options
+		encryptionOptions      gotenberg.EncryptionOptions
 		expectErr              bool
 		expectHTTPErr          bool
 		expectHTTPStatus       int
@@ -855,7 +856,7 @@ func TestConvertURL(t *testing.T) {
 			expectOutputPathsCount: 1,
 		},
 	} {
-		err := convertURL(tc.ctx.Context, tc.api, tc.engine, "", tc.PDFformat, tc.options)
+		err := convertURL(tc.ctx.Context, tc.api, tc.engine, "", tc.PDFformat, tc.options, tc.encryptionOptions)
 
 		if tc.expectErr && err == nil {
 			t.Errorf("test %d: expected error but got: %v", i, err)

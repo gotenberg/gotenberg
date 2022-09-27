@@ -21,18 +21,27 @@ func mergeRoute(engine gotenberg.PDFEngine) api.Route {
 
 			// Let's get the data from the form and validate them.
 			var (
-				inputPaths []string
-				PDFformat  string
+				inputPaths        []string
+				PDFformat         string
+				ownerPassword     string
+				userPassword      string
+				keyLength         int
+				encryptionOptions gotenberg.EncryptionOptions
 			)
 
 			err := ctx.FormData().
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
 				String("pdfFormat", &PDFformat, "").
+				String("ownerPassword", &ownerPassword, "").
+				String("userPassword", &userPassword, "").
+				Int("keyLength", &keyLength, 256).
 				Validate()
 
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
+
+			encryptionOptions = *gotenberg.NewEncryptionOptions(keyLength, ownerPassword, userPassword)
 
 			// Alright, let's merge the PDFs.
 
@@ -71,6 +80,19 @@ func mergeRoute(engine gotenberg.PDFEngine) api.Route {
 				outputPath = convertOutputPath
 			}
 
+			if encryptionOptions.AreValidForEncryption() {
+				convertInputPath := outputPath
+				convertOutputPath := ctx.GeneratePath(".pdf")
+
+				err = engine.Encrypt(ctx, ctx.Log(), encryptionOptions, convertInputPath, convertOutputPath)
+
+				if err != nil {
+					return fmt.Errorf("encrypt PDF: %w", err)
+				}
+
+				outputPath = convertOutputPath
+			}
+
 			// Last but not least, add the output path to the context so that
 			// the API is able to send it as a response to the client.
 
@@ -96,20 +118,29 @@ func convertRoute(engine gotenberg.PDFEngine) api.Route {
 
 			// Let's get the data from the form and validate them.
 			var (
-				inputPaths []string
-				PDFformat  string
+				inputPaths        []string
+				PDFformat         string
+				ownerPassword     string
+				userPassword      string
+				keyLength         int
+				encryptionOptions gotenberg.EncryptionOptions
 			)
 
 			err := ctx.FormData().
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
 				MandatoryString("pdfFormat", &PDFformat).
+				String("ownerPassword", &ownerPassword, "").
+				String("userPassword", &userPassword, "").
+				Int("keyLength", &keyLength, 256).
 				Validate()
 
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			// Alright, let's merge the PDFs.
+			encryptionOptions = *gotenberg.NewEncryptionOptions(keyLength, ownerPassword, userPassword)
+
+			// Alright, let's convert the PDFs.
 
 			outputPaths := make([]string, len(inputPaths))
 
@@ -131,6 +162,20 @@ func convertRoute(engine gotenberg.PDFEngine) api.Route {
 
 					return fmt.Errorf("convert PDF: %w", err)
 				}
+			}
+
+			if encryptionOptions.AreValidForEncryption() {
+				outputPathsEnc := make([]string, len(outputPaths))
+				for i, inputPathAfterMerge := range outputPaths {
+					outputPathsEnc[i] = ctx.GeneratePath(".pdf")
+
+					err = engine.Encrypt(ctx, ctx.Log(), encryptionOptions, inputPathAfterMerge, outputPathsEnc[i])
+
+					if err != nil {
+						return fmt.Errorf("encrypt PDF: %w", err)
+					}
+				}
+				outputPaths = outputPathsEnc
 			}
 
 			// Last but not least, add the output paths to the context so that
@@ -156,12 +201,14 @@ func encryptRoute(engine gotenberg.PDFEngine) api.Route {
 
 			// Let's get the data from the form and validate them.
 			var (
-				inputPaths    []string
-				ownerPassword string
-				userPassword  string
-				keyLength     int
+				inputPaths        []string
+				ownerPassword     string
+				userPassword      string
+				keyLength         int
+				encryptionOptions gotenberg.EncryptionOptions
 			)
 
+			//since this is the encryption route it has to fail, if no Passwords are given
 			err := ctx.FormData().
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
 				MandatoryString("ownerPassword", &ownerPassword).
@@ -173,6 +220,8 @@ func encryptRoute(engine gotenberg.PDFEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
+			encryptionOptions = *gotenberg.NewEncryptionOptions(keyLength, ownerPassword, userPassword)
+
 			// Alright, let's encrypt the PDFs.
 
 			outputPaths := make([]string, len(inputPaths))
@@ -180,10 +229,10 @@ func encryptRoute(engine gotenberg.PDFEngine) api.Route {
 			for i, inputPath := range inputPaths {
 				outputPaths[i] = ctx.GeneratePath(".pdf")
 
-				err = engine.Encrypt(ctx, ctx.Log(), keyLength, ownerPassword, userPassword, inputPath, outputPaths[i])
+				err = engine.Encrypt(ctx, ctx.Log(), encryptionOptions, inputPath, outputPaths[i])
 
 				if err != nil {
-					return fmt.Errorf("convert PDF: %w", err)
+					return fmt.Errorf("encrypt PDF: %w", err)
 				}
 			}
 

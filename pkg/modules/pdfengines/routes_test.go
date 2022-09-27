@@ -396,3 +396,142 @@ func TestConvertHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestEncryptHandler(t *testing.T) {
+	tests := []struct {
+		name                   string
+		ctx                    *api.ContextMock
+		engine                 gotenberg.PDFEngine
+		expectErr              bool
+		expectHTTPErr          bool
+		expectPanic            bool
+		expectHTTPStatus       int
+		expectOutputPathsCount int
+	}{
+		{
+			name: "nominal behavior",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.pdf": "/foo/foo.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"ownerPassword": {"foo"},
+					"userPassword":  {"bar"},
+					"keyLength":     {"256"},
+				})
+
+				return ctx
+			}(),
+			engine: gotenberg.PDFEngineMock{
+				EncryptMock: func(ctx context.Context, logger *zap.Logger, encryptionOptions gotenberg.EncryptionOptions, inputPath, outputPath string) error {
+					return nil
+				},
+			},
+			expectOutputPathsCount: 1,
+		},
+		{
+			name: "nominal multifile behavior",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.pdf":  "/foo/foo.pdf",
+					"foo2.pdf": "/foo/foo2.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"ownerPassword": {"foo"},
+					"userPassword":  {"bar"},
+					"keyLength":     {"256"},
+				})
+
+				return ctx
+			}(),
+			engine: gotenberg.PDFEngineMock{
+				EncryptMock: func(ctx context.Context, logger *zap.Logger, encryptionOptions gotenberg.EncryptionOptions, inputPath, outputPath string) error {
+					return nil
+				},
+			},
+			expectOutputPathsCount: 2,
+		},
+		{
+			name: "invalid keylength",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.pdf": "/foo/foo.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"ownerPassword": {"foo"},
+					"userPassword":  {"bar"},
+					"keyLength":     {"42"},
+				})
+
+				return ctx
+			}(),
+			engine: gotenberg.PDFEngineMock{
+				EncryptMock: func(ctx context.Context, logger *zap.Logger, encryptionOptions gotenberg.EncryptionOptions, inputPath, outputPath string) error {
+					return nil
+				},
+			},
+			expectPanic:      true,
+			expectErr:        true,
+			expectHTTPErr:    true,
+			expectHTTPStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := echo.New().NewContext(nil, nil)
+			c.Set("context", tc.ctx.Context)
+
+			if tc.expectPanic {
+				defer func() {
+					if r := recover(); r == nil {
+						t.Errorf("test %s: expected panic but got none", tc.name)
+					}
+				}()
+			}
+
+			if !tc.expectPanic {
+				defer func() {
+					if r := recover(); r != nil {
+						t.Errorf("test %s: expected no panic but got: %v", tc.name, r)
+					}
+				}()
+			}
+
+			err := encryptRoute(tc.engine).Handler(c)
+
+			if tc.expectErr && err == nil {
+				t.Fatal("expected error from convert handler, but got none")
+			}
+
+			if !tc.expectErr && err != nil {
+				t.Fatalf("expected no error from convert handler, but got: %v", err)
+			}
+
+			var httpErr api.HTTPError
+			isHTTPErr := errors.As(err, &httpErr)
+
+			if tc.expectHTTPErr && !isHTTPErr {
+				t.Errorf("expected HTTP error from convert handler, but got: %v", err)
+			}
+
+			if !tc.expectHTTPErr && isHTTPErr {
+				t.Errorf("expected no HTTP error from convert handler, but got one: %v", httpErr)
+			}
+
+			if err != nil && tc.expectHTTPErr && isHTTPErr {
+				status, _ := httpErr.HTTPError()
+				if status != tc.expectHTTPStatus {
+					t.Errorf("expected %d HTTP status code from convert handler, but got %d", tc.expectHTTPStatus, status)
+				}
+			}
+
+			if tc.expectOutputPathsCount != len(tc.ctx.OutputPaths()) {
+				t.Errorf("expected %d output paths from convert handler, but got %d", tc.expectOutputPathsCount, len(tc.ctx.OutputPaths()))
+			}
+		})
+	}
+}

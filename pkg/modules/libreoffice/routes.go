@@ -30,6 +30,10 @@ func convertRoute(unoAPI uno.API, engine gotenberg.PDFEngine) api.Route {
 				nativePDFformat    string
 				PDFformat          string
 				merge              bool
+				ownerPassword      string
+				userPassword       string
+				keyLength          int
+				encryptionOptions  gotenberg.EncryptionOptions
 			)
 
 			err := ctx.FormData().
@@ -40,6 +44,9 @@ func convertRoute(unoAPI uno.API, engine gotenberg.PDFEngine) api.Route {
 				String("nativePdfFormat", &nativePDFformat, "").
 				String("pdfFormat", &PDFformat, "").
 				Bool("merge", &merge, false).
+				String("ownerPassword", &ownerPassword, "").
+				String("userPassword", &userPassword, "").
+				Int("keyLength", &keyLength, 256).
 				Validate()
 
 			if err != nil {
@@ -74,6 +81,8 @@ func convertRoute(unoAPI uno.API, engine gotenberg.PDFEngine) api.Route {
 			if nativePDFA1aFormat {
 				nativePDFformat = gotenberg.FormatPDFA1a
 			}
+
+			encryptionOptions = *gotenberg.NewEncryptionOptions(keyLength, ownerPassword, userPassword)
 
 			// Alright, let's convert each document to PDF.
 
@@ -181,6 +190,25 @@ func convertRoute(unoAPI uno.API, engine gotenberg.PDFEngine) api.Route {
 						}
 
 						return fmt.Errorf("convert PDF: %w", err)
+					}
+
+				}
+
+				// Important: the output paths are now the converted files.
+				outputPaths = convertOutputPaths
+			}
+
+			if encryptionOptions.AreValidForEncryption() {
+				convertOutputPaths := make([]string, len(outputPaths))
+
+				for i, outputPath := range outputPaths {
+					convertInputPath := outputPath
+					convertOutputPaths[i] = ctx.GeneratePath(".pdf")
+
+					err = engine.Encrypt(ctx, ctx.Log(), encryptionOptions, convertInputPath, convertOutputPaths[i])
+
+					if err != nil {
+						return fmt.Errorf("encrypt PDF: %w", err)
 					}
 
 				}

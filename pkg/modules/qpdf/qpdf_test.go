@@ -150,3 +150,60 @@ func TestQPDF_Convert(t *testing.T) {
 		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPDFEngineMethodNotAvailable, err)
 	}
 }
+
+func TestQPDF_Encrypt(t *testing.T) {
+	for i, tc := range []struct {
+		ctx       context.Context
+		inputPath string
+		expectErr bool
+	}{
+		{
+			ctx:       context.TODO(),
+			inputPath: "/tests/test/testdata/pdfengines/sample1.pdf",
+		},
+		{
+			ctx:       context.TODO(),
+			inputPath: "/tests/test/testdata/pdfengines/sample2.pdf",
+		},
+		{
+			ctx:       nil,
+			expectErr: true,
+		},
+		{
+			ctx:       context.TODO(),
+			inputPath: "foo",
+			expectErr: true,
+		},
+	} {
+		func() {
+			mod := new(QPDF)
+
+			err := mod.Provision(nil)
+			if err != nil {
+				t.Fatalf("test %d: expected error but got: %v", i, err)
+			}
+
+			outputDir, err := gotenberg.MkdirAll()
+			if err != nil {
+				t.Fatalf("test %d: expected error but got: %v", i, err)
+			}
+
+			defer func() {
+				err := os.RemoveAll(outputDir)
+				if err != nil {
+					t.Fatalf("test %d: expected no error but got: %v", i, err)
+				}
+			}()
+
+			err = mod.Encrypt(tc.ctx, zap.NewNop(), *gotenberg.NewEncryptionOptions(256, "foo", "foo"), tc.inputPath, outputDir+"/foo.pdf")
+
+			if tc.expectErr && err == nil {
+				t.Errorf("test %d: expected error but got: %v", i, err)
+			}
+
+			if !tc.expectErr && err != nil {
+				t.Errorf("test %d: expected no error but got: %v", i, err)
+			}
+		}()
+	}
+}

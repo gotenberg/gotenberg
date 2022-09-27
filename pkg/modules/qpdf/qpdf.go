@@ -104,9 +104,9 @@ func (engine QPDF) Convert(_ context.Context, _ *zap.Logger, format, _, _ string
 	return fmt.Errorf("convert PDF to '%s' with QPDF: %w", format, gotenberg.ErrPDFEngineMethodNotAvailable)
 }
 
-func (engine QPDF) Encrypt(ctx context.Context, logger *zap.Logger, keyLength int, ownerPassword, userPassword, inputPath, outputPath string) error {
+func (engine QPDF) Encrypt(ctx context.Context, logger *zap.Logger, encryptionOptions gotenberg.EncryptionOptions, inputPath, outputPath string) error {
 	var args []string
-	args = append(args, "--encrypt", userPassword, ownerPassword, strconv.Itoa(keyLength))
+	args = append(args, "--encrypt", encryptionOptions.UserPassword, encryptionOptions.OwnerPassword, strconv.Itoa(encryptionOptions.KeyLength))
 	args = append(args, "--", inputPath)
 	args = append(args, outputPath)
 

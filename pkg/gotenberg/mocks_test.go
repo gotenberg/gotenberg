@@ -42,6 +42,9 @@ func TestPDFEngineMock(t *testing.T) {
 		ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
 			return nil
 		},
+		EncryptMock: func(ctx context.Context, logger *zap.Logger, encryptionOptions EncryptionOptions, inputPath, outputPath string) error {
+			return nil
+		},
 	}
 
 	err := mock.Merge(context.Background(), zap.NewNop(), nil, "")
@@ -50,6 +53,11 @@ func TestPDFEngineMock(t *testing.T) {
 	}
 
 	err = mock.Convert(context.Background(), zap.NewNop(), "", "", "")
+	if err != nil {
+		t.Errorf("expected no error from mock.Convert(), but got: %v", err)
+	}
+
+	err = mock.Encrypt(context.Background(), zap.NewNop(), EncryptionOptions{}, "", "")
 	if err != nil {
 		t.Errorf("expected no error from mock.Convert(), but got: %v", err)
 	}

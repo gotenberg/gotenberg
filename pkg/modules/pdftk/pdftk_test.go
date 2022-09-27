@@ -150,3 +150,12 @@ func TestPDFtk_Convert(t *testing.T) {
 		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPDFEngineMethodNotAvailable, err)
 	}
 }
+
+func TestPDFtk_Encrypt(t *testing.T) {
+	mod := new(PDFtk)
+	err := mod.Encrypt(context.TODO(), zap.NewNop(), *gotenberg.NewEncryptionOptions(256, "", ""), "", "")
+
+	if !errors.Is(err, gotenberg.ErrPDFEngineMethodNotAvailable) {
+		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPDFEngineMethodNotAvailable, err)
+	}
+}

@@ -40,7 +40,7 @@ type PDFEngine interface {
 	Convert(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error
 
 	//Encrypt encrypts the given PDF.
-	Encrypt(ctx context.Context, logger *zap.Logger, keyLength int, ownerPassword, userPassword, inputPath, outputPath string) error
+	Encrypt(ctx context.Context, logger *zap.Logger, encryptionOptions EncryptionOptions, inputPath, outputPath string) error
 }
 
 // PDFEngineProvider is a module interface which exposes a method for creating a

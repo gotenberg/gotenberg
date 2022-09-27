@@ -96,3 +96,54 @@ func TestPDFcpu_Convert(t *testing.T) {
 		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPDFEngineMethodNotAvailable, err)
 	}
 }
+
+func TestPDFcpu_Encrypt(t *testing.T) {
+	for i, tc := range []struct {
+		inputPaths string
+		expectErr  bool
+	}{
+		{
+			inputPaths: "/tests/test/testdata/pdfengines/sample1.pdf",
+		},
+
+		{
+			inputPaths: "/tests/test/testdata/pdfengines/sample2.pdf",
+		},
+		{
+			inputPaths: "foo",
+			expectErr:  true,
+		},
+	} {
+		func() {
+			mod := new(PDFcpu)
+			encryptionOptions := *gotenberg.NewEncryptionOptions(256, "foo", "foo")
+
+			err := mod.Provision(nil)
+			if err != nil {
+				t.Fatalf("test %d: expected error but got: %v", i, err)
+			}
+
+			outputDir, err := gotenberg.MkdirAll()
+			if err != nil {
+				t.Fatalf("test %d: expected error but got: %v", i, err)
+			}
+
+			defer func() {
+				err := os.RemoveAll(outputDir)
+				if err != nil {
+					t.Fatalf("test %d: expected no error but got: %v", i, err)
+				}
+			}()
+
+			err = mod.Encrypt(nil, nil, encryptionOptions, tc.inputPaths, outputDir+"/foo.pdf")
+
+			if tc.expectErr && err == nil {
+				t.Errorf("test %d: expected error but got: %v", i, err)
+			}
+
+			if !tc.expectErr && err != nil {
+				t.Errorf("test %d: expected no error but got: %v", i, err)
+			}
+		}()
+	}
+}

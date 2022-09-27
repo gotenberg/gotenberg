@@ -172,3 +172,12 @@ func TestUNO_Convert(t *testing.T) {
 		})
 	}
 }
+
+func TestUNO_Encrypt(t *testing.T) {
+	mod := new(UNO)
+	err := mod.Encrypt(context.Background(), zap.NewNop(), gotenberg.EncryptionOptions{}, "", "")
+
+	if !errors.Is(err, gotenberg.ErrPDFEngineMethodNotAvailable) {
+		t.Errorf("expected error %v from mod.Merge(), but got: %v", gotenberg.ErrPDFEngineMethodNotAvailable, err)
+	}
+}

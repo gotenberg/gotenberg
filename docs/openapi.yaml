@@ -43,26 +43,8 @@ paths:
         You can optionally include `header.html` and `footer.html` files as part of the request as well.
         See externalDocs for more details.
       parameters:
-        - in: header
-          name: Gotenberg-Output-Filename
-          description: >-
-            By default, the API generates a UUID filename.
-            However, you may also specify the filename per request,
-            thanks to the Gotenberg-Output-Filename header.
-            Caution! The API adds the file extension automatically; you don't have to set it.
-          schema:
-            type: string
-          required: false
-        - in: header
-          name: Gotenberg-Trace
-          description: >-
-            The trace, or request ID, identifies a request in the logs.
-
-            By default, the API generates a UUID trace for each request.
-            However, you may also specify the trace per request, thanks to the Gotenberg-Trace header.
-          schema:
-            type: string
-          required: false
+        - $ref: '#/components/parameters/OutputFilename'
+        - $ref: '#/components/parameters/Trace'
       requestBody:
         required: true
         description: >-
@@ -93,26 +75,8 @@ paths:
         `footer.html` files as part of the request as well.
         See externalDocs for more details.
       parameters:
-        - in: header
-          name: Gotenberg-Output-Filename
-          description: >-
-            By default, the API generates a UUID filename.
-            However, you may also specify the filename per request,
-            thanks to the Gotenberg-Output-Filename header.
-            Caution! The API adds the file extension automatically; you don't have to set it.
-          schema:
-            type: string
-          required: false
-        - in: header
-          name: Gotenberg-Trace
-          description: >-
-            The trace, or request ID, identifies a request in the logs.
-
-            By default, the API generates a UUID trace for each request.
-            However, you may also specify the trace per request, thanks to the Gotenberg-Trace header.
-          schema:
-            type: string
-          required: false
+        - $ref: '#/components/parameters/OutputFilename'
+        - $ref: '#/components/parameters/Trace'
       requestBody:
         content:
           multipart/form-data:
@@ -147,26 +111,8 @@ paths:
         `footer.html` files as part of the request as well.
         See externalDocs for more details.
       parameters:
-        - in: header
-          name: Gotenberg-Output-Filename
-          description: >-
-            By default, the API generates a UUID filename.
-            However, you may also specify the filename per request,
-            thanks to the Gotenberg-Output-Filename header.
-            Caution! The API adds the file extension automatically; you don't have to set it.
-          schema:
-            type: string
-          required: false
-        - in: header
-          name: Gotenberg-Trace
-          description: >-
-            The trace, or request ID, identifies a request in the logs.
-
-            By default, the API generates a UUID trace for each request.
-            However, you may also specify the trace per request, thanks to the Gotenberg-Trace header.
-          schema:
-            type: string
-          required: false
+        - $ref: '#/components/parameters/OutputFilename'
+        - $ref: '#/components/parameters/Trace'
       requestBody:
         content:
           multipart/form-data:
@@ -214,26 +160,8 @@ paths:
 
         See externalDocs for more details.
       parameters:
-        - in: header
-          name: Gotenberg-Output-Filename
-          description: >-
-            By default, the API generates a UUID filename.
-            However, you may also specify the filename per request,
-            thanks to the Gotenberg-Output-Filename header.
-            Caution! The API adds the file extension automatically; you don't have to set it.
-          schema:
-            type: string
-          required: false
-        - in: header
-          name: Gotenberg-Trace
-          description: >-
-            The trace, or request ID, identifies a request in the logs.
-
-            By default, the API generates a UUID trace for each request.
-            However, you may also specify the trace per request, thanks to the Gotenberg-Trace header.
-          schema:
-            type: string
-          required: false
+        - $ref: '#/components/parameters/OutputFilename'
+        - $ref: '#/components/parameters/Trace'
       requestBody:
         content:
           multipart/form-data:
@@ -258,43 +186,28 @@ paths:
 
         > **Attention:** The PDF files will be merged alphabetically.
       parameters:
-        - in: header
-          name: Gotenberg-Output-Filename
-          description: >-
-            By default, the API generates a UUID filename.
-            However, you may also specify the filename per request,
-            thanks to the Gotenberg-Output-Filename header.
-            Caution! The API adds the file extension automatically; you don't have to set it.
-          schema:
-            type: string
-          required: false
-        - in: header
-          name: Gotenberg-Trace
-          description: >-
-            The trace, or request ID, identifies a request in the logs.
-
-            By default, the API generates a UUID trace for each request.
-            However, you may also specify the trace per request, thanks to the Gotenberg-Trace header.
-          schema:
-            type: string
-          required: false
+        - $ref: '#/components/parameters/OutputFilename'
+        - $ref: '#/components/parameters/Trace'
       requestBody:
         content:
           multipart/form-data:
             schema:
-              type: object
-              properties:
-                files:
-                  type: array
-                  items:
+              allOf:
+              - type: object
+                properties:
+                  files:
+                    type: array
+                    items:
+                      type: string
+                      format: binary
+                  pdfFormat:
                     type: string
-                    format: binary
-                pdfFormat:
-                  type: string
-                  description: The PDF format of the resulting PDF
-                  example: PDF/A-1a
-              required:
-                - files
+                    description: The PDF format of the resulting PDF
+                    example: PDF/A-1a
+                required:
+                  - files
+              - $ref: '#/components/schemas/PdfFormat'
+              - $ref: '#/components/schemas/Encryption'
       responses:
         '200':
           $ref: '#/components/responses/SuccessfulPDF'
@@ -311,47 +224,28 @@ paths:
       description: >-
         This route accepts PDF files and a form field pdfFormat for converting them into the specified format.
       parameters:
-        - in: header
-          name: Gotenberg-Output-Filename
-          description: >-
-            By default, the API generates a UUID filename.
-            However, you may also specify the filename per request,
-            thanks to the Gotenberg-Output-Filename header.
-            Caution! The API adds the file extension automatically; you don't have to set it.
-          schema:
-            type: string
-          required: false
-        - in: header
-          name: Gotenberg-Trace
-          description: >-
-            The trace, or request ID, identifies a request in the logs.
-
-            By default, the API generates a UUID trace for each request.
-            However, you may also specify the trace per request, thanks to the Gotenberg-Trace header.
-          schema:
-            type: string
-          required: false
+        - $ref: '#/components/parameters/OutputFilename'
+        - $ref: '#/components/parameters/Trace'
       requestBody:
         content:
           multipart/form-data:
             schema:
-              type: object
-              properties:
-                files:
-                  type: array
-                  items:
-                    type: string
-                    format: binary
-                pdfFormat:
-                  type: string
-                  description: The PDF format of the resulting PDF
-                  example: PDF/A-1a
+              allOf:
+              - type: object
+                properties:
+                  files:
+                    type: array
+                    items:
+                      type: string
+                      format: binary
+              - $ref: '#/components/schemas/PdfFormat'    
+              - $ref: '#/components/schemas/Encryption'
               required:
                 - files
                 - pdfFormat
       responses:
         '200':
-          $ref: '#/components/responses/SuccessfulPDF'
+          $ref: '#/components/responses/SuccessfulPDFOrZip'
         '400':
           description: >-
             Bad Request, e.g. Invalid form data: no form file found for extensions: [.pdf]; form value 'pdfFormat' is required
@@ -364,55 +258,23 @@ paths:
       externalDocs:
         url: https://gotenberg.dev/docs/modules/pdf-engines
       description: >-
-        This route accepts PDF files and a form field pdfFormat for converting them into the specified format.
+        This route accepts PDF files, passwords and key-length for encrypting them into the specified format.
       parameters:
-        - in: header
-          name: Gotenberg-Output-Filename
-          description: >-
-            By default, the API generates a UUID filename.
-            However, you may also specify the filename per request,
-            thanks to the Gotenberg-Output-Filename header.
-            Caution! The API adds the file extension automatically; you don't have to set it.
-          schema:
-            type: string
-          required: false
-        - in: header
-          name: Gotenberg-Trace
-          description: >-
-            The trace, or request ID, identifies a request in the logs.
-
-            By default, the API generates a UUID trace for each request.
-            However, you may also specify the trace per request, thanks to the Gotenberg-Trace header.
-          schema:
-            type: string
-          required: false
+        - $ref: '#/components/parameters/OutputFilename'
+        - $ref: '#/components/parameters/Trace'
       requestBody:
         content:
           multipart/form-data:
             schema:
-              type: object
-              properties:
-                files:
-                  type: array
-                  items:
-                    type: string
-                    format: binary
-                ownerPassword:
-                  type: string
-                  description: The Password used for permissions.
-                  example: secureOwnerPassword
-                userPassword:
-                  type: string
-                  description: The Password used for access to the PDF
-                  example: secureUserPassword
-                keyLength:
-                  type: integer
-                  description: Keylength for encryption, defaults to 256
-                  enum: 
-                   - 40
-                   - 128
-                   - 256
-                  example: 256
+              allOf:
+              - type: object
+                properties:
+                  files:
+                    type: array
+                    items:
+                      type: string
+                      format: binary
+              - $ref: '#/components/schemas/Encryption'
               required:
                 - files
                 - ownerPassword
@@ -420,7 +282,7 @@ paths:
 
       responses:
         '200':
-          $ref: '#/components/responses/SuccessfulPDF'
+          $ref: '#/components/responses/SuccessfulPDFOrZip'
         '400':
           description: >-
             Bad Request, e.g. Invalid form data: no form file found for extensions: [.pdf]; form value 'ownerPassword' is required; form value 'userPassword' is required;
@@ -429,352 +291,360 @@ components:
   schemas:
     HTMLConvertRequestBody:
       title: HTML Conversion Request Body
-      type: object
-      properties:
-        files:
-          type: array
-          description: >-
-            List of HTML files to be converted to PDF. An `index.html` file is
-            required, and any other resources that are referenced through the
-            HTML file must be included as well. All the referenced files must be
-            on the same level as the `index.html` file.
-          items:
+      allOf:
+      - type: object
+        properties:
+          files:
+            type: array
+            description: >-
+              List of HTML files to be converted to PDF. An `index.html` file is
+              required, and any other resources that are referenced through the
+              HTML file must be included as well. All the referenced files must be
+              on the same level as the `index.html` file.
+            items:
+              type: string
+              format: binary
+          marginTop:
+            type: number
+            example: 0
+            default: 1
+            description: Top margin for the page in inches.
+          marginBottom:
+            type: number
+            example: 0
+            default: 1
+            description: Bottom margin for the page in inches.
+          marginLeft:
+            type: number
+            example: 0
+            default: 1
+            description: Left margin for the page in inches.
+          marginRight:
+            type: number
+            example: 0
+            default: 1
+            description: Right margin for the page in inches.
+          paperWidth:
+            type: number
+            example: 8.27
+            description: >-
+              Paper width to be used while rendering the PDF. The default page
+              size is A4.
+          paperHeight:
+            type: number
+            example: 11.69
+            description: >-
+              Paper height to be used while rendering the PDF. The default page
+              size is A4.
+          preferCssPageSize:
+            type: boolean
+            description: >-
+              Define whether to prefer page size as defined by CSS (default false)
+            default: false
+          printBackground:
+            type: boolean
+            description: >-
+              Print the background graphics (default false)
+            default: false
+          landscape:
+            type: boolean
+            example: true
+            default: false
+            description: >-
+              The default orientation for rendering the page is "portrait" mode.
+              By sending "landscape" parameter, you can ask the output to be
+              landscape.
+          scale:
+            type: number
+            minimum: 0.1
+            maximum: 2.0
+            example: 1.5
+            description: >-
+              The scale of the page rendering
+            default: 1.0
+          waitDelay:
             type: string
-            format: binary
-        marginTop:
-          type: number
-          example: 0
-          default: 1
-          description: Top margin for the page in inches.
-        marginBottom:
-          type: number
-          example: 0
-          default: 1
-          description: Bottom margin for the page in inches.
-        marginLeft:
-          type: number
-          example: 0
-          default: 1
-          description: Left margin for the page in inches.
-        marginRight:
-          type: number
-          example: 0
-          default: 1
-          description: Right margin for the page in inches.
-        paperWidth:
-          type: number
-          example: 8.27
-          description: >-
-            Paper width to be used while rendering the PDF. The default page
-            size is A4.
-        paperHeight:
-          type: number
-          example: 11.69
-          description: >-
-            Paper height to be used while rendering the PDF. The default page
-            size is A4.
-        preferCssPageSize:
-          type: boolean
-          description: >-
-            Define whether to prefer page size as defined by CSS (default false)
-          default: false
-        printBackground:
-          type: boolean
-          description: >-
-            Print the background graphics (default false)
-          default: false
-        landscape:
-          type: boolean
-          example: true
-          default: false
-          description: >-
-            The default orientation for rendering the page is "portrait" mode.
-            By sending "landscape" parameter, you can ask the output to be
-            landscape.
-        scale:
-          type: number
-          minimum: 0.1
-          maximum: 2.0
-          example: 1.5
-          description: >-
-            The scale of the page rendering
-          default: 1.0
-        waitDelay:
-          type: string
-          example: 5s
-          description: >-
-            When the page relies on JavaScript for rendering, and you don't have access to the page's code,
-            you may want to wait a certain amount of time to make sure Chromium has fully rendered the page
-            you're trying to generate.
-        waitWindowStatus:
-          type: string
-          example: done
-          description: >-
-            If you have access to the page's code, you may set the window status and tell Gotenberg to wait for a specific value.
-            For instance
-               await promises()
-               window.status = 'ready'
-            Prefer this option over waitDelay.
-        extraHttpHeaders:
-          type: string
-          description: HTTP headers to send by Chromium while loading the HTML document (JSON format)
-        nativePageRanges:
-          type: string
-          example: 1-4
-          description: >-
-            The page ranges to be converted to PDF for the incoming Office
-            documents.
-        pdfFormat:
-          type: string
-          description: >-
-            The PDF format of the resulting PDF.
-            Caution! You cannot use both nativePdfA1aFormat and pdfFormat form fields.
-          example: PDF/A-1a
+            example: 5s
+            description: >-
+              When the page relies on JavaScript for rendering, and you don't have access to the page's code,
+              you may want to wait a certain amount of time to make sure Chromium has fully rendered the page
+              you're trying to generate.
+          waitWindowStatus:
+            type: string
+            example: done
+            description: >-
+              If you have access to the page's code, you may set the window status and tell Gotenberg to wait for a specific value.
+              For instance
+                 await promises()
+                 window.status = 'ready'
+              Prefer this option over waitDelay.
+          extraHttpHeaders:
+            type: string
+            description: HTTP headers to send by Chromium while loading the HTML document (JSON format)
+          nativePageRanges:
+            type: string
+            example: 1-4
+            description: >-
+              The page ranges to be converted to PDF for the incoming Office
+              documents.
+          pdfFormat:
+            type: string
+            description: >-
+              The PDF format of the resulting PDF.
+              Caution! You cannot use both nativePdfA1aFormat and pdfFormat form fields.
+            example: PDF/A-1a
+      - $ref: '#/components/schemas/Encryption'
       required:
         - files
     MarkdownConvertRequestBody:
       title: Markdown Conversion Request Body
-      type: object
-      properties:
-        files:
-          type: array
-          items:
+      allOf:
+      - type: object
+        properties:
+          files:
+            type: array
+            items:
+              type: string
+              format: binary
+          marginTop:
+            type: number
+            example: 0
+            default: 1
+            description: Top margin for the page in inches.
+          marginBottom:
+            type: number
+            example: 0
+            default: 1
+            description: Bottom margin for the page in inches.
+          marginLeft:
+            type: number
+            example: 0
+            default: 1
+            description: Left margin for the page in inches.
+          marginRight:
+            type: number
+            example: 0
+            default: 1
+            description: Right margin for the page in inches.
+          paperWidth:
+            type: number
+            example: 8.27
+            description: >-
+              Paper width to be used while rendering the PDF. The default page
+              size is A4.
+          paperHeight:
+            type: number
+            example: 11.69
+            description: >-
+              Paper height to be used while rendering the PDF. The default page
+              size is A4.
+          preferCssPageSize:
+            type: boolean
+            description: >-
+              Define whether to prefer page size as defined by CSS (default false)
+            default: false
+          printBackground:
+            type: boolean
+            description: >-
+              Print the background graphics (default false)
+            default: false
+          landscape:
+            type: boolean
+            example: true
+            default: false
+            description: >-
+              The default orientation for rendering the page is "portrait" mode.
+              By sending "landscape" parameter, you can ask the output to be
+              landscape.
+          scale:
+            type: number
+            minimum: 0.1
+            maximum: 2.0
+            example: 1.5
+            description: >-
+              The scale of the page rendering
+            default: 1.0
+          waitDelay:
             type: string
-            format: binary
-        marginTop:
-          type: number
-          example: 0
-          default: 1
-          description: Top margin for the page in inches.
-        marginBottom:
-          type: number
-          example: 0
-          default: 1
-          description: Bottom margin for the page in inches.
-        marginLeft:
-          type: number
-          example: 0
-          default: 1
-          description: Left margin for the page in inches.
-        marginRight:
-          type: number
-          example: 0
-          default: 1
-          description: Right margin for the page in inches.
-        paperWidth:
-          type: number
-          example: 8.27
-          description: >-
-            Paper width to be used while rendering the PDF. The default page
-            size is A4.
-        paperHeight:
-          type: number
-          example: 11.69
-          description: >-
-            Paper height to be used while rendering the PDF. The default page
-            size is A4.
-        preferCssPageSize:
-          type: boolean
-          description: >-
-            Define whether to prefer page size as defined by CSS (default false)
-          default: false
-        printBackground:
-          type: boolean
-          description: >-
-            Print the background graphics (default false)
-          default: false
-        landscape:
-          type: boolean
-          example: true
-          default: false
-          description: >-
-            The default orientation for rendering the page is "portrait" mode.
-            By sending "landscape" parameter, you can ask the output to be
-            landscape.
-        scale:
-          type: number
-          minimum: 0.1
-          maximum: 2.0
-          example: 1.5
-          description: >-
-            The scale of the page rendering
-          default: 1.0
-        waitDelay:
-          type: string
-          example: 5s
-          description: >-
-            When the page relies on JavaScript for rendering, and you don't have access to the page's code,
-            you may want to wait a certain amount of time to make sure Chromium has fully rendered the page
-            you're trying to generate.
-        waitWindowStatus:
-          type: string
-          example: done
-          description: >-
-            If you have access to the page's code, you may set the window status and tell Gotenberg to wait for a specific value.
-            For instance
-               await promises()
-               window.status = 'ready'
-            Prefer this option over waitDelay.
-        extraHttpHeaders:
-          type: string
-          description: HTTP headers to send by Chromium while loading the HTML document (JSON format)
-        nativePageRanges:
-          type: string
-          example: 1-4
-          description: >-
-            The page ranges to be converted to PDF for the incoming Office
-            documents.
-        pdfFormat:
-          type: string
-          description: >-
-            The PDF format of the resulting PDF.
-            Caution! You cannot use both nativePdfA1aFormat and pdfFormat form fields.
-          example: PDF/A-1a
+            example: 5s
+            description: >-
+              When the page relies on JavaScript for rendering, and you don't have access to the page's code,
+              you may want to wait a certain amount of time to make sure Chromium has fully rendered the page
+              you're trying to generate.
+          waitWindowStatus:
+            type: string
+            example: done
+            description: >-
+              If you have access to the page's code, you may set the window status and tell Gotenberg to wait for a specific value.
+              For instance
+                 await promises()
+                 window.status = 'ready'
+              Prefer this option over waitDelay.
+          extraHttpHeaders:
+            type: string
+            description: HTTP headers to send by Chromium while loading the HTML document (JSON format)
+          nativePageRanges:
+            type: string
+            example: 1-4
+            description: >-
+              The page ranges to be converted to PDF for the incoming Office
+              documents.
+          pdfFormat:
+            type: string
+            description: >-
+              The PDF format of the resulting PDF.
+              Caution! You cannot use both nativePdfA1aFormat and pdfFormat form fields.
+            example: PDF/A-1a
+      - $ref: '#/components/schemas/Encryption'
       required:
         - files
     URLConvertRequestBody:
       title: URL Conversion Request Body
-      type: object
-      properties:
-        url:
-          type: string
-          example: 'https://google.com'
-        files:
-          description: Optional files named header.html and footer.html
-          type: array
-          items:
+      allOf:
+      - type: object
+        properties:
+          url:
             type: string
-            format: binary
-        marginTop:
-          type: number
-          example: 0
-          default: 1
-          description: Top margin for the page in inches.
-        marginBottom:
-          type: number
-          example: 0
-          default: 1
-          description: Bottom margin for the page in inches.
-        marginLeft:
-          type: number
-          example: 0
-          default: 1
-          description: Left margin for the page in inches.
-        marginRight:
-          type: number
-          example: 0
-          default: 1
-          description: Right margin for the page in inches.
-        paperWidth:
-          type: number
-          example: 8.27
-          description: >-
-            Paper width to be used while rendering the PDF. The default page
-            size is A4.
-        paperHeight:
-          type: number
-          example: 11.69
-          description: >-
-            Paper height to be used while rendering the PDF. The default page
-            size is A4.
-        preferCssPageSize:
-          type: boolean
-          description: >-
-            Define whether to prefer page size as defined by CSS (default false)
-          default: false
-        printBackground:
-          type: boolean
-          description: >-
-            Print the background graphics (default false)
-          default: false
-        landscape:
-          type: boolean
-          example: true
-          default: false
-          description: >-
-            The default orientation for rendering the page is "portrait" mode.
-            By sending "landscape" parameter, you can ask the output to be
-            landscape.
-        scale:
-          type: number
-          minimum: 0.1
-          maximum: 2.0
-          example: 1.5
-          description: >-
-            The scale of the page rendering
-          default: 1.0
-        waitDelay:
-          type: string
-          example: 5s
-          description: >-
-            When the page relies on JavaScript for rendering, and you don't have access to the page's code,
-            you may want to wait a certain amount of time to make sure Chromium has fully rendered the page
-            you're trying to generate.
-        waitWindowStatus:
-          type: string
-          example: done
-          description: >-
-            If you have access to the page's code, you may set the window status and tell Gotenberg to wait for a specific value.
-            For instance
-               await promises()
-               window.status = 'ready'
-            Prefer this option over waitDelay.
-        extraHttpHeaders:
-          type: string
-          description: HTTP headers to send by Chromium while loading the HTML document (JSON format)
-        nativePageRanges:
-          type: string
-          example: 1-4
-          description: >-
-            The page ranges to be converted to PDF for the incoming Office
-            documents.
-        pdfFormat:
-          type: string
-          description: >-
-            The PDF format of the resulting PDF.
-            Caution! You cannot use both nativePdfA1aFormat and pdfFormat form fields.
-          example: PDF/A-1a
+            example: 'https://google.com'
+          files:
+            description: Optional files named header.html and footer.html
+            type: array
+            items:
+              type: string
+              format: binary
+          marginTop:
+            type: number
+            example: 0
+            default: 1
+            description: Top margin for the page in inches.
+          marginBottom:
+            type: number
+            example: 0
+            default: 1
+            description: Bottom margin for the page in inches.
+          marginLeft:
+            type: number
+            example: 0
+            default: 1
+            description: Left margin for the page in inches.
+          marginRight:
+            type: number
+            example: 0
+            default: 1
+            description: Right margin for the page in inches.
+          paperWidth:
+            type: number
+            example: 8.27
+            description: >-
+              Paper width to be used while rendering the PDF. The default page
+              size is A4.
+          paperHeight:
+            type: number
+            example: 11.69
+            description: >-
+              Paper height to be used while rendering the PDF. The default page
+              size is A4.
+          preferCssPageSize:
+            type: boolean
+            description: >-
+              Define whether to prefer page size as defined by CSS (default false)
+            default: false
+          printBackground:
+            type: boolean
+            description: >-
+              Print the background graphics (default false)
+            default: false
+          landscape:
+            type: boolean
+            example: true
+            default: false
+            description: >-
+              The default orientation for rendering the page is "portrait" mode.
+              By sending "landscape" parameter, you can ask the output to be
+              landscape.
+          scale:
+            type: number
+            minimum: 0.1
+            maximum: 2.0
+            example: 1.5
+            description: >-
+              The scale of the page rendering
+            default: 1.0
+          waitDelay:
+            type: string
+            example: 5s
+            description: >-
+              When the page relies on JavaScript for rendering, and you don't have access to the page's code,
+              you may want to wait a certain amount of time to make sure Chromium has fully rendered the page
+              you're trying to generate.
+          waitWindowStatus:
+            type: string
+            example: done
+            description: >-
+              If you have access to the page's code, you may set the window status and tell Gotenberg to wait for a specific value.
+              For instance
+                 await promises()
+                 window.status = 'ready'
+              Prefer this option over waitDelay.
+          extraHttpHeaders:
+            type: string
+            description: HTTP headers to send by Chromium while loading the HTML document (JSON format)
+          nativePageRanges:
+            type: string
+            example: 1-4
+            description: >-
+              The page ranges to be converted to PDF for the incoming Office
+              documents.
+          pdfFormat:
+            type: string
+            description: >-
+              The PDF format of the resulting PDF.
+              Caution! You cannot use both nativePdfA1aFormat and pdfFormat form fields.
+            example: PDF/A-1a
+      - $ref: '#/components/schemas/Encryption'
       required:
         - url
     OfficeConvertRequestBody:
       title: Office Conversion Request Body
-      type: object
-      properties:
-        files:
-          type: array
-          items:
+      allOf:
+      - type: object
+        properties:
+          files:
+            type: array
+            items:
+              type: string
+              format: binary
+          nativePageRanges:
             type: string
-            format: binary
-        nativePageRanges:
-          type: string
-          example: 1-4
-          description: >-
-            The page ranges to be converted to PDF for the incoming Office
-            documents. **If there are multiple files sent to the API, this page
-            range will apply to all of the documents**. Empty means all pages.
-        nativePdfA1aFormat:
-          type: boolean
-          description: >-
-            Use unoconv to convert the resulting PDF to the 'PDF/A-1a' format.
-            Caution! You cannot use both nativePdfA1aFormat and pdfFormat form fields.
-        pdfFormat:
-          type: string
-          description: >-
-            The PDF format of the resulting PDF.
-            Caution! You cannot use both nativePdfA1aFormat and pdfFormat form fields.
-          example: PDF/A-1a
-        landscape:
-          type: boolean
-          example: true
-          default: false
-          description: >-
-            The default orientation for rendering the page is "portrait" mode.
-            By sending "landscape" parameter, you can ask the output to be
-            landscape.
-        merge:
-          type: boolean
-          description: >-
-            Merge all PDF files into an individual PDF file.
+            example: 1-4
+            description: >-
+              The page ranges to be converted to PDF for the incoming Office
+              documents. **If there are multiple files sent to the API, this page
+              range will apply to all of the documents**. Empty means all pages.
+          nativePdfA1aFormat:
+            type: boolean
+            description: >-
+              Use unoconv to convert the resulting PDF to the 'PDF/A-1a' format.
+              Caution! You cannot use both nativePdfA1aFormat and pdfFormat form fields.
+          pdfFormat:
+            type: string
+            description: >-
+              The PDF format of the resulting PDF.
+              Caution! You cannot use both nativePdfA1aFormat and pdfFormat form fields.
+            example: PDF/A-1a
+          landscape:
+            type: boolean
+            example: true
+            default: false
+            description: >-
+              The default orientation for rendering the page is "portrait" mode.
+              By sending "landscape" parameter, you can ask the output to be
+              landscape.
+          merge:
+            type: boolean
+            description: >-
+              Merge all PDF files into an individual PDF file.
+      - $ref: '#/components/schemas/Encryption'
       required:
         - files
     MergeFilesRequestBody:
@@ -788,12 +658,79 @@ components:
             format: binary
       required:
         - files
+    PdfFormat:
+      type: object
+      properties:
+        pdfFormat:
+          type: string
+          description: The PDF format of the resulting PDF
+          enum:
+           - PDF/A-1a
+           - PDF/A-1b
+           - PDF/A-2a
+           - PDF/A-2b
+           - PDF/A-2u
+           - PDF/A-3a
+           - PDF/A-3b
+           - PDF/A-3u
+          example: PDF/A-1a
+    Encryption:
+      type: object
+      properties:
+        ownerPassword:
+          type: string
+          description: 'Encryption: The Password used for permissions. Requires userPassword.'
+          example: secureOwnerPassword
+        userPassword:
+          type: string
+          description: 'Encryption: The Password used for access to the PDF. Requires ownerPassword.'
+          example: secureUserPassword
+        keyLength:
+          type: integer
+          description: 'Encryption: Keylength for encryption, defaults to 256'
+          enum: [40, 128, 256]
+          nullable: false
+          example: 256
+  parameters:
+    OutputFilename:
+      in: header
+      name: Gotenberg-Output-Filename
+      description: >-
+        By default, the API generates a UUID filename.
+        However, you may also specify the filename per request,
+        thanks to the Gotenberg-Output-Filename header.
+        Caution! The API adds the file extension automatically; you don't have to set it.
+      schema:
+        type: string
+      required: false
+    Trace:
+      in: header
+      name: Gotenberg-Trace
+      description: >-
+        The trace, or request ID, identifies a request in the logs.
+
+        By default, the API generates a UUID trace for each request.
+        However, you may also specify the trace per request, thanks to the Gotenberg-Trace header.
+      schema:
+        type: string
+      required: false
   securitySchemes: { }
   responses:
     SuccessfulPDF:
       description: Resulting PDF file from the conversion.
       content:
         application/pdf:
+          schema:
+            type: string
+            format: binary
+    SuccessfulPDFOrZip:
+      description: Resulting PDF file from the conversion. Will return a Zip-Archive for multiple PDFs
+      content:
+        application/pdf:
+          schema:
+            type: string
+            format: binary
+        application/zip:
           schema:
             type: string
             format: binary

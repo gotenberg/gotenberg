@@ -178,3 +178,89 @@ func TestMultiPDFEngines_Convert(t *testing.T) {
 		})
 	}
 }
+
+func TestMultiPDFEngines_Encrypt(t *testing.T) {
+	tests := []struct {
+		name   string
+		engine *multiPDFEngines
+		ctx    context.Context
+		gotenberg.EncryptionOptions
+		expectConvertErr bool
+	}{
+		{
+			name: "nominal behavior",
+			engine: newMultiPDFEngines(
+				gotenberg.PDFEngineMock{
+					EncryptMock: func(ctx context.Context, logger *zap.Logger, encryptionOptions gotenberg.EncryptionOptions, inputPath, outputPath string) error {
+						return nil
+					},
+				},
+			),
+			ctx: context.Background(),
+		},
+		{
+			name: "at least one engine does not return an error",
+			engine: newMultiPDFEngines(
+				gotenberg.PDFEngineMock{
+					EncryptMock: func(ctx context.Context, logger *zap.Logger, encryptionOptions gotenberg.EncryptionOptions, inputPath, outputPath string) error {
+						return errors.New("foo")
+					},
+				},
+				gotenberg.PDFEngineMock{
+					EncryptMock: func(ctx context.Context, logger *zap.Logger, encryptionOptions gotenberg.EncryptionOptions, inputPath, outputPath string) error {
+						return nil
+					},
+				},
+			),
+			ctx: context.Background(),
+		},
+		{
+			name: "all engines return an error",
+			engine: newMultiPDFEngines(
+				gotenberg.PDFEngineMock{
+					EncryptMock: func(ctx context.Context, logger *zap.Logger, encryptionOptions gotenberg.EncryptionOptions, inputPath, outputPath string) error {
+						return errors.New("foo")
+					},
+				},
+				gotenberg.PDFEngineMock{
+					EncryptMock: func(ctx context.Context, logger *zap.Logger, encryptionOptions gotenberg.EncryptionOptions, inputPath, outputPath string) error {
+						return errors.New("foo")
+					},
+				},
+			),
+			ctx:              context.Background(),
+			expectConvertErr: true,
+		},
+		{
+			name: "context expired",
+			engine: newMultiPDFEngines(
+				gotenberg.PDFEngineMock{
+					EncryptMock: func(ctx context.Context, logger *zap.Logger, encryptionOptions gotenberg.EncryptionOptions, inputPath, outputPath string) error {
+						return nil
+					},
+				},
+			),
+			ctx: func() context.Context {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+
+				return ctx
+			}(),
+			expectConvertErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.engine.Encrypt(tc.ctx, zap.NewNop(), *gotenberg.NewEncryptionOptions(256, "foo", "foo"), "", "")
+
+			if tc.expectConvertErr && err == nil {
+				t.Errorf("expected engine.Encrypt() error, but got none")
+			}
+
+			if !tc.expectConvertErr && err != nil {
+				t.Errorf("expected no error from engine.Encrypt(), but got: %v", err)
+			}
+		})
+	}
+}
