@@ -38,13 +38,11 @@ docker buildx build \
   -f build/Dockerfile .
 
 # Cloud Run variant.
+# Only linux/amd64! See https://github.com/gotenberg/gotenberg/issues/505#issuecomment-1264679278.
 docker buildx build \
   --build-arg DOCKER_REPOSITORY="$DOCKER_REPOSITORY" \
   --build-arg GOTENBERG_VERSION="$GOTENBERG_VERSION" \
   --platform linux/amd64 \
-  --platform linux/arm64 \
-  --platform linux/arm/v7 \
-  --platform linux/386 \
   -t "$DOCKER_REPOSITORY/gotenberg:latest-cloudrun" \
   -t "$DOCKER_REPOSITORY/gotenberg:${SEMVER[0]}-cloudrun" \
   -t "$DOCKER_REPOSITORY/gotenberg:${SEMVER[0]}.${SEMVER[1]}-cloudrun" \
