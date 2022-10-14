@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/alexliesenfeld/health v0.6.0
 	github.com/andybalholm/brotli v1.0.4 // indirect
-	github.com/chromedp/cdproto v0.0.0-20220930195933-357956813629
+	github.com/chromedp/cdproto v0.0.0-20221011223153-490dc4d81f7c
 	github.com/chromedp/chromedp v0.8.6
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.3.0
@@ -13,11 +13,11 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.1
 	github.com/klauspost/compress v1.15.11 // indirect
 	github.com/klauspost/pgzip v1.2.5 // indirect
-	github.com/labstack/echo/v4 v4.9.0
-	github.com/labstack/gommon v0.3.1
+	github.com/labstack/echo/v4 v4.9.1
+	github.com/labstack/gommon v0.4.0
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/mholt/archiver/v3 v3.5.1
-	github.com/microcosm-cc/bluemonday v1.0.20
+	github.com/microcosm-cc/bluemonday v1.0.21
 	github.com/nwaples/rardecode v1.1.3 // indirect
 	github.com/pdfcpu/pdfcpu v0.3.13
 	github.com/pierrec/lz4/v4 v4.1.17 // indirect
@@ -28,13 +28,13 @@ require (
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0
 	go.uber.org/zap v1.23.0
-	golang.org/x/crypto v0.0.0-20220926161630-eccd6366d1be // indirect
+	golang.org/x/crypto v0.0.0-20221012134737-56aed061732a // indirect
 	golang.org/x/image v0.0.0-20220902085622-e7cb96979f69 // indirect
-	golang.org/x/net v0.0.0-20221002022538-bcab6841153b
+	golang.org/x/net v0.0.0-20221014081412-f15817d10f9b
 	golang.org/x/sync v0.0.0-20220929204114-8fcdb60fdcc0
-	golang.org/x/sys v0.0.0-20220928140112-f11e5e49a4ec // indirect
+	golang.org/x/sys v0.0.0-20221013171732-95e765b1cc43 // indirect
 	golang.org/x/term v0.0.0-20220919170432-7a66f970e087
-	golang.org/x/text v0.3.7
+	golang.org/x/text v0.3.8
 )
 
 require (
