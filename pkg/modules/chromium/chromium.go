@@ -420,6 +420,14 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 		args = append(args, chromedp.UserAgent(options.UserAgent))
 	}
 
+	// See https://github.com/gotenberg/gotenberg/issues/524.
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return errors.New("context has no deadline")
+	}
+
+	args = append(args, chromedp.WSURLReadTimeout(time.Until(deadline)))
+
 	allocatorCtx, cancel := chromedp.NewExecAllocator(ctx, args...)
 	defer cancel()
 
