@@ -137,7 +137,7 @@ RUN \
     # Download QPDF.
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends qpdf &&\
     # See https://github.com/nextcloud/docker/issues/380.
-    mkdir -p /usr/share/man/man1mkdir -p /usr/share/man/man1 &&\
+    mkdir -p /usr/share/man/man1 &&\
     # Cleanup.
     # Note: the Debian image does automatically a clean after each install thanks to a hook.
     # Therefore, there is no need for apt-get clean.
