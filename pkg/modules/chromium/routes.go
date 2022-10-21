@@ -33,7 +33,7 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 		userAgent                                        string
 		extraHTTPHeaders                                 map[string]string
 		emulatedMediaType                                string
-		landscape, printBackground                       bool
+		landscape, printBackground, omitBackground       bool
 		scale, paperWidth, paperHeight                   float64
 		marginTop, marginBottom, marginLeft, marginRight float64
 		pageRanges                                       string
@@ -78,6 +78,7 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 		}).
 		Bool("landscape", &landscape, defaultOptions.Landscape).
 		Bool("printBackground", &printBackground, defaultOptions.PrintBackground).
+		Bool("omitBackground", &omitBackground, defaultOptions.OmitBackground).
 		Float64("scale", &scale, defaultOptions.Scale).
 		Float64("paperWidth", &paperWidth, defaultOptions.PaperWidth).
 		Float64("paperHeight", &paperHeight, defaultOptions.PaperHeight).
@@ -102,6 +103,7 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 		ExtraScriptTags:         defaultOptions.ExtraScriptTags,
 		Landscape:               landscape,
 		PrintBackground:         printBackground,
+		OmitBackground:          omitBackground,
 		Scale:                   scale,
 		PaperWidth:              paperWidth,
 		PaperHeight:             paperHeight,
@@ -336,6 +338,16 @@ func convertURL(ctx *api.Context, chromium API, engine gotenberg.PDFEngine, URL,
 				api.NewSentinelHTTPError(
 					http.StatusForbidden,
 					fmt.Sprintf("'%s' does not match the authorized URLs", URL),
+				),
+			)
+		}
+
+		if errors.Is(err, ErrOmitBackgroundWithoutPrintBackground) {
+			return api.WrapError(
+				fmt.Errorf("convert to PDF: %w", err),
+				api.NewSentinelHTTPError(
+					http.StatusBadRequest,
+					"omitBackground requires printBackground set to true",
 				),
 			)
 		}

@@ -336,6 +336,24 @@ func TestChromium_PDF(t *testing.T) {
 			},
 		},
 		{
+			name:    "with omit background but not print background",
+			timeout: time.Duration(60) * time.Second,
+			URL:     "file:///tests/test/testdata/chromium/html/sample4/index.html",
+			options: Options{
+				OmitBackground: true,
+			},
+			expectErr: true,
+		},
+		{
+			name:    "with omit background and print background",
+			timeout: time.Duration(60) * time.Second,
+			URL:     "file:///tests/test/testdata/chromium/html/sample4/index.html",
+			options: Options{
+				OmitBackground:  true,
+				PrintBackground: true,
+			},
+		},
+		{
 			name:    "with extra script tags",
 			timeout: time.Duration(60) * time.Second,
 			URL:     "file:///tests/test/testdata/chromium/html/sample11/index.html",
