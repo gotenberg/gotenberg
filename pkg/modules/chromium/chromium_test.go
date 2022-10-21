@@ -435,7 +435,7 @@ func TestChromium_PDF(t *testing.T) {
 			expectErr: true,
 		},
 		{
-			name:                     "with a lot of options",
+			name:                     "with a lot of properties",
 			timeout:                  time.Duration(60) * time.Second,
 			URL:                      "file:///tests/test/testdata/chromium/html/sample4/index.html",
 			userAgent:                "foo",
@@ -485,6 +485,47 @@ func TestChromium_PDF(t *testing.T) {
 
 					return string(b)
 				}(),
+			},
+		},
+		{
+			name:    "with custom header template only",
+			timeout: time.Duration(60) * time.Second,
+			URL:     "file:///tests/test/testdata/chromium/html/sample4/index.html",
+			options: Options{
+				HeaderTemplate: func() string {
+					b, err := os.ReadFile("/tests/test/testdata/chromium/url/sample2/header.html")
+					if err != nil {
+						t.Fatalf("expected no error but got: %v", err)
+					}
+
+					return string(b)
+				}(),
+				FooterTemplate: DefaultOptions().FooterTemplate,
+			},
+		},
+		{
+			name:    "with custom footer template only",
+			timeout: time.Duration(60) * time.Second,
+			URL:     "file:///tests/test/testdata/chromium/html/sample4/index.html",
+			options: Options{
+				HeaderTemplate: DefaultOptions().HeaderTemplate,
+				FooterTemplate: func() string {
+					b, err := os.ReadFile("/tests/test/testdata/chromium/url/sample2/footer.html")
+					if err != nil {
+						t.Fatalf("expected no error but got: %v", err)
+					}
+
+					return string(b)
+				}(),
+			},
+		},
+		{
+			name:    "without custom header and footer templates",
+			timeout: time.Duration(60) * time.Second,
+			URL:     "file:///tests/test/testdata/chromium/html/sample4/index.html",
+			options: Options{
+				HeaderTemplate: DefaultOptions().HeaderTemplate,
+				FooterTemplate: DefaultOptions().FooterTemplate,
 			},
 		},
 		{
