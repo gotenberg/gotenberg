@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
@@ -32,6 +33,10 @@ var (
 	// ErrURLNotAuthorized happens if a URL is not acceptable according to the
 	// allowed/denied lists.
 	ErrURLNotAuthorized = errors.New("URL not authorized")
+
+	// ErrOmitBackgroundWithoutPrintBackground happens if
+	// Options.OmitBackground is set to true but not Options.PrintBackground.
+	ErrOmitBackgroundWithoutPrintBackground = errors.New("omit background without print background")
 
 	// ErrInvalidEmulatedMediaType happens if the emulated media type is not
 	// "screen" nor "print". Empty value are allowed though.
@@ -144,6 +149,11 @@ type Options struct {
 	// Optional.
 	PrintBackground bool
 
+	// OmitBackground hides default white background and allows generating PDFs
+	// with transparency.
+	// Optional.
+	OmitBackground bool
+
 	// Scale is the scale of the page rendering.
 	// Optional.
 	Scale float64
@@ -214,6 +224,7 @@ func DefaultOptions() Options {
 		ExtraScriptTags:         nil,
 		Landscape:               false,
 		PrintBackground:         false,
+		OmitBackground:          false,
 		Scale:                   1.0,
 		PaperWidth:              8.5,
 		PaperHeight:             11,
@@ -525,6 +536,35 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 				return fmt.Errorf("wait for events: %w", err)
 			}),
 			chromedp.ActionFunc(func(ctx context.Context) error {
+				// See https://github.com/gotenberg/gotenberg/issues/226.
+				if !options.OmitBackground {
+					logger.Debug("default white background not hidden")
+
+					return nil
+				}
+
+				if !options.PrintBackground {
+					// See https://github.com/chromedp/chromedp/issues/1179#issuecomment-1284794416.
+					return fmt.Errorf("validate omit background: %w", ErrOmitBackgroundWithoutPrintBackground)
+				}
+
+				logger.Debug("hide default white background")
+
+				err := emulation.SetDefaultBackgroundColorOverride().WithColor(
+					&cdp.RGBA{
+						R: 0,
+						G: 0,
+						B: 0,
+						A: 0,
+					}).Do(ctx)
+
+				if err == nil {
+					return nil
+				}
+
+				return fmt.Errorf("hide default white background: %w", err)
+			}),
+			chromedp.ActionFunc(func(ctx context.Context) error {
 				// See:
 				// https://github.com/gotenberg/gotenberg/issues/354
 				// https://github.com/puppeteer/puppeteer/issues/2685
@@ -767,10 +807,23 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 					WithMarginLeft(options.MarginLeft).
 					WithMarginRight(options.MarginRight).
 					WithPageRanges(options.PageRanges).
-					WithDisplayHeaderFooter(true).
-					WithHeaderTemplate(options.HeaderTemplate).
-					WithFooterTemplate(options.FooterTemplate).
 					WithPreferCSSPageSize(options.PreferCSSPageSize)
+
+				hasCustomHeaderFooter := options.HeaderTemplate != DefaultOptions().HeaderTemplate ||
+					options.FooterTemplate != DefaultOptions().FooterTemplate
+
+				if !hasCustomHeaderFooter {
+					logger.Debug("no custom header nor footer")
+
+					printToPDF = printToPDF.WithDisplayHeaderFooter(false)
+				} else {
+					logger.Debug("with custom header and/or footer")
+
+					printToPDF = printToPDF.
+						WithDisplayHeaderFooter(true).
+						WithHeaderTemplate(options.HeaderTemplate).
+						WithFooterTemplate(options.FooterTemplate)
+				}
 
 				logger.Debug(fmt.Sprintf("print to PDF with: %+v", printToPDF))
 
