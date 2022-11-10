@@ -23,6 +23,7 @@ import (
 	flag "github.com/spf13/pflag"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
 )
 
 func init() {
@@ -261,6 +262,7 @@ func (mod Chromium) Descriptor() gotenberg.ModuleDescriptor {
 		ID: "chromium",
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("chromium", flag.ExitOnError)
+			fs.Int("chromium-concurrency", 0, "number of Chromium instances to allow at once (0 for no limit)")
 			fs.String("chromium-user-agent", "", "Override the default User-Agent header")
 			fs.Bool("chromium-incognito", false, "Start Chromium with incognito mode")
 			fs.Bool("chromium-allow-insecure-localhost", false, "Ignore TLS/SSL errors on localhost")
@@ -288,6 +290,7 @@ func (mod Chromium) Descriptor() gotenberg.ModuleDescriptor {
 // Provision sets the module properties.
 func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
+	maxConcurrency = flags.MustInt("chromium-concurrency")
 	mod.userAgent = flags.MustString("chromium-user-agent")
 	mod.allowInsecureLocalhost = flags.MustBool("chromium-allow-insecure-localhost")
 	mod.ignoreCertificateErrors = flags.MustBool("chromium-ignore-certificate-errors")
@@ -318,6 +321,11 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 	}
 
 	mod.engine = engine
+
+	// If we have a max concurrency, create a semaphore of the given size.
+	if maxConcurrency != 0 {
+		printToPDFSemaphore = semaphore.NewWeighted(int64(maxConcurrency))
+	}
 
 	return nil
 }
@@ -871,6 +879,11 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 		}
 	}
 
+	if maxConcurrency != 0 {
+		// Acquire a semaphore to limit the number of concurrent tasks.
+		printToPDFSemaphore.Acquire(ctx, 1)
+	}
+
 	activeInstancesCountMu.Lock()
 	activeInstancesCount += 1
 	activeInstancesCountMu.Unlock()
@@ -880,6 +893,11 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 	activeInstancesCountMu.Lock()
 	activeInstancesCount -= 1
 	activeInstancesCountMu.Unlock()
+
+	if maxConcurrency != 0 {
+		// Release the semaphore.
+		defer printToPDFSemaphore.Release(1)
+	}
 
 	// Always remove the user profile directory created by Chromium.
 	go func() {
@@ -923,6 +941,8 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 var (
 	activeInstancesCount   float64
 	activeInstancesCountMu sync.RWMutex
+	maxConcurrency         int
+	printToPDFSemaphore    *semaphore.Weighted
 )
 
 // Interface guards.

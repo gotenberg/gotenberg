@@ -23,16 +23,17 @@ build: ## Build the Gotenberg's Docker image
 	--build-arg GOTENBERG_USER_UID=$(GOTENBERG_USER_UID) \
 	--build-arg NOTO_COLOR_EMOJI_VERSION=$(NOTO_COLOR_EMOJI_VERSION) \
 	--build-arg PDFTK_VERSION=$(PDFTK_VERSION) \
-	-t $(GOTENBERG_VERSION) \
+	-t $(DOCKER_REPOSITORY)/gotenberg:$(GOTENBERG_VERSION) \
 	-f build/Dockerfile .
 
 GOTENBERG_GRACEFUL_SHUTDOWN_DURATION=30s
 API_PORT=3000
 API_PORT_FROM_ENV=
-API_TIMEOUT=99930s
+API_TIMEOUT=30s
 API_ROOT_PATH=/
 API_TRACE_HEADER=Gotenberg-Trace
 API_DISABLE_HEALTH_CHECK_LOGGING=false
+CHROMIUM_CONCURRENCY=0
 CHROMIUM_INCOGNITO=false
 CHROMIUM_ALLOW_INSECURE_LOCALHOST=false
 CHROMIUM_IGNORE_CERTIFICATE_ERRORS=false
@@ -62,14 +63,14 @@ WEBHOOK_ERROR_DENY_LIST=
 WEBHOOK_MAX_RETRY=4
 WEBHOOK_RETRY_MIN_WAIT=1s
 WEBHOOK_RETRY_MAX_WAIT=30s
-WEBHOOK_CLIENT_TIMEOUT=99930s
+WEBHOOK_CLIENT_TIMEOUT=30s
 WEBHOOK_DISABLE=false
 
 .PHONY: run
 run: ## Start a Gotenberg container
 	docker run --rm -it \
 	-p $(API_PORT):$(API_PORT) \
-	$(GOTENBERG_VERSION) \
+	$(DOCKER_REPOSITORY)/gotenberg:$(GOTENBERG_VERSION) \
 	gotenberg \
 	--gotenberg-graceful-shutdown-duration=$(GOTENBERG_GRACEFUL_SHUTDOWN_DURATION) \
 	--api-port=$(API_PORT) \
@@ -78,6 +79,7 @@ run: ## Start a Gotenberg container
 	--api-root-path=$(API_ROOT_PATH) \
 	--api-trace-header=$(API_TRACE_HEADER) \
 	--api-disable-health-check-logging=$(API_DISABLE_HEALTH_CHECK_LOGGING) \
+	--chromium-concurrency=$(CHROMIUM_CONCURRENCY) \
 	--chromium-incognito=$(CHROMIUM_INCOGNITO) \
 	--chromium-allow-insecure-localhost=$(CHROMIUM_ALLOW_INSECURE_LOCALHOST) \
 	--chromium-ignore-certificate-errors=$(CHROMIUM_IGNORE_CERTIFICATE_ERRORS) \

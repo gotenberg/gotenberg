@@ -430,7 +430,6 @@ func convertURL(ctx *api.Context, chromium API, engine gotenberg.PDFEngine, URL,
 		outputPath = convertOutputPath
 	}
 
-	ctx.Log().Info(fmt.Sprintf("Chromium - add output path %s", outputPath))
 	err = ctx.AddOutputPaths(outputPath)
 	if err != nil {
 		return fmt.Errorf("add output path: %w", err)

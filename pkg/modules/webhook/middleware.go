@@ -17,13 +17,9 @@ import (
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/labstack/echo/v4"
-	"github.com/alitto/pond"
 )
 
 func webhookMiddleware(w Webhook) api.Middleware {
-  // Create a buffered (non-blocking) pool
-	pool := pond.New(1, 1000)
-
 	return api.Middleware{
 		Stack: api.MultipartStack,
 		Handler: func() echo.MiddlewareFunc {
@@ -193,9 +189,9 @@ func webhookMiddleware(w Webhook) api.Middleware {
 						}
 					}
 
-					// As a webhook URL has been given, we handle the request in a pool
-					job := func() {
-						ctx.Log().Info(fmt.Sprintf("Started Hook"))
+					// As a webhook URL has been given, we handle the request in a
+					// goroutine and return immediately.
+					go func() {
 						defer cancel()
 
 						// Call the next middleware in the chain.
@@ -213,7 +209,7 @@ func webhookMiddleware(w Webhook) api.Middleware {
 						// No error, let's get build the output file.
 						outputPath, err := ctx.BuildOutputFile()
 						if err != nil {
-							ctx.Log().Error(fmt.Sprintf("webhook - build output file: %s", err))
+							ctx.Log().Error(fmt.Sprintf("build output file: %s", err))
 							handleAsyncError(err)
 
 							return
@@ -272,9 +268,7 @@ func webhookMiddleware(w Webhook) api.Middleware {
 							ctx.Log().Error(fmt.Sprintf("send output file to webhook: %s", err))
 							handleAsyncError(err)
 						}
-					}
-					pool.Submit(job)
-					ctx.Log().Info(fmt.Sprintf("Submitted Job"))
+					}()
 
 					return api.ErrAsyncProcess
 				}

@@ -234,7 +234,7 @@ func contextMiddleware(timeout time.Duration) echo.MiddlewareFunc {
 			// No error, let's build the output file.
 			outputPath, err := ctx.BuildOutputFile()
 			if err != nil {
-				return fmt.Errorf("api - build output file: %w", err)
+				return fmt.Errorf("build output file: %w", err)
 			}
 
 			// Send the output file.
