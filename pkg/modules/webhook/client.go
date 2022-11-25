@@ -3,6 +3,7 @@ package webhook
 import (
 	"fmt"
 	"io"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -76,6 +77,10 @@ func (c client) send(body io.Reader, headers map[string]string, erroed bool) err
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("send '%s' request to '%s': %w", method, URL, err)
+	}
+
+	if resp.StatusCode >= http.StatusBadRequest {
+		return fmt.Errorf("send '%s' request to '%s': got status: '%s'", method, URL, resp.Status)
 	}
 
 	defer func() {
