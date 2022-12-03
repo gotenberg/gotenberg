@@ -339,6 +339,7 @@ func TestWebhookMiddlewareAsynchronousProcess(t *testing.T) {
 		expectWebhookFilename         string
 		expectWebhookErrorStatus      int
 		expectWebhookErrorMessage     string
+		returnedError                 *echo.HTTPError
 	}{
 		{
 			request: buildMultipartFormDataRequest(),
@@ -363,8 +364,8 @@ func TestWebhookMiddlewareAsynchronousProcess(t *testing.T) {
 			}(),
 			expectWebhookContentType:  echo.MIMEApplicationJSONCharsetUTF8,
 			expectWebhookMethod:       http.MethodPost,
-			expectWebhookErrorStatus:  http.StatusInternalServerError,
-			expectWebhookErrorMessage: http.StatusText(http.StatusInternalServerError),
+			expectWebhookErrorStatus:  http.StatusBadRequest,
+			expectWebhookErrorMessage: http.StatusText(http.StatusBadRequest),
 		},
 		{
 			request: func() *http.Request {
@@ -386,6 +387,27 @@ func TestWebhookMiddlewareAsynchronousProcess(t *testing.T) {
 			expectWebhookMethod:           http.MethodPost,
 			expectWebhookFilename:         "foo",
 			expectWebhookExtraHTTPHeaders: map[string]string{"foo": "bar"},
+		},
+		{
+			request: func() *http.Request {
+				req := buildMultipartFormDataRequest()
+				req.Header.Set("Gotenberg-Output-Filename", "foo")
+
+				return req
+			}(),
+			mod: buildWebhookModule(),
+			next: func() echo.HandlerFunc {
+				return func(c echo.Context) error {
+					ctx := c.Get("context").(*api.Context)
+
+					return ctx.AddOutputPaths("/tests/test/testdata/api/sample3.pdf")
+				}
+			}(),
+			returnedError: echo.ErrInternalServerError,
+			// Even though an error is returned the expected response is still a pdf, since the webhook error is only logged
+			expectWebhookContentType: "application/pdf",
+			expectWebhookMethod:      http.MethodPost,
+			expectWebhookFilename:    "foo",
 		},
 	} {
 		func() {
@@ -500,6 +522,11 @@ func TestWebhookMiddlewareAsynchronousProcess(t *testing.T) {
 						}
 
 						errChan <- nil
+
+						if tc.returnedError != nil {
+							return tc.returnedError
+						}
+
 						return nil
 					}
 				}(),
