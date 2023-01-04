@@ -63,7 +63,7 @@ func (cmd Cmd) Start() error {
 		return fmt.Errorf("pipe unix process output: %w", err)
 	}
 
-	cmd.logger.Error(fmt.Sprintf("start unix process: %s", strings.Join(cmd.process.Args, " ")))
+	cmd.logger.Debug(fmt.Sprintf("start unix process: %s", strings.Join(cmd.process.Args, " ")))
 
 	err = cmd.process.Start()
 	if err != nil {

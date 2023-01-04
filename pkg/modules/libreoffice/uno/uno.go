@@ -297,7 +297,7 @@ func (mod UNO) Checks() ([]health.CheckerOption, error) {
 //
 // If there is a long-running LibreOffice listener, the conversion performance
 // improves substantially. However, it cannot perform parallel operations.
-func (mod UNO) convertPre(ctx context.Context, args []string, logger *zap.Logger) error {
+func (mod UNO) convertPre(ctx context.Context, args *[]string, logger *zap.Logger) error {
 	switch mod.libreOfficeRestartThreshold {
 	case 0:
 		listener := newLibreOfficeListener(logger, mod.libreOfficeBinPath, mod.libreOfficeStartTimeout, 0)
@@ -314,7 +314,7 @@ func (mod UNO) convertPre(ctx context.Context, args []string, logger *zap.Logger
 			}
 		}()
 
-		args = append(args, "--port", fmt.Sprintf("%d", listener.port()))
+		*args = append(*args, "--port", fmt.Sprintf("%d", listener.port()))
 	default:
 		err := mod.listener.lock(ctx, logger)
 		if err != nil {
@@ -335,12 +335,12 @@ func (mod UNO) convertPre(ctx context.Context, args []string, logger *zap.Logger
 		// If the LibreOffice listener is restarting while acquiring the lock,
 		// the port will change. It's therefore important to add the port args
 		// after we acquire the lock.
-		args = append(args, "--port", fmt.Sprintf("%d", mod.listener.port()))
+		*args = append(*args, "--port", fmt.Sprintf("%d", mod.listener.port()))
 	}
 
 	checkedEntry := logger.Check(zap.DebugLevel, "check for debug level before setting high verbosity")
 	if checkedEntry != nil {
-		args = append(args, "-vvv")
+		*args = append(*args, "-vvv")
 	}
 	return nil
 }
@@ -386,7 +386,7 @@ func (mod UNO) PDF(ctx context.Context, logger *zap.Logger, inputPath, outputPat
 		"--format",
 		"pdf",
 	}
-	mod.convertPre(ctx, args, logger)
+	mod.convertPre(ctx, &args, logger)
 
 	if options.Landscape {
 		args = append(args, "--printer", "PaperOrientation=landscape")
@@ -415,7 +415,7 @@ func (mod UNO) PDF(ctx context.Context, logger *zap.Logger, inputPath, outputPat
 		return fmt.Errorf("create unoconv command: %w", err)
 	}
 
-	logger.Error(fmt.Sprintf("print to PDF with: %+v", options))
+	logger.Debug(fmt.Sprintf("print to PDF with: %+v", options))
 
 	return mod.convertDocument(cmd, options, "PDF")
 }
@@ -427,7 +427,7 @@ func (mod UNO) HTML(ctx context.Context, logger *zap.Logger, inputPath, outputPa
 		"--format",
 		"html",
 	}
-	mod.convertPre(ctx, args, logger)
+	mod.convertPre(ctx, &args, logger)
 
 	// Does it make sense to specify page ranges for HTML conversions?
 	if options.PageRanges != "" {
