@@ -9,11 +9,16 @@ import (
 // APIMock is a mock for the API interface.
 type APIMock struct {
 	PDFMock        func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
+	HTMLMock        func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
 	ExtensionsMock func() []string
 }
 
 func (api APIMock) PDF(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error {
 	return api.PDFMock(ctx, logger, inputPath, outputPath, options)
+}
+
+func (api APIMock) HTML(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error {
+	return api.HTMLMock(ctx, logger, inputPath, outputPath, options)
 }
 
 func (api APIMock) Extensions() []string {

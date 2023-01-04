@@ -12,7 +12,7 @@ import (
 )
 
 // convertRoute returns an api.Route which can convert LibreOffice documents
-// to PDF.
+// to PDF, or in some cases, html.
 func convertRoute(unoAPI uno.API, engine gotenberg.PDFEngine) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
@@ -29,6 +29,7 @@ func convertRoute(unoAPI uno.API, engine gotenberg.PDFEngine) api.Route {
 				nativePDFA1aFormat bool
 				nativePDFformat    string
 				PDFformat          string
+				htmlFormat         bool
 				merge              bool
 			)
 
@@ -39,6 +40,7 @@ func convertRoute(unoAPI uno.API, engine gotenberg.PDFEngine) api.Route {
 				Bool("nativePdfA1aFormat", &nativePDFA1aFormat, false).
 				String("nativePdfFormat", &nativePDFformat, "").
 				String("pdfFormat", &PDFformat, "").
+				Bool("htmlFormat", &htmlFormat, false).
 				Bool("merge", &merge, false).
 				Validate()
 
@@ -75,30 +77,58 @@ func convertRoute(unoAPI uno.API, engine gotenberg.PDFEngine) api.Route {
 				nativePDFformat = gotenberg.FormatPDFA1a
 			}
 
-			// Alright, let's convert each document to PDF.
+			// Check for conflicts with HTML output flag.
+			if htmlFormat && merge && len(inputPaths) > 1 {
+				return api.WrapError(
+					errors.New("unable to merge multiple files with htmlFormat"),
+					api.NewSentinelHTTPError(http.StatusBadRequest, "Unable to merge multiple files using htmlFormat"),
+				)
+			}
 
+			if htmlFormat && nativePDFA1aFormat {
+				return api.WrapError(
+					errors.New("got both 'htmlFormat' and 'nativePdfA1aFormat' form fields"),
+					api.NewSentinelHTTPError(http.StatusBadRequest, "Both 'htmlFormat' and 'nativePdfA1aFormat' form fields are provided"),
+				)
+			}
+			if htmlFormat && PDFformat != "" {
+				return api.WrapError(
+					errors.New("got both 'htmlFormat' and 'PDFformat' form fields"),
+					api.NewSentinelHTTPError(http.StatusBadRequest, "Both 'htmlFormat' and 'PDFformat' form fields are provided"),
+				)
+			}
+
+			// Alright, let's convert each document.
 			outputPaths := make([]string, len(inputPaths))
-
+			extension := ".pdf"
+			if (htmlFormat) {
+				extension = ".html"
+			}
 			for i, inputPath := range inputPaths {
-				outputPaths[i] = ctx.GeneratePath(".pdf")
+				outputPaths[i] = ctx.GeneratePath(extension)
 
 				options := uno.Options{
 					Landscape:  landscape,
 					PageRanges: nativePageRanges,
 					PDFformat:  nativePDFformat,
+					HTMLFormat: htmlFormat,
 				}
 
-				err = unoAPI.PDF(ctx, ctx.Log(), inputPath, outputPaths[i], options)
+				if htmlFormat {
+					err = unoAPI.HTML(ctx, ctx.Log(), inputPath, outputPaths[i], options)
+				} else {
+					err = unoAPI.PDF(ctx, ctx.Log(), inputPath, outputPaths[i], options)
+				}
 
 				if err != nil {
 					if errors.Is(err, uno.ErrMalformedPageRanges) {
 						return api.WrapError(
-							fmt.Errorf("convert to PDF: %w", err),
+							fmt.Errorf("convert to %s: %w", extension, err),
 							api.NewSentinelHTTPError(http.StatusBadRequest, fmt.Sprintf("Malformed page ranges '%s' (nativePageRanges)", options.PageRanges)),
 						)
 					}
 
-					return fmt.Errorf("convert to PDF: %w", err)
+					return fmt.Errorf("convert to %s: %w", extension, err)
 				}
 			}
 

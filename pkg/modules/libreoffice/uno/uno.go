@@ -41,9 +41,9 @@ type UNO struct {
 	logger   *zap.Logger
 }
 
-// Options gathers available options when converting a document to PDF.
+// Options gathers available options when converting a document to another format.
 type Options struct {
-	// Landscape allows to change the orientation of the resulting PDF.
+	// Landscape allows to change the orientation of the resulting output file.
 	// Optional.
 	Landscape bool
 
@@ -56,11 +56,16 @@ type Options struct {
 	// PDF/A-3b.
 	// Optional.
 	PDFformat string
+
+	// Optionally generate HTML output, particularly useful for rendering
+	// spreadsheets with many columns.
+	HTMLFormat bool
 }
 
 // API is an abstraction on top of uno.
 type API interface {
 	PDF(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
+	HTML(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
 	Extensions() []string
 }
 
@@ -284,7 +289,7 @@ func (mod UNO) Checks() ([]health.CheckerOption, error) {
 	}, nil
 }
 
-// PDF converts a document to PDF.
+// Helper to get or create a libreoffice listener for conversions.
 //
 // If there is no long-running LibreOffice listener, it creates a dedicated
 // LibreOffice instance for the conversion. Substantial calls to this method
@@ -292,13 +297,7 @@ func (mod UNO) Checks() ([]health.CheckerOption, error) {
 //
 // If there is a long-running LibreOffice listener, the conversion performance
 // improves substantially. However, it cannot perform parallel operations.
-func (mod UNO) PDF(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error {
-	args := []string{
-		"--no-launch",
-		"--format",
-		"pdf",
-	}
-
+func (mod UNO) convertPre(ctx context.Context, args []string, logger *zap.Logger) error {
 	switch mod.libreOfficeRestartThreshold {
 	case 0:
 		listener := newLibreOfficeListener(logger, mod.libreOfficeBinPath, mod.libreOfficeStartTimeout, 0)
@@ -343,6 +342,51 @@ func (mod UNO) PDF(ctx context.Context, logger *zap.Logger, inputPath, outputPat
 	if checkedEntry != nil {
 		args = append(args, "-vvv")
 	}
+	return nil
+}
+
+// Run the specified conversion (PDF or HTML) and handle potential errors, locking, etc.
+func (mod UNO) convertDocument(cmd gotenberg.Cmd, options Options, method string) error {
+        activeInstancesCountMu.Lock()
+        activeInstancesCount += 1
+        activeInstancesCountMu.Unlock()
+
+        exitCode, err := cmd.Exec()
+
+        activeInstancesCountMu.Lock()
+        activeInstancesCount -= 1
+        activeInstancesCountMu.Unlock()
+
+        if err == nil {
+                return nil
+        }
+
+        // Unoconv/LibreOffice errors are not explicit.
+        // That's why we have to make an educated guess according to the exit code
+        // and given inputs.
+
+        if exitCode == 5 && options.PageRanges != "" {
+                return ErrMalformedPageRanges
+        }
+
+        // Possible errors:
+        // 1. Unoconv/LibreOffice failed for some reason.
+        // 2. Context done.
+        //
+        // On the second scenario, LibreOffice might not have time to remove some
+        // of its temporary files, as it has been killed without warning. The
+        // garbage collector will delete them for us (if the module is loaded).
+        return fmt.Errorf("unoconv %s: %w", method, err)
+}
+
+// PDF converts a document to PDF.
+func (mod UNO) PDF(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error {
+	args := []string{
+		"--no-launch",
+		"--format",
+		"pdf",
+	}
+	mod.convertPre(ctx, args, logger)
 
 	if options.Landscape {
 		args = append(args, "--printer", "PaperOrientation=landscape")
@@ -371,38 +415,35 @@ func (mod UNO) PDF(ctx context.Context, logger *zap.Logger, inputPath, outputPat
 		return fmt.Errorf("create unoconv command: %w", err)
 	}
 
-	logger.Debug(fmt.Sprintf("print to PDF with: %+v", options))
+	logger.Error(fmt.Sprintf("print to PDF with: %+v", options))
 
-	activeInstancesCountMu.Lock()
-	activeInstancesCount += 1
-	activeInstancesCountMu.Unlock()
+	return mod.convertDocument(cmd, options, "PDF")
+}
 
-	exitCode, err := cmd.Exec()
+// HTML converts a document to HTML.
+func (mod UNO) HTML(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error {
+	args := []string{
+		"--no-launch",
+		"--format",
+		"html",
+	}
+	mod.convertPre(ctx, args, logger)
 
-	activeInstancesCountMu.Lock()
-	activeInstancesCount -= 1
-	activeInstancesCountMu.Unlock()
-
-	if err == nil {
-		return nil
+	// Does it make sense to specify page ranges for HTML conversions?
+	if options.PageRanges != "" {
+		args = append(args, "--export", fmt.Sprintf("PageRange=%s", options.PageRanges))
 	}
 
-	// Unoconv/LibreOffice errors are not explicit.
-	// That's why we have to make an educated guess according to the exit code
-	// and given inputs.
+	args = append(args, "--output", outputPath, inputPath)
 
-	if exitCode == 5 && options.PageRanges != "" {
-		return ErrMalformedPageRanges
+	cmd, err := gotenberg.CommandContext(ctx, logger, mod.unoconvBinPath, args...)
+	if err != nil {
+		return fmt.Errorf("create unoconv command: %w", err)
 	}
 
-	// Possible errors:
-	// 1. Unoconv/LibreOffice failed for some reason.
-	// 2. Context done.
-	//
-	// On the second scenario, LibreOffice might not have time to remove some
-	// of its temporary files, as it has been killed without warning. The
-	// garbage collector will delete them for us (if the module is loaded).
-	return fmt.Errorf("unoconv PDF: %w", err)
+	logger.Debug(fmt.Sprintf("print to HTML with: %+v", options))
+
+	return mod.convertDocument(cmd, options, "HTML")
 }
 
 // Extensions returns the file extensions available for conversions.
