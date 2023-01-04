@@ -118,13 +118,23 @@ RUN \
     # Install Google Chrome / Chromium.
     /tmp/install-chromium.sh &&\
     # Install LibreOffice.
-    # Note: we use the bullseye-backports distribution to get the latest LibreOffice version.
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends libreoffice &&\
+    # Next lines are not currently relevant, as latest versions of LibreOffice
+    # (i.e., > 7.0.4) are causing troubles.
     # See:
-    # https://github.com/gotenberg/gotenberg/pull/322.
-    # https://github.com/gotenberg/gotenberg/issues/403.
-    echo "deb https://httpredir.debian.org/debian/ bullseye-backports main contrib non-free" >> /etc/apt/sources.list &&\
-    apt-get update -qq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t bullseye-backports libreoffice &&\
+    # https://packages.debian.org/search?keywords=libreoffice.
+    # https://github.com/gotenberg/gotenberg/issues/442.
+    # https://github.com/gotenberg/gotenberg/issues/516.
+    # https://github.com/gotenberg/gotenberg/issues/529.
+    # https://github.com/gotenberg/gotenberg/issues/537.
+    # https://github.com/gotenberg/gotenberg/issues/568.
+        # Note: we use the bullseye-backports distribution to get the latest LibreOffice version.
+        # See:
+        # https://github.com/gotenberg/gotenberg/pull/322.
+        # https://github.com/gotenberg/gotenberg/issues/403.
+        #echo "deb https://httpredir.debian.org/debian/ bullseye-backports main contrib non-free" >> /etc/apt/sources.list &&\
+        #apt-get update -qq &&\
+        #DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t bullseye-backports libreoffice &&\
     # Download unoconv (Python script).
     curl -Ls https://raw.githubusercontent.com/dagwieers/unoconv/master/unoconv -o /usr/bin/unoconv &&\
     chmod +x /usr/bin/unoconv &&\
