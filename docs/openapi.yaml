@@ -186,7 +186,7 @@ paths:
     post:
       tags:
         - libreoffice
-      summary: Convert an Office document to PDF
+      summary: Convert an Office document to PDF or HTML
       externalDocs:
         url: https://gotenberg.dev/docs/modules/libreoffice
       description: >-
@@ -211,6 +211,8 @@ paths:
 
         > **Attention:** if more than one document, the page ranges will be
         applied for each document.
+
+        You can also request conversion to HTML format, but this disables the merge capabilities.
 
         See externalDocs for more details.
       parameters:
@@ -241,7 +243,7 @@ paths:
               $ref: '#/components/schemas/OfficeConvertRequestBody'
       responses:
         '200':
-          $ref: '#/components/responses/SuccessfulPDF'
+          $ref: '#/components/responses/SuccessfulConvert'
         '400':
           description: Bad Request, e.g. Both 'pdfFormat' and 'nativePdfA1aFormat' form values are provided
 
@@ -706,6 +708,12 @@ components:
           type: boolean
           description: >-
             Merge all PDF files into an individual PDF file.
+        htmlFormat:
+          type: boolean
+          description: >-
+            Convert the input document to HTML, rather than PDF.  Caution!
+            You cannot use with nativePdfA1Format, pdfFormat, nativePageRanges, or
+            merge options!
       required:
         - files
     MergeFilesRequestBody:
@@ -728,3 +736,13 @@ components:
           schema:
             type: string
             format: binary
+    SuccessfulConvert:
+      description: Resulting document from the conversion.
+      content:
+        application/pdf:
+          schema:
+            type: string
+            format: binary
+        text/html:
+          schema:
+            type: string

@@ -347,36 +347,36 @@ func (mod UNO) convertPre(ctx context.Context, args *[]string, logger *zap.Logge
 
 // Run the specified conversion (PDF or HTML) and handle potential errors, locking, etc.
 func (mod UNO) convertDocument(cmd gotenberg.Cmd, options Options, method string) error {
-        activeInstancesCountMu.Lock()
-        activeInstancesCount += 1
-        activeInstancesCountMu.Unlock()
+	activeInstancesCountMu.Lock()
+	activeInstancesCount += 1
+	activeInstancesCountMu.Unlock()
 
-        exitCode, err := cmd.Exec()
+	exitCode, err := cmd.Exec()
 
-        activeInstancesCountMu.Lock()
-        activeInstancesCount -= 1
-        activeInstancesCountMu.Unlock()
+	activeInstancesCountMu.Lock()
+	activeInstancesCount -= 1
+	activeInstancesCountMu.Unlock()
 
-        if err == nil {
-                return nil
-        }
+	if err == nil {
+		return nil
+	}
 
-        // Unoconv/LibreOffice errors are not explicit.
-        // That's why we have to make an educated guess according to the exit code
-        // and given inputs.
+	// Unoconv/LibreOffice errors are not explicit.
+	// That's why we have to make an educated guess according to the exit code
+	// and given inputs.
 
-        if exitCode == 5 && options.PageRanges != "" {
-                return ErrMalformedPageRanges
-        }
+	if exitCode == 5 && options.PageRanges != "" {
+		return ErrMalformedPageRanges
+	}
 
-        // Possible errors:
-        // 1. Unoconv/LibreOffice failed for some reason.
-        // 2. Context done.
-        //
-        // On the second scenario, LibreOffice might not have time to remove some
-        // of its temporary files, as it has been killed without warning. The
-        // garbage collector will delete them for us (if the module is loaded).
-        return fmt.Errorf("unoconv %s: %w", method, err)
+	// Possible errors:
+	// 1. Unoconv/LibreOffice failed for some reason.
+	// 2. Context done.
+	//
+	// On the second scenario, LibreOffice might not have time to remove some
+	// of its temporary files, as it has been killed without warning. The
+	// garbage collector will delete them for us (if the module is loaded).
+	return fmt.Errorf("unoconv %s: %w", method, err)
 }
 
 // PDF converts a document to PDF.

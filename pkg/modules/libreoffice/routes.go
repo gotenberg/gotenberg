@@ -101,7 +101,7 @@ func convertRoute(unoAPI uno.API, engine gotenberg.PDFEngine) api.Route {
 			// Alright, let's convert each document.
 			outputPaths := make([]string, len(inputPaths))
 			extension := ".pdf"
-			if (htmlFormat) {
+			if htmlFormat {
 				extension = ".html"
 			}
 			for i, inputPath := range inputPaths {
