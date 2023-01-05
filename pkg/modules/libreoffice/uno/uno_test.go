@@ -734,14 +734,14 @@ func TestUNO_PDF(t *testing.T) {
 				}
 			}()
 
-			err = tc.mod.PDF(tc.ctx, tc.logger, tc.inputPath, outputDir+"/foo.pdf", tc.options)
+			err = tc.mod.Convert(tc.ctx, tc.logger, tc.inputPath, outputDir+"/foo.pdf", tc.options)
 
 			if tc.expectPDFErr && err == nil {
-				t.Fatalf("expected mod.PDF() error, but got none")
+				t.Fatalf("expected mod.Convert() error, but got none")
 			}
 
 			if !tc.expectPDFErr && err != nil {
-				t.Fatalf("expected no error from mod.PDF(), but got: %v", err)
+				t.Fatalf("expected no error from mod.Convert(), but got: %v", err)
 			}
 		})
 	}

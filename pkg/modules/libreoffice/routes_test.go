@@ -35,7 +35,7 @@ func TestConvertHandler(t *testing.T) {
 				return ctx
 			}(),
 			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {
@@ -59,7 +59,7 @@ func TestConvertHandler(t *testing.T) {
 				return ctx
 			}(),
 			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {
@@ -82,7 +82,7 @@ func TestConvertHandler(t *testing.T) {
 				return ctx
 			}(),
 			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {
@@ -207,7 +207,7 @@ func TestConvertHandler(t *testing.T) {
 				return ctx
 			}(),
 			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 					return errors.New("foo")
 				},
 				ExtensionsMock: func() []string {
@@ -229,7 +229,7 @@ func TestConvertHandler(t *testing.T) {
 				return ctx
 			}(),
 			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 					return uno.ErrMalformedPageRanges
 				},
 				ExtensionsMock: func() []string {
@@ -260,7 +260,7 @@ func TestConvertHandler(t *testing.T) {
 				return ctx
 			}(),
 			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {
@@ -294,7 +294,7 @@ func TestConvertHandler(t *testing.T) {
 				return ctx
 			}(),
 			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {
@@ -331,7 +331,7 @@ func TestConvertHandler(t *testing.T) {
 				return ctx
 			}(),
 			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {
@@ -371,7 +371,7 @@ func TestConvertHandler(t *testing.T) {
 				return ctx
 			}(),
 			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {
@@ -411,7 +411,7 @@ func TestConvertHandler(t *testing.T) {
 				return ctx
 			}(),
 			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {
@@ -451,7 +451,7 @@ func TestConvertHandler(t *testing.T) {
 				return ctx
 			}(),
 			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {
@@ -483,7 +483,7 @@ func TestConvertHandler(t *testing.T) {
 				return ctx
 			}(),
 			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {
@@ -516,7 +516,7 @@ func TestConvertHandler(t *testing.T) {
 				return ctx
 			}(),
 			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {
@@ -548,7 +548,7 @@ func TestConvertHandler(t *testing.T) {
 				return ctx
 			}(),
 			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {
@@ -580,7 +580,7 @@ func TestConvertHandler(t *testing.T) {
 				return ctx
 			}(),
 			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {
@@ -659,6 +659,36 @@ func TestConvertHandler(t *testing.T) {
 			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
+			name: "invalid form data: both htmlFormat and nativePageRanges are set",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.docx": "/foo/foo.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"htmlFormat": {
+						"true",
+					},
+					"nativePageRanges": {
+						"1-2",
+					},
+				})
+				ctx.SetLogger(zap.NewNop())
+
+				return ctx
+			}(),
+			unoAPI: uno.APIMock{
+				ExtensionsMock: func() []string {
+					return []string{
+						".docx",
+					}
+				},
+			},
+			expectErr:        true,
+			expectHTTPErr:    true,
+			expectHTTPStatus: http.StatusBadRequest,
+		},
+		{
 			name: "invalid form data: merge specified with multiple input files and htmlFormat",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: &api.Context{}}
@@ -705,7 +735,7 @@ func TestConvertHandler(t *testing.T) {
 				return ctx
 			}(),
 			unoAPI: uno.APIMock{
-				HTMLMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {

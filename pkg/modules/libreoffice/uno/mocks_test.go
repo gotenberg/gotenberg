@@ -9,7 +9,7 @@ import (
 
 func TestAPIMock(t *testing.T) {
 	mock := APIMock{
-		PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error {
+		ConvertMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error {
 			return nil
 		},
 		ExtensionsMock: func() []string {
@@ -17,9 +17,9 @@ func TestAPIMock(t *testing.T) {
 		},
 	}
 
-	err := mock.PDF(context.Background(), zap.NewNop(), "", "", Options{})
+	err := mock.Convert(context.Background(), zap.NewNop(), "", "", Options{})
 	if err != nil {
-		t.Errorf("expected no error from mock.PDF(), but got: %v", err)
+		t.Errorf("expected no error from mock.Convert(), but got: %v", err)
 	}
 
 	ext := mock.Extensions()

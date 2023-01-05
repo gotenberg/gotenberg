@@ -43,7 +43,7 @@ type UNO struct {
 
 // Options gathers available options when converting a document to another format.
 type Options struct {
-	// Landscape allows to change the orientation of the resulting output file.
+	// Landscape allows to change the orientation of the resulting PDF.
 	// Optional.
 	Landscape bool
 
@@ -59,13 +59,12 @@ type Options struct {
 
 	// Optionally generate HTML output, particularly useful for rendering
 	// spreadsheets with many columns.
-	HTMLFormat bool
+	HTMLformat bool
 }
 
 // API is an abstraction on top of uno.
 type API interface {
-	PDF(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
-	HTML(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
+	Convert(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
 	Extensions() []string
 }
 
@@ -289,7 +288,7 @@ func (mod UNO) Checks() ([]health.CheckerOption, error) {
 	}, nil
 }
 
-// Helper to get or create a libreoffice listener for conversions.
+// Convert a document to another format.
 //
 // If there is no long-running LibreOffice listener, it creates a dedicated
 // LibreOffice instance for the conversion. Substantial calls to this method
@@ -297,7 +296,17 @@ func (mod UNO) Checks() ([]health.CheckerOption, error) {
 //
 // If there is a long-running LibreOffice listener, the conversion performance
 // improves substantially. However, it cannot perform parallel operations.
-func (mod UNO) convertPre(ctx context.Context, args *[]string, logger *zap.Logger) error {
+func (mod UNO) Convert(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error {
+	args := []string{
+		"--no-launch",
+		"--format",
+	}
+	if options.HTMLformat {
+		args = append(args, "html")
+	} else {
+		args = append(args, "pdf")
+	}
+
 	switch mod.libreOfficeRestartThreshold {
 	case 0:
 		listener := newLibreOfficeListener(logger, mod.libreOfficeBinPath, mod.libreOfficeStartTimeout, 0)
@@ -314,7 +323,7 @@ func (mod UNO) convertPre(ctx context.Context, args *[]string, logger *zap.Logge
 			}
 		}()
 
-		*args = append(*args, "--port", fmt.Sprintf("%d", listener.port()))
+		args = append(args, "--port", fmt.Sprintf("%d", listener.port()))
 	default:
 		err := mod.listener.lock(ctx, logger)
 		if err != nil {
@@ -335,18 +344,46 @@ func (mod UNO) convertPre(ctx context.Context, args *[]string, logger *zap.Logge
 		// If the LibreOffice listener is restarting while acquiring the lock,
 		// the port will change. It's therefore important to add the port args
 		// after we acquire the lock.
-		*args = append(*args, "--port", fmt.Sprintf("%d", mod.listener.port()))
+		args = append(args, "--port", fmt.Sprintf("%d", mod.listener.port()))
 	}
 
 	checkedEntry := logger.Check(zap.DebugLevel, "check for debug level before setting high verbosity")
 	if checkedEntry != nil {
-		*args = append(*args, "-vvv")
+		args = append(args, "-vvv")
 	}
-	return nil
-}
 
-// Run the specified conversion (PDF or HTML) and handle potential errors, locking, etc.
-func (mod UNO) convertDocument(cmd gotenberg.Cmd, options Options, method string) error {
+	// PDF-only options.
+	if !options.HTMLformat {
+		if options.Landscape {
+			args = append(args, "--printer", "PaperOrientation=landscape")
+		}
+
+		if options.PageRanges != "" {
+			args = append(args, "--export", fmt.Sprintf("PageRange=%s", options.PageRanges))
+		}
+
+		switch options.PDFformat {
+		case "":
+		case gotenberg.FormatPDFA1a:
+			args = append(args, "--export", "SelectPdfVersion=1")
+		case gotenberg.FormatPDFA2b:
+			args = append(args, "--export", "SelectPdfVersion=2")
+		case gotenberg.FormatPDFA3b:
+			args = append(args, "--export", "SelectPdfVersion=3")
+		default:
+			return ErrInvalidPDFformat
+		}
+	}
+
+	args = append(args, "--output", outputPath, inputPath)
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, mod.unoconvBinPath, args...)
+	if err != nil {
+		return fmt.Errorf("create unoconv command: %w", err)
+	}
+
+	logger.Debug(fmt.Sprintf("convert document with: %+v", options))
+
 	activeInstancesCountMu.Lock()
 	activeInstancesCount += 1
 	activeInstancesCountMu.Unlock()
@@ -376,74 +413,7 @@ func (mod UNO) convertDocument(cmd gotenberg.Cmd, options Options, method string
 	// On the second scenario, LibreOffice might not have time to remove some
 	// of its temporary files, as it has been killed without warning. The
 	// garbage collector will delete them for us (if the module is loaded).
-	return fmt.Errorf("unoconv %s: %w", method, err)
-}
-
-// PDF converts a document to PDF.
-func (mod UNO) PDF(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error {
-	args := []string{
-		"--no-launch",
-		"--format",
-		"pdf",
-	}
-	mod.convertPre(ctx, &args, logger)
-
-	if options.Landscape {
-		args = append(args, "--printer", "PaperOrientation=landscape")
-	}
-
-	if options.PageRanges != "" {
-		args = append(args, "--export", fmt.Sprintf("PageRange=%s", options.PageRanges))
-	}
-
-	switch options.PDFformat {
-	case "":
-	case gotenberg.FormatPDFA1a:
-		args = append(args, "--export", "SelectPdfVersion=1")
-	case gotenberg.FormatPDFA2b:
-		args = append(args, "--export", "SelectPdfVersion=2")
-	case gotenberg.FormatPDFA3b:
-		args = append(args, "--export", "SelectPdfVersion=3")
-	default:
-		return ErrInvalidPDFformat
-	}
-
-	args = append(args, "--output", outputPath, inputPath)
-
-	cmd, err := gotenberg.CommandContext(ctx, logger, mod.unoconvBinPath, args...)
-	if err != nil {
-		return fmt.Errorf("create unoconv command: %w", err)
-	}
-
-	logger.Debug(fmt.Sprintf("print to PDF with: %+v", options))
-
-	return mod.convertDocument(cmd, options, "PDF")
-}
-
-// HTML converts a document to HTML.
-func (mod UNO) HTML(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error {
-	args := []string{
-		"--no-launch",
-		"--format",
-		"html",
-	}
-	mod.convertPre(ctx, &args, logger)
-
-	// Does it make sense to specify page ranges for HTML conversions?
-	if options.PageRanges != "" {
-		args = append(args, "--export", fmt.Sprintf("PageRange=%s", options.PageRanges))
-	}
-
-	args = append(args, "--output", outputPath, inputPath)
-
-	cmd, err := gotenberg.CommandContext(ctx, logger, mod.unoconvBinPath, args...)
-	if err != nil {
-		return fmt.Errorf("create unoconv command: %w", err)
-	}
-
-	logger.Debug(fmt.Sprintf("print to HTML with: %+v", options))
-
-	return mod.convertDocument(cmd, options, "HTML")
+	return fmt.Errorf("unoconv Convert: %w", err)
 }
 
 // Extensions returns the file extensions available for conversions.

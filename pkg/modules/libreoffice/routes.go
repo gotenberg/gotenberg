@@ -97,6 +97,12 @@ func convertRoute(unoAPI uno.API, engine gotenberg.PDFEngine) api.Route {
 					api.NewSentinelHTTPError(http.StatusBadRequest, "Both 'htmlFormat' and 'PDFformat' form fields are provided"),
 				)
 			}
+			if htmlFormat && nativePageRanges != "" {
+				return api.WrapError(
+					errors.New("got both 'htmlFormat' and 'nativePageRanges' form fields"),
+					api.NewSentinelHTTPError(http.StatusBadRequest, "Both 'htmlFormat' and 'nativePageRanges' form fields are provided"),
+				)
+			}
 
 			// Alright, let's convert each document.
 			outputPaths := make([]string, len(inputPaths))
@@ -111,14 +117,10 @@ func convertRoute(unoAPI uno.API, engine gotenberg.PDFEngine) api.Route {
 					Landscape:  landscape,
 					PageRanges: nativePageRanges,
 					PDFformat:  nativePDFformat,
-					HTMLFormat: htmlFormat,
+					HTMLformat: htmlFormat,
 				}
 
-				if htmlFormat {
-					err = unoAPI.HTML(ctx, ctx.Log(), inputPath, outputPaths[i], options)
-				} else {
-					err = unoAPI.PDF(ctx, ctx.Log(), inputPath, outputPaths[i], options)
-				}
+				err = unoAPI.Convert(ctx, ctx.Log(), inputPath, outputPaths[i], options)
 
 				if err != nil {
 					if errors.Is(err, uno.ErrMalformedPageRanges) {

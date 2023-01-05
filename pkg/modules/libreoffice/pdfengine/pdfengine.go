@@ -54,7 +54,7 @@ func (engine UNO) Merge(_ context.Context, _ *zap.Logger, _ []string, _ string) 
 // PDF/A-1a, PDF/A-2b and PDF/A-3b formats are available. If another PDF format
 // is requested, it returns a gotenberg.ErrPDFFormatNotAvailable error.
 func (engine UNO) Convert(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
-	err := engine.unoAPI.PDF(ctx, logger, inputPath, outputPath, uno.Options{
+	err := engine.unoAPI.Convert(ctx, logger, inputPath, outputPath, uno.Options{
 		PDFformat: format,
 	})
 

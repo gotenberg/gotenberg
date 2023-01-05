@@ -128,7 +128,7 @@ func TestUNO_Convert(t *testing.T) {
 			name: "nominal behavior",
 			mod: UNO{
 				unoAPI: uno.APIMock{
-					PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+					ConvertMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 						return nil
 					},
 				},
@@ -138,7 +138,7 @@ func TestUNO_Convert(t *testing.T) {
 			name: "invalid PDF format",
 			mod: UNO{
 				unoAPI: uno.APIMock{
-					PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+					ConvertMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 						return uno.ErrInvalidPDFformat
 					},
 				},
@@ -149,7 +149,7 @@ func TestUNO_Convert(t *testing.T) {
 			name: "convert fail",
 			mod: UNO{
 				unoAPI: uno.APIMock{
-					PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+					ConvertMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
 						return errors.New("foo")
 					},
 				},
