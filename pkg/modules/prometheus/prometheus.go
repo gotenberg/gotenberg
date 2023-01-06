@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
@@ -23,6 +24,7 @@ func init() {
 // route.
 type Prometheus struct {
 	namespace           string
+	collectPath         string
 	interval            time.Duration
 	disableRouteLogging bool
 	disableCollect      bool
@@ -38,6 +40,7 @@ func (Prometheus) Descriptor() gotenberg.ModuleDescriptor {
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("prometheus", flag.ExitOnError)
 			fs.String("prometheus-namespace", "gotenberg", "Set the namespace of modules' metrics")
+			fs.String("prometheus-collect-path", "/prometheus/metrics", "Set the path to collect metrics")
 			fs.Duration("prometheus-collect-interval", time.Duration(1)*time.Second, "Set the interval for collecting modules' metrics")
 			fs.Bool("prometheus-disable-route-logging", false, "Disable the route logging")
 			fs.Bool("prometheus-disable-collect", false, "Disable the collect of metrics")
@@ -52,6 +55,7 @@ func (Prometheus) Descriptor() gotenberg.ModuleDescriptor {
 func (mod *Prometheus) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	mod.namespace = flags.MustString("prometheus-namespace")
+	mod.collectPath = flags.MustString("prometheus-collect-path")
 	mod.interval = flags.MustDuration("prometheus-collect-interval")
 	mod.disableRouteLogging = flags.MustBool("prometheus-disable-route-logging")
 	mod.disableCollect = flags.MustBool("prometheus-disable-collect")
@@ -95,6 +99,14 @@ func (mod Prometheus) Validate() error {
 
 	if mod.namespace == "" {
 		return errors.New("namespace must not be empty")
+	}
+
+	u, err := url.Parse(mod.collectPath)
+	if err != nil {
+		return fmt.Errorf("invalid collect path: %w", err)
+	}
+	if mod.collectPath != u.Path {
+		return errors.New("collect path is not a valid relative path")
 	}
 
 	metricsMap := make(map[string]string, len(mod.metrics))
@@ -170,7 +182,7 @@ func (mod Prometheus) Routes() ([]api.Route, error) {
 	return []api.Route{
 		{
 			Method:         http.MethodGet,
-			Path:           "/prometheus/metrics",
+			Path:           mod.collectPath,
 			DisableLogging: mod.disableRouteLogging,
 			Handler: echo.WrapHandler(
 				promhttp.HandlerFor(mod.registry, promhttp.HandlerOpts{}),

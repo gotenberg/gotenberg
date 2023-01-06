@@ -173,6 +173,7 @@ func TestPrometheus_Provision(t *testing.T) {
 func TestPrometheus_Validate(t *testing.T) {
 	for i, tc := range []struct {
 		namespace      string
+		collectPath    string
 		metrics        []gotenberg.Metric
 		disableCollect bool
 		expectErr      bool
@@ -237,9 +238,20 @@ func TestPrometheus_Validate(t *testing.T) {
 				},
 			},
 		},
+		{
+			namespace:   "foo",
+			collectPath: "http:invalid",
+			expectErr:   true,
+		},
+		{
+			namespace:   "foo",
+			collectPath: "https://invalid",
+			expectErr:   true,
+		},
 	} {
 		mod := Prometheus{
 			namespace:      tc.namespace,
+			collectPath:    tc.collectPath,
 			metrics:        tc.metrics,
 			disableCollect: tc.disableCollect,
 		}
@@ -325,6 +337,8 @@ func TestPrometheus_Routes(t *testing.T) {
 	for i, tc := range []struct {
 		expectRoutes   int
 		disableCollect bool
+		expectPath     string
+		collectPath    string
 	}{
 		{
 			disableCollect: true,
@@ -332,8 +346,14 @@ func TestPrometheus_Routes(t *testing.T) {
 		{
 			expectRoutes: 1,
 		},
+		{
+			expectRoutes: 1,
+			expectPath:   "/foo",
+			collectPath:  "/foo",
+		},
 	} {
 		mod := Prometheus{
+			collectPath:    tc.collectPath,
 			disableCollect: tc.disableCollect,
 			registry:       prometheus.NewRegistry(),
 		}
@@ -345,6 +365,9 @@ func TestPrometheus_Routes(t *testing.T) {
 
 		if tc.expectRoutes != len(routes) {
 			t.Errorf("test %d: expected %d routes but got %d", i, tc.expectRoutes, len(routes))
+		}
+		if len(routes) > 0 && tc.expectPath != routes[0].Path {
+			t.Errorf("test %d: expected %s route path but got %s", i, tc.expectPath, routes[0].Path)
 		}
 	}
 }
