@@ -1,10 +1,12 @@
 # Note: ARG instructions do not create additional layers.
 # Instead, next layers will concatenate them.
+ARG GOLANG_REPOSITORY
 ARG GOLANG_VERSION
-# Note: we have to repeat ARG instructions in each build stage that uses them.
-ARG GOTENBERG_VERSION
 
-FROM golang:$GOLANG_VERSION AS builder
+ARG UBUNTU_REPOSITORY
+ARG UBUNTU_VERSION
+
+FROM $GOLANG_REPOSITORY:$GOLANG_VERSION AS builder
 
 ENV CGO_ENABLED 0
 
@@ -22,11 +24,12 @@ COPY cmd ./cmd
 COPY pkg ./pkg
 
 # Build the binary.
+# Note: we have to repeat ARG instructions in each build stage that uses them.
 ARG GOTENBERG_VERSION
 
 RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v7/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg/main.go
 
-FROM debian:11-slim
+FROM $UBUNTU_REPOSITORY:$UBUNTU_VERSION
 
 ARG GOTENBERG_VERSION
 
@@ -66,14 +69,13 @@ RUN \
     # Install dependencies required for the next instructions or debugging.
     # Note: tini is a helper for reaping zombie processes.
     apt-get update -qq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg htop tini python3 default-jre-headless &&\
-    ln -s /usr/bin/htop /usr/bin/top &&\
+    UBUNTU_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg htop tini python3 default-jre-headless &&\
     # Install fonts.
     # Credits:
     # https://github.com/arachnys/athenapdf/blob/master/cli/Dockerfile.
     # https://help.accusoft.com/PrizmDoc/v12.1/HTML/Installing_Asian_Fonts_on_Ubuntu_and_Debian.html.
     curl -o ./ttf-mscorefonts-installer_3.8_all.deb http://httpredir.debian.org/debian/pool/contrib/m/msttcorefonts/ttf-mscorefonts-installer_3.8_all.deb &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
+    UBUNTU_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
     ./ttf-mscorefonts-installer_3.8_all.deb \
     culmus \
     fonts-beng \
@@ -118,23 +120,7 @@ RUN \
     # Install Google Chrome / Chromium.
     /tmp/install-chromium.sh &&\
     # Install LibreOffice.
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends libreoffice &&\
-    # Next lines are not currently relevant, as latest versions of LibreOffice
-    # (i.e., > 7.0.4) are causing troubles.
-    # See:
-    # https://packages.debian.org/search?keywords=libreoffice.
-    # https://github.com/gotenberg/gotenberg/issues/442.
-    # https://github.com/gotenberg/gotenberg/issues/516.
-    # https://github.com/gotenberg/gotenberg/issues/529.
-    # https://github.com/gotenberg/gotenberg/issues/537.
-    # https://github.com/gotenberg/gotenberg/issues/568.
-        # Note: we use the bullseye-backports distribution to get the latest LibreOffice version.
-        # See:
-        # https://github.com/gotenberg/gotenberg/pull/322.
-        # https://github.com/gotenberg/gotenberg/issues/403.
-        #echo "deb https://httpredir.debian.org/debian/ bullseye-backports main contrib non-free" >> /etc/apt/sources.list &&\
-        #apt-get update -qq &&\
-        #DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t bullseye-backports libreoffice &&\
+    UBUNTU_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends libreoffice &&\
     # Download unoconv (Python script).
     curl -Ls https://raw.githubusercontent.com/dagwieers/unoconv/master/unoconv -o /usr/bin/unoconv &&\
     chmod +x /usr/bin/unoconv &&\
@@ -145,7 +131,7 @@ RUN \
     curl -o /usr/bin/pdftk-all.jar "https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/$PDFTK_VERSION/pdftk-all.jar" &&\
     chmod a+x /usr/bin/pdftk-all.jar &&\
     # Download QPDF.
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends qpdf &&\
+    UBUNTU_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends qpdf &&\
     # See https://github.com/nextcloud/docker/issues/380.
     mkdir -p /usr/share/man/man1 &&\
     # Cleanup.

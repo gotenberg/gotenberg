@@ -5,7 +5,10 @@ help: ## Show the help
 .PHONY: it
 it: build build-tests ## Initialize the development environment
 
+GOLANG_REPOSITORY=golang
 GOLANG_VERSION=1.19
+UBUNTU_REPOSITORY=ubuntu
+UBUNTU_VERSION=focal-20221130
 DOCKER_REPOSITORY=gotenberg
 GOTENBERG_VERSION=snapshot
 GOTENBERG_USER_GID=1001
@@ -17,7 +20,10 @@ GOLANGCI_LINT_VERSION=v1.50.1 # See https://github.com/golangci/golangci-lint/re
 .PHONY: build
 build: ## Build the Gotenberg's Docker image
 	docker build \
+	--build-arg GOLANG_REPOSITORY=$(GOLANG_REPOSITORY) \
 	--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
+	--build-arg UBUNTU_REPOSITORY=$(UBUNTU_REPOSITORY) \
+	--build-arg UBUNTU_VERSION=$(UBUNTU_VERSION) \
 	--build-arg GOTENBERG_VERSION=$(GOTENBERG_VERSION) \
 	--build-arg GOTENBERG_USER_GID=$(GOTENBERG_USER_GID) \
 	--build-arg GOTENBERG_USER_UID=$(GOTENBERG_USER_UID) \
@@ -113,6 +119,7 @@ run: ## Start a Gotenberg container
 .PHONY: build-tests
 build-tests: ## Build the tests' Docker image
 	docker build \
+	--build-arg GOLANG_REPOSITORY=$(GOLANG_REPOSITORY) \
 	--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
 	--build-arg DOCKER_REPOSITORY=$(DOCKER_REPOSITORY) \
 	--build-arg GOTENBERG_VERSION=$(GOTENBERG_VERSION) \
