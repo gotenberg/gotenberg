@@ -359,7 +359,7 @@ func TestWebhookMiddlewareAsynchronousProcess(t *testing.T) {
 			mod:     buildWebhookModule(),
 			next: func() echo.HandlerFunc {
 				return func(c echo.Context) error {
-					return nil
+					return api.NewSentinelHTTPError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
 				}
 			}(),
 			expectWebhookContentType:  echo.MIMEApplicationJSONCharsetUTF8,
@@ -400,14 +400,15 @@ func TestWebhookMiddlewareAsynchronousProcess(t *testing.T) {
 				return func(c echo.Context) error {
 					ctx := c.Get("context").(*api.Context)
 
-					return ctx.AddOutputPaths("/tests/test/testdata/api/sample3.pdf")
+					return ctx.AddOutputPaths("/tests/test/testdata/api/sample1.pdf")
 				}
 			}(),
-			returnedError: echo.ErrInternalServerError,
-			// Even though an error is returned the expected response is still a pdf, since the webhook error is only logged
-			expectWebhookContentType: "application/pdf",
-			expectWebhookMethod:      http.MethodPost,
-			expectWebhookFilename:    "foo",
+			returnedError:             echo.ErrInternalServerError,
+			expectWebhookContentType:  echo.MIMEApplicationJSONCharsetUTF8,
+			expectWebhookMethod:       http.MethodPost,
+			expectWebhookErrorStatus:  http.StatusInternalServerError,
+			expectWebhookErrorMessage: http.StatusText(http.StatusInternalServerError),
+			expectWebhookFilename:     "foo",
 		},
 	} {
 		func() {

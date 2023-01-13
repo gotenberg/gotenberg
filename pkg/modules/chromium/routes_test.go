@@ -680,7 +680,7 @@ func TestConvertURL(t *testing.T) {
 			options:          DefaultOptions(),
 			expectErr:        true,
 			expectHTTPErr:    true,
-			expectHTTPStatus: http.StatusForbidden,
+			expectHTTPStatus: http.StatusBadRequest,
 		},
 		{
 			ctx: &api.ContextMock{Context: &api.Context{}},

@@ -58,7 +58,7 @@ func (c client) send(body io.Reader, headers map[string]string, erroed bool) err
 		// Worse, the "Content-Length" header is also removed. Therefore, in
 		// order to keep this valuable information, we have to trust the caller
 		// by reading the value of the "Content-Length" entry and set it as the
-		// content length of the request. It's kinda sub-optimal, but hey, at
+		// content length of the request. It's kinda suboptimal, but hey, at
 		// least it works.
 
 		bodySize, err := strconv.ParseInt(contentLength, 10, 64)

@@ -752,7 +752,7 @@ func TestUNO_Extensions(t *testing.T) {
 	extensions := mod.Extensions()
 
 	actual := len(extensions)
-	expect := 76
+	expect := 79
 
 	if actual != expect {
 		t.Errorf("expected %d extensions, but got %d", expect, actual)
