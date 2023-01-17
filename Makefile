@@ -14,6 +14,8 @@ GOTENBERG_VERSION=snapshot
 GOTENBERG_USER_GID=1001
 GOTENBERG_USER_UID=1001
 NOTO_COLOR_EMOJI_VERSION=v2.038 # See https://github.com/googlefonts/noto-emoji/releases.
+CHROMIUM_VERSION=109.0.5414.74-2*
+LIBREOFFICE_VERSION=1:7.3.7*
 PDFTK_VERSION=v3.3.3 # See https://gitlab.com/pdftk-java/pdftk/-/releases - Binary package.
 GOLANGCI_LINT_VERSION=v1.50.1 # See https://github.com/golangci/golangci-lint/releases.
 
@@ -28,6 +30,8 @@ build: ## Build the Gotenberg's Docker image
 	--build-arg GOTENBERG_USER_GID=$(GOTENBERG_USER_GID) \
 	--build-arg GOTENBERG_USER_UID=$(GOTENBERG_USER_UID) \
 	--build-arg NOTO_COLOR_EMOJI_VERSION=$(NOTO_COLOR_EMOJI_VERSION) \
+	--build-arg CHROMIUM_VERSION=$(CHROMIUM_VERSION) \
+	--build-arg LIBREOFFICE_VERSION=$(LIBREOFFICE_VERSION) \
 	--build-arg PDFTK_VERSION=$(PDFTK_VERSION) \
 	-t $(DOCKER_REPOSITORY)/gotenberg:$(GOTENBERG_VERSION) \
 	-f build/Dockerfile .
@@ -159,5 +163,7 @@ release: ## Build the Gotenberg's Docker image for many platforms, then push it 
 	$(GOTENBERG_USER_GID) \
 	$(GOTENBERG_USER_UID) \
 	$(NOTO_COLOR_EMOJI_VERSION) \
+	$(CHROMIUM_VERSION) \
+	$(LIBREOFFICE_VERSION) \
 	$(PDFTK_VERSION) \
 	$(DOCKER_REPOSITORY)

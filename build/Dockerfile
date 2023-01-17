@@ -52,12 +52,12 @@ COPY build/pdftk.sh /usr/bin/pdftk
 ARG GOTENBERG_USER_GID
 ARG GOTENBERG_USER_UID
 ARG NOTO_COLOR_EMOJI_VERSION
+ARG CHROMIUM_VERSION
+ARG LIBREOFFICE_VERSION
 ARG PDFTK_VERSION
 
-# Script for installing either Google Chrome stable on amd64 architecture or
-# Chromium on other architectures.
-# See https://github.com/gotenberg/gotenberg/issues/328.
 COPY build/install-chromium.sh /tmp/install-chromium.sh
+COPY build/install-libreoffice.sh /tmp/install-libreoffice.sh
 
 RUN \
     # Create a non-root user.
@@ -118,9 +118,9 @@ RUN \
     # https://github.com/googlefonts/noto-emoji.
     curl -Ls "https://github.com/googlefonts/noto-emoji/raw/$NOTO_COLOR_EMOJI_VERSION/fonts/NotoColorEmoji.ttf" -o /usr/local/share/fonts/NotoColorEmoji.ttf &&\
     # Install Google Chrome / Chromium.
-    /tmp/install-chromium.sh &&\
-    # Install LibreOffice.
-    UBUNTU_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends libreoffice &&\
+    /tmp/install-chromium.sh "${CHROMIUM_VERSION}" &&\
+    # Install LibreOffice. \
+    /tmp/install-libreoffice.sh "${LIBREOFFICE_VERSION}" &&\
     # Download unoconv (Python script).
     curl -Ls https://raw.githubusercontent.com/dagwieers/unoconv/master/unoconv -o /usr/bin/unoconv &&\
     chmod +x /usr/bin/unoconv &&\
