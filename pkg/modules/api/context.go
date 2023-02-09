@@ -204,6 +204,13 @@ func (ctx Context) GeneratePath(extension string) string {
 	return fmt.Sprintf("%s/%s%s", ctx.dirPath, uuid.New(), extension)
 }
 
+// GeneratePathOrdered generates a path within the context's working directory
+// and keeps the original files order. It does not create a file.
+
+func (ctx Context) GeneratePathOrdered(extension string, i int) string {
+	return fmt.Sprintf("%s/%d_%s%s", ctx.dirPath, i, uuid.New(), extension)
+}
+
 // AddOutputPaths adds the given paths. Those paths will be used later to build
 // the output file.
 func (ctx *Context) AddOutputPaths(paths ...string) error {

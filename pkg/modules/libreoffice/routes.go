@@ -30,6 +30,7 @@ func convertRoute(unoAPI uno.API, engine gotenberg.PDFEngine) api.Route {
 				nativePDFformat    string
 				PDFformat          string
 				merge              bool
+				keepMergeOrder	   bool
 			)
 
 			err := ctx.FormData().
@@ -40,6 +41,7 @@ func convertRoute(unoAPI uno.API, engine gotenberg.PDFEngine) api.Route {
 				String("nativePdfFormat", &nativePDFformat, "").
 				String("pdfFormat", &PDFformat, "").
 				Bool("merge", &merge, false).
+				Bool("keepMergeOrder", &keepMergeOrder, false).
 				Validate()
 
 			if err != nil {
@@ -80,7 +82,11 @@ func convertRoute(unoAPI uno.API, engine gotenberg.PDFEngine) api.Route {
 			outputPaths := make([]string, len(inputPaths))
 
 			for i, inputPath := range inputPaths {
-				outputPaths[i] = ctx.GeneratePath(".pdf")
+				if keepMergeOrder {
+					outputPaths[i] = ctx.GeneratePathOrdered(".pdf", i)
+				} else {
+					outputPaths[i] = ctx.GeneratePath(".pdf")
+				}
 
 				options := uno.Options{
 					Landscape:  landscape,
