@@ -13,7 +13,9 @@
 
 name: Fortify on Demand Scan
 
-on: workflow_dispatch
+on: 
+  schedule:
+    - cron:  '0 6 * * 0'
   
 jobs:
   FoD-SAST-Scan:
