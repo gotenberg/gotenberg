@@ -79,6 +79,8 @@ paths:
           $ref: '#/components/responses/SuccessfulPDF'
         '400':
           description: Bad Request
+        '503':
+          $ref: '#/components/responses/Timeout'
 
   /forms/chromium/convert/html:
     post:
@@ -128,6 +130,8 @@ paths:
           $ref: '#/components/responses/SuccessfulPDF'
         '400':
           description: Bad Request
+        '503':
+          $ref: '#/components/responses/Timeout'
 
   /forms/chromium/convert/markdown:
     post:
@@ -181,6 +185,8 @@ paths:
           $ref: '#/components/responses/SuccessfulPDF'
         '400':
           description: Bad Request
+        '503':
+          $ref: '#/components/responses/Timeout'
 
   /forms/libreoffice/convert:
     post:
@@ -244,6 +250,8 @@ paths:
           $ref: '#/components/responses/SuccessfulPDF'
         '400':
           description: Bad Request, e.g. Both 'pdfFormat' and 'nativePdfA1aFormat' form values are provided
+        '503':
+          $ref: '#/components/responses/Timeout'
 
   /forms/pdfengines/merge:
     post:
@@ -300,6 +308,8 @@ paths:
           $ref: '#/components/responses/SuccessfulPDF'
         '400':
           description: Bad Request
+        '503':
+          $ref: '#/components/responses/Timeout'
 
   /forms/pdfengines/convert:
     post:
@@ -355,6 +365,8 @@ paths:
         '400':
           description: >-
             Bad Request, e.g. Invalid form data: no form file found for extensions: [.pdf]; form value 'pdfFormat' is required
+        '503':
+          $ref: '#/components/responses/Timeout'
 
 components:
   schemas:
@@ -728,3 +740,5 @@ components:
           schema:
             type: string
             format: binary
+    Timeout:
+      description: Service Unavailable
