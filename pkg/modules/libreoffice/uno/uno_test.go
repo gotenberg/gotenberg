@@ -196,7 +196,12 @@ func TestUNO_Validate(t *testing.T) {
 }
 
 func TestUNO_Start(t *testing.T) {
+	mod := new(UNO)
 
+	err := mod.Start()
+	if err != nil {
+		t.Errorf("expected no error but got: %v", err)
+	}
 }
 
 func TestUNO_StartupMessage(t *testing.T) {
