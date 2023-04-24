@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alexliesenfeld/health"
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"go.uber.org/zap"
 )
@@ -178,13 +179,87 @@ func TestChromium_Metrics(t *testing.T) {
 		t.Fatalf("expected no error but got: %v", err)
 	}
 
-	if len(metrics) != 1 {
-		t.Fatalf("expected %d metrics, but got %d", 1, len(metrics))
+	if len(metrics) != 2 {
+		t.Fatalf("expected %d metrics, but got %d", 2, len(metrics))
 	}
 
 	actual := metrics[0].Read()
 	if actual != 0 {
 		t.Errorf("expected %d Chromium instances, but got %f", 0, actual)
+	}
+
+	actual = metrics[1].Read()
+	if actual != 0 {
+		t.Errorf("expected %d Chromium failed starts, but got %f", 0, actual)
+	}
+}
+
+func TestChromium_Checks(t *testing.T) {
+	tests := []struct {
+		name                     string
+		mod                      Chromium
+		tearUp                   func()
+		tearDown                 func()
+		expectAvailabilityStatus health.AvailabilityStatus
+	}{
+		{
+			name: "ignore Chromium failed starts",
+			mod: Chromium{
+				failedStartsThreshold: 0,
+			},
+		},
+		{
+			name: "with Chromium failed starts threshold not reached",
+			mod: Chromium{
+				failedStartsThreshold: 1,
+			},
+			expectAvailabilityStatus: health.StatusUp,
+		},
+		{
+			name: "with Chromium failed starts threshold reached",
+			mod: Chromium{
+				failedStartsThreshold: 1,
+			},
+			tearUp: func() {
+				failedStartsCount = 1
+			},
+			tearDown: func() {
+				failedStartsCount = 0
+			},
+			expectAvailabilityStatus: health.StatusDown,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.tearUp != nil {
+				tc.tearUp()
+			}
+
+			checks, err := tc.mod.Checks()
+			if err != nil {
+				t.Fatalf("expected no error from mod.Checks(), but got: %v", err)
+			}
+
+			if len(checks) == 0 {
+				return
+			}
+
+			if len(checks) != 1 {
+				t.Fatalf("expected 1 check from mod.Checks(), but got %d", len(checks))
+			}
+
+			checker := health.NewChecker(checks...)
+			result := checker.Check(context.Background())
+
+			if result.Status != tc.expectAvailabilityStatus {
+				t.Errorf("expected '%s' as availability status, but got '%s'", tc.expectAvailabilityStatus, result.Status)
+			}
+
+			if tc.tearDown != nil {
+				tc.tearDown()
+			}
+		})
 	}
 }
 
