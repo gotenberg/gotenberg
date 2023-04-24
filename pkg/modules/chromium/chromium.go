@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alexliesenfeld/health"
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/fetch"
@@ -69,6 +70,7 @@ var (
 type Chromium struct {
 	binPath                  string
 	engine                   gotenberg.PDFEngine
+	failedStartsThreshold    int
 	userAgent                string
 	incognito                bool
 	allowInsecureLocalhost   bool
@@ -261,6 +263,7 @@ func (mod Chromium) Descriptor() gotenberg.ModuleDescriptor {
 		ID: "chromium",
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("chromium", flag.ExitOnError)
+			fs.Int("chromium-failed-starts-threshold", 5, "Set the number of consecutive failed starts after which the module is considered unhealthy - 0 means ignore")
 			fs.String("chromium-user-agent", "", "Override the default User-Agent header")
 			fs.Bool("chromium-incognito", false, "Start Chromium with incognito mode")
 			fs.Bool("chromium-allow-insecure-localhost", false, "Ignore TLS/SSL errors on localhost")
@@ -288,6 +291,7 @@ func (mod Chromium) Descriptor() gotenberg.ModuleDescriptor {
 // Provision sets the module properties.
 func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
+	mod.failedStartsThreshold = flags.MustInt("chromium-failed-starts-threshold")
 	mod.userAgent = flags.MustString("chromium-user-agent")
 	mod.allowInsecureLocalhost = flags.MustBool("chromium-allow-insecure-localhost")
 	mod.ignoreCertificateErrors = flags.MustBool("chromium-ignore-certificate-errors")
@@ -345,6 +349,41 @@ func (mod Chromium) Metrics() ([]gotenberg.Metric, error) {
 				return activeInstancesCount
 			},
 		},
+		{
+			Name:        "chromium_failed_starts_count",
+			Description: "Current number of Chromium consecutive starting failures.",
+			Read: func() float64 {
+				failedStartsCountMu.RLock()
+				defer failedStartsCountMu.RUnlock()
+
+				return failedStartsCount
+			},
+		},
+	}, nil
+}
+
+// Checks adds a health check that verifies if Chromium consecutive failed
+// starts threshold has been reached or not.
+// See https://github.com/gotenberg/gotenberg/issues/633.
+func (mod Chromium) Checks() ([]health.CheckerOption, error) {
+	if mod.failedStartsThreshold == 0 {
+		return nil, nil
+	}
+
+	return []health.CheckerOption{
+		health.WithCheck(health.Check{
+			Name: "chromium",
+			Check: func(_ context.Context) error {
+				failedStartsCountMu.RLock()
+				defer failedStartsCountMu.RUnlock()
+
+				if int(failedStartsCount) < mod.failedStartsThreshold {
+					return nil
+				}
+
+				return errors.New("failed starts threshold reached")
+			},
+		}),
 	}, nil
 }
 
@@ -906,8 +945,20 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 			return ErrRpccMessageTooLarge
 		}
 
+		// See https://github.com/gotenberg/gotenberg/issues/633.
+		if strings.Contains(errMessage, "chrome failed to start") {
+			failedStartsCountMu.Lock()
+			failedStartsCount += 1
+			failedStartsCountMu.Unlock()
+		}
+
 		return fmt.Errorf("chromium PDF: %w", err)
 	}
+
+	// See https://github.com/gotenberg/gotenberg/issues/633.
+	failedStartsCountMu.Lock()
+	failedStartsCount = 0
+	failedStartsCountMu.Unlock()
 
 	// See https://github.com/gotenberg/gotenberg/issues/262.
 	consoleExceptionsMu.RLock()
@@ -923,6 +974,8 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 var (
 	activeInstancesCount   float64
 	activeInstancesCountMu sync.RWMutex
+	failedStartsCount      float64
+	failedStartsCountMu    sync.RWMutex
 )
 
 // Interface guards.
@@ -931,6 +984,7 @@ var (
 	_ gotenberg.Provisioner     = (*Chromium)(nil)
 	_ gotenberg.Validator       = (*Chromium)(nil)
 	_ gotenberg.MetricsProvider = (*Chromium)(nil)
+	_ api.HealthChecker         = (*Chromium)(nil)
 	_ api.Router                = (*Chromium)(nil)
 	_ API                       = (*Chromium)(nil)
 	_ Provider                  = (*Chromium)(nil)
