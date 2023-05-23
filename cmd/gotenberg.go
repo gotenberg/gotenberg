@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
@@ -109,8 +110,8 @@ func Run() {
 
 	quit := make(chan os.Signal, 1)
 
-	// We'll accept graceful shutdowns when quit via SIGINT (Ctrl+C).
-	signal.Notify(quit, os.Interrupt)
+	// We'll accept graceful shutdowns when quit via SIGINT (Ctrl+C) or SIGTERM (Kubernetes).
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	// Block until we receive our signal.
 	<-quit
@@ -119,7 +120,7 @@ func Run() {
 	defer cancel()
 
 	forceQuit := make(chan os.Signal, 1)
-	signal.Notify(forceQuit, os.Interrupt)
+	signal.Notify(forceQuit, syscall.SIGINT)
 
 	go func() {
 		// In case of force quit, cancel the context.
