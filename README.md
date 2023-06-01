@@ -7,31 +7,29 @@
 
 ---
 
-Gotenberg provides a developer-friendly API to interact with powerful tools like Chromium and LibreOffice for converting 
+Gotenberg provides a developer-friendly API to interact with powerful tools like Chromium and LibreOffice for converting
 numerous document formats (HTML, Markdown, Word, Excel, etc.) into PDF files, and more!
 
-## Onebrief deployment to Heroku/GitHub
-
-We deploy Gotenberg to Heroku for ease of use in both staging/production but also for developers to get their environment running without having to host it locally. This is how to deploy a new version of Gotenberg to both GitHub Packages and Heroku.
+## Onebrief Gotenberg Updates
 
 If you don't already have a GitHub personal access token, you can generate one [here](https://github.com/settings/tokens/new)
 
 ### Log in to GitHub Packages
+
 ```bash
 $ export CR_PAT=TOKEN_HERE
 $ echo $CR_PAT | docker login ghcr.io -u USERNAME --password-stdin
 ```
-### Log in to Heroku via CLI (download [here](https://devcenter.heroku.com/articles/heroku-cli))
 
-```bash
-$ heroku container:login
-```
+### Automated Build and release new version
 
-### Build and release new version
+Create a new release from the Gotenberg Github repo.
+
+### Manual Build and release new version
+
 ```bash
 $ make release
 ```
-
 
 ## Quick Start
 
