@@ -30,6 +30,6 @@ docker buildx build \
   --build-arg PDFTK_VERSION="$PDFTK_VERSION" \
   --platform linux/amd64 \
   -t "$DOCKER_REPO_GH/gotenberg:latest" \
-  -t "$DOCKER_REPO_GH/gotenberg:${SEMVER[0]}.${SEMVER[1]}.${SEMVER[2]}" 
+  -t "$DOCKER_REPO_GH/gotenberg:${SEMVER[0]}.${SEMVER[1]}.${SEMVER[2]}" \
   --push \
   -f build/Dockerfile.bc .
