@@ -48,6 +48,7 @@ CHROMIUM_DISABLE_ROUTES=false
 LIBREOFFICE_DISABLES_ROUTES=false
 LOG_LEVEL=info
 LOG_FORMAT=auto
+LOG_FIELDS_PREFIX=
 PDFENGINES_ENGINES=
 PDFENGINES_DISABLE_ROUTES=false
 PROMETHEUS_NAMESPACE=gotenberg
@@ -94,6 +95,7 @@ run: ## Start a Gotenberg container
 	--libreoffice-disable-routes=$(LIBREOFFICE_DISABLES_ROUTES) \
 	--log-level=$(LOG_LEVEL) \
 	--log-format=$(LOG_FORMAT) \
+	--log-fields-prefix=$(LOG_FIELDS_PREFIX) \
 	--pdfengines-engines=$(PDFENGINES_ENGINES) \
 	--pdfengines-disable-routes=$(PDFENGINES_DISABLE_ROUTES) \
 	--prometheus-namespace=$(PROMETHEUS_NAMESPACE) \
