@@ -55,7 +55,7 @@ func TestPDFEngineMock(t *testing.T) {
 	}
 }
 
-func TestPDFEngineProvider(t *testing.T) {
+func TestPDFEngineProviderMock(t *testing.T) {
 	mock := PDFEngineProviderMock{
 		PDFEngineMock: func() (PDFEngine, error) {
 			return PDFEngineMock{}, nil
