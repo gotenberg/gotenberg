@@ -19,7 +19,7 @@ require (
 	github.com/mholt/archiver/v3 v3.5.1
 	github.com/microcosm-cc/bluemonday v1.0.25
 	github.com/nwaples/rardecode v1.1.3 // indirect
-	github.com/pdfcpu/pdfcpu v0.4.1
+	github.com/pdfcpu/pdfcpu v0.4.2
 	github.com/pierrec/lz4/v4 v4.1.18 // indirect
 	github.com/prometheus/client_golang v1.16.0
 	github.com/russross/blackfriday/v2 v2.1.0
