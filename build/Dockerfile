@@ -174,7 +174,7 @@ RUN \
 # https://github.com/arachnys/athenapdf/commit/ba25a8d80a25d08d58865519c4cd8756dc9a336d.
 COPY build/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 
-# Copy the Gotenberg binary from the builder stage.
+# Copy the Gotenberg binary from the binary stage.
 COPY --from=binary-stage /home/gotenberg /usr/bin/
 
 # Environment variables required by modules or else.
