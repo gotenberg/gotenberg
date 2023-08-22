@@ -3,6 +3,8 @@ name: Continuous Delivery
 on:
   release:
     types: [ published ]
+  schedule:
+    - cron: '0 0 * * 0' # every sunday at midnight
 
 jobs:
 
@@ -16,6 +18,10 @@ jobs:
         uses: docker/setup-buildx-action@v2
       - name: Checkout source code
         uses: actions/checkout@v3
+      - name: Get latest release tag
+        id: latest_tag
+        run: |
+          echo ::set-output name=tag::$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.tag_name')
       - name: Log in to Docker Hub Container Registry
         uses: docker/login-action@v2
         with:
@@ -23,5 +29,5 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Build and push Docker image
         run: |
-          make release GOTENBERG_VERSION=${{ github.event.release.tag_name }}
-          make release GOTENBERG_VERSION=${{ github.event.release.tag_name }} DOCKER_REPOSITORY=thecodingmachine
+          make release GOTENBERG_VERSION=${{ github.event.release.tag_name || steps.latest_tag.outputs.tag }}
+          make release GOTENBERG_VERSION=${{ github.event.release.tag_name || steps.latest_tag.outputs.tag }} DOCKER_REPOSITORY=thecodingmachine
