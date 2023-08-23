@@ -1,8 +1,8 @@
-name: Continuous Delivery
+name: Weekly Docker Image Builds
 
 on:
-  release:
-    types: [ published ]
+  schedule:
+    - cron: '0 0 * * 0' # every sunday at midnight
 
 jobs:
 
@@ -19,8 +19,11 @@ jobs:
       - name: Get the latest minor release tag
         id: latest_minor_release_tag
         run: |
+          # Get the latest released tag
+          LATEST_TAG=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.tag_name')
+
           # Split the tag into major, minor, patch
-          IFS='.' read -ra VERSION_PARTS <<< "${{ github.event.release.tag_name }}"
+          IFS='.' read -ra VERSION_PARTS <<< $LATEST_TAG
 
           # Construct the tag
           NEW_TAG="${VERSION_PARTS[0]}.${VERSION_PARTS[1]}"
@@ -34,7 +37,5 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Build and push Docker image
         run: |
-          make release GOTENBERG_VERSION=${{ github.event.release.tag_name }}
-          make release GOTENBERG_VERSION=${{ github.event.release.tag_name }} DOCKER_REPOSITORY=thecodingmachine
           make release GOTENBERG_VERSION=${{ steps.latest_minor_release_tag.outputs.tag }}
           make release GOTENBERG_VERSION=${{ steps.latest_minor_release_tag.outputs.tag }} DOCKER_REPOSITORY=thecodingmachine
