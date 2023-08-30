@@ -30,7 +30,7 @@ RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v7/cmd.Ve
 # ----------------------------------------------
 # Final stage
 # ----------------------------------------------
-FROM debian:11-slim
+FROM debian:bookworm-20230725-slim
 
 ARG GOTENBERG_VERSION
 ARG GOTENBERG_USER_GID
