@@ -20,7 +20,7 @@ jobs:
           go-version: '1.20'
           cache: false
       - name: Checkout source code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Run linters
         uses: golangci/golangci-lint-action@v3
         with:
@@ -39,7 +39,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       - name: Checkout source code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Build testing environment
         run: make build build-tests
       - name: Run tests
