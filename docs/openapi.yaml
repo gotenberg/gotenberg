@@ -688,7 +688,7 @@ components:
           items:
             type: string
             format: binary
-        nativePageRanges:
+        PageRanges:
           type: string
           example: 1-4
           description: >-
@@ -706,7 +706,7 @@ components:
             The PDF format of the resulting PDF.
             Caution! You cannot use both nativePdfA1aFormat and pdfFormat form fields.
           example: PDF/A-1a
-        landscape:
+        Landscape:
           type: boolean
           example: true
           default: false

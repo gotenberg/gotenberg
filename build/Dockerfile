@@ -56,7 +56,7 @@ RUN \
     # Install system dependencies required for the next instructions or debugging.
     # Note: tini is a helper for reaping zombie processes.
     apt-get update -qq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg htop tini python3 default-jre-headless &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg htop tini python3 default-jre-headless tar &&\
     ln -s /usr/bin/htop /usr/bin/top &&\
     # Cleanup.
     # Note: the Debian image does automatically a clean after each install thanks to a hook.
@@ -177,6 +177,10 @@ COPY build/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 # Copy the Gotenberg binary from the binary stage.
 COPY --from=binary-stage /home/gotenberg /usr/bin/
 
+# Copy startup.sh and make it executable
+COPY scripts/startup.sh /scripts/startup.sh
+RUN chmod +x /scripts/startup.sh
+
 # Environment variables required by modules or else.
 ENV GC_EXCLUDE_SUBSTR "hsperfdata_root,hsperfdata_gotenberg"
 ENV CHROMIUM_BIN_PATH /usr/bin/chromium
@@ -191,5 +195,6 @@ WORKDIR /home/gotenberg
 # Default API port.
 EXPOSE 3000
 
-ENTRYPOINT [ "/usr/bin/tini", "--" ]
-CMD [ "gotenberg" ]
+#ENTRYPOINT [ "/usr/bin/tini", "--" ]
+# Run startup script to install custom fonts and start Gotenberg
+ENTRYPOINT [ "/scripts/startup.sh" ]
