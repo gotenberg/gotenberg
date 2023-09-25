@@ -42,7 +42,8 @@ LABEL author="Julien Neuhart" \
       description="A Docker-powered stateless API for PDF files." \
       github="https://github.com/gotenberg/gotenberg" \
       version="$GOTENBERG_VERSION" \
-      website="https://gotenberg.dev"
+      website="https://gotenberg.dev" \
+      org.opencontainers.image.source="https://github.com/gotenberg/gotenberg"
 
 RUN \
     # Create a non-root user.
