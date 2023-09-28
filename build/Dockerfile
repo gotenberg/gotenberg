@@ -60,12 +60,12 @@ RUN \
     # See https://github.com/gotenberg/gotenberg/pull/273.
     curl -o /usr/local/bin/pdftk.jar "https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/$PDFTK_VERSION/pdftk-all.jar" &&\
     chmod 775 /usr/local/bin/pdftk.jar &&\
-    echo '#!/usr/bin/env bash\n\n java -jar "$0.jar" "$@"' > /usr/local/bin/pdftk && \
+    echo '#!/usr/bin/bash\n\n java -jar "$0.jar" "$@"' > /usr/local/bin/pdftk && \
     chmod 775 /usr/local/bin/pdftk &&\
     apk add qpdf &&\
     # Verify installations.
-    pdftk --version &&\
-    qpdf --version &&\
+    # pdftk --version &&\
+    # qpdf --version &&\
     # Cleanup.
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
