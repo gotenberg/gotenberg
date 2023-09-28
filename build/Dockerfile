@@ -58,10 +58,10 @@ RUN apk add libreoffice &&\
 RUN \
     # Install PDFtk & QPDF (PDF engines).
     # See https://github.com/gotenberg/gotenberg/pull/273.
-    curl -o /usr/bin/pdftk.jar "https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/$PDFTK_VERSION/pdftk-all.jar" &&\
-    chmod 775 /usr/bin/pdftk.jar &&\
-    echo '#!/usr/bin/env bash\n\n java -jar "$0.jar" "$@"' > /usr/bin/pdftk && \
-    chmod 775 /usr/bin/pdftk &&\
+    curl -o /usr/local/bin/pdftk.jar "https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/$PDFTK_VERSION/pdftk-all.jar" &&\
+    chmod 775 /usr/local/bin/pdftk.jar &&\
+    echo '#!/usr/bin/env bash\n\n java -jar "$0.jar" "$@"' > /usr/local/bin/pdftk && \
+    chmod 775 /usr/local/bin/pdftk &&\
     apk add qpdf &&\
     # Verify installations.
     pdftk --version &&\
@@ -82,7 +82,7 @@ ENV GC_EXCLUDE_SUBSTR "hsperfdata_root,hsperfdata_gotenberg"
 ENV CHROMIUM_BIN_PATH /usr/bin/chromium
 ENV UNOCONV_BIN_PATH /usr/local/bin/unoconv
 ENV LIBREOFFICE_BIN_PATH /usr/lib/libreoffice/program/soffice.bin
-ENV PDFTK_BIN_PATH /usr/bin/pdftk
+ENV PDFTK_BIN_PATH /usr/local/bin/pdftk
 ENV QPDF_BIN_PATH /usr/bin/qpdf
 
 USER gotenberg
