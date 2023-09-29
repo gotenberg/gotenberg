@@ -3,7 +3,7 @@ ARG DOCKER_REPOSITORY
 ARG GOTENBERG_VERSION
 ARG GOLANGCI_LINT_VERSION
 
-FROM golang:$GOLANG_VERSION-bullseye as golang
+FROM golang:$GOLANG_VERSION-bullseye AS golang
 
 # We're extending the Gotenberg's Docker image because our code relies on external
 # dependencies like Google Chrome, LibreOffice, etc.
@@ -15,16 +15,16 @@ ENV GOPATH /go
 ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 ENV CGO_ENABLED 1
 
-RUN apt-get update -qq &&\
-    apt-get install -y -qq --no-install-recommends  \
+
+RUN apk update &&\
+    apk --no-cache add \
     sudo \
-    # gcc for cgo.
     g++ \
     gcc \
     libc6-dev \
     make \
     pkg-config &&\
-    rm -rf /var/lib/apt/lists/* &&\
+    rm -rf /var/cache/apk/* &&\
     mkdir -p "$GOPATH/src" "$GOPATH/bin" &&\
     chmod -R 777 "$GOPATH" &&\
     adduser gotenberg sudo &&\

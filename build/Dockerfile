@@ -15,7 +15,7 @@ COPY cmd ./cmd
 COPY pkg ./pkg
 RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v7/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg/main.go
 
-FROM alpine:3.18
+FROM alpine:latest
 
 ARG GOTENBERG_VERSION
 ARG GOTENBERG_USER_GID
@@ -25,7 +25,7 @@ ARG PDFTK_VERSION
 
 LABEL author="Hayati Ibis" \
     description="A Docker-powered stateless API for PDF files." \
-    github="https://github.com/gotenberg/gotenberg" \
+    github="https://github.com/hayatibis/gotenberg" \
     version="$GOTENBERG_VERSION" \
     website="https://gotenberg.dev" \
     org.opencontainers.image.source="https://github.com/gotenberg/gotenberg"
@@ -36,24 +36,48 @@ RUN \
     mkdir -p /home/gotenberg && \
     chown gotenberg:gotenberg /home/gotenberg
 
-RUN apk --no-cache add curl bash htop tini openjdk8-jre-base bash python3
+RUN apk update && apk --no-cache add curl bash htop tini openjdk8-jre-base bash python3 &&\
+    rm -rf /var/cache/apk/*
 
 # Fonts
-RUN apk --no-cache add msttcorefonts-installer fontconfig && \
+RUN apk --no-cache add \
+    font-noto-all \
+    font-carlito \
+    font-dejavu \
+    font-dejavu-sans-mono-nerd \
+    font-liberation \
+    ttf-liberation \
+    font-liberation-sans-narrow \
+    font-liberation-mono-nerd \
+    font-linux-libertine \
+    font-noto-all \
+    font-croscore \
+    font-terminus \
+    font-bakoma \
+    font-awesome \
+    font-inconsolata \
+    font-mononoki \
+    font-freefont \
+    msttcorefonts-installer fontconfig &&\
     update-ms-fonts && \
-    fc-cache -f
+    fc-cache -f &&\
+    rm -rf /var/cache/apk/*
 
-RUN apk add chromium &&\
-    apk version chromium
+RUN apk add font-wqy-zenhei --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing/
 
-RUN apk add libreoffice &&\
+RUN apk --no-cache add chromium &&\
+    apk version chromium &&\
+    rm -rf /var/cache/apk/*
+
+RUN apk --no-cache add libreoffice &&\
     curl -Ls https://raw.githubusercontent.com/dagwieers/unoconv/master/unoconv -o /usr/local/bin/unoconv &&\
     chmod +x /usr/local/bin/unoconv &&\
     # Verify installations.
     libreoffice --version &&\
     unoconv --version &&\
     # Cleanup.
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    rm -rf /var/cache/apk/*
+
 
 RUN \
     # Install PDFtk & QPDF (PDF engines).
@@ -62,12 +86,12 @@ RUN \
     chmod 775 /usr/local/bin/pdftk.jar &&\
     echo '#!/usr/bin/bash\n\n java -jar "$0.jar" "$@"' > /usr/local/bin/pdftk && \
     chmod 775 /usr/local/bin/pdftk &&\
-    apk add qpdf &&\
+    apk --no-cache add qpdf &&\
     # Verify installations.
     # pdftk --version &&\
     # qpdf --version &&\
     # Cleanup.
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    rm -rf /var/cache/apk/*
 
 # Improve fonts subpixel hinting and smoothing.
 # Credits:
