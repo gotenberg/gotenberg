@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 )
 
 type ProtoModule struct {
@@ -57,7 +58,6 @@ func TestPrometheus_Provision(t *testing.T) {
 			ctx: func() *gotenberg.Context {
 				fs := new(Prometheus).Descriptor().FlagSet
 				err := fs.Parse([]string{"--prometheus-disable-collect=true"})
-
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}

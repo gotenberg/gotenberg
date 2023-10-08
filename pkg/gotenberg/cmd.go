@@ -158,7 +158,6 @@ func (cmd Cmd) pipeOutput() error {
 
 		for {
 			line, _, err := r.ReadLine()
-
 			if err != nil {
 				if err != io.EOF && !strings.Contains(err.Error(), "file already closed") {
 					logger.Error(fmt.Sprintf("pipe unix process output error: %s", err))

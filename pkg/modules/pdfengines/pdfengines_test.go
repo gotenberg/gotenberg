@@ -6,8 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 )
 
 func TestPDFEngines_Descriptor(t *testing.T) {
@@ -110,7 +111,6 @@ func TestPDFEngines_Provision(t *testing.T) {
 
 				fs := new(PDFEngines).Descriptor().FlagSet
 				err := fs.Parse([]string{"--pdfengines-engines=b", "--pdfengines-engines=a"})
-
 				if err != nil {
 					t.Fatalf("expected no error from fs.Parse(), but got: %v", err)
 				}
@@ -158,7 +158,6 @@ func TestPDFEngines_Provision(t *testing.T) {
 
 				fs := new(PDFEngines).Descriptor().FlagSet
 				err := fs.Parse([]string{"--pdfengines-engines=unoconv-pdfengine"})
-
 				if err != nil {
 					t.Fatalf("expected no error from fs.Parse(), but got: %v", err)
 				}

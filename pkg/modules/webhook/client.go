@@ -62,7 +62,6 @@ func (c client) send(body io.Reader, headers map[string]string, erroed bool) err
 		// least it works.
 
 		bodySize, err := strconv.ParseInt(contentLength, 10, 64)
-
 		if err != nil {
 			return fmt.Errorf("parse content length entry: %w", err)
 		}

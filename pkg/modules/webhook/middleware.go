@@ -14,9 +14,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/labstack/echo/v4"
+
+	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 )
 
 func webhookMiddleware(w Webhook) api.Middleware {
@@ -196,7 +197,6 @@ func webhookMiddleware(w Webhook) api.Middleware {
 
 						// Call the next middleware in the chain.
 						err := next(c)
-
 						if err != nil {
 							// The process failed for whatever reason. Let's send the
 							// details to the webhook.

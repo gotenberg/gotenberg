@@ -8,8 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 )
 
 type listener interface {
@@ -42,15 +43,18 @@ type libreOfficeListener struct {
 	queueLength     int
 	queueLengthMu   sync.RWMutex
 	lockChan        chan struct{}
-	logger          *zap.Logger
+
+	fs     *gotenberg.FileSystem
+	logger *zap.Logger
 }
 
-func newLibreOfficeListener(logger *zap.Logger, binPath string, startTimeout time.Duration, threshold int) listener {
+func newLibreOfficeListener(logger *zap.Logger, fs *gotenberg.FileSystem, binPath string, startTimeout time.Duration, threshold int) listener {
 	return &libreOfficeListener{
 		binPath:      binPath,
 		startTimeout: startTimeout,
 		threshold:    threshold,
 		lockChan:     make(chan struct{}, 1),
+		fs:           fs,
 		logger:       logger.Named("listener"),
 	}
 }
@@ -65,10 +69,7 @@ func (listener *libreOfficeListener) start(logger *zap.Logger) error {
 		return fmt.Errorf("get free port: %w", err)
 	}
 
-	// Good to know: the garbage collector might delete the next directory
-	// while it is still running. It does seem to cause any issue though.
-	userProfileDirPath := gotenberg.NewDirPath()
-
+	userProfileDirPath := listener.fs.NewDirPath()
 	args := []string{
 		"--headless",
 		"--invisible",
@@ -158,6 +159,12 @@ func (listener *libreOfficeListener) start(logger *zap.Logger) error {
 		if err != nil {
 			logger.Debug(fmt.Sprintf("kill LibreOffice listener process: %v", err))
 		}
+
+		// And the user profile directory is deleted.
+		err = os.RemoveAll(userProfileDirPath)
+		if err != nil {
+			logger.Debug(fmt.Sprintf("remove user profile directory: %v", err))
+		}
 	}()
 
 	logger.Debug("waiting for the LibreOffice listener socket to be available...")
@@ -185,9 +192,21 @@ func (listener *libreOfficeListener) stop(logger *zap.Logger) error {
 	defer func() {
 		defer listener.cfgMu.RUnlock()
 
+		if listener.userProfileDirPath == "" {
+			return
+		}
+
 		err := os.RemoveAll(listener.userProfileDirPath)
 		if err != nil {
-			logger.Error(fmt.Sprintf("remove LibreOffice listener user profile directory: %v", err))
+			logger.Error(fmt.Sprintf("remove LibreOffice listener's user profile directory: %v", err))
+		}
+
+		logger.Debug(fmt.Sprintf("'%s' LibreOffice listener's user profile directory removed", listener.userProfileDirPath))
+
+		// Also remove listener specific files in the temporary directory.
+		err = gotenberg.GarbageCollect(logger, os.TempDir(), []string{"OSL_PIPE", ".tmp"})
+		if err != nil {
+			logger.Error(err.Error())
 		}
 	}()
 
@@ -317,7 +336,7 @@ func (listener *libreOfficeListener) unlock(logger *zap.Logger) error {
 	}
 
 	listener.usage += 1
-	if listener.usage < listener.threshold {
+	if listener.threshold > 0 && listener.usage < listener.threshold {
 		return nil
 	}
 

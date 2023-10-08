@@ -8,10 +8,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 )
 
 func TestFormDataChromiumPDFOptions(t *testing.T) {
@@ -588,8 +589,7 @@ func TestConvertMarkdownHandler(t *testing.T) {
 	} {
 		func() {
 			if tc.outputDir != "" {
-				err := os.MkdirAll(tc.outputDir, 0755)
-
+				err := os.MkdirAll(tc.outputDir, 0o755)
 				if err != nil {
 					t.Fatalf("test %d: expected error but got: %v", i, err)
 				}
@@ -784,8 +784,8 @@ func TestConvertURL(t *testing.T) {
 				return chromiumAPI
 			}(),
 			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					convert: func(_ context.Context, _ *zap.Logger, _, _, _ string) error {
+				return &gotenberg.PDFEngineMock{
+					ConvertMock: func(_ context.Context, _ *zap.Logger, _, _, _ string) error {
 						return gotenberg.ErrPDFFormatNotAvailable
 					},
 				}
@@ -807,8 +807,8 @@ func TestConvertURL(t *testing.T) {
 				return chromiumAPI
 			}(),
 			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					convert: func(_ context.Context, _ *zap.Logger, _, _, _ string) error {
+				return &gotenberg.PDFEngineMock{
+					ConvertMock: func(_ context.Context, _ *zap.Logger, _, _, _ string) error {
 						return errors.New("foo")
 					},
 				}
@@ -828,8 +828,8 @@ func TestConvertURL(t *testing.T) {
 				return chromiumAPI
 			}(),
 			engine: func() gotenberg.PDFEngine {
-				return &ProtoPDFEngine{
-					convert: func(_ context.Context, _ *zap.Logger, _, _, _ string) error {
+				return &gotenberg.PDFEngineMock{
+					ConvertMock: func(_ context.Context, _ *zap.Logger, _, _, _ string) error {
 						return nil
 					},
 				}

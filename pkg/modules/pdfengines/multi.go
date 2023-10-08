@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 )
 
 // multiPDFEngines implements the gotenberg.PDFEngine interface and gathers one

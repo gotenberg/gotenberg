@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/labstack/echo/v4"
+
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/uno"
-	"github.com/labstack/echo/v4"
 )
 
 // convertRoute returns an api.Route which can convert LibreOffice documents
@@ -41,7 +42,6 @@ func convertRoute(unoAPI uno.API, engine gotenberg.PDFEngine) api.Route {
 				String("pdfFormat", &PDFformat, "").
 				Bool("merge", &merge, false).
 				Validate()
-
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}

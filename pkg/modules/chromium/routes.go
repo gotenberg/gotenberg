@@ -12,12 +12,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 	"github.com/labstack/echo/v4"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
 	"go.uber.org/multierr"
+
+	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 )
 
 // FormDataChromiumPDFOptions creates Options form the form data. Fallback to
@@ -163,7 +164,6 @@ func convertURLRoute(chromium API, engine gotenberg.PDFEngine) api.Route {
 					return nil
 				}).
 				Validate()
-
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
@@ -197,7 +197,6 @@ func convertHTMLRoute(chromium API, engine gotenberg.PDFEngine) api.Route {
 				MandatoryPath("index.html", &inputPath).
 				String("pdfFormat", &PDFformat, "").
 				Validate()
-
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
@@ -236,7 +235,6 @@ func convertMarkdownRoute(chromium API, engine gotenberg.PDFEngine) api.Route {
 				MandatoryPaths([]string{".md"}, &markdownPaths).
 				String("pdfFormat", &PDFformat, "").
 				Validate()
-
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
@@ -284,7 +282,6 @@ func convertMarkdownRoute(chromium API, engine gotenberg.PDFEngine) api.Route {
 						return template.HTML(sanitized), nil
 					},
 				}).ParseFiles(inputPath)
-
 			if err != nil {
 				return fmt.Errorf("parse template file: %w", err)
 			}
@@ -308,7 +305,7 @@ func convertMarkdownRoute(chromium API, engine gotenberg.PDFEngine) api.Route {
 
 			inputPath = ctx.GeneratePath(".html")
 
-			err = os.WriteFile(inputPath, buffer.Bytes(), 0600)
+			err = os.WriteFile(inputPath, buffer.Bytes(), 0o600)
 			if err != nil {
 				return fmt.Errorf("write template result: %w", err)
 			}

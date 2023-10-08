@@ -138,9 +138,12 @@ tests-once: ## Run the tests once (prefer the "tests" command while developing)
 	$(DOCKER_REPOSITORY)/gotenberg:$(GOTENBERG_VERSION)-tests \
 	gotest
 
+# go install mvdan.cc/gofumpt@latest
+# go install github.com/daixiang0/gci@latest
 .PHONY: fmt
 fmt: ## Format the code and "optimize" the dependencies
-	go fmt ./...
+	gofumpt -l -w .
+	gci write -s standard -s default -s "prefix(github.com/gotenberg/gotenberg/v7)" --skip-generated --skip-vendor --custom-order .
 	go mod tidy
 
 .PHONY: godoc

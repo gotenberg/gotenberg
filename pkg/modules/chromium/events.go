@@ -43,7 +43,6 @@ func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, allowL
 				if allow {
 					req := fetch.ContinueRequest(e.RequestID)
 					err := req.Do(executorCtx)
-
 					if err != nil {
 						logger.Error(fmt.Sprintf("continue request: %s", err))
 					}
@@ -53,7 +52,6 @@ func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, allowL
 
 				req := fetch.FailRequest(e.RequestID, network.ErrorReasonAccessDenied)
 				err := req.Do(executorCtx)
-
 				if err != nil {
 					logger.Error(fmt.Sprintf("fail request: %s", err))
 				}

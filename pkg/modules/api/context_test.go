@@ -12,9 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 )
 
 func TestNewContext(t *testing.T) {
@@ -104,7 +105,7 @@ func TestNewContext(t *testing.T) {
 		},
 	} {
 		handler := func(c echo.Context) error {
-			_, cancel, err := newContext(c, zap.NewNop(), time.Duration(10)*time.Second)
+			_, cancel, err := newContext(c, zap.NewNop(), gotenberg.NewFileSystem(), time.Duration(10)*time.Second)
 			defer cancel()
 			// Context already cancelled.
 			defer cancel()
@@ -277,28 +278,33 @@ func TestContext_BuildOutputFile(t *testing.T) {
 			},
 		},
 	} {
-		dirPath, err := gotenberg.MkdirAll()
-		if err != nil {
-			t.Fatalf("%d: expected no erro but got: %v", i, err)
-		}
+		func() {
+			fs := gotenberg.NewFileSystem()
+			dirPath, err := fs.MkdirAll()
+			if err != nil {
+				t.Fatalf("%d: expected no erro but got: %v", i, err)
+			}
 
-		tc.ctx.dirPath = dirPath
-		tc.ctx.logger = zap.NewNop()
+			defer func() {
+				err := os.RemoveAll(fs.WorkingDirPath())
+				if err != nil {
+					t.Fatalf("test %d: expected no error while cleaning up but got: %v", i, err)
+				}
+			}()
 
-		_, err = tc.ctx.BuildOutputFile()
+			tc.ctx.dirPath = dirPath
+			tc.ctx.logger = zap.NewNop()
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
+			_, err = tc.ctx.BuildOutputFile()
 
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
+			if tc.expectErr && err == nil {
+				t.Errorf("test %d: expected error but got: %v", i, err)
+			}
 
-		err = os.RemoveAll(dirPath)
-		if err != nil {
-			t.Fatalf("%d: expected no erro but got: %v", i, err)
-		}
+			if !tc.expectErr && err != nil {
+				t.Errorf("test %d: expected no error but got: %v", i, err)
+			}
+		}()
 	}
 }
 

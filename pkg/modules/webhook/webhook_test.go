@@ -3,7 +3,6 @@ package webhook
 import (
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 )
@@ -56,34 +55,6 @@ func TestWebhook_Middlewares(t *testing.T) {
 
 		if tc.expectMiddlewares != len(middlewares) {
 			t.Errorf("test %d: expected %d middlewares but got %d", i, tc.expectMiddlewares, len(middlewares))
-		}
-	}
-}
-
-func TestWebhook_AddGraceDuration(t *testing.T) {
-	for i, tc := range []struct {
-		maxRetry       int
-		retryMaxWait   time.Duration
-		expectDuration time.Duration
-		disable        bool
-	}{
-		{
-			maxRetry:       3,
-			retryMaxWait:   time.Duration(1) * time.Second,
-			expectDuration: time.Duration(3) * time.Second,
-		},
-		{
-			disable: true,
-		},
-	} {
-		mod := new(Webhook)
-		mod.maxRetry = tc.maxRetry
-		mod.retryMaxWait = tc.retryMaxWait
-		mod.disable = tc.disable
-
-		actual := mod.AddGraceDuration()
-		if actual != tc.expectDuration {
-			t.Errorf("test %d: expected '%s' but got '%s'", i, tc.expectDuration, actual)
 		}
 	}
 }

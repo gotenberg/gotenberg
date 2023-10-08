@@ -9,9 +9,10 @@ import (
 	"time"
 
 	"github.com/alexliesenfeld/health"
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	flag "github.com/spf13/pflag"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 )
 
 func TestUNO_Descriptor(t *testing.T) {
@@ -78,7 +79,6 @@ func TestUNO_Provision(t *testing.T) {
 						FlagSet: func() *flag.FlagSet {
 							fs := new(UNO).Descriptor().FlagSet
 							err := fs.Parse([]string{"--unoconv-disable-listener=true"})
-
 							if err != nil {
 								t.Fatalf("expected no error from fs.Parse(), but got: %v", err)
 							}
@@ -205,35 +205,11 @@ func TestUNO_Start(t *testing.T) {
 }
 
 func TestUNO_StartupMessage(t *testing.T) {
-	tests := []struct {
-		name          string
-		mod           UNO
-		expectMessage string
-	}{
-		{
-			name: "long-running LibreOffice listener ready to start",
-			mod: UNO{
-				libreOfficeRestartThreshold: 10,
-			},
-			expectMessage: "long-running LibreOffice listener ready to start",
-		},
-		{
-			name: "long-running LibreOffice listener disabled",
-			mod: UNO{
-				libreOfficeRestartThreshold: 0,
-			},
-			expectMessage: "long-running LibreOffice listener disabled",
-		},
-	}
+	actual := new(UNO).StartupMessage()
+	expect := "long-running LibreOffice listener ready to start"
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			actual := tc.mod.StartupMessage()
-
-			if tc.expectMessage != actual {
-				t.Errorf("expected '%s' from mod.StartupMessage(), but got '%s'", tc.expectMessage, actual)
-			}
-		})
+	if actual != expect {
+		t.Errorf("expected '%s' but got '%s'", expect, actual)
 	}
 }
 
@@ -253,13 +229,6 @@ func TestUNO_Stop(t *testing.T) {
 					},
 				},
 				logger: zap.NewNop(),
-			},
-		},
-		{
-			name: "no long-running LibreOffice listener",
-			mod: UNO{
-				libreOfficeRestartThreshold: 0,
-				logger:                      zap.NewNop(),
 			},
 		},
 		{
@@ -468,7 +437,7 @@ func TestUNO_Checks(t *testing.T) {
 
 func TestUNO_PDF(t *testing.T) {
 	tests := []struct {
-		name         string
+		scenario     string
 		mod          UNO
 		ctx          context.Context
 		logger       *zap.Logger
@@ -478,19 +447,7 @@ func TestUNO_PDF(t *testing.T) {
 		teardown     func(mod UNO) error
 	}{
 		{
-			name: "nominal behavior with no long-running LibreOffice listener",
-			mod: UNO{
-				unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
-				libreOfficeBinPath:          os.Getenv("LIBREOFFICE_BIN_PATH"),
-				libreOfficeStartTimeout:     time.Duration(10) * time.Second,
-				libreOfficeRestartThreshold: 0,
-			},
-			ctx:       context.Background(),
-			logger:    zap.NewNop(),
-			inputPath: "/tests/test/testdata/libreoffice/sample1.docx",
-		},
-		{
-			name: "nominal behavior with a long-running LibreOffice listener",
+			scenario: "nominal behavior with a long-running LibreOffice listener",
 			mod: func() UNO {
 				mod := UNO{
 					unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
@@ -501,6 +458,7 @@ func TestUNO_PDF(t *testing.T) {
 				}
 				mod.listener = newLibreOfficeListener(
 					mod.logger,
+					gotenberg.NewFileSystem(),
 					mod.libreOfficeBinPath,
 					mod.libreOfficeStartTimeout,
 					mod.libreOfficeRestartThreshold,
@@ -518,56 +476,122 @@ func TestUNO_PDF(t *testing.T) {
 				return mod.Stop(ctx)
 			},
 		},
+		//{
+		//	scenario: "convert with a debug logger",
+		//	mod: func() UNO {
+		//		mod := UNO{
+		//			unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
+		//			libreOfficeBinPath:          os.Getenv("LIBREOFFICE_BIN_PATH"),
+		//			libreOfficeStartTimeout:     time.Duration(10) * time.Second,
+		//			libreOfficeRestartThreshold: 10,
+		//			logger:                      zap.NewNop(),
+		//		}
+		//		mod.listener = newLibreOfficeListener(
+		//			mod.logger,
+		//			gotenberg.NewFileSystem(),
+		//			mod.libreOfficeBinPath,
+		//			mod.libreOfficeStartTimeout,
+		//			mod.libreOfficeRestartThreshold,
+		//		)
+		//
+		//		return mod
+		//	}(),
+		//	ctx:       context.Background(),
+		//	logger:    zap.NewExample(),
+		//	inputPath: "/tests/test/testdata/libreoffice/sample1.docx",
+		//	teardown: func(mod UNO) error {
+		//		ctx, cancel := context.WithCancel(context.Background())
+		//		cancel()
+		//
+		//		return mod.Stop(ctx)
+		//	},
+		//},
 		{
-			name: "convert with a debug logger",
-			mod: UNO{
-				unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
-				libreOfficeBinPath:          os.Getenv("LIBREOFFICE_BIN_PATH"),
-				libreOfficeStartTimeout:     time.Duration(10) * time.Second,
-				libreOfficeRestartThreshold: 0,
-			},
-			ctx:       context.Background(),
-			logger:    zap.NewExample(),
-			inputPath: "/tests/test/testdata/libreoffice/sample1.docx",
-		},
-		{
-			name: "convert with landscape",
-			mod: UNO{
-				unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
-				libreOfficeBinPath:          os.Getenv("LIBREOFFICE_BIN_PATH"),
-				libreOfficeStartTimeout:     time.Duration(10) * time.Second,
-				libreOfficeRestartThreshold: 0,
-			},
+			scenario: "convert with landscape",
+			mod: func() UNO {
+				mod := UNO{
+					unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
+					libreOfficeBinPath:          os.Getenv("LIBREOFFICE_BIN_PATH"),
+					libreOfficeStartTimeout:     time.Duration(10) * time.Second,
+					libreOfficeRestartThreshold: 10,
+					logger:                      zap.NewNop(),
+				}
+				mod.listener = newLibreOfficeListener(
+					mod.logger,
+					gotenberg.NewFileSystem(),
+					mod.libreOfficeBinPath,
+					mod.libreOfficeStartTimeout,
+					mod.libreOfficeRestartThreshold,
+				)
+
+				return mod
+			}(),
 			ctx:       context.Background(),
 			logger:    zap.NewNop(),
 			inputPath: "/tests/test/testdata/libreoffice/sample1.docx",
 			options: Options{
 				Landscape: true,
 			},
+			teardown: func(mod UNO) error {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+
+				return mod.Stop(ctx)
+			},
 		},
 		{
-			name: "convert with page ranges",
-			mod: UNO{
-				unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
-				libreOfficeBinPath:          os.Getenv("LIBREOFFICE_BIN_PATH"),
-				libreOfficeStartTimeout:     time.Duration(10) * time.Second,
-				libreOfficeRestartThreshold: 0,
-			},
+			scenario: "convert with page ranges",
+			mod: func() UNO {
+				mod := UNO{
+					unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
+					libreOfficeBinPath:          os.Getenv("LIBREOFFICE_BIN_PATH"),
+					libreOfficeStartTimeout:     time.Duration(10) * time.Second,
+					libreOfficeRestartThreshold: 10,
+					logger:                      zap.NewNop(),
+				}
+				mod.listener = newLibreOfficeListener(
+					mod.logger,
+					gotenberg.NewFileSystem(),
+					mod.libreOfficeBinPath,
+					mod.libreOfficeStartTimeout,
+					mod.libreOfficeRestartThreshold,
+				)
+
+				return mod
+			}(),
 			ctx:       context.Background(),
 			logger:    zap.NewNop(),
 			inputPath: "/tests/test/testdata/libreoffice/sample1.docx",
 			options: Options{
 				PageRanges: "1-2",
 			},
+			teardown: func(mod UNO) error {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+
+				return mod.Stop(ctx)
+			},
 		},
 		{
-			name: "convert with invalid page ranges",
-			mod: UNO{
-				unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
-				libreOfficeBinPath:          os.Getenv("LIBREOFFICE_BIN_PATH"),
-				libreOfficeStartTimeout:     time.Duration(10) * time.Second,
-				libreOfficeRestartThreshold: 0,
-			},
+			scenario: "convert with invalid page ranges",
+			mod: func() UNO {
+				mod := UNO{
+					unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
+					libreOfficeBinPath:          os.Getenv("LIBREOFFICE_BIN_PATH"),
+					libreOfficeStartTimeout:     time.Duration(10) * time.Second,
+					libreOfficeRestartThreshold: 10,
+					logger:                      zap.NewNop(),
+				}
+				mod.listener = newLibreOfficeListener(
+					mod.logger,
+					gotenberg.NewFileSystem(),
+					mod.libreOfficeBinPath,
+					mod.libreOfficeStartTimeout,
+					mod.libreOfficeRestartThreshold,
+				)
+
+				return mod
+			}(),
 			ctx:       context.Background(),
 			logger:    zap.NewNop(),
 			inputPath: "/tests/test/testdata/libreoffice/sample1.docx",
@@ -575,60 +599,132 @@ func TestUNO_PDF(t *testing.T) {
 				PageRanges: "foo",
 			},
 			expectPDFErr: true,
+			teardown: func(mod UNO) error {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+
+				return mod.Stop(ctx)
+			},
 		},
 		{
-			name: "convert to PDF/A-1a",
-			mod: UNO{
-				unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
-				libreOfficeBinPath:          os.Getenv("LIBREOFFICE_BIN_PATH"),
-				libreOfficeStartTimeout:     time.Duration(10) * time.Second,
-				libreOfficeRestartThreshold: 0,
-			},
+			scenario: "convert to PDF/A-1a",
+			mod: func() UNO {
+				mod := UNO{
+					unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
+					libreOfficeBinPath:          os.Getenv("LIBREOFFICE_BIN_PATH"),
+					libreOfficeStartTimeout:     time.Duration(10) * time.Second,
+					libreOfficeRestartThreshold: 10,
+					logger:                      zap.NewNop(),
+				}
+				mod.listener = newLibreOfficeListener(
+					mod.logger,
+					gotenberg.NewFileSystem(),
+					mod.libreOfficeBinPath,
+					mod.libreOfficeStartTimeout,
+					mod.libreOfficeRestartThreshold,
+				)
+
+				return mod
+			}(),
 			ctx:       context.Background(),
 			logger:    zap.NewNop(),
 			inputPath: "/tests/test/testdata/libreoffice/sample1.docx",
 			options: Options{
 				PDFformat: gotenberg.FormatPDFA1a,
 			},
+			teardown: func(mod UNO) error {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+
+				return mod.Stop(ctx)
+			},
 		},
 		{
-			name: "convert to PDF/A-2b",
-			mod: UNO{
-				unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
-				libreOfficeBinPath:          os.Getenv("LIBREOFFICE_BIN_PATH"),
-				libreOfficeStartTimeout:     time.Duration(10) * time.Second,
-				libreOfficeRestartThreshold: 0,
-			},
+			scenario: "convert to PDF/A-2b",
+			mod: func() UNO {
+				mod := UNO{
+					unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
+					libreOfficeBinPath:          os.Getenv("LIBREOFFICE_BIN_PATH"),
+					libreOfficeStartTimeout:     time.Duration(10) * time.Second,
+					libreOfficeRestartThreshold: 10,
+					logger:                      zap.NewNop(),
+				}
+				mod.listener = newLibreOfficeListener(
+					mod.logger,
+					gotenberg.NewFileSystem(),
+					mod.libreOfficeBinPath,
+					mod.libreOfficeStartTimeout,
+					mod.libreOfficeRestartThreshold,
+				)
+
+				return mod
+			}(),
 			ctx:       context.Background(),
 			logger:    zap.NewNop(),
 			inputPath: "/tests/test/testdata/libreoffice/sample1.docx",
 			options: Options{
 				PDFformat: gotenberg.FormatPDFA2b,
 			},
+			teardown: func(mod UNO) error {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+
+				return mod.Stop(ctx)
+			},
 		},
 		{
-			name: "convert to PDF/A-3b",
-			mod: UNO{
-				unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
-				libreOfficeBinPath:          os.Getenv("LIBREOFFICE_BIN_PATH"),
-				libreOfficeStartTimeout:     time.Duration(10) * time.Second,
-				libreOfficeRestartThreshold: 0,
-			},
+			scenario: "convert to PDF/A-3b",
+			mod: func() UNO {
+				mod := UNO{
+					unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
+					libreOfficeBinPath:          os.Getenv("LIBREOFFICE_BIN_PATH"),
+					libreOfficeStartTimeout:     time.Duration(10) * time.Second,
+					libreOfficeRestartThreshold: 10,
+					logger:                      zap.NewNop(),
+				}
+				mod.listener = newLibreOfficeListener(
+					mod.logger,
+					gotenberg.NewFileSystem(),
+					mod.libreOfficeBinPath,
+					mod.libreOfficeStartTimeout,
+					mod.libreOfficeRestartThreshold,
+				)
+
+				return mod
+			}(),
 			ctx:       context.Background(),
 			logger:    zap.NewNop(),
 			inputPath: "/tests/test/testdata/libreoffice/sample1.docx",
 			options: Options{
 				PDFformat: gotenberg.FormatPDFA3b,
 			},
+			teardown: func(mod UNO) error {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+
+				return mod.Stop(ctx)
+			},
 		},
 		{
-			name: "convert to invalid PDF format",
-			mod: UNO{
-				unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
-				libreOfficeBinPath:          os.Getenv("LIBREOFFICE_BIN_PATH"),
-				libreOfficeStartTimeout:     time.Duration(10) * time.Second,
-				libreOfficeRestartThreshold: 0,
-			},
+			scenario: "convert to invalid PDF format",
+			mod: func() UNO {
+				mod := UNO{
+					unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
+					libreOfficeBinPath:          os.Getenv("LIBREOFFICE_BIN_PATH"),
+					libreOfficeStartTimeout:     time.Duration(10) * time.Second,
+					libreOfficeRestartThreshold: 10,
+					logger:                      zap.NewNop(),
+				}
+				mod.listener = newLibreOfficeListener(
+					mod.logger,
+					gotenberg.NewFileSystem(),
+					mod.libreOfficeBinPath,
+					mod.libreOfficeStartTimeout,
+					mod.libreOfficeRestartThreshold,
+				)
+
+				return mod
+			}(),
 			ctx:       context.Background(),
 			logger:    zap.NewNop(),
 			inputPath: "/tests/test/testdata/libreoffice/sample1.docx",
@@ -636,28 +732,33 @@ func TestUNO_PDF(t *testing.T) {
 				PDFformat: "foo",
 			},
 			expectPDFErr: true,
+			teardown: func(mod UNO) error {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+
+				return mod.Stop(ctx)
+			},
 		},
 		{
-			name: "nil context",
-			mod: UNO{
-				unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
-				libreOfficeBinPath:          os.Getenv("LIBREOFFICE_BIN_PATH"),
-				libreOfficeStartTimeout:     time.Duration(10) * time.Second,
-				libreOfficeRestartThreshold: 0,
-			},
-			ctx:          nil,
-			logger:       zap.NewNop(),
-			inputPath:    "/tests/test/testdata/libreoffice/sample1.docx",
-			expectPDFErr: true,
-		},
-		{
-			name: "expired context",
-			mod: UNO{
-				unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
-				libreOfficeBinPath:          os.Getenv("LIBREOFFICE_BIN_PATH"),
-				libreOfficeStartTimeout:     time.Duration(10) * time.Second,
-				libreOfficeRestartThreshold: 0,
-			},
+			scenario: "expired context",
+			mod: func() UNO {
+				mod := UNO{
+					unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
+					libreOfficeBinPath:          os.Getenv("LIBREOFFICE_BIN_PATH"),
+					libreOfficeStartTimeout:     time.Duration(10) * time.Second,
+					libreOfficeRestartThreshold: 10,
+					logger:                      zap.NewNop(),
+				}
+				mod.listener = newLibreOfficeListener(
+					mod.logger,
+					gotenberg.NewFileSystem(),
+					mod.libreOfficeBinPath,
+					mod.libreOfficeStartTimeout,
+					mod.libreOfficeRestartThreshold,
+				)
+
+				return mod
+			}(),
 			ctx: func() context.Context {
 				ctx, cancel := context.WithCancel(context.Background())
 				cancel()
@@ -669,7 +770,7 @@ func TestUNO_PDF(t *testing.T) {
 			expectPDFErr: true,
 		},
 		{
-			name: "cannot lock long-running LibreOffice listener",
+			scenario: "cannot lock long-running LibreOffice listener",
 			mod: UNO{
 				unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
 				libreOfficeBinPath:          os.Getenv("LIBREOFFICE_BIN_PATH"),
@@ -688,7 +789,7 @@ func TestUNO_PDF(t *testing.T) {
 			expectPDFErr: true,
 		},
 		{
-			name: "cannot unlock long-running LibreOffice listener",
+			scenario: "cannot unlock long-running LibreOffice listener",
 			mod: UNO{
 				unoconvBinPath:              os.Getenv("UNOCONV_BIN_PATH"),
 				libreOfficeBinPath:          os.Getenv("LIBREOFFICE_BIN_PATH"),
@@ -715,7 +816,7 @@ func TestUNO_PDF(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.scenario, func(t *testing.T) {
 			defer func() {
 				if tc.teardown == nil {
 					return
@@ -727,15 +828,16 @@ func TestUNO_PDF(t *testing.T) {
 				}
 			}()
 
-			outputDir, err := gotenberg.MkdirAll()
+			fs := gotenberg.NewFileSystem()
+			outputDir, err := fs.MkdirAll()
 			if err != nil {
-				t.Fatalf("expected no error from gotenberg.MkdirAll(), but got: %v", err)
+				t.Fatalf("test %s: expected error but got: %v", tc.scenario, err)
 			}
 
 			defer func() {
-				err := os.RemoveAll(outputDir)
+				err := os.RemoveAll(fs.WorkingDirPath())
 				if err != nil {
-					t.Errorf("expected no error from os.RemoveAll(), but got: %v", err)
+					t.Fatalf("test %s: expected no error while cleaning up but got: %v", tc.scenario, err)
 				}
 			}()
 

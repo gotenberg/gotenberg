@@ -7,8 +7,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 )
 
 func TestPDFtk_Descriptor(t *testing.T) {
@@ -117,15 +118,16 @@ func TestPDFtk_Merge(t *testing.T) {
 				t.Fatalf("test %d: expected error but got: %v", i, err)
 			}
 
-			outputDir, err := gotenberg.MkdirAll()
+			fs := gotenberg.NewFileSystem()
+			outputDir, err := fs.MkdirAll()
 			if err != nil {
 				t.Fatalf("test %d: expected error but got: %v", i, err)
 			}
 
 			defer func() {
-				err := os.RemoveAll(outputDir)
+				err := os.RemoveAll(fs.WorkingDirPath())
 				if err != nil {
-					t.Fatalf("test %d: expected no error but got: %v", i, err)
+					t.Fatalf("test %d: expected no error while cleaning up but got: %v", i, err)
 				}
 			}()
 
