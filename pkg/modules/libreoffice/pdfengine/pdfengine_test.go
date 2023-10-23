@@ -32,7 +32,7 @@ func TestUNO_Provider(t *testing.T) {
 		{
 			name: "nominal behavior",
 			ctx: func() *gotenberg.Context {
-				provider := struct {
+				provider := &struct {
 					gotenberg.ModuleMock
 					uno.ProviderMock
 				}{}
@@ -68,7 +68,7 @@ func TestUNO_Provider(t *testing.T) {
 		{
 			name: "no API from UNO API provider",
 			ctx: func() *gotenberg.Context {
-				provider := struct {
+				provider := &struct {
 					gotenberg.ModuleMock
 					uno.ProviderMock
 				}{}

@@ -21,9 +21,9 @@ import (
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 )
 
-// FormDataChromiumPDFOptions creates Options form the form data. Fallback to
+// FormDataChromiumPdfOptions creates [Options] from the form data. Fallback to
 // default value if the considered key is not present.
-func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
+func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, Options) {
 	defaultOptions := DefaultOptions()
 
 	var (
@@ -32,14 +32,14 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 		waitWindowStatus                                 string
 		waitForExpression                                string
 		userAgent                                        string
-		extraHTTPHeaders                                 map[string]string
+		extraHttpHeaders                                 map[string]string
 		emulatedMediaType                                string
 		landscape, printBackground, omitBackground       bool
 		scale, paperWidth, paperHeight                   float64
 		marginTop, marginBottom, marginLeft, marginRight float64
 		pageRanges                                       string
 		headerTemplate, footerTemplate                   string
-		preferCSSPageSize                                bool
+		preferCssPageSize                                bool
 	)
 
 	form := ctx.FormData().
@@ -47,15 +47,15 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 		Duration("waitDelay", &waitDelay, defaultOptions.WaitDelay).
 		String("waitWindowStatus", &waitWindowStatus, defaultOptions.WaitWindowStatus).
 		String("waitForExpression", &waitForExpression, defaultOptions.WaitForExpression).
-		String("userAgent", &userAgent, defaultOptions.UserAgent).
+		String("userAgent", &userAgent, ""). // FIXME: deprecated.
 		Custom("extraHttpHeaders", func(value string) error {
 			if value == "" {
-				extraHTTPHeaders = defaultOptions.ExtraHTTPHeaders
+				extraHttpHeaders = defaultOptions.ExtraHttpHeaders
 
 				return nil
 			}
 
-			err := json.Unmarshal([]byte(value), &extraHTTPHeaders)
+			err := json.Unmarshal([]byte(value), &extraHttpHeaders)
 			if err != nil {
 				return fmt.Errorf("unmarshal extra HTTP headers: %w", err)
 			}
@@ -90,18 +90,26 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 		String("nativePageRanges", &pageRanges, defaultOptions.PageRanges).
 		Content("header.html", &headerTemplate, defaultOptions.HeaderTemplate).
 		Content("footer.html", &footerTemplate, defaultOptions.FooterTemplate).
-		Bool("preferCssPageSize", &preferCSSPageSize, defaultOptions.PreferCSSPageSize)
+		Bool("preferCssPageSize", &preferCssPageSize, defaultOptions.PreferCssPageSize)
+
+	// FIXME: deprecated.
+	if userAgent != "" {
+		ctx.Log().Warn("'userAgent' is deprecated; prefer the 'extraHttpHeaders' form field instead")
+
+		if extraHttpHeaders == nil {
+			extraHttpHeaders = make(map[string]string)
+		}
+
+		extraHttpHeaders["User-Agent"] = userAgent
+	}
 
 	options := Options{
 		FailOnConsoleExceptions: failOnConsoleExceptions,
 		WaitDelay:               waitDelay,
 		WaitWindowStatus:        waitWindowStatus,
 		WaitForExpression:       waitForExpression,
-		UserAgent:               userAgent,
-		ExtraHTTPHeaders:        extraHTTPHeaders,
-		ExtraLinkTags:           defaultOptions.ExtraLinkTags,
+		ExtraHttpHeaders:        extraHttpHeaders,
 		EmulatedMediaType:       emulatedMediaType,
-		ExtraScriptTags:         defaultOptions.ExtraScriptTags,
 		Landscape:               landscape,
 		PrintBackground:         printBackground,
 		OmitBackground:          omitBackground,
@@ -115,60 +123,36 @@ func FormDataChromiumPDFOptions(ctx *api.Context) (*api.FormData, Options) {
 		PageRanges:              pageRanges,
 		HeaderTemplate:          headerTemplate,
 		FooterTemplate:          footerTemplate,
-		PreferCSSPageSize:       preferCSSPageSize,
+		PreferCssPageSize:       preferCssPageSize,
 	}
 
 	return form, options
 }
 
-// convertURLRoute returns an api.Route which can convert a URL to PDF.
-func convertURLRoute(chromium API, engine gotenberg.PDFEngine) api.Route {
+// convertUrlRoute returns an [api.Route] which can convert a URL to PDF.
+func convertUrlRoute(chromium Api, engine gotenberg.PDFEngine) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
 		Path:        "/forms/chromium/convert/url",
 		IsMultipart: true,
 		Handler: func(c echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
-			form, options := FormDataChromiumPDFOptions(ctx)
+			form, options := FormDataChromiumPdfOptions(ctx)
 
 			var (
-				URL       string
-				PDFformat string
+				url       string
+				pdfFormat string
 			)
 
 			err := form.
-				MandatoryString("url", &URL).
-				String("pdfFormat", &PDFformat, "").
-				Custom("extraLinkTags", func(value string) error {
-					if value == "" {
-						return nil
-					}
-
-					err := json.Unmarshal([]byte(value), &options.ExtraLinkTags)
-					if err != nil {
-						return fmt.Errorf("unmarshal extra link tags: %w", err)
-					}
-
-					return nil
-				}).
-				Custom("extraScriptTags", func(value string) error {
-					if value == "" {
-						return nil
-					}
-
-					err := json.Unmarshal([]byte(value), &options.ExtraScriptTags)
-					if err != nil {
-						return fmt.Errorf("unmarshal extra script tags: %w", err)
-					}
-
-					return nil
-				}).
+				MandatoryString("url", &url).
+				String("pdfFormat", &pdfFormat, "").
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			err = convertURL(ctx, chromium, engine, URL, PDFformat, options)
+			err = convertUrl(ctx, chromium, engine, url, pdfFormat, options)
 			if err != nil {
 				return fmt.Errorf("convert URL to PDF: %w", err)
 			}
@@ -178,32 +162,33 @@ func convertURLRoute(chromium API, engine gotenberg.PDFEngine) api.Route {
 	}
 }
 
-// convertHTMLRoute returns an api.Route which can convert an HTML file to PDF.
-func convertHTMLRoute(chromium API, engine gotenberg.PDFEngine) api.Route {
+// convertHtmlRoute returns an [api.Route] which can convert an HTML file to
+// PDF.
+func convertHtmlRoute(chromium Api, engine gotenberg.PDFEngine) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
 		Path:        "/forms/chromium/convert/html",
 		IsMultipart: true,
 		Handler: func(c echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
-			form, options := FormDataChromiumPDFOptions(ctx)
+			form, options := FormDataChromiumPdfOptions(ctx)
 
 			var (
 				inputPath string
-				PDFformat string
+				pdfFormat string
 			)
 
 			err := form.
 				MandatoryPath("index.html", &inputPath).
-				String("pdfFormat", &PDFformat, "").
+				String("pdfFormat", &pdfFormat, "").
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			URL := fmt.Sprintf("file://%s", inputPath)
+			url := fmt.Sprintf("file://%s", inputPath)
 
-			err = convertURL(ctx, chromium, engine, URL, PDFformat, options)
+			err = convertUrl(ctx, chromium, engine, url, pdfFormat, options)
 			if err != nil {
 				return fmt.Errorf("convert HTML to PDF: %w", err)
 			}
@@ -213,27 +198,27 @@ func convertHTMLRoute(chromium API, engine gotenberg.PDFEngine) api.Route {
 	}
 }
 
-// convertMarkdownRoute returns an api.Route which can convert markdown files
+// convertMarkdownRoute returns an [api.Route] which can convert markdown files
 // to PDF.
-func convertMarkdownRoute(chromium API, engine gotenberg.PDFEngine) api.Route {
+func convertMarkdownRoute(chromium Api, engine gotenberg.PDFEngine) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
 		Path:        "/forms/chromium/convert/markdown",
 		IsMultipart: true,
 		Handler: func(c echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
-			form, options := FormDataChromiumPDFOptions(ctx)
+			form, options := FormDataChromiumPdfOptions(ctx)
 
 			var (
 				inputPath     string
 				markdownPaths []string
-				PDFformat     string
+				pdfFormat     string
 			)
 
 			err := form.
 				MandatoryPath("index.html", &inputPath).
 				MandatoryPaths([]string{".md"}, &markdownPaths).
-				String("pdfFormat", &PDFformat, "").
+				String("pdfFormat", &pdfFormat, "").
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -310,9 +295,9 @@ func convertMarkdownRoute(chromium API, engine gotenberg.PDFEngine) api.Route {
 				return fmt.Errorf("write template result: %w", err)
 			}
 
-			URL := fmt.Sprintf("file://%s", inputPath)
+			url := fmt.Sprintf("file://%s", inputPath)
 
-			err = convertURL(ctx, chromium, engine, URL, PDFformat, options)
+			err = convertUrl(ctx, chromium, engine, url, pdfFormat, options)
 			if err != nil {
 				return fmt.Errorf("convert markdown to PDF: %w", err)
 			}
@@ -322,19 +307,19 @@ func convertMarkdownRoute(chromium API, engine gotenberg.PDFEngine) api.Route {
 	}
 }
 
-// convertURL is a stub which is called by the other methods of this file.
-func convertURL(ctx *api.Context, chromium API, engine gotenberg.PDFEngine, URL, PDFformat string, options Options) error {
+// convertUrl is a stub which is called by the other methods of this file.
+func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PDFEngine, url, pdfFormat string, options Options) error {
 	outputPath := ctx.GeneratePath(".pdf")
 
-	err := chromium.PDF(ctx, ctx.Log(), URL, outputPath, options)
+	err := chromium.Pdf(ctx, ctx.Log(), url, outputPath, options)
 	if err != nil {
 
-		if errors.Is(err, ErrURLNotAuthorized) {
+		if errors.Is(err, ErrUrlNotAuthorized) {
 			return api.WrapError(
 				fmt.Errorf("convert to PDF: %w", err),
 				api.NewSentinelHTTPError(
 					http.StatusForbidden,
-					fmt.Sprintf("'%s' does not match the authorized URLs", URL),
+					fmt.Sprintf("'%s' does not match the authorized URLs", url),
 				),
 			)
 		}
@@ -403,11 +388,11 @@ func convertURL(ctx *api.Context, chromium API, engine gotenberg.PDFEngine, URL,
 	// Now, let's check if the client want to convert this result PDF
 	// to a specific PDF format.
 
-	if PDFformat != "" {
+	if pdfFormat != "" {
 		convertInputPath := outputPath
 		convertOutputPath := ctx.GeneratePath(".pdf")
 
-		err = engine.Convert(ctx, ctx.Log(), PDFformat, convertInputPath, convertOutputPath)
+		err = engine.Convert(ctx, ctx.Log(), pdfFormat, convertInputPath, convertOutputPath)
 
 		if err != nil {
 			if errors.Is(err, gotenberg.ErrPDFFormatNotAvailable) {
@@ -415,7 +400,7 @@ func convertURL(ctx *api.Context, chromium API, engine gotenberg.PDFEngine, URL,
 					fmt.Errorf("convert PDF: %w", err),
 					api.NewSentinelHTTPError(
 						http.StatusBadRequest,
-						fmt.Sprintf("At least one PDF engine does not handle the PDF format '%s' (pdfFormat), while other have failed to convert for other reasons", PDFformat),
+						fmt.Sprintf("At least one PDF engine does not handle the PDF format '%s' (pdfFormat), while other have failed to convert for other reasons", pdfFormat),
 					),
 				)
 			}

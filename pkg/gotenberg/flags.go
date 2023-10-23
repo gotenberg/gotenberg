@@ -80,6 +80,28 @@ func (f *ParsedFlags) MustDeprecatedBool(deprecated string, newName string) bool
 	return f.MustBool(newName)
 }
 
+// MustInt64 returns the int64 value of a flag given by name.
+// It panics if an error occurs.
+func (f *ParsedFlags) MustInt64(name string) int64 {
+	val, err := f.GetInt64(name)
+	if err != nil {
+		panic(err)
+	}
+
+	return val
+}
+
+// MustDeprecatedInt64 returns the int64 value of a deprecated flag if it was
+// explicitly set or the int64 value of the new flag.
+// It panics if an error occurs.
+func (f *ParsedFlags) MustDeprecatedInt64(deprecated string, newName string) int64 {
+	if f.Changed(deprecated) {
+		return f.MustInt64(deprecated)
+	}
+
+	return f.MustInt64(newName)
+}
+
 // MustInt returns the int value of a flag given by name.
 // It panics if an error occurs.
 func (f *ParsedFlags) MustInt(name string) int {

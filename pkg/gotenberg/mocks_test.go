@@ -8,7 +8,7 @@ import (
 )
 
 func TestModuleMock(t *testing.T) {
-	mock := ModuleMock{
+	mock := &ModuleMock{
 		DescriptorMock: func() ModuleDescriptor {
 			return ModuleDescriptor{ID: "foo", New: func() Module {
 				return nil
@@ -17,12 +17,12 @@ func TestModuleMock(t *testing.T) {
 	}
 
 	if mock.Descriptor().ID != "foo" {
-		t.Errorf("expected ID '%s' from mock.Descriptor(), but got '%s'", "foo", mock.Descriptor().ID)
+		t.Errorf("expected ID '%s' from ModuleMock.Descriptor, but got '%s'", "foo", mock.Descriptor().ID)
 	}
 }
 
 func TestValidatorMock(t *testing.T) {
-	mock := ValidatorMock{
+	mock := &ValidatorMock{
 		ValidateMock: func() error {
 			return nil
 		},
@@ -30,12 +30,12 @@ func TestValidatorMock(t *testing.T) {
 
 	err := mock.Validate()
 	if err != nil {
-		t.Errorf("expected no error from mock.Validate(), but got: %v", err)
+		t.Errorf("expected no error from ValidatorMock.Validate, but got: %v", err)
 	}
 }
 
 func TestPDFEngineMock(t *testing.T) {
-	mock := PDFEngineMock{
+	mock := &PDFEngineMock{
 		MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 			return nil
 		},
@@ -46,37 +46,119 @@ func TestPDFEngineMock(t *testing.T) {
 
 	err := mock.Merge(context.Background(), zap.NewNop(), nil, "")
 	if err != nil {
-		t.Errorf("expected no error from mock.Merge(), but got: %v", err)
+		t.Errorf("expected no error from PDFEngineMock.Merge, but got: %v", err)
 	}
 
 	err = mock.Convert(context.Background(), zap.NewNop(), "", "", "")
 	if err != nil {
-		t.Errorf("expected no error from mock.Convert(), but got: %v", err)
+		t.Errorf("expected no error from PDFEngineMock.Convert, but got: %v", err)
 	}
 }
 
 func TestPDFEngineProviderMock(t *testing.T) {
-	mock := PDFEngineProviderMock{
+	mock := &PDFEngineProviderMock{
 		PDFEngineMock: func() (PDFEngine, error) {
-			return PDFEngineMock{}, nil
+			return new(PDFEngineMock), nil
 		},
 	}
 
 	_, err := mock.PDFEngine()
 	if err != nil {
-		t.Errorf("expected no error from mock.PDFEngine(), but got: %v", err)
+		t.Errorf("expected no error from PDFEngineProviderMock.PDFEngine, but got: %v", err)
+	}
+}
+
+func TestProcessMock(t *testing.T) {
+	mock := &ProcessMock{
+		StartMock: func(logger *zap.Logger) error {
+			return nil
+		},
+		StopMock: func(logger *zap.Logger) error {
+			return nil
+		},
+		HealthyMock: func(logger *zap.Logger) bool {
+			return true
+		},
+	}
+
+	err := mock.Start(zap.NewNop())
+	if err != nil {
+		t.Errorf("expected no error from ProcessMock.Start, but got: %v", err)
+	}
+
+	err = mock.Stop(zap.NewNop())
+	if err != nil {
+		t.Errorf("expected no error from ProcessMock.Stop, but got: %v", err)
+	}
+
+	healthy := mock.Healthy(zap.NewNop())
+	if !healthy {
+		t.Error("expected true from ProcessMock.Healthy, but got false")
+	}
+}
+
+func TestProcessSupervisorMock(t *testing.T) {
+	mock := &ProcessSupervisorMock{
+		LaunchMock: func() error {
+			return nil
+		},
+		ShutdownMock: func() error {
+			return nil
+		},
+		HealthyMock: func() bool {
+			return true
+		},
+		RunMock: func(ctx context.Context, logger *zap.Logger, task func() error) error {
+			return nil
+		},
+		ReqQueueSizeMock: func() int64 {
+			return 0
+		},
+		RestartsCountMock: func() int64 {
+			return 0
+		},
+	}
+
+	err := mock.Launch()
+	if err != nil {
+		t.Errorf("expected no error from ProcessSupervisorMock.Launch, but got: %v", err)
+	}
+
+	err = mock.Shutdown()
+	if err != nil {
+		t.Errorf("expected no error from ProcessSupervisorMock.Shutdown, but got: %v", err)
+	}
+
+	healthy := mock.Healthy()
+	if !healthy {
+		t.Error("expected true from ProcessSupervisorMock.Healthy, but got false")
+	}
+
+	err = mock.Run(context.TODO(), zap.NewNop(), nil)
+	if err != nil {
+		t.Errorf("expected no error from ProcessSupervisorMock.Run, but got: %v", err)
+	}
+
+	size := mock.ReqQueueSize()
+	if size != 0 {
+		t.Errorf("expected 0 from ProcessSupervisorMock.ReqQueueSize, but got: %d", size)
+	}
+
+	restarts := mock.RestartsCount()
+	if restarts != 0 {
+		t.Errorf("expected 0 from ProcessSupervisorMock.RestartsCount, but got: %d", restarts)
 	}
 }
 
 func TestLoggerProviderMock(t *testing.T) {
-	mock := LoggerProviderMock{
+	mock := &LoggerProviderMock{
 		LoggerMock: func(mod Module) (*zap.Logger, error) {
 			return nil, nil
 		},
 	}
 
-	_, err := mock.Logger(ModuleMock{})
+	_, err := mock.Logger(new(ModuleMock))
 	if err != nil {
-		t.Errorf("expected no error from mock.Logger(), but got: %v", err)
+		t.Errorf("expected no error from LoggerProviderMock.Logger, but got: %v", err)
 	}
 }

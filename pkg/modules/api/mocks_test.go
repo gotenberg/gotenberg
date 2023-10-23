@@ -20,6 +20,18 @@ func TestContextMock_SetDirPath(t *testing.T) {
 	}
 }
 
+func TestContextMock_DirPath(t *testing.T) {
+	mock := &ContextMock{&Context{}}
+	mock.SetDirPath("/foo")
+
+	actual := mock.DirPath()
+	expect := "/foo"
+
+	if actual != expect {
+		t.Errorf("expected '%s' but got '%s'", expect, actual)
+	}
+}
+
 func TestContextMock_SetValues(t *testing.T) {
 	mock := &ContextMock{&Context{}}
 	mock.SetValues(map[string][]string{

@@ -7,7 +7,7 @@ import (
 )
 
 func TestDebugLogger_Write(t *testing.T) {
-	actual, err := debugLogger{logger: zap.NewNop()}.Write([]byte("foo"))
+	actual, err := (&debugLogger{logger: zap.NewNop()}).Write([]byte("foo"))
 	expected := len([]byte("foo"))
 
 	if actual != expected {
@@ -20,5 +20,5 @@ func TestDebugLogger_Write(t *testing.T) {
 }
 
 func TestDebugLogger_Printf(t *testing.T) {
-	debugLogger{logger: zap.NewNop()}.Printf("%s", "foo")
+	(&debugLogger{logger: zap.NewNop()}).Printf("%s", "foo")
 }

@@ -270,7 +270,7 @@ func TestConvertHandler(t *testing.T) {
 					}
 				},
 			},
-			engine: gotenberg.PDFEngineMock{
+			engine: &gotenberg.PDFEngineMock{
 				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 					return nil
 				},
@@ -304,7 +304,7 @@ func TestConvertHandler(t *testing.T) {
 					}
 				},
 			},
-			engine: gotenberg.PDFEngineMock{
+			engine: &gotenberg.PDFEngineMock{
 				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 					return errors.New("foo")
 				},
@@ -341,7 +341,7 @@ func TestConvertHandler(t *testing.T) {
 					}
 				},
 			},
-			engine: gotenberg.PDFEngineMock{
+			engine: &gotenberg.PDFEngineMock{
 				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 					return nil
 				},
@@ -381,7 +381,7 @@ func TestConvertHandler(t *testing.T) {
 					}
 				},
 			},
-			engine: gotenberg.PDFEngineMock{
+			engine: &gotenberg.PDFEngineMock{
 				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 					return nil
 				},
@@ -421,7 +421,7 @@ func TestConvertHandler(t *testing.T) {
 					}
 				},
 			},
-			engine: gotenberg.PDFEngineMock{
+			engine: &gotenberg.PDFEngineMock{
 				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 					return nil
 				},
@@ -461,7 +461,7 @@ func TestConvertHandler(t *testing.T) {
 					}
 				},
 			},
-			engine: gotenberg.PDFEngineMock{
+			engine: &gotenberg.PDFEngineMock{
 				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 					return nil
 				},
@@ -493,7 +493,7 @@ func TestConvertHandler(t *testing.T) {
 					}
 				},
 			},
-			engine: gotenberg.PDFEngineMock{
+			engine: &gotenberg.PDFEngineMock{
 				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
 					return nil
 				},
@@ -526,7 +526,7 @@ func TestConvertHandler(t *testing.T) {
 					}
 				},
 			},
-			engine: gotenberg.PDFEngineMock{
+			engine: &gotenberg.PDFEngineMock{
 				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
 					return nil
 				},
@@ -558,7 +558,7 @@ func TestConvertHandler(t *testing.T) {
 					}
 				},
 			},
-			engine: gotenberg.PDFEngineMock{
+			engine: &gotenberg.PDFEngineMock{
 				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
 					return errors.New("foo")
 				},
@@ -590,7 +590,7 @@ func TestConvertHandler(t *testing.T) {
 					}
 				},
 			},
-			engine: gotenberg.PDFEngineMock{
+			engine: &gotenberg.PDFEngineMock{
 				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
 					return gotenberg.ErrPDFFormatNotAvailable
 				},

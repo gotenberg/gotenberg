@@ -20,6 +20,15 @@ func (ctx *ContextMock) SetDirPath(path string) {
 	ctx.dirPath = path
 }
 
+// DirPath returns the context's working directory path.
+//
+//	ctx := &api.ContextMock{Context: &api.Context{}}
+//	ctx.SetDirPath("/foo")
+//	dirPath := ctx.DirPath()
+func (ctx *ContextMock) DirPath() string {
+	return ctx.dirPath
+}
+
 // SetValues sets the values.
 //
 //	ctx := &api.ContextMock{Context: &api.Context{}}

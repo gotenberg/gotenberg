@@ -20,7 +20,7 @@ func TestMultiPDFEngines_Merge(t *testing.T) {
 		{
 			name: "nominal behavior",
 			engine: newMultiPDFEngines(
-				gotenberg.PDFEngineMock{
+				&gotenberg.PDFEngineMock{
 					MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 						return nil
 					},
@@ -31,12 +31,12 @@ func TestMultiPDFEngines_Merge(t *testing.T) {
 		{
 			name: "at least one engine does not return an error",
 			engine: newMultiPDFEngines(
-				gotenberg.PDFEngineMock{
+				&gotenberg.PDFEngineMock{
 					MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 						return errors.New("foo")
 					},
 				},
-				gotenberg.PDFEngineMock{
+				&gotenberg.PDFEngineMock{
 					MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 						return nil
 					},
@@ -47,12 +47,12 @@ func TestMultiPDFEngines_Merge(t *testing.T) {
 		{
 			name: "all engines return an error",
 			engine: newMultiPDFEngines(
-				gotenberg.PDFEngineMock{
+				&gotenberg.PDFEngineMock{
 					MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 						return errors.New("foo")
 					},
 				},
-				gotenberg.PDFEngineMock{
+				&gotenberg.PDFEngineMock{
 					MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 						return errors.New("foo")
 					},
@@ -64,7 +64,7 @@ func TestMultiPDFEngines_Merge(t *testing.T) {
 		{
 			name: "context expired",
 			engine: newMultiPDFEngines(
-				gotenberg.PDFEngineMock{
+				&gotenberg.PDFEngineMock{
 					MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 						return nil
 					},
@@ -105,7 +105,7 @@ func TestMultiPDFEngines_Convert(t *testing.T) {
 		{
 			name: "nominal behavior",
 			engine: newMultiPDFEngines(
-				gotenberg.PDFEngineMock{
+				&gotenberg.PDFEngineMock{
 					ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
 						return nil
 					},
@@ -116,12 +116,12 @@ func TestMultiPDFEngines_Convert(t *testing.T) {
 		{
 			name: "at least one engine does not return an error",
 			engine: newMultiPDFEngines(
-				gotenberg.PDFEngineMock{
+				&gotenberg.PDFEngineMock{
 					ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
 						return errors.New("foo")
 					},
 				},
-				gotenberg.PDFEngineMock{
+				&gotenberg.PDFEngineMock{
 					ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
 						return nil
 					},
@@ -132,12 +132,12 @@ func TestMultiPDFEngines_Convert(t *testing.T) {
 		{
 			name: "all engines return an error",
 			engine: newMultiPDFEngines(
-				gotenberg.PDFEngineMock{
+				&gotenberg.PDFEngineMock{
 					ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
 						return errors.New("foo")
 					},
 				},
-				gotenberg.PDFEngineMock{
+				&gotenberg.PDFEngineMock{
 					ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
 						return errors.New("foo")
 					},
@@ -149,7 +149,7 @@ func TestMultiPDFEngines_Convert(t *testing.T) {
 		{
 			name: "context expired",
 			engine: newMultiPDFEngines(
-				gotenberg.PDFEngineMock{
+				&gotenberg.PDFEngineMock{
 					ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
 						return nil
 					},
