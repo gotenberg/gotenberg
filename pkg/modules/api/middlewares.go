@@ -11,6 +11,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 )
 
 // ErrAsyncProcess happens when a handler or middleware handles a request in an
@@ -20,7 +22,8 @@ var ErrAsyncProcess = errors.New("async process")
 // ParseError parses an error and returns the corresponding HTTP status and
 // HTTP message.
 func ParseError(err error) (int, string) {
-	echoErr, ok := err.(*echo.HTTPError)
+	var echoErr *echo.HTTPError
+	ok := errors.As(err, &echoErr)
 	if ok {
 		return echoErr.Code, http.StatusText(echoErr.Code)
 	}
@@ -199,14 +202,14 @@ func loggerMiddleware(logger *zap.Logger, disableLoggingForPaths []string) echo.
 //
 //	ctx := c.Get("context").(*api.Context)
 //	cancel := c.Get("cancel").(context.CancelFunc)
-func contextMiddleware(timeout time.Duration) echo.MiddlewareFunc {
+func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			logger := c.Get("logger").(*zap.Logger)
 
 			// We create a context with a timeout so that underlying processes are
 			// able to stop early and handle correctly a timeout scenario.
-			ctx, cancel, err := newContext(c, logger, timeout)
+			ctx, cancel, err := newContext(c, logger, fs, timeout)
 			if err != nil {
 				cancel()
 

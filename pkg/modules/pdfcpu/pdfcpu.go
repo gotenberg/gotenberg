@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	pdfcpuAPI "github.com/pdfcpu/pdfcpu/pkg/api"
 	pdfcpuLog "github.com/pdfcpu/pdfcpu/pkg/log"
 	pdfcpuConfig "github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 )
 
 func init() {

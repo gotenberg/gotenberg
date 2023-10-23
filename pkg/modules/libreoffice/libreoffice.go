@@ -3,10 +3,11 @@ package libreoffice
 import (
 	"fmt"
 
+	flag "github.com/spf13/pflag"
+
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/uno"
-	flag "github.com/spf13/pflag"
 )
 
 func init() {

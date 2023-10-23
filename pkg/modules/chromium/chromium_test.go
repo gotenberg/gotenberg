@@ -10,17 +10,10 @@ import (
 	"time"
 
 	"github.com/alexliesenfeld/health"
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 )
-
-type ProtoModule struct {
-	descriptor func() gotenberg.ModuleDescriptor
-}
-
-func (mod ProtoModule) Descriptor() gotenberg.ModuleDescriptor {
-	return mod.descriptor()
-}
 
 type ProtoAPI struct {
 	pdf func(_ context.Context, _ *zap.Logger, _, _ string, _ Options) error
@@ -28,28 +21,6 @@ type ProtoAPI struct {
 
 func (mod ProtoAPI) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath string, options Options) error {
 	return mod.pdf(ctx, logger, URL, outputPath, options)
-}
-
-type ProtoPDFEngineProvider struct {
-	ProtoModule
-	pdfEngine func() (gotenberg.PDFEngine, error)
-}
-
-func (mod ProtoPDFEngineProvider) PDFEngine() (gotenberg.PDFEngine, error) {
-	return mod.pdfEngine()
-}
-
-type ProtoPDFEngine struct {
-	merge   func(_ context.Context, _ *zap.Logger, _ []string, _ string) error
-	convert func(_ context.Context, _ *zap.Logger, _, _, _ string) error
-}
-
-func (mod ProtoPDFEngine) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-	return mod.merge(ctx, logger, inputPaths, outputPath)
-}
-
-func (mod ProtoPDFEngine) Convert(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
-	return mod.convert(ctx, logger, format, inputPath, outputPath)
 }
 
 func TestDefaultOptions(t *testing.T) {
@@ -73,11 +44,13 @@ func TestChromium_Descriptor(t *testing.T) {
 }
 
 func TestChromium_Provision(t *testing.T) {
-	for i, tc := range []struct {
+	for _, tc := range []struct {
+		scenario  string
 		ctx       *gotenberg.Context
 		expectErr bool
 	}{
 		{
+			scenario: "no logger provider",
 			ctx: func() *gotenberg.Context {
 				return gotenberg.NewContext(
 					gotenberg.ParsedFlags{
@@ -89,12 +62,16 @@ func TestChromium_Provision(t *testing.T) {
 			expectErr: true,
 		},
 		{
+			scenario: "no logger from logger provider",
 			ctx: func() *gotenberg.Context {
-				mod := struct{ ProtoPDFEngineProvider }{}
-				mod.descriptor = func() gotenberg.ModuleDescriptor {
+				mod := struct {
+					gotenberg.ModuleMock
+					gotenberg.LoggerProviderMock
+				}{}
+				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return mod }}
 				}
-				mod.pdfEngine = func() (gotenberg.PDFEngine, error) {
+				mod.LoggerMock = func(mod gotenberg.Module) (*zap.Logger, error) {
 					return nil, errors.New("foo")
 				}
 
@@ -110,13 +87,75 @@ func TestChromium_Provision(t *testing.T) {
 			expectErr: true,
 		},
 		{
+			scenario: "no PDF engine provider",
 			ctx: func() *gotenberg.Context {
-				mod := struct{ ProtoPDFEngineProvider }{}
-				mod.descriptor = func() gotenberg.ModuleDescriptor {
+				mod := struct {
+					gotenberg.ModuleMock
+					gotenberg.LoggerProviderMock
+				}{}
+				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return mod }}
 				}
-				mod.pdfEngine = func() (gotenberg.PDFEngine, error) {
-					return struct{ ProtoPDFEngine }{}, nil
+				mod.LoggerMock = func(mod gotenberg.Module) (*zap.Logger, error) {
+					return zap.NewNop(), nil
+				}
+
+				return gotenberg.NewContext(
+					gotenberg.ParsedFlags{
+						FlagSet: new(Chromium).Descriptor().FlagSet,
+					},
+					[]gotenberg.ModuleDescriptor{
+						mod.Descriptor(),
+					},
+				)
+			}(),
+			expectErr: true,
+		},
+		{
+			scenario: "no PDF engine from PDF engine provider",
+			ctx: func() *gotenberg.Context {
+				mod := struct {
+					gotenberg.ModuleMock
+					gotenberg.LoggerProviderMock
+					gotenberg.PDFEngineProviderMock
+				}{}
+				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return mod }}
+				}
+				mod.LoggerMock = func(mod gotenberg.Module) (*zap.Logger, error) {
+					return zap.NewNop(), nil
+				}
+				mod.PDFEngineMock = func() (gotenberg.PDFEngine, error) {
+					return nil, errors.New("foo")
+				}
+
+				return gotenberg.NewContext(
+					gotenberg.ParsedFlags{
+						FlagSet: new(Chromium).Descriptor().FlagSet,
+					},
+					[]gotenberg.ModuleDescriptor{
+						mod.Descriptor(),
+					},
+				)
+			}(),
+			expectErr: true,
+		},
+		{
+			scenario: "provision success",
+			ctx: func() *gotenberg.Context {
+				mod := struct {
+					gotenberg.ModuleMock
+					gotenberg.LoggerProviderMock
+					gotenberg.PDFEngineProviderMock
+				}{}
+				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return mod }}
+				}
+				mod.LoggerMock = func(mod gotenberg.Module) (*zap.Logger, error) {
+					return zap.NewNop(), nil
+				}
+				mod.PDFEngineMock = func() (gotenberg.PDFEngine, error) {
+					return gotenberg.PDFEngineMock{}, nil
 				}
 
 				return gotenberg.NewContext(
@@ -134,11 +173,11 @@ func TestChromium_Provision(t *testing.T) {
 		err := mod.Provision(tc.ctx)
 
 		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
+			t.Errorf("test %s: expected error but got: %v", tc.scenario, err)
 		}
 
 		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
+			t.Errorf("test %s: expected no error but got: %v", tc.scenario, err)
 		}
 	}
 }
@@ -643,16 +682,18 @@ func TestChromium_PDF(t *testing.T) {
 			mod.allowList = tc.allowList
 			mod.denyList = tc.denyList
 			mod.disableJavaScript = tc.disableJavaScript
+			mod.fs = gotenberg.NewFileSystem()
 
-			outputDir, err := gotenberg.MkdirAll()
+			ctxFs := gotenberg.NewFileSystem()
+			outputDir, err := ctxFs.MkdirAll()
 			if err != nil {
 				t.Fatalf("test %s: expected error but got: %v", tc.name, err)
 			}
 
 			defer func() {
-				err := os.RemoveAll(outputDir)
+				err := os.RemoveAll(ctxFs.WorkingDirPath())
 				if err != nil {
-					t.Fatalf("test %s: expected no error but got: %v", tc.name, err)
+					t.Fatalf("test %s: expected no error while cleaning up but got: %v", tc.name, err)
 				}
 			}()
 
@@ -678,9 +719,5 @@ func TestChromium_PDF(t *testing.T) {
 
 // Interface guards.
 var (
-	_ gotenberg.Module            = (*ProtoModule)(nil)
-	_ API                         = (*ProtoAPI)(nil)
-	_ gotenberg.PDFEngineProvider = (*ProtoPDFEngineProvider)(nil)
-	_ gotenberg.Module            = (*ProtoPDFEngineProvider)(nil)
-	_ gotenberg.PDFEngine         = (*ProtoPDFEngine)(nil)
+	_ API = (*ProtoAPI)(nil)
 )

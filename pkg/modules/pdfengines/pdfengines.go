@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	flag "github.com/spf13/pflag"
+
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
-	flag "github.com/spf13/pflag"
 )
 
 func init() {

@@ -5,12 +5,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	flag "github.com/spf13/pflag"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/term"
+
+	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 )
 
 func init() {

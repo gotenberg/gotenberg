@@ -9,11 +9,12 @@ import (
 	"time"
 
 	"github.com/alexliesenfeld/health"
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 	flag "github.com/spf13/pflag"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 )
 
 func init() {
@@ -82,10 +83,10 @@ func (UNO) Descriptor() gotenberg.ModuleDescriptor {
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("uno", flag.ExitOnError)
 			fs.Duration("uno-listener-start-timeout", time.Duration(10)*time.Second, "Time limit for restarting the LibreOffice listener")
-			fs.Int("uno-listener-restart-threshold", 10, "Conversions limit after which the LibreOffice listener is restarted - 0 means no long-running LibreOffice listener")
+			fs.Int("uno-listener-restart-threshold", 10, "Conversions limit after which the LibreOffice listener is restarted - 0 means no restart")
 			fs.Bool("unoconv-disable-listener", false, "Do not start a long-running listener - save resources in detriment of unitary performance")
 
-			err := fs.MarkDeprecated("unoconv-disable-listener", "use uno-listener-restart-threshold with 0 instead")
+			err := fs.MarkDeprecated("unoconv-disable-listener", "listener cannot be disabled")
 			if err != nil {
 				panic(fmt.Errorf("create deprecated flags for the uno module: %v", err))
 			}
@@ -134,8 +135,10 @@ func (mod *UNO) Provision(ctx *gotenberg.Context) error {
 
 	mod.logger = logger
 
+	// Listener.
 	mod.listener = newLibreOfficeListener(
 		mod.logger,
+		gotenberg.NewFileSystem(),
 		mod.libreOfficeBinPath,
 		mod.libreOfficeStartTimeout,
 		mod.libreOfficeRestartThreshold,
@@ -170,19 +173,11 @@ func (mod UNO) Start() error {
 
 // StartupMessage returns a custom startup message.
 func (mod UNO) StartupMessage() string {
-	if mod.libreOfficeRestartThreshold == 0 {
-		return "long-running LibreOffice listener disabled"
-	}
-
 	return "long-running LibreOffice listener ready to start"
 }
 
-// Stop stops the long-running LibreOffice Listener if it exists.
+// Stop stops the long-running LibreOffice Listener.
 func (mod UNO) Stop(ctx context.Context) error {
-	if mod.libreOfficeRestartThreshold == 0 {
-		return nil
-	}
-
 	// Block until the context is done so that other module may gracefully stop
 	// before we do a shutdown cleanup.
 	mod.logger.Debug("wait for the end of grace duration")
@@ -194,7 +189,7 @@ func (mod UNO) Stop(ctx context.Context) error {
 		return nil
 	}
 
-	return fmt.Errorf("stop long-running LibreOffice listener")
+	return fmt.Errorf("stop long-running LibreOffice listener: %w", err)
 }
 
 // Metrics returns the metrics.
@@ -284,14 +279,8 @@ func (mod UNO) Checks() ([]health.CheckerOption, error) {
 	}, nil
 }
 
-// PDF converts a document to PDF.
-//
-// If there is no long-running LibreOffice listener, it creates a dedicated
-// LibreOffice instance for the conversion. Substantial calls to this method
-// may increase CPU and memory usage drastically
-//
-// If there is a long-running LibreOffice listener, the conversion performance
-// improves substantially. However, it cannot perform parallel operations.
+// PDF converts a document to PDF. Be cautious when making multiple concurrent
+// calls, as it might lead to reaching the context's deadline.
 func (mod UNO) PDF(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error {
 	args := []string{
 		"--no-launch",
@@ -299,45 +288,26 @@ func (mod UNO) PDF(ctx context.Context, logger *zap.Logger, inputPath, outputPat
 		"pdf",
 	}
 
-	switch mod.libreOfficeRestartThreshold {
-	case 0:
-		listener := newLibreOfficeListener(logger, mod.libreOfficeBinPath, mod.libreOfficeStartTimeout, 0)
+	err := mod.listener.lock(ctx, logger)
+	if err != nil {
+		return fmt.Errorf("lock long-running LibreOffice listener: %w", err)
+	}
 
-		err := listener.start(logger)
-		if err != nil {
-			return fmt.Errorf("start LibreOffice listener: %w", err)
-		}
-
-		defer func() {
-			err := listener.stop(logger)
+	defer func() {
+		go func() {
+			err := mod.listener.unlock(logger)
 			if err != nil {
-				logger.Error(fmt.Sprintf("stop LibreOffice listener: %v", err))
+				mod.logger.Error(fmt.Sprintf("unlock long-running LibreOffice listener: %v", err))
+
+				return
 			}
 		}()
+	}()
 
-		args = append(args, "--port", fmt.Sprintf("%d", listener.port()))
-	default:
-		err := mod.listener.lock(ctx, logger)
-		if err != nil {
-			return fmt.Errorf("lock long-running LibreOffice listener: %w", err)
-		}
-
-		defer func() {
-			go func() {
-				err := mod.listener.unlock(logger)
-				if err != nil {
-					mod.logger.Error(fmt.Sprintf("unlock long-running LibreOffice listener: %v", err))
-
-					return
-				}
-			}()
-		}()
-
-		// If the LibreOffice listener is restarting while acquiring the lock,
-		// the port will change. It's therefore important to add the port args
-		// after we acquire the lock.
-		args = append(args, "--port", fmt.Sprintf("%d", mod.listener.port()))
-	}
+	// If the LibreOffice listener is restarting while acquiring the lock,
+	// the port will change. It's therefore important to add the port args
+	// after we acquire the lock.
+	args = append(args, "--port", fmt.Sprintf("%d", mod.listener.port()))
 
 	checkedEntry := logger.Check(zap.DebugLevel, "check for debug level before setting high verbosity")
 	if checkedEntry != nil {

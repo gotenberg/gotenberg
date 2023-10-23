@@ -30,7 +30,7 @@ RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v7/cmd.Ve
 # ----------------------------------------------
 # Final stage
 # ----------------------------------------------
-FROM debian:11-slim
+FROM debian:12-slim
 
 ARG GOTENBERG_VERSION
 ARG GOTENBERG_USER_GID
@@ -57,8 +57,7 @@ RUN \
     # Install system dependencies required for the next instructions or debugging.
     # Note: tini is a helper for reaping zombie processes.
     apt-get update -qq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg htop tini python3 default-jre-headless &&\
-    ln -s /usr/bin/htop /usr/bin/top &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg tini python3 default-jre-headless &&\
     # Cleanup.
     # Note: the Debian image does automatically a clean after each install thanks to a hook.
     # Therefore, there is no need for apt-get clean.
@@ -140,8 +139,9 @@ RUN \
 
 RUN \
     # Install LibreOffice & unoconv.
+    echo "deb http://deb.debian.org/debian bookworm-backports main" >> /etc/apt/sources.list &&\
     apt-get update -qq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends libreoffice &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t bookworm-backports libreoffice &&\
     curl -Ls https://raw.githubusercontent.com/dagwieers/unoconv/master/unoconv -o /usr/bin/unoconv &&\
     chmod +x /usr/bin/unoconv &&\
     # unoconv will look for the Python binary, which has to be at version 3.
@@ -179,7 +179,6 @@ COPY build/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 COPY --from=binary-stage /home/gotenberg /usr/bin/
 
 # Environment variables required by modules or else.
-ENV GC_EXCLUDE_SUBSTR "hsperfdata_root,hsperfdata_gotenberg"
 ENV CHROMIUM_BIN_PATH /usr/bin/chromium
 ENV UNOCONV_BIN_PATH /usr/bin/unoconv
 ENV LIBREOFFICE_BIN_PATH /usr/lib/libreoffice/program/soffice.bin

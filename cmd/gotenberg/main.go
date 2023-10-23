@@ -2,7 +2,6 @@ package main
 
 import (
 	gotenbergcmd "github.com/gotenberg/gotenberg/v7/cmd"
-
 	// Gotenberg modules.
 	_ "github.com/gotenberg/gotenberg/v7/pkg/standard"
 )

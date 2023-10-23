@@ -12,13 +12,13 @@ import (
 	"time"
 
 	"github.com/alexliesenfeld/health"
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/gc"
 	"github.com/labstack/echo/v4"
 	flag "github.com/spf13/pflag"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"golang.org/x/net/http2"
+
+	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 )
 
 func init() {
@@ -39,7 +39,7 @@ type API struct {
 	routes              []Route
 	externalMiddlewares []Middleware
 	healthChecks        []health.CheckerOption
-	gcGraceDuration     time.Duration
+	fs                  *gotenberg.FileSystem
 	logger              *zap.Logger
 	srv                 *echo.Echo
 }
@@ -147,12 +147,6 @@ type Middleware struct {
 // See https://github.com/alexliesenfeld/health for more details.
 type HealthChecker interface {
 	Checks() ([]health.CheckerOption, error)
-}
-
-// GarbageCollectorGraceDurationIncrementer is a module interface for
-// increasing the grace duration provided by the API for the garbage collector.
-type GarbageCollectorGraceDurationIncrementer interface {
-	AddGraceDuration() time.Duration
 }
 
 // Descriptor returns an API's module descriptor.
@@ -283,18 +277,7 @@ func (a *API) Provision(ctx *gotenberg.Context) error {
 		a.healthChecks = append(a.healthChecks, checks...)
 	}
 
-	// Grace duration.
-	a.gcGraceDuration = a.timeout
-
-	mods, err = ctx.Modules(new(GarbageCollectorGraceDurationIncrementer))
-	if err != nil {
-		return fmt.Errorf("get garbage collector grace duration increments: %w", err)
-	}
-
-	for _, incrementer := range mods {
-		a.gcGraceDuration += incrementer.(GarbageCollectorGraceDurationIncrementer).AddGraceDuration()
-	}
-
+	// Logger.
 	loggerProvider, err := ctx.Module(new(gotenberg.LoggerProvider))
 	if err != nil {
 		return fmt.Errorf("get logger provider: %w", err)
@@ -306,6 +289,9 @@ func (a *API) Provision(ctx *gotenberg.Context) error {
 	}
 
 	a.logger = logger
+
+	// File system.
+	a.fs = gotenberg.NewFileSystem()
 
 	return nil
 }
@@ -437,7 +423,7 @@ func (a *API) Start() error {
 		var middlewares []echo.MiddlewareFunc
 
 		if route.IsMultipart {
-			middlewares = append(middlewares, contextMiddleware(a.timeout))
+			middlewares = append(middlewares, contextMiddleware(a.fs, a.timeout))
 
 			for _, externalMultipartMiddleware := range externalMultipartMiddlewares {
 				middlewares = append(middlewares, externalMultipartMiddleware.Handler)
@@ -488,17 +474,10 @@ func (a API) Stop(ctx context.Context) error {
 	return a.srv.Shutdown(ctx)
 }
 
-// GraceDuration updates the expiration time of files and directories parsed by
-// the gc.GarbageCollector.
-func (a API) GraceDuration() time.Duration {
-	return a.gcGraceDuration
-}
-
 // Interface guards.
 var (
-	_ gotenberg.Module                         = (*API)(nil)
-	_ gotenberg.Provisioner                    = (*API)(nil)
-	_ gotenberg.Validator                      = (*API)(nil)
-	_ gotenberg.App                            = (*API)(nil)
-	_ gc.GarbageCollectorGraceDurationModifier = (*API)(nil)
+	_ gotenberg.Module      = (*API)(nil)
+	_ gotenberg.Provisioner = (*API)(nil)
+	_ gotenberg.Validator   = (*API)(nil)
+	_ gotenberg.App         = (*API)(nil)
 )

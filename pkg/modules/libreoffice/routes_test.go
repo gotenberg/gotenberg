@@ -6,11 +6,12 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
+
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/uno"
-	"github.com/labstack/echo/v4"
-	"go.uber.org/zap"
 )
 
 func TestConvertHandler(t *testing.T) {

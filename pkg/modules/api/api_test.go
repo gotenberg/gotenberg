@@ -10,12 +10,12 @@ import (
 	"os"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/alexliesenfeld/health"
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 )
 
 type ProtoModule struct {
@@ -62,15 +62,6 @@ func (mod ProtoHealthChecker) Checks() ([]health.CheckerOption, error) {
 	return mod.checks()
 }
 
-type ProtoGarbageCollectorGraceDurationIncrementer struct {
-	ProtoValidator
-	addGraceDuration func() time.Duration
-}
-
-func (mod ProtoGarbageCollectorGraceDurationIncrementer) AddGraceDuration() time.Duration {
-	return mod.addGraceDuration()
-}
-
 type ProtoLoggerProvider struct {
 	ProtoModule
 	logger func(mod gotenberg.Module) (*zap.Logger, error)
@@ -93,18 +84,16 @@ func TestAPI_Descriptor(t *testing.T) {
 
 func TestAPI_Provision(t *testing.T) {
 	for i, tc := range []struct {
-		ctx                 *gotenberg.Context
-		setEnv              func(i int)
-		expectPort          int
-		expectMiddlewares   []Middleware
-		expectGraceDuration time.Duration
-		expectErr           bool
+		ctx               *gotenberg.Context
+		setEnv            func(i int)
+		expectPort        int
+		expectMiddlewares []Middleware
+		expectErr         bool
 	}{
 		{
 			ctx: func() *gotenberg.Context {
 				fs := new(API).Descriptor().FlagSet
 				err := fs.Parse([]string{"--api-port-from-env=FOO"})
-
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
@@ -122,7 +111,6 @@ func TestAPI_Provision(t *testing.T) {
 			ctx: func() *gotenberg.Context {
 				fs := new(API).Descriptor().FlagSet
 				err := fs.Parse([]string{"--api-port-from-env=PORT"})
-
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
@@ -146,7 +134,6 @@ func TestAPI_Provision(t *testing.T) {
 			ctx: func() *gotenberg.Context {
 				fs := new(API).Descriptor().FlagSet
 				err := fs.Parse([]string{"--api-port-from-env=PORT"})
-
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
@@ -170,7 +157,6 @@ func TestAPI_Provision(t *testing.T) {
 			ctx: func() *gotenberg.Context {
 				fs := new(API).Descriptor().FlagSet
 				err := fs.Parse([]string{"--api-port-from-env=PORT"})
-
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
@@ -335,60 +321,6 @@ func TestAPI_Provision(t *testing.T) {
 			}(),
 			expectErr: true,
 		},
-
-		{
-			ctx: func() *gotenberg.Context {
-				mod := struct {
-					ProtoGarbageCollectorGraceDurationIncrementer
-				}{}
-				mod.descriptor = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod }}
-				}
-				mod.validate = func() error {
-					return errors.New("foo")
-				}
-				mod.addGraceDuration = func() time.Duration {
-					return 0
-				}
-
-				return gotenberg.NewContext(
-					gotenberg.ParsedFlags{
-						FlagSet: new(API).Descriptor().FlagSet,
-					},
-					[]gotenberg.ModuleDescriptor{
-						mod.Descriptor(),
-					},
-				)
-			}(),
-			expectErr: true,
-		},
-		{
-			ctx: func() *gotenberg.Context {
-				mod := struct {
-					ProtoGarbageCollectorGraceDurationIncrementer
-				}{}
-				mod.descriptor = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod }}
-				}
-				mod.validate = func() error {
-					return nil
-				}
-				mod.addGraceDuration = func() time.Duration {
-					return time.Duration(3) * time.Second
-				}
-
-				return gotenberg.NewContext(
-					gotenberg.ParsedFlags{
-						FlagSet: new(API).Descriptor().FlagSet,
-					},
-					[]gotenberg.ModuleDescriptor{
-						mod.Descriptor(),
-					},
-				)
-			}(),
-			expectGraceDuration: time.Duration(33) * time.Second,
-			expectErr:           true,
-		},
 		{
 			ctx: func() *gotenberg.Context {
 				return gotenberg.NewContext(
@@ -524,10 +456,6 @@ func TestAPI_Provision(t *testing.T) {
 
 		if !reflect.DeepEqual(mod.externalMiddlewares, tc.expectMiddlewares) {
 			t.Errorf("test %d: expected %+v, but got: %+v", i, tc.expectMiddlewares, mod.externalMiddlewares)
-		}
-
-		if tc.expectGraceDuration != 0 && mod.gcGraceDuration != tc.expectGraceDuration {
-			t.Errorf("test %d: expected gc grace duration '%s' but got '%s'", i, tc.expectGraceDuration, mod.gcGraceDuration)
 		}
 
 		if tc.expectErr && err == nil {
@@ -759,6 +687,7 @@ func TestAPI_Start(t *testing.T) {
 			}(),
 		},
 	}
+	mod.fs = gotenberg.NewFileSystem()
 	mod.logger = zap.NewNop()
 
 	err := mod.Start()
@@ -866,36 +795,20 @@ func TestAPI_Stop(t *testing.T) {
 	}
 }
 
-func TestAPI_GraceDuration(t *testing.T) {
-	mod := API{
-		gcGraceDuration: time.Duration(3) * time.Second,
-	}
-
-	expect := time.Duration(3) * time.Second
-	actual := mod.GraceDuration()
-
-	if actual != expect {
-		t.Errorf("expected '%s' but got '%s'", expect, actual)
-	}
-}
-
 // Interface guards.
 var (
-	_ gotenberg.Module                         = (*ProtoModule)(nil)
-	_ gotenberg.Validator                      = (*ProtoValidator)(nil)
-	_ gotenberg.Module                         = (*ProtoValidator)(nil)
-	_ Router                                   = (*ProtoRouter)(nil)
-	_ gotenberg.Module                         = (*ProtoRouter)(nil)
-	_ gotenberg.Validator                      = (*ProtoRouter)(nil)
-	_ MiddlewareProvider                       = (*ProtoMiddlewareProvider)(nil)
-	_ gotenberg.Module                         = (*ProtoMiddlewareProvider)(nil)
-	_ gotenberg.Validator                      = (*ProtoMiddlewareProvider)(nil)
-	_ HealthChecker                            = (*ProtoHealthChecker)(nil)
-	_ gotenberg.Module                         = (*ProtoHealthChecker)(nil)
-	_ gotenberg.Validator                      = (*ProtoHealthChecker)(nil)
-	_ GarbageCollectorGraceDurationIncrementer = (*ProtoGarbageCollectorGraceDurationIncrementer)(nil)
-	_ gotenberg.Module                         = (*ProtoGarbageCollectorGraceDurationIncrementer)(nil)
-	_ gotenberg.Validator                      = (*ProtoGarbageCollectorGraceDurationIncrementer)(nil)
-	_ gotenberg.LoggerProvider                 = (*ProtoLoggerProvider)(nil)
-	_ gotenberg.Module                         = (*ProtoLoggerProvider)(nil)
+	_ gotenberg.Module         = (*ProtoModule)(nil)
+	_ gotenberg.Validator      = (*ProtoValidator)(nil)
+	_ gotenberg.Module         = (*ProtoValidator)(nil)
+	_ Router                   = (*ProtoRouter)(nil)
+	_ gotenberg.Module         = (*ProtoRouter)(nil)
+	_ gotenberg.Validator      = (*ProtoRouter)(nil)
+	_ MiddlewareProvider       = (*ProtoMiddlewareProvider)(nil)
+	_ gotenberg.Module         = (*ProtoMiddlewareProvider)(nil)
+	_ gotenberg.Validator      = (*ProtoMiddlewareProvider)(nil)
+	_ HealthChecker            = (*ProtoHealthChecker)(nil)
+	_ gotenberg.Module         = (*ProtoHealthChecker)(nil)
+	_ gotenberg.Validator      = (*ProtoHealthChecker)(nil)
+	_ gotenberg.LoggerProvider = (*ProtoLoggerProvider)(nil)
+	_ gotenberg.Module         = (*ProtoLoggerProvider)(nil)
 )

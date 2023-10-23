@@ -5,8 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 )
 
 func TestMultiPDFEngines_Merge(t *testing.T) {

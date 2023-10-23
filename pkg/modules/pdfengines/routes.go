@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/labstack/echo/v4"
+
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
-	"github.com/labstack/echo/v4"
 )
 
 // mergeRoute returns an api.Route which can merge PDFs.
@@ -29,7 +30,6 @@ func mergeRoute(engine gotenberg.PDFEngine) api.Route {
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
 				String("pdfFormat", &PDFformat, "").
 				Validate()
-
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
@@ -104,7 +104,6 @@ func convertRoute(engine gotenberg.PDFEngine) api.Route {
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
 				MandatoryString("pdfFormat", &PDFformat).
 				Validate()
-
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}

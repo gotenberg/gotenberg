@@ -19,11 +19,12 @@ import (
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 	flag "github.com/spf13/pflag"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 )
 
 func init() {
@@ -68,8 +69,11 @@ var (
 // Chromium is a module which provides both an API and routes for converting
 // HTML document to PDF.
 type Chromium struct {
-	binPath                  string
-	engine                   gotenberg.PDFEngine
+	binPath string
+	engine  gotenberg.PDFEngine
+	fs      *gotenberg.FileSystem
+	logger  *zap.Logger
+
 	failedStartsThreshold    int
 	userAgent                string
 	incognito                bool
@@ -311,6 +315,20 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 
 	mod.binPath = binPath
 
+	// Logger.
+	loggerProvider, err := ctx.Module(new(gotenberg.LoggerProvider))
+	if err != nil {
+		return fmt.Errorf("get logger provider: %w", err)
+	}
+
+	logger, err := loggerProvider.(gotenberg.LoggerProvider).Logger(mod)
+	if err != nil {
+		return fmt.Errorf("get logger: %w", err)
+	}
+
+	mod.logger = logger
+
+	// PDF engine.
 	provider, err := ctx.Module(new(gotenberg.PDFEngineProvider))
 	if err != nil {
 		return fmt.Errorf("get PDF engine provider: %w", err)
@@ -322,6 +340,9 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 	}
 
 	mod.engine = engine
+
+	// File system.
+	mod.fs = gotenberg.NewFileSystem()
 
 	return nil
 }
@@ -412,7 +433,7 @@ func (mod Chromium) Routes() ([]api.Route, error) {
 // the end of the conversion.
 func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath string, options Options) error {
 	debug := debugLogger{logger: logger.Named("browser")}
-	userProfileDirPath := gotenberg.NewDirPath()
+	userProfileDirPath := mod.fs.NewDirPath()
 
 	args := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.CombinedOutput(debug),
@@ -799,7 +820,6 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 
 							evaluate := chromedp.Evaluate(expression, &ok)
 							err := evaluate.Do(ctx)
-
 							if err != nil {
 								return fmt.Errorf("evaluate: %v: %w", err, ErrInvalidEvaluationExpression)
 							}
@@ -886,7 +906,7 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 					}
 				}()
 
-				file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY, 0600)
+				file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY, 0o600)
 				if err != nil {
 					return fmt.Errorf("open output path: %w", err)
 				}
@@ -921,13 +941,20 @@ func (mod Chromium) PDF(ctx context.Context, logger *zap.Logger, URL, outputPath
 	activeInstancesCountMu.Unlock()
 
 	// Always remove the user profile directory created by Chromium.
-	go func() {
-		logger.Debug(fmt.Sprintf("remove user profile directory '%s'", userProfileDirPath))
+	defer func() {
+		go func() {
+			// FIXME: Chromium seems to recreate the user profile directory
+			//  right after its deletion if we do not wait a certain amount
+			//  of time.
+			time.Sleep(10 * time.Second)
 
-		err := os.RemoveAll(userProfileDirPath)
-		if err != nil {
-			logger.Error(fmt.Sprintf("remove user profile directory: %s", err))
-		}
+			err := os.RemoveAll(userProfileDirPath)
+			if err != nil {
+				logger.Error(fmt.Sprintf("remove Chromium's user profile directory: %s", err))
+			}
+
+			logger.Debug(fmt.Sprintf("'%s' Chromium's user profile directory removed", userProfileDirPath))
+		}()
 	}()
 
 	if err != nil {

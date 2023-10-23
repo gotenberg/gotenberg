@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 )
 
 func TestListener_start(t *testing.T) {
@@ -17,11 +19,11 @@ func TestListener_start(t *testing.T) {
 	}{
 		{
 			name:     "nominal behavior",
-			listener: newLibreOfficeListener(zap.NewNop(), os.Getenv("LIBREOFFICE_BIN_PATH"), time.Duration(10)*time.Second, 10),
+			listener: newLibreOfficeListener(zap.NewNop(), gotenberg.NewFileSystem(), os.Getenv("LIBREOFFICE_BIN_PATH"), time.Duration(10)*time.Second, 10),
 		},
 		{
 			name:           "non-exit code 81 on first start",
-			listener:       newLibreOfficeListener(zap.NewNop(), "foo", time.Duration(10)*time.Second, 10),
+			listener:       newLibreOfficeListener(zap.NewNop(), gotenberg.NewFileSystem(), "foo", time.Duration(10)*time.Second, 10),
 			expectStartErr: true,
 		},
 	}
@@ -57,6 +59,7 @@ func TestListener_start(t *testing.T) {
 func TestListener_stop(t *testing.T) {
 	listener := newLibreOfficeListener(
 		zap.NewNop(),
+		gotenberg.NewFileSystem(),
 		os.Getenv("LIBREOFFICE_BIN_PATH"),
 		time.Duration(10)*time.Second,
 		10,
@@ -76,6 +79,7 @@ func TestListener_stop(t *testing.T) {
 func TestListener_restart(t *testing.T) {
 	listener := newLibreOfficeListener(
 		zap.NewNop(),
+		gotenberg.NewFileSystem(),
 		os.Getenv("LIBREOFFICE_BIN_PATH"),
 		time.Duration(10)*time.Second,
 		10,
@@ -107,7 +111,7 @@ func TestListener_lock(t *testing.T) {
 		{
 			name: "nominal behavior",
 			listener: func() listener {
-				listener := newLibreOfficeListener(zap.NewNop(), os.Getenv("LIBREOFFICE_BIN_PATH"), time.Duration(10)*time.Second, 10)
+				listener := newLibreOfficeListener(zap.NewNop(), gotenberg.NewFileSystem(), os.Getenv("LIBREOFFICE_BIN_PATH"), time.Duration(10)*time.Second, 10)
 
 				err := listener.start(zap.NewNop())
 				if err != nil {
@@ -123,7 +127,7 @@ func TestListener_lock(t *testing.T) {
 		},
 		{
 			name:     "first start",
-			listener: newLibreOfficeListener(zap.NewNop(), os.Getenv("LIBREOFFICE_BIN_PATH"), time.Duration(10)*time.Second, 10),
+			listener: newLibreOfficeListener(zap.NewNop(), gotenberg.NewFileSystem(), os.Getenv("LIBREOFFICE_BIN_PATH"), time.Duration(10)*time.Second, 10),
 			ctx:      context.Background(),
 			teardown: func(listener listener) error {
 				return listener.stop(zap.NewNop())
@@ -132,7 +136,7 @@ func TestListener_lock(t *testing.T) {
 		{
 			name: "unhealthy listener",
 			listener: func() listener {
-				listener := newLibreOfficeListener(zap.NewNop(), os.Getenv("LIBREOFFICE_BIN_PATH"), time.Duration(10)*time.Second, 10)
+				listener := newLibreOfficeListener(zap.NewNop(), gotenberg.NewFileSystem(), os.Getenv("LIBREOFFICE_BIN_PATH"), time.Duration(10)*time.Second, 10)
 
 				err := listener.start(zap.NewNop())
 				if err != nil {
@@ -154,7 +158,7 @@ func TestListener_lock(t *testing.T) {
 		{
 			name: "context done",
 			listener: func() listener {
-				listener := newLibreOfficeListener(zap.NewNop(), os.Getenv("LIBREOFFICE_BIN_PATH"), time.Duration(10)*time.Second, 10)
+				listener := newLibreOfficeListener(zap.NewNop(), gotenberg.NewFileSystem(), os.Getenv("LIBREOFFICE_BIN_PATH"), time.Duration(10)*time.Second, 10)
 
 				err := listener.start(zap.NewNop())
 				if err != nil {
@@ -212,7 +216,7 @@ func TestListener_unlock(t *testing.T) {
 		{
 			name: "nominal behavior",
 			listener: func() listener {
-				listener := newLibreOfficeListener(zap.NewNop(), os.Getenv("LIBREOFFICE_BIN_PATH"), time.Duration(10)*time.Second, 10)
+				listener := newLibreOfficeListener(zap.NewNop(), gotenberg.NewFileSystem(), os.Getenv("LIBREOFFICE_BIN_PATH"), time.Duration(10)*time.Second, 10)
 
 				err := listener.start(zap.NewNop())
 				if err != nil {
@@ -233,7 +237,7 @@ func TestListener_unlock(t *testing.T) {
 		{
 			name: "unhealthy listener",
 			listener: func() listener {
-				listener := newLibreOfficeListener(zap.NewNop(), os.Getenv("LIBREOFFICE_BIN_PATH"), time.Duration(10)*time.Second, 10)
+				listener := newLibreOfficeListener(zap.NewNop(), gotenberg.NewFileSystem(), os.Getenv("LIBREOFFICE_BIN_PATH"), time.Duration(10)*time.Second, 10)
 
 				err := listener.start(zap.NewNop())
 				if err != nil {
@@ -259,7 +263,7 @@ func TestListener_unlock(t *testing.T) {
 		{
 			name: "threshold reached",
 			listener: func() listener {
-				listener := newLibreOfficeListener(zap.NewNop(), os.Getenv("LIBREOFFICE_BIN_PATH"), time.Duration(10)*time.Second, 1)
+				listener := newLibreOfficeListener(zap.NewNop(), gotenberg.NewFileSystem(), os.Getenv("LIBREOFFICE_BIN_PATH"), time.Duration(10)*time.Second, 1)
 
 				err := listener.start(zap.NewNop())
 				if err != nil {
@@ -299,6 +303,7 @@ func TestListener_unlock(t *testing.T) {
 func TestListener_port(t *testing.T) {
 	listener := newLibreOfficeListener(
 		zap.NewNop(),
+		gotenberg.NewFileSystem(),
 		os.Getenv("LIBREOFFICE_BIN_PATH"),
 		time.Duration(10)*time.Second,
 		10,
@@ -323,6 +328,7 @@ func TestListener_port(t *testing.T) {
 func TestListener_queue(t *testing.T) {
 	listener := newLibreOfficeListener(
 		zap.NewNop(),
+		gotenberg.NewFileSystem(),
 		os.Getenv("LIBREOFFICE_BIN_PATH"),
 		time.Duration(10)*time.Second,
 		10,
@@ -395,6 +401,7 @@ func TestListener_healthy(t *testing.T) {
 		startTimeout: time.Duration(10) * time.Second,
 		threshold:    10,
 		lockChan:     make(chan struct{}, 1),
+		fs:           gotenberg.NewFileSystem(),
 		logger:       zap.NewNop(),
 	}
 

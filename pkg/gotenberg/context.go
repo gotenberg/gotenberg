@@ -47,7 +47,6 @@ func (ctx Context) ParsedFlags() ParsedFlags {
 // initializes it. Otherwise, returns the already initialized instance.
 func (ctx *Context) Module(kind interface{}) (interface{}, error) {
 	mods, err := ctx.Modules(kind)
-
 	if err != nil {
 		return nil, fmt.Errorf("get module: %w", err)
 	}

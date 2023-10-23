@@ -8,9 +8,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	flag "github.com/spf13/pflag"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 )
 
 // See https://patorjk.com/software/taag/#p=display&f=Small%20Slant&t=Gotenberg.

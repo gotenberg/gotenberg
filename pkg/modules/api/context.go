@@ -15,13 +15,14 @@ import (
 	"unicode"
 
 	"github.com/google/uuid"
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/labstack/echo/v4"
 	"github.com/mholt/archiver/v3"
 	"go.uber.org/zap"
 	"golang.org/x/text/runes"
 	"golang.org/x/text/transform"
 	"golang.org/x/text/unicode/norm"
+
+	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 )
 
 var (
@@ -49,7 +50,7 @@ type Context struct {
 }
 
 // newContext returns a Context by parsing a "multipart/form-data" request.
-func newContext(echoCtx echo.Context, logger *zap.Logger, timeout time.Duration) (*Context, context.CancelFunc, error) {
+func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSystem, timeout time.Duration) (*Context, context.CancelFunc, error) {
 	processCtx, processCancel := context.WithTimeout(context.Background(), timeout)
 
 	ctx := &Context{
@@ -81,7 +82,7 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, timeout time.Duration)
 				return
 			}
 
-			ctx.logger.Debug(fmt.Sprintf("'%s' removed", ctx.dirPath))
+			ctx.logger.Debug(fmt.Sprintf("'%s' context's working directory removed", ctx.dirPath))
 			ctx.cancelled = true
 		}
 	}()
@@ -113,7 +114,7 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, timeout time.Duration)
 		return nil, cancel, fmt.Errorf("get multipart form: %w", err)
 	}
 
-	dirPath, err := gotenberg.MkdirAll()
+	dirPath, err := fs.MkdirAll()
 	if err != nil {
 		return nil, cancel, fmt.Errorf("create working directory: %w", err)
 	}
