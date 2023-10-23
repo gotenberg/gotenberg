@@ -38,11 +38,11 @@ ARG GOTENBERG_USER_UID
 ARG NOTO_COLOR_EMOJI_VERSION
 ARG PDFTK_VERSION
 
-LABEL author="Julien Neuhart" \
-      description="A Docker-powered stateless API for PDF files." \
-      github="https://github.com/gotenberg/gotenberg" \
-      version="$GOTENBERG_VERSION" \
-      website="https://gotenberg.dev" \
+LABEL org.opencontainers.image.title="Gotenberg" \
+      org.opencontainers.image.description="A Docker-powered stateless API for PDF files." \
+      org.opencontainers.image.version="$GOTENBERG_VERSION" \
+      org.opencontainers.image.authors="Julien Neuhart <neuhart.julien@gmail.com>" \
+      org.opencontainers.image.documentation="https://gotenberg.dev" \
       org.opencontainers.image.source="https://github.com/gotenberg/gotenberg"
 
 RUN \
