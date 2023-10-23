@@ -29,7 +29,7 @@ func TestLibreOffice_Provision(t *testing.T) {
 		{
 			name: "nominal behavior",
 			ctx: func() *gotenberg.Context {
-				provider1 := struct {
+				provider1 := &struct {
 					gotenberg.ModuleMock
 					uno.ProviderMock
 				}{}
@@ -42,7 +42,7 @@ func TestLibreOffice_Provision(t *testing.T) {
 					return uno.APIMock{}, nil
 				}
 
-				provider2 := struct {
+				provider2 := &struct {
 					gotenberg.ModuleMock
 					gotenberg.PDFEngineProviderMock
 				}{}
@@ -52,7 +52,7 @@ func TestLibreOffice_Provision(t *testing.T) {
 					}}
 				}
 				provider2.PDFEngineMock = func() (gotenberg.PDFEngine, error) {
-					return gotenberg.PDFEngineMock{}, nil
+					return &gotenberg.PDFEngineMock{}, nil
 				}
 
 				return gotenberg.NewContext(
@@ -79,7 +79,7 @@ func TestLibreOffice_Provision(t *testing.T) {
 		{
 			name: "no API from UNO API provider",
 			ctx: func() *gotenberg.Context {
-				provider := struct {
+				provider := &struct {
 					gotenberg.ModuleMock
 					uno.ProviderMock
 				}{}
@@ -106,7 +106,7 @@ func TestLibreOffice_Provision(t *testing.T) {
 		{
 			name: "no PDF engine provider",
 			ctx: func() *gotenberg.Context {
-				provider := struct {
+				provider := &struct {
 					gotenberg.ModuleMock
 					uno.ProviderMock
 				}{}
@@ -133,7 +133,7 @@ func TestLibreOffice_Provision(t *testing.T) {
 		{
 			name: "no PDF engine from PDF engine provider",
 			ctx: func() *gotenberg.Context {
-				provider1 := struct {
+				provider1 := &struct {
 					gotenberg.ModuleMock
 					uno.ProviderMock
 				}{}
@@ -146,7 +146,7 @@ func TestLibreOffice_Provision(t *testing.T) {
 					return uno.APIMock{}, nil
 				}
 
-				provider2 := struct {
+				provider2 := &struct {
 					gotenberg.ModuleMock
 					gotenberg.PDFEngineProviderMock
 				}{}
@@ -156,7 +156,7 @@ func TestLibreOffice_Provision(t *testing.T) {
 					}}
 				}
 				provider2.PDFEngineMock = func() (gotenberg.PDFEngine, error) {
-					return gotenberg.PDFEngineMock{}, errors.New("foo")
+					return &gotenberg.PDFEngineMock{}, errors.New("foo")
 				}
 
 				return gotenberg.NewContext(

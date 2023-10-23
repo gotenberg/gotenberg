@@ -32,7 +32,7 @@ func TestPDFEngines_Provision(t *testing.T) {
 		{
 			name: "no selection from user",
 			ctx: func() *gotenberg.Context {
-				provider := struct {
+				provider := &struct {
 					gotenberg.ModuleMock
 					gotenberg.LoggerProviderMock
 				}{}
@@ -45,7 +45,7 @@ func TestPDFEngines_Provision(t *testing.T) {
 					return zap.NewNop(), nil
 				}
 
-				engine := struct {
+				engine := &struct {
 					gotenberg.ModuleMock
 					gotenberg.ValidatorMock
 					gotenberg.PDFEngineMock
@@ -72,7 +72,7 @@ func TestPDFEngines_Provision(t *testing.T) {
 		{
 			name: "selection from user",
 			ctx: func() *gotenberg.Context {
-				provider := struct {
+				provider := &struct {
 					gotenberg.ModuleMock
 					gotenberg.LoggerProviderMock
 				}{}
@@ -85,7 +85,7 @@ func TestPDFEngines_Provision(t *testing.T) {
 					return zap.NewNop(), nil
 				}
 
-				engine1 := struct {
+				engine1 := &struct {
 					gotenberg.ModuleMock
 					gotenberg.ValidatorMock
 					gotenberg.PDFEngineMock
@@ -97,7 +97,7 @@ func TestPDFEngines_Provision(t *testing.T) {
 					return nil
 				}
 
-				engine2 := struct {
+				engine2 := &struct {
 					gotenberg.ModuleMock
 					gotenberg.ValidatorMock
 					gotenberg.PDFEngineMock
@@ -131,7 +131,7 @@ func TestPDFEngines_Provision(t *testing.T) {
 		{
 			name: "user select deprecated unoconv-pdfengine",
 			ctx: func() *gotenberg.Context {
-				provider := struct {
+				provider := &struct {
 					gotenberg.ModuleMock
 					gotenberg.LoggerProviderMock
 				}{}
@@ -144,7 +144,7 @@ func TestPDFEngines_Provision(t *testing.T) {
 					return zap.NewNop(), nil
 				}
 
-				engine := struct {
+				engine := &struct {
 					gotenberg.ModuleMock
 					gotenberg.ValidatorMock
 					gotenberg.PDFEngineMock
@@ -189,7 +189,7 @@ func TestPDFEngines_Provision(t *testing.T) {
 		{
 			name: "no logger from logger provider",
 			ctx: func() *gotenberg.Context {
-				provider := struct {
+				provider := &struct {
 					gotenberg.ModuleMock
 					gotenberg.LoggerProviderMock
 				}{}
@@ -216,7 +216,7 @@ func TestPDFEngines_Provision(t *testing.T) {
 		{
 			name: "no valid PDF engines",
 			ctx: func() *gotenberg.Context {
-				provider := struct {
+				provider := &struct {
 					gotenberg.ModuleMock
 					gotenberg.LoggerProviderMock
 				}{}
@@ -229,7 +229,7 @@ func TestPDFEngines_Provision(t *testing.T) {
 					return zap.NewNop(), nil
 				}
 
-				engine := struct {
+				engine := &struct {
 					gotenberg.ModuleMock
 					gotenberg.ValidatorMock
 					gotenberg.PDFEngineMock
@@ -292,7 +292,7 @@ func TestPDFEngines_Validate(t *testing.T) {
 			name:  "existing PDF engine",
 			names: []string{"foo"},
 			engines: func() []gotenberg.PDFEngine {
-				engine := struct {
+				engine := &struct {
 					gotenberg.ModuleMock
 					gotenberg.PDFEngineMock
 				}{}
@@ -309,7 +309,7 @@ func TestPDFEngines_Validate(t *testing.T) {
 			name:  "non-existing bar PDF engine",
 			names: []string{"foo", "bar", "baz"},
 			engines: func() []gotenberg.PDFEngine {
-				engine1 := struct {
+				engine1 := &struct {
 					gotenberg.ModuleMock
 					gotenberg.PDFEngineMock
 				}{}
@@ -317,7 +317,7 @@ func TestPDFEngines_Validate(t *testing.T) {
 					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return engine1 }}
 				}
 
-				engine2 := struct {
+				engine2 := &struct {
 					gotenberg.ModuleMock
 					gotenberg.PDFEngineMock
 				}{}
@@ -377,7 +377,7 @@ func TestPDFEngines_PDFEngine(t *testing.T) {
 	mod := PDFEngines{
 		names: []string{"foo", "bar"},
 		engines: func() []gotenberg.PDFEngine {
-			engine1 := struct {
+			engine1 := &struct {
 				gotenberg.ModuleMock
 				gotenberg.PDFEngineMock
 			}{}
@@ -385,7 +385,7 @@ func TestPDFEngines_PDFEngine(t *testing.T) {
 				return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return engine1 }}
 			}
 
-			engine2 := struct {
+			engine2 := &struct {
 				gotenberg.ModuleMock
 				gotenberg.PDFEngineMock
 			}{}
@@ -416,7 +416,7 @@ func TestPDFEngines_Routes(t *testing.T) {
 			name: "route not disabled",
 			mod: PDFEngines{
 				engines: []gotenberg.PDFEngine{
-					gotenberg.PDFEngineMock{},
+					&gotenberg.PDFEngineMock{},
 				},
 			},
 			expectRoutesCount: 2,

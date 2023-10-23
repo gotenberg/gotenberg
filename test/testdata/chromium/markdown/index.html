@@ -20,15 +20,24 @@
 </div>
 
 <div class="page-break-after">
-    {{ toHTML "markdown1.md" }}
+    {{ toHTML "defaultfont.md" }}
 
     <div class="google-font">
-        {{ toHTML "markdown2.md" }}
+        {{ toHTML "googlefont.md" }}
     </div>
 
     <div class="local-font">
-        {{ toHTML "markdown3.md" }}
+        {{ toHTML "localfont.md" }}
     </div>
+</div>
+
+<div class="page-break-after">
+    {{ toHTML "table.md" }}
+
+    <h2>HTML from previous table</h2>
+    <textarea readonly="readonly" cols="100" rows="50">
+            {{ toHTML "table.md" }}
+    </textarea>
 </div>
 </body>
 </html>

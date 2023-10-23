@@ -33,7 +33,9 @@ API_TIMEOUT=30s
 API_ROOT_PATH=/
 API_TRACE_HEADER=Gotenberg-Trace
 API_DISABLE_HEALTH_CHECK_LOGGING=false
-CHROMIUM_FAILED_STARTS_THRESHOLD=5
+CHROMIUM_RESTART_AFTER=0
+CHROMIUM_AUTO_START=false
+CHROMIUM_START_TIMEOUT=10s
 CHROMIUM_INCOGNITO=false
 CHROMIUM_ALLOW_INSECURE_LOCALHOST=false
 CHROMIUM_IGNORE_CERTIFICATE_ERRORS=false
@@ -80,7 +82,9 @@ run: ## Start a Gotenberg container
 	--api-root-path=$(API_ROOT_PATH) \
 	--api-trace-header=$(API_TRACE_HEADER) \
 	--api-disable-health-check-logging=$(API_DISABLE_HEALTH_CHECK_LOGGING) \
-	--chromium-failed-starts-threshold=$(CHROMIUM_FAILED_STARTS_THRESHOLD) \
+	--chromium-restart-after=$(CHROMIUM_RESTART_AFTER) \
+	--chromium-auto-start=$(CHROMIUM_AUTO_START) \
+	--chromium-start-timeout=$(CHROMIUM_START_TIMEOUT) \
 	--chromium-incognito=$(CHROMIUM_INCOGNITO) \
 	--chromium-allow-insecure-localhost=$(CHROMIUM_ALLOW_INSECURE_LOCALHOST) \
 	--chromium-ignore-certificate-errors=$(CHROMIUM_IGNORE_CERTIFICATE_ERRORS) \
@@ -146,8 +150,9 @@ fmt: ## Format the code and "optimize" the dependencies
 	gci write -s standard -s default -s "prefix(github.com/gotenberg/gotenberg/v7)" --skip-generated --skip-vendor --custom-order .
 	go mod tidy
 
+# go install golang.org/x/tools/cmd/godoc@latest
 .PHONY: godoc
-godoc: ## Run a webserver with Gotenberg godoc (go get golang.org/x/tools/cmd/godoc)
+godoc: ## Run a webserver with Gotenberg godoc
 	$(info http://localhost:6060/pkg/github.com/gotenberg/gotenberg/v7)
 	godoc -http=:6060
 

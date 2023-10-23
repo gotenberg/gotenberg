@@ -252,6 +252,87 @@ func TestParsedFlags_MustDeprecatedBool(t *testing.T) {
 	}
 }
 
+func TestParsedFlags_MustInt64(t *testing.T) {
+	fs := flag.NewFlagSet("tests", flag.ContinueOnError)
+	fs.Int64("foo", 0, "")
+
+	err := fs.Parse([]string{"--foo=1"})
+	if err != nil {
+		t.Fatalf("expected no error but got: %v", err)
+	}
+
+	parsedFlags := ParsedFlags{FlagSet: fs}
+
+	for i, tc := range []struct {
+		name        string
+		expectPanic bool
+	}{
+		{
+			name: "foo",
+		},
+		{
+			name:        "bar",
+			expectPanic: true,
+		},
+	} {
+		func() {
+			if tc.expectPanic {
+				defer func() {
+					if r := recover(); r == nil {
+						t.Errorf("test %d: expected panic but got none", i)
+					}
+				}()
+			}
+
+			if !tc.expectPanic {
+				defer func() {
+					if r := recover(); r != nil {
+						t.Errorf("test %d: expected no panic but got: %v", i, r)
+					}
+				}()
+			}
+
+			parsedFlags.MustInt64(tc.name)
+		}()
+	}
+}
+
+func TestParsedFlags_MustDeprecatedInt64(t *testing.T) {
+	for i, tc := range []struct {
+		rawFlags    []string
+		expectValue int64
+	}{
+		{
+			rawFlags:    []string{"--foo=1"},
+			expectValue: 1,
+		},
+		{
+			rawFlags:    []string{"--bar=2"},
+			expectValue: 2,
+		},
+		{
+			rawFlags:    []string{"--foo=1", "--bar=2"},
+			expectValue: 1,
+		},
+	} {
+		fs := flag.NewFlagSet("tests", flag.ContinueOnError)
+		fs.Int64("foo", 0, "")
+		fs.Int64("bar", 0, "")
+
+		parsedFlags := ParsedFlags{FlagSet: fs}
+
+		err := parsedFlags.Parse(tc.rawFlags)
+		if err != nil {
+			t.Fatalf("test %d: expected no error but got: %v", i, err)
+		}
+
+		actual := parsedFlags.MustDeprecatedInt64("foo", "bar")
+		if actual != tc.expectValue {
+			t.Errorf("test %d: expected %d but got %d", i, tc.expectValue, actual)
+		}
+	}
+}
+
 func TestParsedFlags_MustInt(t *testing.T) {
 	fs := flag.NewFlagSet("tests", flag.ContinueOnError)
 	fs.Int("foo", 0, "")

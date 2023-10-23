@@ -35,7 +35,7 @@ func TestUNO_Provision(t *testing.T) {
 		{
 			name: "nominal behavior",
 			ctx: func() *gotenberg.Context {
-				provider := struct {
+				provider := &struct {
 					gotenberg.ModuleMock
 					gotenberg.LoggerProviderMock
 				}{}
@@ -61,7 +61,7 @@ func TestUNO_Provision(t *testing.T) {
 		{
 			name: "threshold from deprecated flag --unoconv-disable-listener",
 			ctx: func() *gotenberg.Context {
-				provider := struct {
+				provider := &struct {
 					gotenberg.ModuleMock
 					gotenberg.LoggerProviderMock
 				}{}
@@ -107,7 +107,7 @@ func TestUNO_Provision(t *testing.T) {
 		{
 			name: "no logger from logger provider",
 			ctx: func() *gotenberg.Context {
-				provider := struct {
+				provider := &struct {
 					gotenberg.ModuleMock
 					gotenberg.LoggerProviderMock
 				}{}

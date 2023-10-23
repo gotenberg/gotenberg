@@ -40,7 +40,7 @@ func (engine *PDFcpu) Provision(_ *gotenberg.Context) error {
 	return nil
 }
 
-// Merge merges the given PDFs into a unique PDF.
+// Merge merges the given PDFs into a unique Pdf.
 func (engine PDFcpu) Merge(_ context.Context, _ *zap.Logger, inputPaths []string, outputPath string) error {
 	err := pdfcpuAPI.MergeCreateFile(inputPaths, outputPath, engine.conf)
 	if err == nil {
@@ -50,9 +50,9 @@ func (engine PDFcpu) Merge(_ context.Context, _ *zap.Logger, inputPaths []string
 	return fmt.Errorf("merge PDFs with PDFcpu: %w", err)
 }
 
-// Convert is not available for this PDF engine.
+// Convert is not available for this Pdf engine.
 func (engine PDFcpu) Convert(_ context.Context, _ *zap.Logger, format, _, _ string) error {
-	return fmt.Errorf("convert PDF to '%s' with PDFcpu: %w", format, gotenberg.ErrPDFEngineMethodNotAvailable)
+	return fmt.Errorf("convert Pdf to '%s' with PDFcpu: %w", format, gotenberg.ErrPDFEngineMethodNotAvailable)
 }
 
 // Interface guards.

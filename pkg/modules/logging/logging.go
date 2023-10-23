@@ -15,7 +15,7 @@ import (
 )
 
 func init() {
-	gotenberg.MustRegisterModule(Logging{})
+	gotenberg.MustRegisterModule(new(Logging))
 }
 
 const (
@@ -31,15 +31,16 @@ const (
 	textLoggingFormat = "text"
 )
 
-// Logging is a module which implements the gotenberg.LoggerProvider interface.
+// Logging is a module which implements the [gotenberg.LoggerProvider]
+// interface.
 type Logging struct {
 	level        string
 	format       string
 	fieldsPrefix string
 }
 
-// Descriptor returns a Logging's module descriptor.
-func (Logging) Descriptor() gotenberg.ModuleDescriptor {
+// Descriptor returns a [Logging]'s module descriptor.
+func (log *Logging) Descriptor() gotenberg.ModuleDescriptor {
 	return gotenberg.ModuleDescriptor{
 		ID: "logging",
 		FlagSet: func() *flag.FlagSet {
@@ -66,7 +67,7 @@ func (log *Logging) Provision(ctx *gotenberg.Context) error {
 }
 
 // Validate validates the log level and format.
-func (log Logging) Validate() error {
+func (log *Logging) Validate() error {
 	var err error
 
 	switch log.level {
@@ -92,8 +93,8 @@ func (log Logging) Validate() error {
 	return err
 }
 
-// Logger returns a zap.Logger.
-func (log Logging) Logger(mod gotenberg.Module) (*zap.Logger, error) {
+// Logger returns a [zap.Logger].
+func (log *Logging) Logger(mod gotenberg.Module) (*zap.Logger, error) {
 	if logger == nil {
 		lvl, err := newLogLevel(log.level)
 		if err != nil {
