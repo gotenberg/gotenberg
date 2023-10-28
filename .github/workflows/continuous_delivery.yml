@@ -3,9 +3,11 @@ name: Continuous Delivery
 on:
   release:
     types: [ published ]
+  push:
+    branches:
+      - main
 
 jobs:
-
   release:
     name: Release Docker image
     runs-on: ubuntu-latest
@@ -21,7 +23,12 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Build and push Docker image
+      - name: Build and push Docker image for release
+        if: github.event_name == 'release'
         run: |
           make release GOTENBERG_VERSION=${{ github.event.release.tag_name }}
           make release GOTENBERG_VERSION=${{ github.event.release.tag_name }} DOCKER_REPOSITORY=thecodingmachine
+      - name: Build and push Docker image for main branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          make release GOTENBERG_VERSION=edge
