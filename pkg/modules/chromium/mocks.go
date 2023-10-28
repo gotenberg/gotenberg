@@ -13,8 +13,8 @@ type ApiMock struct {
 	PdfMock func(ctx context.Context, logger *zap.Logger, url, outputPath string, options Options) error
 }
 
-func (api *ApiMock) Pdf(ctx context.Context, logger *zap.Logger, URL, outputPath string, options Options) error {
-	return api.PdfMock(ctx, logger, URL, outputPath, options)
+func (api *ApiMock) Pdf(ctx context.Context, logger *zap.Logger, url, outputPath string, options Options) error {
+	return api.PdfMock(ctx, logger, url, outputPath, options)
 }
 
 // browserMock is a mock for the [browser] interface.

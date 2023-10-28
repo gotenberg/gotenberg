@@ -1,4 +1,4 @@
-package uno
+package api
 
 import (
 	"fmt"

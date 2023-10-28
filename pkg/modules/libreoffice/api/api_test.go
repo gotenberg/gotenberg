@@ -1,4 +1,4 @@
-package chromium
+package api
 
 import (
 	"context"
@@ -14,27 +14,18 @@ import (
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 )
 
-func TestDefaultOptions(t *testing.T) {
-	actual := DefaultOptions()
-	notExpect := Options{}
-
-	if reflect.DeepEqual(actual, notExpect) {
-		t.Errorf("expected %v and got identical %v", actual, notExpect)
-	}
-}
-
-func TestChromium_Descriptor(t *testing.T) {
-	descriptor := new(Chromium).Descriptor()
+func TestApi_Descriptor(t *testing.T) {
+	descriptor := new(Api).Descriptor()
 
 	actual := reflect.TypeOf(descriptor.New())
-	expect := reflect.TypeOf(new(Chromium))
+	expect := reflect.TypeOf(new(Api))
 
 	if actual != expect {
 		t.Errorf("expected '%s' but got '%s'", expect, actual)
 	}
 }
 
-func TestChromium_Provision(t *testing.T) {
+func TestApi_Provision(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string
 		ctx         *gotenberg.Context
@@ -45,7 +36,7 @@ func TestChromium_Provision(t *testing.T) {
 			ctx: func() *gotenberg.Context {
 				return gotenberg.NewContext(
 					gotenberg.ParsedFlags{
-						FlagSet: new(Chromium).Descriptor().FlagSet,
+						FlagSet: new(Api).Descriptor().FlagSet,
 					},
 					[]gotenberg.ModuleDescriptor{},
 				)
@@ -68,61 +59,7 @@ func TestChromium_Provision(t *testing.T) {
 
 				return gotenberg.NewContext(
 					gotenberg.ParsedFlags{
-						FlagSet: new(Chromium).Descriptor().FlagSet,
-					},
-					[]gotenberg.ModuleDescriptor{
-						mod.Descriptor(),
-					},
-				)
-			}(),
-			expectError: true,
-		},
-		{
-			scenario: "no PDF engine provider",
-			ctx: func() *gotenberg.Context {
-				mod := &struct {
-					gotenberg.ModuleMock
-					gotenberg.LoggerProviderMock
-				}{}
-				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return mod }}
-				}
-				mod.LoggerMock = func(mod gotenberg.Module) (*zap.Logger, error) {
-					return zap.NewNop(), nil
-				}
-
-				return gotenberg.NewContext(
-					gotenberg.ParsedFlags{
-						FlagSet: new(Chromium).Descriptor().FlagSet,
-					},
-					[]gotenberg.ModuleDescriptor{
-						mod.Descriptor(),
-					},
-				)
-			}(),
-			expectError: true,
-		},
-		{
-			scenario: "no PDF engine from PDF engine provider",
-			ctx: func() *gotenberg.Context {
-				mod := &struct {
-					gotenberg.ModuleMock
-					gotenberg.LoggerProviderMock
-					gotenberg.PDFEngineProviderMock
-				}{}
-				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return mod }}
-				}
-				mod.LoggerMock = func(mod gotenberg.Module) (*zap.Logger, error) {
-					return zap.NewNop(), nil
-				}
-				mod.PDFEngineMock = func() (gotenberg.PDFEngine, error) {
-					return nil, errors.New("foo")
-				}
-
-				return gotenberg.NewContext(
-					gotenberg.ParsedFlags{
-						FlagSet: new(Chromium).Descriptor().FlagSet,
+						FlagSet: new(Api).Descriptor().FlagSet,
 					},
 					[]gotenberg.ModuleDescriptor{
 						mod.Descriptor(),
@@ -137,7 +74,6 @@ func TestChromium_Provision(t *testing.T) {
 				mod := &struct {
 					gotenberg.ModuleMock
 					gotenberg.LoggerProviderMock
-					gotenberg.PDFEngineProviderMock
 				}{}
 				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return mod }}
@@ -145,13 +81,10 @@ func TestChromium_Provision(t *testing.T) {
 				mod.LoggerMock = func(mod gotenberg.Module) (*zap.Logger, error) {
 					return zap.NewNop(), nil
 				}
-				mod.PDFEngineMock = func() (gotenberg.PDFEngine, error) {
-					return new(gotenberg.PDFEngineMock), nil
-				}
 
 				return gotenberg.NewContext(
 					gotenberg.ParsedFlags{
-						FlagSet: new(Chromium).Descriptor().FlagSet,
+						FlagSet: new(Api).Descriptor().FlagSet,
 					},
 					[]gotenberg.ModuleDescriptor{
 						mod.Descriptor(),
@@ -161,8 +94,8 @@ func TestChromium_Provision(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			mod := new(Chromium)
-			err := mod.Provision(tc.ctx)
+			a := new(Api)
+			err := a.Provision(tc.ctx)
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
@@ -175,34 +108,51 @@ func TestChromium_Provision(t *testing.T) {
 	}
 }
 
-func TestChromium_Validate(t *testing.T) {
+func TestApi_Validate(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string
 		binPath     string
+		unoBinPath  string
 		expectError bool
 	}{
 		{
-			scenario:    "empty bin path",
+			scenario:    "empty LibreOffice bin path",
 			binPath:     "",
+			unoBinPath:  os.Getenv("UNOCONV_BIN_PATH"),
 			expectError: true,
 		},
 		{
-			scenario:    "bin path does not exist",
+			scenario:    "LibreOffice bin path does not exist",
 			binPath:     "/foo",
+			unoBinPath:  os.Getenv("UNOCONV_BIN_PATH"),
+			expectError: true,
+		},
+		{
+			scenario:    "empty uno bin path",
+			binPath:     os.Getenv("CHROMIUM_BIN_PATH"),
+			unoBinPath:  "",
+			expectError: true,
+		},
+		{
+			scenario:    "uno bin path does not exist",
+			binPath:     os.Getenv("CHROMIUM_BIN_PATH"),
+			unoBinPath:  "/foo",
 			expectError: true,
 		},
 		{
 			scenario:    "validate success",
 			binPath:     os.Getenv("CHROMIUM_BIN_PATH"),
+			unoBinPath:  os.Getenv("UNOCONV_BIN_PATH"),
 			expectError: false,
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			mod := new(Chromium)
-			mod.args = browserArguments{
-				binPath: tc.binPath,
+			a := new(Api)
+			a.args = libreOfficeArguments{
+				binPath:    tc.binPath,
+				unoBinPath: tc.unoBinPath,
 			}
-			err := mod.Validate()
+			err := a.Validate()
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
@@ -215,7 +165,7 @@ func TestChromium_Validate(t *testing.T) {
 	}
 }
 
-func TestChromium_Start(t *testing.T) {
+func TestApi_Start(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string
 		autoStart   bool
@@ -245,11 +195,11 @@ func TestChromium_Start(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			mod := new(Chromium)
-			mod.autoStart = tc.autoStart
-			mod.supervisor = tc.supervisor
+			a := new(Api)
+			a.autoStart = tc.autoStart
+			a.supervisor = tc.supervisor
 
-			err := mod.Start()
+			err := a.Start()
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
@@ -262,21 +212,21 @@ func TestChromium_Start(t *testing.T) {
 	}
 }
 
-func TestChromium_StartupMessage(t *testing.T) {
-	mod := new(Chromium)
+func TestApi_StartupMessage(t *testing.T) {
+	a := new(Api)
 
-	mod.autoStart = true
-	autoStartMsg := mod.StartupMessage()
+	a.autoStart = true
+	autoStartMsg := a.StartupMessage()
 
-	mod.autoStart = false
-	noAutoStartMsg := mod.StartupMessage()
+	a.autoStart = false
+	noAutoStartMsg := a.StartupMessage()
 
 	if autoStartMsg == noAutoStartMsg {
 		t.Errorf("expected differrent startup messages based on auto start, but got '%s'", autoStartMsg)
 	}
 }
 
-func TestChromium_Stop(t *testing.T) {
+func TestApi_Stop(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string
 		supervisor  *gotenberg.ProcessSupervisorMock
@@ -298,14 +248,14 @@ func TestChromium_Stop(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			mod := new(Chromium)
-			mod.logger = zap.NewNop()
-			mod.supervisor = tc.supervisor
+			a := new(Api)
+			a.logger = zap.NewNop()
+			a.supervisor = tc.supervisor
 
 			ctx, cancel := context.WithTimeout(context.Background(), 0*time.Second)
 			cancel()
 
-			err := mod.Stop(ctx)
+			err := a.Stop(ctx)
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
@@ -318,9 +268,9 @@ func TestChromium_Stop(t *testing.T) {
 	}
 }
 
-func TestChromium_Metrics(t *testing.T) {
-	mod := new(Chromium)
-	mod.supervisor = &gotenberg.ProcessSupervisorMock{
+func TestApi_Metrics(t *testing.T) {
+	a := new(Api)
+	a.supervisor = &gotenberg.ProcessSupervisorMock{
 		ReqQueueSizeMock: func() int64 {
 			return 10
 		},
@@ -329,37 +279,52 @@ func TestChromium_Metrics(t *testing.T) {
 		},
 	}
 
-	metrics, err := mod.Metrics()
+	metrics, err := a.Metrics()
 	if err != nil {
 		t.Fatalf("expected no error but got: %v", err)
 	}
 
-	if len(metrics) != 4 {
-		t.Fatalf("expected %d metrics, but got %d", 4, len(metrics))
+	if len(metrics) != 7 {
+		t.Fatalf("expected %d metrics, but got %d", 7, len(metrics))
 	}
 
 	actual := metrics[0].Read()
 	if actual != float64(1) {
-		t.Errorf("expected %f for chromium_active_instances_count, but got %f", float64(1), actual)
+		t.Errorf("expected %f for unoconv_active_instances_count, but got %f", float64(1), actual)
 	}
 
 	actual = metrics[1].Read()
-	if actual != float64(0) {
-		t.Errorf("expected %f for chromium_failed_starts_count, but got %f", float64(0), actual)
+	if actual != float64(1) {
+		t.Errorf("expected %f for libreoffice_listener_active_instances_count, but got %f", float64(1), actual)
 	}
 
 	actual = metrics[2].Read()
-	if actual != float64(10) {
-		t.Errorf("expected %f for chromium_requests_queue_size, but got %f", float64(10), actual)
+	if actual != float64(1) {
+		t.Errorf("expected %f for unoconv_listener_active_instances_count, but got %f", float64(1), actual)
 	}
 
 	actual = metrics[3].Read()
+	if actual != float64(10) {
+		t.Errorf("expected %f for libreoffice_listener_queue_length, but got %f", float64(10), actual)
+	}
+
+	actual = metrics[4].Read()
+	if actual != float64(10) {
+		t.Errorf("expected %f for unoconv_listener_queue_length, but got %f", float64(10), actual)
+	}
+
+	actual = metrics[5].Read()
+	if actual != float64(10) {
+		t.Errorf("expected %f for libreoffice_requests_queue_size, but got %f", float64(10), actual)
+	}
+
+	actual = metrics[6].Read()
 	if actual != float64(0) {
-		t.Errorf("expected %f for chromium_restarts_count, but got %f", float64(0), actual)
+		t.Errorf("expected %f for libreoffice_restarts_count, but got %f", float64(0), actual)
 	}
 }
 
-func TestChromium_Checks(t *testing.T) {
+func TestApi_Checks(t *testing.T) {
 	for _, tc := range []struct {
 		scenario                 string
 		supervisor               gotenberg.ProcessSupervisor
@@ -381,10 +346,10 @@ func TestChromium_Checks(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			mod := new(Chromium)
-			mod.supervisor = tc.supervisor
+			a := new(Api)
+			a.supervisor = tc.supervisor
 
-			checks, err := mod.Checks()
+			checks, err := a.Checks()
 			if err != nil {
 				t.Fatalf("expected no error but got: %v", err)
 			}
@@ -399,78 +364,45 @@ func TestChromium_Checks(t *testing.T) {
 	}
 }
 
-func TestChromium_Chromium(t *testing.T) {
-	mod := new(Chromium)
+func TestApi_LibreOffice(t *testing.T) {
+	a := new(Api)
 
-	_, err := mod.Chromium()
+	_, err := a.LibreOffice()
 	if err != nil {
 		t.Errorf("expected no error but got: %v", err)
 	}
 }
 
-func TestChromium_Routes(t *testing.T) {
-	for _, tc := range []struct {
-		scenario      string
-		expectRoutes  int
-		disableRoutes bool
-	}{
-		{
-			scenario:      "routes not disabled",
-			expectRoutes:  3,
-			disableRoutes: false,
-		},
-		{
-			scenario:      "routes disabled",
-			expectRoutes:  0,
-			disableRoutes: true,
-		},
-	} {
-		t.Run(tc.scenario, func(t *testing.T) {
-			mod := new(Chromium)
-			mod.disableRoutes = tc.disableRoutes
-
-			routes, err := mod.Routes()
-			if err != nil {
-				t.Fatalf("expected no error but got: %v", err)
-			}
-
-			if tc.expectRoutes != len(routes) {
-				t.Errorf("expected %d routes but got %d", tc.expectRoutes, len(routes))
-			}
-		})
-	}
-}
-
-func TestChromium_Pdf(t *testing.T) {
+func TestApi_Pdf(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string
 		supervisor  gotenberg.ProcessSupervisor
-		browser     browser
+		libreOffice libreOffice
 		expectError bool
 	}{
 		{
 			scenario: "PDF task success",
-			browser: &browserMock{pdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options Options) error {
+			libreOffice: &libreOfficeMock{pdfMock: func(ctx context.Context, logger *zap.Logger, input, outputPath string, options Options) error {
 				return nil
 			}},
 			expectError: false,
 		},
 		{
 			scenario: "PDF task error",
-			browser: &browserMock{pdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options Options) error {
+			libreOffice: &libreOfficeMock{pdfMock: func(ctx context.Context, logger *zap.Logger, input, outputPath string, options Options) error {
 				return errors.New("PDF task error")
 			}},
 			expectError: true,
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			mod := new(Chromium)
-			mod.supervisor = &gotenberg.ProcessSupervisorMock{RunMock: func(ctx context.Context, logger *zap.Logger, task func() error) error {
+			a := new(Api)
+			a.supervisor = &gotenberg.ProcessSupervisorMock{RunMock: func(ctx context.Context, logger *zap.Logger, task func() error) error {
 				return task()
 			}}
-			mod.browser = tc.browser
+			a.libreOffice = tc.libreOffice
 
-			err := mod.Pdf(context.Background(), zap.NewNop(), "", "", Options{})
+			err := a.Pdf(context.Background(), zap.NewNop(), "", "", Options{})
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
@@ -480,5 +412,17 @@ func TestChromium_Pdf(t *testing.T) {
 				t.Fatal("expected error but got none")
 			}
 		})
+	}
+}
+
+func TestApi_Extensions(t *testing.T) {
+	a := new(Api)
+	extensions := a.Extensions()
+
+	actual := len(extensions)
+	expect := 79
+
+	if actual != expect {
+		t.Errorf("expected %d extensions, but got %d", expect, actual)
 	}
 }

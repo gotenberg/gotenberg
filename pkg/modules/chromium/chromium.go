@@ -223,10 +223,10 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 
 			var err error
 			err = multierr.Append(err, fs.MarkDeprecated("chromium-user-agent", "use the extraHttpHeaders form field instead"))
-			err = multierr.Append(err, fs.MarkDeprecated("chromium-failed-starts-threshold", "use the chromium-restart-after instead"))
+			err = multierr.Append(err, fs.MarkDeprecated("chromium-failed-starts-threshold", "use the chromium-restart-after property instead"))
 
 			if err != nil {
-				panic(fmt.Errorf("create deprecated flags for the chromium module: %v", err))
+				panic(fmt.Errorf("create deprecated flags for the Chromium module: %v", err))
 			}
 
 			fs.Int64("chromium-restart-after", 0, "Number of conversions after which Chromium will automatically restart. Set to 0 to disable this feature")

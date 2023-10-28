@@ -37,7 +37,6 @@ func TestFormDataChromiumPdfOptions(t *testing.T) {
 						"foo",
 					},
 				})
-
 				return ctx
 			}(),
 			expectedOptions: func() Options {
@@ -45,7 +44,6 @@ func TestFormDataChromiumPdfOptions(t *testing.T) {
 				options.ExtraHttpHeaders = map[string]string{
 					"User-Agent": "foo",
 				}
-
 				return options
 			}(),
 		},
@@ -58,7 +56,6 @@ func TestFormDataChromiumPdfOptions(t *testing.T) {
 						"foo",
 					},
 				})
-
 				return ctx
 			}(),
 			expectedOptions: DefaultOptions(),
@@ -72,7 +69,6 @@ func TestFormDataChromiumPdfOptions(t *testing.T) {
 						`{"foo":"bar"}`,
 					},
 				})
-
 				return ctx
 			}(),
 			expectedOptions: func() Options {
@@ -80,7 +76,6 @@ func TestFormDataChromiumPdfOptions(t *testing.T) {
 				options.ExtraHttpHeaders = map[string]string{
 					"foo": "bar",
 				}
-
 				return options
 			}(),
 		},
@@ -93,7 +88,6 @@ func TestFormDataChromiumPdfOptions(t *testing.T) {
 						"foo",
 					},
 				})
-
 				return ctx
 			}(),
 			expectedOptions: DefaultOptions(),
@@ -107,13 +101,11 @@ func TestFormDataChromiumPdfOptions(t *testing.T) {
 						"screen",
 					},
 				})
-
 				return ctx
 			}(),
 			expectedOptions: func() Options {
 				options := DefaultOptions()
 				options.EmulatedMediaType = "screen"
-
 				return options
 			}(),
 		},
@@ -156,7 +148,6 @@ func TestConvertUrlRoute(t *testing.T) {
 						"",
 					},
 				})
-
 				return ctx
 			}(),
 			expectError:            true,
@@ -173,7 +164,6 @@ func TestConvertUrlRoute(t *testing.T) {
 						"foo",
 					},
 				})
-
 				return ctx
 			}(),
 			api: &ApiMock{func(ctx context.Context, logger *zap.Logger, url, outputPath string, options Options) error {
@@ -192,7 +182,6 @@ func TestConvertUrlRoute(t *testing.T) {
 						"foo",
 					},
 				})
-
 				return ctx
 			}(),
 			api: &ApiMock{func(ctx context.Context, logger *zap.Logger, url, outputPath string, options Options) error {
@@ -268,7 +257,6 @@ func TestConvertHtmlRoute(t *testing.T) {
 				ctx.SetFiles(map[string]string{
 					"index.html": "/index.html",
 				})
-
 				return ctx
 			}(),
 			api: &ApiMock{func(ctx context.Context, logger *zap.Logger, url, outputPath string, options Options) error {
@@ -285,7 +273,6 @@ func TestConvertHtmlRoute(t *testing.T) {
 				ctx.SetFiles(map[string]string{
 					"index.html": "/index.html",
 				})
-
 				return ctx
 			}(),
 			api: &ApiMock{func(ctx context.Context, logger *zap.Logger, url, outputPath string, options Options) error {
@@ -361,7 +348,6 @@ func TestConvertMarkdownRoute(t *testing.T) {
 				ctx.SetFiles(map[string]string{
 					"index.html": "/index.html",
 				})
-
 				return ctx
 			}(),
 			expectError:            true,
@@ -707,7 +693,6 @@ func TestConvertUrl(t *testing.T) {
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetCancelled(true)
-
 				return ctx
 			}(),
 			api: &ApiMock{func(ctx context.Context, logger *zap.Logger, url, outputPath string, options Options) error {

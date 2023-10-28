@@ -150,7 +150,7 @@ func TestPDFEngines_Provision(t *testing.T) {
 					gotenberg.PDFEngineMock
 				}{}
 				engine.DescriptorMock = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "uno-pdfengine", New: func() gotenberg.Module { return engine }}
+					return gotenberg.ModuleDescriptor{ID: "api-pdfengine", New: func() gotenberg.Module { return engine }}
 				}
 				engine.ValidateMock = func() error {
 					return nil
@@ -172,7 +172,7 @@ func TestPDFEngines_Provision(t *testing.T) {
 					},
 				)
 			}(),
-			expectPDFEngineNames: []string{"uno-pdfengine"},
+			expectPDFEngineNames: []string{"api-pdfengine"},
 		},
 		{
 			name: "no logger provider",

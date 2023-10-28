@@ -11,394 +11,310 @@ import (
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/uno"
+	libreofficeapi "github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/api"
 )
 
-func TestConvertHandler(t *testing.T) {
-	tests := []struct {
-		name                   string
+func TestConvertRoute(t *testing.T) {
+	for _, tc := range []struct {
+		scenario               string
 		ctx                    *api.ContextMock
-		unoAPI                 uno.API
+		libreOffice            libreofficeapi.Uno
 		engine                 gotenberg.PDFEngine
-		expectErr              bool
-		expectHTTPErr          bool
-		expectHTTPStatus       int
+		expectOptions          libreofficeapi.Options
+		expectError            bool
+		expectHttpError        bool
+		expectHttpStatus       int
 		expectOutputPathsCount int
 	}{
 		{
-			name: "nominal behavior",
+			scenario: "missing at least one mandatory file",
+			ctx:      &api.ContextMock{Context: new(api.Context)},
+			libreOffice: &libreofficeapi.ApiMock{ExtensionsMock: func() []string {
+				return []string{".docx"}
+			}},
+			expectError:            true,
+			expectHttpError:        true,
+			expectHttpStatus:       http.StatusBadRequest,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "ErrMalformedPageRanges",
 			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: &api.Context{}}
+				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
+					"document.docx": "/document.docx",
 				})
-
 				return ctx
 			}(),
-			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
+					return libreofficeapi.ErrMalformedPageRanges
+				},
+				ExtensionsMock: func() []string {
+					return []string{".docx"}
+				},
+			},
+			expectError:            true,
+			expectHttpError:        true,
+			expectHttpStatus:       http.StatusBadRequest,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "error from LibreOffice",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"document.docx": "/document.docx",
+				})
+				return ctx
+			}(),
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
+					return errors.New("foo")
+				},
+				ExtensionsMock: func() []string {
+					return []string{".docx"}
+				},
+			},
+			expectError:            true,
+			expectHttpError:        false,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "ErrPDFFormatNotAvailable (single file)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"document.docx": "/document.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"pdfFormat": {
+						"foo",
+					},
+				})
+				return ctx
+			}(),
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {
-					return []string{
-						".docx",
-					}
+					return []string{".docx"}
 				},
 			},
-			expectOutputPathsCount: 1,
+			engine: &gotenberg.PDFEngineMock{
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+					return gotenberg.ErrPDFFormatNotAvailable
+				},
+			},
+			expectError:            true,
+			expectHttpError:        true,
+			expectHttpStatus:       http.StatusBadRequest,
+			expectOutputPathsCount: 0,
 		},
 		{
-			name: "nominal behavior, but with 3 documents",
+			scenario: "PDF engine convert error (single file)",
 			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: &api.Context{}}
+				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
-					"bar.docx": "/bar/bar.docx",
-					"baz.docx": "/baz/baz.docx",
+					"document.docx": "/document.docx",
 				})
-
+				ctx.SetValues(map[string][]string{
+					"pdfFormat": {
+						gotenberg.FormatPDFA1a,
+					},
+				})
 				return ctx
 			}(),
-			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {
-					return []string{
-						".docx",
-					}
+					return []string{".docx"}
 				},
 			},
-			expectOutputPathsCount: 3,
+			engine: &gotenberg.PDFEngineMock{
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+					return errors.New("foo")
+				},
+			},
+			expectError:            true,
+			expectHttpError:        false,
+			expectOutputPathsCount: 0,
 		},
 		{
-			name: "cannot add output paths",
+			scenario: "cannot add output paths (single file)",
 			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: &api.Context{}}
+				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
+					"document.docx": "/document.docx",
 				})
 				ctx.SetCancelled(true)
-
 				return ctx
 			}(),
-			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {
-					return []string{
-						".docx",
-					}
+					return []string{".docx"}
 				},
 			},
-			expectErr: true,
+			expectError:            true,
+			expectHttpError:        false,
+			expectOutputPathsCount: 0,
 		},
 		{
-			name: "invalid form data: no documents",
-			ctx:  &api.ContextMock{Context: &api.Context{}},
-			unoAPI: uno.APIMock{
-				ExtensionsMock: func() []string {
-					return []string{
-						".docx",
-					}
-				},
-			},
-			expectErr:        true,
-			expectHTTPErr:    true,
-			expectHTTPStatus: http.StatusBadRequest,
-		},
-		{
-			name: "invalid form data: both nativePdfA1aFormat and nativePdfFormat are set",
+			scenario: "success (single file)",
 			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: &api.Context{}}
+				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
+					"document.docx": "/document.docx",
+				})
+				return ctx
+			}(),
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
+					return nil
+				},
+				ExtensionsMock: func() []string {
+					return []string{".docx"}
+				},
+			},
+			expectError:            false,
+			expectHttpError:        false,
+			expectOutputPathsCount: 1,
+		},
+		{
+			scenario: "success (many files)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"document.docx":  "/document.docx",
+					"document2.docx": "/document2.docx",
+				})
+				return ctx
+			}(),
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
+					return nil
+				},
+				ExtensionsMock: func() []string {
+					return []string{".docx"}
+				},
+			},
+			expectError:            false,
+			expectHttpError:        false,
+			expectOutputPathsCount: 2,
+		},
+		{
+			scenario: "success with PDF format (single file)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"document.docx": "/document.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"pdfFormat": {
+						gotenberg.FormatPDFA1a,
+					},
+				})
+				return ctx
+			}(),
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
+					return nil
+				},
+				ExtensionsMock: func() []string {
+					return []string{".docx"}
+				},
+			},
+			engine: &gotenberg.PDFEngineMock{
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+					return nil
+				},
+			},
+			expectError:            false,
+			expectHttpError:        false,
+			expectOutputPathsCount: 1,
+		},
+		{
+			scenario: "success with every PDF formats form field (single file)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"document.docx": "/document.docx",
 				})
 				ctx.SetValues(map[string][]string{
 					"nativePdfA1aFormat": {
 						"true",
 					},
+					"pdfFormat": {
+						gotenberg.FormatPDFA1a,
+					},
 					"nativePdfFormat": {
 						gotenberg.FormatPDFA1a,
 					},
 				})
-				ctx.SetLogger(zap.NewNop())
-
 				return ctx
 			}(),
-			unoAPI: uno.APIMock{
-				ExtensionsMock: func() []string {
-					return []string{
-						".docx",
-					}
-				},
-			},
-			expectErr:        true,
-			expectHTTPErr:    true,
-			expectHTTPStatus: http.StatusBadRequest,
-		},
-		{
-			name: "invalid form data: both nativePdfA1aFormat and pdfFormat are set",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: &api.Context{}}
-				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"nativePdfA1aFormat": {
-						"true",
-					},
-					"pdfFormat": {
-						gotenberg.FormatPDFA1a,
-					},
-				})
-				ctx.SetLogger(zap.NewNop())
-
-				return ctx
-			}(),
-			unoAPI: uno.APIMock{
-				ExtensionsMock: func() []string {
-					return []string{
-						".docx",
-					}
-				},
-			},
-			expectErr:        true,
-			expectHTTPErr:    true,
-			expectHTTPStatus: http.StatusBadRequest,
-		},
-		{
-			name: "invalid form data: both nativePdfFormat and pdfFormat are set",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: &api.Context{}}
-				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"nativePdfFormat": {
-						gotenberg.FormatPDFA1a,
-					},
-					"pdfFormat": {
-						gotenberg.FormatPDFA1a,
-					},
-				})
-
-				return ctx
-			}(),
-			unoAPI: uno.APIMock{
-				ExtensionsMock: func() []string {
-					return []string{
-						".docx",
-					}
-				},
-			},
-			expectErr:        true,
-			expectHTTPErr:    true,
-			expectHTTPStatus: http.StatusBadRequest,
-		},
-		{
-			name: "convert to PDF fail",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: &api.Context{}}
-				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
-				})
-
-				return ctx
-			}(),
-			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
-					return errors.New("foo")
-				},
-				ExtensionsMock: func() []string {
-					return []string{
-						".docx",
-					}
-				},
-			},
-			expectErr: true,
-		},
-		{
-			name: "invalid page ranges",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: &api.Context{}}
-				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
-				})
-
-				return ctx
-			}(),
-			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
-					return uno.ErrMalformedPageRanges
-				},
-				ExtensionsMock: func() []string {
-					return []string{
-						".docx",
-					}
-				},
-			},
-			expectErr:        true,
-			expectHTTPErr:    true,
-			expectHTTPStatus: http.StatusBadRequest,
-		},
-		{
-			name: "convert 3 documents and merge them",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: &api.Context{}}
-				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
-					"bar.docx": "/bar/bar.docx",
-					"baz.docx": "/baz/baz.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"merge": {
-						"true",
-					},
-				})
-
-				return ctx
-			}(),
-			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {
-					return []string{
-						".docx",
-					}
+					return []string{".docx"}
 				},
 			},
 			engine: &gotenberg.PDFEngineMock{
-				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-					return nil
-				},
-			},
-			expectOutputPathsCount: 1,
-		},
-		{
-			name: "merge fail",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: &api.Context{}}
-				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
-					"bar.docx": "/bar/bar.docx",
-					"baz.docx": "/baz/baz.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"merge": {
-						"true",
-					},
-				})
-
-				return ctx
-			}(),
-			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
-					return nil
-				},
-				ExtensionsMock: func() []string {
-					return []string{
-						".docx",
-					}
-				},
-			},
-			engine: &gotenberg.PDFEngineMock{
-				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-					return errors.New("foo")
-				},
-			},
-			expectErr: true,
-		},
-		{
-			name: "convert 3 documents, merge them, and convert them to a PDF format",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: &api.Context{}}
-				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
-					"bar.docx": "/bar/bar.docx",
-					"baz.docx": "/baz/baz.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"merge": {
-						"true",
-					},
-					"pdfFormat": {
-						gotenberg.FormatPDFA1a,
-					},
-				})
-
-				return ctx
-			}(),
-			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
-					return nil
-				},
-				ExtensionsMock: func() []string {
-					return []string{
-						".docx",
-					}
-				},
-			},
-			engine: &gotenberg.PDFEngineMock{
-				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-					return nil
-				},
 				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
 					return nil
 				},
 			},
+			expectError:            false,
+			expectHttpError:        false,
 			expectOutputPathsCount: 1,
 		},
 		{
-			name: "convert 3 documents, merge them, but convert them to PDF format fail",
+			scenario: "merge error",
 			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: &api.Context{}}
+				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
-					"bar.docx": "/bar/bar.docx",
-					"baz.docx": "/baz/baz.docx",
+					"document.docx":  "/document.docx",
+					"document2.docx": "/document2.docx",
 				})
 				ctx.SetValues(map[string][]string{
 					"merge": {
 						"true",
 					},
-					"pdfFormat": {
-						gotenberg.FormatPDFA1a,
-					},
 				})
-
 				return ctx
 			}(),
-			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {
-					return []string{
-						".docx",
-					}
+					return []string{".docx"}
 				},
 			},
 			engine: &gotenberg.PDFEngineMock{
 				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-					return nil
-				},
-				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
 					return errors.New("foo")
 				},
 			},
-			expectErr: true,
+			expectError:            true,
+			expectHttpError:        false,
+			expectOutputPathsCount: 0,
 		},
 		{
-			name: "convert 3 documents, merge them, but PDF format not available",
+			scenario: "ErrPDFFormatNotAvailable (merge)",
 			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: &api.Context{}}
+				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
-					"bar.docx": "/bar/bar.docx",
-					"baz.docx": "/baz/baz.docx",
+					"document.docx":  "/document.docx",
+					"document2.docx": "/document2.docx",
 				})
 				ctx.SetValues(map[string][]string{
 					"merge": {
@@ -408,17 +324,14 @@ func TestConvertHandler(t *testing.T) {
 						"foo",
 					},
 				})
-
 				return ctx
 			}(),
-			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {
-					return []string{
-						".docx",
-					}
+					return []string{".docx"}
 				},
 			},
 			engine: &gotenberg.PDFEngineMock{
@@ -429,18 +342,56 @@ func TestConvertHandler(t *testing.T) {
 					return gotenberg.ErrPDFFormatNotAvailable
 				},
 			},
-			expectErr:        true,
-			expectHTTPErr:    true,
-			expectHTTPStatus: http.StatusBadRequest,
+			expectError:            true,
+			expectHttpError:        true,
+			expectHttpStatus:       http.StatusBadRequest,
+			expectOutputPathsCount: 0,
 		},
 		{
-			name: "convert 3 documents and merge them, but cannot add output paths",
+			scenario: "PDF engine convert error (merge)",
 			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: &api.Context{}}
+				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
-					"bar.docx": "/bar/bar.docx",
-					"baz.docx": "/baz/baz.docx",
+					"document.docx":  "/document.docx",
+					"document2.docx": "/document2.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"merge": {
+						"true",
+					},
+					"pdfFormat": {
+						gotenberg.FormatPDFA1a,
+					},
+				})
+				return ctx
+			}(),
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
+					return nil
+				},
+				ExtensionsMock: func() []string {
+					return []string{".docx"}
+				},
+			},
+			engine: &gotenberg.PDFEngineMock{
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return nil
+				},
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+					return errors.New("foo")
+				},
+			},
+			expectError:            true,
+			expectHttpError:        false,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "cannot add output paths (merge)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"document.docx":  "/document.docx",
+					"document2.docx": "/document2.docx",
 				})
 				ctx.SetValues(map[string][]string{
 					"merge": {
@@ -448,17 +399,14 @@ func TestConvertHandler(t *testing.T) {
 					},
 				})
 				ctx.SetCancelled(true)
-
 				return ctx
 			}(),
-			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {
-					return []string{
-						".docx",
-					}
+					return []string{".docx"}
 				},
 			},
 			engine: &gotenberg.PDFEngineMock{
@@ -466,176 +414,116 @@ func TestConvertHandler(t *testing.T) {
 					return nil
 				},
 			},
-			expectErr: true,
+			expectError:            true,
+			expectHttpError:        false,
+			expectOutputPathsCount: 0,
 		},
 		{
-			name: "convert to PDF format",
+			scenario: "success (merge)",
 			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: &api.Context{}}
+				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
+					"document.docx":  "/document.docx",
+					"document2.docx": "/document2.docx",
 				})
 				ctx.SetValues(map[string][]string{
-					"pdfFormat": {
-						gotenberg.FormatPDFA1a,
-					},
-				})
-
-				return ctx
-			}(),
-			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
-					return nil
-				},
-				ExtensionsMock: func() []string {
-					return []string{
-						".docx",
-					}
-				},
-			},
-			engine: &gotenberg.PDFEngineMock{
-				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
-					return nil
-				},
-			},
-			expectOutputPathsCount: 1,
-		},
-		{
-			name: "convert to PDF format using nativePdfA1aFormat",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: &api.Context{}}
-				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"nativePdfA1aFormat": {
+					"merge": {
 						"true",
 					},
 				})
-				ctx.SetLogger(zap.NewNop())
-
 				return ctx
 			}(),
-			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {
-					return []string{
-						".docx",
-					}
+					return []string{".docx"}
 				},
 			},
 			engine: &gotenberg.PDFEngineMock{
-				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 					return nil
 				},
 			},
+			expectError:            false,
+			expectHttpError:        false,
 			expectOutputPathsCount: 1,
 		},
 		{
-			name: "convert to PDF format fail",
+			scenario: "success with PDF format (merge)",
 			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: &api.Context{}}
+				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
+					"document.docx":  "/document.docx",
+					"document2.docx": "/document2.docx",
 				})
 				ctx.SetValues(map[string][]string{
+					"merge": {
+						"true",
+					},
 					"pdfFormat": {
 						gotenberg.FormatPDFA1a,
 					},
 				})
-
 				return ctx
 			}(),
-			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
 					return nil
 				},
 				ExtensionsMock: func() []string {
-					return []string{
-						".docx",
-					}
+					return []string{".docx"}
 				},
 			},
 			engine: &gotenberg.PDFEngineMock{
-				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
-					return errors.New("foo")
-				},
-			},
-			expectErr: true,
-		},
-		{
-			name: "PDF format not available",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: &api.Context{}}
-				ctx.SetFiles(map[string]string{
-					"foo.docx": "/foo/foo.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"pdfFormat": {
-						"foo",
-					},
-				})
-
-				return ctx
-			}(),
-			unoAPI: uno.APIMock{
-				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 					return nil
 				},
-				ExtensionsMock: func() []string {
-					return []string{
-						".docx",
-					}
-				},
-			},
-			engine: &gotenberg.PDFEngineMock{
 				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
-					return gotenberg.ErrPDFFormatNotAvailable
+					return nil
 				},
 			},
-			expectErr:        true,
-			expectHTTPErr:    true,
-			expectHTTPStatus: http.StatusBadRequest,
+			expectError:            false,
+			expectHttpError:        false,
+			expectOutputPathsCount: 1,
 		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			tc.ctx.SetLogger(zap.NewNop())
 			c := echo.New().NewContext(nil, nil)
 			c.Set("context", tc.ctx.Context)
 
-			err := convertRoute(tc.unoAPI, tc.engine).Handler(c)
+			err := convertRoute(tc.libreOffice, tc.engine).Handler(c)
 
-			if tc.expectErr && err == nil {
-				t.Fatal("expected error from convert handler, but got none")
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none", err)
 			}
 
-			if !tc.expectErr && err != nil {
-				t.Fatalf("expected no error from convert handler, but got: %v", err)
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
 			}
 
 			var httpErr api.HTTPError
 			isHTTPErr := errors.As(err, &httpErr)
 
-			if tc.expectHTTPErr && !isHTTPErr {
-				t.Errorf("expected HTTP error from convert handler, but got: %v", err)
+			if tc.expectHttpError && !isHTTPErr {
+				t.Errorf("expected an HTTP error but got: %v", err)
 			}
 
-			if !tc.expectHTTPErr && isHTTPErr {
-				t.Errorf("expected no HTTP error from convert handler, but got one: %v", httpErr)
+			if !tc.expectHttpError && isHTTPErr {
+				t.Errorf("expected no HTTP error but got one: %v", httpErr)
 			}
 
-			if err != nil && tc.expectHTTPErr && isHTTPErr {
+			if err != nil && tc.expectHttpError && isHTTPErr {
 				status, _ := httpErr.HTTPError()
-				if status != tc.expectHTTPStatus {
-					t.Errorf("expected %d HTTP status code from convert handler, but got %d", tc.expectHTTPStatus, status)
+				if status != tc.expectHttpStatus {
+					t.Errorf("expected %d as HTTP status code but got %d", tc.expectHttpStatus, status)
 				}
 			}
 
 			if tc.expectOutputPathsCount != len(tc.ctx.OutputPaths()) {
-				t.Errorf("expected %d output paths from convert handler, but got %d", tc.expectOutputPathsCount, len(tc.ctx.OutputPaths()))
+				t.Errorf("expected %d output paths but got %d", tc.expectOutputPathsCount, len(tc.ctx.OutputPaths()))
 			}
 		})
 	}

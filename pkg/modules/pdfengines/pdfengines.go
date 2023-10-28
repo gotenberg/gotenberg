@@ -82,9 +82,9 @@ func (mod *PDFEngines) Provision(ctx *gotenberg.Context) error {
 		mod.names = names
 
 		for i, name := range names {
-			logger.Warn("unoconv-pdfengine is deprecated; prefer uno-pdfengine instead")
+			logger.Warn("unoconv-pdfengine is deprecated; prefer api-pdfengine instead")
 			if name == "unoconv-pdfengine" {
-				mod.names[i] = "uno-pdfengine"
+				mod.names[i] = "api-pdfengine"
 			}
 		}
 
