@@ -35,6 +35,8 @@ if [ $GOTENBERG_VERSION == "edge" ]; then
     -t "$DOCKER_REPOSITORY/gotenberg:edge-cloudrun" \
     --push \
     -f build/Dockerfile.cloudrun .
+
+  exit 0
 fi
 
 GOTENBERG_VERSION="${GOTENBERG_VERSION//v}"
