@@ -151,7 +151,8 @@ func (b *chromiumBrowser) Start(logger *zap.Logger) error {
 
 func (b *chromiumBrowser) Stop(logger *zap.Logger) error {
 	if !b.isStarted.Load() {
-		return errors.New("browser is already stopped")
+		// No big deal? Like calling cancel twice.
+		return nil
 	}
 
 	// Always remove the user profile directory created by Chromium.
@@ -195,8 +196,11 @@ func (b *chromiumBrowser) Healthy(logger *zap.Logger) bool {
 	b.ctxMu.RLock()
 	defer b.ctxMu.RUnlock()
 
-	taskCtx, cancel := chromedp.NewContext(b.ctx)
-	defer cancel()
+	timeoutCtx, timeoutCancel := context.WithTimeout(b.ctx, time.Duration(10)*time.Second)
+	defer timeoutCancel()
+
+	taskCtx, taskCancel := chromedp.NewContext(timeoutCtx)
+	defer taskCancel()
 
 	err := chromedp.Run(taskCtx, chromedp.Navigate("about:blank"))
 	if err != nil {

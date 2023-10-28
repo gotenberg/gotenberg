@@ -135,7 +135,7 @@ func TestChromiumBrowser_Stop(t *testing.T) {
 				b.isStarted.Store(false)
 				return b
 			}(),
-			expectError: true,
+			expectError: false,
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
@@ -927,7 +927,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 			expectedError: ErrPageRangesSyntaxError,
 		},
 		{
-			scenario: "default options",
+			scenario: "success (default options)",
 			browser: newChromiumBrowser(
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),

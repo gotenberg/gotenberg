@@ -180,8 +180,8 @@ COPY --from=binary-stage /home/gotenberg /usr/bin/
 
 # Environment variables required by modules or else.
 ENV CHROMIUM_BIN_PATH /usr/bin/chromium
-ENV UNOCONV_BIN_PATH /usr/bin/unoconv
 ENV LIBREOFFICE_BIN_PATH /usr/lib/libreoffice/program/soffice.bin
+ENV UNOCONV_BIN_PATH /usr/bin/unoconv
 ENV PDFTK_BIN_PATH /usr/bin/pdftk
 ENV QPDF_BIN_PATH /usr/bin/qpdf
 
