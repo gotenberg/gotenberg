@@ -63,3 +63,4 @@ jobs:
       - name: Build and push Docker image for main branch
         run: |
           make release GOTENBERG_VERSION=edge
+          make release GOTENBERG_VERSION=edge DOCKER_REPOSITORY=thecodingmachine
