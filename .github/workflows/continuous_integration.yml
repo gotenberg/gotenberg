@@ -48,6 +48,7 @@ jobs:
           bash <(curl -s https://codecov.io/bash)
 
   multiarch_build:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
       - Tests
     name: Multi-arch build
@@ -60,6 +61,5 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
       - name: Build and push Docker image for main branch
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           make release GOTENBERG_VERSION=edge
