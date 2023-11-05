@@ -138,17 +138,17 @@ RUN \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 RUN \
-    # Install LibreOffice & unoconv.
+    # Install LibreOffice & unoconverter.
     echo "deb http://deb.debian.org/debian bookworm-backports main" >> /etc/apt/sources.list &&\
     apt-get update -qq &&\
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t bookworm-backports libreoffice &&\
-    curl -Ls https://raw.githubusercontent.com/dagwieers/unoconv/master/unoconv -o /usr/bin/unoconv &&\
-    chmod +x /usr/bin/unoconv &&\
-    # unoconv will look for the Python binary, which has to be at version 3.
+    curl -Ls https://raw.githubusercontent.com/gotenberg/unoconverter/v0.0.1/unoconv -o /usr/bin/unoconverter &&\
+    chmod +x /usr/bin/unoconverter &&\
+    # unoconverter will look for the Python binary, which has to be at version 3.
     ln -s /usr/bin/python3 /usr/bin/python &&\
     # Verify installations.
     libreoffice --version &&\
-    unoconv --version &&\
+    unoconverter --version &&\
     # Cleanup.
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -181,7 +181,7 @@ COPY --from=binary-stage /home/gotenberg /usr/bin/
 # Environment variables required by modules or else.
 ENV CHROMIUM_BIN_PATH /usr/bin/chromium
 ENV LIBREOFFICE_BIN_PATH /usr/lib/libreoffice/program/soffice.bin
-ENV UNOCONV_BIN_PATH /usr/bin/unoconv
+ENV UNOCONVERTER_BIN_PATH /usr/bin/unoconverter
 ENV PDFTK_BIN_PATH /usr/bin/pdftk
 ENV QPDF_BIN_PATH /usr/bin/qpdf
 

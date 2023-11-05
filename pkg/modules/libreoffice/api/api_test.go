@@ -118,13 +118,13 @@ func TestApi_Validate(t *testing.T) {
 		{
 			scenario:    "empty LibreOffice bin path",
 			binPath:     "",
-			unoBinPath:  os.Getenv("UNOCONV_BIN_PATH"),
+			unoBinPath:  os.Getenv("UNOCONVERTER_BIN_PATH"),
 			expectError: true,
 		},
 		{
 			scenario:    "LibreOffice bin path does not exist",
 			binPath:     "/foo",
-			unoBinPath:  os.Getenv("UNOCONV_BIN_PATH"),
+			unoBinPath:  os.Getenv("UNOCONVERTER_BIN_PATH"),
 			expectError: true,
 		},
 		{
@@ -142,7 +142,7 @@ func TestApi_Validate(t *testing.T) {
 		{
 			scenario:    "validate success",
 			binPath:     os.Getenv("CHROMIUM_BIN_PATH"),
-			unoBinPath:  os.Getenv("UNOCONV_BIN_PATH"),
+			unoBinPath:  os.Getenv("UNOCONVERTER_BIN_PATH"),
 			expectError: false,
 		},
 	} {

@@ -30,7 +30,7 @@ var (
 	ErrMalformedPageRanges = errors.New("page ranges are malformed")
 )
 
-// Api is a module which provides an [Uno] to interact with LibreOffice.
+// Api is a module which provides a [Uno] to interact with LibreOffice.
 type Api struct {
 	autoStart bool
 	args      libreOfficeArguments
@@ -115,9 +115,9 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 		return errors.New("LIBREOFFICE_BIN_PATH environment variable is not set")
 	}
 
-	unoBinPath, ok := os.LookupEnv("UNOCONV_BIN_PATH")
+	unoBinPath, ok := os.LookupEnv("UNOCONVERTER_BIN_PATH")
 	if !ok {
-		return errors.New("UNOCONV_BIN_PATH environment variable is not set")
+		return errors.New("UNOCONVERTER_BIN_PATH environment variable is not set")
 	}
 
 	a.args = libreOfficeArguments{
@@ -155,7 +155,7 @@ func (a *Api) Validate() error {
 
 	_, statErr = os.Stat(a.args.unoBinPath)
 	if os.IsNotExist(statErr) {
-		err = multierr.Append(err, fmt.Errorf("uno binary path does not exist: %w", statErr))
+		err = multierr.Append(err, fmt.Errorf("unoconverter binary path does not exist: %w", statErr))
 	}
 
 	return err
