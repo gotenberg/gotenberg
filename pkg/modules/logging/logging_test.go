@@ -14,6 +14,7 @@ import (
 
 func TestLogging_Descriptor(t *testing.T) {
 	descriptor := new(Logging).Descriptor()
+
 	actual := reflect.TypeOf(descriptor.New())
 	expect := reflect.TypeOf(new(Logging))
 

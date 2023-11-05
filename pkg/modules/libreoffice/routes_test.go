@@ -19,7 +19,7 @@ func TestConvertRoute(t *testing.T) {
 		scenario               string
 		ctx                    *api.ContextMock
 		libreOffice            libreofficeapi.Uno
-		engine                 gotenberg.PDFEngine
+		engine                 gotenberg.PdfEngine
 		expectOptions          libreofficeapi.Options
 		expectError            bool
 		expectHttpError        bool
@@ -81,7 +81,7 @@ func TestConvertRoute(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "ErrPDFFormatNotAvailable (single file)",
+			scenario: "ErrPdfFormatNotSupported (single file)",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
@@ -102,9 +102,9 @@ func TestConvertRoute(t *testing.T) {
 					return []string{".docx"}
 				},
 			},
-			engine: &gotenberg.PDFEngineMock{
-				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
-					return gotenberg.ErrPDFFormatNotAvailable
+			engine: &gotenberg.PdfEngineMock{
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+					return gotenberg.ErrPdfFormatNotSupported
 				},
 			},
 			expectError:            true,
@@ -121,7 +121,7 @@ func TestConvertRoute(t *testing.T) {
 				})
 				ctx.SetValues(map[string][]string{
 					"pdfFormat": {
-						gotenberg.FormatPDFA1a,
+						gotenberg.PdfA1a,
 					},
 				})
 				return ctx
@@ -134,8 +134,8 @@ func TestConvertRoute(t *testing.T) {
 					return []string{".docx"}
 				},
 			},
-			engine: &gotenberg.PDFEngineMock{
-				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+			engine: &gotenberg.PdfEngineMock{
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 					return errors.New("foo")
 				},
 			},
@@ -209,15 +209,18 @@ func TestConvertRoute(t *testing.T) {
 			expectOutputPathsCount: 2,
 		},
 		{
-			scenario: "success with PDF format (single file)",
+			scenario: "success with non-native PDF/A (single file)",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
 					"document.docx": "/document.docx",
 				})
 				ctx.SetValues(map[string][]string{
-					"pdfFormat": {
-						gotenberg.FormatPDFA1a,
+					"pdfa": {
+						gotenberg.PdfA1a,
+					},
+					"nativePdfFormats": {
+						"false",
 					},
 				})
 				return ctx
@@ -230,8 +233,8 @@ func TestConvertRoute(t *testing.T) {
 					return []string{".docx"}
 				},
 			},
-			engine: &gotenberg.PDFEngineMock{
-				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+			engine: &gotenberg.PdfEngineMock{
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 					return nil
 				},
 			},
@@ -240,7 +243,7 @@ func TestConvertRoute(t *testing.T) {
 			expectOutputPathsCount: 1,
 		},
 		{
-			scenario: "success with every PDF formats form field (single file)",
+			scenario: "success with every non-native PDF/A & PDF/UA form fields (single file)",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
@@ -251,10 +254,19 @@ func TestConvertRoute(t *testing.T) {
 						"true",
 					},
 					"pdfFormat": {
-						gotenberg.FormatPDFA1a,
+						gotenberg.PdfA1a,
 					},
 					"nativePdfFormat": {
-						gotenberg.FormatPDFA1a,
+						gotenberg.PdfA1a,
+					},
+					"pdfa": {
+						gotenberg.PdfA1a,
+					},
+					"pdfua": {
+						"true",
+					},
+					"nativePdfFormats": {
+						"false",
 					},
 				})
 				return ctx
@@ -267,8 +279,8 @@ func TestConvertRoute(t *testing.T) {
 					return []string{".docx"}
 				},
 			},
-			engine: &gotenberg.PDFEngineMock{
-				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+			engine: &gotenberg.PdfEngineMock{
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 					return nil
 				},
 			},
@@ -299,7 +311,7 @@ func TestConvertRoute(t *testing.T) {
 					return []string{".docx"}
 				},
 			},
-			engine: &gotenberg.PDFEngineMock{
+			engine: &gotenberg.PdfEngineMock{
 				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 					return errors.New("foo")
 				},
@@ -309,7 +321,7 @@ func TestConvertRoute(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "ErrPDFFormatNotAvailable (merge)",
+			scenario: "ErrPdfFormatNotSupported (merge)",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
@@ -320,8 +332,11 @@ func TestConvertRoute(t *testing.T) {
 					"merge": {
 						"true",
 					},
-					"pdfFormat": {
+					"pdfa": {
 						"foo",
+					},
+					"nativePdfFormats": {
+						"false",
 					},
 				})
 				return ctx
@@ -334,12 +349,12 @@ func TestConvertRoute(t *testing.T) {
 					return []string{".docx"}
 				},
 			},
-			engine: &gotenberg.PDFEngineMock{
+			engine: &gotenberg.PdfEngineMock{
 				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 					return nil
 				},
-				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
-					return gotenberg.ErrPDFFormatNotAvailable
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+					return gotenberg.ErrPdfFormatNotSupported
 				},
 			},
 			expectError:            true,
@@ -359,8 +374,11 @@ func TestConvertRoute(t *testing.T) {
 					"merge": {
 						"true",
 					},
-					"pdfFormat": {
-						gotenberg.FormatPDFA1a,
+					"pdfa": {
+						gotenberg.PdfA1a,
+					},
+					"nativePdfFormats": {
+						"false",
 					},
 				})
 				return ctx
@@ -373,11 +391,11 @@ func TestConvertRoute(t *testing.T) {
 					return []string{".docx"}
 				},
 			},
-			engine: &gotenberg.PDFEngineMock{
+			engine: &gotenberg.PdfEngineMock{
 				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 					return nil
 				},
-				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 					return errors.New("foo")
 				},
 			},
@@ -409,7 +427,7 @@ func TestConvertRoute(t *testing.T) {
 					return []string{".docx"}
 				},
 			},
-			engine: &gotenberg.PDFEngineMock{
+			engine: &gotenberg.PdfEngineMock{
 				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 					return nil
 				},
@@ -441,7 +459,7 @@ func TestConvertRoute(t *testing.T) {
 					return []string{".docx"}
 				},
 			},
-			engine: &gotenberg.PDFEngineMock{
+			engine: &gotenberg.PdfEngineMock{
 				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 					return nil
 				},
@@ -451,7 +469,7 @@ func TestConvertRoute(t *testing.T) {
 			expectOutputPathsCount: 1,
 		},
 		{
-			scenario: "success with PDF format (merge)",
+			scenario: "success with non-native PDF/A (merge)",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
@@ -462,8 +480,11 @@ func TestConvertRoute(t *testing.T) {
 					"merge": {
 						"true",
 					},
-					"pdfFormat": {
-						gotenberg.FormatPDFA1a,
+					"pdfa": {
+						gotenberg.PdfA1a,
+					},
+					"nativePdfFormats": {
+						"false",
 					},
 				})
 				return ctx
@@ -476,11 +497,11 @@ func TestConvertRoute(t *testing.T) {
 					return []string{".docx"}
 				},
 			},
-			engine: &gotenberg.PDFEngineMock{
+			engine: &gotenberg.PdfEngineMock{
 				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 					return nil
 				},
-				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 					return nil
 				},
 			},

@@ -24,27 +24,27 @@ func (mod *ValidatorMock) Validate() error {
 	return mod.ValidateMock()
 }
 
-// PDFEngineMock is a mock for the [PDFEngine] interface.
-type PDFEngineMock struct {
+// PdfEngineMock is a mock for the [PdfEngine] interface.
+type PdfEngineMock struct {
 	MergeMock   func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error
-	ConvertMock func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error
+	ConvertMock func(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error
 }
 
-func (engine *PDFEngineMock) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+func (engine *PdfEngineMock) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 	return engine.MergeMock(ctx, logger, inputPaths, outputPath)
 }
 
-func (engine *PDFEngineMock) Convert(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
-	return engine.ConvertMock(ctx, logger, format, inputPath, outputPath)
+func (engine *PdfEngineMock) Convert(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error {
+	return engine.ConvertMock(ctx, logger, formats, inputPath, outputPath)
 }
 
-// PDFEngineProviderMock is a mock for the [PDFEngineProvider] interface.
-type PDFEngineProviderMock struct {
-	PDFEngineMock func() (PDFEngine, error)
+// PdfEngineProviderMock is a mock for the [PdfEngineProvider] interface.
+type PdfEngineProviderMock struct {
+	PdfEngineMock func() (PdfEngine, error)
 }
 
-func (provider *PDFEngineProviderMock) PDFEngine() (PDFEngine, error) {
-	return provider.PDFEngineMock()
+func (provider *PdfEngineProviderMock) PdfEngine() (PdfEngine, error) {
+	return provider.PdfEngineMock()
 }
 
 // ProcessMock is a mock for the [Process] interface.
@@ -113,8 +113,8 @@ func (provider *LoggerProviderMock) Logger(mod Module) (*zap.Logger, error) {
 var (
 	_ Module            = (*ModuleMock)(nil)
 	_ Validator         = (*ValidatorMock)(nil)
-	_ PDFEngine         = (*PDFEngineMock)(nil)
-	_ PDFEngineProvider = (*PDFEngineProviderMock)(nil)
+	_ PdfEngine         = (*PdfEngineMock)(nil)
+	_ PdfEngineProvider = (*PdfEngineProviderMock)(nil)
 	_ Process           = (*ProcessMock)(nil)
 	_ ProcessSupervisor = (*ProcessSupervisorMock)(nil)
 	_ LoggerProvider    = (*LoggerProviderMock)(nil)

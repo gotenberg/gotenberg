@@ -13,26 +13,25 @@ import (
 )
 
 func init() {
-	gotenberg.MustRegisterModule(QPDF{})
+	gotenberg.MustRegisterModule(new(QPdf))
 }
 
-// QPDF abstracts the CLI tool QPDF and implements the gotenberg.PDFEngine
+// QPdf abstracts the CLI tool QPDF and implements the [gotenberg.PdfEngine]
 // interface.
-type QPDF struct {
+type QPdf struct {
 	binPath string
 }
 
-// Descriptor returns a QPDF's module descriptor.
-func (QPDF) Descriptor() gotenberg.ModuleDescriptor {
+// Descriptor returns a [QPdf]'s module descriptor.
+func (engine *QPdf) Descriptor() gotenberg.ModuleDescriptor {
 	return gotenberg.ModuleDescriptor{
 		ID:  "qpdf",
-		New: func() gotenberg.Module { return new(QPDF) },
+		New: func() gotenberg.Module { return new(QPdf) },
 	}
 }
 
-// Provision sets the modules properties. It returns an error if the
-// environment variable QPDF_BIN_PATH is not set.
-func (engine *QPDF) Provision(_ *gotenberg.Context) error {
+// Provision sets the modules properties.
+func (engine *QPdf) Provision(ctx *gotenberg.Context) error {
 	binPath, ok := os.LookupEnv("QPDF_BIN_PATH")
 	if !ok {
 		return errors.New("QPDF_BIN_PATH environment variable is not set")
@@ -44,21 +43,22 @@ func (engine *QPDF) Provision(_ *gotenberg.Context) error {
 }
 
 // Validate validates the module properties.
-func (engine QPDF) Validate() error {
+func (engine *QPdf) Validate() error {
 	_, err := os.Stat(engine.binPath)
 	if os.IsNotExist(err) {
-		return fmt.Errorf("QPDF binary path does not exist: %w", err)
+		return fmt.Errorf("QPdf binary path does not exist: %w", err)
 	}
 
 	return nil
 }
 
 // Metrics returns the metrics.
-func (engine QPDF) Metrics() ([]gotenberg.Metric, error) {
+func (engine *QPdf) Metrics() ([]gotenberg.Metric, error) {
+	// TODO: remove deprecated.
 	return []gotenberg.Metric{
 		{
 			Name:        "qpdf_active_instances_count",
-			Description: "Current number of active QPDF instances.",
+			Description: "Current number of active QPDF instances - deprecated.",
 			Read: func() float64 {
 				activeInstancesCountMu.RLock()
 				defer activeInstancesCountMu.RUnlock()
@@ -69,8 +69,8 @@ func (engine QPDF) Metrics() ([]gotenberg.Metric, error) {
 	}, nil
 }
 
-// Merge merges the given PDFs into a unique PDF.
-func (engine QPDF) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+// Merge combines multiple PDFs into a single PDF.
+func (engine *QPdf) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 	var args []string
 	args = append(args, "--empty")
 	args = append(args, "--pages")
@@ -99,9 +99,9 @@ func (engine QPDF) Merge(ctx context.Context, logger *zap.Logger, inputPaths []s
 	return fmt.Errorf("merge PDFs with QPDF: %w", err)
 }
 
-// Convert is not available for this PDF engine.
-func (engine QPDF) Convert(_ context.Context, _ *zap.Logger, format, _, _ string) error {
-	return fmt.Errorf("convert PDF to '%s' with QPDF: %w", format, gotenberg.ErrPDFEngineMethodNotAvailable)
+// Convert is not available in this implementation.
+func (engine *QPdf) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+	return fmt.Errorf("convert PDF to '%+v' with QPDF: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 var (
@@ -110,9 +110,9 @@ var (
 )
 
 var (
-	_ gotenberg.Module          = (*QPDF)(nil)
-	_ gotenberg.Provisioner     = (*QPDF)(nil)
-	_ gotenberg.Validator       = (*QPDF)(nil)
-	_ gotenberg.MetricsProvider = (*QPDF)(nil)
-	_ gotenberg.PDFEngine       = (*QPDF)(nil)
+	_ gotenberg.Module          = (*QPdf)(nil)
+	_ gotenberg.Provisioner     = (*QPdf)(nil)
+	_ gotenberg.Validator       = (*QPdf)(nil)
+	_ gotenberg.MetricsProvider = (*QPdf)(nil)
+	_ gotenberg.PdfEngine       = (*QPdf)(nil)
 )

@@ -95,8 +95,8 @@ func TestLibreOfficePdfEngine_Provider(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			mod := new(LibreOfficePdfEngine)
-			err := mod.Provision(tc.ctx)
+			engine := new(LibreOfficePdfEngine)
+			err := engine.Provision(tc.ctx)
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
@@ -110,11 +110,11 @@ func TestLibreOfficePdfEngine_Provider(t *testing.T) {
 }
 
 func TestLibreOfficePdfEngine_Merge(t *testing.T) {
-	mod := new(LibreOfficePdfEngine)
-	err := mod.Merge(context.Background(), zap.NewNop(), nil, "")
+	engine := new(LibreOfficePdfEngine)
+	err := engine.Merge(context.Background(), zap.NewNop(), nil, "")
 
-	if !errors.Is(err, gotenberg.ErrPDFEngineMethodNotAvailable) {
-		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPDFEngineMethodNotAvailable, err)
+	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
+		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)
 	}
 }
 
@@ -154,7 +154,7 @@ func TestLibreOfficePdfEngine_Convert(t *testing.T) {
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			engine := &LibreOfficePdfEngine{unoAPI: tc.api}
-			err := engine.Convert(context.Background(), zap.NewNop(), "", "", "")
+			err := engine.Convert(context.Background(), zap.NewNop(), gotenberg.PdfFormats{}, "", "")
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)

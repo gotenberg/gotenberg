@@ -270,16 +270,24 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 		args = append(args, "--export", fmt.Sprintf("PageRange=%s", options.PageRanges))
 	}
 
-	switch options.PdfFormat {
+	switch options.PdfFormats.PdfA {
 	case "":
-	case gotenberg.FormatPDFA1a:
+	case gotenberg.PdfA1a:
 		args = append(args, "--export", "SelectPdfVersion=1")
-	case gotenberg.FormatPDFA2b:
+	case gotenberg.PdfA2b:
 		args = append(args, "--export", "SelectPdfVersion=2")
-	case gotenberg.FormatPDFA3b:
+	case gotenberg.PdfA3b:
 		args = append(args, "--export", "SelectPdfVersion=3")
 	default:
 		return ErrInvalidPdfFormat
+	}
+
+	if options.PdfFormats.PdfUa {
+		args = append(
+			args,
+			"--export", "EnableTextAccessForAccessibilityTools=true",
+			"--export", "UseTaggedPDF=true",
+		)
 	}
 
 	args = append(args, "--output", outputPath, inputPath)

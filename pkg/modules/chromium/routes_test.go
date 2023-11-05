@@ -121,6 +121,58 @@ func TestFormDataChromiumPdfOptions(t *testing.T) {
 	}
 }
 
+func TestFormDataChromiumPdfFormats(t *testing.T) {
+	for _, tc := range []struct {
+		scenario           string
+		ctx                *api.ContextMock
+		expectedPdfFormats gotenberg.PdfFormats
+	}{
+		{
+			scenario:           "no custom form fields",
+			ctx:                &api.ContextMock{Context: new(api.Context)},
+			expectedPdfFormats: gotenberg.PdfFormats{},
+		},
+		{
+			scenario: "deprecated pdfFormat form field",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"pdfFormat": {
+						"foo",
+					},
+				})
+				return ctx
+			}(),
+			expectedPdfFormats: gotenberg.PdfFormats{PdfA: "foo"},
+		},
+		{
+			scenario: "pdfa and pdfua form fields",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"pdfa": {
+						"foo",
+					},
+					"pdfua": {
+						"true",
+					},
+				})
+				return ctx
+			}(),
+			expectedPdfFormats: gotenberg.PdfFormats{PdfA: "foo", PdfUa: true},
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			tc.ctx.SetLogger(zap.NewNop())
+			actual := FormDataChromiumPdfFormats(tc.ctx.Context)
+
+			if !reflect.DeepEqual(actual, tc.expectedPdfFormats) {
+				t.Fatalf("expected %+v but got: %+v", tc.expectedPdfFormats, actual)
+			}
+		})
+	}
+}
+
 func TestConvertUrlRoute(t *testing.T) {
 	for _, tc := range []struct {
 		scenario               string
@@ -535,8 +587,8 @@ func TestConvertUrl(t *testing.T) {
 		scenario               string
 		ctx                    *api.ContextMock
 		api                    Api
-		engine                 gotenberg.PDFEngine
-		pdfFormat              string
+		engine                 gotenberg.PdfEngine
+		pdfFormats             gotenberg.PdfFormats
 		options                Options
 		expectError            bool
 		expectHttpError        bool
@@ -643,15 +695,15 @@ func TestConvertUrl(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "ErrPDFFormatNotAvailable",
+			scenario: "ErrPdfFormatNotSupported",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
 			api: &ApiMock{func(ctx context.Context, logger *zap.Logger, url, outputPath string, options Options) error {
 				return nil
 			}},
-			engine: &gotenberg.PDFEngineMock{ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
-				return gotenberg.ErrPDFFormatNotAvailable
+			engine: &gotenberg.PdfEngineMock{ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+				return gotenberg.ErrPdfFormatNotSupported
 			}},
-			pdfFormat:              "foo",
+			pdfFormats:             gotenberg.PdfFormats{PdfA: "foo"},
 			options:                DefaultOptions(),
 			expectError:            true,
 			expectHttpError:        true,
@@ -664,10 +716,10 @@ func TestConvertUrl(t *testing.T) {
 			api: &ApiMock{func(ctx context.Context, logger *zap.Logger, url, outputPath string, options Options) error {
 				return nil
 			}},
-			engine: &gotenberg.PDFEngineMock{ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+			engine: &gotenberg.PdfEngineMock{ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 				return errors.New("foo")
 			}},
-			pdfFormat:              "foo",
+			pdfFormats:             gotenberg.PdfFormats{PdfA: "foo"},
 			options:                DefaultOptions(),
 			expectError:            true,
 			expectHttpError:        false,
@@ -679,10 +731,10 @@ func TestConvertUrl(t *testing.T) {
 			api: &ApiMock{func(ctx context.Context, logger *zap.Logger, url, outputPath string, options Options) error {
 				return nil
 			}},
-			engine: &gotenberg.PDFEngineMock{ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+			engine: &gotenberg.PdfEngineMock{ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 				return nil
 			}},
-			pdfFormat:              "foo",
+			pdfFormats:             gotenberg.PdfFormats{PdfA: gotenberg.PdfA1a},
 			options:                DefaultOptions(),
 			expectError:            false,
 			expectHttpError:        false,
@@ -717,7 +769,7 @@ func TestConvertUrl(t *testing.T) {
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			tc.ctx.SetLogger(zap.NewNop())
-			err := convertUrl(tc.ctx.Context, tc.api, tc.engine, "", tc.pdfFormat, tc.options)
+			err := convertUrl(tc.ctx.Context, tc.api, tc.engine, "", tc.pdfFormats, tc.options)
 
 			if tc.expectError && err == nil {
 				t.Fatal("expected error but got none", err)

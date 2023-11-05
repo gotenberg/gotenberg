@@ -243,7 +243,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 				return p
 			}(),
 			fs:            gotenberg.NewFileSystem(),
-			options:       Options{PdfFormat: "foo"},
+			options:       Options{PdfFormats: gotenberg.PdfFormats{PdfA: "foo"}},
 			cancelledCtx:  false,
 			start:         false,
 			expectError:   true,
@@ -417,7 +417,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 
 				return fs
 			}(),
-			options:      Options{PdfFormat: gotenberg.FormatPDFA1a},
+			options:      Options{PdfFormats: gotenberg.PdfFormats{PdfA: gotenberg.PdfA1a}},
 			cancelledCtx: false,
 			start:        true,
 			expectError:  false,
@@ -446,7 +446,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 
 				return fs
 			}(),
-			options:      Options{PdfFormat: gotenberg.FormatPDFA2b},
+			options:      Options{PdfFormats: gotenberg.PdfFormats{PdfA: gotenberg.PdfA2b}},
 			cancelledCtx: false,
 			start:        true,
 			expectError:  false,
@@ -475,7 +475,36 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 
 				return fs
 			}(),
-			options:      Options{PdfFormat: gotenberg.FormatPDFA3b},
+			options:      Options{PdfFormats: gotenberg.PdfFormats{PdfA: gotenberg.PdfA3b}},
+			cancelledCtx: false,
+			start:        true,
+			expectError:  false,
+		},
+		{
+			scenario: "success (PDF/UA)",
+			libreOffice: newLibreOfficeProcess(
+				libreOfficeArguments{
+					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
+					unoBinPath:   os.Getenv("UNOCONV_BIN_PATH"),
+					startTimeout: 5 * time.Second,
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/document.txt", fs.WorkingDirPath()), []byte("Landscape"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options:      Options{PdfFormats: gotenberg.PdfFormats{PdfUa: true}},
 			cancelledCtx: false,
 			start:        true,
 			expectError:  false,

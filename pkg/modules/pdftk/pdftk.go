@@ -13,26 +13,25 @@ import (
 )
 
 func init() {
-	gotenberg.MustRegisterModule(PDFtk{})
+	gotenberg.MustRegisterModule(new(PdfTk))
 }
 
-// PDFtk abstracts the CLI tool PDFtk and implements the gotenberg.PDFEngine
+// PdfTk abstracts the CLI tool PDFtk and implements the [gotenberg.PdfEngine]
 // interface.
-type PDFtk struct {
+type PdfTk struct {
 	binPath string
 }
 
-// Descriptor returns a PDFtk's module descriptor.
-func (PDFtk) Descriptor() gotenberg.ModuleDescriptor {
+// Descriptor returns a [PdfTk]'s module descriptor.
+func (engine *PdfTk) Descriptor() gotenberg.ModuleDescriptor {
 	return gotenberg.ModuleDescriptor{
 		ID:  "pdftk",
-		New: func() gotenberg.Module { return new(PDFtk) },
+		New: func() gotenberg.Module { return new(PdfTk) },
 	}
 }
 
-// Provision sets the modules properties. It returns an error if the
-// environment variable PDFTK_BIN_PATH is not set.
-func (engine *PDFtk) Provision(_ *gotenberg.Context) error {
+// Provision sets the modules properties.
+func (engine *PdfTk) Provision(ctx *gotenberg.Context) error {
 	binPath, ok := os.LookupEnv("PDFTK_BIN_PATH")
 	if !ok {
 		return errors.New("PDFTK_BIN_PATH environment variable is not set")
@@ -44,21 +43,22 @@ func (engine *PDFtk) Provision(_ *gotenberg.Context) error {
 }
 
 // Validate validates the module properties.
-func (engine PDFtk) Validate() error {
+func (engine *PdfTk) Validate() error {
 	_, err := os.Stat(engine.binPath)
 	if os.IsNotExist(err) {
-		return fmt.Errorf("PDFtk binary path does not exist: %w", err)
+		return fmt.Errorf("PdfTk binary path does not exist: %w", err)
 	}
 
 	return nil
 }
 
 // Metrics returns the metrics.
-func (engine PDFtk) Metrics() ([]gotenberg.Metric, error) {
+func (engine *PdfTk) Metrics() ([]gotenberg.Metric, error) {
+	// TODO: remove deprecated.
 	return []gotenberg.Metric{
 		{
 			Name:        "pdftk_active_instances_count",
-			Description: "Current number of active PDFtk instances.",
+			Description: "Current number of active PDFtk instances - deprecated.",
 			Read: func() float64 {
 				activeInstancesCountMu.RLock()
 				defer activeInstancesCountMu.RUnlock()
@@ -69,8 +69,8 @@ func (engine PDFtk) Metrics() ([]gotenberg.Metric, error) {
 	}, nil
 }
 
-// Merge merges the given PDFs into a unique PDF.
-func (engine PDFtk) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+// Merge combines multiple PDFs into a single PDF.
+func (engine *PdfTk) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 	var args []string
 	args = append(args, inputPaths...)
 	args = append(args, "cat", "output", outputPath)
@@ -97,9 +97,9 @@ func (engine PDFtk) Merge(ctx context.Context, logger *zap.Logger, inputPaths []
 	return fmt.Errorf("merge PDFs with PDFtk: %w", err)
 }
 
-// Convert is not available for this PDF engine.
-func (engine PDFtk) Convert(_ context.Context, _ *zap.Logger, format, _, _ string) error {
-	return fmt.Errorf("convert PDF to '%s' with PDFtk: %w", format, gotenberg.ErrPDFEngineMethodNotAvailable)
+// Convert is not available in this implementation.
+func (engine *PdfTk) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+	return fmt.Errorf("convert PDF to '%+v' with PDFtk: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 var (
@@ -109,9 +109,9 @@ var (
 
 // Interface guards.
 var (
-	_ gotenberg.Module          = (*PDFtk)(nil)
-	_ gotenberg.Provisioner     = (*PDFtk)(nil)
-	_ gotenberg.Validator       = (*PDFtk)(nil)
-	_ gotenberg.MetricsProvider = (*PDFtk)(nil)
-	_ gotenberg.PDFEngine       = (*PDFtk)(nil)
+	_ gotenberg.Module          = (*PdfTk)(nil)
+	_ gotenberg.Provisioner     = (*PdfTk)(nil)
+	_ gotenberg.Validator       = (*PdfTk)(nil)
+	_ gotenberg.MetricsProvider = (*PdfTk)(nil)
+	_ gotenberg.PdfEngine       = (*PdfTk)(nil)
 )

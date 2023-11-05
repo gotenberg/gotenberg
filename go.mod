@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/alexliesenfeld/health v0.8.0
 	github.com/andybalholm/brotli v1.0.6 // indirect
-	github.com/chromedp/cdproto v0.0.0-20231025043423-5615e204d422
+	github.com/chromedp/cdproto v0.0.0-20231101223124-24f5925b5980
 	github.com/chromedp/chromedp v0.9.3
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.4.0
@@ -30,10 +30,10 @@ require (
 	golang.org/x/crypto v0.14.0 // indirect
 	golang.org/x/image v0.13.0 // indirect
 	golang.org/x/net v0.17.0
-	golang.org/x/sync v0.4.0
-	golang.org/x/sys v0.13.0 // indirect
+	golang.org/x/sync v0.5.0
+	golang.org/x/sys v0.14.0 // indirect
 	golang.org/x/term v0.13.0
-	golang.org/x/text v0.13.0
+	golang.org/x/text v0.14.0
 )
 
 require (
@@ -44,8 +44,8 @@ require (
 	github.com/dsnet/compress v0.0.2-0.20210315054119-f66993602bf5 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
-	github.com/gobwas/ws v1.3.0 // indirect
-	github.com/gorilla/css v1.0.0 // indirect
+	github.com/gobwas/ws v1.3.1 // indirect
+	github.com/gorilla/css v1.0.1 // indirect
 	github.com/hhrutter/lzw v1.0.0 // indirect
 	github.com/hhrutter/tiff v1.0.1 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
