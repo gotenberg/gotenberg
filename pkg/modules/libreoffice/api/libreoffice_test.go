@@ -26,7 +26,7 @@ func TestLibreOfficeProcess_Start(t *testing.T) {
 			libreOffice: newLibreOfficeProcess(
 				libreOfficeArguments{
 					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
-					unoBinPath:   os.Getenv("UNOCONV_BIN_PATH"),
+					unoBinPath:   os.Getenv("UNOCONVERTER_BIN_PATH"),
 					startTimeout: 5 * time.Second,
 				},
 			),
@@ -48,7 +48,7 @@ func TestLibreOfficeProcess_Start(t *testing.T) {
 			libreOffice: newLibreOfficeProcess(
 				libreOfficeArguments{
 					binPath:      "foo",
-					unoBinPath:   os.Getenv("UNOCONV_BIN_PATH"),
+					unoBinPath:   os.Getenv("UNOCONVERTER_BIN_PATH"),
 					startTimeout: 5 * time.Second,
 				},
 			),
@@ -92,7 +92,7 @@ func TestLibreOfficeProcess_Stop(t *testing.T) {
 			libreOffice: newLibreOfficeProcess(
 				libreOfficeArguments{
 					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
-					unoBinPath:   os.Getenv("UNOCONV_BIN_PATH"),
+					unoBinPath:   os.Getenv("UNOCONVERTER_BIN_PATH"),
 					startTimeout: 5 * time.Second,
 				},
 			),
@@ -147,7 +147,7 @@ func TestLibreOfficeProcess_Healthy(t *testing.T) {
 			libreOffice: newLibreOfficeProcess(
 				libreOfficeArguments{
 					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
-					unoBinPath:   os.Getenv("UNOCONV_BIN_PATH"),
+					unoBinPath:   os.Getenv("UNOCONVERTER_BIN_PATH"),
 					startTimeout: 5 * time.Second,
 				},
 			),
@@ -254,7 +254,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 			libreOffice: newLibreOfficeProcess(
 				libreOfficeArguments{
 					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
-					unoBinPath:   os.Getenv("UNOCONV_BIN_PATH"),
+					unoBinPath:   os.Getenv("UNOCONVERTER_BIN_PATH"),
 					startTimeout: 5 * time.Second,
 				},
 			),
@@ -284,7 +284,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 			libreOffice: newLibreOfficeProcess(
 				libreOfficeArguments{
 					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
-					unoBinPath:   os.Getenv("UNOCONV_BIN_PATH"),
+					unoBinPath:   os.Getenv("UNOCONVERTER_BIN_PATH"),
 					startTimeout: 5 * time.Second,
 				},
 			),
@@ -312,7 +312,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 			libreOffice: newLibreOfficeProcess(
 				libreOfficeArguments{
 					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
-					unoBinPath:   os.Getenv("UNOCONV_BIN_PATH"),
+					unoBinPath:   os.Getenv("UNOCONVERTER_BIN_PATH"),
 					startTimeout: 5 * time.Second,
 				},
 			),
@@ -340,7 +340,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 			libreOffice: newLibreOfficeProcess(
 				libreOfficeArguments{
 					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
-					unoBinPath:   os.Getenv("UNOCONV_BIN_PATH"),
+					unoBinPath:   os.Getenv("UNOCONVERTER_BIN_PATH"),
 					startTimeout: 5 * time.Second,
 				},
 			),
@@ -369,7 +369,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 			libreOffice: newLibreOfficeProcess(
 				libreOfficeArguments{
 					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
-					unoBinPath:   os.Getenv("UNOCONV_BIN_PATH"),
+					unoBinPath:   os.Getenv("UNOCONVERTER_BIN_PATH"),
 					startTimeout: 5 * time.Second,
 				},
 			),
@@ -398,7 +398,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 			libreOffice: newLibreOfficeProcess(
 				libreOfficeArguments{
 					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
-					unoBinPath:   os.Getenv("UNOCONV_BIN_PATH"),
+					unoBinPath:   os.Getenv("UNOCONVERTER_BIN_PATH"),
 					startTimeout: 5 * time.Second,
 				},
 			),
@@ -427,7 +427,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 			libreOffice: newLibreOfficeProcess(
 				libreOfficeArguments{
 					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
-					unoBinPath:   os.Getenv("UNOCONV_BIN_PATH"),
+					unoBinPath:   os.Getenv("UNOCONVERTER_BIN_PATH"),
 					startTimeout: 5 * time.Second,
 				},
 			),
@@ -456,7 +456,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 			libreOffice: newLibreOfficeProcess(
 				libreOfficeArguments{
 					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
-					unoBinPath:   os.Getenv("UNOCONV_BIN_PATH"),
+					unoBinPath:   os.Getenv("UNOCONVERTER_BIN_PATH"),
 					startTimeout: 5 * time.Second,
 				},
 			),
@@ -485,7 +485,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 			libreOffice: newLibreOfficeProcess(
 				libreOfficeArguments{
 					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
-					unoBinPath:   os.Getenv("UNOCONV_BIN_PATH"),
+					unoBinPath:   os.Getenv("UNOCONVERTER_BIN_PATH"),
 					startTimeout: 5 * time.Second,
 				},
 			),
