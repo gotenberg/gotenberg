@@ -94,7 +94,7 @@ func TestLibreOffice_Provision(t *testing.T) {
 				mod := &struct {
 					gotenberg.ModuleMock
 					libreofficeapi.ProviderMock
-					gotenberg.PDFEngineProviderMock
+					gotenberg.PdfEngineProviderMock
 				}{}
 				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return mod }}
@@ -102,7 +102,7 @@ func TestLibreOffice_Provision(t *testing.T) {
 				mod.LibreOfficeMock = func() (libreofficeapi.Uno, error) {
 					return new(libreofficeapi.ApiMock), nil
 				}
-				mod.PDFEngineMock = func() (gotenberg.PDFEngine, error) {
+				mod.PdfEngineMock = func() (gotenberg.PdfEngine, error) {
 					return nil, errors.New("foo")
 				}
 
@@ -123,7 +123,7 @@ func TestLibreOffice_Provision(t *testing.T) {
 				mod := &struct {
 					gotenberg.ModuleMock
 					libreofficeapi.ProviderMock
-					gotenberg.PDFEngineProviderMock
+					gotenberg.PdfEngineProviderMock
 				}{}
 				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return mod }}
@@ -131,8 +131,8 @@ func TestLibreOffice_Provision(t *testing.T) {
 				mod.LibreOfficeMock = func() (libreofficeapi.Uno, error) {
 					return new(libreofficeapi.ApiMock), nil
 				}
-				mod.PDFEngineMock = func() (gotenberg.PDFEngine, error) {
-					return new(gotenberg.PDFEngineMock), nil
+				mod.PdfEngineMock = func() (gotenberg.PdfEngine, error) {
+					return new(gotenberg.PdfEngineMock), nil
 				}
 
 				return gotenberg.NewContext(

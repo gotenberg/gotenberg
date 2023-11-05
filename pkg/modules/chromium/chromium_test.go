@@ -108,7 +108,7 @@ func TestChromium_Provision(t *testing.T) {
 				mod := &struct {
 					gotenberg.ModuleMock
 					gotenberg.LoggerProviderMock
-					gotenberg.PDFEngineProviderMock
+					gotenberg.PdfEngineProviderMock
 				}{}
 				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return mod }}
@@ -116,7 +116,7 @@ func TestChromium_Provision(t *testing.T) {
 				mod.LoggerMock = func(mod gotenberg.Module) (*zap.Logger, error) {
 					return zap.NewNop(), nil
 				}
-				mod.PDFEngineMock = func() (gotenberg.PDFEngine, error) {
+				mod.PdfEngineMock = func() (gotenberg.PdfEngine, error) {
 					return nil, errors.New("foo")
 				}
 
@@ -137,7 +137,7 @@ func TestChromium_Provision(t *testing.T) {
 				mod := &struct {
 					gotenberg.ModuleMock
 					gotenberg.LoggerProviderMock
-					gotenberg.PDFEngineProviderMock
+					gotenberg.PdfEngineProviderMock
 				}{}
 				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return mod }}
@@ -145,8 +145,8 @@ func TestChromium_Provision(t *testing.T) {
 				mod.LoggerMock = func(mod gotenberg.Module) (*zap.Logger, error) {
 					return zap.NewNop(), nil
 				}
-				mod.PDFEngineMock = func() (gotenberg.PDFEngine, error) {
-					return new(gotenberg.PDFEngineMock), nil
+				mod.PdfEngineMock = func() (gotenberg.PdfEngine, error) {
+					return new(gotenberg.PdfEngineMock), nil
 				}
 
 				return gotenberg.NewContext(

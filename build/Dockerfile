@@ -69,10 +69,10 @@ RUN \
     # Credits:
     # https://github.com/arachnys/athenapdf/blob/master/cli/Dockerfile.
     # https://help.accusoft.com/PrizmDoc/v12.1/HTML/Installing_Asian_Fonts_on_Ubuntu_and_Debian.html.
-    curl -o ./ttf-mscorefonts-installer_3.8_all.deb http://httpredir.debian.org/debian/pool/contrib/m/msttcorefonts/ttf-mscorefonts-installer_3.8_all.deb &&\
+    curl -o ./ttf-mscorefonts-installer_3.8.1_all.deb http://httpredir.debian.org/debian/pool/contrib/m/msttcorefonts/ttf-mscorefonts-installer_3.8.1_all.deb &&\
     apt-get update -qq &&\
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
-    ./ttf-mscorefonts-installer_3.8_all.deb \
+    ./ttf-mscorefonts-installer_3.8.1_all.deb \
     culmus \
     fonts-beng \
     fonts-hosny-amiri \
@@ -107,7 +107,7 @@ RUN \
     fonts-noto-ui-core \
     fonts-sil-gentium \
     fonts-sil-gentium-basic &&\
-    rm -f ./ttf-mscorefonts-installer_3.8_all.deb &&\
+    rm -f ./ttf-mscorefonts-installer_3.8.1_all.deb &&\
     # Add Color and Black-and-White Noto emoji font.
     # Credits:
     # https://github.com/gotenberg/gotenberg/pull/325.

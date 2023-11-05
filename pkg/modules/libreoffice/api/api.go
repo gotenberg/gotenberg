@@ -47,17 +47,17 @@ type Options struct {
 	Landscape bool
 
 	// PageRanges allows to select the pages to convert.
-	// TODO: should prefer a method form PDFEngine.
+	// TODO: should prefer a method form PdfEngine.
 	// Optional.
 	PageRanges string
 
-	// PdfFormat allows to convert the resulting PDF to PDF/A-1a, PDF/A-2b, or
-	// PDF/A-3b.
+	// PdfFormats allows to convert the resulting PDF to PDF/A-1a, PDF/A-2b,
+	// PDF/A-3b and PDF/UA.
 	// Optional.
-	PdfFormat string
+	PdfFormats gotenberg.PdfFormats
 }
 
-// Uno is an abstraction on top of Api.
+// Uno is an abstraction on top of the Universal Network Objects API.
 type Uno interface {
 	Pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
 	Extensions() []string
@@ -265,13 +265,13 @@ func (a *Api) Metrics() ([]gotenberg.Metric, error) {
 func (a *Api) Checks() ([]health.CheckerOption, error) {
 	return []health.CheckerOption{
 		health.WithCheck(health.Check{
-			Name: "api",
+			Name: "libreoffice",
 			Check: func(_ context.Context) error {
 				if a.supervisor.Healthy() {
 					return nil
 				}
 
-				return errors.New("LibreOffice unhealthy")
+				return errors.New("LibreOffice is unhealthy")
 			},
 		}),
 	}, nil

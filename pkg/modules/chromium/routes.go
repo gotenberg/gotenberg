@@ -129,8 +129,41 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, Options) {
 	return form, options
 }
 
+// FormDataChromiumPdfFormats creates [gotenberg.PdfFormats] from the form
+// data. Fallback to default value if the considered key is not present.
+func FormDataChromiumPdfFormats(ctx *api.Context) gotenberg.PdfFormats {
+	var (
+		pdfFormat string
+		pdfa      string
+		pdfua     bool
+	)
+
+	ctx.FormData().
+		String("pdfFormat", &pdfFormat, "").
+		String("pdfa", &pdfa, "").
+		Bool("pdfua", &pdfua, false)
+
+	// FIXME: deprecated.
+	// pdfa > pdfFormat.
+	var actualPdfArchive string
+
+	if pdfFormat != "" {
+		ctx.Log().Warn("'pdfFormat' is deprecated; prefer the 'pdfa' form field instead")
+		actualPdfArchive = pdfFormat
+	}
+
+	if pdfa != "" {
+		actualPdfArchive = pdfa
+	}
+
+	return gotenberg.PdfFormats{
+		PdfA:  actualPdfArchive,
+		PdfUa: pdfua,
+	}
+}
+
 // convertUrlRoute returns an [api.Route] which can convert a URL to PDF.
-func convertUrlRoute(chromium Api, engine gotenberg.PDFEngine) api.Route {
+func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
 		Path:        "/forms/chromium/convert/url",
@@ -138,21 +171,17 @@ func convertUrlRoute(chromium Api, engine gotenberg.PDFEngine) api.Route {
 		Handler: func(c echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPdfOptions(ctx)
+			pdfFormats := FormDataChromiumPdfFormats(ctx)
 
-			var (
-				url       string
-				pdfFormat string
-			)
-
+			var url string
 			err := form.
 				MandatoryString("url", &url).
-				String("pdfFormat", &pdfFormat, "").
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			err = convertUrl(ctx, chromium, engine, url, pdfFormat, options)
+			err = convertUrl(ctx, chromium, engine, url, pdfFormats, options)
 			if err != nil {
 				return fmt.Errorf("convert URL to PDF: %w", err)
 			}
@@ -164,7 +193,7 @@ func convertUrlRoute(chromium Api, engine gotenberg.PDFEngine) api.Route {
 
 // convertHtmlRoute returns an [api.Route] which can convert an HTML file to
 // PDF.
-func convertHtmlRoute(chromium Api, engine gotenberg.PDFEngine) api.Route {
+func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
 		Path:        "/forms/chromium/convert/html",
@@ -172,23 +201,18 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PDFEngine) api.Route {
 		Handler: func(c echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPdfOptions(ctx)
+			pdfFormats := FormDataChromiumPdfFormats(ctx)
 
-			var (
-				inputPath string
-				pdfFormat string
-			)
-
+			var inputPath string
 			err := form.
 				MandatoryPath("index.html", &inputPath).
-				String("pdfFormat", &pdfFormat, "").
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
 			url := fmt.Sprintf("file://%s", inputPath)
-
-			err = convertUrl(ctx, chromium, engine, url, pdfFormat, options)
+			err = convertUrl(ctx, chromium, engine, url, pdfFormats, options)
 			if err != nil {
 				return fmt.Errorf("convert HTML to PDF: %w", err)
 			}
@@ -200,7 +224,7 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PDFEngine) api.Route {
 
 // convertMarkdownRoute returns an [api.Route] which can convert markdown files
 // to PDF.
-func convertMarkdownRoute(chromium Api, engine gotenberg.PDFEngine) api.Route {
+func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
 		Path:        "/forms/chromium/convert/markdown",
@@ -208,17 +232,16 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PDFEngine) api.Route {
 		Handler: func(c echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPdfOptions(ctx)
+			pdfFormats := FormDataChromiumPdfFormats(ctx)
 
 			var (
 				inputPath     string
 				markdownPaths []string
-				pdfFormat     string
 			)
 
 			err := form.
 				MandatoryPath("index.html", &inputPath).
 				MandatoryPaths([]string{".md"}, &markdownPaths).
-				String("pdfFormat", &pdfFormat, "").
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -297,7 +320,7 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PDFEngine) api.Route {
 
 			url := fmt.Sprintf("file://%s", inputPath)
 
-			err = convertUrl(ctx, chromium, engine, url, pdfFormat, options)
+			err = convertUrl(ctx, chromium, engine, url, pdfFormats, options)
 			if err != nil {
 				return fmt.Errorf("convert markdown to PDF: %w", err)
 			}
@@ -308,7 +331,7 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PDFEngine) api.Route {
 }
 
 // convertUrl is a stub which is called by the other methods of this file.
-func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PDFEngine, url, pdfFormat string, options Options) error {
+func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, pdfFormats gotenberg.PdfFormats, options Options) error {
 	outputPath := ctx.GeneratePath(".pdf")
 
 	err := chromium.Pdf(ctx, ctx.Log(), url, outputPath, options)
@@ -385,22 +408,22 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PDFEngine, url,
 	}
 
 	// So far so good, the URL has been converted to PDF.
-	// Now, let's check if the client want to convert this result PDF
-	// to a specific PDF format.
-
-	if pdfFormat != "" {
+	// Now, let's check if the client want to convert the resulting PDF
+	// to specific formats.
+	zeroValued := gotenberg.PdfFormats{}
+	if pdfFormats != zeroValued {
 		convertInputPath := outputPath
 		convertOutputPath := ctx.GeneratePath(".pdf")
 
-		err = engine.Convert(ctx, ctx.Log(), pdfFormat, convertInputPath, convertOutputPath)
+		err = engine.Convert(ctx, ctx.Log(), pdfFormats, convertInputPath, convertOutputPath)
 
 		if err != nil {
-			if errors.Is(err, gotenberg.ErrPDFFormatNotAvailable) {
+			if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
 				return api.WrapError(
 					fmt.Errorf("convert PDF: %w", err),
 					api.NewSentinelHTTPError(
 						http.StatusBadRequest,
-						fmt.Sprintf("At least one PDF engine does not handle the PDF format '%s' (pdfFormat), while other have failed to convert for other reasons", pdfFormat),
+						fmt.Sprintf("At least one PDF engine does not handle one of the PDF format in '%+v', while other have failed to convert for other reasons", pdfFormats),
 					),
 				)
 			}

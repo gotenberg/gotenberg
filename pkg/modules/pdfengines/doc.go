@@ -1,3 +1,3 @@
-// Package pdfengines provides a module which gathers modules that implements
-// the gotenberg.PDFEngine interface.
+// Package pdfengines a way to gather and manage multiple modules that
+// implement the gotenberg.PdfEngine interface.
 package pdfengines

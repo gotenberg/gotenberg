@@ -18,7 +18,7 @@ func init() {
 // PDF with LibreOffice.
 type LibreOffice struct {
 	api           libeofficeapi.Uno
-	engine        gotenberg.PDFEngine
+	engine        gotenberg.PdfEngine
 	disableRoutes bool
 }
 
@@ -53,12 +53,12 @@ func (mod *LibreOffice) Provision(ctx *gotenberg.Context) error {
 
 	mod.api = libreOfficeApi
 
-	provider, err = ctx.Module(new(gotenberg.PDFEngineProvider))
+	provider, err = ctx.Module(new(gotenberg.PdfEngineProvider))
 	if err != nil {
 		return fmt.Errorf("get PDF engine provider: %w", err)
 	}
 
-	engine, err := provider.(gotenberg.PDFEngineProvider).PDFEngine()
+	engine, err := provider.(gotenberg.PdfEngineProvider).PdfEngine()
 	if err != nil {
 		return fmt.Errorf("get PDF engine: %w", err)
 	}

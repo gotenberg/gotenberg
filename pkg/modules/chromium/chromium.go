@@ -65,7 +65,7 @@ type Chromium struct {
 	logger     *zap.Logger
 	browser    browser
 	supervisor gotenberg.ProcessSupervisor
-	engine     gotenberg.PDFEngine
+	engine     gotenberg.PdfEngine
 }
 
 // Options are the available expectedOptions for converting HTML document to PDF.
@@ -293,11 +293,11 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 	mod.supervisor = gotenberg.NewProcessSupervisor(mod.logger, mod.browser, flags.MustInt64("chromium-restart-after"))
 
 	// PDF Engine.
-	provider, err := ctx.Module(new(gotenberg.PDFEngineProvider))
+	provider, err := ctx.Module(new(gotenberg.PdfEngineProvider))
 	if err != nil {
 		return fmt.Errorf("get PDF engine provider: %w", err)
 	}
-	engine, err := provider.(gotenberg.PDFEngineProvider).PDFEngine()
+	engine, err := provider.(gotenberg.PdfEngineProvider).PdfEngine()
 	if err != nil {
 		return fmt.Errorf("get PDF engine: %w", err)
 	}
@@ -402,7 +402,7 @@ func (mod *Chromium) Checks() ([]health.CheckerOption, error) {
 					return nil
 				}
 
-				return errors.New("chromium is unhealthy")
+				return errors.New("Chromium is unhealthy")
 			},
 		}),
 	}, nil

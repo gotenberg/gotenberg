@@ -35,36 +35,36 @@ func TestValidatorMock(t *testing.T) {
 }
 
 func TestPDFEngineMock(t *testing.T) {
-	mock := &PDFEngineMock{
+	mock := &PdfEngineMock{
 		MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 			return nil
 		},
-		ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+		ConvertMock: func(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error {
 			return nil
 		},
 	}
 
 	err := mock.Merge(context.Background(), zap.NewNop(), nil, "")
 	if err != nil {
-		t.Errorf("expected no error from PDFEngineMock.Merge, but got: %v", err)
+		t.Errorf("expected no error from PdfEngineMock.Merge, but got: %v", err)
 	}
 
-	err = mock.Convert(context.Background(), zap.NewNop(), "", "", "")
+	err = mock.Convert(context.Background(), zap.NewNop(), PdfFormats{}, "", "")
 	if err != nil {
-		t.Errorf("expected no error from PDFEngineMock.Convert, but got: %v", err)
+		t.Errorf("expected no error from PdfEngineMock.Convert, but got: %v", err)
 	}
 }
 
 func TestPDFEngineProviderMock(t *testing.T) {
-	mock := &PDFEngineProviderMock{
-		PDFEngineMock: func() (PDFEngine, error) {
-			return new(PDFEngineMock), nil
+	mock := &PdfEngineProviderMock{
+		PdfEngineMock: func() (PdfEngine, error) {
+			return new(PdfEngineMock), nil
 		},
 	}
 
-	_, err := mock.PDFEngine()
+	_, err := mock.PdfEngine()
 	if err != nil {
-		t.Errorf("expected no error from PDFEngineProviderMock.PDFEngine, but got: %v", err)
+		t.Errorf("expected no error from PdfEngineProviderMock.PdfEngine, but got: %v", err)
 	}
 }
 

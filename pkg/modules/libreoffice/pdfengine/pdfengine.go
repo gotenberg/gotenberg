@@ -16,7 +16,7 @@ func init() {
 }
 
 // LibreOfficePdfEngine interacts with the LibreOffice (Universal Network Objects) API
-// and implements the [gotenberg.PDFEngine] interface.
+// and implements the [gotenberg.PdfEngine] interface.
 type LibreOfficePdfEngine struct {
 	unoAPI api.Uno
 }
@@ -46,17 +46,18 @@ func (engine *LibreOfficePdfEngine) Provision(ctx *gotenberg.Context) error {
 	return nil
 }
 
-// Merge is not available for this PDF engine.
-func (engine *LibreOfficePdfEngine) Merge(_ context.Context, _ *zap.Logger, _ []string, _ string) error {
-	return fmt.Errorf("merge PDFs with LibreOffice: %w", gotenberg.ErrPDFEngineMethodNotAvailable)
+// Merge is not available in this implementation.
+func (engine *LibreOfficePdfEngine) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+	return fmt.Errorf("merge PDFs with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Convert converts the given PDF to a specific PDF format. Currently, only the
-// PDF/A-1a, PDF/A-2b and PDF/A-3b formats are available. If another PDF format
-// is requested, it returns a [gotenberg.ErrPDFFormatNotAvailable] error.
-func (engine *LibreOfficePdfEngine) Convert(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+// PDF/A-1a, PDF/A-2b, PDF/A-3b and PDF/UA formats are available. If another
+// PDF format is requested, it returns a [gotenberg.ErrPdfFormatNotSupported]
+// error.
+func (engine *LibreOfficePdfEngine) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 	err := engine.unoAPI.Pdf(ctx, logger, inputPath, outputPath, api.Options{
-		PdfFormat: format,
+		PdfFormats: formats,
 	})
 
 	if err == nil {
@@ -64,15 +65,15 @@ func (engine *LibreOfficePdfEngine) Convert(ctx context.Context, logger *zap.Log
 	}
 
 	if errors.Is(err, api.ErrInvalidPdfFormat) {
-		return fmt.Errorf("convert PDF to '%s' with LibreOffice: %w", format, gotenberg.ErrPDFFormatNotAvailable)
+		return fmt.Errorf("convert PDF to '%+v' with LibreOffice: %w", formats, gotenberg.ErrPdfFormatNotSupported)
 	}
 
-	return fmt.Errorf("convert PDF to '%s' with unoconv: %w", format, err)
+	return fmt.Errorf("convert PDF to '%+v' with LibreOffice: %w", formats, err)
 }
 
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*LibreOfficePdfEngine)(nil)
 	_ gotenberg.Provisioner = (*LibreOfficePdfEngine)(nil)
-	_ gotenberg.PDFEngine   = (*LibreOfficePdfEngine)(nil)
+	_ gotenberg.PdfEngine   = (*LibreOfficePdfEngine)(nil)
 )
