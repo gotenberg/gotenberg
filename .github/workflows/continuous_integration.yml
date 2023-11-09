@@ -92,4 +92,4 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Build try of armhf Docker image variant
         run: |
-          make release GOTENBERG_VERSION=armmhf
+          make release GOTENBERG_VERSION=armhf
