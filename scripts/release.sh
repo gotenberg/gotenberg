@@ -10,25 +10,6 @@ NOTO_COLOR_EMOJI_VERSION="$5"
 PDFTK_VERSION="$6"
 DOCKER_REPOSITORY="$7"
 
-# FIXME: for whatever reasons, platform linux/arm/v7 (armhf) is not working
-#  anymore. See https://github.com/gotenberg/gotenberg/issues/709 for more
-#  details.
-
-if [ "$GOTENBERG_VERSION" == "armhf" ]; then
-  docker buildx build \
-      --build-arg GOLANG_VERSION="$GOLANG_VERSION" \
-      --build-arg GOTENBERG_VERSION="$GOTENBERG_VERSION" \
-      --build-arg GOTENBERG_USER_GID="$GOTENBERG_USER_GID" \
-      --build-arg GOTENBERG_USER_UID="$GOTENBERG_USER_UID" \
-      --build-arg NOTO_COLOR_EMOJI_VERSION="$NOTO_COLOR_EMOJI_VERSION" \
-      --build-arg PDFTK_VERSION="$PDFTK_VERSION" \
-      --platform linux/arm/v7 \
-      -t "$DOCKER_REPOSITORY/gotenberg:armhf" \
-      -f build/Dockerfile .
-
-  exit 0
-fi
-
 if [ "$GOTENBERG_VERSION" == "edge" ]; then
   docker buildx build \
     --build-arg GOLANG_VERSION="$GOLANG_VERSION" \
@@ -40,6 +21,7 @@ if [ "$GOTENBERG_VERSION" == "edge" ]; then
     --platform linux/amd64 \
     --platform linux/arm64 \
     --platform linux/386 \
+    --platform linux/arm/v7 \
     -t "$DOCKER_REPOSITORY/gotenberg:edge" \
     --push \
     -f build/Dockerfile .
@@ -76,6 +58,7 @@ docker buildx build \
   --platform linux/amd64 \
   --platform linux/arm64 \
   --platform linux/386 \
+  --platform linux/arm/v7 \
   -t "$DOCKER_REPOSITORY/gotenberg:latest" \
   -t "$DOCKER_REPOSITORY/gotenberg:${SEMVER[0]}" \
   -t "$DOCKER_REPOSITORY/gotenberg:${SEMVER[0]}.${SEMVER[1]}" \
