@@ -23,8 +23,8 @@ type FormData struct {
 	errors error
 }
 
-// Validate returns nil or an error related to the FormData values, with a
-// SentinelHTTPError (status code 400, errors' details as message) wrapped
+// Validate returns nil or an error related to the [FormData] values, with a
+// [SentinelHTTPError] (status code 400, errors' details as message) wrapped
 // inside.
 //
 //	var foo string

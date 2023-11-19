@@ -57,8 +57,8 @@ func httpErrorHandler() echo.HTTPErrorHandler {
 	}
 }
 
-// latencyMiddleware sets the start time in the echo.Context under "startTime".
-// Its value will be used later to calculate a request latency.
+// latencyMiddleware sets the start time in the [echo.Context] under
+// "startTime". Its value will be used later to calculate a request latency.
 //
 //	startTime := c.Get("startTime").(time.Time)
 func latencyMiddleware() echo.MiddlewareFunc {
@@ -74,9 +74,9 @@ func latencyMiddleware() echo.MiddlewareFunc {
 	}
 }
 
-// rootPathMiddleware sets the root path in the echo.Context under "rootPath".
-// Its value may be used to skip a middleware execution based on a request
-// URI.
+// rootPathMiddleware sets the root path in the [echo.Context] under
+// "rootPath". Its value may be used to skip a middleware execution based on a
+// request URI.
 //
 //	rootPath := c.Get("rootPath").(string)
 //	healthURI := fmt.Sprintf("%s/health", rootPath)
@@ -97,7 +97,7 @@ func rootPathMiddleware(rootPath string) echo.MiddlewareFunc {
 	}
 }
 
-// traceMiddleware sets the request identifier in the echo.Context under
+// traceMiddleware sets the request identifier in the [echo.Context] under
 // "trace". Its value is either retrieved from the trace header or generated if
 // the header is not present / its value is empty.
 //
@@ -123,8 +123,8 @@ func traceMiddleware(header string) echo.MiddlewareFunc {
 	}
 }
 
-// loggerMiddleware sets the logger in the echo.Context under "logger" and logs
-// a synchronous request result.
+// loggerMiddleware sets the logger in the [echo.Context] under "logger" and
+// logs a synchronous request result.
 //
 //	logger := c.Get("logger").(*zap.Logger)
 func loggerMiddleware(logger *zap.Logger, disableLoggingForPaths []string) echo.MiddlewareFunc {
@@ -196,9 +196,9 @@ func loggerMiddleware(logger *zap.Logger, disableLoggingForPaths []string) echo.
 }
 
 // contextMiddleware, a middleware for "multipart/form-data" requests, sets the
-// Context and related context.CancelFunc in the echo.Context under "context"
-// and "cancel". If the process is synchronous, it also handles the result of a
-// "multipart/form-data" request.
+// [Context] and related context.CancelFunc in the [echo.Context] under
+// "context" and "cancel". If the process is synchronous, it also handles the
+// result of a "multipart/form-data" request.
 //
 //	ctx := c.Get("context").(*api.Context)
 //	cancel := c.Get("cancel").(context.CancelFunc)

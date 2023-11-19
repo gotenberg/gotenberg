@@ -13,7 +13,7 @@ type SentinelHTTPError struct {
 	message string
 }
 
-// NewSentinelHTTPError creates a SentinelHTTPError. The message will be sent
+// NewSentinelHTTPError creates a [SentinelHTTPError]. The message will be sent
 // as the response's body if returned from a handler, so make sure to not leak
 // sensible information.
 func NewSentinelHTTPError(status int, message string) SentinelHTTPError {
@@ -34,7 +34,7 @@ func (err SentinelHTTPError) HTTPError() (int, string) {
 }
 
 // sentinelWrappedError contains both the error which will logged and the
-// sidekick SentinelHTTPError.
+// sidekick [SentinelHTTPError].
 type sentinelWrappedError struct {
 	error
 	sentinel SentinelHTTPError
@@ -48,9 +48,9 @@ func (w sentinelWrappedError) HTTPError() (int, string) {
 	return w.sentinel.HTTPError()
 }
 
-// WrapError wraps the given error with a SentinelHTTPError. The wrapped error
-// will be displayed in a log, while the SentinelHTTPError will be sent in the
-// response.
+// WrapError wraps the given error with a [SentinelHTTPError]. The wrapped
+// error will be displayed in a log, while the [SentinelHTTPError] will be sent
+// in the response.
 //
 //	return api.WrapError(
 //	  // This first error will be logged.

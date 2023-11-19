@@ -14,7 +14,7 @@ type FileSystem struct {
 	workingDir string
 }
 
-// NewFileSystem initializes a new FileSystem instance with a unique working
+// NewFileSystem initializes a new [FileSystem] instance with a unique working
 // directory.
 func NewFileSystem() *FileSystem {
 	return &FileSystem{

@@ -549,7 +549,7 @@ func TestWebhookMiddlewareAsynchronousProcess(t *testing.T) {
 			}()
 
 			err := webhookMiddleware(tc.mod).Handler(tc.next)(c)
-			if err != nil && err != api.ErrAsyncProcess {
+			if err != nil && !errors.Is(err, api.ErrAsyncProcess) {
 				t.Errorf("test %d: expected no error but got: %v", i, err)
 			}
 

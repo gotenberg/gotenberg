@@ -8,7 +8,7 @@ import (
 	flag "github.com/spf13/pflag"
 )
 
-// ParsedFlags wraps a flag.FlagSet so that retrieving the typed values is
+// ParsedFlags wraps a [flag.FlagSet] so that retrieving the typed values is
 // easier.
 type ParsedFlags struct {
 	*flag.FlagSet

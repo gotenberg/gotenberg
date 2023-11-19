@@ -49,7 +49,7 @@ type Context struct {
 	context.Context
 }
 
-// newContext returns a Context by parsing a "multipart/form-data" request.
+// newContext returns a [Context] by parsing a "multipart/form-data" request.
 func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSystem, timeout time.Duration) (*Context, context.CancelFunc, error) {
 	processCtx, processCancel := context.WithTimeout(context.Background(), timeout)
 
@@ -185,12 +185,12 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 	return ctx, cancel, err
 }
 
-// Request returns the http.Request.
+// Request returns the [http.Request].
 func (ctx Context) Request() *http.Request {
 	return ctx.echoCtx.Request()
 }
 
-// FormData return a FormData.
+// FormData return a [FormData].
 func (ctx Context) FormData() *FormData {
 	return &FormData{
 		values: ctx.values,
@@ -223,7 +223,7 @@ func (ctx *Context) AddOutputPaths(paths ...string) error {
 	return nil
 }
 
-// Log returns the context zap.Logger.
+// Log returns the context [zap.Logger].
 func (ctx Context) Log() *zap.Logger {
 	return ctx.logger
 }

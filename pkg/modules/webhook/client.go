@@ -111,8 +111,8 @@ func (c client) send(body io.Reader, headers map[string]string, erroed bool) err
 	return nil
 }
 
-// leveledLogger is wrapper around a zap.Logger which is used by the
-// retryablehttp.Client.
+// leveledLogger is wrapper around a [zap.Logger] which is used by the
+// [retryablehttp.Client].
 type leveledLogger struct {
 	logger *zap.Logger
 }

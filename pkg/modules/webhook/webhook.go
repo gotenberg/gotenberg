@@ -30,7 +30,7 @@ type Webhook struct {
 	disable        bool
 }
 
-// Descriptor returns an Webhook's module descriptor.
+// Descriptor returns an [Webhook]'s module descriptor.
 func (Webhook) Descriptor() gotenberg.ModuleDescriptor {
 	return gotenberg.ModuleDescriptor{
 		ID: "webhook",

@@ -44,12 +44,12 @@ type API struct {
 	srv                 *echo.Echo
 }
 
-// Router is a module interface which adds routes to the API.
+// Router is a module interface which adds routes to the [API].
 type Router interface {
 	Routes() ([]Route, error)
 }
 
-// Route represents a route from a Router.
+// Route represents a route from a [Router].
 type Route struct {
 	// Method is the HTTP method of the route (i.e., GET, POST, etc.).
 	// Required.
@@ -72,13 +72,13 @@ type Route struct {
 	Handler echo.HandlerFunc
 }
 
-// MiddlewareProvider is a module interface which adds middlewares to the API.
+// MiddlewareProvider is a module interface which adds middlewares to the [API].
 type MiddlewareProvider interface {
 	Middlewares() ([]Middleware, error)
 }
 
 // MiddlewareStack is a type which helps to determine in which stack the
-// middlewares provided by the MiddlewareProvider modules should be located.
+// middlewares provided by the [MiddlewareProvider] modules should be located.
 type MiddlewareStack uint32
 
 const (
@@ -88,7 +88,7 @@ const (
 )
 
 // MiddlewarePriority is a type which helps to determine the execution order of
-// middlewares provided by the MiddlewareProvider modules in a stack.
+// middlewares provided by the [MiddlewareProvider] modules in a stack.
 type MiddlewarePriority uint32
 
 const (
@@ -99,7 +99,7 @@ const (
 	VeryHighPriority
 )
 
-// Middleware is a middleware which can be added to the API's middlewares
+// Middleware is a middleware which can be added to the [API]'s middlewares
 // chain.
 //
 //	middleware := Middleware{
@@ -126,13 +126,13 @@ const (
 //	}
 type Middleware struct {
 	// Stack tells in which stack the middleware should be located.
-	// Default to DefaultStack.
+	// Default to [DefaultStack].
 	// Optional.
 	Stack MiddlewareStack
 
 	// Priority tells if the middleware should be positioned high or not in
 	// its stack.
-	// Default to VeryLowPriority.
+	// Default to [VeryLowPriority].
 	// Optional.
 	Priority MiddlewarePriority
 
@@ -149,7 +149,7 @@ type HealthChecker interface {
 	Checks() ([]health.CheckerOption, error)
 }
 
-// Descriptor returns an API's module descriptor.
+// Descriptor returns an [API]'s module descriptor.
 func (API) Descriptor() gotenberg.ModuleDescriptor {
 	return gotenberg.ModuleDescriptor{
 		ID: "api",

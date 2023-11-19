@@ -13,16 +13,16 @@ import (
 	"go.uber.org/zap"
 )
 
-// Cmd wraps an exec.Cmd.
+// Cmd wraps an [exec.Cmd].
 type Cmd struct {
 	ctx     context.Context
 	logger  *zap.Logger
 	process *exec.Cmd
 }
 
-// Command creates a Cmd without a context. It configures the internal
-// exec.Cmd of Cmd so that we may kill its unix process and all its children
-// without creating orphans.
+// Command creates a [Cmd] without a context. It configures the internal
+// [exec.Cmd] of [Cmd] so that we may kill its unix process and all its
+// children without creating orphans.
 //
 // See https://medium.com/@felixge/killing-a-child-process-and-all-of-its-children-in-go-54079af94773.
 func Command(logger *zap.Logger, binPath string, args ...string) Cmd {
@@ -36,9 +36,9 @@ func Command(logger *zap.Logger, binPath string, args ...string) Cmd {
 	}
 }
 
-// CommandContext creates a Cmd with a context. It configures the internal
-// exec.Cmd of Cmd so that we may kill its unix process and all its children
-// without creating orphans.
+// CommandContext creates a [Cmd] with a context. It configures the internal
+// [exec.Cmd] of [Cmd] so that we may kill its unix process and all its
+// children without creating orphans.
 //
 // See https://medium.com/@felixge/killing-a-child-process-and-all-of-its-children-in-go-54079af94773.
 func CommandContext(ctx context.Context, logger *zap.Logger, binPath string, args ...string) (Cmd, error) {
