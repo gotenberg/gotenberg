@@ -109,6 +109,15 @@ func (provider *LoggerProviderMock) Logger(mod Module) (*zap.Logger, error) {
 	return provider.LoggerMock(mod)
 }
 
+// MetricsProviderMock is a mock for the [MetricsProvider] interface.
+type MetricsProviderMock struct {
+	MetricsMock func() ([]Metric, error)
+}
+
+func (provider *MetricsProviderMock) Metrics() ([]Metric, error) {
+	return provider.MetricsMock()
+}
+
 // Interface guards.
 var (
 	_ Module            = (*ModuleMock)(nil)
@@ -118,4 +127,5 @@ var (
 	_ Process           = (*ProcessMock)(nil)
 	_ ProcessSupervisor = (*ProcessSupervisorMock)(nil)
 	_ LoggerProvider    = (*LoggerProviderMock)(nil)
+	_ MetricsProvider   = (*MetricsProviderMock)(nil)
 )

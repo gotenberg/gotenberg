@@ -162,3 +162,16 @@ func TestLoggerProviderMock(t *testing.T) {
 		t.Errorf("expected no error from LoggerProviderMock.Logger, but got: %v", err)
 	}
 }
+
+func TestMetricsProviderMock(t *testing.T) {
+	mock := &MetricsProviderMock{
+		MetricsMock: func() ([]Metric, error) {
+			return nil, nil
+		},
+	}
+
+	_, err := mock.Metrics()
+	if err != nil {
+		t.Errorf("expected no error from MetricsProviderMock.Metrics, but got: %v", err)
+	}
+}
