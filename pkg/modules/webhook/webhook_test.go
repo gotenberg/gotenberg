@@ -8,7 +8,7 @@ import (
 )
 
 func TestWebhook_Descriptor(t *testing.T) {
-	descriptor := Webhook{}.Descriptor()
+	descriptor := new(Webhook).Descriptor()
 
 	actual := reflect.TypeOf(descriptor.New())
 	expect := reflect.TypeOf(new(Webhook))
@@ -34,15 +34,20 @@ func TestWebhook_Provision(t *testing.T) {
 }
 
 func TestWebhook_Middlewares(t *testing.T) {
-	for i, tc := range []struct {
-		expectMiddlewares int
+	for _, tc := range []struct {
+		scenario          string
 		disable           bool
+		expectMiddlewares int
 	}{
 		{
-			expectMiddlewares: 1,
+			scenario:          "webhook disabled",
+			disable:           true,
+			expectMiddlewares: 0,
 		},
 		{
-			disable: true,
+			scenario:          "webhook enabled",
+			disable:           false,
+			expectMiddlewares: 1,
 		},
 	} {
 		mod := new(Webhook)
@@ -50,11 +55,11 @@ func TestWebhook_Middlewares(t *testing.T) {
 
 		middlewares, err := mod.Middlewares()
 		if err != nil {
-			t.Fatalf("test %d: expected no error but got: %v", i, err)
+			t.Fatalf("expected no error but got: %v", err)
 		}
 
 		if tc.expectMiddlewares != len(middlewares) {
-			t.Errorf("test %d: expected %d middlewares but got %d", i, tc.expectMiddlewares, len(middlewares))
+			t.Errorf("expected %d middlewares but got %d", tc.expectMiddlewares, len(middlewares))
 		}
 	}
 }

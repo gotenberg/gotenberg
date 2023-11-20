@@ -13,7 +13,7 @@ import (
 )
 
 func init() {
-	gotenberg.MustRegisterModule(Webhook{})
+	gotenberg.MustRegisterModule(new(Webhook))
 }
 
 // Webhook is a module which provides a middleware for uploading output files
@@ -31,7 +31,7 @@ type Webhook struct {
 }
 
 // Descriptor returns an [Webhook]'s module descriptor.
-func (Webhook) Descriptor() gotenberg.ModuleDescriptor {
+func (w *Webhook) Descriptor() gotenberg.ModuleDescriptor {
 	return gotenberg.ModuleDescriptor{
 		ID: "webhook",
 		FlagSet: func() *flag.FlagSet {
@@ -94,7 +94,7 @@ func (w *Webhook) Provision(ctx *gotenberg.Context) error {
 }
 
 // Middlewares returns the middleware.
-func (w Webhook) Middlewares() ([]api.Middleware, error) {
+func (w *Webhook) Middlewares() ([]api.Middleware, error) {
 	if w.disable {
 		return nil, nil
 	}

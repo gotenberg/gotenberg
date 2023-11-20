@@ -20,15 +20,14 @@ import (
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 )
 
-func webhookMiddleware(w Webhook) api.Middleware {
+func webhookMiddleware(w *Webhook) api.Middleware {
 	return api.Middleware{
 		Stack: api.MultipartStack,
 		Handler: func() echo.MiddlewareFunc {
 			return func(next echo.HandlerFunc) echo.HandlerFunc {
 				return func(c echo.Context) error {
-					webhookURL := c.Request().Header.Get("Gotenberg-Webhook-Url")
-
-					if webhookURL == "" {
+					webhookUrl := c.Request().Header.Get("Gotenberg-Webhook-Url")
+					if webhookUrl == "" {
 						// No webhook URL, call the next middleware in the chain.
 						return next(c)
 					}
@@ -37,9 +36,8 @@ func webhookMiddleware(w Webhook) api.Middleware {
 					cancel := c.Get("cancel").(context.CancelFunc)
 
 					// Do we have a webhook error URL in case of... error?
-					webhookErrorURL := c.Request().Header.Get("Gotenberg-Webhook-Error-Url")
-
-					if webhookErrorURL == "" {
+					webhookErrorUrl := c.Request().Header.Get("Gotenberg-Webhook-Error-Url")
+					if webhookErrorUrl == "" {
 						return api.WrapError(
 							errors.New("empty webhook error URL"),
 							api.NewSentinelHTTPError(http.StatusBadRequest, "Invalid 'Gotenberg-Webhook-Error-Url' header: empty value or header not provided"),
@@ -72,12 +70,12 @@ func webhookMiddleware(w Webhook) api.Middleware {
 						return nil
 					}
 
-					err := filter(webhookURL, "Gotenberg-Webhook-Url", w.allowList, w.denyList)
+					err := filter(webhookUrl, "Gotenberg-Webhook-Url", w.allowList, w.denyList)
 					if err != nil {
 						return fmt.Errorf("filter webhook URL: %w", err)
 					}
 
-					err = filter(webhookErrorURL, "Gotenberg-Webhook-Error-Url", w.errorAllowList, w.errorDenyList)
+					err = filter(webhookErrorUrl, "Gotenberg-Webhook-Error-Url", w.errorAllowList, w.errorDenyList)
 					if err != nil {
 						return fmt.Errorf("filter webhook error URL: %w", err)
 					}
@@ -135,11 +133,11 @@ func webhookMiddleware(w Webhook) api.Middleware {
 					}
 
 					client := &client{
-						url:              webhookURL,
+						url:              webhookUrl,
 						method:           webhookMethod,
-						errorURL:         webhookErrorURL,
+						errorUrl:         webhookErrorUrl,
 						errorMethod:      webhookErrorMethod,
-						extraHTTPHeaders: extraHTTPHeaders,
+						extraHttpHeaders: extraHTTPHeaders,
 						startTime:        c.Get("startTime").(time.Time),
 
 						client: &retryablehttp.Client{
