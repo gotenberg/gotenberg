@@ -23,173 +23,212 @@ func TestContext_ParsedFlags(t *testing.T) {
 }
 
 func TestContext_Module(t *testing.T) {
-	for i, tc := range []struct {
-		mods      []ModuleDescriptor
-		kind      interface{}
-		expectErr bool
+	for _, tc := range []struct {
+		scenario    string
+		mods        []ModuleDescriptor
+		kind        interface{}
+		expectError bool
 	}{
 		{
+			scenario: "module with error on provision",
 			mods: func() []ModuleDescriptor {
-				mod := struct{ ProtoProvisioner }{}
-				mod.descriptor = func() ModuleDescriptor {
+				mod := &struct {
+					ModuleMock
+					ProvisionerMock
+				}{}
+				mod.DescriptorMock = func() ModuleDescriptor {
 					return ModuleDescriptor{ID: "foo", New: func() Module { return mod }}
 				}
-				mod.provision = func(ctx *Context) error { return errors.New("foo") }
-
+				mod.ProvisionMock = func(ctx *Context) error { return errors.New("foo") }
 				return []ModuleDescriptor{mod.Descriptor()}
 			}(),
-			kind:      new(Provisioner),
-			expectErr: true,
+			kind:        new(Provisioner),
+			expectError: true,
 		},
 		{
+			scenario: "two modules instead of one",
 			mods: func() []ModuleDescriptor {
-				mod := struct{ ProtoProvisioner }{}
-				mod.descriptor = func() ModuleDescriptor {
+				mod := &struct {
+					ModuleMock
+					ProvisionerMock
+				}{}
+				mod.DescriptorMock = func() ModuleDescriptor {
 					return ModuleDescriptor{ID: "foo", New: func() Module { return mod }}
 				}
-				mod.provision = func(ctx *Context) error { return nil }
-
+				mod.ProvisionMock = func(ctx *Context) error { return nil }
 				return []ModuleDescriptor{mod.Descriptor(), mod.Descriptor()}
 			}(),
-			kind:      new(Provisioner),
-			expectErr: true,
+			kind:        new(Provisioner),
+			expectError: true,
 		},
 		{
+			scenario: "success",
 			mods: func() []ModuleDescriptor {
-				mod := struct{ ProtoProvisioner }{}
-				mod.descriptor = func() ModuleDescriptor {
+				mod := &struct {
+					ModuleMock
+					ProvisionerMock
+				}{}
+				mod.DescriptorMock = func() ModuleDescriptor {
 					return ModuleDescriptor{ID: "foo", New: func() Module { return mod }}
 				}
-				mod.provision = func(ctx *Context) error { return nil }
-
+				mod.ProvisionMock = func(ctx *Context) error { return nil }
 				return []ModuleDescriptor{mod.Descriptor()}
 			}(),
-			kind: new(Provisioner),
+			kind:        new(Provisioner),
+			expectError: false,
 		},
 	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			ctx := NewContext(ParsedFlags{}, tc.mods)
+			_, err := ctx.Module(tc.kind)
 
-		ctx := NewContext(ParsedFlags{}, tc.mods)
-		_, err := ctx.Module(tc.kind)
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
-
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
+		})
 	}
 }
 
 func TestContext_Modules(t *testing.T) {
-	for i, tc := range []struct {
-		mods      []ModuleDescriptor
-		kind      interface{}
-		expectErr bool
+	for _, tc := range []struct {
+		scenario    string
+		mods        []ModuleDescriptor
+		kind        interface{}
+		expectError bool
 	}{
 		{
+			scenario: "module with error on provision",
 			mods: func() []ModuleDescriptor {
-				mod := struct{ ProtoProvisioner }{}
-				mod.descriptor = func() ModuleDescriptor {
+				mod := &struct {
+					ModuleMock
+					ProvisionerMock
+				}{}
+				mod.DescriptorMock = func() ModuleDescriptor {
 					return ModuleDescriptor{ID: "foo", New: func() Module { return mod }}
 				}
-				mod.provision = func(ctx *Context) error { return errors.New("foo") }
-
+				mod.ProvisionMock = func(ctx *Context) error { return errors.New("foo") }
 				return []ModuleDescriptor{mod.Descriptor()}
 			}(),
-			kind:      new(Provisioner),
-			expectErr: true,
+			kind:        new(Provisioner),
+			expectError: true,
 		},
 		{
+			scenario: "success (module)",
 			mods: func() []ModuleDescriptor {
-				mod := struct{ ProtoProvisioner }{}
-				mod.descriptor = func() ModuleDescriptor {
+				mod := &struct {
+					ModuleMock
+					ProvisionerMock
+				}{}
+				mod.DescriptorMock = func() ModuleDescriptor {
 					return ModuleDescriptor{ID: "foo", New: func() Module { return mod }}
 				}
-				mod.provision = func(ctx *Context) error { return nil }
-
+				mod.ProvisionMock = func(ctx *Context) error { return nil }
 				return []ModuleDescriptor{mod.Descriptor(), mod.Descriptor()}
 			}(),
-			kind: new(Provisioner),
+			kind:        new(Provisioner),
+			expectError: false,
 		},
 		{
+			scenario: "success (one module)",
 			mods: func() []ModuleDescriptor {
-				mod := struct{ ProtoProvisioner }{}
-				mod.descriptor = func() ModuleDescriptor {
+				mod := &struct {
+					ModuleMock
+					ProvisionerMock
+				}{}
+				mod.DescriptorMock = func() ModuleDescriptor {
 					return ModuleDescriptor{ID: "foo", New: func() Module { return mod }}
 				}
-				mod.provision = func(ctx *Context) error { return nil }
+				mod.ProvisionMock = func(ctx *Context) error { return nil }
 
 				return []ModuleDescriptor{mod.Descriptor()}
 			}(),
-			kind: new(Provisioner),
+			kind:        new(Provisioner),
+			expectError: false,
 		},
 	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			ctx := NewContext(ParsedFlags{}, tc.mods)
+			_, err := ctx.Modules(tc.kind)
 
-		ctx := NewContext(ParsedFlags{}, tc.mods)
-		_, err := ctx.Modules(tc.kind)
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
-
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
+		})
 	}
 }
 
 func TestContext_loadModule(t *testing.T) {
-	for i, tc := range []struct {
-		instance  interface{}
-		expectErr bool
+	for _, tc := range []struct {
+		scenario    string
+		instance    interface{}
+		expectError bool
 	}{
 		{
+			scenario: "module with error on provision",
 			instance: func() interface{} {
-				mod := struct{ ProtoProvisioner }{}
-				mod.descriptor = func() ModuleDescriptor {
+				mod := &struct {
+					ModuleMock
+					ProvisionerMock
+				}{}
+				mod.DescriptorMock = func() ModuleDescriptor {
 					return ModuleDescriptor{ID: "foo", New: func() Module { return mod }}
 				}
-				mod.provision = func(ctx *Context) error { return errors.New("foo") }
-
+				mod.ProvisionMock = func(ctx *Context) error { return errors.New("foo") }
 				return mod
 			}(),
-			expectErr: true,
+			expectError: true,
 		},
 		{
+			scenario: "module with error on validation",
 			instance: func() interface{} {
-				mod := struct{ ProtoValidator }{}
-				mod.descriptor = func() ModuleDescriptor {
+				mod := &struct {
+					ModuleMock
+					ValidatorMock
+				}{}
+				mod.DescriptorMock = func() ModuleDescriptor {
 					return ModuleDescriptor{ID: "foo", New: func() Module { return mod }}
 				}
-				mod.validate = func() error { return errors.New("foo") }
-
+				mod.ValidateMock = func() error { return errors.New("foo") }
 				return mod
 			}(),
-			expectErr: true,
+			expectError: true,
 		},
 		{
+			scenario: "success",
 			instance: func() interface{} {
-				mod := struct{ ProtoValidator }{}
-				mod.descriptor = func() ModuleDescriptor {
+				mod := &struct {
+					ModuleMock
+					ValidatorMock
+				}{}
+				mod.DescriptorMock = func() ModuleDescriptor {
 					return ModuleDescriptor{ID: "foo", New: func() Module { return mod }}
 				}
-				mod.validate = func() error { return nil }
+				mod.ValidateMock = func() error { return nil }
 
 				return mod
 			}(),
+			expectError: false,
 		},
 	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			ctx := NewContext(ParsedFlags{}, nil)
+			err := ctx.loadModule("foo", tc.instance)
 
-		ctx := NewContext(ParsedFlags{}, nil)
-		err := ctx.loadModule("foo", tc.instance)
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
-
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
+		})
 	}
 }

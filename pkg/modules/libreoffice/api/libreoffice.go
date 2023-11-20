@@ -29,7 +29,7 @@ type libreOfficeArguments struct {
 type libreOfficeProcess struct {
 	socketPort         int
 	userProfileDirPath string
-	cmd                gotenberg.Cmd
+	cmd                *gotenberg.Cmd
 	cfgMu              sync.RWMutex
 	isStarted          atomic.Bool
 
@@ -213,7 +213,7 @@ func (p *libreOfficeProcess) Stop(logger *zap.Logger) error {
 
 	p.socketPort = 0
 	p.userProfileDirPath = ""
-	p.cmd = gotenberg.Cmd{} // FIXME: pointer.
+	p.cmd = nil
 	p.isStarted.Store(false)
 
 	return nil

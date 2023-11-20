@@ -21,6 +21,19 @@ func TestModuleMock(t *testing.T) {
 	}
 }
 
+func TestProvisionerMock(t *testing.T) {
+	mock := &ProvisionerMock{
+		ProvisionMock: func(*Context) error {
+			return nil
+		},
+	}
+
+	err := mock.Provision(&Context{})
+	if err != nil {
+		t.Errorf("expected no error from ProvisionerMock.Provision, but got: %v", err)
+	}
+}
+
 func TestValidatorMock(t *testing.T) {
 	mock := &ValidatorMock{
 		ValidateMock: func() error {

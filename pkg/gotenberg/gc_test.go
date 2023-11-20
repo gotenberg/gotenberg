@@ -14,14 +14,14 @@ func TestGarbageCollect(t *testing.T) {
 		scenario        string
 		rootPath        string
 		includeSubstr   []string
-		expectErr       bool
+		expectError     bool
 		expectNotExists []string
 		expectExists    []string
 	}{
 		{
-			scenario:  "root path does not exist",
-			rootPath:  uuid.NewString(),
-			expectErr: true,
+			scenario:    "root path does not exist",
+			rootPath:    uuid.NewString(),
+			expectError: true,
 		},
 		{
 			scenario: "remove include substrings",
@@ -51,29 +51,30 @@ func TestGarbageCollect(t *testing.T) {
 				return path
 			}(),
 			includeSubstr:   []string{"foo", fmt.Sprintf("%s/a_directory/a_bar_file", os.TempDir())},
+			expectError:     false,
 			expectExists:    []string{"a_baz_file"},
 			expectNotExists: []string{"a_foo_file", "a_bar_file"},
 		},
 	} {
-		func() {
+		t.Run(tc.scenario, func(t *testing.T) {
 			defer func() {
 				err := os.RemoveAll(tc.rootPath)
 				if err != nil {
-					t.Fatalf("%s: expected no error while cleaning up but got: %v", tc.scenario, err)
+					t.Fatalf("expected no error while cleaning up but got: %v", err)
 				}
 			}()
 
 			err := GarbageCollect(zap.NewNop(), tc.rootPath, tc.includeSubstr)
 
-			if !tc.expectErr && err != nil {
-				t.Fatalf("%s: expected no error but got: %v", tc.scenario, err)
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
 			}
 
-			if tc.expectErr && err == nil {
-				t.Fatalf("%s: expected error but got: %v", tc.scenario, err)
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
 			}
 
-			if tc.expectErr && err != nil {
+			if tc.expectError && err != nil {
 				return
 			}
 
@@ -81,7 +82,7 @@ func TestGarbageCollect(t *testing.T) {
 				path := fmt.Sprintf("%s/%s", tc.rootPath, name)
 				_, err = os.Stat(path)
 				if !os.IsNotExist(err) {
-					t.Errorf("%s: expected '%s' not to exist but it does: %v", tc.scenario, path, err)
+					t.Errorf("expected '%s' not to exist but it does: %v", path, err)
 				}
 			}
 
@@ -89,9 +90,9 @@ func TestGarbageCollect(t *testing.T) {
 				path := fmt.Sprintf("%s/%s", tc.rootPath, name)
 				_, err = os.Stat(path)
 				if os.IsNotExist(err) {
-					t.Errorf("%s: expected '%s' to exist but it does not: %v", tc.scenario, path, err)
+					t.Errorf("expected '%s' to exist but it does not: %v", path, err)
 				}
 			}
-		}()
+		})
 	}
 }

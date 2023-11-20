@@ -76,6 +76,6 @@ type PdfEngine interface {
 //		engine, _ := provider.(gotenberg.PdfEngineProvider).PdfEngine()
 //	}
 type PdfEngineProvider interface {
-	// PdfEngine returns an instance of the PdfEngine interface for PDF operations.
+	// PdfEngine returns an instance of the [PdfEngine] interface for PDF operations.
 	PdfEngine() (PdfEngine, error)
 }

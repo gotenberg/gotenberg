@@ -15,6 +15,15 @@ func (mod *ModuleMock) Descriptor() ModuleDescriptor {
 	return mod.DescriptorMock()
 }
 
+// ProvisionerMock is a mock for the [Provisioner] interface.
+type ProvisionerMock struct {
+	ProvisionMock func(*Context) error
+}
+
+func (mod *ProvisionerMock) Provision(ctx *Context) error {
+	return mod.ProvisionMock(ctx)
+}
+
 // ValidatorMock is a mock for the [Validator] interface.
 type ValidatorMock struct {
 	ValidateMock func() error
