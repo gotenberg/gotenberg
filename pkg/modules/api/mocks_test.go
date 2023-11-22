@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/alexliesenfeld/health"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 )
@@ -113,5 +114,44 @@ func TestContextMock_SetEchoContext(t *testing.T) {
 
 	if actual != expect {
 		t.Errorf("expected %v but got %v", expect, actual)
+	}
+}
+
+func TestRouterMock(t *testing.T) {
+	mock := &RouterMock{
+		RoutesMock: func() ([]Route, error) {
+			return nil, nil
+		},
+	}
+
+	_, err := mock.Routes()
+	if err != nil {
+		t.Errorf("expected no error from RouterMock.Routes, but got: %v", err)
+	}
+}
+
+func TestMiddlewareProviderMock(t *testing.T) {
+	mock := &MiddlewareProviderMock{
+		MiddlewaresMock: func() ([]Middleware, error) {
+			return nil, nil
+		},
+	}
+
+	_, err := mock.Middlewares()
+	if err != nil {
+		t.Errorf("expected no error from MiddlewareProviderMock.Middlewares, but got: %v", err)
+	}
+}
+
+func TestHealthCheckerMock(t *testing.T) {
+	mock := &HealthCheckerMock{
+		ChecksMock: func() ([]health.CheckerOption, error) {
+			return nil, nil
+		},
+	}
+
+	_, err := mock.Checks()
+	if err != nil {
+		t.Errorf("expected no error from HealthCheckerMock.Checks, but got: %v", err)
 	}
 }

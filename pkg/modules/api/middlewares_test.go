@@ -36,7 +36,7 @@ func TestParseError(t *testing.T) {
 		{
 			err: WrapError(
 				errors.New("foo"),
-				NewSentinelHTTPError(http.StatusBadRequest, "foo"),
+				NewSentinelHttpError(http.StatusBadRequest, "foo"),
 			),
 			expectStatus:  http.StatusBadRequest,
 			expectMessage: "foo",
@@ -73,7 +73,7 @@ func TestHttpErrorHandler(t *testing.T) {
 		{
 			err: WrapError(
 				errors.New("foo"),
-				NewSentinelHTTPError(http.StatusBadRequest, "foo"),
+				NewSentinelHttpError(http.StatusBadRequest, "foo"),
 			),
 			expectStatus:  http.StatusBadRequest,
 			expectMessage: "foo",

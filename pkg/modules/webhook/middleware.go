@@ -40,7 +40,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 					if webhookErrorUrl == "" {
 						return api.WrapError(
 							errors.New("empty webhook error URL"),
-							api.NewSentinelHTTPError(http.StatusBadRequest, "Invalid 'Gotenberg-Webhook-Error-Url' header: empty value or header not provided"),
+							api.NewSentinelHttpError(http.StatusBadRequest, "Invalid 'Gotenberg-Webhook-Error-Url' header: empty value or header not provided"),
 						)
 					}
 
@@ -50,7 +50,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						if !allowList.MatchString(URL) {
 							return api.WrapError(
 								fmt.Errorf("'%s' does not match the expression from the allowed list", URL),
-								api.NewSentinelHTTPError(
+								api.NewSentinelHttpError(
 									http.StatusForbidden,
 									fmt.Sprintf("Invalid '%s' header value: '%s' does not match the authorized URLs", header, URL),
 								),
@@ -60,7 +60,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						if denyList.String() != "" && denyList.MatchString(URL) {
 							return api.WrapError(
 								fmt.Errorf("'%s' matches the expression from the denied list", URL),
-								api.NewSentinelHTTPError(
+								api.NewSentinelHttpError(
 									http.StatusForbidden,
 									fmt.Sprintf("Invalid '%s' header value: '%s' does not match the authorized URLs", header, URL),
 								),
@@ -101,7 +101,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 
 						return "", api.WrapError(
 							fmt.Errorf("webhook method '%s' is not '%s', '%s' or '%s'", method, http.MethodPost, http.MethodPatch, http.MethodPut),
-							api.NewSentinelHTTPError(
+							api.NewSentinelHttpError(
 								http.StatusBadRequest,
 								fmt.Sprintf("Invalid '%s' header value: expected '%s', '%s' or '%s', but got '%s'", header, http.MethodPost, http.MethodPatch, http.MethodPut, method),
 							),
@@ -127,7 +127,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						if err != nil {
 							return api.WrapError(
 								fmt.Errorf("unmarshal webhook extra HTTP headers: %w", err),
-								api.NewSentinelHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid 'Gotenberg-Webhook-Extra-Http-Headers' header value: %s", err.Error())),
+								api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'Gotenberg-Webhook-Extra-Http-Headers' header value: %s", err.Error())),
 							)
 						}
 					}

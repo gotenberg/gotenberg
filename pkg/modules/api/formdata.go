@@ -24,7 +24,7 @@ type FormData struct {
 }
 
 // Validate returns nil or an error related to the [FormData] values, with a
-// [SentinelHTTPError] (status code 400, errors' details as message) wrapped
+// [SentinelHttpError] (status code 400, errors' details as message) wrapped
 // inside.
 //
 //	var foo string
@@ -32,14 +32,14 @@ type FormData struct {
 //	err := ctx.FormData().
 //	   MandatoryString("foo", &foo, "bar").
 //	   Validate()
-func (form FormData) Validate() error {
+func (form *FormData) Validate() error {
 	if form.errors == nil {
 		return nil
 	}
 
 	return WrapError(
 		form.errors,
-		NewSentinelHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid form data: %s", form.errors)),
+		NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid form data: %s", form.errors)),
 	)
 }
 

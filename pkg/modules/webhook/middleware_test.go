@@ -274,19 +274,19 @@ func TestWebhookMiddlewareGuards(t *testing.T) {
 				t.Fatalf("expected no error but got: %v", err)
 			}
 
-			var httpErr api.HTTPError
-			isHTTPErr := errors.As(err, &httpErr)
+			var httpErr api.HttpError
+			isHttpError := errors.As(err, &httpErr)
 
-			if tc.expectHttpError && !isHTTPErr {
+			if tc.expectHttpError && !isHttpError {
 				t.Errorf("expected an HTTP error but got: %v", err)
 			}
 
-			if !tc.expectHttpError && isHTTPErr {
+			if !tc.expectHttpError && isHttpError {
 				t.Errorf("expected no HTTP error but got one: %v", httpErr)
 			}
 
-			if err != nil && tc.expectHttpError && isHTTPErr {
-				status, _ := httpErr.HTTPError()
+			if err != nil && tc.expectHttpError && isHttpError {
+				status, _ := httpErr.HttpError()
 				if status != tc.expectHttpStatus {
 					t.Errorf("expected %d as HTTP status code but got %d", tc.expectHttpStatus, status)
 				}
@@ -365,7 +365,7 @@ func TestWebhookMiddlewareAsynchronousProcess(t *testing.T) {
 			mod:      buildWebhookModule(),
 			next: func() echo.HandlerFunc {
 				return func(c echo.Context) error {
-					return api.NewSentinelHTTPError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
+					return api.NewSentinelHttpError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
 				}
 			}(),
 			expectWebhookContentType:  echo.MIMEApplicationJSONCharsetUTF8,
