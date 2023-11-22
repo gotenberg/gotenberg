@@ -22,12 +22,12 @@ import (
 )
 
 func init() {
-	gotenberg.MustRegisterModule(API{})
+	gotenberg.MustRegisterModule(new(Api))
 }
 
-// API is a module which provides an HTTP server. Other modules may add routes,
+// Api is a module which provides an HTTP server. Other modules may add routes,
 // middlewares or health checks.
-type API struct {
+type Api struct {
 	port                      int
 	readTimeout               time.Duration
 	writeTimeout              time.Duration
@@ -44,7 +44,7 @@ type API struct {
 	srv                 *echo.Echo
 }
 
-// Router is a module interface which adds routes to the [API].
+// Router is a module interface which adds routes to the [Api].
 type Router interface {
 	Routes() ([]Route, error)
 }
@@ -72,7 +72,7 @@ type Route struct {
 	Handler echo.HandlerFunc
 }
 
-// MiddlewareProvider is a module interface which adds middlewares to the [API].
+// MiddlewareProvider is a module interface which adds middlewares to the [Api].
 type MiddlewareProvider interface {
 	Middlewares() ([]Middleware, error)
 }
@@ -99,7 +99,7 @@ const (
 	VeryHighPriority
 )
 
-// Middleware is a middleware which can be added to the [API]'s middlewares
+// Middleware is a middleware which can be added to the [Api]'s middlewares
 // chain.
 //
 //	middleware := Middleware{
@@ -149,8 +149,8 @@ type HealthChecker interface {
 	Checks() ([]health.CheckerOption, error)
 }
 
-// Descriptor returns an [API]'s module descriptor.
-func (API) Descriptor() gotenberg.ModuleDescriptor {
+// Descriptor returns an [Api]'s module descriptor.
+func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 	return gotenberg.ModuleDescriptor{
 		ID: "api",
 		FlagSet: func() *flag.FlagSet {
@@ -176,12 +176,12 @@ func (API) Descriptor() gotenberg.ModuleDescriptor {
 
 			return fs
 		}(),
-		New: func() gotenberg.Module { return new(API) },
+		New: func() gotenberg.Module { return new(Api) },
 	}
 }
 
 // Provision sets the module properties.
-func (a *API) Provision(ctx *gotenberg.Context) error {
+func (a *Api) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	a.port = flags.MustInt("api-port")
 	a.readTimeout = flags.MustDeprecatedDuration("api-read-timeout", "api-timeout")
@@ -297,7 +297,7 @@ func (a *API) Provision(ctx *gotenberg.Context) error {
 }
 
 // Validate validates the module properties.
-func (a API) Validate() error {
+func (a *Api) Validate() error {
 	var err error
 
 	if a.port < 1 || a.port > 65535 {
@@ -369,7 +369,7 @@ func (a API) Validate() error {
 }
 
 // Start starts the HTTP server.
-func (a *API) Start() error {
+func (a *Api) Start() error {
 	a.srv = echo.New()
 	a.srv.HideBanner = true
 	a.srv.HidePort = true
@@ -465,19 +465,19 @@ func (a *API) Start() error {
 }
 
 // StartupMessage returns a custom startup message.
-func (a API) StartupMessage() string {
+func (a *Api) StartupMessage() string {
 	return fmt.Sprintf("server listening on port %d", a.port)
 }
 
 // Stop stops the HTTP server.
-func (a API) Stop(ctx context.Context) error {
+func (a *Api) Stop(ctx context.Context) error {
 	return a.srv.Shutdown(ctx)
 }
 
 // Interface guards.
 var (
-	_ gotenberg.Module      = (*API)(nil)
-	_ gotenberg.Provisioner = (*API)(nil)
-	_ gotenberg.Validator   = (*API)(nil)
-	_ gotenberg.App         = (*API)(nil)
+	_ gotenberg.Module      = (*Api)(nil)
+	_ gotenberg.Provisioner = (*Api)(nil)
+	_ gotenberg.Validator   = (*Api)(nil)
+	_ gotenberg.App         = (*Api)(nil)
 )

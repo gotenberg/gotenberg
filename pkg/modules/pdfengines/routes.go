@@ -78,7 +78,7 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 					if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
 						return api.WrapError(
 							fmt.Errorf("convert PDF: %w", err),
-							api.NewSentinelHTTPError(
+							api.NewSentinelHttpError(
 								http.StatusBadRequest,
 								fmt.Sprintf("At least one PDF engine does not handle one of the PDF format in '%+v', while other have failed to convert for other reasons", pdfFormats),
 							),
@@ -154,7 +154,7 @@ func convertRoute(engine gotenberg.PdfEngine) api.Route {
 			if pdfFormats == zeroValued {
 				return api.WrapError(
 					errors.New("no PDF formats"),
-					api.NewSentinelHTTPError(
+					api.NewSentinelHttpError(
 						http.StatusBadRequest,
 						"Invalid form data: either 'pdfa' or 'pdfua' form fields must be provided",
 					),
@@ -173,7 +173,7 @@ func convertRoute(engine gotenberg.PdfEngine) api.Route {
 					if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
 						return api.WrapError(
 							fmt.Errorf("convert PDF: %w", err),
-							api.NewSentinelHTTPError(
+							api.NewSentinelHttpError(
 								http.StatusBadRequest,
 								fmt.Sprintf("At least one PDF engine does not handle one of the PDF format in '%+v', while other have failed to convert for other reasons", pdfFormats),
 							),

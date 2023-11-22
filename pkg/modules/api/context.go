@@ -93,21 +93,21 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 		if errors.Is(err, http.ErrNotMultipart) {
 			return nil, cancel, WrapError(
 				fmt.Errorf("get multipart form: %w", err),
-				NewSentinelHTTPError(http.StatusUnsupportedMediaType, "Invalid 'Content-Type' header value: want 'multipart/form-data'"),
+				NewSentinelHttpError(http.StatusUnsupportedMediaType, "Invalid 'Content-Type' header value: want 'multipart/form-data'"),
 			)
 		}
 
 		if errors.Is(err, http.ErrMissingBoundary) {
 			return nil, cancel, WrapError(
 				fmt.Errorf("get multipart form: %w", err),
-				NewSentinelHTTPError(http.StatusUnsupportedMediaType, "Invalid 'Content-Type' header value: no boundary"),
+				NewSentinelHttpError(http.StatusUnsupportedMediaType, "Invalid 'Content-Type' header value: no boundary"),
 			)
 		}
 
 		if strings.Contains(err.Error(), io.EOF.Error()) {
 			return nil, cancel, WrapError(
 				fmt.Errorf("get multipart form: %w", err),
-				NewSentinelHTTPError(http.StatusBadRequest, "Malformed body: it does not match the 'Content-Type' header boundaries"),
+				NewSentinelHttpError(http.StatusBadRequest, "Malformed body: it does not match the 'Content-Type' header boundaries"),
 			)
 		}
 
@@ -179,19 +179,19 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 		}
 	}
 
-	ctx.Log().Debug(fmt.Sprintf("form data values: %+v", ctx.values))
-	ctx.Log().Debug(fmt.Sprintf("form data files: %+v", ctx.files))
+	ctx.Log().Debug(fmt.Sprintf("form fields: %+v", ctx.values))
+	ctx.Log().Debug(fmt.Sprintf("form files: %+v", ctx.files))
 
 	return ctx, cancel, err
 }
 
 // Request returns the [http.Request].
-func (ctx Context) Request() *http.Request {
+func (ctx *Context) Request() *http.Request {
 	return ctx.echoCtx.Request()
 }
 
 // FormData return a [FormData].
-func (ctx Context) FormData() *FormData {
+func (ctx *Context) FormData() *FormData {
 	return &FormData{
 		values: ctx.values,
 		files:  ctx.files,
@@ -201,7 +201,7 @@ func (ctx Context) FormData() *FormData {
 
 // GeneratePath generates a path within the context's working directory. It
 // does not create a file.
-func (ctx Context) GeneratePath(extension string) string {
+func (ctx *Context) GeneratePath(extension string) string {
 	return fmt.Sprintf("%s/%s%s", ctx.dirPath, uuid.New(), extension)
 }
 
@@ -224,13 +224,13 @@ func (ctx *Context) AddOutputPaths(paths ...string) error {
 }
 
 // Log returns the context [zap.Logger].
-func (ctx Context) Log() *zap.Logger {
+func (ctx *Context) Log() *zap.Logger {
 	return ctx.logger
 }
 
 // BuildOutputFile builds the output file according to the output paths
 // registered in the context. If many output paths, an archive is created.
-func (ctx Context) BuildOutputFile() (string, error) {
+func (ctx *Context) BuildOutputFile() (string, error) {
 	if ctx.cancelled {
 		return "", ErrContextAlreadyClosed
 	}
@@ -268,7 +268,7 @@ func (ctx Context) BuildOutputFile() (string, error) {
 
 // OutputFilename returns the filename based on the given output path or the
 // "Gotenberg-Output-Filename" header's value.
-func (ctx Context) OutputFilename(outputPath string) string {
+func (ctx *Context) OutputFilename(outputPath string) string {
 	filename := ctx.echoCtx.Request().Header.Get("Gotenberg-Output-Filename")
 
 	if filename == "" {

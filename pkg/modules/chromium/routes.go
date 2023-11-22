@@ -304,7 +304,7 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			if markdownFilesNotFoundErr != nil {
 				return api.WrapError(
 					fmt.Errorf("markdown files not found: %w", markdownFilesNotFoundErr),
-					api.NewSentinelHTTPError(
+					api.NewSentinelHttpError(
 						http.StatusBadRequest,
 						fmt.Sprintf("Markdown file(s) not found: %s", markdownFilesNotFoundErr),
 					),
@@ -340,7 +340,7 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 		if errors.Is(err, ErrUrlNotAuthorized) {
 			return api.WrapError(
 				fmt.Errorf("convert to PDF: %w", err),
-				api.NewSentinelHTTPError(
+				api.NewSentinelHttpError(
 					http.StatusForbidden,
 					fmt.Sprintf("'%s' does not match the authorized URLs", url),
 				),
@@ -350,7 +350,7 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 		if errors.Is(err, ErrOmitBackgroundWithoutPrintBackground) {
 			return api.WrapError(
 				fmt.Errorf("convert to PDF: %w", err),
-				api.NewSentinelHTTPError(
+				api.NewSentinelHttpError(
 					http.StatusBadRequest,
 					"omitBackground requires printBackground set to true",
 				),
@@ -367,7 +367,7 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 
 			return api.WrapError(
 				fmt.Errorf("convert to PDF: %w", err),
-				api.NewSentinelHTTPError(
+				api.NewSentinelHttpError(
 					http.StatusBadRequest,
 					fmt.Sprintf("The expression '%s' (waitForExpression) returned an exception or undefined", options.WaitForExpression),
 				),
@@ -377,7 +377,7 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 		if errors.Is(err, ErrInvalidPrinterSettings) {
 			return api.WrapError(
 				fmt.Errorf("convert to PDF: %w", err),
-				api.NewSentinelHTTPError(
+				api.NewSentinelHttpError(
 					http.StatusBadRequest,
 					"Chromium does not handle the provided settings; please check for aberrant form values",
 				),
@@ -387,7 +387,7 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 		if errors.Is(err, ErrPageRangesSyntaxError) {
 			return api.WrapError(
 				fmt.Errorf("convert to PDF: %w", err),
-				api.NewSentinelHTTPError(
+				api.NewSentinelHttpError(
 					http.StatusBadRequest,
 					fmt.Sprintf("Chromium does not handle the page ranges '%s' (nativePageRanges)", options.PageRanges),
 				),
@@ -397,7 +397,7 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 		if errors.Is(err, ErrConsoleExceptions) {
 			return api.WrapError(
 				fmt.Errorf("convert to PDF: %w", err),
-				api.NewSentinelHTTPError(
+				api.NewSentinelHttpError(
 					http.StatusConflict,
 					fmt.Sprintf("Chromium console exceptions:\n %s", strings.ReplaceAll(err.Error(), ErrConsoleExceptions.Error(), "")),
 				),
@@ -421,7 +421,7 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 			if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
 				return api.WrapError(
 					fmt.Errorf("convert PDF: %w", err),
-					api.NewSentinelHTTPError(
+					api.NewSentinelHttpError(
 						http.StatusBadRequest,
 						fmt.Sprintf("At least one PDF engine does not handle one of the PDF format in '%+v', while other have failed to convert for other reasons", pdfFormats),
 					),

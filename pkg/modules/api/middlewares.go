@@ -32,9 +32,9 @@ func ParseError(err error) (int, string) {
 		return http.StatusServiceUnavailable, http.StatusText(http.StatusServiceUnavailable)
 	}
 
-	var httpErr HTTPError
+	var httpErr HttpError
 	if errors.As(err, &httpErr) {
-		return httpErr.HTTPError()
+		return httpErr.HttpError()
 	}
 
 	// Default 500 status code.

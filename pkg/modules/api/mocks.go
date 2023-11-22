@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/alexliesenfeld/health"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 )
@@ -63,7 +64,7 @@ func (ctx *ContextMock) SetCancelled(cancelled bool) {
 //
 //	ctx := &api.ContextMock{Context: &api.Context{}}
 //	outputPaths := ctx.OutputPaths()
-func (ctx ContextMock) OutputPaths() []string {
+func (ctx *ContextMock) OutputPaths() []string {
 	return ctx.outputPaths
 }
 
@@ -82,3 +83,37 @@ func (ctx *ContextMock) SetLogger(logger *zap.Logger) {
 func (ctx *ContextMock) SetEchoContext(c echo.Context) {
 	ctx.Context.echoCtx = c
 }
+
+// RouterMock is a mock for the [Router] interface.
+type RouterMock struct {
+	RoutesMock func() ([]Route, error)
+}
+
+func (router *RouterMock) Routes() ([]Route, error) {
+	return router.RoutesMock()
+}
+
+// MiddlewareProviderMock is a mock for the [MiddlewareProvider] interface.
+type MiddlewareProviderMock struct {
+	MiddlewaresMock func() ([]Middleware, error)
+}
+
+func (provider *MiddlewareProviderMock) Middlewares() ([]Middleware, error) {
+	return provider.MiddlewaresMock()
+}
+
+// HealthCheckerMock is mock for the [HealthChecker] interface.
+type HealthCheckerMock struct {
+	ChecksMock func() ([]health.CheckerOption, error)
+}
+
+func (mod *HealthCheckerMock) Checks() ([]health.CheckerOption, error) {
+	return mod.ChecksMock()
+}
+
+// Interface guards.
+var (
+	_ Router             = (*RouterMock)(nil)
+	_ MiddlewareProvider = (*MiddlewareProviderMock)(nil)
+	_ HealthChecker      = (*HealthCheckerMock)(nil)
+)

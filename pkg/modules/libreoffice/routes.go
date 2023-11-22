@@ -110,7 +110,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					if errors.Is(err, libreofficeapi.ErrMalformedPageRanges) {
 						return api.WrapError(
 							fmt.Errorf("convert to PDF: %w", err),
-							api.NewSentinelHTTPError(http.StatusBadRequest, fmt.Sprintf("Malformed page ranges '%s' (nativePageRanges)", options.PageRanges)),
+							api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Malformed page ranges '%s' (nativePageRanges)", options.PageRanges)),
 						)
 					}
 
@@ -141,7 +141,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 						if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
 							return api.WrapError(
 								fmt.Errorf("convert PDF: %w", err),
-								api.NewSentinelHTTPError(
+								api.NewSentinelHttpError(
 									http.StatusBadRequest,
 									fmt.Sprintf("At least one PDF engine does not handle one of the PDF format in '%+v', while other have failed to convert for other reasons", pdfFormats),
 								),
@@ -181,7 +181,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 						if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
 							return api.WrapError(
 								fmt.Errorf("convert PDF: %w", err),
-								api.NewSentinelHTTPError(
+								api.NewSentinelHttpError(
 									http.StatusBadRequest,
 									fmt.Sprintf("At least one PDF engine does not handle one of the PDF format in '%+v', while other have failed to convert for other reasons", pdfFormats),
 								),
