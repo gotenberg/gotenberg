@@ -83,7 +83,7 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 
 			// Deprecated flags.
 			fs.Duration("uno-listener-start-timeout", time.Duration(10)*time.Second, "Time limit for restarting the LibreOffice")
-			fs.Int("uno-listener-restart-threshold", 10, "Conversions limit after which the LibreOffice listener is restarted - 0 means no restart")
+			fs.Int64("uno-listener-restart-threshold", 10, "Conversions limit after which the LibreOffice listener is restarted - 0 means no restart")
 			fs.Bool("unoconv-disable-listener", false, "Do not start a long-running listener - save resources in detriment of unitary performance")
 
 			var err error
