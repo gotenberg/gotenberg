@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"go.uber.org/zap"
-
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 )
 
@@ -34,15 +32,11 @@ func TestPdfEngines_Provision(t *testing.T) {
 			ctx: func() *gotenberg.Context {
 				provider := &struct {
 					gotenberg.ModuleMock
-					gotenberg.LoggerProviderMock
 				}{}
 				provider.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module {
 						return provider
 					}}
-				}
-				provider.LoggerMock = func(mod gotenberg.Module) (*zap.Logger, error) {
-					return zap.NewNop(), nil
 				}
 
 				engine := &struct {
@@ -75,17 +69,12 @@ func TestPdfEngines_Provision(t *testing.T) {
 			ctx: func() *gotenberg.Context {
 				provider := &struct {
 					gotenberg.ModuleMock
-					gotenberg.LoggerProviderMock
 				}{}
 				provider.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module {
 						return provider
 					}}
 				}
-				provider.LoggerMock = func(mod gotenberg.Module) (*zap.Logger, error) {
-					return zap.NewNop(), nil
-				}
-
 				engine1 := &struct {
 					gotenberg.ModuleMock
 					gotenberg.ValidatorMock
@@ -131,107 +120,16 @@ func TestPdfEngines_Provision(t *testing.T) {
 			expectError:        false,
 		},
 		{
-			scenario: "user select deprecated unoconv-pdfengine",
-			ctx: func() *gotenberg.Context {
-				provider := &struct {
-					gotenberg.ModuleMock
-					gotenberg.LoggerProviderMock
-				}{}
-				provider.DescriptorMock = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module {
-						return provider
-					}}
-				}
-				provider.LoggerMock = func(mod gotenberg.Module) (*zap.Logger, error) {
-					return zap.NewNop(), nil
-				}
-
-				engine := &struct {
-					gotenberg.ModuleMock
-					gotenberg.ValidatorMock
-					gotenberg.PdfEngineMock
-				}{}
-				engine.DescriptorMock = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "libreoffice-pdfengine", New: func() gotenberg.Module { return engine }}
-				}
-				engine.ValidateMock = func() error {
-					return nil
-				}
-
-				fs := new(PdfEngines).Descriptor().FlagSet
-				err := fs.Parse([]string{"--pdfengines-engines=unoconv-pdfengine"})
-				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
-				}
-
-				return gotenberg.NewContext(
-					gotenberg.ParsedFlags{
-						FlagSet: fs,
-					},
-					[]gotenberg.ModuleDescriptor{
-						provider.Descriptor(),
-						engine.Descriptor(),
-					},
-				)
-			}(),
-			expectedPdfEngines: []string{"libreoffice-pdfengine"},
-			expectError:        false,
-		},
-		{
-			scenario: "no logger provider",
-			ctx: func() *gotenberg.Context {
-				return gotenberg.NewContext(
-					gotenberg.ParsedFlags{
-						FlagSet: new(PdfEngines).Descriptor().FlagSet,
-					},
-					[]gotenberg.ModuleDescriptor{},
-				)
-			}(),
-			expectError: true,
-		},
-		{
-			scenario: "no logger from logger provider",
-			ctx: func() *gotenberg.Context {
-				provider := &struct {
-					gotenberg.ModuleMock
-					gotenberg.LoggerProviderMock
-				}{}
-				provider.DescriptorMock = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module {
-						return provider
-					}}
-				}
-				provider.LoggerMock = func(mod gotenberg.Module) (*zap.Logger, error) {
-					return nil, errors.New("foo")
-				}
-
-				return gotenberg.NewContext(
-					gotenberg.ParsedFlags{
-						FlagSet: new(PdfEngines).Descriptor().FlagSet,
-					},
-					[]gotenberg.ModuleDescriptor{
-						provider.Descriptor(),
-					},
-				)
-			}(),
-			expectError: true,
-		},
-		{
 			scenario: "no valid PDF engine",
 			ctx: func() *gotenberg.Context {
 				provider := &struct {
 					gotenberg.ModuleMock
-					gotenberg.LoggerProviderMock
 				}{}
 				provider.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module {
 						return provider
 					}}
 				}
-				provider.LoggerMock = func(mod gotenberg.Module) (*zap.Logger, error) {
-					return zap.NewNop(), nil
-				}
-
 				engine := &struct {
 					gotenberg.ModuleMock
 					gotenberg.ValidatorMock

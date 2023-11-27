@@ -47,7 +47,6 @@ type Options struct {
 	Landscape bool
 
 	// PageRanges allows to select the pages to convert.
-	// TODO: should prefer a method form PdfEngine.
 	// Optional.
 	PageRanges string
 
@@ -80,21 +79,6 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 		ID: "libreoffice-api",
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("api", flag.ExitOnError)
-
-			// Deprecated flags.
-			fs.Duration("uno-listener-start-timeout", time.Duration(10)*time.Second, "Time limit for restarting the LibreOffice")
-			fs.Int64("uno-listener-restart-threshold", 10, "Conversions limit after which the LibreOffice listener is restarted - 0 means no restart")
-			fs.Bool("unoconv-disable-listener", false, "Do not start a long-running listener - save resources in detriment of unitary performance")
-
-			var err error
-			err = multierr.Append(err, fs.MarkDeprecated("uno-listener-start-timeout", "use the libreOffice-start-timeout property instead"))
-			err = multierr.Append(err, fs.MarkDeprecated("uno-listener-restart-threshold", "use the libreOffice-restart-after property instead"))
-			err = multierr.Append(err, fs.MarkDeprecated("unoconv-disable-listener", "use the libreOffice-auto-start property instead"))
-
-			if err != nil {
-				panic(fmt.Errorf("create deprecated flags for the LibreOffice module: %v", err))
-			}
-
 			fs.Int64("libreoffice-restart-after", 10, "Number of conversions after which LibreOffice will automatically restart. Set to 0 to disable this feature")
 			fs.Bool("libreoffice-auto-start", false, "Automatically launch LibreOffice upon initialization if set to true; otherwise, LibreOffice will start at the time of the first conversion")
 			fs.Duration("libreoffice-start-timeout", time.Duration(10)*time.Second, "Maximum duration to wait for LibreOffice to start or restart")
@@ -123,7 +107,7 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 	a.args = libreOfficeArguments{
 		binPath:      libreOfficeBinPath,
 		unoBinPath:   unoBinPath,
-		startTimeout: flags.MustDeprecatedDuration("uno-listener-start-timeout", "libreoffice-start-timeout"),
+		startTimeout: flags.MustDuration("libreoffice-start-timeout"),
 	}
 
 	// Logger.
@@ -139,7 +123,7 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 
 	// Process.
 	a.libreOffice = newLibreOfficeProcess(a.args)
-	a.supervisor = gotenberg.NewProcessSupervisor(a.logger, a.libreOffice, flags.MustDeprecatedInt64("uno-listener-restart-threshold", "libreoffice-restart-after"))
+	a.supervisor = gotenberg.NewProcessSupervisor(a.logger, a.libreOffice, flags.MustInt64("libreoffice-restart-after"))
 
 	return nil
 }
@@ -204,46 +188,6 @@ func (a *Api) Stop(ctx context.Context) error {
 // Metrics returns the metrics.
 func (a *Api) Metrics() ([]gotenberg.Metric, error) {
 	return []gotenberg.Metric{
-		// TODO: remove deprecated.
-		{
-			Name:        "unoconv_active_instances_count",
-			Description: "Current number of active unoconv instances - deprecated.",
-			Read: func() float64 {
-				return 1
-			},
-		},
-		// TODO: remove deprecated.
-		{
-			Name:        "libreoffice_listener_active_instances_count",
-			Description: "Current number of active LibreOffice listener instances - deprecated.",
-			Read: func() float64 {
-				return 1
-			},
-		},
-		// TODO: remove deprecated.
-		{
-			Name:        "unoconv_listener_active_instances_count",
-			Description: "Current number of active unoconv listener instances- deprecated.",
-			Read: func() float64 {
-				return 1
-			},
-		},
-		// TODO: remove deprecated.
-		{
-			Name:        "libreoffice_listener_queue_length",
-			Description: "Current number of processes in the LibreOffice listener queue - deprecated, prefer libreoffice_requests_queue_size.",
-			Read: func() float64 {
-				return float64(a.supervisor.ReqQueueSize())
-			},
-		},
-		// TODO: remove deprecated.
-		{
-			Name:        "unoconv_listener_queue_length",
-			Description: "Current number of processes in the queue - deprecated, prefer libreoffice_requests_queue_size.",
-			Read: func() float64 {
-				return float64(a.supervisor.ReqQueueSize())
-			},
-		},
 		{
 			Name:        "libreoffice_requests_queue_size",
 			Description: "Current number of LibreOffice conversion requests waiting to be treated.",

@@ -9,7 +9,6 @@ import (
 
 	"github.com/alexliesenfeld/health"
 	flag "github.com/spf13/pflag"
-	"go.uber.org/multierr"
 	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
@@ -217,18 +216,6 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 		ID: "chromium",
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("chromium", flag.ExitOnError)
-			// Deprecated flags.
-			fs.String("chromium-user-agent", "", "Override the default User-Agent header")
-			fs.Int("chromium-failed-starts-threshold", 5, "Set the number of consecutive failed starts after which the module is considered unhealthy - 0 means ignore")
-
-			var err error
-			err = multierr.Append(err, fs.MarkDeprecated("chromium-user-agent", "use the extraHttpHeaders form field instead"))
-			err = multierr.Append(err, fs.MarkDeprecated("chromium-failed-starts-threshold", "use the chromium-restart-after property instead"))
-
-			if err != nil {
-				panic(fmt.Errorf("create deprecated flags for the Chromium module: %v", err))
-			}
-
 			fs.Int64("chromium-restart-after", 0, "Number of conversions after which Chromium will automatically restart. Set to 0 to disable this feature")
 			fs.Bool("chromium-auto-start", false, "Automatically launch Chromium upon initialization if set to true; otherwise, Chromium will start at the time of the first conversion")
 			fs.Duration("chromium-start-timeout", time.Duration(10)*time.Second, "Maximum duration to wait for Chromium to start or restart")
@@ -359,22 +346,6 @@ func (mod *Chromium) Stop(ctx context.Context) error {
 // Metrics returns the metrics.
 func (mod *Chromium) Metrics() ([]gotenberg.Metric, error) {
 	return []gotenberg.Metric{
-		{
-			// TODO: remove deprecated.
-			Name:        "chromium_active_instances_count",
-			Description: "Current number of active Chromium instances - deprecated.",
-			Read: func() float64 {
-				return 1
-			},
-		},
-		{
-			// TODO: remove deprecated.
-			Name:        "chromium_failed_starts_count",
-			Description: "Current number of Chromium consecutive starting failures - deprecated.",
-			Read: func() float64 {
-				return 0
-			},
-		},
 		{
 			Name:        "chromium_requests_queue_size",
 			Description: "Current number of Chromium conversion requests waiting to be treated.",

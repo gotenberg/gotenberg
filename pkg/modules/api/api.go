@@ -29,8 +29,6 @@ func init() {
 // middlewares or health checks.
 type Api struct {
 	port                      int
-	readTimeout               time.Duration
-	writeTimeout              time.Duration
 	timeout                   time.Duration
 	rootPath                  string
 	traceHeader               string
@@ -157,22 +155,10 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs := flag.NewFlagSet("api", flag.ExitOnError)
 			fs.Int("api-port", 3000, "Set the port on which the API should listen")
 			fs.String("api-port-from-env", "", "Set the environment variable with the port on which the API should listen - override the default port")
-			fs.Duration("api-read-timeout", time.Duration(30)*time.Second, "Set the maximum duration allowed to read a complete request, including the body")
-			fs.Duration("api-process-timeout", time.Duration(30)*time.Second, "Set the maximum duration allowed to process a request")
-			fs.Duration("api-write-timeout", time.Duration(30)*time.Second, "Set the maximum duration before timing out writes of the response")
 			fs.Duration("api-timeout", time.Duration(30)*time.Second, "Set the time limit for requests")
 			fs.String("api-root-path", "/", "Set the root path of the API - for service discovery via URL paths")
 			fs.String("api-trace-header", "Gotenberg-Trace", "Set the header name to use for identifying requests")
 			fs.Bool("api-disable-health-check-logging", false, "Disable health check logging")
-
-			var err error
-			err = multierr.Append(err, fs.MarkDeprecated("api-read-timeout", "use api-timeout instead"))
-			err = multierr.Append(err, fs.MarkDeprecated("api-process-timeout", "use api-timeout instead"))
-			err = multierr.Append(err, fs.MarkDeprecated("api-write-timeout", "use api-timeout instead"))
-
-			if err != nil {
-				panic(fmt.Errorf("create deprecated flags for the api module: %v", err))
-			}
 
 			return fs
 		}(),
@@ -184,9 +170,7 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 func (a *Api) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	a.port = flags.MustInt("api-port")
-	a.readTimeout = flags.MustDeprecatedDuration("api-read-timeout", "api-timeout")
-	a.writeTimeout = flags.MustDeprecatedDuration("api-write-timeout", "api-timeout")
-	a.timeout = flags.MustDeprecatedDuration("api-process-timeout", "api-timeout")
+	a.timeout = flags.MustDuration("api-timeout")
 	a.rootPath = flags.MustString("api-root-path")
 	a.traceHeader = flags.MustString("api-trace-header")
 	a.disableHealthCheckLogging = flags.MustBool("api-disable-health-check-logging")
@@ -373,10 +357,10 @@ func (a *Api) Start() error {
 	a.srv = echo.New()
 	a.srv.HideBanner = true
 	a.srv.HidePort = true
-	a.srv.Server.ReadTimeout = a.readTimeout
+	a.srv.Server.ReadTimeout = a.timeout
 	a.srv.Server.IdleTimeout = a.timeout
 	// See https://github.com/gotenberg/gotenberg/issues/396.
-	a.srv.Server.WriteTimeout = a.writeTimeout + a.writeTimeout
+	a.srv.Server.WriteTimeout = a.timeout + a.timeout
 	a.srv.HTTPErrorHandler = httpErrorHandler()
 
 	// Let's prepare the modules' routes.

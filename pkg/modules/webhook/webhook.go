@@ -1,12 +1,10 @@
 package webhook
 
 import (
-	"fmt"
 	"regexp"
 	"time"
 
 	flag "github.com/spf13/pflag"
-	"go.uber.org/multierr"
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
@@ -36,31 +34,6 @@ func (w *Webhook) Descriptor() gotenberg.ModuleDescriptor {
 		ID: "webhook",
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("webhook", flag.ExitOnError)
-			// Deprecated flags.
-			fs.String("api-webhook-allow-list", "", "Set the allowed URLs for the webhook feature using a regular expression")
-			fs.String("api-webhook-deny-list", "", "Set the denied URLs for the webhook feature using a regular expression")
-			fs.String("api-webhook-error-allow-list", "", "Set the allowed URLs in case of an error for the webhook feature using a regular expression")
-			fs.String("api-webhook-error-deny-list", "", "Set the denied URLs in case of an error for the webhook feature using a regular expression")
-			fs.Int("api-webhook-max-retry", 4, "Set the maximum number of retries for the webhook feature")
-			fs.Duration("api-webhook-retry-min-wait", time.Duration(1)*time.Second, "Set the minimum duration to wait before trying to call the webhook again")
-			fs.Duration("api-webhook-retry-max-wait", time.Duration(30)*time.Second, "Set the maximum duration to wait before trying to call the webhook again")
-			fs.Bool("api-disable-webhook", false, "Disable the webhook feature")
-
-			var err error
-			err = multierr.Append(err, fs.MarkDeprecated("api-webhook-allow-list", "use webhook-allow-list instead"))
-			err = multierr.Append(err, fs.MarkDeprecated("api-webhook-deny-list", "use webhook-deny-list instead"))
-			err = multierr.Append(err, fs.MarkDeprecated("api-webhook-error-allow-list", "use webhook-error-allow-list instead"))
-			err = multierr.Append(err, fs.MarkDeprecated("api-webhook-error-deny-list", "use webhook-error-deny-list instead"))
-			err = multierr.Append(err, fs.MarkDeprecated("api-webhook-max-retry", "use webhook-max-retry instead"))
-			err = multierr.Append(err, fs.MarkDeprecated("api-webhook-retry-min-wait", "use webhook-retry-min-wait instead"))
-			err = multierr.Append(err, fs.MarkDeprecated("api-webhook-retry-max-wait", "use webhook-retry-max-wait instead"))
-			err = multierr.Append(err, fs.MarkDeprecated("api-disable-webhook", "use webhook-disable instead"))
-
-			if err != nil {
-				panic(fmt.Errorf("create deprecated flags for the webhook module: %v", err))
-			}
-
-			// New flags.
 			fs.String("webhook-allow-list", "", "Set the allowed URLs for the webhook feature using a regular expression")
 			fs.String("webhook-deny-list", "", "Set the denied URLs for the webhook feature using a regular expression")
 			fs.String("webhook-error-allow-list", "", "Set the allowed URLs in case of an error for the webhook feature using a regular expression")
@@ -80,15 +53,15 @@ func (w *Webhook) Descriptor() gotenberg.ModuleDescriptor {
 // Provision sets the module properties.
 func (w *Webhook) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
-	w.allowList = flags.MustDeprecatedRegexp("api-webhook-allow-list", "webhook-allow-list")
-	w.denyList = flags.MustDeprecatedRegexp("api-webhook-deny-list", "webhook-deny-list")
-	w.errorAllowList = flags.MustDeprecatedRegexp("api-webhook-error-allow-list", "webhook-error-allow-list")
-	w.errorDenyList = flags.MustDeprecatedRegexp("api-webhook-error-deny-list", "webhook-error-deny-list")
-	w.maxRetry = flags.MustDeprecatedInt("api-webhook-max-retry", "webhook-max-retry")
-	w.retryMinWait = flags.MustDeprecatedDuration("api-webhook-retry-min-wait", "webhook-retry-min-wait")
-	w.retryMaxWait = flags.MustDeprecatedDuration("api-webhook-retry-min-wait", "webhook-retry-max-wait")
+	w.allowList = flags.MustRegexp("webhook-allow-list")
+	w.denyList = flags.MustRegexp("webhook-deny-list")
+	w.errorAllowList = flags.MustRegexp("webhook-error-allow-list")
+	w.errorDenyList = flags.MustRegexp("webhook-error-deny-list")
+	w.maxRetry = flags.MustInt("webhook-max-retry")
+	w.retryMinWait = flags.MustDuration("webhook-retry-min-wait")
+	w.retryMaxWait = flags.MustDuration("webhook-retry-max-wait")
 	w.clientTimeout = flags.MustDuration("webhook-client-timeout")
-	w.disable = flags.MustDeprecatedBool("api-disable-webhook", "webhook-disable")
+	w.disable = flags.MustBool("webhook-disable")
 
 	return nil
 }

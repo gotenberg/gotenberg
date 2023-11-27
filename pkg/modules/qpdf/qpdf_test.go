@@ -71,22 +71,6 @@ func TestQPdf_Validate(t *testing.T) {
 	}
 }
 
-func TestQPdf_Metrics(t *testing.T) {
-	metrics, err := new(QPdf).Metrics()
-	if err != nil {
-		t.Errorf("expected no error but got: %v", err)
-	}
-
-	if len(metrics) != 1 {
-		t.Errorf("expected %d metrics, but got %d", 1, len(metrics))
-	}
-
-	actual := metrics[0].Read()
-	if actual != 0 {
-		t.Errorf("expected %d QPdf instances, but got %f", 0, actual)
-	}
-}
-
 func TestQPdf_Merge(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string

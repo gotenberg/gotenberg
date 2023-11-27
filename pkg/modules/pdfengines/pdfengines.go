@@ -54,18 +54,6 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 	names := flags.MustStringSlice("pdfengines-engines")
 	mod.disableRoutes = flags.MustBool("pdfengines-disable-routes")
 
-	loggerProvider, err := ctx.Module(new(gotenberg.LoggerProvider))
-	if err != nil {
-		return fmt.Errorf("get logger provider: %w", err)
-	}
-
-	logger, err := loggerProvider.(gotenberg.LoggerProvider).Logger(mod)
-	if err != nil {
-		return fmt.Errorf("get logger: %w", err)
-	}
-
-	logger = logger.Named("pdfengines")
-
 	engines, err := ctx.Modules(new(gotenberg.PdfEngine))
 	if err != nil {
 		return fmt.Errorf("get PDF engines: %w", err)
@@ -81,13 +69,13 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 		// Selection from user.
 		mod.names = names
 
-		for i, name := range names {
-			// FIXME: deprecated.
-			if name == "unoconv-pdfengine" || name == "uno-pdfengine" {
-				logger.Warn(fmt.Sprintf("%s is deprecated; prefer libreoffice-pdfengine instead", name))
-				mod.names[i] = "libreoffice-pdfengine"
-			}
-		}
+		// Example in case of deprecated module name.
+		//for i, name := range names {
+		//	if name == "unoconv-pdfengine" || name == "uno-pdfengine" {
+		//		logger.Warn(fmt.Sprintf("%s is deprecated; prefer libreoffice-pdfengine instead", name))
+		//		mod.names[i] = "libreoffice-pdfengine"
+		//	}
+		//}
 
 		return nil
 	}

@@ -23,14 +23,12 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			// Let's get the data from the form and validate them.
 			var (
 				inputPaths []string
-				pdfFormat  string
 				pdfa       string
 				pdfua      bool
 			)
 
 			err := ctx.FormData().
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
-				String("pdfFormat", &pdfFormat, "").
 				String("pdfa", &pdfa, "").
 				Bool("pdfua", &pdfua, false).
 				Validate()
@@ -38,20 +36,8 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			var actualPdfArchive string
-
-			if pdfFormat != "" {
-				// FIXME: deprecated
-				ctx.Log().Warn("'pdfFormat' is deprecated; prefer the 'pdfa' form field instead")
-				actualPdfArchive = pdfFormat
-			}
-
-			if pdfa != "" {
-				actualPdfArchive = pdfa
-			}
-
 			pdfFormats := gotenberg.PdfFormats{
-				PdfA:  actualPdfArchive,
+				PdfA:  pdfa,
 				PdfUa: pdfua,
 			}
 
@@ -118,14 +104,12 @@ func convertRoute(engine gotenberg.PdfEngine) api.Route {
 			// Let's get the data from the form and validate them.
 			var (
 				inputPaths []string
-				pdfFormat  string
 				pdfa       string
 				pdfua      bool
 			)
 
 			err := ctx.FormData().
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
-				String("pdfFormat", &pdfFormat, "").
 				String("pdfa", &pdfa, "").
 				Bool("pdfua", &pdfua, false).
 				Validate()
@@ -133,20 +117,8 @@ func convertRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			var actualPdfArchive string
-
-			if pdfFormat != "" {
-				// FIXME: deprecated.
-				ctx.Log().Warn("'pdfFormat' is deprecated; prefer the 'pdfa' form field instead")
-				actualPdfArchive = pdfFormat
-			}
-
-			if pdfa != "" {
-				actualPdfArchive = pdfa
-			}
-
 			pdfFormats := gotenberg.PdfFormats{
-				PdfA:  actualPdfArchive,
+				PdfA:  pdfa,
 				PdfUa: pdfua,
 			}
 

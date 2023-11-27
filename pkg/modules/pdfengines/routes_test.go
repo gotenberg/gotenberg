@@ -145,7 +145,7 @@ func TestMergeHandler(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "success with every  PDF/A & PDF/UA form fields",
+			scenario: "success with PDF/A & PDF/UA form fields",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
@@ -153,9 +153,6 @@ func TestMergeHandler(t *testing.T) {
 					"file2.pdf": "/file2.pdf",
 				})
 				ctx.SetValues(map[string][]string{
-					"pdfFormat": {
-						gotenberg.PdfA1a,
-					},
 					"pdfa": {
 						gotenberg.PdfA1a,
 					},
@@ -322,16 +319,13 @@ func TestConvertHandler(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "success with every  PDF/A & PDF/UA form fields (single file)",
+			scenario: "success with PDF/A & PDF/UA form fields (single file)",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
 					"file.pdf": "/file.pdf",
 				})
 				ctx.SetValues(map[string][]string{
-					"pdfFormat": {
-						gotenberg.PdfA1a,
-					},
 					"pdfa": {
 						gotenberg.PdfA1a,
 					},
@@ -351,7 +345,7 @@ func TestConvertHandler(t *testing.T) {
 			expectOutputPathsCount: 1,
 		},
 		{
-			scenario: "success with every  PDF/A & PDF/UA form fields (many files)",
+			scenario: "success with PDF/A & PDF/UA form fields (many files)",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
@@ -359,9 +353,6 @@ func TestConvertHandler(t *testing.T) {
 					"file2.pdf": "/file2.pdf",
 				})
 				ctx.SetValues(map[string][]string{
-					"pdfFormat": {
-						gotenberg.PdfA1a,
-					},
 					"pdfa": {
 						gotenberg.PdfA1a,
 					},
