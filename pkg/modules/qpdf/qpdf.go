@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sync"
 
 	"go.uber.org/zap"
 
@@ -52,23 +51,6 @@ func (engine *QPdf) Validate() error {
 	return nil
 }
 
-// Metrics returns the metrics.
-func (engine *QPdf) Metrics() ([]gotenberg.Metric, error) {
-	// TODO: remove deprecated.
-	return []gotenberg.Metric{
-		{
-			Name:        "qpdf_active_instances_count",
-			Description: "Current number of active QPDF instances - deprecated.",
-			Read: func() float64 {
-				activeInstancesCountMu.RLock()
-				defer activeInstancesCountMu.RUnlock()
-
-				return activeInstancesCount
-			},
-		},
-	}, nil
-}
-
 // Merge combines multiple PDFs into a single PDF.
 func (engine *QPdf) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 	var args []string
@@ -82,16 +64,7 @@ func (engine *QPdf) Merge(ctx context.Context, logger *zap.Logger, inputPaths []
 		return fmt.Errorf("create command: %w", err)
 	}
 
-	activeInstancesCountMu.Lock()
-	activeInstancesCount += 1
-	activeInstancesCountMu.Unlock()
-
 	_, err = cmd.Exec()
-
-	activeInstancesCountMu.Lock()
-	activeInstancesCount -= 1
-	activeInstancesCountMu.Unlock()
-
 	if err == nil {
 		return nil
 	}
@@ -105,14 +78,8 @@ func (engine *QPdf) Convert(ctx context.Context, logger *zap.Logger, formats got
 }
 
 var (
-	activeInstancesCount   float64
-	activeInstancesCountMu sync.RWMutex
-)
-
-var (
-	_ gotenberg.Module          = (*QPdf)(nil)
-	_ gotenberg.Provisioner     = (*QPdf)(nil)
-	_ gotenberg.Validator       = (*QPdf)(nil)
-	_ gotenberg.MetricsProvider = (*QPdf)(nil)
-	_ gotenberg.PdfEngine       = (*QPdf)(nil)
+	_ gotenberg.Module      = (*QPdf)(nil)
+	_ gotenberg.Provisioner = (*QPdf)(nil)
+	_ gotenberg.Validator   = (*QPdf)(nil)
+	_ gotenberg.PdfEngine   = (*QPdf)(nil)
 )

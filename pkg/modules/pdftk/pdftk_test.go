@@ -71,22 +71,6 @@ func TestPdfTk_Validate(t *testing.T) {
 	}
 }
 
-func TestPdfTk_Metrics(t *testing.T) {
-	metrics, err := new(PdfTk).Metrics()
-	if err != nil {
-		t.Fatalf("expected no error but got: %v", err)
-	}
-
-	if len(metrics) != 1 {
-		t.Fatalf("expected %d metrics, but got %d", 1, len(metrics))
-	}
-
-	actual := metrics[0].Read()
-	if actual != 0 {
-		t.Errorf("expected %d PDFtk instances, but got %f", 0, actual)
-	}
-}
-
 func TestPdfTk_Merge(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string

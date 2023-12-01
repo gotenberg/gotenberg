@@ -284,41 +284,16 @@ func TestApi_Metrics(t *testing.T) {
 		t.Fatalf("expected no error but got: %v", err)
 	}
 
-	if len(metrics) != 7 {
-		t.Fatalf("expected %d metrics, but got %d", 7, len(metrics))
+	if len(metrics) != 2 {
+		t.Fatalf("expected %d metrics, but got %d", 2, len(metrics))
 	}
 
 	actual := metrics[0].Read()
-	if actual != float64(1) {
-		t.Errorf("expected %f for unoconv_active_instances_count, but got %f", float64(1), actual)
-	}
-
-	actual = metrics[1].Read()
-	if actual != float64(1) {
-		t.Errorf("expected %f for libreoffice_listener_active_instances_count, but got %f", float64(1), actual)
-	}
-
-	actual = metrics[2].Read()
-	if actual != float64(1) {
-		t.Errorf("expected %f for unoconv_listener_active_instances_count, but got %f", float64(1), actual)
-	}
-
-	actual = metrics[3].Read()
-	if actual != float64(10) {
-		t.Errorf("expected %f for libreoffice_listener_queue_length, but got %f", float64(10), actual)
-	}
-
-	actual = metrics[4].Read()
-	if actual != float64(10) {
-		t.Errorf("expected %f for unoconv_listener_queue_length, but got %f", float64(10), actual)
-	}
-
-	actual = metrics[5].Read()
 	if actual != float64(10) {
 		t.Errorf("expected %f for libreoffice_requests_queue_size, but got %f", float64(10), actual)
 	}
 
-	actual = metrics[6].Read()
+	actual = metrics[1].Read()
 	if actual != float64(0) {
 		t.Errorf("expected %f for libreoffice_restarts_count, but got %f", float64(0), actual)
 	}

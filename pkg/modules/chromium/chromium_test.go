@@ -334,26 +334,16 @@ func TestChromium_Metrics(t *testing.T) {
 		t.Fatalf("expected no error but got: %v", err)
 	}
 
-	if len(metrics) != 4 {
-		t.Fatalf("expected %d metrics, but got %d", 4, len(metrics))
+	if len(metrics) != 2 {
+		t.Fatalf("expected %d metrics, but got %d", 2, len(metrics))
 	}
 
 	actual := metrics[0].Read()
-	if actual != float64(1) {
-		t.Errorf("expected %f for chromium_active_instances_count, but got %f", float64(1), actual)
-	}
-
-	actual = metrics[1].Read()
-	if actual != float64(0) {
-		t.Errorf("expected %f for chromium_failed_starts_count, but got %f", float64(0), actual)
-	}
-
-	actual = metrics[2].Read()
 	if actual != float64(10) {
 		t.Errorf("expected %f for chromium_requests_queue_size, but got %f", float64(10), actual)
 	}
 
-	actual = metrics[3].Read()
+	actual = metrics[1].Read()
 	if actual != float64(0) {
 		t.Errorf("expected %f for chromium_restarts_count, but got %f", float64(0), actual)
 	}

@@ -29,25 +29,6 @@ func TestFormDataChromiumPdfOptions(t *testing.T) {
 			expectedOptions: DefaultOptions(),
 		},
 		{
-			scenario: "deprecated userAgent form field",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetValues(map[string][]string{
-					"userAgent": {
-						"foo",
-					},
-				})
-				return ctx
-			}(),
-			expectedOptions: func() Options {
-				options := DefaultOptions()
-				options.ExtraHttpHeaders = map[string]string{
-					"User-Agent": "foo",
-				}
-				return options
-			}(),
-		},
-		{
 			scenario: "invalid extraHttpHeaders form field",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
@@ -131,19 +112,6 @@ func TestFormDataChromiumPdfFormats(t *testing.T) {
 			scenario:           "no custom form fields",
 			ctx:                &api.ContextMock{Context: new(api.Context)},
 			expectedPdfFormats: gotenberg.PdfFormats{},
-		},
-		{
-			scenario: "deprecated pdfFormat form field",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetValues(map[string][]string{
-					"pdfFormat": {
-						"foo",
-					},
-				})
-				return ctx
-			}(),
-			expectedPdfFormats: gotenberg.PdfFormats{PdfA: "foo"},
 		},
 		{
 			scenario: "pdfa and pdfua form fields",
@@ -726,7 +694,7 @@ func TestConvertUrl(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "success with pdfFormat form field",
+			scenario: "success with pdfa form field",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
 			api: &ApiMock{func(ctx context.Context, logger *zap.Logger, url, outputPath string, options Options) error {
 				return nil

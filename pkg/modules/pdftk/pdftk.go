@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sync"
 
 	"go.uber.org/zap"
 
@@ -52,23 +51,6 @@ func (engine *PdfTk) Validate() error {
 	return nil
 }
 
-// Metrics returns the metrics.
-func (engine *PdfTk) Metrics() ([]gotenberg.Metric, error) {
-	// TODO: remove deprecated.
-	return []gotenberg.Metric{
-		{
-			Name:        "pdftk_active_instances_count",
-			Description: "Current number of active PDFtk instances - deprecated.",
-			Read: func() float64 {
-				activeInstancesCountMu.RLock()
-				defer activeInstancesCountMu.RUnlock()
-
-				return activeInstancesCount
-			},
-		},
-	}, nil
-}
-
 // Merge combines multiple PDFs into a single PDF.
 func (engine *PdfTk) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 	var args []string
@@ -80,16 +62,7 @@ func (engine *PdfTk) Merge(ctx context.Context, logger *zap.Logger, inputPaths [
 		return fmt.Errorf("create command: %w", err)
 	}
 
-	activeInstancesCountMu.Lock()
-	activeInstancesCount += 1
-	activeInstancesCountMu.Unlock()
-
 	_, err = cmd.Exec()
-
-	activeInstancesCountMu.Lock()
-	activeInstancesCount -= 1
-	activeInstancesCountMu.Unlock()
-
 	if err == nil {
 		return nil
 	}
@@ -102,16 +75,10 @@ func (engine *PdfTk) Convert(ctx context.Context, logger *zap.Logger, formats go
 	return fmt.Errorf("convert PDF to '%+v' with PDFtk: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
-var (
-	activeInstancesCount   float64
-	activeInstancesCountMu sync.RWMutex
-)
-
 // Interface guards.
 var (
-	_ gotenberg.Module          = (*PdfTk)(nil)
-	_ gotenberg.Provisioner     = (*PdfTk)(nil)
-	_ gotenberg.Validator       = (*PdfTk)(nil)
-	_ gotenberg.MetricsProvider = (*PdfTk)(nil)
-	_ gotenberg.PdfEngine       = (*PdfTk)(nil)
+	_ gotenberg.Module      = (*PdfTk)(nil)
+	_ gotenberg.Provisioner = (*PdfTk)(nil)
+	_ gotenberg.Validator   = (*PdfTk)(nil)
+	_ gotenberg.PdfEngine   = (*PdfTk)(nil)
 )

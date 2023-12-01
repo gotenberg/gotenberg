@@ -31,7 +31,6 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, Options) {
 		waitDelay                                        time.Duration
 		waitWindowStatus                                 string
 		waitForExpression                                string
-		userAgent                                        string
 		extraHttpHeaders                                 map[string]string
 		emulatedMediaType                                string
 		landscape, printBackground, omitBackground       bool
@@ -47,7 +46,6 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, Options) {
 		Duration("waitDelay", &waitDelay, defaultOptions.WaitDelay).
 		String("waitWindowStatus", &waitWindowStatus, defaultOptions.WaitWindowStatus).
 		String("waitForExpression", &waitForExpression, defaultOptions.WaitForExpression).
-		String("userAgent", &userAgent, ""). // FIXME: deprecated.
 		Custom("extraHttpHeaders", func(value string) error {
 			if value == "" {
 				extraHttpHeaders = defaultOptions.ExtraHttpHeaders
@@ -92,17 +90,6 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, Options) {
 		Content("footer.html", &footerTemplate, defaultOptions.FooterTemplate).
 		Bool("preferCssPageSize", &preferCssPageSize, defaultOptions.PreferCssPageSize)
 
-	// FIXME: deprecated.
-	if userAgent != "" {
-		ctx.Log().Warn("'userAgent' is deprecated; prefer the 'extraHttpHeaders' form field instead")
-
-		if extraHttpHeaders == nil {
-			extraHttpHeaders = make(map[string]string)
-		}
-
-		extraHttpHeaders["User-Agent"] = userAgent
-	}
-
 	options := Options{
 		FailOnConsoleExceptions: failOnConsoleExceptions,
 		WaitDelay:               waitDelay,
@@ -133,31 +120,16 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, Options) {
 // data. Fallback to default value if the considered key is not present.
 func FormDataChromiumPdfFormats(ctx *api.Context) gotenberg.PdfFormats {
 	var (
-		pdfFormat string
-		pdfa      string
-		pdfua     bool
+		pdfa  string
+		pdfua bool
 	)
 
 	ctx.FormData().
-		String("pdfFormat", &pdfFormat, "").
 		String("pdfa", &pdfa, "").
 		Bool("pdfua", &pdfua, false)
 
-	// FIXME: deprecated.
-	// pdfa > pdfFormat.
-	var actualPdfArchive string
-
-	if pdfFormat != "" {
-		ctx.Log().Warn("'pdfFormat' is deprecated; prefer the 'pdfa' form field instead")
-		actualPdfArchive = pdfFormat
-	}
-
-	if pdfa != "" {
-		actualPdfArchive = pdfa
-	}
-
 	return gotenberg.PdfFormats{
-		PdfA:  actualPdfArchive,
+		PdfA:  pdfa,
 		PdfUa: pdfua,
 	}
 }

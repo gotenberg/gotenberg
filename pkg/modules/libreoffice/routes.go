@@ -24,25 +24,19 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 
 			// Let's get the data from the form and validate them.
 			var (
-				inputPaths         []string
-				landscape          bool
-				nativePageRanges   string
-				nativePdfA1aFormat bool
-				nativePdfFormat    string
-				pdfFormat          string
-				pdfa               string
-				pdfua              bool
-				nativePdfFormats   bool
-				merge              bool
+				inputPaths       []string
+				landscape        bool
+				nativePageRanges string
+				pdfa             string
+				pdfua            bool
+				nativePdfFormats bool
+				merge            bool
 			)
 
 			err := ctx.FormData().
 				MandatoryPaths(libreOffice.Extensions(), &inputPaths).
 				Bool("landscape", &landscape, false).
 				String("nativePageRanges", &nativePageRanges, "").
-				Bool("nativePdfA1aFormat", &nativePdfA1aFormat, false).
-				String("nativePdfFormat", &nativePdfFormat, "").
-				String("pdfFormat", &pdfFormat, "").
 				String("pdfa", &pdfa, "").
 				Bool("pdfua", &pdfua, false).
 				Bool("nativePdfFormats", &nativePdfFormats, true).
@@ -52,42 +46,8 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			// FIXME: deprecated.
-			// pdfa > nativePdfFormat > pdfFormat > nativePdfA1aFormat.
-			var (
-				actualPdfArchive string
-				nativeFormats    bool
-			)
-
-			if nativePdfA1aFormat {
-				ctx.Log().Warn("'nativePdfA1aFormat' is deprecated; prefer the 'pdfa' form field instead")
-				actualPdfArchive = gotenberg.PdfA1a
-				nativeFormats = true
-			}
-
-			if pdfFormat != "" {
-				ctx.Log().Warn("'pdfFormat' is deprecated; prefer the 'pdfa' form field instead")
-				actualPdfArchive = pdfFormat
-				nativeFormats = false
-			}
-
-			if nativePdfFormat != "" {
-				ctx.Log().Warn("'nativePdfFormat' is deprecated; prefer the 'pdfa' form field instead")
-				actualPdfArchive = nativePdfFormat
-				nativeFormats = true
-			}
-
-			if pdfa != "" {
-				actualPdfArchive = pdfa
-				nativeFormats = nativePdfFormats
-			}
-
-			if pdfua {
-				nativeFormats = nativePdfFormats
-			}
-
 			pdfFormats := gotenberg.PdfFormats{
-				PdfA:  actualPdfArchive,
+				PdfA:  pdfa,
 				PdfUa: pdfua,
 			}
 
@@ -101,7 +61,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					PageRanges: nativePageRanges,
 				}
 
-				if nativeFormats {
+				if nativePdfFormats {
 					options.PdfFormats = pdfFormats
 				}
 
@@ -132,7 +92,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				// Now, let's check if the client want to convert this result
 				// PDF to specific PDF formats.
 				zeroValued := gotenberg.PdfFormats{}
-				if !nativeFormats && pdfFormats != zeroValued {
+				if !nativePdfFormats && pdfFormats != zeroValued {
 					convertInputPath := outputPath
 					convertOutputPath := ctx.GeneratePath(".pdf")
 
@@ -169,7 +129,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			// Ok, we don't have to merge the PDFs. Let's check if the client
 			// want to convert each PDF to a specific PDF format.
 			zeroValued := gotenberg.PdfFormats{}
-			if !nativeFormats && pdfFormats != zeroValued {
+			if !nativePdfFormats && pdfFormats != zeroValued {
 				convertOutputPaths := make([]string, len(outputPaths))
 
 				for i, outputPath := range outputPaths {
