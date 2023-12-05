@@ -545,7 +545,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 			err := tc.libreOffice.pdf(
 				ctx,
 				logger,
-				fmt.Sprintf("file://%s/document.txt", tc.fs.WorkingDirPath()),
+				fmt.Sprintf("%s/document.txt", tc.fs.WorkingDirPath()),
 				fmt.Sprintf("%s/%s.pdf", tc.fs.WorkingDirPath(), uuid.NewString()),
 				tc.options,
 			)
@@ -560,6 +560,90 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 
 			if tc.expectedError != nil && !errors.Is(err, tc.expectedError) {
 				t.Fatalf("expected error %v but got: %v", tc.expectedError, err)
+			}
+		})
+	}
+}
+
+func TestNonBasicLatinCharactersGuard(t *testing.T) {
+	for _, tc := range []struct {
+		scenario            string
+		fs                  *gotenberg.FileSystem
+		filename            string
+		expectSameInputPath bool
+		expectError         bool
+	}{
+		{
+			scenario: "basic latin characters",
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/document.txt", fs.WorkingDirPath()), []byte("Basic latin characters"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			filename:            "document.txt",
+			expectSameInputPath: true,
+			expectError:         false,
+		},
+		{
+			scenario: "non-basic latin characters",
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/éèßàùä.txt", fs.WorkingDirPath()), []byte("Non-basic latin characters"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			filename:            "éèßàùä.txt",
+			expectSameInputPath: false,
+			expectError:         false,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			defer func() {
+				err := os.RemoveAll(tc.fs.WorkingDirPath())
+				if err != nil {
+					t.Fatalf("expected no error while cleaning up, but got: %v", err)
+				}
+			}()
+
+			inputPath := fmt.Sprintf("%s/%s", tc.fs.WorkingDirPath(), tc.filename)
+			newInputPath, err := nonBasicLatinCharactersGuard(
+				zap.NewNop(),
+				inputPath,
+			)
+
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
+
+			if tc.expectSameInputPath && newInputPath != inputPath {
+				t.Fatalf("expected same input path, but got '%s'", newInputPath)
+			}
+
+			if !tc.expectSameInputPath && newInputPath == inputPath {
+				t.Fatalf("expected different input path, but got same '%s'", newInputPath)
 			}
 		})
 	}

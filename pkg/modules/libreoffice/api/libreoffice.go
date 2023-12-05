@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
@@ -290,6 +293,11 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 		)
 	}
 
+	inputPath, err := nonBasicLatinCharactersGuard(logger, inputPath)
+	if err != nil {
+		return fmt.Errorf("non-basic latin characters guard: %w", err)
+	}
+
 	args = append(args, "--output", outputPath, inputPath)
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, p.arguments.unoBinPath, args...)
@@ -319,6 +327,65 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 	// of its temporary files, as it has been killed without warning. The
 	// garbage collector will delete them for us (if the module is loaded).
 	return fmt.Errorf("convert to PDF: %w", err)
+}
+
+// LibreOffice cannot convert a file with a name containing non-basic Latin
+// characters.
+// See:
+// https://github.com/gotenberg/gotenberg/issues/104
+// https://github.com/gotenberg/gotenberg/issues/730
+func nonBasicLatinCharactersGuard(logger *zap.Logger, inputPath string) (string, error) {
+	hasNonBasicLatinChars := func(str string) bool {
+		for _, r := range str {
+			// Check if the character is outside basic Latin.
+			if r != '.' && (r < ' ' || r > '~') {
+				return true
+			}
+		}
+		return false
+	}
+
+	filename := filepath.Base(inputPath)
+	if !hasNonBasicLatinChars(filename) {
+		logger.Debug("no non-basic latin characters in filename, skip copy")
+		return inputPath, nil
+	}
+
+	logger.Warn("non-basic latin characters in filename, copy to a file with a valid filename")
+	basePath := filepath.Dir(inputPath)
+	ext := filepath.Ext(inputPath)
+	newInputPath := filepath.Join(basePath, fmt.Sprintf("%s%s", uuid.NewString(), ext))
+
+	in, err := os.Open(inputPath)
+	if err != nil {
+		return "", fmt.Errorf("open file: %w", err)
+	}
+
+	defer func() {
+		err := in.Close()
+		if err != nil {
+			logger.Error(fmt.Sprintf("close file: %s", err))
+		}
+	}()
+
+	out, err := os.Create(newInputPath)
+	if err != nil {
+		return "", fmt.Errorf("create new file: %w", err)
+	}
+
+	defer func() {
+		err := out.Close()
+		if err != nil {
+			logger.Error(fmt.Sprintf("close new file: %s", err))
+		}
+	}()
+
+	_, err = io.Copy(out, in)
+	if err != nil {
+		return "", fmt.Errorf("copy file to new file: %w", err)
+	}
+
+	return newInputPath, nil
 }
 
 // Interface guards.
