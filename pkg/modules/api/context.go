@@ -12,14 +12,11 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/mholt/archiver/v3"
 	"go.uber.org/zap"
-	"golang.org/x/text/runes"
-	"golang.org/x/text/transform"
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
@@ -124,15 +121,6 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 	ctx.files = make(map[string]string)
 
 	copyToDisk := func(fh *multipart.FileHeader) error {
-		// Avoid directory traversal and normalize filename.
-		// See https://github.com/gotenberg/gotenberg/issues/104.
-		t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
-
-		filename, _, err := transform.String(t, filepath.Base(fh.Filename))
-		if err != nil {
-			return fmt.Errorf("transform filename: %w", err)
-		}
-
 		in, err := fh.Open()
 		if err != nil {
 			return fmt.Errorf("open multipart file: %w", err)
@@ -145,6 +133,10 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 			}
 		}()
 
+		// Avoid directory traversal and make sure filename characters are
+		// normalized.
+		// See: https://github.com/gotenberg/gotenberg/issues/662.
+		filename := norm.NFC.String(filepath.Base(fh.Filename))
 		path := fmt.Sprintf("%s/%s", ctx.dirPath, filename)
 
 		out, err := os.Create(path)
