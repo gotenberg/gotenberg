@@ -5,13 +5,13 @@ go 1.21
 require (
 	github.com/alexliesenfeld/health v0.8.0
 	github.com/andybalholm/brotli v1.0.6 // indirect
-	github.com/chromedp/cdproto v0.0.0-20231114014204-3e458d5176f9
+	github.com/chromedp/cdproto v0.0.0-20231205062650-00455a960d61
 	github.com/chromedp/chromedp v0.9.3
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.4.0
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.5
-	github.com/klauspost/compress v1.17.3 // indirect
+	github.com/klauspost/compress v1.17.4 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/labstack/echo/v4 v4.11.3
 	github.com/labstack/gommon v0.4.1
@@ -27,12 +27,12 @@ require (
 	github.com/ulikunitz/xz v0.5.11 // indirect
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.26.0
-	golang.org/x/crypto v0.15.0 // indirect
+	golang.org/x/crypto v0.16.0 // indirect
 	golang.org/x/image v0.14.0 // indirect
-	golang.org/x/net v0.18.0
+	golang.org/x/net v0.19.0
 	golang.org/x/sync v0.5.0
-	golang.org/x/sys v0.14.0 // indirect
-	golang.org/x/term v0.14.0
+	golang.org/x/sys v0.15.0 // indirect
+	golang.org/x/term v0.15.0
 	golang.org/x/text v0.14.0
 )
 
