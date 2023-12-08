@@ -137,7 +137,7 @@ func (b *chromiumBrowser) Start(logger *zap.Logger) error {
 	b.ctxMu.Lock()
 	defer b.ctxMu.Unlock()
 
-	// We have to keep the context around, as we need it to create a new tabs
+	// We have to keep the context around, as we need it to create new tabs
 	// later.
 	b.ctx = ctx
 	b.cancelFunc = func() {
