@@ -2,7 +2,6 @@
 # concatenate them. Also, we have to repeat ARG instructions in each build
 # stage that uses them.
 ARG GOLANG_VERSION
-ARG GOTENBERG_VERSION
 
 # ----------------------------------------------
 # Gotenberg binary build stage
@@ -134,7 +133,12 @@ RUN \
       mv /usr/bin/google-chrome-stable /usr/bin/chromium; \
     elif [[ "$(dpkg --print-architecture)" == "armhf" ]]; then \
       apt-get update -qq &&\
-      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium-common="$TMP_CHOMIUM_VERSION_ARMHF" chromium="$TMP_CHOMIUM_VERSION_ARMHF"; \
+      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends devscripts &&\
+      debsnap chromium-common "$TMP_CHOMIUM_VERSION_ARMHF" -v --force --binary --architecture armhf &&\
+      debsnap chromium "$TMP_CHOMIUM_VERSION_ARMHF" -v --force --binary --architecture armhf &&\
+      DEBIAN_FRONTEND=noninteractive apt-get install --fix-broken -y -qq --no-install-recommends "./binary-chromium-common/chromium-common_${TMP_CHOMIUM_VERSION_ARMHF}_armhf.deb" "./binary-chromium/chromium_${TMP_CHOMIUM_VERSION_ARMHF}_armhf.deb" &&\
+      DEBIAN_FRONTEND=noninteractive apt-get purge -y -qq devscripts &&\
+      rm -rf ./binary-chromium-common/* ./binary-chromium/*; \
     else \
       apt-get update -qq &&\
       DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium; \
