@@ -47,11 +47,11 @@ func printToPdfActionFunc(logger *zap.Logger, outputPath string, options Options
 				WithFooterTemplate(options.FooterTemplate)
 		}
 
-		logger.Debug(fmt.Sprintf("print to Pdf with: %+v", printToPdf))
+		logger.Debug(fmt.Sprintf("print to PDF with: %+v", printToPdf))
 
 		_, stream, err := printToPdf.Do(ctx)
 		if err != nil {
-			return fmt.Errorf("print to Pdf: %w", err)
+			return fmt.Errorf("print to PDF: %w", err)
 		}
 
 		reader := &streamReader{
