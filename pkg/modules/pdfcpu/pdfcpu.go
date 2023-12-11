@@ -41,7 +41,7 @@ func (engine *PdfCpu) Provision(ctx *gotenberg.Context) error {
 
 // Merge combines multiple PDFs into a single PDF.
 func (engine *PdfCpu) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-	err := pdfcpuAPI.MergeCreateFile(inputPaths, outputPath, engine.conf)
+	err := pdfcpuAPI.MergeCreateFile(inputPaths, outputPath, false, engine.conf)
 	if err == nil {
 		return nil
 	}
