@@ -259,7 +259,7 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *zap.Logger, url, outp
 		runtime.Enable(),
 		disableJavaScriptActionFunc(logger, b.arguments.disableJavaScript),
 		extraHttpHeadersActionFunc(logger, options.ExtraHttpHeaders),
-		navigateActionFunc(logger, url),
+		navigateActionFunc(logger, url, options.SkipNetworkIdleEvent),
 		hideDefaultWhiteBackgroundActionFunc(logger, options.OmitBackground, options.PrintBackground),
 		forceExactColorsActionFunc(),
 		emulateMediaTypeActionFunc(logger, options.EmulatedMediaType),

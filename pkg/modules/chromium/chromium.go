@@ -69,6 +69,13 @@ type Chromium struct {
 
 // Options are the available expectedOptions for converting HTML document to PDF.
 type Options struct {
+	// SkipNetworkIdleEvent set if the conversion should wait for the
+	// "networkIdle" event, drastically improving the conversion speed. It may
+	// not be suitable for all HTML documents, as some may not be fully
+	// rendered until this event is fired.
+	// Optional.
+	SkipNetworkIdleEvent bool
+
 	// FailOnConsoleExceptions sets if the conversion should fail if there are
 	// exceptions in the Chromium console.
 	// Optional.
@@ -171,6 +178,7 @@ type Options struct {
 // DefaultOptions returns the default values for Options.
 func DefaultOptions() Options {
 	return Options{
+		SkipNetworkIdleEvent:    false,
 		FailOnConsoleExceptions: false,
 		WaitDelay:               0,
 		WaitWindowStatus:        "",

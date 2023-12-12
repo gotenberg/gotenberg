@@ -136,7 +136,7 @@ func extraHttpHeadersActionFunc(logger *zap.Logger, extraHttpHeaders map[string]
 	}
 }
 
-func navigateActionFunc(logger *zap.Logger, url string) chromedp.ActionFunc {
+func navigateActionFunc(logger *zap.Logger, url string, skipNetworkIdleEvent bool) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		logger.Debug(fmt.Sprintf("navigate to '%s'", url))
 
@@ -145,12 +145,21 @@ func navigateActionFunc(logger *zap.Logger, url string) chromedp.ActionFunc {
 			return fmt.Errorf("navigate to '%s': %w", url, err)
 		}
 
-		err = runBatch(
-			ctx,
+		waitFunc := []func() error{
 			waitForEventDomContentEventFired(ctx, logger),
 			waitForEventLoadEventFired(ctx, logger),
-			waitForEventNetworkIdle(ctx, logger),
 			waitForEventLoadingFinished(ctx, logger),
+		}
+
+		if !skipNetworkIdleEvent {
+			waitFunc = append(waitFunc, waitForEventNetworkIdle(ctx, logger))
+		} else {
+			logger.Debug("skipping network idle event")
+		}
+
+		err = runBatch(
+			ctx,
+			waitFunc...,
 		)
 
 		if err == nil {
