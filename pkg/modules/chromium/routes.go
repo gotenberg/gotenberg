@@ -27,6 +27,7 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, Options) {
 	defaultOptions := DefaultOptions()
 
 	var (
+		skipNetworkIdleEvent                             bool
 		failOnConsoleExceptions                          bool
 		waitDelay                                        time.Duration
 		waitWindowStatus                                 string
@@ -42,6 +43,7 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, Options) {
 	)
 
 	form := ctx.FormData().
+		Bool("skipNetworkIdleEvent", &skipNetworkIdleEvent, defaultOptions.SkipNetworkIdleEvent).
 		Bool("failOnConsoleExceptions", &failOnConsoleExceptions, defaultOptions.FailOnConsoleExceptions).
 		Duration("waitDelay", &waitDelay, defaultOptions.WaitDelay).
 		String("waitWindowStatus", &waitWindowStatus, defaultOptions.WaitWindowStatus).
@@ -91,6 +93,7 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, Options) {
 		Bool("preferCssPageSize", &preferCssPageSize, defaultOptions.PreferCssPageSize)
 
 	options := Options{
+		SkipNetworkIdleEvent:    skipNetworkIdleEvent,
 		FailOnConsoleExceptions: failOnConsoleExceptions,
 		WaitDelay:               waitDelay,
 		WaitWindowStatus:        waitWindowStatus,

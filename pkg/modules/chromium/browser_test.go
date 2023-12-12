@@ -381,6 +381,41 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 			},
 		},
 		{
+			scenario: "skip networkIdle event",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp.MustCompile(""),
+					denyList:         regexp.MustCompile(""),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Skip networkIdle event</h1>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: Options{
+				SkipNetworkIdleEvent: true,
+			},
+			noDeadline:  false,
+			start:       true,
+			expectError: false,
+			expectedLogEntries: []string{
+				"skipping network idle event",
+			},
+		},
+		{
 			scenario: "ErrConsoleExceptions",
 			browser: newChromiumBrowser(
 				browserArguments{
