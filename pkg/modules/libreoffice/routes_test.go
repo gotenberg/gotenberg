@@ -124,7 +124,7 @@ func TestConvertRoute(t *testing.T) {
 				})
 				ctx.SetValues(map[string][]string{
 					"pdfa": {
-						gotenberg.PdfA1a,
+						gotenberg.PdfA1b,
 					},
 					"nativePdfFormats": {
 						"false",
@@ -223,7 +223,7 @@ func TestConvertRoute(t *testing.T) {
 				})
 				ctx.SetValues(map[string][]string{
 					"pdfa": {
-						gotenberg.PdfA1a,
+						gotenberg.PdfA1b,
 					},
 					"pdfua": {
 						"true",
@@ -260,7 +260,7 @@ func TestConvertRoute(t *testing.T) {
 				})
 				ctx.SetValues(map[string][]string{
 					"pdfa": {
-						gotenberg.PdfA1a,
+						gotenberg.PdfA1b,
 					},
 					"pdfua": {
 						"true",
@@ -372,7 +372,7 @@ func TestConvertRoute(t *testing.T) {
 						"true",
 					},
 					"pdfa": {
-						gotenberg.PdfA1a,
+						gotenberg.PdfA1b,
 					},
 					"nativePdfFormats": {
 						"false",
@@ -478,7 +478,7 @@ func TestConvertRoute(t *testing.T) {
 						"true",
 					},
 					"pdfa": {
-						gotenberg.PdfA1a,
+						gotenberg.PdfA1b,
 					},
 					"pdfua": {
 						"true",
@@ -522,7 +522,7 @@ func TestConvertRoute(t *testing.T) {
 						"true",
 					},
 					"pdfa": {
-						gotenberg.PdfA1a,
+						gotenberg.PdfA1b,
 					},
 					"pdfua": {
 						"true",

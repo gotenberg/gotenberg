@@ -275,7 +275,7 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 
 	switch options.PdfFormats.PdfA {
 	case "":
-	case gotenberg.PdfA1a:
+	case gotenberg.PdfA1b:
 		args = append(args, "--export", "SelectPdfVersion=1")
 	case gotenberg.PdfA2b:
 		args = append(args, "--export", "SelectPdfVersion=2")
