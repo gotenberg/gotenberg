@@ -50,7 +50,7 @@ type Options struct {
 	// Optional.
 	PageRanges string
 
-	// PdfFormats allows to convert the resulting PDF to PDF/A-1a, PDF/A-2b,
+	// PdfFormats allows to convert the resulting PDF to PDF/A-1b, PDF/A-2b,
 	// PDF/A-3b and PDF/UA.
 	// Optional.
 	PdfFormats gotenberg.PdfFormats
