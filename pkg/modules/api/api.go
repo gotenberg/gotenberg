@@ -17,6 +17,7 @@ import (
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"golang.org/x/net/http2"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 )
@@ -29,6 +30,7 @@ func init() {
 // middlewares or health checks.
 type Api struct {
 	port                      int
+	startTimeout              time.Duration
 	timeout                   time.Duration
 	rootPath                  string
 	traceHeader               string
@@ -37,6 +39,7 @@ type Api struct {
 	routes              []Route
 	externalMiddlewares []Middleware
 	healthChecks        []health.CheckerOption
+	readyFn             []func() error
 	fs                  *gotenberg.FileSystem
 	logger              *zap.Logger
 	srv                 *echo.Echo
@@ -145,6 +148,7 @@ type Middleware struct {
 // See https://github.com/alexliesenfeld/health for more details.
 type HealthChecker interface {
 	Checks() ([]health.CheckerOption, error)
+	Ready() error
 }
 
 // Descriptor returns an [Api]'s module descriptor.
@@ -155,6 +159,7 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs := flag.NewFlagSet("api", flag.ExitOnError)
 			fs.Int("api-port", 3000, "Set the port on which the API should listen")
 			fs.String("api-port-from-env", "", "Set the environment variable with the port on which the API should listen - override the default port")
+			fs.Duration("api-start-timeout", time.Duration(30)*time.Second, "Set the time limit for the API to start")
 			fs.Duration("api-timeout", time.Duration(30)*time.Second, "Set the time limit for requests")
 			fs.String("api-root-path", "/", "Set the root path of the API - for service discovery via URL paths")
 			fs.String("api-trace-header", "Gotenberg-Trace", "Set the header name to use for identifying requests")
@@ -170,6 +175,7 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 func (a *Api) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	a.port = flags.MustInt("api-port")
+	a.startTimeout = flags.MustDuration("api-start-timeout")
 	a.timeout = flags.MustDuration("api-timeout")
 	a.rootPath = flags.MustString("api-root-path")
 	a.traceHeader = flags.MustString("api-trace-header")
@@ -259,6 +265,7 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 		}
 
 		a.healthChecks = append(a.healthChecks, checks...)
+		a.readyFn = append(a.readyFn, healthChecker.Ready)
 	}
 
 	// Logger.
@@ -430,11 +437,24 @@ func (a *Api) Start() error {
 		func() echo.HandlerFunc {
 			checks := append(a.healthChecks, health.WithTimeout(a.timeout))
 			checker := health.NewChecker(checks...)
-
 			return echo.WrapHandler(health.NewHandler(checker))
 		}(),
 		hardTimeoutMiddleware(hardTimeout),
 	)
+
+	// Wait for all modules to be ready.
+	ctx, cancel := context.WithTimeout(context.Background(), a.startTimeout)
+	defer cancel()
+
+	eg, _ := errgroup.WithContext(ctx)
+	for _, f := range a.readyFn {
+		eg.Go(f)
+	}
+
+	err := eg.Wait()
+	if err != nil {
+		return fmt.Errorf("waiting for modules readiness: %w", err)
+	}
 
 	// As the following code is blocking, run it in a goroutine.
 	go func() {

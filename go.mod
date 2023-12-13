@@ -8,7 +8,7 @@ require (
 	github.com/chromedp/cdproto v0.0.0-20231205062650-00455a960d61
 	github.com/chromedp/chromedp v0.9.3
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/uuid v1.4.0
+	github.com/google/uuid v1.5.0
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.5
 	github.com/klauspost/compress v1.17.4 // indirect

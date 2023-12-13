@@ -226,7 +226,7 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs := flag.NewFlagSet("chromium", flag.ExitOnError)
 			fs.Int64("chromium-restart-after", 0, "Number of conversions after which Chromium will automatically restart. Set to 0 to disable this feature")
 			fs.Bool("chromium-auto-start", false, "Automatically launch Chromium upon initialization if set to true; otherwise, Chromium will start at the time of the first conversion")
-			fs.Duration("chromium-start-timeout", time.Duration(10)*time.Second, "Maximum duration to wait for Chromium to start or restart")
+			fs.Duration("chromium-start-timeout", time.Duration(20)*time.Second, "Maximum duration to wait for Chromium to start or restart")
 			fs.Bool("chromium-incognito", false, "Start Chromium with incognito mode")
 			fs.Bool("chromium-allow-insecure-localhost", false, "Ignore TLS/SSL errors on localhost")
 			fs.Bool("chromium-ignore-certificate-errors", false, "Ignore the certificate errors")
@@ -385,6 +385,34 @@ func (mod *Chromium) Checks() ([]health.CheckerOption, error) {
 			},
 		}),
 	}, nil
+}
+
+// Ready returns no error if the module is ready.
+func (mod *Chromium) Ready() error {
+	if !mod.autoStart {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), mod.args.wsUrlReadTimeout)
+	defer cancel()
+
+	ticker := time.NewTicker(time.Duration(100) * time.Millisecond)
+
+	for {
+		select {
+		case <-ctx.Done():
+			ticker.Stop()
+			return fmt.Errorf("context done while waiting for Chromium to be ready: %w", ctx.Err())
+		case <-ticker.C:
+			ok := mod.browser.Healthy(mod.logger)
+			if ok {
+				ticker.Stop()
+				return nil
+			}
+
+			continue
+		}
+	}
 }
 
 // Chromium returns an [Api] for interacting with Chromium for converting HTML

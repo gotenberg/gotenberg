@@ -179,7 +179,6 @@ func waitForEventLoadingFinished(ctx context.Context, logger *zap.Logger) func()
 // completed or an error is encountered.
 func runBatch(ctx context.Context, fn ...func() error) error {
 	eg, _ := errgroup.WithContext(ctx)
-
 	for _, f := range fn {
 		eg.Go(f)
 	}
