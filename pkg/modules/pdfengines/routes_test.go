@@ -99,7 +99,7 @@ func TestMergeHandler(t *testing.T) {
 				})
 				ctx.SetValues(map[string][]string{
 					"pdfa": {
-						gotenberg.PdfA1a,
+						gotenberg.PdfA1b,
 					},
 				})
 				return ctx
@@ -127,7 +127,7 @@ func TestMergeHandler(t *testing.T) {
 				})
 				ctx.SetValues(map[string][]string{
 					"pdfa": {
-						gotenberg.PdfA1a,
+						gotenberg.PdfA1b,
 					},
 				})
 				return ctx
@@ -157,7 +157,7 @@ func TestMergeHandler(t *testing.T) {
 						gotenberg.PdfA1a,
 					},
 					"pdfa": {
-						gotenberg.PdfA1a,
+						gotenberg.PdfA1b,
 					},
 					"pdfua": {
 						"true",
@@ -259,7 +259,7 @@ func TestConvertHandler(t *testing.T) {
 				})
 				ctx.SetValues(map[string][]string{
 					"pdfa": {
-						gotenberg.PdfA1a,
+						gotenberg.PdfA1b,
 					},
 				})
 				return ctx
@@ -283,7 +283,7 @@ func TestConvertHandler(t *testing.T) {
 				})
 				ctx.SetValues(map[string][]string{
 					"pdfa": {
-						gotenberg.PdfA1a,
+						gotenberg.PdfA1b,
 					},
 				})
 				return ctx
@@ -306,7 +306,7 @@ func TestConvertHandler(t *testing.T) {
 				})
 				ctx.SetValues(map[string][]string{
 					"pdfa": {
-						gotenberg.PdfA1a,
+						gotenberg.PdfA1b,
 					},
 				})
 				ctx.SetCancelled(true)
@@ -333,7 +333,7 @@ func TestConvertHandler(t *testing.T) {
 						gotenberg.PdfA1a,
 					},
 					"pdfa": {
-						gotenberg.PdfA1a,
+						gotenberg.PdfA1b,
 					},
 					"pdfua": {
 						"true",
@@ -363,7 +363,7 @@ func TestConvertHandler(t *testing.T) {
 						gotenberg.PdfA1a,
 					},
 					"pdfa": {
-						gotenberg.PdfA1a,
+						gotenberg.PdfA1b,
 					},
 					"pdfua": {
 						"true",

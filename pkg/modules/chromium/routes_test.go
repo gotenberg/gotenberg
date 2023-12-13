@@ -734,7 +734,7 @@ func TestConvertUrl(t *testing.T) {
 			engine: &gotenberg.PdfEngineMock{ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 				return nil
 			}},
-			pdfFormats:             gotenberg.PdfFormats{PdfA: gotenberg.PdfA1a},
+			pdfFormats:             gotenberg.PdfFormats{PdfA: gotenberg.PdfA1b},
 			options:                DefaultOptions(),
 			expectError:            false,
 			expectHttpError:        false,

@@ -88,8 +88,11 @@ func TestConvertRoute(t *testing.T) {
 					"document.docx": "/document.docx",
 				})
 				ctx.SetValues(map[string][]string{
-					"pdfFormat": {
+					"pdfa": {
 						"foo",
+					},
+					"nativePdfFormats": {
+						"false",
 					},
 				})
 				return ctx
@@ -120,8 +123,11 @@ func TestConvertRoute(t *testing.T) {
 					"document.docx": "/document.docx",
 				})
 				ctx.SetValues(map[string][]string{
-					"pdfFormat": {
-						gotenberg.PdfA1a,
+					"pdfa": {
+						gotenberg.PdfA1b,
+					},
+					"nativePdfFormats": {
+						"false",
 					},
 				})
 				return ctx
@@ -209,7 +215,7 @@ func TestConvertRoute(t *testing.T) {
 			expectOutputPathsCount: 2,
 		},
 		{
-			scenario: "success with non-native PDF/A (single file)",
+			scenario: "success with non-native PDF/A & PDF/UA (single file)",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
@@ -217,7 +223,10 @@ func TestConvertRoute(t *testing.T) {
 				})
 				ctx.SetValues(map[string][]string{
 					"pdfa": {
-						gotenberg.PdfA1a,
+						gotenberg.PdfA1b,
+					},
+					"pdfua": {
+						"true",
 					},
 					"nativePdfFormats": {
 						"false",
@@ -254,13 +263,13 @@ func TestConvertRoute(t *testing.T) {
 						"true",
 					},
 					"pdfFormat": {
-						gotenberg.PdfA1a,
+						gotenberg.PdfA1b,
 					},
 					"nativePdfFormat": {
-						gotenberg.PdfA1a,
+						gotenberg.PdfA1b,
 					},
 					"pdfa": {
-						gotenberg.PdfA1a,
+						gotenberg.PdfA1b,
 					},
 					"pdfua": {
 						"true",
@@ -375,7 +384,7 @@ func TestConvertRoute(t *testing.T) {
 						"true",
 					},
 					"pdfa": {
-						gotenberg.PdfA1a,
+						gotenberg.PdfA1b,
 					},
 					"nativePdfFormats": {
 						"false",
@@ -469,7 +478,7 @@ func TestConvertRoute(t *testing.T) {
 			expectOutputPathsCount: 1,
 		},
 		{
-			scenario: "success with non-native PDF/A (merge)",
+			scenario: "success with non-native PDF/A & PDF/UA (merge)",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
@@ -481,7 +490,54 @@ func TestConvertRoute(t *testing.T) {
 						"true",
 					},
 					"pdfa": {
-						gotenberg.PdfA1a,
+						gotenberg.PdfA1b,
+					},
+					"pdfua": {
+						"true",
+					},
+					"nativePdfFormats": {
+						"false",
+					},
+				})
+				return ctx
+			}(),
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
+					return nil
+				},
+				ExtensionsMock: func() []string {
+					return []string{".docx"}
+				},
+			},
+			engine: &gotenberg.PdfEngineMock{
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return nil
+				},
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+					return nil
+				},
+			},
+			expectError:            false,
+			expectHttpError:        false,
+			expectOutputPathsCount: 1,
+		},
+		{
+			scenario: "success with non-native PDF/A & PDF/UA (merge)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"document.docx":  "/document.docx",
+					"document2.docx": "/document2.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"merge": {
+						"true",
+					},
+					"pdfa": {
+						gotenberg.PdfA1b,
+					},
+					"pdfua": {
+						"true",
 					},
 					"nativePdfFormats": {
 						"false",

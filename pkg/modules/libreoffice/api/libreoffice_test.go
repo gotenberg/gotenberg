@@ -394,7 +394,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 			expectError:  false,
 		},
 		{
-			scenario: "success (PDF/A-1a)",
+			scenario: "success (PDF/A-1b)",
 			libreOffice: newLibreOfficeProcess(
 				libreOfficeArguments{
 					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
@@ -417,7 +417,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 
 				return fs
 			}(),
-			options:      Options{PdfFormats: gotenberg.PdfFormats{PdfA: gotenberg.PdfA1a}},
+			options:      Options{PdfFormats: gotenberg.PdfFormats{PdfA: gotenberg.PdfA1b}},
 			cancelledCtx: false,
 			start:        true,
 			expectError:  false,
