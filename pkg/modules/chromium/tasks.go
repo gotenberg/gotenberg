@@ -304,12 +304,11 @@ func waitForExpressionBeforePrintActionFunc(logger *zap.Logger, disableJavaScrip
 			select {
 			case <-ctx.Done():
 				ticker.Stop()
-
 				return fmt.Errorf("context done while evaluating '%s': %w", expression, ctx.Err())
 			case <-ticker.C:
 				var ok bool
-
 				evaluate := chromedp.Evaluate(expression, &ok)
+
 				err := evaluate.Do(ctx)
 				if err != nil {
 					return fmt.Errorf("evaluate: %v: %w", err, ErrInvalidEvaluationExpression)
@@ -317,7 +316,6 @@ func waitForExpressionBeforePrintActionFunc(logger *zap.Logger, disableJavaScrip
 
 				if ok {
 					ticker.Stop()
-
 					return nil
 				}
 

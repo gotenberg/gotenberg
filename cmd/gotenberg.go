@@ -84,7 +84,6 @@ func Run() {
 			startupMessage := app.StartupMessage()
 			if startupMessage == "" {
 				fmt.Printf("[SYSTEM] %s: application started\n", id)
-
 				return
 			}
 
@@ -144,7 +143,6 @@ func Run() {
 				}
 
 				fmt.Printf("[SYSTEM] %s: application stopped\n", id)
-
 				return nil
 			}
 		}(a.(gotenberg.App)))

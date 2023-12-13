@@ -148,10 +148,18 @@ func TestHealthCheckerMock(t *testing.T) {
 		ChecksMock: func() ([]health.CheckerOption, error) {
 			return nil, nil
 		},
+		ReadyMock: func() error {
+			return nil
+		},
 	}
 
 	_, err := mock.Checks()
 	if err != nil {
 		t.Errorf("expected no error from HealthCheckerMock.Checks, but got: %v", err)
+	}
+
+	err = mock.Ready()
+	if err != nil {
+		t.Errorf("expected no error from HealthCheckerMock.Ready, but got: %v", err)
 	}
 }
