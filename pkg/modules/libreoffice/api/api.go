@@ -97,7 +97,7 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 
 			fs.Int64("libreoffice-restart-after", 10, "Number of conversions after which LibreOffice will automatically restart. Set to 0 to disable this feature")
 			fs.Bool("libreoffice-auto-start", false, "Automatically launch LibreOffice upon initialization if set to true; otherwise, LibreOffice will start at the time of the first conversion")
-			fs.Duration("libreoffice-start-timeout", time.Duration(10)*time.Second, "Maximum duration to wait for LibreOffice to start or restart")
+			fs.Duration("libreoffice-start-timeout", time.Duration(20)*time.Second, "Maximum duration to wait for LibreOffice to start or restart")
 
 			return fs
 		}(),
@@ -275,6 +275,34 @@ func (a *Api) Checks() ([]health.CheckerOption, error) {
 			},
 		}),
 	}, nil
+}
+
+// Ready returns no error if the module is ready.
+func (a *Api) Ready() error {
+	if !a.autoStart {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), a.args.startTimeout)
+	defer cancel()
+
+	ticker := time.NewTicker(time.Duration(100) * time.Millisecond)
+
+	for {
+		select {
+		case <-ctx.Done():
+			ticker.Stop()
+			return fmt.Errorf("context done while waiting for LibreOffice to be ready: %w", ctx.Err())
+		case <-ticker.C:
+			ok := a.libreOffice.Healthy(a.logger)
+			if ok {
+				ticker.Stop()
+				return nil
+			}
+
+			continue
+		}
+	}
 }
 
 // LibreOffice returns a [Uno] for interacting with LibreOffice.

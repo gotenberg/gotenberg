@@ -18,7 +18,7 @@ func init() {
 // LibreOfficePdfEngine interacts with the LibreOffice (Universal Network Objects) API
 // and implements the [gotenberg.PdfEngine] interface.
 type LibreOfficePdfEngine struct {
-	unoAPI api.Uno
+	unoApi api.Uno
 }
 
 // Descriptor returns a [LibreOfficePdfEngine]'s module descriptor.
@@ -36,12 +36,12 @@ func (engine *LibreOfficePdfEngine) Provision(ctx *gotenberg.Context) error {
 		return fmt.Errorf("get LibreOffice Uno provider: %w", err)
 	}
 
-	unoAPI, err := provider.(api.Provider).LibreOffice()
+	unoApi, err := provider.(api.Provider).LibreOffice()
 	if err != nil {
 		return fmt.Errorf("get LibreOffice Uno: %w", err)
 	}
 
-	engine.unoAPI = unoAPI
+	engine.unoApi = unoApi
 
 	return nil
 }
@@ -56,7 +56,7 @@ func (engine *LibreOfficePdfEngine) Merge(ctx context.Context, logger *zap.Logge
 // PDF format is requested, it returns a [gotenberg.ErrPdfFormatNotSupported]
 // error.
 func (engine *LibreOfficePdfEngine) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
-	err := engine.unoAPI.Pdf(ctx, logger, inputPath, outputPath, api.Options{
+	err := engine.unoApi.Pdf(ctx, logger, inputPath, outputPath, api.Options{
 		PdfFormats: formats,
 	})
 

@@ -364,6 +364,61 @@ func TestApi_Checks(t *testing.T) {
 	}
 }
 
+func TestChromium_Ready(t *testing.T) {
+	for _, tc := range []struct {
+		scenario     string
+		autoStart    bool
+		startTimeout time.Duration
+		libreOffice  libreOffice
+		expectError  bool
+	}{
+		{
+			scenario:     "no auto-start",
+			autoStart:    false,
+			startTimeout: time.Duration(30) * time.Second,
+			libreOffice: &libreOfficeMock{ProcessMock: gotenberg.ProcessMock{HealthyMock: func(logger *zap.Logger) bool {
+				return false
+			}}},
+			expectError: false,
+		},
+		{
+			scenario:     "auto-start: context done",
+			autoStart:    true,
+			startTimeout: time.Duration(200) * time.Millisecond,
+			libreOffice: &libreOfficeMock{ProcessMock: gotenberg.ProcessMock{HealthyMock: func(logger *zap.Logger) bool {
+				return false
+			}}},
+			expectError: true,
+		},
+		{
+			scenario:     "auto-start success",
+			autoStart:    true,
+			startTimeout: time.Duration(30) * time.Second,
+			libreOffice: &libreOfficeMock{ProcessMock: gotenberg.ProcessMock{HealthyMock: func(logger *zap.Logger) bool {
+				return true
+			}}},
+			expectError: false,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			a := new(Api)
+			a.autoStart = tc.autoStart
+			a.args = libreOfficeArguments{startTimeout: tc.startTimeout}
+			a.libreOffice = tc.libreOffice
+
+			err := a.Ready()
+
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
+		})
+	}
+}
+
 func TestApi_LibreOffice(t *testing.T) {
 	a := new(Api)
 

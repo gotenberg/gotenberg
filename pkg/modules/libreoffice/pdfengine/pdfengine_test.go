@@ -153,7 +153,7 @@ func TestLibreOfficePdfEngine_Convert(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			engine := &LibreOfficePdfEngine{unoAPI: tc.api}
+			engine := &LibreOfficePdfEngine{unoApi: tc.api}
 			err := engine.Convert(context.Background(), zap.NewNop(), gotenberg.PdfFormats{}, "", "")
 
 			if !tc.expectError && err != nil {

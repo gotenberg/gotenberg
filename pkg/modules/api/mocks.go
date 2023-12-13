@@ -105,10 +105,15 @@ func (provider *MiddlewareProviderMock) Middlewares() ([]Middleware, error) {
 // HealthCheckerMock is mock for the [HealthChecker] interface.
 type HealthCheckerMock struct {
 	ChecksMock func() ([]health.CheckerOption, error)
+	ReadyMock  func() error
 }
 
 func (mod *HealthCheckerMock) Checks() ([]health.CheckerOption, error) {
 	return mod.ChecksMock()
+}
+
+func (mod *HealthCheckerMock) Ready() error {
+	return mod.ReadyMock()
 }
 
 // Interface guards.

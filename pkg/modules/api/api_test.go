@@ -10,6 +10,7 @@ import (
 	"os"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/alexliesenfeld/health"
 	"github.com/labstack/echo/v4"
@@ -222,9 +223,6 @@ func TestApi_Provision(t *testing.T) {
 				mod.ValidateMock = func() error {
 					return errors.New("foo")
 				}
-				mod.ChecksMock = func() ([]health.CheckerOption, error) {
-					return nil, nil
-				}
 				return gotenberg.NewContext(
 					gotenberg.ParsedFlags{
 						FlagSet: new(Api).Descriptor().FlagSet,
@@ -346,6 +344,9 @@ func TestApi_Provision(t *testing.T) {
 				}
 				mod3.ChecksMock = func() ([]health.CheckerOption, error) {
 					return []health.CheckerOption{health.WithDisabledAutostart()}, nil
+				}
+				mod3.ReadyMock = func() error {
+					return nil
 				}
 
 				mod4 := &struct {
@@ -643,141 +644,176 @@ func TestApi_Validate(t *testing.T) {
 }
 
 func TestApi_Start(t *testing.T) {
-	mod := new(Api)
-	mod.port = 3000
-	mod.rootPath = "/"
-	mod.disableHealthCheckLogging = true
-	mod.routes = []Route{
+	for _, tc := range []struct {
+		scenario    string
+		readyFn     []func() error
+		expectError bool
+	}{
 		{
-			Method:         http.MethodPost,
-			Path:           "/forms/foo",
-			IsMultipart:    true,
-			DisableLogging: true,
-			Handler: func(c echo.Context) error {
-				ctx := c.Get("context").(*Context)
-				ctx.outputPaths = []string{
-					"/tests/test/testdata/api/sample1.txt",
-				}
-
-				return nil
+			scenario: "at least one module not ready",
+			readyFn: []func() error{
+				func() error { return nil },
+				func() error { return errors.New("not ready") },
 			},
+			expectError: true,
 		},
 		{
-			Method:      http.MethodPost,
-			Path:        "/forms/bar",
-			IsMultipart: true,
-			Handler:     func(_ echo.Context) error { return errors.New("foo") },
+			scenario: "success",
+			readyFn: []func() error{
+				func() error { return nil },
+				func() error { return nil },
+			},
+			expectError: false,
 		},
-	}
-	mod.externalMiddlewares = []Middleware{
-		{
-			Stack: PreRouterStack,
-			Handler: func() echo.MiddlewareFunc {
-				return func(next echo.HandlerFunc) echo.HandlerFunc {
-					return func(c echo.Context) error {
-						return next(c)
-					}
-				}
-			}(),
-		},
-		{
-			Stack: MultipartStack,
-			Handler: func() echo.MiddlewareFunc {
-				return func(next echo.HandlerFunc) echo.HandlerFunc {
-					return func(c echo.Context) error {
-						return next(c)
-					}
-				}
-			}(),
-		},
-		{
-			Stack: DefaultStack,
-			Handler: func() echo.MiddlewareFunc {
-				return func(next echo.HandlerFunc) echo.HandlerFunc {
-					return func(c echo.Context) error {
-						return next(c)
-					}
-				}
-			}(),
-		},
-		{
-			Handler: func() echo.MiddlewareFunc {
-				return func(next echo.HandlerFunc) echo.HandlerFunc {
-					return func(c echo.Context) error {
-						return next(c)
-					}
-				}
-			}(),
-		},
-	}
-	mod.fs = gotenberg.NewFileSystem()
-	mod.logger = zap.NewNop()
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			mod := new(Api)
+			mod.port = 3000
+			mod.startTimeout = time.Duration(30) * time.Second
+			mod.rootPath = "/"
+			mod.disableHealthCheckLogging = true
+			mod.routes = []Route{
+				{
+					Method:         http.MethodPost,
+					Path:           "/forms/foo",
+					IsMultipart:    true,
+					DisableLogging: true,
+					Handler: func(c echo.Context) error {
+						ctx := c.Get("context").(*Context)
+						ctx.outputPaths = []string{
+							"/tests/test/testdata/api/sample1.txt",
+						}
 
-	err := mod.Start()
-	if err != nil {
-		t.Fatalf("expected no error but got: %v", err)
-	}
+						return nil
+					},
+				},
+				{
+					Method:      http.MethodPost,
+					Path:        "/forms/bar",
+					IsMultipart: true,
+					Handler:     func(_ echo.Context) error { return errors.New("foo") },
+				},
+			}
+			mod.externalMiddlewares = []Middleware{
+				{
+					Stack: PreRouterStack,
+					Handler: func() echo.MiddlewareFunc {
+						return func(next echo.HandlerFunc) echo.HandlerFunc {
+							return func(c echo.Context) error {
+								return next(c)
+							}
+						}
+					}(),
+				},
+				{
+					Stack: MultipartStack,
+					Handler: func() echo.MiddlewareFunc {
+						return func(next echo.HandlerFunc) echo.HandlerFunc {
+							return func(c echo.Context) error {
+								return next(c)
+							}
+						}
+					}(),
+				},
+				{
+					Stack: DefaultStack,
+					Handler: func() echo.MiddlewareFunc {
+						return func(next echo.HandlerFunc) echo.HandlerFunc {
+							return func(c echo.Context) error {
+								return next(c)
+							}
+						}
+					}(),
+				},
+				{
+					Handler: func() echo.MiddlewareFunc {
+						return func(next echo.HandlerFunc) echo.HandlerFunc {
+							return func(c echo.Context) error {
+								return next(c)
+							}
+						}
+					}(),
+				},
+			}
+			mod.readyFn = tc.readyFn
+			mod.fs = gotenberg.NewFileSystem()
+			mod.logger = zap.NewNop()
 
-	// health request.
-	recorder := httptest.NewRecorder()
-	healthRequest := httptest.NewRequest(http.MethodGet, "/health", nil)
-
-	mod.srv.ServeHTTP(recorder, healthRequest)
-	if recorder.Code != http.StatusOK {
-		t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
-	}
-
-	// "multipart/form-data" request.
-	multipartRequest := func(url string) *http.Request {
-		body := &bytes.Buffer{}
-
-		writer := multipart.NewWriter(body)
-
-		defer func() {
-			err := writer.Close()
-			if err != nil {
+			err := mod.Start()
+			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
 			}
-		}()
 
-		err := writer.WriteField("foo", "foo")
-		if err != nil {
-			t.Fatalf("expected no error but got: %v", err)
-		}
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
 
-		part, err := writer.CreateFormFile("foo.txt", "foo.txt")
-		if err != nil {
-			t.Fatalf("expected no error but got: %v", err)
-		}
+			if tc.expectError {
+				return
+			}
 
-		_, err = part.Write([]byte("foo"))
-		if err != nil {
-			t.Fatalf("expected no error but got: %v", err)
-		}
+			// health request.
+			recorder := httptest.NewRecorder()
+			healthRequest := httptest.NewRequest(http.MethodGet, "/health", nil)
 
-		req := httptest.NewRequest(http.MethodPost, url, body)
-		req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
+			mod.srv.ServeHTTP(recorder, healthRequest)
+			if recorder.Code != http.StatusOK {
+				t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
+			}
 
-		return req
-	}
+			// "multipart/form-data" request.
+			multipartRequest := func(url string) *http.Request {
+				body := &bytes.Buffer{}
 
-	recorder = httptest.NewRecorder()
-	mod.srv.ServeHTTP(recorder, multipartRequest("/forms/foo"))
+				writer := multipart.NewWriter(body)
 
-	if recorder.Code != http.StatusOK {
-		t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
-	}
+				defer func() {
+					err := writer.Close()
+					if err != nil {
+						t.Fatalf("expected no error but got: %v", err)
+					}
+				}()
 
-	recorder = httptest.NewRecorder()
-	mod.srv.ServeHTTP(recorder, multipartRequest("/forms/bar"))
+				err := writer.WriteField("foo", "foo")
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
 
-	if recorder.Code != http.StatusInternalServerError {
-		t.Errorf("expected %d status code but got %d", http.StatusInternalServerError, recorder.Code)
-	}
+				part, err := writer.CreateFormFile("foo.txt", "foo.txt")
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
 
-	err = mod.srv.Shutdown(context.TODO())
-	if err != nil {
-		t.Errorf("expected no error but got: %v", err)
+				_, err = part.Write([]byte("foo"))
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				req := httptest.NewRequest(http.MethodPost, url, body)
+				req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
+
+				return req
+			}
+
+			recorder = httptest.NewRecorder()
+			mod.srv.ServeHTTP(recorder, multipartRequest("/forms/foo"))
+
+			if recorder.Code != http.StatusOK {
+				t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
+			}
+
+			recorder = httptest.NewRecorder()
+			mod.srv.ServeHTTP(recorder, multipartRequest("/forms/bar"))
+
+			if recorder.Code != http.StatusInternalServerError {
+				t.Errorf("expected %d status code but got %d", http.StatusInternalServerError, recorder.Code)
+			}
+
+			err = mod.srv.Shutdown(context.TODO())
+			if err != nil {
+				t.Errorf("expected no error but got: %v", err)
+			}
+		})
 	}
 }
 
