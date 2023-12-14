@@ -244,6 +244,16 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *zap.Logger, url, outp
 	listenForEventRequestPaused(taskCtx, logger, b.arguments.allowList, b.arguments.denyList)
 
 	var (
+		invalidHttpStatusCode   error
+		invalidHttpStatusCodeMu sync.RWMutex
+	)
+
+	// See https://github.com/gotenberg/gotenberg/issues/613.
+	if len(options.FailOnHttpStatusCodes) != 0 {
+		listenForEventResponseReceived(taskCtx, logger, url, options.FailOnHttpStatusCodes, &invalidHttpStatusCode, &invalidHttpStatusCodeMu)
+	}
+
+	var (
 		consoleExceptions   error
 		consoleExceptionsMu sync.RWMutex
 	)
@@ -285,6 +295,14 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *zap.Logger, url, outp
 		}
 
 		return fmt.Errorf("print to PDF: %w", err)
+	}
+
+	// See https://github.com/gotenberg/gotenberg/issues/613.
+	invalidHttpStatusCodeMu.RLock()
+	defer invalidHttpStatusCodeMu.RUnlock()
+
+	if invalidHttpStatusCode != nil {
+		return fmt.Errorf("%v: %w", invalidHttpStatusCode, ErrInvalidHttpStatusCode)
 	}
 
 	// See https://github.com/gotenberg/gotenberg/issues/262.

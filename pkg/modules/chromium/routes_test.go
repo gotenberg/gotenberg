@@ -29,6 +29,40 @@ func TestFormDataChromiumPdfOptions(t *testing.T) {
 			expectedOptions: DefaultOptions(),
 		},
 		{
+			scenario: "invalid failOnHttpStatusCodes form field",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"failOnHttpStatusCodes": {
+						"foo",
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: func() Options {
+				options := DefaultOptions()
+				options.FailOnHttpStatusCodes = nil
+				return options
+			}(),
+		},
+		{
+			scenario: "valid failOnHttpStatusCodes form field",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"failOnHttpStatusCodes": {
+						`[399,499,599]`,
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: func() Options {
+				options := DefaultOptions()
+				options.FailOnHttpStatusCodes = []int64{399, 499, 599}
+				return options
+			}(),
+		},
+		{
 			scenario: "invalid extraHttpHeaders form field",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
@@ -637,6 +671,18 @@ func TestConvertUrl(t *testing.T) {
 			expectError:            true,
 			expectHttpError:        true,
 			expectHttpStatus:       http.StatusBadRequest,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "ErrInvalidHttpStatusCode",
+			ctx:      &api.ContextMock{Context: new(api.Context)},
+			api: &ApiMock{func(ctx context.Context, logger *zap.Logger, url, outputPath string, options Options) error {
+				return ErrInvalidHttpStatusCode
+			}},
+			options:                DefaultOptions(),
+			expectError:            true,
+			expectHttpError:        true,
+			expectHttpStatus:       http.StatusConflict,
 			expectOutputPathsCount: 0,
 		},
 		{

@@ -28,6 +28,7 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, Options) {
 
 	var (
 		skipNetworkIdleEvent                             bool
+		failOnHttpStatusCodes                            []int64
 		failOnConsoleExceptions                          bool
 		waitDelay                                        time.Duration
 		waitWindowStatus                                 string
@@ -44,6 +45,19 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, Options) {
 
 	form := ctx.FormData().
 		Bool("skipNetworkIdleEvent", &skipNetworkIdleEvent, defaultOptions.SkipNetworkIdleEvent).
+		Custom("failOnHttpStatusCodes", func(value string) error {
+			if value == "" {
+				failOnHttpStatusCodes = defaultOptions.FailOnHttpStatusCodes
+				return nil
+			}
+
+			err := json.Unmarshal([]byte(value), &failOnHttpStatusCodes)
+			if err != nil {
+				return fmt.Errorf("unmarshal failOnHttpStatusCodes: %w", err)
+			}
+
+			return nil
+		}).
 		Bool("failOnConsoleExceptions", &failOnConsoleExceptions, defaultOptions.FailOnConsoleExceptions).
 		Duration("waitDelay", &waitDelay, defaultOptions.WaitDelay).
 		String("waitWindowStatus", &waitWindowStatus, defaultOptions.WaitWindowStatus).
@@ -51,13 +65,12 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, Options) {
 		Custom("extraHttpHeaders", func(value string) error {
 			if value == "" {
 				extraHttpHeaders = defaultOptions.ExtraHttpHeaders
-
 				return nil
 			}
 
 			err := json.Unmarshal([]byte(value), &extraHttpHeaders)
 			if err != nil {
-				return fmt.Errorf("unmarshal extra HTTP headers: %w", err)
+				return fmt.Errorf("unmarshal extraHttpHeaders: %w", err)
 			}
 
 			return nil
@@ -65,7 +78,6 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, Options) {
 		Custom("emulatedMediaType", func(value string) error {
 			if value == "" {
 				emulatedMediaType = defaultOptions.EmulatedMediaType
-
 				return nil
 			}
 
@@ -94,6 +106,7 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, Options) {
 
 	options := Options{
 		SkipNetworkIdleEvent:    skipNetworkIdleEvent,
+		FailOnHttpStatusCodes:   failOnHttpStatusCodes,
 		FailOnConsoleExceptions: failOnConsoleExceptions,
 		WaitDelay:               waitDelay,
 		WaitWindowStatus:        waitWindowStatus,
@@ -365,6 +378,16 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 				api.NewSentinelHttpError(
 					http.StatusBadRequest,
 					fmt.Sprintf("Chromium does not handle the page ranges '%s' (nativePageRanges)", options.PageRanges),
+				),
+			)
+		}
+
+		if errors.Is(err, ErrInvalidHttpStatusCode) {
+			return api.WrapError(
+				fmt.Errorf("convert to PDF: %w", err),
+				api.NewSentinelHttpError(
+					http.StatusConflict,
+					fmt.Sprintf("Invalid HTTP status code from the main page: %s", strings.ReplaceAll(err.Error(), fmt.Sprintf(": %s", ErrInvalidHttpStatusCode.Error()), "")),
 				),
 			)
 		}

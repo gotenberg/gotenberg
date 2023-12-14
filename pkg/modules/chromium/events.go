@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"slices"
 	"sync"
 
 	"github.com/chromedp/cdproto/cdp"
@@ -56,6 +57,37 @@ func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, allowL
 					logger.Error(fmt.Sprintf("fail request: %s", err))
 				}
 			}()
+		}
+	})
+}
+
+// listenForEventResponseReceived listens for an invalid HTTP status code is
+// returned by the main page.
+// See https://github.com/gotenberg/gotenberg/issues/613.
+func listenForEventResponseReceived(ctx context.Context, logger *zap.Logger, url string, failOnHttpStatusCodes []int64, invalidHttpStatusCode *error, invalidHttpStatusCodeMu *sync.RWMutex) {
+	for _, code := range []int64{199, 299, 399, 499, 599} {
+		if slices.Contains(failOnHttpStatusCodes, code) {
+			for i := code - 99; i <= code; i++ {
+				failOnHttpStatusCodes = append(failOnHttpStatusCodes, i)
+			}
+		}
+	}
+
+	chromedp.ListenTarget(ctx, func(ev interface{}) {
+		switch ev := ev.(type) {
+		case *network.EventResponseReceived:
+			if ev.Response.URL != url {
+				return
+			}
+
+			logger.Debug(fmt.Sprintf("event EventResponseReceived fired for main page: %+v", ev.Response))
+
+			if slices.Contains(failOnHttpStatusCodes, ev.Response.Status) {
+				invalidHttpStatusCodeMu.Lock()
+				defer invalidHttpStatusCodeMu.Unlock()
+
+				*invalidHttpStatusCode = fmt.Errorf("%d: %s", ev.Response.Status, ev.Response.StatusText)
+			}
 		}
 	})
 }

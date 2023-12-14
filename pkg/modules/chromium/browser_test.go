@@ -416,6 +416,39 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 			},
 		},
 		{
+			scenario: "ErrInvalidHttpStatusCode",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp.MustCompile(""),
+					denyList:         regexp.MustCompile(""),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>ErrInvalidHttpStatusCode</h1>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: Options{
+				FailOnHttpStatusCodes: []int64{299},
+			},
+			noDeadline:    false,
+			start:         true,
+			expectError:   true,
+			expectedError: ErrInvalidHttpStatusCode,
+		},
+		{
 			scenario: "ErrConsoleExceptions",
 			browser: newChromiumBrowser(
 				browserArguments{
