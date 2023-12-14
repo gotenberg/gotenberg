@@ -115,11 +115,13 @@ func TestProcessSupervisor_restart(t *testing.T) {
 		startError          error
 		stopError           error
 		expectError         bool
+		expectedError       error
 	}{
 		{
 			scenario:            "already restarting",
 			initiallyRestarting: true,
-			expectError:         false,
+			expectError:         true,
+			expectedError:       ErrProcessAlreadyRestarting,
 		},
 		{
 			scenario:    "successful restart",
@@ -165,6 +167,10 @@ func TestProcessSupervisor_restart(t *testing.T) {
 
 			if tc.expectError && err == nil {
 				t.Fatal("expected error but got none")
+			}
+
+			if tc.expectedError != nil && !errors.Is(err, tc.expectedError) {
+				t.Fatalf("expected error %v but got: %v", tc.expectedError, err)
 			}
 		})
 	}
@@ -232,12 +238,14 @@ func TestProcessSupervisor_Run(t *testing.T) {
 	for _, tc := range []struct {
 		scenario             string
 		initiallyStarted     bool
+		isRestarting         bool
 		startError           error
 		processHealthy       bool
 		maxReqLimit          int64
 		tasksToRun           int
 		taskError            error
 		expectError          bool
+		skipCallsCheck       bool
 		expectedStartCalls   int64
 		expectedHealthyCalls int64
 		expectedStopCalls    int64
@@ -245,6 +253,7 @@ func TestProcessSupervisor_Run(t *testing.T) {
 		{
 			scenario:             "successfully run task on non-started process",
 			initiallyStarted:     false,
+			isRestarting:         false,
 			processHealthy:       true,
 			maxReqLimit:          2,
 			tasksToRun:           1,
@@ -256,6 +265,7 @@ func TestProcessSupervisor_Run(t *testing.T) {
 		{
 			scenario:             "cannot launch non-started process",
 			initiallyStarted:     false,
+			isRestarting:         false,
 			startError:           errors.New("launch error"),
 			processHealthy:       true,
 			maxReqLimit:          2,
@@ -268,6 +278,7 @@ func TestProcessSupervisor_Run(t *testing.T) {
 		{
 			scenario:             "run task with unhealthy process causing restart",
 			initiallyStarted:     true,
+			isRestarting:         false,
 			processHealthy:       false,
 			maxReqLimit:          2,
 			tasksToRun:           1,
@@ -280,6 +291,7 @@ func TestProcessSupervisor_Run(t *testing.T) {
 			scenario:             "cannot restart unhealthy process",
 			startError:           errors.New("start error"),
 			initiallyStarted:     true,
+			isRestarting:         false,
 			processHealthy:       false,
 			maxReqLimit:          2,
 			tasksToRun:           1,
@@ -289,8 +301,19 @@ func TestProcessSupervisor_Run(t *testing.T) {
 			expectedStopCalls:    1,
 		},
 		{
+			scenario:         "ErrProcessAlreadyRestarting",
+			initiallyStarted: true,
+			isRestarting:     true,
+			processHealthy:   false,
+			maxReqLimit:      1,
+			tasksToRun:       1,
+			expectError:      true,
+			skipCallsCheck:   true,
+		},
+		{
 			scenario:             "run tasks reaching max request limit causing restart",
 			initiallyStarted:     true,
+			isRestarting:         false,
 			processHealthy:       true,
 			maxReqLimit:          2,
 			tasksToRun:           3,
@@ -303,6 +326,7 @@ func TestProcessSupervisor_Run(t *testing.T) {
 			scenario:             "cannot restart after reaching max request limit",
 			startError:           errors.New("start error"),
 			initiallyStarted:     true,
+			isRestarting:         false,
 			processHealthy:       true,
 			maxReqLimit:          2,
 			tasksToRun:           2,
@@ -314,6 +338,7 @@ func TestProcessSupervisor_Run(t *testing.T) {
 		{
 			scenario:             "task error",
 			initiallyStarted:     true,
+			isRestarting:         false,
 			processHealthy:       true,
 			maxReqLimit:          0,
 			tasksToRun:           1,
@@ -351,6 +376,9 @@ func TestProcessSupervisor_Run(t *testing.T) {
 			if tc.initiallyStarted {
 				ps.firstStart.Store(true)
 			}
+			if tc.isRestarting {
+				ps.isRestarting.Store(true)
+			}
 
 			task := func() error {
 				return tc.taskError
@@ -384,6 +412,10 @@ func TestProcessSupervisor_Run(t *testing.T) {
 				if !tc.expectError && err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
+			}
+
+			if tc.skipCallsCheck {
+				return
 			}
 
 			if startCalls.Load() != tc.expectedStartCalls {
