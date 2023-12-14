@@ -46,6 +46,8 @@ CHROMIUM_HOST_RESOLVER_RULES=
 CHROMIUM_PROXY_SERVER=
 CHROMIUM_ALLOW_LIST=
 CHROMIUM_DENY_LIST="^file:///[^tmp].*"
+CHROMIUM_CLEAR_CACHE=false
+CHROMIUM_CLEAR_COOKIES=false
 CHROMIUM_DISABLE_JAVASCRIPT=false
 CHROMIUM_DISABLE_ROUTES=false
 LIBREOFFICE_RESTART_AFTER=10
@@ -97,6 +99,8 @@ run: ## Start a Gotenberg container
 	--chromium-proxy-server=$(CHROMIUM_PROXY_SERVER) \
 	--chromium-allow-list=$(CHROMIUM_ALLOW_LIST) \
 	--chromium-deny-list=$(CHROMIUM_DENY_LIST) \
+	--chromium-clear-cache=$(CHROMIUM_CLEAR_CACHE) \
+	--chromium-clear-cookies=$(CHROMIUM_CLEAR_COOKIES) \
 	--chromium-disable-javascript=$(CHROMIUM_DISABLE_JAVASCRIPT) \
 	--chromium-disable-routes=$(CHROMIUM_DISABLE_ROUTES) \
 	--libreoffice-restart-after=$(LIBREOFFICE_RESTART_AFTER) \
