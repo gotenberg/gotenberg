@@ -2,11 +2,16 @@ package gotenberg
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync/atomic"
 
 	"go.uber.org/zap"
 )
+
+// ErrProcessAlreadyRestarting happens if the [ProcessSupervisor] is trying
+// to restart an already restarting [Process].
+var ErrProcessAlreadyRestarting = errors.New("process already restarting")
 
 // Process is an interface that represents an abstract process
 // and provides methods for starting, stopping, and checking the health of the
@@ -122,7 +127,7 @@ func (s *processSupervisor) restart() error {
 	if s.isRestarting.Load() {
 		s.logger.Debug("process already restarting, skip restart")
 
-		return nil
+		return ErrProcessAlreadyRestarting
 	}
 
 	s.logger.Debug("restart process")
@@ -164,53 +169,66 @@ func (s *processSupervisor) Healthy() bool {
 func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task func() error) error {
 	s.reqQueueSize.Add(1)
 
-	select {
-	case s.mutexChan <- struct{}{}:
-		logger.Debug("process lock acquired")
-		s.reqQueueSize.Add(-1)
-		s.reqCounter.Add(1)
+	for {
+		err := func() error {
+			select {
+			case s.mutexChan <- struct{}{}:
+				logger.Debug("process lock acquired")
+				s.reqQueueSize.Add(-1)
+				s.reqCounter.Add(1)
 
-		defer func() {
-			logger.Debug("process lock released")
-			<-s.mutexChan
+				defer func() {
+					logger.Debug("process lock released")
+					<-s.mutexChan
+				}()
+
+				if !s.firstStart.Load() {
+					err := s.runWithDeadline(ctx, func() error {
+						return s.Launch()
+					})
+					if err != nil {
+						return fmt.Errorf("process first start: %w", err)
+					}
+				}
+
+				if !s.Healthy() {
+					s.logger.Debug("process is unhealthy, cannot handle task, restarting...")
+					err := s.runWithDeadline(ctx, func() error {
+						return s.restart()
+					})
+					if err != nil {
+						return fmt.Errorf("process restart before task: %w", err)
+					}
+				}
+
+				if s.maxReqLimit > 0 && s.reqCounter.Load() >= s.maxReqLimit {
+					s.logger.Debug("max request limit reached, restarting...")
+					err := s.runWithDeadline(ctx, func() error {
+						return s.restart()
+					})
+					if err != nil {
+						return fmt.Errorf("process restart before task: %w", err)
+					}
+				}
+
+				// Note: no error wrapping because it leaks on Chromium console exceptions output.
+				return s.runWithDeadline(ctx, task)
+			case <-ctx.Done():
+				logger.Debug("failed to acquire process lock before deadline")
+				s.reqQueueSize.Add(-1)
+
+				return fmt.Errorf("acquire process lock: %w", ctx.Err())
+			}
 		}()
 
-		if !s.firstStart.Load() {
-			err := s.runWithDeadline(ctx, func() error {
-				return s.Launch()
-			})
-			if err != nil {
-				return fmt.Errorf("process first start: %w", err)
-			}
+		if errors.Is(err, ErrProcessAlreadyRestarting) {
+			logger.Debug("process is already restarting, trying to acquire process lock again...")
+			s.reqQueueSize.Add(1)
+			continue
 		}
 
-		if !s.Healthy() {
-			s.logger.Debug("process is unhealthy, cannot handle task, restarting...")
-			err := s.runWithDeadline(ctx, func() error {
-				return s.restart()
-			})
-			if err != nil {
-				return fmt.Errorf("process restart before task: %w", err)
-			}
-		}
-
-		if s.maxReqLimit > 0 && s.reqCounter.Load() >= s.maxReqLimit {
-			s.logger.Debug("max request limit reached, restarting...")
-			err := s.runWithDeadline(ctx, func() error {
-				return s.restart()
-			})
-			if err != nil {
-				return fmt.Errorf("process restart before task: %w", err)
-			}
-		}
-
-		// FIXME: no error wrapping because it leaks on Chromium console exceptions output.
-		return s.runWithDeadline(ctx, task)
-	case <-ctx.Done():
-		logger.Debug("failed to acquire process lock before deadline")
-		s.reqQueueSize.Add(-1)
-
-		return fmt.Errorf("acquire process lock: %w", ctx.Err())
+		// Note: no error wrapping because it leaks on Chromium console exceptions output.
+		return err
 	}
 }
 
