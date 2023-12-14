@@ -48,6 +48,10 @@ var (
 	// ChromeDevTools are larger than 100 MB.
 	ErrRpccMessageTooLarge = errors.New("rpcc message too large")
 
+	// ErrInvalidHttpStatusCode happens when the status code from the main page
+	// matches with one of the entry in [Options.FailOnHttpStatusCodes].
+	ErrInvalidHttpStatusCode = errors.New("invalid HTTP status code")
+
 	// ErrConsoleExceptions happens when there are exceptions in the Chromium
 	// console. It also happens only if the [Options.FailOnConsoleExceptions]
 	// is set to true.
@@ -75,6 +79,11 @@ type Options struct {
 	// rendered until this event is fired.
 	// Optional.
 	SkipNetworkIdleEvent bool
+
+	// FailOnHttpStatusCodes sets if the conversion should fail if the status
+	// code from the main page matches with one of its entries.
+	// Optional.
+	FailOnHttpStatusCodes []int64
 
 	// FailOnConsoleExceptions sets if the conversion should fail if there are
 	// exceptions in the Chromium console.
@@ -179,6 +188,7 @@ type Options struct {
 func DefaultOptions() Options {
 	return Options{
 		SkipNetworkIdleEvent:    false,
+		FailOnHttpStatusCodes:   []int64{499, 599},
 		FailOnConsoleExceptions: false,
 		WaitDelay:               0,
 		WaitWindowStatus:        "",
@@ -436,7 +446,7 @@ func (mod *Chromium) Routes() ([]api.Route, error) {
 
 // Pdf converts a URL to PDF.
 func (mod *Chromium) Pdf(ctx context.Context, logger *zap.Logger, url, outputPath string, options Options) error {
-	// FIXME: no error wrapping because it leaks on console exceptions output.
+	// Note: no error wrapping because it leaks on console exceptions output.
 	return mod.supervisor.Run(ctx, logger, func() error {
 		return mod.browser.pdf(ctx, logger, url, outputPath, options)
 	})
