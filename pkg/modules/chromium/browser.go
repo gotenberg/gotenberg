@@ -40,6 +40,8 @@ type browserArguments struct {
 	// Tasks specific.
 	allowList         *regexp.Regexp
 	denyList          *regexp.Regexp
+	clearCache        bool
+	clearCookies      bool
 	disableJavaScript bool
 }
 
@@ -267,6 +269,8 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *zap.Logger, url, outp
 		network.Enable(),
 		fetch.Enable(),
 		runtime.Enable(),
+		clearCacheActionFunc(logger, b.arguments.clearCache),
+		clearCookiesActionFunc(logger, b.arguments.clearCookies),
 		disableJavaScriptActionFunc(logger, b.arguments.disableJavaScript),
 		extraHttpHeadersActionFunc(logger, options.ExtraHttpHeaders),
 		navigateActionFunc(logger, url, options.SkipNetworkIdleEvent),

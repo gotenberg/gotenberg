@@ -482,6 +482,72 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 			expectedError: ErrConsoleExceptions,
 		},
 		{
+			scenario: "clear cache",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp.MustCompile(""),
+					denyList:         regexp.MustCompile(""),
+					clearCache:       true,
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Clear cache</h1>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			noDeadline:  false,
+			start:       true,
+			expectError: false,
+			expectedLogEntries: []string{
+				"clear cache",
+			},
+		},
+		{
+			scenario: "clear cookies",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp.MustCompile(""),
+					denyList:         regexp.MustCompile(""),
+					clearCookies:     true,
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Clear cookies</h1>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			noDeadline:  false,
+			start:       true,
+			expectError: false,
+			expectedLogEntries: []string{
+				"clear cookies",
+			},
+		},
+		{
 			scenario: "disable JavaScript",
 			browser: newChromiumBrowser(
 				browserArguments{
@@ -1024,6 +1090,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 			start:       true,
 			expectError: false,
 			expectedLogEntries: []string{
+				"cache not cleared",
+				"cookies not cleared",
 				"JavaScript not disabled",
 				"no extra HTTP headers",
 				"navigate to",

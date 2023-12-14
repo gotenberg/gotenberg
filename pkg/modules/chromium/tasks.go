@@ -92,12 +92,49 @@ func printToPdfActionFunc(logger *zap.Logger, outputPath string, options Options
 	}
 }
 
+func clearCacheActionFunc(logger *zap.Logger, clear bool) chromedp.ActionFunc {
+	return func(ctx context.Context) error {
+		// See https://github.com/gotenberg/gotenberg/issues/753.
+		if !clear {
+			logger.Debug("cache not cleared")
+			return nil
+		}
+
+		logger.Debug("clear cache")
+
+		err := network.ClearBrowserCache().Do(ctx)
+		if err == nil {
+			return nil
+		}
+
+		return fmt.Errorf("clear cache: %w", err)
+	}
+}
+
+func clearCookiesActionFunc(logger *zap.Logger, clear bool) chromedp.ActionFunc {
+	return func(ctx context.Context) error {
+		// See https://github.com/gotenberg/gotenberg/issues/753.
+		if !clear {
+			logger.Debug("cookies not cleared")
+			return nil
+		}
+
+		logger.Debug("clear cookies")
+
+		err := network.ClearBrowserCookies().Do(ctx)
+		if err == nil {
+			return nil
+		}
+
+		return fmt.Errorf("clear cookies: %w", err)
+	}
+}
+
 func disableJavaScriptActionFunc(logger *zap.Logger, disable bool) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		// See https://github.com/gotenberg/gotenberg/issues/175.
 		if !disable {
 			logger.Debug("JavaScript not disabled")
-
 			return nil
 		}
 
@@ -116,7 +153,6 @@ func extraHttpHeadersActionFunc(logger *zap.Logger, extraHttpHeaders map[string]
 	return func(ctx context.Context) error {
 		if len(extraHttpHeaders) == 0 {
 			logger.Debug("no extra HTTP headers")
-
 			return nil
 		}
 
