@@ -275,6 +275,9 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 
 	switch options.PdfFormats.PdfA {
 	case "":
+	case gotenberg.PdfA1a:
+		logger.Warn("PDF/A-1a is no more supported by LibreOffice (use PDF/A-1b instead)")
+		args = append(args, "--export", "SelectPdfVersion=1")
 	case gotenberg.PdfA1b:
 		args = append(args, "--export", "SelectPdfVersion=1")
 	case gotenberg.PdfA2b:
