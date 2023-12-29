@@ -15,8 +15,8 @@ import (
 )
 
 func TestDefaultOptions(t *testing.T) {
-	actual := DefaultOptions()
-	notExpect := Options{}
+	actual := DefaultPdfOptions()
+	notExpect := PdfOptions{}
 
 	if reflect.DeepEqual(actual, notExpect) {
 		t.Errorf("expected %v and got identical %v", actual, notExpect)
@@ -461,7 +461,7 @@ func TestChromium_Routes(t *testing.T) {
 	}{
 		{
 			scenario:      "routes not disabled",
-			expectRoutes:  3,
+			expectRoutes:  6,
 			disableRoutes: false,
 		},
 		{
@@ -495,14 +495,14 @@ func TestChromium_Pdf(t *testing.T) {
 	}{
 		{
 			scenario: "PDF task success",
-			browser: &browserMock{pdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options Options) error {
+			browser: &browserMock{pdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
 				return nil
 			}},
 			expectError: false,
 		},
 		{
 			scenario: "PDF task error",
-			browser: &browserMock{pdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options Options) error {
+			browser: &browserMock{pdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
 				return errors.New("PDF task error")
 			}},
 			expectError: true,
@@ -515,7 +515,49 @@ func TestChromium_Pdf(t *testing.T) {
 			}}
 			mod.browser = tc.browser
 
-			err := mod.Pdf(context.Background(), zap.NewNop(), "", "", Options{})
+			err := mod.Pdf(context.Background(), zap.NewNop(), "", "", PdfOptions{})
+
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
+		})
+	}
+}
+
+func TestChromium_Screenshot(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		supervisor  gotenberg.ProcessSupervisor
+		browser     browser
+		expectError bool
+	}{
+		{
+			scenario: "Screenshot task success",
+			browser: &browserMock{screenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+				return nil
+			}},
+			expectError: false,
+		},
+		{
+			scenario: "Screenshot task error",
+			browser: &browserMock{screenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+				return errors.New("screenshot task error")
+			}},
+			expectError: true,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			mod := new(Chromium)
+			mod.supervisor = &gotenberg.ProcessSupervisorMock{RunMock: func(ctx context.Context, logger *zap.Logger, task func() error) error {
+				return task()
+			}}
+			mod.browser = tc.browser
+
+			err := mod.Screenshot(context.Background(), zap.NewNop(), "", "", ScreenshotOptions{})
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)

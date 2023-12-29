@@ -22,7 +22,8 @@ import (
 
 type browser interface {
 	gotenberg.Process
-	pdf(ctx context.Context, logger *zap.Logger, url, outputPath string, options Options) error
+	pdf(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error
+	screenshot(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error
 }
 
 type browserArguments struct {
@@ -213,9 +214,53 @@ func (b *chromiumBrowser) Healthy(logger *zap.Logger) bool {
 	return true
 }
 
-func (b *chromiumBrowser) pdf(ctx context.Context, logger *zap.Logger, url, outputPath string, options Options) error {
+func (b *chromiumBrowser) pdf(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
+	// Note: no error wrapping because it leaks on errors we want to display to
+	// the end user.
+	return b.do(ctx, logger, url, options.Options, chromedp.Tasks{
+		network.Enable(),
+		fetch.Enable(),
+		runtime.Enable(),
+		clearCacheActionFunc(logger, b.arguments.clearCache),
+		clearCookiesActionFunc(logger, b.arguments.clearCookies),
+		disableJavaScriptActionFunc(logger, b.arguments.disableJavaScript),
+		extraHttpHeadersActionFunc(logger, options.ExtraHttpHeaders),
+		navigateActionFunc(logger, url, options.SkipNetworkIdleEvent),
+		hideDefaultWhiteBackgroundActionFunc(logger, options.OmitBackground, options.PrintBackground),
+		forceExactColorsActionFunc(),
+		emulateMediaTypeActionFunc(logger, options.EmulatedMediaType),
+		waitDelayBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitDelay),
+		waitForExpressionBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitForExpression),
+		// PDF specific.
+		printToPdfActionFunc(logger, outputPath, options),
+	})
+}
+
+func (b *chromiumBrowser) screenshot(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+	// Note: no error wrapping because it leaks on errors we want to display to
+	// the end user.
+	return b.do(ctx, logger, url, options.Options, chromedp.Tasks{
+		network.Enable(),
+		fetch.Enable(),
+		runtime.Enable(),
+		clearCacheActionFunc(logger, b.arguments.clearCache),
+		clearCookiesActionFunc(logger, b.arguments.clearCookies),
+		disableJavaScriptActionFunc(logger, b.arguments.disableJavaScript),
+		extraHttpHeadersActionFunc(logger, options.ExtraHttpHeaders),
+		navigateActionFunc(logger, url, options.SkipNetworkIdleEvent),
+		hideDefaultWhiteBackgroundActionFunc(logger, options.OmitBackground, true),
+		forceExactColorsActionFunc(),
+		emulateMediaTypeActionFunc(logger, options.EmulatedMediaType),
+		waitDelayBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitDelay),
+		waitForExpressionBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitForExpression),
+		// Screenshot specific.
+		captureScreenshotActionFunc(logger, outputPath, options),
+	})
+}
+
+func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string, options Options, tasks chromedp.Tasks) error {
 	if !b.isStarted.Load() {
-		return errors.New("browser not started, cannot handle PDF conversion")
+		return errors.New("browser not started, cannot handle tasks")
 	}
 
 	// We validate the "main" URL against our allow / deny lists.
@@ -265,23 +310,6 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *zap.Logger, url, outp
 		listenForEventExceptionThrown(taskCtx, logger, &consoleExceptions, &consoleExceptionsMu)
 	}
 
-	tasks := chromedp.Tasks{
-		network.Enable(),
-		fetch.Enable(),
-		runtime.Enable(),
-		clearCacheActionFunc(logger, b.arguments.clearCache),
-		clearCookiesActionFunc(logger, b.arguments.clearCookies),
-		disableJavaScriptActionFunc(logger, b.arguments.disableJavaScript),
-		extraHttpHeadersActionFunc(logger, options.ExtraHttpHeaders),
-		navigateActionFunc(logger, url, options.SkipNetworkIdleEvent),
-		hideDefaultWhiteBackgroundActionFunc(logger, options.OmitBackground, options.PrintBackground),
-		forceExactColorsActionFunc(),
-		emulateMediaTypeActionFunc(logger, options.EmulatedMediaType),
-		waitDelayBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitDelay),
-		waitForExpressionBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitForExpression),
-		printToPdfActionFunc(logger, outputPath, options),
-	}
-
 	err := chromedp.Run(taskCtx, tasks...)
 	if err != nil {
 		errMessage := err.Error()
@@ -298,7 +326,7 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *zap.Logger, url, outp
 			return ErrRpccMessageTooLarge
 		}
 
-		return fmt.Errorf("print to PDF: %w", err)
+		return fmt.Errorf("handle tasks: %w", err)
 	}
 
 	// See https://github.com/gotenberg/gotenberg/issues/613.
