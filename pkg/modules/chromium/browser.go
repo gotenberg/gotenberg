@@ -17,7 +17,7 @@ import (
 	"github.com/chromedp/chromedp"
 	"go.uber.org/zap"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 type browser interface {

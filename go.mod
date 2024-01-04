@@ -1,4 +1,4 @@
-module github.com/gotenberg/gotenberg/v7
+module github.com/gotenberg/gotenberg/v8
 
 go 1.21
 

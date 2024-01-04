@@ -19,7 +19,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/text/unicode/norm"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 var (

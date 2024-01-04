@@ -155,13 +155,13 @@ tests-once: ## Run the tests once (prefer the "tests" command while developing)
 .PHONY: fmt
 fmt: ## Format the code and "optimize" the dependencies
 	gofumpt -l -w .
-	gci write -s standard -s default -s "prefix(github.com/gotenberg/gotenberg/v7)" --skip-generated --skip-vendor --custom-order .
+	gci write -s standard -s default -s "prefix(github.com/gotenberg/gotenberg/v8)" --skip-generated --skip-vendor --custom-order .
 	go mod tidy
 
 # go install golang.org/x/tools/cmd/godoc@latest
 .PHONY: godoc
 godoc: ## Run a webserver with Gotenberg godoc
-	$(info http://localhost:6060/pkg/github.com/gotenberg/gotenberg/v7)
+	$(info http://localhost:6060/pkg/github.com/gotenberg/gotenberg/v8)
 	godoc -http=:6060
 
 .PHONY: release

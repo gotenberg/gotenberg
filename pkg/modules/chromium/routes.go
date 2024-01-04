@@ -18,8 +18,8 @@ import (
 	"github.com/russross/blackfriday/v2"
 	"go.uber.org/multierr"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
 )
 
 // FormDataChromiumOptions creates [Options] from the form data. Fallback to

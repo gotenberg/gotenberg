@@ -17,7 +17,7 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/labstack/echo/v4"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
+	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
 )
 
 func webhookMiddleware(w *Webhook) api.Middleware {
