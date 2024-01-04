@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
-	libreofficeapi "github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/api"
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	libreofficeapi "github.com/gotenberg/gotenberg/v8/pkg/modules/libreoffice/api"
 )
 
 func TestLibreOffice_Descriptor(t *testing.T) {

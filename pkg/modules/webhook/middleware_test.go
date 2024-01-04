@@ -19,7 +19,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
+	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
 )
 
 func TestWebhookMiddlewareGuards(t *testing.T) {

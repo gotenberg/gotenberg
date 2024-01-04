@@ -15,13 +15,13 @@ numerous document formats (HTML, Markdown, Word, Excel, etc.) into PDF files, an
 Open a terminal and run the following command:
 
 ```
-docker run --rm -p 3000:3000 gotenberg/gotenberg:7
+docker run --rm -p 3000:3000 gotenberg/gotenberg:8
 ```
 
 Alternatively, using the historic Docker repository from our sponsor [TheCodingMachine](https://www.thecodingmachine.com):
 
 ```
-docker run --rm -p 3000:3000 thecodingmachine/gotenberg:7
+docker run --rm -p 3000:3000 thecodingmachine/gotenberg:8
 ```
 
 The API is now available on your host at http://localhost:3000.
@@ -41,5 +41,5 @@ Head to the [documentation](https://gotenberg.dev/docs/getting-started/introduct
 [![Docker pulls](https://img.shields.io/docker/pulls/gotenberg/gotenberg)](https://hub.docker.com/r/gotenberg/gotenberg)
 [![Docker pulls](https://img.shields.io/docker/pulls/thecodingmachine/gotenberg)](https://hub.docker.com/r/thecodingmachine/gotenberg)
 [![Continuous Integration](https://github.com/gotenberg/gotenberg/actions/workflows/continuous_integration.yml/badge.svg)](https://github.com/gotenberg/gotenberg/actions/workflows/continuous_integration.yml)
-[![Go Reference](https://pkg.go.dev/badge/github.com/gotenberg/gotenberg.svg)](https://pkg.go.dev/github.com/gotenberg/gotenberg/v7)
+[![Go Reference](https://pkg.go.dev/badge/github.com/gotenberg/gotenberg.svg)](https://pkg.go.dev/github.com/gotenberg/gotenberg/v8)
 [![Codecov](https://codecov.io/gh/gotenberg/gotenberg/branch/main/graph/badge.svg)](https://codecov.io/gh/gotenberg/gotenberg)

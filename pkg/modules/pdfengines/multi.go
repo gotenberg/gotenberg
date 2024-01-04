@@ -7,7 +7,7 @@ import (
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 type multiPdfEngines struct {

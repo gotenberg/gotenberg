@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 func TestPdfEngines_Descriptor(t *testing.T) {

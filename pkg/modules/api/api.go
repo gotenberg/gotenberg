@@ -19,7 +19,7 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 func init() {

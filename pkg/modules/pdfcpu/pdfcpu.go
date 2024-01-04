@@ -9,7 +9,7 @@ import (
 	pdfcpuConfig "github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 	"go.uber.org/zap"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 func init() {

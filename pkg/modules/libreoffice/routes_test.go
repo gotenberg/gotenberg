@@ -9,9 +9,9 @@ import (
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
-	libreofficeapi "github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/api"
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
+	libreofficeapi "github.com/gotenberg/gotenberg/v8/pkg/modules/libreoffice/api"
 )
 
 func TestConvertRoute(t *testing.T) {

@@ -15,7 +15,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 func TestChromiumBrowser_Start(t *testing.T) {

@@ -3,9 +3,8 @@ linters-settings:
     sections:
       - standard
       - default
-      - prefix(github.com/gotenberg/gotenberg/v7)
+      - prefix(github.com/gotenberg/gotenberg/v8)
     skip-generated: true
-    skip-vendor: true
     custom-order: true
 
 linters:
@@ -27,7 +26,7 @@ linters:
     - unused
 
 run:
-  deadline: 5m
+  timeout: 5m
   issues-exit-code: 1
   tests: false
 

@@ -5,9 +5,9 @@ import (
 
 	flag "github.com/spf13/pflag"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
-	libeofficeapi "github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/api"
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
+	libeofficeapi "github.com/gotenberg/gotenberg/v8/pkg/modules/libreoffice/api"
 )
 
 func init() {
