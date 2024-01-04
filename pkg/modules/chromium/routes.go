@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,26 +22,21 @@ import (
 	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 )
 
-// FormDataChromiumPdfOptions creates [Options] from the form data. Fallback to
+// FormDataChromiumOptions creates [Options] from the form data. Fallback to
 // default value if the considered key is not present.
-func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, Options) {
+func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 	defaultOptions := DefaultOptions()
 
 	var (
-		skipNetworkIdleEvent                             bool
-		failOnHttpStatusCodes                            []int64
-		failOnConsoleExceptions                          bool
-		waitDelay                                        time.Duration
-		waitWindowStatus                                 string
-		waitForExpression                                string
-		extraHttpHeaders                                 map[string]string
-		emulatedMediaType                                string
-		landscape, printBackground, omitBackground       bool
-		scale, paperWidth, paperHeight                   float64
-		marginTop, marginBottom, marginLeft, marginRight float64
-		pageRanges                                       string
-		headerTemplate, footerTemplate                   string
-		preferCssPageSize                                bool
+		skipNetworkIdleEvent    bool
+		failOnHttpStatusCodes   []int64
+		failOnConsoleExceptions bool
+		waitDelay               time.Duration
+		waitWindowStatus        string
+		waitForExpression       string
+		extraHttpHeaders        map[string]string
+		emulatedMediaType       string
+		omitBackground          bool
 	)
 
 	form := ctx.FormData().
@@ -89,20 +85,7 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, Options) {
 
 			return nil
 		}).
-		Bool("landscape", &landscape, defaultOptions.Landscape).
-		Bool("printBackground", &printBackground, defaultOptions.PrintBackground).
-		Bool("omitBackground", &omitBackground, defaultOptions.OmitBackground).
-		Float64("scale", &scale, defaultOptions.Scale).
-		Float64("paperWidth", &paperWidth, defaultOptions.PaperWidth).
-		Float64("paperHeight", &paperHeight, defaultOptions.PaperHeight).
-		Float64("marginTop", &marginTop, defaultOptions.MarginTop).
-		Float64("marginBottom", &marginBottom, defaultOptions.MarginBottom).
-		Float64("marginLeft", &marginLeft, defaultOptions.MarginLeft).
-		Float64("marginRight", &marginRight, defaultOptions.MarginRight).
-		String("nativePageRanges", &pageRanges, defaultOptions.PageRanges).
-		Content("header.html", &headerTemplate, defaultOptions.HeaderTemplate).
-		Content("footer.html", &footerTemplate, defaultOptions.FooterTemplate).
-		Bool("preferCssPageSize", &preferCssPageSize, defaultOptions.PreferCssPageSize)
+		Bool("omitBackground", &omitBackground, defaultOptions.OmitBackground)
 
 	options := Options{
 		SkipNetworkIdleEvent:    skipNetworkIdleEvent,
@@ -113,34 +96,132 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, Options) {
 		WaitForExpression:       waitForExpression,
 		ExtraHttpHeaders:        extraHttpHeaders,
 		EmulatedMediaType:       emulatedMediaType,
-		Landscape:               landscape,
-		PrintBackground:         printBackground,
 		OmitBackground:          omitBackground,
-		Scale:                   scale,
-		PaperWidth:              paperWidth,
-		PaperHeight:             paperHeight,
-		MarginTop:               marginTop,
-		MarginBottom:            marginBottom,
-		MarginLeft:              marginLeft,
-		MarginRight:             marginRight,
-		PageRanges:              pageRanges,
-		HeaderTemplate:          headerTemplate,
-		FooterTemplate:          footerTemplate,
-		PreferCssPageSize:       preferCssPageSize,
 	}
 
 	return form, options
 }
 
+// FormDataChromiumPdfOptions creates [PdfOptions] from the form data. Fallback to
+// default value if the considered key is not present.
+func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
+	form, options := FormDataChromiumOptions(ctx)
+	defaultPdfOptions := DefaultPdfOptions()
+
+	var (
+		landscape, printBackground                       bool
+		scale, paperWidth, paperHeight                   float64
+		marginTop, marginBottom, marginLeft, marginRight float64
+		pageRanges                                       string
+		headerTemplate, footerTemplate                   string
+		preferCssPageSize                                bool
+	)
+
+	form.
+		Bool("landscape", &landscape, defaultPdfOptions.Landscape).
+		Bool("printBackground", &printBackground, defaultPdfOptions.PrintBackground).
+		Float64("scale", &scale, defaultPdfOptions.Scale).
+		Float64("paperWidth", &paperWidth, defaultPdfOptions.PaperWidth).
+		Float64("paperHeight", &paperHeight, defaultPdfOptions.PaperHeight).
+		Float64("marginTop", &marginTop, defaultPdfOptions.MarginTop).
+		Float64("marginBottom", &marginBottom, defaultPdfOptions.MarginBottom).
+		Float64("marginLeft", &marginLeft, defaultPdfOptions.MarginLeft).
+		Float64("marginRight", &marginRight, defaultPdfOptions.MarginRight).
+		String("nativePageRanges", &pageRanges, defaultPdfOptions.PageRanges).
+		Content("header.html", &headerTemplate, defaultPdfOptions.HeaderTemplate).
+		Content("footer.html", &footerTemplate, defaultPdfOptions.FooterTemplate).
+		Bool("preferCssPageSize", &preferCssPageSize, defaultPdfOptions.PreferCssPageSize)
+
+	pdfOptions := PdfOptions{
+		Options:           options,
+		Landscape:         landscape,
+		PrintBackground:   printBackground,
+		Scale:             scale,
+		PaperWidth:        paperWidth,
+		PaperHeight:       paperHeight,
+		MarginTop:         marginTop,
+		MarginBottom:      marginBottom,
+		MarginLeft:        marginLeft,
+		MarginRight:       marginRight,
+		PageRanges:        pageRanges,
+		HeaderTemplate:    headerTemplate,
+		FooterTemplate:    footerTemplate,
+		PreferCssPageSize: preferCssPageSize,
+	}
+
+	return form, pdfOptions
+}
+
+// FormDataChromiumScreenshotOptions creates [ScreenshotOptions] from the form
+// data. Fallback to default value if the considered key is not present.
+func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, ScreenshotOptions) {
+	form, options := FormDataChromiumOptions(ctx)
+	defaultScreenshotOptions := DefaultScreenshotOptions()
+
+	var (
+		format           string
+		quality          int
+		optimizeForSpeed bool
+	)
+
+	form.
+		Custom("format", func(value string) error {
+			if value == "" {
+				format = defaultScreenshotOptions.Format
+				return nil
+			}
+
+			if value != "png" && value != "jpeg" && value != "" {
+				return fmt.Errorf("wrong value, expected either 'png', 'jpeg' or 'webp'")
+			}
+
+			format = value
+
+			return nil
+		}).
+		Custom("quality", func(value string) error {
+			if value == "" {
+				quality = defaultScreenshotOptions.Quality
+				return nil
+			}
+
+			intValue, err := strconv.Atoi(value)
+			if err != nil {
+				return err
+			}
+
+			if intValue < 0 {
+				return errors.New("value is negative")
+			}
+
+			if intValue > 100 {
+				return errors.New("value is superior to 100")
+			}
+
+			quality = intValue
+			return nil
+		}).
+		Bool("optimizeForSpeed", &optimizeForSpeed, defaultScreenshotOptions.OptimizeForSpeed)
+
+	screenshotOptions := ScreenshotOptions{
+		Options:          options,
+		Format:           format,
+		Quality:          quality,
+		OptimizeForSpeed: optimizeForSpeed,
+	}
+
+	return form, screenshotOptions
+}
+
 // FormDataChromiumPdfFormats creates [gotenberg.PdfFormats] from the form
 // data. Fallback to default value if the considered key is not present.
-func FormDataChromiumPdfFormats(ctx *api.Context) gotenberg.PdfFormats {
+func FormDataChromiumPdfFormats(form *api.FormData) gotenberg.PdfFormats {
 	var (
 		pdfa  string
 		pdfua bool
 	)
 
-	ctx.FormData().
+	form.
 		String("pdfa", &pdfa, "").
 		Bool("pdfua", &pdfua, false)
 
@@ -159,7 +240,7 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 		Handler: func(c echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPdfOptions(ctx)
-			pdfFormats := FormDataChromiumPdfFormats(ctx)
+			pdfFormats := FormDataChromiumPdfFormats(form)
 
 			var url string
 			err := form.
@@ -179,6 +260,35 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 	}
 }
 
+// screenshotUrlRoute returns an [api.Route] which can take a screenshot from a
+// URL.
+func screenshotUrlRoute(chromium Api) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/chromium/screenshot/url",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+			form, options := FormDataChromiumScreenshotOptions(ctx)
+
+			var url string
+			err := form.
+				MandatoryString("url", &url).
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			err = screenshotUrl(ctx, chromium, url, options)
+			if err != nil {
+				return fmt.Errorf("URL screenshot: %w", err)
+			}
+
+			return nil
+		},
+	}
+}
+
 // convertHtmlRoute returns an [api.Route] which can convert an HTML file to
 // PDF.
 func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
@@ -189,7 +299,7 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 		Handler: func(c echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPdfOptions(ctx)
-			pdfFormats := FormDataChromiumPdfFormats(ctx)
+			pdfFormats := FormDataChromiumPdfFormats(form)
 
 			var inputPath string
 			err := form.
@@ -210,6 +320,36 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 	}
 }
 
+// screenshotHtmlRoute returns an [api.Route] which can take a screenshot from
+// an HTML file.
+func screenshotHtmlRoute(chromium Api) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/chromium/screenshot/html",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+			form, options := FormDataChromiumScreenshotOptions(ctx)
+
+			var inputPath string
+			err := form.
+				MandatoryPath("index.html", &inputPath).
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			url := fmt.Sprintf("file://%s", inputPath)
+			err = screenshotUrl(ctx, chromium, url, options)
+			if err != nil {
+				return fmt.Errorf("HTML screenshot: %w", err)
+			}
+
+			return nil
+		},
+	}
+}
+
 // convertMarkdownRoute returns an [api.Route] which can convert markdown files
 // to PDF.
 func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
@@ -220,7 +360,7 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 		Handler: func(c echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPdfOptions(ctx)
-			pdfFormats := FormDataChromiumPdfFormats(ctx)
+			pdfFormats := FormDataChromiumPdfFormats(form)
 
 			var (
 				inputPath     string
@@ -235,78 +375,10 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			// We have to convert each markdown file referenced in the HTML
-			// file to... HTML. Thanks to the "html/template" package, we are
-			// able to provide the "toHTML" function which the user may call
-			// directly inside the HTML file.
-
-			var markdownFilesNotFoundErr error
-
-			tmpl, err := template.
-				New(filepath.Base(inputPath)).
-				Funcs(template.FuncMap{
-					"toHTML": func(filename string) (template.HTML, error) {
-						var path string
-
-						for _, markdownPath := range markdownPaths {
-							markdownFilename := filepath.Base(markdownPath)
-
-							if filename == markdownFilename {
-								path = markdownPath
-								break
-							}
-						}
-
-						if path == "" {
-							markdownFilesNotFoundErr = multierr.Append(
-								markdownFilesNotFoundErr,
-								fmt.Errorf("'%s'", filename),
-							)
-
-							return "", nil
-						}
-
-						b, err := os.ReadFile(path)
-						if err != nil {
-							return "", fmt.Errorf("read markdown file '%s': %w", filename, err)
-						}
-
-						unsafe := blackfriday.Run(b)
-						sanitized := bluemonday.UGCPolicy().SanitizeBytes(unsafe)
-
-						// #nosec
-						return template.HTML(sanitized), nil
-					},
-				}).ParseFiles(inputPath)
+			url, err := markdownToHtml(ctx, inputPath, markdownPaths)
 			if err != nil {
-				return fmt.Errorf("parse template file: %w", err)
+				return fmt.Errorf("transform markdown file(s) to HTML: %w", err)
 			}
-
-			var buffer bytes.Buffer
-
-			err = tmpl.Execute(&buffer, &struct{}{})
-			if err != nil {
-				return fmt.Errorf("execute template: %w", err)
-			}
-
-			if markdownFilesNotFoundErr != nil {
-				return api.WrapError(
-					fmt.Errorf("markdown files not found: %w", markdownFilesNotFoundErr),
-					api.NewSentinelHttpError(
-						http.StatusBadRequest,
-						fmt.Sprintf("Markdown file(s) not found: %s", markdownFilesNotFoundErr),
-					),
-				)
-			}
-
-			inputPath = ctx.GeneratePath(".html")
-
-			err = os.WriteFile(inputPath, buffer.Bytes(), 0o600)
-			if err != nil {
-				return fmt.Errorf("write template result: %w", err)
-			}
-
-			url := fmt.Sprintf("file://%s", inputPath)
 
 			err = convertUrl(ctx, chromium, engine, url, pdfFormats, options)
 			if err != nil {
@@ -318,46 +390,132 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 	}
 }
 
-// convertUrl is a stub which is called by the other methods of this file.
-func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, pdfFormats gotenberg.PdfFormats, options Options) error {
+// screenshotMarkdownRoute returns an [api.Route] which can take a screenshot
+// from markdown files.
+func screenshotMarkdownRoute(chromium Api) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/chromium/screenshot/markdown",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+			form, options := FormDataChromiumScreenshotOptions(ctx)
+
+			var (
+				inputPath     string
+				markdownPaths []string
+			)
+
+			err := form.
+				MandatoryPath("index.html", &inputPath).
+				MandatoryPaths([]string{".md"}, &markdownPaths).
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			url, err := markdownToHtml(ctx, inputPath, markdownPaths)
+			if err != nil {
+				return fmt.Errorf("transform markdown file(s) to HTML: %w", err)
+			}
+
+			err = screenshotUrl(ctx, chromium, url, options)
+			if err != nil {
+				return fmt.Errorf("markdown screenshot: %w", err)
+			}
+
+			return nil
+		},
+	}
+}
+
+func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) (string, error) {
+	// We have to convert each markdown file referenced in the HTML
+	// file to... HTML. Thanks to the "html/template" package, we are
+	// able to provide the "toHTML" function which the user may call
+	// directly inside the HTML file.
+
+	var markdownFilesNotFoundErr error
+
+	tmpl, err := template.
+		New(filepath.Base(inputPath)).
+		Funcs(template.FuncMap{
+			"toHTML": func(filename string) (template.HTML, error) {
+				var path string
+
+				for _, markdownPath := range markdownPaths {
+					markdownFilename := filepath.Base(markdownPath)
+
+					if filename == markdownFilename {
+						path = markdownPath
+						break
+					}
+				}
+
+				if path == "" {
+					markdownFilesNotFoundErr = multierr.Append(
+						markdownFilesNotFoundErr,
+						fmt.Errorf("'%s'", filename),
+					)
+
+					return "", nil
+				}
+
+				b, err := os.ReadFile(path)
+				if err != nil {
+					return "", fmt.Errorf("read markdown file '%s': %w", filename, err)
+				}
+
+				unsafe := blackfriday.Run(b)
+				sanitized := bluemonday.UGCPolicy().SanitizeBytes(unsafe)
+
+				// #nosec
+				return template.HTML(sanitized), nil
+			},
+		}).ParseFiles(inputPath)
+	if err != nil {
+		return "", fmt.Errorf("parse template file: %w", err)
+	}
+
+	var buffer bytes.Buffer
+
+	err = tmpl.Execute(&buffer, &struct{}{})
+	if err != nil {
+		return "", fmt.Errorf("execute template: %w", err)
+	}
+
+	if markdownFilesNotFoundErr != nil {
+		return "", api.WrapError(
+			fmt.Errorf("markdown files not found: %w", markdownFilesNotFoundErr),
+			api.NewSentinelHttpError(
+				http.StatusBadRequest,
+				fmt.Sprintf("Markdown file(s) not found: %s", markdownFilesNotFoundErr),
+			),
+		)
+	}
+
+	inputPath = ctx.GeneratePath(".html")
+
+	err = os.WriteFile(inputPath, buffer.Bytes(), 0o600)
+	if err != nil {
+		return "", fmt.Errorf("write template result: %w", err)
+	}
+
+	return fmt.Sprintf("file://%s", inputPath), nil
+}
+
+func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, pdfFormats gotenberg.PdfFormats, options PdfOptions) error {
 	outputPath := ctx.GeneratePath(".pdf")
 
 	err := chromium.Pdf(ctx, ctx.Log(), url, outputPath, options)
+	err = handleChromiumError(err, url, options.Options)
 	if err != nil {
-
-		if errors.Is(err, ErrUrlNotAuthorized) {
-			return api.WrapError(
-				fmt.Errorf("convert to PDF: %w", err),
-				api.NewSentinelHttpError(
-					http.StatusForbidden,
-					fmt.Sprintf("'%s' does not match the authorized URLs", url),
-				),
-			)
-		}
-
 		if errors.Is(err, ErrOmitBackgroundWithoutPrintBackground) {
 			return api.WrapError(
-				fmt.Errorf("convert to PDF: %w", err),
+				err,
 				api.NewSentinelHttpError(
 					http.StatusBadRequest,
 					"omitBackground requires printBackground set to true",
-				),
-			)
-		}
-
-		if errors.Is(err, ErrInvalidEvaluationExpression) {
-			if options.WaitForExpression == "" {
-				// We do not expect the 'waitWindowStatus' form field to return
-				// an ErrInvalidEvaluationExpression error. In such a scenario,
-				// we return a 500.
-				return fmt.Errorf("convert to PDF: %w", err)
-			}
-
-			return api.WrapError(
-				fmt.Errorf("convert to PDF: %w", err),
-				api.NewSentinelHttpError(
-					http.StatusBadRequest,
-					fmt.Sprintf("The expression '%s' (waitForExpression) returned an exception or undefined", options.WaitForExpression),
 				),
 			)
 		}
@@ -378,26 +536,6 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 				api.NewSentinelHttpError(
 					http.StatusBadRequest,
 					fmt.Sprintf("Chromium does not handle the page ranges '%s' (nativePageRanges)", options.PageRanges),
-				),
-			)
-		}
-
-		if errors.Is(err, ErrInvalidHttpStatusCode) {
-			return api.WrapError(
-				fmt.Errorf("convert to PDF: %w", err),
-				api.NewSentinelHttpError(
-					http.StatusConflict,
-					fmt.Sprintf("Invalid HTTP status code from the main page: %s", strings.ReplaceAll(err.Error(), fmt.Sprintf(": %s", ErrInvalidHttpStatusCode.Error()), "")),
-				),
-			)
-		}
-
-		if errors.Is(err, ErrConsoleExceptions) {
-			return api.WrapError(
-				fmt.Errorf("convert to PDF: %w", err),
-				api.NewSentinelHttpError(
-					http.StatusConflict,
-					fmt.Sprintf("Chromium console exceptions:\n %s", strings.ReplaceAll(err.Error(), ErrConsoleExceptions.Error(), "")),
 				),
 			)
 		}
@@ -439,4 +577,77 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 	}
 
 	return nil
+}
+
+func screenshotUrl(ctx *api.Context, chromium Api, url string, options ScreenshotOptions) error {
+	ext := fmt.Sprintf(".%s", options.Format)
+	outputPath := ctx.GeneratePath(ext)
+
+	err := chromium.Screenshot(ctx, ctx.Log(), url, outputPath, options)
+	err = handleChromiumError(err, url, options.Options)
+	if err != nil {
+		return fmt.Errorf("screenshot: %w", err)
+	}
+
+	err = ctx.AddOutputPaths(outputPath)
+	if err != nil {
+		return fmt.Errorf("add output path: %w", err)
+	}
+
+	return nil
+}
+
+func handleChromiumError(err error, url string, options Options) error {
+	if err == nil {
+		return nil
+	}
+
+	if errors.Is(err, ErrUrlNotAuthorized) {
+		return api.WrapError(
+			err,
+			api.NewSentinelHttpError(
+				http.StatusForbidden,
+				fmt.Sprintf("'%s' does not match the authorized URLs", url),
+			),
+		)
+	}
+
+	if errors.Is(err, ErrInvalidEvaluationExpression) {
+		if options.WaitForExpression == "" {
+			// We do not expect the 'waitWindowStatus' form field to return
+			// an ErrInvalidEvaluationExpression error. In such a scenario,
+			// we return a 500.
+			return err
+		}
+
+		return api.WrapError(
+			err,
+			api.NewSentinelHttpError(
+				http.StatusBadRequest,
+				fmt.Sprintf("The expression '%s' (waitForExpression) returned an exception or undefined", options.WaitForExpression),
+			),
+		)
+	}
+
+	if errors.Is(err, ErrInvalidHttpStatusCode) {
+		return api.WrapError(
+			err,
+			api.NewSentinelHttpError(
+				http.StatusConflict,
+				fmt.Sprintf("Invalid HTTP status code from the main page: %s", strings.ReplaceAll(err.Error(), fmt.Sprintf(": %s", ErrInvalidHttpStatusCode.Error()), "")),
+			),
+		)
+	}
+
+	if errors.Is(err, ErrConsoleExceptions) {
+		return api.WrapError(
+			err,
+			api.NewSentinelHttpError(
+				http.StatusConflict,
+				fmt.Sprintf("Chromium console exceptions:\n %s", strings.ReplaceAll(err.Error(), ErrConsoleExceptions.Error(), "")),
+			),
+		)
+	}
+
+	return err
 }

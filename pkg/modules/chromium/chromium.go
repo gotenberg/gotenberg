@@ -24,10 +24,6 @@ var (
 	// allowed/denied lists.
 	ErrUrlNotAuthorized = errors.New("URL not authorized")
 
-	// ErrOmitBackgroundWithoutPrintBackground happens if
-	// Options.OmitBackground is set to true but not Options.PrintBackground.
-	ErrOmitBackgroundWithoutPrintBackground = errors.New("omit background without print background")
-
 	// ErrInvalidEmulatedMediaType happens if the emulated media type is not
 	// "screen" nor "print". Empty value are allowed though.
 	ErrInvalidEmulatedMediaType = errors.New("invalid emulated media type")
@@ -35,14 +31,6 @@ var (
 	// ErrInvalidEvaluationExpression happens if an evaluation expression
 	// returns an exception or undefined.
 	ErrInvalidEvaluationExpression = errors.New("invalid evaluation expression")
-
-	// ErrInvalidPrinterSettings happens if the Options have one or more
-	// aberrant values.
-	ErrInvalidPrinterSettings = errors.New("invalid printer settings")
-
-	// ErrPageRangesSyntaxError happens if the Options have an invalid page
-	// ranges.
-	ErrPageRangesSyntaxError = errors.New("page ranges syntax error")
 
 	// ErrRpccMessageTooLarge happens when the messages received by
 	// ChromeDevTools are larger than 100 MB.
@@ -56,6 +44,20 @@ var (
 	// console. It also happens only if the [Options.FailOnConsoleExceptions]
 	// is set to true.
 	ErrConsoleExceptions = errors.New("console exceptions")
+
+	// PDF specific.
+
+	// ErrOmitBackgroundWithoutPrintBackground happens if
+	// PdfOptions.OmitBackground is set to true but not PdfOptions.PrintBackground.
+	ErrOmitBackgroundWithoutPrintBackground = errors.New("omit background without print background")
+
+	// ErrInvalidPrinterSettings happens if the PdfOptions have one or more
+	// aberrant values.
+	ErrInvalidPrinterSettings = errors.New("invalid printer settings")
+
+	// ErrPageRangesSyntaxError happens if the PdfOptions have an invalid page
+	// ranges.
+	ErrPageRangesSyntaxError = errors.New("page ranges syntax error")
 )
 
 // Chromium is a module which provides both an [Api] and routes for converting
@@ -71,7 +73,7 @@ type Chromium struct {
 	engine     gotenberg.PdfEngine
 }
 
-// Options are the available expectedOptions for converting HTML document to PDF.
+// Options are the common options for all conversions.
 type Options struct {
 	// SkipNetworkIdleEvent set if the conversion should wait for the
 	// "networkIdle" event, drastically improving the conversion speed. It may
@@ -91,17 +93,17 @@ type Options struct {
 	FailOnConsoleExceptions bool
 
 	// WaitDelay is the duration to wait when loading an HTML document before
-	// converting it to PDF.
+	// converting it.
 	// Optional.
 	WaitDelay time.Duration
 
 	// WaitWindowStatus is the window.status value to wait for before
-	// converting an HTML document to PDF.
+	// converting an HTML document.
 	// Optional.
 	WaitWindowStatus string
 
 	// WaitForExpression is the custom JavaScript expression to wait before
-	// converting an HTML document to PDF until it returns true
+	// converting an HTML document until it returns true
 	// Optional.
 	WaitForExpression string
 
@@ -115,6 +117,31 @@ type Options struct {
 	// Optional.
 	EmulatedMediaType string
 
+	// OmitBackground hides default white background and allows generating PDFs
+	// with transparency.
+	// Optional.
+	OmitBackground bool
+}
+
+// DefaultOptions returns the default values for Options.
+func DefaultOptions() Options {
+	return Options{
+		SkipNetworkIdleEvent:    false,
+		FailOnHttpStatusCodes:   []int64{499, 599},
+		FailOnConsoleExceptions: false,
+		WaitDelay:               0,
+		WaitWindowStatus:        "",
+		WaitForExpression:       "",
+		ExtraHttpHeaders:        nil,
+		EmulatedMediaType:       "",
+		OmitBackground:          false,
+	}
+}
+
+// PdfOptions are the available options for converting an HTML document to PDF.
+type PdfOptions struct {
+	Options
+
 	// Landscape sets the paper orientation.
 	// Optional.
 	Landscape bool
@@ -122,11 +149,6 @@ type Options struct {
 	// PrintBackground prints the background graphics.
 	// Optional.
 	PrintBackground bool
-
-	// OmitBackground hides default white background and allows generating PDFs
-	// with transparency.
-	// Optional.
-	OmitBackground bool
 
 	// Scale is the scale of the page rendering.
 	// Optional.
@@ -184,37 +206,60 @@ type Options struct {
 	PreferCssPageSize bool
 }
 
-// DefaultOptions returns the default values for Options.
-func DefaultOptions() Options {
-	return Options{
-		SkipNetworkIdleEvent:    false,
-		FailOnHttpStatusCodes:   []int64{499, 599},
-		FailOnConsoleExceptions: false,
-		WaitDelay:               0,
-		WaitWindowStatus:        "",
-		WaitForExpression:       "",
-		ExtraHttpHeaders:        nil,
-		EmulatedMediaType:       "",
-		Landscape:               false,
-		PrintBackground:         false,
-		OmitBackground:          false,
-		Scale:                   1.0,
-		PaperWidth:              8.5,
-		PaperHeight:             11,
-		MarginTop:               0.39,
-		MarginBottom:            0.39,
-		MarginLeft:              0.39,
-		MarginRight:             0.39,
-		PageRanges:              "",
-		HeaderTemplate:          "<html><head></head><body></body></html>",
-		FooterTemplate:          "<html><head></head><body></body></html>",
-		PreferCssPageSize:       false,
+// DefaultPdfOptions returns the default values for PdfOptions.
+func DefaultPdfOptions() PdfOptions {
+	return PdfOptions{
+		Options:           DefaultOptions(),
+		Landscape:         false,
+		PrintBackground:   false,
+		Scale:             1.0,
+		PaperWidth:        8.5,
+		PaperHeight:       11,
+		MarginTop:         0.39,
+		MarginBottom:      0.39,
+		MarginLeft:        0.39,
+		MarginRight:       0.39,
+		PageRanges:        "",
+		HeaderTemplate:    "<html><head></head><body></body></html>",
+		FooterTemplate:    "<html><head></head><body></body></html>",
+		PreferCssPageSize: false,
+	}
+}
+
+// ScreenshotOptions are the available options for capturing a screenshot from
+// an HTML document.
+type ScreenshotOptions struct {
+	Options
+
+	// Format is the image compression format, either "png" or "jpeg" or
+	// "webp".
+	// Optional.
+	Format string
+
+	// Quality is the compression quality from range [0..100] (jpeg only).
+	// Optional.
+	Quality int
+
+	// OptimizeForSpeed defines whether to optimize image encoding for speed,
+	// not for resulting size.
+	// Optional.
+	OptimizeForSpeed bool
+}
+
+// DefaultScreenshotOptions returns the default values for ScreenshotOptions.
+func DefaultScreenshotOptions() ScreenshotOptions {
+	return ScreenshotOptions{
+		Options:          DefaultOptions(),
+		Format:           "png",
+		Quality:          100,
+		OptimizeForSpeed: false,
 	}
 }
 
 // Api helps to interact with Chromium for converting HTML documents to PDF.
 type Api interface {
-	Pdf(ctx context.Context, logger *zap.Logger, url, outputPath string, options Options) error
+	Pdf(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error
+	Screenshot(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error
 }
 
 // Provider is a module interface which exposes a method for creating an [Api]
@@ -443,16 +488,28 @@ func (mod *Chromium) Routes() ([]api.Route, error) {
 
 	return []api.Route{
 		convertUrlRoute(mod, mod.engine),
+		screenshotUrlRoute(mod),
 		convertHtmlRoute(mod, mod.engine),
+		screenshotHtmlRoute(mod),
 		convertMarkdownRoute(mod, mod.engine),
+		screenshotMarkdownRoute(mod),
 	}, nil
 }
 
 // Pdf converts a URL to PDF.
-func (mod *Chromium) Pdf(ctx context.Context, logger *zap.Logger, url, outputPath string, options Options) error {
-	// Note: no error wrapping because it leaks on console exceptions output.
+func (mod *Chromium) Pdf(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
+	// Note: no error wrapping because it leaks on errors we want to display to
+	// the end user.
 	return mod.supervisor.Run(ctx, logger, func() error {
 		return mod.browser.pdf(ctx, logger, url, outputPath, options)
+	})
+}
+
+func (mod *Chromium) Screenshot(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+	// Note: no error wrapping because it leaks on errors we want to display to
+	// the end user.
+	return mod.supervisor.Run(ctx, logger, func() error {
+		return mod.browser.screenshot(ctx, logger, url, outputPath, options)
 	})
 }
 

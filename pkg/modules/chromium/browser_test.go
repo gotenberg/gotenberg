@@ -248,7 +248,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 		scenario           string
 		browser            browser
 		fs                 *gotenberg.FileSystem
-		options            Options
+		options            PdfOptions
 		noDeadline         bool
 		start              bool
 		expectError        bool
@@ -405,8 +405,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				return fs
 			}(),
-			options: Options{
-				SkipNetworkIdleEvent: true,
+			options: PdfOptions{
+				Options: Options{SkipNetworkIdleEvent: true},
 			},
 			noDeadline:  false,
 			start:       true,
@@ -440,8 +440,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				return fs
 			}(),
-			options: Options{
-				FailOnHttpStatusCodes: []int64{299},
+			options: PdfOptions{
+				Options: Options{FailOnHttpStatusCodes: []int64{299}},
 			},
 			noDeadline:    false,
 			start:         true,
@@ -473,8 +473,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				return fs
 			}(),
-			options: Options{
-				FailOnConsoleExceptions: true,
+			options: PdfOptions{
+				Options: Options{FailOnConsoleExceptions: true},
 			},
 			noDeadline:    false,
 			start:         true,
@@ -607,10 +607,10 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				return fs
 			}(),
-			options: Options{
-				ExtraHttpHeaders: map[string]string{
+			options: PdfOptions{
+				Options: Options{ExtraHttpHeaders: map[string]string{
 					"X-Foo": "Bar",
-				},
+				}},
 			},
 			noDeadline:  false,
 			start:       true,
@@ -644,8 +644,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				return fs
 			}(),
-			options: Options{
-				OmitBackground: true,
+			options: PdfOptions{
+				Options: Options{OmitBackground: true},
 			},
 			noDeadline:    false,
 			start:         true,
@@ -677,8 +677,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				return fs
 			}(),
-			options: Options{
-				OmitBackground:  true,
+			options: PdfOptions{
+				Options:         Options{OmitBackground: true},
 				PrintBackground: true,
 			},
 			noDeadline:  false,
@@ -713,8 +713,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				return fs
 			}(),
-			options: Options{
-				EmulatedMediaType: "foo",
+			options: PdfOptions{
+				Options: Options{EmulatedMediaType: "foo"},
 			},
 			noDeadline:    false,
 			start:         true,
@@ -746,8 +746,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				return fs
 			}(),
-			options: Options{
-				EmulatedMediaType: "screen",
+			options: PdfOptions{
+				Options: Options{EmulatedMediaType: "screen"},
 			},
 			noDeadline:  false,
 			start:       true,
@@ -781,8 +781,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				return fs
 			}(),
-			options: Options{
-				WaitDelay: time.Duration(10) * time.Second,
+			options: PdfOptions{
+				Options: Options{WaitDelay: time.Duration(10) * time.Second},
 			},
 			noDeadline:  false,
 			start:       true,
@@ -816,8 +816,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				return fs
 			}(),
-			options: Options{
-				WaitDelay: time.Duration(1) * time.Millisecond,
+			options: PdfOptions{
+				Options: Options{WaitDelay: time.Duration(1) * time.Millisecond},
 			},
 			noDeadline:  false,
 			start:       true,
@@ -862,8 +862,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				return fs
 			}(),
-			options: Options{
-				WaitForExpression: "window.status === 'ready'",
+			options: PdfOptions{
+				Options: Options{WaitForExpression: "window.status === 'ready'"},
 			},
 			noDeadline:  false,
 			start:       true,
@@ -897,8 +897,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				return fs
 			}(),
-			options: Options{
-				WaitForExpression: "return undefined",
+			options: PdfOptions{
+				Options: Options{WaitForExpression: "return undefined"},
 			},
 			noDeadline:  false,
 			start:       true,
@@ -943,8 +943,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				return fs
 			}(),
-			options: Options{
-				WaitForExpression: "window.globalVar === 'ready'",
+			options: PdfOptions{
+				Options: Options{WaitForExpression: "window.globalVar === 'ready'"},
 			},
 			noDeadline:  false,
 			start:       true,
@@ -978,7 +978,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				return fs
 			}(),
-			options: Options{
+			options: PdfOptions{
 				HeaderTemplate: "<h1>Header</h1>",
 				FooterTemplate: "<h1>Footer</h1>",
 			},
@@ -1014,7 +1014,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				return fs
 			}(),
-			options: Options{
+			options: PdfOptions{
 				PaperWidth:   0,
 				PaperHeight:  0,
 				MarginTop:    1000000,
@@ -1052,7 +1052,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				return fs
 			}(),
-			options: Options{
+			options: PdfOptions{
 				PageRanges: "foo",
 			},
 			noDeadline:    false,
@@ -1085,7 +1085,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				return fs
 			}(),
-			options:     DefaultOptions(),
+			options:     DefaultPdfOptions(),
 			noDeadline:  false,
 			start:       true,
 			expectError: false,
@@ -1141,6 +1141,843 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 			}
 
 			err := tc.browser.pdf(
+				ctx,
+				logger,
+				fmt.Sprintf("file://%s/index.html", tc.fs.WorkingDirPath()),
+				fmt.Sprintf("%s/%s.pdf", tc.fs.WorkingDirPath(), uuid.NewString()),
+				tc.options,
+			)
+
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
+
+			if tc.expectedError != nil && !errors.Is(err, tc.expectedError) {
+				t.Fatalf("expected error %v but got: %v", tc.expectedError, err)
+			}
+
+			for _, entry := range tc.expectedLogEntries {
+				doExist := true
+				for _, log := range recorded.All() {
+					doExist = strings.Contains(log.Message, entry)
+					if doExist {
+						break
+					}
+				}
+
+				if !doExist {
+					t.Errorf("expected '%s' to exist as log entry", entry)
+				}
+			}
+		})
+	}
+}
+
+func TestChromiumBrowser_screenshot(t *testing.T) {
+	for _, tc := range []struct {
+		scenario           string
+		browser            browser
+		fs                 *gotenberg.FileSystem
+		options            ScreenshotOptions
+		noDeadline         bool
+		start              bool
+		expectError        bool
+		expectedError      error
+		expectedLogEntries []string
+	}{
+		{
+			scenario: "browser not started",
+			browser: func() browser {
+				b := new(chromiumBrowser)
+				b.isStarted.Store(false)
+				return b
+			}(),
+			fs:          gotenberg.NewFileSystem(),
+			noDeadline:  false,
+			start:       false,
+			expectError: true,
+		},
+		{
+			scenario: "ErrUrlNotAuthorized: main URL does not match the allowed list",
+			browser: func() browser {
+				b := new(chromiumBrowser)
+				b.arguments = browserArguments{
+					allowList: regexp.MustCompile("^file:///[^tmp].*"),
+				}
+				b.isStarted.Store(true)
+				return b
+			}(),
+			fs:            gotenberg.NewFileSystem(),
+			noDeadline:    false,
+			start:         false,
+			expectError:   true,
+			expectedError: ErrUrlNotAuthorized,
+		},
+		{
+			scenario: "ErrUrlNotAuthorized: main URL does match the denied list",
+			browser: func() browser {
+				b := new(chromiumBrowser)
+				b.arguments = browserArguments{
+					allowList: regexp.MustCompile(""),
+					denyList:  regexp.MustCompile("^file:///tmp.*"),
+				}
+				b.isStarted.Store(true)
+				return b
+			}(),
+			fs:            gotenberg.NewFileSystem(),
+			noDeadline:    false,
+			start:         false,
+			expectError:   true,
+			expectedError: ErrUrlNotAuthorized,
+		},
+		{
+			scenario: "ErrUrlNotAuthorized: main URL does match the denied list",
+			browser: func() browser {
+				b := new(chromiumBrowser)
+				b.arguments = browserArguments{
+					allowList: regexp.MustCompile(""),
+					denyList:  regexp.MustCompile(""),
+				}
+				b.isStarted.Store(true)
+				return b
+			}(),
+			fs:          gotenberg.NewFileSystem(),
+			noDeadline:  true,
+			start:       false,
+			expectError: true,
+		},
+		{
+			scenario: "a request does not match the allowed list",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp.MustCompile("^file:///tmp.*"),
+					denyList:         regexp.MustCompile(""),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<iframe src='file:///etc/passwd'></iframe>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			noDeadline:  false,
+			start:       true,
+			expectError: false,
+			expectedLogEntries: []string{
+				"'file:///etc/passwd' does not match the expression from the allowed list",
+			},
+		},
+		{
+			scenario: "a request does match the denied list",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp.MustCompile(""),
+					denyList:         regexp.MustCompile("^file:///[^tmp].*"),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<iframe src='file:///etc/passwd'></iframe>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			noDeadline:  false,
+			start:       true,
+			expectError: false,
+			expectedLogEntries: []string{
+				"'file:///etc/passwd' matches the expression from the denied list",
+			},
+		},
+		{
+			scenario: "skip networkIdle event",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp.MustCompile(""),
+					denyList:         regexp.MustCompile(""),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Skip networkIdle event</h1>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: ScreenshotOptions{
+				Options: Options{SkipNetworkIdleEvent: true},
+			},
+			noDeadline:  false,
+			start:       true,
+			expectError: false,
+			expectedLogEntries: []string{
+				"skipping network idle event",
+			},
+		},
+		{
+			scenario: "ErrInvalidHttpStatusCode",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp.MustCompile(""),
+					denyList:         regexp.MustCompile(""),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>ErrInvalidHttpStatusCode</h1>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: ScreenshotOptions{
+				Options: Options{FailOnHttpStatusCodes: []int64{299}},
+			},
+			noDeadline:    false,
+			start:         true,
+			expectError:   true,
+			expectedError: ErrInvalidHttpStatusCode,
+		},
+		{
+			scenario: "ErrConsoleExceptions",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp.MustCompile(""),
+					denyList:         regexp.MustCompile(""),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<script type=\"application/javascript\">throw new Error(\"Exception\")</script>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: ScreenshotOptions{
+				Options: Options{FailOnConsoleExceptions: true},
+			},
+			noDeadline:    false,
+			start:         true,
+			expectError:   true,
+			expectedError: ErrConsoleExceptions,
+		},
+		{
+			scenario: "clear cache",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp.MustCompile(""),
+					denyList:         regexp.MustCompile(""),
+					clearCache:       true,
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Clear cache</h1>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			noDeadline:  false,
+			start:       true,
+			expectError: false,
+			expectedLogEntries: []string{
+				"clear cache",
+			},
+		},
+		{
+			scenario: "clear cookies",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp.MustCompile(""),
+					denyList:         regexp.MustCompile(""),
+					clearCookies:     true,
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Clear cookies</h1>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			noDeadline:  false,
+			start:       true,
+			expectError: false,
+			expectedLogEntries: []string{
+				"clear cookies",
+			},
+		},
+		{
+			scenario: "disable JavaScript",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:           os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout:  5 * time.Second,
+					allowList:         regexp.MustCompile(""),
+					denyList:          regexp.MustCompile(""),
+					disableJavaScript: true,
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<script type=\"application/javascript\">throw new Error(\"Exception\")</script>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			noDeadline:  false,
+			start:       true,
+			expectError: false,
+			expectedLogEntries: []string{
+				"disable JavaScript",
+				"JavaScript disabled, skipping wait delay",
+				"JavaScript disabled, skipping wait expression",
+			},
+		},
+		{
+			scenario: "extra HTTP headers",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp.MustCompile(""),
+					denyList:         regexp.MustCompile(""),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Extra HTTP headers</h1>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: ScreenshotOptions{
+				Options: Options{ExtraHttpHeaders: map[string]string{
+					"X-Foo": "Bar",
+				}},
+			},
+			noDeadline:  false,
+			start:       true,
+			expectError: false,
+			expectedLogEntries: []string{
+				"extra HTTP headers:",
+			},
+		},
+		{
+			scenario: "ErrOmitBackgroundWithoutPrintBackground",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp.MustCompile(""),
+					denyList:         regexp.MustCompile(""),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>ErrOmitBackgroundWithoutPrintBackground</h1>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: ScreenshotOptions{
+				Options: Options{OmitBackground: true},
+			},
+			noDeadline:  false,
+			start:       true,
+			expectError: false,
+			expectedLogEntries: []string{
+				"hide default white background",
+			},
+		},
+		{
+			scenario: "ErrInvalidEmulatedMediaType",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp.MustCompile(""),
+					denyList:         regexp.MustCompile(""),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>ErrInvalidEmulatedMediaType</h1>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: ScreenshotOptions{
+				Options: Options{EmulatedMediaType: "foo"},
+			},
+			noDeadline:    false,
+			start:         true,
+			expectError:   true,
+			expectedError: ErrInvalidEmulatedMediaType,
+		},
+		{
+			scenario: "emulate a media type",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp.MustCompile(""),
+					denyList:         regexp.MustCompile(""),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<style>@media print { #screen { display: none } }</style><p id=\"screen\">Screen media type</p>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: ScreenshotOptions{
+				Options: Options{EmulatedMediaType: "screen"},
+			},
+			noDeadline:  false,
+			start:       true,
+			expectError: false,
+			expectedLogEntries: []string{
+				"emulate media type 'screen'",
+			},
+		},
+		{
+			scenario: "wait delay: context done",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp.MustCompile(""),
+					denyList:         regexp.MustCompile(""),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<script type=\"application/javascript\">await new Promise(r => setTimeout(r, 10000));</script>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: ScreenshotOptions{
+				Options: Options{WaitDelay: time.Duration(10) * time.Second},
+			},
+			noDeadline:  false,
+			start:       true,
+			expectError: true,
+			expectedLogEntries: []string{
+				"wait '10s' before print",
+			},
+		},
+		{
+			scenario: "wait delay",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp.MustCompile(""),
+					denyList:         regexp.MustCompile(""),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<script type=\"application/javascript\">await new Promise(r => setTimeout(r, 10000));</script>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: ScreenshotOptions{
+				Options: Options{WaitDelay: time.Duration(1) * time.Millisecond},
+			},
+			noDeadline:  false,
+			start:       true,
+			expectError: false,
+			expectedLogEntries: []string{
+				"wait '1ms' before print",
+			},
+		},
+		{
+			scenario: "wait for expression: context done",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp.MustCompile(""),
+					denyList:         regexp.MustCompile(""),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				html := `
+<script type="application/javascript">
+    const delay = ms => new Promise(res => setTimeout(res, ms))
+    const changeStatus = async (status) => {
+        await delay(10000)
+        window.status = status
+    };
+    changeStatus('ready')
+</script>
+`
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte(html), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: ScreenshotOptions{
+				Options: Options{WaitForExpression: "window.status === 'ready'"},
+			},
+			noDeadline:  false,
+			start:       true,
+			expectError: true,
+			expectedLogEntries: []string{
+				"wait until 'window.status === 'ready'' is true before print",
+			},
+		},
+		{
+			scenario: "ErrInvalidEvaluationExpression",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp.MustCompile(""),
+					denyList:         regexp.MustCompile(""),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>ErrInvalidEvaluationExpression</h1>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: ScreenshotOptions{
+				Options: Options{WaitForExpression: "return undefined"},
+			},
+			noDeadline:  false,
+			start:       true,
+			expectError: true,
+			expectedLogEntries: []string{
+				"wait until 'return undefined' is true before print",
+			},
+		},
+		{
+			scenario: "wait for expression",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp.MustCompile(""),
+					denyList:         regexp.MustCompile(""),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				html := `
+<script type="application/javascript">
+	var globalVar = 'notReady'
+
+    const delay = ms => new Promise(res => setTimeout(res, ms))
+    delay(2000).then(() => {
+        window.globalVar = 'ready'
+    })
+</script>
+`
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte(html), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: ScreenshotOptions{
+				Options: Options{WaitForExpression: "window.globalVar === 'ready'"},
+			},
+			noDeadline:  false,
+			start:       true,
+			expectError: false,
+			expectedLogEntries: []string{
+				"wait until 'window.globalVar === 'ready'' is true before print",
+			},
+		},
+		{
+			scenario: "success (default options)",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp.MustCompile(""),
+					denyList:         regexp.MustCompile(""),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Default options</h1>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options:     DefaultScreenshotOptions(),
+			noDeadline:  false,
+			start:       true,
+			expectError: false,
+			expectedLogEntries: []string{
+				"cache not cleared",
+				"cookies not cleared",
+				"JavaScript not disabled",
+				"no extra HTTP headers",
+				"navigate to",
+				"default white background not hidden",
+				"no emulated media type",
+				"no wait delay",
+				"no wait expression",
+			},
+		},
+		{
+			scenario: "success (jpeg)",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp.MustCompile(""),
+					denyList:         regexp.MustCompile(""),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Default options</h1>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: func() ScreenshotOptions {
+				options := DefaultScreenshotOptions()
+				options.Format = "jpeg"
+				return options
+			}(),
+			noDeadline:  false,
+			start:       true,
+			expectError: false,
+			expectedLogEntries: []string{
+				"cache not cleared",
+				"cookies not cleared",
+				"JavaScript not disabled",
+				"no extra HTTP headers",
+				"navigate to",
+				"default white background not hidden",
+				"no emulated media type",
+				"no wait delay",
+				"no wait expression",
+			},
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			core, recorded := observer.New(zapcore.DebugLevel)
+			logger := zap.New(core)
+
+			defer func() {
+				err := os.RemoveAll(tc.fs.WorkingDirPath())
+				if err != nil {
+					t.Fatalf("expected no error while cleaning up, but got: %v", err)
+				}
+			}()
+
+			if tc.start {
+				err := tc.browser.Start(logger)
+				if err != nil {
+					t.Fatalf("setup error: %v", err)
+				}
+
+				defer func(b browser, logger *zap.Logger) {
+					err = b.Stop(logger)
+					if err != nil {
+						t.Fatalf("expected no error while cleaning up, but got: %v", err)
+					}
+				}(tc.browser, logger)
+			}
+
+			var (
+				ctx    context.Context
+				cancel context.CancelFunc
+			)
+
+			if tc.noDeadline {
+				ctx = context.Background()
+			} else {
+				ctx, cancel = context.WithTimeout(context.Background(), time.Duration(5)*time.Second)
+				defer cancel()
+			}
+
+			err := tc.browser.screenshot(
 				ctx,
 				logger,
 				fmt.Sprintf("file://%s/index.html", tc.fs.WorkingDirPath()),

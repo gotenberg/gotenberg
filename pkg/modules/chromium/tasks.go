@@ -15,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func printToPdfActionFunc(logger *zap.Logger, outputPath string, options Options) chromedp.ActionFunc {
+func printToPdfActionFunc(logger *zap.Logger, outputPath string, options PdfOptions) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		printToPdf := page.PrintToPDF().
 			WithTransferMode(page.PrintToPDFTransferModeReturnAsStream).
@@ -31,8 +31,8 @@ func printToPdfActionFunc(logger *zap.Logger, outputPath string, options Options
 			WithPageRanges(options.PageRanges).
 			WithPreferCSSPageSize(options.PreferCssPageSize)
 
-		hasCustomHeaderFooter := options.HeaderTemplate != DefaultOptions().HeaderTemplate ||
-			options.FooterTemplate != DefaultOptions().FooterTemplate
+		hasCustomHeaderFooter := options.HeaderTemplate != DefaultPdfOptions().HeaderTemplate ||
+			options.FooterTemplate != DefaultPdfOptions().FooterTemplate
 
 		if !hasCustomHeaderFooter {
 			logger.Debug("no custom header nor footer")
@@ -63,7 +63,7 @@ func printToPdfActionFunc(logger *zap.Logger, outputPath string, options Options
 		}
 
 		defer func() {
-			err := reader.Close()
+			err = reader.Close()
 			if err != nil {
 				logger.Error(fmt.Sprintf("close reader: %s", err))
 			}
@@ -75,7 +75,7 @@ func printToPdfActionFunc(logger *zap.Logger, outputPath string, options Options
 		}
 
 		defer func() {
-			err := file.Close()
+			err = file.Close()
 			if err != nil {
 				logger.Error(fmt.Sprintf("close output path: %s", err))
 			}
@@ -84,6 +84,47 @@ func printToPdfActionFunc(logger *zap.Logger, outputPath string, options Options
 		buffer := bufio.NewReader(reader)
 
 		_, err = buffer.WriteTo(file)
+		if err != nil {
+			return fmt.Errorf("write result to output path: %w", err)
+		}
+
+		return nil
+	}
+}
+
+func captureScreenshotActionFunc(logger *zap.Logger, outputPath string, options ScreenshotOptions) chromedp.ActionFunc {
+	return func(ctx context.Context) error {
+		captureScreenshot := page.CaptureScreenshot().
+			WithCaptureBeyondViewport(true).
+			WithFromSurface(true).
+			WithOptimizeForSpeed(options.OptimizeForSpeed).
+			WithFormat(page.CaptureScreenshotFormat(options.Format))
+
+		if options.Format == "jpeg" {
+			captureScreenshot = captureScreenshot.
+				WithQuality(int64(options.Quality))
+		}
+
+		logger.Debug(fmt.Sprintf("capture screenshot with: %+v", captureScreenshot))
+
+		buffer, err := captureScreenshot.Do(ctx)
+		if err != nil {
+			return fmt.Errorf("capture screenshot: %w", err)
+		}
+
+		file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY, 0o600)
+		if err != nil {
+			return fmt.Errorf("open output path: %w", err)
+		}
+
+		defer func() {
+			err = file.Close()
+			if err != nil {
+				logger.Error(fmt.Sprintf("close output path: %s", err))
+			}
+		}()
+
+		_, err = file.Write(buffer)
 		if err != nil {
 			return fmt.Errorf("write result to output path: %w", err)
 		}
@@ -211,7 +252,6 @@ func hideDefaultWhiteBackgroundActionFunc(logger *zap.Logger, omitBackground, pr
 		// See https://github.com/gotenberg/gotenberg/issues/226.
 		if !omitBackground {
 			logger.Debug("default white background not hidden")
-
 			return nil
 		}
 
@@ -270,7 +310,6 @@ func emulateMediaTypeActionFunc(logger *zap.Logger, mediaType string) chromedp.A
 	return func(ctx context.Context) error {
 		if mediaType == "" {
 			logger.Debug("no emulated media type")
-
 			return nil
 		}
 
@@ -294,13 +333,11 @@ func waitDelayBeforePrintActionFunc(logger *zap.Logger, disableJavaScript bool, 
 	return func(ctx context.Context) error {
 		if disableJavaScript {
 			logger.Debug("JavaScript disabled, skipping wait delay")
-
 			return nil
 		}
 
 		if delay <= 0 {
 			logger.Debug("no wait delay")
-
 			return nil
 		}
 
@@ -321,13 +358,11 @@ func waitForExpressionBeforePrintActionFunc(logger *zap.Logger, disableJavaScrip
 	return func(ctx context.Context) error {
 		if disableJavaScript {
 			logger.Debug("JavaScript disabled, skipping wait expression")
-
 			return nil
 		}
 
 		if expression == "" {
 			logger.Debug("no wait expression")
-
 			return nil
 		}
 
