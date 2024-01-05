@@ -93,24 +93,15 @@ func printToPdfActionFunc(logger *zap.Logger, outputPath string, options PdfOpti
 }
 
 func captureScreenshotActionFunc(logger *zap.Logger, outputPath string, options ScreenshotOptions) chromedp.ActionFunc {
-	return func(ctx context.Context) error {
-		captureScreenshot := page.CaptureScreenshot().
-			WithCaptureBeyondViewport(true).
-			WithFromSurface(true).
-			WithOptimizeForSpeed(options.OptimizeForSpeed).
-			WithFormat(page.CaptureScreenshotFormat(options.Format))
 
-		if options.Format == "jpeg" {
-			captureScreenshot = captureScreenshot.
-				WithQuality(int64(options.Quality))
-		}
-
-		logger.Debug(fmt.Sprintf("capture screenshot with: %+v", captureScreenshot))
-
-		buffer, err := captureScreenshot.Do(ctx)
-		if err != nil {
+	return func(ctx context.Context) error {		
+		var buf []byte
+		if err := chromedp.Run(ctx,
+			chromedp.ScreenshotScale(options.Sel, 1, &buf, chromedp.ByQuery),
+		); err != nil {
 			return fmt.Errorf("capture screenshot: %w", err)
 		}
+
 
 		file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY, 0o600)
 		if err != nil {
@@ -124,7 +115,7 @@ func captureScreenshotActionFunc(logger *zap.Logger, outputPath string, options 
 			}
 		}()
 
-		_, err = file.Write(buffer)
+		_, err = file.Write(buf)
 		if err != nil {
 			return fmt.Errorf("write result to output path: %w", err)
 		}

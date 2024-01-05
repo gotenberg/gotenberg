@@ -244,6 +244,9 @@ type ScreenshotOptions struct {
 	// not for resulting size.
 	// Optional.
 	OptimizeForSpeed bool
+
+	// Sel is the CSS selector of the element(s) to capture.
+	Sel string
 }
 
 // DefaultScreenshotOptions returns the default values for ScreenshotOptions.
