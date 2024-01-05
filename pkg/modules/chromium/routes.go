@@ -162,6 +162,7 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 		format           string
 		quality          int
 		optimizeForSpeed bool
+		sel              string
 	)
 
 	form.
@@ -201,13 +202,15 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 			quality = intValue
 			return nil
 		}).
-		Bool("optimizeForSpeed", &optimizeForSpeed, defaultScreenshotOptions.OptimizeForSpeed)
+		Bool("optimizeForSpeed", &optimizeForSpeed, defaultScreenshotOptions.OptimizeForSpeed).
+		String("sel", &sel, defaultScreenshotOptions.Sel)
 
 	screenshotOptions := ScreenshotOptions{
 		Options:          options,
 		Format:           format,
 		Quality:          quality,
 		OptimizeForSpeed: optimizeForSpeed,
+		Sel:              sel,
 	}
 
 	return form, screenshotOptions
