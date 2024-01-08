@@ -171,7 +171,7 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 				return nil
 			}
 
-			if value != "png" && value != "jpeg" && value != "" {
+			if value != "png" && value != "jpeg" && value != "webp" {
 				return fmt.Errorf("wrong value, expected either 'png', 'jpeg' or 'webp'")
 			}
 

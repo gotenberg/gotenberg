@@ -209,7 +209,24 @@ func TestFormDataChromiumScreenshotOptions(t *testing.T) {
 			}(),
 		},
 		{
-			scenario: "valid format form field",
+			scenario: "valid png format form field",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"format": {
+						"png",
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: func() ScreenshotOptions {
+				options := DefaultScreenshotOptions()
+				options.Format = "png"
+				return options
+			}(),
+		},
+		{
+			scenario: "valid jpeg format form field",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetValues(map[string][]string{
@@ -222,6 +239,23 @@ func TestFormDataChromiumScreenshotOptions(t *testing.T) {
 			expectedOptions: func() ScreenshotOptions {
 				options := DefaultScreenshotOptions()
 				options.Format = "jpeg"
+				return options
+			}(),
+		},
+		{
+			scenario: "valid webp format form field",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"format": {
+						"webp",
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: func() ScreenshotOptions {
+				options := DefaultScreenshotOptions()
+				options.Format = "webp"
 				return options
 			}(),
 		},
