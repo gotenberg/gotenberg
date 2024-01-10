@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/alexliesenfeld/health v0.8.0
 	github.com/andybalholm/brotli v1.0.6 // indirect
-	github.com/chromedp/cdproto v0.0.0-20231205062650-00455a960d61
+	github.com/chromedp/cdproto v0.0.0-20240102194822-c006b26f21c7
 	github.com/chromedp/chromedp v0.9.3
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.5.0
@@ -20,19 +20,19 @@ require (
 	github.com/microcosm-cc/bluemonday v1.0.26
 	github.com/nwaples/rardecode v1.1.3 // indirect
 	github.com/pdfcpu/pdfcpu v0.6.0
-	github.com/pierrec/lz4/v4 v4.1.19 // indirect
+	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/prometheus/client_golang v1.18.0
 	github.com/russross/blackfriday/v2 v2.1.0
 	github.com/spf13/pflag v1.0.5
 	github.com/ulikunitz/xz v0.5.11 // indirect
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.26.0
-	golang.org/x/crypto v0.17.0 // indirect
-	golang.org/x/image v0.14.0 // indirect
-	golang.org/x/net v0.19.0
-	golang.org/x/sync v0.5.0
-	golang.org/x/sys v0.15.0 // indirect
-	golang.org/x/term v0.15.0
+	golang.org/x/crypto v0.18.0 // indirect
+	golang.org/x/image v0.15.0 // indirect
+	golang.org/x/net v0.20.0
+	golang.org/x/sync v0.6.0
+	golang.org/x/sys v0.16.0 // indirect
+	golang.org/x/term v0.16.0
 	golang.org/x/text v0.14.0
 )
 
@@ -44,7 +44,7 @@ require (
 	github.com/dsnet/compress v0.0.2-0.20210315054119-f66993602bf5 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
-	github.com/gobwas/ws v1.3.1 // indirect
+	github.com/gobwas/ws v1.3.2 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/hhrutter/lzw v1.0.0 // indirect
 	github.com/hhrutter/tiff v1.0.1 // indirect
