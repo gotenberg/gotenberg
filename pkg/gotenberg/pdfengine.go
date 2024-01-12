@@ -53,6 +53,12 @@ type PdfFormats struct {
 	PdfUa bool
 }
 
+// FileMetadata file path and the metadata information.
+type FileMetadata struct {
+	Path     string
+	Metadata map[string]interface{}
+}
+
 // PdfEngine provides an interface for operations on PDFs. Implementations
 // can utilize various tools like PDFtk, or implement functionality directly in
 // Go.
@@ -64,6 +70,12 @@ type PdfEngine interface {
 	// Convert transforms a given PDF to the specified formats defined in
 	// PdfFormats. If no format, it does nothing.
 	Convert(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error
+
+	// ReadMetadata reads the exif metadata of the given PDF files and load into passed metadata object.
+	ReadMetadata(ctx context.Context, logger *zap.Logger, paths []string, metadata []FileMetadata) error
+
+	// WriteMetadata write the exif metadata to the given PDF files.
+	WriteMetadata(ctx context.Context, logger *zap.Logger, paths []string, newMetadata map[string]interface{}) error
 }
 
 // PdfEngineProvider offers an interface to instantiate a [PdfEngine].
