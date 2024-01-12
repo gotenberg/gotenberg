@@ -174,9 +174,12 @@ RUN \
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends qpdf &&\
     # See https://github.com/nextcloud/docker/issues/380.
     mkdir -p /usr/share/man/man1 &&\
+    # Install Exiftool.
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends exiftool && \
     # Verify installations.
     pdftk --version &&\
     qpdf --version &&\
+    exiftool --version &&\
     # Cleanup.
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -195,6 +198,7 @@ ENV LIBREOFFICE_BIN_PATH /usr/lib/libreoffice/program/soffice.bin
 ENV UNOCONVERTER_BIN_PATH /usr/bin/unoconverter
 ENV PDFTK_BIN_PATH /usr/bin/pdftk
 ENV QPDF_BIN_PATH /usr/bin/qpdf
+ENV EXIFTOOL_BIN_PATH /usr/bin/exiftool
 
 USER gotenberg
 WORKDIR /home/gotenberg
