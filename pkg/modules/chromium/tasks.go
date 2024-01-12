@@ -94,14 +94,13 @@ func printToPdfActionFunc(logger *zap.Logger, outputPath string, options PdfOpti
 
 func captureScreenshotActionFunc(logger *zap.Logger, outputPath string, options ScreenshotOptions) chromedp.ActionFunc {
 
-	return func(ctx context.Context) error {		
+	return func(ctx context.Context) error {
 		var buf []byte
 		if err := chromedp.Run(ctx,
-			chromedp.ScreenshotScale(options.Sel, 1, &buf, chromedp.ByQuery),
+			chromedp.ScreenshotScale(options.Sel, 1, &buf, chromedp.NodeVisible),
 		); err != nil {
 			return fmt.Errorf("capture screenshot: %w", err)
 		}
-
 
 		file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY, 0o600)
 		if err != nil {
