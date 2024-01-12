@@ -31,6 +31,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				pdfua            bool
 				nativePdfFormats bool
 				merge            bool
+				metadata         map[string]interface{}
 			)
 
 			err := ctx.FormData().
@@ -41,6 +42,15 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				Bool("pdfua", &pdfua, false).
 				Bool("nativePdfFormats", &nativePdfFormats, true).
 				Bool("merge", &merge, false).
+				Custom("metadata", func(value string) error {
+					metadata = map[string]interface{}{}
+					parsedMetadata, err := gotenberg.ParseMetadata(value)
+					if err != nil {
+						return err
+					}
+					metadata = parsedMetadata
+					return nil
+				}).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -115,6 +125,18 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					outputPath = convertOutputPath
 				}
 
+				// Writes metadata specified in the user request to the output PDF.
+
+				// Note: Any matching existing metadata entries (identified by key)
+				// will be overwritten by user specified entries during this operation.
+
+				if len(metadata) > 0 {
+					err = engine.WriteMetadata(ctx, ctx.Log(), []string{outputPath}, metadata)
+					if err != nil {
+						return fmt.Errorf("write metadata failure: %w", err)
+					}
+				}
+
 				// Last but not least, add the output path to the context so that
 				// the Uno is able to send it as a response to the client.
 
@@ -155,6 +177,18 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 
 				// Important: the output paths are now the converted files.
 				outputPaths = convertOutputPaths
+			}
+
+			// Writes metadata specified in the user request to the output PDF.
+
+			// Note: Any matching existing metadata entries (identified by key)
+			// will be overwritten by user specified entries during this operation.
+
+			if len(metadata) > 0 {
+				err = engine.WriteMetadata(ctx, ctx.Log(), outputPaths, metadata)
+				if err != nil {
+					return fmt.Errorf("write metadata failure: %w", err)
+				}
 			}
 
 			// Last but not least, add the output paths to the context so that
