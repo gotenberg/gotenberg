@@ -250,6 +250,7 @@ func (b *chromiumBrowser) screenshot(ctx context.Context, logger *zap.Logger, ur
 		navigateActionFunc(logger, url, options.SkipNetworkIdleEvent),
 		hideDefaultWhiteBackgroundActionFunc(logger, options.OmitBackground, true),
 		forceExactColorsActionFunc(),
+		chromedp.EmulateViewport(960, 1080),
 		emulateMediaTypeActionFunc(logger, options.EmulatedMediaType),
 		waitDelayBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitDelay),
 		waitForExpressionBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitForExpression),
