@@ -115,6 +115,7 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		pageRanges                                       string
 		headerTemplate, footerTemplate                   string
 		preferCssPageSize                                bool
+		metadata                                         map[string]interface{}
 	)
 
 	form.
@@ -130,7 +131,16 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		String("nativePageRanges", &pageRanges, defaultPdfOptions.PageRanges).
 		Content("header.html", &headerTemplate, defaultPdfOptions.HeaderTemplate).
 		Content("footer.html", &footerTemplate, defaultPdfOptions.FooterTemplate).
-		Bool("preferCssPageSize", &preferCssPageSize, defaultPdfOptions.PreferCssPageSize)
+		Bool("preferCssPageSize", &preferCssPageSize, defaultPdfOptions.PreferCssPageSize).
+		Custom("metadata", func(value string) error {
+			metadata = map[string]interface{}{}
+			parsedMetadata, err := gotenberg.ParseMetadata(value)
+			if err != nil {
+				return err
+			}
+			metadata = parsedMetadata
+			return nil
+		})
 
 	pdfOptions := PdfOptions{
 		Options:           options,
@@ -147,6 +157,7 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		HeaderTemplate:    headerTemplate,
 		FooterTemplate:    footerTemplate,
 		PreferCssPageSize: preferCssPageSize,
+		Metadata:          metadata,
 	}
 
 	return form, pdfOptions
@@ -569,6 +580,18 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 
 		// Important: the output path is now the converted file.
 		outputPath = convertOutputPath
+	}
+
+	// Writes metadata specified in the user request to the output PDF.
+
+	// Note: Any matching existing metadata entries (identified by key)
+	// will be overwritten by user specified entries during this operation.
+
+	if len(options.Metadata) > 0 {
+		err = engine.WriteMetadata(ctx, ctx.Log(), []string{outputPath}, options.Metadata)
+		if err != nil {
+			return fmt.Errorf("write metadata failure: %w", err)
+		}
 	}
 
 	err = ctx.AddOutputPaths(outputPath)

@@ -168,6 +168,38 @@ func TestFormDataChromiumPdfOptions(t *testing.T) {
 				return options
 			}(),
 		},
+		{
+			scenario: "invalid metadata form field",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"metadata": {
+						"foo",
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: DefaultPdfOptions(),
+		},
+		{
+			scenario: "valid metadata form field",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"metadata": {
+						`{"foo":"bar"}`,
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: func() PdfOptions {
+				options := DefaultPdfOptions()
+				options.Metadata = map[string]interface{}{
+					"foo": "bar",
+				}
+				return options
+			}(),
+		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			tc.ctx.SetLogger(zap.NewNop())
@@ -1409,6 +1441,47 @@ func TestConvertUrl(t *testing.T) {
 				return nil
 			}},
 			options:                DefaultPdfOptions(),
+			expectError:            false,
+			expectHttpError:        false,
+			expectOutputPathsCount: 1,
+		},
+		{
+			scenario: "error with metadata write",
+			ctx:      &api.ContextMock{Context: new(api.Context)},
+			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
+				return nil
+			}},
+			engine: &gotenberg.PdfEngineMock{WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, paths []string, newMetadata map[string]interface{}) error {
+				return fmt.Errorf("error writing metadata to %s: %w", "foo.pdf", errors.New("foo"))
+			}},
+			options: func() PdfOptions {
+				pdfOptions := DefaultPdfOptions()
+				pdfOptions.Metadata = map[string]interface{}{
+					"Creator":  "foo",
+					"Producer": "bar",
+				}
+				return pdfOptions
+			}(),
+			expectError:     true,
+			expectHttpError: false,
+		},
+		{
+			scenario: "success with metadata write",
+			ctx:      &api.ContextMock{Context: new(api.Context)},
+			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
+				return nil
+			}},
+			engine: &gotenberg.PdfEngineMock{WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, paths []string, newMetadata map[string]interface{}) error {
+				return nil
+			}},
+			options: func() PdfOptions {
+				pdfOptions := DefaultPdfOptions()
+				pdfOptions.Metadata = map[string]interface{}{
+					"Creator":  "foo",
+					"Producer": "bar",
+				}
+				return pdfOptions
+			}(),
 			expectError:            false,
 			expectHttpError:        false,
 			expectOutputPathsCount: 1,
