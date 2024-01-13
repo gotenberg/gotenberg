@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/barasher/go-exiftool"
-	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
-	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
-	"go.uber.org/zap"
 	"net/http"
 	"os"
+
+	"github.com/barasher/go-exiftool"
+	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
 )
 
 func init() {
@@ -154,7 +156,7 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, p
 		Entries: make(map[string]interface{}),
 	}
 
-	//transform metadata
+	// transform metadata
 	for _, fileMetadataInfo := range fileMetadataInfos {
 		for key, value := range newMetadata {
 			switch value.(type) {

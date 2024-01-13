@@ -4,13 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 	"io"
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 func TestMetadataValueTypeError_Error(t *testing.T) {
@@ -361,7 +363,6 @@ func TestExiftool_ReadMetadata(t *testing.T) {
 									tc.scenario, subset.fileMetadata.metadata, actualFileMetadata.Metadata, actualFileMetadata.Path)
 							}
 						}
-
 					}
 				}
 			}
@@ -477,19 +478,19 @@ func TestExiftool_WriteMetadata(t *testing.T) {
 			var copyPaths []string
 			for idx, inputPath := range tc.inputPaths {
 				copyPath := fmt.Sprintf("%s/copy_%d.pdf", outputDir, idx)
-				//open the source file
+				// open the source file
 				source, err := os.Open(inputPath)
 				if err != nil {
 					t.Fatalf("error in opening file: %v", err)
 				}
 
-				//create the destination file
+				// create the destination file
 				destination, err := os.Create(copyPath)
 				if err != nil {
 					t.Fatalf("error in creating file: %v", err)
 				}
 
-				//copy the contents of source to destination file
+				// copy the contents of source to destination file
 				_, err = io.Copy(destination, source)
 				if err != nil {
 					t.Fatalf("error in copying file: %v", err)
@@ -535,8 +536,8 @@ func TestExiftool_WriteMetadata(t *testing.T) {
 		})
 	}
 }
-func isMapSubset(mapSet interface{}, mapSubset interface{}) bool {
 
+func isMapSubset(mapSet interface{}, mapSubset interface{}) bool {
 	mapSetValue := reflect.ValueOf(mapSet)
 	mapSubsetValue := reflect.ValueOf(mapSubset)
 
