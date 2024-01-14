@@ -2,7 +2,6 @@ package gotenberg
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 )
 
@@ -16,7 +15,7 @@ func ParseMetadata(rawInput string) (map[string]interface{}, error) {
 
 	err := json.Unmarshal([]byte(rawInput), &parsed)
 	if err != nil {
-		return parsed, errors.New(fmt.Sprintf("metadata provided is invalid JSON and cannot be processed: %s", err))
+		return parsed, fmt.Errorf("metadata provided is invalid JSON and cannot be processed: %s", err)
 	}
 
 	return parsed, nil

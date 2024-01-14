@@ -159,19 +159,19 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, p
 	// transform metadata
 	for _, fileMetadataInfo := range fileMetadataInfos {
 		for key, value := range newMetadata {
-			switch value.(type) {
+			switch val := value.(type) {
 			case string:
-				fileMetadataInfo.SetString(key, value.(string))
+				fileMetadataInfo.SetString(key, val)
 			case int:
-				fileMetadataInfo.SetInt(key, int64(value.(int)))
+				fileMetadataInfo.SetInt(key, int64(val))
 			case int64:
-				fileMetadataInfo.SetInt(key, value.(int64))
+				fileMetadataInfo.SetInt(key, val)
 			case float32:
-				fileMetadataInfo.SetFloat(key, float64(value.(float32)))
+				fileMetadataInfo.SetFloat(key, float64(val))
 			case float64:
-				fileMetadataInfo.SetFloat(key, value.(float64))
+				fileMetadataInfo.SetFloat(key, val)
 			case []string:
-				fileMetadataInfo.SetStrings(key, value.([]string))
+				fileMetadataInfo.SetStrings(key, val)
 			// TODO: support more complex cases, e.g. arrays and nested objects (limitations in underlying library)
 			default:
 				metadataValueErrors.Entries[key] = value
