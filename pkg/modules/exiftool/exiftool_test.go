@@ -454,6 +454,18 @@ func TestExiftool_WriteMetadata(t *testing.T) {
 			expectError: false,
 			expectDiff:  true,
 		},
+		{
+			scenario: "single file unknown type",
+			ctx:      context.TODO(),
+			inputPaths: []string{
+				"/tests/test/testdata/pdfengines/sample1.pdf",
+			},
+			newMetadata: map[string]interface{}{
+				"foo": map[string]string{},
+			},
+			expectError: true,
+			expectDiff:  false,
+		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			engine := new(ExifTool)
