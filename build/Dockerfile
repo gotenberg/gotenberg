@@ -171,11 +171,9 @@ RUN \
     echo '#!/bin/bash\n\nexec java -jar /usr/bin/pdftk-all.jar "$@"' > /usr/bin/pdftk && \
     chmod +x /usr/bin/pdftk &&\
     apt-get update -qq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends qpdf &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends qpdf exiftool &&\
     # See https://github.com/nextcloud/docker/issues/380.
     mkdir -p /usr/share/man/man1 &&\
-    # Install Exiftool.
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends exiftool && \
     # Verify installations.
     pdftk --version &&\
     qpdf --version &&\

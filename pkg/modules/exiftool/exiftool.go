@@ -116,13 +116,19 @@ func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *zap.Logger, pa
 
 	fileMetadataInfos := exifTool.ExtractMetadata(paths...)
 
+	var readMetadataErrors []ResponseError
 	for idx, fileMetadataInfo := range fileMetadataInfos {
 		if fileMetadataInfo.Err != nil {
-			return fmt.Errorf("error reading metadata from %s: %w", fileMetadataInfo.File, fileMetadataInfo.Err)
+			readMetadataErrors = append(readMetadataErrors, ResponseError{fileName: fileMetadataInfo.File, err: fileMetadataInfo.Err})
+		} else {
+			// load the result into metadata passed
+			metadata[idx].Path = fileMetadataInfo.File
+			metadata[idx].Metadata = fileMetadataInfo.Fields
 		}
-		// load the result into metadata passed
-		metadata[idx].Path = fileMetadataInfo.File
-		metadata[idx].Metadata = fileMetadataInfo.Fields
+	}
+
+	if len(readMetadataErrors) > 0 {
+		return fmt.Errorf("error reading metadata to following file(s): %+v", readMetadataErrors)
 	}
 
 	return exifTool.Close()

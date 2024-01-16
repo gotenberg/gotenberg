@@ -583,15 +583,11 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 		outputPath = convertOutputPath
 	}
 
-	// Writes metadata specified in the user request to the output PDF.
-
-	// Note: Any matching existing metadata entries (identified by key)
-	// will be overwritten by user specified entries during this operation.
-
+	// Writes and potentially overrides metadata entries, if any.
 	if len(options.Metadata) > 0 {
 		err = engine.WriteMetadata(ctx, ctx.Log(), []string{outputPath}, options.Metadata)
 		if err != nil {
-			return fmt.Errorf("write metadata failure: %w", err)
+			return fmt.Errorf("write metadata: %w", err)
 		}
 	}
 
