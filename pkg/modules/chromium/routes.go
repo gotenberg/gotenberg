@@ -134,11 +134,12 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		Bool("preferCssPageSize", &preferCssPageSize, defaultPdfOptions.PreferCssPageSize).
 		Custom("metadata", func(value string) error {
 			metadata = map[string]interface{}{}
-			parsedMetadata, err := gotenberg.ParseMetadata(value)
-			if err != nil {
-				return err
+			if len(value) > 0 {
+				err := json.Unmarshal([]byte(value), &metadata)
+				if err != nil {
+					return err
+				}
 			}
-			metadata = parsedMetadata
 			return nil
 		})
 
