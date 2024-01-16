@@ -204,9 +204,6 @@ type PdfOptions struct {
 	// If false, the content will be scaled to fit the paper size.
 	// Optional.
 	PreferCssPageSize bool
-
-	// Metadata defines the Exif metadata to write on the PDF file.
-	Metadata map[string]interface{}
 }
 
 // DefaultPdfOptions returns the default values for PdfOptions.
@@ -226,7 +223,6 @@ func DefaultPdfOptions() PdfOptions {
 		HeaderTemplate:    "<html><head></head><body></body></html>",
 		FooterTemplate:    "<html><head></head><body></body></html>",
 		PreferCssPageSize: false,
-		Metadata:          map[string]interface{}{},
 	}
 }
 
