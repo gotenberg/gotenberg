@@ -537,14 +537,14 @@ func TestChromium_Screenshot(t *testing.T) {
 	}{
 		{
 			scenario: "Screenshot task success",
-			browser: &browserMock{screenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+			browser: &browserMock{screenshotMock: func(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error {
 				return nil
 			}},
 			expectError: false,
 		},
 		{
 			scenario: "Screenshot task error",
-			browser: &browserMock{screenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+			browser: &browserMock{screenshotMock: func(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error {
 				return errors.New("screenshot task error")
 			}},
 			expectError: true,
@@ -557,7 +557,7 @@ func TestChromium_Screenshot(t *testing.T) {
 			}}
 			mod.browser = tc.browser
 
-			err := mod.Screenshot(context.Background(), zap.NewNop(), "", "", ScreenshotOptions{})
+			err := mod.Screenshot(context.Background(), zap.NewNop(), "", []string{""}, ScreenshotOptions{})
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)

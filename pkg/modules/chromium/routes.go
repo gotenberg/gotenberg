@@ -162,7 +162,7 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 		format           string
 		quality          int
 		optimizeForSpeed bool
-		sel              string
+		sel              []string
 	)
 
 	form.
@@ -203,7 +203,18 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 			return nil
 		}).
 		Bool("optimizeForSpeed", &optimizeForSpeed, defaultScreenshotOptions.OptimizeForSpeed).
-		String("sel", &sel, defaultScreenshotOptions.Sel)
+		Custom("sel", func(value string) error {
+			if value == "" {
+				sel = defaultScreenshotOptions.Sel
+				return nil
+			}
+			err := json.Unmarshal([]byte(value), &sel)
+			if err != nil {
+				return fmt.Errorf("unmarshal sel: %w", err)
+			}
+
+			return nil
+		})
 
 	screenshotOptions := ScreenshotOptions{
 		Options:          options,
@@ -584,15 +595,24 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 
 func screenshotUrl(ctx *api.Context, chromium Api, url string, options ScreenshotOptions) error {
 	ext := fmt.Sprintf(".%s", options.Format)
-	outputPath := ctx.GeneratePath(ext)
 
-	err := chromium.Screenshot(ctx, ctx.Log(), url, outputPath, options)
+	var outputPaths []string
+
+	if len(options.Sel) != 0 {
+		for i := range options.Sel {
+			outputPaths = append(outputPaths, ctx.GeneratePath(ext, fmt.Sprint(i)))
+		}
+	} else {
+		outputPaths = append(outputPaths, ctx.GeneratePath(ext))
+	}
+
+	err := chromium.Screenshot(ctx, ctx.Log(), url, outputPaths, options)
 	err = handleChromiumError(err, url, options.Options)
 	if err != nil {
 		return fmt.Errorf("screenshot: %w", err)
 	}
 
-	err = ctx.AddOutputPaths(outputPath)
+	err = ctx.AddOutputPaths(outputPaths...)
 	if err != nil {
 		return fmt.Errorf("add output path: %w", err)
 	}
