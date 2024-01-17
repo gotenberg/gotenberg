@@ -1,3 +1,5 @@
 /coverage.html
 /coverage.txt
 /TODO.txt
+*.exe
+.vscode/launch.json
