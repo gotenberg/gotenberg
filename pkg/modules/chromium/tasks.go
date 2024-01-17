@@ -117,7 +117,11 @@ func captureScreenshotActionFunc(logger *zap.Logger, outputPaths []string, optio
 
 				buf, err = captureScreenshot.Do(ctx)
 			} else {
+
 				err = chromedp.Run(ctx,
+					chromedp.Evaluate(fmt.Sprintf("document.querySelector('%+v').scrollIntoViewIfNeeded(true)", sel), nil),
+					// give the page a smidge of time to reflow
+					chromedp.Sleep(500*time.Millisecond),
 					chromedp.ScreenshotScale(sel, 2, &buf, chromedp.NodeVisible),
 				)
 			}
