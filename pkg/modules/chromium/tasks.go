@@ -92,31 +92,56 @@ func printToPdfActionFunc(logger *zap.Logger, outputPath string, options PdfOpti
 	}
 }
 
-func captureScreenshotActionFunc(logger *zap.Logger, outputPath string, options ScreenshotOptions) chromedp.ActionFunc {
+func captureScreenshotActionFunc(logger *zap.Logger, outputPaths []string, options ScreenshotOptions) chromedp.ActionFunc {
 
 	return func(ctx context.Context) error {
 		var buf []byte
-		if err := chromedp.Run(ctx,
-			chromedp.ScreenshotScale(options.Sel, 1, &buf, chromedp.NodeVisible),
-		); err != nil {
-			return fmt.Errorf("capture screenshot: %w", err)
-		}
+		var err error
+		for i, outputPath := range outputPaths {
+			logger.Debug(fmt.Sprintf("capture screenshot to '%s'", outputPath))
+			sel := options.Sel[i]
 
-		file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY, 0o600)
-		if err != nil {
-			return fmt.Errorf("open output path: %w", err)
-		}
+			if sel == "" {
+				captureScreenshot := page.CaptureScreenshot().
+					WithCaptureBeyondViewport(true).
+					WithFromSurface(true).
+					WithOptimizeForSpeed(options.OptimizeForSpeed).
+					WithFormat(page.CaptureScreenshotFormat(options.Format))
 
-		defer func() {
-			err = file.Close()
-			if err != nil {
-				logger.Error(fmt.Sprintf("close output path: %s", err))
+				if options.Format == "jpeg" {
+					captureScreenshot = captureScreenshot.
+						WithQuality(int64(options.Quality))
+				}
+
+				logger.Debug(fmt.Sprintf("capture screenshot with: %+v", captureScreenshot))
+
+				buf, err = captureScreenshot.Do(ctx)
+			} else {
+				err = chromedp.Run(ctx,
+					chromedp.ScreenshotScale(sel, 2, &buf, chromedp.NodeVisible),
+				)
 			}
-		}()
 
-		_, err = file.Write(buf)
-		if err != nil {
-			return fmt.Errorf("write result to output path: %w", err)
+			if err != nil {
+				return fmt.Errorf("capture screenshot: %w", err)
+			}
+
+			file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY, 0o600)
+			if err != nil {
+				return fmt.Errorf("open output path: %w", err)
+			}
+
+			defer func() {
+				err = file.Close()
+				if err != nil {
+					logger.Error(fmt.Sprintf("close output path: %s", err))
+				}
+			}()
+
+			_, err = file.Write(buf)
+			if err != nil {
+				return fmt.Errorf("write result to output path: %w", err)
+			}
 		}
 
 		return nil

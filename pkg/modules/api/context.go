@@ -193,7 +193,10 @@ func (ctx *Context) FormData() *FormData {
 
 // GeneratePath generates a path within the context's working directory. It
 // does not create a file.
-func (ctx *Context) GeneratePath(extension string) string {
+func (ctx *Context) GeneratePath(extension string, name ...string) string {
+	if len(name) != 0 {
+		return fmt.Sprintf("%s/%s%s", ctx.dirPath, name[0], extension)
+	}
 	return fmt.Sprintf("%s/%s%s", ctx.dirPath, uuid.New(), extension)
 }
 
