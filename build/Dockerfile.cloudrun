@@ -1,5 +1,3 @@
-# Note: ARG instructions do not create additional layers.
-# Instead, next layers will concatenate them.
 ARG DOCKER_REPOSITORY
 ARG GOTENBERG_VERSION
 

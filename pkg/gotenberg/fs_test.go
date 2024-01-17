@@ -1,59 +1,55 @@
 package gotenberg
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
 )
 
-func TestTmpPath(t *testing.T) {
-	osTempDir := os.TempDir()
-	tmpPath := TmpPath()
+func TestFileSystem_WorkingDir(t *testing.T) {
+	fs := NewFileSystem()
+	dirName := fs.WorkingDir()
 
-	if tmpPath != osTempDir {
-		t.Errorf("expected path '%s' but got '%s'", osTempDir, tmpPath)
+	if dirName == "" {
+		t.Error("expected directory name but got empty string")
 	}
 }
 
-func TestNewDirPath(t *testing.T) {
-	newDirPath := NewDirPath()
-	tmpPath := TmpPath()
+func TestFileSystem_WorkingDirPath(t *testing.T) {
+	fs := NewFileSystem()
+	expectedPath := fmt.Sprintf("%s/%s", os.TempDir(), fs.WorkingDir())
 
-	if !strings.HasPrefix(newDirPath, tmpPath) {
-		t.Fatalf("expected path '%s' to start with '%s'", newDirPath, tmpPath)
-	}
-
-	newDirPaths := make([]string, 1000)
-	for i := range newDirPaths {
-		newDirPaths[i] = NewDirPath()
-	}
-
-	for i, newDirPath := range newDirPaths {
-		for j, comparison := range newDirPaths {
-			if i == j {
-				continue
-			}
-
-			if newDirPath == comparison {
-				t.Fatalf("expected path '%s' (index %d) to be unique, but found an identical path on index %d", newDirPath, i, j)
-			}
-		}
+	if fs.WorkingDirPath() != expectedPath {
+		t.Errorf("expected path '%s' but got '%s'", expectedPath, fs.WorkingDirPath())
 	}
 }
 
-func TestMkdirAll(t *testing.T) {
-	path, err := MkdirAll()
+func TestFileSystem_NewDirPath(t *testing.T) {
+	fs := NewFileSystem()
+	newDir := fs.NewDirPath()
+	expectedPrefix := fs.WorkingDirPath()
+
+	if !strings.HasPrefix(newDir, expectedPrefix) {
+		t.Errorf("expected new directory to start with '%s' but got '%s'", expectedPrefix, newDir)
+	}
+}
+
+func TestFileSystem_MkdirAll(t *testing.T) {
+	fs := NewFileSystem()
+
+	newPath, err := fs.MkdirAll()
 	if err != nil {
 		t.Fatalf("expected no error but got: %v", err)
 	}
 
-	tmpPath := TmpPath()
-	if !strings.HasPrefix(path, tmpPath) {
-		t.Fatalf("expected path '%s' to start with '%s'", path, tmpPath)
+	_, err = os.Stat(newPath)
+	if os.IsNotExist(err) {
+		t.Errorf("expected directory '%s' to exist but it doesn't", newPath)
 	}
 
-	_, err = os.Stat(path)
-	if os.IsNotExist(err) {
-		t.Errorf("expected path '%s' to exist but got: %v", path, err)
+	err = os.RemoveAll(fs.WorkingDirPath())
+	if err != nil {
+		t.Fatalf("expected no error while cleaning up but got: %v", err)
 	}
 }

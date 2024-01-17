@@ -7,92 +7,98 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
-func TestPDFcpu_Descriptor(t *testing.T) {
-	descriptor := PDFcpu{}.Descriptor()
+func TestPdfCpu_Descriptor(t *testing.T) {
+	descriptor := new(PdfCpu).Descriptor()
 
 	actual := reflect.TypeOf(descriptor.New())
-	expect := reflect.TypeOf(new(PDFcpu))
+	expect := reflect.TypeOf(new(PdfCpu))
 
 	if actual != expect {
 		t.Errorf("expected '%s' but got '%s'", expect, actual)
 	}
 }
 
-func TestPDFcpu_Provision(t *testing.T) {
-	mod := new(PDFcpu)
+func TestPdfCpu_Provision(t *testing.T) {
+	engine := new(PdfCpu)
 	ctx := gotenberg.NewContext(gotenberg.ParsedFlags{}, nil)
 
-	err := mod.Provision(ctx)
+	err := engine.Provision(ctx)
 	if err != nil {
 		t.Errorf("expected no error but got: %v", err)
 	}
 }
 
-func TestPDFcpu_Merge(t *testing.T) {
-	for i, tc := range []struct {
-		inputPaths []string
-		expectErr  bool
+func TestPdfCpu_Merge(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		inputPaths  []string
+		expectError bool
 	}{
 		{
+			scenario: "invalid input path",
+			inputPaths: []string{
+				"foo",
+			},
+			expectError: true,
+		},
+		{
+			scenario: "single file success",
 			inputPaths: []string{
 				"/tests/test/testdata/pdfengines/sample1.pdf",
 			},
+			expectError: false,
 		},
 		{
+			scenario: "many files success",
 			inputPaths: []string{
 				"/tests/test/testdata/pdfengines/sample1.pdf",
 				"/tests/test/testdata/pdfengines/sample2.pdf",
 			},
 		},
-		{
-			inputPaths: []string{
-				"foo",
-			},
-			expectErr: true,
-		},
 	} {
-		func() {
-			mod := new(PDFcpu)
-
-			err := mod.Provision(nil)
+		t.Run(tc.scenario, func(t *testing.T) {
+			engine := new(PdfCpu)
+			err := engine.Provision(nil)
 			if err != nil {
-				t.Fatalf("test %d: expected error but got: %v", i, err)
+				t.Fatalf("expected error but got: %v", err)
 			}
 
-			outputDir, err := gotenberg.MkdirAll()
+			fs := gotenberg.NewFileSystem()
+			outputDir, err := fs.MkdirAll()
 			if err != nil {
-				t.Fatalf("test %d: expected error but got: %v", i, err)
+				t.Fatalf("expected error but got: %v", err)
 			}
 
 			defer func() {
-				err := os.RemoveAll(outputDir)
+				err = os.RemoveAll(fs.WorkingDirPath())
 				if err != nil {
-					t.Fatalf("test %d: expected no error but got: %v", i, err)
+					t.Fatalf("expected no error while cleaning up but got: %v", err)
 				}
 			}()
 
-			err = mod.Merge(nil, nil, tc.inputPaths, outputDir+"/foo.pdf")
+			err = engine.Merge(nil, nil, tc.inputPaths, outputDir+"/foo.pdf")
 
-			if tc.expectErr && err == nil {
-				t.Errorf("test %d: expected error but got: %v", i, err)
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
 			}
 
-			if !tc.expectErr && err != nil {
-				t.Errorf("test %d: expected no error but got: %v", i, err)
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
 			}
-		}()
+		})
 	}
 }
 
-func TestPDFcpu_Convert(t *testing.T) {
-	mod := new(PDFcpu)
-	err := mod.Convert(context.TODO(), zap.NewNop(), "", "", "")
+func TestPdfCpu_Convert(t *testing.T) {
+	mod := new(PdfCpu)
+	err := mod.Convert(context.TODO(), zap.NewNop(), gotenberg.PdfFormats{}, "", "")
 
-	if !errors.Is(err, gotenberg.ErrPDFEngineMethodNotAvailable) {
-		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPDFEngineMethodNotAvailable, err)
+	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
+		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)
 	}
 }

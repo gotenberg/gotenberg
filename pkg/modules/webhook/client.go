@@ -3,6 +3,7 @@ package webhook
 import (
 	"fmt"
 	"io"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -15,9 +16,9 @@ import (
 type client struct {
 	url              string
 	method           string
-	errorURL         string
+	errorUrl         string
 	errorMethod      string
-	extraHTTPHeaders map[string]string
+	extraHttpHeaders map[string]string
 	startTime        time.Time
 
 	client *retryablehttp.Client
@@ -28,7 +29,7 @@ type client struct {
 func (c client) send(body io.Reader, headers map[string]string, erroed bool) error {
 	URL := c.url
 	if erroed {
-		URL = c.errorURL
+		URL = c.errorUrl
 	}
 
 	method := c.method
@@ -44,7 +45,7 @@ func (c client) send(body io.Reader, headers map[string]string, erroed bool) err
 	req.Header.Set("User-Agent", "Gotenberg")
 
 	// Extra HTTP headers are the custom headers from the user.
-	for key, value := range c.extraHTTPHeaders {
+	for key, value := range c.extraHttpHeaders {
 		req.Header.Set(key, value)
 	}
 
@@ -57,11 +58,10 @@ func (c client) send(body io.Reader, headers map[string]string, erroed bool) err
 		// Worse, the "Content-Length" header is also removed. Therefore, in
 		// order to keep this valuable information, we have to trust the caller
 		// by reading the value of the "Content-Length" entry and set it as the
-		// content length of the request. It's kinda sub-optimal, but hey, at
+		// content length of the request. It's kinda suboptimal, but hey, at
 		// least it works.
 
 		bodySize, err := strconv.ParseInt(contentLength, 10, 64)
-
 		if err != nil {
 			return fmt.Errorf("parse content length entry: %w", err)
 		}
@@ -76,6 +76,10 @@ func (c client) send(body io.Reader, headers map[string]string, erroed bool) err
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("send '%s' request to '%s': %w", method, URL, err)
+	}
+
+	if resp.StatusCode >= http.StatusBadRequest {
+		return fmt.Errorf("send '%s' request to '%s': got status: '%s'", method, URL, resp.Status)
 	}
 
 	defer func() {
@@ -107,8 +111,8 @@ func (c client) send(body io.Reader, headers map[string]string, erroed bool) err
 	return nil
 }
 
-// leveledLogger is wrapper around a zap.Logger which is used by the
-// retryablehttp.Client.
+// leveledLogger is wrapper around a [zap.Logger] which is used by the
+// [retryablehttp.Client].
 type leveledLogger struct {
 	logger *zap.Logger
 }

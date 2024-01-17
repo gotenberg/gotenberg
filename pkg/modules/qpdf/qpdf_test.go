@@ -7,146 +7,144 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
-func TestQPDF_Descriptor(t *testing.T) {
-	descriptor := QPDF{}.Descriptor()
+func TestQPdf_Descriptor(t *testing.T) {
+	descriptor := new(QPdf).Descriptor()
 
 	actual := reflect.TypeOf(descriptor.New())
-	expect := reflect.TypeOf(new(QPDF))
+	expect := reflect.TypeOf(new(QPdf))
 
 	if actual != expect {
 		t.Errorf("expected '%s' but got '%s'", expect, actual)
 	}
 }
 
-func TestQPDF_Provision(t *testing.T) {
-	mod := new(QPDF)
+func TestQPdf_Provision(t *testing.T) {
+	engine := new(QPdf)
 	ctx := gotenberg.NewContext(gotenberg.ParsedFlags{}, nil)
 
-	err := mod.Provision(ctx)
+	err := engine.Provision(ctx)
 	if err != nil {
 		t.Errorf("expected no error but got: %v", err)
 	}
 }
 
-func TestQPDF_Validate(t *testing.T) {
-	for i, tc := range []struct {
-		binPath   string
-		expectErr bool
+func TestQPdf_Validate(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		binPath     string
+		expectError bool
 	}{
 		{
-			expectErr: true,
+			scenario:    "empty bin path",
+			binPath:     "",
+			expectError: true,
 		},
 		{
-			binPath:   "/foo",
-			expectErr: true,
+			scenario:    "bin path does not exist",
+			binPath:     "/foo",
+			expectError: true,
 		},
 		{
-			binPath: os.Getenv("QPDF_BIN_PATH"),
+			scenario:    "validate success",
+			binPath:     os.Getenv("QPDF_BIN_PATH"),
+			expectError: false,
 		},
 	} {
-		mod := new(QPDF)
-		mod.binPath = tc.binPath
-		err := mod.Validate()
+		t.Run(tc.scenario, func(t *testing.T) {
+			engine := new(QPdf)
+			engine.binPath = tc.binPath
+			err := engine.Validate()
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
 
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
+		})
 	}
 }
 
-func TestQPDF_Metrics(t *testing.T) {
-	metrics, err := new(QPDF).Metrics()
-	if err != nil {
-		t.Errorf("expected no error but got: %v", err)
-	}
-
-	if len(metrics) != 1 {
-		t.Errorf("expected %d metrics, but got %d", 1, len(metrics))
-	}
-
-	actual := metrics[0].Read()
-	if actual != 0 {
-		t.Errorf("expected %d QPDF instances, but got %f", 0, actual)
-	}
-}
-
-func TestQPDF_Merge(t *testing.T) {
-	for i, tc := range []struct {
-		ctx        context.Context
-		inputPaths []string
-		expectErr  bool
+func TestQPdf_Merge(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		ctx         context.Context
+		inputPaths  []string
+		expectError bool
 	}{
 		{
-			ctx: context.TODO(),
+			scenario:    "invalid context",
+			ctx:         nil,
+			expectError: true,
+		},
+		{
+			scenario: "invalid input path",
+			ctx:      context.TODO(),
+			inputPaths: []string{
+				"foo",
+			},
+			expectError: true,
+		},
+		{
+			scenario: "single file success",
+			ctx:      context.TODO(),
 			inputPaths: []string{
 				"/tests/test/testdata/pdfengines/sample1.pdf",
 			},
 		},
 		{
-			ctx: context.TODO(),
+			scenario: "many files success",
+			ctx:      context.TODO(),
 			inputPaths: []string{
 				"/tests/test/testdata/pdfengines/sample1.pdf",
 				"/tests/test/testdata/pdfengines/sample2.pdf",
 			},
 		},
-		{
-			ctx:       nil,
-			expectErr: true,
-		},
-		{
-			ctx: context.TODO(),
-			inputPaths: []string{
-				"foo",
-			},
-			expectErr: true,
-		},
 	} {
-		func() {
-			mod := new(QPDF)
-
-			err := mod.Provision(nil)
+		t.Run(tc.scenario, func(t *testing.T) {
+			engine := new(QPdf)
+			err := engine.Provision(nil)
 			if err != nil {
-				t.Fatalf("test %d: expected error but got: %v", i, err)
+				t.Fatalf("expected error but got: %v", err)
 			}
 
-			outputDir, err := gotenberg.MkdirAll()
+			fs := gotenberg.NewFileSystem()
+			outputDir, err := fs.MkdirAll()
 			if err != nil {
-				t.Fatalf("test %d: expected error but got: %v", i, err)
+				t.Fatalf("expected error but got: %v", err)
 			}
 
 			defer func() {
-				err := os.RemoveAll(outputDir)
+				err = os.RemoveAll(fs.WorkingDirPath())
 				if err != nil {
-					t.Fatalf("test %d: expected no error but got: %v", i, err)
+					t.Fatalf("expected no error while cleaning up but got: %v", err)
 				}
 			}()
 
-			err = mod.Merge(tc.ctx, zap.NewNop(), tc.inputPaths, outputDir+"/foo.pdf")
+			err = engine.Merge(tc.ctx, zap.NewNop(), tc.inputPaths, outputDir+"/foo.pdf")
 
-			if tc.expectErr && err == nil {
-				t.Errorf("test %d: expected error but got: %v", i, err)
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
 			}
 
-			if !tc.expectErr && err != nil {
-				t.Errorf("test %d: expected no error but got: %v", i, err)
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
 			}
-		}()
+		})
 	}
 }
 
-func TestQPDF_Convert(t *testing.T) {
-	mod := new(QPDF)
-	err := mod.Convert(context.TODO(), zap.NewNop(), "", "", "")
+func TestQPdf_Convert(t *testing.T) {
+	engine := new(QPdf)
+	err := engine.Convert(context.TODO(), zap.NewNop(), gotenberg.PdfFormats{}, "", "")
 
-	if !errors.Is(err, gotenberg.ErrPDFEngineMethodNotAvailable) {
-		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPDFEngineMethodNotAvailable, err)
+	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
+		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)
 	}
 }

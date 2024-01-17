@@ -13,98 +13,37 @@ import (
 	"time"
 
 	"github.com/alexliesenfeld/health"
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
-type ProtoModule struct {
-	descriptor func() gotenberg.ModuleDescriptor
-}
-
-func (mod ProtoModule) Descriptor() gotenberg.ModuleDescriptor {
-	return mod.descriptor()
-}
-
-type ProtoValidator struct {
-	ProtoModule
-	validate func() error
-}
-
-func (mod ProtoValidator) Validate() error {
-	return mod.validate()
-}
-
-type ProtoRouter struct {
-	ProtoValidator
-	routes func() ([]Route, error)
-}
-
-func (mod ProtoRouter) Routes() ([]Route, error) {
-	return mod.routes()
-}
-
-type ProtoMiddlewareProvider struct {
-	ProtoValidator
-	middlewares func() ([]Middleware, error)
-}
-
-func (mod ProtoMiddlewareProvider) Middlewares() ([]Middleware, error) {
-	return mod.middlewares()
-}
-
-type ProtoHealthChecker struct {
-	ProtoValidator
-	checks func() ([]health.CheckerOption, error)
-}
-
-func (mod ProtoHealthChecker) Checks() ([]health.CheckerOption, error) {
-	return mod.checks()
-}
-
-type ProtoGarbageCollectorGraceDurationIncrementer struct {
-	ProtoValidator
-	addGraceDuration func() time.Duration
-}
-
-func (mod ProtoGarbageCollectorGraceDurationIncrementer) AddGraceDuration() time.Duration {
-	return mod.addGraceDuration()
-}
-
-type ProtoLoggerProvider struct {
-	ProtoModule
-	logger func(mod gotenberg.Module) (*zap.Logger, error)
-}
-
-func (factory ProtoLoggerProvider) Logger(mod gotenberg.Module) (*zap.Logger, error) {
-	return factory.logger(mod)
-}
-
-func TestAPI_Descriptor(t *testing.T) {
-	descriptor := API{}.Descriptor()
+func TestApi_Descriptor(t *testing.T) {
+	descriptor := new(Api).Descriptor()
 
 	actual := reflect.TypeOf(descriptor.New())
-	expect := reflect.TypeOf(new(API))
+	expect := reflect.TypeOf(new(Api))
 
 	if actual != expect {
 		t.Errorf("expected '%s' but got '%s'", expect, actual)
 	}
 }
 
-func TestAPI_Provision(t *testing.T) {
-	for i, tc := range []struct {
-		ctx                 *gotenberg.Context
-		setEnv              func(i int)
-		expectPort          int
-		expectMiddlewares   []Middleware
-		expectGraceDuration time.Duration
-		expectErr           bool
+func TestApi_Provision(t *testing.T) {
+	for _, tc := range []struct {
+		scenario          string
+		ctx               *gotenberg.Context
+		setEnv            func()
+		expectPort        int
+		expectMiddlewares []Middleware
+		expectError       bool
 	}{
 		{
+			scenario: "port from env: non-existing environment variable",
 			ctx: func() *gotenberg.Context {
-				fs := new(API).Descriptor().FlagSet
+				fs := new(Api).Descriptor().FlagSet
 				err := fs.Parse([]string{"--api-port-from-env=FOO"})
-
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
@@ -116,13 +55,13 @@ func TestAPI_Provision(t *testing.T) {
 					nil,
 				)
 			}(),
-			expectErr: true,
+			expectError: true,
 		},
 		{
+			scenario: "port from env: empty environment variable",
 			ctx: func() *gotenberg.Context {
-				fs := new(API).Descriptor().FlagSet
+				fs := new(Api).Descriptor().FlagSet
 				err := fs.Parse([]string{"--api-port-from-env=PORT"})
-
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
@@ -134,19 +73,19 @@ func TestAPI_Provision(t *testing.T) {
 					nil,
 				)
 			}(),
-			setEnv: func(i int) {
+			setEnv: func() {
 				err := os.Setenv("PORT", "")
 				if err != nil {
-					t.Fatalf("test %d: expected no error but got: %v", i, err)
+					t.Fatalf("expected no error but got: %v", err)
 				}
 			},
-			expectErr: true,
+			expectError: true,
 		},
 		{
+			scenario: "port from env: invalid environment variable value",
 			ctx: func() *gotenberg.Context {
-				fs := new(API).Descriptor().FlagSet
+				fs := new(Api).Descriptor().FlagSet
 				err := fs.Parse([]string{"--api-port-from-env=PORT"})
-
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
@@ -158,290 +97,225 @@ func TestAPI_Provision(t *testing.T) {
 					nil,
 				)
 			}(),
-			setEnv: func(i int) {
+			setEnv: func() {
 				err := os.Setenv("PORT", "foo")
 				if err != nil {
-					t.Fatalf("test %d: expected no error but got: %v", i, err)
-				}
-			},
-			expectErr: true,
-		},
-		{
-			ctx: func() *gotenberg.Context {
-				fs := new(API).Descriptor().FlagSet
-				err := fs.Parse([]string{"--api-port-from-env=PORT"})
-
-				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
-
-				return gotenberg.NewContext(
-					gotenberg.ParsedFlags{
-						FlagSet: fs,
-					},
-					nil,
-				)
-			}(),
-			setEnv: func(i int) {
-				err := os.Setenv("PORT", "1337")
-				if err != nil {
-					t.Fatalf("test %d: expected no error but got: %v", i, err)
-				}
 			},
-			expectPort: 1337,
-			expectErr:  true,
+			expectError: true,
 		},
 		{
+			scenario: "no valid routers",
 			ctx: func() *gotenberg.Context {
-				mod := struct{ ProtoRouter }{}
-				mod.descriptor = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod }}
-				}
-				mod.validate = func() error {
-					return errors.New("foo")
-				}
-				mod.routes = func() ([]Route, error) {
-					return nil, nil
-				}
-
-				return gotenberg.NewContext(
-					gotenberg.ParsedFlags{
-						FlagSet: new(API).Descriptor().FlagSet,
-					},
-					[]gotenberg.ModuleDescriptor{
-						mod.Descriptor(),
-					},
-				)
-			}(),
-			expectErr: true,
-		},
-		{
-			ctx: func() *gotenberg.Context {
-				mod := struct{ ProtoMiddlewareProvider }{}
-				mod.descriptor = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod }}
-				}
-				mod.validate = func() error {
-					return errors.New("foo")
-				}
-				mod.middlewares = func() ([]Middleware, error) {
-					return nil, nil
-				}
-
-				return gotenberg.NewContext(
-					gotenberg.ParsedFlags{
-						FlagSet: new(API).Descriptor().FlagSet,
-					},
-					[]gotenberg.ModuleDescriptor{
-						mod.Descriptor(),
-					},
-				)
-			}(),
-			expectErr: true,
-		},
-		{
-			ctx: func() *gotenberg.Context {
-				mod := struct{ ProtoMiddlewareProvider }{}
-				mod.descriptor = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod }}
-				}
-				mod.validate = func() error {
-					return nil
-				}
-				mod.middlewares = func() ([]Middleware, error) {
-					return nil, errors.New("foo")
-				}
-
-				return gotenberg.NewContext(
-					gotenberg.ParsedFlags{
-						FlagSet: new(API).Descriptor().FlagSet,
-					},
-					[]gotenberg.ModuleDescriptor{
-						mod.Descriptor(),
-					},
-				)
-			}(),
-			expectErr: true,
-		},
-		{
-			ctx: func() *gotenberg.Context {
-				mod := struct{ ProtoRouter }{}
-				mod.descriptor = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod }}
-				}
-				mod.validate = func() error {
-					return nil
-				}
-				mod.routes = func() ([]Route, error) {
-					return nil, errors.New("foo")
-				}
-
-				return gotenberg.NewContext(
-					gotenberg.ParsedFlags{
-						FlagSet: new(API).Descriptor().FlagSet,
-					},
-					[]gotenberg.ModuleDescriptor{
-						mod.Descriptor(),
-					},
-				)
-			}(),
-			expectErr: true,
-		},
-		{
-			ctx: func() *gotenberg.Context {
-				mod := struct{ ProtoHealthChecker }{}
-				mod.descriptor = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod }}
-				}
-				mod.validate = func() error {
-					return errors.New("foo")
-				}
-				mod.checks = func() ([]health.CheckerOption, error) {
-					return nil, nil
-				}
-
-				return gotenberg.NewContext(
-					gotenberg.ParsedFlags{
-						FlagSet: new(API).Descriptor().FlagSet,
-					},
-					[]gotenberg.ModuleDescriptor{
-						mod.Descriptor(),
-					},
-				)
-			}(),
-			expectErr: true,
-		},
-		{
-			ctx: func() *gotenberg.Context {
-				mod := struct{ ProtoHealthChecker }{}
-				mod.descriptor = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod }}
-				}
-				mod.validate = func() error {
-					return nil
-				}
-				mod.checks = func() ([]health.CheckerOption, error) {
-					return nil, errors.New("foo")
-				}
-
-				return gotenberg.NewContext(
-					gotenberg.ParsedFlags{
-						FlagSet: new(API).Descriptor().FlagSet,
-					},
-					[]gotenberg.ModuleDescriptor{
-						mod.Descriptor(),
-					},
-				)
-			}(),
-			expectErr: true,
-		},
-
-		{
-			ctx: func() *gotenberg.Context {
-				mod := struct {
-					ProtoGarbageCollectorGraceDurationIncrementer
+				mod := &struct {
+					gotenberg.ModuleMock
+					gotenberg.ValidatorMock
+					RouterMock
 				}{}
-				mod.descriptor = func() gotenberg.ModuleDescriptor {
+				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod }}
 				}
-				mod.validate = func() error {
+				mod.ValidateMock = func() error {
 					return errors.New("foo")
 				}
-				mod.addGraceDuration = func() time.Duration {
-					return 0
+				mod.RoutesMock = func() ([]Route, error) {
+					return nil, nil
 				}
-
 				return gotenberg.NewContext(
 					gotenberg.ParsedFlags{
-						FlagSet: new(API).Descriptor().FlagSet,
+						FlagSet: new(Api).Descriptor().FlagSet,
 					},
 					[]gotenberg.ModuleDescriptor{
 						mod.Descriptor(),
 					},
 				)
 			}(),
-			expectErr: true,
+			expectError: true,
 		},
 		{
+			scenario: "cannot retrieve routes from router",
 			ctx: func() *gotenberg.Context {
-				mod := struct {
-					ProtoGarbageCollectorGraceDurationIncrementer
+				mod := &struct {
+					gotenberg.ModuleMock
+					RouterMock
 				}{}
-				mod.descriptor = func() gotenberg.ModuleDescriptor {
+				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod }}
 				}
-				mod.validate = func() error {
-					return nil
+				mod.RoutesMock = func() ([]Route, error) {
+					return nil, errors.New("foo")
 				}
-				mod.addGraceDuration = func() time.Duration {
-					return time.Duration(3) * time.Second
-				}
-
 				return gotenberg.NewContext(
 					gotenberg.ParsedFlags{
-						FlagSet: new(API).Descriptor().FlagSet,
+						FlagSet: new(Api).Descriptor().FlagSet,
 					},
 					[]gotenberg.ModuleDescriptor{
 						mod.Descriptor(),
 					},
 				)
 			}(),
-			expectGraceDuration: time.Duration(33) * time.Second,
-			expectErr:           true,
+			expectError: true,
 		},
 		{
+			scenario: "no valid middleware providers",
+			ctx: func() *gotenberg.Context {
+				mod := &struct {
+					gotenberg.ModuleMock
+					gotenberg.ValidatorMock
+					MiddlewareProviderMock
+				}{}
+				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod }}
+				}
+				mod.ValidateMock = func() error {
+					return errors.New("foo")
+				}
+				mod.MiddlewaresMock = func() ([]Middleware, error) {
+					return nil, nil
+				}
+				return gotenberg.NewContext(
+					gotenberg.ParsedFlags{
+						FlagSet: new(Api).Descriptor().FlagSet,
+					},
+					[]gotenberg.ModuleDescriptor{
+						mod.Descriptor(),
+					},
+				)
+			}(),
+			expectError: true,
+		},
+		{
+			scenario: "cannot retrieve middlewares from middleware provider",
+			ctx: func() *gotenberg.Context {
+				mod := &struct {
+					gotenberg.ModuleMock
+					MiddlewareProviderMock
+				}{}
+				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod }}
+				}
+				mod.MiddlewaresMock = func() ([]Middleware, error) {
+					return nil, errors.New("foo")
+				}
+				return gotenberg.NewContext(
+					gotenberg.ParsedFlags{
+						FlagSet: new(Api).Descriptor().FlagSet,
+					},
+					[]gotenberg.ModuleDescriptor{
+						mod.Descriptor(),
+					},
+				)
+			}(),
+			expectError: true,
+		},
+		{
+			scenario: "no valid health checkers",
+			ctx: func() *gotenberg.Context {
+				mod := &struct {
+					gotenberg.ModuleMock
+					gotenberg.ValidatorMock
+					HealthCheckerMock
+				}{}
+				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod }}
+				}
+				mod.ValidateMock = func() error {
+					return errors.New("foo")
+				}
+				return gotenberg.NewContext(
+					gotenberg.ParsedFlags{
+						FlagSet: new(Api).Descriptor().FlagSet,
+					},
+					[]gotenberg.ModuleDescriptor{
+						mod.Descriptor(),
+					},
+				)
+			}(),
+			expectError: true,
+		},
+		{
+			scenario: "cannot retrieve health checks from health checker",
+			ctx: func() *gotenberg.Context {
+				mod := &struct {
+					gotenberg.ModuleMock
+					HealthCheckerMock
+				}{}
+				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod }}
+				}
+				mod.ChecksMock = func() ([]health.CheckerOption, error) {
+					return nil, errors.New("foo")
+				}
+				return gotenberg.NewContext(
+					gotenberg.ParsedFlags{
+						FlagSet: new(Api).Descriptor().FlagSet,
+					},
+					[]gotenberg.ModuleDescriptor{
+						mod.Descriptor(),
+					},
+				)
+			}(),
+			expectError: true,
+		},
+		{
+			scenario: "no logger provider",
 			ctx: func() *gotenberg.Context {
 				return gotenberg.NewContext(
 					gotenberg.ParsedFlags{
-						FlagSet: new(API).Descriptor().FlagSet,
+						FlagSet: new(Api).Descriptor().FlagSet,
 					},
 					[]gotenberg.ModuleDescriptor{},
 				)
 			}(),
-			expectErr: true,
+			expectError: true,
 		},
 		{
+			scenario: "no logger from logger provider",
 			ctx: func() *gotenberg.Context {
-				mod := struct{ ProtoLoggerProvider }{}
-				mod.descriptor = func() gotenberg.ModuleDescriptor {
+				mod := &struct {
+					gotenberg.ModuleMock
+					gotenberg.LoggerProviderMock
+				}{}
+				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod }}
 				}
-				mod.logger = func(_ gotenberg.Module) (*zap.Logger, error) {
+				mod.LoggerMock = func(mod gotenberg.Module) (*zap.Logger, error) {
 					return nil, errors.New("foo")
 				}
-
 				return gotenberg.NewContext(
 					gotenberg.ParsedFlags{
-						FlagSet: new(API).Descriptor().FlagSet,
+						FlagSet: new(Api).Descriptor().FlagSet,
 					},
 					[]gotenberg.ModuleDescriptor{
 						mod.Descriptor(),
 					},
 				)
 			}(),
-			expectErr: true,
+			expectError: true,
 		},
 		{
+			scenario: "success",
 			ctx: func() *gotenberg.Context {
-				mod1 := struct{ ProtoRouter }{}
-				mod1.descriptor = func() gotenberg.ModuleDescriptor {
+				mod1 := &struct {
+					gotenberg.ModuleMock
+					RouterMock
+				}{}
+				mod1.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod1 }}
 				}
-				mod1.validate = func() error {
-					return nil
-				}
-				mod1.routes = func() ([]Route, error) {
+				mod1.RoutesMock = func() ([]Route, error) {
 					return []Route{{}}, nil
 				}
 
-				mod2 := struct{ ProtoMiddlewareProvider }{}
-				mod2.descriptor = func() gotenberg.ModuleDescriptor {
+				mod2 := &struct {
+					gotenberg.ModuleMock
+					MiddlewareProviderMock
+				}{}
+				mod2.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return mod2 }}
 				}
-				mod2.validate = func() error {
-					return nil
-				}
-				mod2.middlewares = func() ([]Middleware, error) {
+				mod2.MiddlewaresMock = func() ([]Middleware, error) {
 					return []Middleware{
 						{
 							Priority: VeryLowPriority,
@@ -461,28 +335,40 @@ func TestAPI_Provision(t *testing.T) {
 					}, nil
 				}
 
-				mod3 := struct{ ProtoHealthChecker }{}
-				mod3.descriptor = func() gotenberg.ModuleDescriptor {
+				mod3 := &struct {
+					gotenberg.ModuleMock
+					HealthCheckerMock
+				}{}
+				mod3.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "baz", New: func() gotenberg.Module { return mod3 }}
 				}
-				mod3.validate = func() error {
-					return nil
-				}
-				mod3.checks = func() ([]health.CheckerOption, error) {
+				mod3.ChecksMock = func() ([]health.CheckerOption, error) {
 					return []health.CheckerOption{health.WithDisabledAutostart()}, nil
 				}
+				mod3.ReadyMock = func() error {
+					return nil
+				}
 
-				mod4 := struct{ ProtoLoggerProvider }{}
-				mod4.descriptor = func() gotenberg.ModuleDescriptor {
+				mod4 := &struct {
+					gotenberg.ModuleMock
+					gotenberg.LoggerProviderMock
+				}{}
+				mod4.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "qux", New: func() gotenberg.Module { return mod4 }}
 				}
-				mod4.logger = func(_ gotenberg.Module) (*zap.Logger, error) {
+				mod4.LoggerMock = func(_ gotenberg.Module) (*zap.Logger, error) {
 					return zap.NewNop(), nil
+				}
+
+				fs := new(Api).Descriptor().FlagSet
+				err := fs.Parse([]string{"--api-port-from-env=PORT"})
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				return gotenberg.NewContext(
 					gotenberg.ParsedFlags{
-						FlagSet: new(API).Descriptor().FlagSet,
+						FlagSet: fs,
 					},
 					[]gotenberg.ModuleDescriptor{
 						mod1.Descriptor(),
@@ -492,6 +378,13 @@ func TestAPI_Provision(t *testing.T) {
 					},
 				)
 			}(),
+			setEnv: func() {
+				err := os.Setenv("PORT", "1337")
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+			},
+			expectPort: 1337,
 			expectMiddlewares: []Middleware{
 				{
 					Priority: VeryHighPriority,
@@ -509,56 +402,93 @@ func TestAPI_Provision(t *testing.T) {
 					Priority: VeryLowPriority,
 				},
 			},
+			expectError: false,
 		},
 	} {
-		if tc.setEnv != nil {
-			tc.setEnv(i)
-		}
+		t.Run(tc.scenario, func(t *testing.T) {
+			if tc.setEnv != nil {
+				tc.setEnv()
+			}
 
-		mod := new(API)
-		err := mod.Provision(tc.ctx)
+			mod := new(Api)
+			err := mod.Provision(tc.ctx)
 
-		if tc.expectPort != 0 && mod.port != tc.expectPort {
-			t.Errorf("test %d: expected port %d but got %d", i, tc.expectPort, mod.port)
-		}
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
 
-		if !reflect.DeepEqual(mod.externalMiddlewares, tc.expectMiddlewares) {
-			t.Errorf("test %d: expected %+v, but got: %+v", i, tc.expectMiddlewares, mod.externalMiddlewares)
-		}
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
 
-		if tc.expectGraceDuration != 0 && mod.gcGraceDuration != tc.expectGraceDuration {
-			t.Errorf("test %d: expected gc grace duration '%s' but got '%s'", i, tc.expectGraceDuration, mod.gcGraceDuration)
-		}
+			if tc.expectPort != 0 && mod.port != tc.expectPort {
+				t.Errorf("expected port %d but got %d", tc.expectPort, mod.port)
+			}
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
-
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
+			if !reflect.DeepEqual(mod.externalMiddlewares, tc.expectMiddlewares) {
+				t.Errorf("expected %+v, but got: %+v", tc.expectMiddlewares, mod.externalMiddlewares)
+			}
+		})
 	}
 }
 
-func TestAPI_Validate(t *testing.T) {
-	for i, tc := range []struct {
+func TestApi_Validate(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
 		port        int
 		rootPath    string
 		traceHeader string
 		routes      []Route
 		middlewares []Middleware
-		expectErr   bool
+		expectError bool
 	}{
 		{
-			port:      0,
-			expectErr: true,
+			scenario:    "invalid port (< 1)",
+			port:        0,
+			rootPath:    "/foo/",
+			traceHeader: "foo",
+			routes:      nil,
+			middlewares: nil,
+			expectError: true,
 		},
 		{
-			port:      65536,
-			rootPath:  "foo",
-			expectErr: true,
+			scenario:    "invalid port (> 65535)",
+			port:        65536,
+			rootPath:    "/foo/",
+			traceHeader: "foo",
+			routes:      nil,
+			middlewares: nil,
+			expectError: true,
 		},
 		{
+			scenario:    "invalid root path: missing / prefix",
+			port:        10,
+			rootPath:    "foo/",
+			traceHeader: "foo",
+			routes:      nil,
+			middlewares: nil,
+			expectError: true,
+		},
+		{
+			scenario:    "invalid root path: missing / suffix",
+			port:        10,
+			rootPath:    "/foo",
+			traceHeader: "foo",
+			routes:      nil,
+			middlewares: nil,
+			expectError: true,
+		},
+		{
+			scenario:    "invalid trace header",
+			port:        10,
+			rootPath:    "/foo/",
+			traceHeader: "",
+			routes:      nil,
+			middlewares: nil,
+			expectError: true,
+		},
+		{
+			scenario:    "invalid route: empty path",
 			port:        10,
 			rootPath:    "/foo/",
 			traceHeader: "foo",
@@ -567,9 +497,11 @@ func TestAPI_Validate(t *testing.T) {
 					Path: "",
 				},
 			},
-			expectErr: true,
+			middlewares: nil,
+			expectError: true,
 		},
 		{
+			scenario:    "invalid route: missing / prefix in path",
 			port:        10,
 			rootPath:    "/foo/",
 			traceHeader: "foo",
@@ -578,9 +510,11 @@ func TestAPI_Validate(t *testing.T) {
 					Path: "foo",
 				},
 			},
-			expectErr: true,
+			middlewares: nil,
+			expectError: true,
 		},
 		{
+			scenario:    "invalid multipart route: no /forms prefix in path",
 			port:        10,
 			rootPath:    "/foo/",
 			traceHeader: "foo",
@@ -590,34 +524,40 @@ func TestAPI_Validate(t *testing.T) {
 					IsMultipart: true,
 				},
 			},
-			expectErr: true,
+			middlewares: nil,
+			expectError: true,
 		},
 		{
+			scenario:    "invalid route: no method",
 			port:        10,
 			rootPath:    "/foo/",
 			traceHeader: "foo",
 			routes: []Route{
 				{
-					Path:        "/forms/foo",
-					IsMultipart: true,
+					Path:   "/foo",
+					Method: "",
 				},
 			},
-			expectErr: true,
+			middlewares: nil,
+			expectError: true,
 		},
 		{
+			scenario:    "invalid route: nil handler",
 			port:        10,
 			rootPath:    "/foo/",
 			traceHeader: "foo",
 			routes: []Route{
 				{
-					Method:      http.MethodPost,
-					Path:        "/forms/foo",
-					IsMultipart: true,
+					Method:  http.MethodPost,
+					Path:    "/foo",
+					Handler: nil,
 				},
 			},
-			expectErr: true,
+			middlewares: nil,
+			expectError: true,
 		},
 		{
+			scenario:    "invalid route: path already existing",
 			port:        10,
 			rootPath:    "/foo/",
 			traceHeader: "foo",
@@ -633,20 +573,25 @@ func TestAPI_Validate(t *testing.T) {
 					Handler: func(_ echo.Context) error { return nil },
 				},
 			},
-			expectErr: true,
+			middlewares: nil,
+			expectError: true,
 		},
 		{
+			scenario:    "invalid middleware: nil handler",
 			port:        10,
 			rootPath:    "/foo/",
 			traceHeader: "foo",
+			routes:      nil,
 			middlewares: []Middleware{
 				{
 					Priority: HighPriority,
+					Handler:  nil,
 				},
 			},
-			expectErr: true,
+			expectError: true,
 		},
 		{
+			scenario:    "success",
 			port:        10,
 			rootPath:    "/foo/",
 			traceHeader: "foo",
@@ -655,6 +600,12 @@ func TestAPI_Validate(t *testing.T) {
 					Method:  http.MethodGet,
 					Path:    "/foo",
 					Handler: func(_ echo.Context) error { return nil },
+				},
+				{
+					Method:      http.MethodGet,
+					Path:        "/forms/foo",
+					Handler:     func(_ echo.Context) error { return nil },
+					IsMultipart: true,
 				},
 			},
 			middlewares: []Middleware{
@@ -671,166 +622,203 @@ func TestAPI_Validate(t *testing.T) {
 			},
 		},
 	} {
-		mod := API{
-			port:                tc.port,
-			rootPath:            tc.rootPath,
-			traceHeader:         tc.traceHeader,
-			routes:              tc.routes,
-			externalMiddlewares: tc.middlewares,
-		}
+		t.Run(tc.scenario, func(t *testing.T) {
+			mod := Api{
+				port:                tc.port,
+				rootPath:            tc.rootPath,
+				traceHeader:         tc.traceHeader,
+				routes:              tc.routes,
+				externalMiddlewares: tc.middlewares,
+			}
 
-		err := mod.Validate()
-
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
-
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
-	}
-}
-
-func TestAPI_Start(t *testing.T) {
-	mod := new(API)
-	mod.port = 3000
-	mod.rootPath = "/"
-	mod.disableHealthCheckLogging = true
-	mod.routes = []Route{
-		{
-			Method:         http.MethodPost,
-			Path:           "/forms/foo",
-			IsMultipart:    true,
-			DisableLogging: true,
-			Handler: func(c echo.Context) error {
-				ctx := c.Get("context").(*Context)
-				ctx.outputPaths = []string{
-					"/tests/test/testdata/api/sample1.txt",
-				}
-
-				return nil
-			},
-		},
-		{
-			Method:      http.MethodPost,
-			Path:        "/forms/bar",
-			IsMultipart: true,
-			Handler:     func(_ echo.Context) error { return errors.New("foo") },
-		},
-	}
-	mod.externalMiddlewares = []Middleware{
-		{
-			Stack: PreRouterStack,
-			Handler: func() echo.MiddlewareFunc {
-				return func(next echo.HandlerFunc) echo.HandlerFunc {
-					return func(c echo.Context) error {
-						return next(c)
-					}
-				}
-			}(),
-		},
-		{
-			Stack: MultipartStack,
-			Handler: func() echo.MiddlewareFunc {
-				return func(next echo.HandlerFunc) echo.HandlerFunc {
-					return func(c echo.Context) error {
-						return next(c)
-					}
-				}
-			}(),
-		},
-		{
-			Stack: DefaultStack,
-			Handler: func() echo.MiddlewareFunc {
-				return func(next echo.HandlerFunc) echo.HandlerFunc {
-					return func(c echo.Context) error {
-						return next(c)
-					}
-				}
-			}(),
-		},
-		{
-			Handler: func() echo.MiddlewareFunc {
-				return func(next echo.HandlerFunc) echo.HandlerFunc {
-					return func(c echo.Context) error {
-						return next(c)
-					}
-				}
-			}(),
-		},
-	}
-	mod.logger = zap.NewNop()
-
-	err := mod.Start()
-	if err != nil {
-		t.Fatalf("expected no error but got: %v", err)
-	}
-
-	// health request.
-	recorder := httptest.NewRecorder()
-	healthRequest := httptest.NewRequest(http.MethodGet, "/health", nil)
-
-	mod.srv.ServeHTTP(recorder, healthRequest)
-	if recorder.Code != http.StatusOK {
-		t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
-	}
-
-	// "multipart/form-data" request.
-	multipartRequest := func(URL string) *http.Request {
-		body := &bytes.Buffer{}
-
-		writer := multipart.NewWriter(body)
-
-		defer func() {
-			err := writer.Close()
-			if err != nil {
+			err := mod.Validate()
+			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
 			}
-		}()
 
-		err := writer.WriteField("foo", "foo")
-		if err != nil {
-			t.Fatalf("expected no error but got: %v", err)
-		}
-
-		part, err := writer.CreateFormFile("foo.txt", "foo.txt")
-		if err != nil {
-			t.Fatalf("expected no error but got: %v", err)
-		}
-
-		_, err = part.Write([]byte("foo"))
-		if err != nil {
-			t.Fatalf("expected no error but got: %v", err)
-		}
-
-		req := httptest.NewRequest(http.MethodPost, URL, body)
-		req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
-
-		return req
-	}
-
-	recorder = httptest.NewRecorder()
-	mod.srv.ServeHTTP(recorder, multipartRequest("/forms/foo"))
-
-	if recorder.Code != http.StatusOK {
-		t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
-	}
-
-	recorder = httptest.NewRecorder()
-	mod.srv.ServeHTTP(recorder, multipartRequest("/forms/bar"))
-
-	if recorder.Code != http.StatusInternalServerError {
-		t.Errorf("expected %d status code but got %d", http.StatusInternalServerError, recorder.Code)
-	}
-
-	err = mod.srv.Shutdown(context.TODO())
-	if err != nil {
-		t.Errorf("expected no error but got: %v", err)
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
+		})
 	}
 }
 
-func TestAPI_StartupMessage(t *testing.T) {
-	mod := API{
+func TestApi_Start(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		readyFn     []func() error
+		expectError bool
+	}{
+		{
+			scenario: "at least one module not ready",
+			readyFn: []func() error{
+				func() error { return nil },
+				func() error { return errors.New("not ready") },
+			},
+			expectError: true,
+		},
+		{
+			scenario: "success",
+			readyFn: []func() error{
+				func() error { return nil },
+				func() error { return nil },
+			},
+			expectError: false,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			mod := new(Api)
+			mod.port = 3000
+			mod.startTimeout = time.Duration(30) * time.Second
+			mod.rootPath = "/"
+			mod.disableHealthCheckLogging = true
+			mod.routes = []Route{
+				{
+					Method:         http.MethodPost,
+					Path:           "/forms/foo",
+					IsMultipart:    true,
+					DisableLogging: true,
+					Handler: func(c echo.Context) error {
+						ctx := c.Get("context").(*Context)
+						ctx.outputPaths = []string{
+							"/tests/test/testdata/api/sample1.txt",
+						}
+
+						return nil
+					},
+				},
+				{
+					Method:      http.MethodPost,
+					Path:        "/forms/bar",
+					IsMultipart: true,
+					Handler:     func(_ echo.Context) error { return errors.New("foo") },
+				},
+			}
+			mod.externalMiddlewares = []Middleware{
+				{
+					Stack: PreRouterStack,
+					Handler: func() echo.MiddlewareFunc {
+						return func(next echo.HandlerFunc) echo.HandlerFunc {
+							return func(c echo.Context) error {
+								return next(c)
+							}
+						}
+					}(),
+				},
+				{
+					Stack: MultipartStack,
+					Handler: func() echo.MiddlewareFunc {
+						return func(next echo.HandlerFunc) echo.HandlerFunc {
+							return func(c echo.Context) error {
+								return next(c)
+							}
+						}
+					}(),
+				},
+				{
+					Stack: DefaultStack,
+					Handler: func() echo.MiddlewareFunc {
+						return func(next echo.HandlerFunc) echo.HandlerFunc {
+							return func(c echo.Context) error {
+								return next(c)
+							}
+						}
+					}(),
+				},
+				{
+					Handler: func() echo.MiddlewareFunc {
+						return func(next echo.HandlerFunc) echo.HandlerFunc {
+							return func(c echo.Context) error {
+								return next(c)
+							}
+						}
+					}(),
+				},
+			}
+			mod.readyFn = tc.readyFn
+			mod.fs = gotenberg.NewFileSystem()
+			mod.logger = zap.NewNop()
+
+			err := mod.Start()
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
+
+			if tc.expectError {
+				return
+			}
+
+			// health request.
+			recorder := httptest.NewRecorder()
+			healthRequest := httptest.NewRequest(http.MethodGet, "/health", nil)
+
+			mod.srv.ServeHTTP(recorder, healthRequest)
+			if recorder.Code != http.StatusOK {
+				t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
+			}
+
+			// "multipart/form-data" request.
+			multipartRequest := func(url string) *http.Request {
+				body := &bytes.Buffer{}
+
+				writer := multipart.NewWriter(body)
+
+				defer func() {
+					err := writer.Close()
+					if err != nil {
+						t.Fatalf("expected no error but got: %v", err)
+					}
+				}()
+
+				err := writer.WriteField("foo", "foo")
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				part, err := writer.CreateFormFile("foo.txt", "foo.txt")
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				_, err = part.Write([]byte("foo"))
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				req := httptest.NewRequest(http.MethodPost, url, body)
+				req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
+
+				return req
+			}
+
+			recorder = httptest.NewRecorder()
+			mod.srv.ServeHTTP(recorder, multipartRequest("/forms/foo"))
+
+			if recorder.Code != http.StatusOK {
+				t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
+			}
+
+			recorder = httptest.NewRecorder()
+			mod.srv.ServeHTTP(recorder, multipartRequest("/forms/bar"))
+
+			if recorder.Code != http.StatusInternalServerError {
+				t.Errorf("expected %d status code but got %d", http.StatusInternalServerError, recorder.Code)
+			}
+
+			err = mod.srv.Shutdown(context.TODO())
+			if err != nil {
+				t.Errorf("expected no error but got: %v", err)
+			}
+		})
+	}
+}
+
+func TestApi_StartupMessage(t *testing.T) {
+	mod := Api{
 		port: 3000,
 	}
 
@@ -842,8 +830,8 @@ func TestAPI_StartupMessage(t *testing.T) {
 	}
 }
 
-func TestAPI_Stop(t *testing.T) {
-	mod := API{
+func TestApi_Stop(t *testing.T) {
+	mod := &Api{
 		port: 3000,
 		routes: []Route{
 			{
@@ -865,37 +853,3 @@ func TestAPI_Stop(t *testing.T) {
 		t.Errorf("expected no error but got: %v", err)
 	}
 }
-
-func TestAPI_GraceDuration(t *testing.T) {
-	mod := API{
-		gcGraceDuration: time.Duration(3) * time.Second,
-	}
-
-	expect := time.Duration(3) * time.Second
-	actual := mod.GraceDuration()
-
-	if actual != expect {
-		t.Errorf("expected '%s' but got '%s'", expect, actual)
-	}
-}
-
-// Interface guards.
-var (
-	_ gotenberg.Module                         = (*ProtoModule)(nil)
-	_ gotenberg.Validator                      = (*ProtoValidator)(nil)
-	_ gotenberg.Module                         = (*ProtoValidator)(nil)
-	_ Router                                   = (*ProtoRouter)(nil)
-	_ gotenberg.Module                         = (*ProtoRouter)(nil)
-	_ gotenberg.Validator                      = (*ProtoRouter)(nil)
-	_ MiddlewareProvider                       = (*ProtoMiddlewareProvider)(nil)
-	_ gotenberg.Module                         = (*ProtoMiddlewareProvider)(nil)
-	_ gotenberg.Validator                      = (*ProtoMiddlewareProvider)(nil)
-	_ HealthChecker                            = (*ProtoHealthChecker)(nil)
-	_ gotenberg.Module                         = (*ProtoHealthChecker)(nil)
-	_ gotenberg.Validator                      = (*ProtoHealthChecker)(nil)
-	_ GarbageCollectorGraceDurationIncrementer = (*ProtoGarbageCollectorGraceDurationIncrementer)(nil)
-	_ gotenberg.Module                         = (*ProtoGarbageCollectorGraceDurationIncrementer)(nil)
-	_ gotenberg.Validator                      = (*ProtoGarbageCollectorGraceDurationIncrementer)(nil)
-	_ gotenberg.LoggerProvider                 = (*ProtoLoggerProvider)(nil)
-	_ gotenberg.Module                         = (*ProtoLoggerProvider)(nil)
-)

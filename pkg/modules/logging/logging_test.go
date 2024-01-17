@@ -1,23 +1,19 @@
 package logging
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
-type ProtoModule struct {
-	descriptor func() gotenberg.ModuleDescriptor
-}
-
-func (mod ProtoModule) Descriptor() gotenberg.ModuleDescriptor {
-	return mod.descriptor()
-}
-
 func TestLogging_Descriptor(t *testing.T) {
-	descriptor := Logging{}.Descriptor()
+	descriptor := new(Logging).Descriptor()
 
 	actual := reflect.TypeOf(descriptor.New())
 	expect := reflect.TypeOf(new(Logging))
@@ -28,172 +24,324 @@ func TestLogging_Descriptor(t *testing.T) {
 }
 
 func TestLogging_Provision(t *testing.T) {
-	logging := new(Logging)
-	fs := logging.Descriptor().FlagSet
+	for _, tc := range []struct {
+		scenario           string
+		level              string
+		format             string
+		fieldsPrefix       string
+		expectLevel        string
+		expectFormat       string
+		expectFieldsPrefix string
+	}{
+		{
+			scenario:           "default values",
+			expectLevel:        infoLoggingLevel,
+			expectFormat:       autoLoggingFormat,
+			expectFieldsPrefix: "",
+		},
+		{
+			scenario:           "explicit values",
+			level:              "debug",
+			format:             "json",
+			fieldsPrefix:       "gotenberg",
+			expectLevel:        debugLoggingLevel,
+			expectFormat:       jsonLoggingFormat,
+			expectFieldsPrefix: "gotenberg",
+		},
+		{
+			scenario:           "wrong values", // no validation at this point.
+			level:              "foo",
+			format:             "foo",
+			expectLevel:        "foo",
+			expectFormat:       "foo",
+			expectFieldsPrefix: "",
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			var flags []string
 
-	err := fs.Parse([]string{""})
-	if err != nil {
-		t.Fatalf("expected no error but got: %v", err)
-	}
+			if tc.level != "" {
+				flags = append(flags, "--log-level", tc.level)
+			}
 
-	ctx := gotenberg.NewContext(gotenberg.ParsedFlags{FlagSet: fs}, nil)
+			if tc.format != "" {
+				flags = append(flags, "--log-format", tc.format)
+			}
 
-	err = logging.Provision(ctx)
-	if err != nil {
-		t.Errorf("expected no error but got: %v", err)
+			if tc.fieldsPrefix != "" {
+				flags = append(flags, "--log-fields-prefix", tc.fieldsPrefix)
+			}
+
+			logging := new(Logging)
+			fs := logging.Descriptor().FlagSet
+
+			err := fs.Parse(flags)
+			if err != nil {
+				t.Fatalf("expected no error while parsing flags but got: %v", err)
+			}
+
+			ctx := gotenberg.NewContext(gotenberg.ParsedFlags{FlagSet: fs}, nil)
+
+			err = logging.Provision(ctx)
+			if err != nil {
+				t.Fatalf("expected no error while provisioning but got: %v", err)
+			}
+
+			if logging.level != tc.expectLevel {
+				t.Errorf("expected logging level '%s' but got '%s'", tc.expectLevel, logging.level)
+			}
+
+			if logging.format != tc.expectFormat {
+				t.Errorf("expected logging format '%s' but got '%s'", tc.expectFormat, logging.format)
+			}
+
+			if logging.fieldsPrefix != tc.expectFieldsPrefix {
+				t.Errorf("expected logging fields prefix '%s' but got '%s'", tc.expectFieldsPrefix, logging.fieldsPrefix)
+			}
+		})
 	}
 }
 
 func TestLogging_Validate(t *testing.T) {
-	for i, tc := range []struct {
-		level, format string
-		expectErr     bool
+	for _, tc := range []struct {
+		scenario    string
+		level       string
+		format      string
+		expectError bool
 	}{
 		{
-			level:     "foo",
-			expectErr: true,
+			scenario:    "invalid level",
+			level:       "foo",
+			expectError: true,
 		},
 		{
-			level:     debugLoggingLevel,
-			format:    "foo",
-			expectErr: true,
+			scenario:    "invalid format",
+			level:       debugLoggingLevel,
+			format:      "foo",
+			expectError: true,
 		},
 		{
-			level:  debugLoggingLevel,
-			format: autoLoggingFormat,
+			scenario: "valid level and format",
+			level:    debugLoggingLevel,
+			format:   autoLoggingFormat,
 		},
 	} {
-		mod := new(Logging)
-		mod.level = tc.level
-		mod.format = tc.format
+		logging := new(Logging)
+		logging.level = tc.level
+		logging.format = tc.format
 
-		err := mod.Validate()
+		err := logging.Validate()
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
+		if tc.expectError && err == nil {
+			t.Errorf("%s: expected error but got: %v", tc.scenario, err)
 		}
 
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
+		if !tc.expectError && err != nil {
+			t.Errorf("%s: expected no error but got: %v", tc.scenario, err)
 		}
 	}
 }
 
 func TestLogging_Logger(t *testing.T) {
-	for i, tc := range []struct {
-		level, format string
-		expectErr     bool
+	for _, tc := range []struct {
+		scenario     string
+		level        string
+		format       string
+		fieldsPrefix string
+		expectError  bool
 	}{
 		{
-			level:     "foo",
-			expectErr: true,
+			scenario:    "invalid level",
+			level:       "foo",
+			expectError: true,
 		},
 		{
-			level:     debugLoggingLevel,
-			format:    "foo",
-			expectErr: true,
+			scenario:    "invalid format",
+			level:       debugLoggingLevel,
+			format:      "foo",
+			expectError: true,
 		},
 		{
-			level:  debugLoggingLevel,
-			format: autoLoggingFormat,
+			scenario: "valid level and format",
+			level:    debugLoggingLevel,
+			format:   autoLoggingFormat,
 		},
 	} {
-		mod := new(Logging)
-		mod.level = tc.level
-		mod.format = tc.format
+		t.Run(tc.scenario, func(t *testing.T) {
+			logging := new(Logging)
+			logging.level = tc.level
+			logging.format = tc.format
+			logging.fieldsPrefix = tc.fieldsPrefix
 
-		_, err := mod.Logger(ProtoModule{
-			descriptor: func() gotenberg.ModuleDescriptor {
-				return gotenberg.ModuleDescriptor{ID: "foo", New: nil}
-			},
+			_, err := logging.Logger(&gotenberg.ModuleMock{
+				DescriptorMock: func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "mock", New: nil}
+				},
+			})
+
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
+
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
 		})
-
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
-
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
 	}
 }
 
-func TestNewLogLevel(t *testing.T) {
-	for i, tc := range []struct {
-		level          string
-		expectZapLevel zapcore.Level
-		expectErr      bool
+func TestCustomCore(t *testing.T) {
+	for _, tc := range []struct {
+		scenario     string
+		level        zapcore.Level
+		fieldsPrefix string
+		expectEntry  bool
 	}{
 		{
+			scenario:     "level enabled",
+			level:        zapcore.DebugLevel,
+			fieldsPrefix: "gotenberg",
+			expectEntry:  true,
+		},
+		{
+			scenario:    "no fields prefix",
+			level:       zapcore.DebugLevel,
+			expectEntry: true,
+		},
+		{
+			scenario: "level disabled",
+			level:    zapcore.ErrorLevel,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			core, obsvr := observer.New(tc.level)
+			lgr := zap.New(customCore{
+				Core:         core,
+				fieldsPrefix: tc.fieldsPrefix,
+			}).With(zap.String("a_field", "a value"))
+
+			lgr.Debug("a debug message", zap.String("another_field", "another value"))
+
+			entries := obsvr.TakeAll()
+
+			if tc.expectEntry && len(entries) == 0 {
+				t.Fatal("expected an entry")
+			}
+
+			if !tc.expectEntry && len(entries) != 0 {
+				t.Fatal("expected no entry")
+			}
+
+			var prefix string
+			if tc.fieldsPrefix != "" {
+				prefix = tc.fieldsPrefix + "_"
+			}
+
+			for _, entry := range entries {
+				fields := entry.Context
+
+				if len(fields) != 2 {
+					t.Fatalf("expected 2 fields but got %d", len(fields))
+				}
+
+				if fields[0].Key != fmt.Sprintf("%sa_field", prefix) {
+					t.Errorf("expected 'gotenberg_a_field' but got '%s'", fields[0].Key)
+				}
+
+				if fields[1].Key != fmt.Sprintf("%sanother_field", prefix) {
+					t.Errorf("expected 'gotenberg_another_field' but got '%s'", fields[1].Key)
+				}
+			}
+		})
+	}
+}
+
+func Test_newLogLevel(t *testing.T) {
+	for _, tc := range []struct {
+		scenario       string
+		level          string
+		expectZapLevel zapcore.Level
+		expectError    bool
+	}{
+		{
+			scenario:       "error level",
 			level:          errorLoggingLevel,
 			expectZapLevel: zapcore.ErrorLevel,
 		},
 		{
+			scenario:       "warning level",
 			level:          warnLoggingLevel,
 			expectZapLevel: zapcore.WarnLevel,
 		},
 		{
+			scenario:       "info level",
 			level:          infoLoggingLevel,
 			expectZapLevel: zapcore.InfoLevel,
 		},
 		{
+			scenario:       "debug level",
 			level:          debugLoggingLevel,
 			expectZapLevel: zapcore.DebugLevel,
 		},
 		{
+			scenario:       "invalid level",
 			level:          "foo",
-			expectZapLevel: -2,
-			expectErr:      true,
+			expectZapLevel: zapcore.InvalidLevel,
+			expectError:    true,
 		},
 	} {
-		actual, err := newLogLevel(tc.level)
+		t.Run(tc.scenario, func(t *testing.T) {
+			actual, err := newLogLevel(tc.level)
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
 
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
 
-		if tc.expectZapLevel != actual {
-			t.Errorf("test %d: expected %d level but got %d", i, tc.expectZapLevel, actual)
-		}
+			if tc.expectZapLevel != actual {
+				t.Errorf("expected %d level but got %d", tc.expectZapLevel, actual)
+			}
+		})
 	}
 }
 
-func TestNewLogEncoder(t *testing.T) {
-	for i, tc := range []struct {
-		format    string
-		expectErr bool
+func Test_newLogEncoder(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		format      string
+		expectError bool
 	}{
 		{
-			format: autoLoggingFormat,
+			scenario: "auto format",
+			format:   autoLoggingFormat,
 		},
 		{
-			format: textLoggingFormat,
+			scenario: "text format",
+			format:   textLoggingFormat,
 		},
 		{
-			format: jsonLoggingFormat,
+			scenario: "json format",
+			format:   jsonLoggingFormat,
 		},
 		{
-			format:    "foo",
-			expectErr: true,
+			scenario:    "invalid format",
+			format:      "foo",
+			expectError: true,
 		},
 	} {
-		_, err := newLogEncoder(tc.format)
+		t.Run(tc.scenario, func(t *testing.T) {
+			_, err := newLogEncoder(tc.format)
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
 
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
+			if !tc.expectError && err != nil {
+				t.Errorf("expected no error but got: %v", err)
+			}
+		})
 	}
 }
-
-// Interface guards.
-var (
-	_ gotenberg.Module = (*ProtoModule)(nil)
-)

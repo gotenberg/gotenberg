@@ -13,12 +13,12 @@ PDFTK_VERSION="$6"
 DOCKER_REPOSITORY="$7"
 
 GOTENBERG_VERSION="${GOTENBERG_VERSION//v}"
-SEMVER=( ${GOTENBERG_VERSION//./ } )
+IFS='.' read -ra SEMVER <<< "$GOTENBERG_VERSION"
 VERSION_LENGTH=${#SEMVER[@]}
 
-if [ $VERSION_LENGTH -ne 3 ]; then
-    echo "$VERSION is not semver."
-    exit 1
+if [ "$VERSION_LENGTH" -ne 3 ]; then
+  echo "$VERSION is not semver."
+  exit 1
 fi
 
 docker buildx build \
@@ -29,7 +29,13 @@ docker buildx build \
   --build-arg NOTO_COLOR_EMOJI_VERSION="$NOTO_COLOR_EMOJI_VERSION" \
   --build-arg PDFTK_VERSION="$PDFTK_VERSION" \
   --platform linux/amd64 \
+  --platform linux/arm64 \
+  --platform linux/386 \
+  --platform linux/arm/v7 \
   -t "$DOCKER_REPO_GH/gotenberg:latest" \
+  -t "$DOCKER_REPO_GH/gotenberg:${SEMVER[0]}" \
+  -t "$DOCKER_REPO_GH/gotenberg:${SEMVER[0]}.${SEMVER[1]}" \
   -t "$DOCKER_REPO_GH/gotenberg:${SEMVER[0]}.${SEMVER[1]}.${SEMVER[2]}" \
   --push \
   -f build/Dockerfile.bc .
+

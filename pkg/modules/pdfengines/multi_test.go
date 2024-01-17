@@ -5,65 +5,68 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
-func TestMultiPDFEngines_Merge(t *testing.T) {
-	tests := []struct {
-		name           string
-		engine         *multiPDFEngines
-		ctx            context.Context
-		expectMergeErr bool
+func TestMultiPdfEngines_Merge(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		engine      *multiPdfEngines
+		ctx         context.Context
+		expectError bool
 	}{
 		{
-			name: "nominal behavior",
-			engine: newMultiPDFEngines(
-				gotenberg.PDFEngineMock{
+			scenario: "nominal behavior",
+			engine: newMultiPdfEngines(
+				&gotenberg.PdfEngineMock{
 					MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 						return nil
 					},
 				},
 			),
-			ctx: context.Background(),
+			ctx:         context.Background(),
+			expectError: false,
 		},
 		{
-			name: "at least one engine does not return an error",
-			engine: newMultiPDFEngines(
-				gotenberg.PDFEngineMock{
+			scenario: "at least one engine does not return an error",
+			engine: newMultiPdfEngines(
+				&gotenberg.PdfEngineMock{
 					MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 						return errors.New("foo")
 					},
 				},
-				gotenberg.PDFEngineMock{
+				&gotenberg.PdfEngineMock{
 					MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 						return nil
 					},
 				},
 			),
-			ctx: context.Background(),
+			ctx:         context.Background(),
+			expectError: false,
 		},
 		{
-			name: "all engines return an error",
-			engine: newMultiPDFEngines(
-				gotenberg.PDFEngineMock{
+			scenario: "all engines return an error",
+			engine: newMultiPdfEngines(
+				&gotenberg.PdfEngineMock{
 					MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 						return errors.New("foo")
 					},
 				},
-				gotenberg.PDFEngineMock{
+				&gotenberg.PdfEngineMock{
 					MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 						return errors.New("foo")
 					},
 				},
 			),
-			ctx:            context.Background(),
-			expectMergeErr: true,
+			ctx:         context.Background(),
+			expectError: true,
 		},
 		{
-			name: "context expired",
-			engine: newMultiPDFEngines(
-				gotenberg.PDFEngineMock{
+			scenario: "context expired",
+			engine: newMultiPdfEngines(
+				&gotenberg.PdfEngineMock{
 					MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 						return nil
 					},
@@ -75,37 +78,35 @@ func TestMultiPDFEngines_Merge(t *testing.T) {
 
 				return ctx
 			}(),
-			expectMergeErr: true,
+			expectError: true,
 		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
 			err := tc.engine.Merge(tc.ctx, zap.NewNop(), nil, "")
 
-			if tc.expectMergeErr && err == nil {
-				t.Errorf("expected engine.Merge() error, but got none")
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
 			}
 
-			if !tc.expectMergeErr && err != nil {
-				t.Errorf("expected no error from engine.Merge(), but got: %v", err)
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
 			}
 		})
 	}
 }
 
-func TestMultiPDFEngines_Convert(t *testing.T) {
-	tests := []struct {
-		name             string
-		engine           *multiPDFEngines
-		ctx              context.Context
-		expectConvertErr bool
+func TestMultiPdfEngines_Convert(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		engine      *multiPdfEngines
+		ctx         context.Context
+		expectError bool
 	}{
 		{
-			name: "nominal behavior",
-			engine: newMultiPDFEngines(
-				gotenberg.PDFEngineMock{
-					ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+			scenario: "nominal behavior",
+			engine: newMultiPdfEngines(
+				&gotenberg.PdfEngineMock{
+					ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 						return nil
 					},
 				},
@@ -113,15 +114,15 @@ func TestMultiPDFEngines_Convert(t *testing.T) {
 			ctx: context.Background(),
 		},
 		{
-			name: "at least one engine does not return an error",
-			engine: newMultiPDFEngines(
-				gotenberg.PDFEngineMock{
-					ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+			scenario: "at least one engine does not return an error",
+			engine: newMultiPdfEngines(
+				&gotenberg.PdfEngineMock{
+					ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 						return errors.New("foo")
 					},
 				},
-				gotenberg.PDFEngineMock{
-					ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+				&gotenberg.PdfEngineMock{
+					ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 						return nil
 					},
 				},
@@ -129,27 +130,27 @@ func TestMultiPDFEngines_Convert(t *testing.T) {
 			ctx: context.Background(),
 		},
 		{
-			name: "all engines return an error",
-			engine: newMultiPDFEngines(
-				gotenberg.PDFEngineMock{
-					ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+			scenario: "all engines return an error",
+			engine: newMultiPdfEngines(
+				&gotenberg.PdfEngineMock{
+					ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 						return errors.New("foo")
 					},
 				},
-				gotenberg.PDFEngineMock{
-					ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+				&gotenberg.PdfEngineMock{
+					ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 						return errors.New("foo")
 					},
 				},
 			),
-			ctx:              context.Background(),
-			expectConvertErr: true,
+			ctx:         context.Background(),
+			expectError: true,
 		},
 		{
-			name: "context expired",
-			engine: newMultiPDFEngines(
-				gotenberg.PDFEngineMock{
-					ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
+			scenario: "context expired",
+			engine: newMultiPdfEngines(
+				&gotenberg.PdfEngineMock{
+					ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 						return nil
 					},
 				},
@@ -160,20 +161,18 @@ func TestMultiPDFEngines_Convert(t *testing.T) {
 
 				return ctx
 			}(),
-			expectConvertErr: true,
+			expectError: true,
 		},
-	}
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			err := tc.engine.Convert(tc.ctx, zap.NewNop(), gotenberg.PdfFormats{}, "", "")
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			err := tc.engine.Convert(tc.ctx, zap.NewNop(), "", "", "")
-
-			if tc.expectConvertErr && err == nil {
-				t.Errorf("expected engine.Convert() error, but got none")
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
 			}
 
-			if !tc.expectConvertErr && err != nil {
-				t.Errorf("expected no error from engine.Convert(), but got: %v", err)
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
 			}
 		})
 	}

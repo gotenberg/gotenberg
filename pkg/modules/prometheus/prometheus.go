@@ -7,16 +7,17 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 	"github.com/labstack/echo/v4"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	flag "github.com/spf13/pflag"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
 )
 
 func init() {
-	gotenberg.MustRegisterModule(Prometheus{})
+	gotenberg.MustRegisterModule(new(Prometheus))
 }
 
 // Prometheus is a module which collects metrics and exposes them via an HTTP
@@ -31,8 +32,8 @@ type Prometheus struct {
 	registry *prometheus.Registry
 }
 
-// Descriptor returns a Prometheus's module descriptor.
-func (Prometheus) Descriptor() gotenberg.ModuleDescriptor {
+// Descriptor returns a [Prometheus]'s module descriptor.
+func (mod *Prometheus) Descriptor() gotenberg.ModuleDescriptor {
 	return gotenberg.ModuleDescriptor{
 		ID: "prometheus",
 		FlagSet: func() *flag.FlagSet {
@@ -87,7 +88,7 @@ func (mod *Prometheus) Provision(ctx *gotenberg.Context) error {
 }
 
 // Validate validates the module properties.
-func (mod Prometheus) Validate() error {
+func (mod *Prometheus) Validate() error {
 	if mod.disableCollect {
 		// Exit early.
 		return nil
@@ -119,7 +120,7 @@ func (mod Prometheus) Validate() error {
 }
 
 // Start starts the collect.
-func (mod Prometheus) Start() error {
+func (mod *Prometheus) Start() error {
 	if mod.disableCollect {
 		// Exit early.
 		return nil
@@ -148,7 +149,7 @@ func (mod Prometheus) Start() error {
 }
 
 // StartupMessage returns a custom startup message.
-func (mod Prometheus) StartupMessage() string {
+func (mod *Prometheus) StartupMessage() string {
 	if mod.disableCollect {
 		return "collect disabled"
 	}
@@ -157,12 +158,12 @@ func (mod Prometheus) StartupMessage() string {
 }
 
 // Stop does nothing.
-func (mod Prometheus) Stop(_ context.Context) error {
+func (mod *Prometheus) Stop(ctx context.Context) error {
 	return nil
 }
 
 // Routes returns the HTTP route.
-func (mod Prometheus) Routes() ([]api.Route, error) {
+func (mod *Prometheus) Routes() ([]api.Route, error) {
 	if mod.disableCollect {
 		return nil, nil
 	}

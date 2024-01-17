@@ -3,26 +3,27 @@ package libreoffice
 import (
 	"fmt"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/uno"
 	flag "github.com/spf13/pflag"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
+	libeofficeapi "github.com/gotenberg/gotenberg/v8/pkg/modules/libreoffice/api"
 )
 
 func init() {
-	gotenberg.MustRegisterModule(LibreOffice{})
+	gotenberg.MustRegisterModule(new(LibreOffice))
 }
 
 // LibreOffice is a module which provides a route for converting documents to
 // PDF with LibreOffice.
 type LibreOffice struct {
-	unoAPI        uno.API
-	engine        gotenberg.PDFEngine
+	api           libeofficeapi.Uno
+	engine        gotenberg.PdfEngine
 	disableRoutes bool
 }
 
-// Descriptor returns a LibreOffice's module descriptor.
-func (LibreOffice) Descriptor() gotenberg.ModuleDescriptor {
+// Descriptor returns a [LibreOffice]'s module descriptor.
+func (mod *LibreOffice) Descriptor() gotenberg.ModuleDescriptor {
 	return gotenberg.ModuleDescriptor{
 		ID: "libreoffice",
 		FlagSet: func() *flag.FlagSet {
@@ -40,24 +41,24 @@ func (mod *LibreOffice) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	mod.disableRoutes = flags.MustBool("libreoffice-disable-routes")
 
-	provider, err := ctx.Module(new(uno.Provider))
+	provider, err := ctx.Module(new(libeofficeapi.Provider))
 	if err != nil {
-		return fmt.Errorf("get unoAPI provider: %w", err)
+		return fmt.Errorf("get LibreOffice Uno provider: %w", err)
 	}
 
-	unoAPI, err := provider.(uno.Provider).UNO()
+	libreOfficeApi, err := provider.(libeofficeapi.Provider).LibreOffice()
 	if err != nil {
-		return fmt.Errorf("get unoAPI API: %w", err)
+		return fmt.Errorf("get LibreOffice Uno: %w", err)
 	}
 
-	mod.unoAPI = unoAPI
+	mod.api = libreOfficeApi
 
-	provider, err = ctx.Module(new(gotenberg.PDFEngineProvider))
+	provider, err = ctx.Module(new(gotenberg.PdfEngineProvider))
 	if err != nil {
 		return fmt.Errorf("get PDF engine provider: %w", err)
 	}
 
-	engine, err := provider.(gotenberg.PDFEngineProvider).PDFEngine()
+	engine, err := provider.(gotenberg.PdfEngineProvider).PdfEngine()
 	if err != nil {
 		return fmt.Errorf("get PDF engine: %w", err)
 	}
@@ -68,13 +69,13 @@ func (mod *LibreOffice) Provision(ctx *gotenberg.Context) error {
 }
 
 // Routes returns the HTTP routes.
-func (mod LibreOffice) Routes() ([]api.Route, error) {
+func (mod *LibreOffice) Routes() ([]api.Route, error) {
 	if mod.disableRoutes {
 		return nil, nil
 	}
 
 	return []api.Route{
-		convertRoute(mod.unoAPI, mod.engine),
+		convertRoute(mod.api, mod.engine),
 	}, nil
 }
 
