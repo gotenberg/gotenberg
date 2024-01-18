@@ -4,8 +4,8 @@ go 1.21
 
 require (
 	github.com/alexliesenfeld/health v0.8.0
-	github.com/andybalholm/brotli v1.0.6 // indirect
-	github.com/chromedp/cdproto v0.0.0-20240102194822-c006b26f21c7
+	github.com/andybalholm/brotli v1.1.0 // indirect
+	github.com/chromedp/cdproto v0.0.0-20240116100315-4a0ec5e4c400
 	github.com/chromedp/chromedp v0.9.3
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.5.0
@@ -52,10 +52,9 @@ require (
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-runewidth v0.0.15 // indirect
-	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect
-	github.com/prometheus/common v0.45.0 // indirect
+	github.com/prometheus/common v0.46.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
