@@ -64,7 +64,7 @@ func (engine *LibreOfficePdfEngine) Convert(ctx context.Context, logger *zap.Log
 		return nil
 	}
 
-	if errors.Is(err, api.ErrInvalidPdfFormat) {
+	if errors.Is(err, api.ErrInvalidPdfFormats) {
 		return fmt.Errorf("convert PDF to '%+v' with LibreOffice: %w", formats, gotenberg.ErrPdfFormatNotSupported)
 	}
 

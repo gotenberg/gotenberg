@@ -137,7 +137,7 @@ func TestLibreOfficePdfEngine_Convert(t *testing.T) {
 			scenario: "invalid PDF format",
 			api: &api.ApiMock{
 				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options api.Options) error {
-					return api.ErrInvalidPdfFormat
+					return api.ErrInvalidPdfFormats
 				},
 			},
 			expectError: true,
