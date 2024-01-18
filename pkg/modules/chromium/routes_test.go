@@ -555,7 +555,7 @@ func TestScreenshotUrlRoute(t *testing.T) {
 				})
 				return ctx
 			}(),
-			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error {
 				return errors.New("foo")
 			}},
 			expectError:            true,
@@ -573,7 +573,7 @@ func TestScreenshotUrlRoute(t *testing.T) {
 				})
 				return ctx
 			}(),
-			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error {
 				return nil
 			}},
 			expectError:            false,
@@ -739,7 +739,7 @@ func TestScreenshotHtmlRoute(t *testing.T) {
 				})
 				return ctx
 			}(),
-			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error {
 				return errors.New("foo")
 			}},
 			expectError:            true,
@@ -755,7 +755,7 @@ func TestScreenshotHtmlRoute(t *testing.T) {
 				})
 				return ctx
 			}(),
-			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error {
 				return nil
 			}},
 			expectError:            false,
@@ -1125,7 +1125,7 @@ func TestScreenshotMarkdownRoute(t *testing.T) {
 
 				return ctx
 			}(),
-			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error {
 				return errors.New("foo")
 			}},
 			expectError:            true,
@@ -1160,7 +1160,7 @@ func TestScreenshotMarkdownRoute(t *testing.T) {
 
 				return ctx
 			}(),
-			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error {
 				return nil
 			}},
 			expectError:            false,
@@ -1465,7 +1465,7 @@ func TestScreenshotUrl(t *testing.T) {
 		{
 			scenario: "ErrUrlNotAuthorized",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
-			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error {
 				return ErrUrlNotAuthorized
 			}},
 			options:                DefaultScreenshotOptions(),
@@ -1477,7 +1477,7 @@ func TestScreenshotUrl(t *testing.T) {
 		{
 			scenario: "ErrInvalidEvaluationExpression (without waitForExpression form field)",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
-			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error {
 				return ErrInvalidEvaluationExpression
 			}},
 			options:                DefaultScreenshotOptions(),
@@ -1488,7 +1488,7 @@ func TestScreenshotUrl(t *testing.T) {
 		{
 			scenario: "ErrInvalidEvaluationExpression (with waitForExpression form field)",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
-			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error {
 				return ErrInvalidEvaluationExpression
 			}},
 			options: func() ScreenshotOptions {
@@ -1505,7 +1505,7 @@ func TestScreenshotUrl(t *testing.T) {
 		{
 			scenario: "ErrInvalidHttpStatusCode",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
-			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error {
 				return ErrInvalidHttpStatusCode
 			}},
 			options:                DefaultScreenshotOptions(),
@@ -1517,7 +1517,7 @@ func TestScreenshotUrl(t *testing.T) {
 		{
 			scenario: "ErrConsoleExceptions",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
-			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error {
 				return ErrConsoleExceptions
 			}},
 			options:                DefaultScreenshotOptions(),
@@ -1529,7 +1529,7 @@ func TestScreenshotUrl(t *testing.T) {
 		{
 			scenario: "error from Chromium",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
-			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error {
 				return errors.New("foo")
 			}},
 			options:                DefaultScreenshotOptions(),
@@ -1544,7 +1544,7 @@ func TestScreenshotUrl(t *testing.T) {
 				ctx.SetCancelled(true)
 				return ctx
 			}(),
-			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error {
 				return nil
 			}},
 			options:                DefaultScreenshotOptions(),
@@ -1555,7 +1555,7 @@ func TestScreenshotUrl(t *testing.T) {
 		{
 			scenario: "success",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
-			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error {
 				return nil
 			}},
 			options:                DefaultScreenshotOptions(),

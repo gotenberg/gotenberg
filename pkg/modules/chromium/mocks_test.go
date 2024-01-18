@@ -12,7 +12,7 @@ func TestApiMock(t *testing.T) {
 		PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
 			return nil
 		},
-		ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+		ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error {
 			return nil
 		},
 	}
@@ -22,7 +22,7 @@ func TestApiMock(t *testing.T) {
 		t.Errorf("expected no error from ApiMock.Pdf, but got: %v", err)
 	}
 
-	err = mock.Screenshot(context.Background(), zap.NewNop(), "", "", ScreenshotOptions{})
+	err = mock.Screenshot(context.Background(), zap.NewNop(), "", []string{""}, ScreenshotOptions{})
 	if err != nil {
 		t.Errorf("expected no error from ApiMock.Screenshot, but got: %v", err)
 	}
@@ -33,7 +33,7 @@ func TestBrowserMock(t *testing.T) {
 		pdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
 			return nil
 		},
-		screenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+		screenshotMock: func(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error {
 			return nil
 		},
 	}
@@ -43,7 +43,7 @@ func TestBrowserMock(t *testing.T) {
 		t.Errorf("expected no error from browserMock.pdf, but got: %v", err)
 	}
 
-	err = mock.screenshot(context.Background(), zap.NewNop(), "", "", ScreenshotOptions{})
+	err = mock.screenshot(context.Background(), zap.NewNop(), "", []string{""}, ScreenshotOptions{})
 	if err != nil {
 		t.Errorf("expected no error from browserMock.screenshot, but got: %v", err)
 	}
