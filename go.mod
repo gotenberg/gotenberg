@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/alexliesenfeld/health v0.8.0
 	github.com/andybalholm/brotli v1.1.0 // indirect
-  github.com/barasher/go-exiftool v1.10.0
+	github.com/barasher/go-exiftool v1.10.0
 	github.com/chromedp/cdproto v0.0.0-20240116100315-4a0ec5e4c400
 	github.com/chromedp/chromedp v0.9.3
 	github.com/golang/snappy v0.0.4 // indirect
