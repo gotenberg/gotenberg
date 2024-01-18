@@ -79,6 +79,16 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 
 				err = libreOffice.Pdf(ctx, ctx.Log(), inputPath, outputPaths[i], options)
 				if err != nil {
+					if errors.Is(err, libreofficeapi.ErrInvalidPdfFormats) {
+						return api.WrapError(
+							fmt.Errorf("convert to PDF: %w", err),
+							api.NewSentinelHttpError(
+								http.StatusBadRequest,
+								fmt.Sprintf("A PDF format in '%+v' is not supported", pdfFormats),
+							),
+						)
+					}
+
 					if errors.Is(err, libreofficeapi.ErrMalformedPageRanges) {
 						return api.WrapError(
 							fmt.Errorf("convert to PDF: %w", err),

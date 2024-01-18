@@ -235,7 +235,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 			expectError:  true,
 		},
 		{
-			scenario: "ErrInvalidPdfFormat",
+			scenario: "ErrInvalidPdfFormats",
 			libreOffice: func() libreOffice {
 				p := new(libreOfficeProcess)
 				p.socketPort = 12345
@@ -247,7 +247,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 			cancelledCtx:  false,
 			start:         false,
 			expectError:   true,
-			expectedError: ErrInvalidPdfFormat,
+			expectedError: ErrInvalidPdfFormats,
 		},
 		{
 			scenario: "ErrMalformedPageRanges",

@@ -21,9 +21,9 @@ func init() {
 }
 
 var (
-	// ErrInvalidPdfFormat happens if the PDF format option cannot be handled
+	// ErrInvalidPdfFormats happens if the PDF formats option cannot be handled
 	// by LibreOffice.
-	ErrInvalidPdfFormat = errors.New("invalid PDF format")
+	ErrInvalidPdfFormats = errors.New("invalid PDF formats")
 
 	// ErrMalformedPageRanges happens if the page ranges option cannot be
 	// interpreted by LibreOffice.
