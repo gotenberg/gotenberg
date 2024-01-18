@@ -282,7 +282,7 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 	case gotenberg.PdfA3b:
 		args = append(args, "--export", "SelectPdfVersion=3")
 	default:
-		return ErrInvalidPdfFormat
+		return ErrInvalidPdfFormats
 	}
 
 	if options.PdfFormats.PdfUa {

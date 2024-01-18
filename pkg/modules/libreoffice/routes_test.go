@@ -38,11 +38,38 @@ func TestConvertRoute(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
+			scenario: "ErrPdfFormatNotSupported (nativePdfFormats)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"document.docx": "/document.docx",
+				})
+				return ctx
+			}(),
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
+					return libreofficeapi.ErrInvalidPdfFormats
+				},
+				ExtensionsMock: func() []string {
+					return []string{".docx"}
+				},
+			},
+			expectError:            true,
+			expectHttpError:        true,
+			expectHttpStatus:       http.StatusBadRequest,
+			expectOutputPathsCount: 0,
+		},
+		{
 			scenario: "ErrMalformedPageRanges",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
 					"document.docx": "/document.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"pdfa": {
+						"foo",
+					},
 				})
 				return ctx
 			}(),
