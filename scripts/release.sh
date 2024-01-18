@@ -37,5 +37,5 @@ docker buildx build \
   -t "$DOCKER_REPO_GH/gotenberg:${SEMVER[0]}.${SEMVER[1]}" \
   -t "$DOCKER_REPO_GH/gotenberg:${SEMVER[0]}.${SEMVER[1]}.${SEMVER[2]}" \
   --push \
-  -f build/Dockerfile.bc .
+  -f build/Dockerfile .
 
