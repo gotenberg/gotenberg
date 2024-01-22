@@ -231,11 +231,9 @@ func FormDataChromiumPdfFormats(form *api.FormData) gotenberg.PdfFormats {
 	}
 }
 
-// FormDataExifMetadata creates Exif Metadata object from the form data.
-func FormDataExifMetadata(form *api.FormData) map[string]interface{} {
-	var (
-		metadata map[string]interface{}
-	)
+// FormDataMetadata creates metadata object from the form data.
+func FormDataMetadata(form *api.FormData) map[string]interface{} {
+	var metadata map[string]interface{}
 
 	form.Custom("metadata", func(value string) error {
 		metadata = map[string]interface{}{}
@@ -260,7 +258,7 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPdfOptions(ctx)
 			pdfFormats := FormDataChromiumPdfFormats(form)
-			metadata := FormDataExifMetadata(form)
+			metadata := FormDataMetadata(form)
 
 			var url string
 			err := form.
@@ -320,7 +318,7 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPdfOptions(ctx)
 			pdfFormats := FormDataChromiumPdfFormats(form)
-			metadata := FormDataExifMetadata(form)
+			metadata := FormDataMetadata(form)
 
 			var inputPath string
 			err := form.
@@ -382,7 +380,7 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPdfOptions(ctx)
 			pdfFormats := FormDataChromiumPdfFormats(form)
-			metadata := FormDataExifMetadata(form)
+			metadata := FormDataMetadata(form)
 
 			var (
 				inputPath     string
@@ -595,7 +593,7 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 
 	// Writes and potentially overrides metadata entries, if any.
 	if len(metadata) > 0 {
-		err = engine.WriteMetadata(ctx, ctx.Log(), []string{outputPath}, metadata)
+		err = engine.WriteMetadata(ctx, ctx.Log(), outputPath, metadata)
 		if err != nil {
 			return fmt.Errorf("write metadata: %w", err)
 		}

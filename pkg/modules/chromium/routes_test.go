@@ -1420,7 +1420,7 @@ func TestConvertUrl(t *testing.T) {
 			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
 				return nil
 			}},
-			engine: &gotenberg.PdfEngineMock{WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, paths []string, newMetadata map[string]interface{}) error {
+			engine: &gotenberg.PdfEngineMock{WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, newMetadata map[string]interface{}) error {
 				return fmt.Errorf("error writing metadata to %s: %w", "foo.pdf", errors.New("foo"))
 			}},
 			options: DefaultPdfOptions(),
@@ -1437,7 +1437,7 @@ func TestConvertUrl(t *testing.T) {
 			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
 				return nil
 			}},
-			engine: &gotenberg.PdfEngineMock{WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, paths []string, newMetadata map[string]interface{}) error {
+			engine: &gotenberg.PdfEngineMock{WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, newMetadata map[string]interface{}) error {
 				return nil
 			}},
 			options: DefaultPdfOptions(),

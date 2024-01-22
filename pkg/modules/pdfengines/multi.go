@@ -70,13 +70,13 @@ func (multi *multiPdfEngines) Convert(ctx context.Context, logger *zap.Logger, f
 	return fmt.Errorf("convert PDF to '%+v' with multi PDF engines: %w", formats, err)
 }
 
-func (multi *multiPdfEngines) ReadMetadata(ctx context.Context, logger *zap.Logger, paths []string, metadata []gotenberg.FileMetadata) error {
+func (multi *multiPdfEngines) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPaths string, metadata map[string]interface{}) error {
 	var err error
 	errChan := make(chan error, 1)
 
 	for _, engine := range multi.engines {
 		go func(engine gotenberg.PdfEngine) {
-			errChan <- engine.ReadMetadata(ctx, logger, paths, metadata)
+			errChan <- engine.ReadMetadata(ctx, logger, inputPaths, metadata)
 		}(engine)
 
 		select {
@@ -93,13 +93,13 @@ func (multi *multiPdfEngines) ReadMetadata(ctx context.Context, logger *zap.Logg
 	return fmt.Errorf("read PDF metadata with multi PDF engines: %w", err)
 }
 
-func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *zap.Logger, paths []string, newMetadata map[string]interface{}) error {
+func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *zap.Logger, inputPaths string, newMetadata map[string]interface{}) error {
 	var err error
 	errChan := make(chan error, 1)
 
 	for _, engine := range multi.engines {
 		go func(engine gotenberg.PdfEngine) {
-			errChan <- engine.WriteMetadata(ctx, logger, paths, newMetadata)
+			errChan <- engine.WriteMetadata(ctx, logger, inputPaths, newMetadata)
 		}(engine)
 
 		select {

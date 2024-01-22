@@ -56,12 +56,6 @@ type ExifTool struct {
 	binPath string
 }
 
-// ResponseError is to store the file name and error returned by exif tool
-type ResponseError struct {
-	fileName string
-	err      error
-}
-
 // Descriptor returns ExifTool's module descriptor.
 func (engine *ExifTool) Descriptor() gotenberg.ModuleDescriptor {
 	return gotenberg.ModuleDescriptor{
@@ -104,9 +98,9 @@ func (engine *ExifTool) Convert(ctx context.Context, logger *zap.Logger, formats
 	return fmt.Errorf("convert PDF to '%+v' with PDFtk: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
-// ReadMetadata reads the exif metadata of the given PDF files.
-func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *zap.Logger, paths []string, metadata []gotenberg.FileMetadata) error {
-	logger.Debug(fmt.Sprintf("reading metadata of files: %s", paths))
+// ReadMetadata reads the metadata of the given PDF files.
+func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string, metadata map[string]interface{}) error {
+	logger.Debug(fmt.Sprintf("reading metadata of file: %s", inputPath))
 
 	exifTool, err := exiftool.NewExiftool()
 	if err != nil {
@@ -114,29 +108,23 @@ func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *zap.Logger, pa
 		return err
 	}
 
-	fileMetadataInfos := exifTool.ExtractMetadata(paths...)
+	fileMetadataInfos := exifTool.ExtractMetadata([]string{inputPath}...)
 
-	var readMetadataErrors []ResponseError
-	for idx, fileMetadataInfo := range fileMetadataInfos {
-		if fileMetadataInfo.Err != nil {
-			readMetadataErrors = append(readMetadataErrors, ResponseError{fileName: fileMetadataInfo.File, err: fileMetadataInfo.Err})
-		} else {
-			// load the result into metadata passed
-			metadata[idx].Path = fileMetadataInfo.File
-			metadata[idx].Metadata = fileMetadataInfo.Fields
-		}
+	if fileMetadataInfos[0].Err != nil {
+		return fmt.Errorf("error reading metadata to following file: %+v", fileMetadataInfos[0])
 	}
 
-	if len(readMetadataErrors) > 0 {
-		return fmt.Errorf("error reading metadata to following file(s): %+v", readMetadataErrors)
+	// load into metadata
+	for k, v := range fileMetadataInfos[0].Fields {
+		metadata[k] = v
 	}
 
 	return exifTool.Close()
 }
 
-// WriteMetadata write the exif metadata to the given PDF files.
-func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, paths []string, newMetadata map[string]interface{}) error {
-	logger.Debug(fmt.Sprintf("writing new metadata %s to %s", newMetadata, paths))
+// WriteMetadata write the metadata to the given PDF files.
+func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, inputPath string, newMetadata map[string]interface{}) error {
+	logger.Debug(fmt.Sprintf("writing new metadata %s to %s", newMetadata, inputPath))
 
 	exifTool, err := exiftool.NewExiftool()
 	if err != nil {
@@ -144,16 +132,11 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, p
 		return err
 	}
 
-	fileMetadataInfos := exifTool.ExtractMetadata(paths...)
-	var extractMetadataErrors []ResponseError
-	for _, fileMetadataInfo := range fileMetadataInfos {
-		if fileMetadataInfo.Err != nil {
-			extractMetadataErrors = append(extractMetadataErrors, ResponseError{fileName: fileMetadataInfo.File, err: fileMetadataInfo.Err})
-		}
-	}
+	fileMetadataInfos := exifTool.ExtractMetadata([]string{inputPath}...)
 
-	if len(extractMetadataErrors) > 0 {
-		return fmt.Errorf("error reading metadata to following file(s): %+v", extractMetadataErrors)
+	// there is only file metadata info
+	if fileMetadataInfos[0].Err != nil {
+		return fmt.Errorf("error reading metadata to following file: %+v", fileMetadataInfos[0])
 	}
 
 	// Metadata values can only be specific value types.
@@ -163,28 +146,26 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, p
 	}
 
 	// transform metadata
-	for _, fileMetadataInfo := range fileMetadataInfos {
-		for key, value := range newMetadata {
-			switch val := value.(type) {
-			case string:
-				fileMetadataInfo.SetString(key, val)
-			case int:
-				fileMetadataInfo.SetInt(key, int64(val))
-			case int64:
-				fileMetadataInfo.SetInt(key, val)
-			case float32:
-				fileMetadataInfo.SetFloat(key, float64(val))
-			case float64:
-				fileMetadataInfo.SetFloat(key, val)
-			case []string:
-				fileMetadataInfo.SetStrings(key, val)
-			// TODO: support more complex cases, e.g. arrays and nested objects (limitations in underlying library)
-			default:
-				metadataValueErrors.Entries[key] = value
-			}
+	for key, value := range newMetadata {
+		switch val := value.(type) {
+		case string:
+			fileMetadataInfos[0].SetString(key, val)
+		case int:
+			fileMetadataInfos[0].SetInt(key, int64(val))
+		case int64:
+			fileMetadataInfos[0].SetInt(key, val)
+		case float32:
+			fileMetadataInfos[0].SetFloat(key, float64(val))
+		case float64:
+			fileMetadataInfos[0].SetFloat(key, val)
+		case []string:
+			fileMetadataInfos[0].SetStrings(key, val)
+		// TODO: support more complex cases, e.g. arrays and nested objects (limitations in underlying library)
+		default:
+			metadataValueErrors.Entries[key] = value
 		}
-		logger.Debug(fmt.Sprintf("writing metadata %s to %s", fileMetadataInfo.Fields, fileMetadataInfo.File))
 	}
+	logger.Debug(fmt.Sprintf("writing metadata %s to %s", fileMetadataInfos[0].Fields, fileMetadataInfos[0].File))
 
 	if len(metadataValueErrors.Entries) > 0 {
 		return api.WrapError(
@@ -196,15 +177,9 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, p
 	}
 
 	exifTool.WriteMetadata(fileMetadataInfos)
-	var writeMetadataErrors []ResponseError
-	for _, fileMetadataInfo := range fileMetadataInfos {
-		if fileMetadataInfo.Err != nil {
-			writeMetadataErrors = append(writeMetadataErrors, ResponseError{fileName: fileMetadataInfo.File, err: fileMetadataInfo.Err})
-		}
-	}
 
-	if len(writeMetadataErrors) > 0 {
-		return fmt.Errorf("error writing metadata to following file(s): %+v", writeMetadataErrors)
+	if fileMetadataInfos[0].Err != nil {
+		return fmt.Errorf("error writing metadata to following file: %+v", fileMetadataInfos[0])
 	}
 
 	return exifTool.Close()

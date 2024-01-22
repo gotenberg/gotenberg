@@ -606,7 +606,7 @@ func TestConvertRoute(t *testing.T) {
 				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 					return nil
 				},
-				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, paths []string, newMetadata map[string]interface{}) error {
+				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, newMetadata map[string]interface{}) error {
 					return nil
 				},
 			},
@@ -641,7 +641,7 @@ func TestConvertRoute(t *testing.T) {
 				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 					return nil
 				},
-				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, paths []string, newMetadata map[string]interface{}) error {
+				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, newMetadata map[string]interface{}) error {
 					return nil
 				},
 			},
@@ -732,7 +732,7 @@ func TestConvertRoute(t *testing.T) {
 				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 					return nil
 				},
-				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, paths []string, newMetadata map[string]interface{}) error {
+				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, newMetadata map[string]interface{}) error {
 					return errors.New("foo")
 				},
 			},
@@ -767,7 +767,7 @@ func TestConvertRoute(t *testing.T) {
 				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 					return nil
 				},
-				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, paths []string, newMetadata map[string]interface{}) error {
+				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, newMetadata map[string]interface{}) error {
 					return errors.New("foo")
 				},
 			},
@@ -808,7 +808,7 @@ func TestConvertRoute(t *testing.T) {
 				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 					return nil
 				},
-				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, paths []string, newMetadata map[string]interface{}) error {
+				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, newMetadata map[string]interface{}) error {
 					return nil
 				},
 			},
@@ -881,7 +881,7 @@ func TestConvertRoute(t *testing.T) {
 				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 					return nil
 				},
-				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, paths []string, newMetadata map[string]interface{}) error {
+				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, newMetadata map[string]interface{}) error {
 					return errors.New("foo")
 				},
 			},

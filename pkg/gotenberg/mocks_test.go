@@ -55,10 +55,10 @@ func TestPDFEngineMock(t *testing.T) {
 		ConvertMock: func(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error {
 			return nil
 		},
-		ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, paths []string, metadata []FileMetadata) error {
+		ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, metadata map[string]interface{}) error {
 			return nil
 		},
-		WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, paths []string, newMetadata map[string]interface{}) error {
+		WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, newMetadata map[string]interface{}) error {
 			return nil
 		},
 	}
@@ -73,12 +73,12 @@ func TestPDFEngineMock(t *testing.T) {
 		t.Errorf("expected no error from PdfEngineMock.Convert, but got: %v", err)
 	}
 
-	err = mock.ReadMetadataMock(context.Background(), zap.NewNop(), []string{}, []FileMetadata{})
+	err = mock.ReadMetadataMock(context.Background(), zap.NewNop(), "", map[string]interface{}{})
 	if err != nil {
 		t.Errorf("expected no error from PdfEngineMock.ReadMetadata, but got: %v", err)
 	}
 
-	err = mock.WriteMetadataMock(context.Background(), zap.NewNop(), []string{}, map[string]interface{}{})
+	err = mock.WriteMetadataMock(context.Background(), zap.NewNop(), "", map[string]interface{}{})
 	if err != nil {
 		t.Errorf("expected no error from PdfEngineMock.WriteMetadata but got: %v", err)
 	}

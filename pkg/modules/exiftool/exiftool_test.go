@@ -142,196 +142,61 @@ func TestExiftool_Convert(t *testing.T) {
 	}
 }
 
-// FileMetadata is a wrapper to identify which file the metadata came from.
-type FileMetadata struct {
-	path     string
-	metadata map[string]interface{}
-}
-
 func TestExiftool_ReadMetadata(t *testing.T) {
-	type Subset struct {
-		fileMetadata FileMetadata
-		expectDiff   bool
-	}
-
 	for _, tc := range []struct {
 		scenario    string
 		ctx         context.Context
-		inputPaths  []string
-		subsets     []Subset
+		inputPath   string
+		subset      map[string]interface{}
 		expectError bool
+		expectDiff  bool
 	}{
 		{
-			scenario: "invalid input path",
-			ctx:      context.TODO(),
-			inputPaths: []string{
-				"foo",
-			},
+			scenario:    "invalid input path",
+			ctx:         context.TODO(),
+			inputPath:   "foo",
 			expectError: true,
 		},
 		{
-			scenario: "single file success",
-			ctx:      context.TODO(),
-			inputPaths: []string{
-				"/tests/test/testdata/pdfengines/sample1.pdf",
-			},
-			subsets: []Subset{
-				{
-					fileMetadata: FileMetadata{
-						path: "/tests/test/testdata/pdfengines/sample1.pdf",
-						metadata: map[string]interface{}{
-							"FileName":          "sample1.pdf",
-							"FileTypeExtension": "pdf",
-							"MIMEType":          "application/pdf",
-							"PDFVersion":        1.4,
-							"PageCount":         float64(3),
-							"CreateDate":        "2018:12:06 17:50:06+00:00",
-							"ModifyDate":        "2018:12:06 17:50:06+00:00",
-							"Directory":         "/tests/test/testdata/pdfengines",
-							"FileType":          "PDF",
-							"Linearized":        "No",
-							"Creator":           "Chromium",
-							"Producer":          "Skia/PDF m70",
-							"SourceFile":        "/tests/test/testdata/pdfengines/sample1.pdf",
-						},
-					},
-					expectDiff: false,
-				},
+			scenario:  "single file success",
+			ctx:       context.TODO(),
+			inputPath: "/tests/test/testdata/pdfengines/sample1.pdf",
+			subset: map[string]interface{}{
+				"FileName":          "sample1.pdf",
+				"FileTypeExtension": "pdf",
+				"MIMEType":          "application/pdf",
+				"PDFVersion":        1.4,
+				"PageCount":         float64(3),
+				"CreateDate":        "2018:12:06 17:50:06+00:00",
+				"ModifyDate":        "2018:12:06 17:50:06+00:00",
+				"Directory":         "/tests/test/testdata/pdfengines",
+				"FileType":          "PDF",
+				"Linearized":        "No",
+				"Creator":           "Chromium",
+				"Producer":          "Skia/PDF m70",
+				"SourceFile":        "/tests/test/testdata/pdfengines/sample1.pdf",
 			},
 		},
 		{
-			scenario: "many files success",
-			ctx:      context.TODO(),
-			inputPaths: []string{
-				"/tests/test/testdata/pdfengines/sample1.pdf",
-				"/tests/test/testdata/pdfengines/sample2.pdf",
+			scenario:  "single file incorrect metadata",
+			ctx:       context.TODO(),
+			inputPath: "/tests/test/testdata/pdfengines/sample1.pdf",
+			subset: map[string]interface{}{
+				"FileName":          "sample1.pdf",
+				"FileTypeExtension": "pdf",
+				"MIMEType":          "application/pdf",
+				"PDFVersion":        1.4,
+				"PageCount":         float64(3),
+				"CreateDate":        "2018:12:06 17:50:06+00:00",
+				"ModifyDate":        "2018:12:06 17:50:06+00:00",
+				"Directory":         "/tests/test/testdata/pdfengines",
+				"FileType":          "PDF",
+				"Linearized":        "No",
+				"Creator":           "INVALID",
+				"Producer":          "Skia/PDF m70",
+				"SourceFile":        "/tests/test/testdata/pdfengines/sample1.pdf",
 			},
-			subsets: []Subset{
-				{
-					fileMetadata: FileMetadata{
-						path: "/tests/test/testdata/pdfengines/sample1.pdf",
-						metadata: map[string]interface{}{
-							"FileName":          "sample1.pdf",
-							"FileTypeExtension": "pdf",
-							"MIMEType":          "application/pdf",
-							"PDFVersion":        1.4,
-							"PageCount":         float64(3),
-							"CreateDate":        "2018:12:06 17:50:06+00:00",
-							"ModifyDate":        "2018:12:06 17:50:06+00:00",
-							"Directory":         "/tests/test/testdata/pdfengines",
-							"FileType":          "PDF",
-							"Linearized":        "No",
-							"Creator":           "Chromium",
-							"Producer":          "Skia/PDF m70",
-							"SourceFile":        "/tests/test/testdata/pdfengines/sample1.pdf",
-						},
-					},
-					expectDiff: false,
-				},
-				{
-					fileMetadata: FileMetadata{
-						path: "/tests/test/testdata/pdfengines/sample2.pdf",
-						metadata: map[string]interface{}{
-							"FileName":          "sample2.pdf",
-							"FileTypeExtension": "pdf",
-							"MIMEType":          "application/pdf",
-							"PDFVersion":        1.4,
-							"PageCount":         float64(3),
-							"CreateDate":        "2018:12:06 17:50:06+00:00",
-							"ModifyDate":        "2018:12:06 17:50:06+00:00",
-							"Directory":         "/tests/test/testdata/pdfengines",
-							"FileType":          "PDF",
-							"Linearized":        "No",
-							"Creator":           "Chromium",
-							"Producer":          "Skia/PDF m70",
-							"SourceFile":        "/tests/test/testdata/pdfengines/sample2.pdf",
-						},
-					},
-					expectDiff: false,
-				},
-			},
-		},
-		{
-			scenario: "single file incorrect metadata",
-			ctx:      context.TODO(),
-			inputPaths: []string{
-				"/tests/test/testdata/pdfengines/sample1.pdf",
-			},
-			subsets: []Subset{
-				{
-					fileMetadata: FileMetadata{
-						path: "/tests/test/testdata/pdfengines/sample1.pdf",
-						metadata: map[string]interface{}{
-							"FileName":          "sample1.pdf",
-							"FileTypeExtension": "pdf",
-							"MIMEType":          "application/pdf",
-							"PDFVersion":        1.4,
-							"PageCount":         float64(3),
-							"CreateDate":        "2018:12:06 17:50:06+00:00",
-							"ModifyDate":        "2018:12:06 17:50:06+00:00",
-							"Directory":         "/tests/test/testdata/pdfengines",
-							"FileType":          "PDF",
-							"Linearized":        "No",
-							"Creator":           "INVALID",
-							"Producer":          "Skia/PDF m70",
-							"SourceFile":        "/tests/test/testdata/pdfengines/sample1.pdf",
-						},
-					},
-					expectDiff: true,
-				},
-			},
-		},
-		{
-			scenario: "many files incorrect metadata",
-			ctx:      context.TODO(),
-			inputPaths: []string{
-				"/tests/test/testdata/pdfengines/sample1.pdf",
-				"/tests/test/testdata/pdfengines/sample2.pdf",
-			},
-			subsets: []Subset{
-				{
-					fileMetadata: FileMetadata{
-						path: "/tests/test/testdata/pdfengines/sample1.pdf",
-						metadata: map[string]interface{}{
-							"FileName":          "sample1.pdf",
-							"FileTypeExtension": "pdf",
-							"MIMEType":          "application/pdf",
-							"PDFVersion":        1,
-							"PageCount":         float64(30),
-							"CreateDate":        "2018:12:06 17:50:06+00:00",
-							"ModifyDate":        "2018:12:06 17:50:06+00:00",
-							"Directory":         "/tests/test/testdata/pdfengines",
-							"FileType":          "INVALID",
-							"Linearized":        "No",
-							"Creator":           "Chromium",
-							"Producer":          "Skia/PDF m70",
-							"SourceFile":        "/tests/test/testdata/pdfengines/sample1.pdf",
-						},
-					},
-					expectDiff: true,
-				},
-				{
-					fileMetadata: FileMetadata{
-						path: "/tests/test/testdata/pdfengines/sample2.pdf",
-						metadata: map[string]interface{}{
-							"FileName":          "sample2.pdf",
-							"FileTypeExtension": "pdf",
-							"MIMEType":          "application/pdf",
-							"PDFVersion":        1.4,
-							"PageCount":         float64(3),
-							"CreateDate":        "2018:12:06 17:50:06+00:00",
-							"ModifyDate":        "2018:12:06 17:50:06+00:00",
-							"Directory":         "/tests/test/testdata/pdfengines",
-							"FileType":          "PDF",
-							"Linearized":        "No",
-							"Creator":           "Chromium",
-							"Producer":          "Skia/PDF m70",
-							"SourceFile":        "/tests/test/testdata/pdfengines/sample2.pdf",
-						},
-					},
-					expectDiff: false,
-				},
-			},
+			expectDiff: true,
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
@@ -341,8 +206,8 @@ func TestExiftool_ReadMetadata(t *testing.T) {
 				t.Fatalf("expected error but got: %v", err)
 			}
 
-			actualMetadatas := make([]gotenberg.FileMetadata, len(tc.inputPaths))
-			err = engine.ReadMetadata(tc.ctx, zap.NewNop(), tc.inputPaths, actualMetadatas)
+			actualMetadata := map[string]interface{}{}
+			err = engine.ReadMetadata(tc.ctx, zap.NewNop(), tc.inputPath, actualMetadata)
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
 			}
@@ -351,19 +216,13 @@ func TestExiftool_ReadMetadata(t *testing.T) {
 				t.Fatal("expected error but got none")
 			}
 
-			if tc.subsets != nil && err == nil {
-				for _, subset := range tc.subsets {
-					for _, actualFileMetadata := range actualMetadatas {
-						if subset.fileMetadata.path == actualFileMetadata.Path {
-							if !subset.expectDiff && !isMapSubset(actualFileMetadata.Metadata, subset.fileMetadata.metadata) {
-								t.Errorf("test %s: expected: %+v to be a subset of: %+v at path: %s",
-									tc.scenario, subset.fileMetadata.metadata, actualFileMetadata.Metadata, actualFileMetadata.Path)
-							} else if subset.expectDiff && isMapSubset(actualFileMetadata.Metadata, subset.fileMetadata.metadata) {
-								t.Errorf("test %s: expected: %+v to be not be a subset of: %+v at path: %s",
-									tc.scenario, subset.fileMetadata.metadata, actualFileMetadata.Metadata, actualFileMetadata.Path)
-							}
-						}
-					}
+			if tc.subset != nil && err == nil {
+				if !tc.expectDiff && !isMapSubset(actualMetadata, tc.subset) {
+					t.Errorf("test: %s: expected: %+v to be a subset of: %+v at path: %s",
+						tc.scenario, tc.subset, actualMetadata, tc.inputPath)
+				} else if tc.expectDiff && isMapSubset(actualMetadata, tc.subset) {
+					t.Errorf("test: %s: expected: %+v to be not be a subset of: %+v at path: %s",
+						tc.scenario, tc.subset, actualMetadata, tc.inputPath)
 				}
 			}
 		})
@@ -374,18 +233,16 @@ func TestExiftool_WriteMetadata(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string
 		ctx         context.Context
-		inputPaths  []string
+		inputPath   string
 		newMetadata map[string]interface{}
 		contains    map[string]interface{}
 		expectError bool
 		expectDiff  bool
 	}{
 		{
-			scenario: "single file success",
-			ctx:      context.TODO(),
-			inputPaths: []string{
-				"/tests/test/testdata/pdfengines/sample1.pdf",
-			},
+			scenario:  "single file success",
+			ctx:       context.TODO(),
+			inputPath: "/tests/test/testdata/pdfengines/sample1.pdf",
 			newMetadata: map[string]interface{}{
 				"Producer": "foo",
 			},
@@ -396,33 +253,9 @@ func TestExiftool_WriteMetadata(t *testing.T) {
 			expectDiff:  false,
 		},
 		{
-			scenario: "many files success",
-			ctx:      context.TODO(),
-			inputPaths: []string{
-				"/tests/test/testdata/pdfengines/sample1.pdf",
-				"/tests/test/testdata/pdfengines/sample2.pdf",
-			},
-			newMetadata: map[string]interface{}{
-				"Producer":   "foo",
-				"Keywords":   []string{"foo", "bar"},
-				"PDFVersion": 0.0,
-				"ModifyDate": "2023:12:06 17:50:06+00:00",
-			},
-			contains: map[string]interface{}{
-				"Producer":   "foo",
-				"Keywords":   []string{"foo", "bar"},
-				"PDFVersion": 0.0,
-				"ModifyDate": "2023:12:06 17:50:06+00:00",
-			},
-			expectError: false,
-			expectDiff:  false,
-		},
-		{
-			scenario: "single file not same metadata",
-			ctx:      context.TODO(),
-			inputPaths: []string{
-				"/tests/test/testdata/pdfengines/sample1.pdf",
-			},
+			scenario:  "single file not same metadata",
+			ctx:       context.TODO(),
+			inputPath: "/tests/test/testdata/pdfengines/sample1.pdf",
 			newMetadata: map[string]interface{}{
 				"Producer": "foo",
 			},
@@ -433,33 +266,9 @@ func TestExiftool_WriteMetadata(t *testing.T) {
 			expectDiff:  true,
 		},
 		{
-			scenario: "many files not same metadata",
-			ctx:      context.TODO(),
-			inputPaths: []string{
-				"/tests/test/testdata/pdfengines/sample1.pdf",
-				"/tests/test/testdata/pdfengines/sample2.pdf",
-			},
-			newMetadata: map[string]interface{}{
-				"Producer":   "foo",
-				"Keywords":   []string{"foo", "bar"},
-				"PDFVersion": 0.0,
-				"ModifyDate": "2023:12:06 17:50:06+00:00",
-			},
-			contains: map[string]interface{}{
-				"Producer":   "foobar",
-				"Keywords":   []string{"foo1", "bar1"},
-				"PDFVersion": 2.0,
-				"ModifyDate": "2022:12:06 17:50:06+00:00",
-			},
-			expectError: false,
-			expectDiff:  true,
-		},
-		{
-			scenario: "single file unknown type",
-			ctx:      context.TODO(),
-			inputPaths: []string{
-				"/tests/test/testdata/pdfengines/sample1.pdf",
-			},
+			scenario:  "single file unknown type",
+			ctx:       context.TODO(),
+			inputPath: "/tests/test/testdata/pdfengines/sample1.pdf",
 			newMetadata: map[string]interface{}{
 				"foo": map[string]string{},
 			},
@@ -487,40 +296,36 @@ func TestExiftool_WriteMetadata(t *testing.T) {
 				}
 			}()
 
-			var copyPaths []string
-			for idx, inputPath := range tc.inputPaths {
-				copyPath := fmt.Sprintf("%s/copy_%d.pdf", outputDir, idx)
-				// open the source file
-				source, err := os.Open(inputPath)
-				if err != nil {
-					t.Fatalf("error in opening file: %v", err)
-				}
+			copyPath := fmt.Sprintf("%s/copy_temp.pdf", outputDir)
+			// open the source file
+			source, err := os.Open(tc.inputPath)
+			if err != nil {
+				t.Fatalf("error in opening file: %v", err)
+			}
 
-				// create the destination file
-				destination, err := os.Create(copyPath)
-				if err != nil {
-					t.Fatalf("error in creating file: %v", err)
-				}
+			// create the destination file
+			destination, err := os.Create(copyPath)
+			if err != nil {
+				t.Fatalf("error in creating file: %v", err)
+			}
 
-				// copy the contents of source to destination file
-				_, err = io.Copy(destination, source)
-				if err != nil {
-					t.Fatalf("error in copying file: %v", err)
-				}
+			// copy the contents of source to destination file
+			_, err = io.Copy(destination, source)
+			if err != nil {
+				t.Fatalf("error in copying file: %v", err)
+			}
 
-				err = source.Close()
-				if err != nil {
-					t.Fatalf("error in source file close: %v", err)
-				}
-				err = destination.Close()
-				if err != nil {
-					t.Fatalf("error in destination file close: %v", err)
-				}
-				copyPaths = append(copyPaths, copyPath)
+			err = source.Close()
+			if err != nil {
+				t.Fatalf("error in source file close: %v", err)
+			}
+			err = destination.Close()
+			if err != nil {
+				t.Fatalf("error in destination file close: %v", err)
 			}
 
 			// write metadata to new copy files
-			err = engine.WriteMetadata(tc.ctx, zap.NewNop(), copyPaths, tc.newMetadata)
+			err = engine.WriteMetadata(tc.ctx, zap.NewNop(), copyPath, tc.newMetadata)
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
 			}
@@ -530,18 +335,16 @@ func TestExiftool_WriteMetadata(t *testing.T) {
 			}
 
 			if err == nil {
-				readMetadatas := make([]gotenberg.FileMetadata, len(copyPaths))
-				readErr := engine.ReadMetadata(tc.ctx, zap.NewNop(), copyPaths, readMetadatas)
+				readMetadata := map[string]interface{}{}
+				readErr := engine.ReadMetadata(tc.ctx, zap.NewNop(), copyPath, readMetadata)
 				if tc.contains != nil && readErr == nil {
 					// match metadata
-					for _, readMetadata := range readMetadatas {
-						if !tc.expectDiff && !isMapSubset(readMetadata.Metadata, tc.contains) {
-							t.Errorf("test %s: expected: %+v to be a subset of: %+v at path: %s",
-								tc.scenario, tc.contains, readMetadata.Metadata, readMetadata.Path)
-						} else if tc.expectDiff && isMapSubset(readMetadata.Metadata, tc.contains) {
-							t.Errorf("test %s: expected: %+v to be not be a subset of: %+v at path: %s",
-								tc.scenario, tc.contains, readMetadata.Metadata, readMetadata.Path)
-						}
+					if !tc.expectDiff && !isMapSubset(readMetadata, tc.contains) {
+						t.Errorf("test: %s: expected: %+v to be a subset of: %+v at path: %s",
+							tc.scenario, tc.contains, readMetadata, copyPath)
+					} else if tc.expectDiff && isMapSubset(readMetadata, tc.contains) {
+						t.Errorf("test: %s: expected: %+v to be not be a subset of: %+v at path: %s",
+							tc.scenario, tc.contains, readMetadata, copyPath)
 					}
 				}
 			}

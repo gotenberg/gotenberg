@@ -139,7 +139,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 
 				// Writes and potentially overrides metadata entries, if any.
 				if len(metadata) > 0 {
-					err = engine.WriteMetadata(ctx, ctx.Log(), []string{outputPath}, metadata)
+					err = engine.WriteMetadata(ctx, ctx.Log(), outputPath, metadata)
 					if err != nil {
 						return fmt.Errorf("write metadata failure: %w", err)
 					}
@@ -189,9 +189,11 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 
 			// Writes and potentially overrides metadata entries, if any.
 			if len(metadata) > 0 {
-				err = engine.WriteMetadata(ctx, ctx.Log(), outputPaths, metadata)
-				if err != nil {
-					return fmt.Errorf("write metadata: %w", err)
+				for _, outputPath := range outputPaths {
+					err = engine.WriteMetadata(ctx, ctx.Log(), outputPath, metadata)
+					if err != nil {
+						return fmt.Errorf("write metadata: %w", err)
+					}
 				}
 			}
 

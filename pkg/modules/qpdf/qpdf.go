@@ -78,12 +78,12 @@ func (engine *QPdf) Convert(ctx context.Context, logger *zap.Logger, formats got
 }
 
 // ReadMetadata is not available in this implementation.
-func (engine *QPdf) ReadMetadata(ctx context.Context, logger *zap.Logger, paths []string, metadata []gotenberg.FileMetadata) error {
+func (engine *QPdf) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPaths string, metadata map[string]interface{}) error {
 	return fmt.Errorf("read PDF metadata with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // WriteMetadata is not available in this implementation.
-func (engine *QPdf) WriteMetadata(ctx context.Context, logger *zap.Logger, paths []string, newMetadata map[string]interface{}) error {
+func (engine *QPdf) WriteMetadata(ctx context.Context, logger *zap.Logger, inputPaths string, newMetadata map[string]interface{}) error {
 	return fmt.Errorf("write PDF metadata with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
