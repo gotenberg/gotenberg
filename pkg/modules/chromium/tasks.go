@@ -97,59 +97,72 @@ func captureScreenshotActionFunc(logger *zap.Logger, outputPaths []string, optio
 	return func(ctx context.Context) error {
 		var buf []byte
 		var err error
-		for i, outputPath := range outputPaths {
-			logger.Debug(fmt.Sprintf("capture screenshot to '%s'", outputPath))
-			sel := options.Sel[i]
+		if options.Sel == nil && len(outputPaths) == 1 {
+			captureScreenshot := page.CaptureScreenshot().
+				WithCaptureBeyondViewport(true).
+				WithFromSurface(true).
+				WithOptimizeForSpeed(options.OptimizeForSpeed).
+				WithFormat(page.CaptureScreenshotFormat(options.Format))
 
-			if sel == "" {
-				captureScreenshot := page.CaptureScreenshot().
-					WithCaptureBeyondViewport(true).
-					WithFromSurface(true).
-					WithOptimizeForSpeed(options.OptimizeForSpeed).
-					WithFormat(page.CaptureScreenshotFormat(options.Format))
+			if options.Format == "jpeg" {
+				captureScreenshot = captureScreenshot.
+					WithQuality(int64(options.Quality))
+			}
 
-				if options.Format == "jpeg" {
-					captureScreenshot = captureScreenshot.
-						WithQuality(int64(options.Quality))
-				}
+			logger.Debug(fmt.Sprintf("capture screenshot with: %+v", captureScreenshot))
 
-				logger.Debug(fmt.Sprintf("capture screenshot with: %+v", captureScreenshot))
+			buf, err = captureScreenshot.Do(ctx)
 
-				buf, err = captureScreenshot.Do(ctx)
-			} else {
+			failure, err := writeBuffer(outputPaths[0], logger, buf)
+			if failure {
+				return err
+			}
+		} else if len(outputPaths) == len(options.Sel) {
+			for i, outputPath := range outputPaths {
+				logger.Debug(fmt.Sprintf("capture screenshot to '%s'", outputPath))
+				sel := options.Sel[i]
 
 				err = chromedp.Run(ctx,
+					// scrolls offscreen elements into view because they often had poor/inconsistent clipping
 					chromedp.Evaluate(fmt.Sprintf("document.querySelector('%+v').scrollIntoViewIfNeeded(true)", sel), nil),
-					// give the page a smidge of time to reflow
-					chromedp.Sleep(500*time.Millisecond),
+					// // give the page a smidge of time to reflow
+					// chromedp.Sleep(500*time.Millisecond),
 					chromedp.ScreenshotScale(sel, 2, &buf, chromedp.NodeVisible),
 				)
-			}
 
-			if err != nil {
-				return fmt.Errorf("capture screenshot: %w", err)
-			}
-
-			file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY, 0o600)
-			if err != nil {
-				return fmt.Errorf("open output path: %w", err)
-			}
-
-			defer func() {
-				err = file.Close()
 				if err != nil {
-					logger.Error(fmt.Sprintf("close output path: %s", err))
+					return fmt.Errorf("capture screenshot: %w", err)
 				}
-			}()
 
-			_, err = file.Write(buf)
-			if err != nil {
-				return fmt.Errorf("write result to output path: %w", err)
+				failure, err := writeBuffer(outputPath, logger, buf)
+				if failure {
+					return err
+				}
 			}
 		}
 
 		return nil
 	}
+}
+
+func writeBuffer(outputPath string, logger *zap.Logger, buf []byte) (bool, error) {
+	file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return true, fmt.Errorf("open output path: %w", err)
+	}
+
+	defer func() {
+		err = file.Close()
+		if err != nil {
+			logger.Error(fmt.Sprintf("close output path: %s", err))
+		}
+	}()
+
+	_, err = file.Write(buf)
+	if err != nil {
+		return true, fmt.Errorf("write result to output path: %w", err)
+	}
+	return false, nil
 }
 
 func clearCacheActionFunc(logger *zap.Logger, clear bool) chromedp.ActionFunc {

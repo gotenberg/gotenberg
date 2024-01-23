@@ -163,6 +163,7 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 		quality          int
 		optimizeForSpeed bool
 		sel              []string
+		scale            float64
 	)
 
 	form.
@@ -214,6 +215,24 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 			}
 
 			return nil
+		}).
+		Custom("scale", func(value string) error {
+			if value == "" {
+				scale = defaultScreenshotOptions.Scale
+				return nil
+			}
+
+			floatValue, err := strconv.ParseFloat(value, 64)
+			if err != nil {
+				return err
+			}
+
+			if floatValue < 0 {
+				return errors.New("value is negative")
+			}
+
+			scale = floatValue
+			return nil
 		})
 
 	screenshotOptions := ScreenshotOptions{
@@ -222,6 +241,7 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 		Quality:          quality,
 		OptimizeForSpeed: optimizeForSpeed,
 		Sel:              sel,
+		Scale:            scale,
 	}
 
 	return form, screenshotOptions

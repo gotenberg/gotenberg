@@ -247,6 +247,9 @@ type ScreenshotOptions struct {
 
 	// Sel is the CSS selector of the element(s) to capture.
 	Sel []string
+
+	// Scale factor (e.g. page zoom) to increase pixel count / quality
+	Scale float64
 }
 
 // DefaultScreenshotOptions returns the default values for ScreenshotOptions.
@@ -256,6 +259,7 @@ func DefaultScreenshotOptions() ScreenshotOptions {
 		Format:           "png",
 		Quality:          100,
 		OptimizeForSpeed: false,
+		Scale:            1,
 	}
 }
 
