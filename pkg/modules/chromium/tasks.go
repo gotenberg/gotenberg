@@ -125,9 +125,9 @@ func captureScreenshotActionFunc(logger *zap.Logger, outputPaths []string, optio
 				err = chromedp.Run(ctx,
 					// scrolls offscreen elements into view because they often had poor/inconsistent clipping
 					chromedp.Evaluate(fmt.Sprintf("document.querySelector('%+v').scrollIntoViewIfNeeded(true)", sel), nil),
-					// // give the page a smidge of time to reflow
-					// chromedp.Sleep(500*time.Millisecond),
-					chromedp.ScreenshotScale(sel, 2, &buf, chromedp.NodeVisible),
+					// gives offscreen elements a moment to render e.g. heavy canvas elements
+					chromedp.Sleep(500*time.Millisecond),
+					chromedp.ScreenshotScale(sel, options.Scale, &buf, chromedp.NodeVisible),
 				)
 
 				if err != nil {
