@@ -244,15 +244,29 @@ type ScreenshotOptions struct {
 	// not for resulting size.
 	// Optional.
 	OptimizeForSpeed bool
+
+	// ViewPortWidth is the viewport width, in pixels.
+	// Optional.
+	ViewportWidth int
+
+	// ViewPortHeight is the viewport height, in pixels.
+	// Optional.
+	ViewportHeight int
+
+	// Capture the screenshot beyond the viewport. Defaults to true, for backward compatibility reasons.
+	CaptureBeyondViewport bool
 }
 
 // DefaultScreenshotOptions returns the default values for ScreenshotOptions.
 func DefaultScreenshotOptions() ScreenshotOptions {
 	return ScreenshotOptions{
-		Options:          DefaultOptions(),
-		Format:           "png",
-		Quality:          100,
-		OptimizeForSpeed: false,
+		Options:               DefaultOptions(),
+		Format:                "png",
+		Quality:               100,
+		OptimizeForSpeed:      false,
+		ViewportWidth:         -1,
+		ViewportHeight:        -1,
+		CaptureBeyondViewport: true,
 	}
 }
 

@@ -159,9 +159,12 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 	defaultScreenshotOptions := DefaultScreenshotOptions()
 
 	var (
-		format           string
-		quality          int
-		optimizeForSpeed bool
+		format                string
+		quality               int
+		optimizeForSpeed      bool
+		captureBeyondViewport bool
+		viewportWidth         int
+		viewportHeight        int
 	)
 
 	form.
@@ -201,13 +204,45 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 			quality = intValue
 			return nil
 		}).
-		Bool("optimizeForSpeed", &optimizeForSpeed, defaultScreenshotOptions.OptimizeForSpeed)
+		Custom("viewportWidth", func(value string) error {
+			if value == "" {
+				viewportWidth = defaultScreenshotOptions.ViewportWidth
+				return nil
+			}
+
+			intValue, err := strconv.Atoi(value)
+			if err != nil {
+				return err
+			}
+
+			viewportWidth = intValue
+			return nil
+		}).
+		Custom("viewportHeight", func(value string) error {
+			if value == "" {
+				viewportWidth = defaultScreenshotOptions.ViewportHeight
+				return nil
+			}
+
+			intValue, err := strconv.Atoi(value)
+			if err != nil {
+				return err
+			}
+
+			viewportHeight = intValue
+			return nil
+		}).
+		Bool("optimizeForSpeed", &optimizeForSpeed, defaultScreenshotOptions.OptimizeForSpeed).
+		Bool("captureBeyondViewport", &captureBeyondViewport, defaultScreenshotOptions.CaptureBeyondViewport)
 
 	screenshotOptions := ScreenshotOptions{
-		Options:          options,
-		Format:           format,
-		Quality:          quality,
-		OptimizeForSpeed: optimizeForSpeed,
+		Options:               options,
+		Format:                format,
+		Quality:               quality,
+		OptimizeForSpeed:      optimizeForSpeed,
+		CaptureBeyondViewport: captureBeyondViewport,
+		ViewportWidth:         viewportWidth,
+		ViewportHeight:        viewportHeight,
 	}
 
 	return form, screenshotOptions

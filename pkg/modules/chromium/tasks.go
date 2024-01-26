@@ -95,10 +95,20 @@ func printToPdfActionFunc(logger *zap.Logger, outputPath string, options PdfOpti
 func captureScreenshotActionFunc(logger *zap.Logger, outputPath string, options ScreenshotOptions) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		captureScreenshot := page.CaptureScreenshot().
-			WithCaptureBeyondViewport(true).
+			WithCaptureBeyondViewport(options.CaptureBeyondViewport).
 			WithFromSurface(true).
 			WithOptimizeForSpeed(options.OptimizeForSpeed).
 			WithFormat(page.CaptureScreenshotFormat(options.Format))
+
+		if options.ViewportWidth > 0 && options.ViewportHeight > 0 {
+			captureScreenshot = captureScreenshot.WithClip(&page.Viewport{
+				X:      0.0,
+				Y:      0.0,
+				Scale:  1.0,
+				Width:  float64(options.ViewportWidth),
+				Height: float64(options.ViewportHeight),
+			})
+		}
 
 		if options.Format == "jpeg" {
 			captureScreenshot = captureScreenshot.
