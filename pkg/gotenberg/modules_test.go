@@ -5,32 +5,6 @@ import (
 	"testing"
 )
 
-type ProtoModule struct {
-	descriptor func() ModuleDescriptor
-}
-
-func (mod ProtoModule) Descriptor() ModuleDescriptor {
-	return mod.descriptor()
-}
-
-type ProtoProvisioner struct {
-	ProtoModule
-	provision func(ctx *Context) error
-}
-
-func (mod ProtoProvisioner) Provision(ctx *Context) error {
-	return mod.provision(ctx)
-}
-
-type ProtoValidator struct {
-	ProtoModule
-	validate func() error
-}
-
-func (mod ProtoValidator) Validate() error {
-	return mod.validate()
-}
-
 func TestMustRegisterModule(t *testing.T) {
 	descriptorsMu.RLock()
 	descriptors = map[string]ModuleDescriptor{
@@ -38,44 +12,51 @@ func TestMustRegisterModule(t *testing.T) {
 	}
 	descriptorsMu.RUnlock()
 
-	for i, tc := range []struct {
+	for _, tc := range []struct {
+		scenario    string
 		ID          string
 		New         func() Module
 		expectPanic bool
 	}{
 		{
+			scenario:    "no ID",
 			ID:          "",
-			New:         func() Module { return new(ProtoModule) },
+			New:         func() Module { return new(ModuleMock) },
 			expectPanic: true,
 		},
 		{
+			scenario:    "nil New method",
 			ID:          "b",
 			New:         nil,
 			expectPanic: true,
 		},
 		{
+			scenario:    "nil module",
 			ID:          "b",
 			New:         func() Module { return nil },
 			expectPanic: true,
 		},
 		{
+			scenario:    "existing module",
 			ID:          "a",
-			New:         func() Module { return new(ProtoModule) },
+			New:         func() Module { return new(ModuleMock) },
 			expectPanic: true,
 		},
 		{
-			ID:  "b",
-			New: func() Module { return new(ProtoModule) },
+			scenario:    "success",
+			ID:          "b",
+			New:         func() Module { return new(ModuleMock) },
+			expectPanic: false,
 		},
 	} {
-		func() {
-			mod := struct{ ProtoModule }{}
-			mod.descriptor = func() ModuleDescriptor { return ModuleDescriptor{ID: tc.ID, New: tc.New} }
+		t.Run(tc.scenario, func(t *testing.T) {
+			mod := &struct{ ModuleMock }{}
+			mod.DescriptorMock = func() ModuleDescriptor { return ModuleDescriptor{ID: tc.ID, New: tc.New} }
 
 			if tc.expectPanic {
 				defer func() {
 					if r := recover(); r == nil {
-						t.Errorf("test %d: expected panic but got none", i)
+						t.Error("expected panic but got none")
 					}
 				}()
 			}
@@ -83,13 +64,13 @@ func TestMustRegisterModule(t *testing.T) {
 			if !tc.expectPanic {
 				defer func() {
 					if r := recover(); r != nil {
-						t.Errorf("test %d: expected no panic but got: %v", i, r)
+						t.Errorf("expected no panic but got: %v", r)
 					}
 				}()
 			}
 
 			MustRegisterModule(mod)
-		}()
+		})
 	}
 
 	descriptorsMu.RLock()
@@ -124,12 +105,3 @@ func TestGetModuleDescriptors(t *testing.T) {
 	descriptors = make(map[string]ModuleDescriptor)
 	descriptorsMu.RUnlock()
 }
-
-// Interface guards.
-var (
-	_ Module      = (*ProtoModule)(nil)
-	_ Provisioner = (*ProtoProvisioner)(nil)
-	_ Module      = (*ProtoProvisioner)(nil)
-	_ Validator   = (*ProtoValidator)(nil)
-	_ Module      = (*ProtoValidator)(nil)
-)

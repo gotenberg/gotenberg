@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 	"github.com/labstack/echo/v4"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
 )
 
-// mergeRoute returns an api.Route which can merge PDFs.
-func mergeRoute(engine gotenberg.PDFEngine) api.Route {
+// mergeRoute returns an [api.Route] which can merge PDFs.
+func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
 		Path:        "/forms/pdfengines/merge",
@@ -22,16 +23,22 @@ func mergeRoute(engine gotenberg.PDFEngine) api.Route {
 			// Let's get the data from the form and validate them.
 			var (
 				inputPaths []string
-				PDFformat  string
+				pdfa       string
+				pdfua      bool
 			)
 
 			err := ctx.FormData().
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
-				String("pdfFormat", &PDFformat, "").
+				String("pdfa", &pdfa, "").
+				Bool("pdfua", &pdfua, false).
 				Validate()
-
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			pdfFormats := gotenberg.PdfFormats{
+				PdfA:  pdfa,
+				PdfUa: pdfua,
 			}
 
 			// Alright, let's merge the PDFs.
@@ -45,21 +52,21 @@ func mergeRoute(engine gotenberg.PDFEngine) api.Route {
 
 			// So far so good, the PDFs are merged into one unique PDF.
 			// Now, let's check if the client want to convert this result PDF
-			// to a specific PDF format.
-
-			if PDFformat != "" {
+			// to specific PDF formats.
+			zeroValued := gotenberg.PdfFormats{}
+			if pdfFormats != zeroValued {
 				convertInputPath := outputPath
 				convertOutputPath := ctx.GeneratePath(".pdf")
 
-				err = engine.Convert(ctx, ctx.Log(), PDFformat, convertInputPath, convertOutputPath)
+				err = engine.Convert(ctx, ctx.Log(), pdfFormats, convertInputPath, convertOutputPath)
 
 				if err != nil {
-					if errors.Is(err, gotenberg.ErrPDFFormatNotAvailable) {
+					if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
 						return api.WrapError(
 							fmt.Errorf("convert PDF: %w", err),
-							api.NewSentinelHTTPError(
+							api.NewSentinelHttpError(
 								http.StatusBadRequest,
-								fmt.Sprintf("At least one PDF engine does not handle the PDF format '%s' (pdfFormat), while other have failed to convert for other reasons", PDFformat),
+								fmt.Sprintf("At least one PDF engine does not handle one of the PDF format in '%+v', while other have failed to convert for other reasons", pdfFormats),
 							),
 						)
 					}
@@ -84,9 +91,9 @@ func mergeRoute(engine gotenberg.PDFEngine) api.Route {
 	}
 }
 
-// convertRoute returns an api.Route which can convert a PDF to a specific PDF
-// format.
-func convertRoute(engine gotenberg.PDFEngine) api.Route {
+// convertRoute returns an [api.Route] which can convert a PDF to a specific
+// PDF format.
+func convertRoute(engine gotenberg.PdfEngine) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
 		Path:        "/forms/pdfengines/convert",
@@ -97,34 +104,50 @@ func convertRoute(engine gotenberg.PDFEngine) api.Route {
 			// Let's get the data from the form and validate them.
 			var (
 				inputPaths []string
-				PDFformat  string
+				pdfa       string
+				pdfua      bool
 			)
 
 			err := ctx.FormData().
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
-				MandatoryString("pdfFormat", &PDFformat).
+				String("pdfa", &pdfa, "").
+				Bool("pdfua", &pdfua, false).
 				Validate()
-
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			// Alright, let's merge the PDFs.
+			pdfFormats := gotenberg.PdfFormats{
+				PdfA:  pdfa,
+				PdfUa: pdfua,
+			}
 
+			zeroValued := gotenberg.PdfFormats{}
+			if pdfFormats == zeroValued {
+				return api.WrapError(
+					errors.New("no PDF formats"),
+					api.NewSentinelHttpError(
+						http.StatusBadRequest,
+						"Invalid form data: either 'pdfa' or 'pdfua' form fields must be provided",
+					),
+				)
+			}
+
+			// Alright, let's convert the PDFs.
 			outputPaths := make([]string, len(inputPaths))
 
 			for i, inputPath := range inputPaths {
 				outputPaths[i] = ctx.GeneratePath(".pdf")
 
-				err = engine.Convert(ctx, ctx.Log(), PDFformat, inputPath, outputPaths[i])
+				err = engine.Convert(ctx, ctx.Log(), pdfFormats, inputPath, outputPaths[i])
 
 				if err != nil {
-					if errors.Is(err, gotenberg.ErrPDFFormatNotAvailable) {
+					if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
 						return api.WrapError(
 							fmt.Errorf("convert PDF: %w", err),
-							api.NewSentinelHTTPError(
+							api.NewSentinelHttpError(
 								http.StatusBadRequest,
-								fmt.Sprintf("At least one PDF engine does not handle the PDF format '%s' (pdfFormat), while other have failed to convert for other reasons", PDFformat),
+								fmt.Sprintf("At least one PDF engine does not handle one of the PDF format in '%+v', while other have failed to convert for other reasons", pdfFormats),
 							),
 						)
 					}

@@ -12,16 +12,14 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/google/uuid"
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/labstack/echo/v4"
 	"github.com/mholt/archiver/v3"
 	"go.uber.org/zap"
-	"golang.org/x/text/runes"
-	"golang.org/x/text/transform"
 	"golang.org/x/text/unicode/norm"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 var (
@@ -48,8 +46,8 @@ type Context struct {
 	context.Context
 }
 
-// newContext returns a Context by parsing a "multipart/form-data" request.
-func newContext(echoCtx echo.Context, logger *zap.Logger, timeout time.Duration) (*Context, context.CancelFunc, error) {
+// newContext returns a [Context] by parsing a "multipart/form-data" request.
+func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSystem, timeout time.Duration) (*Context, context.CancelFunc, error) {
 	processCtx, processCancel := context.WithTimeout(context.Background(), timeout)
 
 	ctx := &Context{
@@ -81,7 +79,7 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, timeout time.Duration)
 				return
 			}
 
-			ctx.logger.Debug(fmt.Sprintf("'%s' removed", ctx.dirPath))
+			ctx.logger.Debug(fmt.Sprintf("'%s' context's working directory removed", ctx.dirPath))
 			ctx.cancelled = true
 		}
 	}()
@@ -92,28 +90,28 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, timeout time.Duration)
 		if errors.Is(err, http.ErrNotMultipart) {
 			return nil, cancel, WrapError(
 				fmt.Errorf("get multipart form: %w", err),
-				NewSentinelHTTPError(http.StatusUnsupportedMediaType, "Invalid 'Content-Type' header value: want 'multipart/form-data'"),
+				NewSentinelHttpError(http.StatusUnsupportedMediaType, "Invalid 'Content-Type' header value: want 'multipart/form-data'"),
 			)
 		}
 
 		if errors.Is(err, http.ErrMissingBoundary) {
 			return nil, cancel, WrapError(
 				fmt.Errorf("get multipart form: %w", err),
-				NewSentinelHTTPError(http.StatusUnsupportedMediaType, "Invalid 'Content-Type' header value: no boundary"),
+				NewSentinelHttpError(http.StatusUnsupportedMediaType, "Invalid 'Content-Type' header value: no boundary"),
 			)
 		}
 
 		if strings.Contains(err.Error(), io.EOF.Error()) {
 			return nil, cancel, WrapError(
 				fmt.Errorf("get multipart form: %w", err),
-				NewSentinelHTTPError(http.StatusBadRequest, "Malformed body: it does not match the 'Content-Type' header boundaries"),
+				NewSentinelHttpError(http.StatusBadRequest, "Malformed body: it does not match the 'Content-Type' header boundaries"),
 			)
 		}
 
 		return nil, cancel, fmt.Errorf("get multipart form: %w", err)
 	}
 
-	dirPath, err := gotenberg.MkdirAll()
+	dirPath, err := fs.MkdirAll()
 	if err != nil {
 		return nil, cancel, fmt.Errorf("create working directory: %w", err)
 	}
@@ -123,15 +121,6 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, timeout time.Duration)
 	ctx.files = make(map[string]string)
 
 	copyToDisk := func(fh *multipart.FileHeader) error {
-		// Avoid directory traversal and normalize filename.
-		// See https://github.com/gotenberg/gotenberg/issues/104.
-		t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
-
-		filename, _, err := transform.String(t, filepath.Base(fh.Filename))
-		if err != nil {
-			return fmt.Errorf("transform filename: %w", err)
-		}
-
 		in, err := fh.Open()
 		if err != nil {
 			return fmt.Errorf("open multipart file: %w", err)
@@ -144,6 +133,10 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, timeout time.Duration)
 			}
 		}()
 
+		// Avoid directory traversal and make sure filename characters are
+		// normalized.
+		// See: https://github.com/gotenberg/gotenberg/issues/662.
+		filename := norm.NFC.String(filepath.Base(fh.Filename))
 		path := fmt.Sprintf("%s/%s", ctx.dirPath, filename)
 
 		out, err := os.Create(path)
@@ -178,19 +171,19 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, timeout time.Duration)
 		}
 	}
 
-	ctx.Log().Debug(fmt.Sprintf("form data values: %+v", ctx.values))
-	ctx.Log().Debug(fmt.Sprintf("form data files: %+v", ctx.files))
+	ctx.Log().Debug(fmt.Sprintf("form fields: %+v", ctx.values))
+	ctx.Log().Debug(fmt.Sprintf("form files: %+v", ctx.files))
 
 	return ctx, cancel, err
 }
 
-// Request returns the http.Request.
-func (ctx Context) Request() *http.Request {
+// Request returns the [http.Request].
+func (ctx *Context) Request() *http.Request {
 	return ctx.echoCtx.Request()
 }
 
-// FormData return a FormData.
-func (ctx Context) FormData() *FormData {
+// FormData return a [FormData].
+func (ctx *Context) FormData() *FormData {
 	return &FormData{
 		values: ctx.values,
 		files:  ctx.files,
@@ -200,7 +193,7 @@ func (ctx Context) FormData() *FormData {
 
 // GeneratePath generates a path within the context's working directory. It
 // does not create a file.
-func (ctx Context) GeneratePath(extension string) string {
+func (ctx *Context) GeneratePath(extension string) string {
 	return fmt.Sprintf("%s/%s%s", ctx.dirPath, uuid.New(), extension)
 }
 
@@ -222,14 +215,14 @@ func (ctx *Context) AddOutputPaths(paths ...string) error {
 	return nil
 }
 
-// Log returns the context zap.Logger.
-func (ctx Context) Log() *zap.Logger {
+// Log returns the context [zap.Logger].
+func (ctx *Context) Log() *zap.Logger {
 	return ctx.logger
 }
 
 // BuildOutputFile builds the output file according to the output paths
 // registered in the context. If many output paths, an archive is created.
-func (ctx Context) BuildOutputFile() (string, error) {
+func (ctx *Context) BuildOutputFile() (string, error) {
 	if ctx.cancelled {
 		return "", ErrContextAlreadyClosed
 	}
@@ -267,7 +260,7 @@ func (ctx Context) BuildOutputFile() (string, error) {
 
 // OutputFilename returns the filename based on the given output path or the
 // "Gotenberg-Output-Filename" header's value.
-func (ctx Context) OutputFilename(outputPath string) string {
+func (ctx *Context) OutputFilename(outputPath string) string {
 	filename := ctx.echoCtx.Request().Header.Get("Gotenberg-Output-Filename")
 
 	if filename == "" {

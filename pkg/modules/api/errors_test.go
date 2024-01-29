@@ -7,9 +7,9 @@ import (
 	"testing"
 )
 
-func TestNewSentinelHTTPError(t *testing.T) {
-	actual := NewSentinelHTTPError(http.StatusInternalServerError, "foo")
-	expect := SentinelHTTPError{
+func TestNewSentinelHttpError(t *testing.T) {
+	actual := NewSentinelHttpError(http.StatusInternalServerError, "foo")
+	expect := SentinelHttpError{
 		status:  http.StatusInternalServerError,
 		message: "foo",
 	}
@@ -19,8 +19,8 @@ func TestNewSentinelHTTPError(t *testing.T) {
 	}
 }
 
-func TestSentinelHTTPError_Error(t *testing.T) {
-	err := SentinelHTTPError{
+func TestSentinelHttpError_Error(t *testing.T) {
+	err := SentinelHttpError{
 		message: "foo",
 	}
 
@@ -32,11 +32,11 @@ func TestSentinelHTTPError_Error(t *testing.T) {
 	}
 }
 
-func TestSentinelHTTPError_HTTPError(t *testing.T) {
-	actualStatus, actualMessage := SentinelHTTPError{
+func TestSentinelHttpError_HttpError(t *testing.T) {
+	actualStatus, actualMessage := SentinelHttpError{
 		status:  http.StatusInternalServerError,
 		message: "foo",
-	}.HTTPError()
+	}.HttpError()
 
 	expectStatus := http.StatusInternalServerError
 	expectMessage := "foo"
@@ -51,7 +51,7 @@ func TestSentinelHTTPError_HTTPError(t *testing.T) {
 }
 
 func TestSentinelWrappedError_Is(t *testing.T) {
-	errSentinel := SentinelHTTPError{}
+	errSentinel := SentinelHttpError{}
 
 	err := sentinelWrappedError{
 		error:    errors.New("foo"),
@@ -63,19 +63,19 @@ func TestSentinelWrappedError_Is(t *testing.T) {
 	}
 }
 
-func TestSentinelWrappedError_HTTPError(t *testing.T) {
-	expectStatus, expectMessage := SentinelHTTPError{
+func TestSentinelWrappedError_HttpError(t *testing.T) {
+	expectStatus, expectMessage := SentinelHttpError{
 		status:  http.StatusInternalServerError,
 		message: "foo",
-	}.HTTPError()
+	}.HttpError()
 
 	actualStatus, actualMessage := sentinelWrappedError{
 		error: errors.New("foo"),
-		sentinel: SentinelHTTPError{
+		sentinel: SentinelHttpError{
 			status:  http.StatusInternalServerError,
 			message: "foo",
 		},
-	}.HTTPError()
+	}.HttpError()
 
 	if actualStatus != expectStatus {
 		t.Errorf("expected %d but got %d", expectStatus, actualStatus)
@@ -91,13 +91,13 @@ func TestWrapError(t *testing.T) {
 
 	expect := sentinelWrappedError{
 		error: errFoo,
-		sentinel: SentinelHTTPError{
+		sentinel: SentinelHttpError{
 			status:  http.StatusInternalServerError,
 			message: "foo",
 		},
 	}
 
-	actual := WrapError(errFoo, SentinelHTTPError{
+	actual := WrapError(errFoo, SentinelHttpError{
 		status:  http.StatusInternalServerError,
 		message: "foo",
 	})

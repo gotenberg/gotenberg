@@ -1,10 +1,9 @@
 package main
 
 import (
-	gotenbergcmd "github.com/gotenberg/gotenberg/v7/cmd"
-
+	gotenbergcmd "github.com/gotenberg/gotenberg/v8/cmd"
 	// Gotenberg modules.
-	_ "github.com/gotenberg/gotenberg/v7/pkg/standard"
+	_ "github.com/gotenberg/gotenberg/v8/pkg/standard"
 )
 
 func main() {

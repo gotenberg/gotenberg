@@ -12,11 +12,11 @@ HAS_CONSISTENT_RIGHTS=$?
 
 if [[ "$HAS_CONSISTENT_RIGHTS" != "0" ]]; then
     # If not specified, the DOCKER_USER is the owner of the current working directory (heuristic!).
-    DOCKER_USER=`ls -dl $(pwd) | cut -d " " -f 3`
+    DOCKER_USER=$(stat -c '%U' "$(pwd)")
 else
     # macOs or Windows.
     # Note: in most cases, we don't care about the rights (they are not respected).
-    FILE_OWNER=`ls -dl testing_file_system_rights.foo/foo | cut -d " " -f 3`
+    FILE_OWNER=$(stat -c '%U' "testing_file_system_rights.foo/foo")
     if [[ "$FILE_OWNER" == "root" ]]; then
         # If root, we are likely on a Windows host.
         # All files will belong to root, but it does not matter as everybody can write/delete
@@ -38,11 +38,11 @@ unset HAS_CONSISTENT_RIGHTS
 # DOCKER_USER is an ID.
 if [[ "$DOCKER_USER" =~ ^[0-9]+$ ]] ; then
     # Let's change the gotenberg user's ID in order to match this free ID.
-    usermod -u $DOCKER_USER -G sudo gotenberg
+    usermod -u "$DOCKER_USER" -G sudo gotenberg
     DOCKER_USER=gotenberg
 fi
 
-DOCKER_USER_ID=`id -ur $DOCKER_USER`
+DOCKER_USER_ID=$(id -ur $DOCKER_USER)
 
 # Fix access rights to stdout and stderr.
 set +e

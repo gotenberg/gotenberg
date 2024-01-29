@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	flag "github.com/spf13/pflag"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 // See https://patorjk.com/software/taag/#p=display&f=Small%20Slant&t=Gotenberg.
@@ -82,7 +84,6 @@ func Run() {
 			startupMessage := app.StartupMessage()
 			if startupMessage == "" {
 				fmt.Printf("[SYSTEM] %s: application started\n", id)
-
 				return
 			}
 
@@ -109,8 +110,8 @@ func Run() {
 
 	quit := make(chan os.Signal, 1)
 
-	// We'll accept graceful shutdowns when quit via SIGINT (Ctrl+C).
-	signal.Notify(quit, os.Interrupt)
+	// We'll accept graceful shutdowns when quit via SIGINT (Ctrl+C) or SIGTERM (Kubernetes).
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	// Block until we receive our signal.
 	<-quit
@@ -119,7 +120,7 @@ func Run() {
 	defer cancel()
 
 	forceQuit := make(chan os.Signal, 1)
-	signal.Notify(forceQuit, os.Interrupt)
+	signal.Notify(forceQuit, syscall.SIGINT)
 
 	go func() {
 		// In case of force quit, cancel the context.
@@ -142,7 +143,6 @@ func Run() {
 				}
 
 				fmt.Printf("[SYSTEM] %s: application stopped\n", id)
-
 				return nil
 			}
 		}(a.(gotenberg.App)))
