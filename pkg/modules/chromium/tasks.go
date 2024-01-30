@@ -125,10 +125,21 @@ func captureScreenshotActionFunc(logger *zap.Logger, outputPaths []string, optio
 				err = chromedp.Run(ctx,
 					// scrolls offscreen elements into view because they often had poor/inconsistent clipping
 					chromedp.Evaluate(fmt.Sprintf("document.querySelector('%+v').scrollIntoViewIfNeeded(true)", sel), nil),
-					// gives offscreen elements a moment to render e.g. heavy canvas elements
-					chromedp.Sleep(500*time.Millisecond),
-					chromedp.ScreenshotScale(sel, options.Scale, &buf, chromedp.NodeVisible),
+					// request an animation frame to wait for any offscreen content to finish rendering
+					chromedp.Evaluate(`window.requestAnimationFrame(() => {window.animationComplete = true})`, nil),
 				)
+
+				if err != nil {
+					return fmt.Errorf("scroll into view: %w", err)
+				}
+
+				err = waitForExpressionBeforePrintActionFunc(logger, false, `window.animationComplete == true`)(ctx)
+				if err != nil {
+					return fmt.Errorf("wait for animation complete: %w", err)
+				}
+
+				err = chromedp.Run(ctx, chromedp.ScreenshotScale(sel, options.Scale, &buf, chromedp.NodeVisible),
+					chromedp.Evaluate(`window.animationComplete = false`, nil))
 
 				if err != nil {
 					return fmt.Errorf("capture screenshot: %w", err)
