@@ -244,6 +244,12 @@ type ScreenshotOptions struct {
 	// not for resulting size.
 	// Optional.
 	OptimizeForSpeed bool
+
+	// Sel is the CSS selector of the element(s) to capture.
+	Sel []string
+
+	// Scale factor (e.g. page zoom) to increase pixel count / quality
+	Scale float64
 }
 
 // DefaultScreenshotOptions returns the default values for ScreenshotOptions.
@@ -253,13 +259,14 @@ func DefaultScreenshotOptions() ScreenshotOptions {
 		Format:           "png",
 		Quality:          100,
 		OptimizeForSpeed: false,
+		Scale:            1,
 	}
 }
 
 // Api helps to interact with Chromium for converting HTML documents to PDF.
 type Api interface {
-	Pdf(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error
-	Screenshot(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error
+	Pdf(ctx context.Context, logger *zap.Logger, url string, outputPath string, options PdfOptions) error
+	Screenshot(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error
 }
 
 // Provider is a module interface which exposes a method for creating an [Api]
@@ -505,11 +512,11 @@ func (mod *Chromium) Pdf(ctx context.Context, logger *zap.Logger, url, outputPat
 	})
 }
 
-func (mod *Chromium) Screenshot(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+func (mod *Chromium) Screenshot(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error {
 	// Note: no error wrapping because it leaks on errors we want to display to
 	// the end user.
 	return mod.supervisor.Run(ctx, logger, func() error {
-		return mod.browser.screenshot(ctx, logger, url, outputPath, options)
+		return mod.browser.screenshot(ctx, logger, url, outputPaths, options)
 	})
 }
 

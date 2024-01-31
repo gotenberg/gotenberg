@@ -1981,7 +1981,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				ctx,
 				logger,
 				fmt.Sprintf("file://%s/index.html", tc.fs.WorkingDirPath()),
-				fmt.Sprintf("%s/%s.pdf", tc.fs.WorkingDirPath(), uuid.NewString()),
+				[]string{fmt.Sprintf("%s/%s.pdf", tc.fs.WorkingDirPath(), uuid.NewString())},
 				tc.options,
 			)
 
