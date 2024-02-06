@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -13,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/mholt/archiver/v3"
 	"go.uber.org/zap"
@@ -191,10 +191,18 @@ func (ctx *Context) FormData() *FormData {
 	}
 }
 
-// GeneratePath generates a path within the context's working directory. It
-// does not create a file.
-func (ctx *Context) GeneratePath(extension string) string {
-	return fmt.Sprintf("%s/%s%s", ctx.dirPath, uuid.New(), extension)
+// GeneratePath generates a path within the context's working directory. It does not create a file.
+// It either generates a new UUID-based filename or uses the provided filename.
+func (ctx *Context) GeneratePath(extension string, optionalFilename ...string) string {
+	var filename string
+	if len(optionalFilename) > 0 {
+		// Use the provided filename
+		filename = optionalFilename[0]
+	} else {
+		// Generate a new UUID-based filename
+		filename = uuid.New().String()
+	}
+	return fmt.Sprintf("%s/%s%s", ctx.dirPath, filename, extension)
 }
 
 // AddOutputPaths adds the given paths. Those paths will be used later to build
