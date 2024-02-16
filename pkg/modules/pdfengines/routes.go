@@ -43,7 +43,7 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 
 			// Alright, let's merge the PDFs.
 
-			outputPath := ctx.GeneratePath(".pdf")
+			outputPath := ctx.GeneratePath("", ".pdf")
 
 			err = engine.Merge(ctx, ctx.Log(), inputPaths, outputPath)
 			if err != nil {
@@ -56,10 +56,9 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			zeroValued := gotenberg.PdfFormats{}
 			if pdfFormats != zeroValued {
 				convertInputPath := outputPath
-				convertOutputPath := ctx.GeneratePath(".pdf")
+				convertOutputPath := ctx.GeneratePath("", ".pdf")
 
 				err = engine.Convert(ctx, ctx.Log(), pdfFormats, convertInputPath, convertOutputPath)
-
 				if err != nil {
 					if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
 						return api.WrapError(
@@ -137,10 +136,9 @@ func convertRoute(engine gotenberg.PdfEngine) api.Route {
 			outputPaths := make([]string, len(inputPaths))
 
 			for i, inputPath := range inputPaths {
-				outputPaths[i] = ctx.GeneratePath(".pdf")
+				outputPaths[i] = ctx.GeneratePath("", ".pdf")
 
 				err = engine.Convert(ctx, ctx.Log(), pdfFormats, inputPath, outputPaths[i])
-
 				if err != nil {
 					if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
 						return api.WrapError(

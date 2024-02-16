@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
-	"strings"
 
 	"github.com/labstack/echo/v4"
 
@@ -53,25 +52,11 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				PdfUa: pdfua,
 			}
 
-			// We need to check and see if there are any duplicate filenames in inputPaths.
-			filenameCounts := make(map[string]int)
-			for _, path := range inputPaths {
-				filename := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-				filenameCounts[filename]++
-			}
-
 			// Alright, let's convert each document to PDF.
 			outputPaths := make([]string, len(inputPaths))
 			for i, inputPath := range inputPaths {
-				filename := strings.TrimSuffix(filepath.Base(inputPath), filepath.Ext(inputPath))
-				extension := filepath.Ext(inputPath)
-				// Ex: `document.docx`, `document.doc` -> `document.docx.pdf`, `document.doc.pdf`
-				if filenameCounts[filename] > 1 {
-					outputPaths[i] = ctx.GeneratePath(".pdf", filename+extension)
-				} else {
-					outputPaths[i] = ctx.GeneratePath(".pdf", filename)
-				}
-
+				// document.docx -> document.docx.pdf.
+				outputPaths[i] = ctx.GeneratePath(filepath.Base(inputPath), ".pdf")
 				options := libreofficeapi.Options{
 					Landscape:  landscape,
 					PageRanges: nativePageRanges,
@@ -108,7 +93,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			// win: if there is only one PDF, skip this step.
 
 			if len(outputPaths) > 1 && merge {
-				outputPath := ctx.GeneratePath(".pdf")
+				outputPath := ctx.GeneratePath("", ".pdf")
 
 				err = engine.Merge(ctx, ctx.Log(), outputPaths, outputPath)
 				if err != nil {
@@ -120,7 +105,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				zeroValued := gotenberg.PdfFormats{}
 				if !nativePdfFormats && pdfFormats != zeroValued {
 					convertInputPath := outputPath
-					convertOutputPath := ctx.GeneratePath(".pdf")
+					convertOutputPath := ctx.GeneratePath("", ".pdf")
 
 					err = engine.Convert(ctx, ctx.Log(), pdfFormats, convertInputPath, convertOutputPath)
 					if err != nil {
@@ -160,7 +145,8 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 
 				for i, outputPath := range outputPaths {
 					convertInputPath := outputPath
-					convertOutputPaths[i] = ctx.GeneratePath(".pdf")
+					// document.docx -> document.docx.pdf.
+					convertOutputPaths[i] = ctx.GeneratePath(filepath.Base(inputPaths[i]), ".pdf")
 
 					err = engine.Convert(ctx, ctx.Log(), pdfFormats, convertInputPath, convertOutputPaths[i])
 					if err != nil {

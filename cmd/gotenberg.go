@@ -75,7 +75,6 @@ func Run() {
 		go func(app gotenberg.App) {
 			id := app.(gotenberg.Module).Descriptor().ID
 			err = app.Start()
-
 			if err != nil {
 				fmt.Printf("[FATAL] starting %s: %s\n", id, err)
 				os.Exit(1)
