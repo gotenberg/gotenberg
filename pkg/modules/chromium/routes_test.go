@@ -1225,6 +1225,7 @@ func TestConvertUrl(t *testing.T) {
 		engine                 gotenberg.PdfEngine
 		pdfFormats             gotenberg.PdfFormats
 		options                PdfOptions
+		metadata               map[string]interface{}
 		expectError            bool
 		expectHttpError        bool
 		expectHttpStatus       int
@@ -1385,10 +1386,45 @@ func TestConvertUrl(t *testing.T) {
 			expectHttpError:        false,
 			expectOutputPathsCount: 1,
 		},
+		{
+			scenario: "error with metadata write",
+			ctx:      &api.ContextMock{Context: new(api.Context)},
+			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
+				return nil
+			}},
+			engine: &gotenberg.PdfEngineMock{WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, newMetadata map[string]interface{}) error {
+				return fmt.Errorf("error writing metadata to %s: %w", "foo.pdf", errors.New("foo"))
+			}},
+			options: DefaultPdfOptions(),
+			metadata: map[string]interface{}{
+				"Creator":  "foo",
+				"Producer": "bar",
+			},
+			expectError:     true,
+			expectHttpError: false,
+		},
+		{
+			scenario: "success with metadata write",
+			ctx:      &api.ContextMock{Context: new(api.Context)},
+			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
+				return nil
+			}},
+			engine: &gotenberg.PdfEngineMock{WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, newMetadata map[string]interface{}) error {
+				return nil
+			}},
+			options: DefaultPdfOptions(),
+			metadata: map[string]interface{}{
+				"Creator":  "foo",
+				"Producer": "bar",
+			},
+			expectError:            false,
+			expectHttpError:        false,
+			expectOutputPathsCount: 1,
+		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			tc.ctx.SetLogger(zap.NewNop())
-			err := convertUrl(tc.ctx.Context, tc.api, tc.engine, "", tc.pdfFormats, tc.options)
+			err := convertUrl(tc.ctx.Context, tc.api, tc.engine, "", tc.pdfFormats, tc.options, tc.metadata)
 
 			if tc.expectError && err == nil {
 				t.Fatal("expected error but got none", err)

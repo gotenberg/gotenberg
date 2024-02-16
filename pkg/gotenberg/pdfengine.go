@@ -64,6 +64,12 @@ type PdfEngine interface {
 	// Convert transforms a given PDF to the specified formats defined in
 	// PdfFormats. If no format, it does nothing.
 	Convert(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error
+
+	// ReadMetadata extracts the metadata of a given PDF file and load them into the provided metadata object.
+	ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string, metadata map[string]interface{}) error
+
+	// WriteMetadata writes the metadata into a given PDF file.
+	WriteMetadata(ctx context.Context, logger *zap.Logger, inputPath string, newMetadata map[string]interface{}) error
 }
 
 // PdfEngineProvider offers an interface to instantiate a [PdfEngine].

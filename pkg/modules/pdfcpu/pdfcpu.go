@@ -54,6 +54,16 @@ func (engine *PdfCpu) Convert(ctx context.Context, logger *zap.Logger, formats g
 	return fmt.Errorf("convert PDF to '%+v' with PDFcpu: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// ReadMetadata is not available in this implementation.
+func (engine *PdfCpu) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPaths string, metadata map[string]interface{}) error {
+	return fmt.Errorf("read PDF metadata with PDFcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
+// WriteMetadata is not available in this implementation.
+func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *zap.Logger, inputPaths string, newMetadata map[string]interface{}) error {
+	return fmt.Errorf("write PDF metadata with PDFcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*PdfCpu)(nil)
