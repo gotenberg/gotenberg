@@ -164,7 +164,6 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 	for _, files := range form.File {
 		for _, fh := range files {
 			err = copyToDisk(fh)
-
 			if err != nil {
 				return ctx, cancel, fmt.Errorf("copy to disk: %w", err)
 			}
@@ -191,14 +190,11 @@ func (ctx *Context) FormData() *FormData {
 	}
 }
 
-// GeneratePath generates a path within the context's working directory. It does not create a file.
+// GeneratePath generates a path within the context's working directory.
 // It either generates a new UUID-based filename or uses the provided filename.
-func (ctx *Context) GeneratePath(extension string, optionalFilename ...string) string {
-	var filename string
-	if len(optionalFilename) > 0 {
-		// Use the provided filename
-		filename = optionalFilename[0]
-	} else {
+// It does not create a file.
+func (ctx *Context) GeneratePath(filename, extension string) string {
+	if filename == "" {
 		// Generate a new UUID-based filename
 		filename = uuid.New().String()
 	}
@@ -254,7 +250,7 @@ func (ctx *Context) BuildOutputFile() (string, error) {
 		ImplicitTopLevelFolder: false,
 	}
 
-	archivePath := ctx.GeneratePath(".zip")
+	archivePath := ctx.GeneratePath(".zip", "")
 
 	err := z.Archive(ctx.outputPaths, archivePath)
 	if err != nil {

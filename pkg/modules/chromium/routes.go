@@ -494,7 +494,7 @@ func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) 
 		)
 	}
 
-	inputPath = ctx.GeneratePath(".html")
+	inputPath = ctx.GeneratePath("", ".html")
 
 	err = os.WriteFile(inputPath, buffer.Bytes(), 0o600)
 	if err != nil {
@@ -505,7 +505,7 @@ func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) 
 }
 
 func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, pdfFormats gotenberg.PdfFormats, options PdfOptions) error {
-	outputPath := ctx.GeneratePath(".pdf")
+	outputPath := ctx.GeneratePath("", ".pdf")
 
 	err := chromium.Pdf(ctx, ctx.Log(), url, outputPath, options)
 	err = handleChromiumError(err, url, options.Options)
@@ -549,10 +549,9 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 	zeroValued := gotenberg.PdfFormats{}
 	if pdfFormats != zeroValued {
 		convertInputPath := outputPath
-		convertOutputPath := ctx.GeneratePath(".pdf")
+		convertOutputPath := ctx.GeneratePath("", ".pdf")
 
 		err = engine.Convert(ctx, ctx.Log(), pdfFormats, convertInputPath, convertOutputPath)
-
 		if err != nil {
 			if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
 				return api.WrapError(
@@ -581,7 +580,7 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 
 func screenshotUrl(ctx *api.Context, chromium Api, url string, options ScreenshotOptions) error {
 	ext := fmt.Sprintf(".%s", options.Format)
-	outputPath := ctx.GeneratePath(ext)
+	outputPath := ctx.GeneratePath("", ext)
 
 	err := chromium.Screenshot(ctx, ctx.Log(), url, outputPath, options)
 	err = handleChromiumError(err, url, options.Options)

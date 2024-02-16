@@ -190,9 +190,13 @@ func TestContext_GeneratePath(t *testing.T) {
 		dirPath: "/foo",
 	}
 
-	path := ctx.GeneratePath(".pdf")
-
+	path := ctx.GeneratePath("", ".pdf")
 	if !strings.HasPrefix(path, ctx.dirPath) {
+		t.Errorf("expected '%s' to start with '%s'", path, ctx.dirPath)
+	}
+
+	path = ctx.GeneratePath("foo.txt", ".pdf")
+	if !strings.Contains(path, "foo.txt.pdf") {
 		t.Errorf("expected '%s' to start with '%s'", path, ctx.dirPath)
 	}
 }

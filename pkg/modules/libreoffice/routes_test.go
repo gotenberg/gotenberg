@@ -220,6 +220,7 @@ func TestConvertRoute(t *testing.T) {
 			expectError:            false,
 			expectHttpError:        false,
 			expectOutputPathsCount: 1,
+			expectFileNames:        []string{"/document.docx.pdf"},
 		},
 		{
 			scenario: "success (many files)",
@@ -228,6 +229,7 @@ func TestConvertRoute(t *testing.T) {
 				ctx.SetFiles(map[string]string{
 					"document.docx":  "/document.docx",
 					"document2.docx": "/document2.docx",
+					"document2.doc":  "/document2.doc",
 				})
 				return ctx
 			}(),
@@ -236,19 +238,21 @@ func TestConvertRoute(t *testing.T) {
 					return nil
 				},
 				ExtensionsMock: func() []string {
-					return []string{".docx"}
+					return []string{".docx", ".doc"}
 				},
 			},
 			expectError:            false,
 			expectHttpError:        false,
-			expectOutputPathsCount: 2,
+			expectOutputPathsCount: 3,
+			expectFileNames:        []string{"/document.docx.pdf", "/document2.docx.pdf", "/document2.doc.pdf"},
 		},
 		{
-			scenario: "success with non-native PDF/A & PDF/UA (single file)",
+			scenario: "success with non-native PDF/A & PDF/UA (many files)",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
-					"document.docx": "/document.docx",
+					"document.docx":  "/document.docx",
+					"document2.docx": "/document2.docx",
 				})
 				ctx.SetValues(map[string][]string{
 					"pdfa": {
@@ -278,14 +282,16 @@ func TestConvertRoute(t *testing.T) {
 			},
 			expectError:            false,
 			expectHttpError:        false,
-			expectOutputPathsCount: 1,
+			expectOutputPathsCount: 2,
+			expectFileNames:        []string{"/document.docx.pdf", "/document2.docx.pdf"},
 		},
 		{
-			scenario: "success with native PDF/A & PDF/UA (single file)",
+			scenario: "success with native PDF/A & PDF/UA (many files)",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
-					"document.docx": "/document.docx",
+					"document.docx":  "/document.docx",
+					"document2.docx": "/document2.docx",
 				})
 				ctx.SetValues(map[string][]string{
 					"pdfa": {
@@ -312,7 +318,8 @@ func TestConvertRoute(t *testing.T) {
 			},
 			expectError:            false,
 			expectHttpError:        false,
-			expectOutputPathsCount: 1,
+			expectOutputPathsCount: 2,
+			expectFileNames:        []string{"/document.docx.pdf", "/document2.docx.pdf"},
 		},
 		{
 			scenario: "merge error",
@@ -495,72 +502,6 @@ func TestConvertRoute(t *testing.T) {
 			expectOutputPathsCount: 1,
 		},
 		{
-			scenario: "success (not merged, unique filenames with different extensions)",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"document.docx":  "/document.docx",
-					"document2.docx": "/document2.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"merge": {
-						"false",
-					},
-				})
-				return ctx
-			}(),
-			libreOffice: &libreofficeapi.ApiMock{
-				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
-					return nil
-				},
-				ExtensionsMock: func() []string {
-					return []string{".docx", ".doc"}
-				},
-			},
-			engine: &gotenberg.PdfEngineMock{
-				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-					return nil
-				},
-			},
-			expectError:            false,
-			expectHttpError:        false,
-			expectOutputPathsCount: 2,
-		},
-		{
-			scenario: "success (not merged, duplicate filenames with different extensions)",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"document.docx":  "/document.docx",
-					"document2.docx": "/document2.docx",
-					"document2.doc":  "/document2.doc",
-				})
-				ctx.SetValues(map[string][]string{
-					"merge": {
-						"false",
-					},
-				})
-				return ctx
-			}(),
-			libreOffice: &libreofficeapi.ApiMock{
-				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
-					return nil
-				},
-				ExtensionsMock: func() []string {
-					return []string{".docx", ".doc"}
-				},
-			},
-			engine: &gotenberg.PdfEngineMock{
-				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-					return nil
-				},
-			},
-			expectError:            false,
-			expectHttpError:        false,
-			expectOutputPathsCount: 3,
-			expectFileNames:        []string{"document.pdf", "document2.docx.pdf", "document2.doc.pdf"},
-		},
-		{
 			scenario: "success with non-native PDF/A & PDF/UA (merge)",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
@@ -686,8 +627,10 @@ func TestConvertRoute(t *testing.T) {
 				t.Errorf("expected %d output paths but got %d", tc.expectOutputPathsCount, len(tc.ctx.OutputPaths()))
 			}
 
-			if !reflect.DeepEqual(tc.ctx.OutputPaths(), tc.expectFileNames) {
-				t.Errorf("expected output paths %v, got %v", tc.expectFileNames, tc.ctx.OutputPaths())
+			if len(tc.expectFileNames) != 0 {
+				if !reflect.DeepEqual(tc.ctx.OutputPaths(), tc.expectFileNames) {
+					t.Errorf("expected output paths %v, got %v", tc.expectFileNames, tc.ctx.OutputPaths())
+				}
 			}
 		})
 	}
