@@ -250,7 +250,7 @@ func (ctx *Context) BuildOutputFile() (string, error) {
 		ImplicitTopLevelFolder: false,
 	}
 
-	archivePath := ctx.GeneratePath(".zip", "")
+	archivePath := ctx.GeneratePath("", ".zip")
 
 	err := z.Archive(ctx.outputPaths, archivePath)
 	if err != nil {
