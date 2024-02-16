@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"path/filepath"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 
@@ -51,10 +53,24 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				PdfUa: pdfua,
 			}
 
+			// We need to check and see if there are any duplicate filenames in inputPaths.
+			filenameCounts := make(map[string]int)
+			for _, path := range inputPaths {
+				filename := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+				filenameCounts[filename]++
+			}
+
 			// Alright, let's convert each document to PDF.
 			outputPaths := make([]string, len(inputPaths))
 			for i, inputPath := range inputPaths {
-				outputPaths[i] = ctx.GeneratePath(".pdf")
+				filename := strings.TrimSuffix(filepath.Base(inputPath), filepath.Ext(inputPath))
+				extension := filepath.Ext(inputPath)
+				// Ex: `document.docx`, `document.doc` -> `document.docx.pdf`, `document.doc.pdf`
+				if filenameCounts[filename] > 1 {
+					outputPaths[i] = ctx.GeneratePath(".pdf", filename+extension)
+				} else {
+					outputPaths[i] = ctx.GeneratePath(".pdf", filename)
+				}
 
 				options := libreofficeapi.Options{
 					Landscape:  landscape,
