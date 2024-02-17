@@ -295,6 +295,7 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Bool("chromium-clear-cookies", false, "Clear Chromium cookies between each conversion")
 			fs.Bool("chromium-disable-javascript", false, "Disable JavaScript")
 			fs.Bool("chromium-disable-routes", false, "Disable the routes")
+			fs.Int64("chromium-max-queue-size", 0, "Maximum request queue size for chromium. Set to 0 to disable this feature")
 
 			return fs
 		}(),
@@ -344,7 +345,7 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 
 	// Process.
 	mod.browser = newChromiumBrowser(mod.args)
-	mod.supervisor = gotenberg.NewProcessSupervisor(mod.logger, mod.browser, flags.MustInt64("chromium-restart-after"))
+	mod.supervisor = gotenberg.NewProcessSupervisor(mod.logger, mod.browser, flags.MustInt64("chromium-restart-after"), flags.MustInt64("chromium-max-queue-size"))
 
 	// PDF Engine.
 	provider, err := ctx.Module(new(gotenberg.PdfEngineProvider))

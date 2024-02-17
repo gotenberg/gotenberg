@@ -46,7 +46,7 @@ func TestProcessSupervisor_Launch(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, 5).(*processSupervisor)
+			ps := NewProcessSupervisor(logger, process, 5, 0).(*processSupervisor)
 			if tc.firstStartSet {
 				ps.firstStart.Store(true)
 			}
@@ -94,7 +94,7 @@ func TestProcessSupervisor_Shutdown(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, 5)
+			ps := NewProcessSupervisor(logger, process, 5, 0)
 			err := ps.Shutdown()
 
 			if !tc.expectError && err != nil {
@@ -154,7 +154,7 @@ func TestProcessSupervisor_restart(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, 5).(*processSupervisor)
+			ps := NewProcessSupervisor(logger, process, 5, 0).(*processSupervisor)
 			if tc.initiallyRestarting {
 				ps.isRestarting.Store(true)
 			}
@@ -217,7 +217,7 @@ func TestProcessSupervisor_Healthy(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, 5).(*processSupervisor)
+			ps := NewProcessSupervisor(logger, process, 5, 0).(*processSupervisor)
 			if tc.initiallyStarted {
 				ps.firstStart.Store(true)
 			}
@@ -249,6 +249,8 @@ func TestProcessSupervisor_Run(t *testing.T) {
 		expectedStartCalls   int64
 		expectedHealthyCalls int64
 		expectedStopCalls    int64
+		currentQueueSize     int64
+		maxQueueSize         int64
 	}{
 		{
 			scenario:             "successfully run task on non-started process",
@@ -348,6 +350,34 @@ func TestProcessSupervisor_Run(t *testing.T) {
 			expectedHealthyCalls: 1,
 			expectedStopCalls:    0,
 		},
+		{
+			scenario:             "queue size exceeded",
+			initiallyStarted:     false,
+			isRestarting:         false,
+			processHealthy:       true,
+			maxReqLimit:          2,
+			tasksToRun:           1,
+			expectError:          true,
+			expectedStartCalls:   0,
+			expectedHealthyCalls: 0,
+			expectedStopCalls:    0,
+			currentQueueSize:     1,
+			maxQueueSize:         1,
+		},
+		{
+			scenario:             "queue size not exceeded",
+			initiallyStarted:     false,
+			isRestarting:         false,
+			processHealthy:       true,
+			maxReqLimit:          2,
+			tasksToRun:           1,
+			expectError:          true,
+			expectedStartCalls:   1,
+			expectedHealthyCalls: 1,
+			expectedStopCalls:    0,
+			currentQueueSize:     1,
+			maxQueueSize:         2,
+		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			logger := zap.NewNop()
@@ -372,12 +402,15 @@ func TestProcessSupervisor_Run(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, tc.maxReqLimit).(*processSupervisor)
+			ps := NewProcessSupervisor(logger, process, tc.maxReqLimit, tc.maxQueueSize).(*processSupervisor)
 			if tc.initiallyStarted {
 				ps.firstStart.Store(true)
 			}
 			if tc.isRestarting {
 				ps.isRestarting.Store(true)
+			}
+			if tc.currentQueueSize > 0 {
+				ps.reqQueueSize.Store(tc.currentQueueSize)
 			}
 
 			task := func() error {
@@ -451,7 +484,7 @@ func TestProcessSupervisor_runWithDeadline(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			ps := NewProcessSupervisor(zap.NewNop(), new(ProcessMock), 0).(*processSupervisor)
+			ps := NewProcessSupervisor(zap.NewNop(), new(ProcessMock), 0, 0).(*processSupervisor)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 			defer cancel()
@@ -485,7 +518,7 @@ func TestProcessSupervisor_ReqQueueSize(t *testing.T) {
 			return true
 		},
 	}
-	ps := NewProcessSupervisor(logger, process, 0).(*processSupervisor)
+	ps := NewProcessSupervisor(logger, process, 0, 0).(*processSupervisor)
 
 	// Simulating a lock.
 	ps.mutexChan <- struct{}{}
@@ -586,7 +619,7 @@ func TestProcessSupervisor_RestartsCount(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, 0).(*processSupervisor)
+			ps := NewProcessSupervisor(logger, process, 0, 0).(*processSupervisor)
 			ps.restartsCounter.Store(tc.initialRestartsCount)
 
 			for i := 0; i < tc.restartAttempts; i++ {

@@ -80,6 +80,7 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("api", flag.ExitOnError)
 			fs.Int64("libreoffice-restart-after", 10, "Number of conversions after which LibreOffice will automatically restart. Set to 0 to disable this feature")
+			fs.Int64("libreoffice-max-queue-size", 0, "Maximum request queue size for libreoffice. Set to 0 to disable this feature")
 			fs.Bool("libreoffice-auto-start", false, "Automatically launch LibreOffice upon initialization if set to true; otherwise, LibreOffice will start at the time of the first conversion")
 			fs.Duration("libreoffice-start-timeout", time.Duration(20)*time.Second, "Maximum duration to wait for LibreOffice to start or restart")
 
@@ -123,7 +124,7 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 
 	// Process.
 	a.libreOffice = newLibreOfficeProcess(a.args)
-	a.supervisor = gotenberg.NewProcessSupervisor(a.logger, a.libreOffice, flags.MustInt64("libreoffice-restart-after"))
+	a.supervisor = gotenberg.NewProcessSupervisor(a.logger, a.libreOffice, flags.MustInt64("libreoffice-restart-after"), flags.MustInt64("libreoffice-max-queue-size"))
 
 	return nil
 }
