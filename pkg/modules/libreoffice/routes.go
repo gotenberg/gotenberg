@@ -68,6 +68,16 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 
 				err = libreOffice.Pdf(ctx, ctx.Log(), inputPath, outputPaths[i], options)
 				if err != nil {
+					if errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) {
+						return api.WrapError(
+							fmt.Errorf("convert to PDF: %w", err),
+							api.NewSentinelHttpError(
+								http.StatusTooManyRequests,
+								"The maximum queue size has been reached",
+							),
+						)
+					}
+
 					if errors.Is(err, libreofficeapi.ErrInvalidPdfFormats) {
 						return api.WrapError(
 							fmt.Errorf("convert to PDF: %w", err),

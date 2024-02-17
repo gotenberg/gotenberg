@@ -540,6 +540,16 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 			)
 		}
 
+		if errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) {
+			return api.WrapError(
+				fmt.Errorf("convert to PDF: %w", err),
+				api.NewSentinelHttpError(
+					http.StatusTooManyRequests,
+					"The maximum queue size has been reached",
+				),
+			)
+		}
+
 		return fmt.Errorf("convert to PDF: %w", err)
 	}
 

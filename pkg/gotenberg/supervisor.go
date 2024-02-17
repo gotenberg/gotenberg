@@ -13,6 +13,10 @@ import (
 // to restart an already restarting [Process].
 var ErrProcessAlreadyRestarting = errors.New("process already restarting")
 
+// ErrMaximumQueueSizeExceeded happens if Run() is called but the maximum queue
+// size is already used.
+var ErrMaximumQueueSizeExceeded = errors.New("maximum queue size exceeded")
+
 // Process is an interface that represents an abstract process
 // and provides methods for starting, stopping, and checking the health of the
 // process.
@@ -74,6 +78,7 @@ type processSupervisor struct {
 	logger          *zap.Logger
 	process         Process
 	maxReqLimit     int64
+	maxQueueSize    int64
 	mutexChan       chan struct{}
 	firstStart      atomic.Bool
 	reqCounter      atomic.Int64
@@ -83,12 +88,13 @@ type processSupervisor struct {
 }
 
 // NewProcessSupervisor initializes a new [ProcessSupervisor].
-func NewProcessSupervisor(logger *zap.Logger, process Process, maxReqLimit int64) ProcessSupervisor {
+func NewProcessSupervisor(logger *zap.Logger, process Process, maxReqLimit int64, maxQueueSize int64) ProcessSupervisor {
 	b := &processSupervisor{
-		logger:      logger,
-		process:     process,
-		mutexChan:   make(chan struct{}, 1),
-		maxReqLimit: maxReqLimit,
+		logger:       logger,
+		process:      process,
+		mutexChan:    make(chan struct{}, 1),
+		maxReqLimit:  maxReqLimit,
+		maxQueueSize: maxQueueSize,
 	}
 	b.reqCounter.Store(0)
 	b.reqQueueSize.Store(0)
@@ -167,6 +173,11 @@ func (s *processSupervisor) Healthy() bool {
 }
 
 func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task func() error) error {
+	currentQueueSize := s.reqQueueSize.Load()
+	if s.maxQueueSize > 0 && currentQueueSize >= s.maxQueueSize {
+		return ErrMaximumQueueSizeExceeded
+	}
+
 	s.reqQueueSize.Add(1)
 
 	for {
