@@ -3,7 +3,6 @@ package chromium
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"slices"
 	"sync"
 
@@ -13,14 +12,17 @@ import (
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
+	"github.com/dlclark/regexp2"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 // listenForEventRequestPaused listens for requests to check if they are
 // allowed or not.
-func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, allowList *regexp.Regexp, denyList *regexp.Regexp) {
+func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, allowList *regexp2.Regexp, denyList *regexp2.Regexp) {
 	chromedp.ListenTarget(ctx, func(ev interface{}) {
 		switch e := ev.(type) {
 		case *fetch.EventRequestPaused:
@@ -28,13 +30,15 @@ func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, allowL
 				logger.Debug(fmt.Sprintf("event EventRequestPaused fired for '%s'", e.Request.URL))
 				allow := true
 
-				if !allowList.MatchString(e.Request.URL) {
-					logger.Warn(fmt.Sprintf("'%s' does not match the expression from the allowed list", e.Request.URL))
-					allow = false
+				deadline, ok := ctx.Deadline()
+				if !ok {
+					logger.Error("context has no deadline, cannot filter URL")
+					return
 				}
 
-				if denyList.String() != "" && denyList.MatchString(e.Request.URL) {
-					logger.Warn(fmt.Sprintf("'%s' matches the expression from the denied list", e.Request.URL))
+				err := gotenberg.FilterDeadline(allowList, denyList, e.Request.URL, deadline)
+				if err != nil {
+					logger.Warn(err.Error())
 					allow = false
 				}
 
@@ -43,16 +47,15 @@ func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, allowL
 
 				if allow {
 					req := fetch.ContinueRequest(e.RequestID)
-					err := req.Do(executorCtx)
+					err = req.Do(executorCtx)
 					if err != nil {
 						logger.Error(fmt.Sprintf("continue request: %s", err))
 					}
-
 					return
 				}
 
 				req := fetch.FailRequest(e.RequestID, network.ErrorReasonAccessDenied)
-				err := req.Do(executorCtx)
+				err = req.Do(executorCtx)
 				if err != nil {
 					logger.Error(fmt.Sprintf("fail request: %s", err))
 				}

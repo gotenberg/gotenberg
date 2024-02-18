@@ -1243,10 +1243,10 @@ func TestConvertUrl(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "ErrUrlNotAuthorized",
+			scenario: "ErrFiltered",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
 			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
-				return ErrUrlNotAuthorized
+				return gotenberg.ErrFiltered
 			}},
 			options:                DefaultPdfOptions(),
 			expectError:            true,
@@ -1503,10 +1503,10 @@ func TestScreenshotUrl(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "ErrUrlNotAuthorized",
+			scenario: "ErrFiltered",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
 			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
-				return ErrUrlNotAuthorized
+				return gotenberg.ErrFiltered
 			}},
 			options:                DefaultScreenshotOptions(),
 			expectError:            true,

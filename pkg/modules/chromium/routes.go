@@ -621,7 +621,7 @@ func handleChromiumError(err error, url string, options Options) error {
 		)
 	}
 
-	if errors.Is(err, ErrUrlNotAuthorized) {
+	if errors.Is(err, gotenberg.ErrFiltered) {
 		return api.WrapError(
 			err,
 			api.NewSentinelHttpError(

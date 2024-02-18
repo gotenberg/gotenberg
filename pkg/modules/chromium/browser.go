@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -15,6 +14,7 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
+	"github.com/dlclark/regexp2"
 	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
@@ -39,8 +39,8 @@ type browserArguments struct {
 	wsUrlReadTimeout         time.Duration
 
 	// Tasks specific.
-	allowList         *regexp.Regexp
-	denyList          *regexp.Regexp
+	allowList         *regexp2.Regexp
+	denyList          *regexp2.Regexp
 	clearCache        bool
 	clearCookies      bool
 	disableJavaScript bool
@@ -263,18 +263,15 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 		return errors.New("browser not started, cannot handle tasks")
 	}
 
-	// We validate the "main" URL against our allow / deny lists.
-	if !b.arguments.allowList.MatchString(url) {
-		return fmt.Errorf("'%s' does not match the expression from the allowed list: %w", url, ErrUrlNotAuthorized)
-	}
-
-	if b.arguments.denyList.String() != "" && b.arguments.denyList.MatchString(url) {
-		return fmt.Errorf("'%s' matches the expression from the denied list: %w", url, ErrUrlNotAuthorized)
-	}
-
 	deadline, ok := ctx.Deadline()
 	if !ok {
 		return errors.New("context has no deadline")
+	}
+
+	// We validate the "main" URL against our allow / deny lists.
+	err := gotenberg.FilterDeadline(b.arguments.allowList, b.arguments.denyList, url, deadline)
+	if err != nil {
+		return fmt.Errorf("filter URL: %w", err)
 	}
 
 	b.ctxMu.RLock()
@@ -310,7 +307,7 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 		listenForEventExceptionThrown(taskCtx, logger, &consoleExceptions, &consoleExceptionsMu)
 	}
 
-	err := chromedp.Run(taskCtx, tasks...)
+	err = chromedp.Run(taskCtx, tasks...)
 	if err != nil {
 		errMessage := err.Error()
 

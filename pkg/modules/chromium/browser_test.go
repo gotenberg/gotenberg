@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/dlclark/regexp2"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -268,46 +268,9 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 			expectError: true,
 		},
 		{
-			scenario: "ErrUrlNotAuthorized: main URL does not match the allowed list",
+			scenario: "context has no deadline",
 			browser: func() browser {
 				b := new(chromiumBrowser)
-				b.arguments = browserArguments{
-					allowList: regexp.MustCompile("^file:///[^tmp].*"),
-				}
-				b.isStarted.Store(true)
-				return b
-			}(),
-			fs:            gotenberg.NewFileSystem(),
-			noDeadline:    false,
-			start:         false,
-			expectError:   true,
-			expectedError: ErrUrlNotAuthorized,
-		},
-		{
-			scenario: "ErrUrlNotAuthorized: main URL does match the denied list",
-			browser: func() browser {
-				b := new(chromiumBrowser)
-				b.arguments = browserArguments{
-					allowList: regexp.MustCompile(""),
-					denyList:  regexp.MustCompile("^file:///tmp.*"),
-				}
-				b.isStarted.Store(true)
-				return b
-			}(),
-			fs:            gotenberg.NewFileSystem(),
-			noDeadline:    false,
-			start:         false,
-			expectError:   true,
-			expectedError: ErrUrlNotAuthorized,
-		},
-		{
-			scenario: "ErrUrlNotAuthorized: main URL does match the denied list",
-			browser: func() browser {
-				b := new(chromiumBrowser)
-				b.arguments = browserArguments{
-					allowList: regexp.MustCompile(""),
-					denyList:  regexp.MustCompile(""),
-				}
 				b.isStarted.Store(true)
 				return b
 			}(),
@@ -317,13 +280,47 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 			expectError: true,
 		},
 		{
+			scenario: "ErrFiltered: main URL does not match the allowed list",
+			browser: func() browser {
+				b := new(chromiumBrowser)
+				b.arguments = browserArguments{
+					allowList: regexp2.MustCompile(`^file:(?!//\/tmp/).*`, 0),
+					denyList:  regexp2.MustCompile("", 0),
+				}
+				b.isStarted.Store(true)
+				return b
+			}(),
+			fs:            gotenberg.NewFileSystem(),
+			noDeadline:    false,
+			start:         false,
+			expectError:   true,
+			expectedError: gotenberg.ErrFiltered,
+		},
+		{
+			scenario: "ErrFiltered: main URL does match the denied list",
+			browser: func() browser {
+				b := new(chromiumBrowser)
+				b.arguments = browserArguments{
+					allowList: regexp2.MustCompile("", 0),
+					denyList:  regexp2.MustCompile("^file:///tmp.*", 0),
+				}
+				b.isStarted.Store(true)
+				return b
+			}(),
+			fs:            gotenberg.NewFileSystem(),
+			noDeadline:    false,
+			start:         false,
+			expectError:   true,
+			expectedError: gotenberg.ErrFiltered,
+		},
+		{
 			scenario: "a request does not match the allowed list",
 			browser: newChromiumBrowser(
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile("^file:///tmp.*"),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("^file:///tmp.*", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -354,8 +351,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile("^file:///[^tmp].*"),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile(`^file:(?!//\/tmp/).*`, 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -386,8 +383,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -421,8 +418,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -454,8 +451,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -487,8 +484,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 					clearCache:       true,
 				},
 			),
@@ -520,8 +517,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 					clearCookies:     true,
 				},
 			),
@@ -553,8 +550,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				browserArguments{
 					binPath:           os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout:  5 * time.Second,
-					allowList:         regexp.MustCompile(""),
-					denyList:          regexp.MustCompile(""),
+					allowList:         regexp2.MustCompile("", 0),
+					denyList:          regexp2.MustCompile("", 0),
 					disableJavaScript: true,
 				},
 			),
@@ -588,8 +585,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -625,8 +622,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -658,8 +655,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -694,8 +691,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -727,8 +724,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -762,8 +759,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -797,8 +794,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -832,8 +829,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -878,8 +875,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -913,8 +910,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -959,8 +956,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -995,8 +992,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -1033,8 +1030,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -1066,8 +1063,8 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -1202,45 +1199,12 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 			expectError: true,
 		},
 		{
-			scenario: "ErrUrlNotAuthorized: main URL does not match the allowed list",
+			scenario: "context has not deadline",
 			browser: func() browser {
 				b := new(chromiumBrowser)
 				b.arguments = browserArguments{
-					allowList: regexp.MustCompile("^file:///[^tmp].*"),
-				}
-				b.isStarted.Store(true)
-				return b
-			}(),
-			fs:            gotenberg.NewFileSystem(),
-			noDeadline:    false,
-			start:         false,
-			expectError:   true,
-			expectedError: ErrUrlNotAuthorized,
-		},
-		{
-			scenario: "ErrUrlNotAuthorized: main URL does match the denied list",
-			browser: func() browser {
-				b := new(chromiumBrowser)
-				b.arguments = browserArguments{
-					allowList: regexp.MustCompile(""),
-					denyList:  regexp.MustCompile("^file:///tmp.*"),
-				}
-				b.isStarted.Store(true)
-				return b
-			}(),
-			fs:            gotenberg.NewFileSystem(),
-			noDeadline:    false,
-			start:         false,
-			expectError:   true,
-			expectedError: ErrUrlNotAuthorized,
-		},
-		{
-			scenario: "ErrUrlNotAuthorized: main URL does match the denied list",
-			browser: func() browser {
-				b := new(chromiumBrowser)
-				b.arguments = browserArguments{
-					allowList: regexp.MustCompile(""),
-					denyList:  regexp.MustCompile(""),
+					allowList: regexp2.MustCompile("", 0),
+					denyList:  regexp2.MustCompile("", 0),
 				}
 				b.isStarted.Store(true)
 				return b
@@ -1251,13 +1215,47 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 			expectError: true,
 		},
 		{
+			scenario: "ErrFiltered: main URL does not match the allowed list",
+			browser: func() browser {
+				b := new(chromiumBrowser)
+				b.arguments = browserArguments{
+					allowList: regexp2.MustCompile(`^file:(?!//\/tmp/).*`, 0),
+					denyList:  regexp2.MustCompile("", 0),
+				}
+				b.isStarted.Store(true)
+				return b
+			}(),
+			fs:            gotenberg.NewFileSystem(),
+			noDeadline:    false,
+			start:         false,
+			expectError:   true,
+			expectedError: gotenberg.ErrFiltered,
+		},
+		{
+			scenario: "ErrFiltered: main URL does match the denied list",
+			browser: func() browser {
+				b := new(chromiumBrowser)
+				b.arguments = browserArguments{
+					allowList: regexp2.MustCompile("", 0),
+					denyList:  regexp2.MustCompile("^file:///tmp.*", 0),
+				}
+				b.isStarted.Store(true)
+				return b
+			}(),
+			fs:            gotenberg.NewFileSystem(),
+			noDeadline:    false,
+			start:         false,
+			expectError:   true,
+			expectedError: gotenberg.ErrFiltered,
+		},
+		{
 			scenario: "a request does not match the allowed list",
 			browser: newChromiumBrowser(
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile("^file:///tmp.*"),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("^file:///tmp.*", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -1288,8 +1286,8 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile("^file:///[^tmp].*"),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile(`^file:(?!//\/tmp/).*`, 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -1320,8 +1318,8 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -1355,8 +1353,8 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -1388,8 +1386,8 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -1421,8 +1419,8 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 					clearCache:       true,
 				},
 			),
@@ -1454,8 +1452,8 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 					clearCookies:     true,
 				},
 			),
@@ -1487,8 +1485,8 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				browserArguments{
 					binPath:           os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout:  5 * time.Second,
-					allowList:         regexp.MustCompile(""),
-					denyList:          regexp.MustCompile(""),
+					allowList:         regexp2.MustCompile("", 0),
+					denyList:          regexp2.MustCompile("", 0),
 					disableJavaScript: true,
 				},
 			),
@@ -1522,8 +1520,8 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -1559,8 +1557,8 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -1594,8 +1592,8 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -1627,8 +1625,8 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -1662,8 +1660,8 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -1697,8 +1695,8 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -1732,8 +1730,8 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -1778,8 +1776,8 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -1813,8 +1811,8 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -1859,8 +1857,8 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
@@ -1900,8 +1898,8 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
 					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp.MustCompile(""),
-					denyList:         regexp.MustCompile(""),
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
 			fs: func() *gotenberg.FileSystem {

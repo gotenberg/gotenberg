@@ -20,10 +20,6 @@ func init() {
 }
 
 var (
-	// ErrUrlNotAuthorized happens if a URL is not acceptable according to the
-	// allowed/denied lists.
-	ErrUrlNotAuthorized = errors.New("URL not authorized")
-
 	// ErrInvalidEmulatedMediaType happens if the emulated media type is not
 	// "screen" nor "print". Empty value are allowed though.
 	ErrInvalidEmulatedMediaType = errors.New("invalid emulated media type")
@@ -291,7 +287,7 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.String("chromium-host-resolver-rules", "", "Set custom mappings to the host resolver")
 			fs.String("chromium-proxy-server", "", "Set the outbound proxy server; this switch only affects HTTP and HTTPS requests")
 			fs.String("chromium-allow-list", "", "Set the allowed URLs for Chromium using a regular expression")
-			fs.String("chromium-deny-list", "^file:///[^tmp].*", "Set the denied URLs for Chromium using a regular expression")
+			fs.String("chromium-deny-list", `^file:(?!//\/tmp/).*`, "Set the denied URLs for Chromium using a regular expression")
 			fs.Bool("chromium-clear-cache", false, "Clear Chromium cache between each conversion")
 			fs.Bool("chromium-clear-cookies", false, "Clear Chromium cookies between each conversion")
 			fs.Bool("chromium-disable-javascript", false, "Disable JavaScript")

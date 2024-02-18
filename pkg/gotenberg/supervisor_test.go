@@ -487,10 +487,10 @@ func TestProcessSupervisor_runWithDeadline(t *testing.T) {
 			ps := NewProcessSupervisor(zap.NewNop(), new(ProcessMock), 0, 0).(*processSupervisor)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-			defer cancel()
-
 			if tc.ctxDone {
 				cancel()
+			} else {
+				defer cancel()
 			}
 
 			err := ps.runWithDeadline(ctx, func() error {

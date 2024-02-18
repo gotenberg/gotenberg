@@ -11,11 +11,11 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/dlclark/regexp2"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 
@@ -47,10 +47,10 @@ func TestWebhookMiddlewareGuards(t *testing.T) {
 
 	buildWebhookModule := func() *Webhook {
 		return &Webhook{
-			allowList:      regexp.MustCompile(""),
-			denyList:       regexp.MustCompile(""),
-			errorAllowList: regexp.MustCompile(""),
-			errorDenyList:  regexp.MustCompile(""),
+			allowList:      regexp2.MustCompile("", 0),
+			denyList:       regexp2.MustCompile("", 0),
+			errorAllowList: regexp2.MustCompile("", 0),
+			errorDenyList:  regexp2.MustCompile("", 0),
 			maxRetry:       0,
 			retryMinWait:   0,
 			retryMaxWait:   0,
@@ -63,6 +63,7 @@ func TestWebhookMiddlewareGuards(t *testing.T) {
 		request          *http.Request
 		mod              *Webhook
 		next             echo.HandlerFunc
+		noDeadline       bool
 		expectError      bool
 		expectHttpError  bool
 		expectHttpStatus int
@@ -76,6 +77,7 @@ func TestWebhookMiddlewareGuards(t *testing.T) {
 					return nil
 				}
 			}(),
+			noDeadline:      false,
 			expectError:     false,
 			expectHttpError: false,
 		},
@@ -87,9 +89,22 @@ func TestWebhookMiddlewareGuards(t *testing.T) {
 				return req
 			}(),
 			mod:              buildWebhookModule(),
+			noDeadline:       false,
 			expectError:      true,
 			expectHttpError:  true,
 			expectHttpStatus: http.StatusBadRequest,
+		},
+		{
+			scenario: "context has no deadline",
+			request: func() *http.Request {
+				req := buildMultipartFormDataRequest()
+				req.Header.Set("Gotenberg-Webhook-Url", "foo")
+				req.Header.Set("Gotenberg-Webhook-Error-Url", "bar")
+				return req
+			}(),
+			mod:         buildWebhookModule(),
+			noDeadline:  true,
+			expectError: true,
 		},
 		{
 			scenario: "webhook URL is not allowed",
@@ -101,9 +116,10 @@ func TestWebhookMiddlewareGuards(t *testing.T) {
 			}(),
 			mod: func() *Webhook {
 				mod := buildWebhookModule()
-				mod.allowList = regexp.MustCompile("bar")
+				mod.allowList = regexp2.MustCompile("bar", 0)
 				return mod
 			}(),
+			noDeadline:       false,
 			expectError:      true,
 			expectHttpError:  true,
 			expectHttpStatus: http.StatusForbidden,
@@ -118,9 +134,10 @@ func TestWebhookMiddlewareGuards(t *testing.T) {
 			}(),
 			mod: func() *Webhook {
 				mod := buildWebhookModule()
-				mod.denyList = regexp.MustCompile("foo")
+				mod.denyList = regexp2.MustCompile("foo", 0)
 				return mod
 			}(),
+			noDeadline:       false,
 			expectError:      true,
 			expectHttpError:  true,
 			expectHttpStatus: http.StatusForbidden,
@@ -135,9 +152,10 @@ func TestWebhookMiddlewareGuards(t *testing.T) {
 			}(),
 			mod: func() *Webhook {
 				mod := buildWebhookModule()
-				mod.errorAllowList = regexp.MustCompile("foo")
+				mod.errorAllowList = regexp2.MustCompile("foo", 0)
 				return mod
 			}(),
+			noDeadline:       false,
 			expectError:      true,
 			expectHttpError:  true,
 			expectHttpStatus: http.StatusForbidden,
@@ -152,9 +170,10 @@ func TestWebhookMiddlewareGuards(t *testing.T) {
 			}(),
 			mod: func() *Webhook {
 				mod := buildWebhookModule()
-				mod.errorDenyList = regexp.MustCompile("bar")
+				mod.errorDenyList = regexp2.MustCompile("bar", 0)
 				return mod
 			}(),
+			noDeadline:       false,
 			expectError:      true,
 			expectHttpError:  true,
 			expectHttpStatus: http.StatusForbidden,
@@ -169,6 +188,7 @@ func TestWebhookMiddlewareGuards(t *testing.T) {
 				return req
 			}(),
 			mod:              buildWebhookModule(),
+			noDeadline:       false,
 			expectError:      true,
 			expectHttpError:  true,
 			expectHttpStatus: http.StatusBadRequest,
@@ -183,6 +203,7 @@ func TestWebhookMiddlewareGuards(t *testing.T) {
 				return req
 			}(),
 			mod:              buildWebhookModule(),
+			noDeadline:       false,
 			expectError:      true,
 			expectHttpError:  true,
 			expectHttpStatus: http.StatusBadRequest,
@@ -198,6 +219,7 @@ func TestWebhookMiddlewareGuards(t *testing.T) {
 				return req
 			}(),
 			mod:              buildWebhookModule(),
+			noDeadline:       false,
 			expectError:      true,
 			expectHttpError:  true,
 			expectHttpStatus: http.StatusBadRequest,
@@ -213,6 +235,7 @@ func TestWebhookMiddlewareGuards(t *testing.T) {
 				return req
 			}(),
 			mod:              buildWebhookModule(),
+			noDeadline:       false,
 			expectError:      true,
 			expectHttpError:  true,
 			expectHttpStatus: http.StatusBadRequest,
@@ -228,6 +251,7 @@ func TestWebhookMiddlewareGuards(t *testing.T) {
 				return req
 			}(),
 			mod:              buildWebhookModule(),
+			noDeadline:       false,
 			expectError:      true,
 			expectHttpError:  true,
 			expectHttpStatus: http.StatusBadRequest,
@@ -242,6 +266,7 @@ func TestWebhookMiddlewareGuards(t *testing.T) {
 				return req
 			}(),
 			mod:              buildWebhookModule(),
+			noDeadline:       false,
 			expectError:      true,
 			expectHttpError:  true,
 			expectHttpStatus: http.StatusBadRequest,
@@ -254,15 +279,20 @@ func TestWebhookMiddlewareGuards(t *testing.T) {
 
 			c := srv.NewContext(tc.request, httptest.NewRecorder())
 
-			ctx := &api.ContextMock{Context: &api.Context{}}
-			ctx.SetEchoContext(c)
-
-			c.Set("context", ctx.Context)
-			c.Set("cancel", func() context.CancelFunc {
-				return func() {
-					return
-				}
-			}())
+			if tc.noDeadline {
+				ctx := &api.ContextMock{Context: &api.Context{Context: context.Background()}}
+				ctx.SetEchoContext(c)
+				c.Set("context", ctx.Context)
+				c.Set("cancel", func() context.CancelFunc {
+					return nil
+				}())
+			} else {
+				timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Duration(10)*time.Second)
+				ctx := &api.ContextMock{Context: &api.Context{Context: timeoutCtx}}
+				ctx.SetEchoContext(c)
+				c.Set("context", ctx.Context)
+				c.Set("cancel", cancel)
+			}
 
 			err := webhookMiddleware(tc.mod).Handler(tc.next)(c)
 
@@ -320,10 +350,10 @@ func TestWebhookMiddlewareAsynchronousProcess(t *testing.T) {
 
 	buildWebhookModule := func() *Webhook {
 		return &Webhook{
-			allowList:      regexp.MustCompile(""),
-			denyList:       regexp.MustCompile(""),
-			errorAllowList: regexp.MustCompile(""),
-			errorDenyList:  regexp.MustCompile(""),
+			allowList:      regexp2.MustCompile("", 0),
+			denyList:       regexp2.MustCompile("", 0),
+			errorAllowList: regexp2.MustCompile("", 0),
+			errorDenyList:  regexp2.MustCompile("", 0),
 			maxRetry:       0,
 			retryMinWait:   0,
 			retryMaxWait:   0,
@@ -426,22 +456,17 @@ func TestWebhookMiddlewareAsynchronousProcess(t *testing.T) {
 			c.Set("trace", "foo")
 			c.Set("startTime", time.Now())
 
-			ctx := &api.ContextMock{Context: &api.Context{}}
+			timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Duration(10)*time.Second)
+			ctx := &api.ContextMock{Context: &api.Context{Context: timeoutCtx}}
 			ctx.SetLogger(zap.NewNop())
 			ctx.SetEchoContext(c)
 
 			c.Set("context", ctx.Context)
-			c.Set("cancel", func() context.CancelFunc {
-				return func() {
-					return
-				}
-			}())
+			c.Set("cancel", cancel)
 
 			webhook := echo.New()
 			webhook.HideBanner = true
 			webhook.HidePort = true
-
-			rand.Seed(time.Now().UnixNano())
 			webhookPort := rand.Intn(65535-1025+1) + 1025
 
 			c.Request().Header.Set("Gotenberg-Webhook-Url", fmt.Sprintf("http://localhost:%d/", webhookPort))

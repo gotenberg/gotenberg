@@ -9,14 +9,15 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/dlclark/regexp2"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/labstack/echo/v4"
 
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
 )
 
@@ -44,38 +45,38 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						)
 					}
 
-					// Let's check if the webhook URLs are acceptable according to our
-					// allowed/denied lists.
-					filter := func(URL, header string, allowList, denyList *regexp.Regexp) error {
-						if !allowList.MatchString(URL) {
-							return api.WrapError(
-								fmt.Errorf("'%s' does not match the expression from the allowed list", URL),
-								api.NewSentinelHttpError(
-									http.StatusForbidden,
-									fmt.Sprintf("Invalid '%s' header value: '%s' does not match the authorized URLs", header, URL),
-								),
-							)
-						}
-
-						if denyList.String() != "" && denyList.MatchString(URL) {
-							return api.WrapError(
-								fmt.Errorf("'%s' matches the expression from the denied list", URL),
-								api.NewSentinelHttpError(
-									http.StatusForbidden,
-									fmt.Sprintf("Invalid '%s' header value: '%s' does not match the authorized URLs", header, URL),
-								),
-							)
-						}
-
-						return nil
+					deadline, ok := ctx.Deadline()
+					if !ok {
+						return errors.New("context has no deadline")
 					}
 
-					err := filter(webhookUrl, "Gotenberg-Webhook-Url", w.allowList, w.denyList)
+					// Let's check if the webhook URLs are acceptable according to our
+					// allowed/denied lists.
+					filter := func(url, header string, allowList, denyList *regexp2.Regexp, deadline time.Time) error {
+						err := gotenberg.FilterDeadline(allowList, denyList, url, deadline)
+						if err == nil {
+							return nil
+						}
+
+						if errors.Is(err, gotenberg.ErrFiltered) {
+							return api.WrapError(
+								err,
+								api.NewSentinelHttpError(
+									http.StatusForbidden,
+									fmt.Sprintf("Invalid '%s' header value: '%s' does not match the authorized URL", header, url),
+								),
+							)
+						}
+
+						return err
+					}
+
+					err := filter(webhookUrl, "Gotenberg-Webhook-Url", w.allowList, w.denyList, deadline)
 					if err != nil {
 						return fmt.Errorf("filter webhook URL: %w", err)
 					}
 
-					err = filter(webhookErrorUrl, "Gotenberg-Webhook-Error-Url", w.errorAllowList, w.errorDenyList)
+					err = filter(webhookErrorUrl, "Gotenberg-Webhook-Error-Url", w.errorAllowList, w.errorDenyList, deadline)
 					if err != nil {
 						return fmt.Errorf("filter webhook error URL: %w", err)
 					}
