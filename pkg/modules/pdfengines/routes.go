@@ -158,7 +158,12 @@ func convertRoute(engine gotenberg.PdfEngine) api.Route {
 			outputPaths := make([]string, len(inputPaths))
 
 			for i, inputPath := range inputPaths {
-				outputPaths[i] = ctx.GeneratePath(strings.TrimSuffix(filepath.Base(inputPath), filepath.Ext(inputPath)), ".pdf")
+				if len(outputPaths) > 1 {
+					// If .zip archive, keep the original filenames.
+					outputPaths[i] = ctx.GeneratePath(strings.TrimSuffix(filepath.Base(inputPath), filepath.Ext(inputPath)), ".pdf")
+				} else {
+					outputPaths[i] = ctx.GeneratePath("", ".pdf")
+				}
 
 				err = engine.Convert(ctx, ctx.Log(), pdfFormats, inputPath, outputPaths[i])
 				if err != nil {

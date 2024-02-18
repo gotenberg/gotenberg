@@ -418,7 +418,6 @@ func TestConvertHandler(t *testing.T) {
 			expectError:            false,
 			expectHttpError:        false,
 			expectOutputPathsCount: 1,
-			expectOutputPaths:      []string{"/file.pdf"},
 		},
 		{
 			scenario: "success with PDF/A & PDF/UA form fields (many files)",
