@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"path/filepath"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 
@@ -152,11 +154,11 @@ func convertRoute(engine gotenberg.PdfEngine) api.Route {
 				)
 			}
 
-			// Alright, let's convert the PDFs.
+			// Alright, let's convert the PDFs.s
 			outputPaths := make([]string, len(inputPaths))
 
 			for i, inputPath := range inputPaths {
-				outputPaths[i] = ctx.GeneratePath("", ".pdf")
+				outputPaths[i] = ctx.GeneratePath(strings.TrimSuffix(filepath.Base(inputPath), filepath.Ext(inputPath)), ".pdf")
 
 				err = engine.Convert(ctx, ctx.Log(), pdfFormats, inputPath, outputPaths[i])
 				if err != nil {

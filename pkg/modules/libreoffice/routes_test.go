@@ -23,10 +23,10 @@ func TestConvertRoute(t *testing.T) {
 		engine                 gotenberg.PdfEngine
 		expectOptions          libreofficeapi.Options
 		expectError            bool
-		expectOutpoutPaths     []string
 		expectHttpError        bool
 		expectHttpStatus       int
 		expectOutputPathsCount int
+		expectOutputPaths      []string
 	}{
 		{
 			scenario: "missing at least one mandatory file",
@@ -277,7 +277,7 @@ func TestConvertRoute(t *testing.T) {
 			expectError:            false,
 			expectHttpError:        false,
 			expectOutputPathsCount: 1,
-			expectOutpoutPaths:     []string{"/document.docx.pdf"},
+			expectOutputPaths:      []string{"/document.docx.pdf"},
 		},
 		{
 			scenario: "success (many files)",
@@ -301,7 +301,7 @@ func TestConvertRoute(t *testing.T) {
 			expectError:            false,
 			expectHttpError:        false,
 			expectOutputPathsCount: 3,
-			expectOutpoutPaths:     []string{"/document.docx.pdf", "/document2.docx.pdf", "/document2.doc.pdf"},
+			expectOutputPaths:      []string{"/document.docx.pdf", "/document2.docx.pdf", "/document2.doc.pdf"},
 		},
 		{
 			scenario: "success with non-native PDF/A & PDF/UA (many files)",
@@ -340,7 +340,7 @@ func TestConvertRoute(t *testing.T) {
 			expectError:            false,
 			expectHttpError:        false,
 			expectOutputPathsCount: 2,
-			expectOutpoutPaths:     []string{"/document.docx.pdf", "/document2.docx.pdf"},
+			expectOutputPaths:      []string{"/document.docx.pdf", "/document2.docx.pdf"},
 		},
 		{
 			scenario: "success with native PDF/A & PDF/UA (many files)",
@@ -376,7 +376,7 @@ func TestConvertRoute(t *testing.T) {
 			expectError:            false,
 			expectHttpError:        false,
 			expectOutputPathsCount: 2,
-			expectOutpoutPaths:     []string{"/document.docx.pdf", "/document2.docx.pdf"},
+			expectOutputPaths:      []string{"/document.docx.pdf", "/document2.docx.pdf"},
 		},
 		{
 			scenario: "ErrMaximumQueueSizeExceeded (merge)",
@@ -759,7 +759,7 @@ func TestConvertRoute(t *testing.T) {
 				t.Errorf("expected %d output paths but got %d", tc.expectOutputPathsCount, len(tc.ctx.OutputPaths()))
 			}
 
-			for _, path := range tc.expectOutpoutPaths {
+			for _, path := range tc.expectOutputPaths {
 				if !slices.Contains(tc.ctx.OutputPaths(), path) {
 					t.Errorf("expected '%s' in output paths %v", path, tc.ctx.OutputPaths())
 				}

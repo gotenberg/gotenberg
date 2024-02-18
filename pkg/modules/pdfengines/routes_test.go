@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"slices"
 	"testing"
 
 	"github.com/labstack/echo/v4"
@@ -273,6 +274,7 @@ func TestConvertHandler(t *testing.T) {
 		expectHttpError        bool
 		expectHttpStatus       int
 		expectOutputPathsCount int
+		expectOutputPaths      []string
 	}{
 		{
 			scenario:               "missing at least one mandatory file",
@@ -416,6 +418,7 @@ func TestConvertHandler(t *testing.T) {
 			expectError:            false,
 			expectHttpError:        false,
 			expectOutputPathsCount: 1,
+			expectOutputPaths:      []string{"/file.pdf"},
 		},
 		{
 			scenario: "success with PDF/A & PDF/UA form fields (many files)",
@@ -443,6 +446,7 @@ func TestConvertHandler(t *testing.T) {
 			expectError:            false,
 			expectHttpError:        false,
 			expectOutputPathsCount: 2,
+			expectOutputPaths:      []string{"/file.pdf", "/file2.pdf"},
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
@@ -480,6 +484,12 @@ func TestConvertHandler(t *testing.T) {
 
 			if tc.expectOutputPathsCount != len(tc.ctx.OutputPaths()) {
 				t.Errorf("expected %d output paths but got %d", tc.expectOutputPathsCount, len(tc.ctx.OutputPaths()))
+			}
+
+			for _, path := range tc.expectOutputPaths {
+				if !slices.Contains(tc.ctx.OutputPaths(), path) {
+					t.Errorf("expected '%s' in output paths %v", path, tc.ctx.OutputPaths())
+				}
 			}
 		})
 	}
