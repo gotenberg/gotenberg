@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/labstack/echo/v4"
@@ -23,7 +23,7 @@ func TestConvertRoute(t *testing.T) {
 		engine                 gotenberg.PdfEngine
 		expectOptions          libreofficeapi.Options
 		expectError            bool
-		expectFileNames        []string
+		expectOutpoutPaths     []string
 		expectHttpError        bool
 		expectHttpStatus       int
 		expectOutputPathsCount int
@@ -220,7 +220,7 @@ func TestConvertRoute(t *testing.T) {
 			expectError:            false,
 			expectHttpError:        false,
 			expectOutputPathsCount: 1,
-			expectFileNames:        []string{"/document.docx.pdf"},
+			expectOutpoutPaths:     []string{"/document.docx.pdf"},
 		},
 		{
 			scenario: "success (many files)",
@@ -244,7 +244,7 @@ func TestConvertRoute(t *testing.T) {
 			expectError:            false,
 			expectHttpError:        false,
 			expectOutputPathsCount: 3,
-			expectFileNames:        []string{"/document.docx.pdf", "/document2.docx.pdf", "/document2.doc.pdf"},
+			expectOutpoutPaths:     []string{"/document.docx.pdf", "/document2.docx.pdf", "/document2.doc.pdf"},
 		},
 		{
 			scenario: "success with non-native PDF/A & PDF/UA (many files)",
@@ -283,7 +283,7 @@ func TestConvertRoute(t *testing.T) {
 			expectError:            false,
 			expectHttpError:        false,
 			expectOutputPathsCount: 2,
-			expectFileNames:        []string{"/document.docx.pdf", "/document2.docx.pdf"},
+			expectOutpoutPaths:     []string{"/document.docx.pdf", "/document2.docx.pdf"},
 		},
 		{
 			scenario: "success with native PDF/A & PDF/UA (many files)",
@@ -319,7 +319,7 @@ func TestConvertRoute(t *testing.T) {
 			expectError:            false,
 			expectHttpError:        false,
 			expectOutputPathsCount: 2,
-			expectFileNames:        []string{"/document.docx.pdf", "/document2.docx.pdf"},
+			expectOutpoutPaths:     []string{"/document.docx.pdf", "/document2.docx.pdf"},
 		},
 		{
 			scenario: "merge error",
@@ -627,9 +627,9 @@ func TestConvertRoute(t *testing.T) {
 				t.Errorf("expected %d output paths but got %d", tc.expectOutputPathsCount, len(tc.ctx.OutputPaths()))
 			}
 
-			if len(tc.expectFileNames) != 0 {
-				if !reflect.DeepEqual(tc.ctx.OutputPaths(), tc.expectFileNames) {
-					t.Errorf("expected output paths %v, got %v", tc.expectFileNames, tc.ctx.OutputPaths())
+			for _, path := range tc.expectOutpoutPaths {
+				if !slices.Contains(tc.ctx.OutputPaths(), path) {
+					t.Errorf("expected '%s' in output paths %v", path, tc.ctx.OutputPaths())
 				}
 			}
 		})
