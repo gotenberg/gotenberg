@@ -107,11 +107,21 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 
 				err = engine.Merge(ctx, ctx.Log(), outputPaths, outputPath)
 				if err != nil {
+					if errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) {
+						return api.WrapError(
+							fmt.Errorf("merge PDFs: %w", err),
+							api.NewSentinelHttpError(
+								http.StatusTooManyRequests,
+								"The maximum queue size has been reached",
+							),
+						)
+					}
+
 					return fmt.Errorf("merge PDFs: %w", err)
 				}
 
-				// Now, let's check if the client want to convert this result
-				// PDF to specific PDF formats.
+				// Now, let's check if the client want to convert this
+				// resulting PDF to specific PDF formats.
 				zeroValued := gotenberg.PdfFormats{}
 				if !nativePdfFormats && pdfFormats != zeroValued {
 					convertInputPath := outputPath
@@ -119,6 +129,16 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 
 					err = engine.Convert(ctx, ctx.Log(), pdfFormats, convertInputPath, convertOutputPath)
 					if err != nil {
+						if errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) {
+							return api.WrapError(
+								fmt.Errorf("convert PDF: %w", err),
+								api.NewSentinelHttpError(
+									http.StatusTooManyRequests,
+									"The maximum queue size has been reached",
+								),
+							)
+						}
+
 						if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
 							return api.WrapError(
 								fmt.Errorf("convert PDF: %w", err),
@@ -160,6 +180,16 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 
 					err = engine.Convert(ctx, ctx.Log(), pdfFormats, convertInputPath, convertOutputPaths[i])
 					if err != nil {
+						if errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) {
+							return api.WrapError(
+								fmt.Errorf("convert PDF: %w", err),
+								api.NewSentinelHttpError(
+									http.StatusTooManyRequests,
+									"The maximum queue size has been reached",
+								),
+							)
+						}
+
 						if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
 							return api.WrapError(
 								fmt.Errorf("convert PDF: %w", err),

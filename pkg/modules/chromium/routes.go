@@ -512,7 +512,7 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 	if err != nil {
 		if errors.Is(err, ErrOmitBackgroundWithoutPrintBackground) {
 			return api.WrapError(
-				err,
+				fmt.Errorf("convert to PDF: %w", err),
 				api.NewSentinelHttpError(
 					http.StatusBadRequest,
 					"omitBackground requires printBackground set to true",
@@ -540,16 +540,6 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 			)
 		}
 
-		if errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) {
-			return api.WrapError(
-				fmt.Errorf("convert to PDF: %w", err),
-				api.NewSentinelHttpError(
-					http.StatusTooManyRequests,
-					"The maximum queue size has been reached",
-				),
-			)
-		}
-
 		return fmt.Errorf("convert to PDF: %w", err)
 	}
 
@@ -563,6 +553,16 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 
 		err = engine.Convert(ctx, ctx.Log(), pdfFormats, convertInputPath, convertOutputPath)
 		if err != nil {
+			if errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) {
+				return api.WrapError(
+					fmt.Errorf("convert PDF: %w", err),
+					api.NewSentinelHttpError(
+						http.StatusTooManyRequests,
+						"The maximum queue size has been reached",
+					),
+				)
+			}
+
 			if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
 				return api.WrapError(
 					fmt.Errorf("convert PDF: %w", err),
@@ -609,6 +609,16 @@ func screenshotUrl(ctx *api.Context, chromium Api, url string, options Screensho
 func handleChromiumError(err error, url string, options Options) error {
 	if err == nil {
 		return nil
+	}
+
+	if errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) {
+		return api.WrapError(
+			err,
+			api.NewSentinelHttpError(
+				http.StatusTooManyRequests,
+				"The maximum queue size has been reached",
+			),
+		)
 	}
 
 	if errors.Is(err, ErrUrlNotAuthorized) {

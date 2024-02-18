@@ -88,7 +88,7 @@ type processSupervisor struct {
 }
 
 // NewProcessSupervisor initializes a new [ProcessSupervisor].
-func NewProcessSupervisor(logger *zap.Logger, process Process, maxReqLimit int64, maxQueueSize int64) ProcessSupervisor {
+func NewProcessSupervisor(logger *zap.Logger, process Process, maxReqLimit, maxQueueSize int64) ProcessSupervisor {
 	b := &processSupervisor{
 		logger:       logger,
 		process:      process,

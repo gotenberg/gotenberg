@@ -47,6 +47,16 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 
 			err = engine.Merge(ctx, ctx.Log(), inputPaths, outputPath)
 			if err != nil {
+				if errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) {
+					return api.WrapError(
+						fmt.Errorf("merge PDFs: %w", err),
+						api.NewSentinelHttpError(
+							http.StatusTooManyRequests,
+							"The maximum queue size has been reached",
+						),
+					)
+				}
+
 				return fmt.Errorf("merge PDFs: %w", err)
 			}
 
@@ -60,6 +70,16 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 
 				err = engine.Convert(ctx, ctx.Log(), pdfFormats, convertInputPath, convertOutputPath)
 				if err != nil {
+					if errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) {
+						return api.WrapError(
+							fmt.Errorf("convert PDF: %w", err),
+							api.NewSentinelHttpError(
+								http.StatusTooManyRequests,
+								"The maximum queue size has been reached",
+							),
+						)
+					}
+
 					if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
 						return api.WrapError(
 							fmt.Errorf("convert PDF: %w", err),
@@ -140,6 +160,16 @@ func convertRoute(engine gotenberg.PdfEngine) api.Route {
 
 				err = engine.Convert(ctx, ctx.Log(), pdfFormats, inputPath, outputPaths[i])
 				if err != nil {
+					if errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) {
+						return api.WrapError(
+							fmt.Errorf("convert PDF: %w", err),
+							api.NewSentinelHttpError(
+								http.StatusTooManyRequests,
+								"The maximum queue size has been reached",
+							),
+						)
+					}
+
 					if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
 						return api.WrapError(
 							fmt.Errorf("convert PDF: %w", err),
