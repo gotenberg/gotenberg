@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dlclark/regexp2"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/labstack/echo/v4"
 
@@ -52,31 +51,12 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 
 					// Let's check if the webhook URLs are acceptable according to our
 					// allowed/denied lists.
-					filter := func(url, header string, allowList, denyList *regexp2.Regexp, deadline time.Time) error {
-						err := gotenberg.FilterDeadline(allowList, denyList, url, deadline)
-						if err == nil {
-							return nil
-						}
-
-						if errors.Is(err, gotenberg.ErrFiltered) {
-							return api.WrapError(
-								err,
-								api.NewSentinelHttpError(
-									http.StatusForbidden,
-									fmt.Sprintf("Invalid '%s' header value: '%s' does not match the authorized URL", header, url),
-								),
-							)
-						}
-
-						return err
-					}
-
-					err := filter(webhookUrl, "Gotenberg-Webhook-Url", w.allowList, w.denyList, deadline)
+					err := gotenberg.FilterDeadline(w.allowList, w.denyList, webhookUrl, deadline)
 					if err != nil {
 						return fmt.Errorf("filter webhook URL: %w", err)
 					}
 
-					err = filter(webhookErrorUrl, "Gotenberg-Webhook-Error-Url", w.errorAllowList, w.errorDenyList, deadline)
+					err = gotenberg.FilterDeadline(w.errorAllowList, w.errorDenyList, webhookErrorUrl, deadline)
 					if err != nil {
 						return fmt.Errorf("filter webhook error URL: %w", err)
 					}

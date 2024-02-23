@@ -119,10 +119,8 @@ func TestWebhookMiddlewareGuards(t *testing.T) {
 				mod.allowList = regexp2.MustCompile("bar", 0)
 				return mod
 			}(),
-			noDeadline:       false,
-			expectError:      true,
-			expectHttpError:  true,
-			expectHttpStatus: http.StatusForbidden,
+			noDeadline:  false,
+			expectError: true,
 		},
 		{
 			scenario: "webhook URL is denied",
@@ -137,10 +135,8 @@ func TestWebhookMiddlewareGuards(t *testing.T) {
 				mod.denyList = regexp2.MustCompile("foo", 0)
 				return mod
 			}(),
-			noDeadline:       false,
-			expectError:      true,
-			expectHttpError:  true,
-			expectHttpStatus: http.StatusForbidden,
+			noDeadline:  false,
+			expectError: true,
 		},
 		{
 			scenario: "webhook error URL is not allowed",
@@ -155,10 +151,8 @@ func TestWebhookMiddlewareGuards(t *testing.T) {
 				mod.errorAllowList = regexp2.MustCompile("foo", 0)
 				return mod
 			}(),
-			noDeadline:       false,
-			expectError:      true,
-			expectHttpError:  true,
-			expectHttpStatus: http.StatusForbidden,
+			noDeadline:  false,
+			expectError: true,
 		},
 		{
 			scenario: "webhook error URL is denied",
@@ -173,10 +167,8 @@ func TestWebhookMiddlewareGuards(t *testing.T) {
 				mod.errorDenyList = regexp2.MustCompile("bar", 0)
 				return mod
 			}(),
-			noDeadline:       false,
-			expectError:      true,
-			expectHttpError:  true,
-			expectHttpStatus: http.StatusForbidden,
+			noDeadline:  false,
+			expectError: true,
 		},
 		{
 			scenario: "invalid webhook method (GET)",

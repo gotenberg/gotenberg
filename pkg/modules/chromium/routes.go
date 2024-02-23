@@ -508,7 +508,7 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 	outputPath := ctx.GeneratePath("", ".pdf")
 
 	err := chromium.Pdf(ctx, ctx.Log(), url, outputPath, options)
-	err = handleChromiumError(err, url, options.Options)
+	err = handleChromiumError(err, options.Options)
 	if err != nil {
 		if errors.Is(err, ErrOmitBackgroundWithoutPrintBackground) {
 			return api.WrapError(
@@ -553,26 +553,6 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 
 		err = engine.Convert(ctx, ctx.Log(), pdfFormats, convertInputPath, convertOutputPath)
 		if err != nil {
-			if errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) {
-				return api.WrapError(
-					fmt.Errorf("convert PDF: %w", err),
-					api.NewSentinelHttpError(
-						http.StatusTooManyRequests,
-						"The maximum queue size has been reached",
-					),
-				)
-			}
-
-			if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
-				return api.WrapError(
-					fmt.Errorf("convert PDF: %w", err),
-					api.NewSentinelHttpError(
-						http.StatusBadRequest,
-						fmt.Sprintf("At least one PDF engine does not handle one of the PDF format in '%+v', while other have failed to convert for other reasons", pdfFormats),
-					),
-				)
-			}
-
 			return fmt.Errorf("convert PDF: %w", err)
 		}
 
@@ -593,7 +573,7 @@ func screenshotUrl(ctx *api.Context, chromium Api, url string, options Screensho
 	outputPath := ctx.GeneratePath("", ext)
 
 	err := chromium.Screenshot(ctx, ctx.Log(), url, outputPath, options)
-	err = handleChromiumError(err, url, options.Options)
+	err = handleChromiumError(err, options.Options)
 	if err != nil {
 		return fmt.Errorf("screenshot: %w", err)
 	}
@@ -606,29 +586,9 @@ func screenshotUrl(ctx *api.Context, chromium Api, url string, options Screensho
 	return nil
 }
 
-func handleChromiumError(err error, url string, options Options) error {
+func handleChromiumError(err error, options Options) error {
 	if err == nil {
 		return nil
-	}
-
-	if errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) {
-		return api.WrapError(
-			err,
-			api.NewSentinelHttpError(
-				http.StatusTooManyRequests,
-				"The maximum queue size has been reached",
-			),
-		)
-	}
-
-	if errors.Is(err, gotenberg.ErrFiltered) {
-		return api.WrapError(
-			err,
-			api.NewSentinelHttpError(
-				http.StatusForbidden,
-				fmt.Sprintf("'%s' does not match the authorized URLs", url),
-			),
-		)
 	}
 
 	if errors.Is(err, ErrInvalidEvaluationExpression) {

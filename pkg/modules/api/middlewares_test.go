@@ -29,9 +29,24 @@ func TestParseError(t *testing.T) {
 			expectMessage: http.StatusText(http.StatusInternalServerError),
 		},
 		{
-			err:           context.DeadlineExceeded,
-			expectStatus:  http.StatusServiceUnavailable,
-			expectMessage: http.StatusText(http.StatusServiceUnavailable),
+			err:           gotenberg.ErrFiltered,
+			expectStatus:  http.StatusForbidden,
+			expectMessage: http.StatusText(http.StatusForbidden),
+		},
+		{
+			err:           gotenberg.ErrMaximumQueueSizeExceeded,
+			expectStatus:  http.StatusTooManyRequests,
+			expectMessage: http.StatusText(http.StatusTooManyRequests),
+		},
+		{
+			err:           gotenberg.ErrPdfEngineMethodNotSupported,
+			expectStatus:  http.StatusNotImplemented,
+			expectMessage: http.StatusText(http.StatusNotImplemented),
+		},
+		{
+			err:           gotenberg.ErrPdfFormatNotSupported,
+			expectStatus:  http.StatusBadRequest,
+			expectMessage: "A least one PDF engine does not handle one of the requested PDF format, while other have failed to convert for other reasons",
 		},
 		{
 			err: WrapError(

@@ -32,6 +32,22 @@ func ParseError(err error) (int, string) {
 		return http.StatusServiceUnavailable, http.StatusText(http.StatusServiceUnavailable)
 	}
 
+	if errors.Is(err, gotenberg.ErrFiltered) {
+		return http.StatusForbidden, http.StatusText(http.StatusForbidden)
+	}
+
+	if errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) {
+		return http.StatusTooManyRequests, http.StatusText(http.StatusTooManyRequests)
+	}
+
+	if errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
+		return http.StatusNotImplemented, http.StatusText(http.StatusNotImplemented)
+	}
+
+	if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
+		return http.StatusBadRequest, "A least one PDF engine does not handle one of the requested PDF format, while other have failed to convert for other reasons"
+	}
+
 	var httpErr HttpError
 	if errors.As(err, &httpErr) {
 		return httpErr.HttpError()

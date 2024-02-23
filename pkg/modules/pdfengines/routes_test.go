@@ -33,27 +33,6 @@ func TestMergeHandler(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "ErrMaximumQueueSizeExceeded (merge)",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"file.pdf":  "/file.pdf",
-					"file2.pdf": "/file2.pdf",
-				})
-
-				return ctx
-			}(),
-			engine: &gotenberg.PdfEngineMock{
-				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-					return gotenberg.ErrMaximumQueueSizeExceeded
-				},
-			},
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusTooManyRequests,
-			expectOutputPathsCount: 0,
-		},
-		{
 			scenario: "error from PDF engine",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
@@ -110,62 +89,6 @@ func TestMergeHandler(t *testing.T) {
 			expectError:            false,
 			expectHttpError:        false,
 			expectOutputPathsCount: 1,
-		},
-		{
-			scenario: "ErrMaximumQueueSizeExceeded (convert)",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"file.pdf":  "/file.pdf",
-					"file2.pdf": "/file2.pdf",
-				})
-				ctx.SetValues(map[string][]string{
-					"pdfa": {
-						gotenberg.PdfA1b,
-					},
-				})
-				return ctx
-			}(),
-			engine: &gotenberg.PdfEngineMock{
-				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-					return nil
-				},
-				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
-					return gotenberg.ErrMaximumQueueSizeExceeded
-				},
-			},
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusTooManyRequests,
-			expectOutputPathsCount: 0,
-		},
-		{
-			scenario: "ErrPdfFormatNotSupported",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"file.pdf":  "/file.pdf",
-					"file2.pdf": "/file2.pdf",
-				})
-				ctx.SetValues(map[string][]string{
-					"pdfa": {
-						"foo",
-					},
-				})
-				return ctx
-			}(),
-			engine: &gotenberg.PdfEngineMock{
-				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-					return nil
-				},
-				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
-					return gotenberg.ErrPdfFormatNotSupported
-				},
-			},
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusBadRequest,
-			expectOutputPathsCount: 0,
 		},
 		{
 			scenario: "error from PDF engine (convert)",
@@ -293,54 +216,6 @@ func TestConvertHandler(t *testing.T) {
 				})
 				return ctx
 			}(),
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusBadRequest,
-			expectOutputPathsCount: 0,
-		},
-		{
-			scenario: "ErrMaximumQueueSizeExceeded",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"file.pdf": "/file.pdf",
-				})
-				ctx.SetValues(map[string][]string{
-					"pdfa": {
-						gotenberg.PdfA1b,
-					},
-				})
-				return ctx
-			}(),
-			engine: &gotenberg.PdfEngineMock{
-				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
-					return gotenberg.ErrMaximumQueueSizeExceeded
-				},
-			},
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusTooManyRequests,
-			expectOutputPathsCount: 0,
-		},
-		{
-			scenario: "ErrPdfFormatNotSupported",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"file.pdf": "/file.pdf",
-				})
-				ctx.SetValues(map[string][]string{
-					"pdfa": {
-						"foo",
-					},
-				})
-				return ctx
-			}(),
-			engine: &gotenberg.PdfEngineMock{
-				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
-					return gotenberg.ErrPdfFormatNotSupported
-				},
-			},
 			expectError:            true,
 			expectHttpError:        true,
 			expectHttpStatus:       http.StatusBadRequest,

@@ -1231,30 +1231,6 @@ func TestConvertUrl(t *testing.T) {
 		expectOutputPathsCount int
 	}{
 		{
-			scenario: "ErrMaximumQueueSizeExceeded",
-			ctx:      &api.ContextMock{Context: new(api.Context)},
-			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
-				return gotenberg.ErrMaximumQueueSizeExceeded
-			}},
-			options:                DefaultPdfOptions(),
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusTooManyRequests,
-			expectOutputPathsCount: 0,
-		},
-		{
-			scenario: "ErrFiltered",
-			ctx:      &api.ContextMock{Context: new(api.Context)},
-			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
-				return gotenberg.ErrFiltered
-			}},
-			options:                DefaultPdfOptions(),
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusForbidden,
-			expectOutputPathsCount: 0,
-		},
-		{
 			scenario: "ErrOmitBackgroundWithoutPrintBackground",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
 			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
@@ -1351,38 +1327,6 @@ func TestConvertUrl(t *testing.T) {
 			options:                DefaultPdfOptions(),
 			expectError:            true,
 			expectHttpError:        false,
-			expectOutputPathsCount: 0,
-		},
-		{
-			scenario: "ErrMaximumQueueSizeExceeded (PDF engine)",
-			ctx:      &api.ContextMock{Context: new(api.Context)},
-			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
-				return nil
-			}},
-			engine: &gotenberg.PdfEngineMock{ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
-				return gotenberg.ErrMaximumQueueSizeExceeded
-			}},
-			pdfFormats:             gotenberg.PdfFormats{PdfA: "foo"},
-			options:                DefaultPdfOptions(),
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusTooManyRequests,
-			expectOutputPathsCount: 0,
-		},
-		{
-			scenario: "ErrPdfFormatNotSupported",
-			ctx:      &api.ContextMock{Context: new(api.Context)},
-			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
-				return nil
-			}},
-			engine: &gotenberg.PdfEngineMock{ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
-				return gotenberg.ErrPdfFormatNotSupported
-			}},
-			pdfFormats:             gotenberg.PdfFormats{PdfA: "foo"},
-			options:                DefaultPdfOptions(),
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusBadRequest,
 			expectOutputPathsCount: 0,
 		},
 		{
@@ -1490,30 +1434,6 @@ func TestScreenshotUrl(t *testing.T) {
 		expectHttpStatus       int
 		expectOutputPathsCount int
 	}{
-		{
-			scenario: "ErrMaximumQueueSizeExceeded",
-			ctx:      &api.ContextMock{Context: new(api.Context)},
-			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
-				return gotenberg.ErrMaximumQueueSizeExceeded
-			}},
-			options:                DefaultScreenshotOptions(),
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusTooManyRequests,
-			expectOutputPathsCount: 0,
-		},
-		{
-			scenario: "ErrFiltered",
-			ctx:      &api.ContextMock{Context: new(api.Context)},
-			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
-				return gotenberg.ErrFiltered
-			}},
-			options:                DefaultScreenshotOptions(),
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusForbidden,
-			expectOutputPathsCount: 0,
-		},
 		{
 			scenario: "ErrInvalidEvaluationExpression (without waitForExpression form field)",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
