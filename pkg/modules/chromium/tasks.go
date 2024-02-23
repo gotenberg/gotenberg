@@ -17,19 +17,37 @@ import (
 
 func printToPdfActionFunc(logger *zap.Logger, outputPath string, options PdfOptions) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
+		paperHeight := options.PaperHeight
+		pageRanges := options.PageRanges
+
+		if options.SinglePage {
+			logger.Debug("single page PDF")
+
+			_, _, _, _, _, cssContentSize, err := page.GetLayoutMetrics().Do(ctx)
+			if err != nil {
+				return fmt.Errorf("get layout metrics: %w", err)
+			}
+
+			// There are 96 CSS pixels per inch.
+			// See https://issues.chromium.org/issues/40267771#comment14.
+			paperHeight = cssContentSize.Height / 96
+			pageRanges = "1" // little dirty hack to avoid leftovers.
+		}
+
 		printToPdf := page.PrintToPDF().
 			WithTransferMode(page.PrintToPDFTransferModeReturnAsStream).
 			WithLandscape(options.Landscape).
 			WithPrintBackground(options.PrintBackground).
 			WithScale(options.Scale).
 			WithPaperWidth(options.PaperWidth).
-			WithPaperHeight(options.PaperHeight).
+			WithPaperHeight(paperHeight).
 			WithMarginTop(options.MarginTop).
 			WithMarginBottom(options.MarginBottom).
 			WithMarginLeft(options.MarginLeft).
 			WithMarginRight(options.MarginRight).
-			WithPageRanges(options.PageRanges).
-			WithPreferCSSPageSize(options.PreferCssPageSize)
+			WithPageRanges(pageRanges).
+			WithPreferCSSPageSize(options.PreferCssPageSize).
+			WithGenerateTaggedPDF(true)
 
 		hasCustomHeaderFooter := options.HeaderTemplate != DefaultPdfOptions().HeaderTemplate ||
 			options.FooterTemplate != DefaultPdfOptions().FooterTemplate
