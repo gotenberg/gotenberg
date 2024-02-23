@@ -150,6 +150,11 @@ type PdfOptions struct {
 	// Optional.
 	Scale float64
 
+	// SinglePage defines whether to print the entire content in one single
+	// page.
+	// Optional.
+	SinglePage bool
+
 	// PaperWidth is the paper width, in inches.
 	// Optional.
 	PaperWidth float64
@@ -209,6 +214,7 @@ func DefaultPdfOptions() PdfOptions {
 		Landscape:         false,
 		PrintBackground:   false,
 		Scale:             1.0,
+		SinglePage:        false,
 		PaperWidth:        8.5,
 		PaperHeight:       11,
 		MarginTop:         0.39,

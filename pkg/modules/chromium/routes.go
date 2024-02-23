@@ -109,7 +109,7 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 	defaultPdfOptions := DefaultPdfOptions()
 
 	var (
-		landscape, printBackground                       bool
+		landscape, printBackground, singlePage           bool
 		scale, paperWidth, paperHeight                   float64
 		marginTop, marginBottom, marginLeft, marginRight float64
 		pageRanges                                       string
@@ -121,6 +121,7 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		Bool("landscape", &landscape, defaultPdfOptions.Landscape).
 		Bool("printBackground", &printBackground, defaultPdfOptions.PrintBackground).
 		Float64("scale", &scale, defaultPdfOptions.Scale).
+		Bool("singlePage", &singlePage, defaultPdfOptions.SinglePage).
 		Float64("paperWidth", &paperWidth, defaultPdfOptions.PaperWidth).
 		Float64("paperHeight", &paperHeight, defaultPdfOptions.PaperHeight).
 		Float64("marginTop", &marginTop, defaultPdfOptions.MarginTop).
@@ -137,6 +138,7 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		Landscape:         landscape,
 		PrintBackground:   printBackground,
 		Scale:             scale,
+		SinglePage:        singlePage,
 		PaperWidth:        paperWidth,
 		PaperHeight:       paperHeight,
 		MarginTop:         marginTop,
