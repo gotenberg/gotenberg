@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"go.uber.org/multierr"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 // FormData is a helper for validating and hydrating values from a
@@ -304,7 +306,7 @@ func (form *FormData) paths(extensions []string, target *[]string) *FormData {
 	}
 
 	// See https://github.com/gotenberg/gotenberg/issues/139.
-	sort.Strings(*target)
+	sort.Sort(gotenberg.AlphanumericSort(*target))
 
 	return form
 }
