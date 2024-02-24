@@ -164,7 +164,7 @@ RUN \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 RUN \
-    # Install PDFtk & QPDF (PDF engines).
+    # Install PDFtk, QPDF & ExifTool (PDF engines).
     # See https://github.com/gotenberg/gotenberg/pull/273.
     curl -o /usr/bin/pdftk-all.jar "https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/$PDFTK_VERSION/pdftk-all.jar" &&\
     chmod a+x /usr/bin/pdftk-all.jar &&\
