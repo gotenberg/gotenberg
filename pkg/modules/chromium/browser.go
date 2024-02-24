@@ -247,6 +247,9 @@ func (b *chromiumBrowser) screenshot(ctx context.Context, logger *zap.Logger, ur
 		clearCookiesActionFunc(logger, b.arguments.clearCookies),
 		disableJavaScriptActionFunc(logger, b.arguments.disableJavaScript),
 		extraHttpHeadersActionFunc(logger, options.ExtraHttpHeaders),
+		// viewport customization must happen before the actual navigation happens, for responsive content to
+		// render properly according to the new screen size
+		setViewportActionFunc(logger, options),
 		navigateActionFunc(logger, url, options.SkipNetworkIdleEvent),
 		hideDefaultWhiteBackgroundActionFunc(logger, options.OmitBackground, true),
 		forceExactColorsActionFunc(),

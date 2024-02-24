@@ -100,16 +100,6 @@ func captureScreenshotActionFunc(logger *zap.Logger, outputPath string, options 
 			WithOptimizeForSpeed(options.OptimizeForSpeed).
 			WithFormat(page.CaptureScreenshotFormat(options.Format))
 
-		if options.ViewportWidth > 0 && options.ViewportHeight > 0 {
-			captureScreenshot = captureScreenshot.WithClip(&page.Viewport{
-				X:      0.0,
-				Y:      0.0,
-				Scale:  1.0,
-				Width:  float64(options.ViewportWidth),
-				Height: float64(options.ViewportHeight),
-			})
-		}
-
 		if options.Format == "jpeg" {
 			captureScreenshot = captureScreenshot.
 				WithQuality(int64(options.Quality))
@@ -140,6 +130,23 @@ func captureScreenshotActionFunc(logger *zap.Logger, outputPath string, options 
 		}
 
 		return nil
+	}
+}
+
+func setViewportActionFunc(logger *zap.Logger, options ScreenshotOptions) chromedp.ActionFunc {
+	return func(ctx context.Context) error {
+		if options.ViewportWidth < 0 || options.ViewportHeight < 0 {
+			logger.Debug("no custom viewport set")
+			return nil
+		}
+
+		// https://pkg.go.dev/github.com/chromedp/chromedp#EmulateViewport
+		err := chromedp.EmulateViewport(int64(options.ViewportWidth), int64(options.ViewportHeight)).Do(ctx)
+		if err == nil {
+			return nil
+		}
+
+		return fmt.Errorf("custom viewport: %w", err)
 	}
 }
 
