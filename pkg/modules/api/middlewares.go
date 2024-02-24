@@ -45,7 +45,7 @@ func ParseError(err error) (int, string) {
 	}
 
 	if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
-		return http.StatusBadRequest, "A least one PDF engine does not handle one of the requested PDF format, while other have failed to convert for other reasons"
+		return http.StatusBadRequest, "At least one PDF engine cannot process the requested PDF format, while others may have failed to convert due to different issues"
 	}
 
 	var httpErr HttpError
