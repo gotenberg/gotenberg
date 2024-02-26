@@ -316,6 +316,7 @@ func (a *Api) Extensions() []string {
 		".odp",
 		".fodp",
 		".pages",
+		".key",
 		".potm",
 		".pot",
 		".pptx",

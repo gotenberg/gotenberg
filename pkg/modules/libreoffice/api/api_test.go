@@ -450,7 +450,7 @@ func TestApi_Extensions(t *testing.T) {
 	extensions := a.Extensions()
 
 	actual := len(extensions)
-	expect := 80
+	expect := 81
 
 	if actual != expect {
 		t.Errorf("expected %d extensions, but got %d", expect, actual)
