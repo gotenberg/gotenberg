@@ -115,6 +115,7 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		pageRanges                                       string
 		headerTemplate, footerTemplate                   string
 		preferCssPageSize                                bool
+		generateTaggedPdf                                bool
 	)
 
 	form.
@@ -132,6 +133,7 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		Content("header.html", &headerTemplate, defaultPdfOptions.HeaderTemplate).
 		Content("footer.html", &footerTemplate, defaultPdfOptions.FooterTemplate).
 		Bool("preferCssPageSize", &preferCssPageSize, defaultPdfOptions.PreferCssPageSize)
+		Bool("generateTaggedPdf", &generateTaggedPdf, defaultPdfOptions.GenerateTaggedPDF)
 
 	pdfOptions := PdfOptions{
 		Options:           options,
@@ -149,6 +151,7 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		HeaderTemplate:    headerTemplate,
 		FooterTemplate:    footerTemplate,
 		PreferCssPageSize: preferCssPageSize,
+		GenerateTaggedPDF: generateTaggedPdf,
 	}
 
 	return form, pdfOptions
