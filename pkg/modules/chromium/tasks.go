@@ -47,7 +47,7 @@ func printToPdfActionFunc(logger *zap.Logger, outputPath string, options PdfOpti
 			WithMarginRight(options.MarginRight).
 			WithPageRanges(pageRanges).
 			WithPreferCSSPageSize(options.PreferCssPageSize).
-			WithGenerateTaggedPDF(true)
+			WithGenerateTaggedPDF(options.GenerateTaggedPDF)
 
 		hasCustomHeaderFooter := options.HeaderTemplate != DefaultPdfOptions().HeaderTemplate ||
 			options.FooterTemplate != DefaultPdfOptions().FooterTemplate
