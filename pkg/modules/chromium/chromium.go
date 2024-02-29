@@ -205,6 +205,12 @@ type PdfOptions struct {
 	// If false, the content will be scaled to fit the paper size.
 	// Optional.
 	PreferCssPageSize bool
+
+	// GenerateTaggedPDF produces a type of PDF that includes an underlying tag tree, similar to HTML, that defines the structure of the document.
+	// A key part of making PDFs accessible is ensuring the document is “tagged.”
+	// If false, the underlying tag tree will be omitted
+	// Optional.
+	GenerateTaggedPDF bool
 }
 
 // DefaultPdfOptions returns the default values for PdfOptions.
@@ -225,6 +231,7 @@ func DefaultPdfOptions() PdfOptions {
 		HeaderTemplate:    "<html><head></head><body></body></html>",
 		FooterTemplate:    "<html><head></head><body></body></html>",
 		PreferCssPageSize: false,
+		GenerateTaggedPDF: true,
 	}
 }
 
