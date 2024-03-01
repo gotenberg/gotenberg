@@ -39,13 +39,14 @@ LABEL author="Hayati Ibis" \
     website="https://gotenberg.dev" \
     org.opencontainers.image.source="https://github.com/gotenberg/gotenberg"
 
+
 RUN \
     # Create a non-root user.
     # All processes in the Docker container will run with this dedicated user.
-    groupadd --gid "$GOTENBERG_USER_GID" gotenberg &&\
-    useradd --uid "$GOTENBERG_USER_UID" --gid gotenberg --shell /bin/bash --home /home/gotenberg --no-create-home gotenberg &&\
-    mkdir /home/gotenberg &&\
-    chown gotenberg: /home/gotenberg
+    addgroup -g "$GOTENBERG_USER_GID" gotenberg && \
+    adduser -u "$GOTENBERG_USER_UID" -G gotenberg -h /home/gotenberg -D gotenberg && \
+    mkdir -p /home/gotenberg && \
+    chown gotenberg:gotenberg /home/gotenberg
 
 
 RUN \
@@ -80,10 +81,8 @@ RUN \
     fc-cache -f &&\
     rm -rf /var/cache/apk/*
 
-RUN apk add \
-    font-wqy-zenhei --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing/\
-    # Cleanup.
-    rm -rf /var/cache/apk/*
+RUN apk --no-cache add \
+    font-wqy-zenhei --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing/
 
 RUN apk --no-cache add chromium &&\
     apk version chromium &&\
