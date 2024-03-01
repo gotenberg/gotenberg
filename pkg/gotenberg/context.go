@@ -5,7 +5,7 @@ import (
 	"reflect"
 )
 
-// Context is a struct which helps initializing modules. When provisioning, a
+// Context is a struct which helps to initialize modules. When provisioning, a
 // module may use the context to get other modules that it needs internally.
 type Context struct {
 	flags           ParsedFlags
@@ -13,8 +13,8 @@ type Context struct {
 	moduleInstances map[string]interface{}
 }
 
-// NewContext creates a Context.
-// In a module, prefer the Provisioner interface to get a Context.
+// NewContext creates a [Context].
+// In a module, prefer the [Provisioner] interface to get a [Context].
 func NewContext(
 	flags ParsedFlags,
 	descriptors []ModuleDescriptor,
@@ -32,7 +32,7 @@ func NewContext(
 //		flags := ctx.ParsedFlags()
 //		m.foo = flags.RequiredString("foo")
 //	}
-func (ctx Context) ParsedFlags() ParsedFlags {
+func (ctx *Context) ParsedFlags() ParsedFlags {
 	return ctx.flags
 }
 
@@ -47,7 +47,6 @@ func (ctx Context) ParsedFlags() ParsedFlags {
 // initializes it. Otherwise, returns the already initialized instance.
 func (ctx *Context) Module(kind interface{}) (interface{}, error) {
 	mods, err := ctx.Modules(kind)
-
 	if err != nil {
 		return nil, fmt.Errorf("get module: %w", err)
 	}
@@ -101,7 +100,7 @@ func (ctx *Context) Modules(kind interface{}) ([]interface{}, error) {
 }
 
 // loadModule calls the Provision and/or Validate methods of the requested
-// module if it satisfies the Provisioner and/or Validator interfaces.
+// module if it satisfies the [Provisioner] and/or [Validator] interfaces.
 func (ctx *Context) loadModule(id string, instance interface{}) error {
 	if prov, ok := instance.(Provisioner); ok {
 		// The instance can be provisioned.

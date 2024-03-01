@@ -8,9 +8,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	flag "github.com/spf13/pflag"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 // See https://patorjk.com/software/taag/#p=display&f=Small%20Slant&t=Gotenberg.
@@ -74,7 +75,6 @@ func Run() {
 		go func(app gotenberg.App) {
 			id := app.(gotenberg.Module).Descriptor().ID
 			err = app.Start()
-
 			if err != nil {
 				fmt.Printf("[FATAL] starting %s: %s\n", id, err)
 				os.Exit(1)
@@ -83,7 +83,6 @@ func Run() {
 			startupMessage := app.StartupMessage()
 			if startupMessage == "" {
 				fmt.Printf("[SYSTEM] %s: application started\n", id)
-
 				return
 			}
 
@@ -143,7 +142,6 @@ func Run() {
 				}
 
 				fmt.Printf("[SYSTEM] %s: application stopped\n", id)
-
 				return nil
 			}
 		}(a.(gotenberg.App)))

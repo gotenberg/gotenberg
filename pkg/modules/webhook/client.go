@@ -16,9 +16,9 @@ import (
 type client struct {
 	url              string
 	method           string
-	errorURL         string
+	errorUrl         string
 	errorMethod      string
-	extraHTTPHeaders map[string]string
+	extraHttpHeaders map[string]string
 	startTime        time.Time
 
 	client *retryablehttp.Client
@@ -29,7 +29,7 @@ type client struct {
 func (c client) send(body io.Reader, headers map[string]string, erroed bool) error {
 	URL := c.url
 	if erroed {
-		URL = c.errorURL
+		URL = c.errorUrl
 	}
 
 	method := c.method
@@ -45,7 +45,7 @@ func (c client) send(body io.Reader, headers map[string]string, erroed bool) err
 	req.Header.Set("User-Agent", "Gotenberg")
 
 	// Extra HTTP headers are the custom headers from the user.
-	for key, value := range c.extraHTTPHeaders {
+	for key, value := range c.extraHttpHeaders {
 		req.Header.Set(key, value)
 	}
 
@@ -62,7 +62,6 @@ func (c client) send(body io.Reader, headers map[string]string, erroed bool) err
 		// least it works.
 
 		bodySize, err := strconv.ParseInt(contentLength, 10, 64)
-
 		if err != nil {
 			return fmt.Errorf("parse content length entry: %w", err)
 		}
@@ -112,8 +111,8 @@ func (c client) send(body io.Reader, headers map[string]string, erroed bool) err
 	return nil
 }
 
-// leveledLogger is wrapper around a zap.Logger which is used by the
-// retryablehttp.Client.
+// leveledLogger is wrapper around a [zap.Logger] which is used by the
+// [retryablehttp.Client].
 type leveledLogger struct {
 	logger *zap.Logger
 }

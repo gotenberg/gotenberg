@@ -6,38 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
-type ProtoModule struct {
-	descriptor func() gotenberg.ModuleDescriptor
-}
-
-func (mod ProtoModule) Descriptor() gotenberg.ModuleDescriptor {
-	return mod.descriptor()
-}
-
-type ProtoValidator struct {
-	ProtoModule
-	validate func() error
-}
-
-func (mod ProtoValidator) Validate() error {
-	return mod.validate()
-}
-
-type ProtoMetricsProvider struct {
-	ProtoValidator
-	metrics func() ([]gotenberg.Metric, error)
-}
-
-func (mod ProtoMetricsProvider) Metrics() ([]gotenberg.Metric, error) {
-	return mod.metrics()
-}
-
 func TestPrometheus_Descriptor(t *testing.T) {
-	descriptor := Prometheus{}.Descriptor()
+	descriptor := new(Prometheus).Descriptor()
 
 	actual := reflect.TypeOf(descriptor.New())
 	expect := reflect.TypeOf(new(Prometheus))
@@ -48,20 +23,20 @@ func TestPrometheus_Descriptor(t *testing.T) {
 }
 
 func TestPrometheus_Provision(t *testing.T) {
-	for i, tc := range []struct {
+	for _, tc := range []struct {
+		scenario      string
 		ctx           *gotenberg.Context
 		expectMetrics []gotenberg.Metric
-		expectErr     bool
+		expectError   bool
 	}{
 		{
+			scenario: "disable collect",
 			ctx: func() *gotenberg.Context {
 				fs := new(Prometheus).Descriptor().FlagSet
 				err := fs.Parse([]string{"--prometheus-disable-collect=true"})
-
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
-
 				return gotenberg.NewContext(
 					gotenberg.ParsedFlags{
 						FlagSet: fs,
@@ -69,20 +44,25 @@ func TestPrometheus_Provision(t *testing.T) {
 					nil,
 				)
 			}(),
+			expectError: false,
 		},
 		{
+			scenario: "invalid metrics provider",
 			ctx: func() *gotenberg.Context {
-				mod := struct{ ProtoMetricsProvider }{}
-				mod.descriptor = func() gotenberg.ModuleDescriptor {
+				mod := &struct {
+					gotenberg.ModuleMock
+					gotenberg.ValidatorMock
+					gotenberg.MetricsProviderMock
+				}{}
+				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod }}
 				}
-				mod.validate = func() error {
+				mod.ValidateMock = func() error {
 					return errors.New("foo")
 				}
-				mod.metrics = func() ([]gotenberg.Metric, error) {
+				mod.MetricsMock = func() ([]gotenberg.Metric, error) {
 					return nil, nil
 				}
-
 				return gotenberg.NewContext(
 					gotenberg.ParsedFlags{
 						FlagSet: new(Prometheus).Descriptor().FlagSet,
@@ -92,21 +72,25 @@ func TestPrometheus_Provision(t *testing.T) {
 					},
 				)
 			}(),
-			expectErr: true,
+			expectError: true,
 		},
 		{
+			scenario: "invalid metrics from metrics provider",
 			ctx: func() *gotenberg.Context {
-				mod := struct{ ProtoMetricsProvider }{}
-				mod.descriptor = func() gotenberg.ModuleDescriptor {
+				mod := &struct {
+					gotenberg.ModuleMock
+					gotenberg.ValidatorMock
+					gotenberg.MetricsProviderMock
+				}{}
+				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod }}
 				}
-				mod.validate = func() error {
+				mod.ValidateMock = func() error {
 					return nil
 				}
-				mod.metrics = func() ([]gotenberg.Metric, error) {
+				mod.MetricsMock = func() ([]gotenberg.Metric, error) {
 					return nil, errors.New("foo")
 				}
-
 				return gotenberg.NewContext(
 					gotenberg.ParsedFlags{
 						FlagSet: new(Prometheus).Descriptor().FlagSet,
@@ -116,18 +100,23 @@ func TestPrometheus_Provision(t *testing.T) {
 					},
 				)
 			}(),
-			expectErr: true,
+			expectError: true,
 		},
 		{
+			scenario: "provision success",
 			ctx: func() *gotenberg.Context {
-				mod := struct{ ProtoMetricsProvider }{}
-				mod.descriptor = func() gotenberg.ModuleDescriptor {
+				mod := &struct {
+					gotenberg.ModuleMock
+					gotenberg.ValidatorMock
+					gotenberg.MetricsProviderMock
+				}{}
+				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module { return mod }}
 				}
-				mod.validate = func() error {
+				mod.ValidateMock = func() error {
 					return nil
 				}
-				mod.metrics = func() ([]gotenberg.Metric, error) {
+				mod.MetricsMock = func() ([]gotenberg.Metric, error) {
 					return []gotenberg.Metric{
 						{
 							Name:        "foo",
@@ -135,7 +124,6 @@ func TestPrometheus_Provision(t *testing.T) {
 						},
 					}, nil
 				}
-
 				return gotenberg.NewContext(
 					gotenberg.ParsedFlags{
 						FlagSet: new(Prometheus).Descriptor().FlagSet,
@@ -151,58 +139,73 @@ func TestPrometheus_Provision(t *testing.T) {
 					Description: "Bar.",
 				},
 			},
+			expectError: false,
 		},
 	} {
-		mod := new(Prometheus)
-		err := mod.Provision(tc.ctx)
+		t.Run(tc.scenario, func(t *testing.T) {
+			mod := new(Prometheus)
+			err := mod.Provision(tc.ctx)
 
-		if !reflect.DeepEqual(mod.metrics, tc.expectMetrics) {
-			t.Errorf("test %d: expected %+v, but got: %+v", i, tc.expectMetrics, mod.metrics)
-		}
+			if !reflect.DeepEqual(mod.metrics, tc.expectMetrics) {
+				t.Fatalf("expected metrics %+v, but got: %+v", tc.expectMetrics, mod.metrics)
+			}
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
 
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
+		})
 	}
 }
 
 func TestPrometheus_Validate(t *testing.T) {
-	for i, tc := range []struct {
+	for _, tc := range []struct {
+		scenario       string
 		namespace      string
 		metrics        []gotenberg.Metric
 		disableCollect bool
-		expectErr      bool
+		expectError    bool
 	}{
 		{
+			scenario:       "collect disabled",
+			namespace:      "foo",
 			disableCollect: true,
+			expectError:    false,
 		},
 		{
-			namespace: "",
-			expectErr: true,
+			scenario:       "empty namespace",
+			namespace:      "",
+			disableCollect: false,
+			expectError:    true,
 		},
 		{
+			scenario:  "empty metric name",
 			namespace: "foo",
 			metrics: []gotenberg.Metric{
 				{
 					Name: "",
 				},
 			},
-			expectErr: true,
+			disableCollect: false,
+			expectError:    true,
 		},
 		{
+			scenario:  "nil read metric method",
 			namespace: "foo",
 			metrics: []gotenberg.Metric{
 				{
 					Name: "foo",
+					Read: nil,
 				},
 			},
-			expectErr: true,
+			disableCollect: false,
+			expectError:    true,
 		},
 		{
+			scenario:  "already registered metric",
 			namespace: "foo",
 			metrics: []gotenberg.Metric{
 				{
@@ -218,9 +221,11 @@ func TestPrometheus_Validate(t *testing.T) {
 					},
 				},
 			},
-			expectErr: true,
+			disableCollect: false,
+			expectError:    true,
 		},
 		{
+			scenario:  "validate success",
 			namespace: "foo",
 			metrics: []gotenberg.Metric{
 				{
@@ -236,35 +241,41 @@ func TestPrometheus_Validate(t *testing.T) {
 					},
 				},
 			},
+			disableCollect: false,
+			expectError:    false,
 		},
 	} {
-		mod := Prometheus{
-			namespace:      tc.namespace,
-			metrics:        tc.metrics,
-			disableCollect: tc.disableCollect,
-		}
+		t.Run(tc.scenario, func(t *testing.T) {
+			mod := &Prometheus{
+				namespace:      tc.namespace,
+				metrics:        tc.metrics,
+				disableCollect: tc.disableCollect,
+			}
+			err := mod.Validate()
 
-		err := mod.Validate()
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
-
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
+		})
 	}
 }
 
 func TestPrometheus_Start(t *testing.T) {
-	for i, tc := range []struct {
+	for _, tc := range []struct {
+		scenario       string
 		metrics        []gotenberg.Metric
 		disableCollect bool
 	}{
 		{
+			scenario:       "collect disabled",
 			disableCollect: true,
 		},
 		{
+			scenario: "start success",
 			metrics: []gotenberg.Metric{
 				{
 					Name: "foo",
@@ -275,86 +286,75 @@ func TestPrometheus_Start(t *testing.T) {
 			},
 		},
 	} {
-		mod := Prometheus{
-			namespace:      "foo",
-			interval:       time.Duration(1) * time.Second,
-			metrics:        tc.metrics,
-			disableCollect: tc.disableCollect,
-			registry:       prometheus.NewRegistry(),
-		}
+		t.Run(tc.scenario, func(t *testing.T) {
+			mod := &Prometheus{
+				namespace:      "foo",
+				interval:       time.Duration(1) * time.Second,
+				metrics:        tc.metrics,
+				disableCollect: tc.disableCollect,
+				registry:       prometheus.NewRegistry(),
+			}
 
-		err := mod.Start()
-		if err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
+			err := mod.Start()
+			if err != nil {
+				t.Errorf("expected no error but got: %v", err)
+			}
+		})
 	}
 }
 
 func TestPrometheus_StartupMessage(t *testing.T) {
-	for i, tc := range []struct {
-		disableCollect bool
-		expectMessage  string
-	}{
-		{
-			disableCollect: true,
-			expectMessage:  "collect disabled",
-		},
-		{
-			expectMessage: "collecting metrics",
-		},
-	} {
-		mod := Prometheus{
-			disableCollect: tc.disableCollect,
-		}
+	mod := new(Prometheus)
 
-		actual := mod.StartupMessage()
-		if actual != tc.expectMessage {
-			t.Errorf("test %d: expected '%s' but got '%s'", i, tc.expectMessage, actual)
-		}
+	mod.disableCollect = true
+	disableCollectMsg := mod.StartupMessage()
+
+	mod.disableCollect = false
+	noDisableCollectMsg := mod.StartupMessage()
+
+	if disableCollectMsg == noDisableCollectMsg {
+		t.Errorf("expected differrent startup messages if collect is disabled or not, but got '%s'", disableCollectMsg)
 	}
 }
 
 func TestPrometheus_Stop(t *testing.T) {
-	err := Prometheus{}.Stop(nil)
+	err := new(Prometheus).Stop(nil)
 	if err != nil {
 		t.Errorf("expected no error but got: %v", err)
 	}
 }
 
 func TestPrometheus_Routes(t *testing.T) {
-	for i, tc := range []struct {
-		expectRoutes   int
+	for _, tc := range []struct {
+		scenario       string
 		disableCollect bool
+		expectRoutes   int
 	}{
 		{
+			scenario:       "collect disabled",
 			disableCollect: true,
+			expectRoutes:   0,
 		},
 		{
-			expectRoutes: 1,
+			scenario:       "routes not disabled",
+			disableCollect: false,
+			expectRoutes:   1,
 		},
 	} {
-		mod := Prometheus{
-			disableCollect: tc.disableCollect,
-			registry:       prometheus.NewRegistry(),
-		}
+		t.Run(tc.scenario, func(t *testing.T) {
+			mod := &Prometheus{
+				disableCollect: tc.disableCollect,
+				registry:       prometheus.NewRegistry(),
+			}
 
-		routes, err := mod.Routes()
-		if err != nil {
-			t.Fatalf("test %d: expected no error but got: %v", i, err)
-		}
+			routes, err := mod.Routes()
+			if err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
 
-		if tc.expectRoutes != len(routes) {
-			t.Errorf("test %d: expected %d routes but got %d", i, tc.expectRoutes, len(routes))
-		}
+			if tc.expectRoutes != len(routes) {
+				t.Errorf("expected %d routes but got %d", tc.expectRoutes, len(routes))
+			}
+		})
 	}
 }
-
-// Interface guards.
-var (
-	_ gotenberg.Module          = (*ProtoModule)(nil)
-	_ gotenberg.Validator       = (*ProtoValidator)(nil)
-	_ gotenberg.Module          = (*ProtoValidator)(nil)
-	_ gotenberg.MetricsProvider = (*ProtoMetricsProvider)(nil)
-	_ gotenberg.Module          = (*ProtoMetricsProvider)(nil)
-	_ gotenberg.Validator       = (*ProtoMetricsProvider)(nil)
-)

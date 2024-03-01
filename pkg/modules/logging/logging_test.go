@@ -5,14 +5,16 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 func TestLogging_Descriptor(t *testing.T) {
-	descriptor := Logging{}.Descriptor()
+	descriptor := new(Logging).Descriptor()
+
 	actual := reflect.TypeOf(descriptor.New())
 	expect := reflect.TypeOf(new(Logging))
 
@@ -55,66 +57,68 @@ func TestLogging_Provision(t *testing.T) {
 			expectFieldsPrefix: "",
 		},
 	} {
-		var flags []string
+		t.Run(tc.scenario, func(t *testing.T) {
+			var flags []string
 
-		if tc.level != "" {
-			flags = append(flags, "--log-level", tc.level)
-		}
+			if tc.level != "" {
+				flags = append(flags, "--log-level", tc.level)
+			}
 
-		if tc.format != "" {
-			flags = append(flags, "--log-format", tc.format)
-		}
+			if tc.format != "" {
+				flags = append(flags, "--log-format", tc.format)
+			}
 
-		if tc.fieldsPrefix != "" {
-			flags = append(flags, "--log-fields-prefix", tc.fieldsPrefix)
-		}
+			if tc.fieldsPrefix != "" {
+				flags = append(flags, "--log-fields-prefix", tc.fieldsPrefix)
+			}
 
-		logging := new(Logging)
-		fs := logging.Descriptor().FlagSet
+			logging := new(Logging)
+			fs := logging.Descriptor().FlagSet
 
-		err := fs.Parse(flags)
-		if err != nil {
-			t.Fatalf("%s: expected no error but got: %v", tc.scenario, err)
-		}
+			err := fs.Parse(flags)
+			if err != nil {
+				t.Fatalf("expected no error while parsing flags but got: %v", err)
+			}
 
-		ctx := gotenberg.NewContext(gotenberg.ParsedFlags{FlagSet: fs}, nil)
+			ctx := gotenberg.NewContext(gotenberg.ParsedFlags{FlagSet: fs}, nil)
 
-		err = logging.Provision(ctx)
-		if err != nil {
-			t.Fatalf("%s: expected no error but got: %v", tc.scenario, err)
-		}
+			err = logging.Provision(ctx)
+			if err != nil {
+				t.Fatalf("expected no error while provisioning but got: %v", err)
+			}
 
-		if logging.level != tc.expectLevel {
-			t.Errorf("%s: expected '%s' but got '%s'", tc.scenario, tc.expectLevel, logging.level)
-		}
+			if logging.level != tc.expectLevel {
+				t.Errorf("expected logging level '%s' but got '%s'", tc.expectLevel, logging.level)
+			}
 
-		if logging.format != tc.expectFormat {
-			t.Errorf("%s: expected '%s' but got '%s'", tc.scenario, tc.expectFormat, logging.format)
-		}
+			if logging.format != tc.expectFormat {
+				t.Errorf("expected logging format '%s' but got '%s'", tc.expectFormat, logging.format)
+			}
 
-		if logging.fieldsPrefix != tc.expectFieldsPrefix {
-			t.Errorf("%s: expected '%s' but got '%s'", tc.scenario, tc.expectFieldsPrefix, logging.fieldsPrefix)
-		}
+			if logging.fieldsPrefix != tc.expectFieldsPrefix {
+				t.Errorf("expected logging fields prefix '%s' but got '%s'", tc.expectFieldsPrefix, logging.fieldsPrefix)
+			}
+		})
 	}
 }
 
 func TestLogging_Validate(t *testing.T) {
 	for _, tc := range []struct {
-		scenario  string
-		level     string
-		format    string
-		expectErr bool
+		scenario    string
+		level       string
+		format      string
+		expectError bool
 	}{
 		{
-			scenario:  "invalid level",
-			level:     "foo",
-			expectErr: true,
+			scenario:    "invalid level",
+			level:       "foo",
+			expectError: true,
 		},
 		{
-			scenario:  "invalid format",
-			level:     debugLoggingLevel,
-			format:    "foo",
-			expectErr: true,
+			scenario:    "invalid format",
+			level:       debugLoggingLevel,
+			format:      "foo",
+			expectError: true,
 		},
 		{
 			scenario: "valid level and format",
@@ -128,11 +132,11 @@ func TestLogging_Validate(t *testing.T) {
 
 		err := logging.Validate()
 
-		if tc.expectErr && err == nil {
+		if tc.expectError && err == nil {
 			t.Errorf("%s: expected error but got: %v", tc.scenario, err)
 		}
 
-		if !tc.expectErr && err != nil {
+		if !tc.expectError && err != nil {
 			t.Errorf("%s: expected no error but got: %v", tc.scenario, err)
 		}
 	}
@@ -144,18 +148,18 @@ func TestLogging_Logger(t *testing.T) {
 		level        string
 		format       string
 		fieldsPrefix string
-		expectErr    bool
+		expectError  bool
 	}{
 		{
-			scenario:  "invalid level",
-			level:     "foo",
-			expectErr: true,
+			scenario:    "invalid level",
+			level:       "foo",
+			expectError: true,
 		},
 		{
-			scenario:  "invalid format",
-			level:     debugLoggingLevel,
-			format:    "foo",
-			expectErr: true,
+			scenario:    "invalid format",
+			level:       debugLoggingLevel,
+			format:      "foo",
+			expectError: true,
 		},
 		{
 			scenario: "valid level and format",
@@ -163,24 +167,26 @@ func TestLogging_Logger(t *testing.T) {
 			format:   autoLoggingFormat,
 		},
 	} {
-		logging := new(Logging)
-		logging.level = tc.level
-		logging.format = tc.format
-		logging.fieldsPrefix = tc.fieldsPrefix
+		t.Run(tc.scenario, func(t *testing.T) {
+			logging := new(Logging)
+			logging.level = tc.level
+			logging.format = tc.format
+			logging.fieldsPrefix = tc.fieldsPrefix
 
-		_, err := logging.Logger(gotenberg.ModuleMock{
-			DescriptorMock: func() gotenberg.ModuleDescriptor {
-				return gotenberg.ModuleDescriptor{ID: "mock", New: nil}
-			},
+			_, err := logging.Logger(&gotenberg.ModuleMock{
+				DescriptorMock: func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "mock", New: nil}
+				},
+			})
+
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
+
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
 		})
-
-		if tc.expectErr && err == nil {
-			t.Errorf("%s: expected error but got: %v", tc.scenario, err)
-		}
-
-		if !tc.expectErr && err != nil {
-			t.Errorf("%s: expected no error but got: %v", tc.scenario, err)
-		}
 	}
 }
 
@@ -207,44 +213,46 @@ func TestCustomCore(t *testing.T) {
 			level:    zapcore.ErrorLevel,
 		},
 	} {
-		core, obsvr := observer.New(tc.level)
-		lgr := zap.New(customCore{
-			Core:         core,
-			fieldsPrefix: tc.fieldsPrefix,
-		}).With(zap.String("a_field", "a value"))
+		t.Run(tc.scenario, func(t *testing.T) {
+			core, obsvr := observer.New(tc.level)
+			lgr := zap.New(customCore{
+				Core:         core,
+				fieldsPrefix: tc.fieldsPrefix,
+			}).With(zap.String("a_field", "a value"))
 
-		lgr.Debug("a debug message", zap.String("another_field", "another value"))
+			lgr.Debug("a debug message", zap.String("another_field", "another value"))
 
-		entries := obsvr.TakeAll()
+			entries := obsvr.TakeAll()
 
-		if tc.expectEntry && len(entries) == 0 {
-			t.Fatalf("%s: expected an entry", tc.scenario)
-		}
-
-		if !tc.expectEntry && len(entries) != 0 {
-			t.Fatalf("%s: expected no entry", tc.scenario)
-		}
-
-		var prefix string
-		if tc.fieldsPrefix != "" {
-			prefix = tc.fieldsPrefix + "_"
-		}
-
-		for _, entry := range entries {
-			fields := entry.Context
-
-			if len(fields) != 2 {
-				t.Fatalf("expected 2 fields but got %d", len(fields))
+			if tc.expectEntry && len(entries) == 0 {
+				t.Fatal("expected an entry")
 			}
 
-			if fields[0].Key != fmt.Sprintf("%sa_field", prefix) {
-				t.Errorf("expected 'gotenberg_a_field' but got '%s'", fields[0].Key)
+			if !tc.expectEntry && len(entries) != 0 {
+				t.Fatal("expected no entry")
 			}
 
-			if fields[1].Key != fmt.Sprintf("%sanother_field", prefix) {
-				t.Errorf("expected 'gotenberg_another_field' but got '%s'", fields[1].Key)
+			var prefix string
+			if tc.fieldsPrefix != "" {
+				prefix = tc.fieldsPrefix + "_"
 			}
-		}
+
+			for _, entry := range entries {
+				fields := entry.Context
+
+				if len(fields) != 2 {
+					t.Fatalf("expected 2 fields but got %d", len(fields))
+				}
+
+				if fields[0].Key != fmt.Sprintf("%sa_field", prefix) {
+					t.Errorf("expected 'gotenberg_a_field' but got '%s'", fields[0].Key)
+				}
+
+				if fields[1].Key != fmt.Sprintf("%sanother_field", prefix) {
+					t.Errorf("expected 'gotenberg_another_field' but got '%s'", fields[1].Key)
+				}
+			}
+		})
 	}
 }
 
@@ -253,7 +261,7 @@ func Test_newLogLevel(t *testing.T) {
 		scenario       string
 		level          string
 		expectZapLevel zapcore.Level
-		expectErr      bool
+		expectError    bool
 	}{
 		{
 			scenario:       "error level",
@@ -279,30 +287,32 @@ func Test_newLogLevel(t *testing.T) {
 			scenario:       "invalid level",
 			level:          "foo",
 			expectZapLevel: zapcore.InvalidLevel,
-			expectErr:      true,
+			expectError:    true,
 		},
 	} {
-		actual, err := newLogLevel(tc.level)
+		t.Run(tc.scenario, func(t *testing.T) {
+			actual, err := newLogLevel(tc.level)
 
-		if tc.expectErr && err == nil {
-			t.Errorf("%s: expected error but got: %v", tc.scenario, err)
-		}
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
 
-		if !tc.expectErr && err != nil {
-			t.Errorf("%s: expected no error but got: %v", tc.scenario, err)
-		}
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
 
-		if tc.expectZapLevel != actual {
-			t.Errorf("%s: expected %d level but got %d", tc.scenario, tc.expectZapLevel, actual)
-		}
+			if tc.expectZapLevel != actual {
+				t.Errorf("expected %d level but got %d", tc.expectZapLevel, actual)
+			}
+		})
 	}
 }
 
 func Test_newLogEncoder(t *testing.T) {
 	for _, tc := range []struct {
-		scenario  string
-		format    string
-		expectErr bool
+		scenario    string
+		format      string
+		expectError bool
 	}{
 		{
 			scenario: "auto format",
@@ -317,19 +327,21 @@ func Test_newLogEncoder(t *testing.T) {
 			format:   jsonLoggingFormat,
 		},
 		{
-			scenario:  "invalid format",
-			format:    "foo",
-			expectErr: true,
+			scenario:    "invalid format",
+			format:      "foo",
+			expectError: true,
 		},
 	} {
-		_, err := newLogEncoder(tc.format)
+		t.Run(tc.scenario, func(t *testing.T) {
+			_, err := newLogEncoder(tc.format)
 
-		if tc.expectErr && err == nil {
-			t.Errorf("%s: expected error but got: %v", tc.scenario, err)
-		}
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
 
-		if !tc.expectErr && err != nil {
-			t.Errorf("%s: expected no error but got: %v", tc.scenario, err)
-		}
+			if !tc.expectError && err != nil {
+				t.Errorf("expected no error but got: %v", err)
+			}
+		})
 	}
 }

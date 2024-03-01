@@ -5,34 +5,35 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 	flag "github.com/spf13/pflag"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
 )
 
 func init() {
-	gotenberg.MustRegisterModule(PDFEngines{})
+	gotenberg.MustRegisterModule(new(PdfEngines))
 }
 
-// PDFEngines is a module which gathers available gotenberg.PDFEngine modules.
-// The available gotenberg.PDFEngine modules can be either all
-// gotenberg.PDFEngine modules or the modules selected by the user thanks to
-// the "engines" flag.
+// PdfEngines acts as an aggregator and manager for multiple PDF engine
+// modules. It enables the selection and ordering of PDF engines based on user
+// preferences passed via command-line flags. The [PdfEngines] module also
+// implements the [gotenberg.PdfEngine] interface, providing a unified approach
+// to PDF processing across the various engines it manages.
 //
-// PDFEngines wraps the gotenberg.PDFEngine modules in an internal struct which
-// also implements gotenberg.PDFEngine. This struct provides a sort of fallback
-// mechanism: if an engine's method returns an error, it calls the same method
-// from another engine.
-//
-// This module implements the gotenberg.PDFEngineProvider interface.
-type PDFEngines struct {
+// When processing PDFs, [PdfEngines] will attempt to use the engines in the
+// order they were defined. If the primary engine encounters an error,
+// [PdfEngines] can fall back to the next available engine. It also implements
+// the [api.Router] interface to expose relevant PDF processing routes if
+// enabled.
+type PdfEngines struct {
 	names         []string
-	engines       []gotenberg.PDFEngine
+	engines       []gotenberg.PdfEngine
 	disableRoutes bool
 }
 
-// Descriptor returns a PDFEngines' module descriptor.
-func (PDFEngines) Descriptor() gotenberg.ModuleDescriptor {
+// Descriptor returns a PdfEngines' module descriptor.
+func (mod *PdfEngines) Descriptor() gotenberg.ModuleDescriptor {
 	return gotenberg.ModuleDescriptor{
 		ID: "pdfengines",
 		FlagSet: func() *flag.FlagSet {
@@ -42,50 +43,39 @@ func (PDFEngines) Descriptor() gotenberg.ModuleDescriptor {
 
 			return fs
 		}(),
-		New: func() gotenberg.Module { return new(PDFEngines) },
+		New: func() gotenberg.Module { return new(PdfEngines) },
 	}
 }
 
-// Provision gets either all gotenberg.PDFEngine modules or the modules
+// Provision gets either all [gotenberg.PdfEngine] modules or the modules
 // selected by the user thanks to the "engines" flag.
-func (mod *PDFEngines) Provision(ctx *gotenberg.Context) error {
+func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	names := flags.MustStringSlice("pdfengines-engines")
 	mod.disableRoutes = flags.MustBool("pdfengines-disable-routes")
 
-	loggerProvider, err := ctx.Module(new(gotenberg.LoggerProvider))
-	if err != nil {
-		return fmt.Errorf("get logger provider: %w", err)
-	}
-
-	logger, err := loggerProvider.(gotenberg.LoggerProvider).Logger(mod)
-	if err != nil {
-		return fmt.Errorf("get logger: %w", err)
-	}
-
-	logger = logger.Named("pdfengines")
-
-	engines, err := ctx.Modules(new(gotenberg.PDFEngine))
+	engines, err := ctx.Modules(new(gotenberg.PdfEngine))
 	if err != nil {
 		return fmt.Errorf("get PDF engines: %w", err)
 	}
 
-	mod.engines = make([]gotenberg.PDFEngine, len(engines))
+	mod.engines = make([]gotenberg.PdfEngine, len(engines))
 
 	for i, engine := range engines {
-		mod.engines[i] = engine.(gotenberg.PDFEngine)
+		mod.engines[i] = engine.(gotenberg.PdfEngine)
 	}
 
 	if len(names) > 0 {
 		// Selection from user.
 		mod.names = names
 
-		for i, name := range names {
-			logger.Warn("unoconv-pdfengine is deprecated; prefer uno-pdfengine instead")
-			if name == "unoconv-pdfengine" {
-				mod.names[i] = "uno-pdfengine"
-			}
-		}
+		// Example in case of deprecated module name.
+		//for i, name := range names {
+		//	if name == "unoconv-pdfengine" || name == "uno-pdfengine" {
+		//		logger.Warn(fmt.Sprintf("%s is deprecated; prefer libreoffice-pdfengine instead", name))
+		//		mod.names[i] = "libreoffice-pdfengine"
+		//	}
+		//}
 
 		return nil
 	}
@@ -100,10 +90,10 @@ func (mod *PDFEngines) Provision(ctx *gotenberg.Context) error {
 	return nil
 }
 
-// Validate validates there is at least one gotenberg.PDFEngine module
-// available. It also validates that selected gotenberg.PDFEngine modules
+// Validate validates there is at least one [gotenberg.PdfEngine] module
+// available. It also validates that selected [gotenberg.PdfEngine] modules
 // actually exist.
-func (mod PDFEngines) Validate() error {
+func (mod *PdfEngines) Validate() error {
 	if len(mod.engines) == 0 {
 		return errors.New("no PDF engine")
 	}
@@ -138,17 +128,17 @@ func (mod PDFEngines) Validate() error {
 	return fmt.Errorf("non-existing PDF engine(s): %s - available PDF engine(s): %s", nonExistingEngines, availableEngines)
 }
 
-// SystemMessages returns one message with the selected gotenberg.PDFEngine
+// SystemMessages returns one message with the selected [gotenberg.PdfEngine]
 // modules.
-func (mod PDFEngines) SystemMessages() []string {
+func (mod *PdfEngines) SystemMessages() []string {
 	return []string{
 		strings.Join(mod.names[:], " "),
 	}
 }
 
-// PDFEngine returns a gotenberg.PDFEngine.
-func (mod PDFEngines) PDFEngine() (gotenberg.PDFEngine, error) {
-	engines := make([]gotenberg.PDFEngine, len(mod.names))
+// PdfEngine returns a [gotenberg.PdfEngine].
+func (mod *PdfEngines) PdfEngine() (gotenberg.PdfEngine, error) {
+	engines := make([]gotenberg.PdfEngine, len(mod.names))
 
 	for i, name := range mod.names {
 		for _, engine := range mod.engines {
@@ -159,20 +149,20 @@ func (mod PDFEngines) PDFEngine() (gotenberg.PDFEngine, error) {
 		}
 	}
 
-	return newMultiPDFEngines(engines...), nil
+	return newMultiPdfEngines(engines...), nil
 }
 
 // Routes returns the HTTP routes.
-func (mod PDFEngines) Routes() ([]api.Route, error) {
+func (mod *PdfEngines) Routes() ([]api.Route, error) {
 	if mod.disableRoutes {
 		return nil, nil
 	}
 
-	engine, err := mod.PDFEngine()
+	engine, err := mod.PdfEngine()
 	if err != nil {
 		// Should not happen, unless our provider implementation
 		// changes in the future.
-		return nil, fmt.Errorf("get pdf engine: %w", err)
+		return nil, fmt.Errorf("get pdf mod: %w", err)
 	}
 
 	return []api.Route{
@@ -183,10 +173,10 @@ func (mod PDFEngines) Routes() ([]api.Route, error) {
 
 // Interface guards.
 var (
-	_ gotenberg.Module            = (*PDFEngines)(nil)
-	_ gotenberg.Provisioner       = (*PDFEngines)(nil)
-	_ gotenberg.Validator         = (*PDFEngines)(nil)
-	_ gotenberg.SystemLogger      = (*PDFEngines)(nil)
-	_ gotenberg.PDFEngineProvider = (*PDFEngines)(nil)
-	_ api.Router                  = (*PDFEngines)(nil)
+	_ gotenberg.Module            = (*PdfEngines)(nil)
+	_ gotenberg.Provisioner       = (*PdfEngines)(nil)
+	_ gotenberg.Validator         = (*PdfEngines)(nil)
+	_ gotenberg.SystemLogger      = (*PdfEngines)(nil)
+	_ gotenberg.PdfEngineProvider = (*PdfEngines)(nil)
+	_ api.Router                  = (*PdfEngines)(nil)
 )

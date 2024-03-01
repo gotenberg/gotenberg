@@ -12,25 +12,25 @@ import (
 	"time"
 
 	"github.com/alexliesenfeld/health"
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/gc"
 	"github.com/labstack/echo/v4"
 	flag "github.com/spf13/pflag"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"golang.org/x/net/http2"
+	"golang.org/x/sync/errgroup"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 func init() {
-	gotenberg.MustRegisterModule(API{})
+	gotenberg.MustRegisterModule(new(Api))
 }
 
-// API is a module which provides an HTTP server. Other modules may add routes,
+// Api is a module which provides an HTTP server. Other modules may add routes,
 // middlewares or health checks.
-type API struct {
+type Api struct {
 	port                      int
-	readTimeout               time.Duration
-	writeTimeout              time.Duration
+	startTimeout              time.Duration
 	timeout                   time.Duration
 	rootPath                  string
 	traceHeader               string
@@ -39,17 +39,18 @@ type API struct {
 	routes              []Route
 	externalMiddlewares []Middleware
 	healthChecks        []health.CheckerOption
-	gcGraceDuration     time.Duration
+	readyFn             []func() error
+	fs                  *gotenberg.FileSystem
 	logger              *zap.Logger
 	srv                 *echo.Echo
 }
 
-// Router is a module interface which adds routes to the API.
+// Router is a module interface which adds routes to the [Api].
 type Router interface {
 	Routes() ([]Route, error)
 }
 
-// Route represents a route from a Router.
+// Route represents a route from a [Router].
 type Route struct {
 	// Method is the HTTP method of the route (i.e., GET, POST, etc.).
 	// Required.
@@ -72,13 +73,13 @@ type Route struct {
 	Handler echo.HandlerFunc
 }
 
-// MiddlewareProvider is a module interface which adds middlewares to the API.
+// MiddlewareProvider is a module interface which adds middlewares to the [Api].
 type MiddlewareProvider interface {
 	Middlewares() ([]Middleware, error)
 }
 
 // MiddlewareStack is a type which helps to determine in which stack the
-// middlewares provided by the MiddlewareProvider modules should be located.
+// middlewares provided by the [MiddlewareProvider] modules should be located.
 type MiddlewareStack uint32
 
 const (
@@ -88,7 +89,7 @@ const (
 )
 
 // MiddlewarePriority is a type which helps to determine the execution order of
-// middlewares provided by the MiddlewareProvider modules in a stack.
+// middlewares provided by the [MiddlewareProvider] modules in a stack.
 type MiddlewarePriority uint32
 
 const (
@@ -99,7 +100,7 @@ const (
 	VeryHighPriority
 )
 
-// Middleware is a middleware which can be added to the API's middlewares
+// Middleware is a middleware which can be added to the [Api]'s middlewares
 // chain.
 //
 //	middleware := Middleware{
@@ -126,13 +127,13 @@ const (
 //	}
 type Middleware struct {
 	// Stack tells in which stack the middleware should be located.
-	// Default to DefaultStack.
+	// Default to [DefaultStack].
 	// Optional.
 	Stack MiddlewareStack
 
 	// Priority tells if the middleware should be positioned high or not in
 	// its stack.
-	// Default to VeryLowPriority.
+	// Default to [VeryLowPriority].
 	// Optional.
 	Priority MiddlewarePriority
 
@@ -147,52 +148,35 @@ type Middleware struct {
 // See https://github.com/alexliesenfeld/health for more details.
 type HealthChecker interface {
 	Checks() ([]health.CheckerOption, error)
+	Ready() error
 }
 
-// GarbageCollectorGraceDurationIncrementer is a module interface for
-// increasing the grace duration provided by the API for the garbage collector.
-type GarbageCollectorGraceDurationIncrementer interface {
-	AddGraceDuration() time.Duration
-}
-
-// Descriptor returns an API's module descriptor.
-func (API) Descriptor() gotenberg.ModuleDescriptor {
+// Descriptor returns an [Api]'s module descriptor.
+func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 	return gotenberg.ModuleDescriptor{
 		ID: "api",
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("api", flag.ExitOnError)
 			fs.Int("api-port", 3000, "Set the port on which the API should listen")
 			fs.String("api-port-from-env", "", "Set the environment variable with the port on which the API should listen - override the default port")
-			fs.Duration("api-read-timeout", time.Duration(30)*time.Second, "Set the maximum duration allowed to read a complete request, including the body")
-			fs.Duration("api-process-timeout", time.Duration(30)*time.Second, "Set the maximum duration allowed to process a request")
-			fs.Duration("api-write-timeout", time.Duration(30)*time.Second, "Set the maximum duration before timing out writes of the response")
+			fs.Duration("api-start-timeout", time.Duration(30)*time.Second, "Set the time limit for the API to start")
 			fs.Duration("api-timeout", time.Duration(30)*time.Second, "Set the time limit for requests")
 			fs.String("api-root-path", "/", "Set the root path of the API - for service discovery via URL paths")
 			fs.String("api-trace-header", "Gotenberg-Trace", "Set the header name to use for identifying requests")
 			fs.Bool("api-disable-health-check-logging", false, "Disable health check logging")
 
-			var err error
-			err = multierr.Append(err, fs.MarkDeprecated("api-read-timeout", "use api-timeout instead"))
-			err = multierr.Append(err, fs.MarkDeprecated("api-process-timeout", "use api-timeout instead"))
-			err = multierr.Append(err, fs.MarkDeprecated("api-write-timeout", "use api-timeout instead"))
-
-			if err != nil {
-				panic(fmt.Errorf("create deprecated flags for the api module: %v", err))
-			}
-
 			return fs
 		}(),
-		New: func() gotenberg.Module { return new(API) },
+		New: func() gotenberg.Module { return new(Api) },
 	}
 }
 
 // Provision sets the module properties.
-func (a *API) Provision(ctx *gotenberg.Context) error {
+func (a *Api) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	a.port = flags.MustInt("api-port")
-	a.readTimeout = flags.MustDeprecatedDuration("api-read-timeout", "api-timeout")
-	a.writeTimeout = flags.MustDeprecatedDuration("api-write-timeout", "api-timeout")
-	a.timeout = flags.MustDeprecatedDuration("api-process-timeout", "api-timeout")
+	a.startTimeout = flags.MustDuration("api-start-timeout")
+	a.timeout = flags.MustDuration("api-timeout")
 	a.rootPath = flags.MustString("api-root-path")
 	a.traceHeader = flags.MustString("api-trace-header")
 	a.disableHealthCheckLogging = flags.MustBool("api-disable-health-check-logging")
@@ -281,20 +265,10 @@ func (a *API) Provision(ctx *gotenberg.Context) error {
 		}
 
 		a.healthChecks = append(a.healthChecks, checks...)
+		a.readyFn = append(a.readyFn, healthChecker.Ready)
 	}
 
-	// Grace duration.
-	a.gcGraceDuration = a.timeout
-
-	mods, err = ctx.Modules(new(GarbageCollectorGraceDurationIncrementer))
-	if err != nil {
-		return fmt.Errorf("get garbage collector grace duration increments: %w", err)
-	}
-
-	for _, incrementer := range mods {
-		a.gcGraceDuration += incrementer.(GarbageCollectorGraceDurationIncrementer).AddGraceDuration()
-	}
-
+	// Logger.
 	loggerProvider, err := ctx.Module(new(gotenberg.LoggerProvider))
 	if err != nil {
 		return fmt.Errorf("get logger provider: %w", err)
@@ -307,11 +281,14 @@ func (a *API) Provision(ctx *gotenberg.Context) error {
 
 	a.logger = logger
 
+	// File system.
+	a.fs = gotenberg.NewFileSystem()
+
 	return nil
 }
 
 // Validate validates the module properties.
-func (a API) Validate() error {
+func (a *Api) Validate() error {
 	var err error
 
 	if a.port < 1 || a.port > 65535 {
@@ -383,14 +360,14 @@ func (a API) Validate() error {
 }
 
 // Start starts the HTTP server.
-func (a *API) Start() error {
+func (a *Api) Start() error {
 	a.srv = echo.New()
 	a.srv.HideBanner = true
 	a.srv.HidePort = true
-	a.srv.Server.ReadTimeout = a.readTimeout
+	a.srv.Server.ReadTimeout = a.timeout
 	a.srv.Server.IdleTimeout = a.timeout
 	// See https://github.com/gotenberg/gotenberg/issues/396.
-	a.srv.Server.WriteTimeout = a.writeTimeout + a.writeTimeout
+	a.srv.Server.WriteTimeout = a.timeout + a.timeout
 	a.srv.HTTPErrorHandler = httpErrorHandler()
 
 	// Let's prepare the modules' routes.
@@ -437,7 +414,7 @@ func (a *API) Start() error {
 		var middlewares []echo.MiddlewareFunc
 
 		if route.IsMultipart {
-			middlewares = append(middlewares, contextMiddleware(a.timeout))
+			middlewares = append(middlewares, contextMiddleware(a.fs, a.timeout))
 
 			for _, externalMultipartMiddleware := range externalMultipartMiddlewares {
 				middlewares = append(middlewares, externalMultipartMiddleware.Handler)
@@ -460,11 +437,24 @@ func (a *API) Start() error {
 		func() echo.HandlerFunc {
 			checks := append(a.healthChecks, health.WithTimeout(a.timeout))
 			checker := health.NewChecker(checks...)
-
 			return echo.WrapHandler(health.NewHandler(checker))
 		}(),
 		hardTimeoutMiddleware(hardTimeout),
 	)
+
+	// Wait for all modules to be ready.
+	ctx, cancel := context.WithTimeout(context.Background(), a.startTimeout)
+	defer cancel()
+
+	eg, _ := errgroup.WithContext(ctx)
+	for _, f := range a.readyFn {
+		eg.Go(f)
+	}
+
+	err := eg.Wait()
+	if err != nil {
+		return fmt.Errorf("waiting for modules readiness: %w", err)
+	}
 
 	// As the following code is blocking, run it in a goroutine.
 	go func() {
@@ -479,26 +469,19 @@ func (a *API) Start() error {
 }
 
 // StartupMessage returns a custom startup message.
-func (a API) StartupMessage() string {
+func (a *Api) StartupMessage() string {
 	return fmt.Sprintf("server listening on port %d", a.port)
 }
 
 // Stop stops the HTTP server.
-func (a API) Stop(ctx context.Context) error {
+func (a *Api) Stop(ctx context.Context) error {
 	return a.srv.Shutdown(ctx)
-}
-
-// GraceDuration updates the expiration time of files and directories parsed by
-// the gc.GarbageCollector.
-func (a API) GraceDuration() time.Duration {
-	return a.gcGraceDuration
 }
 
 // Interface guards.
 var (
-	_ gotenberg.Module                         = (*API)(nil)
-	_ gotenberg.Provisioner                    = (*API)(nil)
-	_ gotenberg.Validator                      = (*API)(nil)
-	_ gotenberg.App                            = (*API)(nil)
-	_ gc.GarbageCollectorGraceDurationModifier = (*API)(nil)
+	_ gotenberg.Module      = (*Api)(nil)
+	_ gotenberg.Provisioner = (*Api)(nil)
+	_ gotenberg.Validator   = (*Api)(nil)
+	_ gotenberg.App         = (*Api)(nil)
 )

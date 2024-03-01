@@ -12,144 +12,141 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 func TestNewContext(t *testing.T) {
-	for i, tc := range []struct {
+	for _, tc := range []struct {
+		scenario         string
 		request          *http.Request
-		expectErr        bool
-		expectHTTPErr    bool
-		expectHTTPStatus int
+		expectError      bool
+		expectHttpError  bool
+		expectHttpStatus int
 	}{
 		{
+			scenario:         "http.ErrNotMultipart",
 			request:          httptest.NewRequest(http.MethodPost, "/", nil),
-			expectErr:        true,
-			expectHTTPErr:    true,
-			expectHTTPStatus: http.StatusUnsupportedMediaType,
+			expectError:      true,
+			expectHttpError:  true,
+			expectHttpStatus: http.StatusUnsupportedMediaType,
 		},
 		{
+			scenario: "http.ErrMissingBoundary",
 			request: func() *http.Request {
 				req := httptest.NewRequest(http.MethodPost, "/", nil)
 				req.Header.Set(echo.HeaderContentType, echo.MIMEMultipartForm)
-
 				return req
 			}(),
-			expectErr:        true,
-			expectHTTPErr:    true,
-			expectHTTPStatus: http.StatusUnsupportedMediaType,
+			expectError:      true,
+			expectHttpError:  true,
+			expectHttpStatus: http.StatusUnsupportedMediaType,
 		},
 		{
+			scenario: "malformed body",
 			request: func() *http.Request {
 				body := &bytes.Buffer{}
-
 				writer := multipart.NewWriter(body)
-
 				defer func() {
 					err := writer.Close()
 					if err != nil {
 						t.Fatalf("expected no error but got: %v", err)
 					}
 				}()
-
 				err := writer.WriteField("foo", "foo")
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
-
 				req := httptest.NewRequest(http.MethodPost, "/", nil)
 				req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
-
 				return req
 			}(),
-			expectErr:        true,
-			expectHTTPErr:    true,
-			expectHTTPStatus: http.StatusBadRequest,
+			expectError:      true,
+			expectHttpError:  true,
+			expectHttpStatus: http.StatusBadRequest,
 		},
 		{
+			scenario: "success",
 			request: func() *http.Request {
 				body := &bytes.Buffer{}
-
 				writer := multipart.NewWriter(body)
-
 				defer func() {
 					err := writer.Close()
 					if err != nil {
 						t.Fatalf("expected no error but got: %v", err)
 					}
 				}()
-
 				err := writer.WriteField("foo", "foo")
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
-
 				part, err := writer.CreateFormFile("foo.txt", "foo.txt")
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
-
 				_, err = part.Write([]byte("foo"))
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
-
 				req := httptest.NewRequest(http.MethodPost, "/", body)
 				req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
-
 				return req
 			}(),
+			expectError:     false,
+			expectHttpError: false,
 		},
 	} {
-		handler := func(c echo.Context) error {
-			_, cancel, err := newContext(c, zap.NewNop(), time.Duration(10)*time.Second)
-			defer cancel()
-			// Context already cancelled.
-			defer cancel()
+		t.Run(tc.scenario, func(t *testing.T) {
+			handler := func(c echo.Context) error {
+				_, cancel, err := newContext(c, zap.NewNop(), gotenberg.NewFileSystem(), time.Duration(10)*time.Second)
+				defer cancel()
+				// Context already cancelled.
+				defer cancel()
 
-			if err != nil {
-				return err
+				if err != nil {
+					return err
+				}
+
+				return nil
 			}
 
-			return nil
-		}
+			recorder := httptest.NewRecorder()
 
-		recorder := httptest.NewRecorder()
+			srv := echo.New()
+			srv.HideBanner = true
+			srv.HidePort = true
 
-		srv := echo.New()
-		srv.HideBanner = true
-		srv.HidePort = true
+			c := srv.NewContext(tc.request, recorder)
+			err := handler(c)
 
-		c := srv.NewContext(tc.request, recorder)
-		err := handler(c)
-
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
-
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
-
-		var httpErr HTTPError
-		isHTTPErr := errors.As(err, &httpErr)
-
-		if tc.expectHTTPErr && !isHTTPErr {
-			t.Errorf("test %d: expected HTTP error but got: %v", i, err)
-		}
-
-		if !tc.expectHTTPErr && isHTTPErr {
-			t.Errorf("test %d: expected no HTTP error but got one: %v", i, httpErr)
-		}
-
-		if err != nil && tc.expectHTTPErr && isHTTPErr {
-			status, _ := httpErr.HTTPError()
-			if status != tc.expectHTTPStatus {
-				t.Errorf("test %d: expected %d HTTP status code but got %d", i, tc.expectHTTPStatus, status)
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none", err)
 			}
-		}
+
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+
+			var httpErr HttpError
+			isHttpError := errors.As(err, &httpErr)
+
+			if tc.expectHttpError && !isHttpError {
+				t.Errorf("expected an HTTP error but got: %v", err)
+			}
+
+			if !tc.expectHttpError && isHttpError {
+				t.Errorf("expected no HTTP error but got one: %v", httpErr)
+			}
+
+			if err != nil && tc.expectHttpError && isHttpError {
+				status, _ := httpErr.HttpError()
+				if status != tc.expectHttpStatus {
+					t.Errorf("expected %d as HTTP status code but got %d", tc.expectHttpStatus, status)
+				}
+			}
+		})
 	}
 }
 
@@ -158,7 +155,7 @@ func TestContext_Request(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	c := echo.New().NewContext(request, recorder)
 
-	ctx := Context{
+	ctx := &Context{
 		echoCtx: c,
 	}
 
@@ -168,7 +165,7 @@ func TestContext_Request(t *testing.T) {
 }
 
 func TestContext_FormData(t *testing.T) {
-	ctx := Context{
+	ctx := &Context{
 		values: map[string][]string{
 			"foo": {"foo"},
 		},
@@ -189,52 +186,65 @@ func TestContext_FormData(t *testing.T) {
 }
 
 func TestContext_GeneratePath(t *testing.T) {
-	ctx := Context{
+	ctx := &Context{
 		dirPath: "/foo",
 	}
 
-	path := ctx.GeneratePath(".pdf")
-
+	path := ctx.GeneratePath("", ".pdf")
 	if !strings.HasPrefix(path, ctx.dirPath) {
+		t.Errorf("expected '%s' to start with '%s'", path, ctx.dirPath)
+	}
+
+	path = ctx.GeneratePath("foo.txt", ".pdf")
+	if !strings.Contains(path, "foo.txt.pdf") {
 		t.Errorf("expected '%s' to start with '%s'", path, ctx.dirPath)
 	}
 }
 
 func TestContext_AddOutputPaths(t *testing.T) {
-	for i, tc := range []struct {
+	for _, tc := range []struct {
+		scenario    string
 		ctx         *Context
 		path        string
 		expectCount int
-		expectErr   bool
+		expectError bool
 	}{
 		{
-			ctx:       &Context{cancelled: true},
-			expectErr: true,
+			scenario:    "ErrContextAlreadyClosed",
+			ctx:         &Context{cancelled: true},
+			expectCount: 0,
+			expectError: true,
 		},
 		{
-			ctx:       &Context{dirPath: "/foo"},
-			path:      "/bar/foo.txt",
-			expectErr: true,
+			scenario:    "ErrOutOfBoundsOutputPath",
+			ctx:         &Context{dirPath: "/foo"},
+			path:        "/bar/foo.txt",
+			expectCount: 0,
+			expectError: true,
 		},
 		{
+			scenario:    "success",
 			ctx:         &Context{dirPath: "/foo"},
 			path:        "/foo/foo.txt",
 			expectCount: 1,
+			expectError: false,
 		},
 	} {
-		err := tc.ctx.AddOutputPaths(tc.path)
+		t.Run(tc.scenario, func(t *testing.T) {
+			err := tc.ctx.AddOutputPaths(tc.path)
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none", err)
+			}
 
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
 
-		if len(tc.ctx.outputPaths) != tc.expectCount {
-			t.Errorf("test %d: expected %d output paths but got %d", i, tc.expectCount, len(tc.ctx.outputPaths))
-		}
+			if len(tc.ctx.outputPaths) != tc.expectCount {
+				t.Errorf("expected %d output paths but got %d", tc.expectCount, len(tc.ctx.outputPaths))
+			}
+		})
 	}
 }
 
@@ -249,76 +259,91 @@ func TestContext_Log(t *testing.T) {
 }
 
 func TestContext_BuildOutputFile(t *testing.T) {
-	for i, tc := range []struct {
-		ctx       *Context
-		expectErr bool
+	for _, tc := range []struct {
+		scenario    string
+		ctx         *Context
+		expectError bool
 	}{
 		{
-			ctx:       &Context{cancelled: true},
-			expectErr: true,
+			scenario:    "ErrContextAlreadyClosed",
+			ctx:         &Context{cancelled: true},
+			expectError: true,
 		},
 		{
-			ctx:       &Context{},
-			expectErr: true,
+			scenario:    "no output path",
+			ctx:         &Context{},
+			expectError: true,
 		},
 		{
-			ctx: &Context{outputPaths: []string{"foo.txt"}},
+			scenario:    "success: one output path",
+			ctx:         &Context{outputPaths: []string{"foo.txt"}},
+			expectError: false,
 		},
 		{
-			ctx:       &Context{outputPaths: []string{"foo.txt", "foo.pdf"}},
-			expectErr: true,
+			scenario:    "cannot archive: invalid output paths",
+			ctx:         &Context{outputPaths: []string{"foo.txt", "foo.pdf"}},
+			expectError: true,
 		},
 		{
+			scenario: "success: many output paths",
 			ctx: &Context{
 				outputPaths: []string{
 					"/tests/test/testdata/api/sample1.txt",
 					"/tests/test/testdata/api/sample1.txt",
 				},
 			},
+			expectError: false,
 		},
 	} {
-		dirPath, err := gotenberg.MkdirAll()
-		if err != nil {
-			t.Fatalf("%d: expected no erro but got: %v", i, err)
-		}
+		t.Run(tc.scenario, func(t *testing.T) {
+			fs := gotenberg.NewFileSystem()
+			dirPath, err := fs.MkdirAll()
+			if err != nil {
+				t.Fatalf("expected no erro but got: %v", err)
+			}
 
-		tc.ctx.dirPath = dirPath
-		tc.ctx.logger = zap.NewNop()
+			defer func() {
+				err := os.RemoveAll(fs.WorkingDirPath())
+				if err != nil {
+					t.Fatalf("expected no error while cleaning up but got: %v", err)
+				}
+			}()
 
-		_, err = tc.ctx.BuildOutputFile()
+			tc.ctx.dirPath = dirPath
+			tc.ctx.logger = zap.NewNop()
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
+			_, err = tc.ctx.BuildOutputFile()
 
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none", err)
+			}
 
-		err = os.RemoveAll(dirPath)
-		if err != nil {
-			t.Fatalf("%d: expected no erro but got: %v", i, err)
-		}
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+		})
 	}
 }
 
 func TestContext_OutputFilename(t *testing.T) {
-	for i, tc := range []struct {
+	for _, tc := range []struct {
+		scenario             string
 		ctx                  *Context
 		outputPath           string
 		expectOutputFilename string
 	}{
 		{
+			scenario: "with Gotenberg-Output-Filename header",
 			ctx: func() *Context {
 				c := echo.New().NewContext(httptest.NewRequest(http.MethodGet, "/foo", nil), nil)
 				c.Request().Header.Set("Gotenberg-Output-Filename", "foo")
-
 				return &Context{echoCtx: c}
 			}(),
 			outputPath:           "/foo/bar.txt",
 			expectOutputFilename: "foo.txt",
 		},
 		{
+			scenario: "without custom filename",
 			ctx: func() *Context {
 				c := echo.New().NewContext(httptest.NewRequest(http.MethodGet, "/foo", nil), nil)
 				return &Context{echoCtx: c}
@@ -327,10 +352,12 @@ func TestContext_OutputFilename(t *testing.T) {
 			expectOutputFilename: "foo.txt",
 		},
 	} {
-		actual := tc.ctx.OutputFilename(tc.outputPath)
+		t.Run(tc.scenario, func(t *testing.T) {
+			actual := tc.ctx.OutputFilename(tc.outputPath)
 
-		if actual != tc.expectOutputFilename {
-			t.Errorf("test %d: expected '%s' but got '%s'", i, tc.expectOutputFilename, actual)
-		}
+			if actual != tc.expectOutputFilename {
+				t.Errorf("expected '%s' but got '%s'", tc.expectOutputFilename, actual)
+			}
+		})
 	}
 }

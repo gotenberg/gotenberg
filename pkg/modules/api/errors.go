@@ -2,66 +2,66 @@ package api
 
 // Credits: https://www.joeshaw.org/error-handling-in-go-http-applications.
 
-// HTTPError is an interface allowing to retrieve the HTTP details of an error.
-type HTTPError interface {
-	HTTPError() (int, string)
+// HttpError is an interface allowing to retrieve the HTTP details of an error.
+type HttpError interface {
+	HttpError() (int, string)
 }
 
-// SentinelHTTPError is the HTTP sidekick of an error.
-type SentinelHTTPError struct {
+// SentinelHttpError is the HTTP sidekick of an error.
+type SentinelHttpError struct {
 	status  int
 	message string
 }
 
-// NewSentinelHTTPError creates a SentinelHTTPError. The message will be sent
+// NewSentinelHttpError creates a [SentinelHttpError]. The message will be sent
 // as the response's body if returned from a handler, so make sure to not leak
 // sensible information.
-func NewSentinelHTTPError(status int, message string) SentinelHTTPError {
-	return SentinelHTTPError{
+func NewSentinelHttpError(status int, message string) SentinelHttpError {
+	return SentinelHttpError{
 		status:  status,
 		message: message,
 	}
 }
 
 // Error returns the message.
-func (err SentinelHTTPError) Error() string {
+func (err SentinelHttpError) Error() string {
 	return err.message
 }
 
-// HTTPError returns the status and message.
-func (err SentinelHTTPError) HTTPError() (int, string) {
+// HttpError returns the status and message.
+func (err SentinelHttpError) HttpError() (int, string) {
 	return err.status, err.message
 }
 
 // sentinelWrappedError contains both the error which will logged and the
-// sidekick SentinelHTTPError.
+// sidekick [SentinelHttpError].
 type sentinelWrappedError struct {
 	error
-	sentinel SentinelHTTPError
+	sentinel SentinelHttpError
 }
 
 func (w sentinelWrappedError) Is(err error) bool {
 	return w.sentinel == err
 }
 
-func (w sentinelWrappedError) HTTPError() (int, string) {
-	return w.sentinel.HTTPError()
+func (w sentinelWrappedError) HttpError() (int, string) {
+	return w.sentinel.HttpError()
 }
 
-// WrapError wraps the given error with a SentinelHTTPError. The wrapped error
-// will be displayed in a log, while the SentinelHTTPError will be sent in the
-// response.
+// WrapError wraps the given error with a [SentinelHttpError]. The wrapped
+// error will be displayed in a log, while the [SentinelHttpError] will be sent
+// in the response.
 //
 //	return api.WrapError(
 //	  // This first error will be logged.
 //	  fmt.Errorf("my action: %w", err),
 //	  // The HTTP error will be sent as a response.
-//	  api.NewSentinelHTTPError(
+//	  api.NewSentinelHttpError(
 //	    http.StatusForbidden,
 //	    "Hey, you did something wrong!"
 //	  ),
 //	)
-func WrapError(err error, sentinel SentinelHTTPError) error {
+func WrapError(err error, sentinel SentinelHttpError) error {
 	return sentinelWrappedError{
 		error:    err,
 		sentinel: sentinel,
@@ -70,8 +70,8 @@ func WrapError(err error, sentinel SentinelHTTPError) error {
 
 // Interface guards.
 var (
-	_ error     = (*SentinelHTTPError)(nil)
-	_ HTTPError = (*SentinelHTTPError)(nil)
+	_ error     = (*SentinelHttpError)(nil)
+	_ HttpError = (*SentinelHttpError)(nil)
 	_ error     = (*sentinelWrappedError)(nil)
-	_ HTTPError = (*sentinelWrappedError)(nil)
+	_ HttpError = (*sentinelWrappedError)(nil)
 )

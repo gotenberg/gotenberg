@@ -1,6 +1,11 @@
+# ARG instructions do not create additional layers. Instead, next layers will
+# concatenate them. Also, we have to repeat ARG instructions in each build
+# stage that uses them.
 ARG GOLANG_VERSION
-ARG GOTENBERG_VERSION
 
+# ----------------------------------------------
+# Gotenberg binary build stage
+# ----------------------------------------------
 FROM golang:$GOLANG_VERSION AS binary-stage
 
 ARG GOTENBERG_VERSION
@@ -15,32 +20,44 @@ COPY cmd ./cmd
 COPY pkg ./pkg
 RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v7/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg/main.go
 
-FROM alpine:latest
+# ----------------------------------------------
+# Final stage
+# ----------------------------------------------
+FROM alpine:3
 
 ARG GOTENBERG_VERSION
 ARG GOTENBERG_USER_GID
 ARG GOTENBERG_USER_UID
 ARG NOTO_COLOR_EMOJI_VERSION
 ARG PDFTK_VERSION
+ARG TMP_CHOMIUM_VERSION_ARMHF="116.0.5845.180-1~deb12u1"
 
 LABEL author="Hayati Ibis" \
-    description="A Docker-powered stateless API for PDF files." \
+    description="Alpine Based A Docker-powered stateless API for PDF files." \
     github="https://github.com/hayatibis/gotenberg" \
     version="$GOTENBERG_VERSION" \
     website="https://gotenberg.dev" \
     org.opencontainers.image.source="https://github.com/gotenberg/gotenberg"
 
 RUN \
-    addgroup -g "$GOTENBERG_USER_GID" gotenberg && \
-    adduser -u "$GOTENBERG_USER_UID" -G gotenberg -h /home/gotenberg -D gotenberg && \
-    mkdir -p /home/gotenberg && \
-    chown gotenberg:gotenberg /home/gotenberg
+    # Create a non-root user.
+    # All processes in the Docker container will run with this dedicated user.
+    groupadd --gid "$GOTENBERG_USER_GID" gotenberg &&\
+    useradd --uid "$GOTENBERG_USER_UID" --gid gotenberg --shell /bin/bash --home /home/gotenberg --no-create-home gotenberg &&\
+    mkdir /home/gotenberg &&\
+    chown gotenberg: /home/gotenberg
 
-RUN apk update && apk --no-cache add curl bash htop tini openjdk8-jre-base bash python3 &&\
+
+RUN \
+    # Install system dependencies required for the next instructions or debugging.
+    # Note: tini is a helper for reaping zombie processes.
+    apk update && apk --no-cache add curl bash htop tini openjdk8-jre-base bash python3 &&\
     rm -rf /var/cache/apk/*
 
-# Fonts
-RUN apk --no-cache add \
+
+RUN \
+    # Install fonts.
+    apk --no-cache add \
     font-noto-all \
     font-carlito \
     font-dejavu \
@@ -63,7 +80,10 @@ RUN apk --no-cache add \
     fc-cache -f &&\
     rm -rf /var/cache/apk/*
 
-RUN apk add font-wqy-zenhei --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing/
+RUN apk add \
+    font-wqy-zenhei --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing/\
+    # Cleanup.
+    rm -rf /var/cache/apk/*
 
 RUN apk --no-cache add chromium &&\
     apk version chromium &&\
@@ -77,7 +97,6 @@ RUN apk --no-cache add libreoffice &&\
     unoconv --version &&\
     # Cleanup.
     rm -rf /var/cache/apk/*
-
 
 RUN \
     # Install PDFtk & QPDF (PDF engines).
@@ -102,11 +121,11 @@ COPY build/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 # Copy the Gotenberg binary from the binary stage.
 COPY --from=binary-stage /home/gotenberg /usr/bin/
 
-ENV GC_EXCLUDE_SUBSTR "hsperfdata_root,hsperfdata_gotenberg"
+# Environment variables required by modules or else.
 ENV CHROMIUM_BIN_PATH /usr/bin/chromium
-ENV UNOCONV_BIN_PATH /usr/local/bin/unoconv
 ENV LIBREOFFICE_BIN_PATH /usr/lib/libreoffice/program/soffice.bin
-ENV PDFTK_BIN_PATH /usr/local/bin/pdftk
+ENV UNOCONVERTER_BIN_PATH /usr/bin/unoconverter
+ENV PDFTK_BIN_PATH /usr/bin/pdftk
 ENV QPDF_BIN_PATH /usr/bin/qpdf
 
 USER gotenberg

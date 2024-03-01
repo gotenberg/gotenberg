@@ -3,7 +3,7 @@ package chromium
 import (
 	"context"
 	"fmt"
-	"regexp"
+	"slices"
 	"sync"
 
 	"github.com/chromedp/cdproto/cdp"
@@ -12,14 +12,17 @@ import (
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
+	"github.com/dlclark/regexp2"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 // listenForEventRequestPaused listens for requests to check if they are
 // allowed or not.
-func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, allowList *regexp.Regexp, denyList *regexp.Regexp) {
+func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, allowList *regexp2.Regexp, denyList *regexp2.Regexp) {
 	chromedp.ListenTarget(ctx, func(ev interface{}) {
 		switch e := ev.(type) {
 		case *fetch.EventRequestPaused:
@@ -27,13 +30,15 @@ func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, allowL
 				logger.Debug(fmt.Sprintf("event EventRequestPaused fired for '%s'", e.Request.URL))
 				allow := true
 
-				if !allowList.MatchString(e.Request.URL) {
-					logger.Warn(fmt.Sprintf("'%s' does not match the expression from the allowed list", e.Request.URL))
-					allow = false
+				deadline, ok := ctx.Deadline()
+				if !ok {
+					logger.Error("context has no deadline, cannot filter URL")
+					return
 				}
 
-				if denyList.String() != "" && denyList.MatchString(e.Request.URL) {
-					logger.Warn(fmt.Sprintf("'%s' matches the expression from the denied list", e.Request.URL))
+				err := gotenberg.FilterDeadline(allowList, denyList, e.Request.URL, deadline)
+				if err != nil {
+					logger.Warn(err.Error())
 					allow = false
 				}
 
@@ -42,22 +47,50 @@ func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, allowL
 
 				if allow {
 					req := fetch.ContinueRequest(e.RequestID)
-					err := req.Do(executorCtx)
-
+					err = req.Do(executorCtx)
 					if err != nil {
 						logger.Error(fmt.Sprintf("continue request: %s", err))
 					}
-
 					return
 				}
 
 				req := fetch.FailRequest(e.RequestID, network.ErrorReasonAccessDenied)
-				err := req.Do(executorCtx)
-
+				err = req.Do(executorCtx)
 				if err != nil {
 					logger.Error(fmt.Sprintf("fail request: %s", err))
 				}
 			}()
+		}
+	})
+}
+
+// listenForEventResponseReceived listens for an invalid HTTP status code is
+// returned by the main page.
+// See https://github.com/gotenberg/gotenberg/issues/613.
+func listenForEventResponseReceived(ctx context.Context, logger *zap.Logger, url string, failOnHttpStatusCodes []int64, invalidHttpStatusCode *error, invalidHttpStatusCodeMu *sync.RWMutex) {
+	for _, code := range []int64{199, 299, 399, 499, 599} {
+		if slices.Contains(failOnHttpStatusCodes, code) {
+			for i := code - 99; i <= code; i++ {
+				failOnHttpStatusCodes = append(failOnHttpStatusCodes, i)
+			}
+		}
+	}
+
+	chromedp.ListenTarget(ctx, func(ev interface{}) {
+		switch ev := ev.(type) {
+		case *network.EventResponseReceived:
+			if ev.Response.URL != url {
+				return
+			}
+
+			logger.Debug(fmt.Sprintf("event EventResponseReceived fired for main page: %+v", ev.Response))
+
+			if slices.Contains(failOnHttpStatusCodes, ev.Response.Status) {
+				invalidHttpStatusCodeMu.Lock()
+				defer invalidHttpStatusCodeMu.Unlock()
+
+				*invalidHttpStatusCode = fmt.Errorf("%d: %s", ev.Response.Status, ev.Response.StatusText)
+			}
 		}
 	})
 }
@@ -181,7 +214,6 @@ func waitForEventLoadingFinished(ctx context.Context, logger *zap.Logger) func()
 // completed or an error is encountered.
 func runBatch(ctx context.Context, fn ...func() error) error {
 	eg, _ := errgroup.WithContext(ctx)
-
 	for _, f := range fn {
 		eg.Go(f)
 	}

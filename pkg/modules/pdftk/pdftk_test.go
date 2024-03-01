@@ -7,146 +7,144 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
-func TestPDFtk_Descriptor(t *testing.T) {
-	descriptor := PDFtk{}.Descriptor()
+func TestPdfTk_Descriptor(t *testing.T) {
+	descriptor := new(PdfTk).Descriptor()
 
 	actual := reflect.TypeOf(descriptor.New())
-	expect := reflect.TypeOf(new(PDFtk))
+	expect := reflect.TypeOf(new(PdfTk))
 
 	if actual != expect {
 		t.Errorf("expected '%s' but got '%s'", expect, actual)
 	}
 }
 
-func TestPDFtk_Provision(t *testing.T) {
-	mod := new(PDFtk)
+func TestPdfTk_Provision(t *testing.T) {
+	engine := new(PdfTk)
 	ctx := gotenberg.NewContext(gotenberg.ParsedFlags{}, nil)
 
-	err := mod.Provision(ctx)
+	err := engine.Provision(ctx)
 	if err != nil {
 		t.Errorf("expected no error but got: %v", err)
 	}
 }
 
-func TestPDFtk_Validate(t *testing.T) {
-	for i, tc := range []struct {
-		binPath   string
-		expectErr bool
+func TestPdfTk_Validate(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		binPath     string
+		expectError bool
 	}{
 		{
-			expectErr: true,
+			scenario:    "empty bin path",
+			binPath:     "",
+			expectError: true,
 		},
 		{
-			binPath:   "/foo",
-			expectErr: true,
+			scenario:    "bin path does not exist",
+			binPath:     "/foo",
+			expectError: true,
 		},
 		{
-			binPath: os.Getenv("PDFTK_BIN_PATH"),
+			scenario:    "validate success",
+			binPath:     os.Getenv("PDFTK_BIN_PATH"),
+			expectError: false,
 		},
 	} {
-		mod := new(PDFtk)
-		mod.binPath = tc.binPath
-		err := mod.Validate()
+		t.Run(tc.scenario, func(t *testing.T) {
+			engine := new(PdfTk)
+			engine.binPath = tc.binPath
+			err := engine.Validate()
 
-		if tc.expectErr && err == nil {
-			t.Errorf("test %d: expected error but got: %v", i, err)
-		}
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
 
-		if !tc.expectErr && err != nil {
-			t.Errorf("test %d: expected no error but got: %v", i, err)
-		}
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
+		})
 	}
 }
 
-func TestPDFtk_Metrics(t *testing.T) {
-	metrics, err := new(PDFtk).Metrics()
-	if err != nil {
-		t.Fatalf("expected no error but got: %v", err)
-	}
-
-	if len(metrics) != 1 {
-		t.Fatalf("expected %d metrics, but got %d", 1, len(metrics))
-	}
-
-	actual := metrics[0].Read()
-	if actual != 0 {
-		t.Errorf("expected %d PDFtk instances, but got %f", 0, actual)
-	}
-}
-
-func TestPDFtk_Merge(t *testing.T) {
-	for i, tc := range []struct {
-		ctx        context.Context
-		inputPaths []string
-		expectErr  bool
+func TestPdfTk_Merge(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		ctx         context.Context
+		inputPaths  []string
+		expectError bool
 	}{
 		{
-			ctx: context.TODO(),
+			scenario:    "invalid context",
+			ctx:         nil,
+			expectError: true,
+		},
+		{
+			scenario: "invalid input path",
+			ctx:      context.TODO(),
+			inputPaths: []string{
+				"foo",
+			},
+			expectError: true,
+		},
+		{
+			scenario: "single file success",
+			ctx:      context.TODO(),
 			inputPaths: []string{
 				"/tests/test/testdata/pdfengines/sample1.pdf",
 			},
 		},
 		{
-			ctx: context.TODO(),
+			scenario: "many files success",
+			ctx:      context.TODO(),
 			inputPaths: []string{
 				"/tests/test/testdata/pdfengines/sample1.pdf",
 				"/tests/test/testdata/pdfengines/sample2.pdf",
 			},
 		},
-		{
-			ctx:       nil,
-			expectErr: true,
-		},
-		{
-			ctx: context.TODO(),
-			inputPaths: []string{
-				"foo",
-			},
-			expectErr: true,
-		},
 	} {
-		func() {
-			mod := new(PDFtk)
-
-			err := mod.Provision(nil)
+		t.Run(tc.scenario, func(t *testing.T) {
+			engine := new(PdfTk)
+			err := engine.Provision(nil)
 			if err != nil {
-				t.Fatalf("test %d: expected error but got: %v", i, err)
+				t.Fatalf("expected error but got: %v", err)
 			}
 
-			outputDir, err := gotenberg.MkdirAll()
+			fs := gotenberg.NewFileSystem()
+			outputDir, err := fs.MkdirAll()
 			if err != nil {
-				t.Fatalf("test %d: expected error but got: %v", i, err)
+				t.Fatalf("expected error but got: %v", err)
 			}
 
 			defer func() {
-				err := os.RemoveAll(outputDir)
+				err = os.RemoveAll(fs.WorkingDirPath())
 				if err != nil {
-					t.Fatalf("test %d: expected no error but got: %v", i, err)
+					t.Fatalf("expected no error while cleaning up but got: %v", err)
 				}
 			}()
 
-			err = mod.Merge(tc.ctx, zap.NewNop(), tc.inputPaths, outputDir+"/foo.pdf")
+			err = engine.Merge(tc.ctx, zap.NewNop(), tc.inputPaths, outputDir+"/foo.pdf")
 
-			if tc.expectErr && err == nil {
-				t.Errorf("test %d: expected error but got: %v", i, err)
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
 			}
 
-			if !tc.expectErr && err != nil {
-				t.Errorf("test %d: expected no error but got: %v", i, err)
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
 			}
-		}()
+		})
 	}
 }
 
-func TestPDFtk_Convert(t *testing.T) {
-	mod := new(PDFtk)
-	err := mod.Convert(context.TODO(), zap.NewNop(), "", "", "")
+func TestPdfTk_Convert(t *testing.T) {
+	engine := new(PdfTk)
+	err := engine.Convert(context.TODO(), zap.NewNop(), gotenberg.PdfFormats{}, "", "")
 
-	if !errors.Is(err, gotenberg.ErrPDFEngineMethodNotAvailable) {
-		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPDFEngineMethodNotAvailable, err)
+	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
+		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)
 	}
 }

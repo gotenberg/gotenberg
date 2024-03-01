@@ -9,25 +9,25 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/api"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/labstack/echo/v4"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
 )
 
-func webhookMiddleware(w Webhook) api.Middleware {
+func webhookMiddleware(w *Webhook) api.Middleware {
 	return api.Middleware{
 		Stack: api.MultipartStack,
 		Handler: func() echo.MiddlewareFunc {
 			return func(next echo.HandlerFunc) echo.HandlerFunc {
 				return func(c echo.Context) error {
-					webhookURL := c.Request().Header.Get("Gotenberg-Webhook-Url")
-
-					if webhookURL == "" {
+					webhookUrl := c.Request().Header.Get("Gotenberg-Webhook-Url")
+					if webhookUrl == "" {
 						// No webhook URL, call the next middleware in the chain.
 						return next(c)
 					}
@@ -36,47 +36,27 @@ func webhookMiddleware(w Webhook) api.Middleware {
 					cancel := c.Get("cancel").(context.CancelFunc)
 
 					// Do we have a webhook error URL in case of... error?
-					webhookErrorURL := c.Request().Header.Get("Gotenberg-Webhook-Error-Url")
-
-					if webhookErrorURL == "" {
+					webhookErrorUrl := c.Request().Header.Get("Gotenberg-Webhook-Error-Url")
+					if webhookErrorUrl == "" {
 						return api.WrapError(
 							errors.New("empty webhook error URL"),
-							api.NewSentinelHTTPError(http.StatusBadRequest, "Invalid 'Gotenberg-Webhook-Error-Url' header: empty value or header not provided"),
+							api.NewSentinelHttpError(http.StatusBadRequest, "Invalid 'Gotenberg-Webhook-Error-Url' header: empty value or header not provided"),
 						)
+					}
+
+					deadline, ok := ctx.Deadline()
+					if !ok {
+						return errors.New("context has no deadline")
 					}
 
 					// Let's check if the webhook URLs are acceptable according to our
 					// allowed/denied lists.
-					filter := func(URL, header string, allowList, denyList *regexp.Regexp) error {
-						if !allowList.MatchString(URL) {
-							return api.WrapError(
-								fmt.Errorf("'%s' does not match the expression from the allowed list", URL),
-								api.NewSentinelHTTPError(
-									http.StatusForbidden,
-									fmt.Sprintf("Invalid '%s' header value: '%s' does not match the authorized URLs", header, URL),
-								),
-							)
-						}
-
-						if denyList.String() != "" && denyList.MatchString(URL) {
-							return api.WrapError(
-								fmt.Errorf("'%s' matches the expression from the denied list", URL),
-								api.NewSentinelHTTPError(
-									http.StatusForbidden,
-									fmt.Sprintf("Invalid '%s' header value: '%s' does not match the authorized URLs", header, URL),
-								),
-							)
-						}
-
-						return nil
-					}
-
-					err := filter(webhookURL, "Gotenberg-Webhook-Url", w.allowList, w.denyList)
+					err := gotenberg.FilterDeadline(w.allowList, w.denyList, webhookUrl, deadline)
 					if err != nil {
 						return fmt.Errorf("filter webhook URL: %w", err)
 					}
 
-					err = filter(webhookErrorURL, "Gotenberg-Webhook-Error-Url", w.errorAllowList, w.errorDenyList)
+					err = gotenberg.FilterDeadline(w.errorAllowList, w.errorDenyList, webhookErrorUrl, deadline)
 					if err != nil {
 						return fmt.Errorf("filter webhook error URL: %w", err)
 					}
@@ -102,7 +82,7 @@ func webhookMiddleware(w Webhook) api.Middleware {
 
 						return "", api.WrapError(
 							fmt.Errorf("webhook method '%s' is not '%s', '%s' or '%s'", method, http.MethodPost, http.MethodPatch, http.MethodPut),
-							api.NewSentinelHTTPError(
+							api.NewSentinelHttpError(
 								http.StatusBadRequest,
 								fmt.Sprintf("Invalid '%s' header value: expected '%s', '%s' or '%s', but got '%s'", header, http.MethodPost, http.MethodPatch, http.MethodPut, method),
 							),
@@ -128,17 +108,17 @@ func webhookMiddleware(w Webhook) api.Middleware {
 						if err != nil {
 							return api.WrapError(
 								fmt.Errorf("unmarshal webhook extra HTTP headers: %w", err),
-								api.NewSentinelHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid 'Gotenberg-Webhook-Extra-Http-Headers' header value: %s", err.Error())),
+								api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'Gotenberg-Webhook-Extra-Http-Headers' header value: %s", err.Error())),
 							)
 						}
 					}
 
 					client := &client{
-						url:              webhookURL,
+						url:              webhookUrl,
 						method:           webhookMethod,
-						errorURL:         webhookErrorURL,
+						errorUrl:         webhookErrorUrl,
 						errorMethod:      webhookErrorMethod,
-						extraHTTPHeaders: extraHTTPHeaders,
+						extraHttpHeaders: extraHTTPHeaders,
 						startTime:        c.Get("startTime").(time.Time),
 
 						client: &retryablehttp.Client{
@@ -196,7 +176,6 @@ func webhookMiddleware(w Webhook) api.Middleware {
 
 						// Call the next middleware in the chain.
 						err := next(c)
-
 						if err != nil {
 							// The process failed for whatever reason. Let's send the
 							// details to the webhook.

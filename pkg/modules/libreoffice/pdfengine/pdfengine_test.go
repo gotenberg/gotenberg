@@ -6,168 +6,162 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/uno"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v8/pkg/modules/libreoffice/api"
 )
 
-func TestUNO_Descriptor(t *testing.T) {
-	descriptor := UNO{}.Descriptor()
+func TestLibreOfficePdfEngine_Descriptor(t *testing.T) {
+	descriptor := new(LibreOfficePdfEngine).Descriptor()
 
 	actual := reflect.TypeOf(descriptor.New())
-	expect := reflect.TypeOf(new(UNO))
+	expect := reflect.TypeOf(new(LibreOfficePdfEngine))
 
 	if actual != expect {
 		t.Errorf("expected '%s' but got '%s'", expect, actual)
 	}
 }
 
-func TestUNO_Provider(t *testing.T) {
-	tests := []struct {
-		name               string
-		ctx                *gotenberg.Context
-		expectProvisionErr bool
+func TestLibreOfficePdfEngine_Provider(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		ctx         *gotenberg.Context
+		expectError bool
 	}{
 		{
-			name: "nominal behavior",
-			ctx: func() *gotenberg.Context {
-				provider := struct {
-					gotenberg.ModuleMock
-					uno.ProviderMock
-				}{}
-				provider.DescriptorMock = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module {
-						return provider
-					}}
-				}
-				provider.UNOMock = func() (uno.API, error) {
-					return uno.APIMock{}, nil
-				}
-
-				return gotenberg.NewContext(
-					gotenberg.ParsedFlags{
-						FlagSet: new(UNO).Descriptor().FlagSet,
-					},
-					[]gotenberg.ModuleDescriptor{
-						provider.Descriptor(),
-					},
-				)
-			}(),
-		},
-		{
-			name: "no UNO API provider",
+			scenario: "no LibreOffice API provider",
 			ctx: gotenberg.NewContext(
 				gotenberg.ParsedFlags{
-					FlagSet: new(UNO).Descriptor().FlagSet,
+					FlagSet: new(LibreOfficePdfEngine).Descriptor().FlagSet,
 				},
 				[]gotenberg.ModuleDescriptor{},
 			),
-			expectProvisionErr: true,
+			expectError: true,
 		},
 		{
-			name: "no API from UNO API provider",
+			scenario: "no API from LibreOffice API provider",
 			ctx: func() *gotenberg.Context {
-				provider := struct {
+				provider := &struct {
 					gotenberg.ModuleMock
-					uno.ProviderMock
+					api.ProviderMock
 				}{}
 				provider.DescriptorMock = func() gotenberg.ModuleDescriptor {
 					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module {
 						return provider
 					}}
 				}
-				provider.UNOMock = func() (uno.API, error) {
-					return uno.APIMock{}, errors.New("foo")
+				provider.LibreOfficeMock = func() (api.Uno, error) {
+					return nil, errors.New("foo")
 				}
 
 				return gotenberg.NewContext(
 					gotenberg.ParsedFlags{
-						FlagSet: new(UNO).Descriptor().FlagSet,
+						FlagSet: new(LibreOfficePdfEngine).Descriptor().FlagSet,
 					},
 					[]gotenberg.ModuleDescriptor{
 						provider.Descriptor(),
 					},
 				)
 			}(),
-			expectProvisionErr: true,
+			expectError: true,
 		},
-	}
+		{
+			scenario: "provision success",
+			ctx: func() *gotenberg.Context {
+				provider := &struct {
+					gotenberg.ModuleMock
+					api.ProviderMock
+				}{}
+				provider.DescriptorMock = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module {
+						return provider
+					}}
+				}
+				provider.LibreOfficeMock = func() (api.Uno, error) {
+					return new(api.ApiMock), nil
+				}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			mod := new(UNO)
-			err := mod.Provision(tc.ctx)
+				return gotenberg.NewContext(
+					gotenberg.ParsedFlags{
+						FlagSet: new(LibreOfficePdfEngine).Descriptor().FlagSet,
+					},
+					[]gotenberg.ModuleDescriptor{
+						provider.Descriptor(),
+					},
+				)
+			}(),
+			expectError: false,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			engine := new(LibreOfficePdfEngine)
+			err := engine.Provision(tc.ctx)
 
-			if tc.expectProvisionErr && err == nil {
-				t.Error("expected mod.Provision() error, but got none")
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
 			}
 
-			if !tc.expectProvisionErr && err != nil {
-				t.Errorf("expected no error from mod.Provision(), but got: %v", err)
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
 			}
 		})
 	}
 }
 
-func TestUNO_Merge(t *testing.T) {
-	mod := new(UNO)
-	err := mod.Merge(context.Background(), zap.NewNop(), nil, "")
+func TestLibreOfficePdfEngine_Merge(t *testing.T) {
+	engine := new(LibreOfficePdfEngine)
+	err := engine.Merge(context.Background(), zap.NewNop(), nil, "")
 
-	if !errors.Is(err, gotenberg.ErrPDFEngineMethodNotAvailable) {
-		t.Errorf("expected error %v from mod.Merge(), but got: %v", gotenberg.ErrPDFEngineMethodNotAvailable, err)
+	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
+		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)
 	}
 }
 
-func TestUNO_Convert(t *testing.T) {
-	tests := []struct {
-		name             string
-		mod              UNO
-		expectConvertErr bool
+func TestLibreOfficePdfEngine_Convert(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		api         api.Uno
+		expectError bool
 	}{
 		{
-			name: "nominal behavior",
-			mod: UNO{
-				unoAPI: uno.APIMock{
-					PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
-						return nil
-					},
+			scenario: "convert success",
+			api: &api.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options api.Options) error {
+					return nil
 				},
 			},
+			expectError: false,
 		},
 		{
-			name: "invalid PDF format",
-			mod: UNO{
-				unoAPI: uno.APIMock{
-					PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
-						return uno.ErrInvalidPDFformat
-					},
+			scenario: "invalid PDF format",
+			api: &api.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options api.Options) error {
+					return api.ErrInvalidPdfFormats
 				},
 			},
-			expectConvertErr: true,
+			expectError: true,
 		},
 		{
-			name: "convert fail",
-			mod: UNO{
-				unoAPI: uno.APIMock{
-					PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
-						return errors.New("foo")
-					},
+			scenario: "convert fail",
+			api: &api.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options api.Options) error {
+					return errors.New("foo")
 				},
 			},
-			expectConvertErr: true,
+			expectError: true,
 		},
-	}
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			engine := &LibreOfficePdfEngine{unoApi: tc.api}
+			err := engine.Convert(context.Background(), zap.NewNop(), gotenberg.PdfFormats{}, "", "")
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			err := tc.mod.Convert(context.Background(), zap.NewNop(), "", "", "")
-
-			if tc.expectConvertErr && err == nil {
-				t.Errorf("expected mod.Convert() error, but got none")
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
 			}
 
-			if !tc.expectConvertErr && err != nil {
-				t.Fatalf("expected no error from mod.Convert(), but got: %v", err)
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
 			}
 		})
 	}

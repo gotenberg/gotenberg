@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet">
+    <title>Gutenberg</title>
+    <style>
+        @media print {
+            #screen { display: none }
+        }
+        @media screen {
+            #print { display: none }
+        }
+    </style>
+</head>
+<body>
+<div class="page-break-after">
+    <div class="center">
+        <h1>Gutenberg</h1>
+        <img src="img.gif" alt="An image">
+    </div>
+
+    <blockquote cite="https://sites.google.com/site/johanngutenbergper5/q">
+        <p>It is a press, certainly, but a press from which shall flow in inexhaustible streams...Through it, God will spread His Word. A spring of truth shall flow from it: like a new star it shall scatter the darkness of ignorance, and cause a light heretofore unknown to shine amongst men.</p>
+        <footer>— <a href="https://sites.google.com/site/johanngutenbergper5/q">Johannes Gutenberg</a></cite></footer>
+    </blockquote>
+</div>
+
+<div class="page-break-after">
+    <h2>This paragraph uses the default font</h2>
+    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+
+    <h2>This paragraph uses a Google font</h2>
+    <p class="google-font">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+
+    <h2>This paragraph uses a local font</h2>
+    <p class="local-font">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+</div>
+
+<div class="center page-break-after">
+    <h1>This image is loaded from a URL</h1>
+    <img src="https://user-images.githubusercontent.com/8983173/130322857-185831e2-f041-46eb-a17f-0a69d066c4e5.png">
+</div>
+
+<div class="page-break-after">
+    <h2>This paragraph appears if wait delay > 2 seconds or if expression window.globalVar === 'ready' returns true</h2>
+    <p id="wait" style="display: none">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+
+    <h2>This paragraph appears if the emulated media type is 'print'</h2>
+    <p id="print">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+
+    <h2>This paragraph appears if the emulated media type is 'screen'</h2>
+    <p id="screen">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+</div>
+
+<div class="page-break-after">
+    <h2>This paragraph appears if JavaScript is NOT disabled</h2>
+    <p id="javascript" style="display: none">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+</div>
+
+<div class="page-break-after">
+    <h2>/etc/passwd</h2>
+    <iframe src="/etc/passwd"></iframe>
+
+    <h2>\\localhost/etc/passwd</h2>
+    <iframe src="\\localhost/etc/passwd"></iframe>
+</div>
+
+<script type="application/javascript">
+    var globalVar = 'notReady'
+
+    const delay = ms => new Promise(res => setTimeout(res, ms))
+    delay(2000).then(() => {
+        document.getElementById('wait').style.display = 'contents'
+        window.globalVar = 'ready'
+    })
+</script>
+
+<script type="application/javascript">
+    document.getElementById('javascript').style.display = 'contents'
+</script>
+
+<script type="application/javascript">
+    console.log("a simple message")
+    console.debug("a debug message")
+    console.warn("a warning message")
+    console.error("an error message")
+</script>
+
+<script type="application/javascript">
+    throw new Error("Exception 1")
+</script>
+
+<script type="application/javascript">
+    throw new Error("Exception 2")
+</script>
+</body>
+</html>

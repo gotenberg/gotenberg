@@ -13,6 +13,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 func TestParseError(t *testing.T) {
@@ -27,14 +29,29 @@ func TestParseError(t *testing.T) {
 			expectMessage: http.StatusText(http.StatusInternalServerError),
 		},
 		{
-			err:           context.DeadlineExceeded,
-			expectStatus:  http.StatusServiceUnavailable,
-			expectMessage: http.StatusText(http.StatusServiceUnavailable),
+			err:           gotenberg.ErrFiltered,
+			expectStatus:  http.StatusForbidden,
+			expectMessage: http.StatusText(http.StatusForbidden),
+		},
+		{
+			err:           gotenberg.ErrMaximumQueueSizeExceeded,
+			expectStatus:  http.StatusTooManyRequests,
+			expectMessage: http.StatusText(http.StatusTooManyRequests),
+		},
+		{
+			err:           gotenberg.ErrPdfEngineMethodNotSupported,
+			expectStatus:  http.StatusNotImplemented,
+			expectMessage: http.StatusText(http.StatusNotImplemented),
+		},
+		{
+			err:           gotenberg.ErrPdfFormatNotSupported,
+			expectStatus:  http.StatusBadRequest,
+			expectMessage: "A least one PDF engine does not handle one of the requested PDF format, while other have failed to convert for other reasons",
 		},
 		{
 			err: WrapError(
 				errors.New("foo"),
-				NewSentinelHTTPError(http.StatusBadRequest, "foo"),
+				NewSentinelHttpError(http.StatusBadRequest, "foo"),
 			),
 			expectStatus:  http.StatusBadRequest,
 			expectMessage: "foo",
@@ -71,7 +88,7 @@ func TestHttpErrorHandler(t *testing.T) {
 		{
 			err: WrapError(
 				errors.New("foo"),
-				NewSentinelHTTPError(http.StatusBadRequest, "foo"),
+				NewSentinelHttpError(http.StatusBadRequest, "foo"),
 			),
 			expectStatus:  http.StatusBadRequest,
 			expectMessage: "foo",
@@ -122,7 +139,6 @@ func TestLatencyMiddleware(t *testing.T) {
 			return nil
 		},
 	)(c)
-
 	if err != nil {
 		t.Fatalf("expected no error but got: %v", err)
 	}
@@ -150,7 +166,6 @@ func TestRootPathMiddleware(t *testing.T) {
 			return nil
 		},
 	)(c)
-
 	if err != nil {
 		t.Fatalf("expected no error but got: %v", err)
 	}
@@ -191,7 +206,6 @@ func TestTraceMiddleware(t *testing.T) {
 				return nil
 			},
 		)(c)
-
 		if err != nil {
 			t.Fatalf("test %d: expected no error but got: %v", i, err)
 		}
@@ -271,7 +285,6 @@ func TestLoggerMiddleware(t *testing.T) {
 		}
 
 		err := loggerMiddleware(zap.NewNop(), disableLoggingForPaths)(tc.next)(c)
-
 		if err != nil {
 			t.Errorf("test %d: expected no error but got: %v", i, err)
 		}
@@ -389,7 +402,7 @@ func TestContextMiddleware(t *testing.T) {
 		c.Set("trace", "foo")
 		c.Set("startTime", time.Now())
 
-		err := contextMiddleware(time.Duration(10) * time.Second)(tc.next)(c)
+		err := contextMiddleware(gotenberg.NewFileSystem(), time.Duration(10)*time.Second)(tc.next)(c)
 
 		if tc.expectErr && err == nil {
 			t.Errorf("test %d: expected error but got: %v", i, err)

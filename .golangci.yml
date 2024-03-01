@@ -1,10 +1,19 @@
+linters-settings:
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/gotenberg/gotenberg/v8)
+    skip-generated: true
+    custom-order: true
+
 linters:
   disable-all: true
   enable:
     - bodyclose
     - errcheck
-    - gofmt
-    - goimports
+    - gci
+    - gofumpt
     - gosec
     - gosimple
     - govet
@@ -17,7 +26,7 @@ linters:
     - unused
 
 run:
-  deadline: 5m
+  timeout: 5m
   issues-exit-code: 1
   tests: false
 

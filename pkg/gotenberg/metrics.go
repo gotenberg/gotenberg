@@ -15,7 +15,7 @@ type Metric struct {
 	Read func() float64
 }
 
-// MetricsProvider is a module interface which provides a list of Metric.
+// MetricsProvider is a module interface which provides a list of [Metric].
 //
 //	func (m *YourModule) Provision(ctx *gotenberg.Context) error {
 //		provider, _ := ctx.Module(new(gotenberg.MetricsProvider))

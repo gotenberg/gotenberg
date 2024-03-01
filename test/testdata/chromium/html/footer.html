@@ -1,0 +1,15 @@
+<html>
+<head>
+    <style>
+        body {
+            font-size: 12px;
+            margin: auto 20px;
+        }
+    </style>
+</head>
+<body>
+<p>
+    <span class="pageNumber"></span> of <span class="totalPages"></span>
+</p>
+</body>
+</html>

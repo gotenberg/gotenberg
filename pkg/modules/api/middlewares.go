@@ -11,6 +11,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 // ErrAsyncProcess happens when a handler or middleware handles a request in an
@@ -20,7 +22,8 @@ var ErrAsyncProcess = errors.New("async process")
 // ParseError parses an error and returns the corresponding HTTP status and
 // HTTP message.
 func ParseError(err error) (int, string) {
-	echoErr, ok := err.(*echo.HTTPError)
+	var echoErr *echo.HTTPError
+	ok := errors.As(err, &echoErr)
 	if ok {
 		return echoErr.Code, http.StatusText(echoErr.Code)
 	}
@@ -29,9 +32,25 @@ func ParseError(err error) (int, string) {
 		return http.StatusServiceUnavailable, http.StatusText(http.StatusServiceUnavailable)
 	}
 
-	var httpErr HTTPError
+	if errors.Is(err, gotenberg.ErrFiltered) {
+		return http.StatusForbidden, http.StatusText(http.StatusForbidden)
+	}
+
+	if errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) {
+		return http.StatusTooManyRequests, http.StatusText(http.StatusTooManyRequests)
+	}
+
+	if errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
+		return http.StatusNotImplemented, http.StatusText(http.StatusNotImplemented)
+	}
+
+	if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
+		return http.StatusBadRequest, "At least one PDF engine cannot process the requested PDF format, while others may have failed to convert due to different issues"
+	}
+
+	var httpErr HttpError
 	if errors.As(err, &httpErr) {
-		return httpErr.HTTPError()
+		return httpErr.HttpError()
 	}
 
 	// Default 500 status code.
@@ -54,8 +73,8 @@ func httpErrorHandler() echo.HTTPErrorHandler {
 	}
 }
 
-// latencyMiddleware sets the start time in the echo.Context under "startTime".
-// Its value will be used later to calculate a request latency.
+// latencyMiddleware sets the start time in the [echo.Context] under
+// "startTime". Its value will be used later to calculate a request latency.
 //
 //	startTime := c.Get("startTime").(time.Time)
 func latencyMiddleware() echo.MiddlewareFunc {
@@ -71,9 +90,9 @@ func latencyMiddleware() echo.MiddlewareFunc {
 	}
 }
 
-// rootPathMiddleware sets the root path in the echo.Context under "rootPath".
-// Its value may be used to skip a middleware execution based on a request
-// URI.
+// rootPathMiddleware sets the root path in the [echo.Context] under
+// "rootPath". Its value may be used to skip a middleware execution based on a
+// request URI.
 //
 //	rootPath := c.Get("rootPath").(string)
 //	healthURI := fmt.Sprintf("%s/health", rootPath)
@@ -94,7 +113,7 @@ func rootPathMiddleware(rootPath string) echo.MiddlewareFunc {
 	}
 }
 
-// traceMiddleware sets the request identifier in the echo.Context under
+// traceMiddleware sets the request identifier in the [echo.Context] under
 // "trace". Its value is either retrieved from the trace header or generated if
 // the header is not present / its value is empty.
 //
@@ -120,8 +139,8 @@ func traceMiddleware(header string) echo.MiddlewareFunc {
 	}
 }
 
-// loggerMiddleware sets the logger in the echo.Context under "logger" and logs
-// a synchronous request result.
+// loggerMiddleware sets the logger in the [echo.Context] under "logger" and
+// logs a synchronous request result.
 //
 //	logger := c.Get("logger").(*zap.Logger)
 func loggerMiddleware(logger *zap.Logger, disableLoggingForPaths []string) echo.MiddlewareFunc {
@@ -193,20 +212,20 @@ func loggerMiddleware(logger *zap.Logger, disableLoggingForPaths []string) echo.
 }
 
 // contextMiddleware, a middleware for "multipart/form-data" requests, sets the
-// Context and related context.CancelFunc in the echo.Context under "context"
-// and "cancel". If the process is synchronous, it also handles the result of a
-// "multipart/form-data" request.
+// [Context] and related context.CancelFunc in the [echo.Context] under
+// "context" and "cancel". If the process is synchronous, it also handles the
+// result of a "multipart/form-data" request.
 //
 //	ctx := c.Get("context").(*api.Context)
 //	cancel := c.Get("cancel").(context.CancelFunc)
-func contextMiddleware(timeout time.Duration) echo.MiddlewareFunc {
+func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			logger := c.Get("logger").(*zap.Logger)
 
 			// We create a context with a timeout so that underlying processes are
 			// able to stop early and handle correctly a timeout scenario.
-			ctx, cancel, err := newContext(c, logger, timeout)
+			ctx, cancel, err := newContext(c, logger, fs, timeout)
 			if err != nil {
 				cancel()
 

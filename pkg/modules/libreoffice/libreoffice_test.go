@@ -5,12 +5,12 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
-	"github.com/gotenberg/gotenberg/v7/pkg/modules/libreoffice/uno"
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	libreofficeapi "github.com/gotenberg/gotenberg/v8/pkg/modules/libreoffice/api"
 )
 
 func TestLibreOffice_Descriptor(t *testing.T) {
-	descriptor := LibreOffice{}.Descriptor()
+	descriptor := new(LibreOffice).Descriptor()
 
 	actual := reflect.TypeOf(descriptor.New())
 	expect := reflect.TypeOf(new(LibreOffice))
@@ -21,38 +21,35 @@ func TestLibreOffice_Descriptor(t *testing.T) {
 }
 
 func TestLibreOffice_Provision(t *testing.T) {
-	tests := []struct {
-		name               string
-		ctx                *gotenberg.Context
-		expectProvisionErr bool
+	for _, tc := range []struct {
+		scenario    string
+		ctx         *gotenberg.Context
+		expectError bool
 	}{
 		{
-			name: "nominal behavior",
+			scenario: "no LibreOffice API provider",
 			ctx: func() *gotenberg.Context {
-				provider1 := struct {
+				return gotenberg.NewContext(
+					gotenberg.ParsedFlags{
+						FlagSet: new(LibreOffice).Descriptor().FlagSet,
+					},
+					[]gotenberg.ModuleDescriptor{},
+				)
+			}(),
+			expectError: true,
+		},
+		{
+			scenario: "no LibreOffice API from LibreOffice API provider",
+			ctx: func() *gotenberg.Context {
+				mod := &struct {
 					gotenberg.ModuleMock
-					uno.ProviderMock
+					libreofficeapi.ProviderMock
 				}{}
-				provider1.DescriptorMock = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module {
-						return provider1
-					}}
+				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return mod }}
 				}
-				provider1.UNOMock = func() (uno.API, error) {
-					return uno.APIMock{}, nil
-				}
-
-				provider2 := struct {
-					gotenberg.ModuleMock
-					gotenberg.PDFEngineProviderMock
-				}{}
-				provider2.DescriptorMock = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module {
-						return provider2
-					}}
-				}
-				provider2.PDFEngineMock = func() (gotenberg.PDFEngine, error) {
-					return gotenberg.PDFEngineMock{}, nil
+				mod.LibreOfficeMock = func() (libreofficeapi.Uno, error) {
+					return nil, errors.New("foo")
 				}
 
 				return gotenberg.NewContext(
@@ -60,36 +57,24 @@ func TestLibreOffice_Provision(t *testing.T) {
 						FlagSet: new(LibreOffice).Descriptor().FlagSet,
 					},
 					[]gotenberg.ModuleDescriptor{
-						provider1.Descriptor(),
-						provider2.Descriptor(),
+						mod.Descriptor(),
 					},
 				)
 			}(),
+			expectError: true,
 		},
 		{
-			name: "no UNO API provider",
-			ctx: gotenberg.NewContext(
-				gotenberg.ParsedFlags{
-					FlagSet: new(LibreOffice).Descriptor().FlagSet,
-				},
-				[]gotenberg.ModuleDescriptor{},
-			),
-			expectProvisionErr: true,
-		},
-		{
-			name: "no API from UNO API provider",
+			scenario: "no PDF engine provider",
 			ctx: func() *gotenberg.Context {
-				provider := struct {
+				mod := &struct {
 					gotenberg.ModuleMock
-					uno.ProviderMock
+					libreofficeapi.ProviderMock
 				}{}
-				provider.DescriptorMock = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module {
-						return provider
-					}}
+				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return mod }}
 				}
-				provider.UNOMock = func() (uno.API, error) {
-					return uno.APIMock{}, errors.New("foo")
+				mod.LibreOfficeMock = func() (libreofficeapi.Uno, error) {
+					return new(libreofficeapi.ApiMock), nil
 				}
 
 				return gotenberg.NewContext(
@@ -97,26 +82,28 @@ func TestLibreOffice_Provision(t *testing.T) {
 						FlagSet: new(LibreOffice).Descriptor().FlagSet,
 					},
 					[]gotenberg.ModuleDescriptor{
-						provider.Descriptor(),
+						mod.Descriptor(),
 					},
 				)
 			}(),
-			expectProvisionErr: true,
+			expectError: true,
 		},
 		{
-			name: "no PDF engine provider",
+			scenario: "no PDF engine from PDF engine provider",
 			ctx: func() *gotenberg.Context {
-				provider := struct {
+				mod := &struct {
 					gotenberg.ModuleMock
-					uno.ProviderMock
+					libreofficeapi.ProviderMock
+					gotenberg.PdfEngineProviderMock
 				}{}
-				provider.DescriptorMock = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module {
-						return provider
-					}}
+				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return mod }}
 				}
-				provider.UNOMock = func() (uno.API, error) {
-					return uno.APIMock{}, nil
+				mod.LibreOfficeMock = func() (libreofficeapi.Uno, error) {
+					return new(libreofficeapi.ApiMock), nil
+				}
+				mod.PdfEngineMock = func() (gotenberg.PdfEngine, error) {
+					return nil, errors.New("foo")
 				}
 
 				return gotenberg.NewContext(
@@ -124,39 +111,28 @@ func TestLibreOffice_Provision(t *testing.T) {
 						FlagSet: new(LibreOffice).Descriptor().FlagSet,
 					},
 					[]gotenberg.ModuleDescriptor{
-						provider.Descriptor(),
+						mod.Descriptor(),
 					},
 				)
 			}(),
-			expectProvisionErr: true,
+			expectError: true,
 		},
 		{
-			name: "no PDF engine from PDF engine provider",
+			scenario: "provision success",
 			ctx: func() *gotenberg.Context {
-				provider1 := struct {
+				mod := &struct {
 					gotenberg.ModuleMock
-					uno.ProviderMock
+					libreofficeapi.ProviderMock
+					gotenberg.PdfEngineProviderMock
 				}{}
-				provider1.DescriptorMock = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "foo", New: func() gotenberg.Module {
-						return provider1
-					}}
+				mod.DescriptorMock = func() gotenberg.ModuleDescriptor {
+					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module { return mod }}
 				}
-				provider1.UNOMock = func() (uno.API, error) {
-					return uno.APIMock{}, nil
+				mod.LibreOfficeMock = func() (libreofficeapi.Uno, error) {
+					return new(libreofficeapi.ApiMock), nil
 				}
-
-				provider2 := struct {
-					gotenberg.ModuleMock
-					gotenberg.PDFEngineProviderMock
-				}{}
-				provider2.DescriptorMock = func() gotenberg.ModuleDescriptor {
-					return gotenberg.ModuleDescriptor{ID: "bar", New: func() gotenberg.Module {
-						return provider2
-					}}
-				}
-				provider2.PDFEngineMock = func() (gotenberg.PDFEngine, error) {
-					return gotenberg.PDFEngineMock{}, errors.New("foo")
+				mod.PdfEngineMock = func() (gotenberg.PdfEngine, error) {
+					return new(gotenberg.PdfEngineMock), nil
 				}
 
 				return gotenberg.NewContext(
@@ -164,59 +140,56 @@ func TestLibreOffice_Provision(t *testing.T) {
 						FlagSet: new(LibreOffice).Descriptor().FlagSet,
 					},
 					[]gotenberg.ModuleDescriptor{
-						provider1.Descriptor(),
-						provider2.Descriptor(),
+						mod.Descriptor(),
 					},
 				)
 			}(),
-			expectProvisionErr: true,
+			expectError: false,
 		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
 			mod := new(LibreOffice)
 			err := mod.Provision(tc.ctx)
 
-			if tc.expectProvisionErr && err == nil {
-				t.Error("expected mod.Provision() error, but got none")
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
 			}
 
-			if !tc.expectProvisionErr && err != nil {
-				t.Errorf("expected no error from mod.Provision(), but got: %v", err)
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
 			}
 		})
 	}
 }
 
 func TestLibreOffice_Routes(t *testing.T) {
-	tests := []struct {
-		name              string
-		mod               LibreOffice
-		expectRoutesCount int
+	for _, tc := range []struct {
+		scenario      string
+		expectRoutes  int
+		disableRoutes bool
 	}{
 		{
-			name:              "route not disabled",
-			mod:               LibreOffice{},
-			expectRoutesCount: 1,
+			scenario:      "routes not disabled",
+			expectRoutes:  1,
+			disableRoutes: false,
 		},
 		{
-			name: "route disabled",
-			mod: LibreOffice{
-				disableRoutes: true,
-			},
+			scenario:      "routes disabled",
+			expectRoutes:  0,
+			disableRoutes: true,
 		},
-	}
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			mod := new(LibreOffice)
+			mod.disableRoutes = tc.disableRoutes
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			routes, err := tc.mod.Routes()
+			routes, err := mod.Routes()
 			if err != nil {
-				t.Fatalf("expected no error from mod.Routes(), but got: %v", err)
+				t.Fatalf("expected no error but got: %v", err)
 			}
 
-			if tc.expectRoutesCount != len(routes) {
-				t.Errorf("expected %d routes from mod.Routes(), but got %d", tc.expectRoutesCount, len(routes))
+			if tc.expectRoutes != len(routes) {
+				t.Errorf("expected %d routes but got %d", tc.expectRoutes, len(routes))
 			}
 		})
 	}

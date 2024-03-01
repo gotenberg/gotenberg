@@ -4,44 +4,44 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gotenberg/gotenberg/v7/pkg/gotenberg"
 	pdfcpuAPI "github.com/pdfcpu/pdfcpu/pkg/api"
 	pdfcpuLog "github.com/pdfcpu/pdfcpu/pkg/log"
 	pdfcpuConfig "github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 func init() {
-	gotenberg.MustRegisterModule(PDFcpu{})
+	gotenberg.MustRegisterModule(new(PdfCpu))
 }
 
-// PDFcpu is a module which wraps the https://github.com/pdfcpu/pdfcpu library
-// and implements the gotenberg.PDFEngine interface.
-type PDFcpu struct {
+// PdfCpu abstracts the pdfcpu library and implements the [gotenberg.PdfEngine]
+// interface.
+type PdfCpu struct {
 	conf *pdfcpuConfig.Configuration
 }
 
-// Descriptor returns a PDFcpu's module descriptor.
-func (PDFcpu) Descriptor() gotenberg.ModuleDescriptor {
+// Descriptor returns a [PdfCpu]'s module descriptor.
+func (engine *PdfCpu) Descriptor() gotenberg.ModuleDescriptor {
 	return gotenberg.ModuleDescriptor{
 		ID:  "pdfcpu",
-		New: func() gotenberg.Module { return new(PDFcpu) },
+		New: func() gotenberg.Module { return new(PdfCpu) },
 	}
 }
 
 // Provision sets the engine properties.
-func (engine *PDFcpu) Provision(_ *gotenberg.Context) error {
+func (engine *PdfCpu) Provision(ctx *gotenberg.Context) error {
 	pdfcpuConfig.ConfigPath = "disable"
 	pdfcpuLog.DisableLoggers()
-
 	engine.conf = pdfcpuConfig.NewDefaultConfiguration()
 
 	return nil
 }
 
-// Merge merges the given PDFs into a unique PDF.
-func (engine PDFcpu) Merge(_ context.Context, _ *zap.Logger, inputPaths []string, outputPath string) error {
-	err := pdfcpuAPI.MergeCreateFile(inputPaths, outputPath, engine.conf)
+// Merge combines multiple PDFs into a single PDF.
+func (engine *PdfCpu) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+	err := pdfcpuAPI.MergeCreateFile(inputPaths, outputPath, false, engine.conf)
 	if err == nil {
 		return nil
 	}
@@ -49,14 +49,14 @@ func (engine PDFcpu) Merge(_ context.Context, _ *zap.Logger, inputPaths []string
 	return fmt.Errorf("merge PDFs with PDFcpu: %w", err)
 }
 
-// Convert is not available for this PDF engine.
-func (engine PDFcpu) Convert(_ context.Context, _ *zap.Logger, format, _, _ string) error {
-	return fmt.Errorf("convert PDF to '%s' with PDFcpu: %w", format, gotenberg.ErrPDFEngineMethodNotAvailable)
+// Convert is not available in this implementation.
+func (engine *PdfCpu) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+	return fmt.Errorf("convert PDF to '%+v' with PDFcpu: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Interface guards.
 var (
-	_ gotenberg.Module      = (*PDFcpu)(nil)
-	_ gotenberg.Provisioner = (*PDFcpu)(nil)
-	_ gotenberg.PDFEngine   = (*PDFcpu)(nil)
+	_ gotenberg.Module      = (*PdfCpu)(nil)
+	_ gotenberg.Provisioner = (*PdfCpu)(nil)
+	_ gotenberg.PdfEngine   = (*PdfCpu)(nil)
 )
