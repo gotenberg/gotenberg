@@ -256,7 +256,6 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 		"--no-launch",
 		"--format",
 		"pdf",
-		"--export", "UseTaggedPDF=true",
 	}
 
 	args = append(args, "--port", fmt.Sprintf("%d", p.socketPort))
@@ -289,6 +288,7 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 	if options.PdfFormats.PdfUa {
 		args = append(
 			args,
+			"--export", "UseTaggedPDF=true",
 			"--export", "EnableTextAccessForAccessibilityTools=true",
 		)
 	}
