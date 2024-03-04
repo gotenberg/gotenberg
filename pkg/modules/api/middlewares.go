@@ -40,10 +40,6 @@ func ParseError(err error) (int, string) {
 		return http.StatusTooManyRequests, http.StatusText(http.StatusTooManyRequests)
 	}
 
-	if errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
-		return http.StatusNotImplemented, http.StatusText(http.StatusNotImplemented)
-	}
-
 	if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
 		return http.StatusBadRequest, "At least one PDF engine cannot process the requested PDF format, while others may have failed to convert due to different issues"
 	}
