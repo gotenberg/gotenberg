@@ -151,7 +151,7 @@ func captureScreenshotActionFunc(logger *zap.Logger, outputPaths []string, optio
 					}
 					nodes = append(nodes, selectedNodes[0])
 					return nil
-				}))
+				}, chromedp.ByQuery))
 
 				if err != nil {
 					return err
