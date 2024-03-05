@@ -164,6 +164,8 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 		format           string
 		quality          int
 		optimizeForSpeed bool
+		selectors        []string
+		scale            float64
 	)
 
 	form.
@@ -203,13 +205,45 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 			quality = intValue
 			return nil
 		}).
-		Bool("optimizeForSpeed", &optimizeForSpeed, defaultScreenshotOptions.OptimizeForSpeed)
+		Bool("optimizeForSpeed", &optimizeForSpeed, defaultScreenshotOptions.OptimizeForSpeed).
+		Custom("selectors", func(value string) error {
+			if value == "" {
+				selectors = defaultScreenshotOptions.Selectors
+				return nil
+			}
+			err := json.Unmarshal([]byte(value), &selectors)
+			if err != nil {
+				return fmt.Errorf("unmarshal selectors: %w", err)
+			}
+
+			return nil
+		}).
+		Custom("scale", func(value string) error {
+			if value == "" {
+				scale = defaultScreenshotOptions.Scale
+				return nil
+			}
+
+			floatValue, err := strconv.ParseFloat(value, 64)
+			if err != nil {
+				return err
+			}
+
+			if floatValue < 0 {
+				return errors.New("value is negative")
+			}
+
+			scale = floatValue
+			return nil
+		})
 
 	screenshotOptions := ScreenshotOptions{
 		Options:          options,
 		Format:           format,
 		Quality:          quality,
 		OptimizeForSpeed: optimizeForSpeed,
+		Selectors:        selectors,
+		Scale:            scale,
 	}
 
 	return form, screenshotOptions
@@ -572,15 +606,24 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 
 func screenshotUrl(ctx *api.Context, chromium Api, url string, options ScreenshotOptions) error {
 	ext := fmt.Sprintf(".%s", options.Format)
-	outputPath := ctx.GeneratePath("", ext)
 
-	err := chromium.Screenshot(ctx, ctx.Log(), url, outputPath, options)
+	var outputPaths []string
+
+	if len(options.Selectors) != 0 {
+		for i := range options.Selectors {
+			outputPaths = append(outputPaths, ctx.GeneratePath(fmt.Sprint(i), ext))
+		}
+	} else {
+		outputPaths = append(outputPaths, ctx.GeneratePath("", ext))
+	}
+
+	err := chromium.Screenshot(ctx, ctx.Log(), url, outputPaths, options)
 	err = handleChromiumError(err, options.Options)
 	if err != nil {
 		return fmt.Errorf("screenshot: %w", err)
 	}
 
-	err = ctx.AddOutputPaths(outputPath)
+	err = ctx.AddOutputPaths(outputPaths...)
 	if err != nil {
 		return fmt.Errorf("add output path: %w", err)
 	}

@@ -23,7 +23,7 @@ import (
 type browser interface {
 	gotenberg.Process
 	pdf(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error
-	screenshot(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error
+	screenshot(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error
 }
 
 type browserArguments struct {
@@ -236,7 +236,7 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *zap.Logger, url, outp
 	})
 }
 
-func (b *chromiumBrowser) screenshot(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+func (b *chromiumBrowser) screenshot(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error {
 	// Note: no error wrapping because it leaks on errors we want to display to
 	// the end user.
 	return b.do(ctx, logger, url, options.Options, chromedp.Tasks{
@@ -254,7 +254,7 @@ func (b *chromiumBrowser) screenshot(ctx context.Context, logger *zap.Logger, ur
 		waitDelayBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitDelay),
 		waitForExpressionBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitForExpression),
 		// Screenshot specific.
-		captureScreenshotActionFunc(logger, outputPath, options),
+		captureScreenshotActionFunc(logger, outputPaths, options),
 	})
 }
 
