@@ -247,10 +247,10 @@ type ScreenshotOptions struct {
 	// Optional.
 	OptimizeForSpeed bool
 
-	// Selectors can be one or more CSS selectors to capture
+	// Selectors can be one or more DOM selectors to capture.
 	Selectors []string
 
-	// Scales screenshots captured with a CSS selector.
+	// Scales screenshots captured with a selector.
 	Scale float64
 }
 
