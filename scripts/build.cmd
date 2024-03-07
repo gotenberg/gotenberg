@@ -1,5 +1,5 @@
 set DOCKER_REPO_GH=ghcr.io/onebrief
-set GOTENBERG_VERSION=8.0.1
+set GOTENBERG_VERSION=8.2.0
 
 set GOLANG_VERSION=1.21
 set DOCKER_REPOSITORY=onebrief
@@ -20,11 +20,7 @@ set GOLANGCI_LINT_VERSION=v1.45.0
 docker build ^
   --build-arg GOLANG_VERSION=%GOLANG_VERSION% ^
   --build-arg GOTENBERG_VERSION=%GOTENBERG_VERSION% ^
-  --build-arg GOTENBERG_USER_GID=%GOTENBERG_USER_GID% ^
-  --build-arg GOTENBERG_USER_UID=%GOTENBERG_USER_UID% ^
-  --build-arg NOTO_COLOR_EMOJI_VERSION=%NOTO_COLOR_EMOJI_VERSION% ^
-  --build-arg PDFTK_VERSION=%PDFTK_VERSION% ^
   --platform linux/amd64 ^
   -t %DOCKER_REPO_GH%/gotenberg:%GOTENBERG_VERSION% ^
-  -f build/Dockerfile .
+  -f build/Dockerfile.bc .
 

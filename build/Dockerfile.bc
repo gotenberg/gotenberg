@@ -1,0 +1,31 @@
+ARG GOLANG_VERSION
+
+# ----------------------------------------------
+# Gotenberg binary build stage
+# ----------------------------------------------
+FROM golang:$GOLANG_VERSION AS binary-stage
+
+ARG GOTENBERG_VERSION
+ENV CGO_ENABLED 0
+
+# Define the working directory outside of $GOPATH (we're using go modules).
+WORKDIR /home
+
+# Install module dependencies.
+COPY go.mod go.sum ./
+
+RUN go mod download &&\
+  go mod verify
+
+# Copy the source code.
+COPY cmd ./cmd
+COPY pkg ./pkg
+
+RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v8/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg/main.go
+
+# ----------------------------------------------
+# Copy binary to chainguard base
+# ----------------------------------------------
+FROM 183613197217.dkr.ecr.us-east-1.amazonaws.com/cgr.dev/onebrief.com/gotenberg:8.2.0 as chainguard-base
+
+COPY --from=binary-stage /home/gotenberg /usr/bin/
