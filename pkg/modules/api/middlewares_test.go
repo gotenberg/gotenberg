@@ -41,7 +41,7 @@ func TestParseError(t *testing.T) {
 		{
 			err:           gotenberg.ErrPdfFormatNotSupported,
 			expectStatus:  http.StatusBadRequest,
-			expectMessage: "A least one PDF engine does not handle one of the requested PDF format, while other have failed to convert for other reasons",
+			expectMessage: "At least one PDF engine cannot process the requested PDF format, while others may have failed to convert due to different issues",
 		},
 		{
 			err: WrapError(
