@@ -291,6 +291,12 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 			"--export", "UseTaggedPDF=true",
 			"--export", "EnableTextAccessForAccessibilityTools=true",
 		)
+	} else {
+		args = append(
+			args,
+			"--export", "UseTaggedPDF=false",
+			"--export", "EnableTextAccessForAccessibilityTools=false",
+		)
 	}
 
 	inputPath, err := nonBasicLatinCharactersGuard(logger, inputPath)
