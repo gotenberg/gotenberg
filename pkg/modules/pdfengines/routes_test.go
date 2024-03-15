@@ -295,6 +295,36 @@ func TestConvertHandler(t *testing.T) {
 			expectOutputPathsCount: 1,
 		},
 		{
+			scenario: "cannot rename many files",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"file.pdf":  "/file.pdf",
+					"file2.pdf": "/file2.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"pdfa": {
+						gotenberg.PdfA1b,
+					},
+					"pdfua": {
+						"true",
+					},
+				})
+				ctx.SetPathRename(&gotenberg.PathRenameMock{RenameMock: func(oldpath, newpath string) error {
+					return errors.New("cannot rename")
+				}})
+				return ctx
+			}(),
+			engine: &gotenberg.PdfEngineMock{
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+					return nil
+				},
+			},
+			expectError:            true,
+			expectHttpError:        false,
+			expectOutputPathsCount: 0,
+		},
+		{
 			scenario: "success with PDF/A & PDF/UA form fields (many files)",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
@@ -310,6 +340,9 @@ func TestConvertHandler(t *testing.T) {
 						"true",
 					},
 				})
+				ctx.SetPathRename(&gotenberg.PathRenameMock{RenameMock: func(oldpath, newpath string) error {
+					return nil
+				}})
 				return ctx
 			}(),
 			engine: &gotenberg.PdfEngineMock{

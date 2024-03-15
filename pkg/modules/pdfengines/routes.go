@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"path/filepath"
-	"strings"
 
 	"github.com/labstack/echo/v4"
 
@@ -44,8 +42,7 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			}
 
 			// Alright, let's merge the PDFs.
-
-			outputPath := ctx.GeneratePath("", ".pdf")
+			outputPath := ctx.GeneratePath(".pdf")
 
 			err = engine.Merge(ctx, ctx.Log(), inputPaths, outputPath)
 			if err != nil {
@@ -58,7 +55,7 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			zeroValued := gotenberg.PdfFormats{}
 			if pdfFormats != zeroValued {
 				convertInputPath := outputPath
-				convertOutputPath := ctx.GeneratePath("", ".pdf")
+				convertOutputPath := ctx.GeneratePath(".pdf")
 
 				err = engine.Convert(ctx, ctx.Log(), pdfFormats, convertInputPath, convertOutputPath)
 				if err != nil {
@@ -71,7 +68,6 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 
 			// Last but not least, add the output path to the context so that
 			// the API is able to send it as a response to the client.
-
 			err = ctx.AddOutputPaths(outputPath)
 			if err != nil {
 				return fmt.Errorf("add output path: %w", err)
@@ -124,26 +120,29 @@ func convertRoute(engine gotenberg.PdfEngine) api.Route {
 				)
 			}
 
-			// Alright, let's convert the PDFs.s
+			// Alright, let's convert the PDFs.
 			outputPaths := make([]string, len(inputPaths))
-
 			for i, inputPath := range inputPaths {
-				if len(outputPaths) > 1 {
-					// If .zip archive, keep the original filenames.
-					outputPaths[i] = ctx.GeneratePath(strings.TrimSuffix(filepath.Base(inputPath), filepath.Ext(inputPath)), ".pdf")
-				} else {
-					outputPaths[i] = ctx.GeneratePath("", ".pdf")
-				}
+				outputPaths[i] = ctx.GeneratePath(".pdf")
 
 				err = engine.Convert(ctx, ctx.Log(), pdfFormats, inputPath, outputPaths[i])
 				if err != nil {
 					return fmt.Errorf("convert PDF: %w", err)
 				}
+
+				if len(outputPaths) > 1 {
+					// If .zip archive, keep the original filename.
+					err = ctx.Rename(outputPaths[i], inputPath)
+					if err != nil {
+						return fmt.Errorf("rename output path: %w", err)
+					}
+
+					outputPaths[i] = inputPath
+				}
 			}
 
 			// Last but not least, add the output paths to the context so that
 			// the API is able to send them as a response to the client.
-
 			err = ctx.AddOutputPaths(outputPaths...)
 			if err != nil {
 				return fmt.Errorf("add output paths: %w", err)

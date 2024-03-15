@@ -127,6 +127,15 @@ func (provider *MetricsProviderMock) Metrics() ([]Metric, error) {
 	return provider.MetricsMock()
 }
 
+// PathRenameMock is a mock for the [PathRename] interface.
+type PathRenameMock struct {
+	RenameMock func(oldpath, newpath string) error
+}
+
+func (rename *PathRenameMock) Rename(oldpath, newpath string) error {
+	return rename.RenameMock(oldpath, newpath)
+}
+
 // Interface guards.
 var (
 	_ Module            = (*ModuleMock)(nil)

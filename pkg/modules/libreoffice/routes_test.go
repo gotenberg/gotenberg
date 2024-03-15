@@ -185,7 +185,32 @@ func TestConvertRoute(t *testing.T) {
 			expectError:            false,
 			expectHttpError:        false,
 			expectOutputPathsCount: 1,
-			expectOutputPaths:      []string{"/document.docx.pdf"},
+		},
+		{
+			scenario: "cannot rename many files",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"document.docx":  "/document.docx",
+					"document2.docx": "/document2.docx",
+					"document2.doc":  "/document2.doc",
+				})
+				ctx.SetPathRename(&gotenberg.PathRenameMock{RenameMock: func(oldpath, newpath string) error {
+					return errors.New("cannot rename")
+				}})
+				return ctx
+			}(),
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
+					return nil
+				},
+				ExtensionsMock: func() []string {
+					return []string{".docx", ".doc"}
+				},
+			},
+			expectError:            true,
+			expectHttpError:        false,
+			expectOutputPathsCount: 0,
 		},
 		{
 			scenario: "success (many files)",
@@ -196,6 +221,9 @@ func TestConvertRoute(t *testing.T) {
 					"document2.docx": "/document2.docx",
 					"document2.doc":  "/document2.doc",
 				})
+				ctx.SetPathRename(&gotenberg.PathRenameMock{RenameMock: func(oldpath, newpath string) error {
+					return nil
+				}})
 				return ctx
 			}(),
 			libreOffice: &libreofficeapi.ApiMock{
@@ -230,6 +258,9 @@ func TestConvertRoute(t *testing.T) {
 						"false",
 					},
 				})
+				ctx.SetPathRename(&gotenberg.PathRenameMock{RenameMock: func(oldpath, newpath string) error {
+					return nil
+				}})
 				return ctx
 			}(),
 			libreOffice: &libreofficeapi.ApiMock{
@@ -266,6 +297,9 @@ func TestConvertRoute(t *testing.T) {
 						"true",
 					},
 				})
+				ctx.SetPathRename(&gotenberg.PathRenameMock{RenameMock: func(oldpath, newpath string) error {
+					return nil
+				}})
 				return ctx
 			}(),
 			libreOffice: &libreofficeapi.ApiMock{

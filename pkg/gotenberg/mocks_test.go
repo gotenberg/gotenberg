@@ -188,3 +188,16 @@ func TestMetricsProviderMock(t *testing.T) {
 		t.Errorf("expected no error from MetricsProviderMock.Metrics, but got: %v", err)
 	}
 }
+
+func TestPathRenameMock(t *testing.T) {
+	mock := &PathRenameMock{
+		RenameMock: func(oldpath, newpath string) error {
+			return nil
+		},
+	}
+
+	err := mock.Rename("", "")
+	if err != nil {
+		t.Errorf("expected no error from PathRenameMock.Rename, but got: %v", err)
+	}
+}

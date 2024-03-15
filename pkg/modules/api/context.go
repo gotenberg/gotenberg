@@ -34,16 +34,22 @@ var (
 
 // Context is the request context for a "multipart/form-data" requests.
 type Context struct {
-	dirPath string
-	values  map[string][]string
-	files   map[string]string
-
+	dirPath     string
+	values      map[string][]string
+	files       map[string]string
 	outputPaths []string
+	cancelled   bool
 
-	cancelled bool
-	logger    *zap.Logger
-	echoCtx   echo.Context
+	logger     *zap.Logger
+	echoCtx    echo.Context
+	pathRename gotenberg.PathRename
 	context.Context
+}
+
+type osPathRename struct{}
+
+func (o *osPathRename) Rename(oldpath, newpath string) error {
+	return os.Rename(oldpath, newpath)
 }
 
 // newContext returns a [Context] by parsing a "multipart/form-data" request.
@@ -55,6 +61,7 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 		cancelled:   false,
 		logger:      logger,
 		echoCtx:     echoCtx,
+		pathRename:  new(osPathRename),
 		Context:     processCtx,
 	}
 
@@ -191,14 +198,19 @@ func (ctx *Context) FormData() *FormData {
 }
 
 // GeneratePath generates a path within the context's working directory.
-// It either generates a new UUID-based filename or uses the provided filename.
-// It does not create a file.
-func (ctx *Context) GeneratePath(filename, extension string) string {
-	if filename == "" {
-		// Generate a new UUID-based filename
-		filename = uuid.New().String()
+// It generates a new UUID-based filename. It does not create a file.
+func (ctx *Context) GeneratePath(extension string) string {
+	return fmt.Sprintf("%s/%s%s", ctx.dirPath, uuid.New().String(), extension)
+}
+
+// Rename is just a wrapper around [os.Rename], as we need to mock this
+// behavior in our tests.
+func (ctx *Context) Rename(oldpath, newpath string) error {
+	err := ctx.pathRename.Rename(oldpath, newpath)
+	if err != nil {
+		return fmt.Errorf("rename path: %w", err)
 	}
-	return fmt.Sprintf("%s/%s%s", ctx.dirPath, filename, extension)
+	return nil
 }
 
 // AddOutputPaths adds the given paths. Those paths will be used later to build
@@ -250,7 +262,7 @@ func (ctx *Context) BuildOutputFile() (string, error) {
 		ImplicitTopLevelFolder: false,
 	}
 
-	archivePath := ctx.GeneratePath("", ".zip")
+	archivePath := ctx.GeneratePath(".zip")
 
 	err := z.Archive(ctx.outputPaths, archivePath)
 	if err != nil {
@@ -273,3 +285,8 @@ func (ctx *Context) OutputFilename(outputPath string) string {
 
 	return fmt.Sprintf("%s%s", filename, filepath.Ext(outputPath))
 }
+
+// Interface guard.
+var (
+	_ gotenberg.PathRename = (*osPathRename)(nil)
+)

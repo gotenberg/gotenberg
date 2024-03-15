@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"path/filepath"
 
 	"github.com/labstack/echo/v4"
 
@@ -55,8 +54,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			// Alright, let's convert each document to PDF.
 			outputPaths := make([]string, len(inputPaths))
 			for i, inputPath := range inputPaths {
-				// document.docx -> document.docx.pdf.
-				outputPaths[i] = ctx.GeneratePath(filepath.Base(inputPath), ".pdf")
+				outputPaths[i] = ctx.GeneratePath(".pdf")
 				options := libreofficeapi.Options{
 					Landscape:  landscape,
 					PageRanges: nativePageRanges,
@@ -91,9 +89,8 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 
 			// So far so good, let's check if we have to merge the PDFs. Quick
 			// win: if there is only one PDF, skip this step.
-
 			if len(outputPaths) > 1 && merge {
-				outputPath := ctx.GeneratePath("", ".pdf")
+				outputPath := ctx.GeneratePath(".pdf")
 
 				err = engine.Merge(ctx, ctx.Log(), outputPaths, outputPath)
 				if err != nil {
@@ -105,7 +102,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				zeroValued := gotenberg.PdfFormats{}
 				if !nativePdfFormats && pdfFormats != zeroValued {
 					convertInputPath := outputPath
-					convertOutputPath := ctx.GeneratePath("", ".pdf")
+					convertOutputPath := ctx.GeneratePath(".pdf")
 
 					err = engine.Convert(ctx, ctx.Log(), pdfFormats, convertInputPath, convertOutputPath)
 					if err != nil {
@@ -117,8 +114,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				}
 
 				// Last but not least, add the output path to the context so that
-				// the Uno is able to send it as a response to the client.
-
+				// the API is able to send it as a response to the client.
 				err = ctx.AddOutputPaths(outputPath)
 				if err != nil {
 					return fmt.Errorf("add output path: %w", err)
@@ -135,23 +131,34 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 
 				for i, outputPath := range outputPaths {
 					convertInputPath := outputPath
-					// document.docx -> document.docx.pdf.
-					convertOutputPaths[i] = ctx.GeneratePath(filepath.Base(inputPaths[i]), ".pdf")
+					convertOutputPaths[i] = ctx.GeneratePath(".pdf")
 
 					err = engine.Convert(ctx, ctx.Log(), pdfFormats, convertInputPath, convertOutputPaths[i])
 					if err != nil {
 						return fmt.Errorf("convert PDF: %w", err)
 					}
-
 				}
 
 				// Important: the output paths are now the converted files.
 				outputPaths = convertOutputPaths
 			}
 
-			// Last but not least, add the output paths to the context so that
-			// the Uno is able to send them as a response to the client.
+			if len(outputPaths) > 1 {
+				// If .zip archive, document.docx -> document.docx.pdf.
+				for i, inputPath := range inputPaths {
+					outputPath := fmt.Sprintf("%s.pdf", inputPath)
 
+					err = ctx.Rename(outputPaths[i], outputPath)
+					if err != nil {
+						return fmt.Errorf("rename output path: %w", err)
+					}
+
+					outputPaths[i] = outputPath
+				}
+			}
+
+			// Last but not least, add the output paths to the context so that
+			// the API is able to send them as a response to the client.
 			err = ctx.AddOutputPaths(outputPaths...)
 			if err != nil {
 				return fmt.Errorf("add output paths: %w", err)

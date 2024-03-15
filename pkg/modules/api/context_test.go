@@ -3,20 +3,76 @@ package api
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
+
+func TestOsPathRename_Rename(t *testing.T) {
+	dirPath, err := gotenberg.NewFileSystem().MkdirAll()
+	if err != nil {
+		t.Fatalf("create working directory: %v", err)
+	}
+
+	path := "/tests/test/testdata/api/sample1.txt"
+	copyPath := filepath.Join(dirPath, fmt.Sprintf("%s.txt", uuid.NewString()))
+
+	in, err := os.Open(path)
+	if err != nil {
+		t.Fatalf("open file: %v", err)
+	}
+
+	defer func() {
+		err := in.Close()
+		if err != nil {
+			t.Fatalf("close file: %v", err)
+		}
+	}()
+
+	out, err := os.Create(copyPath)
+	if err != nil {
+		t.Fatalf("create new file: %v", err)
+	}
+
+	defer func() {
+		err := out.Close()
+		if err != nil {
+			t.Fatalf("close new file: %v", err)
+		}
+	}()
+
+	_, err = io.Copy(out, in)
+	if err != nil {
+		t.Fatalf("copy file to new file: %v", err)
+	}
+
+	rename := new(osPathRename)
+	newPath := filepath.Join(dirPath, fmt.Sprintf("%s.txt", uuid.NewString()))
+
+	err = rename.Rename(copyPath, newPath)
+	if err != nil {
+		t.Errorf("expected no error but got: %v", err)
+	}
+
+	err = os.RemoveAll(dirPath)
+	if err != nil {
+		t.Fatalf("remove working directory: %v", err)
+	}
+}
 
 func TestNewContext(t *testing.T) {
 	for _, tc := range []struct {
@@ -190,14 +246,44 @@ func TestContext_GeneratePath(t *testing.T) {
 		dirPath: "/foo",
 	}
 
-	path := ctx.GeneratePath("", ".pdf")
+	path := ctx.GeneratePath(".pdf")
 	if !strings.HasPrefix(path, ctx.dirPath) {
 		t.Errorf("expected '%s' to start with '%s'", path, ctx.dirPath)
 	}
+}
 
-	path = ctx.GeneratePath("foo.txt", ".pdf")
-	if !strings.Contains(path, "foo.txt.pdf") {
-		t.Errorf("expected '%s' to start with '%s'", path, ctx.dirPath)
+func TestContext_Rename(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		ctx         *Context
+		expectError bool
+	}{
+		{
+			scenario: "failure",
+			ctx: &Context{pathRename: &gotenberg.PathRenameMock{RenameMock: func(oldpath, newpath string) error {
+				return errors.New("cannot rename")
+			}}},
+			expectError: true,
+		},
+		{
+			scenario: "success",
+			ctx: &Context{pathRename: &gotenberg.PathRenameMock{RenameMock: func(oldpath, newpath string) error {
+				return nil
+			}}},
+			expectError: false,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			err := tc.ctx.Rename("", "")
+
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none", err)
+			}
+
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+		})
 	}
 }
 
