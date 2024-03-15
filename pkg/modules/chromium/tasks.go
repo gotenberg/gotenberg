@@ -47,6 +47,8 @@ func printToPdfActionFunc(logger *zap.Logger, outputPath string, options PdfOpti
 			WithMarginRight(options.MarginRight).
 			WithPageRanges(pageRanges).
 			WithPreferCSSPageSize(options.PreferCssPageSize).
+			// Does not seem to work.
+			// See https://github.com/gotenberg/gotenberg/issues/831.
 			WithGenerateTaggedPDF(false)
 
 		hasCustomHeaderFooter := options.HeaderTemplate != DefaultPdfOptions().HeaderTemplate ||

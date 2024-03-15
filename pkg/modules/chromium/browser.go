@@ -90,6 +90,8 @@ func (b *chromiumBrowser) Start(logger *zap.Logger) error {
 		// https://github.com/puppeteer/puppeteer/issues/2410
 		chromedp.Flag("font-render-hinting", "none"),
 		chromedp.UserDataDir(b.userProfileDirPath),
+		// See https://github.com/gotenberg/gotenberg/issues/831.
+		chromedp.Flag("disable-pdf-tagging", true),
 	)
 
 	if b.arguments.incognito {
@@ -164,7 +166,7 @@ func (b *chromiumBrowser) Stop(logger *zap.Logger) error {
 		go func() {
 			// FIXME: Chromium seems to recreate the user profile directory
 			//  right after its deletion if we do not wait a certain amount
-			//  of time before re-deleting it.
+			//  of time before deleting it.
 			<-time.After(10 * time.Second)
 
 			err := os.RemoveAll(userProfileDirPath)
