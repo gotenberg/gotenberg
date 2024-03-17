@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -143,6 +144,91 @@ func (form *FormData) Duration(key string, target *time.Duration, defaultValue t
 //	ctx.FormData().MandatoryDuration("foo", &foo)
 func (form *FormData) MandatoryDuration(key string, target *time.Duration) *FormData {
 	return form.mustMandatoryField(key, target)
+}
+
+// Inches binds a form field to a float64 variable. It populates an error
+// if the value cannot be computed back to inches.
+//
+//	var foo float64
+//
+//	ctx.FormData().Inches("foo", &foo, 2.0)
+func (form *FormData) Inches(key string, target *float64, defaultValue float64) *FormData {
+	form.inches(key, target)
+	if *target == -math.MaxFloat64 {
+		*target = defaultValue
+	}
+	return form
+}
+
+// MandatoryInches binds a form field to a float64 variable. It populates
+// an error if the value cannot be computed back to inches, is empty, or the
+// "key" does not exist.
+//
+//	var foo float64
+//
+//	ctx.FormData().MandatoryInches("foo", &foo)
+func (form *FormData) MandatoryInches(key string, target *float64) *FormData {
+	val, ok := form.values[key]
+	if !ok || val[0] == "" {
+		form.append(
+			fmt.Errorf("form field '%s' is required", key),
+		)
+		return form
+	}
+	return form.inches(key, target)
+}
+
+// inches tries to compute a string value to inches.
+func (form *FormData) inches(key string, target *float64) *FormData {
+	var value string
+	form.mustValue(key, &value, "")
+
+	if value == "" {
+		*target = -math.MaxFloat64
+		return form
+	}
+
+	for _, unit := range []string{"pt", "px", "in", "mm", "cm", "pc"} {
+		if !strings.HasSuffix(value, unit) {
+			continue
+		}
+
+		val, err := strconv.ParseFloat(strings.TrimSuffix(value, unit), 64)
+		if err != nil {
+			form.append(
+				fmt.Errorf("form field '%s' is invalid (got '%s', resulting to %w)", key, value, err),
+			)
+			return form
+		}
+
+		switch unit {
+		case "pt":
+			*target = val * (1.0 / 72.0)
+		case "px":
+			*target = val * (1.0 / 96.0)
+		case "in":
+			*target = val
+		case "mm":
+			*target = val * (1.0 / 25.4)
+		case "cm":
+			*target = val * (1.0 / 2.54)
+		case "pc":
+			*target = val * (1.0 / 6.0)
+		}
+
+		return form
+	}
+
+	val, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		form.append(
+			fmt.Errorf("form field '%s' is invalid (got '%s', resulting to %w)", key, value, err),
+		)
+		return form
+	}
+
+	*target = val
+	return form
 }
 
 // Custom helps to define a custom binding function for a form field.

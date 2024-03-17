@@ -122,12 +122,12 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		Bool("printBackground", &printBackground, defaultPdfOptions.PrintBackground).
 		Float64("scale", &scale, defaultPdfOptions.Scale).
 		Bool("singlePage", &singlePage, defaultPdfOptions.SinglePage).
-		Float64("paperWidth", &paperWidth, defaultPdfOptions.PaperWidth).
-		Float64("paperHeight", &paperHeight, defaultPdfOptions.PaperHeight).
-		Float64("marginTop", &marginTop, defaultPdfOptions.MarginTop).
-		Float64("marginBottom", &marginBottom, defaultPdfOptions.MarginBottom).
-		Float64("marginLeft", &marginLeft, defaultPdfOptions.MarginLeft).
-		Float64("marginRight", &marginRight, defaultPdfOptions.MarginRight).
+		Inches("paperWidth", &paperWidth, defaultPdfOptions.PaperWidth).
+		Inches("paperHeight", &paperHeight, defaultPdfOptions.PaperHeight).
+		Inches("marginTop", &marginTop, defaultPdfOptions.MarginTop).
+		Inches("marginBottom", &marginBottom, defaultPdfOptions.MarginBottom).
+		Inches("marginLeft", &marginLeft, defaultPdfOptions.MarginLeft).
+		Inches("marginRight", &marginRight, defaultPdfOptions.MarginRight).
 		String("nativePageRanges", &pageRanges, defaultPdfOptions.PageRanges).
 		Content("header.html", &headerTemplate, defaultPdfOptions.HeaderTemplate).
 		Content("footer.html", &footerTemplate, defaultPdfOptions.FooterTemplate).
