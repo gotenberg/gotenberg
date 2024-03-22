@@ -50,8 +50,7 @@ type Options struct {
 	// Optional.
 	PageRanges string
 
-	// Form fields from input is exported as form fields in the resulting PDF.
-	// Defaults to true
+	// ExportFormFields allows to... export form fields in the resulting PDF.
 	// Optional.
 	ExportFormFields bool
 
