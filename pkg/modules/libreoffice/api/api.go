@@ -50,6 +50,11 @@ type Options struct {
 	// Optional.
 	PageRanges string
 
+	// Form fields from input is exported as form fields in the resulting PDF.
+	// Defaults to true
+	// Optional.
+	ExportFormFields bool
+
 	// PdfFormats allows to convert the resulting PDF to PDF/A-1b, PDF/A-2b,
 	// PDF/A-3b and PDF/UA.
 	// Optional.
