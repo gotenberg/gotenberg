@@ -365,6 +365,35 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 			expectError:  false,
 		},
 		{
+			scenario: "success (disable form fields)",
+			libreOffice: newLibreOfficeProcess(
+				libreOfficeArguments{
+					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
+					unoBinPath:   os.Getenv("UNOCONVERTER_BIN_PATH"),
+					startTimeout: 5 * time.Second,
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/document.txt", fs.WorkingDirPath()), []byte("DisableFormFields"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options:      Options{ExportFormFields: false},
+			cancelledCtx: false,
+			start:        true,
+			expectError:  false,
+		},
+		{
 			scenario: "success (page ranges)",
 			libreOffice: newLibreOfficeProcess(
 				libreOfficeArguments{

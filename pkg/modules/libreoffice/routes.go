@@ -31,6 +31,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				pdfua            bool
 				nativePdfFormats bool
 				merge            bool
+				exportFormFields bool
 			)
 
 			err := ctx.FormData().
@@ -41,6 +42,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				Bool("pdfua", &pdfua, false).
 				Bool("nativePdfFormats", &nativePdfFormats, true).
 				Bool("merge", &merge, false).
+				Bool("exportFormFields", &exportFormFields, true).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -56,8 +58,9 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			for i, inputPath := range inputPaths {
 				outputPaths[i] = ctx.GeneratePath(".pdf")
 				options := libreofficeapi.Options{
-					Landscape:  landscape,
-					PageRanges: nativePageRanges,
+					Landscape:        landscape,
+					PageRanges:       nativePageRanges,
+					ExportFormFields: exportFormFields,
 				}
 
 				if nativePdfFormats {

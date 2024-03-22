@@ -273,6 +273,10 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 		args = append(args, "--export", fmt.Sprintf("PageRange=%s", options.PageRanges))
 	}
 
+	if !options.ExportFormFields {
+		args = append(args, "--export", "ExportFormFields=false")
+	}
+
 	switch options.PdfFormats.PdfA {
 	case "":
 	case gotenberg.PdfA1b:
