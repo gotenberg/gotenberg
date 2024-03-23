@@ -1,6 +1,7 @@
 package pdfengines
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -190,6 +191,58 @@ func readMetadataRoute(engine gotenberg.PdfEngine) api.Route {
 			}
 
 			return api.ErrNoOutputFile
+		},
+	}
+}
+
+// writeMetadataRoute returns an [api.Route] which can write metadata into
+// PDFs.
+func writeMetadataRoute(engine gotenberg.PdfEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/metadata/write",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			// Let's get the data from the form and validate them.
+			var (
+				inputPaths []string
+				metadata   map[string]interface{}
+			)
+
+			err := ctx.FormData().
+				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				MandatoryCustom("metadata", func(value string) error {
+					if len(value) > 0 {
+						err := json.Unmarshal([]byte(value), &metadata)
+						if err != nil {
+							return fmt.Errorf("unmarshal metadata: %w", err)
+						}
+					}
+					return nil
+				}).
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			// Alright, let's convert the PDFs.
+			for _, inputPath := range inputPaths {
+				err = engine.WriteMetadata(ctx, ctx.Log(), metadata, inputPath)
+				if err != nil {
+					return fmt.Errorf("write metadata: %w", err)
+				}
+			}
+
+			// Last but not least, add the output paths to the context so that
+			// the API is able to send them as a response to the client.
+			err = ctx.AddOutputPaths(inputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
+			}
+
+			return nil
 		},
 	}
 }
