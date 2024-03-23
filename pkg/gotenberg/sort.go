@@ -9,7 +9,7 @@ import (
 // AlphanumericSort implements sort.Interface and helps to sort strings
 // alphanumerically.
 //
-// See https://github.com/gotenberg/gotenberg/issues/805.
+// See: https://github.com/gotenberg/gotenberg/issues/805.
 type AlphanumericSort []string
 
 func (s AlphanumericSort) Len() int {

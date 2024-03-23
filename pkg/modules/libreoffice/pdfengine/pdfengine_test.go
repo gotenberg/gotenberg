@@ -169,7 +169,7 @@ func TestLibreOfficePdfEngine_Convert(t *testing.T) {
 
 func TestLibreOfficePdfEngine_ReadMetadata(t *testing.T) {
 	engine := new(LibreOfficePdfEngine)
-	err := engine.ReadMetadata(context.Background(), zap.NewNop(), "", nil)
+	_, err := engine.ReadMetadata(context.Background(), zap.NewNop(), "")
 
 	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
 		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)
@@ -178,7 +178,7 @@ func TestLibreOfficePdfEngine_ReadMetadata(t *testing.T) {
 
 func TestLibreOfficePdfEngine_WriteMetadata(t *testing.T) {
 	engine := new(LibreOfficePdfEngine)
-	err := engine.WriteMetadata(context.Background(), zap.NewNop(), "", nil)
+	err := engine.WriteMetadata(context.Background(), zap.NewNop(), nil, "")
 
 	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
 		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)

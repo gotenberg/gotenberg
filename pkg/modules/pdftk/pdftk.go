@@ -76,12 +76,12 @@ func (engine *PdfTk) Convert(ctx context.Context, logger *zap.Logger, formats go
 }
 
 // ReadMetadata is not available in this implementation.
-func (engine *PdfTk) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPaths string, metadata map[string]interface{}) error {
-	return fmt.Errorf("read PDF metadata with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+func (engine *PdfTk) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+	return nil, fmt.Errorf("read PDF metadata with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // WriteMetadata is not available in this implementation.
-func (engine *PdfTk) WriteMetadata(ctx context.Context, logger *zap.Logger, inputPaths string, newMetadata map[string]interface{}) error {
+func (engine *PdfTk) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
 	return fmt.Errorf("write PDF metadata with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 

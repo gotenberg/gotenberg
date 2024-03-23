@@ -399,6 +399,57 @@ func TestFormDataChromiumPdfFormats(t *testing.T) {
 	}
 }
 
+func TestFormDataPdfMetadata(t *testing.T) {
+	for _, tc := range []struct {
+		scenario         string
+		ctx              *api.ContextMock
+		expectedMetadata map[string]interface{}
+	}{
+		{
+			scenario:         "no metadata form field",
+			ctx:              &api.ContextMock{Context: new(api.Context)},
+			expectedMetadata: nil,
+		},
+		{
+			scenario: "invalid metadata form field",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"metadata": {
+						"foo",
+					},
+				})
+				return ctx
+			}(),
+			expectedMetadata: nil,
+		},
+		{
+			scenario: "valid metadata form field",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"metadata": {
+						"{\"foo\":\"bar\"}",
+					},
+				})
+				return ctx
+			}(),
+			expectedMetadata: map[string]interface{}{
+				"foo": "bar",
+			},
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			tc.ctx.SetLogger(zap.NewNop())
+			actual := FormDataPdfMetadata(tc.ctx.Context.FormData())
+
+			if !reflect.DeepEqual(actual, tc.expectedMetadata) {
+				t.Fatalf("expected %+v but got: %+v", tc.expectedMetadata, actual)
+			}
+		})
+	}
+}
+
 func TestConvertUrlRoute(t *testing.T) {
 	for _, tc := range []struct {
 		scenario               string
@@ -1223,8 +1274,8 @@ func TestConvertUrl(t *testing.T) {
 		ctx                    *api.ContextMock
 		api                    Api
 		engine                 gotenberg.PdfEngine
-		pdfFormats             gotenberg.PdfFormats
 		options                PdfOptions
+		pdfFormats             gotenberg.PdfFormats
 		metadata               map[string]interface{}
 		expectError            bool
 		expectHttpError        bool
@@ -1331,7 +1382,7 @@ func TestConvertUrl(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "error from PDF engine",
+			scenario: "PDF engine convert error",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
 			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
 				return nil
@@ -1339,14 +1390,14 @@ func TestConvertUrl(t *testing.T) {
 			engine: &gotenberg.PdfEngineMock{ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 				return errors.New("foo")
 			}},
-			pdfFormats:             gotenberg.PdfFormats{PdfA: "foo"},
 			options:                DefaultPdfOptions(),
+			pdfFormats:             gotenberg.PdfFormats{PdfA: "foo"},
 			expectError:            true,
 			expectHttpError:        false,
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "success with pdfa form field",
+			scenario: "success with PDF formats",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
 			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
 				return nil
@@ -1354,11 +1405,28 @@ func TestConvertUrl(t *testing.T) {
 			engine: &gotenberg.PdfEngineMock{ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 				return nil
 			}},
-			pdfFormats:             gotenberg.PdfFormats{PdfA: gotenberg.PdfA1b},
 			options:                DefaultPdfOptions(),
+			pdfFormats:             gotenberg.PdfFormats{PdfA: gotenberg.PdfA1b},
 			expectError:            false,
 			expectHttpError:        false,
 			expectOutputPathsCount: 1,
+		},
+		{
+			scenario: "PDF engine write metadata error",
+			ctx:      &api.ContextMock{Context: new(api.Context)},
+			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
+				return nil
+			}},
+			engine: &gotenberg.PdfEngineMock{WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+				return errors.New("foo")
+			}},
+			options: DefaultPdfOptions(),
+			metadata: map[string]interface{}{
+				"Creator":  "foo",
+				"Producer": "bar",
+			},
+			expectError:     true,
+			expectHttpError: false,
 		},
 		{
 			scenario: "cannot add output paths",
@@ -1381,38 +1449,16 @@ func TestConvertUrl(t *testing.T) {
 			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
 				return nil
 			}},
-			options:                DefaultPdfOptions(),
-			expectError:            false,
-			expectHttpError:        false,
-			expectOutputPathsCount: 1,
-		},
-		{
-			scenario: "error with metadata write",
-			ctx:      &api.ContextMock{Context: new(api.Context)},
-			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
-				return nil
-			}},
-			engine: &gotenberg.PdfEngineMock{WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, newMetadata map[string]interface{}) error {
-				return fmt.Errorf("error writing metadata to %s: %w", "foo.pdf", errors.New("foo"))
-			}},
-			options: DefaultPdfOptions(),
-			metadata: map[string]interface{}{
-				"Creator":  "foo",
-				"Producer": "bar",
+			engine: &gotenberg.PdfEngineMock{
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+					return nil
+				},
+				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+					return nil
+				},
 			},
-			expectError:     true,
-			expectHttpError: false,
-		},
-		{
-			scenario: "success with metadata write",
-			ctx:      &api.ContextMock{Context: new(api.Context)},
-			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
-				return nil
-			}},
-			engine: &gotenberg.PdfEngineMock{WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, newMetadata map[string]interface{}) error {
-				return nil
-			}},
-			options: DefaultPdfOptions(),
+			options:    DefaultPdfOptions(),
+			pdfFormats: gotenberg.PdfFormats{PdfA: gotenberg.PdfA1b},
 			metadata: map[string]interface{}{
 				"Creator":  "foo",
 				"Producer": "bar",
@@ -1424,7 +1470,7 @@ func TestConvertUrl(t *testing.T) {
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			tc.ctx.SetLogger(zap.NewNop())
-			err := convertUrl(tc.ctx.Context, tc.api, tc.engine, "", tc.pdfFormats, tc.options, tc.metadata)
+			err := convertUrl(tc.ctx.Context, tc.api, tc.engine, "", tc.options, tc.pdfFormats, tc.metadata)
 
 			if tc.expectError && err == nil {
 				t.Fatal("expected error but got none", err)

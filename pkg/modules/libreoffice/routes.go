@@ -46,11 +46,10 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				Bool("nativePdfFormats", &nativePdfFormats, true).
 				Bool("merge", &merge, false).
 				Custom("metadata", func(value string) error {
-					metadata = map[string]interface{}{}
 					if len(value) > 0 {
 						err := json.Unmarshal([]byte(value), &metadata)
 						if err != nil {
-							return err
+							return fmt.Errorf("unmarshal metadata: %w", err)
 						}
 					}
 					return nil
@@ -102,8 +101,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				}
 			}
 
-			// So far so good, let's check if we have to merge the PDFs. Quick
-			// win: if there is only one PDF, skip this step.
+			// So far so good, let's check if we have to merge the PDFs.
 			if len(outputPaths) > 1 && merge {
 				outputPath := ctx.GeneratePath(".pdf")
 
@@ -112,42 +110,12 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					return fmt.Errorf("merge PDFs: %w", err)
 				}
 
-				// Now, let's check if the client want to convert this
-				// resulting PDF to specific PDF formats.
-				zeroValued := gotenberg.PdfFormats{}
-				if !nativePdfFormats && pdfFormats != zeroValued {
-					convertInputPath := outputPath
-					convertOutputPath := ctx.GeneratePath(".pdf")
-
-					err = engine.Convert(ctx, ctx.Log(), pdfFormats, convertInputPath, convertOutputPath)
-					if err != nil {
-						return fmt.Errorf("convert PDF: %w", err)
-					}
-
-					// Important: the output path is now the converted file.
-					outputPath = convertOutputPath
-				}
-
-				// Writes and potentially overrides metadata entries, if any.
-				if len(metadata) > 0 {
-					err = engine.WriteMetadata(ctx, ctx.Log(), outputPath, metadata)
-					if err != nil {
-						return fmt.Errorf("write metadata failure: %w", err)
-					}
-				}
-
-				// Last but not least, add the output path to the context so that
-				// the API is able to send it as a response to the client.
-				err = ctx.AddOutputPaths(outputPath)
-				if err != nil {
-					return fmt.Errorf("add output path: %w", err)
-				}
-
-				return nil
+				// Only one output path.
+				outputPaths = []string{outputPath}
 			}
 
-			// Ok, we don't have to merge the PDFs. Let's check if the client
-			// want to convert each PDF to a specific PDF format.
+			// Let's check if the client want to convert each PDF to a specific
+			// PDF format.
 			zeroValued := gotenberg.PdfFormats{}
 			if !nativePdfFormats && pdfFormats != zeroValued {
 				convertOutputPaths := make([]string, len(outputPaths))
@@ -166,6 +134,16 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				outputPaths = convertOutputPaths
 			}
 
+			// Writes and potentially overrides metadata entries, if any.
+			if len(metadata) > 0 {
+				for _, outputPath := range outputPaths {
+					err = engine.WriteMetadata(ctx, ctx.Log(), metadata, outputPath)
+					if err != nil {
+						return fmt.Errorf("write metadata: %w", err)
+					}
+				}
+			}
+
 			if len(outputPaths) > 1 {
 				// If .zip archive, document.docx -> document.docx.pdf.
 				for i, inputPath := range inputPaths {
@@ -177,16 +155,6 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					}
 
 					outputPaths[i] = outputPath
-				}
-			}
-
-			// Writes and potentially overrides metadata entries, if any.
-			if len(metadata) > 0 {
-				for _, outputPath := range outputPaths {
-					err = engine.WriteMetadata(ctx, ctx.Log(), outputPath, metadata)
-					if err != nil {
-						return fmt.Errorf("write metadata: %w", err)
-					}
 				}
 			}
 

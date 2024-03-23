@@ -189,8 +189,8 @@ func TestMultiPdfEngines_ReadMetadata(t *testing.T) {
 			scenario: "nominal behavior",
 			engine: newMultiPdfEngines(
 				&gotenberg.PdfEngineMock{
-					ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, metadata map[string]interface{}) error {
-						return nil
+					ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+						return make(map[string]interface{}), nil
 					},
 				},
 			),
@@ -200,13 +200,13 @@ func TestMultiPdfEngines_ReadMetadata(t *testing.T) {
 			scenario: "at least one engine does not return an error",
 			engine: newMultiPdfEngines(
 				&gotenberg.PdfEngineMock{
-					ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, metadata map[string]interface{}) error {
-						return errors.New("foo")
+					ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+						return nil, errors.New("foo")
 					},
 				},
 				&gotenberg.PdfEngineMock{
-					ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, metadata map[string]interface{}) error {
-						return nil
+					ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+						return make(map[string]interface{}), nil
 					},
 				},
 			),
@@ -216,13 +216,13 @@ func TestMultiPdfEngines_ReadMetadata(t *testing.T) {
 			scenario: "all engines return an error",
 			engine: newMultiPdfEngines(
 				&gotenberg.PdfEngineMock{
-					ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, metadata map[string]interface{}) error {
-						return errors.New("foo")
+					ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+						return nil, errors.New("foo")
 					},
 				},
 				&gotenberg.PdfEngineMock{
-					ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, metadata map[string]interface{}) error {
-						return errors.New("foo")
+					ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+						return nil, errors.New("foo")
 					},
 				},
 			),
@@ -233,8 +233,8 @@ func TestMultiPdfEngines_ReadMetadata(t *testing.T) {
 			scenario: "context expired",
 			engine: newMultiPdfEngines(
 				&gotenberg.PdfEngineMock{
-					ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, metadata map[string]interface{}) error {
-						return nil
+					ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+						return make(map[string]interface{}), nil
 					},
 				},
 			),
@@ -248,7 +248,7 @@ func TestMultiPdfEngines_ReadMetadata(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			err := tc.engine.ReadMetadata(tc.ctx, zap.NewNop(), "", nil)
+			_, err := tc.engine.ReadMetadata(tc.ctx, zap.NewNop(), "")
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
@@ -272,7 +272,7 @@ func TestMultiPdfEngines_WriteMetadata(t *testing.T) {
 			scenario: "nominal behavior",
 			engine: newMultiPdfEngines(
 				&gotenberg.PdfEngineMock{
-					WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, newMetadata map[string]interface{}) error {
+					WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
 						return nil
 					},
 				},
@@ -283,12 +283,12 @@ func TestMultiPdfEngines_WriteMetadata(t *testing.T) {
 			scenario: "at least one engine does not return an error",
 			engine: newMultiPdfEngines(
 				&gotenberg.PdfEngineMock{
-					WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, newMetadata map[string]interface{}) error {
+					WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
 						return errors.New("foo")
 					},
 				},
 				&gotenberg.PdfEngineMock{
-					WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, newMetadata map[string]interface{}) error {
+					WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
 						return nil
 					},
 				},
@@ -299,12 +299,12 @@ func TestMultiPdfEngines_WriteMetadata(t *testing.T) {
 			scenario: "all engines return an error",
 			engine: newMultiPdfEngines(
 				&gotenberg.PdfEngineMock{
-					WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, newMetadata map[string]interface{}) error {
+					WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
 						return errors.New("foo")
 					},
 				},
 				&gotenberg.PdfEngineMock{
-					WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, newMetadata map[string]interface{}) error {
+					WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
 						return errors.New("foo")
 					},
 				},
@@ -316,7 +316,7 @@ func TestMultiPdfEngines_WriteMetadata(t *testing.T) {
 			scenario: "context expired",
 			engine: newMultiPdfEngines(
 				&gotenberg.PdfEngineMock{
-					WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string, newMetadata map[string]interface{}) error {
+					WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
 						return nil
 					},
 				},
@@ -331,7 +331,7 @@ func TestMultiPdfEngines_WriteMetadata(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			err := tc.engine.WriteMetadata(tc.ctx, zap.NewNop(), "", nil)
+			err := tc.engine.WriteMetadata(tc.ctx, zap.NewNop(), nil, "")
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
