@@ -507,3 +507,172 @@ func TestReadMetadataHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestWriteMetadataHandler(t *testing.T) {
+	for _, tc := range []struct {
+		scenario               string
+		ctx                    *api.ContextMock
+		engine                 gotenberg.PdfEngine
+		expectError            bool
+		expectHttpError        bool
+		expectHttpStatus       int
+		expectOutputPathsCount int
+		expectOutputPaths      []string
+	}{
+		{
+			scenario:               "missing at least one mandatory file",
+			ctx:                    &api.ContextMock{Context: new(api.Context)},
+			expectError:            true,
+			expectHttpError:        true,
+			expectHttpStatus:       http.StatusBadRequest,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "no metadata form field",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"file.pdf": "/file.pdf",
+				})
+				return ctx
+			}(),
+			expectError:            true,
+			expectHttpError:        true,
+			expectHttpStatus:       http.StatusBadRequest,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "invalid metadata form field",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"document.docx": "/document.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"metadata": {
+						"foo",
+					},
+				})
+				return ctx
+			}(),
+			expectError:            true,
+			expectHttpError:        true,
+			expectHttpStatus:       http.StatusBadRequest,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "error from PDF engine",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"file.pdf": "/file.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"metadata": {
+						"{\"Creator\": \"foo\", \"Producer\": \"bar\" }",
+					},
+				})
+				return ctx
+			}(),
+			engine: &gotenberg.PdfEngineMock{
+				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+					return errors.New("foo")
+				},
+			},
+			expectError:            true,
+			expectHttpError:        false,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "cannot add output paths",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"file.pdf": "/file.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"metadata": {
+						"{\"Creator\": \"foo\", \"Producer\": \"bar\" }",
+					},
+				})
+				ctx.SetCancelled(true)
+				return ctx
+			}(),
+			engine: &gotenberg.PdfEngineMock{
+				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+					return nil
+				},
+			},
+			expectError:            true,
+			expectHttpError:        false,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "success",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"file.pdf": "/file.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"metadata": {
+						"{\"Creator\": \"foo\", \"Producer\": \"bar\" }",
+					},
+				})
+				return ctx
+			}(),
+			engine: &gotenberg.PdfEngineMock{
+				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+					return nil
+				},
+			},
+			expectError:            false,
+			expectHttpError:        false,
+			expectOutputPathsCount: 1,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			tc.ctx.SetLogger(zap.NewNop())
+			c := echo.New().NewContext(nil, nil)
+			c.Set("context", tc.ctx.Context)
+
+			err := writeMetadataRoute(tc.engine).Handler(c)
+
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none", err)
+			}
+
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+
+			var httpErr api.HttpError
+			isHttpError := errors.As(err, &httpErr)
+
+			if tc.expectHttpError && !isHttpError {
+				t.Errorf("expected an HTTP error but got: %v", err)
+			}
+
+			if !tc.expectHttpError && isHttpError {
+				t.Errorf("expected no HTTP error but got one: %v", httpErr)
+			}
+
+			if err != nil && tc.expectHttpError && isHttpError {
+				status, _ := httpErr.HttpError()
+				if status != tc.expectHttpStatus {
+					t.Errorf("expected %d as HTTP status code but got %d", tc.expectHttpStatus, status)
+				}
+			}
+
+			if tc.expectOutputPathsCount != len(tc.ctx.OutputPaths()) {
+				t.Errorf("expected %d output paths but got %d", tc.expectOutputPathsCount, len(tc.ctx.OutputPaths()))
+			}
+
+			for _, path := range tc.expectOutputPaths {
+				if !slices.Contains(tc.ctx.OutputPaths(), path) {
+					t.Errorf("expected '%s' in output paths %v", path, tc.ctx.OutputPaths())
+				}
+			}
+		})
+	}
+}
