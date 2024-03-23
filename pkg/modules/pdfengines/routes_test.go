@@ -35,7 +35,27 @@ func TestMergeHandler(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "error from PDF engine",
+			scenario: "invalid metadata form field",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"file.pdf":  "/file.pdf",
+					"file2.pdf": "/file2.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"metadata": {
+						"foo",
+					},
+				})
+				return ctx
+			}(),
+			expectError:            true,
+			expectHttpError:        true,
+			expectHttpStatus:       http.StatusBadRequest,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "PDF engine merge error",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
@@ -46,6 +66,60 @@ func TestMergeHandler(t *testing.T) {
 			}(),
 			engine: &gotenberg.PdfEngineMock{
 				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return errors.New("foo")
+				},
+			},
+			expectError:            true,
+			expectHttpError:        false,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "PDF engine convert error",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"file.pdf":  "/file.pdf",
+					"file2.pdf": "/file2.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"pdfa": {
+						gotenberg.PdfA1b,
+					},
+				})
+				return ctx
+			}(),
+			engine: &gotenberg.PdfEngineMock{
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return nil
+				},
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+					return errors.New("foo")
+				},
+			},
+			expectError:            true,
+			expectHttpError:        false,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "PDF engine write metadata error",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"file.pdf":  "/file.pdf",
+					"file2.pdf": "/file2.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"metadata": {
+						"{\"Creator\": \"foo\", \"Producer\": \"bar\" }",
+					},
+				})
+				return ctx
+			}(),
+			engine: &gotenberg.PdfEngineMock{
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return nil
+				},
+				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
 					return errors.New("foo")
 				},
 			},
@@ -81,28 +155,12 @@ func TestMergeHandler(t *testing.T) {
 					"file.pdf":  "/file.pdf",
 					"file2.pdf": "/file2.pdf",
 				})
-				return ctx
-			}(),
-			engine: &gotenberg.PdfEngineMock{
-				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-					return nil
-				},
-			},
-			expectError:            false,
-			expectHttpError:        false,
-			expectOutputPathsCount: 1,
-		},
-		{
-			scenario: "error from PDF engine (convert)",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"file.pdf":  "/file.pdf",
-					"file2.pdf": "/file2.pdf",
-				})
 				ctx.SetValues(map[string][]string{
 					"pdfa": {
 						gotenberg.PdfA1b,
+					},
+					"metadata": {
+						"{\"Creator\": \"foo\", \"Producer\": \"bar\" }",
 					},
 				})
 				return ctx
@@ -112,36 +170,9 @@ func TestMergeHandler(t *testing.T) {
 					return nil
 				},
 				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
-					return errors.New("foo")
-				},
-			},
-			expectError:            true,
-			expectHttpError:        false,
-			expectOutputPathsCount: 0,
-		},
-		{
-			scenario: "success with PDF/A & PDF/UA form fields",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"file.pdf":  "/file.pdf",
-					"file2.pdf": "/file2.pdf",
-				})
-				ctx.SetValues(map[string][]string{
-					"pdfa": {
-						gotenberg.PdfA1b,
-					},
-					"pdfua": {
-						"true",
-					},
-				})
-				return ctx
-			}(),
-			engine: &gotenberg.PdfEngineMock{
-				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 					return nil
 				},
-				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
 					return nil
 				},
 			},
