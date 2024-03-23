@@ -44,6 +44,10 @@ func ParseError(err error) (int, string) {
 		return http.StatusBadRequest, "At least one PDF engine cannot process the requested PDF format, while others may have failed to convert due to different issues"
 	}
 
+	if errors.Is(err, gotenberg.ErrPdfEngineMetadataValueNotSupported) {
+		return http.StatusBadRequest, "At least one PDF engine cannot process the requested metadata, while others may have failed to convert due to different issues"
+	}
+
 	var httpErr HttpError
 	if errors.As(err, &httpErr) {
 		return httpErr.HttpError()

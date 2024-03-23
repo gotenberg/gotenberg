@@ -3,6 +3,7 @@ package pdfengines
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
@@ -70,36 +71,49 @@ func (multi *multiPdfEngines) Convert(ctx context.Context, logger *zap.Logger, f
 	return fmt.Errorf("convert PDF to '%+v' with multi PDF engines: %w", formats, err)
 }
 
-func (multi *multiPdfEngines) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPaths string, metadata map[string]interface{}) error {
+type readMetadataResult struct {
+	metadata map[string]interface{}
+	err      error
+}
+
+func (multi *multiPdfEngines) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
 	var err error
-	errChan := make(chan error, 1)
+	var mu sync.Mutex // to safely append errors.
+
+	resultChan := make(chan readMetadataResult, len(multi.engines))
 
 	for _, engine := range multi.engines {
 		go func(engine gotenberg.PdfEngine) {
-			errChan <- engine.ReadMetadata(ctx, logger, inputPaths, metadata)
+			metadata, err := engine.ReadMetadata(ctx, logger, inputPath)
+			resultChan <- readMetadataResult{metadata: metadata, err: err}
 		}(engine)
+	}
 
+	for range multi.engines {
 		select {
-		case readMetadataErr := <-errChan:
-			errored := multierr.AppendInto(&err, readMetadataErr)
-			if !errored {
-				return nil
+		case result := <-resultChan:
+			if result.err != nil {
+				mu.Lock()
+				err = multierr.Append(err, result.err)
+				mu.Unlock()
+			} else {
+				return result.metadata, nil
 			}
 		case <-ctx.Done():
-			return ctx.Err()
+			return nil, ctx.Err()
 		}
 	}
 
-	return fmt.Errorf("read PDF metadata with multi PDF engines: %w", err)
+	return nil, fmt.Errorf("read PDF metadata with multi PDF engines: %w", err)
 }
 
-func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *zap.Logger, inputPaths string, newMetadata map[string]interface{}) error {
+func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
 	var err error
 	errChan := make(chan error, 1)
 
 	for _, engine := range multi.engines {
 		go func(engine gotenberg.PdfEngine) {
-			errChan <- engine.WriteMetadata(ctx, logger, inputPaths, newMetadata)
+			errChan <- engine.WriteMetadata(ctx, logger, metadata, inputPath)
 		}(engine)
 
 		select {

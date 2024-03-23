@@ -9,61 +9,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
-
-func TestMetadataValueTypeError_Error(t *testing.T) {
-	instance := MetadataValueTypeError{
-		Entries: map[string]interface{}{
-			"foo": "foo",
-		},
-	}
-
-	assert.True(t, len(instance.Error()) > 0)
-}
-
-func TestMetadataValueTypeError_GetKeys(t *testing.T) {
-	for i, tc := range []struct {
-		instance MetadataValueTypeError
-		expect   []string
-	}{
-		{
-			instance: MetadataValueTypeError{
-				Entries: map[string]interface{}{},
-			},
-			expect: []string{},
-		},
-		{
-			instance: MetadataValueTypeError{
-				Entries: map[string]interface{}{
-					"foo": "foo",
-				},
-			},
-			expect: []string{"foo"},
-		},
-		{
-			instance: MetadataValueTypeError{
-				Entries: map[string]interface{}{
-					"foo":  "foo",
-					"bar":  float64(123),
-					"baz":  4.56,
-					"qux":  true,
-					"quux": nil,
-				},
-			},
-			expect: []string{"foo", "bar", "baz", "qux", "quux"},
-		},
-	} {
-		actual := tc.instance.GetKeys()
-
-		if !assert.ElementsMatch(t, actual, tc.expect) {
-			t.Errorf("test %d: expected %+v but got: %+v", i, tc.expect, actual)
-		}
-	}
-}
 
 func TestExifTool_Descriptor(t *testing.T) {
 	descriptor := new(ExifTool).Descriptor()
@@ -144,59 +93,28 @@ func TestExiftool_Convert(t *testing.T) {
 
 func TestExiftool_ReadMetadata(t *testing.T) {
 	for _, tc := range []struct {
-		scenario    string
-		ctx         context.Context
-		inputPath   string
-		subset      map[string]interface{}
-		expectError bool
-		expectDiff  bool
+		scenario       string
+		inputPath      string
+		expectMetadata map[string]interface{}
+		expectError    bool
 	}{
 		{
-			scenario:    "invalid input path",
-			ctx:         context.TODO(),
-			inputPath:   "foo",
-			expectError: true,
+			scenario:       "invalid input path",
+			inputPath:      "foo",
+			expectMetadata: nil,
+			expectError:    true,
 		},
 		{
-			scenario:  "single file success",
-			ctx:       context.TODO(),
+			scenario:  "success",
 			inputPath: "/tests/test/testdata/pdfengines/sample1.pdf",
-			subset: map[string]interface{}{
+			expectMetadata: map[string]interface{}{
 				"FileName":          "sample1.pdf",
 				"FileTypeExtension": "pdf",
 				"MIMEType":          "application/pdf",
 				"PDFVersion":        1.4,
 				"PageCount":         float64(3),
-				"CreateDate":        "2018:12:06 17:50:06+00:00",
-				"ModifyDate":        "2018:12:06 17:50:06+00:00",
-				"Directory":         "/tests/test/testdata/pdfengines",
-				"FileType":          "PDF",
-				"Linearized":        "No",
-				"Creator":           "Chromium",
-				"Producer":          "Skia/PDF m70",
-				"SourceFile":        "/tests/test/testdata/pdfengines/sample1.pdf",
 			},
-		},
-		{
-			scenario:  "single file incorrect metadata",
-			ctx:       context.TODO(),
-			inputPath: "/tests/test/testdata/pdfengines/sample1.pdf",
-			subset: map[string]interface{}{
-				"FileName":          "sample1.pdf",
-				"FileTypeExtension": "pdf",
-				"MIMEType":          "application/pdf",
-				"PDFVersion":        1.4,
-				"PageCount":         float64(3),
-				"CreateDate":        "2018:12:06 17:50:06+00:00",
-				"ModifyDate":        "2018:12:06 17:50:06+00:00",
-				"Directory":         "/tests/test/testdata/pdfengines",
-				"FileType":          "PDF",
-				"Linearized":        "No",
-				"Creator":           "INVALID",
-				"Producer":          "Skia/PDF m70",
-				"SourceFile":        "/tests/test/testdata/pdfengines/sample1.pdf",
-			},
-			expectDiff: true,
+			expectError: false,
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
@@ -206,8 +124,8 @@ func TestExiftool_ReadMetadata(t *testing.T) {
 				t.Fatalf("expected error but got: %v", err)
 			}
 
-			actualMetadata := map[string]interface{}{}
-			err = engine.ReadMetadata(tc.ctx, zap.NewNop(), tc.inputPath, actualMetadata)
+			metadata, err := engine.ReadMetadata(context.Background(), zap.NewNop(), tc.inputPath)
+
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
 			}
@@ -216,13 +134,11 @@ func TestExiftool_ReadMetadata(t *testing.T) {
 				t.Fatal("expected error but got none")
 			}
 
-			if tc.subset != nil && err == nil {
-				if !tc.expectDiff && !isMapSubset(actualMetadata, tc.subset) {
-					t.Errorf("test: %s: expected: %+v to be a subset of: %+v at path: %s",
-						tc.scenario, tc.subset, actualMetadata, tc.inputPath)
-				} else if tc.expectDiff && isMapSubset(actualMetadata, tc.subset) {
-					t.Errorf("test: %s: expected: %+v to be not be a subset of: %+v at path: %s",
-						tc.scenario, tc.subset, actualMetadata, tc.inputPath)
+			if tc.expectMetadata != nil && err == nil {
+				for k, v := range tc.expectMetadata {
+					if v2, ok := metadata[k]; !ok || v != v2 {
+						t.Errorf("expected entry %s with value %v to exists", k, v)
+					}
 				}
 			}
 		})
@@ -231,101 +147,133 @@ func TestExiftool_ReadMetadata(t *testing.T) {
 
 func TestExiftool_WriteMetadata(t *testing.T) {
 	for _, tc := range []struct {
-		scenario    string
-		ctx         context.Context
-		inputPath   string
-		newMetadata map[string]interface{}
-		contains    map[string]interface{}
-		expectError bool
-		expectDiff  bool
+		scenario       string
+		createCopy     bool
+		inputPath      string
+		metadata       map[string]interface{}
+		expectMetadata map[string]interface{}
+		expectError    bool
+		expectedError  error
 	}{
 		{
-			scenario:  "single file success",
-			ctx:       context.TODO(),
-			inputPath: "/tests/test/testdata/pdfengines/sample1.pdf",
-			newMetadata: map[string]interface{}{
-				"Producer": "foo",
-			},
-			contains: map[string]interface{}{
-				"Producer": "foo",
-			},
-			expectError: false,
-			expectDiff:  false,
-		},
-		{
-			scenario:  "single file not same metadata",
-			ctx:       context.TODO(),
-			inputPath: "/tests/test/testdata/pdfengines/sample1.pdf",
-			newMetadata: map[string]interface{}{
-				"Producer": "foo",
-			},
-			contains: map[string]interface{}{
-				"Producer": "foobar",
-			},
-			expectError: false,
-			expectDiff:  true,
-		},
-		{
-			scenario:  "single file unknown type",
-			ctx:       context.TODO(),
-			inputPath: "/tests/test/testdata/pdfengines/sample1.pdf",
-			newMetadata: map[string]interface{}{
-				"foo": map[string]string{},
-			},
+			scenario:    "invalid input path",
+			createCopy:  false,
+			inputPath:   "foo",
 			expectError: true,
-			expectDiff:  false,
+		},
+		{
+			scenario:   "gotenberg.ErrPdfEngineMetadataValueNotSupported",
+			createCopy: true,
+			inputPath:  "/tests/test/testdata/pdfengines/sample1.pdf",
+			metadata: map[string]interface{}{
+				"Unsupported": map[string]interface{}{},
+			},
+			expectError:   true,
+			expectedError: gotenberg.ErrPdfEngineMetadataValueNotSupported,
+		},
+		{
+			scenario:   "success",
+			createCopy: true,
+			inputPath:  "/tests/test/testdata/pdfengines/sample1.pdf",
+			metadata: map[string]interface{}{
+				"Author":       "Julien Neuhart",
+				"Copyright":    "Julien Neuhart",
+				"CreationDate": "2006-09-18T16:27:50-04:00",
+				"Creator":      "Gotenberg",
+				"Keywords": []string{
+					"first",
+					"second",
+				},
+				"Marked":     "true",
+				"ModDate":    "2006-09-18T16:27:50-04:00",
+				"PDFVersion": 1.7,
+				"Producer":   "Gotenberg",
+				"Subject":    "Sample",
+				"Title":      "Sample",
+				"Trapped":    "Unknown",
+				// Those are not valid PDF metadata.
+				"int":     1,
+				"int64":   int64(2),
+				"float32": float32(2.2),
+				"float64": 3.3,
+			},
+			expectMetadata: map[string]interface{}{
+				"Author":       "Julien Neuhart",
+				"Copyright":    "Julien Neuhart",
+				"CreationDate": "2006:09:18 16:27:50-04:00",
+				"Creator":      "Gotenberg",
+				"Keywords": []interface{}{
+					"first",
+					"second",
+				},
+				"Marked":     true,
+				"ModDate":    "2006:09:18 16:27:50-04:00",
+				"PDFVersion": 1.7,
+				"Producer":   "Gotenberg",
+				"Subject":    "Sample",
+				"Title":      "Sample",
+				"Trapped":    "Unknown",
+			},
+			expectError: false,
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			engine := new(ExifTool)
 			err := engine.Provision(nil)
 			if err != nil {
-				t.Fatalf("expected error but got: %v", err)
+				t.Fatalf("expected no error but got: %v", err)
 			}
 
-			fs := gotenberg.NewFileSystem()
-			outputDir, err := fs.MkdirAll()
-			if err != nil {
-				t.Fatalf("expected error but got: %v", err)
-			}
-
-			defer func() {
-				err = os.RemoveAll(fs.WorkingDirPath())
+			var destinationPath string
+			if tc.createCopy {
+				fs := gotenberg.NewFileSystem()
+				outputDir, err := fs.MkdirAll()
 				if err != nil {
-					t.Fatalf("expected no error while cleaning up but got: %v", err)
+					t.Fatalf("expected error no but got: %v", err)
 				}
-			}()
 
-			copyPath := fmt.Sprintf("%s/copy_temp.pdf", outputDir)
-			// open the source file
-			source, err := os.Open(tc.inputPath)
-			if err != nil {
-				t.Fatalf("error in opening file: %v", err)
+				defer func() {
+					err = os.RemoveAll(fs.WorkingDirPath())
+					if err != nil {
+						t.Fatalf("expected no error while cleaning up but got: %v", err)
+					}
+				}()
+
+				destinationPath = fmt.Sprintf("%s/copy_temp.pdf", outputDir)
+				source, err := os.Open(tc.inputPath)
+				if err != nil {
+					t.Fatalf("open source file: %v", err)
+				}
+
+				defer func(source *os.File) {
+					err := source.Close()
+					if err != nil {
+						t.Fatalf("close file: %v", err)
+					}
+				}(source)
+
+				destination, err := os.Create(destinationPath)
+				if err != nil {
+					t.Fatalf("create destination file: %v", err)
+				}
+
+				defer func(destination *os.File) {
+					err := destination.Close()
+					if err != nil {
+						t.Fatalf("close file: %v", err)
+					}
+				}(destination)
+
+				_, err = io.Copy(destination, source)
+				if err != nil {
+					t.Fatalf("copy source into destination: %v", err)
+				}
+			} else {
+				destinationPath = tc.inputPath
 			}
 
-			// create the destination file
-			destination, err := os.Create(copyPath)
-			if err != nil {
-				t.Fatalf("error in creating file: %v", err)
-			}
+			err = engine.WriteMetadata(context.Background(), zap.NewNop(), tc.metadata, destinationPath)
 
-			// copy the contents of source to destination file
-			_, err = io.Copy(destination, source)
-			if err != nil {
-				t.Fatalf("error in copying file: %v", err)
-			}
-
-			err = source.Close()
-			if err != nil {
-				t.Fatalf("error in source file close: %v", err)
-			}
-			err = destination.Close()
-			if err != nil {
-				t.Fatalf("error in destination file close: %v", err)
-			}
-
-			// write metadata to new copy files
-			err = engine.WriteMetadata(tc.ctx, zap.NewNop(), copyPath, tc.newMetadata)
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
 			}
@@ -334,85 +282,41 @@ func TestExiftool_WriteMetadata(t *testing.T) {
 				t.Fatal("expected error but got none")
 			}
 
-			if err == nil {
-				readMetadata := map[string]interface{}{}
-				readErr := engine.ReadMetadata(tc.ctx, zap.NewNop(), copyPath, readMetadata)
-				if tc.contains != nil && readErr == nil {
-					// match metadata
-					if !tc.expectDiff && !isMapSubset(readMetadata, tc.contains) {
-						t.Errorf("test: %s: expected: %+v to be a subset of: %+v at path: %s",
-							tc.scenario, tc.contains, readMetadata, copyPath)
-					} else if tc.expectDiff && isMapSubset(readMetadata, tc.contains) {
-						t.Errorf("test: %s: expected: %+v to be not be a subset of: %+v at path: %s",
-							tc.scenario, tc.contains, readMetadata, copyPath)
+			if tc.expectError {
+				return
+			}
+
+			if tc.expectedError != nil && !errors.Is(err, tc.expectedError) {
+				t.Fatalf("expected error %v but got: %v", tc.expectedError, err)
+			}
+
+			metadata, err := engine.ReadMetadata(context.Background(), zap.NewNop(), destinationPath)
+			if err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+
+			if tc.expectMetadata != nil && err == nil {
+				for k, v := range tc.expectMetadata {
+					v2, ok := metadata[k]
+					if !ok {
+						t.Errorf("expected entry %s with value %v to exists, but got none", k, v)
+						continue
+					}
+
+					switch v2.(type) {
+					case []interface{}:
+						for i, entry := range v.([]interface{}) {
+							if entry != v2.([]interface{})[i] {
+								t.Errorf("expected entry %s to contain value %v, but got %v", k, entry, v2.([]interface{})[i])
+							}
+						}
+					default:
+						if v != v2 {
+							t.Errorf("expected entry %s with value %v to exists, but got %v", k, v, v2)
+						}
 					}
 				}
 			}
 		})
 	}
-}
-
-func isMapSubset(mapSet interface{}, mapSubset interface{}) bool {
-	mapSetValue := reflect.ValueOf(mapSet)
-	mapSubsetValue := reflect.ValueOf(mapSubset)
-
-	if mapSetValue.Kind() != reflect.Map || mapSubsetValue.Kind() != reflect.Map {
-		return false
-	}
-	if reflect.TypeOf(mapSetValue) != reflect.TypeOf(mapSubsetValue) {
-		return false
-	}
-	if len(mapSubsetValue.MapKeys()) == 0 {
-		return true
-	}
-
-	iterMapSubset := mapSubsetValue.MapRange()
-
-	for iterMapSubset.Next() {
-		k := iterMapSubset.Key()
-		v := iterMapSubset.Value()
-
-		v2 := mapSetValue.MapIndex(k)
-
-		if !v2.IsValid() {
-			return false
-		}
-		if isValueKind(v, reflect.Slice) && isValueKind(v2, reflect.Slice) {
-			vSlice := convertSlice(v)
-			v2Slice := convertSlice(v2)
-			if !equal(vSlice, v2Slice) {
-				return false
-			}
-		} else if v.Interface() != v2.Interface() {
-			return false
-		}
-	}
-
-	return true
-}
-
-func isValueKind(value reflect.Value, kind reflect.Kind) bool {
-	return reflect.TypeOf(value.Interface()).Kind() == kind
-}
-
-func convertSlice(value reflect.Value) []interface{} {
-	slice := make([]interface{}, reflect.ValueOf(value.Interface()).Len())
-	for i := range slice {
-		slice = append(slice, reflect.ValueOf(value.Interface()).Index(i).Interface())
-	}
-	return slice
-}
-
-// equal tells whether a and b contain the same elements.
-// A nil argument is equivalent to an empty slice.
-func equal(a, b []interface{}) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, v := range a {
-		if v != b[i] {
-			return false
-		}
-	}
-	return true
 }

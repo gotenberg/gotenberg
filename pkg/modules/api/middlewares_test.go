@@ -44,6 +44,11 @@ func TestParseError(t *testing.T) {
 			expectMessage: "At least one PDF engine cannot process the requested PDF format, while others may have failed to convert due to different issues",
 		},
 		{
+			err:           gotenberg.ErrPdfEngineMetadataValueNotSupported,
+			expectStatus:  http.StatusBadRequest,
+			expectMessage: "At least one PDF engine cannot process the requested metadata, while others may have failed to convert due to different issues",
+		},
+		{
 			err: WrapError(
 				errors.New("foo"),
 				NewSentinelHttpError(http.StatusBadRequest, "foo"),
