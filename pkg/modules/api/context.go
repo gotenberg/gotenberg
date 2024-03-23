@@ -93,7 +93,6 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 
 	form, err := echoCtx.MultipartForm()
 	if err != nil {
-
 		if errors.Is(err, http.ErrNotMultipart) {
 			return nil, cancel, WrapError(
 				fmt.Errorf("get multipart form: %w", err),
