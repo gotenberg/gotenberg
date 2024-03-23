@@ -73,12 +73,12 @@ func TestPDFEngineMock(t *testing.T) {
 		t.Errorf("expected no error from PdfEngineMock.Convert, but got: %v", err)
 	}
 
-	_, err = mock.ReadMetadataMock(context.Background(), zap.NewNop(), "")
+	_, err = mock.ReadMetadata(context.Background(), zap.NewNop(), "")
 	if err != nil {
 		t.Errorf("expected no error from PdfEngineMock.ReadMetadata, but got: %v", err)
 	}
 
-	err = mock.WriteMetadataMock(context.Background(), zap.NewNop(), map[string]interface{}{}, "")
+	err = mock.WriteMetadata(context.Background(), zap.NewNop(), map[string]interface{}{}, "")
 	if err != nil {
 		t.Errorf("expected no error from PdfEngineMock.WriteMetadata but got: %v", err)
 	}
