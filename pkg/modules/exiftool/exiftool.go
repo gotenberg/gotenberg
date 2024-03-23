@@ -107,6 +107,10 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, m
 		switch val := value.(type) {
 		case string:
 			fileMetadata[0].SetString(key, val)
+		case []string:
+			fileMetadata[0].SetStrings(key, val)
+		case bool:
+			fileMetadata[0].SetString(key, fmt.Sprintf("%t", val))
 		case int:
 			fileMetadata[0].SetInt(key, int64(val))
 		case int64:
@@ -115,8 +119,6 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, m
 			fileMetadata[0].SetFloat(key, float64(val))
 		case float64:
 			fileMetadata[0].SetFloat(key, val)
-		case []string:
-			fileMetadata[0].SetStrings(key, val)
 		// TODO: support more complex cases, e.g., arrays and nested objects
 		// 	(limitations in underlying library).
 		default:
