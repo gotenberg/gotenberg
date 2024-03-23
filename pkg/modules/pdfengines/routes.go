@@ -27,12 +27,22 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 				inputPaths []string
 				pdfa       string
 				pdfua      bool
+				metadata   map[string]interface{}
 			)
 
 			err := ctx.FormData().
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
 				String("pdfa", &pdfa, "").
 				Bool("pdfua", &pdfua, false).
+				Custom("metadata", func(value string) error {
+					if len(value) > 0 {
+						err := json.Unmarshal([]byte(value), &metadata)
+						if err != nil {
+							return fmt.Errorf("unmarshal metadata: %w", err)
+						}
+					}
+					return nil
+				}).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -66,6 +76,14 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 
 				// Important: the output path is now the converted file.
 				outputPath = convertOutputPath
+			}
+
+			// Writes and potentially overrides metadata entries, if any.
+			if len(metadata) > 0 {
+				err = engine.WriteMetadata(ctx, ctx.Log(), metadata, outputPath)
+				if err != nil {
+					return fmt.Errorf("write metadata: %w", err)
+				}
 			}
 
 			// Last but not least, add the output path to the context so that
