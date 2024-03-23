@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/labstack/echo/v4"
@@ -397,6 +399,110 @@ func TestConvertHandler(t *testing.T) {
 				if !slices.Contains(tc.ctx.OutputPaths(), path) {
 					t.Errorf("expected '%s' in output paths %v", path, tc.ctx.OutputPaths())
 				}
+			}
+		})
+	}
+}
+
+func TestReadMetadataHandler(t *testing.T) {
+	for _, tc := range []struct {
+		scenario         string
+		ctx              *api.ContextMock
+		engine           gotenberg.PdfEngine
+		expectError      bool
+		expectedError    error
+		expectHttpError  bool
+		expectHttpStatus int
+		expectedJson     string
+	}{
+		{
+			scenario:         "missing at least one mandatory file",
+			ctx:              &api.ContextMock{Context: new(api.Context)},
+			expectError:      true,
+			expectHttpError:  true,
+			expectHttpStatus: http.StatusBadRequest,
+		},
+		{
+			scenario: "error from PDF engine",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"file.pdf": "/file.pdf",
+				})
+				return ctx
+			}(),
+			engine: &gotenberg.PdfEngineMock{
+				ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+					return nil, errors.New("foo")
+				},
+			},
+			expectError:     true,
+			expectHttpError: false,
+		},
+		{
+			scenario: "success",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"file.pdf": "/file.pdf",
+				})
+				return ctx
+			}(),
+			engine: &gotenberg.PdfEngineMock{
+				ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+					return map[string]interface{}{
+						"foo": "bar",
+						"bar": "foo",
+					}, nil
+				},
+			},
+			expectError:     true,
+			expectedError:   api.ErrNoOutputFile,
+			expectHttpError: false,
+			expectedJson:    `{"file.pdf":{"bar":"foo","foo":"bar"}}`,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			tc.ctx.SetLogger(zap.NewNop())
+			req := httptest.NewRequest(http.MethodPost, "/forms/pdfengines/metadata/read", nil)
+			rec := httptest.NewRecorder()
+			c := echo.New().NewContext(req, rec)
+			c.Set("context", tc.ctx.Context)
+
+			err := readMetadataRoute(tc.engine).Handler(c)
+
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none", err)
+			}
+
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+
+			var httpErr api.HttpError
+			isHttpError := errors.As(err, &httpErr)
+
+			if tc.expectHttpError && !isHttpError {
+				t.Errorf("expected an HTTP error but got: %v", err)
+			}
+
+			if !tc.expectHttpError && isHttpError {
+				t.Errorf("expected no HTTP error but got one: %v", httpErr)
+			}
+
+			if tc.expectedError != nil && !errors.Is(err, tc.expectedError) {
+				t.Fatalf("expected error %v but got: %v", tc.expectedError, err)
+			}
+
+			if err != nil && tc.expectHttpError && isHttpError {
+				status, _ := httpErr.HttpError()
+				if status != tc.expectHttpStatus {
+					t.Errorf("expected %d as HTTP status code but got %d", tc.expectHttpStatus, status)
+				}
+			}
+
+			if tc.expectedJson != "" && tc.expectedJson != strings.TrimSpace(rec.Body.String()) {
+				t.Errorf("expected '%s' as HTTP response but got '%s'", tc.expectedJson, strings.TrimSpace(rec.Body.String()))
 			}
 		})
 	}

@@ -15,9 +15,15 @@ import (
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
-// ErrAsyncProcess happens when a handler or middleware handles a request in an
-// asynchronous fashion.
-var ErrAsyncProcess = errors.New("async process")
+var (
+	// ErrAsyncProcess happens when a handler or middleware handles a request
+	// in an asynchronous fashion.
+	ErrAsyncProcess = errors.New("async process")
+
+	// ErrNoOutputFile happens when a handler or middleware handles a request
+	// without sending any output file.
+	ErrNoOutputFile = errors.New("no output file")
+)
 
 // ParseError parses an error and returns the corresponding HTTP status and
 // HTTP message.
@@ -245,6 +251,13 @@ func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration) echo.Mid
 			}
 
 			defer cancel()
+
+			if errors.Is(err, ErrNoOutputFile) {
+				// A middleware/handler tells us that it's handling the process
+				// in an asynchronous fashion. Therefore, we must not cancel
+				// the context nor send an output file.
+				return nil
+			}
 
 			if err != nil {
 				return err
