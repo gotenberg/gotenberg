@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"path/filepath"
 
 	"github.com/labstack/echo/v4"
 
@@ -78,8 +79,8 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 	}
 }
 
-// convertRoute returns an [api.Route] which can convert a PDF to a specific
-// PDF format.
+// convertRoute returns an [api.Route] which can convert PDFs to a specific ODF
+// format.
 func convertRoute(engine gotenberg.PdfEngine) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
@@ -149,6 +150,46 @@ func convertRoute(engine gotenberg.PdfEngine) api.Route {
 			}
 
 			return nil
+		},
+	}
+}
+
+// readMetadataRoute returns an [api.Route] which returns the metadata of PDFs.
+func readMetadataRoute(engine gotenberg.PdfEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/metadata/read",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			// Let's get the data from the form and validate them.
+			var inputPaths []string
+
+			err := ctx.FormData().
+				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			// Alright, let's read the metadata.
+			res := make(map[string]map[string]interface{}, len(inputPaths))
+			for _, inputPath := range inputPaths {
+				metadata, err := engine.ReadMetadata(ctx, ctx.Log(), inputPath)
+				if err != nil {
+					return fmt.Errorf("read metadata: %w", err)
+				}
+
+				res[filepath.Base(inputPath)] = metadata
+			}
+
+			err = c.JSON(http.StatusOK, res)
+			if err != nil {
+				return fmt.Errorf("return JSON response: %w", err)
+			}
+
+			return api.ErrNoOutputFile
 		},
 	}
 }

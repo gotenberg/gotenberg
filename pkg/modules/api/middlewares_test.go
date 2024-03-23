@@ -339,6 +339,15 @@ func TestContextMiddleware(t *testing.T) {
 			request: buildMultipartFormDataRequest(),
 			next: func() echo.HandlerFunc {
 				return func(c echo.Context) error {
+					return ErrNoOutputFile
+				}
+			}(),
+			expectStatus: http.StatusOK,
+		},
+		{
+			request: buildMultipartFormDataRequest(),
+			next: func() echo.HandlerFunc {
+				return func(c echo.Context) error {
 					return errors.New("foo")
 				}
 			}(),

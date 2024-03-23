@@ -282,12 +282,12 @@ func TestExiftool_WriteMetadata(t *testing.T) {
 				t.Fatal("expected error but got none")
 			}
 
-			if tc.expectError {
-				return
-			}
-
 			if tc.expectedError != nil && !errors.Is(err, tc.expectedError) {
 				t.Fatalf("expected error %v but got: %v", tc.expectedError, err)
+			}
+
+			if tc.expectError {
+				return
 			}
 
 			metadata, err := engine.ReadMetadata(context.Background(), zap.NewNop(), destinationPath)
