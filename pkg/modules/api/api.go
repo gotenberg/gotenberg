@@ -402,7 +402,7 @@ func (a *Api) Start() error {
 			a.srv.Pre(externalMiddleware.Handler)
 		case MultipartStack:
 			externalMultipartMiddlewares = append(externalMultipartMiddlewares, externalMiddleware)
-		default:
+		case DefaultStack:
 			a.srv.Use(externalMiddleware.Handler)
 		}
 	}
