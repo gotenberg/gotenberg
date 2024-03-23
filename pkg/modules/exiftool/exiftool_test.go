@@ -184,7 +184,7 @@ func TestExiftool_WriteMetadata(t *testing.T) {
 					"first",
 					"second",
 				},
-				"Marked":     "true",
+				"Marked":     true,
 				"ModDate":    "2006-09-18T16:27:50-04:00",
 				"PDFVersion": 1.7,
 				"Producer":   "Gotenberg",
