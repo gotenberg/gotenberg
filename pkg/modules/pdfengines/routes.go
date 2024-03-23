@@ -238,6 +238,9 @@ func writeMetadataRoute(engine gotenberg.PdfEngine) api.Route {
 							return fmt.Errorf("unmarshal metadata: %w", err)
 						}
 					}
+					if len(metadata) == 0 {
+						return errors.New("no metadata")
+					}
 					return nil
 				}).
 				Validate()

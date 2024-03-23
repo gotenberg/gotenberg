@@ -592,6 +592,25 @@ func TestWriteMetadataHandler(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
+			scenario: "no metadata",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"document.docx": "/document.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"metadata": {
+						"{}",
+					},
+				})
+				return ctx
+			}(),
+			expectError:            true,
+			expectHttpError:        true,
+			expectHttpStatus:       http.StatusBadRequest,
+			expectOutputPathsCount: 0,
+		},
+		{
 			scenario: "error from PDF engine",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
