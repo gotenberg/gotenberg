@@ -29,6 +29,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				landscape        bool
 				nativePageRanges string
 				exportFormFields bool
+				singlePageSheets bool
 				pdfa             string
 				pdfua            bool
 				nativePdfFormats bool
@@ -41,6 +42,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				Bool("landscape", &landscape, false).
 				String("nativePageRanges", &nativePageRanges, "").
 				Bool("exportFormFields", &exportFormFields, true).
+				Bool("singlePageSheets", &singlePageSheets, false).
 				String("pdfa", &pdfa, "").
 				Bool("pdfua", &pdfua, false).
 				Bool("nativePdfFormats", &nativePdfFormats, true).
@@ -72,6 +74,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					Landscape:        landscape,
 					PageRanges:       nativePageRanges,
 					ExportFormFields: exportFormFields,
+					SinglePageSheets: singlePageSheets,
 				}
 
 				if nativePdfFormats {

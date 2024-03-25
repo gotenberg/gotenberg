@@ -277,6 +277,10 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 		args = append(args, "--export", "ExportFormFields=false")
 	}
 
+	if options.SinglePageSheets {
+		args = append(args, "--export", "SinglePageSheets=true")
+	}
+
 	switch options.PdfFormats.PdfA {
 	case "":
 	case gotenberg.PdfA1b:
