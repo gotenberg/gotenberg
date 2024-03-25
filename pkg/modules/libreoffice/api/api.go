@@ -54,6 +54,10 @@ type Options struct {
 	// Optional.
 	ExportFormFields bool
 
+	// SinglePageSheets allows to output each sheet as a single page in the resulting PDF.
+	// Optional
+	SinglePageSheets bool
+
 	// PdfFormats allows to convert the resulting PDF to PDF/A-1b, PDF/A-2b,
 	// PDF/A-3b and PDF/UA.
 	// Optional.
