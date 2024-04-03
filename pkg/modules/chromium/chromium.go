@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/alexliesenfeld/health"
+	"github.com/chromedp/cdproto/network"
 	flag "github.com/spf13/pflag"
 	"go.uber.org/zap"
 
@@ -103,6 +104,10 @@ type Options struct {
 	// Optional.
 	WaitForExpression string
 
+	// Cookies are the cookies to put in the Chromium cookies' jar.
+	// Optional
+	Cookies []Cookie
+
 	// ExtraHttpHeaders are the HTTP headers to send by Chromium while loading
 	// the HTML document.
 	// Optional.
@@ -128,6 +133,7 @@ func DefaultOptions() Options {
 		WaitDelay:               0,
 		WaitWindowStatus:        "",
 		WaitForExpression:       "",
+		Cookies:                 nil,
 		ExtraHttpHeaders:        nil,
 		EmulatedMediaType:       "",
 		OmitBackground:          false,
@@ -256,6 +262,38 @@ func DefaultScreenshotOptions() ScreenshotOptions {
 		Quality:          100,
 		OptimizeForSpeed: false,
 	}
+}
+
+// Cookie gathers the available entries for setting a cookie in the Chromium
+// cookies' jar.
+type Cookie struct {
+	// Name is the cookie name.
+	// Required.
+	Name string `json:"name"`
+
+	// Value is the cookie value.
+	// Required.
+	Value string `json:"value"`
+
+	// Domain is the cookie domain.
+	// Required.
+	Domain string `json:"domain"`
+
+	// Path is the cookie path.
+	// Optional.
+	Path string `json:"path,omitempty"`
+
+	// Secure sets the cookie secure if true.
+	// Optional.
+	Secure bool `json:"secure,omitempty"`
+
+	// HttpOnly sets the cookie as HTTP-only if true.
+	// Optional.
+	HttpOnly bool `json:"httpOnly,omitempty"`
+
+	// SameSite is cookie 'Same-Site' status.
+	// Optional.
+	SameSite network.CookieSameSite `json:"sameSite,omitempty"`
 }
 
 // Api helps to interact with Chromium for converting HTML documents to PDF.

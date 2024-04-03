@@ -580,6 +580,41 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 			},
 		},
 		{
+			scenario: "set cookies",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Set cookies</h1>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: PdfOptions{
+				Options: Options{Cookies: []Cookie{{Name: "foo", Value: "bar", Domain: ".foo.bar"}}},
+			},
+			noDeadline:  false,
+			start:       true,
+			expectError: false,
+			expectedLogEntries: []string{
+				"set cookie",
+			},
+		},
+		{
 			scenario: "extra HTTP headers",
 			browser: newChromiumBrowser(
 				browserArguments{
@@ -1125,6 +1160,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				"cache not cleared",
 				"cookies not cleared",
 				"JavaScript not disabled",
+				"no cookies to set",
 				"no extra HTTP headers",
 				"navigate to",
 				"default white background not hidden",
@@ -1550,6 +1586,41 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 			},
 		},
 		{
+			scenario: "set cookies",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Set cookies</h1>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: ScreenshotOptions{
+				Options: Options{Cookies: []Cookie{{Name: "fpp", Value: "bar", Domain: ".foo.bar"}}},
+			},
+			noDeadline:  false,
+			start:       true,
+			expectError: false,
+			expectedLogEntries: []string{
+				"set cookie",
+			},
+		},
+		{
 			scenario: "extra HTTP headers",
 			browser: newChromiumBrowser(
 				browserArguments{
@@ -1964,6 +2035,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				"cache not cleared",
 				"cookies not cleared",
 				"JavaScript not disabled",
+				"no cookies to set",
 				"no extra HTTP headers",
 				"navigate to",
 				"default white background not hidden",
