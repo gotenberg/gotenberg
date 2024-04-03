@@ -35,19 +35,16 @@ linters:
     - misspell
     - prealloc
     - promlinter
-    - sloglint
-    - sqlclosecheck
+    #- sloglint
     - staticcheck
     - tenv
     - testableexamples
-    - testifylint
     - tparallel
     - typecheck
     - unconvert
     - unused
     - wastedassign
     - whitespace
-    - zerologlint
 
 run:
   timeout: 5m
