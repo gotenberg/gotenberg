@@ -3,6 +3,7 @@ package chromium
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -207,6 +208,55 @@ func disableJavaScriptActionFunc(logger *zap.Logger, disable bool) chromedp.Acti
 		}
 
 		return fmt.Errorf("disable JavaScript: %w", err)
+	}
+}
+
+func setCookiesActionFunc(logger *zap.Logger, cookies []Cookie) chromedp.ActionFunc {
+	return func(ctx context.Context) error {
+		if len(cookies) == 0 {
+			logger.Debug("no cookies to set")
+			return nil
+		}
+
+		deadline, ok := ctx.Deadline()
+		if !ok {
+			return errors.New("context has no deadline, cannot set cookies")
+		}
+		epochTime := cdp.TimeSinceEpoch(deadline)
+
+		cookiePretty := func(c *network.SetCookieParams) string {
+			return fmt.Sprintf(
+				"Name: '%s', Value: '%s', Domain: '%s', Path: '%s', Secure: %t, HTTPOnly: %t, SameSite: '%s', Expires: %s",
+				c.Name,
+				c.Value,
+				c.Domain,
+				c.Path,
+				c.Secure,
+				c.HTTPOnly,
+				c.SameSite.String(),
+				c.Expires.Time().String(),
+			)
+		}
+
+		for _, cookie := range cookies {
+			cookieParams := network.
+				SetCookie(cookie.Name, cookie.Value).
+				WithDomain(cookie.Domain).
+				WithPath(cookie.Path).
+				WithSecure(cookie.Secure).
+				WithHTTPOnly(cookie.HttpOnly).
+				WithSameSite(cookie.SameSite).
+				WithExpires(&epochTime)
+
+			err := cookieParams.Do(ctx)
+			if err != nil {
+				return fmt.Errorf("set cookie %s: %w", cookiePretty(cookieParams), err)
+			}
+
+			logger.Debug(fmt.Sprintf("set cookie %s", cookiePretty(cookieParams)))
+		}
+
+		return nil
 	}
 }
 

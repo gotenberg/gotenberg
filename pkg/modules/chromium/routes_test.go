@@ -63,6 +63,59 @@ func TestFormDataChromiumOptions(t *testing.T) {
 			}(),
 		},
 		{
+			scenario: "invalid cookies form field",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"cookies": {
+						"foo",
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: DefaultOptions(),
+		},
+		{
+			scenario: "invalid cookies form field (missing required values)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"cookies": {
+						"[{}]",
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: func() Options {
+				options := DefaultOptions()
+				// No validation in this method, so it still instantiates
+				// an empty item.
+				options.Cookies = []Cookie{{}}
+				return options
+			}(),
+		},
+		{
+			scenario: "valid cookies form field",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"cookies": {
+						`[{"name":"foo","value":"bar","domain":".foo.bar"}]`,
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: func() Options {
+				options := DefaultOptions()
+				options.Cookies = []Cookie{{
+					Name:   "foo",
+					Value:  "bar",
+					Domain: ".foo.bar",
+				}}
+				return options
+			}(),
+		},
+		{
 			scenario: "invalid extraHttpHeaders form field",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}

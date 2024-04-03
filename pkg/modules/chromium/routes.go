@@ -34,6 +34,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		waitDelay               time.Duration
 		waitWindowStatus        string
 		waitForExpression       string
+		cookies                 []Cookie
 		extraHttpHeaders        map[string]string
 		emulatedMediaType       string
 		omitBackground          bool
@@ -58,6 +59,25 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		Duration("waitDelay", &waitDelay, defaultOptions.WaitDelay).
 		String("waitWindowStatus", &waitWindowStatus, defaultOptions.WaitWindowStatus).
 		String("waitForExpression", &waitForExpression, defaultOptions.WaitForExpression).
+		Custom("cookies", func(value string) error {
+			if value == "" {
+				cookies = defaultOptions.Cookies
+				return nil
+			}
+
+			err := json.Unmarshal([]byte(value), &cookies)
+			if err != nil {
+				return fmt.Errorf("unmarshal cookies: %w", err)
+			}
+
+			for i, cookie := range cookies {
+				if strings.TrimSpace(cookie.Name) == "" || strings.TrimSpace(cookie.Value) == "" || strings.TrimSpace(cookie.Domain) == "" {
+					err = multierr.Append(err, fmt.Errorf("cookie %d must have its name, value and domain set", i))
+				}
+			}
+
+			return err
+		}).
 		Custom("extraHttpHeaders", func(value string) error {
 			if value == "" {
 				extraHttpHeaders = defaultOptions.ExtraHttpHeaders
@@ -94,6 +114,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		WaitDelay:               waitDelay,
 		WaitWindowStatus:        waitWindowStatus,
 		WaitForExpression:       waitForExpression,
+		Cookies:                 cookies,
 		ExtraHttpHeaders:        extraHttpHeaders,
 		EmulatedMediaType:       emulatedMediaType,
 		OmitBackground:          omitBackground,
