@@ -236,6 +236,56 @@ func TestTraceMiddleware(t *testing.T) {
 	}
 }
 
+func TestBasicAuthMiddleware(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		request     *http.Request
+		username    string
+		password    string
+		expectError bool
+	}{
+		{
+			scenario: "invalid basic auth",
+			request: func() *http.Request {
+				req := httptest.NewRequest(http.MethodGet, "/", nil)
+				req.SetBasicAuth("invalid", "invalid")
+				return req
+			}(),
+			username:    "foo",
+			password:    "bar",
+			expectError: true,
+		},
+		{
+			scenario: "valid basic auth",
+			request: func() *http.Request {
+				req := httptest.NewRequest(http.MethodGet, "/", nil)
+				req.SetBasicAuth("foo", "bar")
+				return req
+			}(),
+			username:    "foo",
+			password:    "bar",
+			expectError: false,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			srv := echo.New()
+			srv.HideBanner = true
+			srv.HidePort = true
+			c := srv.NewContext(tc.request, recorder)
+			err := basicAuthMiddleware(tc.username, tc.password)(func(c echo.Context) error {
+				return nil
+			})(c)
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
+		})
+	}
+}
+
 func TestLoggerMiddleware(t *testing.T) {
 	for i, tc := range []struct {
 		request     *http.Request

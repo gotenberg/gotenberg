@@ -58,10 +58,28 @@ func TestApi_Provision(t *testing.T) {
 			expectError: true,
 		},
 		{
-			scenario: "port from env: empty environment variable",
+			scenario: "basic auth: non-existing GOTENBERG_API_BASIC_AUTH_USERNAME environment variable",
 			ctx: func() *gotenberg.Context {
 				fs := new(Api).Descriptor().FlagSet
-				err := fs.Parse([]string{"--api-port-from-env=PORT"})
+				err := fs.Parse([]string{"--api-enable-basic-auth=true"})
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return gotenberg.NewContext(
+					gotenberg.ParsedFlags{
+						FlagSet: fs,
+					},
+					nil,
+				)
+			}(),
+			expectError: true,
+		},
+		{
+			scenario: "basic auth: non-existing GOTENBERG_API_BASIC_AUTH_PASSWORD environment variable",
+			ctx: func() *gotenberg.Context {
+				fs := new(Api).Descriptor().FlagSet
+				err := fs.Parse([]string{"--api-enable-basic-auth=true"})
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
@@ -74,7 +92,7 @@ func TestApi_Provision(t *testing.T) {
 				)
 			}(),
 			setEnv: func() {
-				err := os.Setenv("PORT", "")
+				err := os.Setenv("GOTENBERG_API_BASIC_AUTH_USERNAME", "foo")
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
@@ -361,7 +379,7 @@ func TestApi_Provision(t *testing.T) {
 				}
 
 				fs := new(Api).Descriptor().FlagSet
-				err := fs.Parse([]string{"--api-port-from-env=PORT"})
+				err := fs.Parse([]string{"--api-port-from-env=PORT", "--api-enable-basic-auth=true"})
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
@@ -380,6 +398,14 @@ func TestApi_Provision(t *testing.T) {
 			}(),
 			setEnv: func() {
 				err := os.Setenv("PORT", "1337")
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+				err = os.Setenv("GOTENBERG_API_BASIC_AUTH_USERNAME", "foo")
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+				err = os.Setenv("GOTENBERG_API_BASIC_AUTH_PASSWORD", "bar")
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
@@ -671,6 +697,8 @@ func TestApi_Start(t *testing.T) {
 			mod.port = 3000
 			mod.startTimeout = time.Duration(30) * time.Second
 			mod.rootPath = "/"
+			mod.basicAuthUsername = "foo"
+			mod.basicAuthPassword = "bar"
 			mod.disableHealthCheckLogging = true
 			mod.routes = []Route{
 				{
@@ -755,6 +783,7 @@ func TestApi_Start(t *testing.T) {
 			// health request.
 			recorder := httptest.NewRecorder()
 			healthRequest := httptest.NewRequest(http.MethodGet, "/health", nil)
+			healthRequest.SetBasicAuth(mod.basicAuthUsername, mod.basicAuthPassword)
 
 			mod.srv.ServeHTTP(recorder, healthRequest)
 			if recorder.Code != http.StatusOK {
@@ -791,6 +820,7 @@ func TestApi_Start(t *testing.T) {
 
 				req := httptest.NewRequest(http.MethodPost, url, body)
 				req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
+				req.SetBasicAuth(mod.basicAuthUsername, mod.basicAuthPassword)
 
 				return req
 			}

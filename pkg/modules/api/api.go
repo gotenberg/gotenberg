@@ -5,9 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -34,6 +32,8 @@ type Api struct {
 	timeout                   time.Duration
 	rootPath                  string
 	traceHeader               string
+	basicAuthUsername         string
+	basicAuthPassword         string
 	disableHealthCheckLogging bool
 
 	routes              []Route
@@ -163,8 +163,8 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Duration("api-timeout", time.Duration(30)*time.Second, "Set the time limit for requests")
 			fs.String("api-root-path", "/", "Set the root path of the API - for service discovery via URL paths")
 			fs.String("api-trace-header", "Gotenberg-Trace", "Set the header name to use for identifying requests")
+			fs.Bool("api-enable-basic-auth", false, "Enable basic authentication - will look for the GOTENBERG_API_BASIC_AUTH_USERNAME and GOTENBERG_API_BASIC_AUTH_PASSWORD environment variables")
 			fs.Bool("api-disable-health-check-logging", false, "Disable health check logging")
-
 			return fs
 		}(),
 		New: func() gotenberg.Module { return new(Api) },
@@ -184,22 +184,26 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 	// Port from env?
 	portEnvVar := flags.MustString("api-port-from-env")
 	if portEnvVar != "" {
-		val, ok := os.LookupEnv(portEnvVar)
-
-		if !ok {
-			return fmt.Errorf("environment variable '%s' does not exist", portEnvVar)
-		}
-
-		if val == "" {
-			return fmt.Errorf("environment variable '%s' is empty", portEnvVar)
-		}
-
-		port, err := strconv.Atoi(val)
+		port, err := gotenberg.IntEnv(portEnvVar)
 		if err != nil {
-			return fmt.Errorf("get int value of environment variable '%s': %w", portEnvVar, err)
+			return fmt.Errorf("get API port from env: %w", err)
 		}
-
 		a.port = port
+	}
+
+	// Enable basic auth?
+	enableBasicAuth := flags.MustBool("api-enable-basic-auth")
+	if enableBasicAuth {
+		basicAuthUsername, err := gotenberg.StringEnv("GOTENBERG_API_BASIC_AUTH_USERNAME")
+		if err != nil {
+			return fmt.Errorf("get basic auth username from env: %w", err)
+		}
+		basicAuthPassword, err := gotenberg.StringEnv("GOTENBERG_API_BASIC_AUTH_PASSWORD")
+		if err != nil {
+			return fmt.Errorf("get basic auth password from env: %w", err)
+		}
+		a.basicAuthUsername = basicAuthUsername
+		a.basicAuthPassword = basicAuthPassword
 	}
 
 	// Get routes from modules.
@@ -393,6 +397,13 @@ func (a *Api) Start() error {
 		traceMiddleware(a.traceHeader),
 		loggerMiddleware(a.logger, disableLoggingForPaths),
 	)
+
+	// Basic auth?
+	if a.basicAuthUsername != "" {
+		a.srv.Pre(
+			basicAuthMiddleware(a.basicAuthUsername, a.basicAuthPassword),
+		)
+	}
 
 	// Add the modules' middlewares in their respective stacks.
 	var externalMultipartMiddlewares []Middleware

@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
@@ -112,7 +114,6 @@ func rootPathMiddleware(rootPath string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			c.Set("rootPath", rootPath)
-
 			// Call the next middleware in the chain.
 			return next(c)
 		}
@@ -215,6 +216,17 @@ func loggerMiddleware(logger *zap.Logger, disableLoggingForPaths []string) echo.
 			return nil
 		}
 	}
+}
+
+// basicAuthMiddleware manages basic authentication.
+func basicAuthMiddleware(username, password string) echo.MiddlewareFunc {
+	return middleware.BasicAuth(func(u string, p string, e echo.Context) (bool, error) {
+		if subtle.ConstantTimeCompare([]byte(u), []byte(username)) == 1 &&
+			subtle.ConstantTimeCompare([]byte(p), []byte(password)) == 1 {
+			return true, nil
+		}
+		return false, nil
+	})
 }
 
 // contextMiddleware, a middleware for "multipart/form-data" requests, sets the
