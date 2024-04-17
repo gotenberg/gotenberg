@@ -6,7 +6,7 @@ require (
 	github.com/alexliesenfeld/health v0.8.0
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/barasher/go-exiftool v1.10.0
-	github.com/chromedp/cdproto v0.0.0-20240328024531-fe04f09ede24
+	github.com/chromedp/cdproto v0.0.0-20240417023356-ab6d61991462
 	github.com/chromedp/chromedp v0.9.5
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.6.0
@@ -14,7 +14,7 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.5
 	github.com/klauspost/compress v1.17.8 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
-	github.com/labstack/echo/v4 v4.11.4
+	github.com/labstack/echo/v4 v4.12.0
 	github.com/labstack/gommon v0.4.2
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mholt/archiver/v3 v3.5.1
