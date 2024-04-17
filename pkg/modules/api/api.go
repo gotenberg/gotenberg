@@ -323,8 +323,9 @@ func (a *Api) Validate() error {
 		return err
 	}
 
-	routesMap := make(map[string]string, len(a.routes)+1)
+	routesMap := make(map[string]string, len(a.routes)+2)
 	routesMap["/health"] = "/health"
+	routesMap["/version"] = "/version"
 
 	for _, route := range a.routes {
 		if route.Path == "" {
@@ -442,7 +443,7 @@ func (a *Api) Start() error {
 		)
 	}
 
-	// Let's not forget the health check route.
+	// Let's not forget the health check route...
 	a.srv.GET(
 		fmt.Sprintf("%s%s", a.rootPath, "health"),
 		func() echo.HandlerFunc {
@@ -451,6 +452,14 @@ func (a *Api) Start() error {
 			return echo.WrapHandler(health.NewHandler(checker))
 		}(),
 		hardTimeoutMiddleware(hardTimeout),
+	)
+
+	// ...and the version route.
+	a.srv.GET(
+		fmt.Sprintf("%s%s", a.rootPath, "version"),
+		func(c echo.Context) error {
+			return c.String(http.StatusOK, gotenberg.Version)
+		},
 	)
 
 	// Wait for all modules to be ready.

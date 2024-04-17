@@ -159,7 +159,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						}
 
 						headers := map[string]string{
-							echo.HeaderContentType:        echo.MIMEApplicationJSONCharsetUTF8,
+							echo.HeaderContentType:        echo.MIMEApplicationJSON,
 							c.Get("traceHeader").(string): c.Get("trace").(string),
 						}
 

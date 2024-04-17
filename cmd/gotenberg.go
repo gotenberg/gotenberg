@@ -35,6 +35,7 @@ var Version = "snapshot"
 // Run starts the Gotenberg application. Call this in the main of your program.
 func Run() {
 	fmt.Printf(banner, Version)
+	gotenberg.Version = Version
 
 	// Create the root FlagSet and adds the modules flags to it.
 	fs := flag.NewFlagSet("gotenberg", flag.ExitOnError)

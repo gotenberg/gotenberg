@@ -790,6 +790,15 @@ func TestApi_Start(t *testing.T) {
 				t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
 			}
 
+			// version request.
+			versionRequest := httptest.NewRequest(http.MethodGet, "/version", nil)
+			versionRequest.SetBasicAuth(mod.basicAuthUsername, mod.basicAuthPassword)
+
+			mod.srv.ServeHTTP(recorder, versionRequest)
+			if recorder.Code != http.StatusOK {
+				t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
+			}
+
 			// "multipart/form-data" request.
 			multipartRequest := func(url string) *http.Request {
 				body := &bytes.Buffer{}

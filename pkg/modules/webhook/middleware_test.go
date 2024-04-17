@@ -376,7 +376,7 @@ func TestWebhookMiddlewareAsynchronousProcess(t *testing.T) {
 					return errors.New("foo")
 				}
 			}(),
-			expectWebhookContentType:  echo.MIMEApplicationJSONCharsetUTF8,
+			expectWebhookContentType:  echo.MIMEApplicationJSON,
 			expectWebhookMethod:       http.MethodPost,
 			expectWebhookErrorStatus:  http.StatusInternalServerError,
 			expectWebhookErrorMessage: http.StatusText(http.StatusInternalServerError),
@@ -390,7 +390,7 @@ func TestWebhookMiddlewareAsynchronousProcess(t *testing.T) {
 					return api.NewSentinelHttpError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
 				}
 			}(),
-			expectWebhookContentType:  echo.MIMEApplicationJSONCharsetUTF8,
+			expectWebhookContentType:  echo.MIMEApplicationJSON,
 			expectWebhookMethod:       http.MethodPost,
 			expectWebhookErrorStatus:  http.StatusBadRequest,
 			expectWebhookErrorMessage: http.StatusText(http.StatusBadRequest),
@@ -430,7 +430,7 @@ func TestWebhookMiddlewareAsynchronousProcess(t *testing.T) {
 				}
 			}(),
 			returnedError:             echo.ErrInternalServerError,
-			expectWebhookContentType:  echo.MIMEApplicationJSONCharsetUTF8,
+			expectWebhookContentType:  echo.MIMEApplicationJSON,
 			expectWebhookMethod:       http.MethodPost,
 			expectWebhookErrorStatus:  http.StatusInternalServerError,
 			expectWebhookErrorMessage: http.StatusText(http.StatusInternalServerError),
@@ -493,7 +493,7 @@ func TestWebhookMiddlewareAsynchronousProcess(t *testing.T) {
 							}
 						}
 
-						if contentType == echo.MIMEApplicationJSONCharsetUTF8 {
+						if contentType == echo.MIMEApplicationJSON {
 							body, err := io.ReadAll(c.Request().Body)
 							if err != nil {
 								errChan <- err
