@@ -121,6 +121,14 @@ func captureScreenshotActionFunc(logger *zap.Logger, outputPath string, options 
 			WithOptimizeForSpeed(options.OptimizeForSpeed).
 			WithFormat(page.CaptureScreenshotFormat(options.Format))
 
+		if options.Clip {
+			captureScreenshot = captureScreenshot.WithClip(&page.Viewport{
+				Width:  float64(options.Width),
+				Height: float64(options.Height),
+				Scale:  1,
+			})
+		}
+
 		if options.Format == "jpeg" {
 			captureScreenshot = captureScreenshot.
 				WithQuality(int64(options.Quality))
@@ -151,6 +159,19 @@ func captureScreenshotActionFunc(logger *zap.Logger, outputPath string, options 
 		}
 
 		return nil
+	}
+}
+
+func setDeviceMetricsOverride(logger *zap.Logger, width, height int) chromedp.ActionFunc {
+	return func(ctx context.Context) error {
+		logger.Debug("set device metrics override")
+
+		err := emulation.SetDeviceMetricsOverride(int64(width), int64(height), 1.0, false).Do(ctx)
+		if err == nil {
+			return nil
+		}
+
+		return fmt.Errorf("set device metrics override: %w", err)
 	}
 }
 

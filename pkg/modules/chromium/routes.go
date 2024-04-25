@@ -182,12 +182,17 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 	defaultScreenshotOptions := DefaultScreenshotOptions()
 
 	var (
+		width, height    int
+		clip             bool
 		format           string
 		quality          int
 		optimizeForSpeed bool
 	)
 
 	form.
+		Int("width", &width, defaultScreenshotOptions.Width).
+		Int("height", &height, defaultScreenshotOptions.Height).
+		Bool("clip", &clip, defaultScreenshotOptions.Clip).
 		Custom("format", func(value string) error {
 			if value == "" {
 				format = defaultScreenshotOptions.Format
@@ -228,6 +233,9 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 
 	screenshotOptions := ScreenshotOptions{
 		Options:          options,
+		Width:            width,
+		Height:           height,
+		Clip:             clip,
 		Format:           format,
 		Quality:          quality,
 		OptimizeForSpeed: optimizeForSpeed,

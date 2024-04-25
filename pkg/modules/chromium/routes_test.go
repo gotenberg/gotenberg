@@ -385,6 +385,15 @@ func TestFormDataChromiumScreenshotOptions(t *testing.T) {
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetValues(map[string][]string{
+					"width": {
+						"1280",
+					},
+					"height": {
+						"800",
+					},
+					"clip": {
+						"true",
+					},
 					"optimizeForSpeed": {
 						"true",
 					},
@@ -396,6 +405,9 @@ func TestFormDataChromiumScreenshotOptions(t *testing.T) {
 			}(),
 			expectedOptions: func() ScreenshotOptions {
 				options := DefaultScreenshotOptions()
+				options.Width = 1280
+				options.Height = 800
+				options.Clip = true
 				options.OptimizeForSpeed = true
 				options.EmulatedMediaType = "screen"
 				return options

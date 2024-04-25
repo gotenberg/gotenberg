@@ -239,6 +239,19 @@ func DefaultPdfOptions() PdfOptions {
 type ScreenshotOptions struct {
 	Options
 
+	// Width is the device screen width in pixels.
+	// Optional.
+	Width int
+
+	// Height is the device screen height in pixels.
+	// Optional.
+	Height int
+
+	// Clip defines whether to clip the screenshot according to the device
+	// dimensions.
+	// Optional.
+	Clip bool
+
 	// Format is the image compression format, either "png" or "jpeg" or
 	// "webp".
 	// Optional.
@@ -258,6 +271,9 @@ type ScreenshotOptions struct {
 func DefaultScreenshotOptions() ScreenshotOptions {
 	return ScreenshotOptions{
 		Options:          DefaultOptions(),
+		Width:            800,
+		Height:           600,
+		Clip:             false,
 		Format:           "png",
 		Quality:          100,
 		OptimizeForSpeed: false,

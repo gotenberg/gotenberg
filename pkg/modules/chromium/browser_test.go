@@ -1996,6 +1996,54 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				"no emulated media type",
 				"no wait delay",
 				"no wait expression",
+				"set device metrics override",
+			},
+		},
+		{
+			scenario: "success (clip)",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Default options</h1>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: func() ScreenshotOptions {
+				options := DefaultScreenshotOptions()
+				options.Clip = true
+				return options
+			}(),
+			noDeadline:  false,
+			start:       true,
+			expectError: false,
+			expectedLogEntries: []string{
+				"cache not cleared",
+				"cookies not cleared",
+				"JavaScript not disabled",
+				"no cookies to set",
+				"no extra HTTP headers",
+				"navigate to",
+				"default white background not hidden",
+				"no emulated media type",
+				"no wait delay",
+				"no wait expression",
+				"set device metrics override",
 			},
 		},
 		{
@@ -2042,6 +2090,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				"no emulated media type",
 				"no wait delay",
 				"no wait expression",
+				"set device metrics override",
 			},
 		},
 	} {
