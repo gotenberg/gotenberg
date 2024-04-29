@@ -22,7 +22,7 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
       - name: Run linters
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v5
         with:
           version: v1.56.2
 
