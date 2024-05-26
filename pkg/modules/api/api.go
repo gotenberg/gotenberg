@@ -28,6 +28,8 @@ func init() {
 // middlewares or health checks.
 type Api struct {
 	port                      int
+	tlsCertFile               string
+	tlsKeyFile                string
 	startTimeout              time.Duration
 	timeout                   time.Duration
 	rootPath                  string
@@ -159,6 +161,8 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs := flag.NewFlagSet("api", flag.ExitOnError)
 			fs.Int("api-port", 3000, "Set the port on which the API should listen")
 			fs.String("api-port-from-env", "", "Set the environment variable with the port on which the API should listen - override the default port")
+			fs.String("api-tls-cert-file", "", "Path to the TLS/SSL certificate file - for HTTPS support")
+			fs.String("api-tls-key-file", "", "Path to the TLS/SSL key file - for HTTPS support")
 			fs.Duration("api-start-timeout", time.Duration(30)*time.Second, "Set the time limit for the API to start")
 			fs.Duration("api-timeout", time.Duration(30)*time.Second, "Set the time limit for requests")
 			fs.String("api-root-path", "/", "Set the root path of the API - for service discovery via URL paths")
@@ -175,6 +179,8 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 func (a *Api) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	a.port = flags.MustInt("api-port")
+	a.tlsCertFile = flags.MustString("api-tls-cert-file")
+	a.tlsKeyFile = flags.MustString("api-tls-key-file")
 	a.startTimeout = flags.MustDuration("api-start-timeout")
 	a.timeout = flags.MustDuration("api-timeout")
 	a.rootPath = flags.MustString("api-root-path")
@@ -298,6 +304,12 @@ func (a *Api) Validate() error {
 	if a.port < 1 || a.port > 65535 {
 		err = multierr.Append(err,
 			errors.New("port must be more than 1 and less than 65535"),
+		)
+	}
+
+	if (a.tlsCertFile != "" && a.tlsKeyFile == "") || (a.tlsCertFile == "" && a.tlsKeyFile != "") {
+		err = multierr.Append(err,
+			errors.New("tls certificate and key file must both be set"),
 		)
 	}
 
@@ -478,10 +490,19 @@ func (a *Api) Start() error {
 
 	// As the following code is blocking, run it in a goroutine.
 	go func() {
-		server := &http2.Server{}
-		err := a.srv.StartH2CServer(fmt.Sprintf(":%d", a.port), server)
-		if !errors.Is(err, http.ErrServerClosed) {
-			a.logger.Fatal(err.Error())
+		if a.tlsCertFile != "" && a.tlsKeyFile != "" {
+			// Start an HTTPS server (supports HTTP/2).
+			err := a.srv.StartTLS(fmt.Sprintf(":%d", a.port), a.tlsCertFile, a.tlsKeyFile)
+			if !errors.Is(err, http.ErrServerClosed) {
+				a.logger.Fatal(err.Error())
+			}
+		} else {
+			// Start an HTTP/2 Cleartext (non-HTTPS) server.
+			server := &http2.Server{}
+			err := a.srv.StartH2CServer(fmt.Sprintf(":%d", a.port), server)
+			if !errors.Is(err, http.ErrServerClosed) {
+				a.logger.Fatal(err.Error())
+			}
 		}
 	}()
 

@@ -462,6 +462,8 @@ func TestApi_Validate(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string
 		port        int
+		tlsCertFile string
+		tlsKeyFile  string
 		rootPath    string
 		traceHeader string
 		routes      []Route
@@ -480,6 +482,26 @@ func TestApi_Validate(t *testing.T) {
 		{
 			scenario:    "invalid port (> 65535)",
 			port:        65536,
+			rootPath:    "/foo/",
+			traceHeader: "foo",
+			routes:      nil,
+			middlewares: nil,
+			expectError: true,
+		},
+		{
+			scenario:    "invalid tls files: only cert file provided",
+			port:        10,
+			tlsCertFile: "cert.pem",
+			rootPath:    "/foo/",
+			traceHeader: "foo",
+			routes:      nil,
+			middlewares: nil,
+			expectError: true,
+		},
+		{
+			scenario:    "invalid tls files: only key file provided",
+			port:        10,
+			tlsKeyFile:  "key.pem",
 			rootPath:    "/foo/",
 			traceHeader: "foo",
 			routes:      nil,
@@ -647,10 +669,45 @@ func TestApi_Validate(t *testing.T) {
 				},
 			},
 		},
+		{
+			scenario:    "success with tls",
+			port:        10,
+			tlsCertFile: "cert.pem",
+			tlsKeyFile:  "key.pem",
+			rootPath:    "/foo/",
+			traceHeader: "foo",
+			routes: []Route{
+				{
+					Method:  http.MethodGet,
+					Path:    "/foo",
+					Handler: func(_ echo.Context) error { return nil },
+				},
+				{
+					Method:      http.MethodGet,
+					Path:        "/forms/foo",
+					Handler:     func(_ echo.Context) error { return nil },
+					IsMultipart: true,
+				},
+			},
+			middlewares: []Middleware{
+				{
+					Priority: HighPriority,
+					Handler: func() echo.MiddlewareFunc {
+						return func(next echo.HandlerFunc) echo.HandlerFunc {
+							return func(c echo.Context) error {
+								return next(c)
+							}
+						}
+					}(),
+				},
+			},
+		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			mod := Api{
 				port:                tc.port,
+				tlsCertFile:         tc.tlsCertFile,
+				tlsKeyFile:          tc.tlsKeyFile,
 				rootPath:            tc.rootPath,
 				traceHeader:         tc.traceHeader,
 				routes:              tc.routes,
@@ -673,6 +730,8 @@ func TestApi_Start(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string
 		readyFn     []func() error
+		tlsCertFile string
+		tlsKeyFile  string
 		expectError bool
 	}{
 		{
@@ -691,10 +750,22 @@ func TestApi_Start(t *testing.T) {
 			},
 			expectError: false,
 		},
+		{
+			scenario: "success with tls",
+			readyFn: []func() error{
+				func() error { return nil },
+				func() error { return nil },
+			},
+			tlsCertFile: "/tests/test/testdata/api/cert.pem",
+			tlsKeyFile:  "/tests/test/testdata/api/key.pem",
+			expectError: false,
+		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			mod := new(Api)
 			mod.port = 3000
+			mod.tlsCertFile = tc.tlsCertFile
+			mod.tlsKeyFile = tc.tlsKeyFile
 			mod.startTimeout = time.Duration(30) * time.Second
 			mod.rootPath = "/"
 			mod.basicAuthUsername = "foo"
