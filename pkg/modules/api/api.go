@@ -490,19 +490,17 @@ func (a *Api) Start() error {
 
 	// As the following code is blocking, run it in a goroutine.
 	go func() {
+		var err error
 		if a.tlsCertFile != "" && a.tlsKeyFile != "" {
 			// Start an HTTPS server (supports HTTP/2).
-			err := a.srv.StartTLS(fmt.Sprintf(":%d", a.port), a.tlsCertFile, a.tlsKeyFile)
-			if !errors.Is(err, http.ErrServerClosed) {
-				a.logger.Fatal(err.Error())
-			}
+			err = a.srv.StartTLS(fmt.Sprintf(":%d", a.port), a.tlsCertFile, a.tlsKeyFile)
 		} else {
 			// Start an HTTP/2 Cleartext (non-HTTPS) server.
 			server := &http2.Server{}
-			err := a.srv.StartH2CServer(fmt.Sprintf(":%d", a.port), server)
-			if !errors.Is(err, http.ErrServerClosed) {
-				a.logger.Fatal(err.Error())
-			}
+			err = a.srv.StartH2CServer(fmt.Sprintf(":%d", a.port), server)
+		}
+		if !errors.Is(err, http.ErrServerClosed) {
+			a.logger.Fatal(err.Error())
 		}
 	}()
 
