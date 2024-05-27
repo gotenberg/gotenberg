@@ -309,7 +309,7 @@ func (a *Api) Validate() error {
 
 	if (a.tlsCertFile != "" && a.tlsKeyFile == "") || (a.tlsCertFile == "" && a.tlsKeyFile != "") {
 		err = multierr.Append(err,
-			errors.New("tls certificate and key file must both be set"),
+			errors.New("both TLS certificate and key files must be set"),
 		)
 	}
 
