@@ -489,7 +489,7 @@ func TestApi_Validate(t *testing.T) {
 			expectError: true,
 		},
 		{
-			scenario:    "invalid tls files: only cert file provided",
+			scenario:    "invalid TLS files: only cert file provided",
 			port:        10,
 			tlsCertFile: "cert.pem",
 			rootPath:    "/foo/",
@@ -499,7 +499,7 @@ func TestApi_Validate(t *testing.T) {
 			expectError: true,
 		},
 		{
-			scenario:    "invalid tls files: only key file provided",
+			scenario:    "invalid TLS files: only key file provided",
 			port:        10,
 			tlsKeyFile:  "key.pem",
 			rootPath:    "/foo/",
@@ -670,7 +670,7 @@ func TestApi_Validate(t *testing.T) {
 			},
 		},
 		{
-			scenario:    "success with tls",
+			scenario:    "success with TLS",
 			port:        10,
 			tlsCertFile: "cert.pem",
 			tlsKeyFile:  "key.pem",
@@ -687,18 +687,6 @@ func TestApi_Validate(t *testing.T) {
 					Path:        "/forms/foo",
 					Handler:     func(_ echo.Context) error { return nil },
 					IsMultipart: true,
-				},
-			},
-			middlewares: []Middleware{
-				{
-					Priority: HighPriority,
-					Handler: func() echo.MiddlewareFunc {
-						return func(next echo.HandlerFunc) echo.HandlerFunc {
-							return func(c echo.Context) error {
-								return next(c)
-							}
-						}
-					}(),
 				},
 			},
 		},
@@ -751,7 +739,7 @@ func TestApi_Start(t *testing.T) {
 			expectError: false,
 		},
 		{
-			scenario: "success with tls",
+			scenario: "success with TLS",
 			readyFn: []func() error{
 				func() error { return nil },
 				func() error { return nil },
