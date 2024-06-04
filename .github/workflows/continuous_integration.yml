@@ -24,7 +24,7 @@ jobs:
       - name: Run linters
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.58.2
+          version: v1.59.0
 
   tests:
     needs:
