@@ -108,8 +108,12 @@ type Options struct {
 	// Optional
 	Cookies []Cookie
 
-	// ExtraHttpHeaders are the HTTP headers to send by Chromium while loading
-	// the HTML document.
+	// UserAgent overrides the default 'User-Agent' HTTP header.
+	// Optional.
+	UserAgent string
+
+	// ExtraHttpHeaders are extra HTTP headers to send by Chromium while
+	// loading he HTML document.
 	// Optional.
 	ExtraHttpHeaders map[string]string
 
@@ -134,6 +138,7 @@ func DefaultOptions() Options {
 		WaitWindowStatus:        "",
 		WaitForExpression:       "",
 		Cookies:                 nil,
+		UserAgent:               "",
 		ExtraHttpHeaders:        nil,
 		EmulatedMediaType:       "",
 		OmitBackground:          false,

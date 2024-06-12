@@ -281,6 +281,23 @@ func setCookiesActionFunc(logger *zap.Logger, cookies []Cookie) chromedp.ActionF
 	}
 }
 
+func userAgentOverride(logger *zap.Logger, userAgent string) chromedp.ActionFunc {
+	return func(ctx context.Context) error {
+		if len(userAgent) == 0 {
+			logger.Debug("no user agent override")
+			return nil
+		}
+
+		logger.Debug(fmt.Sprintf("user agent override: %s", userAgent))
+		err := emulation.SetUserAgentOverride(userAgent).Do(ctx)
+		if err == nil {
+			return nil
+		}
+
+		return fmt.Errorf("set user agent override: %w", err)
+	}
+}
+
 func extraHttpHeadersActionFunc(logger *zap.Logger, extraHttpHeaders map[string]string) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		if len(extraHttpHeaders) == 0 {

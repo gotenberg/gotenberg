@@ -615,6 +615,41 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 			},
 		},
 		{
+			scenario: "user agent override",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>User-Agent override</h1>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: PdfOptions{
+				Options: Options{UserAgent: "foo"},
+			},
+			noDeadline:  false,
+			start:       true,
+			expectError: false,
+			expectedLogEntries: []string{
+				fmt.Sprintf("user agent override: foo"),
+			},
+		},
+		{
 			scenario: "extra HTTP headers",
 			browser: newChromiumBrowser(
 				browserArguments{
@@ -1990,6 +2025,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				"cache not cleared",
 				"cookies not cleared",
 				"JavaScript not disabled",
+				"no user agent override",
 				"no extra HTTP headers",
 				"navigate to",
 				"default white background not hidden",
@@ -2037,6 +2073,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				"cookies not cleared",
 				"JavaScript not disabled",
 				"no cookies to set",
+				"no user agent override",
 				"no extra HTTP headers",
 				"navigate to",
 				"default white background not hidden",
@@ -2084,6 +2121,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				"cookies not cleared",
 				"JavaScript not disabled",
 				"no cookies to set",
+				"no user agent override",
 				"no extra HTTP headers",
 				"navigate to",
 				"default white background not hidden",

@@ -35,6 +35,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		waitWindowStatus        string
 		waitForExpression       string
 		cookies                 []Cookie
+		userAgent               string
 		extraHttpHeaders        map[string]string
 		emulatedMediaType       string
 		omitBackground          bool
@@ -78,6 +79,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 
 			return err
 		}).
+		String("userAgent", &userAgent, defaultOptions.UserAgent).
 		Custom("extraHttpHeaders", func(value string) error {
 			if value == "" {
 				extraHttpHeaders = defaultOptions.ExtraHttpHeaders
@@ -115,6 +117,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		WaitWindowStatus:        waitWindowStatus,
 		WaitForExpression:       waitForExpression,
 		Cookies:                 cookies,
+		UserAgent:               userAgent,
 		ExtraHttpHeaders:        extraHttpHeaders,
 		EmulatedMediaType:       emulatedMediaType,
 		OmitBackground:          omitBackground,
