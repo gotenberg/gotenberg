@@ -25,16 +25,18 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 
 			// Let's get the data from the form and validate them.
 			var (
-				inputPaths       []string
-				landscape        bool
-				nativePageRanges string
-				exportFormFields bool
-				singlePageSheets bool
-				pdfa             string
-				pdfua            bool
-				nativePdfFormats bool
-				merge            bool
-				metadata         map[string]interface{}
+				inputPaths               []string
+				landscape                bool
+				nativePageRanges         string
+				exportFormFields         bool
+				singlePageSheets         bool
+				pdfa                     string
+				pdfua                    bool
+				nativePdfFormats         bool
+				merge                    bool
+				metadata                 map[string]interface{}
+				losslessImageCompression bool
+				reduceImageResolution    bool
 			)
 
 			err := ctx.FormData().
@@ -56,6 +58,8 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					}
 					return nil
 				}).
+				Bool("losslessImageCompression", &losslessImageCompression, true).
+				Bool("reduceImageResolution", &reduceImageResolution, true).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -71,10 +75,12 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			for i, inputPath := range inputPaths {
 				outputPaths[i] = ctx.GeneratePath(".pdf")
 				options := libreofficeapi.Options{
-					Landscape:        landscape,
-					PageRanges:       nativePageRanges,
-					ExportFormFields: exportFormFields,
-					SinglePageSheets: singlePageSheets,
+					Landscape:                landscape,
+					PageRanges:               nativePageRanges,
+					ExportFormFields:         exportFormFields,
+					SinglePageSheets:         singlePageSheets,
+					LosslessImageCompression: losslessImageCompression,
+					ReduceImageResolution:    reduceImageResolution,
 				}
 
 				if nativePdfFormats {

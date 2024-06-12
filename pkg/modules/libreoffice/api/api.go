@@ -62,6 +62,14 @@ type Options struct {
 	// PDF/A-3b and PDF/UA.
 	// Optional.
 	PdfFormats gotenberg.PdfFormats
+
+	// LosslessImageCompression allows turning lossless compression on or off to tweak image conversion performance.
+	// Optional
+	LosslessImageCompression bool
+
+	// ReduceImageResolution allows turning on or off image resolution reduction to tweak image conversion performance.
+	// Optional
+	ReduceImageResolution bool
 }
 
 // Uno is an abstraction on top of the Universal Network Objects API.
