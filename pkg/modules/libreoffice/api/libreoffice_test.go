@@ -475,7 +475,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 
 				return fs
 			}(),
-			options:      Options{LosslessImageCompression: false},
+			options:      Options{LosslessImageCompression: true},
 			cancelledCtx: false,
 			start:        true,
 			expectError:  false,

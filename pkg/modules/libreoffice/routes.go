@@ -45,7 +45,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				String("nativePageRanges", &nativePageRanges, "").
 				Bool("exportFormFields", &exportFormFields, true).
 				Bool("singlePageSheets", &singlePageSheets, false).
-				Bool("losslessImageCompression", &losslessImageCompression, true).
+				Bool("losslessImageCompression", &losslessImageCompression, false).
 				Bool("reduceImageResolution", &reduceImageResolution, true).
 				String("pdfa", &pdfa, "").
 				Bool("pdfua", &pdfua, false).
