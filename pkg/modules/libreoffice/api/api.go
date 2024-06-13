@@ -58,6 +58,14 @@ type Options struct {
 	// Optional
 	SinglePageSheets bool
 
+	// LosslessImageCompression allows turning lossless compression on or off to tweak image conversion performance.
+	// Optional
+	LosslessImageCompression bool
+
+	// ReduceImageResolution allows turning on or off image resolution reduction to tweak image conversion performance.
+	// Optional
+	ReduceImageResolution bool
+
 	// PdfFormats allows to convert the resulting PDF to PDF/A-1b, PDF/A-2b,
 	// PDF/A-3b and PDF/UA.
 	// Optional.

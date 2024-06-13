@@ -25,16 +25,18 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 
 			// Let's get the data from the form and validate them.
 			var (
-				inputPaths       []string
-				landscape        bool
-				nativePageRanges string
-				exportFormFields bool
-				singlePageSheets bool
-				pdfa             string
-				pdfua            bool
-				nativePdfFormats bool
-				merge            bool
-				metadata         map[string]interface{}
+				inputPaths               []string
+				landscape                bool
+				nativePageRanges         string
+				exportFormFields         bool
+				singlePageSheets         bool
+				losslessImageCompression bool
+				reduceImageResolution    bool
+				pdfa                     string
+				pdfua                    bool
+				nativePdfFormats         bool
+				merge                    bool
+				metadata                 map[string]interface{}
 			)
 
 			err := ctx.FormData().
@@ -43,6 +45,8 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				String("nativePageRanges", &nativePageRanges, "").
 				Bool("exportFormFields", &exportFormFields, true).
 				Bool("singlePageSheets", &singlePageSheets, false).
+				Bool("losslessImageCompression", &losslessImageCompression, false).
+				Bool("reduceImageResolution", &reduceImageResolution, true).
 				String("pdfa", &pdfa, "").
 				Bool("pdfua", &pdfua, false).
 				Bool("nativePdfFormats", &nativePdfFormats, true).
@@ -71,10 +75,12 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			for i, inputPath := range inputPaths {
 				outputPaths[i] = ctx.GeneratePath(".pdf")
 				options := libreofficeapi.Options{
-					Landscape:        landscape,
-					PageRanges:       nativePageRanges,
-					ExportFormFields: exportFormFields,
-					SinglePageSheets: singlePageSheets,
+					Landscape:                landscape,
+					PageRanges:               nativePageRanges,
+					ExportFormFields:         exportFormFields,
+					SinglePageSheets:         singlePageSheets,
+					LosslessImageCompression: losslessImageCompression,
+					ReduceImageResolution:    reduceImageResolution,
 				}
 
 				if nativePdfFormats {

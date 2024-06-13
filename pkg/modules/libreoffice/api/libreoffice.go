@@ -281,6 +281,14 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 		args = append(args, "--export", "SinglePageSheets=true")
 	}
 
+	if options.LosslessImageCompression {
+		args = append(args, "--export", "UseLosslessCompression=true")
+	}
+
+	if !options.ReduceImageResolution {
+		args = append(args, "--export", "ReduceImageResolution=false")
+	}
+
 	switch options.PdfFormats.PdfA {
 	case "":
 	case gotenberg.PdfA1b:
