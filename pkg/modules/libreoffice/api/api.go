@@ -54,15 +54,18 @@ type Options struct {
 	// Optional.
 	ExportFormFields bool
 
-	// SinglePageSheets allows to output each sheet as a single page in the resulting PDF.
+	// SinglePageSheets allows to output each sheet as a single page in the
+	// resulting PDF.
 	// Optional
 	SinglePageSheets bool
 
-	// LosslessImageCompression allows turning lossless compression on or off to tweak image conversion performance.
+	// LosslessImageCompression allows turning lossless compression on or off
+	// to tweak image conversion performance.
 	// Optional
 	LosslessImageCompression bool
 
-	// ReduceImageResolution allows turning on or off image resolution reduction to tweak image conversion performance.
+	// ReduceImageResolution allows turning on or off image resolution
+	// reduction to tweak image conversion performance.
 	// Optional
 	ReduceImageResolution bool
 
