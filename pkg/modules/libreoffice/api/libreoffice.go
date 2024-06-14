@@ -289,6 +289,14 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 		args = append(args, "--export", "ReduceImageResolution=false")
 	}
 
+	if options.ExportNotesInMargin {
+		args = append(
+			args,
+			"--export", "ExportNotes=true",
+			"--export", "ExportNotesInMargin=true",
+		)
+	}
+
 	switch options.PdfFormats.PdfA {
 	case "":
 	case gotenberg.PdfA1b:

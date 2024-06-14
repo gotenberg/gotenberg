@@ -32,6 +32,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				singlePageSheets         bool
 				losslessImageCompression bool
 				reduceImageResolution    bool
+				exportNotesInMargin      bool
 				pdfa                     string
 				pdfua                    bool
 				nativePdfFormats         bool
@@ -47,6 +48,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				Bool("singlePageSheets", &singlePageSheets, false).
 				Bool("losslessImageCompression", &losslessImageCompression, false).
 				Bool("reduceImageResolution", &reduceImageResolution, true).
+				Bool("exportNotesInMargin", &exportNotesInMargin, false).
 				String("pdfa", &pdfa, "").
 				Bool("pdfua", &pdfua, false).
 				Bool("nativePdfFormats", &nativePdfFormats, true).
@@ -81,6 +83,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					SinglePageSheets:         singlePageSheets,
 					LosslessImageCompression: losslessImageCompression,
 					ReduceImageResolution:    reduceImageResolution,
+					ExportNotesInMargin:      exportNotesInMargin,
 				}
 
 				if nativePdfFormats {

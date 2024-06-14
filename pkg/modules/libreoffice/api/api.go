@@ -69,6 +69,10 @@ type Options struct {
 	// Optional
 	ReduceImageResolution bool
 
+	// ExportNotesInMargin allows to export comments in margin
+	// Optional
+	ExportNotesInMargin bool
+
 	// PdfFormats allows to convert the resulting PDF to PDF/A-1b, PDF/A-2b,
 	// PDF/A-3b and PDF/UA.
 	// Optional.
