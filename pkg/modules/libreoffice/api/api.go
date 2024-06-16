@@ -59,6 +59,10 @@ type Options struct {
 	// Optional
 	SinglePageSheets bool
 
+	// ExportNotesInMargin allows to export comments in margin.
+	// Optional
+	ExportNotesInMargin bool
+
 	// LosslessImageCompression allows turning lossless compression on or off
 	// to tweak image conversion performance.
 	// Optional
@@ -68,10 +72,6 @@ type Options struct {
 	// reduction to tweak image conversion performance.
 	// Optional
 	ReduceImageResolution bool
-
-	// ExportNotesInMargin allows to export comments in margin
-	// Optional
-	ExportNotesInMargin bool
 
 	// PdfFormats allows to convert the resulting PDF to PDF/A-1b, PDF/A-2b,
 	// PDF/A-3b and PDF/UA.
