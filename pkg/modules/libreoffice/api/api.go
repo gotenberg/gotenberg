@@ -59,6 +59,10 @@ type Options struct {
 	// Optional
 	SinglePageSheets bool
 
+	// ExportNotesInMargin allows to export comments in margin.
+	// Optional
+	ExportNotesInMargin bool
+
 	// LosslessImageCompression allows turning lossless compression on or off
 	// to tweak image conversion performance.
 	// Optional
