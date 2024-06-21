@@ -411,13 +411,6 @@ func (a *Api) Start() error {
 		loggerMiddleware(a.logger, disableLoggingForPaths),
 	)
 
-	// Basic auth?
-	if a.basicAuthUsername != "" {
-		a.srv.Pre(
-			basicAuthMiddleware(a.basicAuthUsername, a.basicAuthPassword),
-		)
-	}
-
 	// Add the modules' middlewares in their respective stacks.
 	var externalMultipartMiddlewares []Middleware
 	for _, externalMiddleware := range a.externalMiddlewares {
@@ -436,6 +429,11 @@ func (a *Api) Start() error {
 	// Add the modules' routes and their specific middlewares.
 	for _, route := range a.routes {
 		var middlewares []echo.MiddlewareFunc
+
+		// Basic auth?
+		if a.basicAuthUsername != "" {
+			middlewares = append(middlewares, basicAuthMiddleware(a.basicAuthUsername, a.basicAuthPassword))
+		}
 
 		if route.IsMultipart {
 			middlewares = append(middlewares, contextMiddleware(a.fs, a.timeout))
