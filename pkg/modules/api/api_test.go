@@ -842,7 +842,6 @@ func TestApi_Start(t *testing.T) {
 			// health request.
 			recorder := httptest.NewRecorder()
 			healthRequest := httptest.NewRequest(http.MethodGet, "/health", nil)
-			healthRequest.SetBasicAuth(mod.basicAuthUsername, mod.basicAuthPassword)
 
 			mod.srv.ServeHTTP(recorder, healthRequest)
 			if recorder.Code != http.StatusOK {
@@ -851,7 +850,6 @@ func TestApi_Start(t *testing.T) {
 
 			// version request.
 			versionRequest := httptest.NewRequest(http.MethodGet, "/version", nil)
-			versionRequest.SetBasicAuth(mod.basicAuthUsername, mod.basicAuthPassword)
 
 			mod.srv.ServeHTTP(recorder, versionRequest)
 			if recorder.Code != http.StatusOK {
