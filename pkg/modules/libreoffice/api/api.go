@@ -41,42 +41,127 @@ type Api struct {
 }
 
 // Options gathers available options when converting a document to PDF.
+// See: https://help.libreoffice.org/latest/en-US/text/shared/guide/pdf_params.html.
 type Options struct {
 	// Landscape allows to change the orientation of the resulting PDF.
-	// Optional.
 	Landscape bool
 
 	// PageRanges allows to select the pages to convert.
-	// Optional.
 	PageRanges string
 
-	// ExportFormFields allows to... export form fields in the resulting PDF.
-	// Optional.
+	// ExportFormFields specifies whether form fields are exported as widgets
+	// or only their fixed print representation is exported.
 	ExportFormFields bool
 
-	// SinglePageSheets allows to output each sheet as a single page in the
-	// resulting PDF.
-	// Optional
-	SinglePageSheets bool
+	// AllowDuplicateFieldNames specifies whether multiple form fields exported
+	// are allowed to have the same field name.
+	AllowDuplicateFieldNames bool
 
-	// ExportNotesInMargin allows to export comments in margin.
-	// Optional
+	// ExportBookmarks specifies if bookmarks are exported to PDF.
+	ExportBookmarks bool
+
+	// ExportBookmarksToPdfDestination specifies that the bookmarks contained
+	// in the source LibreOffice file should be exported to the PDF file as
+	// Named Destination.
+	ExportBookmarksToPdfDestination bool
+
+	// ExportPlaceholders exports the placeholders fields visual markings only.
+	// The exported placeholder is ineffective.
+	ExportPlaceholders bool
+
+	// ExportNotes specifies if notes are exported to PDF.
+	ExportNotes bool
+
+	// ExportNotesPages specifies if notes pages are exported to PDF.
+	// Notes pages are available in Impress documents only.
+	ExportNotesPages bool
+
+	// ExportOnlyNotesPages specifies, if the property ExportNotesPages is set
+	// to true, if only notes pages are exported to PDF.
+	ExportOnlyNotesPages bool
+
+	// ExportNotesInMargin specifies if notes in margin are exported to PDF.
 	ExportNotesInMargin bool
 
-	// LosslessImageCompression allows turning lossless compression on or off
-	// to tweak image conversion performance.
-	// Optional
+	// ConvertOooTargetToPdfTarget specifies that the target documents with
+	// .od[tpgs] extension, will have that extension changed to .pdf when the
+	// link is exported to PDF. The source document remains untouched.
+	ConvertOooTargetToPdfTarget bool
+
+	// ExportLinksRelativeFsys specifies that the file system related
+	// hyperlinks (file:// protocol) present in the document will be exported
+	// as relative to the source document location.
+	ExportLinksRelativeFsys bool
+
+	// ExportHiddenSlides exports, for LibreOffice Impress, slides that are not
+	// included in slide shows.
+	ExportHiddenSlides bool
+
+	// SkipEmptyPages specifies that automatically inserted empty pages are
+	// suppressed. This option is active only if storing Writer documents.
+	SkipEmptyPages bool
+
+	// AddOriginalDocumentAsStream specifies that a stream is inserted to the
+	// PDF file which contains the original document for archiving purposes.
+	AddOriginalDocumentAsStream bool
+
+	// SinglePageSheets ignores each sheet’s paper size, print ranges and
+	// shown/hidden status and puts every sheet (even hidden sheets) on exactly
+	// one page.
+	SinglePageSheets bool
+
+	// LosslessImageCompression specifies if images are exported to PDF using
+	// a lossless compression format like PNG or compressed using the JPEG
+	// format.
 	LosslessImageCompression bool
 
-	// ReduceImageResolution allows turning on or off image resolution
-	// reduction to tweak image conversion performance.
-	// Optional
+	// Quality specifies the quality of the JPG export. A higher value produces
+	// a higher-quality image and a larger file. Between 1 and 90.
+	Quality int
+
+	// ReduceImageResolution specifies if the resolution of each image is
+	// reduced to the resolution specified by the property MaxImageResolution.
 	ReduceImageResolution bool
+
+	// MaxImageResolution, if the property ReduceImageResolution is set to
+	// true, tells if all images will be reduced to the given value in DPI.
+	// Possible values are: 75, 150, 300, 600 and 1200.
+	MaxImageResolution int
 
 	// PdfFormats allows to convert the resulting PDF to PDF/A-1b, PDF/A-2b,
 	// PDF/A-3b and PDF/UA.
-	// Optional.
 	PdfFormats gotenberg.PdfFormats
+}
+
+// DefaultOptions returns the default values for Options.
+func DefaultOptions() Options {
+	return Options{
+		Landscape:                       false,
+		PageRanges:                      "",
+		ExportFormFields:                true,
+		AllowDuplicateFieldNames:        false,
+		ExportBookmarks:                 true,
+		ExportBookmarksToPdfDestination: false,
+		ExportPlaceholders:              false,
+		ExportNotes:                     false,
+		ExportNotesPages:                false,
+		ExportOnlyNotesPages:            false,
+		ExportNotesInMargin:             false,
+		ConvertOooTargetToPdfTarget:     false,
+		ExportLinksRelativeFsys:         false,
+		ExportHiddenSlides:              false,
+		SkipEmptyPages:                  false,
+		AddOriginalDocumentAsStream:     false,
+		SinglePageSheets:                false,
+		LosslessImageCompression:        false,
+		Quality:                         90,
+		ReduceImageResolution:           false,
+		MaxImageResolution:              300,
+		PdfFormats: gotenberg.PdfFormats{
+			PdfA:  "",
+			PdfUa: false,
+		},
+	}
 }
 
 // Uno is an abstraction on top of the Universal Network Objects API.

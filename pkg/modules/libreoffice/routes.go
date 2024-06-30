@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
+	"strconv"
 
 	"github.com/labstack/echo/v4"
 
@@ -22,33 +24,100 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 		IsMultipart: true,
 		Handler: func(c echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
+			defaultOptions := libreofficeapi.DefaultOptions()
 
 			// Let's get the data from the form and validate them.
 			var (
-				inputPaths               []string
-				landscape                bool
-				nativePageRanges         string
-				exportFormFields         bool
-				singlePageSheets         bool
-				exportNotesInMargin      bool
-				losslessImageCompression bool
-				reduceImageResolution    bool
-				pdfa                     string
-				pdfua                    bool
-				nativePdfFormats         bool
-				merge                    bool
-				metadata                 map[string]interface{}
+				inputPaths                      []string
+				landscape                       bool
+				nativePageRanges                string
+				exportFormFields                bool
+				allowDuplicateFieldNames        bool
+				exportBookmarks                 bool
+				exportBookmarksToPdfDestination bool
+				exportPlaceholders              bool
+				exportNotes                     bool
+				exportNotesPages                bool
+				exportOnlyNotesPages            bool
+				exportNotesInMargin             bool
+				convertOooTargetToPdfTarget     bool
+				exportLinksRelativeFsys         bool
+				exportHiddenSlides              bool
+				skipEmptyPages                  bool
+				addOriginalDocumentAsStream     bool
+				singlePageSheets                bool
+				losslessImageCompression        bool
+				quality                         int
+				reduceImageResolution           bool
+				maxImageResolution              int
+				pdfa                            string
+				pdfua                           bool
+				nativePdfFormats                bool
+				merge                           bool
+				metadata                        map[string]interface{}
 			)
 
 			err := ctx.FormData().
 				MandatoryPaths(libreOffice.Extensions(), &inputPaths).
-				Bool("landscape", &landscape, false).
-				String("nativePageRanges", &nativePageRanges, "").
-				Bool("exportFormFields", &exportFormFields, true).
-				Bool("singlePageSheets", &singlePageSheets, false).
-				Bool("exportNotesInMargin", &exportNotesInMargin, false).
-				Bool("losslessImageCompression", &losslessImageCompression, false).
-				Bool("reduceImageResolution", &reduceImageResolution, true).
+				Bool("landscape", &landscape, defaultOptions.Landscape).
+				String("nativePageRanges", &nativePageRanges, defaultOptions.PageRanges).
+				Bool("exportFormFields", &exportFormFields, defaultOptions.ExportFormFields).
+				Bool("allowDuplicateFieldNames", &allowDuplicateFieldNames, defaultOptions.AllowDuplicateFieldNames).
+				Bool("exportBookmarks", &exportBookmarks, defaultOptions.ExportBookmarks).
+				Bool("exportBookmarksToPdfDestination", &exportBookmarksToPdfDestination, defaultOptions.ExportBookmarksToPdfDestination).
+				Bool("exportPlaceholders", &exportPlaceholders, defaultOptions.ExportPlaceholders).
+				Bool("exportNotes", &exportNotes, defaultOptions.ExportNotes).
+				Bool("exportNotesPages", &exportNotesPages, defaultOptions.ExportNotesPages).
+				Bool("exportOnlyNotesPages", &exportOnlyNotesPages, defaultOptions.ExportOnlyNotesPages).
+				Bool("exportNotesInMargin", &exportNotesInMargin, defaultOptions.ExportNotesInMargin).
+				Bool("convertOooTargetToPdfTarget", &convertOooTargetToPdfTarget, defaultOptions.ConvertOooTargetToPdfTarget).
+				Bool("exportLinksRelativeFsys", &exportLinksRelativeFsys, defaultOptions.ExportLinksRelativeFsys).
+				Bool("exportHiddenSlides", &exportHiddenSlides, defaultOptions.ExportHiddenSlides).
+				Bool("skipEmptyPages", &skipEmptyPages, defaultOptions.SkipEmptyPages).
+				Bool("addOriginalDocumentAsStream", &addOriginalDocumentAsStream, defaultOptions.AddOriginalDocumentAsStream).
+				Bool("singlePageSheets", &singlePageSheets, defaultOptions.SinglePageSheets).
+				Bool("losslessImageCompression", &losslessImageCompression, defaultOptions.LosslessImageCompression).
+				Custom("quality", func(value string) error {
+					if value == "" {
+						quality = defaultOptions.Quality
+						return nil
+					}
+
+					intValue, err := strconv.Atoi(value)
+					if err != nil {
+						return err
+					}
+
+					if intValue < 1 {
+						return errors.New("value is inferior to 1")
+					}
+
+					if intValue > 100 {
+						return errors.New("value is superior to 100")
+					}
+
+					quality = intValue
+					return nil
+				}).
+				Bool("reduceImageResolution", &reduceImageResolution, defaultOptions.ReduceImageResolution).
+				Custom("maxImageResolution", func(value string) error {
+					if value == "" {
+						maxImageResolution = defaultOptions.MaxImageResolution
+						return nil
+					}
+
+					intValue, err := strconv.Atoi(value)
+					if err != nil {
+						return err
+					}
+
+					if !slices.Contains([]int{75, 150, 300, 600, 1200}, intValue) {
+						return errors.New("value is not 75, 150, 300, 600 or 1200")
+					}
+
+					maxImageResolution = intValue
+					return nil
+				}).
 				String("pdfa", &pdfa, "").
 				Bool("pdfua", &pdfua, false).
 				Bool("nativePdfFormats", &nativePdfFormats, true).
@@ -77,13 +146,27 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			for i, inputPath := range inputPaths {
 				outputPaths[i] = ctx.GeneratePath(".pdf")
 				options := libreofficeapi.Options{
-					Landscape:                landscape,
-					PageRanges:               nativePageRanges,
-					ExportFormFields:         exportFormFields,
-					SinglePageSheets:         singlePageSheets,
-					ExportNotesInMargin:      exportNotesInMargin,
-					LosslessImageCompression: losslessImageCompression,
-					ReduceImageResolution:    reduceImageResolution,
+					Landscape:                       landscape,
+					PageRanges:                      nativePageRanges,
+					ExportFormFields:                exportFormFields,
+					AllowDuplicateFieldNames:        allowDuplicateFieldNames,
+					ExportBookmarks:                 exportBookmarks,
+					ExportBookmarksToPdfDestination: exportBookmarksToPdfDestination,
+					ExportPlaceholders:              exportPlaceholders,
+					ExportNotes:                     exportNotes,
+					ExportNotesPages:                exportNotesPages,
+					ExportOnlyNotesPages:            exportOnlyNotesPages,
+					ExportNotesInMargin:             exportNotesInMargin,
+					ConvertOooTargetToPdfTarget:     convertOooTargetToPdfTarget,
+					ExportLinksRelativeFsys:         exportLinksRelativeFsys,
+					ExportHiddenSlides:              exportHiddenSlides,
+					SkipEmptyPages:                  skipEmptyPages,
+					AddOriginalDocumentAsStream:     addOriginalDocumentAsStream,
+					SinglePageSheets:                singlePageSheets,
+					LosslessImageCompression:        losslessImageCompression,
+					Quality:                         quality,
+					ReduceImageResolution:           reduceImageResolution,
+					MaxImageResolution:              maxImageResolution,
 				}
 
 				if nativePdfFormats {

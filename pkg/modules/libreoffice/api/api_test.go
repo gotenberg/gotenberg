@@ -14,6 +14,15 @@ import (
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
+func TestDefaultOptions(t *testing.T) {
+	actual := DefaultOptions()
+	notExpect := Options{}
+
+	if reflect.DeepEqual(actual, notExpect) {
+		t.Errorf("expected %v and got identical %v", actual, notExpect)
+	}
+}
+
 func TestApi_Descriptor(t *testing.T) {
 	descriptor := new(Api).Descriptor()
 

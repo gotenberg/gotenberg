@@ -336,7 +336,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 			expectError:  false,
 		},
 		{
-			scenario: "success (landscape)",
+			scenario: "success (not default options)",
 			libreOffice: newLibreOfficeProcess(
 				libreOfficeArguments{
 					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
@@ -352,188 +352,36 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
 				}
 
-				err = os.WriteFile(fmt.Sprintf("%s/document.txt", fs.WorkingDirPath()), []byte("Landscape"), 0o755)
+				err = os.WriteFile(fmt.Sprintf("%s/document.txt", fs.WorkingDirPath()), []byte("Success"), 0o755)
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				return fs
 			}(),
-			options:      Options{Landscape: true},
-			cancelledCtx: false,
-			start:        true,
-			expectError:  false,
-		},
-		{
-			scenario: "success (disable form fields)",
-			libreOffice: newLibreOfficeProcess(
-				libreOfficeArguments{
-					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
-					unoBinPath:   os.Getenv("UNOCONVERTER_BIN_PATH"),
-					startTimeout: 5 * time.Second,
-				},
-			),
-			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
-
-				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
-				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
-				}
-
-				err = os.WriteFile(fmt.Sprintf("%s/document.txt", fs.WorkingDirPath()), []byte("DisableFormFields"), 0o755)
-				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
-				}
-
-				return fs
-			}(),
-			options:      Options{ExportFormFields: false},
-			cancelledCtx: false,
-			start:        true,
-			expectError:  false,
-		},
-		{
-			scenario: "success (single page sheets)",
-			libreOffice: newLibreOfficeProcess(
-				libreOfficeArguments{
-					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
-					unoBinPath:   os.Getenv("UNOCONVERTER_BIN_PATH"),
-					startTimeout: 5 * time.Second,
-				},
-			),
-			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
-
-				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
-				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
-				}
-
-				err = os.WriteFile(fmt.Sprintf("%s/document.txt", fs.WorkingDirPath()), []byte("SinglePageSheets"), 0o755)
-				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
-				}
-
-				return fs
-			}(),
-			options:      Options{SinglePageSheets: true},
-			cancelledCtx: false,
-			start:        true,
-			expectError:  false,
-		},
-		{
-			scenario: "success (page ranges)",
-			libreOffice: newLibreOfficeProcess(
-				libreOfficeArguments{
-					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
-					unoBinPath:   os.Getenv("UNOCONVERTER_BIN_PATH"),
-					startTimeout: 5 * time.Second,
-				},
-			),
-			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
-
-				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
-				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
-				}
-
-				err = os.WriteFile(fmt.Sprintf("%s/document.txt", fs.WorkingDirPath()), []byte("Landscape"), 0o755)
-				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
-				}
-
-				return fs
-			}(),
-			options:      Options{PageRanges: "1-1"},
-			cancelledCtx: false,
-			start:        true,
-			expectError:  false,
-		},
-		{
-			scenario: "success ExportNotesInMargin",
-			libreOffice: newLibreOfficeProcess(
-				libreOfficeArguments{
-					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
-					unoBinPath:   os.Getenv("UNOCONVERTER_BIN_PATH"),
-					startTimeout: 5 * time.Second,
-				},
-			),
-			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
-
-				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
-				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
-				}
-
-				err = os.WriteFile(fmt.Sprintf("%s/document.txt", fs.WorkingDirPath()), []byte("ExportNotesInMargin"), 0o755)
-				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
-				}
-
-				return fs
-			}(),
-			options:      Options{ExportNotesInMargin: true},
-			cancelledCtx: false,
-			start:        true,
-			expectError:  false,
-		},
-		{
-			scenario: "success LosslessImageCompression",
-			libreOffice: newLibreOfficeProcess(
-				libreOfficeArguments{
-					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
-					unoBinPath:   os.Getenv("UNOCONVERTER_BIN_PATH"),
-					startTimeout: 5 * time.Second,
-				},
-			),
-			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
-
-				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
-				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
-				}
-
-				err = os.WriteFile(fmt.Sprintf("%s/document.txt", fs.WorkingDirPath()), []byte("LosslessImageCompression"), 0o755)
-				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
-				}
-
-				return fs
-			}(),
-			options:      Options{LosslessImageCompression: true},
-			cancelledCtx: false,
-			start:        true,
-			expectError:  false,
-		},
-		{
-			scenario: "success ReduceImageResolution",
-			libreOffice: newLibreOfficeProcess(
-				libreOfficeArguments{
-					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
-					unoBinPath:   os.Getenv("UNOCONVERTER_BIN_PATH"),
-					startTimeout: 5 * time.Second,
-				},
-			),
-			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
-
-				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
-				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
-				}
-
-				err = os.WriteFile(fmt.Sprintf("%s/document.txt", fs.WorkingDirPath()), []byte("ReduceImageResolution"), 0o755)
-				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
-				}
-
-				return fs
-			}(),
-			options:      Options{ReduceImageResolution: false},
+			options: Options{
+				Landscape:                       true,
+				PageRanges:                      "1",
+				ExportFormFields:                false,
+				AllowDuplicateFieldNames:        true,
+				ExportBookmarks:                 false,
+				ExportBookmarksToPdfDestination: true,
+				ExportPlaceholders:              true,
+				ExportNotes:                     true,
+				ExportNotesPages:                true,
+				ExportOnlyNotesPages:            true,
+				ExportNotesInMargin:             true,
+				ConvertOooTargetToPdfTarget:     true,
+				ExportLinksRelativeFsys:         true,
+				ExportHiddenSlides:              true,
+				SkipEmptyPages:                  true,
+				AddOriginalDocumentAsStream:     true,
+				SinglePageSheets:                true,
+				LosslessImageCompression:        true,
+				Quality:                         100,
+				ReduceImageResolution:           true,
+				MaxImageResolution:              600,
+			},
 			cancelledCtx: false,
 			start:        true,
 			expectError:  false,

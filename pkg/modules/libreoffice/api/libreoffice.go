@@ -273,25 +273,26 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 		args = append(args, "--export", fmt.Sprintf("PageRange=%s", options.PageRanges))
 	}
 
-	if !options.ExportFormFields {
-		args = append(args, "--export", "ExportFormFields=false")
-	}
-
-	if options.SinglePageSheets {
-		args = append(args, "--export", "SinglePageSheets=true")
-	}
-
-	if options.ExportNotesInMargin {
-		args = append(args, "--export", "ExportNotesInMargin=true")
-	}
-
-	if options.LosslessImageCompression {
-		args = append(args, "--export", "UseLosslessCompression=true")
-	}
-
-	if !options.ReduceImageResolution {
-		args = append(args, "--export", "ReduceImageResolution=false")
-	}
+	args = append(args, "--export", fmt.Sprintf("ExportFormFields=%t", options.ExportFormFields))
+	args = append(args, "--export", fmt.Sprintf("AllowDuplicateFieldNames=%t", options.AllowDuplicateFieldNames))
+	args = append(args, "--export", fmt.Sprintf("ExportBookmarks=%t", options.ExportBookmarks))
+	args = append(args, "--export", fmt.Sprintf("ExportBookmarks=%t", options.ExportBookmarks))
+	args = append(args, "--export", fmt.Sprintf("ExportBookmarksToPDFDestination=%t", options.ExportBookmarksToPdfDestination))
+	args = append(args, "--export", fmt.Sprintf("ExportPlaceholders=%t", options.ExportPlaceholders))
+	args = append(args, "--export", fmt.Sprintf("ExportNotes=%t", options.ExportNotes))
+	args = append(args, "--export", fmt.Sprintf("ExportNotesPages=%t", options.ExportNotesPages))
+	args = append(args, "--export", fmt.Sprintf("ExportOnlyNotesPages=%t", options.ExportOnlyNotesPages))
+	args = append(args, "--export", fmt.Sprintf("ExportNotesInMargin=%t", options.ExportNotesInMargin))
+	args = append(args, "--export", fmt.Sprintf("ConvertOOoTargetToPDFTarget=%t", options.ConvertOooTargetToPdfTarget))
+	args = append(args, "--export", fmt.Sprintf("ExportLinksRelativeFsys=%t", options.ExportLinksRelativeFsys))
+	args = append(args, "--export", fmt.Sprintf("ExportHiddenSlides=%t", options.ExportHiddenSlides))
+	args = append(args, "--export", fmt.Sprintf("IsSkipEmptyPages=%t", options.SkipEmptyPages))
+	args = append(args, "--export", fmt.Sprintf("IsAddStream=%t", options.AddOriginalDocumentAsStream))
+	args = append(args, "--export", fmt.Sprintf("SinglePageSheets=%t", options.SinglePageSheets))
+	args = append(args, "--export", fmt.Sprintf("UseLosslessCompression=%t", options.LosslessImageCompression))
+	args = append(args, "--export", fmt.Sprintf("Quality=%d", options.Quality))
+	args = append(args, "--export", fmt.Sprintf("ReduceImageResolution=%t", options.ReduceImageResolution))
+	args = append(args, "--export", fmt.Sprintf("MaxImageResolution=%d", options.MaxImageResolution))
 
 	switch options.PdfFormats.PdfA {
 	case "":
