@@ -212,7 +212,7 @@ func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task fu
 					}
 				}
 
-				if s.maxReqLimit > 0 && s.reqCounter.Load() >= s.maxReqLimit {
+				if s.maxReqLimit > 0 && s.reqCounter.Load() > s.maxReqLimit {
 					s.logger.Debug("max request limit reached, restarting...")
 					err := s.runWithDeadline(ctx, func() error {
 						return s.restart()
@@ -220,6 +220,7 @@ func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task fu
 					if err != nil {
 						return fmt.Errorf("process restart before task: %w", err)
 					}
+					s.reqCounter.Add(1)
 				}
 
 				// Note: no error wrapping because it leaks on Chromium console exceptions output.

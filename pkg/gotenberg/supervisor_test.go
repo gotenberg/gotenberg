@@ -325,7 +325,7 @@ func TestProcessSupervisor_Run(t *testing.T) {
 			expectedStopCalls:    1,
 		},
 		{
-			scenario:             "cannot restart after reaching max request limit",
+			scenario:             "don't restart after reaching max request limit",
 			startError:           errors.New("start error"),
 			initiallyStarted:     true,
 			isRestarting:         false,
@@ -333,9 +333,9 @@ func TestProcessSupervisor_Run(t *testing.T) {
 			maxReqLimit:          2,
 			tasksToRun:           2,
 			expectError:          true,
-			expectedStartCalls:   1,
+			expectedStartCalls:   0,
 			expectedHealthyCalls: 2,
-			expectedStopCalls:    1,
+			expectedStopCalls:    0,
 		},
 		{
 			scenario:             "task error",
