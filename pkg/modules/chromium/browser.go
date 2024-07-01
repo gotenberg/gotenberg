@@ -314,6 +314,14 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 		listenForEventExceptionThrown(taskCtx, logger, &consoleExceptions, &consoleExceptionsMu)
 	}
 
+	var (
+		connectionRefused   error
+		connectionRefusedMu sync.RWMutex
+	)
+
+	// See https://github.com/gotenberg/gotenberg/issues/913.
+	listenForEventLoadingFailedOnConnectionRefused(taskCtx, logger, &connectionRefused, &connectionRefusedMu)
+
 	err = chromedp.Run(taskCtx, tasks...)
 	if err != nil {
 		errMessage := err.Error()
@@ -347,6 +355,14 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 
 	if consoleExceptions != nil {
 		return fmt.Errorf("%v: %w", consoleExceptions, ErrConsoleExceptions)
+	}
+
+	// See https://github.com/gotenberg/gotenberg/issues/913.
+	connectionRefusedMu.RLock()
+	defer connectionRefusedMu.RUnlock()
+
+	if connectionRefused != nil {
+		return fmt.Errorf("%v: %w", connectionRefused, ErrConnectionRefused)
 	}
 
 	return nil

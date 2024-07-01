@@ -1436,6 +1436,18 @@ func TestConvertUrl(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
+			scenario: "ErrConnectionRefused",
+			ctx:      &api.ContextMock{Context: new(api.Context)},
+			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
+				return ErrConnectionRefused
+			}},
+			options:                DefaultPdfOptions(),
+			expectError:            true,
+			expectHttpError:        true,
+			expectHttpStatus:       http.StatusBadRequest,
+			expectOutputPathsCount: 0,
+		},
+		{
 			scenario: "error from Chromium",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
 			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
@@ -1631,6 +1643,18 @@ func TestScreenshotUrl(t *testing.T) {
 			expectError:            true,
 			expectHttpError:        true,
 			expectHttpStatus:       http.StatusConflict,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "ErrConnectionRefused",
+			ctx:      &api.ContextMock{Context: new(api.Context)},
+			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+				return ErrConnectionRefused
+			}},
+			options:                DefaultScreenshotOptions(),
+			expectError:            true,
+			expectHttpError:        true,
+			expectHttpStatus:       http.StatusBadRequest,
 			expectOutputPathsCount: 0,
 		},
 		{

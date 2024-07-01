@@ -688,5 +688,15 @@ func handleChromiumError(err error, options Options) error {
 		)
 	}
 
+	if errors.Is(err, ErrConnectionRefused) {
+		return api.WrapError(
+			err,
+			api.NewSentinelHttpError(
+				http.StatusBadRequest,
+				"Chromium returned net::ERR_CONNECTION_REFUSED",
+			),
+		)
+	}
+
 	return err
 }

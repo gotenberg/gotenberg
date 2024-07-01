@@ -42,6 +42,9 @@ var (
 	// is set to true.
 	ErrConsoleExceptions = errors.New("console exceptions")
 
+	// ErrConnectionRefused happens when a URL cannot be reached.
+	ErrConnectionRefused = errors.New("connection refused")
+
 	// PDF specific.
 
 	// ErrOmitBackgroundWithoutPrintBackground happens if

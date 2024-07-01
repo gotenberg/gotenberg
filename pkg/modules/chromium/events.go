@@ -64,8 +64,8 @@ func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, allowL
 	})
 }
 
-// listenForEventResponseReceived listens for an invalid HTTP status code is
-// returned by the main page.
+// listenForEventResponseReceived listens for an invalid HTTP status code that
+// is returned by the main page.
 // See https://github.com/gotenberg/gotenberg/issues/613.
 func listenForEventResponseReceived(ctx context.Context, logger *zap.Logger, url string, failOnHttpStatusCodes []int64, invalidHttpStatusCode *error, invalidHttpStatusCodeMu *sync.RWMutex) {
 	for _, code := range []int64{199, 299, 399, 499, 599} {
@@ -91,6 +91,28 @@ func listenForEventResponseReceived(ctx context.Context, logger *zap.Logger, url
 
 				*invalidHttpStatusCode = fmt.Errorf("%d: %s", ev.Response.Status, ev.Response.StatusText)
 			}
+		}
+	})
+}
+
+// listenForEventLoadingFailedOnConnectionRefused listens for an event
+// indicating that the main page failed to load.
+// See https://github.com/gotenberg/gotenberg/issues/913.
+func listenForEventLoadingFailedOnConnectionRefused(ctx context.Context, logger *zap.Logger, connectionRefused *error, connectionRefusedMu *sync.RWMutex) {
+	chromedp.ListenTarget(ctx, func(ev interface{}) {
+		switch ev := ev.(type) {
+		case *network.EventLoadingFailed:
+			logger.Debug(fmt.Sprintf("event EventLoadingFailed fired: %+v", ev.ErrorText))
+
+			if ev.ErrorText != "net::ERR_CONNECTION_REFUSED" || ev.Type != network.ResourceTypeDocument {
+				logger.Debug("skip EventLoadingFailed: is not net::ERR_CONNECTION_REFUSED and/or resource type Document")
+				return
+			}
+
+			connectionRefusedMu.Lock()
+			defer connectionRefusedMu.Unlock()
+
+			*connectionRefused = fmt.Errorf("%s", ev.ErrorText)
 		}
 	})
 }
