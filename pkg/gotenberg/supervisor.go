@@ -222,7 +222,7 @@ func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task fu
 					releaseMutexChan = false
 
 					go func() {
-						err := s.runWithDeadline(ctx, func() error {
+						err := s.runWithDeadline(context.Background(), func() error {
 							return s.restart()
 						})
 						if err != nil {
