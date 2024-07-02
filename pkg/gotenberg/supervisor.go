@@ -187,10 +187,13 @@ func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task fu
 				logger.Debug("process lock acquired")
 				s.reqQueueSize.Add(-1)
 				s.reqCounter.Add(1)
+				releaseMutexChan := true
 
 				defer func() {
-					logger.Debug("process lock released")
-					<-s.mutexChan
+					if releaseMutexChan {
+						logger.Debug("process lock released")
+						<-s.mutexChan
+					}
 				}()
 
 				if !s.firstStart.Load() {
@@ -212,18 +215,26 @@ func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task fu
 					}
 				}
 
+				err := s.runWithDeadline(ctx, task)
+
 				if s.maxReqLimit > 0 && s.reqCounter.Load() >= s.maxReqLimit {
-					s.logger.Debug("max request limit reached, restarting...")
-					err := s.runWithDeadline(ctx, func() error {
-						return s.restart()
-					})
-					if err != nil {
-						return fmt.Errorf("process restart before task: %w", err)
-					}
+					s.logger.Debug("max request limit reached, restarting eagerly...")
+					releaseMutexChan = false
+
+					go func() {
+						err := s.runWithDeadline(context.Background(), func() error {
+							return s.restart()
+						})
+						if err != nil {
+							s.logger.Error(fmt.Sprintf("process restart after task: %v", err))
+						}
+						logger.Debug("process lock released")
+						<-s.mutexChan
+					}()
 				}
 
 				// Note: no error wrapping because it leaks on Chromium console exceptions output.
-				return s.runWithDeadline(ctx, task)
+				return err
 			case <-ctx.Done():
 				logger.Debug("failed to acquire process lock before deadline")
 				s.reqQueueSize.Add(-1)

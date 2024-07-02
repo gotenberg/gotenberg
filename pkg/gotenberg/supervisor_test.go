@@ -325,7 +325,7 @@ func TestProcessSupervisor_Run(t *testing.T) {
 			expectedStopCalls:    1,
 		},
 		{
-			scenario:             "cannot restart after reaching max request limit",
+			scenario:             "auto-restart after reaching max request limit",
 			startError:           errors.New("start error"),
 			initiallyStarted:     true,
 			isRestarting:         false,
@@ -450,6 +450,10 @@ func TestProcessSupervisor_Run(t *testing.T) {
 			if tc.skipCallsCheck {
 				return
 			}
+
+			// Making sure restarts are finished.
+			ps.mutexChan <- struct{}{}
+			<-ps.mutexChan
 
 			if startCalls.Load() != tc.expectedStartCalls {
 				t.Errorf("expected %d process.Start calls, got %d", tc.expectedStartCalls, startCalls.Load())
