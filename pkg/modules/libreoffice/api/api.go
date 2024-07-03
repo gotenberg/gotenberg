@@ -116,7 +116,7 @@ type Options struct {
 	LosslessImageCompression bool
 
 	// Quality specifies the quality of the JPG export. A higher value produces
-	// a higher-quality image and a larger file. Between 1 and 90.
+	// a higher-quality image and a larger file. Between 1 and 100.
 	Quality int
 
 	// ReduceImageResolution specifies if the resolution of each image is
