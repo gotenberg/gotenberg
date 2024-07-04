@@ -30,9 +30,14 @@ Head to the [documentation](https://gotenberg.dev/docs/getting-started/introduct
 
 ## Sponsors
 
+Sponsorships help maintaining and improving Gotenberg - [become a sponsor](https://github.com/sponsors/gulien).
+
 <p align="center">
     <a href="https://thecodingmachine.com">
-        <img src="https://user-images.githubusercontent.com/8983173/130324668-9d6e7b35-53a3-49c7-a574-38190d2bd6b0.png" alt="TheCodingMachine Logo" width="429" height="210" />
+        <img src="https://user-images.githubusercontent.com/8983173/130324668-9d6e7b35-53a3-49c7-a574-38190d2bd6b0.png" alt="TheCodingMachine Logo" width="333" height="163" />
+    </a>
+    <a href="https://zolsec.com?utm_source=gotenberg_github&utm_medium=website" target="_blank">
+        <img src="https://github.com/gotenberg/gotenberg/assets/8983173/7d796edb-7d5f-4c91-8eb3-a37606bfaa67" alt="Zolsec Logo" width="433" height="163" />
     </a>
 </p>
 
