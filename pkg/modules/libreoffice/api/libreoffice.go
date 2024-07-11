@@ -309,12 +309,14 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 	if options.PdfFormats.PdfUa {
 		args = append(
 			args,
+			"--export", "PDFUACompliance=true",
 			"--export", "UseTaggedPDF=true",
 			"--export", "EnableTextAccessForAccessibilityTools=true",
 		)
 	} else {
 		args = append(
 			args,
+			"--export", "PDFUACompliance=false",
 			"--export", "UseTaggedPDF=false",
 			"--export", "EnableTextAccessForAccessibilityTools=false",
 		)
