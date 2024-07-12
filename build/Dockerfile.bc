@@ -6,7 +6,7 @@ ARG GOLANG_VERSION
 FROM golang:$GOLANG_VERSION AS binary-stage
 
 ARG GOTENBERG_VERSION
-ENV CGO_ENABLED 0
+ENV CGO_ENABLED=0
 
 # Define the working directory outside of $GOPATH (we're using go modules).
 WORKDIR /home
@@ -26,6 +26,6 @@ RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v8/cmd.Ve
 # ----------------------------------------------
 # Copy binary to chainguard base
 # ----------------------------------------------
-FROM 183613197217.dkr.ecr.us-east-1.amazonaws.com/cgr.dev/onebrief.com/gotenberg:8.2.0 as chainguard-base
+FROM 183613197217.dkr.ecr.us-east-1.amazonaws.com/cgr.dev/onebrief.com/gotenberg:8.8.0 AS chainguard-base
 
 COPY --from=binary-stage /home/gotenberg /usr/bin/
