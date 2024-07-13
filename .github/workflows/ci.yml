@@ -62,6 +62,10 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: ghcr.io/onebrief/gotenberg
+      - name: Troubleshooting
+        shell: bash
+        run: | 
+          pwd
 
       - name: Docker Build
         id: build
