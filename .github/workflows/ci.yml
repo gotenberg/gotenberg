@@ -13,6 +13,10 @@ env:
   GOLANG_VERSION: 1.22
   GOTENBERG_VERSION: 8.8.0
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   build-docker-image:
     name: Docker build
