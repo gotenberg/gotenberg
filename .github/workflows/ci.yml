@@ -9,8 +9,6 @@ on:
   pull_request:
     branches:
       - main-bc
-  release:
-    types: [published]
 
 env:
   GOLANG_VERSION: 1.22
