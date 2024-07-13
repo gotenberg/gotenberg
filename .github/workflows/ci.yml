@@ -12,7 +12,7 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-  
+
 
 env:
   GOLANG_VERSION: 1.22
@@ -67,10 +67,10 @@ jobs:
           images: ghcr.io/onebrief/gotenberg
           tags: |
             type=ref,event=branch
+            type=ref,event=pr
             type=semver,pattern={{major}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{version}}
-            type=sha
 
       - name: Docker Build
         id: build
