@@ -3,13 +3,12 @@ on:
   workflow_dispatch: {}
   push:
     branches:
-      - master
-      - feat/ci-workflow
+      - main-bc
     tags:
       - v*
   pull_request:
     branches:
-      - master
+      - main-bc
   release:
     types: [published]
 
@@ -63,6 +62,10 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: ghcr.io/onebrief/gotenberg
+          tags: |
+            type=semver,pattern={{major}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{version}}
 
       - name: Docker Build
         id: build
