@@ -63,11 +63,6 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: ghcr.io/onebrief/gotenberg
-      - name: Troubleshooting
-        shell: bash
-        run: | 
-          pwd
-          ls
 
       - name: Docker Build
         id: build
@@ -77,8 +72,8 @@ jobs:
           file: ./build/Dockerfile.bc
           push: false
           build-args: |
-            GOLANG_VERSION="${{ env.GOLANG_VERSION }}",
-            GOTENBERG_VERSION="${{ env.GOTENBERG_VERSION }}"
+            GOLANG_VERSION=${{ env.GOLANG_VERSION }},
+            GOTENBERG_VERSION=${{ env.GOTENBERG_VERSION }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: |
