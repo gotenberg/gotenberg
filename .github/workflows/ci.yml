@@ -67,6 +67,7 @@ jobs:
         shell: bash
         run: | 
           pwd
+          ls
 
       - name: Docker Build
         id: build
