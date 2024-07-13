@@ -71,7 +71,7 @@ jobs:
         with:
           context: .
           file: ./build/Dockerfile.bc
-          push: false
+          push: true
           build-args: |
             GOLANG_VERSION=${{ env.GOLANG_VERSION }}
             GOTENBERG_VERSION=${{ env.GOTENBERG_VERSION }}
