@@ -11,6 +11,7 @@ on:
       - main-bc
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   GOLANG_VERSION: 1.22
