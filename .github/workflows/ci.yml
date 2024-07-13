@@ -67,7 +67,8 @@ jobs:
         id: build
         uses: docker/build-push-action@v3
         with:
-          context: ./build/Dockerfile.bc
+          context: .
+          file: ./build/Dockerfile.bc
           push: false
           build-args: |
             GOLANG_VERSION="${{ env.GOLANG_VERSION }}",
