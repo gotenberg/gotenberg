@@ -64,6 +64,8 @@ jobs:
             type=semver,pattern={{major}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{version}}
+            type=ref,event=branch
+            type=sha
 
       - name: Docker Build
         id: build
