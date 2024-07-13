@@ -9,6 +9,9 @@ on:
   pull_request:
     branches:
       - master
+  release:
+    types: [published]
+
 env:
   GOLANG_VERSION: 1.22
   GOTENBERG_VERSION: 8.8.0
