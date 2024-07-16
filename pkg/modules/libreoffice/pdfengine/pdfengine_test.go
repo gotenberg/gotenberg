@@ -137,7 +137,7 @@ func TestLibreOfficePdfEngine_Convert(t *testing.T) {
 			scenario: "invalid PDF format",
 			api: &api.ApiMock{
 				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options api.Options) error {
-					return api.ErrInvalidPdfFormat
+					return api.ErrInvalidPdfFormats
 				},
 			},
 			expectError: true,
@@ -164,5 +164,23 @@ func TestLibreOfficePdfEngine_Convert(t *testing.T) {
 				t.Fatal("expected error but got none")
 			}
 		})
+	}
+}
+
+func TestLibreOfficePdfEngine_ReadMetadata(t *testing.T) {
+	engine := new(LibreOfficePdfEngine)
+	_, err := engine.ReadMetadata(context.Background(), zap.NewNop(), "")
+
+	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
+		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)
+	}
+}
+
+func TestLibreOfficePdfEngine_WriteMetadata(t *testing.T) {
+	engine := new(LibreOfficePdfEngine)
+	err := engine.WriteMetadata(context.Background(), zap.NewNop(), nil, "")
+
+	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
+		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)
 	}
 }

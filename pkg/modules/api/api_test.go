@@ -58,10 +58,28 @@ func TestApi_Provision(t *testing.T) {
 			expectError: true,
 		},
 		{
-			scenario: "port from env: empty environment variable",
+			scenario: "basic auth: non-existing GOTENBERG_API_BASIC_AUTH_USERNAME environment variable",
 			ctx: func() *gotenberg.Context {
 				fs := new(Api).Descriptor().FlagSet
-				err := fs.Parse([]string{"--api-port-from-env=PORT"})
+				err := fs.Parse([]string{"--api-enable-basic-auth=true"})
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return gotenberg.NewContext(
+					gotenberg.ParsedFlags{
+						FlagSet: fs,
+					},
+					nil,
+				)
+			}(),
+			expectError: true,
+		},
+		{
+			scenario: "basic auth: non-existing GOTENBERG_API_BASIC_AUTH_PASSWORD environment variable",
+			ctx: func() *gotenberg.Context {
+				fs := new(Api).Descriptor().FlagSet
+				err := fs.Parse([]string{"--api-enable-basic-auth=true"})
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
@@ -74,7 +92,7 @@ func TestApi_Provision(t *testing.T) {
 				)
 			}(),
 			setEnv: func() {
-				err := os.Setenv("PORT", "")
+				err := os.Setenv("GOTENBERG_API_BASIC_AUTH_USERNAME", "foo")
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
@@ -361,7 +379,7 @@ func TestApi_Provision(t *testing.T) {
 				}
 
 				fs := new(Api).Descriptor().FlagSet
-				err := fs.Parse([]string{"--api-port-from-env=PORT"})
+				err := fs.Parse([]string{"--api-port-from-env=PORT", "--api-enable-basic-auth=true"})
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
@@ -380,6 +398,14 @@ func TestApi_Provision(t *testing.T) {
 			}(),
 			setEnv: func() {
 				err := os.Setenv("PORT", "1337")
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+				err = os.Setenv("GOTENBERG_API_BASIC_AUTH_USERNAME", "foo")
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+				err = os.Setenv("GOTENBERG_API_BASIC_AUTH_PASSWORD", "bar")
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
@@ -436,6 +462,8 @@ func TestApi_Validate(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string
 		port        int
+		tlsCertFile string
+		tlsKeyFile  string
 		rootPath    string
 		traceHeader string
 		routes      []Route
@@ -454,6 +482,26 @@ func TestApi_Validate(t *testing.T) {
 		{
 			scenario:    "invalid port (> 65535)",
 			port:        65536,
+			rootPath:    "/foo/",
+			traceHeader: "foo",
+			routes:      nil,
+			middlewares: nil,
+			expectError: true,
+		},
+		{
+			scenario:    "invalid TLS files: only cert file provided",
+			port:        10,
+			tlsCertFile: "cert.pem",
+			rootPath:    "/foo/",
+			traceHeader: "foo",
+			routes:      nil,
+			middlewares: nil,
+			expectError: true,
+		},
+		{
+			scenario:    "invalid TLS files: only key file provided",
+			port:        10,
+			tlsKeyFile:  "key.pem",
 			rootPath:    "/foo/",
 			traceHeader: "foo",
 			routes:      nil,
@@ -621,10 +669,33 @@ func TestApi_Validate(t *testing.T) {
 				},
 			},
 		},
+		{
+			scenario:    "success with TLS",
+			port:        10,
+			tlsCertFile: "cert.pem",
+			tlsKeyFile:  "key.pem",
+			rootPath:    "/foo/",
+			traceHeader: "foo",
+			routes: []Route{
+				{
+					Method:  http.MethodGet,
+					Path:    "/foo",
+					Handler: func(_ echo.Context) error { return nil },
+				},
+				{
+					Method:      http.MethodGet,
+					Path:        "/forms/foo",
+					Handler:     func(_ echo.Context) error { return nil },
+					IsMultipart: true,
+				},
+			},
+		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			mod := Api{
 				port:                tc.port,
+				tlsCertFile:         tc.tlsCertFile,
+				tlsKeyFile:          tc.tlsKeyFile,
 				rootPath:            tc.rootPath,
 				traceHeader:         tc.traceHeader,
 				routes:              tc.routes,
@@ -647,6 +718,8 @@ func TestApi_Start(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string
 		readyFn     []func() error
+		tlsCertFile string
+		tlsKeyFile  string
 		expectError bool
 	}{
 		{
@@ -665,12 +738,26 @@ func TestApi_Start(t *testing.T) {
 			},
 			expectError: false,
 		},
+		{
+			scenario: "success with TLS",
+			readyFn: []func() error{
+				func() error { return nil },
+				func() error { return nil },
+			},
+			tlsCertFile: "/tests/test/testdata/api/cert.pem",
+			tlsKeyFile:  "/tests/test/testdata/api/key.pem",
+			expectError: false,
+		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			mod := new(Api)
 			mod.port = 3000
+			mod.tlsCertFile = tc.tlsCertFile
+			mod.tlsKeyFile = tc.tlsKeyFile
 			mod.startTimeout = time.Duration(30) * time.Second
 			mod.rootPath = "/"
+			mod.basicAuthUsername = "foo"
+			mod.basicAuthPassword = "bar"
 			mod.disableHealthCheckLogging = true
 			mod.routes = []Route{
 				{
@@ -761,6 +848,14 @@ func TestApi_Start(t *testing.T) {
 				t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
 			}
 
+			// version request.
+			versionRequest := httptest.NewRequest(http.MethodGet, "/version", nil)
+
+			mod.srv.ServeHTTP(recorder, versionRequest)
+			if recorder.Code != http.StatusOK {
+				t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
+			}
+
 			// "multipart/form-data" request.
 			multipartRequest := func(url string) *http.Request {
 				body := &bytes.Buffer{}
@@ -791,6 +886,7 @@ func TestApi_Start(t *testing.T) {
 
 				req := httptest.NewRequest(http.MethodPost, url, body)
 				req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
+				req.SetBasicAuth(mod.basicAuthUsername, mod.basicAuthPassword)
 
 				return req
 			}

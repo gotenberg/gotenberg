@@ -3,6 +3,7 @@ package chromium
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -17,19 +18,39 @@ import (
 
 func printToPdfActionFunc(logger *zap.Logger, outputPath string, options PdfOptions) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
+		paperHeight := options.PaperHeight
+		pageRanges := options.PageRanges
+
+		if options.SinglePage {
+			logger.Debug("single page PDF")
+
+			_, _, _, _, _, cssContentSize, err := page.GetLayoutMetrics().Do(ctx)
+			if err != nil {
+				return fmt.Errorf("get layout metrics: %w", err)
+			}
+
+			// There are 96 CSS pixels per inch.
+			// See https://issues.chromium.org/issues/40267771#comment14.
+			paperHeight = cssContentSize.Height / 96
+			pageRanges = "1" // little dirty hack to avoid leftovers.
+		}
+
 		printToPdf := page.PrintToPDF().
 			WithTransferMode(page.PrintToPDFTransferModeReturnAsStream).
 			WithLandscape(options.Landscape).
 			WithPrintBackground(options.PrintBackground).
 			WithScale(options.Scale).
 			WithPaperWidth(options.PaperWidth).
-			WithPaperHeight(options.PaperHeight).
+			WithPaperHeight(paperHeight).
 			WithMarginTop(options.MarginTop).
 			WithMarginBottom(options.MarginBottom).
 			WithMarginLeft(options.MarginLeft).
 			WithMarginRight(options.MarginRight).
-			WithPageRanges(options.PageRanges).
-			WithPreferCSSPageSize(options.PreferCssPageSize)
+			WithPageRanges(pageRanges).
+			WithPreferCSSPageSize(options.PreferCssPageSize).
+			// Does not seem to work.
+			// See https://github.com/gotenberg/gotenberg/issues/831.
+			WithGenerateTaggedPDF(false)
 
 		hasCustomHeaderFooter := options.HeaderTemplate != DefaultPdfOptions().HeaderTemplate ||
 			options.FooterTemplate != DefaultPdfOptions().FooterTemplate
@@ -109,6 +130,19 @@ func captureScreenshotActionFunc(logger *zap.Logger, outputPaths []string, optio
 					WithQuality(int64(options.Quality))
 			}
 
+			if options.Clip {
+				captureScreenshot = captureScreenshot.WithClip(&page.Viewport{
+					Width:  float64(options.Width),
+					Height: float64(options.Height),
+					Scale:  1,
+				})
+			}
+
+			if options.Format == "jpeg" {
+				captureScreenshot = captureScreenshot.
+					WithQuality(int64(options.Quality))
+			}
+			
 			logger.Debug(fmt.Sprintf("capture screenshot with: %+v", captureScreenshot))
 
 			buf, err = captureScreenshot.Do(ctx)
@@ -176,6 +210,19 @@ func writeBuffer(outputPath string, logger *zap.Logger, buf []byte) (bool, error
 	return false, nil
 }
 
+func setDeviceMetricsOverride(logger *zap.Logger, width, height int) chromedp.ActionFunc {
+	return func(ctx context.Context) error {
+		logger.Debug("set device metrics override")
+
+		err := emulation.SetDeviceMetricsOverride(int64(width), int64(height), 1.0, false).Do(ctx)
+		if err == nil {
+			return nil
+		}
+
+		return fmt.Errorf("set device metrics override: %w", err)
+	}
+}
+
 func clearCacheActionFunc(logger *zap.Logger, clear bool) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		// See https://github.com/gotenberg/gotenberg/issues/753.
@@ -230,6 +277,72 @@ func disableJavaScriptActionFunc(logger *zap.Logger, disable bool) chromedp.Acti
 		}
 
 		return fmt.Errorf("disable JavaScript: %w", err)
+	}
+}
+
+func setCookiesActionFunc(logger *zap.Logger, cookies []Cookie) chromedp.ActionFunc {
+	return func(ctx context.Context) error {
+		if len(cookies) == 0 {
+			logger.Debug("no cookies to set")
+			return nil
+		}
+
+		deadline, ok := ctx.Deadline()
+		if !ok {
+			return errors.New("context has no deadline, cannot set cookies")
+		}
+		epochTime := cdp.TimeSinceEpoch(deadline)
+
+		cookiePretty := func(c *network.SetCookieParams) string {
+			return fmt.Sprintf(
+				"Name: '%s', Value: '%s', Domain: '%s', Path: '%s', Secure: %t, HTTPOnly: %t, SameSite: '%s', Expires: %s",
+				c.Name,
+				c.Value,
+				c.Domain,
+				c.Path,
+				c.Secure,
+				c.HTTPOnly,
+				c.SameSite.String(),
+				c.Expires.Time().String(),
+			)
+		}
+
+		for _, cookie := range cookies {
+			cookieParams := network.
+				SetCookie(cookie.Name, cookie.Value).
+				WithDomain(cookie.Domain).
+				WithPath(cookie.Path).
+				WithSecure(cookie.Secure).
+				WithHTTPOnly(cookie.HttpOnly).
+				WithSameSite(cookie.SameSite).
+				WithExpires(&epochTime)
+
+			err := cookieParams.Do(ctx)
+			if err != nil {
+				return fmt.Errorf("set cookie %s: %w", cookiePretty(cookieParams), err)
+			}
+
+			logger.Debug(fmt.Sprintf("set cookie %s", cookiePretty(cookieParams)))
+		}
+
+		return nil
+	}
+}
+
+func userAgentOverride(logger *zap.Logger, userAgent string) chromedp.ActionFunc {
+	return func(ctx context.Context) error {
+		if len(userAgent) == 0 {
+			logger.Debug("no user agent override")
+			return nil
+		}
+
+		logger.Debug(fmt.Sprintf("user agent override: %s", userAgent))
+		err := emulation.SetUserAgentOverride(userAgent).Do(ctx)
+		if err == nil {
+			return nil
+		}
+
+		return fmt.Errorf("set user agent override: %w", err)
 	}
 }
 

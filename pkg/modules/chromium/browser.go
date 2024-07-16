@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -15,6 +14,7 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
+	"github.com/dlclark/regexp2"
 	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
@@ -39,8 +39,8 @@ type browserArguments struct {
 	wsUrlReadTimeout         time.Duration
 
 	// Tasks specific.
-	allowList         *regexp.Regexp
-	denyList          *regexp.Regexp
+	allowList         *regexp2.Regexp
+	denyList          *regexp2.Regexp
 	clearCache        bool
 	clearCookies      bool
 	disableJavaScript bool
@@ -90,6 +90,8 @@ func (b *chromiumBrowser) Start(logger *zap.Logger) error {
 		// https://github.com/puppeteer/puppeteer/issues/2410
 		chromedp.Flag("font-render-hinting", "none"),
 		chromedp.UserDataDir(b.userProfileDirPath),
+		// See https://github.com/gotenberg/gotenberg/issues/831.
+		chromedp.Flag("disable-pdf-tagging", true),
 	)
 
 	if b.arguments.incognito {
@@ -164,7 +166,7 @@ func (b *chromiumBrowser) Stop(logger *zap.Logger) error {
 		go func() {
 			// FIXME: Chromium seems to recreate the user profile directory
 			//  right after its deletion if we do not wait a certain amount
-			//  of time before re-deleting it.
+			//  of time before deleting it.
 			<-time.After(10 * time.Second)
 
 			err := os.RemoveAll(userProfileDirPath)
@@ -224,6 +226,8 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *zap.Logger, url, outp
 		clearCacheActionFunc(logger, b.arguments.clearCache),
 		clearCookiesActionFunc(logger, b.arguments.clearCookies),
 		disableJavaScriptActionFunc(logger, b.arguments.disableJavaScript),
+		setCookiesActionFunc(logger, options.Cookies),
+		userAgentOverride(logger, options.UserAgent),
 		extraHttpHeadersActionFunc(logger, options.ExtraHttpHeaders),
 		navigateActionFunc(logger, url, options.SkipNetworkIdleEvent),
 		hideDefaultWhiteBackgroundActionFunc(logger, options.OmitBackground, options.PrintBackground),
@@ -246,6 +250,8 @@ func (b *chromiumBrowser) screenshot(ctx context.Context, logger *zap.Logger, ur
 		clearCacheActionFunc(logger, b.arguments.clearCache),
 		clearCookiesActionFunc(logger, b.arguments.clearCookies),
 		disableJavaScriptActionFunc(logger, b.arguments.disableJavaScript),
+		setCookiesActionFunc(logger, options.Cookies),
+		userAgentOverride(logger, options.UserAgent),
 		extraHttpHeadersActionFunc(logger, options.ExtraHttpHeaders),
 		navigateActionFunc(logger, url, options.SkipNetworkIdleEvent),
 		hideDefaultWhiteBackgroundActionFunc(logger, options.OmitBackground, true),
@@ -254,6 +260,7 @@ func (b *chromiumBrowser) screenshot(ctx context.Context, logger *zap.Logger, ur
 		waitDelayBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitDelay),
 		waitForExpressionBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitForExpression),
 		// Screenshot specific.
+		setDeviceMetricsOverride(logger, options.Width, options.Height),
 		captureScreenshotActionFunc(logger, outputPaths, options),
 	})
 }
@@ -263,18 +270,15 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 		return errors.New("browser not started, cannot handle tasks")
 	}
 
-	// We validate the "main" URL against our allow / deny lists.
-	if !b.arguments.allowList.MatchString(url) {
-		return fmt.Errorf("'%s' does not match the expression from the allowed list: %w", url, ErrUrlNotAuthorized)
-	}
-
-	if b.arguments.denyList.String() != "" && b.arguments.denyList.MatchString(url) {
-		return fmt.Errorf("'%s' matches the expression from the denied list: %w", url, ErrUrlNotAuthorized)
-	}
-
 	deadline, ok := ctx.Deadline()
 	if !ok {
 		return errors.New("context has no deadline")
+	}
+
+	// We validate the "main" URL against our allow / deny lists.
+	err := gotenberg.FilterDeadline(b.arguments.allowList, b.arguments.denyList, url, deadline)
+	if err != nil {
+		return fmt.Errorf("filter URL: %w", err)
 	}
 
 	b.ctxMu.RLock()
@@ -310,7 +314,15 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 		listenForEventExceptionThrown(taskCtx, logger, &consoleExceptions, &consoleExceptionsMu)
 	}
 
-	err := chromedp.Run(taskCtx, tasks...)
+	var (
+		connectionRefused   error
+		connectionRefusedMu sync.RWMutex
+	)
+
+	// See https://github.com/gotenberg/gotenberg/issues/913.
+	listenForEventLoadingFailedOnConnectionRefused(taskCtx, logger, &connectionRefused, &connectionRefusedMu)
+
+	err = chromedp.Run(taskCtx, tasks...)
 	if err != nil {
 		errMessage := err.Error()
 
@@ -343,6 +355,14 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 
 	if consoleExceptions != nil {
 		return fmt.Errorf("%v: %w", consoleExceptions, ErrConsoleExceptions)
+	}
+
+	// See https://github.com/gotenberg/gotenberg/issues/913.
+	connectionRefusedMu.RLock()
+	defer connectionRefusedMu.RUnlock()
+
+	if connectionRefused != nil {
+		return fmt.Errorf("%v: %w", connectionRefused, ErrConnectionRefused)
 	}
 
 	return nil

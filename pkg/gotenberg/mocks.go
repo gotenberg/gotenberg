@@ -35,8 +35,10 @@ func (mod *ValidatorMock) Validate() error {
 
 // PdfEngineMock is a mock for the [PdfEngine] interface.
 type PdfEngineMock struct {
-	MergeMock   func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error
-	ConvertMock func(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error
+	MergeMock         func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error
+	ConvertMock       func(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error
+	ReadMetadataMock  func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error)
+	WriteMetadataMock func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error
 }
 
 func (engine *PdfEngineMock) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
@@ -45,6 +47,14 @@ func (engine *PdfEngineMock) Merge(ctx context.Context, logger *zap.Logger, inpu
 
 func (engine *PdfEngineMock) Convert(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error {
 	return engine.ConvertMock(ctx, logger, formats, inputPath, outputPath)
+}
+
+func (engine *PdfEngineMock) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+	return engine.ReadMetadataMock(ctx, logger, inputPath)
+}
+
+func (engine *PdfEngineMock) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+	return engine.WriteMetadataMock(ctx, logger, metadata, inputPath)
 }
 
 // PdfEngineProviderMock is a mock for the [PdfEngineProvider] interface.
@@ -125,6 +135,15 @@ type MetricsProviderMock struct {
 
 func (provider *MetricsProviderMock) Metrics() ([]Metric, error) {
 	return provider.MetricsMock()
+}
+
+// PathRenameMock is a mock for the [PathRename] interface.
+type PathRenameMock struct {
+	RenameMock func(oldpath, newpath string) error
+}
+
+func (rename *PathRenameMock) Rename(oldpath, newpath string) error {
+	return rename.RenameMock(oldpath, newpath)
 }
 
 // Interface guards.

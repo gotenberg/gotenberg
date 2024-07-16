@@ -312,7 +312,7 @@ func TestPdfEngines_Routes(t *testing.T) {
 	}{
 		{
 			scenario:      "routes not disabled",
-			expectRoutes:  2,
+			expectRoutes:  4,
 			disableRoutes: false,
 		},
 		{

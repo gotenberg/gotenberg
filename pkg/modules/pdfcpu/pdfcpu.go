@@ -46,12 +46,22 @@ func (engine *PdfCpu) Merge(ctx context.Context, logger *zap.Logger, inputPaths 
 		return nil
 	}
 
-	return fmt.Errorf("merge PDFs with PDFcpu: %w", err)
+	return fmt.Errorf("merge PDFs with pdfcpu: %w", err)
 }
 
 // Convert is not available in this implementation.
 func (engine *PdfCpu) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
-	return fmt.Errorf("convert PDF to '%+v' with PDFcpu: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)
+	return fmt.Errorf("convert PDF to '%+v' with pdfcpu: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
+// ReadMetadata is not available in this implementation.
+func (engine *PdfCpu) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+	return nil, fmt.Errorf("read PDF metadata with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
+// WriteMetadata is not available in this implementation.
+func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+	return fmt.Errorf("write PDF metadata with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Interface guards.

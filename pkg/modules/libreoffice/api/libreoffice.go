@@ -273,6 +273,27 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 		args = append(args, "--export", fmt.Sprintf("PageRange=%s", options.PageRanges))
 	}
 
+	args = append(args, "--export", fmt.Sprintf("ExportFormFields=%t", options.ExportFormFields))
+	args = append(args, "--export", fmt.Sprintf("AllowDuplicateFieldNames=%t", options.AllowDuplicateFieldNames))
+	args = append(args, "--export", fmt.Sprintf("ExportBookmarks=%t", options.ExportBookmarks))
+	args = append(args, "--export", fmt.Sprintf("ExportBookmarks=%t", options.ExportBookmarks))
+	args = append(args, "--export", fmt.Sprintf("ExportBookmarksToPDFDestination=%t", options.ExportBookmarksToPdfDestination))
+	args = append(args, "--export", fmt.Sprintf("ExportPlaceholders=%t", options.ExportPlaceholders))
+	args = append(args, "--export", fmt.Sprintf("ExportNotes=%t", options.ExportNotes))
+	args = append(args, "--export", fmt.Sprintf("ExportNotesPages=%t", options.ExportNotesPages))
+	args = append(args, "--export", fmt.Sprintf("ExportOnlyNotesPages=%t", options.ExportOnlyNotesPages))
+	args = append(args, "--export", fmt.Sprintf("ExportNotesInMargin=%t", options.ExportNotesInMargin))
+	args = append(args, "--export", fmt.Sprintf("ConvertOOoTargetToPDFTarget=%t", options.ConvertOooTargetToPdfTarget))
+	args = append(args, "--export", fmt.Sprintf("ExportLinksRelativeFsys=%t", options.ExportLinksRelativeFsys))
+	args = append(args, "--export", fmt.Sprintf("ExportHiddenSlides=%t", options.ExportHiddenSlides))
+	args = append(args, "--export", fmt.Sprintf("IsSkipEmptyPages=%t", options.SkipEmptyPages))
+	args = append(args, "--export", fmt.Sprintf("IsAddStream=%t", options.AddOriginalDocumentAsStream))
+	args = append(args, "--export", fmt.Sprintf("SinglePageSheets=%t", options.SinglePageSheets))
+	args = append(args, "--export", fmt.Sprintf("UseLosslessCompression=%t", options.LosslessImageCompression))
+	args = append(args, "--export", fmt.Sprintf("Quality=%d", options.Quality))
+	args = append(args, "--export", fmt.Sprintf("ReduceImageResolution=%t", options.ReduceImageResolution))
+	args = append(args, "--export", fmt.Sprintf("MaxImageResolution=%d", options.MaxImageResolution))
+
 	switch options.PdfFormats.PdfA {
 	case "":
 	case gotenberg.PdfA1b:
@@ -282,14 +303,20 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 	case gotenberg.PdfA3b:
 		args = append(args, "--export", "SelectPdfVersion=3")
 	default:
-		return ErrInvalidPdfFormat
+		return ErrInvalidPdfFormats
 	}
 
 	if options.PdfFormats.PdfUa {
 		args = append(
 			args,
-			"--export", "EnableTextAccessForAccessibilityTools=true",
 			"--export", "UseTaggedPDF=true",
+			"--export", "EnableTextAccessForAccessibilityTools=true",
+		)
+	} else {
+		args = append(
+			args,
+			"--export", "UseTaggedPDF=false",
+			"--export", "EnableTextAccessForAccessibilityTools=false",
 		)
 	}
 

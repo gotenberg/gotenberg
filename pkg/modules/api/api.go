@@ -5,9 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -30,10 +28,14 @@ func init() {
 // middlewares or health checks.
 type Api struct {
 	port                      int
+	tlsCertFile               string
+	tlsKeyFile                string
 	startTimeout              time.Duration
 	timeout                   time.Duration
 	rootPath                  string
 	traceHeader               string
+	basicAuthUsername         string
+	basicAuthPassword         string
 	disableHealthCheckLogging bool
 
 	routes              []Route
@@ -159,12 +161,14 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs := flag.NewFlagSet("api", flag.ExitOnError)
 			fs.Int("api-port", 3000, "Set the port on which the API should listen")
 			fs.String("api-port-from-env", "", "Set the environment variable with the port on which the API should listen - override the default port")
+			fs.String("api-tls-cert-file", "", "Path to the TLS/SSL certificate file - for HTTPS support")
+			fs.String("api-tls-key-file", "", "Path to the TLS/SSL key file - for HTTPS support")
 			fs.Duration("api-start-timeout", time.Duration(30)*time.Second, "Set the time limit for the API to start")
 			fs.Duration("api-timeout", time.Duration(30)*time.Second, "Set the time limit for requests")
 			fs.String("api-root-path", "/", "Set the root path of the API - for service discovery via URL paths")
 			fs.String("api-trace-header", "Gotenberg-Trace", "Set the header name to use for identifying requests")
+			fs.Bool("api-enable-basic-auth", false, "Enable basic authentication - will look for the GOTENBERG_API_BASIC_AUTH_USERNAME and GOTENBERG_API_BASIC_AUTH_PASSWORD environment variables")
 			fs.Bool("api-disable-health-check-logging", false, "Disable health check logging")
-
 			return fs
 		}(),
 		New: func() gotenberg.Module { return new(Api) },
@@ -175,6 +179,8 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 func (a *Api) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	a.port = flags.MustInt("api-port")
+	a.tlsCertFile = flags.MustString("api-tls-cert-file")
+	a.tlsKeyFile = flags.MustString("api-tls-key-file")
 	a.startTimeout = flags.MustDuration("api-start-timeout")
 	a.timeout = flags.MustDuration("api-timeout")
 	a.rootPath = flags.MustString("api-root-path")
@@ -184,22 +190,26 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 	// Port from env?
 	portEnvVar := flags.MustString("api-port-from-env")
 	if portEnvVar != "" {
-		val, ok := os.LookupEnv(portEnvVar)
-
-		if !ok {
-			return fmt.Errorf("environment variable '%s' does not exist", portEnvVar)
-		}
-
-		if val == "" {
-			return fmt.Errorf("environment variable '%s' is empty", portEnvVar)
-		}
-
-		port, err := strconv.Atoi(val)
+		port, err := gotenberg.IntEnv(portEnvVar)
 		if err != nil {
-			return fmt.Errorf("get int value of environment variable '%s': %w", portEnvVar, err)
+			return fmt.Errorf("get API port from env: %w", err)
 		}
-
 		a.port = port
+	}
+
+	// Enable basic auth?
+	enableBasicAuth := flags.MustBool("api-enable-basic-auth")
+	if enableBasicAuth {
+		basicAuthUsername, err := gotenberg.StringEnv("GOTENBERG_API_BASIC_AUTH_USERNAME")
+		if err != nil {
+			return fmt.Errorf("get basic auth username from env: %w", err)
+		}
+		basicAuthPassword, err := gotenberg.StringEnv("GOTENBERG_API_BASIC_AUTH_PASSWORD")
+		if err != nil {
+			return fmt.Errorf("get basic auth password from env: %w", err)
+		}
+		a.basicAuthUsername = basicAuthUsername
+		a.basicAuthPassword = basicAuthPassword
 	}
 
 	// Get routes from modules.
@@ -297,6 +307,12 @@ func (a *Api) Validate() error {
 		)
 	}
 
+	if (a.tlsCertFile != "" && a.tlsKeyFile == "") || (a.tlsCertFile == "" && a.tlsKeyFile != "") {
+		err = multierr.Append(err,
+			errors.New("both TLS certificate and key files must be set"),
+		)
+	}
+
 	if !strings.HasPrefix(a.rootPath, "/") {
 		err = multierr.Append(err,
 			errors.New("root path must start with /"),
@@ -319,8 +335,9 @@ func (a *Api) Validate() error {
 		return err
 	}
 
-	routesMap := make(map[string]string, len(a.routes)+1)
+	routesMap := make(map[string]string, len(a.routes)+2)
 	routesMap["/health"] = "/health"
+	routesMap["/version"] = "/version"
 
 	for _, route := range a.routes {
 		if route.Path == "" {
@@ -402,7 +419,7 @@ func (a *Api) Start() error {
 			a.srv.Pre(externalMiddleware.Handler)
 		case MultipartStack:
 			externalMultipartMiddlewares = append(externalMultipartMiddlewares, externalMiddleware)
-		default:
+		case DefaultStack:
 			a.srv.Use(externalMiddleware.Handler)
 		}
 	}
@@ -412,6 +429,11 @@ func (a *Api) Start() error {
 	// Add the modules' routes and their specific middlewares.
 	for _, route := range a.routes {
 		var middlewares []echo.MiddlewareFunc
+
+		// Basic auth?
+		if a.basicAuthUsername != "" {
+			middlewares = append(middlewares, basicAuthMiddleware(a.basicAuthUsername, a.basicAuthPassword))
+		}
 
 		if route.IsMultipart {
 			middlewares = append(middlewares, contextMiddleware(a.fs, a.timeout))
@@ -431,7 +453,7 @@ func (a *Api) Start() error {
 		)
 	}
 
-	// Let's not forget the health check route.
+	// Let's not forget the health check route...
 	a.srv.GET(
 		fmt.Sprintf("%s%s", a.rootPath, "health"),
 		func() echo.HandlerFunc {
@@ -440,6 +462,14 @@ func (a *Api) Start() error {
 			return echo.WrapHandler(health.NewHandler(checker))
 		}(),
 		hardTimeoutMiddleware(hardTimeout),
+	)
+
+	// ...and the version route.
+	a.srv.GET(
+		fmt.Sprintf("%s%s", a.rootPath, "version"),
+		func(c echo.Context) error {
+			return c.String(http.StatusOK, gotenberg.Version)
+		},
 	)
 
 	// Wait for all modules to be ready.
@@ -458,8 +488,15 @@ func (a *Api) Start() error {
 
 	// As the following code is blocking, run it in a goroutine.
 	go func() {
-		server := &http2.Server{}
-		err := a.srv.StartH2CServer(fmt.Sprintf(":%d", a.port), server)
+		var err error
+		if a.tlsCertFile != "" && a.tlsKeyFile != "" {
+			// Start an HTTPS server (supports HTTP/2).
+			err = a.srv.StartTLS(fmt.Sprintf(":%d", a.port), a.tlsCertFile, a.tlsKeyFile)
+		} else {
+			// Start an HTTP/2 Cleartext (non-HTTPS) server.
+			server := &http2.Server{}
+			err = a.srv.StartH2CServer(fmt.Sprintf(":%d", a.port), server)
+		}
 		if !errors.Is(err, http.ErrServerClosed) {
 			a.logger.Fatal(err.Error())
 		}

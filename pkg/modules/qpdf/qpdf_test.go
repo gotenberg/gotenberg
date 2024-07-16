@@ -148,3 +148,21 @@ func TestQPdf_Convert(t *testing.T) {
 		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)
 	}
 }
+
+func TestLibreOfficePdfEngine_ReadMetadata(t *testing.T) {
+	engine := new(QPdf)
+	_, err := engine.ReadMetadata(context.Background(), zap.NewNop(), "")
+
+	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
+		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)
+	}
+}
+
+func TestLibreOfficePdfEngine_WriteMetadata(t *testing.T) {
+	engine := new(QPdf)
+	err := engine.WriteMetadata(context.Background(), zap.NewNop(), nil, "")
+
+	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
+		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)
+	}
+}

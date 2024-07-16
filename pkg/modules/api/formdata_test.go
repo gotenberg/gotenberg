@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -755,6 +756,333 @@ func TestFormData_MandatoryDuration(t *testing.T) {
 
 			if actual != tc.expect {
 				t.Errorf("expected '%s' but got '%s'", tc.expect, actual)
+			}
+
+			if tc.expectError && tc.form.errors == nil {
+				t.Fatal("expected error but got none", tc.form.errors)
+			}
+
+			if !tc.expectError && tc.form.errors != nil {
+				t.Fatalf("expected no error but got: %v", tc.form.errors)
+			}
+		})
+	}
+}
+
+func TestFormData_Inches(t *testing.T) {
+	for _, tc := range []struct {
+		scenario     string
+		form         *FormData
+		defaultValue float64
+		expect       float64
+		expectError  bool
+	}{
+		{
+			scenario:     "key does not exist, fallback to default zero value",
+			form:         &FormData{},
+			defaultValue: 0.0,
+			expect:       0.0,
+			expectError:  false,
+		},
+		{
+			scenario:     "key does not exist, fallback to default value",
+			form:         &FormData{},
+			defaultValue: 2.5,
+			expect:       2.5,
+			expectError:  false,
+		},
+		{
+			scenario: "key does exist, but empty value, fallback to default value",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"",
+					},
+				},
+			},
+			defaultValue: 0.0,
+			expect:       0.0,
+			expectError:  false,
+		},
+		{
+			scenario: "key does exist, value has a unit, but the rest is not float64 compatible",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"foomm",
+					},
+				},
+			},
+			defaultValue: 0.0,
+			expect:       0.0,
+			expectError:  true,
+		},
+		{
+			scenario: "key does exist, but value has no unit and is invalid",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"foo",
+					},
+				},
+			},
+			defaultValue: 0.0,
+			expect:       0.0,
+			expectError:  true,
+		},
+		{
+			scenario: "key does exist with a pt value",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"72pt",
+					},
+				},
+			},
+			defaultValue: 0.0,
+			expect:       1.0,
+			expectError:  false,
+		},
+		{
+			scenario: "key does exist with a px value",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"96px",
+					},
+				},
+			},
+			defaultValue: 0.0,
+			expect:       1.0,
+			expectError:  false,
+		},
+		{
+			scenario: "key does exist with an in value",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"1in",
+					},
+				},
+			},
+			defaultValue: 0.0,
+			expect:       1.0,
+			expectError:  false,
+		},
+		{
+			scenario: "key does exist with a mm value",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"25.4mm",
+					},
+				},
+			},
+			defaultValue: 0.0,
+			expect:       1.0,
+			expectError:  false,
+		},
+		{
+			scenario: "key does exist with a cm value",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"2.54cm",
+					},
+				},
+			},
+			defaultValue: 0.0,
+			expect:       1.0,
+			expectError:  false,
+		},
+		{
+			scenario: "key does exist with a pc value",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"6pc",
+					},
+				},
+			},
+			defaultValue: 0.0,
+			expect:       1.0,
+			expectError:  false,
+		},
+		{
+			scenario: "key does exist with no unit in the value",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"100",
+					},
+				},
+			},
+			defaultValue: 0.0,
+			expect:       100,
+			expectError:  false,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			var actual float64
+
+			tc.form.Inches("foo", &actual, tc.defaultValue)
+
+			if fmt.Sprintf("%.1f", actual) != fmt.Sprintf("%.1f", tc.expect) {
+				t.Errorf("expected %.1f but got %.1f", tc.expect, actual)
+			}
+
+			if tc.expectError && tc.form.errors == nil {
+				t.Fatal("expected error but got none", tc.form.errors)
+			}
+
+			if !tc.expectError && tc.form.errors != nil {
+				t.Fatalf("expected no error but got: %v", tc.form.errors)
+			}
+		})
+	}
+}
+
+func TestFormData_MandatoryInches(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		form        *FormData
+		expect      float64
+		expectError bool
+	}{
+		{
+			scenario:    "missing mandatory key",
+			form:        &FormData{},
+			expect:      0.0,
+			expectError: true,
+		},
+		{
+			scenario: "mandatory value is empty",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"",
+					},
+				},
+			},
+			expect:      0.0,
+			expectError: true,
+		},
+		{
+			scenario: "mandatory value has a unit, but the rest is not float64 compatible",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"foomm",
+					},
+				},
+			},
+			expect:      0.0,
+			expectError: true,
+		},
+		{
+			scenario: "mandatory value has no unit and is invalid",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"foo",
+					},
+				},
+			},
+			expect:      0.0,
+			expectError: true,
+		},
+		{
+			scenario: "a pt mandatory value",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"72pt",
+					},
+				},
+			},
+			expect:      1.0,
+			expectError: false,
+		},
+		{
+			scenario: "a px mandatory value",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"96px",
+					},
+				},
+			},
+			expect:      1.0,
+			expectError: false,
+		},
+		{
+			scenario: "an in mandatory value",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"1in",
+					},
+				},
+			},
+			expect:      1.0,
+			expectError: false,
+		},
+		{
+			scenario: "a mm mandatory value",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"25.4mm",
+					},
+				},
+			},
+			expect:      1.0,
+			expectError: false,
+		},
+		{
+			scenario: "a cm mandatory value",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"2.54cm",
+					},
+				},
+			},
+			expect:      1.0,
+			expectError: false,
+		},
+		{
+			scenario: "a pc mandatory value",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"6pc",
+					},
+				},
+			},
+			expect:      1.0,
+			expectError: false,
+		},
+		{
+			scenario: "no unit in the mandatory value",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"100",
+					},
+				},
+			},
+			expect:      100,
+			expectError: false,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			var actual float64
+
+			tc.form.MandatoryInches("foo", &actual)
+
+			if fmt.Sprintf("%.1f", actual) != fmt.Sprintf("%.1f", tc.expect) {
+				t.Errorf("expected %.1f but got %.1f", tc.expect, actual)
 			}
 
 			if tc.expectError && tc.form.errors == nil {

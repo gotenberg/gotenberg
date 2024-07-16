@@ -15,8 +15,26 @@ import (
 )
 
 func TestDefaultOptions(t *testing.T) {
+	actual := DefaultOptions()
+	notExpect := Options{}
+
+	if reflect.DeepEqual(actual, notExpect) {
+		t.Errorf("expected %v and got identical %v", actual, notExpect)
+	}
+}
+
+func TestDefaultPdfOptions(t *testing.T) {
 	actual := DefaultPdfOptions()
 	notExpect := PdfOptions{}
+
+	if reflect.DeepEqual(actual, notExpect) {
+		t.Errorf("expected %v and got identical %v", actual, notExpect)
+	}
+}
+
+func TestDefaultScreenshotOptions(t *testing.T) {
+	actual := DefaultScreenshotOptions()
+	notExpect := ScreenshotOptions{}
 
 	if reflect.DeepEqual(actual, notExpect) {
 		t.Errorf("expected %v and got identical %v", actual, notExpect)

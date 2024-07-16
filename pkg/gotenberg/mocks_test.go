@@ -55,6 +55,12 @@ func TestPDFEngineMock(t *testing.T) {
 		ConvertMock: func(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error {
 			return nil
 		},
+		ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+			return nil, nil
+		},
+		WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+			return nil
+		},
 	}
 
 	err := mock.Merge(context.Background(), zap.NewNop(), nil, "")
@@ -65,6 +71,16 @@ func TestPDFEngineMock(t *testing.T) {
 	err = mock.Convert(context.Background(), zap.NewNop(), PdfFormats{}, "", "")
 	if err != nil {
 		t.Errorf("expected no error from PdfEngineMock.Convert, but got: %v", err)
+	}
+
+	_, err = mock.ReadMetadata(context.Background(), zap.NewNop(), "")
+	if err != nil {
+		t.Errorf("expected no error from PdfEngineMock.ReadMetadata, but got: %v", err)
+	}
+
+	err = mock.WriteMetadata(context.Background(), zap.NewNop(), map[string]interface{}{}, "")
+	if err != nil {
+		t.Errorf("expected no error from PdfEngineMock.WriteMetadata but got: %v", err)
 	}
 }
 
@@ -186,5 +202,18 @@ func TestMetricsProviderMock(t *testing.T) {
 	_, err := mock.Metrics()
 	if err != nil {
 		t.Errorf("expected no error from MetricsProviderMock.Metrics, but got: %v", err)
+	}
+}
+
+func TestPathRenameMock(t *testing.T) {
+	mock := &PathRenameMock{
+		RenameMock: func(oldpath, newpath string) error {
+			return nil
+		},
+	}
+
+	err := mock.Rename("", "")
+	if err != nil {
+		t.Errorf("expected no error from PathRenameMock.Rename, but got: %v", err)
 	}
 }

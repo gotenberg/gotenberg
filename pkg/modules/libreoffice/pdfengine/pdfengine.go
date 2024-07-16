@@ -64,11 +64,21 @@ func (engine *LibreOfficePdfEngine) Convert(ctx context.Context, logger *zap.Log
 		return nil
 	}
 
-	if errors.Is(err, api.ErrInvalidPdfFormat) {
+	if errors.Is(err, api.ErrInvalidPdfFormats) {
 		return fmt.Errorf("convert PDF to '%+v' with LibreOffice: %w", formats, gotenberg.ErrPdfFormatNotSupported)
 	}
 
 	return fmt.Errorf("convert PDF to '%+v' with LibreOffice: %w", formats, err)
+}
+
+// ReadMetadata is not available in this implementation.
+func (engine *LibreOfficePdfEngine) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+	return nil, fmt.Errorf("read PDF metadata with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
+// WriteMetadata is not available in this implementation.
+func (engine *LibreOfficePdfEngine) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+	return fmt.Errorf("write PDF metadata with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Interface guards.

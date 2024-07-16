@@ -5,19 +5,19 @@
 # Credits: https://github.com/thecodingmachine/docker-images-php.
 
 set +e
-mkdir testing_file_system_rights.foo
+mkdir -p testing_file_system_rights.foo
 chmod 700 testing_file_system_rights.foo
 su gotenberg -c "touch testing_file_system_rights.foo/foo > /dev/null 2>&1"
 HAS_CONSISTENT_RIGHTS=$?
 
 if [[ "$HAS_CONSISTENT_RIGHTS" != "0" ]]; then
     # If not specified, the DOCKER_USER is the owner of the current working directory (heuristic!).
-    DOCKER_USER=$(stat -c '%U' "$(pwd)")
+    DOCKER_USER=$(stat -c '%u' "$(pwd)")
 else
     # macOs or Windows.
     # Note: in most cases, we don't care about the rights (they are not respected).
-    FILE_OWNER=$(stat -c '%U' "testing_file_system_rights.foo/foo")
-    if [[ "$FILE_OWNER" == "root" ]]; then
+    FILE_OWNER=$(stat -c '%u' "testing_file_system_rights.foo/foo")
+    if [[ "$FILE_OWNER" == "0" ]]; then
         # If root, we are likely on a Windows host.
         # All files will belong to root, but it does not matter as everybody can write/delete
         # those (0777 access rights).

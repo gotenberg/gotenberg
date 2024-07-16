@@ -1,9 +1,9 @@
 package webhook
 
 import (
-	"regexp"
 	"time"
 
+	"github.com/dlclark/regexp2"
 	flag "github.com/spf13/pflag"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
@@ -17,10 +17,10 @@ func init() {
 // Webhook is a module which provides a middleware for uploading output files
 // to any destinations in an asynchronous fashion.
 type Webhook struct {
-	allowList      *regexp.Regexp
-	denyList       *regexp.Regexp
-	errorAllowList *regexp.Regexp
-	errorDenyList  *regexp.Regexp
+	allowList      *regexp2.Regexp
+	denyList       *regexp2.Regexp
+	errorAllowList *regexp2.Regexp
+	errorDenyList  *regexp2.Regexp
 	maxRetry       int
 	retryMinWait   time.Duration
 	retryMaxWait   time.Duration

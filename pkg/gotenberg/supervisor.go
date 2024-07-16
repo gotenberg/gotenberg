@@ -13,6 +13,10 @@ import (
 // to restart an already restarting [Process].
 var ErrProcessAlreadyRestarting = errors.New("process already restarting")
 
+// ErrMaximumQueueSizeExceeded happens if Run() is called but the maximum queue
+// size is already used.
+var ErrMaximumQueueSizeExceeded = errors.New("maximum queue size exceeded")
+
 // Process is an interface that represents an abstract process
 // and provides methods for starting, stopping, and checking the health of the
 // process.
@@ -74,6 +78,7 @@ type processSupervisor struct {
 	logger          *zap.Logger
 	process         Process
 	maxReqLimit     int64
+	maxQueueSize    int64
 	mutexChan       chan struct{}
 	firstStart      atomic.Bool
 	reqCounter      atomic.Int64
@@ -83,12 +88,13 @@ type processSupervisor struct {
 }
 
 // NewProcessSupervisor initializes a new [ProcessSupervisor].
-func NewProcessSupervisor(logger *zap.Logger, process Process, maxReqLimit int64) ProcessSupervisor {
+func NewProcessSupervisor(logger *zap.Logger, process Process, maxReqLimit, maxQueueSize int64) ProcessSupervisor {
 	b := &processSupervisor{
-		logger:      logger,
-		process:     process,
-		mutexChan:   make(chan struct{}, 1),
-		maxReqLimit: maxReqLimit,
+		logger:       logger,
+		process:      process,
+		mutexChan:    make(chan struct{}, 1),
+		maxReqLimit:  maxReqLimit,
+		maxQueueSize: maxQueueSize,
 	}
 	b.reqCounter.Store(0)
 	b.reqQueueSize.Store(0)
@@ -167,6 +173,11 @@ func (s *processSupervisor) Healthy() bool {
 }
 
 func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task func() error) error {
+	currentQueueSize := s.reqQueueSize.Load()
+	if s.maxQueueSize > 0 && currentQueueSize >= s.maxQueueSize {
+		return ErrMaximumQueueSizeExceeded
+	}
+
 	s.reqQueueSize.Add(1)
 
 	for {
@@ -176,10 +187,13 @@ func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task fu
 				logger.Debug("process lock acquired")
 				s.reqQueueSize.Add(-1)
 				s.reqCounter.Add(1)
+				releaseMutexChan := true
 
 				defer func() {
-					logger.Debug("process lock released")
-					<-s.mutexChan
+					if releaseMutexChan {
+						logger.Debug("process lock released")
+						<-s.mutexChan
+					}
 				}()
 
 				if !s.firstStart.Load() {
@@ -201,18 +215,26 @@ func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task fu
 					}
 				}
 
+				err := s.runWithDeadline(ctx, task)
+
 				if s.maxReqLimit > 0 && s.reqCounter.Load() >= s.maxReqLimit {
-					s.logger.Debug("max request limit reached, restarting...")
-					err := s.runWithDeadline(ctx, func() error {
-						return s.restart()
-					})
-					if err != nil {
-						return fmt.Errorf("process restart before task: %w", err)
-					}
+					s.logger.Debug("max request limit reached, restarting eagerly...")
+					releaseMutexChan = false
+
+					go func() {
+						err := s.runWithDeadline(context.Background(), func() error {
+							return s.restart()
+						})
+						if err != nil {
+							s.logger.Error(fmt.Sprintf("process restart after task: %v", err))
+						}
+						logger.Debug("process lock released")
+						<-s.mutexChan
+					}()
 				}
 
 				// Note: no error wrapping because it leaks on Chromium console exceptions output.
-				return s.runWithDeadline(ctx, task)
+				return err
 			case <-ctx.Done():
 				logger.Debug("failed to acquire process lock before deadline")
 				s.reqQueueSize.Add(-1)
