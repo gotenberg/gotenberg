@@ -16,7 +16,7 @@ concurrency:
 
 env:
   GOLANG_VERSION: 1.22
-  GOTENBERG_VERSION: 8.8.0
+  GOTENBERG_VERSION: 8.2.0
 
 permissions:
   id-token: write
