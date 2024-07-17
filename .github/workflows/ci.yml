@@ -3,22 +3,25 @@ on:
   workflow_dispatch: {}
   push:
     branches:
-      - master
+      - main-bc
     tags:
       - v*
   pull_request:
     branches:
-      - master
-  release:
-    types: [published]
+      - main-bc
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 
 env:
   GOLANG_VERSION: 1.22
-  GOTENBERG_VERSION: 8.8.0
+  GOTENBERG_VERSION: 8.2.0
 
 permissions:
   id-token: write
   contents: read
+  packages: write
 
 jobs:
   build-docker-image:
@@ -62,16 +65,23 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: ghcr.io/onebrief/gotenberg
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{major}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{version}}
 
       - name: Docker Build
         id: build
         uses: docker/build-push-action@v3
         with:
-          context: ./build/Dockerfile.bc
-          push: false
+          context: .
+          file: ./build/Dockerfile.bc
+          push: true
           build-args: |
-            GOLANG_VERSION="${{ env.GOLANG_VERSION }}",
-            GOTENBERG_VERSION="${{ env.GOTENBERG_VERSION }}"
+            GOLANG_VERSION=${{ env.GOLANG_VERSION }}
+            GOTENBERG_VERSION=${{ env.GOTENBERG_VERSION }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: |

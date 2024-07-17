@@ -1,4 +1,5 @@
-ARG GOLANG_VERSION
+ARG GOLANG_VERSION=1.22
+ARG GOTENBERG_VERSION=8.2.0
 
 # ----------------------------------------------
 # Gotenberg binary build stage
@@ -26,6 +27,6 @@ RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v8/cmd.Ve
 # ----------------------------------------------
 # Copy binary to chainguard base
 # ----------------------------------------------
-FROM 183613197217.dkr.ecr.us-east-1.amazonaws.com/cgr.dev/onebrief.com/gotenberg:8.8.0 AS chainguard-base
+FROM 183613197217.dkr.ecr.us-east-1.amazonaws.com/cgr.dev/onebrief.com/gotenberg:$GOTENBERG_VERSION AS chainguard-base
 
 COPY --from=binary-stage /home/gotenberg /usr/bin/
