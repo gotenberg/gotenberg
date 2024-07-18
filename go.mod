@@ -6,7 +6,7 @@ require (
 	github.com/alexliesenfeld/health v0.8.0
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/barasher/go-exiftool v1.10.0
-	github.com/chromedp/cdproto v0.0.0-20240626232640-f933b107c653
+	github.com/chromedp/cdproto v0.0.0-20240709201219-e202069cc16b
 	github.com/chromedp/chromedp v0.9.5
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.6.0
@@ -18,7 +18,7 @@ require (
 	github.com/labstack/gommon v0.4.2
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mholt/archiver/v3 v3.5.1
-	github.com/microcosm-cc/bluemonday v1.0.26
+	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/nwaples/rardecode v1.1.3 // indirect
 	github.com/pdfcpu/pdfcpu v0.8.0
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
@@ -28,16 +28,16 @@ require (
 	github.com/ulikunitz/xz v0.5.12 // indirect
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.24.0 // indirect
+	golang.org/x/crypto v0.25.0 // indirect
 	golang.org/x/image v0.18.0 // indirect
-	golang.org/x/net v0.26.0
+	golang.org/x/net v0.27.0
 	golang.org/x/sync v0.7.0
-	golang.org/x/sys v0.21.0 // indirect
-	golang.org/x/term v0.21.0
+	golang.org/x/sys v0.22.0 // indirect
+	golang.org/x/term v0.22.0
 	golang.org/x/text v0.16.0
 )
 
-require github.com/dlclark/regexp2 v1.11.0
+require github.com/dlclark/regexp2 v1.11.2
 
 require (
 	github.com/aymerick/douceur v0.2.0 // indirect
