@@ -433,6 +433,13 @@ func TestApi_Pdf(t *testing.T) {
 			}},
 			expectError: true,
 		},
+		{
+			scenario: "ErrCoreDumped",
+			libreOffice: &libreOfficeMock{pdfMock: func(ctx context.Context, logger *zap.Logger, input, outputPath string, options Options) error {
+				return ErrCoreDumped
+			}},
+			expectError: false,
+		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			a := new(Api)
