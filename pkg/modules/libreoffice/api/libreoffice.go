@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -346,6 +347,12 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 	// and given inputs.
 	if exitCode == 5 && options.PageRanges != "" {
 		return ErrMalformedPageRanges
+	}
+
+	// We may want to retry in case of a core dumped event.
+	// See https://github.com/gotenberg/gotenberg/issues/639.
+	if strings.Contains(err.Error(), "core dumped") {
+		return ErrCoreDumped
 	}
 
 	// Possible errors:

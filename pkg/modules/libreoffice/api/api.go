@@ -28,6 +28,11 @@ var (
 	// ErrMalformedPageRanges happens if the page ranges option cannot be
 	// interpreted by LibreOffice.
 	ErrMalformedPageRanges = errors.New("page ranges are malformed")
+
+	// ErrCoreDumped happens randomly; sometime a conversion will work as
+	// expected, and some other time the same conversion will fail.
+	// See https://github.com/gotenberg/gotenberg/issues/639.
+	ErrCoreDumped = errors.New("core dumped")
 )
 
 // Api is a module which provides a [Uno] to interact with LibreOffice.
@@ -365,9 +370,20 @@ func (a *Api) LibreOffice() (Uno, error) {
 
 // Pdf converts a document to PDF.
 func (a *Api) Pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error {
-	return a.supervisor.Run(ctx, logger, func() error {
+	err := a.supervisor.Run(ctx, logger, func() error {
 		return a.libreOffice.pdf(ctx, logger, inputPath, outputPath, options)
 	})
+
+	if err == nil {
+		return nil
+	}
+
+	// See https://github.com/gotenberg/gotenberg/issues/639.
+	if errors.Is(err, ErrCoreDumped) {
+		return a.Pdf(ctx, logger, inputPath, outputPath, options)
+	}
+
+	return fmt.Errorf("supervisor run task: %w", err)
 }
 
 // Extensions returns the file extensions available for conversions.
