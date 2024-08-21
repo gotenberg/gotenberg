@@ -9,7 +9,7 @@ ARG GOLANG_VERSION
 FROM golang:$GOLANG_VERSION AS binary-stage
 
 ARG GOTENBERG_VERSION
-ENV CGO_ENABLED 0
+ENV CGO_ENABLED=0
 
 # Define the working directory outside of $GOPATH (we're using go modules).
 WORKDIR /home
@@ -191,12 +191,12 @@ COPY build/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 COPY --from=binary-stage /home/gotenberg /usr/bin/
 
 # Environment variables required by modules or else.
-ENV CHROMIUM_BIN_PATH /usr/bin/chromium
-ENV LIBREOFFICE_BIN_PATH /usr/lib/libreoffice/program/soffice.bin
-ENV UNOCONVERTER_BIN_PATH /usr/bin/unoconverter
-ENV PDFTK_BIN_PATH /usr/bin/pdftk
-ENV QPDF_BIN_PATH /usr/bin/qpdf
-ENV EXIFTOOL_BIN_PATH /usr/bin/exiftool
+ENV CHROMIUM_BIN_PATH=/usr/bin/chromium
+ENV LIBREOFFICE_BIN_PATH=/usr/lib/libreoffice/program/soffice.bin
+ENV UNOCONVERTER_BIN_PATH=/usr/bin/unoconverter
+ENV PDFTK_BIN_PATH=/usr/bin/pdftk
+ENV QPDF_BIN_PATH=/usr/bin/qpdf
+ENV EXIFTOOL_BIN_PATH=/usr/bin/exiftool
 
 USER gotenberg
 WORKDIR /home/gotenberg

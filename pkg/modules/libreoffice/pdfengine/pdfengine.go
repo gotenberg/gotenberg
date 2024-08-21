@@ -56,9 +56,9 @@ func (engine *LibreOfficePdfEngine) Merge(ctx context.Context, logger *zap.Logge
 // PDF format is requested, it returns a [gotenberg.ErrPdfFormatNotSupported]
 // error.
 func (engine *LibreOfficePdfEngine) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
-	err := engine.unoApi.Pdf(ctx, logger, inputPath, outputPath, api.Options{
-		PdfFormats: formats,
-	})
+	opts := api.DefaultOptions()
+	opts.PdfFormats = formats
+	err := engine.unoApi.Pdf(ctx, logger, inputPath, outputPath, opts)
 
 	if err == nil {
 		return nil
