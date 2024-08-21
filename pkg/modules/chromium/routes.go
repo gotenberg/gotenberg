@@ -676,7 +676,7 @@ func screenshotUrl(ctx *api.Context, chromium Api, url string, options Screensho
 	}
 
 	err := chromium.Screenshot(ctx, ctx.Log(), url, outputPaths, options)
-	err = handleChromiumError(err, url, options.Options)
+	err = handleChromiumError(err, options.Options)
 	if err != nil {
 		return fmt.Errorf("screenshot: %w", err)
 	}

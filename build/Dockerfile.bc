@@ -1,5 +1,5 @@
 ARG GOLANG_VERSION=1.22
-ARG GOTENBERG_VERSION=8.2.0
+ARG GOTENBERG_VERSION=8.9.1
 
 # ----------------------------------------------
 # Gotenberg binary build stage
