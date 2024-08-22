@@ -117,6 +117,19 @@ func TestContextMock_SetEchoContext(t *testing.T) {
 	}
 }
 
+func TestContextMock_SetPathRename(t *testing.T) {
+	mock := ContextMock{&Context{}}
+
+	expect := new(osPathRename)
+	mock.SetPathRename(expect)
+
+	actual := mock.pathRename
+
+	if actual != expect {
+		t.Errorf("expected %v but got %v", expect, actual)
+	}
+}
+
 func TestRouterMock(t *testing.T) {
 	mock := &RouterMock{
 		RoutesMock: func() ([]Route, error) {

@@ -14,6 +14,15 @@ import (
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
+func TestDefaultOptions(t *testing.T) {
+	actual := DefaultOptions()
+	notExpect := Options{}
+
+	if reflect.DeepEqual(actual, notExpect) {
+		t.Errorf("expected %v and got identical %v", actual, notExpect)
+	}
+}
+
 func TestApi_Descriptor(t *testing.T) {
 	descriptor := new(Api).Descriptor()
 
@@ -424,6 +433,13 @@ func TestApi_Pdf(t *testing.T) {
 			}},
 			expectError: true,
 		},
+		{
+			scenario: "ErrCoreDumped",
+			libreOffice: &libreOfficeMock{pdfMock: func(ctx context.Context, logger *zap.Logger, input, outputPath string, options Options) error {
+				return ErrCoreDumped
+			}},
+			expectError: false,
+		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			a := new(Api)
@@ -450,7 +466,7 @@ func TestApi_Extensions(t *testing.T) {
 	extensions := a.Extensions()
 
 	actual := len(extensions)
-	expect := 79
+	expect := 130
 
 	if actual != expect {
 		t.Errorf("expected %d extensions, but got %d", expect, actual)

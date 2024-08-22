@@ -174,7 +174,7 @@ func newLogEncoder(format string) (zapcore.Encoder, error) {
 		// If interactive terminal, make output more human-readable by default.
 		// Credits: https://github.com/caddyserver/caddy/blob/v2.1.1/logging.go#L671.
 		encCfg.EncodeTime = func(ts time.Time, encoder zapcore.PrimitiveArrayEncoder) {
-			encoder.AppendString(ts.UTC().Format("2006/01/02 15:04:05.000"))
+			encoder.AppendString(ts.Local().Format("2006/01/02 15:04:05.000"))
 		}
 
 		if format == textLoggingFormat || format == autoLoggingFormat {

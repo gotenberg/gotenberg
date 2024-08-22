@@ -10,20 +10,41 @@ linters-settings:
 linters:
   disable-all: true
   enable:
+    - asasalint
+    - asciicheck
+    - bidichk
     - bodyclose
+    - decorder
+    - dogsled
+    - dupl
+    - dupword
+    - durationcheck
     - errcheck
+    - errname
+    - exhaustive
+    - exportloopref
     - gci
+    - gofmt
+    - goimports
     - gofumpt
     - gosec
     - gosimple
     - govet
     - ineffassign
+    - importas
     - misspell
     - prealloc
+    - promlinter
+    #- sloglint
     - staticcheck
+    - tenv
+    - testableexamples
+    - tparallel
     - typecheck
     - unconvert
     - unused
+    - wastedassign
+    - whitespace
 
 run:
   timeout: 5m
@@ -31,6 +52,5 @@ run:
   tests: false
 
 output:
-  format: 'colored-line-number'
   print-issued-lines: true
   print-linter-name: true

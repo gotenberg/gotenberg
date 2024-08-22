@@ -63,6 +63,59 @@ func TestFormDataChromiumOptions(t *testing.T) {
 			}(),
 		},
 		{
+			scenario: "invalid cookies form field",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"cookies": {
+						"foo",
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: DefaultOptions(),
+		},
+		{
+			scenario: "invalid cookies form field (missing required values)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"cookies": {
+						"[{}]",
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: func() Options {
+				options := DefaultOptions()
+				// No validation in this method, so it still instantiates
+				// an empty item.
+				options.Cookies = []Cookie{{}}
+				return options
+			}(),
+		},
+		{
+			scenario: "valid cookies form field",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"cookies": {
+						`[{"name":"foo","value":"bar","domain":".foo.bar"}]`,
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: func() Options {
+				options := DefaultOptions()
+				options.Cookies = []Cookie{{
+					Name:   "foo",
+					Value:  "bar",
+					Domain: ".foo.bar",
+				}}
+				return options
+			}(),
+		},
+		{
 			scenario: "invalid extraHttpHeaders form field",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
@@ -332,6 +385,15 @@ func TestFormDataChromiumScreenshotOptions(t *testing.T) {
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetValues(map[string][]string{
+					"width": {
+						"1280",
+					},
+					"height": {
+						"800",
+					},
+					"clip": {
+						"true",
+					},
 					"optimizeForSpeed": {
 						"true",
 					},
@@ -343,6 +405,9 @@ func TestFormDataChromiumScreenshotOptions(t *testing.T) {
 			}(),
 			expectedOptions: func() ScreenshotOptions {
 				options := DefaultScreenshotOptions()
+				options.Width = 1280
+				options.Height = 800
+				options.Clip = true
 				options.OptimizeForSpeed = true
 				options.EmulatedMediaType = "screen"
 				return options
@@ -394,6 +459,57 @@ func TestFormDataChromiumPdfFormats(t *testing.T) {
 
 			if !reflect.DeepEqual(actual, tc.expectedPdfFormats) {
 				t.Fatalf("expected %+v but got: %+v", tc.expectedPdfFormats, actual)
+			}
+		})
+	}
+}
+
+func TestFormDataPdfMetadata(t *testing.T) {
+	for _, tc := range []struct {
+		scenario         string
+		ctx              *api.ContextMock
+		expectedMetadata map[string]interface{}
+	}{
+		{
+			scenario:         "no metadata form field",
+			ctx:              &api.ContextMock{Context: new(api.Context)},
+			expectedMetadata: nil,
+		},
+		{
+			scenario: "invalid metadata form field",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"metadata": {
+						"foo",
+					},
+				})
+				return ctx
+			}(),
+			expectedMetadata: nil,
+		},
+		{
+			scenario: "valid metadata form field",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"metadata": {
+						"{\"foo\":\"bar\"}",
+					},
+				})
+				return ctx
+			}(),
+			expectedMetadata: map[string]interface{}{
+				"foo": "bar",
+			},
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			tc.ctx.SetLogger(zap.NewNop())
+			actual := FormDataPdfMetadata(tc.ctx.Context.FormData())
+
+			if !reflect.DeepEqual(actual, tc.expectedMetadata) {
+				t.Fatalf("expected %+v but got: %+v", tc.expectedMetadata, actual)
 			}
 		})
 	}
@@ -1223,25 +1339,14 @@ func TestConvertUrl(t *testing.T) {
 		ctx                    *api.ContextMock
 		api                    Api
 		engine                 gotenberg.PdfEngine
-		pdfFormats             gotenberg.PdfFormats
 		options                PdfOptions
+		pdfFormats             gotenberg.PdfFormats
+		metadata               map[string]interface{}
 		expectError            bool
 		expectHttpError        bool
 		expectHttpStatus       int
 		expectOutputPathsCount int
 	}{
-		{
-			scenario: "ErrUrlNotAuthorized",
-			ctx:      &api.ContextMock{Context: new(api.Context)},
-			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
-				return ErrUrlNotAuthorized
-			}},
-			options:                DefaultPdfOptions(),
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusForbidden,
-			expectOutputPathsCount: 0,
-		},
 		{
 			scenario: "ErrOmitBackgroundWithoutPrintBackground",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
@@ -1331,6 +1436,18 @@ func TestConvertUrl(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
+			scenario: "ErrConnectionRefused",
+			ctx:      &api.ContextMock{Context: new(api.Context)},
+			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
+				return ErrConnectionRefused
+			}},
+			options:                DefaultPdfOptions(),
+			expectError:            true,
+			expectHttpError:        true,
+			expectHttpStatus:       http.StatusBadRequest,
+			expectOutputPathsCount: 0,
+		},
+		{
 			scenario: "error from Chromium",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
 			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
@@ -1342,23 +1459,7 @@ func TestConvertUrl(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "ErrPdfFormatNotSupported",
-			ctx:      &api.ContextMock{Context: new(api.Context)},
-			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
-				return nil
-			}},
-			engine: &gotenberg.PdfEngineMock{ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
-				return gotenberg.ErrPdfFormatNotSupported
-			}},
-			pdfFormats:             gotenberg.PdfFormats{PdfA: "foo"},
-			options:                DefaultPdfOptions(),
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusBadRequest,
-			expectOutputPathsCount: 0,
-		},
-		{
-			scenario: "error from PDF engine",
+			scenario: "PDF engine convert error",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
 			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
 				return nil
@@ -1366,14 +1467,14 @@ func TestConvertUrl(t *testing.T) {
 			engine: &gotenberg.PdfEngineMock{ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 				return errors.New("foo")
 			}},
-			pdfFormats:             gotenberg.PdfFormats{PdfA: "foo"},
 			options:                DefaultPdfOptions(),
+			pdfFormats:             gotenberg.PdfFormats{PdfA: "foo"},
 			expectError:            true,
 			expectHttpError:        false,
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "success with pdfa form field",
+			scenario: "success with PDF formats",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
 			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
 				return nil
@@ -1381,11 +1482,28 @@ func TestConvertUrl(t *testing.T) {
 			engine: &gotenberg.PdfEngineMock{ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 				return nil
 			}},
-			pdfFormats:             gotenberg.PdfFormats{PdfA: gotenberg.PdfA1b},
 			options:                DefaultPdfOptions(),
+			pdfFormats:             gotenberg.PdfFormats{PdfA: gotenberg.PdfA1b},
 			expectError:            false,
 			expectHttpError:        false,
 			expectOutputPathsCount: 1,
+		},
+		{
+			scenario: "PDF engine write metadata error",
+			ctx:      &api.ContextMock{Context: new(api.Context)},
+			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
+				return nil
+			}},
+			engine: &gotenberg.PdfEngineMock{WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+				return errors.New("foo")
+			}},
+			options: DefaultPdfOptions(),
+			metadata: map[string]interface{}{
+				"Creator":  "foo",
+				"Producer": "bar",
+			},
+			expectError:     true,
+			expectHttpError: false,
 		},
 		{
 			scenario: "cannot add output paths",
@@ -1408,7 +1526,20 @@ func TestConvertUrl(t *testing.T) {
 			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
 				return nil
 			}},
-			options:                DefaultPdfOptions(),
+			engine: &gotenberg.PdfEngineMock{
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+					return nil
+				},
+				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+					return nil
+				},
+			},
+			options:    DefaultPdfOptions(),
+			pdfFormats: gotenberg.PdfFormats{PdfA: gotenberg.PdfA1b},
+			metadata: map[string]interface{}{
+				"Creator":  "foo",
+				"Producer": "bar",
+			},
 			expectError:            false,
 			expectHttpError:        false,
 			expectOutputPathsCount: 1,
@@ -1416,7 +1547,7 @@ func TestConvertUrl(t *testing.T) {
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			tc.ctx.SetLogger(zap.NewNop())
-			err := convertUrl(tc.ctx.Context, tc.api, tc.engine, "", tc.pdfFormats, tc.options)
+			err := convertUrl(tc.ctx.Context, tc.api, tc.engine, "", tc.options, tc.pdfFormats, tc.metadata)
 
 			if tc.expectError && err == nil {
 				t.Fatal("expected error but got none", err)
@@ -1462,18 +1593,6 @@ func TestScreenshotUrl(t *testing.T) {
 		expectHttpStatus       int
 		expectOutputPathsCount int
 	}{
-		{
-			scenario: "ErrUrlNotAuthorized",
-			ctx:      &api.ContextMock{Context: new(api.Context)},
-			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url string, outputPaths []string, options ScreenshotOptions) error {
-				return ErrUrlNotAuthorized
-			}},
-			options:                DefaultScreenshotOptions(),
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusForbidden,
-			expectOutputPathsCount: 0,
-		},
 		{
 			scenario: "ErrInvalidEvaluationExpression (without waitForExpression form field)",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
@@ -1524,6 +1643,18 @@ func TestScreenshotUrl(t *testing.T) {
 			expectError:            true,
 			expectHttpError:        true,
 			expectHttpStatus:       http.StatusConflict,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "ErrConnectionRefused",
+			ctx:      &api.ContextMock{Context: new(api.Context)},
+			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+				return ErrConnectionRefused
+			}},
+			options:                DefaultScreenshotOptions(),
+			expectError:            true,
+			expectHttpError:        true,
+			expectHttpStatus:       http.StatusBadRequest,
 			expectOutputPathsCount: 0,
 		},
 		{

@@ -56,19 +56,29 @@ func (engine *LibreOfficePdfEngine) Merge(ctx context.Context, logger *zap.Logge
 // PDF format is requested, it returns a [gotenberg.ErrPdfFormatNotSupported]
 // error.
 func (engine *LibreOfficePdfEngine) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
-	err := engine.unoApi.Pdf(ctx, logger, inputPath, outputPath, api.Options{
-		PdfFormats: formats,
-	})
+	opts := api.DefaultOptions()
+	opts.PdfFormats = formats
+	err := engine.unoApi.Pdf(ctx, logger, inputPath, outputPath, opts)
 
 	if err == nil {
 		return nil
 	}
 
-	if errors.Is(err, api.ErrInvalidPdfFormat) {
+	if errors.Is(err, api.ErrInvalidPdfFormats) {
 		return fmt.Errorf("convert PDF to '%+v' with LibreOffice: %w", formats, gotenberg.ErrPdfFormatNotSupported)
 	}
 
 	return fmt.Errorf("convert PDF to '%+v' with LibreOffice: %w", formats, err)
+}
+
+// ReadMetadata is not available in this implementation.
+func (engine *LibreOfficePdfEngine) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+	return nil, fmt.Errorf("read PDF metadata with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
+// WriteMetadata is not available in this implementation.
+func (engine *LibreOfficePdfEngine) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+	return fmt.Errorf("write PDF metadata with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Interface guards.

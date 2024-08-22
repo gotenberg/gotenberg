@@ -17,14 +17,14 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.22'
           cache: false
       - name: Checkout source code
         uses: actions/checkout@v4
       - name: Run linters
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.54.2
+          version: v1.59.0
 
   tests:
     needs:
@@ -43,9 +43,12 @@ jobs:
       - name: Build testing environment
         run: make build build-tests
       - name: Run tests
-        run: |
-          make tests-once
-          bash <(curl -s https://codecov.io/bash)
+        run: make tests-once
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
 
   multiarch_build:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

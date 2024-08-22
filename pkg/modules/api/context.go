@@ -34,16 +34,22 @@ var (
 
 // Context is the request context for a "multipart/form-data" requests.
 type Context struct {
-	dirPath string
-	values  map[string][]string
-	files   map[string]string
-
+	dirPath     string
+	values      map[string][]string
+	files       map[string]string
 	outputPaths []string
+	cancelled   bool
 
-	cancelled bool
-	logger    *zap.Logger
-	echoCtx   echo.Context
+	logger     *zap.Logger
+	echoCtx    echo.Context
+	pathRename gotenberg.PathRename
 	context.Context
+}
+
+type osPathRename struct{}
+
+func (o *osPathRename) Rename(oldpath, newpath string) error {
+	return os.Rename(oldpath, newpath)
 }
 
 // newContext returns a [Context] by parsing a "multipart/form-data" request.
@@ -55,6 +61,7 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 		cancelled:   false,
 		logger:      logger,
 		echoCtx:     echoCtx,
+		pathRename:  new(osPathRename),
 		Context:     processCtx,
 	}
 
@@ -86,7 +93,6 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 
 	form, err := echoCtx.MultipartForm()
 	if err != nil {
-
 		if errors.Is(err, http.ErrNotMultipart) {
 			return nil, cancel, WrapError(
 				fmt.Errorf("get multipart form: %w", err),
@@ -164,7 +170,6 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 	for _, files := range form.File {
 		for _, fh := range files {
 			err = copyToDisk(fh)
-
 			if err != nil {
 				return ctx, cancel, fmt.Errorf("copy to disk: %w", err)
 			}
@@ -197,7 +202,17 @@ func (ctx *Context) GeneratePath(extension string, name ...string) string {
 	if len(name) != 0 {
 		return fmt.Sprintf("%s/%s%s", ctx.dirPath, name[0], extension)
 	}
-	return fmt.Sprintf("%s/%s%s", ctx.dirPath, uuid.New(), extension)
+	return fmt.Sprintf("%s/%s%s", ctx.dirPath, uuid.New().String(), extension)
+}
+
+// Rename is just a wrapper around [os.Rename], as we need to mock this
+// behavior in our tests.
+func (ctx *Context) Rename(oldpath, newpath string) error {
+	err := ctx.pathRename.Rename(oldpath, newpath)
+	if err != nil {
+		return fmt.Errorf("rename path: %w", err)
+	}
+	return nil
 }
 
 // AddOutputPaths adds the given paths. Those paths will be used later to build
@@ -272,3 +287,8 @@ func (ctx *Context) OutputFilename(outputPath string) string {
 
 	return fmt.Sprintf("%s%s", filename, filepath.Ext(outputPath))
 }
+
+// Interface guard.
+var (
+	_ gotenberg.PathRename = (*osPathRename)(nil)
+)

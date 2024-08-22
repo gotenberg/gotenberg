@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"net/http"
@@ -10,14 +11,21 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
-// ErrAsyncProcess happens when a handler or middleware handles a request in an
-// asynchronous fashion.
-var ErrAsyncProcess = errors.New("async process")
+var (
+	// ErrAsyncProcess happens when a handler or middleware handles a request
+	// in an asynchronous fashion.
+	ErrAsyncProcess = errors.New("async process")
+
+	// ErrNoOutputFile happens when a handler or middleware handles a request
+	// without sending any output file.
+	ErrNoOutputFile = errors.New("no output file")
+)
 
 // ParseError parses an error and returns the corresponding HTTP status and
 // HTTP message.
@@ -30,6 +38,22 @@ func ParseError(err error) (int, string) {
 
 	if errors.Is(err, context.DeadlineExceeded) {
 		return http.StatusServiceUnavailable, http.StatusText(http.StatusServiceUnavailable)
+	}
+
+	if errors.Is(err, gotenberg.ErrFiltered) {
+		return http.StatusForbidden, http.StatusText(http.StatusForbidden)
+	}
+
+	if errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) {
+		return http.StatusTooManyRequests, http.StatusText(http.StatusTooManyRequests)
+	}
+
+	if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
+		return http.StatusBadRequest, "At least one PDF engine cannot process the requested PDF format, while others may have failed to convert due to different issues"
+	}
+
+	if errors.Is(err, gotenberg.ErrPdfEngineMetadataValueNotSupported) {
+		return http.StatusBadRequest, "At least one PDF engine cannot process the requested metadata, while others may have failed to convert due to different issues"
 	}
 
 	var httpErr HttpError
@@ -90,7 +114,6 @@ func rootPathMiddleware(rootPath string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			c.Set("rootPath", rootPath)
-
 			// Call the next middleware in the chain.
 			return next(c)
 		}
@@ -195,6 +218,17 @@ func loggerMiddleware(logger *zap.Logger, disableLoggingForPaths []string) echo.
 	}
 }
 
+// basicAuthMiddleware manages basic authentication.
+func basicAuthMiddleware(username, password string) echo.MiddlewareFunc {
+	return middleware.BasicAuth(func(u string, p string, e echo.Context) (bool, error) {
+		if subtle.ConstantTimeCompare([]byte(u), []byte(username)) == 1 &&
+			subtle.ConstantTimeCompare([]byte(p), []byte(password)) == 1 {
+			return true, nil
+		}
+		return false, nil
+	})
+}
+
 // contextMiddleware, a middleware for "multipart/form-data" requests, sets the
 // [Context] and related context.CancelFunc in the [echo.Context] under
 // "context" and "cancel". If the process is synchronous, it also handles the
@@ -229,6 +263,13 @@ func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration) echo.Mid
 			}
 
 			defer cancel()
+
+			if errors.Is(err, ErrNoOutputFile) {
+				// A middleware/handler tells us that it's handling the process
+				// in an asynchronous fashion. Therefore, we must not cancel
+				// the context nor send an output file.
+				return nil
+			}
 
 			if err != nil {
 				return err

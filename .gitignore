@@ -1,5 +1,7 @@
 /coverage.html
 /coverage.txt
+.idea
+.vscode
+.DS_Store
 /TODO.txt
 *.exe
-.vscode/launch.json

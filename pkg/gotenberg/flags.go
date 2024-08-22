@@ -1,9 +1,9 @@
 package gotenberg
 
 import (
-	"regexp"
 	"time"
 
+	"github.com/dlclark/regexp2"
 	"github.com/labstack/gommon/bytes"
 	flag "github.com/spf13/pflag"
 )
@@ -199,19 +199,19 @@ func (f *ParsedFlags) MustDeprecatedHumanReadableBytesString(deprecated string, 
 
 // MustRegexp returns the regular expression of a flag given by name.
 // It panics if an error occurs.
-func (f *ParsedFlags) MustRegexp(name string) *regexp.Regexp {
+func (f *ParsedFlags) MustRegexp(name string) *regexp2.Regexp {
 	val, err := f.GetString(name)
 	if err != nil {
 		panic(err)
 	}
 
-	return regexp.MustCompile(val)
+	return regexp2.MustCompile(val, 0)
 }
 
 // MustDeprecatedRegexp returns the regular expression of a deprecated flag if
 // it was explicitly set or the regular expression of the new flag.
 // It panics if an error occurs.
-func (f *ParsedFlags) MustDeprecatedRegexp(deprecated string, newName string) *regexp.Regexp {
+func (f *ParsedFlags) MustDeprecatedRegexp(deprecated string, newName string) *regexp2.Regexp {
 	if f.Changed(deprecated) {
 		return f.MustRegexp(deprecated)
 	}

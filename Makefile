@@ -5,14 +5,14 @@ help: ## Show the help
 .PHONY: it
 it: build build-tests ## Initialize the development environment
 
-GOLANG_VERSION=1.21
-DOCKER_REPOSITORY=onebrief
+GOLANG_VERSION=1.22
+DOCKER_REPOSITORY=gotenberg
 GOTENBERG_VERSION=snapshot
 GOTENBERG_USER_GID=1001
 GOTENBERG_USER_UID=1001
-NOTO_COLOR_EMOJI_VERSION=v2.040 # See https://github.com/googlefonts/noto-emoji/releases.
+NOTO_COLOR_EMOJI_VERSION=v2.042 # See https://github.com/googlefonts/noto-emoji/releases.
 PDFTK_VERSION=v3.3.3 # See https://gitlab.com/pdftk-java/pdftk/-/releases - Binary package.
-GOLANGCI_LINT_VERSION=v1.54.2 # See https://github.com/golangci/golangci-lint/releases.
+GOLANGCI_LINT_VERSION=v1.59.0 # See https://github.com/golangci/golangci-lint/releases.
 
 .PHONY: build
 build: ## Build the Gotenberg's Docker image
@@ -35,8 +35,12 @@ API_START_TIMEOUT=30s
 API_TIMEOUT=30s
 API_ROOT_PATH=/
 API_TRACE_HEADER=Gotenberg-Trace
+API_ENABLE_BASIC_AUTH=false
+GOTENBERG_API_BASIC_AUTH_USERNAME=
+GOTENBERG_API_BASIC_AUTH_PASSWORD=
 API_DISABLE_HEALTH_CHECK_LOGGING=false
 CHROMIUM_RESTART_AFTER=0
+CHROMIUM_MAX_QUEUE_SIZE=0
 CHROMIUM_AUTO_START=false
 CHROMIUM_START_TIMEOUT=20s
 CHROMIUM_INCOGNITO=false
@@ -47,12 +51,13 @@ CHROMIUM_ALLOW_FILE_ACCESS_FROM_FILES=false
 CHROMIUM_HOST_RESOLVER_RULES=
 CHROMIUM_PROXY_SERVER=
 CHROMIUM_ALLOW_LIST=
-CHROMIUM_DENY_LIST="^file:///[^tmp].*"
+CHROMIUM_DENY_LIST=^file:(?!//\/tmp/).*
 CHROMIUM_CLEAR_CACHE=false
 CHROMIUM_CLEAR_COOKIES=false
 CHROMIUM_DISABLE_JAVASCRIPT=false
 CHROMIUM_DISABLE_ROUTES=false
 LIBREOFFICE_RESTART_AFTER=10
+LIBREOFFICE_MAX_QUEUE_SIZE=0
 LIBREOFFICE_AUTO_START=false
 LIBREOFFICE_START_TIMEOUT=20s
 LIBREOFFICE_DISABLE_ROUTES=false
@@ -79,6 +84,8 @@ WEBHOOK_DISABLE=false
 run: ## Start a Gotenberg container
 	docker run --rm -it \
 	-p $(API_PORT):$(API_PORT) \
+	-e GOTENBERG_API_BASIC_AUTH_USERNAME=$(GOTENBERG_API_BASIC_AUTH_USERNAME) \
+	-e GOTENBERG_API_BASIC_AUTH_PASSWORD=$(GOTENBERG_API_BASIC_AUTH_PASSWORD) \
 	$(DOCKER_REPOSITORY)/gotenberg:$(GOTENBERG_VERSION) \
 	gotenberg \
 	--gotenberg-graceful-shutdown-duration=$(GOTENBERG_GRACEFUL_SHUTDOWN_DURATION) \
@@ -88,9 +95,11 @@ run: ## Start a Gotenberg container
 	--api-timeout=$(API_TIMEOUT) \
 	--api-root-path=$(API_ROOT_PATH) \
 	--api-trace-header=$(API_TRACE_HEADER) \
+	--api-enable-basic-auth=$(API_ENABLE_BASIC_AUTH) \
 	--api-disable-health-check-logging=$(API_DISABLE_HEALTH_CHECK_LOGGING) \
 	--chromium-restart-after=$(CHROMIUM_RESTART_AFTER) \
 	--chromium-auto-start=$(CHROMIUM_AUTO_START) \
+	--chromium-max-queue-size=$(CHROMIUM_MAX_QUEUE_SIZE) \
 	--chromium-start-timeout=$(CHROMIUM_START_TIMEOUT) \
 	--chromium-incognito=$(CHROMIUM_INCOGNITO) \
 	--chromium-allow-insecure-localhost=$(CHROMIUM_ALLOW_INSECURE_LOCALHOST) \
@@ -99,13 +108,14 @@ run: ## Start a Gotenberg container
 	--chromium-allow-file-access-from-files=$(CHROMIUM_ALLOW_FILE_ACCESS_FROM_FILES) \
 	--chromium-host-resolver-rules=$(CHROMIUM_HOST_RESOLVER_RULES) \
 	--chromium-proxy-server=$(CHROMIUM_PROXY_SERVER) \
-	--chromium-allow-list=$(CHROMIUM_ALLOW_LIST) \
-	--chromium-deny-list=$(CHROMIUM_DENY_LIST) \
+	--chromium-allow-list="$(CHROMIUM_ALLOW_LIST)" \
+	--chromium-deny-list="$(CHROMIUM_DENY_LIST)" \
 	--chromium-clear-cache=$(CHROMIUM_CLEAR_CACHE) \
 	--chromium-clear-cookies=$(CHROMIUM_CLEAR_COOKIES) \
 	--chromium-disable-javascript=$(CHROMIUM_DISABLE_JAVASCRIPT) \
 	--chromium-disable-routes=$(CHROMIUM_DISABLE_ROUTES) \
 	--libreoffice-restart-after=$(LIBREOFFICE_RESTART_AFTER) \
+	--libreoffice-max-queue-size=$(LIBREOFFICE_MAX_QUEUE_SIZE) \
 	--libreoffice-auto-start=$(LIBREOFFICE_AUTO_START) \
 	--libreoffice-start-timeout=$(LIBREOFFICE_START_TIMEOUT) \
 	--libreoffice-disable-routes=$(LIBREOFFICE_DISABLE_ROUTES) \
@@ -118,8 +128,8 @@ run: ## Start a Gotenberg container
 	--prometheus-collect-interval=$(PROMETHEUS_COLLECT_INTERVAL) \
 	--prometheus-disable-route-logging=$(PROMETHEUS_DISABLE_ROUTE_LOGGING) \
 	--prometheus-disable-collect=$(PROMETHEUS_DISABLE_COLLECT) \
-	--webhook-allow-list=$(WEBHOOK_ALLOW_LIST) \
-	--webhook-deny-list=$(WEBHOOK_DENY_LIST) \
+	--webhook-allow-list="$(WEBHOOK_ALLOW_LIST)" \
+	--webhook-deny-list="$(WEBHOOK_DENY_LIST)" \
 	--webhook-error-allow-list=$(WEBHOOK_ERROR_ALLOW_LIST) \
 	--webhook-error-deny-list=$(WEBHOOK_ERROR_DENY_LIST) \
 	--webhook-max-retry=$(WEBHOOK_MAX_RETRY) \

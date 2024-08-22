@@ -4,6 +4,8 @@ import (
 	"github.com/alexliesenfeld/health"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 // ContextMock is a helper for tests.
@@ -76,12 +78,20 @@ func (ctx *ContextMock) SetLogger(logger *zap.Logger) {
 	ctx.logger = logger
 }
 
-// SetEchoContext sets the echo.Context.
+// SetEchoContext sets the [echo.Context].
 //
 //	ctx := &api.ContextMock{Context: &api.Context{}}
 //	ctx.setEchoContext(c)
 func (ctx *ContextMock) SetEchoContext(c echo.Context) {
 	ctx.Context.echoCtx = c
+}
+
+// SetPathRename sets the [gotenberg.PathRename].
+//
+//	ctx := &api.ContextMock{Context: &api.Context{}}
+//	ctx.setPathRename(rename)
+func (ctx *ContextMock) SetPathRename(rename gotenberg.PathRename) {
+	ctx.Context.pathRename = rename
 }
 
 // RouterMock is a mock for the [Router] interface.

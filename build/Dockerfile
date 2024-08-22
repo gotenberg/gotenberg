@@ -9,7 +9,7 @@ ARG GOLANG_VERSION
 FROM golang:$GOLANG_VERSION AS binary-stage
 
 ARG GOTENBERG_VERSION
-ENV CGO_ENABLED 0
+ENV CGO_ENABLED=0
 
 # Define the working directory outside of $GOPATH (we're using go modules).
 WORKDIR /home
@@ -164,19 +164,20 @@ RUN \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 RUN \
-    # Install PDFtk & QPDF (PDF engines).
+    # Install PDFtk, QPDF & ExifTool (PDF engines).
     # See https://github.com/gotenberg/gotenberg/pull/273.
     curl -o /usr/bin/pdftk-all.jar "https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/$PDFTK_VERSION/pdftk-all.jar" &&\
     chmod a+x /usr/bin/pdftk-all.jar &&\
     echo '#!/bin/bash\n\nexec java -jar /usr/bin/pdftk-all.jar "$@"' > /usr/bin/pdftk && \
     chmod +x /usr/bin/pdftk &&\
     apt-get update -qq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends qpdf &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends qpdf exiftool &&\
     # See https://github.com/nextcloud/docker/issues/380.
     mkdir -p /usr/share/man/man1 &&\
     # Verify installations.
     pdftk --version &&\
     qpdf --version &&\
+    exiftool --version &&\
     # Cleanup.
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -190,11 +191,12 @@ COPY build/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 COPY --from=binary-stage /home/gotenberg /usr/bin/
 
 # Environment variables required by modules or else.
-ENV CHROMIUM_BIN_PATH /usr/bin/chromium
-ENV LIBREOFFICE_BIN_PATH /usr/lib/libreoffice/program/soffice.bin
-ENV UNOCONVERTER_BIN_PATH /usr/bin/unoconverter
-ENV PDFTK_BIN_PATH /usr/bin/pdftk
-ENV QPDF_BIN_PATH /usr/bin/qpdf
+ENV CHROMIUM_BIN_PATH=/usr/bin/chromium
+ENV LIBREOFFICE_BIN_PATH=/usr/lib/libreoffice/program/soffice.bin
+ENV UNOCONVERTER_BIN_PATH=/usr/bin/unoconverter
+ENV PDFTK_BIN_PATH=/usr/bin/pdftk
+ENV QPDF_BIN_PATH=/usr/bin/qpdf
+ENV EXIFTOOL_BIN_PATH=/usr/bin/exiftool
 
 USER gotenberg
 WORKDIR /home/gotenberg

@@ -15,6 +15,10 @@ var (
 	// ErrPdfFormatNotSupported is returned when the Convert method of the
 	// PdfEngine interface does not support a requested PDF format conversion.
 	ErrPdfFormatNotSupported = errors.New("PDF format not supported")
+
+	// ErrPdfEngineMetadataValueNotSupported is returned when a metadata value
+	// is not supported.
+	ErrPdfEngineMetadataValueNotSupported = errors.New("metadata value not supported")
 )
 
 const (
@@ -64,6 +68,12 @@ type PdfEngine interface {
 	// Convert transforms a given PDF to the specified formats defined in
 	// PdfFormats. If no format, it does nothing.
 	Convert(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error
+
+	// ReadMetadata extracts the metadata of a given PDF file.
+	ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error)
+
+	// WriteMetadata writes the metadata into a given PDF file.
+	WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error
 }
 
 // PdfEngineProvider offers an interface to instantiate a [PdfEngine].

@@ -51,3 +51,11 @@ func (fs *FileSystem) MkdirAll() (string, error) {
 
 	return path, nil
 }
+
+// PathRename defines the method signature for renaming files. Implement this
+// interface if you don't want to rely on [os.Rename], notably for testing
+// purpose.
+type PathRename interface {
+	// Rename uses the same signature as [os.Rename].
+	Rename(oldpath, newpath string) error
+}
