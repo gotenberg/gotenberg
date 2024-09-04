@@ -30,9 +30,10 @@ jobs:
     needs:
       - Lint
     name: Tests
-    # TODO: once arm64 actions are available, also run the tests on this architecture.
-    # See: https://github.com/actions/virtual-environments/issues/2552#issuecomment-771478000.
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ 'ubuntu-latest', 'macos-latest' ]
     steps:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
