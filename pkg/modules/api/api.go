@@ -453,13 +453,22 @@ func (a *Api) Start() error {
 		)
 	}
 
-	// Let's not forget the health check route...
+	// Let's not forget the health check routes...
+	checks := append(a.healthChecks, health.WithTimeout(a.timeout))
+	checker := health.NewChecker(checks...)
+	healthCheckHandler := health.NewHandler(checker)
+
 	a.srv.GET(
 		fmt.Sprintf("%s%s", a.rootPath, "health"),
 		func() echo.HandlerFunc {
-			checks := append(a.healthChecks, health.WithTimeout(a.timeout))
-			checker := health.NewChecker(checks...)
-			return echo.WrapHandler(health.NewHandler(checker))
+			return echo.WrapHandler(healthCheckHandler)
+		}(),
+		hardTimeoutMiddleware(hardTimeout),
+	)
+	a.srv.HEAD(
+		fmt.Sprintf("%s%s", a.rootPath, "health"),
+		func() echo.HandlerFunc {
+			return echo.WrapHandler(healthCheckHandler)
 		}(),
 		hardTimeoutMiddleware(hardTimeout),
 	)
