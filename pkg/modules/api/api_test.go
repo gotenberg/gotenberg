@@ -839,18 +839,23 @@ func TestApi_Start(t *testing.T) {
 				return
 			}
 
-			// health request.
+			// health requests.
 			recorder := httptest.NewRecorder()
-			healthRequest := httptest.NewRequest(http.MethodGet, "/health", nil)
 
-			mod.srv.ServeHTTP(recorder, healthRequest)
+			healthGetRequest := httptest.NewRequest(http.MethodGet, "/health", nil)
+			mod.srv.ServeHTTP(recorder, healthGetRequest)
+			if recorder.Code != http.StatusOK {
+				t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
+			}
+
+			healthHeadRequest := httptest.NewRequest(http.MethodHead, "/health", nil)
+			mod.srv.ServeHTTP(recorder, healthHeadRequest)
 			if recorder.Code != http.StatusOK {
 				t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
 			}
 
 			// version request.
 			versionRequest := httptest.NewRequest(http.MethodGet, "/version", nil)
-
 			mod.srv.ServeHTTP(recorder, versionRequest)
 			if recorder.Code != http.StatusOK {
 				t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
@@ -859,7 +864,6 @@ func TestApi_Start(t *testing.T) {
 			// "multipart/form-data" request.
 			multipartRequest := func(url string) *http.Request {
 				body := &bytes.Buffer{}
-
 				writer := multipart.NewWriter(body)
 
 				defer func() {
