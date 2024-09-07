@@ -21,7 +21,8 @@ import (
 )
 
 // listenForEventRequestPaused listens for requests to check if they are
-// allowed or not.
+// allowed or not.network.SetBlockedURLS()
+// TODO: https://chromedevtools.github.io/devtools-protocol/tot/Network/#method-setBlockedURLs (experimental for now).
 func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, allowList *regexp2.Regexp, denyList *regexp2.Regexp) {
 	chromedp.ListenTarget(ctx, func(ev interface{}) {
 		switch e := ev.(type) {
@@ -95,24 +96,48 @@ func listenForEventResponseReceived(ctx context.Context, logger *zap.Logger, url
 	})
 }
 
-// listenForEventLoadingFailedOnConnectionRefused listens for an event
-// indicating that the main page failed to load.
-// See https://github.com/gotenberg/gotenberg/issues/913.
-func listenForEventLoadingFailedOnConnectionRefused(ctx context.Context, logger *zap.Logger, connectionRefused *error, connectionRefusedMu *sync.RWMutex) {
+// listenForEventLoadingFailed listens for an event indicating that the main
+// page failed to load.
+// See:
+// https://github.com/gotenberg/gotenberg/issues/913.
+// https://github.com/gotenberg/gotenberg/issues/959.
+func listenForEventLoadingFailed(ctx context.Context, logger *zap.Logger, loadingFailed *error, loadingFailedMu *sync.RWMutex) {
 	chromedp.ListenTarget(ctx, func(ev interface{}) {
 		switch ev := ev.(type) {
 		case *network.EventLoadingFailed:
 			logger.Debug(fmt.Sprintf("event EventLoadingFailed fired: %+v", ev.ErrorText))
 
-			if ev.ErrorText != "net::ERR_CONNECTION_REFUSED" || ev.Type != network.ResourceTypeDocument {
-				logger.Debug("skip EventLoadingFailed: is not net::ERR_CONNECTION_REFUSED and/or resource type Document")
+			if ev.Type != network.ResourceTypeDocument {
+				logger.Debug("skip EventLoadingFailed: is not resource type Document")
 				return
 			}
 
-			connectionRefusedMu.Lock()
-			defer connectionRefusedMu.Unlock()
+			// Supposition: except iframe, an event loading failed with a
+			// resource type Document is about the main page.
 
-			*connectionRefused = fmt.Errorf("%s", ev.ErrorText)
+			// We are looking for common errors.
+			// TODO: sufficient?
+			errors := []string{
+				"net::ERR_CONNECTION_CLOSED",
+				"net::ERR_CONNECTION_RESET",
+				"net::ERR_CONNECTION_REFUSED",
+				"net::ERR_CONNECTION_ABORTED",
+				"net::ERR_CONNECTION_FAILED",
+				"net::ERR_NAME_NOT_RESOLVED",
+				"net::ERR_INTERNET_DISCONNECTED",
+				"net::ERR_ADDRESS_UNREACHABLE",
+				"net::ERR_BLOCKED_BY_CLIENT",
+				"net::ERR_BLOCKED_BY_RESPONSE",
+			}
+			if !slices.Contains(errors, ev.ErrorText) {
+				logger.Debug(fmt.Sprintf("skip EventLoadingFailed: '%s' is not part of %+v", ev.ErrorText, errors))
+				return
+			}
+
+			loadingFailedMu.Lock()
+			defer loadingFailedMu.Unlock()
+
+			*loadingFailed = fmt.Errorf("%s", ev.ErrorText)
 		}
 	})
 }

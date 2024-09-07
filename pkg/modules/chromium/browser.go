@@ -315,12 +315,14 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 	}
 
 	var (
-		connectionRefused   error
-		connectionRefusedMu sync.RWMutex
+		loadingFailed   error
+		loadingFailedMu sync.RWMutex
 	)
 
-	// See https://github.com/gotenberg/gotenberg/issues/913.
-	listenForEventLoadingFailedOnConnectionRefused(taskCtx, logger, &connectionRefused, &connectionRefusedMu)
+	// See:
+	// https://github.com/gotenberg/gotenberg/issues/913.
+	// https://github.com/gotenberg/gotenberg/issues/959.
+	listenForEventLoadingFailed(taskCtx, logger, &loadingFailed, &loadingFailedMu)
 
 	err = chromedp.Run(taskCtx, tasks...)
 	if err != nil {
@@ -357,12 +359,14 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 		return fmt.Errorf("%v: %w", consoleExceptions, ErrConsoleExceptions)
 	}
 
-	// See https://github.com/gotenberg/gotenberg/issues/913.
-	connectionRefusedMu.RLock()
-	defer connectionRefusedMu.RUnlock()
+	// See:
+	// https://github.com/gotenberg/gotenberg/issues/913.
+	// https://github.com/gotenberg/gotenberg/issues/959.
+	loadingFailedMu.RLock()
+	defer loadingFailedMu.RUnlock()
 
-	if connectionRefused != nil {
-		return fmt.Errorf("%v: %w", connectionRefused, ErrConnectionRefused)
+	if loadingFailed != nil {
+		return fmt.Errorf("%v: %w", loadingFailed, ErrLoadingFailed)
 	}
 
 	return nil

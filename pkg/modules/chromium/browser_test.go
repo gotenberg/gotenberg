@@ -480,7 +480,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 			expectedError: ErrConsoleExceptions,
 		},
 		{
-			scenario: "ErrConnectionRefused",
+			scenario: "ErrLoadingFailed",
 			browser: newChromiumBrowser(
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
@@ -503,7 +503,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 			noDeadline:    false,
 			start:         true,
 			expectError:   true,
-			expectedError: ErrConnectionRefused,
+			expectedError: ErrLoadingFailed,
 		},
 		{
 			scenario: "clear cache",
@@ -1553,7 +1553,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 			expectedError: ErrConsoleExceptions,
 		},
 		{
-			scenario: "ErrConnectionRefused",
+			scenario: "ErrLoadingFailed",
 			browser: newChromiumBrowser(
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
@@ -1577,7 +1577,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 			noDeadline:    false,
 			start:         true,
 			expectError:   true,
-			expectedError: ErrConnectionRefused,
+			expectedError: ErrLoadingFailed,
 		},
 		{
 			scenario: "clear cache",
