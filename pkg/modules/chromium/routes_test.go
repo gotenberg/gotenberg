@@ -1436,10 +1436,10 @@ func TestConvertUrl(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "ErrConnectionRefused",
+			scenario: "ErrLoadingFailed",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
 			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
-				return ErrConnectionRefused
+				return ErrLoadingFailed
 			}},
 			options:                DefaultPdfOptions(),
 			expectError:            true,
@@ -1646,10 +1646,10 @@ func TestScreenshotUrl(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "ErrConnectionRefused",
+			scenario: "ErrLoadingFailed",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
 			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
-				return ErrConnectionRefused
+				return ErrLoadingFailed
 			}},
 			options:                DefaultScreenshotOptions(),
 			expectError:            true,
