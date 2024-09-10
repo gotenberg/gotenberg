@@ -21,9 +21,6 @@ docker buildx build \
   --build-arg GOLANG_VERSION="$GOLANG_VERSION" \
   --build-arg GOTENBERG_VERSION="$GOTENBERG_VERSION" \
   --platform linux/amd64 \
-  --platform linux/arm64 \
-  --platform linux/386 \
-  --platform linux/arm/v7 \
   -t "$DOCKER_REPO_GH/gotenberg:latest" \
   -t "$DOCKER_REPO_GH/gotenberg:${SEMVER[0]}" \
   -t "$DOCKER_REPO_GH/gotenberg:${SEMVER[0]}.${SEMVER[1]}" \
