@@ -6,12 +6,71 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"slices"
+	"strconv"
 
 	"github.com/labstack/echo/v4"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
 )
+
+func FormDataPdfOptimizeOptions(form *api.FormData) gotenberg.OptimizeOptions {
+	var (
+		compressStreams    bool
+		imageQuality       int
+		maxImageResolution int
+	)
+
+	form.
+		Bool("compressStreams", &compressStreams, false).
+		Custom("imageQuality", func(value string) error {
+			if value == "" {
+				imageQuality = 0
+				return nil
+			}
+
+			intValue, err := strconv.Atoi(value)
+			if err != nil {
+				return err
+			}
+
+			if intValue < 1 {
+				return errors.New("value is inferior to 1")
+			}
+
+			if intValue > 100 {
+				return errors.New("value is superior to 100")
+			}
+
+			imageQuality = intValue
+			return nil
+		}).
+		Custom("maxImageResolution", func(value string) error {
+			if value == "" {
+				maxImageResolution = 0
+				return nil
+			}
+
+			intValue, err := strconv.Atoi(value)
+			if err != nil {
+				return err
+			}
+
+			if !slices.Contains([]int{75, 150, 300, 600, 1200}, intValue) {
+				return errors.New("value is not 75, 150, 300, 600 or 1200")
+			}
+
+			maxImageResolution = intValue
+			return nil
+		})
+
+	return gotenberg.OptimizeOptions{
+		CompressStreams:    compressStreams,
+		ImageQuality:       imageQuality,
+		MaxImageResolution: maxImageResolution,
+	}
+}
 
 // mergeRoute returns an [api.Route] which can merge PDFs.
 func mergeRoute(engine gotenberg.PdfEngine) api.Route {
@@ -23,6 +82,9 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			ctx := c.Get("context").(*api.Context)
 
 			// Let's get the data from the form and validate them.
+			form := ctx.FormData()
+			optimizeOpts := FormDataPdfOptimizeOptions(form)
+
 			var (
 				inputPaths []string
 				pdfa       string
@@ -30,7 +92,7 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 				metadata   map[string]interface{}
 			)
 
-			err := ctx.FormData().
+			err := form.
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
 				String("pdfa", &pdfa, "").
 				Bool("pdfua", &pdfua, false).
@@ -64,8 +126,8 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			// So far so good, the PDFs are merged into one unique PDF.
 			// Now, let's check if the client want to convert this result PDF
 			// to specific PDF formats.
-			zeroValued := gotenberg.PdfFormats{}
-			if pdfFormats != zeroValued {
+			zeroValuedPdfFormats := gotenberg.PdfFormats{}
+			if pdfFormats != zeroValuedPdfFormats {
 				convertInputPath := outputPath
 				convertOutputPath := ctx.GeneratePath(".pdf")
 
@@ -76,6 +138,21 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 
 				// Important: the output path is now the converted file.
 				outputPath = convertOutputPath
+			}
+
+			// Optimizes (compresses).
+			zeroValuedOptimizeOpts := gotenberg.OptimizeOptions{}
+			if optimizeOpts != zeroValuedOptimizeOpts {
+				optimizeInputPath := outputPath
+				optimizeOutputPath := ctx.GeneratePath(".pdf")
+
+				err = engine.Optimize(ctx, ctx.Log(), optimizeOpts, optimizeInputPath, optimizeOutputPath)
+				if err != nil {
+					return fmt.Errorf("optimize PDF: %w", err)
+				}
+
+				// Important: the output path is now the converted file.
+				outputPath = optimizeOutputPath
 			}
 
 			// Writes and potentially overrides metadata entries, if any.
@@ -148,6 +225,71 @@ func convertRoute(engine gotenberg.PdfEngine) api.Route {
 				err = engine.Convert(ctx, ctx.Log(), pdfFormats, inputPath, outputPaths[i])
 				if err != nil {
 					return fmt.Errorf("convert PDF: %w", err)
+				}
+
+				if len(outputPaths) > 1 {
+					// If .zip archive, keep the original filename.
+					err = ctx.Rename(outputPaths[i], inputPath)
+					if err != nil {
+						return fmt.Errorf("rename output path: %w", err)
+					}
+
+					outputPaths[i] = inputPath
+				}
+			}
+
+			// Last but not least, add the output paths to the context so that
+			// the API is able to send them as a response to the client.
+			err = ctx.AddOutputPaths(outputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
+			}
+
+			return nil
+		},
+	}
+}
+
+// optimizeRoute returns an [api.Route] which can optimize PDFs.
+func optimizeRoute(engine gotenberg.PdfEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/optimize",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			// Let's get the data from the form and validate them.
+			form := ctx.FormData()
+			optimizeOpts := FormDataPdfOptimizeOptions(form)
+
+			var inputPaths []string
+			err := form.
+				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			zeroValued := gotenberg.OptimizeOptions{}
+			if optimizeOpts == zeroValued {
+				return api.WrapError(
+					errors.New("no optimization options"),
+					api.NewSentinelHttpError(
+						http.StatusBadRequest,
+						"Invalid form data: at least one optimization form field must be provided",
+					),
+				)
+			}
+
+			// Alright, let's convert the PDFs.
+			outputPaths := make([]string, len(inputPaths))
+			for i, inputPath := range inputPaths {
+				outputPaths[i] = ctx.GeneratePath(".pdf")
+
+				err = engine.Optimize(ctx, ctx.Log(), optimizeOpts, inputPath, outputPaths[i])
+				if err != nil {
+					return fmt.Errorf("optimize PDF: %w", err)
 				}
 
 				if len(outputPaths) > 1 {

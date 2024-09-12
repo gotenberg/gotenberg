@@ -55,6 +55,9 @@ func TestPDFEngineMock(t *testing.T) {
 		ConvertMock: func(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error {
 			return nil
 		},
+		OptimizeMock: func(ctx context.Context, logger *zap.Logger, options OptimizeOptions, inputPath, outputPath string) error {
+			return nil
+		},
 		ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
 			return nil, nil
 		},
@@ -71,6 +74,11 @@ func TestPDFEngineMock(t *testing.T) {
 	err = mock.Convert(context.Background(), zap.NewNop(), PdfFormats{}, "", "")
 	if err != nil {
 		t.Errorf("expected no error from PdfEngineMock.Convert, but got: %v", err)
+	}
+
+	err = mock.Optimize(context.Background(), zap.NewNop(), OptimizeOptions{}, "", "")
+	if err != nil {
+		t.Errorf("expected no error from PdfEngineMock.Optimize, but got: %v", err)
 	}
 
 	_, err = mock.ReadMetadata(context.Background(), zap.NewNop(), "")

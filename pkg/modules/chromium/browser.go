@@ -320,8 +320,8 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 	)
 
 	// See:
-	// https://github.com/gotenberg/gotenberg/issues/913.
-	// https://github.com/gotenberg/gotenberg/issues/959.
+	// https://github.com/gotenberg/gotenberg/issues/913
+	// https://github.com/gotenberg/gotenberg/issues/959
 	listenForEventLoadingFailed(taskCtx, logger, &loadingFailed, &loadingFailedMu)
 
 	err = chromedp.Run(taskCtx, tasks...)
@@ -360,8 +360,8 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 	}
 
 	// See:
-	// https://github.com/gotenberg/gotenberg/issues/913.
-	// https://github.com/gotenberg/gotenberg/issues/959.
+	// https://github.com/gotenberg/gotenberg/issues/913
+	// https://github.com/gotenberg/gotenberg/issues/959
 	loadingFailedMu.RLock()
 	defer loadingFailedMu.RUnlock()
 

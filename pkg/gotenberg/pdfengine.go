@@ -57,6 +57,27 @@ type PdfFormats struct {
 	PdfUa bool
 }
 
+// OptimizeOptions specifies the optimizers to use.
+type OptimizeOptions struct {
+	// CompressStreams indicates whether to compress streams.
+	CompressStreams bool
+
+	// ImageQuality sets the quality of the JPG export. Between 1 and 100.
+	ImageQuality int
+
+	// MaxImageResolution tells if all images will be reduced to the given
+	// value in DPI. Possible values are: 75, 150, 300, 600 and 1200.
+	MaxImageResolution int
+
+	// SkipLo is a dirty trick to avoid applying image optimizations twice
+	// when using LibreOffice.
+	SkipLo bool
+}
+
+func (opts OptimizeOptions) HasImagesOptimization() bool {
+	return opts.ImageQuality != 0 || opts.MaxImageResolution != 0
+}
+
 // PdfEngine provides an interface for operations on PDFs. Implementations
 // can utilize various tools like PDFtk, or implement functionality directly in
 // Go.
@@ -68,6 +89,9 @@ type PdfEngine interface {
 	// Convert transforms a given PDF to the specified formats defined in
 	// PdfFormats. If no format, it does nothing.
 	Convert(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error
+
+	// Optimize optimizes (compresses) a given PDF.
+	Optimize(ctx context.Context, logger *zap.Logger, options OptimizeOptions, inputPath, outputPath string) error
 
 	// ReadMetadata extracts the metadata of a given PDF file.
 	ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error)

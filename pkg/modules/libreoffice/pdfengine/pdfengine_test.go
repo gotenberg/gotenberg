@@ -153,7 +153,7 @@ func TestLibreOfficePdfEngine_Convert(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			engine := &LibreOfficePdfEngine{unoApi: tc.api}
+			engine := &LibreOfficePdfEngine{libreoffice: tc.api}
 			err := engine.Convert(context.Background(), zap.NewNop(), gotenberg.PdfFormats{}, "", "")
 
 			if !tc.expectError && err != nil {
@@ -164,6 +164,15 @@ func TestLibreOfficePdfEngine_Convert(t *testing.T) {
 				t.Fatal("expected error but got none")
 			}
 		})
+	}
+}
+
+func TestLibreOfficePdfEngine_Optimize(t *testing.T) {
+	engine := new(LibreOfficePdfEngine)
+	err := engine.Optimize(context.Background(), zap.NewNop(), gotenberg.OptimizeOptions{}, "", "")
+
+	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
+		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)
 	}
 }
 

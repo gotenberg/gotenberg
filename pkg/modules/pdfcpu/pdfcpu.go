@@ -54,6 +54,11 @@ func (engine *PdfCpu) Convert(ctx context.Context, logger *zap.Logger, formats g
 	return fmt.Errorf("convert PDF to '%+v' with pdfcpu: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// Optimize is not available in this implementation.
+func (engine *PdfCpu) Optimize(ctx context.Context, logger *zap.Logger, options gotenberg.OptimizeOptions, inputPath, outputPath string) error {
+	return fmt.Errorf("optimize PDF with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // ReadMetadata is not available in this implementation.
 func (engine *PdfCpu) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
 	return nil, fmt.Errorf("read PDF metadata with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)

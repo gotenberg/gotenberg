@@ -308,6 +308,37 @@ func TestConvertRoute(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
+			scenario: "PDF engine optimize error",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"document.docx": "/document.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"compressStreams": {
+						"true",
+					},
+				})
+				return ctx
+			}(),
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
+					return nil
+				},
+				ExtensionsMock: func() []string {
+					return []string{".docx"}
+				},
+			},
+			engine: &gotenberg.PdfEngineMock{
+				OptimizeMock: func(ctx context.Context, logger *zap.Logger, options gotenberg.OptimizeOptions, inputPath, outputPath string) error {
+					return errors.New("foo")
+				},
+			},
+			expectError:            true,
+			expectHttpError:        false,
+			expectOutputPathsCount: 0,
+		},
+		{
 			scenario: "PDF engine write metadata error",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
@@ -413,6 +444,9 @@ func TestConvertRoute(t *testing.T) {
 					"nativePdfFormats": {
 						"false",
 					},
+					"compressStreams": {
+						"true",
+					},
 					"metadata": {
 						"{\"Creator\": \"foo\", \"Producer\": \"bar\" }",
 					},
@@ -432,6 +466,9 @@ func TestConvertRoute(t *testing.T) {
 					return nil
 				},
 				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return nil
+				},
+				OptimizeMock: func(ctx context.Context, logger *zap.Logger, options gotenberg.OptimizeOptions, inputPath, outputPath string) error {
 					return nil
 				},
 				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
@@ -461,6 +498,9 @@ func TestConvertRoute(t *testing.T) {
 					"nativePdfFormats": {
 						"false",
 					},
+					"compressStreams": {
+						"true",
+					},
 					"metadata": {
 						"{\"Creator\": \"foo\", \"Producer\": \"bar\" }",
 					},
@@ -483,6 +523,9 @@ func TestConvertRoute(t *testing.T) {
 					return nil
 				},
 				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return nil
+				},
+				OptimizeMock: func(ctx context.Context, logger *zap.Logger, options gotenberg.OptimizeOptions, inputPath, outputPath string) error {
 					return nil
 				},
 				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {

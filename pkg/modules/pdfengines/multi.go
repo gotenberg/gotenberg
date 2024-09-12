@@ -46,7 +46,7 @@ func (multi *multiPdfEngines) Merge(ctx context.Context, logger *zap.Logger, inp
 	return fmt.Errorf("merge PDFs with multi PDF engines: %w", err)
 }
 
-// Convert converts the given PDF to a specific PDF format. thanks to its
+// Convert converts the given PDF to a specific PDF format thanks to its
 // children. If the context is done, it stops and returns an error.
 func (multi *multiPdfEngines) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 	var err error
@@ -69,6 +69,31 @@ func (multi *multiPdfEngines) Convert(ctx context.Context, logger *zap.Logger, f
 	}
 
 	return fmt.Errorf("convert PDF to '%+v' with multi PDF engines: %w", formats, err)
+}
+
+// Optimize optimizes (compresses) a given PDF thanks to its children. If the
+// context is done, it stops and returns an error.
+func (multi *multiPdfEngines) Optimize(ctx context.Context, logger *zap.Logger, options gotenberg.OptimizeOptions, inputPath, outputPath string) error {
+	var err error
+	errChan := make(chan error, 1)
+
+	for _, engine := range multi.engines {
+		go func(engine gotenberg.PdfEngine) {
+			errChan <- engine.Optimize(ctx, logger, options, inputPath, outputPath)
+		}(engine)
+
+		select {
+		case mergeErr := <-errChan:
+			errored := multierr.AppendInto(&err, mergeErr)
+			if !errored {
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	return fmt.Errorf("optimize PDF with multi PDF engines: %w", err)
 }
 
 type readMetadataResult struct {

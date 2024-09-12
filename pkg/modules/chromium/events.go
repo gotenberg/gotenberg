@@ -99,8 +99,8 @@ func listenForEventResponseReceived(ctx context.Context, logger *zap.Logger, url
 // listenForEventLoadingFailed listens for an event indicating that the main
 // page failed to load.
 // See:
-// https://github.com/gotenberg/gotenberg/issues/913.
-// https://github.com/gotenberg/gotenberg/issues/959.
+// https://github.com/gotenberg/gotenberg/issues/913
+// https://github.com/gotenberg/gotenberg/issues/959
 func listenForEventLoadingFailed(ctx context.Context, logger *zap.Logger, loadingFailed *error, loadingFailedMu *sync.RWMutex) {
 	chromedp.ListenTarget(ctx, func(ev interface{}) {
 		switch ev := ev.(type) {

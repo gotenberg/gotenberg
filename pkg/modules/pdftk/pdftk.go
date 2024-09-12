@@ -75,6 +75,11 @@ func (engine *PdfTk) Convert(ctx context.Context, logger *zap.Logger, formats go
 	return fmt.Errorf("convert PDF to '%+v' with PDFtk: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// Optimize is not available in this implementation.
+func (engine *PdfTk) Optimize(ctx context.Context, logger *zap.Logger, options gotenberg.OptimizeOptions, inputPath, outputPath string) error {
+	return fmt.Errorf("optimize PDF with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // ReadMetadata is not available in this implementation.
 func (engine *PdfTk) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
 	return nil, fmt.Errorf("read PDF metadata with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)

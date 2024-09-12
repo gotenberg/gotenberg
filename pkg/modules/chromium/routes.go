@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -265,6 +266,63 @@ func FormDataChromiumPdfFormats(form *api.FormData) gotenberg.PdfFormats {
 	}
 }
 
+func FormDataPdfOptimizeOptions(form *api.FormData) gotenberg.OptimizeOptions {
+	var (
+		compressStreams    bool
+		imageQuality       int
+		maxImageResolution int
+	)
+
+	form.
+		Bool("compressStreams", &compressStreams, false).
+		Custom("imageQuality", func(value string) error {
+			if value == "" {
+				imageQuality = 0
+				return nil
+			}
+
+			intValue, err := strconv.Atoi(value)
+			if err != nil {
+				return err
+			}
+
+			if intValue < 1 {
+				return errors.New("value is inferior to 1")
+			}
+
+			if intValue > 100 {
+				return errors.New("value is superior to 100")
+			}
+
+			imageQuality = intValue
+			return nil
+		}).
+		Custom("maxImageResolution", func(value string) error {
+			if value == "" {
+				maxImageResolution = 0
+				return nil
+			}
+
+			intValue, err := strconv.Atoi(value)
+			if err != nil {
+				return err
+			}
+
+			if !slices.Contains([]int{75, 150, 300, 600, 1200}, intValue) {
+				return errors.New("value is not 75, 150, 300, 600 or 1200")
+			}
+
+			maxImageResolution = intValue
+			return nil
+		})
+
+	return gotenberg.OptimizeOptions{
+		CompressStreams:    compressStreams,
+		ImageQuality:       imageQuality,
+		MaxImageResolution: maxImageResolution,
+	}
+}
+
 // FormDataPdfMetadata creates metadata object from the form data.
 func FormDataPdfMetadata(form *api.FormData) map[string]interface{} {
 	var metadata map[string]interface{}
@@ -290,6 +348,7 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPdfOptions(ctx)
 			pdfFormats := FormDataChromiumPdfFormats(form)
+			optimizeOpts := FormDataPdfOptimizeOptions(form)
 			metadata := FormDataPdfMetadata(form)
 
 			var url string
@@ -300,7 +359,7 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			err = convertUrl(ctx, chromium, engine, url, options, pdfFormats, metadata)
+			err = convertUrl(ctx, chromium, engine, url, options, pdfFormats, optimizeOpts, metadata)
 			if err != nil {
 				return fmt.Errorf("convert URL to PDF: %w", err)
 			}
@@ -350,6 +409,7 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPdfOptions(ctx)
 			pdfFormats := FormDataChromiumPdfFormats(form)
+			optimizeOpts := FormDataPdfOptimizeOptions(form)
 			metadata := FormDataPdfMetadata(form)
 
 			var inputPath string
@@ -361,7 +421,7 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			}
 
 			url := fmt.Sprintf("file://%s", inputPath)
-			err = convertUrl(ctx, chromium, engine, url, options, pdfFormats, metadata)
+			err = convertUrl(ctx, chromium, engine, url, options, pdfFormats, optimizeOpts, metadata)
 			if err != nil {
 				return fmt.Errorf("convert HTML to PDF: %w", err)
 			}
@@ -412,6 +472,7 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPdfOptions(ctx)
 			pdfFormats := FormDataChromiumPdfFormats(form)
+			optimizeOpts := FormDataPdfOptimizeOptions(form)
 			metadata := FormDataPdfMetadata(form)
 
 			var (
@@ -432,7 +493,7 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("transform markdown file(s) to HTML: %w", err)
 			}
 
-			err = convertUrl(ctx, chromium, engine, url, options, pdfFormats, metadata)
+			err = convertUrl(ctx, chromium, engine, url, options, pdfFormats, optimizeOpts, metadata)
 			if err != nil {
 				return fmt.Errorf("convert markdown to PDF: %w", err)
 			}
@@ -556,7 +617,7 @@ func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) 
 	return fmt.Sprintf("file://%s", inputPath), nil
 }
 
-func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, options PdfOptions, pdfFormats gotenberg.PdfFormats, metadata map[string]interface{}) error {
+func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, options PdfOptions, pdfFormats gotenberg.PdfFormats, optimizeOpts gotenberg.OptimizeOptions, metadata map[string]interface{}) error {
 	outputPath := ctx.GeneratePath(".pdf")
 
 	err := chromium.Pdf(ctx, ctx.Log(), url, outputPath, options)
@@ -598,8 +659,8 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 	// So far so good, the URL has been converted to PDF.
 	// Now, let's check if the client want to convert the resulting PDF
 	// to specific formats.
-	zeroValued := gotenberg.PdfFormats{}
-	if pdfFormats != zeroValued {
+	zeroValuedPdfFormats := gotenberg.PdfFormats{}
+	if pdfFormats != zeroValuedPdfFormats {
 		convertInputPath := outputPath
 		convertOutputPath := ctx.GeneratePath(".pdf")
 
@@ -610,6 +671,21 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 
 		// Important: the output path is now the converted file.
 		outputPath = convertOutputPath
+	}
+
+	// Optimizes (compresses).
+	zeroValuedOptimizeOpts := gotenberg.OptimizeOptions{}
+	if optimizeOpts != zeroValuedOptimizeOpts {
+		optimizeInputPath := outputPath
+		optimizeOutputPath := ctx.GeneratePath(".pdf")
+
+		err = engine.Optimize(ctx, ctx.Log(), optimizeOpts, optimizeInputPath, optimizeOutputPath)
+		if err != nil {
+			return fmt.Errorf("optimize PDF: %w", err)
+		}
+
+		// Important: the output path is now the converted file.
+		outputPath = optimizeOutputPath
 	}
 
 	// Writes and potentially overrides metadata entries, if any.

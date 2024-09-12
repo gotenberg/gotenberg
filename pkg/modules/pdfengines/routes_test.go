@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -15,6 +16,117 @@ import (
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
 )
+
+func TestFormDataPdfOptimizeOptions(t *testing.T) {
+	for _, tc := range []struct {
+		scenario        string
+		ctx             *api.ContextMock
+		expectedOptions gotenberg.OptimizeOptions
+	}{
+		{
+			scenario:        "no custom form fields",
+			ctx:             &api.ContextMock{Context: new(api.Context)},
+			expectedOptions: gotenberg.OptimizeOptions{},
+		},
+		{
+			scenario: "invalid imageQuality form field (not an integer)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"imageQuality": {
+						"foo",
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: gotenberg.OptimizeOptions{},
+		},
+		{
+			scenario: "invalid imageQuality form field (< 1)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"imageQuality": {
+						"0",
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: gotenberg.OptimizeOptions{},
+		},
+		{
+			scenario: "invalid imageQuality form field (> 100)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"imageQuality": {
+						"101",
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: gotenberg.OptimizeOptions{},
+		},
+		{
+			scenario: "invalid maxImageResolution form field (not an integer)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"maxImageResolution": {
+						"foo",
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: gotenberg.OptimizeOptions{},
+		},
+		{
+			scenario: "invalid maxImageResolution form field (not in range)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"maxImageResolution": {
+						"1",
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: gotenberg.OptimizeOptions{},
+		},
+		{
+			scenario: "valid options",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"compressStreams": {
+						"true",
+					},
+					"imageQuality": {
+						"50",
+					},
+					"maxImageResolution": {
+						"75",
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: gotenberg.OptimizeOptions{
+				CompressStreams:    true,
+				ImageQuality:       50,
+				MaxImageResolution: 75,
+			},
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			tc.ctx.SetLogger(zap.NewNop())
+			actual := FormDataPdfOptimizeOptions(tc.ctx.Context.FormData())
+
+			if !reflect.DeepEqual(actual, tc.expectedOptions) {
+				t.Fatalf("expected %+v but got: %+v", tc.expectedOptions, actual)
+			}
+		})
+	}
+}
 
 func TestMergeHandler(t *testing.T) {
 	for _, tc := range []struct {
@@ -101,6 +213,33 @@ func TestMergeHandler(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
+			scenario: "PDF engine optimize error",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"file.pdf":  "/file.pdf",
+					"file2.pdf": "/file2.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"compressStreams": {
+						"true",
+					},
+				})
+				return ctx
+			}(),
+			engine: &gotenberg.PdfEngineMock{
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return nil
+				},
+				OptimizeMock: func(ctx context.Context, logger *zap.Logger, options gotenberg.OptimizeOptions, inputPath, outputPath string) error {
+					return errors.New("foo")
+				},
+			},
+			expectError:            true,
+			expectHttpError:        false,
+			expectOutputPathsCount: 0,
+		},
+		{
 			scenario: "PDF engine write metadata error",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
@@ -159,6 +298,9 @@ func TestMergeHandler(t *testing.T) {
 					"pdfa": {
 						gotenberg.PdfA1b,
 					},
+					"compressStreams": {
+						"true",
+					},
 					"metadata": {
 						"{\"Creator\": \"foo\", \"Producer\": \"bar\" }",
 					},
@@ -170,6 +312,9 @@ func TestMergeHandler(t *testing.T) {
 					return nil
 				},
 				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+					return nil
+				},
+				OptimizeMock: func(ctx context.Context, logger *zap.Logger, options gotenberg.OptimizeOptions, inputPath, outputPath string) error {
 					return nil
 				},
 				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
@@ -395,6 +540,222 @@ func TestConvertHandler(t *testing.T) {
 			c.Set("context", tc.ctx.Context)
 
 			err := convertRoute(tc.engine).Handler(c)
+
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none", err)
+			}
+
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+
+			var httpErr api.HttpError
+			isHttpError := errors.As(err, &httpErr)
+
+			if tc.expectHttpError && !isHttpError {
+				t.Errorf("expected an HTTP error but got: %v", err)
+			}
+
+			if !tc.expectHttpError && isHttpError {
+				t.Errorf("expected no HTTP error but got one: %v", httpErr)
+			}
+
+			if err != nil && tc.expectHttpError && isHttpError {
+				status, _ := httpErr.HttpError()
+				if status != tc.expectHttpStatus {
+					t.Errorf("expected %d as HTTP status code but got %d", tc.expectHttpStatus, status)
+				}
+			}
+
+			if tc.expectOutputPathsCount != len(tc.ctx.OutputPaths()) {
+				t.Errorf("expected %d output paths but got %d", tc.expectOutputPathsCount, len(tc.ctx.OutputPaths()))
+			}
+
+			for _, path := range tc.expectOutputPaths {
+				if !slices.Contains(tc.ctx.OutputPaths(), path) {
+					t.Errorf("expected '%s' in output paths %v", path, tc.ctx.OutputPaths())
+				}
+			}
+		})
+	}
+}
+
+func TestOptimizeHandler(t *testing.T) {
+	for _, tc := range []struct {
+		scenario               string
+		ctx                    *api.ContextMock
+		engine                 gotenberg.PdfEngine
+		expectError            bool
+		expectHttpError        bool
+		expectHttpStatus       int
+		expectOutputPathsCount int
+		expectOutputPaths      []string
+	}{
+		{
+			scenario:               "missing at least one mandatory file",
+			ctx:                    &api.ContextMock{Context: new(api.Context)},
+			expectError:            true,
+			expectHttpError:        true,
+			expectHttpStatus:       http.StatusBadRequest,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "no optimization options",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"file.pdf": "/file.pdf",
+				})
+				return ctx
+			}(),
+			engine: &gotenberg.PdfEngineMock{
+				OptimizeMock: func(ctx context.Context, logger *zap.Logger, options gotenberg.OptimizeOptions, inputPath, outputPath string) error {
+					return nil
+				},
+			},
+			expectError:            true,
+			expectHttpError:        true,
+			expectHttpStatus:       http.StatusBadRequest,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "error from PDF engine",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"file.pdf": "/file.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"compressStreams": {
+						"true",
+					},
+				})
+				return ctx
+			}(),
+			engine: &gotenberg.PdfEngineMock{
+				OptimizeMock: func(ctx context.Context, logger *zap.Logger, options gotenberg.OptimizeOptions, inputPath, outputPath string) error {
+					return errors.New("foo")
+				},
+			},
+			expectError:            true,
+			expectHttpError:        false,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "cannot add output paths",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"file.pdf": "/file.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"compressStreams": {
+						"true",
+					},
+				})
+				ctx.SetCancelled(true)
+				return ctx
+			}(),
+			engine: &gotenberg.PdfEngineMock{
+				OptimizeMock: func(ctx context.Context, logger *zap.Logger, options gotenberg.OptimizeOptions, inputPath, outputPath string) error {
+					return nil
+				},
+			},
+			expectError:            true,
+			expectHttpError:        false,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "success",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"file.pdf": "/file.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"compressStreams": {
+						"true",
+					},
+					"imageQuality": {
+						"50",
+					},
+					"maxImageResolution": {
+						"75",
+					},
+				})
+				return ctx
+			}(),
+			engine: &gotenberg.PdfEngineMock{
+				OptimizeMock: func(ctx context.Context, logger *zap.Logger, options gotenberg.OptimizeOptions, inputPath, outputPath string) error {
+					return nil
+				},
+			},
+			expectError:            false,
+			expectHttpError:        false,
+			expectOutputPathsCount: 1,
+		},
+		{
+			scenario: "cannot rename many files",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"file.pdf":  "/file.pdf",
+					"file2.pdf": "/file2.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"compressStreams": {
+						"true",
+					},
+				})
+				ctx.SetPathRename(&gotenberg.PathRenameMock{RenameMock: func(oldpath, newpath string) error {
+					return errors.New("cannot rename")
+				}})
+				return ctx
+			}(),
+			engine: &gotenberg.PdfEngineMock{
+				OptimizeMock: func(ctx context.Context, logger *zap.Logger, options gotenberg.OptimizeOptions, inputPath, outputPath string) error {
+					return nil
+				},
+			},
+			expectError:            true,
+			expectHttpError:        false,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "success (many files)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"file.pdf":  "/file.pdf",
+					"file2.pdf": "/file2.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"compressStreams": {
+						"true",
+					},
+				})
+				ctx.SetPathRename(&gotenberg.PathRenameMock{RenameMock: func(oldpath, newpath string) error {
+					return nil
+				}})
+				return ctx
+			}(),
+			engine: &gotenberg.PdfEngineMock{
+				OptimizeMock: func(ctx context.Context, logger *zap.Logger, options gotenberg.OptimizeOptions, inputPath, outputPath string) error {
+					return nil
+				},
+			},
+			expectError:            false,
+			expectHttpError:        false,
+			expectOutputPathsCount: 2,
+			expectOutputPaths:      []string{"/file.pdf", "/file2.pdf"},
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			tc.ctx.SetLogger(zap.NewNop())
+			c := echo.New().NewContext(nil, nil)
+			c.Set("context", tc.ctx.Context)
+
+			err := optimizeRoute(tc.engine).Handler(c)
 
 			if tc.expectError && err == nil {
 				t.Fatal("expected error but got none", err)

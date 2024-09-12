@@ -464,6 +464,117 @@ func TestFormDataChromiumPdfFormats(t *testing.T) {
 	}
 }
 
+func TestFormDataPdfOptimizeOptions(t *testing.T) {
+	for _, tc := range []struct {
+		scenario        string
+		ctx             *api.ContextMock
+		expectedOptions gotenberg.OptimizeOptions
+	}{
+		{
+			scenario:        "no custom form fields",
+			ctx:             &api.ContextMock{Context: new(api.Context)},
+			expectedOptions: gotenberg.OptimizeOptions{},
+		},
+		{
+			scenario: "invalid imageQuality form field (not an integer)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"imageQuality": {
+						"foo",
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: gotenberg.OptimizeOptions{},
+		},
+		{
+			scenario: "invalid imageQuality form field (< 1)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"imageQuality": {
+						"0",
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: gotenberg.OptimizeOptions{},
+		},
+		{
+			scenario: "invalid imageQuality form field (> 100)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"imageQuality": {
+						"101",
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: gotenberg.OptimizeOptions{},
+		},
+		{
+			scenario: "invalid maxImageResolution form field (not an integer)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"maxImageResolution": {
+						"foo",
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: gotenberg.OptimizeOptions{},
+		},
+		{
+			scenario: "invalid maxImageResolution form field (not in range)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"maxImageResolution": {
+						"1",
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: gotenberg.OptimizeOptions{},
+		},
+		{
+			scenario: "valid options",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"compressStreams": {
+						"true",
+					},
+					"imageQuality": {
+						"50",
+					},
+					"maxImageResolution": {
+						"75",
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: gotenberg.OptimizeOptions{
+				CompressStreams:    true,
+				ImageQuality:       50,
+				MaxImageResolution: 75,
+			},
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			tc.ctx.SetLogger(zap.NewNop())
+			actual := FormDataPdfOptimizeOptions(tc.ctx.Context.FormData())
+
+			if !reflect.DeepEqual(actual, tc.expectedOptions) {
+				t.Fatalf("expected %+v but got: %+v", tc.expectedOptions, actual)
+			}
+		})
+	}
+}
+
 func TestFormDataPdfMetadata(t *testing.T) {
 	for _, tc := range []struct {
 		scenario         string
@@ -1341,6 +1452,7 @@ func TestConvertUrl(t *testing.T) {
 		engine                 gotenberg.PdfEngine
 		options                PdfOptions
 		pdfFormats             gotenberg.PdfFormats
+		optimizeOpts           gotenberg.OptimizeOptions
 		metadata               map[string]interface{}
 		expectError            bool
 		expectHttpError        bool
@@ -1489,6 +1601,20 @@ func TestConvertUrl(t *testing.T) {
 			expectOutputPathsCount: 1,
 		},
 		{
+			scenario: "PDF engine optimize error",
+			ctx:      &api.ContextMock{Context: new(api.Context)},
+			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
+				return nil
+			}},
+			engine: &gotenberg.PdfEngineMock{OptimizeMock: func(ctx context.Context, logger *zap.Logger, options gotenberg.OptimizeOptions, inputPath, outputPath string) error {
+				return errors.New("foo")
+			}},
+			options:         DefaultPdfOptions(),
+			optimizeOpts:    gotenberg.OptimizeOptions{CompressStreams: true, ImageQuality: 50, MaxImageResolution: 75},
+			expectError:     true,
+			expectHttpError: false,
+		},
+		{
 			scenario: "PDF engine write metadata error",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
 			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
@@ -1530,12 +1656,16 @@ func TestConvertUrl(t *testing.T) {
 				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 					return nil
 				},
+				OptimizeMock: func(ctx context.Context, logger *zap.Logger, options gotenberg.OptimizeOptions, inputPath, outputPath string) error {
+					return nil
+				},
 				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
 					return nil
 				},
 			},
-			options:    DefaultPdfOptions(),
-			pdfFormats: gotenberg.PdfFormats{PdfA: gotenberg.PdfA1b},
+			options:      DefaultPdfOptions(),
+			pdfFormats:   gotenberg.PdfFormats{PdfA: gotenberg.PdfA1b},
+			optimizeOpts: gotenberg.OptimizeOptions{CompressStreams: true, ImageQuality: 50, MaxImageResolution: 75},
 			metadata: map[string]interface{}{
 				"Creator":  "foo",
 				"Producer": "bar",
@@ -1547,7 +1677,7 @@ func TestConvertUrl(t *testing.T) {
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			tc.ctx.SetLogger(zap.NewNop())
-			err := convertUrl(tc.ctx.Context, tc.api, tc.engine, "", tc.options, tc.pdfFormats, tc.metadata)
+			err := convertUrl(tc.ctx.Context, tc.api, tc.engine, "", tc.options, tc.pdfFormats, tc.optimizeOpts, tc.metadata)
 
 			if tc.expectError && err == nil {
 				t.Fatal("expected error but got none", err)

@@ -91,6 +91,15 @@ func TestExiftool_Convert(t *testing.T) {
 	}
 }
 
+func TestExiftool_Optimize(t *testing.T) {
+	engine := new(ExifTool)
+	err := engine.Optimize(context.Background(), zap.NewNop(), gotenberg.OptimizeOptions{}, "", "")
+
+	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
+		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)
+	}
+}
+
 func TestExiftool_ReadMetadata(t *testing.T) {
 	for _, tc := range []struct {
 		scenario       string

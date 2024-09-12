@@ -149,6 +149,15 @@ func TestPdfTk_Convert(t *testing.T) {
 	}
 }
 
+func TestPdfTk_ReadMetadata_Optimize(t *testing.T) {
+	engine := new(PdfTk)
+	err := engine.Optimize(context.Background(), zap.NewNop(), gotenberg.OptimizeOptions{}, "", "")
+
+	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
+		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)
+	}
+}
+
 func TestLibreOfficePdfEngine_ReadMetadata(t *testing.T) {
 	engine := new(PdfTk)
 	_, err := engine.ReadMetadata(context.Background(), zap.NewNop(), "")

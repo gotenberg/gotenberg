@@ -18,7 +18,7 @@ func init() {
 // LibreOfficePdfEngine interacts with the LibreOffice (Universal Network Objects) API
 // and implements the [gotenberg.PdfEngine] interface.
 type LibreOfficePdfEngine struct {
-	unoApi api.Uno
+	libreoffice api.Uno
 }
 
 // Descriptor returns a [LibreOfficePdfEngine]'s module descriptor.
@@ -36,12 +36,12 @@ func (engine *LibreOfficePdfEngine) Provision(ctx *gotenberg.Context) error {
 		return fmt.Errorf("get LibreOffice Uno provider: %w", err)
 	}
 
-	unoApi, err := provider.(api.Provider).LibreOffice()
+	libreoffice, err := provider.(api.Provider).LibreOffice()
 	if err != nil {
 		return fmt.Errorf("get LibreOffice Uno: %w", err)
 	}
 
-	engine.unoApi = unoApi
+	engine.libreoffice = libreoffice
 
 	return nil
 }
@@ -58,7 +58,7 @@ func (engine *LibreOfficePdfEngine) Merge(ctx context.Context, logger *zap.Logge
 func (engine *LibreOfficePdfEngine) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 	opts := api.DefaultOptions()
 	opts.PdfFormats = formats
-	err := engine.unoApi.Pdf(ctx, logger, inputPath, outputPath, opts)
+	err := engine.libreoffice.Pdf(ctx, logger, inputPath, outputPath, opts)
 
 	if err == nil {
 		return nil
@@ -69,6 +69,11 @@ func (engine *LibreOfficePdfEngine) Convert(ctx context.Context, logger *zap.Log
 	}
 
 	return fmt.Errorf("convert PDF to '%+v' with LibreOffice: %w", formats, err)
+}
+
+// Optimize is not available in this implementation.
+func (engine *LibreOfficePdfEngine) Optimize(ctx context.Context, logger *zap.Logger, options gotenberg.OptimizeOptions, inputPath, outputPath string) error {
+	return fmt.Errorf("optimize PDF with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // ReadMetadata is not available in this implementation.

@@ -62,6 +62,11 @@ func (engine *ExifTool) Convert(ctx context.Context, logger *zap.Logger, formats
 	return fmt.Errorf("convert PDF to '%+v' with ExifTool: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// Optimize is not available in this implementation.
+func (engine *ExifTool) Optimize(ctx context.Context, logger *zap.Logger, options gotenberg.OptimizeOptions, inputPath, outputPath string) error {
+	return fmt.Errorf("optimize PDF with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // ReadMetadata extracts the metadata of a given PDF file.
 func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
 	exifTool, err := exiftool.NewExiftool(exiftool.SetExiftoolBinaryPath(engine.binPath))

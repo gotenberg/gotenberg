@@ -55,6 +55,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				nativePdfFormats                bool
 				merge                           bool
 				metadata                        map[string]interface{}
+				compressStreams                 bool
 			)
 
 			err := ctx.FormData().
@@ -131,6 +132,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					}
 					return nil
 				}).
+				Bool("compressStreams", &compressStreams, false).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -227,6 +229,35 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 
 				// Important: the output paths are now the converted files.
 				outputPaths = convertOutputPaths
+			}
+
+			// Optimizes (compresses).
+			optimizeOpts := gotenberg.OptimizeOptions{
+				CompressStreams:    compressStreams,
+				ImageQuality:       quality,
+				MaxImageResolution: maxImageResolution,
+				SkipLo:             true,
+			}
+			zeroValuedOptimizeOpts := gotenberg.OptimizeOptions{
+				ImageQuality:       defaultOptions.Quality,
+				MaxImageResolution: defaultOptions.MaxImageResolution,
+				SkipLo:             true,
+			}
+			if optimizeOpts != zeroValuedOptimizeOpts {
+				optimizeOutputPaths := make([]string, len(outputPaths))
+
+				for i, outputPath := range outputPaths {
+					optimizeInputPath := outputPath
+					optimizeOutputPaths[i] = ctx.GeneratePath(".pdf")
+
+					err = engine.Optimize(ctx, ctx.Log(), optimizeOpts, optimizeInputPath, optimizeOutputPaths[i])
+					if err != nil {
+						return fmt.Errorf("optimize PDF: %w", err)
+					}
+				}
+
+				// Important: the output paths are now the converted files.
+				outputPaths = optimizeOutputPaths
 			}
 
 			// Writes and potentially overrides metadata entries, if any.
