@@ -93,13 +93,7 @@ jobs:
         with:
           image-ref: harbor.onebrief.tools/onebrief/gotenberg@${{ steps.build.outputs.imageid }}
           scanners: 'vuln'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
+          format: 'table'
         env:
           TRIVY_USERNAME: ${{ secrets.HARBOR_RO_USER }}
           TRIVY_PASSWORD: ${{ secrets.HARBOR_RO_TOKEN }}
-
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: 'trivy-results.sarif'
