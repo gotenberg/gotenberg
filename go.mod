@@ -22,15 +22,15 @@ require (
 	github.com/nwaples/rardecode v1.1.3 // indirect
 	github.com/pdfcpu/pdfcpu v0.8.1
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
-	github.com/prometheus/client_golang v1.20.2
+	github.com/prometheus/client_golang v1.20.3
 	github.com/russross/blackfriday/v2 v2.1.0
 	github.com/spf13/pflag v1.0.5
 	github.com/ulikunitz/xz v0.5.12 // indirect
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.26.0 // indirect
+	golang.org/x/crypto v0.27.0 // indirect
 	golang.org/x/image v0.20.0 // indirect
-	golang.org/x/net v0.28.0
+	golang.org/x/net v0.29.0
 	golang.org/x/sync v0.8.0
 	golang.org/x/sys v0.25.0 // indirect
 	golang.org/x/term v0.24.0
@@ -59,7 +59,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
-	github.com/prometheus/common v0.58.0 // indirect
+	github.com/prometheus/common v0.59.1 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
