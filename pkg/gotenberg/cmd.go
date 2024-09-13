@@ -156,7 +156,7 @@ func (cmd *Cmd) pipeOutput() error {
 		r := bufio.NewReader(reader)
 		defer func(reader io.ReadCloser) {
 			err := reader.Close()
-			if err != nil {
+			if err != nil && !strings.Contains(err.Error(), "file already closed") {
 				logger.Error(fmt.Sprintf("close reader: %s", err))
 			}
 		}(reader)
