@@ -6,6 +6,7 @@ help: ## Show the help
 it: build build-tests ## Initialize the development environment
 
 GOLANG_VERSION=1.23
+DOCKER_REGISTRY=gotenberg
 DOCKER_REPOSITORY=gotenberg
 GOTENBERG_VERSION=snapshot
 GOTENBERG_USER_GID=1001
@@ -23,7 +24,7 @@ build: ## Build the Gotenberg's Docker image
 	--build-arg GOTENBERG_USER_UID=$(GOTENBERG_USER_UID) \
 	--build-arg NOTO_COLOR_EMOJI_VERSION=$(NOTO_COLOR_EMOJI_VERSION) \
 	--build-arg PDFTK_VERSION=$(PDFTK_VERSION) \
-	-t $(DOCKER_REPOSITORY)/gotenberg:$(GOTENBERG_VERSION) \
+	-t $(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
 	-f build/Dockerfile .
 
 GOTENBERG_GRACEFUL_SHUTDOWN_DURATION=30s
@@ -84,7 +85,7 @@ run: ## Start a Gotenberg container
 	-p $(API_PORT):$(API_PORT) \
 	-e GOTENBERG_API_BASIC_AUTH_USERNAME=$(GOTENBERG_API_BASIC_AUTH_USERNAME) \
 	-e GOTENBERG_API_BASIC_AUTH_PASSWORD=$(GOTENBERG_API_BASIC_AUTH_PASSWORD) \
-	$(DOCKER_REPOSITORY)/gotenberg:$(GOTENBERG_VERSION) \
+	$(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
 	gotenberg \
 	--gotenberg-graceful-shutdown-duration=$(GOTENBERG_GRACEFUL_SHUTDOWN_DURATION) \
 	--api-port=$(API_PORT) \
@@ -143,21 +144,21 @@ build-tests: ## Build the tests' Docker image
 	--build-arg DOCKER_REPOSITORY=$(DOCKER_REPOSITORY) \
 	--build-arg GOTENBERG_VERSION=$(GOTENBERG_VERSION) \
 	--build-arg GOLANGCI_LINT_VERSION=$(GOLANGCI_LINT_VERSION) \
-	-t $(DOCKER_REPOSITORY)/gotenberg:$(GOTENBERG_VERSION)-tests \
+	-t $(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION)-tests \
 	-f test/Dockerfile .
 
 .PHONY: tests
 tests: ## Start the testing environment
 	docker run --rm -it \
 	-v $(PWD):/tests \
-	$(DOCKER_REPOSITORY)/gotenberg:$(GOTENBERG_VERSION)-tests \
+	$(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY)g:$(GOTENBERG_VERSION)-tests \
 	bash
 
 .PHONY: tests-once
 tests-once: ## Run the tests once (prefer the "tests" command while developing)
 	docker run --rm  \
 	-v $(PWD):/tests \
-	$(DOCKER_REPOSITORY)/gotenberg:$(GOTENBERG_VERSION)-tests \
+	$(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION)-tests \
 	gotest
 
 # go install mvdan.cc/gofumpt@latest
@@ -174,8 +175,10 @@ godoc: ## Run a webserver with Gotenberg godoc
 	$(info http://localhost:6060/pkg/github.com/gotenberg/gotenberg/v8)
 	godoc -http=:6060
 
+LINUX_AMD64_RELEASE=false
+
 .PHONY: release
-release: ## Build the Gotenberg's Docker image for many platforms, then push it to a Docker repository
+release: ## Build the Gotenberg's Docker image and push it to a Docker repository
 	./scripts/release.sh \
  	$(GOLANG_VERSION) \
 	$(GOTENBERG_VERSION) \
@@ -183,4 +186,7 @@ release: ## Build the Gotenberg's Docker image for many platforms, then push it 
 	$(GOTENBERG_USER_UID) \
 	$(NOTO_COLOR_EMOJI_VERSION) \
 	$(PDFTK_VERSION) \
-	$(DOCKER_REPOSITORY)
+	$(DOCKER_REGISTRY) \
+	$(DOCKER_REPOSITORY) \
+	$(LINUX_AMD64_RELEASE)
+
