@@ -28,7 +28,7 @@ jobs:
 
   tests:
     needs:
-      - Lint
+      - lint
     name: Tests
     # TODO: once arm64 actions are available, also run the tests on this architecture.
     # See: https://github.com/actions/virtual-environments/issues/2552#issuecomment-771478000.
@@ -50,11 +50,32 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
 
-  multiarch_build:
+  snapshot_release:
+    if: github.event_name == 'pull_request'
+    needs:
+      - tests
+    name: Snapshot release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Checkout source code
+        uses: actions/checkout@v4
+      - name: Log in to Docker Hub Container Registry
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push snapshot Docker image (linux/amd64)
+        run: make release GOTENBERG_VERSION=${{ github.head_ref }} DOCKER_REPOSITORY=snapshot LINUX_AMD64_RELEASE=true
+
+  edge_release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
-      - Tests
-    name: Multi-arch build
+      - tests
+    name: Edge release
     runs-on: ubuntu-latest
     steps:
       - name: Set up QEMU
@@ -71,4 +92,4 @@ jobs:
       - name: Build and push Docker image for main branch
         run: |
           make release GOTENBERG_VERSION=edge
-          make release GOTENBERG_VERSION=edge DOCKER_REPOSITORY=thecodingmachine
+          make release GOTENBERG_VERSION=edge DOCKER_REGISTRY=thecodingmachine
