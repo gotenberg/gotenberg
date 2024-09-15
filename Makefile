@@ -37,6 +37,10 @@ API_TRACE_HEADER=Gotenberg-Trace
 API_ENABLE_BASIC_AUTH=false
 GOTENBERG_API_BASIC_AUTH_USERNAME=
 GOTENBERG_API_BASIC_AUTH_PASSWORD=
+API-DOWNLOAD-FROM-ALLOW-LIST=
+API-DOWNLOAD-FROM-DENY-LIST=
+API-DOWNLOAD-FROM-FROM-MAX-RETRY=4
+API-DISABLE-DOWNLOAD-FROM=false
 API_DISABLE_HEALTH_CHECK_LOGGING=false
 CHROMIUM_RESTART_AFTER=0
 CHROMIUM_MAX_QUEUE_SIZE=0
@@ -95,6 +99,10 @@ run: ## Start a Gotenberg container
 	--api-root-path=$(API_ROOT_PATH) \
 	--api-trace-header=$(API_TRACE_HEADER) \
 	--api-enable-basic-auth=$(API_ENABLE_BASIC_AUTH) \
+	--api-download-from-allow-list=$(API-DOWNLOAD-FROM-ALLOW-LIST) \
+    --api-download-from-deny-list=$(API-DOWNLOAD-FROM-DENY-LIST) \
+    --api-download-from-max-retry=$(API-DOWNLOAD-FROM-FROM-MAX-RETRY) \
+    --api-disable-download-from=$(API-DISABLE-DOWNLOAD-FROM) \
 	--api-disable-health-check-logging=$(API_DISABLE_HEALTH_CHECK_LOGGING) \
 	--chromium-restart-after=$(CHROMIUM_RESTART_AFTER) \
 	--chromium-auto-start=$(CHROMIUM_AUTO_START) \
@@ -151,7 +159,7 @@ build-tests: ## Build the tests' Docker image
 tests: ## Start the testing environment
 	docker run --rm -it \
 	-v $(PWD):/tests \
-	$(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY)g:$(GOTENBERG_VERSION)-tests \
+	$(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION)-tests \
 	bash
 
 .PHONY: tests-once
