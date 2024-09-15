@@ -100,11 +100,11 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 					}
 
 					// What about extra HTTP headers?
-					var extraHTTPHeaders map[string]string
+					var extraHttpHeaders map[string]string
 
-					extraHTTPHeadersJSON := c.Request().Header.Get("Gotenberg-Webhook-Extra-Http-Headers")
-					if extraHTTPHeadersJSON != "" {
-						err = json.Unmarshal([]byte(extraHTTPHeadersJSON), &extraHTTPHeaders)
+					extraHttpHeadersJson := c.Request().Header.Get("Gotenberg-Webhook-Extra-Http-Headers")
+					if extraHttpHeadersJson != "" {
+						err = json.Unmarshal([]byte(extraHttpHeadersJson), &extraHttpHeaders)
 						if err != nil {
 							return api.WrapError(
 								fmt.Errorf("unmarshal webhook extra HTTP headers: %w", err),
@@ -118,7 +118,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						method:           webhookMethod,
 						errorUrl:         webhookErrorUrl,
 						errorMethod:      webhookErrorMethod,
-						extraHttpHeaders: extraHTTPHeaders,
+						extraHttpHeaders: extraHttpHeaders,
 						startTime:        c.Get("startTime").(time.Time),
 
 						client: &retryablehttp.Client{
@@ -128,11 +128,9 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 							RetryMax:     w.maxRetry,
 							RetryWaitMin: w.retryMinWait,
 							RetryWaitMax: w.retryMaxWait,
-							Logger: leveledLogger{
-								logger: ctx.Log(),
-							},
-							CheckRetry: retryablehttp.DefaultRetryPolicy,
-							Backoff:    retryablehttp.DefaultBackoff,
+							Logger:       gotenberg.NewLeveledLogger(ctx.Log()),
+							CheckRetry:   retryablehttp.DefaultRetryPolicy,
+							Backoff:      retryablehttp.DefaultBackoff,
 						},
 						logger: ctx.Log(),
 					}

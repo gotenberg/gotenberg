@@ -27,9 +27,9 @@ type client struct {
 
 // send call the webhook either to send the success response or the error response.
 func (c client) send(body io.Reader, headers map[string]string, erroed bool) error {
-	URL := c.url
+	url := c.url
 	if erroed {
-		URL = c.errorUrl
+		url = c.errorUrl
 	}
 
 	method := c.method
@@ -37,9 +37,9 @@ func (c client) send(body io.Reader, headers map[string]string, erroed bool) err
 		method = c.errorMethod
 	}
 
-	req, err := retryablehttp.NewRequest(method, URL, body)
+	req, err := retryablehttp.NewRequest(method, url, body)
 	if err != nil {
-		return fmt.Errorf("create '%s' request to '%s': %w", method, URL, err)
+		return fmt.Errorf("create '%s' request to '%s': %w", method, url, err)
 	}
 
 	req.Header.Set("User-Agent", "Gotenberg")
@@ -75,17 +75,17 @@ func (c client) send(body io.Reader, headers map[string]string, erroed bool) err
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("send '%s' request to '%s': %w", method, URL, err)
+		return fmt.Errorf("send '%s' request to '%s': %w", method, url, err)
 	}
 
 	if resp.StatusCode >= http.StatusBadRequest {
-		return fmt.Errorf("send '%s' request to '%s': got status: '%s'", method, URL, resp.Status)
+		return fmt.Errorf("send '%s' request to '%s': got status: '%s'", method, url, resp.Status)
 	}
 
 	defer func() {
 		err := resp.Body.Close()
 		if err != nil {
-			c.logger.Error(fmt.Sprintf("close response body from '%s': %s", URL, err))
+			c.logger.Error(fmt.Sprintf("close response body from '%s': %s", url, err))
 		}
 	}()
 
@@ -94,7 +94,7 @@ func (c client) send(body io.Reader, headers map[string]string, erroed bool) err
 
 	// Now let's log!
 	fields := make([]zap.Field, 5)
-	fields[0] = zap.String("webhook_url", URL)
+	fields[0] = zap.String("webhook_url", url)
 	fields[1] = zap.String("method", method)
 	fields[2] = zap.Int64("latency", int64(finishTime.Sub(c.startTime)))
 	fields[3] = zap.String("latency_human", finishTime.Sub(c.startTime).String())
@@ -110,34 +110,3 @@ func (c client) send(body io.Reader, headers map[string]string, erroed bool) err
 
 	return nil
 }
-
-// leveledLogger is wrapper around a [zap.Logger] which is used by the
-// [retryablehttp.Client].
-type leveledLogger struct {
-	logger *zap.Logger
-}
-
-// Error logs a message at error level using the wrapped zap.Logger.
-func (leveled leveledLogger) Error(msg string, keysAndValues ...interface{}) {
-	leveled.logger.Error(fmt.Sprintf("%s: %+v", msg, keysAndValues))
-}
-
-// Warn logs a message at warning level using the wrapped zap.Logger.
-func (leveled leveledLogger) Warn(msg string, keysAndValues ...interface{}) {
-	leveled.logger.Warn(fmt.Sprintf("%s: %+v", msg, keysAndValues))
-}
-
-// Info logs a message at info level using the wrapped zap.Logger.
-func (leveled leveledLogger) Info(msg string, keysAndValues ...interface{}) {
-	leveled.logger.Info(fmt.Sprintf("%s: %+v", msg, keysAndValues))
-}
-
-// Debug logs a message at debug level using the wrapped zap.Logger.
-func (leveled leveledLogger) Debug(msg string, keysAndValues ...interface{}) {
-	leveled.logger.Debug(fmt.Sprintf("%s: %+v", msg, keysAndValues))
-}
-
-// Interface guards.
-var (
-	_ retryablehttp.LeveledLogger = (*leveledLogger)(nil)
-)

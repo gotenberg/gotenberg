@@ -3,9 +3,11 @@ package api
 import (
 	"compress/flate"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -14,9 +16,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/labstack/echo/v4"
 	"github.com/mholt/archiver/v3"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
@@ -46,6 +50,14 @@ type Context struct {
 	context.Context
 }
 
+type downloadFrom struct {
+	// Url is the URL to download a file from.
+	Url string `json:"url"`
+
+	// ExtraHttpHeaders are the HTTP headers to send alongside.
+	ExtraHttpHeaders map[string]string `json:"extraHttpHeaders"`
+}
+
 type osPathRename struct{}
 
 func (o *osPathRename) Rename(oldpath, newpath string) error {
@@ -53,7 +65,7 @@ func (o *osPathRename) Rename(oldpath, newpath string) error {
 }
 
 // newContext returns a [Context] by parsing a "multipart/form-data" request.
-func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSystem, timeout time.Duration) (*Context, context.CancelFunc, error) {
+func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSystem, timeout time.Duration, downloadFromCfg downloadFromConfig, traceHeader, trace string) (*Context, context.CancelFunc, error) {
 	processCtx, processCancel := context.WithTimeout(context.Background(), timeout)
 
 	ctx := &Context{
@@ -126,6 +138,144 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 	ctx.values = form.Value
 	ctx.files = make(map[string]string)
 
+	// First, try to download files listed in the "downloadFrom" form field, if
+	// any.
+	raw, ok := ctx.values["downloadFrom"]
+	if !downloadFromCfg.disable && ok {
+		var dls []downloadFrom
+		err = json.Unmarshal([]byte(raw[0]), &dls)
+		if err != nil {
+			return nil, cancel, WrapError(
+				fmt.Errorf("unmarshal json: %w", err),
+				NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'downloadFrom' form field value: %s", err)),
+			)
+		}
+
+		eg, _ := errgroup.WithContext(ctx)
+		for i, dl := range dls {
+			eg.Go(func() error {
+				deadline, ok := ctx.Deadline()
+				if !ok {
+					// Should not happen, as context is created with a timeout.
+					return errors.New("context has no deadline")
+				}
+
+				if strings.TrimSpace(dl.Url) == "" {
+					return WrapError(
+						errors.New("empty download from URL"),
+						NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'downloadFrom' form field entry %d: URL must be set", i)),
+					)
+				}
+
+				err := gotenberg.FilterDeadline(downloadFromCfg.allowList, downloadFromCfg.denyList, dl.Url, deadline)
+				if err != nil {
+					return fmt.Errorf("filter URL: %w", err)
+				}
+
+				logger.Debug(fmt.Sprintf("download file from '%s'", dl.Url))
+
+				req, err := retryablehttp.NewRequest(http.MethodGet, dl.Url, nil)
+				if err != nil {
+					return fmt.Errorf("create request to '%s': %w", dl.Url, err)
+				}
+
+				req.Header.Set("User-Agent", "Gotenberg")
+				for key, value := range dl.ExtraHttpHeaders {
+					req.Header.Set(key, value)
+				}
+				req.Header.Set(traceHeader, trace)
+
+				client := &retryablehttp.Client{
+					HTTPClient: &http.Client{
+						Timeout: time.Until(deadline),
+					},
+					RetryMax:     downloadFromCfg.maxRetry,
+					RetryWaitMin: time.Duration(1) * time.Second,
+					RetryWaitMax: time.Until(deadline),
+					Logger:       gotenberg.NewLeveledLogger(logger),
+					CheckRetry:   retryablehttp.DefaultRetryPolicy,
+					Backoff:      retryablehttp.DefaultBackoff,
+				}
+
+				resp, err := client.Do(req)
+				if err != nil {
+					return WrapError(
+						fmt.Errorf("download file from to '%s': %w", dl.Url, err),
+						NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Unable to download file from '%s': %s", dl.Url, err)),
+					)
+				}
+				defer func() {
+					err := resp.Body.Close()
+					if err != nil {
+						logger.Error(fmt.Sprintf("close response body from '%s': %s", dl.Url, err))
+					}
+				}()
+
+				if resp.StatusCode != http.StatusOK {
+					return WrapError(
+						fmt.Errorf("download file from to '%s': got status: '%s'", dl.Url, resp.Status),
+						NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Unable to download file from '%s': got status: '%s'", dl.Url, resp.Status)),
+					)
+				}
+
+				contentDisposition := resp.Header.Get("Content-Disposition")
+				if contentDisposition == "" {
+					return WrapError(
+						fmt.Errorf("no 'Content-Disposition' header from '%s'", dl.Url),
+						NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("No 'Content-Disposition' header from '%s'", dl.Url)),
+					)
+				}
+
+				_, params, err := mime.ParseMediaType(contentDisposition)
+				if err != nil {
+					return WrapError(
+						fmt.Errorf("parse 'Content-Disposition' header '%s' from '%s': %w", contentDisposition, dl.Url, err),
+						NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'Content-Disposition' header '%s' from '%s': %s", contentDisposition, dl.Url, err)),
+					)
+				}
+
+				filename, ok := params["filename"]
+				if !ok {
+					return WrapError(
+						fmt.Errorf("get filename from 'Content-Disposition' header '%s' from '%s'", contentDisposition, dl.Url),
+						NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'Content-Disposition' header '%s' from '%s': no filename", contentDisposition, dl.Url)),
+					)
+				}
+
+				// Avoid directory traversal and make sure filename characters are
+				// normalized.
+				// See: https://github.com/gotenberg/gotenberg/issues/662.
+				filename = norm.NFC.String(filepath.Base(filename))
+				path := fmt.Sprintf("%s/%s", ctx.dirPath, filename)
+
+				out, err := os.Create(path)
+				if err != nil {
+					return fmt.Errorf("create local file: %w", err)
+				}
+				defer func() {
+					err := out.Close()
+					if err != nil {
+						logger.Error(fmt.Sprintf("close local file: %s", err))
+					}
+				}()
+
+				_, err = io.Copy(out, resp.Body)
+				if err != nil {
+					return fmt.Errorf("copy downloaded file from '%s' to local file: %v", dl.Url, err)
+				}
+
+				ctx.files[filename] = path
+
+				return nil
+			})
+		}
+
+		err = eg.Wait()
+		if err != nil {
+			return ctx, cancel, err
+		}
+	}
+
 	copyToDisk := func(fh *multipart.FileHeader) error {
 		in, err := fh.Open()
 		if err != nil {
@@ -149,7 +299,6 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 		if err != nil {
 			return fmt.Errorf("create local file: %w", err)
 		}
-
 		defer func() {
 			err := out.Close()
 			if err != nil {
@@ -167,6 +316,7 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 		return nil
 	}
 
+	// Then, copy the form files, if any.
 	for _, files := range form.File {
 		for _, fh := range files {
 			err = copyToDisk(fh)
