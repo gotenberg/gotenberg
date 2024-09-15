@@ -149,6 +149,7 @@ run: ## Start a Gotenberg container
 build-tests: ## Build the tests' Docker image
 	docker build \
 	--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
+	--build-arg DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
 	--build-arg DOCKER_REPOSITORY=$(DOCKER_REPOSITORY) \
 	--build-arg GOTENBERG_VERSION=$(GOTENBERG_VERSION) \
 	--build-arg GOLANGCI_LINT_VERSION=$(GOLANGCI_LINT_VERSION) \
