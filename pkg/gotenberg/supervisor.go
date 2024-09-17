@@ -173,6 +173,20 @@ func (s *processSupervisor) Healthy() bool {
 }
 
 func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task func() error) error {
+	// A user reported a potential issue:
+	//
+	// "Although the counting operation is atomic, nothing prevent 2 concurrent
+	// goroutines to retrieve the same 'currentQueueSize' and to compare its
+	// value against the max limit. Then, resulting queue size would be 1 above
+	// the allowed limit."
+	//
+	// However, he was unable to actually trigger this issue, even when sending
+	// a lot of requests.
+	//
+	// For now, the best option is to consider this issue to be unlikely to
+	// happen, and keep the code as it is because it is more readable this way.
+	//
+	// See https://github.com/gotenberg/gotenberg/issues/951.
 	currentQueueSize := s.reqQueueSize.Load()
 	if s.maxQueueSize > 0 && currentQueueSize >= s.maxQueueSize {
 		return ErrMaximumQueueSizeExceeded
