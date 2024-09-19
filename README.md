@@ -5,6 +5,7 @@
     <p align="center">
         <a href="https://hub.docker.com/r/gotenberg/gotenberg"><img alt="Total downloads (gotenberg/gotenberg)" src="https://img.shields.io/docker/pulls/gotenberg/gotenberg"></a>
         <a href="https://hub.docker.com/r/thecodingmachine/gotenberg"><img alt="Total downloads (thecodingmachine/gotenberg)" src="https://img.shields.io/docker/pulls/thecodingmachine/gotenberg"></a>
+<a href="https://app.fossa.com/projects/git%2Bgithub.com%2Fgotenberg%2Fgotenberg?ref=badge_shield" alt="FOSSA Status"><img src="https://app.fossa.com/api/projects/git%2Bgithub.com%2Fgotenberg%2Fgotenberg.svg?type=shield"/></a>
         <br>
         <a href="https://github.com/gotenberg/gotenberg/actions/workflows/continuous_integration.yml"><img alt="Continuous Integration" src="https://github.com/gotenberg/gotenberg/actions/workflows/continuous_integration.yml/badge.svg"></a>
         <a href="https://pkg.go.dev/github.com/gotenberg/gotenberg/v8"><img alt="Go Reference" src="https://pkg.go.dev/badge/github.com/gotenberg/gotenberg.svg"></a>
@@ -48,3 +49,7 @@ Head to the [documentation](https://gotenberg.dev/docs/getting-started/introduct
 </p>
 
 Sponsorships help maintaining and improving Gotenberg - [become a sponsor](https://github.com/sponsors/gulien) ❤️
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fgotenberg%2Fgotenberg.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fgotenberg%2Fgotenberg?ref=badge_large)
