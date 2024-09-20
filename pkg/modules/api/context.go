@@ -226,6 +226,9 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 					)
 				}
 
+				// FIXME: the implementation of this method might not be
+				//  complete, as it fails to parse an empty mediatype.
+				//  See: https://github.com/golang/go/issues/69551.
 				_, params, err := mime.ParseMediaType(contentDisposition)
 				if err != nil {
 					return WrapError(
