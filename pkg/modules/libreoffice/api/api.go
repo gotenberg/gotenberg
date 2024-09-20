@@ -25,9 +25,11 @@ var (
 	// by LibreOffice.
 	ErrInvalidPdfFormats = errors.New("invalid PDF formats")
 
-	// ErrMalformedPageRanges happens if the page ranges option cannot be
-	// interpreted by LibreOffice.
-	ErrMalformedPageRanges = errors.New("page ranges are malformed")
+	// ErrUnoException happens when unoconverter returns an exit code 5.
+	ErrUnoException = errors.New("uno exception")
+
+	// ErrRuntimeException happens when unoconverter returns an exit code 6.
+	ErrRuntimeException = errors.New("uno exception")
 
 	// ErrCoreDumped happens randomly; sometime a conversion will work as
 	// expected, and some other time the same conversion will fail.
@@ -48,6 +50,9 @@ type Api struct {
 // Options gathers available options when converting a document to PDF.
 // See: https://help.libreoffice.org/latest/en-US/text/shared/guide/pdf_params.html.
 type Options struct {
+	// Password specifies the password for opening the source file.
+	Password string
+
 	// Landscape allows to change the orientation of the resulting PDF.
 	Landscape bool
 
@@ -141,6 +146,7 @@ type Options struct {
 // DefaultOptions returns the default values for Options.
 func DefaultOptions() Options {
 	return Options{
+		Password:                        "",
 		Landscape:                       false,
 		PageRanges:                      "",
 		ExportFormFields:                true,
@@ -380,6 +386,7 @@ func (a *Api) Pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath
 
 	// See https://github.com/gotenberg/gotenberg/issues/639.
 	if errors.Is(err, ErrCoreDumped) {
+		logger.Debug(fmt.Sprintf("got a '%s' error, retry conversion", err))
 		return a.Pdf(ctx, logger, inputPath, outputPath, options)
 	}
 
