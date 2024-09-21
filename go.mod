@@ -6,7 +6,7 @@ require (
 	github.com/alexliesenfeld/health v0.8.0
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/barasher/go-exiftool v1.10.0
-	github.com/chromedp/cdproto v0.0.0-20240810084448-b931b754e476
+	github.com/chromedp/cdproto v0.0.0-20240919203636-12af5e8a671f
 	github.com/chromedp/chromedp v0.10.0
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.6.0
@@ -22,7 +22,7 @@ require (
 	github.com/nwaples/rardecode v1.1.3 // indirect
 	github.com/pdfcpu/pdfcpu v0.8.1
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
-	github.com/prometheus/client_golang v1.20.3
+	github.com/prometheus/client_golang v1.20.4
 	github.com/russross/blackfriday/v2 v2.1.0
 	github.com/spf13/pflag v1.0.5
 	github.com/ulikunitz/xz v0.5.12 // indirect
