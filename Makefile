@@ -32,6 +32,7 @@ API_PORT=3000
 API_PORT_FROM_ENV=
 API_START_TIMEOUT=30s
 API_TIMEOUT=30s
+API_BODY_LIMIT=
 API_ROOT_PATH=/
 API_TRACE_HEADER=Gotenberg-Trace
 API_ENABLE_BASIC_AUTH=false
@@ -96,6 +97,7 @@ run: ## Start a Gotenberg container
 	--api-port-from-env=$(API_PORT_FROM_ENV) \
 	--api-start-timeout=$(API_START_TIMEOUT) \
 	--api-timeout=$(API_TIMEOUT) \
+	--api-body-limit="$(API_BODY_LIMIT)" \
 	--api-root-path=$(API_ROOT_PATH) \
 	--api-trace-header=$(API_TRACE_HEADER) \
 	--api-enable-basic-auth=$(API_ENABLE_BASIC_AUTH) \

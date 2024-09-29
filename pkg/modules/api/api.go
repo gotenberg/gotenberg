@@ -32,6 +32,7 @@ type Api struct {
 	tlsCertFile               string
 	tlsKeyFile                string
 	startTimeout              time.Duration
+	bodyLimit                 int64
 	timeout                   time.Duration
 	rootPath                  string
 	traceHeader               string
@@ -174,6 +175,7 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.String("api-tls-key-file", "", "Path to the TLS/SSL key file - for HTTPS support")
 			fs.Duration("api-start-timeout", time.Duration(30)*time.Second, "Set the time limit for the API to start")
 			fs.Duration("api-timeout", time.Duration(30)*time.Second, "Set the time limit for requests")
+			fs.String("api-body-limit", "", "Set the body limit for multipart/form-data requests")
 			fs.String("api-root-path", "/", "Set the root path of the API - for service discovery via URL paths")
 			fs.String("api-trace-header", "Gotenberg-Trace", "Set the header name to use for identifying requests")
 			fs.Bool("api-enable-basic-auth", false, "Enable basic authentication - will look for the GOTENBERG_API_BASIC_AUTH_USERNAME and GOTENBERG_API_BASIC_AUTH_PASSWORD environment variables")
@@ -196,6 +198,7 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 	a.tlsKeyFile = flags.MustString("api-tls-key-file")
 	a.startTimeout = flags.MustDuration("api-start-timeout")
 	a.timeout = flags.MustDuration("api-timeout")
+	a.bodyLimit = flags.MustHumanReadableBytes("api-body-limit")
 	a.rootPath = flags.MustString("api-root-path")
 	a.traceHeader = flags.MustString("api-trace-header")
 	a.downloadFromCfg = downloadFromConfig{
@@ -455,7 +458,7 @@ func (a *Api) Start() error {
 		}
 
 		if route.IsMultipart {
-			middlewares = append(middlewares, contextMiddleware(a.fs, a.timeout, a.downloadFromCfg))
+			middlewares = append(middlewares, contextMiddleware(a.fs, a.timeout, a.bodyLimit, a.downloadFromCfg))
 
 			for _, externalMultipartMiddleware := range externalMultipartMiddlewares {
 				middlewares = append(middlewares, externalMultipartMiddleware.Handler)

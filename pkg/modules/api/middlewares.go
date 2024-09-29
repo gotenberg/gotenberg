@@ -236,7 +236,7 @@ func basicAuthMiddleware(username, password string) echo.MiddlewareFunc {
 //
 //	ctx := c.Get("context").(*api.Context)
 //	cancel := c.Get("cancel").(context.CancelFunc)
-func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, downloadFromCfg downloadFromConfig) echo.MiddlewareFunc {
+func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			logger := c.Get("logger").(*zap.Logger)
@@ -245,7 +245,7 @@ func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, download
 
 			// We create a context with a timeout so that underlying processes are
 			// able to stop early and handle correctly a timeout scenario.
-			ctx, cancel, err := newContext(c, logger, fs, timeout, downloadFromCfg, traceHeader, trace)
+			ctx, cancel, err := newContext(c, logger, fs, timeout, bodyLimit, downloadFromCfg, traceHeader, trace)
 			if err != nil {
 				cancel()
 

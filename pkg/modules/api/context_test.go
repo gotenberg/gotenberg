@@ -95,6 +95,7 @@ func TestNewContext(t *testing.T) {
 	for _, tc := range []struct {
 		scenario         string
 		request          *http.Request
+		bodyLimit        int64
 		downloadFromCfg  downloadFromConfig
 		downloadFromSrv  *echo.Echo
 		expectContext    *Context
@@ -142,6 +143,95 @@ func TestNewContext(t *testing.T) {
 			expectError:      true,
 			expectHttpError:  true,
 			expectHttpStatus: http.StatusBadRequest,
+		},
+		{
+			scenario: "request entity too large: form values",
+			request: func() *http.Request {
+				body := &bytes.Buffer{}
+				writer := multipart.NewWriter(body)
+				defer func() {
+					err := writer.Close()
+					if err != nil {
+						t.Fatalf("expected no error but got: %v", err)
+					}
+				}()
+				err := writer.WriteField("key", "value")
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+				req := httptest.NewRequest(http.MethodPost, "/", body)
+				req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
+				return req
+			}(),
+			bodyLimit:        1,
+			downloadFromCfg:  defaultDownloadFromCfg,
+			expectError:      true,
+			expectHttpError:  true,
+			expectHttpStatus: http.StatusRequestEntityTooLarge,
+		},
+		{
+			scenario: "request entity too large: downloadFrom",
+			request: func() *http.Request {
+				body := &bytes.Buffer{}
+				writer := multipart.NewWriter(body)
+				defer func() {
+					err := writer.Close()
+					if err != nil {
+						t.Fatalf("expected no error but got: %v", err)
+					}
+				}()
+				err := writer.WriteField("downloadFrom", `[{"url":"http://localhost:80/"}]`)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+				req := httptest.NewRequest(http.MethodPost, "/", body)
+				req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
+				return req
+			}(),
+			bodyLimit: 45, // form values = 44 bytes.
+			downloadFromSrv: func() *echo.Echo {
+				srv := echo.New()
+				srv.HideBanner = true
+				srv.GET("/", func(c echo.Context) error {
+					c.Response().Header().Set(echo.HeaderContentDisposition, `attachment; filename="bar.txt"`)
+					c.Response().Header().Set(echo.HeaderContentType, "text/plain")
+					return c.String(http.StatusOK, http.StatusText(http.StatusOK))
+				})
+				return srv
+			}(),
+			downloadFromCfg:  defaultDownloadFromCfg,
+			expectError:      true,
+			expectHttpError:  true,
+			expectHttpStatus: http.StatusRequestEntityTooLarge,
+		},
+		{
+			scenario: "request entity too large: form files",
+			request: func() *http.Request {
+				body := &bytes.Buffer{}
+				writer := multipart.NewWriter(body)
+				defer func() {
+					err := writer.Close()
+					if err != nil {
+						t.Fatalf("expected no error but got: %v", err)
+					}
+				}()
+				part, err := writer.CreateFormFile("foo.txt", "foo.txt")
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+				_, err = part.Write([]byte("foo"))
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+				req := httptest.NewRequest(http.MethodPost, "/", body)
+				req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
+				return req
+			}(),
+			bodyLimit:        1,
+			downloadFromCfg:  defaultDownloadFromCfg,
+			expectError:      true,
+			expectHttpError:  true,
+			expectHttpStatus: http.StatusRequestEntityTooLarge,
 		},
 		{
 			scenario: "invalid downloadFrom form field: cannot unmarshal",
@@ -458,7 +548,7 @@ func TestNewContext(t *testing.T) {
 			}
 
 			handler := func(c echo.Context) error {
-				ctx, cancel, err := newContext(c, zap.NewNop(), gotenberg.NewFileSystem(), time.Duration(10)*time.Second, tc.downloadFromCfg, "Gotenberg-Trace", "123")
+				ctx, cancel, err := newContext(c, zap.NewNop(), gotenberg.NewFileSystem(), time.Duration(10)*time.Second, tc.bodyLimit, tc.downloadFromCfg, "Gotenberg-Trace", "123")
 				defer cancel()
 				// Context already cancelled.
 				defer cancel()

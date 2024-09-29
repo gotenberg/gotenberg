@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -50,6 +51,28 @@ type Context struct {
 	context.Context
 }
 
+type trackingReader struct {
+	R            io.Reader
+	AddReadBytes func(n int64) error
+}
+
+func (t *trackingReader) Read(p []byte) (int, error) {
+	n, err := t.R.Read(p)
+	if n > 0 {
+		errAddRead := t.AddReadBytes(int64(n))
+		if errAddRead != nil {
+			return n, fmt.Errorf("add read bytes: %w", errAddRead)
+		}
+	}
+	if err != nil {
+		// It's a common practice in Go to return io.EOF unwrapped to signal
+		// the end of a data stream. Wrapping it can lead to unexpected
+		// behavior in standard library functions.
+		return n, err
+	}
+	return n, nil
+}
+
 type downloadFrom struct {
 	// Url is the URL to download a file from.
 	Url string `json:"url"`
@@ -65,8 +88,24 @@ func (o *osPathRename) Rename(oldpath, newpath string) error {
 }
 
 // newContext returns a [Context] by parsing a "multipart/form-data" request.
-func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSystem, timeout time.Duration, downloadFromCfg downloadFromConfig, traceHeader, trace string) (*Context, context.CancelFunc, error) {
+func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig, traceHeader, trace string) (*Context, context.CancelFunc, error) {
 	processCtx, processCancel := context.WithTimeout(context.Background(), timeout)
+
+	// We want to make sure the multipart/form-data does not exceed a given
+	// limit. We consider: form fields (keys, values, files) and files
+	// downloaded remotely ("download from" feature).
+	var totalBytesRead atomic.Int64
+
+	addReadBytes := func(n int64) error {
+		newTotal := totalBytesRead.Add(n)
+		if bodyLimit != 0 && newTotal > bodyLimit {
+			return WrapError(
+				fmt.Errorf("body limit reached (> %d)", bodyLimit),
+				NewSentinelHttpError(http.StatusRequestEntityTooLarge, http.StatusText(http.StatusRequestEntityTooLarge)),
+			)
+		}
+		return nil
+	}
 
 	ctx := &Context{
 		outputPaths: make([]string, 0),
@@ -127,6 +166,19 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 		}
 
 		return nil, cancel, fmt.Errorf("get multipart form: %w", err)
+	}
+
+	// This will ensure we do not exceed the body limit.
+	var formValuesSize int64
+	for key, valArray := range form.Value {
+		formValuesSize += int64(len(key))
+		for _, val := range valArray {
+			formValuesSize += int64(len(val))
+		}
+	}
+	err = addReadBytes(formValuesSize)
+	if err != nil {
+		return nil, cancel, fmt.Errorf("add read bytes: %w", err)
 	}
 
 	dirPath, err := fs.MkdirAll()
@@ -262,9 +314,12 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 					}
 				}()
 
-				_, err = io.Copy(out, resp.Body)
+				// This will ensure we do not exceed the body limit.
+				reader := &trackingReader{R: resp.Body, AddReadBytes: addReadBytes}
+
+				_, err = io.Copy(out, reader)
 				if err != nil {
-					return fmt.Errorf("copy downloaded file from '%s' to local file: %v", dl.Url, err)
+					return fmt.Errorf("copy downloaded file from '%s' to local file: %w", dl.Url, err)
 				}
 
 				ctx.files[filename] = path
@@ -292,6 +347,9 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 			}
 		}()
 
+		// This will ensure we do not exceed the body limit.
+		reader := &trackingReader{R: in, AddReadBytes: addReadBytes}
+
 		// Avoid directory traversal and make sure filename characters are
 		// normalized.
 		// See: https://github.com/gotenberg/gotenberg/issues/662.
@@ -309,7 +367,7 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 			}
 		}()
 
-		_, err = io.Copy(out, in)
+		_, err = io.Copy(out, reader)
 		if err != nil {
 			return fmt.Errorf("copy multipart file to local file: %w", err)
 		}
@@ -331,6 +389,7 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 
 	ctx.Log().Debug(fmt.Sprintf("form fields: %+v", ctx.values))
 	ctx.Log().Debug(fmt.Sprintf("form files: %+v", ctx.files))
+	ctx.Log().Debug(fmt.Sprintf("total bytes: %d", totalBytesRead.Load()))
 
 	return ctx, cancel, err
 }
