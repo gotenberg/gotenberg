@@ -123,7 +123,7 @@ type Options struct {
 // DefaultOptions returns the default values for Options.
 func DefaultOptions() Options {
 	return Options{
-		SkipNetworkIdleEvent:    false,
+		SkipNetworkIdleEvent:    true,
 		FailOnHttpStatusCodes:   []int64{499, 599},
 		FailOnConsoleExceptions: false,
 		WaitDelay:               0,

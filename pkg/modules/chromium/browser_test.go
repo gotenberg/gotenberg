@@ -379,7 +379,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 			},
 		},
 		{
-			scenario: "skip networkIdle event",
+			scenario: "do not skip networkIdle event",
 			browser: newChromiumBrowser(
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
@@ -404,13 +404,13 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				return fs
 			}(),
 			options: PdfOptions{
-				Options: Options{SkipNetworkIdleEvent: true},
+				Options: Options{SkipNetworkIdleEvent: false},
 			},
 			noDeadline:  false,
 			start:       true,
 			expectError: false,
 			expectedLogEntries: []string{
-				"skipping network idle event",
+				"event networkIdle fired",
 			},
 		},
 		{
@@ -1225,6 +1225,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				"no cookies to set",
 				"no extra HTTP headers",
 				"navigate to",
+				"skipping network idle event",
 				"default white background not hidden",
 				"no emulated media type",
 				"no wait delay",
@@ -1452,7 +1453,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 			},
 		},
 		{
-			scenario: "skip networkIdle event",
+			scenario: "do not skip networkIdle event",
 			browser: newChromiumBrowser(
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
@@ -1477,13 +1478,13 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				return fs
 			}(),
 			options: ScreenshotOptions{
-				Options: Options{SkipNetworkIdleEvent: true},
+				Options: Options{SkipNetworkIdleEvent: false},
 			},
 			noDeadline:  false,
 			start:       true,
 			expectError: false,
 			expectedLogEntries: []string{
-				"skipping network idle event",
+				"event networkIdle fired",
 			},
 		},
 		{
@@ -2184,6 +2185,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				"no user agent override",
 				"no extra HTTP headers",
 				"navigate to",
+				"skipping network idle event",
 				"default white background not hidden",
 				"no emulated media type",
 				"no wait delay",
