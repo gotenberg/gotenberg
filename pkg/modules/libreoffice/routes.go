@@ -191,14 +191,14 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					if errors.Is(err, libreofficeapi.ErrUnoException) {
 						return api.WrapError(
 							fmt.Errorf("convert to PDF: %w", err),
-							api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("LibreOffice failed to process the document: possible causes include malformed page ranges '%s' (nativePageRanges) or the document might not be password-protected, but the exact cause is uncertain", options.PageRanges)),
+							api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("LibreOffice failed to process a document: possible causes include malformed page ranges '%s' (nativePageRanges), or, if a password has been provided, it may not be required. In any case, the exact cause is uncertain.", options.PageRanges)),
 						)
 					}
 
 					if errors.Is(err, libreofficeapi.ErrRuntimeException) {
 						return api.WrapError(
 							fmt.Errorf("convert to PDF: %w", err),
-							api.NewSentinelHttpError(http.StatusBadRequest, "LibreOffice failed to process a document: a password may be invalid or required, but the exact cause is uncertain"),
+							api.NewSentinelHttpError(http.StatusBadRequest, "LibreOffice failed to process a document: a password may be required, or, if one has been given, it is invalid. In any case, the exact cause is uncertain."),
 						)
 					}
 
