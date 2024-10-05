@@ -113,13 +113,19 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						}
 					}
 
+					// Retrieve values from echo.Context before it get recycled.
+					// See https://github.com/gotenberg/gotenberg/issues/1000.
+					startTime := c.Get("startTime").(time.Time)
+					traceHeader := c.Get("traceHeader").(string)
+					trace := c.Get("trace").(string)
+
 					client := &client{
 						url:              webhookUrl,
 						method:           webhookMethod,
 						errorUrl:         webhookErrorUrl,
 						errorMethod:      webhookErrorMethod,
 						extraHttpHeaders: extraHttpHeaders,
-						startTime:        c.Get("startTime").(time.Time),
+						startTime:        startTime,
 
 						client: &retryablehttp.Client{
 							HTTPClient: &http.Client{
@@ -157,8 +163,8 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						}
 
 						headers := map[string]string{
-							echo.HeaderContentType:        echo.MIMEApplicationJSON,
-							c.Get("traceHeader").(string): c.Get("trace").(string),
+							echo.HeaderContentType: echo.MIMEApplicationJSON,
+							traceHeader:            trace,
 						}
 
 						err = client.send(bytes.NewReader(b), headers, true)
@@ -236,7 +242,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 							echo.HeaderContentDisposition: fmt.Sprintf("attachement; filename=%q", ctx.OutputFilename(outputPath)),
 							echo.HeaderContentType:        http.DetectContentType(fileHeader),
 							echo.HeaderContentLength:      strconv.FormatInt(fileStat.Size(), 10),
-							c.Get("traceHeader").(string): c.Get("trace").(string),
+							traceHeader:                   trace,
 						}
 
 						// Send the output file to the webhook.
