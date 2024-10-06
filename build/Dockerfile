@@ -4,9 +4,34 @@
 ARG GOLANG_VERSION
 
 # ----------------------------------------------
+# pdfcpu binary build stage
+# ----------------------------------------------
+# Note: this stage is required as pdfcpu does not release an armhf variant by
+# default.
+
+FROM golang:$GOLANG_VERSION AS pdfcpu-binary-stage
+
+ARG PDFCPU_VERSION
+ENV CGO_ENABLED=0
+
+# Define the working directory outside of $GOPATH (we're using go modules).
+WORKDIR /home
+
+RUN curl -Ls "https://github.com/pdfcpu/pdfcpu/archive/refs/tags/$PDFCPU_VERSION.tar.gz" -o pdfcpu.tar.gz &&\
+    tar --strip-components=1 -xvzf pdfcpu.tar.gz
+
+# Install module dependencies.
+RUN go mod download &&\
+    go mod verify
+
+RUN go build -o pdfcpu -ldflags "-s -w -X 'main.version=$PDFCPU_VERSION' -X 'github.com/pdfcpu/pdfcpu/pkg/pdfcpu.VersionStr=$PDFCPU_VERSION' -X main.builtBy=gotenberg" ./cmd/pdfcpu &&\
+    # Verify installation.
+    ./pdfcpu version
+
+# ----------------------------------------------
 # Gotenberg binary build stage
 # ----------------------------------------------
-FROM golang:$GOLANG_VERSION AS binary-stage
+FROM golang:$GOLANG_VERSION AS gotenberg-binary-stage
 
 ARG GOTENBERG_VERSION
 ENV CGO_ENABLED=0
@@ -187,8 +212,11 @@ RUN \
 # https://github.com/arachnys/athenapdf/commit/ba25a8d80a25d08d58865519c4cd8756dc9a336d.
 COPY build/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 
-# Copy the Gotenberg binary from the binary stage.
-COPY --from=binary-stage /home/gotenberg /usr/bin/
+# Copy the pdfcpu binary from the pdfcpu-binary-stage.
+COPY --from=pdfcpu-binary-stage /home/pdfcpu /usr/bin/
+
+# Copy the Gotenberg binary from the gotenberg-binary-stage.
+COPY --from=gotenberg-binary-stage /home/gotenberg /usr/bin/
 
 # Environment variables required by modules or else.
 ENV CHROMIUM_BIN_PATH=/usr/bin/chromium
@@ -197,6 +225,7 @@ ENV UNOCONVERTER_BIN_PATH=/usr/bin/unoconverter
 ENV PDFTK_BIN_PATH=/usr/bin/pdftk
 ENV QPDF_BIN_PATH=/usr/bin/qpdf
 ENV EXIFTOOL_BIN_PATH=/usr/bin/exiftool
+ENV PDFCPU_BIN_PATH=/usr/bin/pdfcpu
 
 USER gotenberg
 WORKDIR /home/gotenberg

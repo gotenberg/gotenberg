@@ -45,7 +45,7 @@ func (engine *PdfTk) Provision(ctx *gotenberg.Context) error {
 func (engine *PdfTk) Validate() error {
 	_, err := os.Stat(engine.binPath)
 	if os.IsNotExist(err) {
-		return fmt.Errorf("PdfTk binary path does not exist: %w", err)
+		return fmt.Errorf("PDFtk binary path does not exist: %w", err)
 	}
 
 	return nil
