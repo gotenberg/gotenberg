@@ -32,6 +32,7 @@ build: ## Build the Gotenberg's Docker image
 GOTENBERG_GRACEFUL_SHUTDOWN_DURATION=30s
 API_PORT=3000
 API_PORT_FROM_ENV=
+API_BIND_IP=
 API_START_TIMEOUT=30s
 API_TIMEOUT=30s
 API_BODY_LIMIT=
@@ -97,6 +98,7 @@ run: ## Start a Gotenberg container
 	--gotenberg-graceful-shutdown-duration=$(GOTENBERG_GRACEFUL_SHUTDOWN_DURATION) \
 	--api-port=$(API_PORT) \
 	--api-port-from-env=$(API_PORT_FROM_ENV) \
+	--api-bind-ip=$(API_BIND_IP) \
 	--api-start-timeout=$(API_START_TIMEOUT) \
 	--api-timeout=$(API_TIMEOUT) \
 	--api-body-limit="$(API_BODY_LIMIT)" \
@@ -104,9 +106,9 @@ run: ## Start a Gotenberg container
 	--api-trace-header=$(API_TRACE_HEADER) \
 	--api-enable-basic-auth=$(API_ENABLE_BASIC_AUTH) \
 	--api-download-from-allow-list=$(API-DOWNLOAD-FROM-ALLOW-LIST) \
-    --api-download-from-deny-list=$(API-DOWNLOAD-FROM-DENY-LIST) \
-    --api-download-from-max-retry=$(API-DOWNLOAD-FROM-FROM-MAX-RETRY) \
-    --api-disable-download-from=$(API-DISABLE-DOWNLOAD-FROM) \
+	--api-download-from-deny-list=$(API-DOWNLOAD-FROM-DENY-LIST) \
+	--api-download-from-max-retry=$(API-DOWNLOAD-FROM-FROM-MAX-RETRY) \
+	--api-disable-download-from=$(API-DISABLE-DOWNLOAD-FROM) \
 	--api-disable-health-check-logging=$(API_DISABLE_HEALTH_CHECK_LOGGING) \
 	--chromium-restart-after=$(CHROMIUM_RESTART_AFTER) \
 	--chromium-auto-start=$(CHROMIUM_AUTO_START) \

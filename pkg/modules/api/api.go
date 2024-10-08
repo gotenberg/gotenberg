@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"sort"
 	"strings"
@@ -29,6 +30,7 @@ func init() {
 // middlewares or health checks.
 type Api struct {
 	port                      int
+	bindIp                    string
 	tlsCertFile               string
 	tlsKeyFile                string
 	startTimeout              time.Duration
@@ -171,6 +173,7 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs := flag.NewFlagSet("api", flag.ExitOnError)
 			fs.Int("api-port", 3000, "Set the port on which the API should listen")
 			fs.String("api-port-from-env", "", "Set the environment variable with the port on which the API should listen - override the default port")
+			fs.String("api-bind-ip", "", "Set the IP address the API should bind to for incoming connections")
 			fs.String("api-tls-cert-file", "", "Path to the TLS/SSL certificate file - for HTTPS support")
 			fs.String("api-tls-key-file", "", "Path to the TLS/SSL key file - for HTTPS support")
 			fs.Duration("api-start-timeout", time.Duration(30)*time.Second, "Set the time limit for the API to start")
@@ -194,6 +197,7 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 func (a *Api) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	a.port = flags.MustInt("api-port")
+	a.bindIp = flags.MustString("api-bind-ip")
 	a.tlsCertFile = flags.MustString("api-tls-cert-file")
 	a.tlsKeyFile = flags.MustString("api-tls-key-file")
 	a.startTimeout = flags.MustDuration("api-start-timeout")
@@ -327,6 +331,10 @@ func (a *Api) Validate() error {
 		err = multierr.Append(err,
 			errors.New("port must be more than 1 and less than 65535"),
 		)
+	}
+
+	if a.bindIp != "" && net.ParseIP(a.bindIp) == nil {
+		err = multierr.Append(err, errors.New("IP must be a valid IP address"))
 	}
 
 	if (a.tlsCertFile != "" && a.tlsKeyFile == "") || (a.tlsCertFile == "" && a.tlsKeyFile != "") {
@@ -522,11 +530,11 @@ func (a *Api) Start() error {
 		var err error
 		if a.tlsCertFile != "" && a.tlsKeyFile != "" {
 			// Start an HTTPS server (supports HTTP/2).
-			err = a.srv.StartTLS(fmt.Sprintf(":%d", a.port), a.tlsCertFile, a.tlsKeyFile)
+			err = a.srv.StartTLS(fmt.Sprintf("%s:%d", a.bindIp, a.port), a.tlsCertFile, a.tlsKeyFile)
 		} else {
 			// Start an HTTP/2 Cleartext (non-HTTPS) server.
 			server := &http2.Server{}
-			err = a.srv.StartH2CServer(fmt.Sprintf(":%d", a.port), server)
+			err = a.srv.StartH2CServer(fmt.Sprintf("%s:%d", a.bindIp, a.port), server)
 		}
 		if !errors.Is(err, http.ErrServerClosed) {
 			a.logger.Fatal(err.Error())
@@ -538,7 +546,11 @@ func (a *Api) Start() error {
 
 // StartupMessage returns a custom startup message.
 func (a *Api) StartupMessage() string {
-	return fmt.Sprintf("server listening on port %d", a.port)
+	ip := a.bindIp
+	if a.bindIp == "" {
+		ip = "[::]"
+	}
+	return fmt.Sprintf("server started on %s:%d", ip, a.port)
 }
 
 // Stop stops the HTTP server.
