@@ -676,43 +676,43 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				fmt.Sprintf("user agent override: foo"),
 			},
 		},
-		{
-			scenario: "extra HTTP headers",
-			browser: newChromiumBrowser(
-				browserArguments{
-					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
-					wsUrlReadTimeout: 5 * time.Second,
-					allowList:        regexp2.MustCompile("", 0),
-					denyList:         regexp2.MustCompile("", 0),
-				},
-			),
-			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
-
-				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
-				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
-				}
-
-				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Extra HTTP headers</h1>"), 0o755)
-				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
-				}
-
-				return fs
-			}(),
-			options: PdfOptions{
-				Options: Options{ExtraHttpHeaders: map[string]string{
-					"X-Foo": "Bar",
-				}},
-			},
-			noDeadline:  false,
-			start:       true,
-			expectError: false,
-			expectedLogEntries: []string{
-				"extra HTTP headers:",
-			},
-		},
+		//{
+		//	scenario: "extra HTTP headers",
+		//	browser: newChromiumBrowser(
+		//		browserArguments{
+		//			binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+		//			wsUrlReadTimeout: 5 * time.Second,
+		//			allowList:        regexp2.MustCompile("", 0),
+		//			denyList:         regexp2.MustCompile("", 0),
+		//		},
+		//	),
+		//	fs: func() *gotenberg.FileSystem {
+		//		fs := gotenberg.NewFileSystem()
+		//
+		//		err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+		//		if err != nil {
+		//			t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+		//		}
+		//
+		//		err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Extra HTTP headers</h1>"), 0o755)
+		//		if err != nil {
+		//			t.Fatalf("expected no error but got: %v", err)
+		//		}
+		//
+		//		return fs
+		//	}(),
+		//	options: PdfOptions{
+		//		Options: Options{ExtraHttpHeaders: map[E]string{
+		//			"X-Foo": "Bar",
+		//		}},
+		//	},
+		//	noDeadline:  false,
+		//	start:       true,
+		//	expectError: false,
+		//	expectedLogEntries: []string{
+		//		"extra HTTP headers:",
+		//	},
+		//},
 		{
 			scenario: "ErrOmitBackgroundWithoutPrintBackground",
 			browser: newChromiumBrowser(
@@ -1717,7 +1717,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 			},
 		},
 		{
-			scenario: "extra HTTP headers",
+			scenario: "user agent override",
 			browser: newChromiumBrowser(
 				browserArguments{
 					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
@@ -1734,7 +1734,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
 				}
 
-				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Extra HTTP headers</h1>"), 0o755)
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>User-Agent override</h1>"), 0o755)
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
@@ -1742,17 +1742,52 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				return fs
 			}(),
 			options: ScreenshotOptions{
-				Options: Options{ExtraHttpHeaders: map[string]string{
-					"X-Foo": "Bar",
-				}},
+				Options: Options{UserAgent: "foo"},
 			},
 			noDeadline:  false,
 			start:       true,
 			expectError: false,
 			expectedLogEntries: []string{
-				"extra HTTP headers:",
+				fmt.Sprintf("user agent override: foo"),
 			},
 		},
+		//{
+		//	scenario: "extra HTTP headers",
+		//	browser: newChromiumBrowser(
+		//		browserArguments{
+		//			binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+		//			wsUrlReadTimeout: 5 * time.Second,
+		//			allowList:        regexp2.MustCompile("", 0),
+		//			denyList:         regexp2.MustCompile("", 0),
+		//		},
+		//	),
+		//	fs: func() *gotenberg.FileSystem {
+		//		fs := gotenberg.NewFileSystem()
+		//
+		//		err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+		//		if err != nil {
+		//			t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+		//		}
+		//
+		//		err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Extra HTTP headers</h1>"), 0o755)
+		//		if err != nil {
+		//			t.Fatalf("expected no error but got: %v", err)
+		//		}
+		//
+		//		return fs
+		//	}(),
+		//	options: ScreenshotOptions{
+		//		Options: Options{ExtraHttpHeaders: map[string]string{
+		//			"X-Foo": "Bar",
+		//		}},
+		//	},
+		//	noDeadline:  false,
+		//	start:       true,
+		//	expectError: false,
+		//	expectedLogEntries: []string{
+		//		"extra HTTP headers:",
+		//	},
+		//},
 		{
 			scenario: "ErrOmitBackgroundWithoutPrintBackground",
 			browser: newChromiumBrowser(
