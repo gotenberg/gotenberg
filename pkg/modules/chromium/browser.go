@@ -237,6 +237,9 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *zap.Logger, url, outp
 		waitForExpressionBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitForExpression),
 		// PDF specific.
 		printToPdfActionFunc(logger, outputPath, options),
+		network.Disable(),
+		fetch.Disable(),
+		runtime.Disable(),
 	})
 }
 
@@ -262,6 +265,9 @@ func (b *chromiumBrowser) screenshot(ctx context.Context, logger *zap.Logger, ur
 		// Screenshot specific.
 		setDeviceMetricsOverride(logger, options.Width, options.Height),
 		captureScreenshotActionFunc(logger, outputPath, options),
+		network.Disable(),
+		fetch.Disable(),
+		runtime.Disable(),
 	})
 }
 
