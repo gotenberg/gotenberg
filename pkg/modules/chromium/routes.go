@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dlclark/regexp2"
 	"github.com/labstack/echo/v4"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
@@ -36,7 +37,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		waitForExpression       string
 		cookies                 []Cookie
 		userAgent               string
-		extraHttpHeaders        map[string]string
+		extraHttpHeaders        []ExtraHttpHeader
 		emulatedMediaType       string
 		omitBackground          bool
 	)
@@ -86,12 +87,59 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 				return nil
 			}
 
-			err := json.Unmarshal([]byte(value), &extraHttpHeaders)
+			var headers map[string]string
+			err := json.Unmarshal([]byte(value), &headers)
 			if err != nil {
 				return fmt.Errorf("unmarshal extraHttpHeaders: %w", err)
 			}
 
-			return nil
+			for k, v := range headers {
+				var scope string
+				var valueTokens []string
+				var invalidScopeToken bool
+
+				tokens := strings.Split(v, ";")
+				for _, token := range tokens {
+					if strings.HasPrefix(strings.ToLower(strings.TrimSpace(token)), "scope") {
+						tokenNoSpaces := strings.Join(strings.Fields(token), "")
+						parts := strings.SplitN(tokenNoSpaces, "=", 2)
+
+						if len(parts) == 2 && strings.ToLower(parts[0]) == "scope" && parts[1] != "" {
+							scope = parts[1]
+						} else {
+							err = multierr.Append(err, fmt.Errorf("invalid scope '%s' for header '%s'", scope, k))
+							invalidScopeToken = true
+							break
+						}
+					} else {
+						if token != "" {
+							valueTokens = append(valueTokens, token)
+						}
+					}
+				}
+
+				if invalidScopeToken {
+					continue
+				}
+
+				var scopeRegexp *regexp2.Regexp
+				if len(scope) > 0 {
+					p, errCompile := regexp2.Compile(scope, 0)
+					if errCompile != nil {
+						err = multierr.Append(err, fmt.Errorf("invalid scope regex pattern for header '%s': %w", k, errCompile))
+						continue
+					}
+					scopeRegexp = p
+				}
+
+				extraHttpHeaders = append(extraHttpHeaders, ExtraHttpHeader{
+					Name:  k,
+					Value: strings.Join(valueTokens, "; "),
+					Scope: scopeRegexp,
+				})
+			}
+
+			return err
 		}).
 		Custom("emulatedMediaType", func(value string) error {
 			if value == "" {
