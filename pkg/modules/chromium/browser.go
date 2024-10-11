@@ -228,7 +228,6 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *zap.Logger, url, outp
 		disableJavaScriptActionFunc(logger, b.arguments.disableJavaScript),
 		setCookiesActionFunc(logger, options.Cookies),
 		userAgentOverride(logger, options.UserAgent),
-		extraHttpHeadersActionFunc(logger, options.ExtraHttpHeaders),
 		navigateActionFunc(logger, url, options.SkipNetworkIdleEvent),
 		hideDefaultWhiteBackgroundActionFunc(logger, options.OmitBackground, options.PrintBackground),
 		forceExactColorsActionFunc(),
@@ -252,7 +251,6 @@ func (b *chromiumBrowser) screenshot(ctx context.Context, logger *zap.Logger, ur
 		disableJavaScriptActionFunc(logger, b.arguments.disableJavaScript),
 		setCookiesActionFunc(logger, options.Cookies),
 		userAgentOverride(logger, options.UserAgent),
-		extraHttpHeadersActionFunc(logger, options.ExtraHttpHeaders),
 		navigateActionFunc(logger, url, options.SkipNetworkIdleEvent),
 		hideDefaultWhiteBackgroundActionFunc(logger, options.OmitBackground, true),
 		forceExactColorsActionFunc(),
@@ -291,8 +289,14 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 	defer taskCancel()
 
 	// We validate all others requests against our allow / deny lists.
-	// If a request does not pass the validation, we make it fail.
-	listenForEventRequestPaused(taskCtx, logger, b.arguments.allowList, b.arguments.denyList)
+	// If a request does not pass the validation, we make it fail. It also set
+	// the extra HTTP headers, if any.
+	// See https://github.com/gotenberg/gotenberg/issues/1011.
+	listenForEventRequestPaused(taskCtx, logger, eventRequestPausedOptions{
+		allowList:        b.arguments.allowList,
+		denyList:         b.arguments.denyList,
+		extraHttpHeaders: options.ExtraHttpHeaders,
+	})
 
 	var (
 		invalidHttpStatusCode   error

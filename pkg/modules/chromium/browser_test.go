@@ -702,8 +702,21 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				return fs
 			}(),
 			options: PdfOptions{
-				Options: Options{ExtraHttpHeaders: map[string]string{
-					"X-Foo": "Bar",
+				Options: Options{ExtraHttpHeaders: []ExtraHttpHeader{
+					{
+						Name:  "X-Foo",
+						Value: "foo",
+					},
+					{
+						Name:  "X-Bar",
+						Value: "bar",
+						Scope: regexp2.MustCompile(`.*index\.html.*`, 0),
+					},
+					{
+						Name:  "X-Baz",
+						Value: "baz",
+						Scope: regexp2.MustCompile(`.*another\.html.*`, 0),
+					},
 				}},
 			},
 			noDeadline:  false,
@@ -711,6 +724,10 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 			expectError: false,
 			expectedLogEntries: []string{
 				"extra HTTP headers:",
+				"extra HTTP header 'X-Foo' will be set for request URL",
+				"extra HTTP header 'X-Bar' (scoped) will be set for request URL",
+				"extra HTTP header 'X-Baz' (scoped) will not be set for request URL",
+				"setting extra HTTP headers for request URL",
 			},
 		},
 		{
@@ -1717,6 +1734,41 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 			},
 		},
 		{
+			scenario: "user agent override",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>User-Agent override</h1>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: ScreenshotOptions{
+				Options: Options{UserAgent: "foo"},
+			},
+			noDeadline:  false,
+			start:       true,
+			expectError: false,
+			expectedLogEntries: []string{
+				fmt.Sprintf("user agent override: foo"),
+			},
+		},
+		{
 			scenario: "extra HTTP headers",
 			browser: newChromiumBrowser(
 				browserArguments{
@@ -1742,8 +1794,21 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				return fs
 			}(),
 			options: ScreenshotOptions{
-				Options: Options{ExtraHttpHeaders: map[string]string{
-					"X-Foo": "Bar",
+				Options: Options{ExtraHttpHeaders: []ExtraHttpHeader{
+					{
+						Name:  "X-Foo",
+						Value: "foo",
+					},
+					{
+						Name:  "X-Bar",
+						Value: "bar",
+						Scope: regexp2.MustCompile(`.*index\.html.*`, 0),
+					},
+					{
+						Name:  "X-Baz",
+						Value: "baz",
+						Scope: regexp2.MustCompile(`.*another\.html.*`, 0),
+					},
 				}},
 			},
 			noDeadline:  false,
@@ -1751,6 +1816,10 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 			expectError: false,
 			expectedLogEntries: []string{
 				"extra HTTP headers:",
+				"extra HTTP header 'X-Foo' will be set for request URL",
+				"extra HTTP header 'X-Bar' (scoped) will be set for request URL",
+				"extra HTTP header 'X-Baz' (scoped) will not be set for request URL",
+				"setting extra HTTP headers for request URL",
 			},
 		},
 		{
