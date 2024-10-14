@@ -41,10 +41,10 @@ func (mod *PdfEngines) Descriptor() gotenberg.ModuleDescriptor {
 		ID: "pdfengines",
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("pdfengines", flag.ExitOnError)
-			fs.StringSlice("pdfengines-merge-engines", []string{"qpdf", "pdfcpu", "pdftk"}, "Set the PDF engines and their order for the merge feature")
-			fs.StringSlice("pdfengines-convert-engines", []string{"libreoffice-pdfengine"}, "Set the PDF engines and their order for the convert feature")
-			fs.StringSlice("pdfengines-read-metadata-engines", []string{"exiftool"}, "Set the PDF engines and their order for the read metadata feature")
-			fs.StringSlice("pdfengines-write-metadata-engines", []string{"exiftool"}, "Set the PDF engines and their order for the write metadata feature")
+			fs.StringSlice("pdfengines-merge-engines", []string{"qpdf", "pdfcpu", "pdftk"}, "Set the PDF engines and their order for the merge feature - empty means all")
+			fs.StringSlice("pdfengines-convert-engines", []string{"libreoffice-pdfengine"}, "Set the PDF engines and their order for the convert feature - empty means all")
+			fs.StringSlice("pdfengines-read-metadata-engines", []string{"exiftool"}, "Set the PDF engines and their order for the read metadata feature - empty means all")
+			fs.StringSlice("pdfengines-write-metadata-engines", []string{"exiftool"}, "Set the PDF engines and their order for the write metadata feature - empty means all")
 			fs.Bool("pdfengines-disable-routes", false, "Disable the routes")
 
 			fs.StringSlice("pdfengines-engines", make([]string, 0), "Set the default PDF engines and their default order - all by default")
