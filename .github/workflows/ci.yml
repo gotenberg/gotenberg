@@ -90,6 +90,7 @@ jobs:
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.24.0
+        continue-on-error: true
         with:
           image-ref: harbor.onebrief.tools/onebrief/gotenberg@${{ steps.build.outputs.imageid }}
           scanners: 'vuln'

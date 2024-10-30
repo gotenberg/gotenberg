@@ -27,6 +27,6 @@ RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v8/cmd.Ve
 # ----------------------------------------------
 # Copy binary to chainguard base
 # ----------------------------------------------
-FROM 183613197217.dkr.ecr.us-east-1.amazonaws.com/cgr.dev/onebrief.com/gotenberg:$GOTENBERG_VERSION AS chainguard-base
+FROM harbor.onebrief.tools/cgr.dev/onebrief.com/gotenberg:$GOTENBERG_VERSION AS chainguard-base
 
 COPY --from=binary-stage /home/gotenberg /usr/bin/
