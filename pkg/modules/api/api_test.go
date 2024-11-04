@@ -58,6 +58,30 @@ func TestApi_Provision(t *testing.T) {
 			expectError: true,
 		},
 		{
+			scenario: "port from env: invalid environment variable value",
+			ctx: func() *gotenberg.Context {
+				fs := new(Api).Descriptor().FlagSet
+				err := fs.Parse([]string{"--api-port-from-env=PORT"})
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return gotenberg.NewContext(
+					gotenberg.ParsedFlags{
+						FlagSet: fs,
+					},
+					nil,
+				)
+			}(),
+			setEnv: func() {
+				err := os.Setenv("PORT", "foo")
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+			},
+			expectError: true,
+		},
+		{
 			scenario: "basic auth: non-existing GOTENBERG_API_BASIC_AUTH_USERNAME environment variable",
 			ctx: func() *gotenberg.Context {
 				fs := new(Api).Descriptor().FlagSet
@@ -93,30 +117,6 @@ func TestApi_Provision(t *testing.T) {
 			}(),
 			setEnv: func() {
 				err := os.Setenv("GOTENBERG_API_BASIC_AUTH_USERNAME", "foo")
-				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
-				}
-			},
-			expectError: true,
-		},
-		{
-			scenario: "port from env: invalid environment variable value",
-			ctx: func() *gotenberg.Context {
-				fs := new(Api).Descriptor().FlagSet
-				err := fs.Parse([]string{"--api-port-from-env=PORT"})
-				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
-				}
-
-				return gotenberg.NewContext(
-					gotenberg.ParsedFlags{
-						FlagSet: fs,
-					},
-					nil,
-				)
-			}(),
-			setEnv: func() {
-				err := os.Setenv("PORT", "foo")
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
@@ -462,6 +462,7 @@ func TestApi_Validate(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string
 		port        int
+		bindIp      string
 		tlsCertFile string
 		tlsKeyFile  string
 		rootPath    string
@@ -473,6 +474,7 @@ func TestApi_Validate(t *testing.T) {
 		{
 			scenario:    "invalid port (< 1)",
 			port:        0,
+			bindIp:      "127.0.0.1",
 			rootPath:    "/foo/",
 			traceHeader: "foo",
 			routes:      nil,
@@ -482,6 +484,17 @@ func TestApi_Validate(t *testing.T) {
 		{
 			scenario:    "invalid port (> 65535)",
 			port:        65536,
+			bindIp:      "127.0.0.1",
+			rootPath:    "/foo/",
+			traceHeader: "foo",
+			routes:      nil,
+			middlewares: nil,
+			expectError: true,
+		},
+		{
+			scenario:    "invalid IP",
+			port:        10,
+			bindIp:      "foo",
 			rootPath:    "/foo/",
 			traceHeader: "foo",
 			routes:      nil,
@@ -491,6 +504,7 @@ func TestApi_Validate(t *testing.T) {
 		{
 			scenario:    "invalid TLS files: only cert file provided",
 			port:        10,
+			bindIp:      "127.0.0.1",
 			tlsCertFile: "cert.pem",
 			rootPath:    "/foo/",
 			traceHeader: "foo",
@@ -501,6 +515,7 @@ func TestApi_Validate(t *testing.T) {
 		{
 			scenario:    "invalid TLS files: only key file provided",
 			port:        10,
+			bindIp:      "127.0.0.1",
 			tlsKeyFile:  "key.pem",
 			rootPath:    "/foo/",
 			traceHeader: "foo",
@@ -511,6 +526,7 @@ func TestApi_Validate(t *testing.T) {
 		{
 			scenario:    "invalid root path: missing / prefix",
 			port:        10,
+			bindIp:      "127.0.0.1",
 			rootPath:    "foo/",
 			traceHeader: "foo",
 			routes:      nil,
@@ -520,6 +536,7 @@ func TestApi_Validate(t *testing.T) {
 		{
 			scenario:    "invalid root path: missing / suffix",
 			port:        10,
+			bindIp:      "127.0.0.1",
 			rootPath:    "/foo",
 			traceHeader: "foo",
 			routes:      nil,
@@ -529,6 +546,7 @@ func TestApi_Validate(t *testing.T) {
 		{
 			scenario:    "invalid trace header",
 			port:        10,
+			bindIp:      "127.0.0.1",
 			rootPath:    "/foo/",
 			traceHeader: "",
 			routes:      nil,
@@ -538,6 +556,7 @@ func TestApi_Validate(t *testing.T) {
 		{
 			scenario:    "invalid route: empty path",
 			port:        10,
+			bindIp:      "127.0.0.1",
 			rootPath:    "/foo/",
 			traceHeader: "foo",
 			routes: []Route{
@@ -551,6 +570,7 @@ func TestApi_Validate(t *testing.T) {
 		{
 			scenario:    "invalid route: missing / prefix in path",
 			port:        10,
+			bindIp:      "127.0.0.1",
 			rootPath:    "/foo/",
 			traceHeader: "foo",
 			routes: []Route{
@@ -564,6 +584,7 @@ func TestApi_Validate(t *testing.T) {
 		{
 			scenario:    "invalid multipart route: no /forms prefix in path",
 			port:        10,
+			bindIp:      "127.0.0.1",
 			rootPath:    "/foo/",
 			traceHeader: "foo",
 			routes: []Route{
@@ -578,6 +599,7 @@ func TestApi_Validate(t *testing.T) {
 		{
 			scenario:    "invalid route: no method",
 			port:        10,
+			bindIp:      "127.0.0.1",
 			rootPath:    "/foo/",
 			traceHeader: "foo",
 			routes: []Route{
@@ -592,6 +614,7 @@ func TestApi_Validate(t *testing.T) {
 		{
 			scenario:    "invalid route: nil handler",
 			port:        10,
+			bindIp:      "127.0.0.1",
 			rootPath:    "/foo/",
 			traceHeader: "foo",
 			routes: []Route{
@@ -607,6 +630,7 @@ func TestApi_Validate(t *testing.T) {
 		{
 			scenario:    "invalid route: path already existing",
 			port:        10,
+			bindIp:      "127.0.0.1",
 			rootPath:    "/foo/",
 			traceHeader: "foo",
 			routes: []Route{
@@ -627,6 +651,7 @@ func TestApi_Validate(t *testing.T) {
 		{
 			scenario:    "invalid middleware: nil handler",
 			port:        10,
+			bindIp:      "127.0.0.1",
 			rootPath:    "/foo/",
 			traceHeader: "foo",
 			routes:      nil,
@@ -641,6 +666,7 @@ func TestApi_Validate(t *testing.T) {
 		{
 			scenario:    "success",
 			port:        10,
+			bindIp:      "127.0.0.1",
 			rootPath:    "/foo/",
 			traceHeader: "foo",
 			routes: []Route{
@@ -694,6 +720,7 @@ func TestApi_Validate(t *testing.T) {
 		t.Run(tc.scenario, func(t *testing.T) {
 			mod := Api{
 				port:                tc.port,
+				bindIp:              tc.bindIp,
 				tlsCertFile:         tc.tlsCertFile,
 				tlsKeyFile:          tc.tlsKeyFile,
 				rootPath:            tc.rootPath,
@@ -839,18 +866,23 @@ func TestApi_Start(t *testing.T) {
 				return
 			}
 
-			// health request.
+			// health requests.
 			recorder := httptest.NewRecorder()
-			healthRequest := httptest.NewRequest(http.MethodGet, "/health", nil)
 
-			mod.srv.ServeHTTP(recorder, healthRequest)
+			healthGetRequest := httptest.NewRequest(http.MethodGet, "/health", nil)
+			mod.srv.ServeHTTP(recorder, healthGetRequest)
+			if recorder.Code != http.StatusOK {
+				t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
+			}
+
+			healthHeadRequest := httptest.NewRequest(http.MethodHead, "/health", nil)
+			mod.srv.ServeHTTP(recorder, healthHeadRequest)
 			if recorder.Code != http.StatusOK {
 				t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
 			}
 
 			// version request.
 			versionRequest := httptest.NewRequest(http.MethodGet, "/version", nil)
-
 			mod.srv.ServeHTTP(recorder, versionRequest)
 			if recorder.Code != http.StatusOK {
 				t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
@@ -859,7 +891,6 @@ func TestApi_Start(t *testing.T) {
 			// "multipart/form-data" request.
 			multipartRequest := func(url string) *http.Request {
 				body := &bytes.Buffer{}
-
 				writer := multipart.NewWriter(body)
 
 				defer func() {
@@ -914,15 +945,36 @@ func TestApi_Start(t *testing.T) {
 }
 
 func TestApi_StartupMessage(t *testing.T) {
-	mod := Api{
-		port: 3000,
-	}
+	for _, tc := range []struct {
+		scenario      string
+		port          int
+		bindIp        string
+		expectMessage string
+	}{
+		{
+			scenario:      "no custom IP",
+			port:          3000,
+			bindIp:        "",
+			expectMessage: "server started on [::]:3000",
+		},
+		{
+			scenario:      "custom IP",
+			port:          3000,
+			bindIp:        "127.0.0.1",
+			expectMessage: "server started on 127.0.0.1:3000",
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			mod := Api{
+				port:   tc.port,
+				bindIp: tc.bindIp,
+			}
 
-	actual := mod.StartupMessage()
-	expect := "server listening on port 3000"
-
-	if actual != expect {
-		t.Errorf("expected '%s' but got '%s'", expect, actual)
+			actual := mod.StartupMessage()
+			if actual != tc.expectMessage {
+				t.Errorf("expected '%s' but got '%s'", tc.expectMessage, actual)
+			}
+		})
 	}
 }
 

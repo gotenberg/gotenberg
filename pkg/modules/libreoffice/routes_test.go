@@ -194,14 +194,14 @@ func TestConvertRoute(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "ErrMalformedPageRanges",
+			scenario: "ErrUnoException",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
 					"document.docx": "/document.docx",
 				})
 				ctx.SetValues(map[string][]string{
-					"pdfa": {
+					"nativePageRanges": {
 						"foo",
 					},
 				})
@@ -209,7 +209,34 @@ func TestConvertRoute(t *testing.T) {
 			}(),
 			libreOffice: &libreofficeapi.ApiMock{
 				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
-					return libreofficeapi.ErrMalformedPageRanges
+					return libreofficeapi.ErrUnoException
+				},
+				ExtensionsMock: func() []string {
+					return []string{".docx"}
+				},
+			},
+			expectError:            true,
+			expectHttpError:        true,
+			expectHttpStatus:       http.StatusBadRequest,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "ErrRuntimeException",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"document.docx": "/document.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"password": {
+						"invalid",
+					},
+				})
+				return ctx
+			}(),
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
+					return libreofficeapi.ErrRuntimeException
 				},
 				ExtensionsMock: func() []string {
 					return []string{".docx"}

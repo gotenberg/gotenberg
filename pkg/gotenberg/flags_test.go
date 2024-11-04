@@ -644,10 +644,11 @@ func TestParsedFlags_MustDeprecatedDuration(t *testing.T) {
 	}
 }
 
-func TestParsedFlags_MustHumanReadableBytesString(t *testing.T) {
+func TestParsedFlags_MustHumanReadableBytes(t *testing.T) {
 	fs := flag.NewFlagSet("tests", flag.ContinueOnError)
 	fs.String("foo", "1MB", "")
 	fs.String("bar", "1MB", "")
+	fs.String("qux", "", "")
 
 	err := fs.Parse([]string{"--foo=1GB", "--bar=foo"})
 	if err != nil {
@@ -671,6 +672,11 @@ func TestParsedFlags_MustHumanReadableBytesString(t *testing.T) {
 			name:        "bar",
 			expectPanic: true,
 		},
+		{
+			scenario:    "success: empty value",
+			name:        "qux",
+			expectPanic: false,
+		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			if tc.expectPanic {
@@ -689,31 +695,31 @@ func TestParsedFlags_MustHumanReadableBytesString(t *testing.T) {
 				}()
 			}
 
-			parsedFlags.MustHumanReadableBytesString(tc.name)
+			parsedFlags.MustHumanReadableBytes(tc.name)
 		})
 	}
 }
 
-func TestParsedFlags_MustDeprecatedHumanReadableBytesString(t *testing.T) {
+func TestParsedFlags_MustDeprecatedHumanReadableBytes(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string
 		rawFlags    []string
-		expectValue string
+		expectValue int64
 	}{
 		{
 			scenario:    "deprecated flag value",
 			rawFlags:    []string{"--foo=1MB"},
-			expectValue: "1MB",
+			expectValue: 1000000,
 		},
 		{
 			scenario:    "non-deprecated flag value",
 			rawFlags:    []string{"--bar=2MB"},
-			expectValue: "2MB",
+			expectValue: 2000000,
 		},
 		{
 			scenario:    "deprecated flag value > non-deprecated flag value",
 			rawFlags:    []string{"--foo=1MB", "--bar=2MB"},
-			expectValue: "1MB",
+			expectValue: 1000000,
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
@@ -728,9 +734,9 @@ func TestParsedFlags_MustDeprecatedHumanReadableBytesString(t *testing.T) {
 				t.Fatalf("expected no error but got: %v", err)
 			}
 
-			actual := parsedFlags.MustDeprecatedHumanReadableBytesString("foo", "bar")
+			actual := parsedFlags.MustDeprecatedHumanReadableBytes("foo", "bar")
 			if actual != tc.expectValue {
-				t.Errorf("expected '%s' but got '%s'", tc.expectValue, actual)
+				t.Errorf("expected %d but got %d", tc.expectValue, actual)
 			}
 		})
 	}

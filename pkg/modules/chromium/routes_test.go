@@ -7,8 +7,10 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"sort"
 	"testing"
 
+	"github.com/dlclark/regexp2"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
@@ -19,14 +21,18 @@ import (
 
 func TestFormDataChromiumOptions(t *testing.T) {
 	for _, tc := range []struct {
-		scenario        string
-		ctx             *api.ContextMock
-		expectedOptions Options
+		scenario                string
+		ctx                     *api.ContextMock
+		expectedOptions         Options
+		compareWithoutDeepEqual bool
+		expectValidationError   bool
 	}{
 		{
-			scenario:        "no custom form fields",
-			ctx:             &api.ContextMock{Context: new(api.Context)},
-			expectedOptions: DefaultOptions(),
+			scenario:                "no custom form fields",
+			ctx:                     &api.ContextMock{Context: new(api.Context)},
+			expectedOptions:         DefaultOptions(),
+			compareWithoutDeepEqual: false,
+			expectValidationError:   false,
 		},
 		{
 			scenario: "invalid failOnHttpStatusCodes form field",
@@ -44,6 +50,8 @@ func TestFormDataChromiumOptions(t *testing.T) {
 				options.FailOnHttpStatusCodes = nil
 				return options
 			}(),
+			compareWithoutDeepEqual: false,
+			expectValidationError:   true,
 		},
 		{
 			scenario: "valid failOnHttpStatusCodes form field",
@@ -61,6 +69,8 @@ func TestFormDataChromiumOptions(t *testing.T) {
 				options.FailOnHttpStatusCodes = []int64{399, 499, 599}
 				return options
 			}(),
+			compareWithoutDeepEqual: false,
+			expectValidationError:   false,
 		},
 		{
 			scenario: "invalid cookies form field",
@@ -73,7 +83,9 @@ func TestFormDataChromiumOptions(t *testing.T) {
 				})
 				return ctx
 			}(),
-			expectedOptions: DefaultOptions(),
+			expectedOptions:         DefaultOptions(),
+			compareWithoutDeepEqual: false,
+			expectValidationError:   true,
 		},
 		{
 			scenario: "invalid cookies form field (missing required values)",
@@ -93,6 +105,8 @@ func TestFormDataChromiumOptions(t *testing.T) {
 				options.Cookies = []Cookie{{}}
 				return options
 			}(),
+			compareWithoutDeepEqual: false,
+			expectValidationError:   true,
 		},
 		{
 			scenario: "valid cookies form field",
@@ -114,9 +128,11 @@ func TestFormDataChromiumOptions(t *testing.T) {
 				}}
 				return options
 			}(),
+			compareWithoutDeepEqual: false,
+			expectValidationError:   false,
 		},
 		{
-			scenario: "invalid extraHttpHeaders form field",
+			scenario: "invalid extraHttpHeaders form field: cannot unmarshall",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetValues(map[string][]string{
@@ -126,7 +142,39 @@ func TestFormDataChromiumOptions(t *testing.T) {
 				})
 				return ctx
 			}(),
-			expectedOptions: DefaultOptions(),
+			expectedOptions:         DefaultOptions(),
+			compareWithoutDeepEqual: false,
+			expectValidationError:   true,
+		},
+		{
+			scenario: "invalid extraHttpHeaders form field: invalid scope",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"extraHttpHeaders": {
+						`{"foo":"bar;scope;;"}`,
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions:         DefaultOptions(),
+			compareWithoutDeepEqual: false,
+			expectValidationError:   true,
+		},
+		{
+			scenario: "invalid extraHttpHeaders form field: invalid scope regex pattern",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"extraHttpHeaders": {
+						`{"foo":"bar;scope=*."}`,
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions:         DefaultOptions(),
+			compareWithoutDeepEqual: false,
+			expectValidationError:   true,
 		},
 		{
 			scenario: "valid extraHttpHeaders form field",
@@ -134,18 +182,28 @@ func TestFormDataChromiumOptions(t *testing.T) {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetValues(map[string][]string{
 					"extraHttpHeaders": {
-						`{"foo":"bar"}`,
+						`{"foo":"bar","baz":"qux;scope=https?:\\/\\/([a-zA-Z0-9-]+\\.)*qux\\.com\\/.*"}`,
 					},
 				})
 				return ctx
 			}(),
 			expectedOptions: func() Options {
 				options := DefaultOptions()
-				options.ExtraHttpHeaders = map[string]string{
-					"foo": "bar",
+				options.ExtraHttpHeaders = []ExtraHttpHeader{
+					{
+						Name:  "foo",
+						Value: "bar",
+					},
+					{
+						Name:  "baz",
+						Value: "qux",
+						Scope: regexp2.MustCompile(`https?:\/\/([a-zA-Z0-9-]+\.)*qux\.com\/.*`, 0),
+					},
 				}
 				return options
 			}(),
+			compareWithoutDeepEqual: true,
+			expectValidationError:   false,
 		},
 		{
 			scenario: "invalid emulatedMediaType form field",
@@ -158,7 +216,8 @@ func TestFormDataChromiumOptions(t *testing.T) {
 				})
 				return ctx
 			}(),
-			expectedOptions: DefaultOptions(),
+			expectedOptions:       DefaultOptions(),
+			expectValidationError: true,
 		},
 		{
 			scenario: "valid emulatedMediaType form field",
@@ -176,14 +235,61 @@ func TestFormDataChromiumOptions(t *testing.T) {
 				options.EmulatedMediaType = "screen"
 				return options
 			}(),
+			expectValidationError: false,
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			tc.ctx.SetLogger(zap.NewNop())
-			_, actual := FormDataChromiumOptions(tc.ctx.Context)
+			form, actual := FormDataChromiumOptions(tc.ctx.Context)
 
-			if !reflect.DeepEqual(actual, tc.expectedOptions) {
-				t.Fatalf("expected %+v but got: %+v", tc.expectedOptions, actual)
+			if tc.compareWithoutDeepEqual {
+				if len(tc.expectedOptions.ExtraHttpHeaders) != len(actual.ExtraHttpHeaders) {
+					t.Fatalf("expected %d extra HTTP headers, but got %d", len(tc.expectedOptions.ExtraHttpHeaders), len(actual.ExtraHttpHeaders))
+				}
+
+				sort.Slice(tc.expectedOptions.ExtraHttpHeaders, func(i, j int) bool {
+					return tc.expectedOptions.ExtraHttpHeaders[i].Name < tc.expectedOptions.ExtraHttpHeaders[j].Name
+				})
+				sort.Slice(actual.ExtraHttpHeaders, func(i, j int) bool {
+					return actual.ExtraHttpHeaders[i].Name < actual.ExtraHttpHeaders[j].Name
+				})
+
+				for i := range tc.expectedOptions.ExtraHttpHeaders {
+					if tc.expectedOptions.ExtraHttpHeaders[i].Name != actual.ExtraHttpHeaders[i].Name {
+						t.Fatalf("expected '%s' extra HTTP header, but got '%s'", tc.expectedOptions.ExtraHttpHeaders[i].Name, tc.expectedOptions.ExtraHttpHeaders[i].Name)
+					}
+
+					if tc.expectedOptions.ExtraHttpHeaders[i].Value != actual.ExtraHttpHeaders[i].Value {
+						t.Fatalf("expected '%s' as value for extra HTTP header '%s', but got '%s'", tc.expectedOptions.ExtraHttpHeaders[i].Value, tc.expectedOptions.ExtraHttpHeaders[i].Name, actual.ExtraHttpHeaders[i].Value)
+					}
+
+					var expectedScope string
+					if tc.expectedOptions.ExtraHttpHeaders[i].Scope != nil {
+						expectedScope = tc.expectedOptions.ExtraHttpHeaders[i].Scope.String()
+					}
+					var actualScope string
+					if actual.ExtraHttpHeaders[i].Scope != nil {
+						actualScope = actual.ExtraHttpHeaders[i].Scope.String()
+					}
+
+					if expectedScope != actualScope {
+						t.Fatalf("expected '%s' as scope for extra HTTP header '%s', but got '%s'", expectedScope, tc.expectedOptions.ExtraHttpHeaders[i].Name, actualScope)
+					}
+				}
+			} else {
+				if !reflect.DeepEqual(actual, tc.expectedOptions) {
+					t.Fatalf("expected %+v but got: %+v", tc.expectedOptions, actual)
+				}
+			}
+
+			err := form.Validate()
+
+			if tc.expectValidationError && err == nil {
+				t.Fatal("expected validation error but got none", err)
+			}
+
+			if !tc.expectValidationError && err != nil {
+				t.Fatalf("expected no validation error but got: %v", err)
 			}
 		})
 	}
@@ -191,14 +297,16 @@ func TestFormDataChromiumOptions(t *testing.T) {
 
 func TestFormDataChromiumPdfOptions(t *testing.T) {
 	for _, tc := range []struct {
-		scenario        string
-		ctx             *api.ContextMock
-		expectedOptions PdfOptions
+		scenario              string
+		ctx                   *api.ContextMock
+		expectedOptions       PdfOptions
+		expectValidationError bool
 	}{
 		{
-			scenario:        "no custom form fields",
-			ctx:             &api.ContextMock{Context: new(api.Context)},
-			expectedOptions: DefaultPdfOptions(),
+			scenario:              "no custom form fields",
+			ctx:                   &api.ContextMock{Context: new(api.Context)},
+			expectedOptions:       DefaultPdfOptions(),
+			expectValidationError: false,
 		},
 		{
 			scenario: "custom form fields (Options & PdfOptions)",
@@ -220,14 +328,25 @@ func TestFormDataChromiumPdfOptions(t *testing.T) {
 				options.EmulatedMediaType = "screen"
 				return options
 			}(),
+			expectValidationError: false,
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			tc.ctx.SetLogger(zap.NewNop())
-			_, actual := FormDataChromiumPdfOptions(tc.ctx.Context)
+			form, actual := FormDataChromiumPdfOptions(tc.ctx.Context)
 
 			if !reflect.DeepEqual(actual, tc.expectedOptions) {
 				t.Fatalf("expected %+v but got: %+v", tc.expectedOptions, actual)
+			}
+
+			err := form.Validate()
+
+			if tc.expectValidationError && err == nil {
+				t.Fatal("expected validation error but got none", err)
+			}
+
+			if !tc.expectValidationError && err != nil {
+				t.Fatalf("expected no validation error but got: %v", err)
 			}
 		})
 	}
@@ -235,14 +354,16 @@ func TestFormDataChromiumPdfOptions(t *testing.T) {
 
 func TestFormDataChromiumScreenshotOptions(t *testing.T) {
 	for _, tc := range []struct {
-		scenario        string
-		ctx             *api.ContextMock
-		expectedOptions ScreenshotOptions
+		scenario              string
+		ctx                   *api.ContextMock
+		expectedOptions       ScreenshotOptions
+		expectValidationError bool
 	}{
 		{
-			scenario:        "no custom form fields",
-			ctx:             &api.ContextMock{Context: new(api.Context)},
-			expectedOptions: DefaultScreenshotOptions(),
+			scenario:              "no custom form fields",
+			ctx:                   &api.ContextMock{Context: new(api.Context)},
+			expectedOptions:       DefaultScreenshotOptions(),
+			expectValidationError: false,
 		},
 		{
 			scenario: "invalid format form field",
@@ -260,6 +381,7 @@ func TestFormDataChromiumScreenshotOptions(t *testing.T) {
 				options.Format = ""
 				return options
 			}(),
+			expectValidationError: true,
 		},
 		{
 			scenario: "valid png format form field",
@@ -277,6 +399,7 @@ func TestFormDataChromiumScreenshotOptions(t *testing.T) {
 				options.Format = "png"
 				return options
 			}(),
+			expectValidationError: false,
 		},
 		{
 			scenario: "valid jpeg format form field",
@@ -294,6 +417,7 @@ func TestFormDataChromiumScreenshotOptions(t *testing.T) {
 				options.Format = "jpeg"
 				return options
 			}(),
+			expectValidationError: false,
 		},
 		{
 			scenario: "valid webp format form field",
@@ -311,6 +435,7 @@ func TestFormDataChromiumScreenshotOptions(t *testing.T) {
 				options.Format = "webp"
 				return options
 			}(),
+			expectValidationError: false,
 		},
 		{
 			scenario: "invalid quality form field (not an integer)",
@@ -328,6 +453,7 @@ func TestFormDataChromiumScreenshotOptions(t *testing.T) {
 				options.Quality = 0
 				return options
 			}(),
+			expectValidationError: true,
 		},
 		{
 			scenario: "invalid quality form field (< 0)",
@@ -345,6 +471,7 @@ func TestFormDataChromiumScreenshotOptions(t *testing.T) {
 				options.Quality = 0
 				return options
 			}(),
+			expectValidationError: true,
 		},
 		{
 			scenario: "invalid quality form field (> 100)",
@@ -362,6 +489,7 @@ func TestFormDataChromiumScreenshotOptions(t *testing.T) {
 				options.Quality = 0
 				return options
 			}(),
+			expectValidationError: true,
 		},
 		{
 			scenario: "valid quality form field",
@@ -379,6 +507,7 @@ func TestFormDataChromiumScreenshotOptions(t *testing.T) {
 				options.Quality = 50
 				return options
 			}(),
+			expectValidationError: false,
 		},
 		{
 			scenario: "custom form fields (Options & ScreenshotOptions)",
@@ -412,14 +541,25 @@ func TestFormDataChromiumScreenshotOptions(t *testing.T) {
 				options.EmulatedMediaType = "screen"
 				return options
 			}(),
+			expectValidationError: false,
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			tc.ctx.SetLogger(zap.NewNop())
-			_, actual := FormDataChromiumScreenshotOptions(tc.ctx.Context)
+			form, actual := FormDataChromiumScreenshotOptions(tc.ctx.Context)
 
 			if !reflect.DeepEqual(actual, tc.expectedOptions) {
 				t.Fatalf("expected %+v but got: %+v", tc.expectedOptions, actual)
+			}
+
+			err := form.Validate()
+
+			if tc.expectValidationError && err == nil {
+				t.Fatal("expected validation error but got none", err)
+			}
+
+			if !tc.expectValidationError && err != nil {
+				t.Fatalf("expected no validation error but got: %v", err)
 			}
 		})
 	}
@@ -427,14 +567,16 @@ func TestFormDataChromiumScreenshotOptions(t *testing.T) {
 
 func TestFormDataChromiumPdfFormats(t *testing.T) {
 	for _, tc := range []struct {
-		scenario           string
-		ctx                *api.ContextMock
-		expectedPdfFormats gotenberg.PdfFormats
+		scenario              string
+		ctx                   *api.ContextMock
+		expectedPdfFormats    gotenberg.PdfFormats
+		expectValidationError bool
 	}{
 		{
-			scenario:           "no custom form fields",
-			ctx:                &api.ContextMock{Context: new(api.Context)},
-			expectedPdfFormats: gotenberg.PdfFormats{},
+			scenario:              "no custom form fields",
+			ctx:                   &api.ContextMock{Context: new(api.Context)},
+			expectedPdfFormats:    gotenberg.PdfFormats{},
+			expectValidationError: false,
 		},
 		{
 			scenario: "pdfa and pdfua form fields",
@@ -450,15 +592,27 @@ func TestFormDataChromiumPdfFormats(t *testing.T) {
 				})
 				return ctx
 			}(),
-			expectedPdfFormats: gotenberg.PdfFormats{PdfA: "foo", PdfUa: true},
+			expectedPdfFormats:    gotenberg.PdfFormats{PdfA: "foo", PdfUa: true},
+			expectValidationError: false,
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			tc.ctx.SetLogger(zap.NewNop())
-			actual := FormDataChromiumPdfFormats(tc.ctx.Context.FormData())
+			form := tc.ctx.Context.FormData()
+			actual := FormDataChromiumPdfFormats(form)
 
 			if !reflect.DeepEqual(actual, tc.expectedPdfFormats) {
 				t.Fatalf("expected %+v but got: %+v", tc.expectedPdfFormats, actual)
+			}
+
+			err := form.Validate()
+
+			if tc.expectValidationError && err == nil {
+				t.Fatal("expected validation error but got none", err)
+			}
+
+			if !tc.expectValidationError && err != nil {
+				t.Fatalf("expected no validation error but got: %v", err)
 			}
 		})
 	}
@@ -466,14 +620,16 @@ func TestFormDataChromiumPdfFormats(t *testing.T) {
 
 func TestFormDataPdfMetadata(t *testing.T) {
 	for _, tc := range []struct {
-		scenario         string
-		ctx              *api.ContextMock
-		expectedMetadata map[string]interface{}
+		scenario              string
+		ctx                   *api.ContextMock
+		expectedMetadata      map[string]interface{}
+		expectValidationError bool
 	}{
 		{
-			scenario:         "no metadata form field",
-			ctx:              &api.ContextMock{Context: new(api.Context)},
-			expectedMetadata: nil,
+			scenario:              "no metadata form field",
+			ctx:                   &api.ContextMock{Context: new(api.Context)},
+			expectedMetadata:      nil,
+			expectValidationError: false,
 		},
 		{
 			scenario: "invalid metadata form field",
@@ -486,7 +642,8 @@ func TestFormDataPdfMetadata(t *testing.T) {
 				})
 				return ctx
 			}(),
-			expectedMetadata: nil,
+			expectedMetadata:      nil,
+			expectValidationError: true,
 		},
 		{
 			scenario: "valid metadata form field",
@@ -502,14 +659,26 @@ func TestFormDataPdfMetadata(t *testing.T) {
 			expectedMetadata: map[string]interface{}{
 				"foo": "bar",
 			},
+			expectValidationError: false,
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			tc.ctx.SetLogger(zap.NewNop())
-			actual := FormDataPdfMetadata(tc.ctx.Context.FormData())
+			form := tc.ctx.Context.FormData()
+			actual := FormDataPdfMetadata(form)
 
 			if !reflect.DeepEqual(actual, tc.expectedMetadata) {
 				t.Fatalf("expected %+v but got: %+v", tc.expectedMetadata, actual)
+			}
+
+			err := form.Validate()
+
+			if tc.expectValidationError && err == nil {
+				t.Fatal("expected validation error but got none", err)
+			}
+
+			if !tc.expectValidationError && err != nil {
+				t.Fatalf("expected no validation error but got: %v", err)
 			}
 		})
 	}
@@ -1436,10 +1605,10 @@ func TestConvertUrl(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "ErrConnectionRefused",
+			scenario: "ErrLoadingFailed",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
 			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
-				return ErrConnectionRefused
+				return ErrLoadingFailed
 			}},
 			options:                DefaultPdfOptions(),
 			expectError:            true,
@@ -1646,10 +1815,10 @@ func TestScreenshotUrl(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "ErrConnectionRefused",
+			scenario: "ErrLoadingFailed",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
 			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
-				return ErrConnectionRefused
+				return ErrLoadingFailed
 			}},
 			options:                DefaultScreenshotOptions(),
 			expectError:            true,

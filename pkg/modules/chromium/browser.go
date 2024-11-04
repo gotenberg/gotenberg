@@ -228,7 +228,6 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *zap.Logger, url, outp
 		disableJavaScriptActionFunc(logger, b.arguments.disableJavaScript),
 		setCookiesActionFunc(logger, options.Cookies),
 		userAgentOverride(logger, options.UserAgent),
-		extraHttpHeadersActionFunc(logger, options.ExtraHttpHeaders),
 		navigateActionFunc(logger, url, options.SkipNetworkIdleEvent),
 		hideDefaultWhiteBackgroundActionFunc(logger, options.OmitBackground, options.PrintBackground),
 		forceExactColorsActionFunc(),
@@ -252,7 +251,6 @@ func (b *chromiumBrowser) screenshot(ctx context.Context, logger *zap.Logger, ur
 		disableJavaScriptActionFunc(logger, b.arguments.disableJavaScript),
 		setCookiesActionFunc(logger, options.Cookies),
 		userAgentOverride(logger, options.UserAgent),
-		extraHttpHeadersActionFunc(logger, options.ExtraHttpHeaders),
 		navigateActionFunc(logger, url, options.SkipNetworkIdleEvent),
 		hideDefaultWhiteBackgroundActionFunc(logger, options.OmitBackground, true),
 		forceExactColorsActionFunc(),
@@ -291,8 +289,14 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 	defer taskCancel()
 
 	// We validate all others requests against our allow / deny lists.
-	// If a request does not pass the validation, we make it fail.
-	listenForEventRequestPaused(taskCtx, logger, b.arguments.allowList, b.arguments.denyList)
+	// If a request does not pass the validation, we make it fail. It also set
+	// the extra HTTP headers, if any.
+	// See https://github.com/gotenberg/gotenberg/issues/1011.
+	listenForEventRequestPaused(taskCtx, logger, eventRequestPausedOptions{
+		allowList:        b.arguments.allowList,
+		denyList:         b.arguments.denyList,
+		extraHttpHeaders: options.ExtraHttpHeaders,
+	})
 
 	var (
 		invalidHttpStatusCode   error
@@ -315,12 +319,14 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 	}
 
 	var (
-		connectionRefused   error
-		connectionRefusedMu sync.RWMutex
+		loadingFailed   error
+		loadingFailedMu sync.RWMutex
 	)
 
-	// See https://github.com/gotenberg/gotenberg/issues/913.
-	listenForEventLoadingFailedOnConnectionRefused(taskCtx, logger, &connectionRefused, &connectionRefusedMu)
+	// See:
+	// https://github.com/gotenberg/gotenberg/issues/913
+	// https://github.com/gotenberg/gotenberg/issues/959
+	listenForEventLoadingFailed(taskCtx, logger, &loadingFailed, &loadingFailedMu)
 
 	err = chromedp.Run(taskCtx, tasks...)
 	if err != nil {
@@ -357,12 +363,14 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 		return fmt.Errorf("%v: %w", consoleExceptions, ErrConsoleExceptions)
 	}
 
-	// See https://github.com/gotenberg/gotenberg/issues/913.
-	connectionRefusedMu.RLock()
-	defer connectionRefusedMu.RUnlock()
+	// See:
+	// https://github.com/gotenberg/gotenberg/issues/913
+	// https://github.com/gotenberg/gotenberg/issues/959
+	loadingFailedMu.RLock()
+	defer loadingFailedMu.RUnlock()
 
-	if connectionRefused != nil {
-		return fmt.Errorf("%v: %w", connectionRefused, ErrConnectionRefused)
+	if loadingFailed != nil {
+		return fmt.Errorf("%v: %w", loadingFailed, ErrLoadingFailed)
 	}
 
 	return nil

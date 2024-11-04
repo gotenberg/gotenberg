@@ -168,33 +168,37 @@ func (f *ParsedFlags) MustDeprecatedDuration(deprecated string, newName string) 
 	return f.MustDuration(newName)
 }
 
-// MustHumanReadableBytesString returns the human-readable bytes string of a
-// flag given by name.
+// MustHumanReadableBytes returns the human-readable bytes string of a flag
+// given by name.
 // It panics if an error occurs.
-func (f *ParsedFlags) MustHumanReadableBytesString(name string) string {
+func (f *ParsedFlags) MustHumanReadableBytes(name string) int64 {
 	val, err := f.GetString(name)
 	if err != nil {
 		panic(err)
 	}
 
-	_, err = bytes.Parse(val)
+	if val == "" {
+		return 0
+	}
+
+	b, err := bytes.Parse(val)
 	if err != nil {
 		panic(err)
 	}
 
-	return val
+	return b
 }
 
-// MustDeprecatedHumanReadableBytesString returns the human-readable bytes
-// string of a deprecated flag if it was explicitly set or the human-readable
-// bytes string of the new flag.
+// MustDeprecatedHumanReadableBytes returns the human-readable bytes of a
+// deprecated flag if it was explicitly set or the human-readable bytes string
+// of the new flag.
 // It panics if an error occurs.
-func (f *ParsedFlags) MustDeprecatedHumanReadableBytesString(deprecated string, newName string) string {
+func (f *ParsedFlags) MustDeprecatedHumanReadableBytes(deprecated string, newName string) int64 {
 	if f.Changed(deprecated) {
-		return f.MustHumanReadableBytesString(deprecated)
+		return f.MustHumanReadableBytes(deprecated)
 	}
 
-	return f.MustHumanReadableBytesString(newName)
+	return f.MustHumanReadableBytes(newName)
 }
 
 // MustRegexp returns the regular expression of a flag given by name.
