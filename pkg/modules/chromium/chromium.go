@@ -38,13 +38,21 @@ var (
 	// matches with one of the entry in [Options.FailOnHttpStatusCodes].
 	ErrInvalidHttpStatusCode = errors.New("invalid HTTP status code")
 
+	// ErrInvalidResourceHttpStatusCode happens when the status code from one
+	// or more resources matches with one of the entry in
+	// [Options.FailOnResourceHttpStatusCodes].
+	ErrInvalidResourceHttpStatusCode = errors.New("invalid resource HTTP status code")
+
 	// ErrConsoleExceptions happens when there are exceptions in the Chromium
 	// console. It also happens only if the [Options.FailOnConsoleExceptions]
 	// is set to true.
 	ErrConsoleExceptions = errors.New("console exceptions")
 
-	// ErrLoadingFailed happens when a URL failed to load.
+	// ErrLoadingFailed happens when the main page failed to load.
 	ErrLoadingFailed = errors.New("loading failed")
+
+	// ErrResourceLoadingFailed happens when one or more resources failed to load.
+	ErrResourceLoadingFailed = errors.New("resource loading failed")
 
 	// PDF specific.
 
@@ -86,6 +94,14 @@ type Options struct {
 	// code from the main page matches with one of its entries.
 	FailOnHttpStatusCodes []int64
 
+	// FailOnResourceHttpStatusCodes sets if the conversion should fail if the
+	// status code from at least one resource matches with one if its entries.
+	FailOnResourceHttpStatusCodes []int64
+
+	// FailOnResourceLoadingFailed sets if the conversion should fail like the
+	// main page if Chromium fails to load at least one resource.
+	FailOnResourceLoadingFailed bool
+
 	// FailOnConsoleExceptions sets if the conversion should fail if there are
 	// exceptions in the Chromium console.
 	FailOnConsoleExceptions bool
@@ -124,17 +140,19 @@ type Options struct {
 // DefaultOptions returns the default values for Options.
 func DefaultOptions() Options {
 	return Options{
-		SkipNetworkIdleEvent:    true,
-		FailOnHttpStatusCodes:   []int64{499, 599},
-		FailOnConsoleExceptions: false,
-		WaitDelay:               0,
-		WaitWindowStatus:        "",
-		WaitForExpression:       "",
-		Cookies:                 nil,
-		UserAgent:               "",
-		ExtraHttpHeaders:        nil,
-		EmulatedMediaType:       "",
-		OmitBackground:          false,
+		SkipNetworkIdleEvent:          true,
+		FailOnHttpStatusCodes:         []int64{499, 599},
+		FailOnResourceHttpStatusCodes: nil,
+		FailOnResourceLoadingFailed:   false,
+		FailOnConsoleExceptions:       false,
+		WaitDelay:                     0,
+		WaitWindowStatus:              "",
+		WaitForExpression:             "",
+		Cookies:                       nil,
+		UserAgent:                     "",
+		ExtraHttpHeaders:              nil,
+		EmulatedMediaType:             "",
+		OmitBackground:                false,
 	}
 }
 

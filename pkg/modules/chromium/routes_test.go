@@ -73,6 +73,44 @@ func TestFormDataChromiumOptions(t *testing.T) {
 			expectValidationError:   false,
 		},
 		{
+			scenario: "invalid failOnResourceHttpStatusCodes form field",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"failOnResourceHttpStatusCodes": {
+						"foo",
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: func() Options {
+				options := DefaultOptions()
+				options.FailOnResourceHttpStatusCodes = nil
+				return options
+			}(),
+			compareWithoutDeepEqual: false,
+			expectValidationError:   true,
+		},
+		{
+			scenario: "valid failOnResourceHttpStatusCodes form field",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"failOnResourceHttpStatusCodes": {
+						`[399,499,599]`,
+					},
+				})
+				return ctx
+			}(),
+			expectedOptions: func() Options {
+				options := DefaultOptions()
+				options.FailOnResourceHttpStatusCodes = []int64{399, 499, 599}
+				return options
+			}(),
+			compareWithoutDeepEqual: false,
+			expectValidationError:   false,
+		},
+		{
 			scenario: "invalid cookies form field",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
@@ -1593,6 +1631,18 @@ func TestConvertUrl(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
+			scenario: "ErrInvalidResourceHttpStatusCode",
+			ctx:      &api.ContextMock{Context: new(api.Context)},
+			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
+				return ErrInvalidResourceHttpStatusCode
+			}},
+			options:                DefaultPdfOptions(),
+			expectError:            true,
+			expectHttpError:        true,
+			expectHttpStatus:       http.StatusConflict,
+			expectOutputPathsCount: 0,
+		},
+		{
 			scenario: "ErrConsoleExceptions",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
 			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
@@ -1614,6 +1664,18 @@ func TestConvertUrl(t *testing.T) {
 			expectError:            true,
 			expectHttpError:        true,
 			expectHttpStatus:       http.StatusBadRequest,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "ErrResourceLoadingFailed",
+			ctx:      &api.ContextMock{Context: new(api.Context)},
+			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
+				return ErrResourceLoadingFailed
+			}},
+			options:                DefaultPdfOptions(),
+			expectError:            true,
+			expectHttpError:        true,
+			expectHttpStatus:       http.StatusConflict,
 			expectOutputPathsCount: 0,
 		},
 		{
@@ -1803,6 +1865,18 @@ func TestScreenshotUrl(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
+			scenario: "ErrInvalidResourceHttpStatusCode",
+			ctx:      &api.ContextMock{Context: new(api.Context)},
+			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+				return ErrInvalidResourceHttpStatusCode
+			}},
+			options:                DefaultScreenshotOptions(),
+			expectError:            true,
+			expectHttpError:        true,
+			expectHttpStatus:       http.StatusConflict,
+			expectOutputPathsCount: 0,
+		},
+		{
 			scenario: "ErrConsoleExceptions",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
 			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
@@ -1824,6 +1898,18 @@ func TestScreenshotUrl(t *testing.T) {
 			expectError:            true,
 			expectHttpError:        true,
 			expectHttpStatus:       http.StatusBadRequest,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "ErrResourceLoadingFailed",
+			ctx:      &api.ContextMock{Context: new(api.Context)},
+			api: &ApiMock{ScreenshotMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+				return ErrResourceLoadingFailed
+			}},
+			options:                DefaultScreenshotOptions(),
+			expectError:            true,
+			expectHttpError:        true,
+			expectHttpStatus:       http.StatusConflict,
 			expectOutputPathsCount: 0,
 		},
 		{

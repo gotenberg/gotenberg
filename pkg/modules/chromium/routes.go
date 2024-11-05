@@ -29,17 +29,19 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 	defaultOptions := DefaultOptions()
 
 	var (
-		skipNetworkIdleEvent    bool
-		failOnHttpStatusCodes   []int64
-		failOnConsoleExceptions bool
-		waitDelay               time.Duration
-		waitWindowStatus        string
-		waitForExpression       string
-		cookies                 []Cookie
-		userAgent               string
-		extraHttpHeaders        []ExtraHttpHeader
-		emulatedMediaType       string
-		omitBackground          bool
+		skipNetworkIdleEvent          bool
+		failOnHttpStatusCodes         []int64
+		failOnResourceHttpStatusCodes []int64
+		failOnResourceLoadingFailed   bool
+		failOnConsoleExceptions       bool
+		waitDelay                     time.Duration
+		waitWindowStatus              string
+		waitForExpression             string
+		cookies                       []Cookie
+		userAgent                     string
+		extraHttpHeaders              []ExtraHttpHeader
+		emulatedMediaType             string
+		omitBackground                bool
 	)
 
 	form := ctx.FormData().
@@ -57,6 +59,20 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 
 			return nil
 		}).
+		Custom("failOnResourceHttpStatusCodes", func(value string) error {
+			if value == "" {
+				failOnResourceHttpStatusCodes = defaultOptions.FailOnResourceHttpStatusCodes
+				return nil
+			}
+
+			err := json.Unmarshal([]byte(value), &failOnResourceHttpStatusCodes)
+			if err != nil {
+				return fmt.Errorf("unmarshal failOnResourceHttpStatusCodes: %w", err)
+			}
+
+			return nil
+		}).
+		Bool("failOnResourceLoadingFailed", &failOnResourceLoadingFailed, defaultOptions.FailOnResourceLoadingFailed).
 		Bool("failOnConsoleExceptions", &failOnConsoleExceptions, defaultOptions.FailOnConsoleExceptions).
 		Duration("waitDelay", &waitDelay, defaultOptions.WaitDelay).
 		String("waitWindowStatus", &waitWindowStatus, defaultOptions.WaitWindowStatus).
@@ -158,17 +174,19 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		Bool("omitBackground", &omitBackground, defaultOptions.OmitBackground)
 
 	options := Options{
-		SkipNetworkIdleEvent:    skipNetworkIdleEvent,
-		FailOnHttpStatusCodes:   failOnHttpStatusCodes,
-		FailOnConsoleExceptions: failOnConsoleExceptions,
-		WaitDelay:               waitDelay,
-		WaitWindowStatus:        waitWindowStatus,
-		WaitForExpression:       waitForExpression,
-		Cookies:                 cookies,
-		UserAgent:               userAgent,
-		ExtraHttpHeaders:        extraHttpHeaders,
-		EmulatedMediaType:       emulatedMediaType,
-		OmitBackground:          omitBackground,
+		SkipNetworkIdleEvent:          skipNetworkIdleEvent,
+		FailOnHttpStatusCodes:         failOnHttpStatusCodes,
+		FailOnResourceHttpStatusCodes: failOnResourceHttpStatusCodes,
+		FailOnResourceLoadingFailed:   failOnResourceLoadingFailed,
+		FailOnConsoleExceptions:       failOnConsoleExceptions,
+		WaitDelay:                     waitDelay,
+		WaitWindowStatus:              waitWindowStatus,
+		WaitForExpression:             waitForExpression,
+		Cookies:                       cookies,
+		UserAgent:                     userAgent,
+		ExtraHttpHeaders:              extraHttpHeaders,
+		EmulatedMediaType:             emulatedMediaType,
+		OmitBackground:                omitBackground,
 	}
 
 	return form, options
@@ -726,12 +744,22 @@ func handleChromiumError(err error, options Options) error {
 		)
 	}
 
+	if errors.Is(err, ErrInvalidResourceHttpStatusCode) {
+		return api.WrapError(
+			err,
+			api.NewSentinelHttpError(
+				http.StatusConflict,
+				fmt.Sprintf("Invalid HTTP status code from resources:\n%s", strings.ReplaceAll(err.Error(), fmt.Sprintf(": %s", ErrInvalidResourceHttpStatusCode.Error()), "")),
+			),
+		)
+	}
+
 	if errors.Is(err, ErrConsoleExceptions) {
 		return api.WrapError(
 			err,
 			api.NewSentinelHttpError(
 				http.StatusConflict,
-				fmt.Sprintf("Chromium console exceptions:\n %s", strings.ReplaceAll(err.Error(), ErrConsoleExceptions.Error(), "")),
+				fmt.Sprintf("Chromium console exceptions:\n%s", strings.ReplaceAll(err.Error(), ErrConsoleExceptions.Error(), "")),
 			),
 		)
 	}
@@ -742,6 +770,16 @@ func handleChromiumError(err error, options Options) error {
 			api.NewSentinelHttpError(
 				http.StatusBadRequest,
 				fmt.Sprintf("Chromium returned %v", err),
+			),
+		)
+	}
+
+	if errors.Is(err, ErrResourceLoadingFailed) {
+		return api.WrapError(
+			err,
+			api.NewSentinelHttpError(
+				http.StatusConflict,
+				fmt.Sprintf("Chromium failed to load resources: %v", strings.ReplaceAll(err.Error(), fmt.Sprintf(": %s", ErrResourceLoadingFailed.Error()), "")),
 			),
 		)
 	}

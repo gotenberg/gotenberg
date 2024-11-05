@@ -447,6 +447,44 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 			expectedError: ErrInvalidHttpStatusCode,
 		},
 		{
+			scenario: "ErrInvalidResourceHttpStatusCode",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/style.css", fs.WorkingDirPath()), []byte("body{font-family: Arial, Helvetica, sans-serif;}"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<html><head><link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\"></head><body><h1>ErrInvalidResourceHttpStatusCode</h1></body></html>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: PdfOptions{
+				Options: Options{FailOnResourceHttpStatusCodes: []int64{200}},
+			},
+			noDeadline:    false,
+			start:         true,
+			expectError:   true,
+			expectedError: ErrInvalidResourceHttpStatusCode,
+		},
+		{
 			scenario: "ErrConsoleExceptions",
 			browser: newChromiumBrowser(
 				browserArguments{
@@ -504,6 +542,39 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 			start:         true,
 			expectError:   true,
 			expectedError: ErrLoadingFailed,
+		},
+		{
+			scenario: "ErrResourceLoadingFailed",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<html><head><link rel=\"stylesheet\" type=\"text/css\" href=\"http://localhost:100/style.css\"></head><body><h1>ErrResourceLoadingFailed</h1></body></html>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: PdfOptions{
+				Options: Options{FailOnResourceLoadingFailed: true},
+			},
+			noDeadline:    false,
+			start:         true,
+			expectError:   true,
+			expectedError: ErrResourceLoadingFailed,
 		},
 		{
 			scenario: "clear cache",
@@ -1538,6 +1609,44 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 			expectedError: ErrInvalidHttpStatusCode,
 		},
 		{
+			scenario: "ErrInvalidResourceHttpStatusCode",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/style.css", fs.WorkingDirPath()), []byte("body{font-family: Arial, Helvetica, sans-serif;}"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<html><head><link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\"></head><body><h1>ErrInvalidResourceHttpStatusCode</h1></body></html>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: ScreenshotOptions{
+				Options: Options{FailOnResourceHttpStatusCodes: []int64{299}},
+			},
+			noDeadline:    false,
+			start:         true,
+			expectError:   true,
+			expectedError: ErrInvalidResourceHttpStatusCode,
+		},
+		{
 			scenario: "ErrConsoleExceptions",
 			browser: newChromiumBrowser(
 				browserArguments{
@@ -1580,7 +1689,6 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 					denyList:         regexp2.MustCompile("", 0),
 				},
 			),
-
 			fs: func() *gotenberg.FileSystem {
 				fs := gotenberg.NewFileSystem()
 
@@ -1596,6 +1704,39 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 			start:         true,
 			expectError:   true,
 			expectedError: ErrLoadingFailed,
+		},
+		{
+			scenario: "ErrResourceLoadingFailed",
+			browser: newChromiumBrowser(
+				browserArguments{
+					binPath:          os.Getenv("CHROMIUM_BIN_PATH"),
+					wsUrlReadTimeout: 5 * time.Second,
+					allowList:        regexp2.MustCompile("", 0),
+					denyList:         regexp2.MustCompile("", 0),
+				},
+			),
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<html><head><link rel=\"stylesheet\" type=\"text/css\" href=\"http://localhost:100/style.css\"></head><body><h1>ErrResourceLoadingFailed</h1></body></html>"), 0o755)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+
+				return fs
+			}(),
+			options: ScreenshotOptions{
+				Options: Options{FailOnResourceLoadingFailed: true},
+			},
+			noDeadline:    false,
+			start:         true,
+			expectError:   true,
+			expectedError: ErrResourceLoadingFailed,
 		},
 		{
 			scenario: "clear cache",
