@@ -1,4 +1,4 @@
-ARG GOLANG_VERSION=1.23
+ARG GOLANG_VERSION=1.23.3
 ARG GOTENBERG_VERSION=8.12
 
 # ----------------------------------------------
