@@ -299,13 +299,25 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 	})
 
 	var (
-		invalidHttpStatusCode   error
-		invalidHttpStatusCodeMu sync.RWMutex
+		invalidHttpStatusCode           error
+		invalidHttpStatusCodeMu         sync.RWMutex
+		invalidResourceHttpStatusCode   error
+		invalidResourceHttpStatusCodeMu sync.RWMutex
 	)
 
-	// See https://github.com/gotenberg/gotenberg/issues/613.
-	if len(options.FailOnHttpStatusCodes) != 0 {
-		listenForEventResponseReceived(taskCtx, logger, url, options.FailOnHttpStatusCodes, &invalidHttpStatusCode, &invalidHttpStatusCodeMu)
+	// See:
+	// https://github.com/gotenberg/gotenberg/issues/613.
+	// https://github.com/gotenberg/gotenberg/issues/1021.
+	if len(options.FailOnHttpStatusCodes) != 0 || len(options.FailOnResourceHttpStatusCodes) != 0 {
+		listenForEventResponseReceived(taskCtx, logger, eventResponseReceivedOptions{
+			mainPageUrl:                     url,
+			failOnHttpStatusCodes:           options.FailOnHttpStatusCodes,
+			invalidHttpStatusCode:           &invalidHttpStatusCode,
+			invalidHttpStatusCodeMu:         &invalidHttpStatusCodeMu,
+			failOnResourceOnHttpStatusCode:  options.FailOnResourceHttpStatusCodes,
+			invalidResourceHttpStatusCode:   &invalidResourceHttpStatusCode,
+			invalidResourceHttpStatusCodeMu: &invalidResourceHttpStatusCodeMu,
+		})
 	}
 
 	var (
@@ -319,14 +331,22 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 	}
 
 	var (
-		loadingFailed   error
-		loadingFailedMu sync.RWMutex
+		loadingFailed           error
+		loadingFailedMu         sync.RWMutex
+		resourceLoadingFailed   error
+		resourceLoadingFailedMu sync.RWMutex
 	)
 
 	// See:
-	// https://github.com/gotenberg/gotenberg/issues/913
-	// https://github.com/gotenberg/gotenberg/issues/959
-	listenForEventLoadingFailed(taskCtx, logger, &loadingFailed, &loadingFailedMu)
+	// https://github.com/gotenberg/gotenberg/issues/913.
+	// https://github.com/gotenberg/gotenberg/issues/959.
+	// https://github.com/gotenberg/gotenberg/issues/1021.
+	listenForEventLoadingFailed(taskCtx, logger, eventLoadingFailedOptions{
+		loadingFailed:           &loadingFailed,
+		loadingFailedMu:         &loadingFailedMu,
+		resourceLoadingFailed:   &resourceLoadingFailed,
+		resourceLoadingFailedMu: &resourceLoadingFailedMu,
+	})
 
 	err = chromedp.Run(taskCtx, tasks...)
 	if err != nil {
@@ -355,6 +375,14 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 		return fmt.Errorf("%v: %w", invalidHttpStatusCode, ErrInvalidHttpStatusCode)
 	}
 
+	// See https://github.com/gotenberg/gotenberg/issues/1021.
+	invalidResourceHttpStatusCodeMu.RLock()
+	defer invalidResourceHttpStatusCodeMu.RUnlock()
+
+	if invalidResourceHttpStatusCode != nil {
+		return fmt.Errorf("%v: %w", invalidResourceHttpStatusCode, ErrInvalidResourceHttpStatusCode)
+	}
+
 	// See https://github.com/gotenberg/gotenberg/issues/262.
 	consoleExceptionsMu.RLock()
 	defer consoleExceptionsMu.RUnlock()
@@ -364,13 +392,20 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 	}
 
 	// See:
-	// https://github.com/gotenberg/gotenberg/issues/913
-	// https://github.com/gotenberg/gotenberg/issues/959
+	// https://github.com/gotenberg/gotenberg/issues/913.
+	// https://github.com/gotenberg/gotenberg/issues/959.
 	loadingFailedMu.RLock()
 	defer loadingFailedMu.RUnlock()
 
 	if loadingFailed != nil {
 		return fmt.Errorf("%v: %w", loadingFailed, ErrLoadingFailed)
+	}
+
+	// See https://github.com/gotenberg/gotenberg/issues/1021.
+	if options.FailOnResourceLoadingFailed {
+		if resourceLoadingFailed != nil {
+			return fmt.Errorf("%v: %w", resourceLoadingFailed, ErrResourceLoadingFailed)
+		}
 	}
 
 	return nil

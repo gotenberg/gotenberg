@@ -1,5 +1,5 @@
 ARG GOLANG_VERSION=1.23.3
-ARG GOTENBERG_VERSION=8.12
+ARG GOTENBERG_VERSION=8.13
 
 # ----------------------------------------------
 # Gotenberg binary build stage
@@ -31,7 +31,7 @@ FROM harbor.onebrief.tools/cgr.dev/onebrief.com/gotenberg:$GOTENBERG_VERSION AS 
 
 COPY --from=binary-stage /home/gotenberg /usr/bin/
 
-# puts back in these env vars which are seemingly missing in the 8.12 chainguard base
+# puts back in these env vars which are seemingly missing in the 8.13 chainguard base
 # they likely baked them into the code...
 ENV CHROMIUM_BIN_PATH=/usr/bin/chromium
 ENV LIBREOFFICE_BIN_PATH=/usr/lib/libreoffice/program/soffice.bin

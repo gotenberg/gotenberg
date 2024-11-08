@@ -3,6 +3,7 @@ package chromium
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"slices"
 	"sync"
 
@@ -136,14 +137,36 @@ func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, option
 	})
 }
 
+type eventResponseReceivedOptions struct {
+	mainPageUrl                     string
+	failOnHttpStatusCodes           []int64
+	invalidHttpStatusCode           *error
+	invalidHttpStatusCodeMu         *sync.RWMutex
+	failOnResourceOnHttpStatusCode  []int64
+	invalidResourceHttpStatusCode   *error
+	invalidResourceHttpStatusCodeMu *sync.RWMutex
+}
+
 // listenForEventResponseReceived listens for an invalid HTTP status code that
-// is returned by the main page.
-// See https://github.com/gotenberg/gotenberg/issues/613.
-func listenForEventResponseReceived(ctx context.Context, logger *zap.Logger, url string, failOnHttpStatusCodes []int64, invalidHttpStatusCode *error, invalidHttpStatusCodeMu *sync.RWMutex) {
+// is returned by the main page or by one or more resources.
+// See:
+// https://github.com/gotenberg/gotenberg/issues/613.
+// https://github.com/gotenberg/gotenberg/issues/1021.
+func listenForEventResponseReceived(
+	ctx context.Context,
+	logger *zap.Logger,
+	options eventResponseReceivedOptions,
+) {
 	for _, code := range []int64{199, 299, 399, 499, 599} {
-		if slices.Contains(failOnHttpStatusCodes, code) {
+		if slices.Contains(options.failOnHttpStatusCodes, code) {
 			for i := code - 99; i <= code; i++ {
-				failOnHttpStatusCodes = append(failOnHttpStatusCodes, i)
+				options.failOnHttpStatusCodes = append(options.failOnHttpStatusCodes, i)
+			}
+		}
+
+		if slices.Contains(options.failOnResourceOnHttpStatusCode, code) {
+			for i := code - 99; i <= code; i++ {
+				options.failOnResourceOnHttpStatusCode = append(options.failOnResourceOnHttpStatusCode, i)
 			}
 		}
 	}
@@ -151,40 +174,52 @@ func listenForEventResponseReceived(ctx context.Context, logger *zap.Logger, url
 	chromedp.ListenTarget(ctx, func(ev interface{}) {
 		switch ev := ev.(type) {
 		case *network.EventResponseReceived:
-			if ev.Response.URL != url {
+			if ev.Response.URL == options.mainPageUrl {
+				logger.Debug(fmt.Sprintf("event EventResponseReceived fired for main page: %+v", ev.Response))
+
+				if slices.Contains(options.failOnHttpStatusCodes, ev.Response.Status) {
+					options.invalidHttpStatusCodeMu.Lock()
+					defer options.invalidHttpStatusCodeMu.Unlock()
+
+					*options.invalidHttpStatusCode = fmt.Errorf("%d: %s", ev.Response.Status, ev.Response.StatusText)
+				}
+
 				return
 			}
 
-			logger.Debug(fmt.Sprintf("event EventResponseReceived fired for main page: %+v", ev.Response))
+			logger.Debug(fmt.Sprintf("event EventResponseReceived fired for a resource: %+v", ev.Response))
 
-			if slices.Contains(failOnHttpStatusCodes, ev.Response.Status) {
-				invalidHttpStatusCodeMu.Lock()
-				defer invalidHttpStatusCodeMu.Unlock()
+			if slices.Contains(options.failOnResourceOnHttpStatusCode, ev.Response.Status) {
+				options.invalidResourceHttpStatusCodeMu.Lock()
+				defer options.invalidResourceHttpStatusCodeMu.Unlock()
 
-				*invalidHttpStatusCode = fmt.Errorf("%d: %s", ev.Response.Status, ev.Response.StatusText)
+				*options.invalidResourceHttpStatusCode = multierr.Append(
+					*options.invalidResourceHttpStatusCode,
+					fmt.Errorf("%s - %d: %s", ev.Response.URL, ev.Response.Status, http.StatusText(int(ev.Response.Status))),
+				)
 			}
 		}
 	})
 }
 
+type eventLoadingFailedOptions struct {
+	loadingFailed           *error
+	loadingFailedMu         *sync.RWMutex
+	resourceLoadingFailed   *error
+	resourceLoadingFailedMu *sync.RWMutex
+}
+
 // listenForEventLoadingFailed listens for an event indicating that the main
-// page failed to load.
+// page or one or more resources failed to load.
 // See:
 // https://github.com/gotenberg/gotenberg/issues/913.
 // https://github.com/gotenberg/gotenberg/issues/959.
-func listenForEventLoadingFailed(ctx context.Context, logger *zap.Logger, loadingFailed *error, loadingFailedMu *sync.RWMutex) {
+// https://github.com/gotenberg/gotenberg/issues/1021.
+func listenForEventLoadingFailed(ctx context.Context, logger *zap.Logger, options eventLoadingFailedOptions) {
 	chromedp.ListenTarget(ctx, func(ev interface{}) {
 		switch ev := ev.(type) {
 		case *network.EventLoadingFailed:
 			logger.Debug(fmt.Sprintf("event EventLoadingFailed fired: %+v", ev.ErrorText))
-
-			if ev.Type != network.ResourceTypeDocument {
-				logger.Debug("skip EventLoadingFailed: is not resource type Document")
-				return
-			}
-
-			// Supposition: except iframe, an event loading failed with a
-			// resource type Document is about the main page.
 
 			// We are looking for common errors.
 			// TODO: sufficient?
@@ -199,16 +234,35 @@ func listenForEventLoadingFailed(ctx context.Context, logger *zap.Logger, loadin
 				"net::ERR_ADDRESS_UNREACHABLE",
 				"net::ERR_BLOCKED_BY_CLIENT",
 				"net::ERR_BLOCKED_BY_RESPONSE",
+				"net::ERR_FILE_NOT_FOUND",
 			}
 			if !slices.Contains(errors, ev.ErrorText) {
 				logger.Debug(fmt.Sprintf("skip EventLoadingFailed: '%s' is not part of %+v", ev.ErrorText, errors))
 				return
 			}
 
-			loadingFailedMu.Lock()
-			defer loadingFailedMu.Unlock()
+			if ev.Type == network.ResourceTypeDocument {
+				// Supposition: except iframe, an event loading failed with a
+				// resource type Document is about the main page.
+				logger.Debug("event EventLoadingFailed fired for main page")
 
-			*loadingFailed = fmt.Errorf("%s", ev.ErrorText)
+				options.loadingFailedMu.Lock()
+				defer options.loadingFailedMu.Unlock()
+
+				*options.loadingFailed = fmt.Errorf("%s", ev.ErrorText)
+
+				return
+			}
+
+			logger.Debug("event EventLoadingFailed fired for a resource")
+
+			options.resourceLoadingFailedMu.Lock()
+			defer options.resourceLoadingFailedMu.Unlock()
+
+			*options.resourceLoadingFailed = multierr.Append(
+				*options.resourceLoadingFailed,
+				fmt.Errorf("resource %s: %s", ev.Type, ev.ErrorText),
+			)
 		}
 	})
 }

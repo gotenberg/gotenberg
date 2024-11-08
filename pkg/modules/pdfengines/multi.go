@@ -12,12 +12,23 @@ import (
 )
 
 type multiPdfEngines struct {
-	engines []gotenberg.PdfEngine
+	mergeEngines       []gotenberg.PdfEngine
+	convertEngines     []gotenberg.PdfEngine
+	readMedataEngines  []gotenberg.PdfEngine
+	writeMedataEngines []gotenberg.PdfEngine
 }
 
-func newMultiPdfEngines(engines ...gotenberg.PdfEngine) *multiPdfEngines {
+func newMultiPdfEngines(
+	mergeEngines,
+	convertEngines,
+	readMetadataEngines,
+	writeMedataEngines []gotenberg.PdfEngine,
+) *multiPdfEngines {
 	return &multiPdfEngines{
-		engines: engines,
+		mergeEngines:       mergeEngines,
+		convertEngines:     convertEngines,
+		readMedataEngines:  readMetadataEngines,
+		writeMedataEngines: writeMedataEngines,
 	}
 }
 
@@ -27,7 +38,7 @@ func (multi *multiPdfEngines) Merge(ctx context.Context, logger *zap.Logger, inp
 	var err error
 	errChan := make(chan error, 1)
 
-	for _, engine := range multi.engines {
+	for _, engine := range multi.mergeEngines {
 		go func(engine gotenberg.PdfEngine) {
 			errChan <- engine.Merge(ctx, logger, inputPaths, outputPath)
 		}(engine)
@@ -52,7 +63,7 @@ func (multi *multiPdfEngines) Convert(ctx context.Context, logger *zap.Logger, f
 	var err error
 	errChan := make(chan error, 1)
 
-	for _, engine := range multi.engines {
+	for _, engine := range multi.convertEngines {
 		go func(engine gotenberg.PdfEngine) {
 			errChan <- engine.Convert(ctx, logger, formats, inputPath, outputPath)
 		}(engine)
@@ -80,16 +91,16 @@ func (multi *multiPdfEngines) ReadMetadata(ctx context.Context, logger *zap.Logg
 	var err error
 	var mu sync.Mutex // to safely append errors.
 
-	resultChan := make(chan readMetadataResult, len(multi.engines))
+	resultChan := make(chan readMetadataResult, len(multi.readMedataEngines))
 
-	for _, engine := range multi.engines {
+	for _, engine := range multi.readMedataEngines {
 		go func(engine gotenberg.PdfEngine) {
 			metadata, err := engine.ReadMetadata(ctx, logger, inputPath)
 			resultChan <- readMetadataResult{metadata: metadata, err: err}
 		}(engine)
 	}
 
-	for range multi.engines {
+	for range multi.readMedataEngines {
 		select {
 		case result := <-resultChan:
 			if result.err != nil {
@@ -111,7 +122,7 @@ func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *zap.Log
 	var err error
 	errChan := make(chan error, 1)
 
-	for _, engine := range multi.engines {
+	for _, engine := range multi.writeMedataEngines {
 		go func(engine gotenberg.PdfEngine) {
 			errChan <- engine.WriteMetadata(ctx, logger, metadata, inputPath)
 		}(engine)
