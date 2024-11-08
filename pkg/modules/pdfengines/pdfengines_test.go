@@ -2,6 +2,7 @@ package pdfengines
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -22,10 +23,13 @@ func TestPdfEngines_Descriptor(t *testing.T) {
 
 func TestPdfEngines_Provision(t *testing.T) {
 	for _, tc := range []struct {
-		scenario           string
-		ctx                *gotenberg.Context
-		expectedPdfEngines []string
-		expectError        bool
+		scenario                        string
+		ctx                             *gotenberg.Context
+		expectedMergePdfEngines         []string
+		expectedConvertPdfEngines       []string
+		expectedReadMetadataPdfEngines  []string
+		expectedWriteMetadataPdfEngines []string
+		expectError                     bool
 	}{
 		{
 			scenario: "no selection from user",
@@ -61,8 +65,11 @@ func TestPdfEngines_Provision(t *testing.T) {
 					},
 				)
 			}(),
-			expectedPdfEngines: []string{"bar"},
-			expectError:        false,
+			expectedMergePdfEngines:         []string{"qpdf", "pdfcpu", "pdftk"},
+			expectedConvertPdfEngines:       []string{"libreoffice-pdfengine"},
+			expectedReadMetadataPdfEngines:  []string{"exiftool"},
+			expectedWriteMetadataPdfEngines: []string{"exiftool"},
+			expectError:                     false,
 		},
 		{
 			scenario: "selection from user",
@@ -100,7 +107,7 @@ func TestPdfEngines_Provision(t *testing.T) {
 				}
 
 				fs := new(PdfEngines).Descriptor().FlagSet
-				err := fs.Parse([]string{"--pdfengines-engines=b", "--pdfengines-engines=a"})
+				err := fs.Parse([]string{"--pdfengines-merge-engines=b", "--pdfengines-convert-engines=b", "--pdfengines-read-metadata-engines=a", "--pdfengines-write-metadata-engines=a"})
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
@@ -116,8 +123,12 @@ func TestPdfEngines_Provision(t *testing.T) {
 					},
 				)
 			}(),
-			expectedPdfEngines: []string{"b", "a"},
-			expectError:        false,
+
+			expectedMergePdfEngines:         []string{"b"},
+			expectedConvertPdfEngines:       []string{"b"},
+			expectedReadMetadataPdfEngines:  []string{"a"},
+			expectedWriteMetadataPdfEngines: []string{"a"},
+			expectError:                     false,
 		},
 		{
 			scenario: "no valid PDF engine",
@@ -167,13 +178,43 @@ func TestPdfEngines_Provision(t *testing.T) {
 				t.Fatal("expected error but got none")
 			}
 
-			if len(tc.expectedPdfEngines) != len(mod.names) {
-				t.Fatalf("expected %d names but got %d", len(tc.expectedPdfEngines), len(mod.names))
+			if len(tc.expectedMergePdfEngines) != len(mod.mergeNames) {
+				t.Fatalf("expected %d merge names but got %d", len(tc.expectedMergePdfEngines), len(mod.mergeNames))
 			}
 
-			for index, name := range mod.names {
-				if name != tc.expectedPdfEngines[index] {
-					t.Fatalf("expected scenario at index %d to be %s, but got: %s", index, name, tc.expectedPdfEngines[index])
+			if len(tc.expectedConvertPdfEngines) != len(mod.convertNames) {
+				t.Fatalf("expected %d convert names but got %d", len(tc.expectedConvertPdfEngines), len(mod.convertNames))
+			}
+
+			if len(tc.expectedReadMetadataPdfEngines) != len(mod.readMetadataNames) {
+				t.Fatalf("expected %d read metadata names but got %d", len(tc.expectedReadMetadataPdfEngines), len(mod.readMetadataNames))
+			}
+
+			if len(tc.expectedWriteMetadataPdfEngines) != len(mod.writeMedataNames) {
+				t.Fatalf("expected %d write metadata names but got %d", len(tc.expectedWriteMetadataPdfEngines), len(mod.writeMedataNames))
+			}
+
+			for index, name := range mod.mergeNames {
+				if name != tc.expectedMergePdfEngines[index] {
+					t.Fatalf("expected merge name at index %d to be %s, but got: %s", index, name, tc.expectedMergePdfEngines[index])
+				}
+			}
+
+			for index, name := range mod.convertNames {
+				if name != tc.expectedConvertPdfEngines[index] {
+					t.Fatalf("expected convert name at index %d to be %s, but got: %s", index, name, tc.expectedConvertPdfEngines[index])
+				}
+			}
+
+			for index, name := range mod.readMetadataNames {
+				if name != tc.expectedReadMetadataPdfEngines[index] {
+					t.Fatalf("expected read metadata name at index %d to be %s, but got: %s", index, name, tc.expectedReadMetadataPdfEngines[index])
+				}
+			}
+
+			for index, name := range mod.writeMedataNames {
+				if name != tc.expectedWriteMetadataPdfEngines[index] {
+					t.Fatalf("expected write metadat name at index %d to be %s, but got: %s", index, name, tc.expectedWriteMetadataPdfEngines[index])
 				}
 			}
 		})
@@ -239,8 +280,11 @@ func TestPdfEngines_Validate(t *testing.T) {
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			mod := PdfEngines{
-				names:   tc.names,
-				engines: tc.engines,
+				mergeNames:        tc.names,
+				convertNames:      tc.names,
+				readMetadataNames: tc.names,
+				writeMedataNames:  tc.names,
+				engines:           tc.engines,
 			}
 
 			err := mod.Validate()
@@ -258,22 +302,36 @@ func TestPdfEngines_Validate(t *testing.T) {
 
 func TestPdfEngines_SystemMessages(t *testing.T) {
 	mod := new(PdfEngines)
-	mod.names = []string{"foo", "bar"}
+	mod.mergeNames = []string{"foo", "bar"}
+	mod.convertNames = []string{"foo", "bar"}
+	mod.readMetadataNames = []string{"foo", "bar"}
+	mod.writeMedataNames = []string{"foo", "bar"}
 
 	messages := mod.SystemMessages()
-	if len(messages) != 1 {
+	if len(messages) != 4 {
 		t.Errorf("expected one and only one message, but got %d", len(messages))
 	}
 
-	expect := strings.Join(mod.names[:], " ")
-	if messages[0] != expect {
-		t.Errorf("expected message '%s', but got '%s'", expect, messages[0])
+	expect := []string{
+		fmt.Sprintf("merge engines - %s", strings.Join(mod.mergeNames[:], " ")),
+		fmt.Sprintf("convert engines - %s", strings.Join(mod.convertNames[:], " ")),
+		fmt.Sprintf("read metadata engines - %s", strings.Join(mod.readMetadataNames[:], " ")),
+		fmt.Sprintf("write medata engines - %s", strings.Join(mod.writeMedataNames[:], " ")),
+	}
+
+	for i, message := range messages {
+		if message != expect[i] {
+			t.Errorf("expected message at index %d to be %s, but got %s", i, message, expect[i])
+		}
 	}
 }
 
 func TestPdfEngines_PdfEngine(t *testing.T) {
 	mod := PdfEngines{
-		names: []string{"foo", "bar"},
+		mergeNames:        []string{"foo", "bar"},
+		convertNames:      []string{"foo", "bar"},
+		readMetadataNames: []string{"foo", "bar"},
+		writeMedataNames:  []string{"foo", "bar"},
 		engines: func() []gotenberg.PdfEngine {
 			engine1 := &struct {
 				gotenberg.ModuleMock

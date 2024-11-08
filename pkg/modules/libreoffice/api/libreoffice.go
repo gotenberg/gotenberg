@@ -266,6 +266,10 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 		args = append(args, "-vvv")
 	}
 
+	if options.Password != "" {
+		args = append(args, "--password", options.Password)
+	}
+
 	if options.Landscape {
 		args = append(args, "--printer", "PaperOrientation=landscape")
 	}
@@ -343,16 +347,22 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 	}
 
 	// LibreOffice's errors are not explicit.
-	// That's why we have to make an educated guess according to the exit code
-	// and given inputs.
-	if exitCode == 5 && options.PageRanges != "" {
-		return ErrMalformedPageRanges
-	}
+	// For instance, an exit code 5 may be explained by a malformed page
+	// ranges, but also by a not required password.
 
 	// We may want to retry in case of a core dumped event.
 	// See https://github.com/gotenberg/gotenberg/issues/639.
 	if strings.Contains(err.Error(), "core dumped") {
 		return ErrCoreDumped
+	}
+
+	if exitCode == 5 {
+		// Potentially malformed page ranges or password not required.
+		return ErrUnoException
+	}
+	if exitCode == 6 {
+		// Password potentially required or invalid.
+		return ErrRuntimeException
 	}
 
 	// Possible errors:

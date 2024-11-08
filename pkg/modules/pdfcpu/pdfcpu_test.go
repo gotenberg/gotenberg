@@ -33,14 +33,59 @@ func TestPdfCpu_Provision(t *testing.T) {
 	}
 }
 
+func TestPdfCpu_Validate(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		binPath     string
+		expectError bool
+	}{
+		{
+			scenario:    "empty bin path",
+			binPath:     "",
+			expectError: true,
+		},
+		{
+			scenario:    "bin path does not exist",
+			binPath:     "/foo",
+			expectError: true,
+		},
+		{
+			scenario:    "validate success",
+			binPath:     os.Getenv("PDFTK_BIN_PATH"),
+			expectError: false,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			engine := new(PdfCpu)
+			engine.binPath = tc.binPath
+			err := engine.Validate()
+
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
+		})
+	}
+}
+
 func TestPdfCpu_Merge(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string
+		ctx         context.Context
 		inputPaths  []string
 		expectError bool
 	}{
 		{
+			scenario:    "invalid context",
+			ctx:         nil,
+			expectError: true,
+		},
+		{
 			scenario: "invalid input path",
+			ctx:      context.TODO(),
 			inputPaths: []string{
 				"foo",
 			},
@@ -48,6 +93,7 @@ func TestPdfCpu_Merge(t *testing.T) {
 		},
 		{
 			scenario: "single file success",
+			ctx:      context.TODO(),
 			inputPaths: []string{
 				"/tests/test/testdata/pdfengines/sample1.pdf",
 			},
@@ -55,10 +101,12 @@ func TestPdfCpu_Merge(t *testing.T) {
 		},
 		{
 			scenario: "many files success",
+			ctx:      context.TODO(),
 			inputPaths: []string{
 				"/tests/test/testdata/pdfengines/sample1.pdf",
 				"/tests/test/testdata/pdfengines/sample2.pdf",
 			},
+			expectError: false,
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
@@ -81,7 +129,7 @@ func TestPdfCpu_Merge(t *testing.T) {
 				}
 			}()
 
-			err = engine.Merge(nil, nil, tc.inputPaths, outputDir+"/foo.pdf")
+			err = engine.Merge(tc.ctx, zap.NewNop(), tc.inputPaths, outputDir+"/foo.pdf")
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)

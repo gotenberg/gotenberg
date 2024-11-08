@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dlclark/regexp2"
 	"github.com/labstack/echo/v4"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
@@ -28,17 +29,19 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 	defaultOptions := DefaultOptions()
 
 	var (
-		skipNetworkIdleEvent    bool
-		failOnHttpStatusCodes   []int64
-		failOnConsoleExceptions bool
-		waitDelay               time.Duration
-		waitWindowStatus        string
-		waitForExpression       string
-		cookies                 []Cookie
-		userAgent               string
-		extraHttpHeaders        map[string]string
-		emulatedMediaType       string
-		omitBackground          bool
+		skipNetworkIdleEvent          bool
+		failOnHttpStatusCodes         []int64
+		failOnResourceHttpStatusCodes []int64
+		failOnResourceLoadingFailed   bool
+		failOnConsoleExceptions       bool
+		waitDelay                     time.Duration
+		waitWindowStatus              string
+		waitForExpression             string
+		cookies                       []Cookie
+		userAgent                     string
+		extraHttpHeaders              []ExtraHttpHeader
+		emulatedMediaType             string
+		omitBackground                bool
 	)
 
 	form := ctx.FormData().
@@ -56,6 +59,20 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 
 			return nil
 		}).
+		Custom("failOnResourceHttpStatusCodes", func(value string) error {
+			if value == "" {
+				failOnResourceHttpStatusCodes = defaultOptions.FailOnResourceHttpStatusCodes
+				return nil
+			}
+
+			err := json.Unmarshal([]byte(value), &failOnResourceHttpStatusCodes)
+			if err != nil {
+				return fmt.Errorf("unmarshal failOnResourceHttpStatusCodes: %w", err)
+			}
+
+			return nil
+		}).
+		Bool("failOnResourceLoadingFailed", &failOnResourceLoadingFailed, defaultOptions.FailOnResourceLoadingFailed).
 		Bool("failOnConsoleExceptions", &failOnConsoleExceptions, defaultOptions.FailOnConsoleExceptions).
 		Duration("waitDelay", &waitDelay, defaultOptions.WaitDelay).
 		String("waitWindowStatus", &waitWindowStatus, defaultOptions.WaitWindowStatus).
@@ -86,12 +103,59 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 				return nil
 			}
 
-			err := json.Unmarshal([]byte(value), &extraHttpHeaders)
+			var headers map[string]string
+			err := json.Unmarshal([]byte(value), &headers)
 			if err != nil {
 				return fmt.Errorf("unmarshal extraHttpHeaders: %w", err)
 			}
 
-			return nil
+			for k, v := range headers {
+				var scope string
+				var valueTokens []string
+				var invalidScopeToken bool
+
+				tokens := strings.Split(v, ";")
+				for _, token := range tokens {
+					if strings.HasPrefix(strings.ToLower(strings.TrimSpace(token)), "scope") {
+						tokenNoSpaces := strings.Join(strings.Fields(token), "")
+						parts := strings.SplitN(tokenNoSpaces, "=", 2)
+
+						if len(parts) == 2 && strings.ToLower(parts[0]) == "scope" && parts[1] != "" {
+							scope = parts[1]
+						} else {
+							err = multierr.Append(err, fmt.Errorf("invalid scope '%s' for header '%s'", scope, k))
+							invalidScopeToken = true
+							break
+						}
+					} else {
+						if token != "" {
+							valueTokens = append(valueTokens, token)
+						}
+					}
+				}
+
+				if invalidScopeToken {
+					continue
+				}
+
+				var scopeRegexp *regexp2.Regexp
+				if len(scope) > 0 {
+					p, errCompile := regexp2.Compile(scope, 0)
+					if errCompile != nil {
+						err = multierr.Append(err, fmt.Errorf("invalid scope regex pattern for header '%s': %w", k, errCompile))
+						continue
+					}
+					scopeRegexp = p
+				}
+
+				extraHttpHeaders = append(extraHttpHeaders, ExtraHttpHeader{
+					Name:  k,
+					Value: strings.Join(valueTokens, "; "),
+					Scope: scopeRegexp,
+				})
+			}
+
+			return err
 		}).
 		Custom("emulatedMediaType", func(value string) error {
 			if value == "" {
@@ -110,17 +174,19 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		Bool("omitBackground", &omitBackground, defaultOptions.OmitBackground)
 
 	options := Options{
-		SkipNetworkIdleEvent:    skipNetworkIdleEvent,
-		FailOnHttpStatusCodes:   failOnHttpStatusCodes,
-		FailOnConsoleExceptions: failOnConsoleExceptions,
-		WaitDelay:               waitDelay,
-		WaitWindowStatus:        waitWindowStatus,
-		WaitForExpression:       waitForExpression,
-		Cookies:                 cookies,
-		UserAgent:               userAgent,
-		ExtraHttpHeaders:        extraHttpHeaders,
-		EmulatedMediaType:       emulatedMediaType,
-		OmitBackground:          omitBackground,
+		SkipNetworkIdleEvent:          skipNetworkIdleEvent,
+		FailOnHttpStatusCodes:         failOnHttpStatusCodes,
+		FailOnResourceHttpStatusCodes: failOnResourceHttpStatusCodes,
+		FailOnResourceLoadingFailed:   failOnResourceLoadingFailed,
+		FailOnConsoleExceptions:       failOnConsoleExceptions,
+		WaitDelay:                     waitDelay,
+		WaitWindowStatus:              waitWindowStatus,
+		WaitForExpression:             waitForExpression,
+		Cookies:                       cookies,
+		UserAgent:                     userAgent,
+		ExtraHttpHeaders:              extraHttpHeaders,
+		EmulatedMediaType:             emulatedMediaType,
+		OmitBackground:                omitBackground,
 	}
 
 	return form, options
@@ -721,22 +787,42 @@ func handleChromiumError(err error, options Options) error {
 		)
 	}
 
+	if errors.Is(err, ErrInvalidResourceHttpStatusCode) {
+		return api.WrapError(
+			err,
+			api.NewSentinelHttpError(
+				http.StatusConflict,
+				fmt.Sprintf("Invalid HTTP status code from resources:\n%s", strings.ReplaceAll(err.Error(), fmt.Sprintf(": %s", ErrInvalidResourceHttpStatusCode.Error()), "")),
+			),
+		)
+	}
+
 	if errors.Is(err, ErrConsoleExceptions) {
 		return api.WrapError(
 			err,
 			api.NewSentinelHttpError(
 				http.StatusConflict,
-				fmt.Sprintf("Chromium console exceptions:\n %s", strings.ReplaceAll(err.Error(), ErrConsoleExceptions.Error(), "")),
+				fmt.Sprintf("Chromium console exceptions:\n%s", strings.ReplaceAll(err.Error(), ErrConsoleExceptions.Error(), "")),
 			),
 		)
 	}
 
-	if errors.Is(err, ErrConnectionRefused) {
+	if errors.Is(err, ErrLoadingFailed) {
 		return api.WrapError(
 			err,
 			api.NewSentinelHttpError(
 				http.StatusBadRequest,
-				"Chromium returned net::ERR_CONNECTION_REFUSED",
+				fmt.Sprintf("Chromium returned %v", err),
+			),
+		)
+	}
+
+	if errors.Is(err, ErrResourceLoadingFailed) {
+		return api.WrapError(
+			err,
+			api.NewSentinelHttpError(
+				http.StatusConflict,
+				fmt.Sprintf("Chromium failed to load resources: %v", strings.ReplaceAll(err.Error(), fmt.Sprintf(": %s", ErrResourceLoadingFailed.Error()), "")),
 			),
 		)
 	}

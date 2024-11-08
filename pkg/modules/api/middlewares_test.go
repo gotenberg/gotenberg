@@ -458,10 +458,11 @@ func TestContextMiddleware(t *testing.T) {
 
 		c := srv.NewContext(tc.request, recorder)
 		c.Set("logger", zap.NewNop())
+		c.Set("traceHeader", "Gotenberg-Trace")
 		c.Set("trace", "foo")
 		c.Set("startTime", time.Now())
 
-		err := contextMiddleware(gotenberg.NewFileSystem(), time.Duration(10)*time.Second)(tc.next)(c)
+		err := contextMiddleware(gotenberg.NewFileSystem(), time.Duration(10)*time.Second, 0, downloadFromConfig{})(tc.next)(c)
 
 		if tc.expectErr && err == nil {
 			t.Errorf("test %d: expected error but got: %v", i, err)

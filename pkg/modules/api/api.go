@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/alexliesenfeld/health"
+	"github.com/dlclark/regexp2"
 	"github.com/labstack/echo/v4"
 	flag "github.com/spf13/pflag"
 	"go.uber.org/multierr"
@@ -28,14 +30,17 @@ func init() {
 // middlewares or health checks.
 type Api struct {
 	port                      int
+	bindIp                    string
 	tlsCertFile               string
 	tlsKeyFile                string
 	startTimeout              time.Duration
+	bodyLimit                 int64
 	timeout                   time.Duration
 	rootPath                  string
 	traceHeader               string
 	basicAuthUsername         string
 	basicAuthPassword         string
+	downloadFromCfg           downloadFromConfig
 	disableHealthCheckLogging bool
 
 	routes              []Route
@@ -45,6 +50,13 @@ type Api struct {
 	fs                  *gotenberg.FileSystem
 	logger              *zap.Logger
 	srv                 *echo.Echo
+}
+
+type downloadFromConfig struct {
+	allowList *regexp2.Regexp
+	denyList  *regexp2.Regexp
+	maxRetry  int
+	disable   bool
 }
 
 // Router is a module interface which adds routes to the [Api].
@@ -161,13 +173,19 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs := flag.NewFlagSet("api", flag.ExitOnError)
 			fs.Int("api-port", 3000, "Set the port on which the API should listen")
 			fs.String("api-port-from-env", "", "Set the environment variable with the port on which the API should listen - override the default port")
+			fs.String("api-bind-ip", "", "Set the IP address the API should bind to for incoming connections")
 			fs.String("api-tls-cert-file", "", "Path to the TLS/SSL certificate file - for HTTPS support")
 			fs.String("api-tls-key-file", "", "Path to the TLS/SSL key file - for HTTPS support")
 			fs.Duration("api-start-timeout", time.Duration(30)*time.Second, "Set the time limit for the API to start")
 			fs.Duration("api-timeout", time.Duration(30)*time.Second, "Set the time limit for requests")
+			fs.String("api-body-limit", "", "Set the body limit for multipart/form-data requests - it accepts values like 5MB, 1GB, etc")
 			fs.String("api-root-path", "/", "Set the root path of the API - for service discovery via URL paths")
 			fs.String("api-trace-header", "Gotenberg-Trace", "Set the header name to use for identifying requests")
 			fs.Bool("api-enable-basic-auth", false, "Enable basic authentication - will look for the GOTENBERG_API_BASIC_AUTH_USERNAME and GOTENBERG_API_BASIC_AUTH_PASSWORD environment variables")
+			fs.String("api-download-from-allow-list", "", "Set the allowed URLs for the download from feature using a regular expression")
+			fs.String("api-download-from-deny-list", "", "Set the denied URLs for the download from feature using a regular expression")
+			fs.Int("api-download-from-max-retry", 4, "Set the maximum number of retries for the download from feature")
+			fs.Bool("api-disable-download-from", false, "Disable the download from feature")
 			fs.Bool("api-disable-health-check-logging", false, "Disable health check logging")
 			return fs
 		}(),
@@ -179,12 +197,20 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 func (a *Api) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	a.port = flags.MustInt("api-port")
+	a.bindIp = flags.MustString("api-bind-ip")
 	a.tlsCertFile = flags.MustString("api-tls-cert-file")
 	a.tlsKeyFile = flags.MustString("api-tls-key-file")
 	a.startTimeout = flags.MustDuration("api-start-timeout")
 	a.timeout = flags.MustDuration("api-timeout")
+	a.bodyLimit = flags.MustHumanReadableBytes("api-body-limit")
 	a.rootPath = flags.MustString("api-root-path")
 	a.traceHeader = flags.MustString("api-trace-header")
+	a.downloadFromCfg = downloadFromConfig{
+		allowList: flags.MustRegexp("api-download-from-allow-list"),
+		denyList:  flags.MustRegexp("api-download-from-deny-list"),
+		maxRetry:  flags.MustInt("api-download-from-max-retry"),
+		disable:   flags.MustBool("api-disable-download-from"),
+	}
 	a.disableHealthCheckLogging = flags.MustBool("api-disable-health-check-logging")
 
 	// Port from env?
@@ -305,6 +331,10 @@ func (a *Api) Validate() error {
 		err = multierr.Append(err,
 			errors.New("port must be more than 1 and less than 65535"),
 		)
+	}
+
+	if a.bindIp != "" && net.ParseIP(a.bindIp) == nil {
+		err = multierr.Append(err, errors.New("IP must be a valid IP address"))
 	}
 
 	if (a.tlsCertFile != "" && a.tlsKeyFile == "") || (a.tlsCertFile == "" && a.tlsKeyFile != "") {
@@ -436,7 +466,7 @@ func (a *Api) Start() error {
 		}
 
 		if route.IsMultipart {
-			middlewares = append(middlewares, contextMiddleware(a.fs, a.timeout))
+			middlewares = append(middlewares, contextMiddleware(a.fs, a.timeout, a.bodyLimit, a.downloadFromCfg))
 
 			for _, externalMultipartMiddleware := range externalMultipartMiddlewares {
 				middlewares = append(middlewares, externalMultipartMiddleware.Handler)
@@ -453,13 +483,22 @@ func (a *Api) Start() error {
 		)
 	}
 
-	// Let's not forget the health check route...
+	// Let's not forget the health check routes...
+	checks := append(a.healthChecks, health.WithTimeout(a.timeout))
+	checker := health.NewChecker(checks...)
+	healthCheckHandler := health.NewHandler(checker)
+
 	a.srv.GET(
 		fmt.Sprintf("%s%s", a.rootPath, "health"),
 		func() echo.HandlerFunc {
-			checks := append(a.healthChecks, health.WithTimeout(a.timeout))
-			checker := health.NewChecker(checks...)
-			return echo.WrapHandler(health.NewHandler(checker))
+			return echo.WrapHandler(healthCheckHandler)
+		}(),
+		hardTimeoutMiddleware(hardTimeout),
+	)
+	a.srv.HEAD(
+		fmt.Sprintf("%s%s", a.rootPath, "health"),
+		func() echo.HandlerFunc {
+			return echo.WrapHandler(healthCheckHandler)
 		}(),
 		hardTimeoutMiddleware(hardTimeout),
 	)
@@ -491,11 +530,11 @@ func (a *Api) Start() error {
 		var err error
 		if a.tlsCertFile != "" && a.tlsKeyFile != "" {
 			// Start an HTTPS server (supports HTTP/2).
-			err = a.srv.StartTLS(fmt.Sprintf(":%d", a.port), a.tlsCertFile, a.tlsKeyFile)
+			err = a.srv.StartTLS(fmt.Sprintf("%s:%d", a.bindIp, a.port), a.tlsCertFile, a.tlsKeyFile)
 		} else {
 			// Start an HTTP/2 Cleartext (non-HTTPS) server.
 			server := &http2.Server{}
-			err = a.srv.StartH2CServer(fmt.Sprintf(":%d", a.port), server)
+			err = a.srv.StartH2CServer(fmt.Sprintf("%s:%d", a.bindIp, a.port), server)
 		}
 		if !errors.Is(err, http.ErrServerClosed) {
 			a.logger.Fatal(err.Error())
@@ -507,7 +546,11 @@ func (a *Api) Start() error {
 
 // StartupMessage returns a custom startup message.
 func (a *Api) StartupMessage() string {
-	return fmt.Sprintf("server listening on port %d", a.port)
+	ip := a.bindIp
+	if a.bindIp == "" {
+		ip = "[::]"
+	}
+	return fmt.Sprintf("server started on %s:%d", ip, a.port)
 }
 
 // Stop stops the HTTP server.

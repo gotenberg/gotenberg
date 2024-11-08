@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"testing"
 	"time"
@@ -250,7 +251,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 			expectedError: ErrInvalidPdfFormats,
 		},
 		{
-			scenario: "ErrMalformedPageRanges",
+			scenario: "ErrUnoException",
 			libreOffice: newLibreOfficeProcess(
 				libreOfficeArguments{
 					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
@@ -267,7 +268,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
 				}
 
-				err = os.WriteFile(fmt.Sprintf("%s/document.txt", fs.WorkingDirPath()), []byte("ErrMalformedPageRanges"), 0o755)
+				err = os.WriteFile(fmt.Sprintf("%s/document.txt", fs.WorkingDirPath()), []byte("Context done"), 0o755)
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
@@ -277,7 +278,61 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 			cancelledCtx:  false,
 			start:         true,
 			expectError:   true,
-			expectedError: ErrMalformedPageRanges,
+			expectedError: ErrUnoException,
+		},
+		{
+			scenario: "ErrRuntimeException",
+			libreOffice: newLibreOfficeProcess(
+				libreOfficeArguments{
+					binPath:      os.Getenv("LIBREOFFICE_BIN_PATH"),
+					unoBinPath:   os.Getenv("UNOCONVERTER_BIN_PATH"),
+					startTimeout: 5 * time.Second,
+				},
+			),
+			options: Options{Password: "foo"},
+			fs: func() *gotenberg.FileSystem {
+				fs := gotenberg.NewFileSystem()
+
+				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				in, err := os.Open("/tests/test/testdata/libreoffice/protected.docx")
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				defer func() {
+					err := in.Close()
+					if err != nil {
+						t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					}
+				}()
+
+				out, err := os.Create(fmt.Sprintf("%s/protected.docx", fs.WorkingDirPath()))
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				defer func() {
+					err := out.Close()
+					if err != nil {
+						t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					}
+				}()
+
+				_, err = io.Copy(out, in)
+				if err != nil {
+					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+				}
+
+				return fs
+			}(),
+			cancelledCtx:  false,
+			start:         true,
+			expectError:   true,
+			expectedError: ErrRuntimeException,
 		},
 		{
 			scenario: "context done",
@@ -360,6 +415,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 				return fs
 			}(),
 			options: Options{
+				Password:                        "", // Ok, the only exception in this list.
 				Landscape:                       true,
 				PageRanges:                      "1",
 				ExportFormFields:                false,

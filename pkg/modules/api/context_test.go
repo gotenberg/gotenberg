@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -15,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dlclark/regexp2"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
@@ -75,9 +77,28 @@ func TestOsPathRename_Rename(t *testing.T) {
 }
 
 func TestNewContext(t *testing.T) {
+	defaultAllowList, err := regexp2.Compile("", 0)
+	if err != nil {
+		t.Fatalf("expected no error but got: %v", err)
+	}
+	defaultDenyList, err := regexp2.Compile("", 0)
+	if err != nil {
+		t.Fatalf("expected no error but got: %v", err)
+	}
+	defaultDownloadFromCfg := downloadFromConfig{
+		allowList: defaultAllowList,
+		denyList:  defaultDenyList,
+		maxRetry:  1,
+		disable:   false,
+	}
+
 	for _, tc := range []struct {
 		scenario         string
 		request          *http.Request
+		bodyLimit        int64
+		downloadFromCfg  downloadFromConfig
+		downloadFromSrv  *echo.Echo
+		expectContext    *Context
 		expectError      bool
 		expectHttpError  bool
 		expectHttpStatus int
@@ -124,6 +145,325 @@ func TestNewContext(t *testing.T) {
 			expectHttpStatus: http.StatusBadRequest,
 		},
 		{
+			scenario: "request entity too large: form values",
+			request: func() *http.Request {
+				body := &bytes.Buffer{}
+				writer := multipart.NewWriter(body)
+				defer func() {
+					err := writer.Close()
+					if err != nil {
+						t.Fatalf("expected no error but got: %v", err)
+					}
+				}()
+				err := writer.WriteField("key", "value")
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+				req := httptest.NewRequest(http.MethodPost, "/", body)
+				req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
+				return req
+			}(),
+			bodyLimit:        1,
+			downloadFromCfg:  defaultDownloadFromCfg,
+			expectError:      true,
+			expectHttpError:  true,
+			expectHttpStatus: http.StatusRequestEntityTooLarge,
+		},
+		{
+			scenario: "request entity too large: downloadFrom",
+			request: func() *http.Request {
+				body := &bytes.Buffer{}
+				writer := multipart.NewWriter(body)
+				defer func() {
+					err := writer.Close()
+					if err != nil {
+						t.Fatalf("expected no error but got: %v", err)
+					}
+				}()
+				err := writer.WriteField("downloadFrom", `[{"url":"http://localhost:80/"}]`)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+				req := httptest.NewRequest(http.MethodPost, "/", body)
+				req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
+				return req
+			}(),
+			bodyLimit: 45, // form values = 44 bytes.
+			downloadFromSrv: func() *echo.Echo {
+				srv := echo.New()
+				srv.HideBanner = true
+				srv.GET("/", func(c echo.Context) error {
+					c.Response().Header().Set(echo.HeaderContentDisposition, `attachment; filename="bar.txt"`)
+					c.Response().Header().Set(echo.HeaderContentType, "text/plain")
+					return c.String(http.StatusOK, http.StatusText(http.StatusOK))
+				})
+				return srv
+			}(),
+			downloadFromCfg:  defaultDownloadFromCfg,
+			expectError:      true,
+			expectHttpError:  true,
+			expectHttpStatus: http.StatusRequestEntityTooLarge,
+		},
+		{
+			scenario: "request entity too large: form files",
+			request: func() *http.Request {
+				body := &bytes.Buffer{}
+				writer := multipart.NewWriter(body)
+				defer func() {
+					err := writer.Close()
+					if err != nil {
+						t.Fatalf("expected no error but got: %v", err)
+					}
+				}()
+				part, err := writer.CreateFormFile("foo.txt", "foo.txt")
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+				_, err = part.Write([]byte("foo"))
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+				req := httptest.NewRequest(http.MethodPost, "/", body)
+				req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
+				return req
+			}(),
+			bodyLimit:        1,
+			downloadFromCfg:  defaultDownloadFromCfg,
+			expectError:      true,
+			expectHttpError:  true,
+			expectHttpStatus: http.StatusRequestEntityTooLarge,
+		},
+		{
+			scenario: "invalid downloadFrom form field: cannot unmarshal",
+			request: func() *http.Request {
+				body := &bytes.Buffer{}
+				writer := multipart.NewWriter(body)
+				defer func() {
+					err := writer.Close()
+					if err != nil {
+						t.Fatalf("expected no error but got: %v", err)
+					}
+				}()
+				err := writer.WriteField("downloadFrom", "foo")
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+				req := httptest.NewRequest(http.MethodPost, "/", body)
+				req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
+				return req
+			}(),
+			downloadFromCfg:  defaultDownloadFromCfg,
+			expectError:      true,
+			expectHttpError:  true,
+			expectHttpStatus: http.StatusBadRequest,
+		},
+		{
+			scenario: "invalid downloadFrom form field: no URL",
+			request: func() *http.Request {
+				body := &bytes.Buffer{}
+				writer := multipart.NewWriter(body)
+				defer func() {
+					err := writer.Close()
+					if err != nil {
+						t.Fatalf("expected no error but got: %v", err)
+					}
+				}()
+				err := writer.WriteField("downloadFrom", `[{}]`)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+				req := httptest.NewRequest(http.MethodPost, "/", body)
+				req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
+				return req
+			}(),
+			downloadFromCfg:  defaultDownloadFromCfg,
+			expectError:      true,
+			expectHttpError:  true,
+			expectHttpStatus: http.StatusBadRequest,
+		},
+		{
+			scenario: "invalid downloadFrom form field: filtered URL",
+			request: func() *http.Request {
+				body := &bytes.Buffer{}
+				writer := multipart.NewWriter(body)
+				defer func() {
+					err := writer.Close()
+					if err != nil {
+						t.Fatalf("expected no error but got: %v", err)
+					}
+				}()
+				err := writer.WriteField("downloadFrom", `[{"url":"https://foo.bar"}]`)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+				req := httptest.NewRequest(http.MethodPost, "/", body)
+				req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
+				return req
+			}(),
+			downloadFromCfg: func() downloadFromConfig {
+				denyList, err := regexp2.Compile("https://foo.bar", 0)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+				return downloadFromConfig{allowList: defaultAllowList, denyList: denyList, maxRetry: 1, disable: false}
+			}(),
+			expectError: true,
+		},
+		{
+			scenario: "invalid downloadFrom form field: unreachable URL",
+			request: func() *http.Request {
+				body := &bytes.Buffer{}
+				writer := multipart.NewWriter(body)
+				defer func() {
+					err := writer.Close()
+					if err != nil {
+						t.Fatalf("expected no error but got: %v", err)
+					}
+				}()
+				err := writer.WriteField("downloadFrom", `[{"url":"http://localhost:80/"}]`)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+				req := httptest.NewRequest(http.MethodPost, "/", body)
+				req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
+				return req
+			}(),
+			downloadFromCfg:  defaultDownloadFromCfg,
+			expectError:      true,
+			expectHttpError:  true,
+			expectHttpStatus: http.StatusBadRequest,
+		},
+		{
+			scenario: "invalid downloadFrom form field: invalid status code",
+			request: func() *http.Request {
+				body := &bytes.Buffer{}
+				writer := multipart.NewWriter(body)
+				defer func() {
+					err := writer.Close()
+					if err != nil {
+						t.Fatalf("expected no error but got: %v", err)
+					}
+				}()
+				err := writer.WriteField("downloadFrom", `[{"url":"http://localhost:80/"}]`)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+				req := httptest.NewRequest(http.MethodPost, "/", body)
+				req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
+				return req
+			}(),
+			downloadFromSrv: func() *echo.Echo {
+				srv := echo.New()
+				srv.HideBanner = true
+				srv.GET("/", func(c echo.Context) error {
+					return c.String(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+				})
+				return srv
+			}(),
+			downloadFromCfg:  defaultDownloadFromCfg,
+			expectError:      true,
+			expectHttpError:  true,
+			expectHttpStatus: http.StatusBadRequest,
+		},
+		{
+			scenario: "invalid downloadFrom form field: no 'Content-Disposition' header",
+			request: func() *http.Request {
+				body := &bytes.Buffer{}
+				writer := multipart.NewWriter(body)
+				defer func() {
+					err := writer.Close()
+					if err != nil {
+						t.Fatalf("expected no error but got: %v", err)
+					}
+				}()
+				err := writer.WriteField("downloadFrom", `[{"url":"http://localhost:80/"}]`)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+				req := httptest.NewRequest(http.MethodPost, "/", body)
+				req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
+				return req
+			}(),
+			downloadFromSrv: func() *echo.Echo {
+				srv := echo.New()
+				srv.HideBanner = true
+				srv.GET("/", func(c echo.Context) error {
+					return c.String(http.StatusOK, http.StatusText(http.StatusOK))
+				})
+				return srv
+			}(),
+			downloadFromCfg:  defaultDownloadFromCfg,
+			expectError:      true,
+			expectHttpError:  true,
+			expectHttpStatus: http.StatusBadRequest,
+		},
+		{
+			scenario: "invalid downloadFrom form field: malformed 'Content-Disposition' header",
+			request: func() *http.Request {
+				body := &bytes.Buffer{}
+				writer := multipart.NewWriter(body)
+				defer func() {
+					err := writer.Close()
+					if err != nil {
+						t.Fatalf("expected no error but got: %v", err)
+					}
+				}()
+				err := writer.WriteField("downloadFrom", `[{"url":"http://localhost:80/"}]`)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+				req := httptest.NewRequest(http.MethodPost, "/", body)
+				req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
+				return req
+			}(),
+			downloadFromSrv: func() *echo.Echo {
+				srv := echo.New()
+				srv.HideBanner = true
+				srv.GET("/", func(c echo.Context) error {
+					c.Response().Header().Set(echo.HeaderContentDisposition, ";;")
+					return c.String(http.StatusOK, http.StatusText(http.StatusOK))
+				})
+				return srv
+			}(),
+			downloadFromCfg:  defaultDownloadFromCfg,
+			expectError:      true,
+			expectHttpError:  true,
+			expectHttpStatus: http.StatusBadRequest,
+		},
+		{
+			scenario: "invalid downloadFrom form field: no filename parameter in 'Content-Disposition' header",
+			request: func() *http.Request {
+				body := &bytes.Buffer{}
+				writer := multipart.NewWriter(body)
+				defer func() {
+					err := writer.Close()
+					if err != nil {
+						t.Fatalf("expected no error but got: %v", err)
+					}
+				}()
+				err := writer.WriteField("downloadFrom", `[{"url":"http://localhost:80/"}]`)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
+				req := httptest.NewRequest(http.MethodPost, "/", body)
+				req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
+				return req
+			}(),
+			downloadFromSrv: func() *echo.Echo {
+				srv := echo.New()
+				srv.HideBanner = true
+				srv.GET("/", func(c echo.Context) error {
+					c.Response().Header().Set(echo.HeaderContentDisposition, "inline;")
+					return c.String(http.StatusOK, http.StatusText(http.StatusOK))
+				})
+				return srv
+			}(),
+			downloadFromCfg:  defaultDownloadFromCfg,
+			expectError:      true,
+			expectHttpError:  true,
+			expectHttpStatus: http.StatusBadRequest,
+		},
+		{
 			scenario: "success",
 			request: func() *http.Request {
 				body := &bytes.Buffer{}
@@ -146,23 +486,89 @@ func TestNewContext(t *testing.T) {
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
+				err = writer.WriteField("downloadFrom", `[{"url":"http://localhost:80/","extraHttpHeaders":{"X-Foo":"Bar"}}]`)
+				if err != nil {
+					t.Fatalf("expected no error but got: %v", err)
+				}
 				req := httptest.NewRequest(http.MethodPost, "/", body)
 				req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
 				return req
 			}(),
+			downloadFromSrv: func() *echo.Echo {
+				srv := echo.New()
+				srv.HideBanner = true
+				srv.GET("/", func(c echo.Context) error {
+					if c.Request().Header.Get("User-Agent") != "Gotenberg" {
+						t.Fatalf("expected 'Gotenberg' from header 'User-Agent', but got '%s'", c.Request().Header.Get("User-Agent"))
+					}
+					if c.Request().Header.Get("X-Foo") != "Bar" {
+						t.Fatalf("expected 'Bar' from header 'X-Foo', but got '%s'", c.Request().Header.Get("X-Foo"))
+					}
+					if c.Request().Header.Get("Gotenberg-Trace") != "123" {
+						t.Fatalf("expected '123' from header 'Gotenberg-Trace', but got '%s'", c.Request().Header.Get("Gotenberg-Trace"))
+					}
+					c.Response().Header().Set(echo.HeaderContentDisposition, `attachment; filename="bar.txt"`)
+					c.Response().Header().Set(echo.HeaderContentType, "text/plain")
+					return c.String(http.StatusOK, http.StatusText(http.StatusOK))
+				})
+				return srv
+			}(),
+			downloadFromCfg: defaultDownloadFromCfg,
+			expectContext: &Context{
+				values: map[string][]string{
+					"foo": {"foo"},
+					"downloadFrom": {
+						`[{"url":"http://localhost:80/","extraHttpHeaders":{"X-Foo":"Bar"}}]`,
+					},
+				},
+				files: map[string]string{
+					"foo.txt": "foo.txt",
+					"bar.txt": "bar.txt", // downloadFrom.
+				},
+			},
 			expectError:     false,
 			expectHttpError: false,
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
+			if tc.downloadFromSrv != nil {
+				go func() {
+					err := tc.downloadFromSrv.Start(":80")
+					if !errors.Is(err, http.ErrServerClosed) {
+						t.Error(err)
+						return
+					}
+				}()
+				defer func() {
+					err := tc.downloadFromSrv.Shutdown(context.TODO())
+					if err != nil {
+						t.Error(err)
+					}
+				}()
+			}
+
 			handler := func(c echo.Context) error {
-				_, cancel, err := newContext(c, zap.NewNop(), gotenberg.NewFileSystem(), time.Duration(10)*time.Second)
+				ctx, cancel, err := newContext(c, zap.NewNop(), gotenberg.NewFileSystem(), time.Duration(10)*time.Second, tc.bodyLimit, tc.downloadFromCfg, "Gotenberg-Trace", "123")
 				defer cancel()
 				// Context already cancelled.
 				defer cancel()
 
 				if err != nil {
 					return err
+				}
+
+				if tc.expectContext != nil {
+					if !reflect.DeepEqual(tc.expectContext.values, ctx.values) {
+						t.Fatalf("expected context.values to be %v but got %v", tc.expectContext.values, ctx.values)
+					}
+					if len(tc.expectContext.files) != len(ctx.files) {
+						t.Fatalf("expected context.files to contain %d items but got %d", len(tc.expectContext.files), len(ctx.files))
+					}
+					for key, value := range tc.expectContext.files {
+						if !strings.HasSuffix(ctx.files[key], value) {
+							t.Fatalf("expected context.files to contain '%s' but got '%s'", value, ctx.files[key])
+						}
+					}
 				}
 
 				return nil

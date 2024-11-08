@@ -9,6 +9,7 @@ import (
 
 	"github.com/alexliesenfeld/health"
 	"github.com/chromedp/cdproto/network"
+	"github.com/dlclark/regexp2"
 	flag "github.com/spf13/pflag"
 	"go.uber.org/zap"
 
@@ -37,13 +38,21 @@ var (
 	// matches with one of the entry in [Options.FailOnHttpStatusCodes].
 	ErrInvalidHttpStatusCode = errors.New("invalid HTTP status code")
 
+	// ErrInvalidResourceHttpStatusCode happens when the status code from one
+	// or more resources matches with one of the entry in
+	// [Options.FailOnResourceHttpStatusCodes].
+	ErrInvalidResourceHttpStatusCode = errors.New("invalid resource HTTP status code")
+
 	// ErrConsoleExceptions happens when there are exceptions in the Chromium
 	// console. It also happens only if the [Options.FailOnConsoleExceptions]
 	// is set to true.
 	ErrConsoleExceptions = errors.New("console exceptions")
 
-	// ErrConnectionRefused happens when a URL cannot be reached.
-	ErrConnectionRefused = errors.New("connection refused")
+	// ErrLoadingFailed happens when the main page failed to load.
+	ErrLoadingFailed = errors.New("loading failed")
+
+	// ErrResourceLoadingFailed happens when one or more resources failed to load.
+	ErrResourceLoadingFailed = errors.New("resource loading failed")
 
 	// PDF specific.
 
@@ -85,6 +94,14 @@ type Options struct {
 	// code from the main page matches with one of its entries.
 	FailOnHttpStatusCodes []int64
 
+	// FailOnResourceHttpStatusCodes sets if the conversion should fail if the
+	// status code from at least one resource matches with one if its entries.
+	FailOnResourceHttpStatusCodes []int64
+
+	// FailOnResourceLoadingFailed sets if the conversion should fail like the
+	// main page if Chromium fails to load at least one resource.
+	FailOnResourceLoadingFailed bool
+
 	// FailOnConsoleExceptions sets if the conversion should fail if there are
 	// exceptions in the Chromium console.
 	FailOnConsoleExceptions bool
@@ -109,7 +126,7 @@ type Options struct {
 
 	// ExtraHttpHeaders are extra HTTP headers to send by Chromium while
 	// loading he HTML document.
-	ExtraHttpHeaders map[string]string
+	ExtraHttpHeaders []ExtraHttpHeader
 
 	// EmulatedMediaType is the media type to emulate, either "screen" or
 	// "print".
@@ -123,17 +140,19 @@ type Options struct {
 // DefaultOptions returns the default values for Options.
 func DefaultOptions() Options {
 	return Options{
-		SkipNetworkIdleEvent:    false,
-		FailOnHttpStatusCodes:   []int64{499, 599},
-		FailOnConsoleExceptions: false,
-		WaitDelay:               0,
-		WaitWindowStatus:        "",
-		WaitForExpression:       "",
-		Cookies:                 nil,
-		UserAgent:               "",
-		ExtraHttpHeaders:        nil,
-		EmulatedMediaType:       "",
-		OmitBackground:          false,
+		SkipNetworkIdleEvent:          true,
+		FailOnHttpStatusCodes:         []int64{499, 599},
+		FailOnResourceHttpStatusCodes: nil,
+		FailOnResourceLoadingFailed:   false,
+		FailOnConsoleExceptions:       false,
+		WaitDelay:                     0,
+		WaitWindowStatus:              "",
+		WaitForExpression:             "",
+		Cookies:                       nil,
+		UserAgent:                     "",
+		ExtraHttpHeaders:              nil,
+		EmulatedMediaType:             "",
+		OmitBackground:                false,
 	}
 }
 
@@ -294,6 +313,22 @@ type Cookie struct {
 	// SameSite is cookie 'Same-Site' status.
 	// Optional.
 	SameSite network.CookieSameSite `json:"sameSite,omitempty"`
+}
+
+// ExtraHttpHeader are extra HTTP headers to send by Chromium.
+type ExtraHttpHeader struct {
+	// Name is the header name.
+	// Required.
+	Name string
+
+	// Value is the header value.
+	// Required.
+	Value string
+
+	// Scope is the header scope. If nil, the header will be applied to ALL
+	// requests from the page.
+	// Optional.
+	Scope *regexp2.Regexp
 }
 
 // Api helps to interact with Chromium for converting HTML documents to PDF.

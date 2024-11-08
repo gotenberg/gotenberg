@@ -97,6 +97,7 @@ func TestQPdf_Merge(t *testing.T) {
 			inputPaths: []string{
 				"/tests/test/testdata/pdfengines/sample1.pdf",
 			},
+			expectError: false,
 		},
 		{
 			scenario: "many files success",
@@ -105,6 +106,7 @@ func TestQPdf_Merge(t *testing.T) {
 				"/tests/test/testdata/pdfengines/sample1.pdf",
 				"/tests/test/testdata/pdfengines/sample2.pdf",
 			},
+			expectError: false,
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {

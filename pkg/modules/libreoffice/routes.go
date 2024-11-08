@@ -29,6 +29,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			// Let's get the data from the form and validate them.
 			var (
 				inputPaths                      []string
+				password                        string
 				landscape                       bool
 				nativePageRanges                string
 				exportFormFields                bool
@@ -59,6 +60,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 
 			err := ctx.FormData().
 				MandatoryPaths(libreOffice.Extensions(), &inputPaths).
+				String("password", &password, defaultOptions.Password).
 				Bool("landscape", &landscape, defaultOptions.Landscape).
 				String("nativePageRanges", &nativePageRanges, defaultOptions.PageRanges).
 				Bool("exportFormFields", &exportFormFields, defaultOptions.ExportFormFields).
@@ -146,6 +148,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			for i, inputPath := range inputPaths {
 				outputPaths[i] = ctx.GeneratePath(".pdf")
 				options := libreofficeapi.Options{
+					Password:                        password,
 					Landscape:                       landscape,
 					PageRanges:                      nativePageRanges,
 					ExportFormFields:                exportFormFields,
@@ -185,10 +188,17 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 						)
 					}
 
-					if errors.Is(err, libreofficeapi.ErrMalformedPageRanges) {
+					if errors.Is(err, libreofficeapi.ErrUnoException) {
 						return api.WrapError(
 							fmt.Errorf("convert to PDF: %w", err),
-							api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Malformed page ranges '%s' (nativePageRanges)", options.PageRanges)),
+							api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("LibreOffice failed to process a document: possible causes include malformed page ranges '%s' (nativePageRanges), or, if a password has been provided, it may not be required. In any case, the exact cause is uncertain.", options.PageRanges)),
+						)
+					}
+
+					if errors.Is(err, libreofficeapi.ErrRuntimeException) {
+						return api.WrapError(
+							fmt.Errorf("convert to PDF: %w", err),
+							api.NewSentinelHttpError(http.StatusBadRequest, "LibreOffice failed to process a document: a password may be required, or, if one has been given, it is invalid. In any case, the exact cause is uncertain."),
 						)
 					}
 
