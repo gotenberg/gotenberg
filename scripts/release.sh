@@ -64,11 +64,6 @@ fi
 docker buildx build \
   --build-arg GOLANG_VERSION="$GOLANG_VERSION" \
   --build-arg GOTENBERG_VERSION="$GOTENBERG_VERSION" \
-  --build-arg GOTENBERG_USER_GID="$GOTENBERG_USER_GID" \
-  --build-arg GOTENBERG_USER_UID="$GOTENBERG_USER_UID" \
-  --build-arg NOTO_COLOR_EMOJI_VERSION="$NOTO_COLOR_EMOJI_VERSION" \
-  --build-arg PDFTK_VERSION="$PDFTK_VERSION" \
-  --build-arg PDFCPU_VERSION="$PDFCPU_VERSION" \
   --platform linux/amd64 \
   -t "$DOCKER_REPO_GH/gotenberg:latest" \
   -t "$DOCKER_REPO_GH/gotenberg:${SEMVER[0]}" \
