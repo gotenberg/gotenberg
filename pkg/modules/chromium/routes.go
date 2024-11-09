@@ -15,7 +15,7 @@ import (
 
 	"github.com/dlclark/regexp2"
 	"github.com/labstack/echo/v4"
-	"github.com/microcosm-cc/bluemonday"
+	"githubcom/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
 	"go.uber.org/multierr"
 
@@ -42,6 +42,9 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		extraHttpHeaders              []ExtraHttpHeader
 		emulatedMediaType             string
 		omitBackground                bool
+		clearStorages                 bool
+		waitForSelector               string
+		proxyRules                    map[string]string
 	)
 
 	form := ctx.FormData().
@@ -171,7 +174,22 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 
 			return nil
 		}).
-		Bool("omitBackground", &omitBackground, defaultOptions.OmitBackground)
+		Bool("omitBackground", &omitBackground, defaultOptions.OmitBackground).
+		Bool("clearStorages", &clearStorages, defaultOptions.ClearStorages).
+		String("waitForSelector", &waitForSelector, defaultOptions.WaitForSelector).
+		Custom("proxyRules", func(value string) error {
+			if value == "" {
+				proxyRules = defaultOptions.ProxyRules
+				return nil
+			}
+
+			err := json.Unmarshal([]byte(value), &proxyRules)
+			if err != nil {
+				return fmt.Errorf("unmarshal proxyRules: %w", err)
+			}
+
+			return nil
+		})
 
 	options := Options{
 		SkipNetworkIdleEvent:          skipNetworkIdleEvent,
@@ -187,6 +205,9 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		ExtraHttpHeaders:              extraHttpHeaders,
 		EmulatedMediaType:             emulatedMediaType,
 		OmitBackground:                omitBackground,
+		ClearStorages:                 clearStorages,
+		WaitForSelector:               waitForSelector,
+		ProxyRules:                    proxyRules,
 	}
 
 	return form, options
@@ -205,6 +226,7 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		pageRanges                                       string
 		headerTemplate, footerTemplate                   string
 		preferCssPageSize                                bool
+		timezone                                       string
 	)
 
 	form.
@@ -221,7 +243,8 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		String("nativePageRanges", &pageRanges, defaultPdfOptions.PageRanges).
 		Content("header.html", &headerTemplate, defaultPdfOptions.HeaderTemplate).
 		Content("footer.html", &footerTemplate, defaultPdfOptions.FooterTemplate).
-		Bool("preferCssPageSize", &preferCssPageSize, defaultPdfOptions.PreferCssPageSize)
+		Bool("preferCssPageSize", &preferCssPageSize, defaultPdfOptions.PreferCssPageSize).
+		String("timezone", &timezone, defaultPdfOptions.Timezone)
 
 	pdfOptions := PdfOptions{
 		Options:           options,
@@ -239,6 +262,7 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		HeaderTemplate:    headerTemplate,
 		FooterTemplate:    footerTemplate,
 		PreferCssPageSize: preferCssPageSize,
+		Timezone:          timezone,
 	}
 
 	return form, pdfOptions
