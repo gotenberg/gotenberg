@@ -48,6 +48,7 @@ func printToPdfActionFunc(logger *zap.Logger, outputPath string, options PdfOpti
 			WithMarginRight(options.MarginRight).
 			WithPageRanges(pageRanges).
 			WithPreferCSSPageSize(options.PreferCssPageSize).
+			WithGenerateDocumentOutline(options.GenerateDocumentOutline).
 			// Does not seem to work.
 			// See https://github.com/gotenberg/gotenberg/issues/831.
 			WithGenerateTaggedPDF(false)
