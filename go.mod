@@ -6,8 +6,8 @@ require (
 	github.com/alexliesenfeld/health v0.8.0
 	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/barasher/go-exiftool v1.10.0
-	github.com/chromedp/cdproto v0.0.0-20241030022559-23c28aebe8cb
-	github.com/chromedp/chromedp v0.11.1
+	github.com/chromedp/cdproto v0.0.0-20241110205750-a72e6703cd9b
+	github.com/chromedp/chromedp v0.11.2
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
@@ -27,12 +27,12 @@ require (
 	github.com/ulikunitz/xz v0.5.12 // indirect
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.28.0 // indirect
-	golang.org/x/net v0.30.0
-	golang.org/x/sync v0.8.0
-	golang.org/x/sys v0.26.0 // indirect
-	golang.org/x/term v0.25.0
-	golang.org/x/text v0.19.0
+	golang.org/x/crypto v0.29.0 // indirect
+	golang.org/x/net v0.31.0
+	golang.org/x/sync v0.9.0
+	golang.org/x/sys v0.27.0 // indirect
+	golang.org/x/term v0.26.0
+	golang.org/x/text v0.20.0
 )
 
 require github.com/dlclark/regexp2 v1.11.4
@@ -58,6 +58,6 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
-	golang.org/x/time v0.7.0 // indirect
-	google.golang.org/protobuf v1.35.1 // indirect
+	golang.org/x/time v0.8.0 // indirect
+	google.golang.org/protobuf v1.35.2 // indirect
 )
