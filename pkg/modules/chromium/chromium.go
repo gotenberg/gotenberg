@@ -213,26 +213,31 @@ type PdfOptions struct {
 	// PreferCssPageSize defines whether to prefer page size as defined by CSS.
 	// If false, the content will be scaled to fit the paper size.
 	PreferCssPageSize bool
+
+	// GenerateDocumentOutline defines whether the document outline should be
+	// embedded into the PDF.
+	GenerateDocumentOutline bool
 }
 
 // DefaultPdfOptions returns the default values for PdfOptions.
 func DefaultPdfOptions() PdfOptions {
 	return PdfOptions{
-		Options:           DefaultOptions(),
-		Landscape:         false,
-		PrintBackground:   false,
-		Scale:             1.0,
-		SinglePage:        false,
-		PaperWidth:        8.5,
-		PaperHeight:       11,
-		MarginTop:         0.39,
-		MarginBottom:      0.39,
-		MarginLeft:        0.39,
-		MarginRight:       0.39,
-		PageRanges:        "",
-		HeaderTemplate:    "<html><head></head><body></body></html>",
-		FooterTemplate:    "<html><head></head><body></body></html>",
-		PreferCssPageSize: false,
+		Options:                 DefaultOptions(),
+		Landscape:               false,
+		PrintBackground:         false,
+		Scale:                   1.0,
+		SinglePage:              false,
+		PaperWidth:              8.5,
+		PaperHeight:             11,
+		MarginTop:               0.39,
+		MarginBottom:            0.39,
+		MarginLeft:              0.39,
+		MarginRight:             0.39,
+		PageRanges:              "",
+		HeaderTemplate:          "<html><head></head><body></body></html>",
+		FooterTemplate:          "<html><head></head><body></body></html>",
+		PreferCssPageSize:       false,
+		GenerateDocumentOutline: false,
 	}
 }
 

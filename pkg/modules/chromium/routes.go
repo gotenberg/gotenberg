@@ -205,6 +205,7 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		pageRanges                                       string
 		headerTemplate, footerTemplate                   string
 		preferCssPageSize                                bool
+		generateDocumentOutline                          bool
 	)
 
 	form.
@@ -221,24 +222,26 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		String("nativePageRanges", &pageRanges, defaultPdfOptions.PageRanges).
 		Content("header.html", &headerTemplate, defaultPdfOptions.HeaderTemplate).
 		Content("footer.html", &footerTemplate, defaultPdfOptions.FooterTemplate).
-		Bool("preferCssPageSize", &preferCssPageSize, defaultPdfOptions.PreferCssPageSize)
+		Bool("preferCssPageSize", &preferCssPageSize, defaultPdfOptions.PreferCssPageSize).
+		Bool("generateDocumentOutline", &generateDocumentOutline, defaultPdfOptions.GenerateDocumentOutline)
 
 	pdfOptions := PdfOptions{
-		Options:           options,
-		Landscape:         landscape,
-		PrintBackground:   printBackground,
-		Scale:             scale,
-		SinglePage:        singlePage,
-		PaperWidth:        paperWidth,
-		PaperHeight:       paperHeight,
-		MarginTop:         marginTop,
-		MarginBottom:      marginBottom,
-		MarginLeft:        marginLeft,
-		MarginRight:       marginRight,
-		PageRanges:        pageRanges,
-		HeaderTemplate:    headerTemplate,
-		FooterTemplate:    footerTemplate,
-		PreferCssPageSize: preferCssPageSize,
+		Options:                 options,
+		Landscape:               landscape,
+		PrintBackground:         printBackground,
+		Scale:                   scale,
+		SinglePage:              singlePage,
+		PaperWidth:              paperWidth,
+		PaperHeight:             paperHeight,
+		MarginTop:               marginTop,
+		MarginBottom:            marginBottom,
+		MarginLeft:              marginLeft,
+		MarginRight:             marginRight,
+		PageRanges:              pageRanges,
+		HeaderTemplate:          headerTemplate,
+		FooterTemplate:          footerTemplate,
+		PreferCssPageSize:       preferCssPageSize,
+		GenerateDocumentOutline: generateDocumentOutline,
 	}
 
 	return form, pdfOptions
