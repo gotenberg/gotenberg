@@ -365,13 +365,6 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 		return ErrRuntimeException
 	}
 
-	// Possible errors:
-	// 1. LibreOffice failed for some reason.
-	// 2. Context done.
-	//
-	// On the second scenario, LibreOffice might not have time to remove some
-	// of its temporary files, as it has been killed without warning. The
-	// garbage collector will delete them for us (if the module is loaded).
 	return fmt.Errorf("convert to PDF: %w", err)
 }
 
