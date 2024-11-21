@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 
 	"github.com/barasher/go-exiftool"
 	"go.uber.org/zap"
@@ -109,6 +110,17 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, m
 			fileMetadata[0].SetString(key, val)
 		case []string:
 			fileMetadata[0].SetStrings(key, val)
+		case []interface{}:
+			// See https://github.com/gotenberg/gotenberg/issues/1048.
+			strings := make([]string, len(val))
+			for i, entry := range val {
+				if str, ok := entry.(string); ok {
+					strings[i] = str
+					continue
+				}
+				return fmt.Errorf("write PDF metadata with ExifTool: %s %+v %s %w", key, val, reflect.TypeOf(val), gotenberg.ErrPdfEngineMetadataValueNotSupported)
+			}
+			fileMetadata[0].SetStrings(key, strings)
 		case bool:
 			fileMetadata[0].SetString(key, fmt.Sprintf("%t", val))
 		case int:
@@ -122,7 +134,7 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, m
 		// TODO: support more complex cases, e.g., arrays and nested objects
 		// 	(limitations in underlying library).
 		default:
-			return fmt.Errorf("write PDF metadata with ExifTool: %w", gotenberg.ErrPdfEngineMetadataValueNotSupported)
+			return fmt.Errorf("write PDF metadata with ExifTool: %s %+v %s %w", key, val, reflect.TypeOf(val), gotenberg.ErrPdfEngineMetadataValueNotSupported)
 		}
 	}
 

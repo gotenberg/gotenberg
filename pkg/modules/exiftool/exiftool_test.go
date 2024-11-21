@@ -162,7 +162,20 @@ func TestExiftool_WriteMetadata(t *testing.T) {
 			expectError: true,
 		},
 		{
-			scenario:   "gotenberg.ErrPdfEngineMetadataValueNotSupported",
+			scenario:   "gotenberg.ErrPdfEngineMetadataValueNotSupported (not string array)",
+			createCopy: true,
+			inputPath:  "/tests/test/testdata/pdfengines/sample1.pdf",
+			metadata: map[string]interface{}{
+				"Unsupported": []interface{}{
+					"foo",
+					1,
+				},
+			},
+			expectError:   true,
+			expectedError: gotenberg.ErrPdfEngineMetadataValueNotSupported,
+		},
+		{
+			scenario:   "gotenberg.ErrPdfEngineMetadataValueNotSupported (default)",
 			createCopy: true,
 			inputPath:  "/tests/test/testdata/pdfengines/sample1.pdf",
 			metadata: map[string]interface{}{
@@ -170,6 +183,24 @@ func TestExiftool_WriteMetadata(t *testing.T) {
 			},
 			expectError:   true,
 			expectedError: gotenberg.ErrPdfEngineMetadataValueNotSupported,
+		},
+		{
+			scenario:   "success (interface array to string array)",
+			createCopy: true,
+			inputPath:  "/tests/test/testdata/pdfengines/sample1.pdf",
+			metadata: map[string]interface{}{
+				"Keywords": []interface{}{
+					"first",
+					"second",
+				},
+			},
+			expectMetadata: map[string]interface{}{
+				"Keywords": []interface{}{
+					"first",
+					"second",
+				},
+			},
+			expectError: false,
 		},
 		{
 			scenario:   "success",
