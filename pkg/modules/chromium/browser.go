@@ -236,6 +236,13 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *zap.Logger, url, outp
 		waitForExpressionBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitForExpression),
 		// PDF specific.
 		printToPdfActionFunc(logger, outputPath, options),
+		// Disabling network may help reducing memory leaks. We also disable
+		// fetch and runtime, although it has not been documented to have an
+		// impact on memory leaks.
+		// See https://github.com/gotenberg/gotenberg/issues/987.
+		network.Disable(),
+		fetch.Disable(),
+		runtime.Disable(),
 	})
 }
 
@@ -260,6 +267,13 @@ func (b *chromiumBrowser) screenshot(ctx context.Context, logger *zap.Logger, ur
 		// Screenshot specific.
 		setDeviceMetricsOverride(logger, options.Width, options.Height),
 		captureScreenshotActionFunc(logger, outputPath, options),
+		// Disabling network may help reducing memory leaks. We also disable
+		// fetch and runtime, although it has not been documented to have an
+		// impact on memory leaks.
+		// See https://github.com/gotenberg/gotenberg/issues/987.
+		network.Disable(),
+		fetch.Disable(),
+		runtime.Disable(),
 	})
 }
 
