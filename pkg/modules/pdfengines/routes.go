@@ -13,6 +13,98 @@ import (
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
 )
 
+// FormDataPdfFormats creates [gotenberg.PdfFormats] from the form data.
+// Fallback to default value if the considered key is not present.
+func FormDataPdfFormats(form *api.FormData) gotenberg.PdfFormats {
+	var (
+		pdfa  string
+		pdfua bool
+	)
+
+	form.
+		String("pdfa", &pdfa, "").
+		Bool("pdfua", &pdfua, false)
+
+	return gotenberg.PdfFormats{
+		PdfA:  pdfa,
+		PdfUa: pdfua,
+	}
+}
+
+// FormDataPdfMetadata creates metadata object from the form data.
+func FormDataPdfMetadata(form *api.FormData) map[string]interface{} {
+	var metadata map[string]interface{}
+	form.Custom("metadata", func(value string) error {
+		if len(value) > 0 {
+			err := json.Unmarshal([]byte(value), &metadata)
+			if err != nil {
+				return fmt.Errorf("unmarshal metadata: %w", err)
+			}
+		}
+		return nil
+	})
+	return metadata
+}
+
+// MergeStub merges given PDFs. If only one input PDF, it does nothing and
+// returns the corresponding input path.
+func MergeStub(ctx *api.Context, engine gotenberg.PdfEngine, inputPaths []string) (string, error) {
+	if len(inputPaths) == 0 {
+		return "", errors.New("no input paths")
+	}
+
+	if len(inputPaths) == 1 {
+		return inputPaths[0], nil
+	}
+
+	outputPath := ctx.GeneratePath(".pdf")
+	err := engine.Merge(ctx, ctx.Log(), inputPaths, outputPath)
+	if err != nil {
+		return "", fmt.Errorf("merge %d PDFs: %w", len(inputPaths), err)
+	}
+
+	return outputPath, nil
+}
+
+// ConvertStub transforms a given PDF to the specified formats defined in
+// [gotenberg.PdfFormats]. If no format, it does nothing and returns the input
+// paths.
+func ConvertStub(ctx *api.Context, engine gotenberg.PdfEngine, formats gotenberg.PdfFormats, inputPaths []string) ([]string, error) {
+	zeroValued := gotenberg.PdfFormats{}
+	if formats == zeroValued {
+		return inputPaths, nil
+	}
+
+	outputPaths := make([]string, len(inputPaths))
+	for i, inputPath := range inputPaths {
+		outputPaths[i] = ctx.GeneratePath(".pdf")
+
+		err := engine.Convert(ctx, ctx.Log(), formats, inputPath, outputPaths[i])
+		if err != nil {
+			return nil, fmt.Errorf("convert '%s': %w", inputPath, err)
+		}
+	}
+
+	return outputPaths, nil
+}
+
+// WriteMetadataStub writes the metadata into PDF files. If no metadata, it
+// does nothing.
+func WriteMetadataStub(ctx *api.Context, engine gotenberg.PdfEngine, metadata map[string]interface{}, inputPaths []string) error {
+	if len(metadata) == 0 {
+		return nil
+	}
+
+	for _, inputPath := range inputPaths {
+		err := engine.WriteMetadata(ctx, ctx.Log(), metadata, inputPath)
+		if err != nil {
+			return fmt.Errorf("write metadata into '%s': %w", inputPath, err)
+		}
+	}
+
+	return nil
+}
+
 // mergeRoute returns an [api.Route] which can merge PDFs.
 func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 	return api.Route{
@@ -22,75 +114,37 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 		Handler: func(c echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
-			// Let's get the data from the form and validate them.
-			var (
-				inputPaths []string
-				pdfa       string
-				pdfua      bool
-				metadata   map[string]interface{}
-			)
+			form := ctx.FormData()
+			pdfFormats := FormDataPdfFormats(form)
+			metadata := FormDataPdfMetadata(form)
 
-			err := ctx.FormData().
+			var inputPaths []string
+			err := form.
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
-				String("pdfa", &pdfa, "").
-				Bool("pdfua", &pdfua, false).
-				Custom("metadata", func(value string) error {
-					if len(value) > 0 {
-						err := json.Unmarshal([]byte(value), &metadata)
-						if err != nil {
-							return fmt.Errorf("unmarshal metadata: %w", err)
-						}
-					}
-					return nil
-				}).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			pdfFormats := gotenberg.PdfFormats{
-				PdfA:  pdfa,
-				PdfUa: pdfua,
-			}
-
-			// Alright, let's merge the PDFs.
 			outputPath := ctx.GeneratePath(".pdf")
-
 			err = engine.Merge(ctx, ctx.Log(), inputPaths, outputPath)
 			if err != nil {
 				return fmt.Errorf("merge PDFs: %w", err)
 			}
 
-			// So far so good, the PDFs are merged into one unique PDF.
-			// Now, let's check if the client want to convert this result PDF
-			// to specific PDF formats.
-			zeroValued := gotenberg.PdfFormats{}
-			if pdfFormats != zeroValued {
-				convertInputPath := outputPath
-				convertOutputPath := ctx.GeneratePath(".pdf")
-
-				err = engine.Convert(ctx, ctx.Log(), pdfFormats, convertInputPath, convertOutputPath)
-				if err != nil {
-					return fmt.Errorf("convert PDF: %w", err)
-				}
-
-				// Important: the output path is now the converted file.
-				outputPath = convertOutputPath
-			}
-
-			// Writes and potentially overrides metadata entries, if any.
-			if len(metadata) > 0 {
-				err = engine.WriteMetadata(ctx, ctx.Log(), metadata, outputPath)
-				if err != nil {
-					return fmt.Errorf("write metadata: %w", err)
-				}
-			}
-
-			// Last but not least, add the output path to the context so that
-			// the API is able to send it as a response to the client.
-			err = ctx.AddOutputPaths(outputPath)
+			outputPaths, err := ConvertStub(ctx, engine, pdfFormats, []string{outputPath})
 			if err != nil {
-				return fmt.Errorf("add output path: %w", err)
+				return fmt.Errorf("convert PDF: %w", err)
+			}
+
+			err = WriteMetadataStub(ctx, engine, metadata, outputPaths)
+			if err != nil {
+				return fmt.Errorf("write metadata: %w", err)
+			}
+
+			err = ctx.AddOutputPaths(outputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
 			}
 
 			return nil
@@ -108,25 +162,15 @@ func convertRoute(engine gotenberg.PdfEngine) api.Route {
 		Handler: func(c echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
-			// Let's get the data from the form and validate them.
-			var (
-				inputPaths []string
-				pdfa       string
-				pdfua      bool
-			)
+			form := ctx.FormData()
+			pdfFormats := FormDataPdfFormats(form)
 
-			err := ctx.FormData().
+			var inputPaths []string
+			err := form.
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
-				String("pdfa", &pdfa, "").
-				Bool("pdfua", &pdfua, false).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
-			}
-
-			pdfFormats := gotenberg.PdfFormats{
-				PdfA:  pdfa,
-				PdfUa: pdfua,
 			}
 
 			zeroValued := gotenberg.PdfFormats{}
@@ -140,18 +184,14 @@ func convertRoute(engine gotenberg.PdfEngine) api.Route {
 				)
 			}
 
-			// Alright, let's convert the PDFs.
-			outputPaths := make([]string, len(inputPaths))
-			for i, inputPath := range inputPaths {
-				outputPaths[i] = ctx.GeneratePath(".pdf")
+			outputPaths, err := ConvertStub(ctx, engine, pdfFormats, inputPaths)
+			if err != nil {
+				return fmt.Errorf("convert PDFs: %w", err)
+			}
 
-				err = engine.Convert(ctx, ctx.Log(), pdfFormats, inputPath, outputPaths[i])
-				if err != nil {
-					return fmt.Errorf("convert PDF: %w", err)
-				}
-
-				if len(outputPaths) > 1 {
-					// If .zip archive, keep the original filename.
+			if len(outputPaths) > 1 {
+				// If .zip archive, keep the original filename.
+				for i, inputPath := range inputPaths {
 					err = ctx.Rename(outputPaths[i], inputPath)
 					if err != nil {
 						return fmt.Errorf("rename output path: %w", err)
@@ -161,8 +201,6 @@ func convertRoute(engine gotenberg.PdfEngine) api.Route {
 				}
 			}
 
-			// Last but not least, add the output paths to the context so that
-			// the API is able to send them as a response to the client.
 			err = ctx.AddOutputPaths(outputPaths...)
 			if err != nil {
 				return fmt.Errorf("add output paths: %w", err)
@@ -182,9 +220,7 @@ func readMetadataRoute(engine gotenberg.PdfEngine) api.Route {
 		Handler: func(c echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
-			// Let's get the data from the form and validate them.
 			var inputPaths []string
-
 			err := ctx.FormData().
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
 				Validate()
@@ -192,7 +228,6 @@ func readMetadataRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			// Alright, let's read the metadata.
 			res := make(map[string]map[string]interface{}, len(inputPaths))
 			for _, inputPath := range inputPaths {
 				metadata, err := engine.ReadMetadata(ctx, ctx.Log(), inputPath)
@@ -223,7 +258,6 @@ func writeMetadataRoute(engine gotenberg.PdfEngine) api.Route {
 		Handler: func(c echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
-			// Let's get the data from the form and validate them.
 			var (
 				inputPaths []string
 				metadata   map[string]interface{}
@@ -248,16 +282,11 @@ func writeMetadataRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			// Alright, let's convert the PDFs.
-			for _, inputPath := range inputPaths {
-				err = engine.WriteMetadata(ctx, ctx.Log(), metadata, inputPath)
-				if err != nil {
-					return fmt.Errorf("write metadata: %w", err)
-				}
+			err = WriteMetadataStub(ctx, engine, metadata, inputPaths)
+			if err != nil {
+				return fmt.Errorf("write metadata: %w", err)
 			}
 
-			// Last but not least, add the output paths to the context so that
-			// the API is able to send them as a response to the client.
 			err = ctx.AddOutputPaths(inputPaths...)
 			if err != nil {
 				return fmt.Errorf("add output paths: %w", err)

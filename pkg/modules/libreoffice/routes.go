@@ -13,6 +13,7 @@ import (
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
 	libreofficeapi "github.com/gotenberg/gotenberg/v8/pkg/modules/libreoffice/api"
+	"github.com/gotenberg/gotenberg/v8/pkg/modules/pdfengines"
 )
 
 // convertRoute returns an [api.Route] which can convert LibreOffice documents
@@ -26,7 +27,10 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			ctx := c.Get("context").(*api.Context)
 			defaultOptions := libreofficeapi.DefaultOptions()
 
-			// Let's get the data from the form and validate them.
+			form := ctx.FormData()
+			pdfFormats := pdfengines.FormDataPdfFormats(form)
+			metadata := pdfengines.FormDataPdfMetadata(form)
+
 			var (
 				inputPaths                      []string
 				password                        string
@@ -51,14 +55,11 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				quality                         int
 				reduceImageResolution           bool
 				maxImageResolution              int
-				pdfa                            string
-				pdfua                           bool
 				nativePdfFormats                bool
 				merge                           bool
-				metadata                        map[string]interface{}
 			)
 
-			err := ctx.FormData().
+			err := form.
 				MandatoryPaths(libreOffice.Extensions(), &inputPaths).
 				String("password", &password, defaultOptions.Password).
 				Bool("landscape", &landscape, defaultOptions.Landscape).
@@ -120,8 +121,6 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					maxImageResolution = intValue
 					return nil
 				}).
-				String("pdfa", &pdfa, "").
-				Bool("pdfua", &pdfua, false).
 				Bool("nativePdfFormats", &nativePdfFormats, true).
 				Bool("merge", &merge, false).
 				Custom("metadata", func(value string) error {
@@ -138,12 +137,6 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			pdfFormats := gotenberg.PdfFormats{
-				PdfA:  pdfa,
-				PdfUa: pdfua,
-			}
-
-			// Alright, let's convert each document to PDF.
 			outputPaths := make([]string, len(inputPaths))
 			for i, inputPath := range inputPaths {
 				outputPaths[i] = ctx.GeneratePath(".pdf")
@@ -206,11 +199,8 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				}
 			}
 
-			// So far so good, let's check if we have to merge the PDFs.
-			if len(outputPaths) > 1 && merge {
-				outputPath := ctx.GeneratePath(".pdf")
-
-				err = engine.Merge(ctx, ctx.Log(), outputPaths, outputPath)
+			if merge {
+				outputPath, err := pdfengines.MergeStub(ctx, engine, outputPaths)
 				if err != nil {
 					return fmt.Errorf("merge PDFs: %w", err)
 				}
@@ -219,34 +209,16 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				outputPaths = []string{outputPath}
 			}
 
-			// Let's check if the client want to convert each PDF to a specific
-			// PDF format.
-			zeroValued := gotenberg.PdfFormats{}
-			if !nativePdfFormats && pdfFormats != zeroValued {
-				convertOutputPaths := make([]string, len(outputPaths))
-
-				for i, outputPath := range outputPaths {
-					convertInputPath := outputPath
-					convertOutputPaths[i] = ctx.GeneratePath(".pdf")
-
-					err = engine.Convert(ctx, ctx.Log(), pdfFormats, convertInputPath, convertOutputPaths[i])
-					if err != nil {
-						return fmt.Errorf("convert PDF: %w", err)
-					}
+			if !nativePdfFormats {
+				outputPaths, err = pdfengines.ConvertStub(ctx, engine, pdfFormats, outputPaths)
+				if err != nil {
+					return fmt.Errorf("convert PDFs: %w", err)
 				}
-
-				// Important: the output paths are now the converted files.
-				outputPaths = convertOutputPaths
 			}
 
-			// Writes and potentially overrides metadata entries, if any.
-			if len(metadata) > 0 {
-				for _, outputPath := range outputPaths {
-					err = engine.WriteMetadata(ctx, ctx.Log(), metadata, outputPath)
-					if err != nil {
-						return fmt.Errorf("write metadata: %w", err)
-					}
-				}
+			err = pdfengines.WriteMetadataStub(ctx, engine, metadata, outputPaths)
+			if err != nil {
+				return fmt.Errorf("write metadata: %w", err)
 			}
 
 			if len(outputPaths) > 1 {
@@ -263,8 +235,6 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				}
 			}
 
-			// Last but not least, add the output paths to the context so that
-			// the API is able to send them as a response to the client.
 			err = ctx.AddOutputPaths(outputPaths...)
 			if err != nil {
 				return fmt.Errorf("add output paths: %w", err)

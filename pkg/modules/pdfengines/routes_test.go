@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -15,6 +16,287 @@ import (
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
 )
+
+func TestFormDataPdfFormats(t *testing.T) {
+	for _, tc := range []struct {
+		scenario              string
+		ctx                   *api.ContextMock
+		expectedPdfFormats    gotenberg.PdfFormats
+		expectValidationError bool
+	}{
+		{
+			scenario:              "no custom form fields",
+			ctx:                   &api.ContextMock{Context: new(api.Context)},
+			expectedPdfFormats:    gotenberg.PdfFormats{},
+			expectValidationError: false,
+		},
+		{
+			scenario: "pdfa and pdfua form fields",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"pdfa": {
+						"foo",
+					},
+					"pdfua": {
+						"true",
+					},
+				})
+				return ctx
+			}(),
+			expectedPdfFormats:    gotenberg.PdfFormats{PdfA: "foo", PdfUa: true},
+			expectValidationError: false,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			tc.ctx.SetLogger(zap.NewNop())
+			form := tc.ctx.Context.FormData()
+			actual := FormDataPdfFormats(form)
+
+			if !reflect.DeepEqual(actual, tc.expectedPdfFormats) {
+				t.Fatalf("expected %+v but got: %+v", tc.expectedPdfFormats, actual)
+			}
+
+			err := form.Validate()
+
+			if tc.expectValidationError && err == nil {
+				t.Fatal("expected validation error but got none", err)
+			}
+
+			if !tc.expectValidationError && err != nil {
+				t.Fatalf("expected no validation error but got: %v", err)
+			}
+		})
+	}
+}
+
+func TestFormDataPdfMetadata(t *testing.T) {
+	for _, tc := range []struct {
+		scenario              string
+		ctx                   *api.ContextMock
+		expectedMetadata      map[string]interface{}
+		expectValidationError bool
+	}{
+		{
+			scenario:              "no metadata form field",
+			ctx:                   &api.ContextMock{Context: new(api.Context)},
+			expectedMetadata:      nil,
+			expectValidationError: false,
+		},
+		{
+			scenario: "invalid metadata form field",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"metadata": {
+						"foo",
+					},
+				})
+				return ctx
+			}(),
+			expectedMetadata:      nil,
+			expectValidationError: true,
+		},
+		{
+			scenario: "valid metadata form field",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"metadata": {
+						"{\"foo\":\"bar\"}",
+					},
+				})
+				return ctx
+			}(),
+			expectedMetadata: map[string]interface{}{
+				"foo": "bar",
+			},
+			expectValidationError: false,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			tc.ctx.SetLogger(zap.NewNop())
+			form := tc.ctx.Context.FormData()
+			actual := FormDataPdfMetadata(form)
+
+			if !reflect.DeepEqual(actual, tc.expectedMetadata) {
+				t.Fatalf("expected %+v but got: %+v", tc.expectedMetadata, actual)
+			}
+
+			err := form.Validate()
+
+			if tc.expectValidationError && err == nil {
+				t.Fatal("expected validation error but got none", err)
+			}
+
+			if !tc.expectValidationError && err != nil {
+				t.Fatalf("expected no validation error but got: %v", err)
+			}
+		})
+	}
+}
+
+func TestMergeStub(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		engine      gotenberg.PdfEngine
+		inputPaths  []string
+		expectError bool
+	}{
+		{
+			scenario:    "no input path (nil)",
+			inputPaths:  nil,
+			expectError: true,
+		},
+		{
+			scenario:    "no input path (empty)",
+			inputPaths:  make([]string, 0),
+			expectError: true,
+		},
+		{
+			scenario:    "only one input path",
+			inputPaths:  []string{"my.pdf"},
+			expectError: false,
+		},
+		{
+			scenario: "merge error",
+			engine: &gotenberg.PdfEngineMock{
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return errors.New("foo")
+				},
+			},
+			inputPaths:  []string{"my.pdf", "my2.pdf"},
+			expectError: true,
+		},
+		{
+			scenario: "merge success",
+			engine: &gotenberg.PdfEngineMock{
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return nil
+				},
+			},
+			inputPaths:  []string{"my.pdf", "my2.pdf"},
+			expectError: false,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			_, err := MergeStub(new(api.Context), tc.engine, tc.inputPaths)
+
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none", err)
+			}
+
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+		})
+	}
+}
+
+func TestConvertStub(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		engine      gotenberg.PdfEngine
+		pdfFormats  gotenberg.PdfFormats
+		expectError bool
+	}{
+		{
+			scenario:    "no PDF formats",
+			pdfFormats:  gotenberg.PdfFormats{},
+			expectError: false,
+		},
+		{
+			scenario: "convert error",
+			engine: &gotenberg.PdfEngineMock{
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+					return errors.New("foo")
+				},
+			},
+			pdfFormats: gotenberg.PdfFormats{
+				PdfA:  gotenberg.PdfA3b,
+				PdfUa: true,
+			},
+			expectError: true,
+		},
+		{
+			scenario: "convert success",
+			engine: &gotenberg.PdfEngineMock{
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+					return nil
+				},
+			},
+			pdfFormats: gotenberg.PdfFormats{
+				PdfA:  gotenberg.PdfA3b,
+				PdfUa: true,
+			},
+			expectError: false,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			_, err := ConvertStub(new(api.Context), tc.engine, tc.pdfFormats, []string{"my.pdf", "my2.pdf"})
+
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none", err)
+			}
+
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+		})
+	}
+}
+
+func TestWriteMetadataStub(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		engine      gotenberg.PdfEngine
+		metadata    map[string]interface{}
+		expectError bool
+	}{
+		{
+			scenario:    "no metadata (nil)",
+			metadata:    nil,
+			expectError: false,
+		},
+		{
+			scenario:    "no metadata (empty)",
+			metadata:    make(map[string]interface{}, 0),
+			expectError: false,
+		},
+		{
+			scenario: "write metadata error",
+			engine: &gotenberg.PdfEngineMock{
+				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+					return errors.New("foo")
+				},
+			},
+			metadata:    map[string]interface{}{"foo": "bar"},
+			expectError: true,
+		},
+		{
+			scenario: "write metadata success",
+			engine: &gotenberg.PdfEngineMock{
+				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+					return nil
+				},
+			},
+			metadata:    map[string]interface{}{"foo": "bar"},
+			expectError: false,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			err := WriteMetadataStub(new(api.Context), tc.engine, tc.metadata, []string{"my.pdf", "my2.pdf"})
+
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none", err)
+			}
+
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+		})
+	}
+}
 
 func TestMergeHandler(t *testing.T) {
 	for _, tc := range []struct {
