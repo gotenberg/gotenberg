@@ -227,11 +227,22 @@ ENV QPDF_BIN_PATH=/usr/bin/qpdf
 ENV EXIFTOOL_BIN_PATH=/usr/bin/exiftool
 ENV PDFCPU_BIN_PATH=/usr/bin/pdfcpu
 
+# Making Gotenberg as multiprocess
+RUN apt-get update && apt-get install -y supervisor nginx && mkdir -p /var/log/supervisor
+# COPY build/supervisord.conf.tmpl /usr/local/bin/gotenberg/supervisord.conf.tmpl
+# COPY build/nginx.conf.tmpl /usr/local/bin/gotenberg/nginx.conf.tmpl
+COPY build/gotenberg-entry.sh /usr/local/bin/gotenberg/gotenberg-entry.sh
+# COPY build/main.go /usr/local/bin/gotenberg/main.go
+RUN touch /run/nginx.pid && chown -R gotenberg:gotenberg /usr/local/bin/gotenberg /var/lib/nginx /var/log/nginx /run/nginx.pid \
+    && chmod +x /usr/local/bin/gotenberg/gotenberg-entry.sh
+RUN touch /etc/supervisor/conf.d/supervisord.conf && chown -R gotenberg:gotenberg /etc/supervisor/conf.d/supervisord.conf /var/log/supervisor
+RUN chmod 666 /etc/nginx/nginx.conf
+
 USER gotenberg
 WORKDIR /home/gotenberg
 
 # Default API port.
-EXPOSE 3000
+EXPOSE 8080
 
 ENTRYPOINT [ "/usr/bin/tini", "--" ]
-CMD [ "gotenberg" ]
+CMD /usr/local/bin/gotenberg/gotenberg-entry.sh
