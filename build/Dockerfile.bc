@@ -30,6 +30,7 @@ RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v8/cmd.Ve
 # Copy binary to chainguard base
 # ----------------------------------------------
 FROM $BASE_IMAGE:$GOTENBERG_VERSION AS chainguard-base
+ARG UNOCONVERTER_BIN_PATH
 
 COPY --from=binary-stage /home/gotenberg /usr/bin/
 
