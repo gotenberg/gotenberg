@@ -1,5 +1,7 @@
 ARG GOLANG_VERSION=1.23.3
 ARG GOTENBERG_VERSION=8.13
+ARG BASE_IMAGE=harbor.onebrief.tools/cgr.dev/onebrief.com/gotenberg
+ARG UNOCONVERTER_BIN_PATH=/usr/bin/unoconv
 
 # ----------------------------------------------
 # Gotenberg binary build stage
@@ -27,7 +29,7 @@ RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v8/cmd.Ve
 # ----------------------------------------------
 # Copy binary to chainguard base
 # ----------------------------------------------
-FROM harbor.onebrief.tools/cgr.dev/onebrief.com/gotenberg:$GOTENBERG_VERSION AS chainguard-base
+FROM $BASE_IMAGE:$GOTENBERG_VERSION AS chainguard-base
 
 COPY --from=binary-stage /home/gotenberg /usr/bin/
 
@@ -35,7 +37,7 @@ COPY --from=binary-stage /home/gotenberg /usr/bin/
 # they likely baked them into the code...
 ENV CHROMIUM_BIN_PATH=/usr/bin/chromium
 ENV LIBREOFFICE_BIN_PATH=/usr/lib/libreoffice/program/soffice.bin
-ENV UNOCONVERTER_BIN_PATH=/usr/bin/unoconv
+ENV UNOCONVERTER_BIN_PATH=$UNOCONVERTER_BIN_PATH
 ENV PDFTK_BIN_PATH=/usr/bin/pdftk
 ENV QPDF_BIN_PATH=/usr/bin/qpdf
 ENV EXIFTOOL_BIN_PATH=/usr/bin/exiftool

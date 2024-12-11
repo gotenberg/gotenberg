@@ -21,7 +21,12 @@ permissions:
 jobs:
   build-docker-image:
     name: Docker build
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.type == 'arm' && 'ubuntu-arm-24.04-4core' || 'ubuntu-latest' }}
+    strategy:
+      matrix:
+        type:
+          - arm
+          - x86
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -31,13 +36,6 @@ jobs:
         with:
           go-version: 1.23.3
           cache: false
-
-      - name: Login to ghcr.io
-        uses: docker/login-action@v2
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Login to harbor.onebrief.tools
         uses: docker/login-action@v2
@@ -67,7 +65,6 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: |
-            ghcr.io/onebrief/gotenberg
             harbor.onebrief.tools/onebrief/gotenberg
           tags: |
             type=ref,event=branch
@@ -78,23 +75,83 @@ jobs:
 
       - name: Docker Build
         id: build
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./build/Dockerfile.bc
+          build-args: |
+            BASE_IMAGE=${{ matrix.type == 'arm' && 'gotenberg/gotenberg' || 'harbor.onebrief.tools/cgr.dev/onebrief.com/gotenberg' }}
+            UNOCONVERTER_BIN_PATH=${{ matrix.type == 'arm' && '/usr/bin/unoconverter' || '/usr/bin/unoconv' }}
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          platforms: |
-            linux/amd64
+          outputs: type=image,name=harbor.onebrief.tools/onebrief/gotenberg,push-by-digest=true,name-canonical=true,push=true
 
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.24.0
-        continue-on-error: true
-        with:
-          image-ref: harbor.onebrief.tools/onebrief/gotenberg@${{ steps.build.outputs.imageid }}
-          scanners: "vuln"
-          format: "table"
+      - name: Set outputs
+        id: setout
+        shell: bash
         env:
-          TRIVY_USERNAME: ${{ secrets.HARBOR_RO_USER }}
-          TRIVY_PASSWORD: ${{ secrets.HARBOR_RO_TOKEN }}
+          reponame: onebrief/gotenberg-${{ matrix.type }}
+        run: |
+          echo "image=${{ fromJSON(steps.meta.outputs.json).tags[0] }}" >> $GITHUB_OUTPUT
+          echo "digestname=${reponame/\//-}" >> $GITHUB_OUTPUT
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ steps.setout.outputs.digestname }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: Merge
+    runs-on: ubuntu-latest
+    needs:
+      - build-docker-image
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set outputs
+        id: calculate
+        shell: bash
+        env:
+          reponame: onebrief/gotenberg
+        run: |
+          echo "digestname=${reponame/\//-}" >> $GITHUB_OUTPUT
+
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-${{ steps.calculate.outputs.digestname }}-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to container registry
+        uses: docker/login-action@v3
+        with:
+          registry: harbor.onebrief.tools
+          username: ${{ secrets.HARBOR_USER }}
+          password: ${{ secrets.HARBOR_TOKEN }}
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: harbor.onebrief.tools/onebrief/gotenberg
+
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        shell: bash
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf 'harbor.onebrief.tools/onebrief/gotenberg@sha256:%s ' *)
