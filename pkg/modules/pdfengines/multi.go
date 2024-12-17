@@ -12,23 +12,26 @@ import (
 )
 
 type multiPdfEngines struct {
-	mergeEngines       []gotenberg.PdfEngine
-	convertEngines     []gotenberg.PdfEngine
-	readMedataEngines  []gotenberg.PdfEngine
-	writeMedataEngines []gotenberg.PdfEngine
+	mergeEngines           []gotenberg.PdfEngine
+	convertEngines         []gotenberg.PdfEngine
+	readMedataEngines      []gotenberg.PdfEngine
+	writeMedataEngines     []gotenberg.PdfEngine
+	importBookmarksEngines []gotenberg.PdfEngine
 }
 
 func newMultiPdfEngines(
 	mergeEngines,
 	convertEngines,
 	readMetadataEngines,
-	writeMedataEngines []gotenberg.PdfEngine,
+	writeMedataEngines,
+	importBookmarksEngines []gotenberg.PdfEngine,
 ) *multiPdfEngines {
 	return &multiPdfEngines{
-		mergeEngines:       mergeEngines,
-		convertEngines:     convertEngines,
-		readMedataEngines:  readMetadataEngines,
-		writeMedataEngines: writeMedataEngines,
+		mergeEngines:           mergeEngines,
+		convertEngines:         convertEngines,
+		readMedataEngines:      readMetadataEngines,
+		writeMedataEngines:     writeMedataEngines,
+		importBookmarksEngines: importBookmarksEngines,
 	}
 }
 
@@ -139,6 +142,30 @@ func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *zap.Log
 	}
 
 	return fmt.Errorf("write PDF metadata with multi PDF engines: %w", err)
+}
+
+// Merge is not available in this implementation.
+func (multi *multiPdfEngines) ImportBookmarks(ctx context.Context, logger *zap.Logger, inputPath, inputBookmarksPath, outputPath string) error {
+	var err error
+	errChan := make(chan error, 1)
+
+	for _, engine := range multi.importBookmarksEngines {
+		go func(engine gotenberg.PdfEngine) {
+			errChan <- engine.ImportBookmarks(ctx, logger, inputPath, inputBookmarksPath, outputPath)
+		}(engine)
+
+		select {
+		case mergeErr := <-errChan:
+			errored := multierr.AppendInto(&err, mergeErr)
+			if !errored {
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	return fmt.Errorf("import bookmarks into PDF with multi PDF engines: %w", err)
 }
 
 // Interface guards.

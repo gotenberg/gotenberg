@@ -13,6 +13,7 @@ PDFCPU_VERSION="$7"
 DOCKER_REGISTRY="$8"
 DOCKER_REPOSITORY="$9"
 LINUX_AMD64_RELEASE="${10}"
+CHROME_VERSION="${11}"
 
 # Find out if given version is "semver".
 GOTENBERG_VERSION="${GOTENBERG_VERSION//v}"
@@ -67,6 +68,7 @@ docker buildx build \
   --build-arg NOTO_COLOR_EMOJI_VERSION="$NOTO_COLOR_EMOJI_VERSION" \
   --build-arg PDFTK_VERSION="$PDFTK_VERSION" \
   --build-arg PDFCPU_VERSION="$PDFCPU_VERSION" \
+  --build-arg CHROME_VERSION="$CHROME_VERSION" \
   $PLATFORM_FLAG \
   "${TAGS[@]}" \
   --push \

@@ -85,6 +85,11 @@ func (engine *PdfTk) WriteMetadata(ctx context.Context, logger *zap.Logger, meta
 	return fmt.Errorf("write PDF metadata with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// Import bookmarks is not available in this implementation.
+func (engine *PdfTk) ImportBookmarks(ctx context.Context, logger *zap.Logger, inputPath, inputBookmarksPath, outputPath string) error {
+	return fmt.Errorf("import bookmarks into PDF with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*PdfTk)(nil)
