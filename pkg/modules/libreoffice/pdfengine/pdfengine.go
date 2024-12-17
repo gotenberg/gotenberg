@@ -81,6 +81,11 @@ func (engine *LibreOfficePdfEngine) WriteMetadata(ctx context.Context, logger *z
 	return fmt.Errorf("write PDF metadata with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// Import bookmarks is not available in this implementation.
+func (engine *LibreOfficePdfEngine) ImportBookmarks(ctx context.Context, logger *zap.Logger, inputPath, inputBookmarksPath, outputPath string) error {
+	return fmt.Errorf("import bookmarks into PDF with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*LibreOfficePdfEngine)(nil)

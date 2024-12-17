@@ -62,6 +62,7 @@ ARG GOTENBERG_USER_UID
 ARG NOTO_COLOR_EMOJI_VERSION
 ARG PDFTK_VERSION
 ARG TMP_CHOMIUM_VERSION_ARMHF="116.0.5845.180-1~deb12u1"
+ARG CHROME_VERSION
 
 LABEL org.opencontainers.image.title="Gotenberg" \
       org.opencontainers.image.description="A Docker-powered stateless API for PDF files." \
@@ -151,11 +152,20 @@ RUN \
     /bin/bash -c \
     'set -e &&\
     if [[ "$(dpkg --print-architecture)" == "amd64" ]]; then \
-      curl https://dl.google.com/linux/linux_signing_key.pub | apt-key add - &&\
-      echo "deb http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list &&\
       apt-get update -qq &&\
-      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends --allow-unauthenticated google-chrome-stable &&\
-      mv /usr/bin/google-chrome-stable /usr/bin/chromium; \
+      if [ -z "$CHROME_VERSION" ]; then \
+        curl https://dl.google.com/linux/linux_signing_key.pub | apt-key add - &&\
+        echo "deb http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list &&\
+        apt-get update -qq &&\
+        DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends --allow-unauthenticated google-chrome-stable &&\
+        mv /usr/bin/google-chrome-stable /usr/bin/chromium; \
+      else \
+        apt-get update -qq &&\
+        curl --output /tmp/chrome.deb "https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_${CHROME_VERSION}_amd64.deb" &&\
+        DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends /tmp/chrome.deb &&\
+        mv /usr/bin/google-chrome-stable /usr/bin/chromium &&\
+        rm -rf /tmp/chrome.deb; \  
+      fi && \
     elif [[ "$(dpkg --print-architecture)" == "armhf" ]]; then \
       apt-get update -qq &&\
       DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends devscripts &&\

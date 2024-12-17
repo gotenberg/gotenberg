@@ -29,7 +29,8 @@ func TestPdfEngines_Provision(t *testing.T) {
 		expectedConvertPdfEngines       []string
 		expectedReadMetadataPdfEngines  []string
 		expectedWriteMetadataPdfEngines []string
-		expectError                     bool
+		//expectedImportBookmarksPdfEngines []string
+		expectError bool
 	}{
 		{
 			scenario: "no selection from user",
@@ -69,7 +70,8 @@ func TestPdfEngines_Provision(t *testing.T) {
 			expectedConvertPdfEngines:       []string{"libreoffice-pdfengine"},
 			expectedReadMetadataPdfEngines:  []string{"exiftool"},
 			expectedWriteMetadataPdfEngines: []string{"exiftool"},
-			expectError:                     false,
+			//expectedImportBookmarksPdfEngines: []string{"pdfcpu"},
+			expectError: false,
 		},
 		{
 			scenario: "selection from user",
@@ -107,7 +109,7 @@ func TestPdfEngines_Provision(t *testing.T) {
 				}
 
 				fs := new(PdfEngines).Descriptor().FlagSet
-				err := fs.Parse([]string{"--pdfengines-merge-engines=b", "--pdfengines-convert-engines=b", "--pdfengines-read-metadata-engines=a", "--pdfengines-write-metadata-engines=a"})
+				err := fs.Parse([]string{"--pdfengines-merge-engines=b", "--pdfengines-convert-engines=b", "--pdfengines-read-metadata-engines=a", "--pdfengines-write-metadata-engines=a", "pdfengines-import-bookmarks-engines=b"})
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
@@ -128,7 +130,8 @@ func TestPdfEngines_Provision(t *testing.T) {
 			expectedConvertPdfEngines:       []string{"b"},
 			expectedReadMetadataPdfEngines:  []string{"a"},
 			expectedWriteMetadataPdfEngines: []string{"a"},
-			expectError:                     false,
+			//expectedImportBookmarksPdfEngines: []string{"b"},
+			expectError: false,
 		},
 		{
 			scenario: "no valid PDF engine",
@@ -194,6 +197,10 @@ func TestPdfEngines_Provision(t *testing.T) {
 				t.Fatalf("expected %d write metadata names but got %d", len(tc.expectedWriteMetadataPdfEngines), len(mod.writeMedataNames))
 			}
 
+			// if len(tc.expectedImportBookmarksPdfEngines) != len(mod.importBookmarksNames) {
+			// 	t.Fatalf("expected %d write metadata names but got %d", len(tc.expectedImportBookmarksPdfEngines), len(mod.importBookmarksNames))
+			// }
+
 			for index, name := range mod.mergeNames {
 				if name != tc.expectedMergePdfEngines[index] {
 					t.Fatalf("expected merge name at index %d to be %s, but got: %s", index, name, tc.expectedMergePdfEngines[index])
@@ -217,6 +224,12 @@ func TestPdfEngines_Provision(t *testing.T) {
 					t.Fatalf("expected write metadat name at index %d to be %s, but got: %s", index, name, tc.expectedWriteMetadataPdfEngines[index])
 				}
 			}
+
+			// for index, name := range mod.importBookmarksNames {
+			// 	if name != tc.expectedImportBookmarksPdfEngines[index] {
+			// 		t.Fatalf("expected import bookmarks name at index %d to be %s, but got: %s", index, name, tc.expectedImportBookmarksPdfEngines[index])
+			// 	}
+			// }
 		})
 	}
 }
@@ -280,11 +293,12 @@ func TestPdfEngines_Validate(t *testing.T) {
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			mod := PdfEngines{
-				mergeNames:        tc.names,
-				convertNames:      tc.names,
-				readMetadataNames: tc.names,
-				writeMedataNames:  tc.names,
-				engines:           tc.engines,
+				mergeNames:           tc.names,
+				convertNames:         tc.names,
+				readMetadataNames:    tc.names,
+				writeMedataNames:     tc.names,
+				importBookmarksNames: tc.names,
+				engines:              tc.engines,
 			}
 
 			err := mod.Validate()
@@ -306,9 +320,10 @@ func TestPdfEngines_SystemMessages(t *testing.T) {
 	mod.convertNames = []string{"foo", "bar"}
 	mod.readMetadataNames = []string{"foo", "bar"}
 	mod.writeMedataNames = []string{"foo", "bar"}
+	mod.importBookmarksNames = []string{"foo", "bar"}
 
 	messages := mod.SystemMessages()
-	if len(messages) != 4 {
+	if len(messages) != 5 {
 		t.Errorf("expected one and only one message, but got %d", len(messages))
 	}
 
@@ -317,6 +332,7 @@ func TestPdfEngines_SystemMessages(t *testing.T) {
 		fmt.Sprintf("convert engines - %s", strings.Join(mod.convertNames[:], " ")),
 		fmt.Sprintf("read metadata engines - %s", strings.Join(mod.readMetadataNames[:], " ")),
 		fmt.Sprintf("write medata engines - %s", strings.Join(mod.writeMedataNames[:], " ")),
+		fmt.Sprintf("import bookmarks engines - %s", strings.Join(mod.importBookmarksNames[:], " ")),
 	}
 
 	for i, message := range messages {
@@ -328,10 +344,11 @@ func TestPdfEngines_SystemMessages(t *testing.T) {
 
 func TestPdfEngines_PdfEngine(t *testing.T) {
 	mod := PdfEngines{
-		mergeNames:        []string{"foo", "bar"},
-		convertNames:      []string{"foo", "bar"},
-		readMetadataNames: []string{"foo", "bar"},
-		writeMedataNames:  []string{"foo", "bar"},
+		mergeNames:           []string{"foo", "bar"},
+		convertNames:         []string{"foo", "bar"},
+		readMetadataNames:    []string{"foo", "bar"},
+		writeMedataNames:     []string{"foo", "bar"},
+		importBookmarksNames: []string{"foo", "bar"},
 		engines: func() []gotenberg.PdfEngine {
 			engine1 := &struct {
 				gotenberg.ModuleMock

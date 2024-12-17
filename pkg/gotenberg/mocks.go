@@ -35,10 +35,11 @@ func (mod *ValidatorMock) Validate() error {
 
 // PdfEngineMock is a mock for the [PdfEngine] interface.
 type PdfEngineMock struct {
-	MergeMock         func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error
-	ConvertMock       func(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error
-	ReadMetadataMock  func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error)
-	WriteMetadataMock func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error
+	MergeMock           func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error
+	ConvertMock         func(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error
+	ReadMetadataMock    func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error)
+	WriteMetadataMock   func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error
+	ImportBookmarksMock func(ctx context.Context, logger *zap.Logger, inputPath, inputBookmarksPath, outputPath string) error
 }
 
 func (engine *PdfEngineMock) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
@@ -55,6 +56,10 @@ func (engine *PdfEngineMock) ReadMetadata(ctx context.Context, logger *zap.Logge
 
 func (engine *PdfEngineMock) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
 	return engine.WriteMetadataMock(ctx, logger, metadata, inputPath)
+}
+
+func (engine *PdfEngineMock) ImportBookmarks(ctx context.Context, logger *zap.Logger, inputPath, inputBookmarksPath, outputPath string) error {
+	return engine.ImportBookmarksMock(ctx, logger, inputPath, inputBookmarksPath, outputPath)
 }
 
 // PdfEngineProviderMock is a mock for the [PdfEngineProvider] interface.

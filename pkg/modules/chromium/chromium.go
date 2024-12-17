@@ -10,6 +10,7 @@ import (
 	"github.com/alexliesenfeld/health"
 	"github.com/chromedp/cdproto/network"
 	"github.com/dlclark/regexp2"
+	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 	flag "github.com/spf13/pflag"
 	"go.uber.org/zap"
 
@@ -210,6 +211,10 @@ type PdfOptions struct {
 	// same format as the HeaderTemplate.
 	FooterTemplate string
 
+	// Bookmarks to be inserted unmarshaled
+	// as defined in pdfcpu bookmarks export
+	Bookmarks pdfcpu.BookmarkTree
+
 	// PreferCssPageSize defines whether to prefer page size as defined by CSS.
 	// If false, the content will be scaled to fit the paper size.
 	PreferCssPageSize bool
@@ -236,6 +241,7 @@ func DefaultPdfOptions() PdfOptions {
 		PageRanges:              "",
 		HeaderTemplate:          "<html><head></head><body></body></html>",
 		FooterTemplate:          "<html><head></head><body></body></html>",
+		Bookmarks:               pdfcpu.BookmarkTree{},
 		PreferCssPageSize:       false,
 		GenerateDocumentOutline: false,
 	}

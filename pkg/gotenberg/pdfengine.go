@@ -74,6 +74,9 @@ type PdfEngine interface {
 
 	// WriteMetadata writes the metadata into a given PDF file.
 	WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error
+
+	// Import Bookmarks in a given PDF.
+	ImportBookmarks(ctx context.Context, logger *zap.Logger, inputPath, inputBookmarksPath, outputPath string) error
 }
 
 // PdfEngineProvider offers an interface to instantiate a [PdfEngine].
