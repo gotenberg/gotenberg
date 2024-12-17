@@ -165,7 +165,7 @@ RUN \
         DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends /tmp/chrome.deb &&\
         mv /usr/bin/google-chrome-stable /usr/bin/chromium &&\
         rm -rf /tmp/chrome.deb; \  
-      fi && \
+      fi \
     elif [[ "$(dpkg --print-architecture)" == "armhf" ]]; then \
       apt-get update -qq &&\
       DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends devscripts &&\
