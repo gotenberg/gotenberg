@@ -26,6 +26,7 @@ build: ## Build the Gotenberg's Docker image
 	--build-arg NOTO_COLOR_EMOJI_VERSION=$(NOTO_COLOR_EMOJI_VERSION) \
 	--build-arg PDFTK_VERSION=$(PDFTK_VERSION) \
 	--build-arg PDFCPU_VERSION=$(PDFCPU_VERSION) \
+	--build-arg CHROME_VERSION=$(CHROME_VERSION) \
 	-t $(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
 	-f build/Dockerfile .
 
@@ -167,6 +168,7 @@ build-tests: ## Build the tests' Docker image
 	--build-arg DOCKER_REPOSITORY=$(DOCKER_REPOSITORY) \
 	--build-arg GOTENBERG_VERSION=$(GOTENBERG_VERSION) \
 	--build-arg GOLANGCI_LINT_VERSION=$(GOLANGCI_LINT_VERSION) \
+	--build-arg CHROME_VERSION=$(CHROME_VERSION) \
 	-t $(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION)-tests \
 	-f test/Dockerfile .
 
@@ -212,5 +214,6 @@ release: ## Build the Gotenberg's Docker image and push it to a Docker repositor
 	$(PDFCPU_VERSION) \
 	$(DOCKER_REGISTRY) \
 	$(DOCKER_REPOSITORY) \
-	$(LINUX_AMD64_RELEASE)
+	$(LINUX_AMD64_RELEASE) \
+	$(CHROME_VERSION)
 
