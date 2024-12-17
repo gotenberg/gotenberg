@@ -6,7 +6,7 @@ help: ## Show the help
 it: build build-tests ## Initialize the development environment
 
 GOLANG_VERSION=1.23
-DOCKER_REGISTRY=gotenberg
+DOCKER_REGISTRY=ghcr.io/fulll
 DOCKER_REPOSITORY=gotenberg
 GOTENBERG_VERSION=snapshot
 GOTENBERG_USER_GID=1001
@@ -26,7 +26,6 @@ build: ## Build the Gotenberg's Docker image
 	--build-arg NOTO_COLOR_EMOJI_VERSION=$(NOTO_COLOR_EMOJI_VERSION) \
 	--build-arg PDFTK_VERSION=$(PDFTK_VERSION) \
 	--build-arg PDFCPU_VERSION=$(PDFCPU_VERSION) \
-	--build-arg CHROME_VERSION=$(CHROME_VERSION) \
 	-t $(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
 	-f build/Dockerfile .
 

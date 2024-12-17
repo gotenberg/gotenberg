@@ -18,9 +18,26 @@ jobs:
       - name: Log in to Docker Hub Container Registry
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push Docker image for release
+        env:
+          LINUX_AMD64_RELEASE: "true"
         run: |
-          make release GOTENBERG_VERSION=${{ github.event.release.tag_name }}
-          make release GOTENBERG_VERSION=${{ github.event.release.tag_name }} DOCKER_REGISTRY=thecodingmachine
+          make release CHROME_VERSION=127.0.6533.119-1 GOTENBERG_VERSION=${{ github.event.release.tag_name }} DOCKER_REGISTRY=ghcr.io/fulll DOCKER_REPOSITORY=gotenberg
+
+      - name: generate aws credentials config
+        env:
+          AWS_CREDENTIALS: ${{ secrets.STAGING_AWS_CREDENTIALS }}
+          aws-region: eu-central-1
+        run: |
+          mkdir -p "${HOME}/.aws"
+          echo "${AWS_CREDENTIALS}" > "${HOME}/.aws/credentials"
+
+      - name: docker login and push
+        run: |
+          docker pull ghcr.io/fulll/gotenberg/gotenberg:${{ github.event.release.tag_name }}-cloudrun
+          docker tag ghcr.io/fulll/gotenberg/gotenberg:${{ github.event.release.tag_name }}-cloudrun 285715278780.dkr.ecr.eu-central-1.amazonaws.com/gotenberg:${{ github.event.release.tag_name }}-cloudrun
+          aws --region eu-central-1 ecr get-login-password | docker login --username AWS --password-stdin 285715278780.dkr.ecr.eu-central-1.amazonaws.com
+          docker push 285715278780.dkr.ecr.eu-central-1.amazonaws.com/gotenberg-fulll:${{ github.event.release.tag_name }}-cloudrun
