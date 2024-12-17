@@ -27,12 +27,13 @@ func init() {
 // the [api.Router] interface to expose relevant PDF processing routes if
 // enabled.
 type PdfEngines struct {
-	mergeNames        []string
-	convertNames      []string
-	readMetadataNames []string
-	writeMedataNames  []string
-	engines           []gotenberg.PdfEngine
-	disableRoutes     bool
+	mergeNames           []string
+	convertNames         []string
+	readMetadataNames    []string
+	writeMedataNames     []string
+	importBookmarksNames []string
+	engines              []gotenberg.PdfEngine
+	disableRoutes        bool
 }
 
 // Descriptor returns a PdfEngines' module descriptor.
@@ -45,6 +46,7 @@ func (mod *PdfEngines) Descriptor() gotenberg.ModuleDescriptor {
 			fs.StringSlice("pdfengines-convert-engines", []string{"libreoffice-pdfengine"}, "Set the PDF engines and their order for the convert feature - empty means all")
 			fs.StringSlice("pdfengines-read-metadata-engines", []string{"exiftool"}, "Set the PDF engines and their order for the read metadata feature - empty means all")
 			fs.StringSlice("pdfengines-write-metadata-engines", []string{"exiftool"}, "Set the PDF engines and their order for the write metadata feature - empty means all")
+			fs.StringSlice("pdfengines-import-bookmarks-engines", []string{"pdfcpu"}, "Set the PDF engines and their order for the import bookmarks feature - empty means all")
 			fs.Bool("pdfengines-disable-routes", false, "Disable the routes")
 
 			fs.StringSlice("pdfengines-engines", make([]string, 0), "Set the default PDF engines and their default order - all by default")
@@ -67,6 +69,7 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 	convertNames := flags.MustStringSlice("pdfengines-convert-engines")
 	readMetadataNames := flags.MustStringSlice("pdfengines-read-metadata-engines")
 	writeMetadataNames := flags.MustStringSlice("pdfengines-write-metadata-engines")
+	importBookmarksNames := flags.MustStringSlice("pdfengines-import-bookmarks-engines")
 	mod.disableRoutes = flags.MustBool("pdfengines-disable-routes")
 
 	engines, err := ctx.Modules(new(gotenberg.PdfEngine))
@@ -111,6 +114,11 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 	mod.writeMedataNames = defaultNames
 	if len(writeMetadataNames) > 0 {
 		mod.writeMedataNames = writeMetadataNames
+	}
+
+	mod.importBookmarksNames = defaultNames
+	if len(importBookmarksNames) > 0 {
+		mod.importBookmarksNames = importBookmarksNames
 	}
 
 	return nil
@@ -164,6 +172,7 @@ func (mod *PdfEngines) Validate() error {
 	findNonExistingEngines(mod.convertNames)
 	findNonExistingEngines(mod.readMetadataNames)
 	findNonExistingEngines(mod.writeMedataNames)
+	findNonExistingEngines(mod.importBookmarksNames)
 
 	if len(nonExistingEngines) == 0 {
 		return nil
@@ -180,6 +189,7 @@ func (mod *PdfEngines) SystemMessages() []string {
 		fmt.Sprintf("convert engines - %s", strings.Join(mod.convertNames[:], " ")),
 		fmt.Sprintf("read metadata engines - %s", strings.Join(mod.readMetadataNames[:], " ")),
 		fmt.Sprintf("write medata engines - %s", strings.Join(mod.writeMedataNames[:], " ")),
+		fmt.Sprintf("import bookmarks engines - %s", strings.Join(mod.importBookmarksNames[:], " ")),
 	}
 }
 
@@ -204,6 +214,7 @@ func (mod *PdfEngines) PdfEngine() (gotenberg.PdfEngine, error) {
 		engines(mod.convertNames),
 		engines(mod.readMetadataNames),
 		engines(mod.writeMedataNames),
+		engines(mod.importBookmarksNames),
 	), nil
 }
 

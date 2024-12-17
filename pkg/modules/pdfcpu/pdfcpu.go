@@ -85,6 +85,28 @@ func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *zap.Logger, met
 	return fmt.Errorf("write PDF metadata with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// Import Bookmarks in a given PDF.
+func (engine *PdfCpu) ImportBookmarks(ctx context.Context, logger *zap.Logger, inputPath, inputBookmarksPath, outputPath string) error {
+	if inputBookmarksPath == "" {
+		return nil
+	}
+
+	var args []string
+	args = append(args, "bookmarks", "import", inputPath, inputBookmarksPath, outputPath)
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		return fmt.Errorf("create command: %w", err)
+	}
+
+	_, err = cmd.Exec()
+	if err == nil {
+		return nil
+	}
+
+	return fmt.Errorf("ImportBookmarks PDFs with pdfcpu: %w", err)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*PdfCpu)(nil)
