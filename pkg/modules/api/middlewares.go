@@ -48,6 +48,10 @@ func ParseError(err error) (int, string) {
 		return http.StatusTooManyRequests, http.StatusText(http.StatusTooManyRequests)
 	}
 
+	if errors.Is(err, gotenberg.ErrPdfSplitModeNotSupported) {
+		return http.StatusBadRequest, "At least one PDF engine cannot process the requested PDF split mode, while others may have failed to split due to different issues"
+	}
+
 	if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
 		return http.StatusBadRequest, "At least one PDF engine cannot process the requested PDF format, while others may have failed to convert due to different issues"
 	}

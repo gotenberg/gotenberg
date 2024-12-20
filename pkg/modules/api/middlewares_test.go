@@ -39,6 +39,11 @@ func TestParseError(t *testing.T) {
 			expectMessage: http.StatusText(http.StatusTooManyRequests),
 		},
 		{
+			err:           gotenberg.ErrPdfSplitModeNotSupported,
+			expectStatus:  http.StatusBadRequest,
+			expectMessage: "At least one PDF engine cannot process the requested PDF split mode, while others may have failed to split due to different issues",
+		},
+		{
 			err:           gotenberg.ErrPdfFormatNotSupported,
 			expectStatus:  http.StatusBadRequest,
 			expectMessage: "At least one PDF engine cannot process the requested PDF format, while others may have failed to convert due to different issues",
@@ -462,7 +467,7 @@ func TestContextMiddleware(t *testing.T) {
 		c.Set("trace", "foo")
 		c.Set("startTime", time.Now())
 
-		err := contextMiddleware(gotenberg.NewFileSystem(), time.Duration(10)*time.Second, 0, downloadFromConfig{})(tc.next)(c)
+		err := contextMiddleware(gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)), time.Duration(10)*time.Second, 0, downloadFromConfig{})(tc.next)(c)
 
 		if tc.expectErr && err == nil {
 			t.Errorf("test %d: expected error but got: %v", i, err)

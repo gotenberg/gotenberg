@@ -6,12 +6,71 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
 )
+
+// FormDataPdfSplitMode creates a [gotenberg.SplitMode] from the form data.
+func FormDataPdfSplitMode(form *api.FormData, mandatory bool) gotenberg.SplitMode {
+	var (
+		mode string
+		span string
+	)
+
+	splitModeFunc := func(value string) error {
+		if value != "" && value != gotenberg.SplitModeIntervals && value != gotenberg.SplitModePages {
+			return fmt.Errorf("wrong value, expected either '%s' or '%s'", gotenberg.SplitModeIntervals, gotenberg.SplitModePages)
+		}
+		mode = value
+		return nil
+	}
+
+	splitSpanFunc := func(value string) error {
+		value = strings.Join(strings.Fields(value), "")
+
+		if mode == gotenberg.SplitModeIntervals {
+			intValue, err := strconv.Atoi(value)
+			if err != nil {
+				return err
+			}
+			if intValue < 1 {
+				return errors.New("value is inferior to 1")
+			}
+		}
+
+		span = value
+
+		return nil
+	}
+
+	if mandatory {
+		form.
+			MandatoryCustom("splitMode", func(value string) error {
+				return splitModeFunc(value)
+			}).
+			MandatoryCustom("splitSpan", func(value string) error {
+				return splitSpanFunc(value)
+			})
+	} else {
+		form.
+			Custom("splitMode", func(value string) error {
+				return splitModeFunc(value)
+			}).
+			Custom("splitSpan", func(value string) error {
+				return splitSpanFunc(value)
+			})
+	}
+
+	return gotenberg.SplitMode{
+		Mode: mode,
+		Span: span,
+	}
+}
 
 // FormDataPdfFormats creates [gotenberg.PdfFormats] from the form data.
 // Fallback to default value if the considered key is not present.
@@ -32,9 +91,10 @@ func FormDataPdfFormats(form *api.FormData) gotenberg.PdfFormats {
 }
 
 // FormDataPdfMetadata creates metadata object from the form data.
-func FormDataPdfMetadata(form *api.FormData) map[string]interface{} {
+func FormDataPdfMetadata(form *api.FormData, mandatory bool) map[string]interface{} {
 	var metadata map[string]interface{}
-	form.Custom("metadata", func(value string) error {
+
+	metadataFunc := func(value string) error {
 		if len(value) > 0 {
 			err := json.Unmarshal([]byte(value), &metadata)
 			if err != nil {
@@ -42,7 +102,18 @@ func FormDataPdfMetadata(form *api.FormData) map[string]interface{} {
 			}
 		}
 		return nil
-	})
+	}
+
+	if mandatory {
+		form.MandatoryCustom("metadata", func(value string) error {
+			return metadataFunc(value)
+		})
+	} else {
+		form.Custom("metadata", func(value string) error {
+			return metadataFunc(value)
+		})
+	}
+
 	return metadata
 }
 
@@ -64,6 +135,52 @@ func MergeStub(ctx *api.Context, engine gotenberg.PdfEngine, inputPaths []string
 	}
 
 	return outputPath, nil
+}
+
+// SplitPdfStub splits a list of PDF files based on [gotenberg.SplitMode].
+// It returns a list of output paths or the list of provided input paths if no
+// split requested.
+func SplitPdfStub(ctx *api.Context, engine gotenberg.PdfEngine, mode gotenberg.SplitMode, inputPaths []string) ([]string, error) {
+	zeroValued := gotenberg.SplitMode{}
+	if mode == zeroValued {
+		return inputPaths, nil
+	}
+
+	var outputPaths []string
+	for _, inputPath := range inputPaths {
+		inputPathNoExt := inputPath[:len(inputPath)-len(filepath.Ext(inputPath))]
+		filenameNoExt := filepath.Base(inputPathNoExt)
+		outputDirPath, err := ctx.CreateSubDirectory(strings.ReplaceAll(filepath.Base(filenameNoExt), ".", "_"))
+		if err != nil {
+			return nil, fmt.Errorf("create subdirectory from input path: %w", err)
+		}
+
+		paths, err := engine.Split(ctx, ctx.Log(), mode, inputPath, outputDirPath)
+		if err != nil {
+			return nil, fmt.Errorf("split PDF '%s': %w", inputPath, err)
+		}
+
+		if mode.Mode == gotenberg.SplitModePages {
+			return paths, nil
+		}
+
+		// Keep the original filename.
+		for i, path := range paths {
+			newPath := fmt.Sprintf(
+				"%s/%s_%d.pdf",
+				outputDirPath, filenameNoExt, i,
+			)
+
+			err = ctx.Rename(path, newPath)
+			if err != nil {
+				return nil, fmt.Errorf("rename path: %w", err)
+			}
+
+			outputPaths = append(outputPaths, newPath)
+		}
+	}
+
+	return outputPaths, nil
 }
 
 // ConvertStub transforms a given PDF to the specified formats defined in
@@ -116,7 +233,7 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 
 			form := ctx.FormData()
 			pdfFormats := FormDataPdfFormats(form)
-			metadata := FormDataPdfMetadata(form)
+			metadata := FormDataPdfMetadata(form, false)
 
 			var inputPaths []string
 			err := form.
@@ -140,6 +257,65 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			err = WriteMetadataStub(ctx, engine, metadata, outputPaths)
 			if err != nil {
 				return fmt.Errorf("write metadata: %w", err)
+			}
+
+			err = ctx.AddOutputPaths(outputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
+			}
+
+			return nil
+		},
+	}
+}
+
+// splitRoute returns an [api.Route] which can extract pages from a PDF.
+func splitRoute(engine gotenberg.PdfEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/split",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			form := ctx.FormData()
+			mode := FormDataPdfSplitMode(form, true)
+			pdfFormats := FormDataPdfFormats(form)
+			metadata := FormDataPdfMetadata(form, false)
+
+			var inputPaths []string
+			err := form.
+				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			outputPaths, err := SplitPdfStub(ctx, engine, mode, inputPaths)
+			if err != nil {
+				return fmt.Errorf("split PDFs: %w", err)
+			}
+
+			convertOutputPaths, err := ConvertStub(ctx, engine, pdfFormats, outputPaths)
+			if err != nil {
+				return fmt.Errorf("convert PDFs: %w", err)
+			}
+
+			err = WriteMetadataStub(ctx, engine, metadata, convertOutputPaths)
+			if err != nil {
+				return fmt.Errorf("write metadata: %w", err)
+			}
+
+			zeroValuedSplitMode := gotenberg.SplitMode{}
+			zeroValuedPdfFormats := gotenberg.PdfFormats{}
+			if mode != zeroValuedSplitMode && pdfFormats != zeroValuedPdfFormats {
+				// Rename the files to keep the split naming.
+				for i, convertOutputPath := range convertOutputPaths {
+					err = ctx.Rename(convertOutputPath, outputPaths[i])
+					if err != nil {
+						return fmt.Errorf("rename output path: %w", err)
+					}
+				}
 			}
 
 			err = ctx.AddOutputPaths(outputPaths...)
@@ -258,25 +434,12 @@ func writeMetadataRoute(engine gotenberg.PdfEngine) api.Route {
 		Handler: func(c echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
-			var (
-				inputPaths []string
-				metadata   map[string]interface{}
-			)
+			form := ctx.FormData()
+			metadata := FormDataPdfMetadata(form, true)
 
-			err := ctx.FormData().
+			var inputPaths []string
+			err := form.
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
-				MandatoryCustom("metadata", func(value string) error {
-					if len(value) > 0 {
-						err := json.Unmarshal([]byte(value), &metadata)
-						if err != nil {
-							return fmt.Errorf("unmarshal metadata: %w", err)
-						}
-					}
-					if len(metadata) == 0 {
-						return errors.New("no metadata")
-					}
-					return nil
-				}).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)

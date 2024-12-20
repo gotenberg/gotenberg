@@ -118,11 +118,21 @@ func TestLibreOfficePdfEngine_Merge(t *testing.T) {
 	}
 }
 
+func TestLibreOfficePdfEngine_Split(t *testing.T) {
+	engine := new(LibreOfficePdfEngine)
+	_, err := engine.Split(context.Background(), zap.NewNop(), gotenberg.SplitMode{}, "", "")
+
+	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
+		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)
+	}
+}
+
 func TestLibreOfficePdfEngine_Convert(t *testing.T) {
 	for _, tc := range []struct {
-		scenario    string
-		api         api.Uno
-		expectError bool
+		scenario      string
+		api           api.Uno
+		expectError   bool
+		expectedError error
 	}{
 		{
 			scenario: "convert success",
@@ -134,13 +144,14 @@ func TestLibreOfficePdfEngine_Convert(t *testing.T) {
 			expectError: false,
 		},
 		{
-			scenario: "invalid PDF format",
+			scenario: "ErrInvalidPdfFormats",
 			api: &api.ApiMock{
 				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options api.Options) error {
 					return api.ErrInvalidPdfFormats
 				},
 			},
-			expectError: true,
+			expectError:   true,
+			expectedError: gotenberg.ErrPdfFormatNotSupported,
 		},
 		{
 			scenario: "convert fail",
@@ -162,6 +173,10 @@ func TestLibreOfficePdfEngine_Convert(t *testing.T) {
 
 			if tc.expectError && err == nil {
 				t.Fatal("expected error but got none")
+			}
+
+			if tc.expectedError != nil && !errors.Is(err, tc.expectedError) {
+				t.Fatalf("expected error %v but got: %v", tc.expectedError, err)
 			}
 		})
 	}

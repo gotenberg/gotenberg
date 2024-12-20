@@ -318,7 +318,7 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 	a.logger = logger
 
 	// File system.
-	a.fs = gotenberg.NewFileSystem()
+	a.fs = gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 	return nil
 }

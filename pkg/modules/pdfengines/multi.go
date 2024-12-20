@@ -13,6 +13,7 @@ import (
 
 type multiPdfEngines struct {
 	mergeEngines       []gotenberg.PdfEngine
+	splitEngines       []gotenberg.PdfEngine
 	convertEngines     []gotenberg.PdfEngine
 	readMedataEngines  []gotenberg.PdfEngine
 	writeMedataEngines []gotenberg.PdfEngine
@@ -20,12 +21,14 @@ type multiPdfEngines struct {
 
 func newMultiPdfEngines(
 	mergeEngines,
+	splitEngines,
 	convertEngines,
 	readMetadataEngines,
 	writeMedataEngines []gotenberg.PdfEngine,
 ) *multiPdfEngines {
 	return &multiPdfEngines{
 		mergeEngines:       mergeEngines,
+		splitEngines:       splitEngines,
 		convertEngines:     convertEngines,
 		readMedataEngines:  readMetadataEngines,
 		writeMedataEngines: writeMedataEngines,
@@ -55,6 +58,44 @@ func (multi *multiPdfEngines) Merge(ctx context.Context, logger *zap.Logger, inp
 	}
 
 	return fmt.Errorf("merge PDFs with multi PDF engines: %w", err)
+}
+
+type splitResult struct {
+	outputPaths []string
+	err         error
+}
+
+// Split tries to split at intervals a given PDF thanks to its children. If the
+// context is done, it stops and returns an error.
+func (multi *multiPdfEngines) Split(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+	var err error
+	var mu sync.Mutex // to safely append errors.
+
+	resultChan := make(chan splitResult, len(multi.splitEngines))
+
+	for _, engine := range multi.splitEngines {
+		go func(engine gotenberg.PdfEngine) {
+			outputPaths, err := engine.Split(ctx, logger, mode, inputPath, outputDirPath)
+			resultChan <- splitResult{outputPaths: outputPaths, err: err}
+		}(engine)
+	}
+
+	for range multi.splitEngines {
+		select {
+		case result := <-resultChan:
+			if result.err != nil {
+				mu.Lock()
+				err = multierr.Append(err, result.err)
+				mu.Unlock()
+			} else {
+				return result.outputPaths, nil
+			}
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+
+	return nil, fmt.Errorf("split PDF with multi PDF engines: %w", err)
 }
 
 // Convert converts the given PDF to a specific PDF format. thanks to its

@@ -44,7 +44,7 @@ type libreOfficeProcess struct {
 func newLibreOfficeProcess(arguments libreOfficeArguments) libreOffice {
 	p := &libreOfficeProcess{
 		arguments: arguments,
-		fs:        gotenberg.NewFileSystem(),
+		fs:        gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)),
 	}
 	p.isStarted.Store(false)
 

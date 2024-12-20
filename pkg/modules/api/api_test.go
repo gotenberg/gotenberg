@@ -850,7 +850,7 @@ func TestApi_Start(t *testing.T) {
 				},
 			}
 			mod.readyFn = tc.readyFn
-			mod.fs = gotenberg.NewFileSystem()
+			mod.fs = gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 			mod.logger = zap.NewNop()
 
 			err := mod.Start()
