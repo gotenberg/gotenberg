@@ -28,8 +28,11 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			defaultOptions := libreofficeapi.DefaultOptions()
 
 			form := ctx.FormData()
+			splitMode := pdfengines.FormDataPdfSplitMode(form, false)
 			pdfFormats := pdfengines.FormDataPdfFormats(form)
-			metadata := pdfengines.FormDataPdfMetadata(form)
+			metadata := pdfengines.FormDataPdfMetadata(form, false)
+
+			zeroValuedSplitMode := gotenberg.SplitMode{}
 
 			var (
 				inputPaths                      []string
@@ -165,7 +168,9 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					MaxImageResolution:              maxImageResolution,
 				}
 
-				if nativePdfFormats {
+				if nativePdfFormats && splitMode == zeroValuedSplitMode {
+					// Only apply natively given PDF formats if we're not
+					// splitting the PDF later.
 					options.PdfFormats = pdfFormats
 				}
 
@@ -209,10 +214,43 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				outputPaths = []string{outputPath}
 			}
 
-			if !nativePdfFormats {
-				outputPaths, err = pdfengines.ConvertStub(ctx, engine, pdfFormats, outputPaths)
+			if splitMode != zeroValuedSplitMode {
+				if !merge {
+					// document.docx -> document.docx.pdf, so that split naming
+					// document.docx_0.pdf, etc.
+					for i, inputPath := range inputPaths {
+						outputPath := fmt.Sprintf("%s.pdf", inputPath)
+
+						err = ctx.Rename(outputPaths[i], outputPath)
+						if err != nil {
+							return fmt.Errorf("rename output path: %w", err)
+						}
+
+						outputPaths[i] = outputPath
+					}
+				}
+
+				outputPaths, err = pdfengines.SplitPdfStub(ctx, engine, splitMode, outputPaths)
+				if err != nil {
+					return fmt.Errorf("split PDFs: %w", err)
+				}
+			}
+
+			if !nativePdfFormats || (nativePdfFormats && splitMode != zeroValuedSplitMode) {
+				convertOutputPaths, err := pdfengines.ConvertStub(ctx, engine, pdfFormats, outputPaths)
 				if err != nil {
 					return fmt.Errorf("convert PDFs: %w", err)
+				}
+
+				if splitMode != zeroValuedSplitMode {
+					// The PDF has been split and split parts have been converted to
+					// specific formats. We want to keep the split naming.
+					for i, convertOutputPath := range convertOutputPaths {
+						err = ctx.Rename(convertOutputPath, outputPaths[i])
+						if err != nil {
+							return fmt.Errorf("rename output path: %w", err)
+						}
+					}
 				}
 			}
 
@@ -221,7 +259,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				return fmt.Errorf("write metadata: %w", err)
 			}
 
-			if len(outputPaths) > 1 {
+			if len(outputPaths) > 1 && splitMode == zeroValuedSplitMode {
 				// If .zip archive, document.docx -> document.docx.pdf.
 				for i, inputPath := range inputPaths {
 					outputPath := fmt.Sprintf("%s.pdf", inputPath)

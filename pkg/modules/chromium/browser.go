@@ -62,7 +62,7 @@ func newChromiumBrowser(arguments browserArguments) browser {
 	b := &chromiumBrowser{
 		initialCtx: context.Background(),
 		arguments:  arguments,
-		fs:         gotenberg.NewFileSystem(),
+		fs:         gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)),
 	}
 	b.isStarted.Store(false)
 

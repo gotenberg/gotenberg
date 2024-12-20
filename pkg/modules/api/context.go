@@ -47,6 +47,7 @@ type Context struct {
 
 	logger     *zap.Logger
 	echoCtx    echo.Context
+	mkdirAll   gotenberg.MkdirAll
 	pathRename gotenberg.PathRename
 	context.Context
 }
@@ -81,12 +82,6 @@ type downloadFrom struct {
 	ExtraHttpHeaders map[string]string `json:"extraHttpHeaders"`
 }
 
-type osPathRename struct{}
-
-func (o *osPathRename) Rename(oldpath, newpath string) error {
-	return os.Rename(oldpath, newpath)
-}
-
 // newContext returns a [Context] by parsing a "multipart/form-data" request.
 func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig, traceHeader, trace string) (*Context, context.CancelFunc, error) {
 	processCtx, processCancel := context.WithTimeout(context.Background(), timeout)
@@ -112,7 +107,8 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 		cancelled:   false,
 		logger:      logger,
 		echoCtx:     echoCtx,
-		pathRename:  new(osPathRename),
+		mkdirAll:    new(gotenberg.OsMkdirAll),
+		pathRename:  new(gotenberg.OsPathRename),
 		Context:     processCtx,
 	}
 
@@ -414,9 +410,21 @@ func (ctx *Context) GeneratePath(extension string) string {
 	return fmt.Sprintf("%s/%s%s", ctx.dirPath, uuid.New().String(), extension)
 }
 
+// CreateSubDirectory creates a subdirectory within the context's working
+// directory.
+func (ctx *Context) CreateSubDirectory(dirName string) (string, error) {
+	path := fmt.Sprintf("%s/%s", ctx.dirPath, dirName)
+	err := ctx.mkdirAll.MkdirAll(path, 0o755)
+	if err != nil {
+		return "", fmt.Errorf("create sub-directory %s: %w", path, err)
+	}
+	return path, nil
+}
+
 // Rename is just a wrapper around [os.Rename], as we need to mock this
 // behavior in our tests.
 func (ctx *Context) Rename(oldpath, newpath string) error {
+	ctx.Log().Debug(fmt.Sprintf("rename %s to %s", oldpath, newpath))
 	err := ctx.pathRename.Rename(oldpath, newpath)
 	if err != nil {
 		return fmt.Errorf("rename path: %w", err)
@@ -496,8 +504,3 @@ func (ctx *Context) OutputFilename(outputPath string) string {
 
 	return fmt.Sprintf("%s%s", filename, filepath.Ext(outputPath))
 }
-
-// Interface guard.
-var (
-	_ gotenberg.PathRename = (*osPathRename)(nil)
-)
