@@ -59,6 +59,9 @@ func (engine *PdfTk) Split(ctx context.Context, logger *zap.Logger, mode gotenbe
 
 	switch mode.Mode {
 	case gotenberg.SplitModePages:
+		if !mode.Unify {
+			return nil, fmt.Errorf("split PDFs using mode '%s' without unify with PDFtk: %w", mode.Mode, gotenberg.ErrPdfSplitModeNotSupported)
+		}
 		args = append(args, inputPath, "cat", mode.Span, "output", outputPath)
 	default:
 		return nil, fmt.Errorf("split PDFs using mode '%s' with PDFtk: %w", mode.Mode, gotenberg.ErrPdfSplitModeNotSupported)

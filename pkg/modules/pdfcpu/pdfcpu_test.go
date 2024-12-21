@@ -189,6 +189,14 @@ func TestPdfCpu_Split(t *testing.T) {
 			expectError:            false,
 			expectOutputPathsCount: 1,
 		},
+		{
+			scenario:               "success (pages & unify)",
+			ctx:                    context.TODO(),
+			mode:                   gotenberg.SplitMode{Mode: gotenberg.SplitModePages, Span: "1-2", Unify: true},
+			inputPath:              "/tests/test/testdata/pdfengines/sample1.pdf",
+			expectError:            false,
+			expectOutputPathsCount: 1,
+		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			engine := new(PdfCpu)

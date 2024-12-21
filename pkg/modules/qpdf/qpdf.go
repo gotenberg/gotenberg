@@ -59,6 +59,9 @@ func (engine *QPdf) Split(ctx context.Context, logger *zap.Logger, mode gotenber
 
 	switch mode.Mode {
 	case gotenberg.SplitModePages:
+		if !mode.Unify {
+			return nil, fmt.Errorf("split PDFs using mode '%s' without unify with QPDF: %w", mode.Mode, gotenberg.ErrPdfSplitModeNotSupported)
+		}
 		args = append(args, inputPath, "--pages", ".", mode.Span, "--", outputPath)
 	default:
 		return nil, fmt.Errorf("split PDFs using mode '%s' with QPDF: %w", mode.Mode, gotenberg.ErrPdfSplitModeNotSupported)

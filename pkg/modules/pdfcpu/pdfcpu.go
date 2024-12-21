@@ -79,8 +79,12 @@ func (engine *PdfCpu) Split(ctx context.Context, logger *zap.Logger, mode gotenb
 	case gotenberg.SplitModeIntervals:
 		args = append(args, "split", "-mode", "span", inputPath, outputDirPath, mode.Span)
 	case gotenberg.SplitModePages:
-		outputPath := fmt.Sprintf("%s/%s", outputDirPath, filepath.Base(inputPath))
-		args = append(args, "trim", "-pages", mode.Span, inputPath, outputPath)
+		if mode.Unify {
+			outputPath := fmt.Sprintf("%s/%s", outputDirPath, filepath.Base(inputPath))
+			args = append(args, "trim", "-pages", mode.Span, inputPath, outputPath)
+			break
+		}
+		args = append(args, "extract", "-mode", "page", "-pages", mode.Span, inputPath, outputDirPath)
 	default:
 		return nil, fmt.Errorf("split PDFs using mode '%s' with pdfcpu: %w", mode.Mode, gotenberg.ErrPdfSplitModeNotSupported)
 	}
