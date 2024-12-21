@@ -13,18 +13,23 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      # To report GitHub Actions status checks.
+      statuses: write
     steps:
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.23'
-          cache: false
       - name: Checkout source code
         uses: actions/checkout@v4
-      - name: Run linters
-        uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.61.0
+          # super-linter needs the full git history to get the
+          # list of files that changed across commits.
+          fetch-depth: 0
+      - name: Super-linter
+        uses: super-linter/super-linter@v7.2.1
+        env:
+          # To report GitHub Actions status checks.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   tests:
     needs:
