@@ -43,6 +43,10 @@ type SplitMode struct {
 	// Span is either the intervals or the page ranges to extract, depending on
 	// the selected mode.
 	Span string
+
+	// Unify specifies whether to put extracted pages into a single file or as
+	// many files as there are page ranges. Only works with "pages" mode.
+	Unify bool
 }
 
 const (

@@ -18,8 +18,9 @@ import (
 // FormDataPdfSplitMode creates a [gotenberg.SplitMode] from the form data.
 func FormDataPdfSplitMode(form *api.FormData, mandatory bool) gotenberg.SplitMode {
 	var (
-		mode string
-		span string
+		mode  string
+		span  string
+		unify bool
 	)
 
 	splitModeFunc := func(value string) error {
@@ -66,9 +67,19 @@ func FormDataPdfSplitMode(form *api.FormData, mandatory bool) gotenberg.SplitMod
 			})
 	}
 
+	form.
+		Bool("splitUnify", &unify, false).
+		Custom("splitUnify", func(value string) error {
+			if value != "" && unify && mode != gotenberg.SplitModePages {
+				return fmt.Errorf("unify is not available for split mode '%s'", mode)
+			}
+			return nil
+		})
+
 	return gotenberg.SplitMode{
-		Mode: mode,
-		Span: span,
+		Mode:  mode,
+		Span:  span,
+		Unify: unify,
 	}
 }
 
@@ -160,16 +171,20 @@ func SplitPdfStub(ctx *api.Context, engine gotenberg.PdfEngine, mode gotenberg.S
 			return nil, fmt.Errorf("split PDF '%s': %w", inputPath, err)
 		}
 
-		if mode.Mode == gotenberg.SplitModePages {
-			return paths, nil
-		}
-
 		// Keep the original filename.
 		for i, path := range paths {
-			newPath := fmt.Sprintf(
-				"%s/%s_%d.pdf",
-				outputDirPath, filenameNoExt, i,
-			)
+			var newPath string
+			if mode.Unify && mode.Mode == gotenberg.SplitModePages {
+				newPath = fmt.Sprintf(
+					"%s/%s.pdf",
+					outputDirPath, filenameNoExt,
+				)
+			} else {
+				newPath = fmt.Sprintf(
+					"%s/%s_%d.pdf",
+					outputDirPath, filenameNoExt, i,
+				)
+			}
 
 			err = ctx.Rename(path, newPath)
 			if err != nil {
@@ -177,6 +192,10 @@ func SplitPdfStub(ctx *api.Context, engine gotenberg.PdfEngine, mode gotenberg.S
 			}
 
 			outputPaths = append(outputPaths, newPath)
+
+			if mode.Unify && mode.Mode == gotenberg.SplitModePages {
+				break
+			}
 		}
 	}
 

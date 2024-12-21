@@ -94,6 +94,27 @@ func TestFormDataPdfSplitMode(t *testing.T) {
 			expectValidationError: true,
 		},
 		{
+			scenario: "invalid splitUnify (intervals)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetValues(map[string][]string{
+					"splitMode": {
+						"intervals",
+					},
+					"splitSpan": {
+						"1",
+					},
+					"splitUnify": {
+						"true",
+					},
+				})
+				return ctx
+			}(),
+			mandatory:             false,
+			expectedSplitMode:     gotenberg.SplitMode{Mode: gotenberg.SplitModeIntervals, Span: "1", Unify: true},
+			expectValidationError: true,
+		},
+		{
 			scenario: "valid form fields (intervals)",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
@@ -122,11 +143,14 @@ func TestFormDataPdfSplitMode(t *testing.T) {
 					"splitSpan": {
 						"1-2",
 					},
+					"splitUnify": {
+						"true",
+					},
 				})
 				return ctx
 			}(),
 			mandatory:             false,
-			expectedSplitMode:     gotenberg.SplitMode{Mode: gotenberg.SplitModePages, Span: "1-2"},
+			expectedSplitMode:     gotenberg.SplitMode{Mode: gotenberg.SplitModePages, Span: "1-2", Unify: true},
 			expectValidationError: false,
 		},
 		{
@@ -442,7 +466,7 @@ func TestSplitPdfStub(t *testing.T) {
 		},
 		{
 			scenario: "success (pages)",
-			mode:     gotenberg.SplitMode{Mode: gotenberg.SplitModePages, Span: "1-2"},
+			mode:     gotenberg.SplitMode{Mode: gotenberg.SplitModePages, Span: "1-2", Unify: true},
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetMkdirAll(&gotenberg.MkdirAllMock{MkdirAllMock: func(path string, perm os.FileMode) error {
@@ -940,7 +964,7 @@ func TestSplitHandler(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "success (intervals)",
+			scenario: "success",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
@@ -977,45 +1001,6 @@ func TestSplitHandler(t *testing.T) {
 			expectHttpError:        false,
 			expectOutputPathsCount: 2,
 			expectOutputPaths:      []string{"/file/file_0.pdf", "/file/file_1.pdf"},
-		},
-		{
-			scenario: "success (pages)",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"file.pdf": "/file.pdf",
-				})
-				ctx.SetValues(map[string][]string{
-					"splitMode": {
-						gotenberg.SplitModePages,
-					},
-					"splitSpan": {
-						"1-2",
-					},
-					"pdfua": {
-						"true",
-					},
-					"metadata": {
-						"{\"Creator\": \"foo\", \"Producer\": \"bar\" }",
-					},
-				})
-				return ctx
-			}(),
-			engine: &gotenberg.PdfEngineMock{
-				SplitMock: func(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
-					return []string{"/file/file.pdf"}, nil
-				},
-				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
-					return nil
-				},
-				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
-					return nil
-				},
-			},
-			expectError:            false,
-			expectHttpError:        false,
-			expectOutputPathsCount: 1,
-			expectOutputPaths:      []string{"/file/file.pdf"},
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
