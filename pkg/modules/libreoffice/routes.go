@@ -251,6 +251,8 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 							return fmt.Errorf("rename output path: %w", err)
 						}
 					}
+				} else {
+					outputPaths = convertOutputPaths
 				}
 			}
 

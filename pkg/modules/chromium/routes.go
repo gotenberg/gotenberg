@@ -661,6 +661,8 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 				return fmt.Errorf("rename output path: %w", err)
 			}
 		}
+	} else {
+		outputPaths = convertOutputPaths
 	}
 
 	err = ctx.AddOutputPaths(outputPaths...)
