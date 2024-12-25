@@ -5,13 +5,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"go.uber.org/zap"
 )
 
 // GarbageCollect scans the root path and deletes files or directories with
-// names containing specific substrings.
-func GarbageCollect(logger *zap.Logger, rootPath string, includeSubstr []string) error {
+// names containing specific substrings and before a given experiation time.
+func GarbageCollect(logger *zap.Logger, rootPath string, includeSubstr []string, expirationTime time.Time) error {
 	logger = logger.Named("gc")
 
 	// To make sure that the next Walk method stays on
@@ -36,7 +37,7 @@ func GarbageCollect(logger *zap.Logger, rootPath string, includeSubstr []string)
 		}
 
 		for _, substr := range includeSubstr {
-			if strings.Contains(info.Name(), substr) || path == substr {
+			if (strings.Contains(info.Name(), substr) || path == substr) && info.ModTime().Before(expirationTime) {
 				err := os.RemoveAll(path)
 				if err != nil {
 					return fmt.Errorf("garbage collect '%s': %w", path, err)

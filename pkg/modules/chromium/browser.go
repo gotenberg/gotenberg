@@ -15,6 +15,7 @@ import (
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 	"github.com/dlclark/regexp2"
+	"github.com/shirou/gopsutil/v4/process"
 	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
@@ -162,21 +163,60 @@ func (b *chromiumBrowser) Stop(logger *zap.Logger) error {
 
 	// Always remove the user profile directory created by Chromium.
 	copyUserProfileDirPath := b.userProfileDirPath
-	defer func(userProfileDirPath string) {
+	expirationTime := time.Now()
+	defer func(userProfileDirPath string, expirationTime time.Time) {
+		// See:
+		// https://github.com/SeleniumHQ/docker-selenium/blob/7216d060d86872afe853ccda62db0dfab5118dc7/NodeChrome/chrome-cleanup.sh
+		// https://github.com/SeleniumHQ/docker-selenium/blob/7216d060d86872afe853ccda62db0dfab5118dc7/NodeChromium/chrome-cleanup.sh
 		go func() {
+			// Clean up stuck processes.
+			ps, err := process.Processes()
+			if err != nil {
+				logger.Error(fmt.Sprintf("list processes: %v", err))
+			} else {
+				for _, p := range ps {
+					func() {
+						cmdline, err := p.Cmdline()
+						if err != nil {
+							return
+						}
+
+						if !strings.Contains(cmdline, "chromium/chromium") && !strings.Contains(cmdline, "chrome/chrome") {
+							return
+						}
+
+						killCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+						defer cancel()
+
+						err = p.KillWithContext(killCtx)
+						if err != nil {
+							logger.Error(fmt.Sprintf("kill process: %v", err))
+						} else {
+							logger.Info(fmt.Sprintf("Chromium process %d killed", p.Pid))
+						}
+					}()
+				}
+			}
+
 			// FIXME: Chromium seems to recreate the user profile directory
 			//  right after its deletion if we do not wait a certain amount
 			//  of time before deleting it.
 			<-time.After(10 * time.Second)
 
-			err := os.RemoveAll(userProfileDirPath)
+			err = os.RemoveAll(userProfileDirPath)
 			if err != nil {
 				logger.Error(fmt.Sprintf("remove Chromium's user profile directory: %s", err))
+			} else {
+				logger.Debug(fmt.Sprintf("'%s' Chromium's user profile directory removed", userProfileDirPath))
 			}
 
-			logger.Debug(fmt.Sprintf("'%s' Chromium's user profile directory removed", userProfileDirPath))
+			// Also remove Chromium specific files in the temporary directory.
+			err = gotenberg.GarbageCollect(logger, os.TempDir(), []string{".org.chromium.Chromium", ".com.google.Chrome"}, expirationTime)
+			if err != nil {
+				logger.Error(err.Error())
+			}
 		}()
-	}(copyUserProfileDirPath)
+	}(copyUserProfileDirPath, expirationTime)
 
 	b.ctxMu.Lock()
 	defer b.ctxMu.Unlock()

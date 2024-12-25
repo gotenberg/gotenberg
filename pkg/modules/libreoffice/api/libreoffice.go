@@ -190,22 +190,23 @@ func (p *libreOfficeProcess) Stop(logger *zap.Logger) error {
 
 	// Always remove the user profile directory created by LibreOffice.
 	copyUserProfileDirPath := p.userProfileDirPath
-	defer func(userProfileDirPath string) {
+	expirationTime := time.Now()
+	defer func(userProfileDirPath string, expirationTime time.Time) {
 		go func() {
 			err := os.RemoveAll(userProfileDirPath)
 			if err != nil {
 				logger.Error(fmt.Sprintf("remove LibreOffice's user profile directory: %v", err))
+			} else {
+				logger.Debug(fmt.Sprintf("'%s' LibreOffice's user profile directory removed", userProfileDirPath))
 			}
 
-			logger.Debug(fmt.Sprintf("'%s' LibreOffice's user profile directory removed", userProfileDirPath))
-
 			// Also remove LibreOffice specific files in the temporary directory.
-			err = gotenberg.GarbageCollect(logger, os.TempDir(), []string{"OSL_PIPE", ".tmp"})
+			err = gotenberg.GarbageCollect(logger, os.TempDir(), []string{"OSL_PIPE", ".tmp"}, expirationTime)
 			if err != nil {
 				logger.Error(err.Error())
 			}
 		}()
-	}(copyUserProfileDirPath)
+	}(copyUserProfileDirPath, expirationTime)
 
 	p.cfgMu.Lock()
 	defer p.cfgMu.Unlock()
