@@ -168,36 +168,37 @@ func (b *chromiumBrowser) Stop(logger *zap.Logger) error {
 		// See:
 		// https://github.com/SeleniumHQ/docker-selenium/blob/7216d060d86872afe853ccda62db0dfab5118dc7/NodeChrome/chrome-cleanup.sh
 		// https://github.com/SeleniumHQ/docker-selenium/blob/7216d060d86872afe853ccda62db0dfab5118dc7/NodeChromium/chrome-cleanup.sh
-		go func() {
-			// Clean up stuck processes.
-			ps, err := process.Processes()
-			if err != nil {
-				logger.Error(fmt.Sprintf("list processes: %v", err))
-			} else {
-				for _, p := range ps {
-					func() {
-						cmdline, err := p.Cmdline()
-						if err != nil {
-							return
-						}
 
-						if !strings.Contains(cmdline, "chromium/chromium") && !strings.Contains(cmdline, "chrome/chrome") {
-							return
-						}
+		// Clean up stuck processes.
+		ps, err := process.Processes()
+		if err != nil {
+			logger.Error(fmt.Sprintf("list processes: %v", err))
+		} else {
+			for _, p := range ps {
+				func() {
+					cmdline, err := p.Cmdline()
+					if err != nil {
+						return
+					}
 
-						killCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-						defer cancel()
+					if !strings.Contains(cmdline, "chromium/chromium") && !strings.Contains(cmdline, "chrome/chrome") {
+						return
+					}
 
-						err = p.KillWithContext(killCtx)
-						if err != nil {
-							logger.Error(fmt.Sprintf("kill process: %v", err))
-						} else {
-							logger.Info(fmt.Sprintf("Chromium process %d killed", p.Pid))
-						}
-					}()
-				}
+					killCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+					defer cancel()
+
+					err = p.KillWithContext(killCtx)
+					if err != nil {
+						logger.Error(fmt.Sprintf("kill process: %v", err))
+					} else {
+						logger.Debug(fmt.Sprintf("Chromium process %d killed", p.Pid))
+					}
+				}()
 			}
+		}
 
+		go func() {
 			// FIXME: Chromium seems to recreate the user profile directory
 			//  right after its deletion if we do not wait a certain amount
 			//  of time before deleting it.
