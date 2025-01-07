@@ -4,77 +4,21 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
-	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/dlclark/regexp2"
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
-
-func TestOsPathRename_Rename(t *testing.T) {
-	dirPath, err := gotenberg.NewFileSystem().MkdirAll()
-	if err != nil {
-		t.Fatalf("create working directory: %v", err)
-	}
-
-	path := "/tests/test/testdata/api/sample1.txt"
-	copyPath := filepath.Join(dirPath, fmt.Sprintf("%s.txt", uuid.NewString()))
-
-	in, err := os.Open(path)
-	if err != nil {
-		t.Fatalf("open file: %v", err)
-	}
-
-	defer func() {
-		err := in.Close()
-		if err != nil {
-			t.Fatalf("close file: %v", err)
-		}
-	}()
-
-	out, err := os.Create(copyPath)
-	if err != nil {
-		t.Fatalf("create new file: %v", err)
-	}
-
-	defer func() {
-		err := out.Close()
-		if err != nil {
-			t.Fatalf("close new file: %v", err)
-		}
-	}()
-
-	_, err = io.Copy(out, in)
-	if err != nil {
-		t.Fatalf("copy file to new file: %v", err)
-	}
-
-	rename := new(osPathRename)
-	newPath := filepath.Join(dirPath, fmt.Sprintf("%s.txt", uuid.NewString()))
-
-	err = rename.Rename(copyPath, newPath)
-	if err != nil {
-		t.Errorf("expected no error but got: %v", err)
-	}
-
-	err = os.RemoveAll(dirPath)
-	if err != nil {
-		t.Fatalf("remove working directory: %v", err)
-	}
-}
 
 func TestNewContext(t *testing.T) {
 	defaultAllowList, err := regexp2.Compile("", 0)
@@ -548,7 +492,7 @@ func TestNewContext(t *testing.T) {
 			}
 
 			handler := func(c echo.Context) error {
-				ctx, cancel, err := newContext(c, zap.NewNop(), gotenberg.NewFileSystem(), time.Duration(10)*time.Second, tc.bodyLimit, tc.downloadFromCfg, "Gotenberg-Trace", "123")
+				ctx, cancel, err := newContext(c, zap.NewNop(), gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)), time.Duration(10)*time.Second, tc.bodyLimit, tc.downloadFromCfg, "Gotenberg-Trace", "123")
 				defer cancel()
 				// Context already cancelled.
 				defer cancel()
@@ -647,6 +591,42 @@ func TestContext_FormData(t *testing.T) {
 	}
 }
 
+func TestContext_CreateSubDirectory(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		ctx         *Context
+		expectError bool
+	}{
+		{
+			scenario: "failure",
+			ctx: &Context{mkdirAll: &gotenberg.MkdirAllMock{MkdirAllMock: func(path string, perm os.FileMode) error {
+				return errors.New("cannot rename")
+			}}},
+			expectError: true,
+		},
+		{
+			scenario: "success",
+			ctx: &Context{mkdirAll: &gotenberg.MkdirAllMock{MkdirAllMock: func(path string, perm os.FileMode) error {
+				return nil
+			}}},
+			expectError: false,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			tc.ctx.logger = zap.NewNop()
+			_, err := tc.ctx.CreateSubDirectory("foo")
+
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none", err)
+			}
+
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+		})
+	}
+}
+
 func TestContext_GeneratePath(t *testing.T) {
 	ctx := &Context{
 		dirPath: "/foo",
@@ -680,6 +660,7 @@ func TestContext_Rename(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
+			tc.ctx.logger = zap.NewNop()
 			err := tc.ctx.Rename("", "")
 
 			if tc.expectError && err == nil {
@@ -788,7 +769,7 @@ func TestContext_BuildOutputFile(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			fs := gotenberg.NewFileSystem()
+			fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 			dirPath, err := fs.MkdirAll()
 			if err != nil {
 				t.Fatalf("expected no erro but got: %v", err)

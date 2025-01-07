@@ -82,6 +82,15 @@ func TestExiftool_Merge(t *testing.T) {
 	}
 }
 
+func TestExiftool_Split(t *testing.T) {
+	engine := new(ExifTool)
+	_, err := engine.Split(context.Background(), zap.NewNop(), gotenberg.SplitMode{}, "", "")
+
+	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
+		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)
+	}
+}
+
 func TestExiftool_Convert(t *testing.T) {
 	engine := new(ExifTool)
 	err := engine.Convert(context.Background(), zap.NewNop(), gotenberg.PdfFormats{}, "", "")
@@ -162,7 +171,20 @@ func TestExiftool_WriteMetadata(t *testing.T) {
 			expectError: true,
 		},
 		{
-			scenario:   "gotenberg.ErrPdfEngineMetadataValueNotSupported",
+			scenario:   "gotenberg.ErrPdfEngineMetadataValueNotSupported (not string array)",
+			createCopy: true,
+			inputPath:  "/tests/test/testdata/pdfengines/sample1.pdf",
+			metadata: map[string]interface{}{
+				"Unsupported": []interface{}{
+					"foo",
+					1,
+				},
+			},
+			expectError:   true,
+			expectedError: gotenberg.ErrPdfEngineMetadataValueNotSupported,
+		},
+		{
+			scenario:   "gotenberg.ErrPdfEngineMetadataValueNotSupported (default)",
 			createCopy: true,
 			inputPath:  "/tests/test/testdata/pdfengines/sample1.pdf",
 			metadata: map[string]interface{}{
@@ -170,6 +192,24 @@ func TestExiftool_WriteMetadata(t *testing.T) {
 			},
 			expectError:   true,
 			expectedError: gotenberg.ErrPdfEngineMetadataValueNotSupported,
+		},
+		{
+			scenario:   "success (interface array to string array)",
+			createCopy: true,
+			inputPath:  "/tests/test/testdata/pdfengines/sample1.pdf",
+			metadata: map[string]interface{}{
+				"Keywords": []interface{}{
+					"first",
+					"second",
+				},
+			},
+			expectMetadata: map[string]interface{}{
+				"Keywords": []interface{}{
+					"first",
+					"second",
+				},
+			},
+			expectError: false,
 		},
 		{
 			scenario:   "success",
@@ -226,7 +266,7 @@ func TestExiftool_WriteMetadata(t *testing.T) {
 
 			var destinationPath string
 			if tc.createCopy {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 				outputDir, err := fs.MkdirAll()
 				if err != nil {
 					t.Fatalf("expected error no but got: %v", err)

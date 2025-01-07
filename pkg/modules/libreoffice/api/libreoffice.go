@@ -44,7 +44,7 @@ type libreOfficeProcess struct {
 func newLibreOfficeProcess(arguments libreOfficeArguments) libreOffice {
 	p := &libreOfficeProcess{
 		arguments: arguments,
-		fs:        gotenberg.NewFileSystem(),
+		fs:        gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)),
 	}
 	p.isStarted.Store(false)
 
@@ -190,22 +190,23 @@ func (p *libreOfficeProcess) Stop(logger *zap.Logger) error {
 
 	// Always remove the user profile directory created by LibreOffice.
 	copyUserProfileDirPath := p.userProfileDirPath
-	defer func(userProfileDirPath string) {
+	expirationTime := time.Now()
+	defer func(userProfileDirPath string, expirationTime time.Time) {
 		go func() {
 			err := os.RemoveAll(userProfileDirPath)
 			if err != nil {
 				logger.Error(fmt.Sprintf("remove LibreOffice's user profile directory: %v", err))
+			} else {
+				logger.Debug(fmt.Sprintf("'%s' LibreOffice's user profile directory removed", userProfileDirPath))
 			}
 
-			logger.Debug(fmt.Sprintf("'%s' LibreOffice's user profile directory removed", userProfileDirPath))
-
 			// Also remove LibreOffice specific files in the temporary directory.
-			err = gotenberg.GarbageCollect(logger, os.TempDir(), []string{"OSL_PIPE", ".tmp"})
+			err = gotenberg.GarbageCollect(logger, os.TempDir(), []string{"OSL_PIPE", ".tmp"}, expirationTime)
 			if err != nil {
 				logger.Error(err.Error())
 			}
 		}()
-	}(copyUserProfileDirPath)
+	}(copyUserProfileDirPath, expirationTime)
 
 	p.cfgMu.Lock()
 	defer p.cfgMu.Unlock()
@@ -365,13 +366,6 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 		return ErrRuntimeException
 	}
 
-	// Possible errors:
-	// 1. LibreOffice failed for some reason.
-	// 2. Context done.
-	//
-	// On the second scenario, LibreOffice might not have time to remove some
-	// of its temporary files, as it has been killed without warning. The
-	// garbage collector will delete them for us (if the module is loaded).
 	return fmt.Errorf("convert to PDF: %w", err)
 }
 

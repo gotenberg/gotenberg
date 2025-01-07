@@ -230,7 +230,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 				p.isStarted.Store(false)
 				return p
 			}(),
-			fs:           gotenberg.NewFileSystem(),
+			fs:           gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)),
 			cancelledCtx: false,
 			start:        false,
 			expectError:  true,
@@ -243,7 +243,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 				p.isStarted.Store(true)
 				return p
 			}(),
-			fs:            gotenberg.NewFileSystem(),
+			fs:            gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)),
 			options:       Options{PdfFormats: gotenberg.PdfFormats{PdfA: "foo"}},
 			cancelledCtx:  false,
 			start:         false,
@@ -261,7 +261,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 			),
 			options: Options{PageRanges: "foo"},
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -291,7 +291,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 			),
 			options: Options{Password: "foo"},
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -344,7 +344,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -372,7 +372,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -400,7 +400,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -452,7 +452,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -481,7 +481,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -510,7 +510,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -539,7 +539,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -625,7 +625,7 @@ func TestNonBasicLatinCharactersGuard(t *testing.T) {
 		{
 			scenario: "basic latin characters",
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -646,7 +646,7 @@ func TestNonBasicLatinCharactersGuard(t *testing.T) {
 		{
 			scenario: "non-basic latin characters",
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {

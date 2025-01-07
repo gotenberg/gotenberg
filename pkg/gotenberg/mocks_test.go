@@ -2,6 +2,7 @@ package gotenberg
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"go.uber.org/zap"
@@ -52,6 +53,9 @@ func TestPDFEngineMock(t *testing.T) {
 		MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 			return nil
 		},
+		SplitMock: func(ctx context.Context, logger *zap.Logger, mode SplitMode, inputPath, outputDirPath string) ([]string, error) {
+			return nil, nil
+		},
 		ConvertMock: func(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error {
 			return nil
 		},
@@ -66,6 +70,11 @@ func TestPDFEngineMock(t *testing.T) {
 	err := mock.Merge(context.Background(), zap.NewNop(), nil, "")
 	if err != nil {
 		t.Errorf("expected no error from PdfEngineMock.Merge, but got: %v", err)
+	}
+
+	_, err = mock.Split(context.Background(), zap.NewNop(), SplitMode{}, "", "")
+	if err != nil {
+		t.Errorf("expected no error from PdfEngineMock.Split, but got: %v", err)
 	}
 
 	err = mock.Convert(context.Background(), zap.NewNop(), PdfFormats{}, "", "")
@@ -202,6 +211,19 @@ func TestMetricsProviderMock(t *testing.T) {
 	_, err := mock.Metrics()
 	if err != nil {
 		t.Errorf("expected no error from MetricsProviderMock.Metrics, but got: %v", err)
+	}
+}
+
+func TestMkdirAllMock(t *testing.T) {
+	mock := &MkdirAllMock{
+		MkdirAllMock: func(dir string, perm os.FileMode) error {
+			return nil
+		},
+	}
+
+	err := mock.MkdirAll("/foo", 0o755)
+	if err != nil {
+		t.Errorf("expected no error from MkdirAllMock.MkdirAll, but got: %v", err)
 	}
 }
 

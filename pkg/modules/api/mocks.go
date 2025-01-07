@@ -86,6 +86,14 @@ func (ctx *ContextMock) SetEchoContext(c echo.Context) {
 	ctx.Context.echoCtx = c
 }
 
+// SetMkdirAll sets the [gotenberg.MkdirAll].
+//
+//	ctx := &api.ContextMock{Context: &api.Context{}}
+//	ctx.SetMkdirAll(mkdirAll)
+func (ctx *ContextMock) SetMkdirAll(mkdirAll gotenberg.MkdirAll) {
+	ctx.Context.mkdirAll = mkdirAll
+}
+
 // SetPathRename sets the [gotenberg.PathRename].
 //
 //	ctx := &api.ContextMock{Context: &api.Context{}}

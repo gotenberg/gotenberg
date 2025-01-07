@@ -12,6 +12,10 @@ var (
 	// PdfEngine interface is not supported by its current implementation.
 	ErrPdfEngineMethodNotSupported = errors.New("method not supported")
 
+	// ErrPdfSplitModeNotSupported is returned when the Split method of the
+	// PdfEngine interface does not sumport a requested PDF split mode.
+	ErrPdfSplitModeNotSupported = errors.New("split mode not supported")
+
 	// ErrPdfFormatNotSupported is returned when the Convert method of the
 	// PdfEngine interface does not support a requested PDF format conversion.
 	ErrPdfFormatNotSupported = errors.New("PDF format not supported")
@@ -20,6 +24,30 @@ var (
 	// is not supported.
 	ErrPdfEngineMetadataValueNotSupported = errors.New("metadata value not supported")
 )
+
+const (
+	// SplitModeIntervals represents a mode where a PDF is split at specific
+	// intervals.
+	SplitModeIntervals string = "intervals"
+
+	// SplitModePages represents a mode where a PDF is split at specific page
+	// ranges.
+	SplitModePages string = "pages"
+)
+
+// SplitMode gathers the data required to split a PDF into multiple parts.
+type SplitMode struct {
+	// Mode is either "intervals" or "pages".
+	Mode string
+
+	// Span is either the intervals or the page ranges to extract, depending on
+	// the selected mode.
+	Span string
+
+	// Unify specifies whether to put extracted pages into a single file or as
+	// many files as there are page ranges. Only works with "pages" mode.
+	Unify bool
+}
 
 const (
 	// PdfA1a represents the PDF/A-1a format.
@@ -64,6 +92,9 @@ type PdfEngine interface {
 	// Merge combines multiple PDFs into a single PDF. The resulting page order
 	// is determined by the order of files provided in inputPaths.
 	Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error
+
+	// Split splits a given PDF file.
+	Split(ctx context.Context, logger *zap.Logger, mode SplitMode, inputPath, outputDirPath string) ([]string, error)
 
 	// Convert transforms a given PDF to the specified formats defined in
 	// PdfFormats. If no format, it does nothing.

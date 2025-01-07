@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"go.uber.org/zap"
 
@@ -49,6 +50,34 @@ func (engine *PdfTk) Validate() error {
 	}
 
 	return nil
+}
+
+// Split splits a given PDF file.
+func (engine *PdfTk) Split(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+	var args []string
+	outputPath := fmt.Sprintf("%s/%s", outputDirPath, filepath.Base(inputPath))
+
+	switch mode.Mode {
+	case gotenberg.SplitModePages:
+		if !mode.Unify {
+			return nil, fmt.Errorf("split PDFs using mode '%s' without unify with PDFtk: %w", mode.Mode, gotenberg.ErrPdfSplitModeNotSupported)
+		}
+		args = append(args, inputPath, "cat", mode.Span, "output", outputPath)
+	default:
+		return nil, fmt.Errorf("split PDFs using mode '%s' with PDFtk: %w", mode.Mode, gotenberg.ErrPdfSplitModeNotSupported)
+	}
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		return nil, fmt.Errorf("create command: %w", err)
+	}
+
+	_, err = cmd.Exec()
+	if err != nil {
+		return nil, fmt.Errorf("split PDFs with PDFtk: %w", err)
+	}
+
+	return []string{outputPath}, nil
 }
 
 // Merge combines multiple PDFs into a single PDF.

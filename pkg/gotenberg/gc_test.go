@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -64,7 +65,7 @@ func TestGarbageCollect(t *testing.T) {
 				}
 			}()
 
-			err := GarbageCollect(zap.NewNop(), tc.rootPath, tc.includeSubstr)
+			err := GarbageCollect(zap.NewNop(), tc.rootPath, tc.includeSubstr, time.Now())
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
