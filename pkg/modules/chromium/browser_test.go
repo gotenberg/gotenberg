@@ -263,7 +263,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				b.isStarted.Store(false)
 				return b
 			}(),
-			fs:          gotenberg.NewFileSystem(),
+			fs:          gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)),
 			noDeadline:  false,
 			start:       false,
 			expectError: true,
@@ -275,7 +275,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				b.isStarted.Store(true)
 				return b
 			}(),
-			fs:          gotenberg.NewFileSystem(),
+			fs:          gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)),
 			noDeadline:  true,
 			start:       false,
 			expectError: true,
@@ -291,7 +291,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				b.isStarted.Store(true)
 				return b
 			}(),
-			fs:            gotenberg.NewFileSystem(),
+			fs:            gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)),
 			noDeadline:    false,
 			start:         false,
 			expectError:   true,
@@ -308,7 +308,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				b.isStarted.Store(true)
 				return b
 			}(),
-			fs:            gotenberg.NewFileSystem(),
+			fs:            gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)),
 			noDeadline:    false,
 			start:         false,
 			expectError:   true,
@@ -325,7 +325,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -357,7 +357,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -389,7 +389,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -424,7 +424,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -457,7 +457,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -495,7 +495,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -528,7 +528,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -554,7 +554,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -588,7 +588,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -621,7 +621,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -654,7 +654,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -688,7 +688,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -723,7 +723,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -758,7 +758,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -812,7 +812,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -845,7 +845,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -881,7 +881,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -914,7 +914,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -949,7 +949,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -984,7 +984,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1019,7 +1019,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1065,7 +1065,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1100,7 +1100,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1146,7 +1146,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1181,7 +1181,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1217,7 +1217,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1255,7 +1255,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1288,7 +1288,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1421,7 +1421,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				b.isStarted.Store(false)
 				return b
 			}(),
-			fs:          gotenberg.NewFileSystem(),
+			fs:          gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)),
 			noDeadline:  false,
 			start:       false,
 			expectError: true,
@@ -1437,7 +1437,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				b.isStarted.Store(true)
 				return b
 			}(),
-			fs:          gotenberg.NewFileSystem(),
+			fs:          gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)),
 			noDeadline:  true,
 			start:       false,
 			expectError: true,
@@ -1453,7 +1453,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				b.isStarted.Store(true)
 				return b
 			}(),
-			fs:            gotenberg.NewFileSystem(),
+			fs:            gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)),
 			noDeadline:    false,
 			start:         false,
 			expectError:   true,
@@ -1470,7 +1470,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				b.isStarted.Store(true)
 				return b
 			}(),
-			fs:            gotenberg.NewFileSystem(),
+			fs:            gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)),
 			noDeadline:    false,
 			start:         false,
 			expectError:   true,
@@ -1487,7 +1487,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1519,7 +1519,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1551,7 +1551,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1586,7 +1586,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1619,7 +1619,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1657,7 +1657,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1690,7 +1690,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1716,7 +1716,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1750,7 +1750,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1783,7 +1783,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1816,7 +1816,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1850,7 +1850,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1885,7 +1885,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1920,7 +1920,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -1974,7 +1974,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -2009,7 +2009,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -2042,7 +2042,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -2077,7 +2077,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -2112,7 +2112,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -2147,7 +2147,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -2193,7 +2193,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -2228,7 +2228,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -2274,7 +2274,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -2317,7 +2317,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
@@ -2365,7 +2365,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 				},
 			),
 			fs: func() *gotenberg.FileSystem {
-				fs := gotenberg.NewFileSystem()
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {

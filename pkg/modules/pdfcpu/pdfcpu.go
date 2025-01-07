@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"go.uber.org/zap"
 
@@ -68,6 +69,42 @@ func (engine *PdfCpu) Merge(ctx context.Context, logger *zap.Logger, inputPaths 
 	}
 
 	return fmt.Errorf("merge PDFs with pdfcpu: %w", err)
+}
+
+// Split splits a given PDF file.
+func (engine *PdfCpu) Split(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+	var args []string
+
+	switch mode.Mode {
+	case gotenberg.SplitModeIntervals:
+		args = append(args, "split", "-mode", "span", inputPath, outputDirPath, mode.Span)
+	case gotenberg.SplitModePages:
+		if mode.Unify {
+			outputPath := fmt.Sprintf("%s/%s", outputDirPath, filepath.Base(inputPath))
+			args = append(args, "trim", "-pages", mode.Span, inputPath, outputPath)
+			break
+		}
+		args = append(args, "extract", "-mode", "page", "-pages", mode.Span, inputPath, outputDirPath)
+	default:
+		return nil, fmt.Errorf("split PDFs using mode '%s' with pdfcpu: %w", mode.Mode, gotenberg.ErrPdfSplitModeNotSupported)
+	}
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		return nil, fmt.Errorf("create command: %w", err)
+	}
+
+	_, err = cmd.Exec()
+	if err != nil {
+		return nil, fmt.Errorf("split PDFs with pdfcpu: %w", err)
+	}
+
+	outputPaths, err := gotenberg.WalkDir(outputDirPath, ".pdf")
+	if err != nil {
+		return nil, fmt.Errorf("walk directory to find resulting PDFs from split with pdfcpu: %w", err)
+	}
+
+	return outputPaths, nil
 }
 
 // Convert is not available in this implementation.

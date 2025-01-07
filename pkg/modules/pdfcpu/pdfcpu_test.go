@@ -116,7 +116,7 @@ func TestPdfCpu_Merge(t *testing.T) {
 				t.Fatalf("expected error but got: %v", err)
 			}
 
-			fs := gotenberg.NewFileSystem()
+			fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 			outputDir, err := fs.MkdirAll()
 			if err != nil {
 				t.Fatalf("expected error but got: %v", err)
@@ -137,6 +137,103 @@ func TestPdfCpu_Merge(t *testing.T) {
 
 			if tc.expectError && err == nil {
 				t.Fatal("expected error but got none")
+			}
+		})
+	}
+}
+
+func TestPdfCpu_Split(t *testing.T) {
+	for _, tc := range []struct {
+		scenario               string
+		ctx                    context.Context
+		mode                   gotenberg.SplitMode
+		inputPath              string
+		expectError            bool
+		expectedError          error
+		expectOutputPathsCount int
+	}{
+		{
+			scenario:               "ErrPdfSplitModeNotSupported",
+			expectError:            true,
+			expectedError:          gotenberg.ErrPdfSplitModeNotSupported,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario:               "invalid context",
+			ctx:                    nil,
+			mode:                   gotenberg.SplitMode{Mode: gotenberg.SplitModeIntervals, Span: "1"},
+			expectError:            true,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario:               "invalid input path",
+			ctx:                    context.TODO(),
+			mode:                   gotenberg.SplitMode{Mode: gotenberg.SplitModeIntervals, Span: "1"},
+			inputPath:              "",
+			expectError:            true,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario:               "success (intervals)",
+			ctx:                    context.TODO(),
+			mode:                   gotenberg.SplitMode{Mode: gotenberg.SplitModeIntervals, Span: "1"},
+			inputPath:              "/tests/test/testdata/pdfengines/sample1.pdf",
+			expectError:            false,
+			expectOutputPathsCount: 3,
+		},
+		{
+			scenario:               "success (pages)",
+			ctx:                    context.TODO(),
+			mode:                   gotenberg.SplitMode{Mode: gotenberg.SplitModePages, Span: "1"},
+			inputPath:              "/tests/test/testdata/pdfengines/sample1.pdf",
+			expectError:            false,
+			expectOutputPathsCount: 1,
+		},
+		{
+			scenario:               "success (pages & unify)",
+			ctx:                    context.TODO(),
+			mode:                   gotenberg.SplitMode{Mode: gotenberg.SplitModePages, Span: "1-2", Unify: true},
+			inputPath:              "/tests/test/testdata/pdfengines/sample1.pdf",
+			expectError:            false,
+			expectOutputPathsCount: 1,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			engine := new(PdfCpu)
+			err := engine.Provision(nil)
+			if err != nil {
+				t.Fatalf("expected error but got: %v", err)
+			}
+
+			fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+			outputDir, err := fs.MkdirAll()
+			if err != nil {
+				t.Fatalf("expected error but got: %v", err)
+			}
+
+			defer func() {
+				err = os.RemoveAll(fs.WorkingDirPath())
+				if err != nil {
+					t.Fatalf("expected no error while cleaning up but got: %v", err)
+				}
+			}()
+
+			outputPaths, err := engine.Split(tc.ctx, zap.NewNop(), tc.mode, tc.inputPath, outputDir)
+
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
+
+			if tc.expectedError != nil && !errors.Is(err, tc.expectedError) {
+				t.Fatalf("expected error %v but got: %v", tc.expectedError, err)
+			}
+
+			if tc.expectOutputPathsCount != len(outputPaths) {
+				t.Errorf("expected %d output paths but got %d", tc.expectOutputPathsCount, len(outputPaths))
 			}
 		})
 	}

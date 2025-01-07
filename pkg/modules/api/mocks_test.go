@@ -7,6 +7,8 @@ import (
 	"github.com/alexliesenfeld/health"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 func TestContextMock_SetDirPath(t *testing.T) {
@@ -117,10 +119,23 @@ func TestContextMock_SetEchoContext(t *testing.T) {
 	}
 }
 
+func TestContextMock_SetMkdirAll(t *testing.T) {
+	mock := ContextMock{&Context{}}
+
+	expect := new(gotenberg.OsMkdirAll)
+	mock.SetMkdirAll(expect)
+
+	actual := mock.mkdirAll
+
+	if actual != expect {
+		t.Errorf("expected %v but got %v", expect, actual)
+	}
+}
+
 func TestContextMock_SetPathRename(t *testing.T) {
 	mock := ContextMock{&Context{}}
 
-	expect := new(osPathRename)
+	expect := new(gotenberg.OsPathRename)
 	mock.SetPathRename(expect)
 
 	actual := mock.pathRename

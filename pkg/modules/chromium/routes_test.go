@@ -603,125 +603,6 @@ func TestFormDataChromiumScreenshotOptions(t *testing.T) {
 	}
 }
 
-func TestFormDataChromiumPdfFormats(t *testing.T) {
-	for _, tc := range []struct {
-		scenario              string
-		ctx                   *api.ContextMock
-		expectedPdfFormats    gotenberg.PdfFormats
-		expectValidationError bool
-	}{
-		{
-			scenario:              "no custom form fields",
-			ctx:                   &api.ContextMock{Context: new(api.Context)},
-			expectedPdfFormats:    gotenberg.PdfFormats{},
-			expectValidationError: false,
-		},
-		{
-			scenario: "pdfa and pdfua form fields",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetValues(map[string][]string{
-					"pdfa": {
-						"foo",
-					},
-					"pdfua": {
-						"true",
-					},
-				})
-				return ctx
-			}(),
-			expectedPdfFormats:    gotenberg.PdfFormats{PdfA: "foo", PdfUa: true},
-			expectValidationError: false,
-		},
-	} {
-		t.Run(tc.scenario, func(t *testing.T) {
-			tc.ctx.SetLogger(zap.NewNop())
-			form := tc.ctx.Context.FormData()
-			actual := FormDataChromiumPdfFormats(form)
-
-			if !reflect.DeepEqual(actual, tc.expectedPdfFormats) {
-				t.Fatalf("expected %+v but got: %+v", tc.expectedPdfFormats, actual)
-			}
-
-			err := form.Validate()
-
-			if tc.expectValidationError && err == nil {
-				t.Fatal("expected validation error but got none", err)
-			}
-
-			if !tc.expectValidationError && err != nil {
-				t.Fatalf("expected no validation error but got: %v", err)
-			}
-		})
-	}
-}
-
-func TestFormDataPdfMetadata(t *testing.T) {
-	for _, tc := range []struct {
-		scenario              string
-		ctx                   *api.ContextMock
-		expectedMetadata      map[string]interface{}
-		expectValidationError bool
-	}{
-		{
-			scenario:              "no metadata form field",
-			ctx:                   &api.ContextMock{Context: new(api.Context)},
-			expectedMetadata:      nil,
-			expectValidationError: false,
-		},
-		{
-			scenario: "invalid metadata form field",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetValues(map[string][]string{
-					"metadata": {
-						"foo",
-					},
-				})
-				return ctx
-			}(),
-			expectedMetadata:      nil,
-			expectValidationError: true,
-		},
-		{
-			scenario: "valid metadata form field",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetValues(map[string][]string{
-					"metadata": {
-						"{\"foo\":\"bar\"}",
-					},
-				})
-				return ctx
-			}(),
-			expectedMetadata: map[string]interface{}{
-				"foo": "bar",
-			},
-			expectValidationError: false,
-		},
-	} {
-		t.Run(tc.scenario, func(t *testing.T) {
-			tc.ctx.SetLogger(zap.NewNop())
-			form := tc.ctx.Context.FormData()
-			actual := FormDataPdfMetadata(form)
-
-			if !reflect.DeepEqual(actual, tc.expectedMetadata) {
-				t.Fatalf("expected %+v but got: %+v", tc.expectedMetadata, actual)
-			}
-
-			err := form.Validate()
-
-			if tc.expectValidationError && err == nil {
-				t.Fatal("expected validation error but got none", err)
-			}
-
-			if !tc.expectValidationError && err != nil {
-				t.Fatalf("expected no validation error but got: %v", err)
-			}
-		})
-	}
-}
-
 func TestConvertUrlRoute(t *testing.T) {
 	for _, tc := range []struct {
 		scenario               string
@@ -1547,6 +1428,7 @@ func TestConvertUrl(t *testing.T) {
 		api                    Api
 		engine                 gotenberg.PdfEngine
 		options                PdfOptions
+		splitMode              gotenberg.SplitMode
 		pdfFormats             gotenberg.PdfFormats
 		metadata               map[string]interface{}
 		expectError            bool
@@ -1690,6 +1572,36 @@ func TestConvertUrl(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
+			scenario: "PDF engine split error",
+			ctx:      &api.ContextMock{Context: new(api.Context)},
+			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
+				return nil
+			}},
+			engine: &gotenberg.PdfEngineMock{SplitMock: func(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+				return nil, errors.New("foo")
+			}},
+			options:                DefaultPdfOptions(),
+			splitMode:              gotenberg.SplitMode{Mode: gotenberg.SplitModeIntervals, Span: "1"},
+			expectError:            true,
+			expectHttpError:        false,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario: "success with split mode",
+			ctx:      &api.ContextMock{Context: new(api.Context)},
+			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
+				return nil
+			}},
+			engine: &gotenberg.PdfEngineMock{SplitMock: func(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+				return []string{inputPath}, nil
+			}},
+			options:                DefaultPdfOptions(),
+			splitMode:              gotenberg.SplitMode{Mode: gotenberg.SplitModePages, Span: "1"},
+			expectError:            false,
+			expectHttpError:        false,
+			expectOutputPathsCount: 1,
+		},
+		{
 			scenario: "PDF engine convert error",
 			ctx:      &api.ContextMock{Context: new(api.Context)},
 			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
@@ -1714,6 +1626,27 @@ func TestConvertUrl(t *testing.T) {
 				return nil
 			}},
 			options:                DefaultPdfOptions(),
+			pdfFormats:             gotenberg.PdfFormats{PdfA: gotenberg.PdfA1b},
+			expectError:            false,
+			expectHttpError:        false,
+			expectOutputPathsCount: 1,
+		},
+		{
+			scenario: "success with split mode and PDF formats",
+			ctx:      &api.ContextMock{Context: new(api.Context)},
+			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
+				return nil
+			}},
+			engine: &gotenberg.PdfEngineMock{
+				SplitMock: func(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+					return []string{inputPath}, nil
+				},
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+					return nil
+				},
+			},
+			options:                DefaultPdfOptions(),
+			splitMode:              gotenberg.SplitMode{Mode: gotenberg.SplitModePages, Span: "1"},
 			pdfFormats:             gotenberg.PdfFormats{PdfA: gotenberg.PdfA1b},
 			expectError:            false,
 			expectHttpError:        false,
@@ -1778,7 +1711,13 @@ func TestConvertUrl(t *testing.T) {
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			tc.ctx.SetLogger(zap.NewNop())
-			err := convertUrl(tc.ctx.Context, tc.api, tc.engine, "", tc.options, tc.pdfFormats, tc.metadata)
+			tc.ctx.SetMkdirAll(&gotenberg.MkdirAllMock{MkdirAllMock: func(path string, perm os.FileMode) error {
+				return nil
+			}})
+			tc.ctx.SetPathRename(&gotenberg.PathRenameMock{RenameMock: func(oldpath, newpath string) error {
+				return nil
+			}})
+			err := convertUrl(tc.ctx.Context, tc.api, tc.engine, "", tc.options, tc.splitMode, tc.pdfFormats, tc.metadata)
 
 			if tc.expectError && err == nil {
 				t.Fatal("expected error but got none", err)

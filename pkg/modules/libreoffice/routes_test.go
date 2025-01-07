@@ -3,7 +3,10 @@ package libreoffice
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"slices"
 	"testing"
 
@@ -301,6 +304,40 @@ func TestConvertRoute(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
+			scenario: "PDF engine split error",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"document.docx": "/document.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"splitMode": {
+						gotenberg.SplitModeIntervals,
+					},
+					"splitSpan": {
+						"1",
+					},
+				})
+				return ctx
+			}(),
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
+					return nil
+				},
+				ExtensionsMock: func() []string {
+					return []string{".docx"}
+				},
+			},
+			engine: &gotenberg.PdfEngineMock{
+				SplitMock: func(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+					return nil, errors.New("foo")
+				},
+			},
+			expectError:            true,
+			expectHttpError:        false,
+			expectOutputPathsCount: 0,
+		},
+		{
 			scenario: "PDF engine convert error",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
@@ -359,32 +396,6 @@ func TestConvertRoute(t *testing.T) {
 			engine: &gotenberg.PdfEngineMock{
 				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
 					return errors.New("foo")
-				},
-			},
-			expectError:            true,
-			expectHttpError:        false,
-			expectOutputPathsCount: 0,
-		},
-		{
-			scenario: "cannot rename many files",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"document.docx":  "/document.docx",
-					"document2.docx": "/document2.docx",
-					"document2.doc":  "/document2.doc",
-				})
-				ctx.SetPathRename(&gotenberg.PathRenameMock{RenameMock: func(oldpath, newpath string) error {
-					return errors.New("cannot rename")
-				}})
-				return ctx
-			}(),
-			libreOffice: &libreofficeapi.ApiMock{
-				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
-					return nil
-				},
-				ExtensionsMock: func() []string {
-					return []string{".docx", ".doc"}
 				},
 			},
 			expectError:            true,
@@ -550,9 +561,173 @@ func TestConvertRoute(t *testing.T) {
 			expectHttpError:        false,
 			expectOutputPathsCount: 1,
 		},
+		{
+			scenario: "success with split (many files)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"document.docx":  "/document.docx",
+					"document2.docx": "/document2.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"splitMode": {
+						gotenberg.SplitModeIntervals,
+					},
+					"splitSpan": {
+						"1",
+					},
+				})
+				return ctx
+			}(),
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
+					return nil
+				},
+				ExtensionsMock: func() []string {
+					return []string{".docx"}
+				},
+			},
+			engine: &gotenberg.PdfEngineMock{
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return nil
+				},
+				SplitMock: func(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+					inputPathNoExt := inputPath[:len(inputPath)-len(filepath.Ext(inputPath))]
+					filenameNoExt := filepath.Base(inputPathNoExt)
+					return []string{
+						fmt.Sprintf(
+							"%s/%s_%d.pdf",
+							outputDirPath, filenameNoExt, 0,
+						),
+						fmt.Sprintf(
+							"%s/%s_%d.pdf",
+							outputDirPath, filenameNoExt, 1,
+						),
+					}, nil
+				},
+			},
+			expectError:            false,
+			expectHttpError:        false,
+			expectOutputPathsCount: 4,
+			expectOutputPaths:      []string{"/document_docx/document.docx_0.pdf", "/document_docx/document.docx_1.pdf", "/document2_docx/document2.docx_0.pdf", "/document2_docx/document2.docx_1.pdf"},
+		},
+		{
+			scenario: "success with merge and split",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"document.docx":  "/document.docx",
+					"document2.docx": "/document2.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"merge": {
+						"true",
+					},
+					"splitMode": {
+						gotenberg.SplitModeIntervals,
+					},
+					"splitSpan": {
+						"1",
+					},
+				})
+				return ctx
+			}(),
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
+					return nil
+				},
+				ExtensionsMock: func() []string {
+					return []string{".docx"}
+				},
+			},
+			engine: &gotenberg.PdfEngineMock{
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return nil
+				},
+				SplitMock: func(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+					inputPathNoExt := inputPath[:len(inputPath)-len(filepath.Ext(inputPath))]
+					filenameNoExt := filepath.Base(inputPathNoExt)
+					return []string{
+						fmt.Sprintf(
+							"%s/%s_%d.pdf",
+							outputDirPath, filenameNoExt, 0,
+						),
+						fmt.Sprintf(
+							"%s/%s_%d.pdf",
+							outputDirPath, filenameNoExt, 1,
+						),
+					}, nil
+				},
+			},
+			expectError:            false,
+			expectHttpError:        false,
+			expectOutputPathsCount: 2,
+		},
+		{
+			scenario: "success with split and native PDF/A & PDF/UA (many files)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"document.docx":  "/document.docx",
+					"document2.docx": "/document2.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"splitMode": {
+						gotenberg.SplitModeIntervals,
+					},
+					"splitSpan": {
+						"1",
+					},
+					"pdfa": {
+						gotenberg.PdfA1b,
+					},
+					"pdfua": {
+						"true",
+					},
+				})
+				return ctx
+			}(),
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
+					return nil
+				},
+				ExtensionsMock: func() []string {
+					return []string{".docx"}
+				},
+			},
+			engine: &gotenberg.PdfEngineMock{
+				SplitMock: func(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+					inputPathNoExt := inputPath[:len(inputPath)-len(filepath.Ext(inputPath))]
+					filenameNoExt := filepath.Base(inputPathNoExt)
+					return []string{
+						fmt.Sprintf(
+							"%s/%s_%d.pdf",
+							outputDirPath, filenameNoExt, 0,
+						),
+						fmt.Sprintf(
+							"%s/%s_%d.pdf",
+							outputDirPath, filenameNoExt, 1,
+						),
+					}, nil
+				},
+				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+					return nil
+				},
+			},
+			expectError:            false,
+			expectHttpError:        false,
+			expectOutputPathsCount: 4,
+			expectOutputPaths:      []string{"/document_docx/document.docx_0.pdf", "/document_docx/document.docx_1.pdf", "/document2_docx/document2.docx_0.pdf", "/document2_docx/document2.docx_1.pdf"},
+		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			tc.ctx.SetLogger(zap.NewNop())
+			tc.ctx.SetMkdirAll(&gotenberg.MkdirAllMock{MkdirAllMock: func(path string, perm os.FileMode) error {
+				return nil
+			}})
+			tc.ctx.SetPathRename(&gotenberg.PathRenameMock{RenameMock: func(oldpath, newpath string) error {
+				return nil
+			}})
 			c := echo.New().NewContext(nil, nil)
 			c.Set("context", tc.ctx.Context)
 

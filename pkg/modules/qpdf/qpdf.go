@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"go.uber.org/zap"
 
@@ -45,10 +46,38 @@ func (engine *QPdf) Provision(ctx *gotenberg.Context) error {
 func (engine *QPdf) Validate() error {
 	_, err := os.Stat(engine.binPath)
 	if os.IsNotExist(err) {
-		return fmt.Errorf("QPdf binary path does not exist: %w", err)
+		return fmt.Errorf("QPDF binary path does not exist: %w", err)
 	}
 
 	return nil
+}
+
+// Split splits a given PDF file.
+func (engine *QPdf) Split(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+	var args []string
+	outputPath := fmt.Sprintf("%s/%s", outputDirPath, filepath.Base(inputPath))
+
+	switch mode.Mode {
+	case gotenberg.SplitModePages:
+		if !mode.Unify {
+			return nil, fmt.Errorf("split PDFs using mode '%s' without unify with QPDF: %w", mode.Mode, gotenberg.ErrPdfSplitModeNotSupported)
+		}
+		args = append(args, inputPath, "--pages", ".", mode.Span, "--", outputPath)
+	default:
+		return nil, fmt.Errorf("split PDFs using mode '%s' with QPDF: %w", mode.Mode, gotenberg.ErrPdfSplitModeNotSupported)
+	}
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		return nil, fmt.Errorf("create command: %w", err)
+	}
+
+	_, err = cmd.Exec()
+	if err != nil {
+		return nil, fmt.Errorf("split PDFs with QPDF: %w", err)
+	}
+
+	return []string{outputPath}, nil
 }
 
 // Merge combines multiple PDFs into a single PDF.
