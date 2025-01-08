@@ -12,11 +12,11 @@ import (
 )
 
 type multiPdfEngines struct {
-	mergeEngines       []gotenberg.PdfEngine
-	splitEngines       []gotenberg.PdfEngine
-	convertEngines     []gotenberg.PdfEngine
-	readMedataEngines  []gotenberg.PdfEngine
-	writeMedataEngines []gotenberg.PdfEngine
+	mergeEngines         []gotenberg.PdfEngine
+	splitEngines         []gotenberg.PdfEngine
+	convertEngines       []gotenberg.PdfEngine
+	readMetadataEngines  []gotenberg.PdfEngine
+	writeMetadataEngines []gotenberg.PdfEngine
 }
 
 func newMultiPdfEngines(
@@ -24,14 +24,14 @@ func newMultiPdfEngines(
 	splitEngines,
 	convertEngines,
 	readMetadataEngines,
-	writeMedataEngines []gotenberg.PdfEngine,
+	writeMetadataEngines []gotenberg.PdfEngine,
 ) *multiPdfEngines {
 	return &multiPdfEngines{
 		mergeEngines:       mergeEngines,
 		splitEngines:       splitEngines,
 		convertEngines:     convertEngines,
-		readMedataEngines:  readMetadataEngines,
-		writeMedataEngines: writeMedataEngines,
+		readMetadataEngines:  readMetadataEngines,
+		writeMetadataEngines: writeMetadataEngines,
 	}
 }
 
@@ -132,16 +132,16 @@ func (multi *multiPdfEngines) ReadMetadata(ctx context.Context, logger *zap.Logg
 	var err error
 	var mu sync.Mutex // to safely append errors.
 
-	resultChan := make(chan readMetadataResult, len(multi.readMedataEngines))
+	resultChan := make(chan readMetadataResult, len(multi.readMetadataEngines))
 
-	for _, engine := range multi.readMedataEngines {
+	for _, engine := range multi.readMetadataEngines {
 		go func(engine gotenberg.PdfEngine) {
 			metadata, err := engine.ReadMetadata(ctx, logger, inputPath)
 			resultChan <- readMetadataResult{metadata: metadata, err: err}
 		}(engine)
 	}
 
-	for range multi.readMedataEngines {
+	for range multi.readMetadataEngines {
 		select {
 		case result := <-resultChan:
 			if result.err != nil {
@@ -163,7 +163,7 @@ func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *zap.Log
 	var err error
 	errChan := make(chan error, 1)
 
-	for _, engine := range multi.writeMedataEngines {
+	for _, engine := range multi.writeMetadataEngines {
 		go func(engine gotenberg.PdfEngine) {
 			errChan <- engine.WriteMetadata(ctx, logger, metadata, inputPath)
 		}(engine)
