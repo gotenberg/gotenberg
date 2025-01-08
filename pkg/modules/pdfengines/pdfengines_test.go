@@ -194,7 +194,7 @@ func TestPdfEngines_Provision(t *testing.T) {
 			}
 
 			if len(tc.expectedWriteMetadataPdfEngines) != len(mod.writeMetadataNames) {
-				t.Fatalf("expected %d write metadata names but got %d", len(tc.expectedWriteMetadataPdfEngines), len(mod.writeMedataNames))
+				t.Fatalf("expected %d write metadata names but got %d", len(tc.expectedWriteMetadataPdfEngines), len(mod.writeMetadataNames))
 			}
 
 			for index, name := range mod.mergeNames {
