@@ -27,9 +27,9 @@ func newMultiPdfEngines(
 	writeMetadataEngines []gotenberg.PdfEngine,
 ) *multiPdfEngines {
 	return &multiPdfEngines{
-		mergeEngines:       mergeEngines,
-		splitEngines:       splitEngines,
-		convertEngines:     convertEngines,
+		mergeEngines:         mergeEngines,
+		splitEngines:         splitEngines,
+		convertEngines:       convertEngines,
 		readMetadataEngines:  readMetadataEngines,
 		writeMetadataEngines: writeMetadataEngines,
 	}
