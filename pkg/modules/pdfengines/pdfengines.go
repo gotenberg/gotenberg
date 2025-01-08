@@ -27,13 +27,13 @@ func init() {
 // the [api.Router] interface to expose relevant PDF processing routes if
 // enabled.
 type PdfEngines struct {
-	mergeNames        []string
-	splitNames        []string
-	convertNames      []string
-	readMetadataNames []string
-	writeMedataNames  []string
-	engines           []gotenberg.PdfEngine
-	disableRoutes     bool
+	mergeNames         []string
+	splitNames         []string
+	convertNames       []string
+	readMetadataNames  []string
+	writeMetadataNames []string
+	engines            []gotenberg.PdfEngine
+	disableRoutes      bool
 }
 
 // Descriptor returns a PdfEngines' module descriptor.
@@ -116,9 +116,9 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 		mod.readMetadataNames = readMetadataNames
 	}
 
-	mod.writeMedataNames = defaultNames
+	mod.writeMetadataNames = defaultNames
 	if len(writeMetadataNames) > 0 {
-		mod.writeMedataNames = writeMetadataNames
+		mod.writeMetadataNames = writeMetadataNames
 	}
 
 	return nil
@@ -172,7 +172,7 @@ func (mod *PdfEngines) Validate() error {
 	findNonExistingEngines(mod.splitNames)
 	findNonExistingEngines(mod.convertNames)
 	findNonExistingEngines(mod.readMetadataNames)
-	findNonExistingEngines(mod.writeMedataNames)
+	findNonExistingEngines(mod.writeMetadataNames)
 
 	if len(nonExistingEngines) == 0 {
 		return nil
@@ -189,7 +189,7 @@ func (mod *PdfEngines) SystemMessages() []string {
 		fmt.Sprintf("split engines - %s", strings.Join(mod.splitNames[:], " ")),
 		fmt.Sprintf("convert engines - %s", strings.Join(mod.convertNames[:], " ")),
 		fmt.Sprintf("read metadata engines - %s", strings.Join(mod.readMetadataNames[:], " ")),
-		fmt.Sprintf("write medata engines - %s", strings.Join(mod.writeMedataNames[:], " ")),
+		fmt.Sprintf("write metadata engines - %s", strings.Join(mod.writeMetadataNames[:], " ")),
 	}
 }
 
@@ -214,7 +214,7 @@ func (mod *PdfEngines) PdfEngine() (gotenberg.PdfEngine, error) {
 		engines(mod.splitNames),
 		engines(mod.convertNames),
 		engines(mod.readMetadataNames),
-		engines(mod.writeMedataNames),
+		engines(mod.writeMetadataNames),
 	), nil
 }
 
