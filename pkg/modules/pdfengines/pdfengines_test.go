@@ -193,7 +193,7 @@ func TestPdfEngines_Provision(t *testing.T) {
 				t.Fatalf("expected %d read metadata names but got %d", len(tc.expectedReadMetadataPdfEngines), len(mod.readMetadataNames))
 			}
 
-			if len(tc.expectedWriteMetadataPdfEngines) != len(mod.writeMedataNames) {
+			if len(tc.expectedWriteMetadataPdfEngines) != len(mod.writeMetadataNames) {
 				t.Fatalf("expected %d write metadata names but got %d", len(tc.expectedWriteMetadataPdfEngines), len(mod.writeMedataNames))
 			}
 
@@ -221,7 +221,7 @@ func TestPdfEngines_Provision(t *testing.T) {
 				}
 			}
 
-			for index, name := range mod.writeMedataNames {
+			for index, name := range mod.writeMetadataNames {
 				if name != tc.expectedWriteMetadataPdfEngines[index] {
 					t.Fatalf("expected write metadat name at index %d to be %s, but got: %s", index, name, tc.expectedWriteMetadataPdfEngines[index])
 				}
@@ -289,11 +289,11 @@ func TestPdfEngines_Validate(t *testing.T) {
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			mod := PdfEngines{
-				mergeNames:        tc.names,
-				convertNames:      tc.names,
-				readMetadataNames: tc.names,
-				writeMedataNames:  tc.names,
-				engines:           tc.engines,
+				mergeNames:         tc.names,
+				convertNames:       tc.names,
+				readMetadataNames:  tc.names,
+				writeMetadataNames: tc.names,
+				engines:            tc.engines,
 			}
 
 			err := mod.Validate()
@@ -315,7 +315,7 @@ func TestPdfEngines_SystemMessages(t *testing.T) {
 	mod.splitNames = []string{"foo", "bar"}
 	mod.convertNames = []string{"foo", "bar"}
 	mod.readMetadataNames = []string{"foo", "bar"}
-	mod.writeMedataNames = []string{"foo", "bar"}
+	mod.writeMetadataNames = []string{"foo", "bar"}
 
 	messages := mod.SystemMessages()
 	if len(messages) != 5 {
@@ -327,7 +327,7 @@ func TestPdfEngines_SystemMessages(t *testing.T) {
 		fmt.Sprintf("split engines - %s", strings.Join(mod.splitNames[:], " ")),
 		fmt.Sprintf("convert engines - %s", strings.Join(mod.convertNames[:], " ")),
 		fmt.Sprintf("read metadata engines - %s", strings.Join(mod.readMetadataNames[:], " ")),
-		fmt.Sprintf("write medata engines - %s", strings.Join(mod.writeMedataNames[:], " ")),
+		fmt.Sprintf("write metadata engines - %s", strings.Join(mod.writeMetadataNames[:], " ")),
 	}
 
 	for i, message := range messages {
@@ -339,11 +339,11 @@ func TestPdfEngines_SystemMessages(t *testing.T) {
 
 func TestPdfEngines_PdfEngine(t *testing.T) {
 	mod := PdfEngines{
-		mergeNames:        []string{"foo", "bar"},
-		splitNames:        []string{"foo", "bar"},
-		convertNames:      []string{"foo", "bar"},
-		readMetadataNames: []string{"foo", "bar"},
-		writeMedataNames:  []string{"foo", "bar"},
+		mergeNames:         []string{"foo", "bar"},
+		splitNames:         []string{"foo", "bar"},
+		convertNames:       []string{"foo", "bar"},
+		readMetadataNames:  []string{"foo", "bar"},
+		writeMetadataNames: []string{"foo", "bar"},
 		engines: func() []gotenberg.PdfEngine {
 			engine1 := &struct {
 				gotenberg.ModuleMock
