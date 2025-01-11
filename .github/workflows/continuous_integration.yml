@@ -12,6 +12,9 @@ concurrency:
   group: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number) || 'main' }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
 
   lint:
