@@ -34,7 +34,7 @@ ARG UNOCONVERTER_BIN_PATH
 
 COPY --from=binary-stage /home/gotenberg /usr/bin/
 
-COPY ./cve-fixes/cve-fixes/cve-2012-5639 ~/.config/libreoffice/4/user/registrymodifications.xcu
+COPY cve-fixes/cve-fixes/cve-2012-5639/* ~/.config/libreoffice/4/user/registrymodifications.xcu
 
 # puts back in these env vars which are seemingly missing in the 8.15.3 chainguard base
 # they likely baked them into the code...
