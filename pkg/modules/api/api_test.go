@@ -866,9 +866,16 @@ func TestApi_Start(t *testing.T) {
 				return
 			}
 
-			// health requests.
 			recorder := httptest.NewRecorder()
 
+			// root request.
+			rootRequest := httptest.NewRequest(http.MethodGet, "/", nil)
+			mod.srv.ServeHTTP(recorder, rootRequest)
+			if recorder.Code != http.StatusOK {
+				t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
+			}
+
+			// health requests.
 			healthGetRequest := httptest.NewRequest(http.MethodGet, "/health", nil)
 			mod.srv.ServeHTTP(recorder, healthGetRequest)
 			if recorder.Code != http.StatusOK {
