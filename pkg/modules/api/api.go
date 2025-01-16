@@ -485,9 +485,9 @@ func (a *Api) Start() error {
 
 	// Root route.
 	a.srv.GET(
-		a.rootPath, 
+		a.rootPath,
 		func(c echo.Context) error {
-				return c.HTML(http.StatusOK, `Hey, this Gotenberg has no UI, it's an API. Head to the <a href="https://gotenberg.dev">documentation</a> to learn how to interact with it 🚀`)
+			return c.HTML(http.StatusOK, `Hey, this Gotenberg has no UI, it's an API. Head to the <a href="https://gotenberg.dev">documentation</a> to learn how to interact with it 🚀`)
 		},
 	)
 
