@@ -493,7 +493,7 @@ func (a *Api) Start() error {
 
 	// Favicon route.
 	a.srv.GET(
-		fmt.Sprintf("%sfavicon.ico", a.rootPath),
+		fmt.Sprintf("%s%s", a.rootPath, "favicon.ico"),
 		func(c echo.Context) error {
 			return c.NoContent(http.StatusNoContent)
 		},
