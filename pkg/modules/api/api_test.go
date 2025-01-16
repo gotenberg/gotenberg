@@ -866,15 +866,15 @@ func TestApi_Start(t *testing.T) {
 				return
 			}
 
-			recorder := httptest.NewRecorder()
-
 			// root request.
+			recorder := httptest.NewRecorder()
 			rootRequest := httptest.NewRequest(http.MethodGet, "/", nil)
 			mod.srv.ServeHTTP(recorder, rootRequest)
 			if recorder.Code != http.StatusOK {
 				t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
 			}
 
+			recorder = httptest.NewRecorder()
 			faviconRequest := httptest.NewRequest(http.MethodGet, "/favicon.ico", nil)
 			mod.srv.ServeHTTP(recorder, faviconRequest)
 			if recorder.Code != http.StatusNoContent {
@@ -882,12 +882,14 @@ func TestApi_Start(t *testing.T) {
 			}
 
 			// health requests.
+			recorder = httptest.NewRecorder()
 			healthGetRequest := httptest.NewRequest(http.MethodGet, "/health", nil)
 			mod.srv.ServeHTTP(recorder, healthGetRequest)
 			if recorder.Code != http.StatusOK {
 				t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
 			}
 
+			recorder = httptest.NewRecorder()
 			healthHeadRequest := httptest.NewRequest(http.MethodHead, "/health", nil)
 			mod.srv.ServeHTTP(recorder, healthHeadRequest)
 			if recorder.Code != http.StatusOK {
@@ -895,6 +897,7 @@ func TestApi_Start(t *testing.T) {
 			}
 
 			// version request.
+			recorder = httptest.NewRecorder()
 			versionRequest := httptest.NewRequest(http.MethodGet, "/version", nil)
 			mod.srv.ServeHTTP(recorder, versionRequest)
 			if recorder.Code != http.StatusOK {
