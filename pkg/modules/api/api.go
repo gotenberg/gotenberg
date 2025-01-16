@@ -483,18 +483,20 @@ func (a *Api) Start() error {
 		)
 	}
 
-	// Root routes.
+	// Root route.
 	a.srv.GET(
-	    a.rootPath, 
-	    func(c echo.Context) error {
-		c.HTML(http.StatusOK, `Hey, this Gotenberg no UI, it's an API. Head to the <a href="https://gotenberg.dev">documentation</a> to learn how to interact with it 🚀`)
-	    },
+		a.rootPath, 
+		func(c echo.Context) error {
+				return c.HTML(http.StatusOK, `Hey, this Gotenberg has no UI, it's an API. Head to the <a href="https://gotenberg.dev">documentation</a> to learn how to interact with it 🚀`)
+		},
 	)
+
+	// Favicon route.
 	a.srv.GET(
-	    fmt.Sprintf("%sfavicon.ico", a.rootPath) 
-	    func(c echo.Context) error {
-		return c.NoContent(http.StatusNoContent)
-	    },
+		fmt.Sprintf("%sfavicon.ico", a.rootPath),
+		func(c echo.Context) error {
+			return c.NoContent(http.StatusNoContent)
+		},
 	)
 
 	// Let's not forget the health check routes...

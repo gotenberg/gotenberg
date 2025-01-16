@@ -875,6 +875,12 @@ func TestApi_Start(t *testing.T) {
 				t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
 			}
 
+			faviconRequest := httptest.NewRequest(http.MethodGet, "/favicon.ico", nil)
+			mod.srv.ServeHTTP(recorder, faviconRequest)
+			if recorder.Code != http.StatusNoContent {
+				t.Errorf("expected %d status code but got %d", http.StatusNoContent, recorder.Code)
+			}
+
 			// health requests.
 			healthGetRequest := httptest.NewRequest(http.MethodGet, "/health", nil)
 			mod.srv.ServeHTTP(recorder, healthGetRequest)
