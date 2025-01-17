@@ -456,14 +456,22 @@ func (a *Api) Start() error {
 
 	hardTimeout := a.timeout + (time.Duration(5) * time.Second)
 
+	// Basic auth?
+	var securityMiddleware echo.MiddlewareFunc
+	if a.basicAuthUsername != "" {
+		securityMiddleware = basicAuthMiddleware(a.basicAuthUsername, a.basicAuthPassword)
+	} else {
+		securityMiddleware = func(next echo.HandlerFunc) echo.HandlerFunc {
+			return func(c echo.Context) error {
+				return next(c)
+			}
+		}
+	}
+
 	// Add the modules' routes and their specific middlewares.
 	for _, route := range a.routes {
 		var middlewares []echo.MiddlewareFunc
-
-		// Basic auth?
-		if a.basicAuthUsername != "" {
-			middlewares = append(middlewares, basicAuthMiddleware(a.basicAuthUsername, a.basicAuthPassword))
-		}
+		middlewares = append(middlewares, securityMiddleware)
 
 		if route.IsMultipart {
 			middlewares = append(middlewares, contextMiddleware(a.fs, a.timeout, a.bodyLimit, a.downloadFromCfg))
@@ -489,6 +497,7 @@ func (a *Api) Start() error {
 		func(c echo.Context) error {
 			return c.HTML(http.StatusOK, `Hey, Gotenberg has no UI, it's an API. Head to the <a href="https://gotenberg.dev">documentation</a> to learn how to interact with it 🚀`)
 		},
+		securityMiddleware,
 	)
 
 	// Favicon route.
@@ -497,6 +506,7 @@ func (a *Api) Start() error {
 		func(c echo.Context) error {
 			return c.NoContent(http.StatusNoContent)
 		},
+		securityMiddleware,
 	)
 
 	// Let's not forget the health check routes...
@@ -525,6 +535,7 @@ func (a *Api) Start() error {
 		func(c echo.Context) error {
 			return c.String(http.StatusOK, gotenberg.Version)
 		},
+		securityMiddleware,
 	)
 
 	// Wait for all modules to be ready.
