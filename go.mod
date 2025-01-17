@@ -6,7 +6,7 @@ require (
 	github.com/alexliesenfeld/health v0.8.0
 	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/barasher/go-exiftool v1.10.0
-	github.com/chromedp/cdproto v0.0.0-20250109193942-1ec2f6cf5d86
+	github.com/chromedp/cdproto v0.0.0-20250113203156-3ff4b409e0d4
 	github.com/chromedp/chromedp v0.11.2
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.6.0
@@ -59,7 +59,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
-	github.com/prometheus/common v0.61.0 // indirect
+	github.com/prometheus/common v0.62.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
 	github.com/tklauser/numcpus v0.9.0 // indirect
@@ -68,5 +68,5 @@ require (
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	golang.org/x/time v0.9.0 // indirect
-	google.golang.org/protobuf v1.36.2 // indirect
+	google.golang.org/protobuf v1.36.3 // indirect
 )
