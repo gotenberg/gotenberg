@@ -161,7 +161,6 @@ RUN \
       mv /usr/bin/google-chrome-stable /usr/bin/chromium; \
     elif [[ "$(dpkg --print-architecture)" == "armhf" ]]; then \
       apt-get update -qq &&\
-      apt-get upgrade -yqq &&\
       DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends devscripts &&\
       debsnap chromium-common "$TMP_CHOMIUM_VERSION_ARMHF" -v --force --binary --architecture armhf &&\
       debsnap chromium "$TMP_CHOMIUM_VERSION_ARMHF" -v --force --binary --architecture armhf &&\
