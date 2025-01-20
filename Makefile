@@ -216,3 +216,24 @@ release: ## Build the Gotenberg's Docker image and push it to a Docker repositor
 	$(DOCKER_REPOSITORY) \
 	$(LINUX_AMD64_RELEASE)
 
+PLATFORM=
+
+.PHONY: ci-build-push-arch-tags
+ci-build-push-arch-tags: ## Build and push the Docker images for a single architecture (e.g., {version}-{platform})
+	./scripts/build-push-arch-tags.sh \
+	$(GOLANG_VERSION) \
+	$(GOTENBERG_VERSION) \
+	$(GOTENBERG_USER_GID) \
+	$(GOTENBERG_USER_UID) \
+	$(NOTO_COLOR_EMOJI_VERSION) \
+	$(PDFTK_VERSION) \
+	$(PDFCPU_VERSION) \
+	$(DOCKER_REGISTRY) \
+	$(DOCKER_REPOSITORY) \
+	$(PLATFORM)
+
+ARCH_TAGS=
+
+.PHONY: ci-merge-arch-tags
+ci-merge-arch-tags: # Merge architecture tags to a single tag (e.g., {version}-{platform} -> {version})
+	./scripts/merge-arch-tags.sh $(ARCH_TAGS)
