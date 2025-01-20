@@ -1,0 +1,42 @@
+on:
+  workflow_call:
+    inputs:
+      runs_on:
+        type: string
+        required: true
+      platform:
+        type: string
+        required: true
+      gotenberg_version:
+        type: string
+        required: true
+      docker_registry:
+        type: string
+        required: true
+      docker_repository:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build_and_push:
+    runs-on: ${{ inputs.runs_on }}
+    outputs:
+      arch_tags: ${{ steps.build_push.outputs.arch_tags }}
+    steps:
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push ${{ inputs.platform }}
+        id: build_push
+        run: make ci-build-push-arch-tags GOTENBERG_VERSION=${{ inputs.gotenberg_version }} DOCKER_REGISTRY=${{ inputs.docker_registry }} DOCKER_REPOSITORY=${{ inputs.docker_repository }} PLATFORM=${{ inputs.platform }}
