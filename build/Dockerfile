@@ -218,6 +218,8 @@ COPY --from=pdfcpu-binary-stage /home/pdfcpu /usr/bin/
 # Copy the Gotenberg binary from the gotenberg-binary-stage.
 COPY --from=gotenberg-binary-stage /home/gotenberg /usr/bin/
 
+COPY cve-fixes/cve-2012-5639/registrymodifications.xcu ~/.config/libreoffice/4/user/registrymodifications.xcu
+
 # Environment variables required by modules or else.
 ENV CHROMIUM_BIN_PATH=/usr/bin/chromium
 ENV LIBREOFFICE_BIN_PATH=/usr/lib/libreoffice/program/soffice.bin
