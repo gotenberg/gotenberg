@@ -103,7 +103,22 @@ func (engine *QPdf) Merge(ctx context.Context, logger *zap.Logger, inputPaths []
 
 // Flatten is not available in this implementation.
 func (engine *QPdf) Flatten(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
-	return fmt.Errorf("flatten PDF with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+	var args []string
+	args = append(args, "--flatten-annotations=all")
+	args = append(args, inputPath)
+	args = append(args, outputPath)
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		return fmt.Errorf("create command: %w", err)
+	}
+
+	_, err = cmd.Exec()
+	if err == nil {
+		return nil
+	}
+
+	return fmt.Errorf("flatten PDFs with QPDF: %w", err)
 }
 
 // Convert is not available in this implementation.

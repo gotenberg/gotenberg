@@ -232,6 +232,64 @@ func TestQPdf_Split(t *testing.T) {
 	}
 }
 
+func TestQPdf_Flatten(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		ctx         context.Context
+		inputPath   string
+		expectError bool
+	}{
+		{
+			scenario:    "invalid context",
+			ctx:         nil,
+			expectError: true,
+		},
+		{
+			scenario:    "invalid input path",
+			ctx:         context.TODO(),
+			inputPath:   "foo.pdf",
+			expectError: true,
+		},
+		{
+			scenario:    "success",
+			ctx:         context.TODO(),
+			inputPath:   "/tests/test/testdata/pdfengines/sample3.pdf",
+			expectError: false,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			engine := new(QPdf)
+			err := engine.Provision(nil)
+			if err != nil {
+				t.Fatalf("expected error but got: %v", err)
+			}
+
+			fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+			outputDir, err := fs.MkdirAll()
+			if err != nil {
+				t.Fatalf("expected error but got: %v", err)
+			}
+
+			defer func() {
+				err = os.RemoveAll(fs.WorkingDirPath())
+				if err != nil {
+					t.Fatalf("expected no error while cleaning up but got: %v", err)
+				}
+			}()
+
+			err = engine.Flatten(tc.ctx, zap.NewNop(), tc.inputPath, outputDir+"/foo.pdf")
+
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
+		})
+	}
+}
+
 func TestQPdf_Convert(t *testing.T) {
 	engine := new(QPdf)
 	err := engine.Convert(context.TODO(), zap.NewNop(), gotenberg.PdfFormats{}, "", "")
