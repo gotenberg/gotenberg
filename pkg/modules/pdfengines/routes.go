@@ -202,6 +202,20 @@ func SplitPdfStub(ctx *api.Context, engine gotenberg.PdfEngine, mode gotenberg.S
 	return outputPaths, nil
 }
 
+func FlattenStub(ctx *api.Context, engine gotenberg.PdfEngine, inputPaths []string) ([]string, error) {
+	outputPaths := make([]string, len(inputPaths))
+	for i, inputPath := range inputPaths {
+		outputPaths[i] = ctx.GeneratePath(".pdf")
+
+		err := engine.Flatten(ctx, ctx.Log(), inputPath, outputPaths[i])
+		if err != nil {
+			return nil, fmt.Errorf("flatten '%s': %w", inputPath, err)
+		}
+	}
+
+	return outputPaths, nil
+}
+
 // ConvertStub transforms a given PDF to the specified formats defined in
 // [gotenberg.PdfFormats]. If no format, it does nothing and returns the input
 // paths.
@@ -334,6 +348,51 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 					if err != nil {
 						return fmt.Errorf("rename output path: %w", err)
 					}
+				}
+			}
+
+			err = ctx.AddOutputPaths(outputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
+			}
+
+			return nil
+		},
+	}
+}
+
+func flattenRoute(engine gotenberg.PdfEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/flatten",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			form := ctx.FormData()
+
+			var inputPaths []string
+			err := form.
+				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			outputPaths, err := FlattenStub(ctx, engine, inputPaths)
+			if err != nil {
+				return fmt.Errorf("convert PDFs: %w", err)
+			}
+
+			if len(outputPaths) > 1 {
+				// If .zip archive, keep the original filename.
+				for i, inputPath := range inputPaths {
+					err = ctx.Rename(outputPaths[i], inputPath)
+					if err != nil {
+						return fmt.Errorf("rename output path: %w", err)
+					}
+
+					outputPaths[i] = inputPath
 				}
 			}
 

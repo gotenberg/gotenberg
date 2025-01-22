@@ -107,6 +107,11 @@ func (engine *PdfCpu) Split(ctx context.Context, logger *zap.Logger, mode gotenb
 	return outputPaths, nil
 }
 
+// Flatten is not available in this implementation.
+func (engine *PdfCpu) Flatten(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+	return fmt.Errorf("flatten PDF with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Convert is not available in this implementation.
 func (engine *PdfCpu) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 	return fmt.Errorf("convert PDF to '%+v' with pdfcpu: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)

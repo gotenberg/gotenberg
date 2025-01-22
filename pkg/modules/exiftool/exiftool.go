@@ -63,6 +63,11 @@ func (engine *ExifTool) Split(ctx context.Context, logger *zap.Logger, mode gote
 	return nil, fmt.Errorf("split PDF with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// Flatten is not available in this implementation.
+func (engine *ExifTool) Flatten(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+	return fmt.Errorf("flatten PDF with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Convert is not available in this implementation.
 func (engine *ExifTool) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 	return fmt.Errorf("convert PDF to '%+v' with ExifTool: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)

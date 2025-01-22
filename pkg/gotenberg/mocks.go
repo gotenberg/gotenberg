@@ -38,6 +38,7 @@ func (mod *ValidatorMock) Validate() error {
 type PdfEngineMock struct {
 	MergeMock         func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error
 	SplitMock         func(ctx context.Context, logger *zap.Logger, mode SplitMode, inputPath, outputDirPath string) ([]string, error)
+	FlattenMock       func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error
 	ConvertMock       func(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error
 	ReadMetadataMock  func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error)
 	WriteMetadataMock func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error
@@ -49,6 +50,10 @@ func (engine *PdfEngineMock) Merge(ctx context.Context, logger *zap.Logger, inpu
 
 func (engine *PdfEngineMock) Split(ctx context.Context, logger *zap.Logger, mode SplitMode, inputPath, outputDirPath string) ([]string, error) {
 	return engine.SplitMock(ctx, logger, mode, inputPath, outputDirPath)
+}
+
+func (engine *PdfEngineMock) Flatten(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+	return engine.FlattenMock(ctx, logger, inputPath, outputPath)
 }
 
 func (engine *PdfEngineMock) Convert(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error {

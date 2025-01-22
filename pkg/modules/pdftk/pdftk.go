@@ -99,6 +99,11 @@ func (engine *PdfTk) Merge(ctx context.Context, logger *zap.Logger, inputPaths [
 	return fmt.Errorf("merge PDFs with PDFtk: %w", err)
 }
 
+// Flatten is not available in this implementation.
+func (engine *PdfTk) Flatten(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+	return fmt.Errorf("flatten PDF with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Convert is not available in this implementation.
 func (engine *PdfTk) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 	return fmt.Errorf("convert PDF to '%+v' with PDFtk: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)
