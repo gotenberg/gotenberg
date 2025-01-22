@@ -104,6 +104,7 @@ func (engine *QPdf) Merge(ctx context.Context, logger *zap.Logger, inputPaths []
 // Flatten is not available in this implementation.
 func (engine *QPdf) Flatten(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
 	var args []string
+	args = append(args, "--generate-appearances")
 	args = append(args, "--flatten-annotations=all")
 	args = append(args, inputPath)
 	args = append(args, outputPath)
