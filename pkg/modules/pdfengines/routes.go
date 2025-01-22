@@ -202,6 +202,10 @@ func SplitPdfStub(ctx *api.Context, engine gotenberg.PdfEngine, mode gotenberg.S
 	return outputPaths, nil
 }
 
+// FlattenStub merges annotation appearances with page content for each given PDF
+// in the input paths, effectively deleting the original annotations. It generates
+// new output paths for the flattened PDFs and returns them. If an error occurs
+// during the flattening process, it returns the error.
 func FlattenStub(ctx *api.Context, engine gotenberg.PdfEngine, inputPaths []string) ([]string, error) {
 	outputPaths := make([]string, len(inputPaths))
 	for i, inputPath := range inputPaths {
