@@ -365,6 +365,7 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 	}
 }
 
+// flattenRoute returns an [api.Route] which can flatten PDFs.
 func flattenRoute(engine gotenberg.PdfEngine) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
