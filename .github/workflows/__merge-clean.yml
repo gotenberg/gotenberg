@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 jobs:
-  gotenberg_merge_clean:
+  merge_clean:
     runs-on: ubuntu-latest
     steps:
       - name: Set up QEMU
@@ -31,9 +31,8 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Merge and clean
-        uses: gotenberg/gotenberg-release-action@main
+        uses: gotenberg/gotenberg-release-action/actions/merge-clean@main
         with:
-          step: merge_clean
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
           tags: ${{ inputs.tags }}
