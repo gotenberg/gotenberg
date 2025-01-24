@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   merge_clean:
+    name: Merge and clean Docker images
     runs-on: ubuntu-latest
     steps:
       - name: Set up QEMU
