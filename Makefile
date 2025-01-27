@@ -1,20 +1,11 @@
+include .env
+
 .PHONY: help
 help: ## Show the help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: it
 it: build build-tests ## Initialize the development environment
-
-GOLANG_VERSION=1.23
-DOCKER_REGISTRY=gotenberg
-DOCKER_REPOSITORY=gotenberg
-GOTENBERG_VERSION=snapshot
-GOTENBERG_USER_GID=1001
-GOTENBERG_USER_UID=1001
-NOTO_COLOR_EMOJI_VERSION=v2.047 # See https://github.com/googlefonts/noto-emoji/releases.
-PDFTK_VERSION=v3.3.3 # See https://gitlab.com/pdftk-java/pdftk/-/releases - Binary package.
-PDFCPU_VERSION=v0.8.1 # See https://github.com/pdfcpu/pdfcpu/releases.
-GOLANGCI_LINT_VERSION=v1.63.4 # See https://github.com/golangci/golangci-lint/releases.
 
 .PHONY: build
 build: ## Build the Gotenberg's Docker image
@@ -27,7 +18,7 @@ build: ## Build the Gotenberg's Docker image
 	--build-arg PDFTK_VERSION=$(PDFTK_VERSION) \
 	--build-arg PDFCPU_VERSION=$(PDFCPU_VERSION) \
 	-t $(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
-	-f build/Dockerfile .
+	-f $(DOCKERFILE) $(DOCKER_BUILD_CONTEXT)
 
 GOTENBERG_GRACEFUL_SHUTDOWN_DURATION=30s
 API_PORT=3000
@@ -201,20 +192,3 @@ fmt: ## Format the code and "optimize" the dependencies
 godoc: ## Run a webserver with Gotenberg godoc
 	$(info http://localhost:6060/pkg/github.com/gotenberg/gotenberg/v8)
 	godoc -http=:6060
-
-LINUX_AMD64_RELEASE=false
-
-.PHONY: release
-release: ## Build the Gotenberg's Docker image and push it to a Docker repository
-	./scripts/release.sh \
- 	$(GOLANG_VERSION) \
-	$(GOTENBERG_VERSION) \
-	$(GOTENBERG_USER_GID) \
-	$(GOTENBERG_USER_UID) \
-	$(NOTO_COLOR_EMOJI_VERSION) \
-	$(PDFTK_VERSION) \
-	$(PDFCPU_VERSION) \
-	$(DOCKER_REGISTRY) \
-	$(DOCKER_REPOSITORY) \
-	$(LINUX_AMD64_RELEASE)
-
