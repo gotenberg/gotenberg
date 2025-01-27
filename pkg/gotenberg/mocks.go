@@ -35,6 +35,8 @@ func (mod *ValidatorMock) Validate() error {
 }
 
 // PdfEngineMock is a mock for the [PdfEngine] interface.
+//
+//nolint:dupl
 type PdfEngineMock struct {
 	MergeMock         func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error
 	SplitMock         func(ctx context.Context, logger *zap.Logger, mode SplitMode, inputPath, outputDirPath string) ([]string, error)

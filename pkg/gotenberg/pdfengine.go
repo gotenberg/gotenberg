@@ -88,6 +88,8 @@ type PdfFormats struct {
 // PdfEngine provides an interface for operations on PDFs. Implementations
 // can utilize various tools like PDFtk, or implement functionality directly in
 // Go.
+//
+//nolint:dupl
 type PdfEngine interface {
 	// Merge combines multiple PDFs into a single PDF. The resulting page order
 	// is determined by the order of files provided in inputPaths.
