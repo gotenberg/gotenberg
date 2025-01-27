@@ -1431,7 +1431,6 @@ func TestConvertUrl(t *testing.T) {
 		splitMode              gotenberg.SplitMode
 		pdfFormats             gotenberg.PdfFormats
 		metadata               map[string]interface{}
-		flatten                bool
 		expectError            bool
 		expectHttpError        bool
 		expectHttpStatus       int
@@ -1671,20 +1670,6 @@ func TestConvertUrl(t *testing.T) {
 			expectHttpError: false,
 		},
 		{
-			scenario: "PDF engine flatten error",
-			ctx:      &api.ContextMock{Context: new(api.Context)},
-			api: &ApiMock{PdfMock: func(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
-				return nil
-			}},
-			engine: &gotenberg.PdfEngineMock{FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
-				return errors.New("bar")
-			}},
-			options:         DefaultPdfOptions(),
-			flatten:         true,
-			expectError:     true,
-			expectHttpError: false,
-		},
-		{
 			scenario: "cannot add output paths",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
@@ -1712,9 +1697,6 @@ func TestConvertUrl(t *testing.T) {
 				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
 					return nil
 				},
-				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
-					return nil
-				},
 			},
 			options:    DefaultPdfOptions(),
 			pdfFormats: gotenberg.PdfFormats{PdfA: gotenberg.PdfA1b},
@@ -1722,7 +1704,6 @@ func TestConvertUrl(t *testing.T) {
 				"Creator":  "foo",
 				"Producer": "bar",
 			},
-			flatten:                true,
 			expectError:            false,
 			expectHttpError:        false,
 			expectOutputPathsCount: 1,
@@ -1736,7 +1717,7 @@ func TestConvertUrl(t *testing.T) {
 			tc.ctx.SetPathRename(&gotenberg.PathRenameMock{RenameMock: func(oldpath, newpath string) error {
 				return nil
 			}})
-			err := convertUrl(tc.ctx.Context, tc.api, tc.engine, "", tc.options, tc.splitMode, tc.pdfFormats, tc.metadata, tc.flatten)
+			err := convertUrl(tc.ctx.Context, tc.api, tc.engine, "", tc.options, tc.splitMode, tc.pdfFormats, tc.metadata)
 
 			if tc.expectError && err == nil {
 				t.Fatal("expected error but got none", err)
