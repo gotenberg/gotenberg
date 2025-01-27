@@ -60,6 +60,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				maxImageResolution              int
 				nativePdfFormats                bool
 				merge                           bool
+				flatten                         bool
 			)
 
 			err := form.
@@ -135,6 +136,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					}
 					return nil
 				}).
+				Bool("flatten", &flatten, false).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -259,6 +261,13 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			err = pdfengines.WriteMetadataStub(ctx, engine, metadata, outputPaths)
 			if err != nil {
 				return fmt.Errorf("write metadata: %w", err)
+			}
+
+			if flatten {
+				outputPaths, err = pdfengines.FlattenStub(ctx, engine, outputPaths)
+				if err != nil {
+					return fmt.Errorf("flatten PDFs: %w", err)
+				}
 			}
 
 			if len(outputPaths) > 1 && splitMode == zeroValuedSplitMode {

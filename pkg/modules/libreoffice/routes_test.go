@@ -403,6 +403,38 @@ func TestConvertRoute(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
+			scenario: "PDF engine flatten error",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"document.docx": "/document.docx",
+				})
+				ctx.SetValues(map[string][]string{
+					"flatten": {
+						"true",
+					},
+				})
+				ctx.SetCancelled(true)
+				return ctx
+			}(),
+			libreOffice: &libreofficeapi.ApiMock{
+				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
+					return nil
+				},
+				ExtensionsMock: func() []string {
+					return []string{".docx"}
+				},
+			},
+			engine: &gotenberg.PdfEngineMock{
+				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+					return errors.New("foo")
+				},
+			},
+			expectError:            true,
+			expectHttpError:        false,
+			expectOutputPathsCount: 0,
+		},
+		{
 			scenario: "cannot add output paths",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
@@ -454,6 +486,9 @@ func TestConvertRoute(t *testing.T) {
 					"metadata": {
 						"{\"Creator\": \"foo\", \"Producer\": \"bar\" }",
 					},
+					"flatten": {
+						"true",
+					},
 				})
 				return ctx
 			}(),
@@ -473,6 +508,9 @@ func TestConvertRoute(t *testing.T) {
 					return nil
 				},
 				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+					return nil
+				},
+				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
 					return nil
 				},
 			},
@@ -502,6 +540,9 @@ func TestConvertRoute(t *testing.T) {
 					"metadata": {
 						"{\"Creator\": \"foo\", \"Producer\": \"bar\" }",
 					},
+					"flatten": {
+						"true",
+					},
 				})
 				ctx.SetPathRename(&gotenberg.PathRenameMock{RenameMock: func(oldpath, newpath string) error {
 					return nil
@@ -524,6 +565,9 @@ func TestConvertRoute(t *testing.T) {
 					return nil
 				},
 				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+					return nil
+				},
+				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
 					return nil
 				},
 			},
