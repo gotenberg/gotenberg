@@ -330,15 +330,19 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			pdfFormats := pdfengines.FormDataPdfFormats(form)
 			metadata := pdfengines.FormDataPdfMetadata(form, false)
 
-			var url string
+			var (
+				url     string
+				flatten bool
+			)
 			err := form.
 				MandatoryString("url", &url).
+				Bool("flatten", &flatten, false).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata)
+			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, flatten)
 			if err != nil {
 				return fmt.Errorf("convert URL to PDF: %w", err)
 			}
@@ -391,16 +395,20 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			pdfFormats := pdfengines.FormDataPdfFormats(form)
 			metadata := pdfengines.FormDataPdfMetadata(form, false)
 
-			var inputPath string
+			var (
+				inputPath string
+				flatten   bool
+			)
 			err := form.
 				MandatoryPath("index.html", &inputPath).
+				Bool("flatten", &flatten, false).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
 			url := fmt.Sprintf("file://%s", inputPath)
-			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata)
+			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, flatten)
 			if err != nil {
 				return fmt.Errorf("convert HTML to PDF: %w", err)
 			}
@@ -457,11 +465,13 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			var (
 				inputPath     string
 				markdownPaths []string
+				flatten       bool
 			)
 
 			err := form.
 				MandatoryPath("index.html", &inputPath).
 				MandatoryPaths([]string{".md"}, &markdownPaths).
+				Bool("flatten", &flatten, false).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -472,7 +482,7 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("transform markdown file(s) to HTML: %w", err)
 			}
 
-			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata)
+			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, flatten)
 			if err != nil {
 				return fmt.Errorf("convert markdown to PDF: %w", err)
 			}
@@ -596,7 +606,7 @@ func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) 
 	return fmt.Sprintf("file://%s", inputPath), nil
 }
 
-func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, options PdfOptions, mode gotenberg.SplitMode, pdfFormats gotenberg.PdfFormats, metadata map[string]interface{}) error {
+func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, options PdfOptions, mode gotenberg.SplitMode, pdfFormats gotenberg.PdfFormats, metadata map[string]interface{}, flatten bool) error {
 	outputPath := ctx.GeneratePath(".pdf")
 
 	err := chromium.Pdf(ctx, ctx.Log(), url, outputPath, options)
@@ -648,6 +658,13 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 	err = pdfengines.WriteMetadataStub(ctx, engine, metadata, convertOutputPaths)
 	if err != nil {
 		return fmt.Errorf("write metadata: %w", err)
+	}
+
+	if flatten {
+		convertOutputPaths, err = pdfengines.FlattenStub(ctx, engine, outputPaths)
+		if err != nil {
+			return fmt.Errorf("flatten PDFs: %w", err)
+		}
 	}
 
 	zeroValuedSplitMode := gotenberg.SplitMode{}
