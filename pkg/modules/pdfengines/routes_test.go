@@ -720,6 +720,39 @@ func TestMergeHandler(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
+			scenario: "PDF engine flatten error",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"file.pdf":  "/file.pdf",
+					"file2.pdf": "/file2.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"metadata": {
+						"{\"Creator\": \"foo\", \"Producer\": \"bar\" }",
+					},
+					"flatten": {
+						"true",
+					},
+				})
+				return ctx
+			}(),
+			engine: &gotenberg.PdfEngineMock{
+				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+					return nil
+				},
+				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+					return nil
+				},
+				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+					return errors.New("foo")
+				},
+			},
+			expectError:            true,
+			expectHttpError:        false,
+			expectOutputPathsCount: 0,
+		},
+		{
 			scenario: "cannot add output paths",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
@@ -754,6 +787,9 @@ func TestMergeHandler(t *testing.T) {
 					"metadata": {
 						"{\"Creator\": \"foo\", \"Producer\": \"bar\" }",
 					},
+					"flatten": {
+						"true",
+					},
 				})
 				return ctx
 			}(),
@@ -765,6 +801,9 @@ func TestMergeHandler(t *testing.T) {
 					return nil
 				},
 				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+					return nil
+				},
+				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
 					return nil
 				},
 			},

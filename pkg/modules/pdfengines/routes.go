@@ -273,8 +273,10 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			metadata := FormDataPdfMetadata(form, false)
 
 			var inputPaths []string
+			var flatten bool
 			err := form.
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				Bool("flatten", &flatten, false).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -294,6 +296,13 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			err = WriteMetadataStub(ctx, engine, metadata, outputPaths)
 			if err != nil {
 				return fmt.Errorf("write metadata: %w", err)
+			}
+
+			if flatten {
+				outputPaths, err = FlattenStub(ctx, engine, outputPaths)
+				if err != nil {
+					return fmt.Errorf("flatten PDFs: %w", err)
+				}
 			}
 
 			err = ctx.AddOutputPaths(outputPaths...)
