@@ -3,6 +3,8 @@ package qpdf
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"testing"
@@ -237,6 +239,7 @@ func TestQPdf_Flatten(t *testing.T) {
 		scenario    string
 		ctx         context.Context
 		inputPath   string
+		createCopy  bool
 		expectError bool
 	}{
 		{
@@ -254,6 +257,7 @@ func TestQPdf_Flatten(t *testing.T) {
 			scenario:    "success",
 			ctx:         context.TODO(),
 			inputPath:   "/tests/test/testdata/pdfengines/sample3.pdf",
+			createCopy:  true,
 			expectError: false,
 		},
 	} {
@@ -264,7 +268,55 @@ func TestQPdf_Flatten(t *testing.T) {
 				t.Fatalf("expected error but got: %v", err)
 			}
 
-			err = engine.Flatten(tc.ctx, zap.NewNop(), tc.inputPath)
+			var destinationPath string
+			if tc.createCopy {
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+				outputDir, err := fs.MkdirAll()
+				if err != nil {
+					t.Fatalf("expected error no but got: %v", err)
+				}
+
+				defer func() {
+					err = os.RemoveAll(fs.WorkingDirPath())
+					if err != nil {
+						t.Fatalf("expected no error while cleaning up but got: %v", err)
+					}
+				}()
+
+				destinationPath = fmt.Sprintf("%s/copy_temp.pdf", outputDir)
+				source, err := os.Open(tc.inputPath)
+				if err != nil {
+					t.Fatalf("open source file: %v", err)
+				}
+
+				defer func(source *os.File) {
+					err := source.Close()
+					if err != nil {
+						t.Fatalf("close file: %v", err)
+					}
+				}(source)
+
+				destination, err := os.Create(destinationPath)
+				if err != nil {
+					t.Fatalf("create destination file: %v", err)
+				}
+
+				defer func(destination *os.File) {
+					err := destination.Close()
+					if err != nil {
+						t.Fatalf("close file: %v", err)
+					}
+				}(destination)
+
+				_, err = io.Copy(destination, source)
+				if err != nil {
+					t.Fatalf("copy source into destination: %v", err)
+				}
+			} else {
+				destinationPath = tc.inputPath
+			}
+
+			err = engine.Flatten(tc.ctx, zap.NewNop(), destinationPath)
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
