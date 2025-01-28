@@ -14,6 +14,7 @@ import (
 type multiPdfEngines struct {
 	mergeEngines         []gotenberg.PdfEngine
 	splitEngines         []gotenberg.PdfEngine
+	flattenEngines       []gotenberg.PdfEngine
 	convertEngines       []gotenberg.PdfEngine
 	readMetadataEngines  []gotenberg.PdfEngine
 	writeMetadataEngines []gotenberg.PdfEngine
@@ -22,6 +23,7 @@ type multiPdfEngines struct {
 func newMultiPdfEngines(
 	mergeEngines,
 	splitEngines,
+	flattenEngines,
 	convertEngines,
 	readMetadataEngines,
 	writeMetadataEngines []gotenberg.PdfEngine,
@@ -29,6 +31,7 @@ func newMultiPdfEngines(
 	return &multiPdfEngines{
 		mergeEngines:         mergeEngines,
 		splitEngines:         splitEngines,
+		flattenEngines:       flattenEngines,
 		convertEngines:       convertEngines,
 		readMetadataEngines:  readMetadataEngines,
 		writeMetadataEngines: writeMetadataEngines,
@@ -96,6 +99,32 @@ func (multi *multiPdfEngines) Split(ctx context.Context, logger *zap.Logger, mod
 	}
 
 	return nil, fmt.Errorf("split PDF with multi PDF engines: %w", err)
+}
+
+// Flatten merges existing annotation appearances with page content, effectively deleting the original annotations.
+// This process can flatten forms as well, as forms share a relationship with annotations.
+// Note that this operation is irreversible.
+func (multi *multiPdfEngines) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
+	var err error
+	errChan := make(chan error, 1)
+
+	for _, engine := range multi.flattenEngines {
+		go func(engine gotenberg.PdfEngine) {
+			errChan <- engine.Flatten(ctx, logger, inputPath)
+		}(engine)
+
+		select {
+		case mergeErr := <-errChan:
+			errored := multierr.AppendInto(&err, mergeErr)
+			if !errored {
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	return fmt.Errorf("flatten PDF with multi PDF engines: %w", err)
 }
 
 // Convert converts the given PDF to a specific PDF format. thanks to its

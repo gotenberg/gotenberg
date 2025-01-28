@@ -27,6 +27,7 @@ func TestPdfEngines_Provision(t *testing.T) {
 		ctx                             *gotenberg.Context
 		expectedMergePdfEngines         []string
 		expectedSplitPdfEngines         []string
+		expectedFlattenPdfEngines       []string
 		expectedConvertPdfEngines       []string
 		expectedReadMetadataPdfEngines  []string
 		expectedWriteMetadataPdfEngines []string
@@ -68,6 +69,7 @@ func TestPdfEngines_Provision(t *testing.T) {
 			}(),
 			expectedMergePdfEngines:         []string{"qpdf", "pdfcpu", "pdftk"},
 			expectedSplitPdfEngines:         []string{"pdfcpu", "qpdf", "pdftk"},
+			expectedFlattenPdfEngines:       []string{"qpdf"},
 			expectedConvertPdfEngines:       []string{"libreoffice-pdfengine"},
 			expectedReadMetadataPdfEngines:  []string{"exiftool"},
 			expectedWriteMetadataPdfEngines: []string{"exiftool"},
@@ -109,7 +111,7 @@ func TestPdfEngines_Provision(t *testing.T) {
 				}
 
 				fs := new(PdfEngines).Descriptor().FlagSet
-				err := fs.Parse([]string{"--pdfengines-merge-engines=b", "--pdfengines-split-engines=a", "--pdfengines-convert-engines=b", "--pdfengines-read-metadata-engines=a", "--pdfengines-write-metadata-engines=a"})
+				err := fs.Parse([]string{"--pdfengines-merge-engines=b", "--pdfengines-split-engines=a", "--pdfengines-flatten-engines=c", "--pdfengines-convert-engines=b", "--pdfengines-read-metadata-engines=a", "--pdfengines-write-metadata-engines=a"})
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
@@ -128,6 +130,7 @@ func TestPdfEngines_Provision(t *testing.T) {
 
 			expectedMergePdfEngines:         []string{"b"},
 			expectedSplitPdfEngines:         []string{"a"},
+			expectedFlattenPdfEngines:       []string{"c"},
 			expectedConvertPdfEngines:       []string{"b"},
 			expectedReadMetadataPdfEngines:  []string{"a"},
 			expectedWriteMetadataPdfEngines: []string{"a"},
@@ -183,6 +186,10 @@ func TestPdfEngines_Provision(t *testing.T) {
 
 			if len(tc.expectedMergePdfEngines) != len(mod.mergeNames) {
 				t.Fatalf("expected %d merge names but got %d", len(tc.expectedMergePdfEngines), len(mod.mergeNames))
+			}
+
+			if len(tc.expectedFlattenPdfEngines) != len(mod.flattenNames) {
+				t.Fatalf("expected %d flatten names but got %d", len(tc.expectedFlattenPdfEngines), len(mod.flattenNames))
 			}
 
 			if len(tc.expectedConvertPdfEngines) != len(mod.convertNames) {
@@ -317,14 +324,16 @@ func TestPdfEngines_SystemMessages(t *testing.T) {
 	mod.readMetadataNames = []string{"foo", "bar"}
 	mod.writeMetadataNames = []string{"foo", "bar"}
 
+	expectedMessages := 6
 	messages := mod.SystemMessages()
-	if len(messages) != 5 {
-		t.Errorf("expected one and only one message, but got %d", len(messages))
+	if len(messages) != expectedMessages {
+		t.Errorf("expected %d message(s), but got %d", expectedMessages, len(messages))
 	}
 
 	expect := []string{
 		fmt.Sprintf("merge engines - %s", strings.Join(mod.mergeNames[:], " ")),
 		fmt.Sprintf("split engines - %s", strings.Join(mod.splitNames[:], " ")),
+		fmt.Sprintf("flatten engines - %s", strings.Join(mod.flattenNames[:], " ")),
 		fmt.Sprintf("convert engines - %s", strings.Join(mod.convertNames[:], " ")),
 		fmt.Sprintf("read metadata engines - %s", strings.Join(mod.readMetadataNames[:], " ")),
 		fmt.Sprintf("write metadata engines - %s", strings.Join(mod.writeMetadataNames[:], " ")),
@@ -382,7 +391,7 @@ func TestPdfEngines_Routes(t *testing.T) {
 	}{
 		{
 			scenario:      "routes not disabled",
-			expectRoutes:  5,
+			expectRoutes:  6,
 			disableRoutes: false,
 		},
 		{

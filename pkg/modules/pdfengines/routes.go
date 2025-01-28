@@ -202,6 +202,21 @@ func SplitPdfStub(ctx *api.Context, engine gotenberg.PdfEngine, mode gotenberg.S
 	return outputPaths, nil
 }
 
+// FlattenStub merges annotation appearances with page content for each given PDF
+// in the input paths, effectively deleting the original annotations. It generates
+// new output paths for the flattened PDFs and returns them. If an error occurs
+// during the flattening process, it returns the error.
+func FlattenStub(ctx *api.Context, engine gotenberg.PdfEngine, inputPaths []string) error {
+	for _, inputPath := range inputPaths {
+		err := engine.Flatten(ctx, ctx.Log(), inputPath)
+		if err != nil {
+			return fmt.Errorf("flatten '%s': %w", inputPath, err)
+		}
+	}
+
+	return nil
+}
+
 // ConvertStub transforms a given PDF to the specified formats defined in
 // [gotenberg.PdfFormats]. If no format, it does nothing and returns the input
 // paths.
@@ -255,8 +270,10 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			metadata := FormDataPdfMetadata(form, false)
 
 			var inputPaths []string
+			var flatten bool
 			err := form.
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				Bool("flatten", &flatten, false).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -276,6 +293,13 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			err = WriteMetadataStub(ctx, engine, metadata, outputPaths)
 			if err != nil {
 				return fmt.Errorf("write metadata: %w", err)
+			}
+
+			if flatten {
+				err = FlattenStub(ctx, engine, outputPaths)
+				if err != nil {
+					return fmt.Errorf("flatten PDFs: %w", err)
+				}
 			}
 
 			err = ctx.AddOutputPaths(outputPaths...)
@@ -338,6 +362,40 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 			}
 
 			err = ctx.AddOutputPaths(outputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
+			}
+
+			return nil
+		},
+	}
+}
+
+// flattenRoute returns an [api.Route] which can flatten PDFs.
+func flattenRoute(engine gotenberg.PdfEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/flatten",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			form := ctx.FormData()
+
+			var inputPaths []string
+			err := form.
+				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			err = FlattenStub(ctx, engine, inputPaths)
+			if err != nil {
+				return fmt.Errorf("convert PDFs: %w", err)
+			}
+
+			err = ctx.AddOutputPaths(inputPaths...)
 			if err != nil {
 				return fmt.Errorf("add output paths: %w", err)
 			}

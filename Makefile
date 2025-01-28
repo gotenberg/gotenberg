@@ -65,6 +65,7 @@ LOG_FIELDS_PREFIX=
 PDFENGINES_ENGINES=
 PDFENGINES_MERGE_ENGINES=qpdf,pdfcpu,pdftk
 PDFENGINES_SPLIT_ENGINES=pdfcpu,qpdf,pdftk
+PDFENGINES_FLATTEN_ENGINES=qpdf
 PDFENGINES_CONVERT_ENGINES=libreoffice-pdfengine
 PDFENGINES_READ_METADATA_ENGINES=exiftool
 PDFENGINES_WRITE_METADATA_ENGINES=exiftool
@@ -134,6 +135,7 @@ run: ## Start a Gotenberg container
 	--pdfengines-engines=$(PDFENGINES_ENGINES) \
 	--pdfengines-merge-engines=$(PDFENGINES_MERGE_ENGINES) \
 	--pdfengines-split-engines=$(PDFENGINES_SPLIT_ENGINES) \
+	--pdfengines-convert-engines=$(PDFENGINES_FLATTEN_ENGINES) \
 	--pdfengines-convert-engines=$(PDFENGINES_CONVERT_ENGINES) \
 	--pdfengines-read-metadata-engines=$(PDFENGINES_READ_METADATA_ENGINES) \
 	--pdfengines-write-metadata-engines=$(PDFENGINES_WRITE_METADATA_ENGINES) \
