@@ -206,18 +206,15 @@ func SplitPdfStub(ctx *api.Context, engine gotenberg.PdfEngine, mode gotenberg.S
 // in the input paths, effectively deleting the original annotations. It generates
 // new output paths for the flattened PDFs and returns them. If an error occurs
 // during the flattening process, it returns the error.
-func FlattenStub(ctx *api.Context, engine gotenberg.PdfEngine, inputPaths []string) ([]string, error) {
-	outputPaths := make([]string, len(inputPaths))
-	for i, inputPath := range inputPaths {
-		outputPaths[i] = ctx.GeneratePath(".pdf")
-
-		err := engine.Flatten(ctx, ctx.Log(), inputPath, outputPaths[i])
+func FlattenStub(ctx *api.Context, engine gotenberg.PdfEngine, inputPaths []string) error {
+	for _, inputPath := range inputPaths {
+		err := engine.Flatten(ctx, ctx.Log(), inputPath)
 		if err != nil {
-			return nil, fmt.Errorf("flatten '%s': %w", inputPath, err)
+			return fmt.Errorf("flatten '%s': %w", inputPath, err)
 		}
 	}
 
-	return outputPaths, nil
+	return nil
 }
 
 // ConvertStub transforms a given PDF to the specified formats defined in
@@ -299,7 +296,7 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			}
 
 			if flatten {
-				outputPaths, err = FlattenStub(ctx, engine, outputPaths)
+				err = FlattenStub(ctx, engine, outputPaths)
 				if err != nil {
 					return fmt.Errorf("flatten PDFs: %w", err)
 				}
@@ -393,24 +390,12 @@ func flattenRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			outputPaths, err := FlattenStub(ctx, engine, inputPaths)
+			err = FlattenStub(ctx, engine, inputPaths)
 			if err != nil {
 				return fmt.Errorf("convert PDFs: %w", err)
 			}
 
-			if len(outputPaths) > 1 {
-				// If .zip archive, keep the original filename.
-				for i, inputPath := range inputPaths {
-					err = ctx.Rename(outputPaths[i], inputPath)
-					if err != nil {
-						return fmt.Errorf("rename output path: %w", err)
-					}
-
-					outputPaths[i] = inputPath
-				}
-			}
-
-			err = ctx.AddOutputPaths(outputPaths...)
+			err = ctx.AddOutputPaths(inputPaths...)
 			if err != nil {
 				return fmt.Errorf("add output paths: %w", err)
 			}

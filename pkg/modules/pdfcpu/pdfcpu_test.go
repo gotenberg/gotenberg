@@ -241,7 +241,7 @@ func TestPdfCpu_Split(t *testing.T) {
 
 func TestPdfCpu_Flatten(t *testing.T) {
 	mod := new(PdfCpu)
-	err := mod.Flatten(context.TODO(), zap.NewNop(), "", "")
+	err := mod.Flatten(context.TODO(), zap.NewNop(), "")
 
 	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
 		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)

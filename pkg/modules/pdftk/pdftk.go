@@ -100,7 +100,7 @@ func (engine *PdfTk) Merge(ctx context.Context, logger *zap.Logger, inputPaths [
 }
 
 // Flatten is not available in this implementation.
-func (engine *PdfTk) Flatten(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+func (engine *PdfTk) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
 	return fmt.Errorf("flatten PDF with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 

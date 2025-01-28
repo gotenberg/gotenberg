@@ -264,20 +264,7 @@ func TestQPdf_Flatten(t *testing.T) {
 				t.Fatalf("expected error but got: %v", err)
 			}
 
-			fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
-			outputDir, err := fs.MkdirAll()
-			if err != nil {
-				t.Fatalf("expected error but got: %v", err)
-			}
-
-			defer func() {
-				err = os.RemoveAll(fs.WorkingDirPath())
-				if err != nil {
-					t.Fatalf("expected no error while cleaning up but got: %v", err)
-				}
-			}()
-
-			err = engine.Flatten(tc.ctx, zap.NewNop(), tc.inputPath, outputDir+"/foo.pdf")
+			err = engine.Flatten(tc.ctx, zap.NewNop(), tc.inputPath)
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)

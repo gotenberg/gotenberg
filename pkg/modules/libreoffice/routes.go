@@ -264,7 +264,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			}
 
 			if flatten {
-				outputPaths, err = pdfengines.FlattenStub(ctx, engine, outputPaths)
+				err = pdfengines.FlattenStub(ctx, engine, outputPaths)
 				if err != nil {
 					return fmt.Errorf("flatten PDFs: %w", err)
 				}

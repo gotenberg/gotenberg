@@ -108,7 +108,7 @@ func (engine *PdfCpu) Split(ctx context.Context, logger *zap.Logger, mode gotenb
 }
 
 // Flatten is not available in this implementation.
-func (engine *PdfCpu) Flatten(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+func (engine *PdfCpu) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
 	return fmt.Errorf("flatten PDF with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 

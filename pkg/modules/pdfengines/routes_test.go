@@ -744,7 +744,7 @@ func TestMergeHandler(t *testing.T) {
 				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
 					return nil
 				},
-				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
 					return errors.New("foo")
 				},
 			},
@@ -803,7 +803,7 @@ func TestMergeHandler(t *testing.T) {
 				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
 					return nil
 				},
-				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
 					return nil
 				},
 			},
@@ -1123,7 +1123,7 @@ func TestFlattenHandler(t *testing.T) {
 				return ctx
 			}(),
 			engine: &gotenberg.PdfEngineMock{
-				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
 					return errors.New("foo")
 				},
 			},
@@ -1142,7 +1142,7 @@ func TestFlattenHandler(t *testing.T) {
 				return ctx
 			}(),
 			engine: &gotenberg.PdfEngineMock{
-				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
 					return nil
 				},
 			},
@@ -1160,35 +1160,13 @@ func TestFlattenHandler(t *testing.T) {
 				return ctx
 			}(),
 			engine: &gotenberg.PdfEngineMock{
-				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
 					return nil
 				},
 			},
 			expectError:            false,
 			expectHttpError:        false,
 			expectOutputPathsCount: 1,
-		},
-		{
-			scenario: "cannot rename many files",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"file.pdf":  "/file.pdf",
-					"file2.pdf": "/file2.pdf",
-				})
-				ctx.SetPathRename(&gotenberg.PathRenameMock{RenameMock: func(oldpath, newpath string) error {
-					return errors.New("cannot rename")
-				}})
-				return ctx
-			}(),
-			engine: &gotenberg.PdfEngineMock{
-				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
-					return nil
-				},
-			},
-			expectError:            true,
-			expectHttpError:        false,
-			expectOutputPathsCount: 0,
 		},
 		{
 			scenario: "success (many files)",
@@ -1198,13 +1176,10 @@ func TestFlattenHandler(t *testing.T) {
 					"file.pdf":  "/file.pdf",
 					"file2.pdf": "/file2.pdf",
 				})
-				ctx.SetPathRename(&gotenberg.PathRenameMock{RenameMock: func(oldpath, newpath string) error {
-					return nil
-				}})
 				return ctx
 			}(),
 			engine: &gotenberg.PdfEngineMock{
-				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
 					return nil
 				},
 			},

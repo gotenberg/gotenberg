@@ -57,7 +57,7 @@ func (engine *LibreOfficePdfEngine) Split(ctx context.Context, logger *zap.Logge
 }
 
 // Flatten is not available in this implementation.
-func (engine *LibreOfficePdfEngine) Flatten(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+func (engine *LibreOfficePdfEngine) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
 	return fmt.Errorf("Flatten PDF with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 

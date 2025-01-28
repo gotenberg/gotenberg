@@ -64,7 +64,7 @@ func (engine *ExifTool) Split(ctx context.Context, logger *zap.Logger, mode gote
 }
 
 // Flatten is not available in this implementation.
-func (engine *ExifTool) Flatten(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+func (engine *ExifTool) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
 	return fmt.Errorf("flatten PDF with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 

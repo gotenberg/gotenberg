@@ -426,7 +426,7 @@ func TestConvertRoute(t *testing.T) {
 				},
 			},
 			engine: &gotenberg.PdfEngineMock{
-				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
 					return errors.New("foo")
 				},
 			},
@@ -510,7 +510,7 @@ func TestConvertRoute(t *testing.T) {
 				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
 					return nil
 				},
-				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
 					return nil
 				},
 			},
@@ -567,7 +567,7 @@ func TestConvertRoute(t *testing.T) {
 				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
 					return nil
 				},
-				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
 					return nil
 				},
 			},

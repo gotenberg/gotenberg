@@ -206,7 +206,7 @@ func TestMultiPdfEngines_Flatten(t *testing.T) {
 			engine: &multiPdfEngines{
 				flattenEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
 							return nil
 						},
 					},
@@ -219,12 +219,12 @@ func TestMultiPdfEngines_Flatten(t *testing.T) {
 			engine: &multiPdfEngines{
 				flattenEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
 							return errors.New("foo")
 						},
 					},
 					&gotenberg.PdfEngineMock{
-						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
 							return nil
 						},
 					},
@@ -237,12 +237,12 @@ func TestMultiPdfEngines_Flatten(t *testing.T) {
 			engine: &multiPdfEngines{
 				flattenEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
 							return errors.New("foo")
 						},
 					},
 					&gotenberg.PdfEngineMock{
-						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
 							return errors.New("foo")
 						},
 					},
@@ -256,7 +256,7 @@ func TestMultiPdfEngines_Flatten(t *testing.T) {
 			engine: &multiPdfEngines{
 				flattenEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
 							return nil
 						},
 					},
@@ -272,7 +272,7 @@ func TestMultiPdfEngines_Flatten(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			err := tc.engine.Flatten(tc.ctx, zap.NewNop(), "", "")
+			err := tc.engine.Flatten(tc.ctx, zap.NewNop(), "")
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)

@@ -234,7 +234,7 @@ func TestPdfCpu_Split(t *testing.T) {
 
 func TestPdfTk_Flatten(t *testing.T) {
 	engine := new(PdfTk)
-	err := engine.Flatten(context.TODO(), zap.NewNop(), "", "")
+	err := engine.Flatten(context.TODO(), zap.NewNop(), "")
 
 	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
 		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)

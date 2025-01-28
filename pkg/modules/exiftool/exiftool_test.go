@@ -93,7 +93,7 @@ func TestExiftool_Split(t *testing.T) {
 
 func TestExiftool_Flatten(t *testing.T) {
 	engine := new(ExifTool)
-	err := engine.Flatten(context.Background(), zap.NewNop(), "", "")
+	err := engine.Flatten(context.Background(), zap.NewNop(), "")
 
 	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
 		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)

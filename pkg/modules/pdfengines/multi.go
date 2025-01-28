@@ -104,13 +104,13 @@ func (multi *multiPdfEngines) Split(ctx context.Context, logger *zap.Logger, mod
 // Flatten merges existing annotation appearances with page content, effectively deleting the original annotations.
 // This process can flatten forms as well, as forms share a relationship with annotations.
 // Note that this operation is irreversible.
-func (multi *multiPdfEngines) Flatten(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+func (multi *multiPdfEngines) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
 	var err error
 	errChan := make(chan error, 1)
 
 	for _, engine := range multi.flattenEngines {
 		go func(engine gotenberg.PdfEngine) {
-			errChan <- engine.Flatten(ctx, logger, inputPath, outputPath)
+			errChan <- engine.Flatten(ctx, logger, inputPath)
 		}(engine)
 
 		select {

@@ -102,12 +102,12 @@ func (engine *QPdf) Merge(ctx context.Context, logger *zap.Logger, inputPaths []
 }
 
 // Flatten merges annotation appearances with page content, deleting the original annotations.
-func (engine *QPdf) Flatten(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+func (engine *QPdf) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
 	var args []string
 	args = append(args, "--generate-appearances")
 	args = append(args, "--flatten-annotations=all")
+	args = append(args, "--replace-input")
 	args = append(args, inputPath)
-	args = append(args, outputPath)
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
 	if err != nil {
