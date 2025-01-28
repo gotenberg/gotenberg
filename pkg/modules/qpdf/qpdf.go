@@ -101,7 +101,8 @@ func (engine *QPdf) Merge(ctx context.Context, logger *zap.Logger, inputPaths []
 	return fmt.Errorf("merge PDFs with QPDF: %w", err)
 }
 
-// Flatten merges annotation appearances with page content, deleting the original annotations.
+// Flatten merges annotation appearances with page content, deleting the
+// original annotations.
 func (engine *QPdf) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
 	var args []string
 	args = append(args, "--generate-appearances")

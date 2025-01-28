@@ -98,9 +98,10 @@ type PdfEngine interface {
 	// Split splits a given PDF file.
 	Split(ctx context.Context, logger *zap.Logger, mode SplitMode, inputPath, outputDirPath string) ([]string, error)
 
-	// Flatten merges existing annotation appearances with page content, effectively deleting the original annotations.
-	// This process can flatten forms as well, as forms share a relationship with annotations.
-	// Note that this operation is irreversible.
+	// Flatten merges existing annotation appearances with page content,
+	// effectively deleting the original annotations. This process can flatten
+	// forms as well, as forms share a relationship with annotations. Note that
+	// this operation is irreversible.
 	Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error
 
 	// Convert transforms a given PDF to the specified formats defined in

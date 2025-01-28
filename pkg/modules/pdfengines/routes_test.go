@@ -503,6 +503,45 @@ func TestSplitPdfStub(t *testing.T) {
 	}
 }
 
+func TestFlattenStub(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		engine      gotenberg.PdfEngine
+		expectError bool
+	}{
+		{
+			scenario: "flatten error",
+			engine: &gotenberg.PdfEngineMock{
+				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
+					return errors.New("foo")
+				},
+			},
+			expectError: true,
+		},
+		{
+			scenario: "flatten success",
+			engine: &gotenberg.PdfEngineMock{
+				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
+					return nil
+				},
+			},
+			expectError: false,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			err := FlattenStub(new(api.Context), tc.engine, []string{"my.pdf", "my2.pdf"})
+
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none", err)
+			}
+
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+		})
+	}
+}
+
 func TestConvertStub(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string
@@ -647,7 +686,7 @@ func TestMergeHandler(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "PDF engine merge error",
+			scenario: "error from PDF engine (merge)",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
@@ -666,7 +705,7 @@ func TestMergeHandler(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "PDF engine convert error",
+			scenario: "error from PDF engine (convert)",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
@@ -693,7 +732,7 @@ func TestMergeHandler(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "PDF engine write metadata error",
+			scenario: "error from PDF engine (write metadata)",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
@@ -720,7 +759,7 @@ func TestMergeHandler(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
-			scenario: "PDF engine flatten error",
+			scenario: "error from PDF engine (flatten)",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
 				ctx.SetFiles(map[string]string{
@@ -728,9 +767,6 @@ func TestMergeHandler(t *testing.T) {
 					"file2.pdf": "/file2.pdf",
 				})
 				ctx.SetValues(map[string][]string{
-					"metadata": {
-						"{\"Creator\": \"foo\", \"Producer\": \"bar\" }",
-					},
 					"flatten": {
 						"true",
 					},
@@ -739,9 +775,6 @@ func TestMergeHandler(t *testing.T) {
 			}(),
 			engine: &gotenberg.PdfEngineMock{
 				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-					return nil
-				},
-				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
 					return nil
 				},
 				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
@@ -976,6 +1009,38 @@ func TestSplitHandler(t *testing.T) {
 			expectOutputPathsCount: 0,
 		},
 		{
+			scenario: "error from PDF engine (flatten)",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: new(api.Context)}
+				ctx.SetFiles(map[string]string{
+					"file.pdf": "/file.pdf",
+				})
+				ctx.SetValues(map[string][]string{
+					"splitMode": {
+						gotenberg.SplitModeIntervals,
+					},
+					"splitSpan": {
+						"1",
+					},
+					"flatten": {
+						"true",
+					},
+				})
+				return ctx
+			}(),
+			engine: &gotenberg.PdfEngineMock{
+				SplitMock: func(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+					return []string{inputPath}, nil
+				},
+				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
+					return errors.New("foo")
+				},
+			},
+			expectError:            true,
+			expectHttpError:        false,
+			expectOutputPathsCount: 0,
+		},
+		{
 			scenario: "cannot add output paths",
 			ctx: func() *api.ContextMock {
 				ctx := &api.ContextMock{Context: new(api.Context)}
@@ -1022,6 +1087,9 @@ func TestSplitHandler(t *testing.T) {
 					"metadata": {
 						"{\"Creator\": \"foo\", \"Producer\": \"bar\" }",
 					},
+					"flatten": {
+						"true",
+					},
 				})
 				return ctx
 			}(),
@@ -1033,6 +1101,9 @@ func TestSplitHandler(t *testing.T) {
 					return nil
 				},
 				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+					return nil
+				},
+				FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
 					return nil
 				},
 			},

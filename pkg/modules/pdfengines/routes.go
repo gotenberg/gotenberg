@@ -202,10 +202,8 @@ func SplitPdfStub(ctx *api.Context, engine gotenberg.PdfEngine, mode gotenberg.S
 	return outputPaths, nil
 }
 
-// FlattenStub merges annotation appearances with page content for each given PDF
-// in the input paths, effectively deleting the original annotations. It generates
-// new output paths for the flattened PDFs and returns them. If an error occurs
-// during the flattening process, it returns the error.
+// FlattenStub merges annotation appearances with page content for each given
+// PDF, effectively deleting the original annotations.
 func FlattenStub(ctx *api.Context, engine gotenberg.PdfEngine, inputPaths []string) error {
 	for _, inputPath := range inputPaths {
 		err := engine.Flatten(ctx, ctx.Log(), inputPath)
@@ -327,8 +325,10 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 			metadata := FormDataPdfMetadata(form, false)
 
 			var inputPaths []string
+			var flatten bool
 			err := form.
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				Bool("flatten", &flatten, false).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -347,6 +347,13 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 			err = WriteMetadataStub(ctx, engine, metadata, convertOutputPaths)
 			if err != nil {
 				return fmt.Errorf("write metadata: %w", err)
+			}
+
+			if flatten {
+				err = FlattenStub(ctx, engine, convertOutputPaths)
+				if err != nil {
+					return fmt.Errorf("flatten PDFs: %w", err)
+				}
 			}
 
 			zeroValuedSplitMode := gotenberg.SplitMode{}
@@ -392,7 +399,7 @@ func flattenRoute(engine gotenberg.PdfEngine) api.Route {
 
 			err = FlattenStub(ctx, engine, inputPaths)
 			if err != nil {
-				return fmt.Errorf("convert PDFs: %w", err)
+				return fmt.Errorf("flatten PDFs: %w", err)
 			}
 
 			err = ctx.AddOutputPaths(inputPaths...)

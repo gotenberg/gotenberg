@@ -101,9 +101,8 @@ func (multi *multiPdfEngines) Split(ctx context.Context, logger *zap.Logger, mod
 	return nil, fmt.Errorf("split PDF with multi PDF engines: %w", err)
 }
 
-// Flatten merges existing annotation appearances with page content, effectively deleting the original annotations.
-// This process can flatten forms as well, as forms share a relationship with annotations.
-// Note that this operation is irreversible.
+// Flatten merges existing annotation appearances with page content, thanks to
+// its children. If the context is done, it stops and returns an error
 func (multi *multiPdfEngines) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
 	var err error
 	errChan := make(chan error, 1)
