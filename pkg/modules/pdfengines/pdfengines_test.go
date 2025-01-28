@@ -324,14 +324,16 @@ func TestPdfEngines_SystemMessages(t *testing.T) {
 	mod.readMetadataNames = []string{"foo", "bar"}
 	mod.writeMetadataNames = []string{"foo", "bar"}
 
+	expectedMessages := 6
 	messages := mod.SystemMessages()
-	if len(messages) != 5 {
-		t.Errorf("expected one and only one message, but got %d", len(messages))
+	if len(messages) != expectedMessages {
+		t.Errorf("expected %d message(s), but got %d", expectedMessages, len(messages))
 	}
 
 	expect := []string{
 		fmt.Sprintf("merge engines - %s", strings.Join(mod.mergeNames[:], " ")),
 		fmt.Sprintf("split engines - %s", strings.Join(mod.splitNames[:], " ")),
+		fmt.Sprintf("flatten engines - %s", strings.Join(mod.flattenNames[:], " ")),
 		fmt.Sprintf("convert engines - %s", strings.Join(mod.convertNames[:], " ")),
 		fmt.Sprintf("read metadata engines - %s", strings.Join(mod.readMetadataNames[:], " ")),
 		fmt.Sprintf("write metadata engines - %s", strings.Join(mod.writeMetadataNames[:], " ")),

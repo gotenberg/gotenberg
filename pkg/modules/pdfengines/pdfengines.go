@@ -109,6 +109,7 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 		mod.splitNames = splitNames
 	}
 
+	mod.flattenNames = defaultNames
 	if len(flattenNames) > 0 {
 		mod.flattenNames = flattenNames
 	}
@@ -177,6 +178,7 @@ func (mod *PdfEngines) Validate() error {
 
 	findNonExistingEngines(mod.mergeNames)
 	findNonExistingEngines(mod.splitNames)
+	findNonExistingEngines(mod.flattenNames)
 	findNonExistingEngines(mod.convertNames)
 	findNonExistingEngines(mod.readMetadataNames)
 	findNonExistingEngines(mod.writeMetadataNames)
@@ -194,6 +196,7 @@ func (mod *PdfEngines) SystemMessages() []string {
 	return []string{
 		fmt.Sprintf("merge engines - %s", strings.Join(mod.mergeNames[:], " ")),
 		fmt.Sprintf("split engines - %s", strings.Join(mod.splitNames[:], " ")),
+		fmt.Sprintf("flatten engines - %s", strings.Join(mod.flattenNames[:], " ")),
 		fmt.Sprintf("convert engines - %s", strings.Join(mod.convertNames[:], " ")),
 		fmt.Sprintf("read metadata engines - %s", strings.Join(mod.readMetadataNames[:], " ")),
 		fmt.Sprintf("write metadata engines - %s", strings.Join(mod.writeMetadataNames[:], " ")),

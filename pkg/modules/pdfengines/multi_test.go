@@ -194,6 +194,97 @@ func TestMultiPdfEngines_Split(t *testing.T) {
 	}
 }
 
+func TestMultiPdfEngines_Flatten(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		engine      *multiPdfEngines
+		ctx         context.Context
+		expectError bool
+	}{
+		{
+			scenario: "nominal behavior",
+			engine: &multiPdfEngines{
+				flattenEngines: []gotenberg.PdfEngine{
+					&gotenberg.PdfEngineMock{
+						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+							return nil
+						},
+					},
+				},
+			},
+			ctx: context.Background(),
+		},
+		{
+			scenario: "at least one engine does not return an error",
+			engine: &multiPdfEngines{
+				flattenEngines: []gotenberg.PdfEngine{
+					&gotenberg.PdfEngineMock{
+						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+							return errors.New("foo")
+						},
+					},
+					&gotenberg.PdfEngineMock{
+						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+							return nil
+						},
+					},
+				},
+			},
+			ctx: context.Background(),
+		},
+		{
+			scenario: "all engines return an error",
+			engine: &multiPdfEngines{
+				flattenEngines: []gotenberg.PdfEngine{
+					&gotenberg.PdfEngineMock{
+						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+							return errors.New("foo")
+						},
+					},
+					&gotenberg.PdfEngineMock{
+						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+							return errors.New("foo")
+						},
+					},
+				},
+			},
+			ctx:         context.Background(),
+			expectError: true,
+		},
+		{
+			scenario: "context expired",
+			engine: &multiPdfEngines{
+				flattenEngines: []gotenberg.PdfEngine{
+					&gotenberg.PdfEngineMock{
+						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string) error {
+							return nil
+						},
+					},
+				},
+			},
+			ctx: func() context.Context {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+
+				return ctx
+			}(),
+			expectError: true,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			err := tc.engine.Flatten(tc.ctx, zap.NewNop(), "", "")
+
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
+			}
+		})
+	}
+}
+
 func TestMultiPdfEngines_Convert(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string
