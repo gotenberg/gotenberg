@@ -6,8 +6,8 @@ require (
 	github.com/alexliesenfeld/health v0.8.0
 	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/barasher/go-exiftool v1.10.0
-	github.com/chromedp/cdproto v0.0.0-20250113203156-3ff4b409e0d4
-	github.com/chromedp/chromedp v0.11.2
+	github.com/chromedp/cdproto v0.0.0-20250126231910-1730200a0f74
+	github.com/chromedp/chromedp v0.12.1
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
@@ -23,7 +23,7 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/prometheus/client_golang v1.20.5
 	github.com/russross/blackfriday/v2 v2.1.0
-	github.com/spf13/pflag v1.0.5
+	github.com/spf13/pflag v1.0.6
 	github.com/ulikunitz/xz v0.5.12 // indirect
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0
@@ -68,5 +68,5 @@ require (
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	golang.org/x/time v0.9.0 // indirect
-	google.golang.org/protobuf v1.36.3 // indirect
+	google.golang.org/protobuf v1.36.4 // indirect
 )
