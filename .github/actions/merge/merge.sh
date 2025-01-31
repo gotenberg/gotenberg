@@ -92,7 +92,7 @@ run_cmd() {
    echo "➡️ $target pushed"
    echo
    if [ -n "$alternate_registry" ]; then
-     alternate_target="${target//$DOCKER_REGISTRY:$DOCKER_REPOSITORY/$alternate_registry:$DOCKER_REPOSITORY}"
+     alternate_target="${target/$DOCKER_REGISTRY/$alternate_registry}"
      cmd="docker buildx imagetools create \
             -t $target \
             $alternate_target
@@ -100,7 +100,7 @@ run_cmd() {
         run_cmd "$cmd"
 
         echo "➡️ $alternate_target pushed"
-        ecno
+        echo
    fi
  done
 
