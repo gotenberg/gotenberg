@@ -1,0 +1,31 @@
+name: Clean
+description: Clean tags from Docker Hub
+author: Julien Neuhart
+
+inputs:
+  docker_hub_username:
+    description: The Docker Hub username
+    required: true
+  docker_hub_password:
+    description: The Docker Hub password
+    required: true
+  tags:
+    description: Comma separated list of tags to clean
+  snapshot_version:
+    description: Snapshot version to clean
+  dry_run:
+    description: Dry run this action
+
+runs:
+  using: composite
+  steps:
+    - name: Clean tags from Docker Hub
+      env:
+        DOCKERHUB_USERNAME: ${{ inputs.docker_hub_username }}
+        DOCKERHUB_TOKEN: ${{ inputs.docker_hub_password }}
+      shell: bash
+      run: |
+        .github/actions/clean/clean.sh \
+          --tags "${{ inputs.tags }}" \
+          --snapshot-version "${{ inputs.snapshot_version }}" \
+          --dry-run "${{ inputs.dry_run }}"
