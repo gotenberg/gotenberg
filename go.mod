@@ -6,7 +6,7 @@ require (
 	github.com/alexliesenfeld/health v0.8.0
 	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/barasher/go-exiftool v1.10.0
-	github.com/chromedp/cdproto v0.0.0-20250126231910-1730200a0f74
+	github.com/chromedp/cdproto v0.0.0-20250203011601-a3c71a042730
 	github.com/chromedp/chromedp v0.12.1
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.6.0
@@ -37,7 +37,7 @@ require (
 
 require (
 	github.com/dlclark/regexp2 v1.11.4
-	github.com/shirou/gopsutil/v4 v4.24.12
+	github.com/shirou/gopsutil/v4 v4.25.1
 )
 
 require (
