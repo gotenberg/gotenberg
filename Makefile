@@ -135,7 +135,7 @@ run: ## Start a Gotenberg container
 	--pdfengines-engines=$(PDFENGINES_ENGINES) \
 	--pdfengines-merge-engines=$(PDFENGINES_MERGE_ENGINES) \
 	--pdfengines-split-engines=$(PDFENGINES_SPLIT_ENGINES) \
-	--pdfengines-convert-engines=$(PDFENGINES_FLATTEN_ENGINES) \
+	--pdfengines-flatten-engines=$(PDFENGINES_FLATTEN_ENGINES) \
 	--pdfengines-convert-engines=$(PDFENGINES_CONVERT_ENGINES) \
 	--pdfengines-read-metadata-engines=$(PDFENGINES_READ_METADATA_ENGINES) \
 	--pdfengines-write-metadata-engines=$(PDFENGINES_WRITE_METADATA_ENGINES) \
