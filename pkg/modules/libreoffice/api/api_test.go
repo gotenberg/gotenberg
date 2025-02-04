@@ -277,6 +277,54 @@ func TestApi_Stop(t *testing.T) {
 	}
 }
 
+func TestPdfTk_Debug(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		a           *Api
+		expect      map[string]interface{}
+		doNotExpect map[string]interface{}
+	}{
+		{
+			scenario: "cannot determine version",
+			a: &Api{
+				args: libreOfficeArguments{
+					binPath: "foo",
+				},
+			},
+			expect: map[string]interface{}{
+				"version": `exec: "foo": executable file not found in $PATH`,
+			},
+		},
+		{
+			scenario: "success",
+			a: &Api{
+				args: libreOfficeArguments{
+					binPath: "echo",
+				},
+			},
+			doNotExpect: map[string]interface{}{
+				"version": `exec: "echo": executable file not found in $PATH`,
+			},
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			d := tc.a.Debug()
+
+			if tc.expect != nil {
+				if !reflect.DeepEqual(d, tc.expect) {
+					t.Errorf("expected '%v' but got '%v'", tc.expect, d)
+				}
+			}
+
+			if tc.doNotExpect != nil {
+				if reflect.DeepEqual(d, tc.doNotExpect) {
+					t.Errorf("did not expect '%v'", d)
+				}
+			}
+		})
+	}
+}
+
 func TestApi_Metrics(t *testing.T) {
 	a := new(Api)
 	a.supervisor = &gotenberg.ProcessSupervisorMock{

@@ -1,11 +1,14 @@
 package pdftk
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"syscall"
 
 	"go.uber.org/zap"
 
@@ -50,6 +53,29 @@ func (engine *PdfTk) Validate() error {
 	}
 
 	return nil
+}
+
+// Debug returns additional debug data.
+func (engine *PdfTk) Debug() map[string]interface{} {
+	debug := make(map[string]interface{})
+
+	cmd := exec.Command(engine.binPath, "--version") //nolint:gosec
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	output, err := cmd.Output()
+	if err != nil {
+		debug["version"] = err.Error()
+		return debug
+	}
+
+	lines := bytes.SplitN(output, []byte("\n"), 2)
+	if len(lines) > 0 {
+		debug["version"] = string(lines[0])
+	} else {
+		debug["version"] = "Unable to determine PDFtk version"
+	}
+
+	return debug
 }
 
 // Split splits a given PDF file.
@@ -124,5 +150,6 @@ var (
 	_ gotenberg.Module      = (*PdfTk)(nil)
 	_ gotenberg.Provisioner = (*PdfTk)(nil)
 	_ gotenberg.Validator   = (*PdfTk)(nil)
+	_ gotenberg.Debuggable  = (*PdfTk)(nil)
 	_ gotenberg.PdfEngine   = (*PdfTk)(nil)
 )

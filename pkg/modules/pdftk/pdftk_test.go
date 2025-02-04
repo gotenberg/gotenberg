@@ -71,6 +71,50 @@ func TestPdfTk_Validate(t *testing.T) {
 	}
 }
 
+func TestPdfTk_Debug(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		engine      *PdfTk
+		expect      map[string]interface{}
+		doNotExpect map[string]interface{}
+	}{
+		{
+			scenario: "cannot determine version",
+			engine: &PdfTk{
+				binPath: "foo",
+			},
+			expect: map[string]interface{}{
+				"version": `exec: "foo": executable file not found in $PATH`,
+			},
+		},
+		{
+			scenario: "success",
+			engine: &PdfTk{
+				binPath: "echo",
+			},
+			doNotExpect: map[string]interface{}{
+				"version": `exec: "echo": executable file not found in $PATH`,
+			},
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			d := tc.engine.Debug()
+
+			if tc.expect != nil {
+				if !reflect.DeepEqual(d, tc.expect) {
+					t.Errorf("expected '%v' but got '%v'", tc.expect, d)
+				}
+			}
+
+			if tc.doNotExpect != nil {
+				if reflect.DeepEqual(d, tc.doNotExpect) {
+					t.Errorf("did not expect '%v'", d)
+				}
+			}
+		})
+	}
+}
+
 func TestPdfTk_Merge(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string

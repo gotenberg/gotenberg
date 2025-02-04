@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/alexliesenfeld/health"
@@ -305,6 +308,23 @@ func (a *Api) Stop(ctx context.Context) error {
 	return fmt.Errorf("stop LibreOffice: %w", err)
 }
 
+// Debug returns additional debug data.
+func (a *Api) Debug() map[string]interface{} {
+	debug := make(map[string]interface{})
+
+	cmd := exec.Command(a.args.binPath, "--version") //nolint:gosec
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	output, err := cmd.Output()
+	if err != nil {
+		debug["version"] = err.Error()
+		return debug
+	}
+
+	debug["version"] = strings.TrimSpace(string(output))
+	return debug
+}
+
 // Metrics returns the metrics.
 func (a *Api) Metrics() ([]gotenberg.Metric, error) {
 	return []gotenberg.Metric{
@@ -536,6 +556,7 @@ var (
 	_ gotenberg.Provisioner     = (*Api)(nil)
 	_ gotenberg.Validator       = (*Api)(nil)
 	_ gotenberg.App             = (*Api)(nil)
+	_ gotenberg.Debuggable      = (*Api)(nil)
 	_ gotenberg.MetricsProvider = (*Api)(nil)
 	_ api.HealthChecker         = (*Api)(nil)
 	_ Uno                       = (*Api)(nil)

@@ -5,7 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
+	"syscall"
 
 	"go.uber.org/zap"
 
@@ -50,6 +53,32 @@ func (engine *PdfCpu) Validate() error {
 	}
 
 	return nil
+}
+
+// Debug returns additional debug data.
+func (engine *PdfCpu) Debug() map[string]interface{} {
+	debug := make(map[string]interface{})
+
+	cmd := exec.Command(engine.binPath, "version") //nolint:gosec
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	output, err := cmd.Output()
+	if err != nil {
+		debug["version"] = err.Error()
+		return debug
+	}
+
+	debug["version"] = "Unable to determine pdfcpu version"
+
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "pdfcpu:") {
+			debug["version"] = strings.TrimSpace(strings.TrimPrefix(line, "pdfcpu:"))
+			break
+		}
+	}
+
+	return debug
 }
 
 // Merge combines multiple PDFs into a single PDF.
@@ -132,5 +161,6 @@ var (
 	_ gotenberg.Module      = (*PdfCpu)(nil)
 	_ gotenberg.Provisioner = (*PdfCpu)(nil)
 	_ gotenberg.Validator   = (*PdfCpu)(nil)
+	_ gotenberg.Debuggable  = (*PdfCpu)(nil)
 	_ gotenberg.PdfEngine   = (*PdfCpu)(nil)
 )

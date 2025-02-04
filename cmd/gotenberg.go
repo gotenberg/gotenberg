@@ -108,6 +108,9 @@ func Run() {
 		}(l.(gotenberg.SystemLogger))
 	}
 
+	// Build the debug data.
+	gotenberg.BuildDebug(ctx)
+
 	quit := make(chan os.Signal, 1)
 
 	// We'll accept graceful shutdowns when quit via SIGINT (Ctrl+C) or SIGTERM (Kubernetes).

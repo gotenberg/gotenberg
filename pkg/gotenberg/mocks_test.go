@@ -48,6 +48,21 @@ func TestValidatorMock(t *testing.T) {
 	}
 }
 
+func TestDebuggableMock(t *testing.T) {
+	mock := &DebuggableMock{
+		DebugMock: func() map[string]interface{} {
+			return map[string]interface{}{
+				"foo": "bar",
+			}
+		},
+	}
+
+	d := mock.Debug()
+	if d == nil {
+		t.Errorf("expected debug data, but got nil")
+	}
+}
+
 func TestPDFEngineMock(t *testing.T) {
 	mock := &PdfEngineMock{
 		MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {

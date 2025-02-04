@@ -37,6 +37,7 @@ API-DOWNLOAD-FROM-DENY-LIST=
 API-DOWNLOAD-FROM-FROM-MAX-RETRY=4
 API-DISABLE-DOWNLOAD-FROM=false
 API_DISABLE_HEALTH_CHECK_LOGGING=false
+API_ENABLE_DEBUG_ROUTE=false
 CHROMIUM_RESTART_AFTER=10
 CHROMIUM_MAX_QUEUE_SIZE=0
 CHROMIUM_AUTO_START=false
@@ -107,6 +108,7 @@ run: ## Start a Gotenberg container
 	--api-download-from-max-retry=$(API-DOWNLOAD-FROM-FROM-MAX-RETRY) \
 	--api-disable-download-from=$(API-DISABLE-DOWNLOAD-FROM) \
 	--api-disable-health-check-logging=$(API_DISABLE_HEALTH_CHECK_LOGGING) \
+	--api-enable-debug-route=$(API_ENABLE_DEBUG_ROUTE) \
 	--chromium-restart-after=$(CHROMIUM_RESTART_AFTER) \
 	--chromium-auto-start=$(CHROMIUM_AUTO_START) \
 	--chromium-max-queue-size=$(CHROMIUM_MAX_QUEUE_SIZE) \
