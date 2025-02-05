@@ -29,10 +29,10 @@ require (
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.32.0 // indirect
 	golang.org/x/net v0.34.0
-	golang.org/x/sync v0.10.0
-	golang.org/x/sys v0.29.0 // indirect
-	golang.org/x/term v0.28.0
-	golang.org/x/text v0.21.0
+	golang.org/x/sync v0.11.0
+	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/term v0.29.0
+	golang.org/x/text v0.22.0
 )
 
 require (
@@ -67,6 +67,6 @@ require (
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	golang.org/x/time v0.9.0 // indirect
+	golang.org/x/time v0.10.0 // indirect
 	google.golang.org/protobuf v1.36.4 // indirect
 )
