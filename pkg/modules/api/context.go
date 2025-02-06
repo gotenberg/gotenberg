@@ -477,6 +477,9 @@ func (ctx *Context) BuildOutputFile() (string, error) {
 		}
 		return f
 	}())
+	if err != nil {
+		return "", fmt.Errorf("create files info: %w", err)
+	}
 
 	archivePath := ctx.GeneratePath(".zip")
 	out, err := os.Create(archivePath)
