@@ -61,7 +61,6 @@ ARG GOTENBERG_USER_GID
 ARG GOTENBERG_USER_UID
 ARG NOTO_COLOR_EMOJI_VERSION
 ARG PDFTK_VERSION
-ARG TMP_CHOMIUM_VERSION_ARMHF="116.0.5845.180-1~deb12u1"
 
 LABEL org.opencontainers.image.title="Gotenberg" \
       org.opencontainers.image.description="A Docker-powered stateless API for PDF files." \
@@ -82,6 +81,7 @@ RUN \
     # Install system dependencies required for the next instructions or debugging.
     # Note: tini is a helper for reaping zombie processes.
     apt-get update -qq &&\
+    apt-get upgrade -yqq &&\
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg tini python3 default-jre-headless &&\
     # Cleanup.
     # Note: the Debian image does automatically a clean after each install thanks to a hook.
@@ -96,6 +96,7 @@ RUN \
     # https://help.accusoft.com/PrizmDoc/v12.1/HTML/Installing_Asian_Fonts_on_Ubuntu_and_Debian.html.
     curl -o ./ttf-mscorefonts-installer_3.8.1_all.deb http://httpredir.debian.org/debian/pool/contrib/m/msttcorefonts/ttf-mscorefonts-installer_3.8.1_all.deb &&\
     apt-get update -qq &&\
+    apt-get upgrade -yqq &&\
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
     ./ttf-mscorefonts-installer_3.8.1_all.deb \
     culmus \
@@ -145,27 +146,18 @@ RUN \
     # Install either Google Chrome stable on amd64 architecture or
     # Chromium on other architectures.
     # See https://github.com/gotenberg/gotenberg/issues/328.
-    # FIXME:
-    # armhf is currently not working with the latest version of Chromium.
-    # See: https://github.com/gotenberg/gotenberg/issues/709.
     /bin/bash -c \
     'set -e &&\
     if [[ "$(dpkg --print-architecture)" == "amd64" ]]; then \
       curl https://dl.google.com/linux/linux_signing_key.pub | apt-key add - &&\
       echo "deb http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list &&\
       apt-get update -qq &&\
+      apt-get upgrade -yqq &&\
       DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends --allow-unauthenticated google-chrome-stable &&\
       mv /usr/bin/google-chrome-stable /usr/bin/chromium; \
-    elif [[ "$(dpkg --print-architecture)" == "armhf" ]]; then \
-      apt-get update -qq &&\
-      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends devscripts &&\
-      debsnap chromium-common "$TMP_CHOMIUM_VERSION_ARMHF" -v --force --binary --architecture armhf &&\
-      debsnap chromium "$TMP_CHOMIUM_VERSION_ARMHF" -v --force --binary --architecture armhf &&\
-      DEBIAN_FRONTEND=noninteractive apt-get install --fix-broken -y -qq --no-install-recommends "./binary-chromium-common/chromium-common_${TMP_CHOMIUM_VERSION_ARMHF}_armhf.deb" "./binary-chromium/chromium_${TMP_CHOMIUM_VERSION_ARMHF}_armhf.deb" &&\
-      DEBIAN_FRONTEND=noninteractive apt-get purge -y -qq devscripts &&\
-      rm -rf ./binary-chromium-common/* ./binary-chromium/*; \
     else \
       apt-get update -qq &&\
+      apt-get upgrade -yqq &&\
       DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium; \
     fi' &&\
     # Verify installation.
@@ -177,6 +169,7 @@ RUN \
     # Install LibreOffice & unoconverter.
     echo "deb http://deb.debian.org/debian bookworm-backports main" >> /etc/apt/sources.list &&\
     apt-get update -qq &&\
+    apt-get upgrade -yqq &&\
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t bookworm-backports libreoffice &&\
     curl -Ls https://raw.githubusercontent.com/gotenberg/unoconverter/v0.0.1/unoconv -o /usr/bin/unoconverter &&\
     chmod +x /usr/bin/unoconverter &&\
@@ -196,6 +189,7 @@ RUN \
     echo '#!/bin/bash\n\nexec java -jar /usr/bin/pdftk-all.jar "$@"' > /usr/bin/pdftk && \
     chmod +x /usr/bin/pdftk &&\
     apt-get update -qq &&\
+    apt-get upgrade -yqq &&\
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends qpdf exiftool &&\
     # See https://github.com/nextcloud/docker/issues/380.
     mkdir -p /usr/share/man/man1 &&\

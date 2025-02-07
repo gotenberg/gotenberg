@@ -19,6 +19,7 @@ ENV CGO_ENABLED=1
 COPY --from=golang /usr/local/go /usr/local/go
 
 RUN apt-get update -qq &&\
+    apt-get upgrade -yqq &&\
     apt-get install -y -qq --no-install-recommends  \
     sudo \
     # gcc for cgo.

@@ -27,13 +27,14 @@ func init() {
 // the [api.Router] interface to expose relevant PDF processing routes if
 // enabled.
 type PdfEngines struct {
-	mergeNames        []string
-	splitNames        []string
-	convertNames      []string
-	readMetadataNames []string
-	writeMedataNames  []string
-	engines           []gotenberg.PdfEngine
-	disableRoutes     bool
+	mergeNames         []string
+	splitNames         []string
+	flattenNames       []string
+	convertNames       []string
+	readMetadataNames  []string
+	writeMetadataNames []string
+	engines            []gotenberg.PdfEngine
+	disableRoutes      bool
 }
 
 // Descriptor returns a PdfEngines' module descriptor.
@@ -44,6 +45,7 @@ func (mod *PdfEngines) Descriptor() gotenberg.ModuleDescriptor {
 			fs := flag.NewFlagSet("pdfengines", flag.ExitOnError)
 			fs.StringSlice("pdfengines-merge-engines", []string{"qpdf", "pdfcpu", "pdftk"}, "Set the PDF engines and their order for the merge feature - empty means all")
 			fs.StringSlice("pdfengines-split-engines", []string{"pdfcpu", "qpdf", "pdftk"}, "Set the PDF engines and their order for the split feature - empty means all")
+			fs.StringSlice("pdfengines-flatten-engines", []string{"qpdf"}, "Set the PDF engines and their order for the flatten feature - empty means all")
 			fs.StringSlice("pdfengines-convert-engines", []string{"libreoffice-pdfengine"}, "Set the PDF engines and their order for the convert feature - empty means all")
 			fs.StringSlice("pdfengines-read-metadata-engines", []string{"exiftool"}, "Set the PDF engines and their order for the read metadata feature - empty means all")
 			fs.StringSlice("pdfengines-write-metadata-engines", []string{"exiftool"}, "Set the PDF engines and their order for the write metadata feature - empty means all")
@@ -67,6 +69,7 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	mergeNames := flags.MustStringSlice("pdfengines-merge-engines")
 	splitNames := flags.MustStringSlice("pdfengines-split-engines")
+	flattenNames := flags.MustStringSlice("pdfengines-flatten-engines")
 	convertNames := flags.MustStringSlice("pdfengines-convert-engines")
 	readMetadataNames := flags.MustStringSlice("pdfengines-read-metadata-engines")
 	writeMetadataNames := flags.MustStringSlice("pdfengines-write-metadata-engines")
@@ -106,6 +109,11 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 		mod.splitNames = splitNames
 	}
 
+	mod.flattenNames = defaultNames
+	if len(flattenNames) > 0 {
+		mod.flattenNames = flattenNames
+	}
+
 	mod.convertNames = defaultNames
 	if len(convertNames) > 0 {
 		mod.convertNames = convertNames
@@ -116,9 +124,9 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 		mod.readMetadataNames = readMetadataNames
 	}
 
-	mod.writeMedataNames = defaultNames
+	mod.writeMetadataNames = defaultNames
 	if len(writeMetadataNames) > 0 {
-		mod.writeMedataNames = writeMetadataNames
+		mod.writeMetadataNames = writeMetadataNames
 	}
 
 	return nil
@@ -170,9 +178,10 @@ func (mod *PdfEngines) Validate() error {
 
 	findNonExistingEngines(mod.mergeNames)
 	findNonExistingEngines(mod.splitNames)
+	findNonExistingEngines(mod.flattenNames)
 	findNonExistingEngines(mod.convertNames)
 	findNonExistingEngines(mod.readMetadataNames)
-	findNonExistingEngines(mod.writeMedataNames)
+	findNonExistingEngines(mod.writeMetadataNames)
 
 	if len(nonExistingEngines) == 0 {
 		return nil
@@ -187,9 +196,10 @@ func (mod *PdfEngines) SystemMessages() []string {
 	return []string{
 		fmt.Sprintf("merge engines - %s", strings.Join(mod.mergeNames[:], " ")),
 		fmt.Sprintf("split engines - %s", strings.Join(mod.splitNames[:], " ")),
+		fmt.Sprintf("flatten engines - %s", strings.Join(mod.flattenNames[:], " ")),
 		fmt.Sprintf("convert engines - %s", strings.Join(mod.convertNames[:], " ")),
 		fmt.Sprintf("read metadata engines - %s", strings.Join(mod.readMetadataNames[:], " ")),
-		fmt.Sprintf("write medata engines - %s", strings.Join(mod.writeMedataNames[:], " ")),
+		fmt.Sprintf("write metadata engines - %s", strings.Join(mod.writeMetadataNames[:], " ")),
 	}
 }
 
@@ -212,9 +222,10 @@ func (mod *PdfEngines) PdfEngine() (gotenberg.PdfEngine, error) {
 	return newMultiPdfEngines(
 		engines(mod.mergeNames),
 		engines(mod.splitNames),
+		engines(mod.flattenNames),
 		engines(mod.convertNames),
 		engines(mod.readMetadataNames),
-		engines(mod.writeMedataNames),
+		engines(mod.writeMetadataNames),
 	), nil
 }
 
@@ -234,6 +245,7 @@ func (mod *PdfEngines) Routes() ([]api.Route, error) {
 	return []api.Route{
 		mergeRoute(engine),
 		splitRoute(engine),
+		flattenRoute(engine),
 		convertRoute(engine),
 		readMetadataRoute(engine),
 		writeMetadataRoute(engine),

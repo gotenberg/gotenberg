@@ -88,6 +88,8 @@ type PdfFormats struct {
 // PdfEngine provides an interface for operations on PDFs. Implementations
 // can utilize various tools like PDFtk, or implement functionality directly in
 // Go.
+//
+//nolint:dupl
 type PdfEngine interface {
 	// Merge combines multiple PDFs into a single PDF. The resulting page order
 	// is determined by the order of files provided in inputPaths.
@@ -95,6 +97,12 @@ type PdfEngine interface {
 
 	// Split splits a given PDF file.
 	Split(ctx context.Context, logger *zap.Logger, mode SplitMode, inputPath, outputDirPath string) ([]string, error)
+
+	// Flatten merges existing annotation appearances with page content,
+	// effectively deleting the original annotations. This process can flatten
+	// forms as well, as forms share a relationship with annotations. Note that
+	// this operation is irreversible.
+	Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error
 
 	// Convert transforms a given PDF to the specified formats defined in
 	// PdfFormats. If no format, it does nothing.
