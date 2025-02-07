@@ -94,8 +94,8 @@ run_cmd() {
    if [ -n "$alternate_registry" ]; then
      alternate_target="${target/$DOCKER_REGISTRY/$alternate_registry}"
      cmd="docker buildx imagetools create \
-            -t $target \
-            $alternate_target
+            -t $alternate_target \
+            $target
         "
         run_cmd "$cmd"
 
