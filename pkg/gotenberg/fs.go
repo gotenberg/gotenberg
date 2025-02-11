@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -86,10 +88,15 @@ func (fs *FileSystem) MkdirAll() (string, error) {
 	return path, nil
 }
 
+type fileWithModTime struct {
+	path    string
+	modTime time.Time
+}
+
 // WalkDir walks through the root level of a directory and returns a list of
 // files paths that match the specified file extension.
 func WalkDir(dir, ext string) ([]string, error) {
-	var files []string
+	var files []fileWithModTime
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, pathErr error) error {
 		if pathErr != nil {
 			return pathErr
@@ -98,11 +105,27 @@ func WalkDir(dir, ext string) ([]string, error) {
 			return nil
 		}
 		if strings.EqualFold(filepath.Ext(info.Name()), ext) {
-			files = append(files, path)
+			files = append(files, fileWithModTime{
+				path:    path,
+				modTime: info.ModTime(),
+			})
 		}
 		return nil
 	})
-	return files, err
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].modTime.Before(files[j].modTime)
+	})
+
+	sortedPaths := make([]string, len(files))
+	for i, f := range files {
+		sortedPaths[i] = f.path
+	}
+
+	return sortedPaths, nil
 }
 
 // Interface guards.
