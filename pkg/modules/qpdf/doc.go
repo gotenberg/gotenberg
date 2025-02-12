@@ -3,6 +3,7 @@
 //
 // 1. The merging of PDF files.
 // 2. The splitting of PDF files.
+// 3. Flattening of PDF files
 //
 // The path to the QPDF binary must be specified using the QPDK_BIN_PATH
 // environment variable.

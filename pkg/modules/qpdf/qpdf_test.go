@@ -3,6 +3,8 @@ package qpdf
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"testing"
@@ -227,6 +229,101 @@ func TestQPdf_Split(t *testing.T) {
 
 			if tc.expectOutputPathsCount != len(outputPaths) {
 				t.Errorf("expected %d output paths but got %d", tc.expectOutputPathsCount, len(outputPaths))
+			}
+		})
+	}
+}
+
+func TestQPdf_Flatten(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		ctx         context.Context
+		inputPath   string
+		createCopy  bool
+		expectError bool
+	}{
+		{
+			scenario:    "invalid context",
+			ctx:         nil,
+			expectError: true,
+		},
+		{
+			scenario:    "invalid input path",
+			ctx:         context.TODO(),
+			inputPath:   "foo.pdf",
+			expectError: true,
+		},
+		{
+			scenario:    "success",
+			ctx:         context.TODO(),
+			inputPath:   "/tests/test/testdata/pdfengines/sample3.pdf",
+			createCopy:  true,
+			expectError: false,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			engine := new(QPdf)
+			err := engine.Provision(nil)
+			if err != nil {
+				t.Fatalf("expected error but got: %v", err)
+			}
+
+			var destinationPath string
+			if tc.createCopy {
+				fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+				outputDir, err := fs.MkdirAll()
+				if err != nil {
+					t.Fatalf("expected error no but got: %v", err)
+				}
+
+				defer func() {
+					err = os.RemoveAll(fs.WorkingDirPath())
+					if err != nil {
+						t.Fatalf("expected no error while cleaning up but got: %v", err)
+					}
+				}()
+
+				destinationPath = fmt.Sprintf("%s/copy_temp.pdf", outputDir)
+				source, err := os.Open(tc.inputPath)
+				if err != nil {
+					t.Fatalf("open source file: %v", err)
+				}
+
+				defer func(source *os.File) {
+					err := source.Close()
+					if err != nil {
+						t.Fatalf("close file: %v", err)
+					}
+				}(source)
+
+				destination, err := os.Create(destinationPath)
+				if err != nil {
+					t.Fatalf("create destination file: %v", err)
+				}
+
+				defer func(destination *os.File) {
+					err := destination.Close()
+					if err != nil {
+						t.Fatalf("close file: %v", err)
+					}
+				}(destination)
+
+				_, err = io.Copy(destination, source)
+				if err != nil {
+					t.Fatalf("copy source into destination: %v", err)
+				}
+			} else {
+				destinationPath = tc.inputPath
+			}
+
+			err = engine.Flatten(tc.ctx, zap.NewNop(), destinationPath)
+
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+
+			if tc.expectError && err == nil {
+				t.Fatal("expected error but got none")
 			}
 		})
 	}

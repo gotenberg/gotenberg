@@ -359,7 +359,7 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 		ID: "chromium",
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("chromium", flag.ExitOnError)
-			fs.Int64("chromium-restart-after", 0, "Number of conversions after which Chromium will automatically restart. Set to 0 to disable this feature")
+			fs.Int64("chromium-restart-after", 10, "Number of conversions after which Chromium will automatically restart. Set to 0 to disable this feature")
 			fs.Int64("chromium-max-queue-size", 0, "Maximum request queue size for Chromium. Set to 0 to disable this feature")
 			fs.Bool("chromium-auto-start", false, "Automatically launch Chromium upon initialization if set to true; otherwise, Chromium will start at the time of the first conversion")
 			fs.Duration("chromium-start-timeout", time.Duration(20)*time.Second, "Maximum duration to wait for Chromium to start or restart")

@@ -101,6 +101,28 @@ func (engine *QPdf) Merge(ctx context.Context, logger *zap.Logger, inputPaths []
 	return fmt.Errorf("merge PDFs with QPDF: %w", err)
 }
 
+// Flatten merges annotation appearances with page content, deleting the
+// original annotations.
+func (engine *QPdf) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
+	var args []string
+	args = append(args, "--generate-appearances")
+	args = append(args, "--flatten-annotations=all")
+	args = append(args, "--replace-input")
+	args = append(args, inputPath)
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		return fmt.Errorf("create command: %w", err)
+	}
+
+	_, err = cmd.Exec()
+	if err == nil {
+		return nil
+	}
+
+	return fmt.Errorf("flatten PDFs with QPDF: %w", err)
+}
+
 // Convert is not available in this implementation.
 func (engine *QPdf) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 	return fmt.Errorf("convert PDF to '%+v' with QPDF: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)

@@ -127,6 +127,15 @@ func TestLibreOfficePdfEngine_Split(t *testing.T) {
 	}
 }
 
+func TestLibreOfficePdfEngine_Flatten(t *testing.T) {
+	engine := new(LibreOfficePdfEngine)
+	err := engine.Flatten(context.Background(), zap.NewNop(), "")
+
+	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
+		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)
+	}
+}
+
 func TestLibreOfficePdfEngine_Convert(t *testing.T) {
 	for _, tc := range []struct {
 		scenario      string

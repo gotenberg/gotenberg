@@ -56,6 +56,9 @@ func TestPDFEngineMock(t *testing.T) {
 		SplitMock: func(ctx context.Context, logger *zap.Logger, mode SplitMode, inputPath, outputDirPath string) ([]string, error) {
 			return nil, nil
 		},
+		FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
+			return nil
+		},
 		ConvertMock: func(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error {
 			return nil
 		},
@@ -75,6 +78,11 @@ func TestPDFEngineMock(t *testing.T) {
 	_, err = mock.Split(context.Background(), zap.NewNop(), SplitMode{}, "", "")
 	if err != nil {
 		t.Errorf("expected no error from PdfEngineMock.Split, but got: %v", err)
+	}
+
+	err = mock.Flatten(context.Background(), zap.NewNop(), "")
+	if err != nil {
+		t.Errorf("expected no error from PdfEngineMock.Convert, but got: %v", err)
 	}
 
 	err = mock.Convert(context.Background(), zap.NewNop(), PdfFormats{}, "", "")
