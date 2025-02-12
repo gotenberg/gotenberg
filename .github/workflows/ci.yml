@@ -150,6 +150,8 @@ jobs:
         with:
           images: harbor.onebrief.tools/onebrief/gotenberg
           tags: |
+            type=ref,event=branch
+            type=ref,event=pr
             type=semver,pattern={{major}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{version}}
