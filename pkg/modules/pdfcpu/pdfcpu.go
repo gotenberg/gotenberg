@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"syscall"
 
@@ -128,10 +129,24 @@ func (engine *PdfCpu) Split(ctx context.Context, logger *zap.Logger, mode gotenb
 		return nil, fmt.Errorf("split PDFs with pdfcpu: %w", err)
 	}
 
-	outputPaths, err := gotenberg.WalkDir(outputDirPath, ".pdf")
+	var outputPaths []string
+	err = filepath.Walk(outputDirPath, func(path string, info os.FileInfo, pathErr error) error {
+		if pathErr != nil {
+			return pathErr
+		}
+		if info.IsDir() {
+			return nil
+		}
+		if strings.EqualFold(filepath.Ext(info.Name()), ".pdf") {
+			outputPaths = append(outputPaths, path)
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, fmt.Errorf("walk directory to find resulting PDFs from split with pdfcpu: %w", err)
 	}
+
+	sort.Sort(gotenberg.AlphanumericSort(outputPaths))
 
 	return outputPaths, nil
 }
