@@ -37,12 +37,12 @@ linters:
     - promlinter
     #- sloglint
     - staticcheck
-    - tenv
     - testableexamples
     - tparallel
     - typecheck
     - unconvert
     - unused
+    - usetesting
     - wastedassign
     - whitespace
 
