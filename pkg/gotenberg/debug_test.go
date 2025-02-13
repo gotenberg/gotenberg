@@ -53,8 +53,8 @@ func TestBuildDebug(t *testing.T) {
 		Version:      Version,
 		Architecture: runtime.GOARCH,
 		Modules: []string{
-			"foo",
 			"bar",
+			"foo",
 		},
 		ModulesAdditionalData: map[string]map[string]interface{}{
 			"bar": {

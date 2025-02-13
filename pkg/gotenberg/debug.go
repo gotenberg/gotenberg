@@ -2,6 +2,7 @@ package gotenberg
 
 import (
 	"runtime"
+	"sort"
 	"sync"
 
 	flag "github.com/spf13/pflag"
@@ -41,6 +42,8 @@ func BuildDebug(ctx *Context) {
 
 		debug.ModulesAdditionalData[ID] = debuggable.Debug()
 	}
+
+	sort.Sort(AlphanumericSort(debug.Modules))
 
 	ctx.ParsedFlags().VisitAll(func(f *flag.Flag) {
 		debug.Flags[f.Name] = f.Value.String()

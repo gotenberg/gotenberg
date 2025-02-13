@@ -329,7 +329,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<iframe src='file:///etc/passwd'></iframe>"), 0o755)
@@ -361,7 +361,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<iframe src='file:///etc/passwd'></iframe>"), 0o755)
@@ -393,7 +393,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Skip networkIdle event</h1>"), 0o755)
@@ -428,7 +428,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>ErrInvalidHttpStatusCode</h1>"), 0o755)
@@ -461,7 +461,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/style.css", fs.WorkingDirPath()), []byte("body{font-family: Arial, Helvetica, sans-serif;}"), 0o755)
@@ -499,7 +499,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<script type=\"application/javascript\">throw new Error(\"Exception\")</script>"), 0o755)
@@ -532,7 +532,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				return fs
@@ -558,7 +558,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<html><head><link rel=\"stylesheet\" type=\"text/css\" href=\"http://localhost:100/style.css\"></head><body><h1>ErrResourceLoadingFailed</h1></body></html>"), 0o755)
@@ -592,7 +592,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Clear cache</h1>"), 0o755)
@@ -625,7 +625,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Clear cookies</h1>"), 0o755)
@@ -658,7 +658,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<script type=\"application/javascript\">throw new Error(\"Exception\")</script>"), 0o755)
@@ -692,7 +692,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Set cookies</h1>"), 0o755)
@@ -727,7 +727,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>User-Agent override</h1>"), 0o755)
@@ -762,7 +762,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Extra HTTP headers</h1>"), 0o755)
@@ -816,7 +816,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>ErrOmitBackgroundWithoutPrintBackground</h1>"), 0o755)
@@ -849,7 +849,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Hide default white background</h1>"), 0o755)
@@ -885,7 +885,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>ErrInvalidEmulatedMediaType</h1>"), 0o755)
@@ -918,7 +918,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<style>@media print { #screen { display: none } }</style><p id=\"screen\">Screen media type</p>"), 0o755)
@@ -953,7 +953,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<script type=\"application/javascript\">await new Promise(r => setTimeout(r, 10000));</script>"), 0o755)
@@ -988,7 +988,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<script type=\"application/javascript\">await new Promise(r => setTimeout(r, 10000));</script>"), 0o755)
@@ -1023,7 +1023,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				html := `
@@ -1069,7 +1069,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>ErrInvalidEvaluationExpression</h1>"), 0o755)
@@ -1104,7 +1104,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				html := `
@@ -1150,7 +1150,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Custom header and footer</h1>"), 0o755)
@@ -1185,7 +1185,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Custom header and footer</h1>"), 0o755)
@@ -1221,7 +1221,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>ErrInvalidPrinterSettings</h1>"), 0o755)
@@ -1259,7 +1259,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>ErrPageRangesSyntaxError</h1>"), 0o755)
@@ -1292,7 +1292,7 @@ func TestChromiumBrowser_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Default options</h1>"), 0o755)
@@ -1491,7 +1491,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<iframe src='file:///etc/passwd'></iframe>"), 0o755)
@@ -1523,7 +1523,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<iframe src='file:///etc/passwd'></iframe>"), 0o755)
@@ -1555,7 +1555,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Skip networkIdle event</h1>"), 0o755)
@@ -1590,7 +1590,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>ErrInvalidHttpStatusCode</h1>"), 0o755)
@@ -1623,7 +1623,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/style.css", fs.WorkingDirPath()), []byte("body{font-family: Arial, Helvetica, sans-serif;}"), 0o755)
@@ -1661,7 +1661,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<script type=\"application/javascript\">throw new Error(\"Exception\")</script>"), 0o755)
@@ -1694,7 +1694,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				return fs
@@ -1720,7 +1720,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<html><head><link rel=\"stylesheet\" type=\"text/css\" href=\"http://localhost:100/style.css\"></head><body><h1>ErrResourceLoadingFailed</h1></body></html>"), 0o755)
@@ -1754,7 +1754,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Clear cache</h1>"), 0o755)
@@ -1787,7 +1787,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Clear cookies</h1>"), 0o755)
@@ -1820,7 +1820,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<script type=\"application/javascript\">throw new Error(\"Exception\")</script>"), 0o755)
@@ -1854,7 +1854,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Set cookies</h1>"), 0o755)
@@ -1889,7 +1889,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>User-Agent override</h1>"), 0o755)
@@ -1924,7 +1924,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Extra HTTP headers</h1>"), 0o755)
@@ -1978,7 +1978,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>ErrOmitBackgroundWithoutPrintBackground</h1>"), 0o755)
@@ -2013,7 +2013,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>ErrInvalidEmulatedMediaType</h1>"), 0o755)
@@ -2046,7 +2046,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<style>@media print { #screen { display: none } }</style><p id=\"screen\">Screen media type</p>"), 0o755)
@@ -2081,7 +2081,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<script type=\"application/javascript\">await new Promise(r => setTimeout(r, 10000));</script>"), 0o755)
@@ -2116,7 +2116,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<script type=\"application/javascript\">await new Promise(r => setTimeout(r, 10000));</script>"), 0o755)
@@ -2151,7 +2151,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				html := `
@@ -2197,7 +2197,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>ErrInvalidEvaluationExpression</h1>"), 0o755)
@@ -2232,7 +2232,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				html := `
@@ -2278,7 +2278,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Default options</h1>"), 0o755)
@@ -2321,7 +2321,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Default options</h1>"), 0o755)
@@ -2369,7 +2369,7 @@ func TestChromiumBrowser_screenshot(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", fs.WorkingDirPath()), []byte("<h1>Default options</h1>"), 0o755)
