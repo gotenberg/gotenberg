@@ -2,7 +2,7 @@ name: Continuous Delivery
 
 on:
   release:
-    types: [ published ]
+    types: [published]
 
 permissions:
   contents: read
@@ -10,39 +10,81 @@ permissions:
 jobs:
   release_amd64:
     name: Release linux/amd64
-    uses: ./.github/workflows/__build-push.yml
-    secrets: inherit
-    with:
-      runs_on: ubuntu-latest
-      platform: linux/amd64
-      gotenberg_version: ${{ github.event.release.tag_name }}
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.build_push.outputs.tags }}
+      tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Build and push
+        id: build_push
+        uses: ./.github/actions/build-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: ${{ github.event.release.tag_name }}
+          platform: linux/amd64
 
   release_386:
     name: Release linux/386
-    uses: ./.github/workflows/__build-push.yml
-    secrets: inherit
-    with:
-      runs_on: ubuntu-latest
-      platform: linux/386
-      gotenberg_version: ${{ github.event.release.tag_name }}
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.build_push.outputs.tags }}
+      tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Build and push
+        id: build_push
+        uses: ./.github/actions/build-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: ${{ github.event.release.tag_name }}
+          platform: linux/386
 
   release_arm64:
     name: Release linux/arm64
-    uses: ./.github/workflows/__build-push.yml
-    secrets: inherit
-    with:
-      runs_on: ubuntu-24.04-arm
-      platform: linux/arm64
-      gotenberg_version: ${{ github.event.release.tag_name }}
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+      docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+      tags: ${{ steps.build_push.outputs.tags }}
+      tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Build and push
+        id: build_push
+        uses: ./.github/actions/build-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: ${{ github.event.release.tag_name }}
+          platform: linux/arm64
 
   release_arm_v7:
     name: Release linux/arm/v7
-    uses: ./.github/workflows/__build-push.yml
-    secrets: inherit
-    with:
-      runs_on: ubuntu-24.04-arm
-      platform: linux/arm/v7
-      gotenberg_version: ${{ github.event.release.tag_name }}
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      tags: ${{ steps.build_push.outputs.tags }}
+      tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Build and push
+        id: build_push
+        uses: ./.github/actions/build-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: ${{ github.event.release.tag_name }}
+          platform: linux/arm/v7
 
   merge_clean_release_tags:
     needs:
@@ -51,8 +93,22 @@ jobs:
       - release_arm64
       - release_arm_v7
     name: Merge and clean release tags
-    uses: ./.github/workflows/__merge-clean.yml
-    secrets: inherit
-    with:
-      tags: "${{ needs.release_amd64.outputs.tags }},${{ needs.release_386.outputs.tags }},${{ needs.release_arm64.outputs.tags }},${{ needs.release_arm_v7.outputs.tags }}"
-      alternate_registry: thecodingmachine
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Merge
+        uses: ./.github/actions/merge
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.release_amd64.outputs.tags }},${{ needs.release_386.outputs.tags }},${{ needs.release_arm64.outputs.tags }},${{ needs.release_arm_v7.outputs.tags }}"
+          alternate_registry: thecodingmachine
+
+      - name: Clean
+        uses: ./.github/actions/clean
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.release_amd64.outputs.tags }},${{ needs.release_386.outputs.tags }},${{ needs.release_arm64.outputs.tags }},${{ needs.release_arm_v7.outputs.tags }}"

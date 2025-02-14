@@ -2,17 +2,22 @@ name: Pull Request Cleanup
 
 on:
   pull_request:
-    types: [ closed ]
+    types: [closed]
 
 permissions:
   contents: read
 
 jobs:
-
   cleanup:
-    name: Cleanup
-    uses: ./.github/workflows/__delete.yml
-    secrets: inherit
-    with:
-      gotenberg_version: pr-${{ github.event.pull_request.number }}
-      alternate_repository: snapshot
+    name: Cleanup Docker images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Cleanup
+        uses: ./.github/actions/clean
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          snapshot_version: pr-${{ github.event.pull_request.number }}

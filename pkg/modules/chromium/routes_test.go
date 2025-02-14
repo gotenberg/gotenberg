@@ -1052,7 +1052,7 @@ func TestConvertMarkdownRoute(t *testing.T) {
 
 				err := os.MkdirAll(dirPath, 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", dirPath), []byte("<div>{{ toHTML \"markdown.md\" }}</div>"), 0o755)
@@ -1080,7 +1080,7 @@ func TestConvertMarkdownRoute(t *testing.T) {
 
 				err := os.MkdirAll(dirPath, 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", dirPath), []byte("<div>{{ toHTML \"markdown.md\" }}</div>"), 0o755)
@@ -1107,7 +1107,7 @@ func TestConvertMarkdownRoute(t *testing.T) {
 
 				err := os.MkdirAll(dirPath, 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", dirPath), []byte("<div>{{ toHTML \"markdown.md\" }}</div>"), 0o755)
@@ -1142,7 +1142,7 @@ func TestConvertMarkdownRoute(t *testing.T) {
 
 				err := os.MkdirAll(dirPath, 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", dirPath), []byte("<div>{{ toHTML \"markdown.md\" }}</div>"), 0o755)
@@ -1259,7 +1259,7 @@ func TestScreenshotMarkdownRoute(t *testing.T) {
 
 				err := os.MkdirAll(dirPath, 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", dirPath), []byte("<div>{{ toHTML \"markdown.md\" }}</div>"), 0o755)
@@ -1287,7 +1287,7 @@ func TestScreenshotMarkdownRoute(t *testing.T) {
 
 				err := os.MkdirAll(dirPath, 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", dirPath), []byte("<div>{{ toHTML \"markdown.md\" }}</div>"), 0o755)
@@ -1314,7 +1314,7 @@ func TestScreenshotMarkdownRoute(t *testing.T) {
 
 				err := os.MkdirAll(dirPath, 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", dirPath), []byte("<div>{{ toHTML \"markdown.md\" }}</div>"), 0o755)
@@ -1349,7 +1349,7 @@ func TestScreenshotMarkdownRoute(t *testing.T) {
 
 				err := os.MkdirAll(dirPath, 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/index.html", dirPath), []byte("<div>{{ toHTML \"markdown.md\" }}</div>"), 0o755)

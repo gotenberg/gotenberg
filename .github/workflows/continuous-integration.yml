@@ -16,7 +16,6 @@ permissions:
   contents: write
 
 jobs:
-
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -24,7 +23,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: "1.23"
           cache: false
 
       - name: Checkout source code
@@ -33,7 +32,7 @@ jobs:
       - name: Run linters
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.63.4
+          version: v1.64.2
 
   tests:
     needs:
@@ -57,7 +56,7 @@ jobs:
         run: make tests-once
 
       - name: Upload to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
@@ -65,54 +64,94 @@ jobs:
   snapshot_amd64:
     if: github.event_name == 'pull_request'
     needs:
-      - tests
+     - tests
     name: Snapshot linux/amd64
-    uses:  ./.github/workflows/__build-push.yml
-    secrets: inherit
-    with:
-      runs_on: ubuntu-latest
-      platform: linux/amd64
-      gotenberg_version: pr-${{ github.event.pull_request.number }}
-      alternate_repository: snapshot
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.build_push.outputs.tags }}
+      tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        
+      - name: Build and push
+        id: build_push
+        uses: ./.github/actions/build-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: pr-${{ github.event.pull_request.number }}
+          platform: linux/amd64
+          alternate_repository: snapshot
 
   snapshot_386:
     if: github.event_name == 'pull_request'
     needs:
-      - tests
+     - tests
     name: Snapshot linux/386
-    uses:  ./.github/workflows/__build-push.yml
-    secrets: inherit
-    with:
-      runs_on: ubuntu-latest
-      platform: linux/386
-      gotenberg_version: pr-${{ github.event.pull_request.number }}
-      alternate_repository: snapshot
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.build_push.outputs.tags }}
+      tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        
+      - name: Build and push
+        id: build_push
+        uses: ./.github/actions/build-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: pr-${{ github.event.pull_request.number }}
+          platform: linux/386
+          alternate_repository: snapshot
 
   snapshot_arm64:
     if: github.event_name == 'pull_request'
     needs:
-      - tests
+     - tests
     name: Snapshot linux/arm64
-    uses:  ./.github/workflows/__build-push.yml
-    secrets: inherit
-    with:
-      runs_on: ubuntu-24.04-arm
-      platform: linux/arm64
-      gotenberg_version: pr-${{ github.event.pull_request.number }}
-      alternate_repository: snapshot
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      tags: ${{ steps.build_push.outputs.tags }}
+      tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        
+      - name: Build and push
+        id: build_push
+        uses: ./.github/actions/build-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: pr-${{ github.event.pull_request.number }}
+          platform: linux/arm64
+          alternate_repository: snapshot
 
   snapshot_arm_v7:
     if: github.event_name == 'pull_request'
     needs:
-      - tests
+     - tests
     name: Snapshot linux/arm/v7
-    uses:  ./.github/workflows/__build-push.yml
-    secrets: inherit
-    with:
-      runs_on: ubuntu-24.04-arm
-      platform: linux/arm/v7
-      gotenberg_version: pr-${{ github.event.pull_request.number }}
-      alternate_repository: snapshot
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      tags: ${{ steps.build_push.outputs.tags }}
+      tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        
+      - name: Build and push
+        id: build_push
+        uses: ./.github/actions/build-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: pr-${{ github.event.pull_request.number }}
+          platform: linux/arm/v7
+          alternate_repository: snapshot
 
   merge_clean_snapshot_tags:
     needs:
@@ -121,58 +160,112 @@ jobs:
       - snapshot_arm64
       - snapshot_arm_v7
     name: Merge and clean snapshot tags
-    uses:  ./.github/workflows/__merge-clean.yml
-    secrets: inherit
-    with:
-      tags: "${{ needs.snapshot_amd64.outputs.tags }},${{ needs.snapshot_386.outputs.tags }},${{ needs.snapshot_arm64.outputs.tags }},${{ needs.snapshot_arm_v7.outputs.tags }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        
+      - name: Merge
+        uses: ./.github/actions/merge
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.snapshot_amd64.outputs.tags }},${{ needs.snapshot_386.outputs.tags }},${{ needs.snapshot_arm64.outputs.tags }},${{ needs.snapshot_arm_v7.outputs.tags }}"
+
+      - name: Clean
+        uses: ./.github/actions/clean
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.snapshot_amd64.outputs.tags }},${{ needs.snapshot_386.outputs.tags }},${{ needs.snapshot_arm64.outputs.tags }},${{ needs.snapshot_arm_v7.outputs.tags }}"
 
   edge_amd64:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
-      - tests
+     - tests
     name: Edge linux/amd64
-    uses:  ./.github/workflows/__build-push.yml
-    secrets: inherit
-    with:
-      runs_on: ubuntu-latest
-      platform: linux/amd64
-      gotenberg_version: edge
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.build_push.outputs.tags }}
+      tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        
+      - name: Build and push
+        id: build_push
+        uses: ./.github/actions/build-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: edge
+          platform: linux/amd64
 
   edge_386:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
       - tests
     name: Edge linux/386
-    uses:  ./.github/workflows/__build-push.yml
-    secrets: inherit
-    with:
-      runs_on: ubuntu-latest
-      platform: linux/386
-      gotenberg_version: edge
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.build_push.outputs.tags }}
+      tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        
+      - name: Build and push
+        id: build_push
+        uses: ./.github/actions/build-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: edge
+          platform: linux/386
 
   edge_arm64:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
-      - tests
+     - tests
     name: Edge linux/arm64
-    uses:  ./.github/workflows/__build-push.yml
-    secrets: inherit
-    with:
-      runs_on: ubuntu-24.04-arm
-      platform: linux/arm64
-      gotenberg_version: edge
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      tags: ${{ steps.build_push.outputs.tags }}
+      tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        
+      - name: Build and push
+        id: build_push
+        uses: ./.github/actions/build-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: edge
+          platform: linux/arm64
 
   edge_arm_v7:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
-      - tests
+     - tests
     name: Edge linux/arm/v7
-    uses:  ./.github/workflows/__build-push.yml
-    secrets: inherit
-    with:
-      runs_on: ubuntu-24.04-arm
-      platform: linux/arm/v7
-      gotenberg_version: edge
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      tags: ${{ steps.build_push.outputs.tags }}
+      tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        
+      - name: Build and push
+        id: build_push
+        uses: ./.github/actions/build-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: edge
+          platform: linux/arm/v7
 
   merge_clean_edge_tags:
     needs:
@@ -181,8 +274,22 @@ jobs:
       - edge_arm64
       - edge_arm_v7
     name: Merge and clean edge tags
-    uses: ./.github/workflows/__merge-clean.yml
-    secrets: inherit
-    with:
-      tags: "${{ needs.edge_amd64.outputs.tags }},${{ needs.edge_386.outputs.tags }},${{ needs.edge_arm64.outputs.tags }},${{ needs.edge_arm_v7.outputs.tags }}"
-      alternate_registry: thecodingmachine
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        
+      - name: Merge
+        uses: ./.github/actions/merge
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.edge_amd64.outputs.tags }},${{ needs.edge_386.outputs.tags }},${{ needs.edge_arm64.outputs.tags }},${{ needs.edge_arm_v7.outputs.tags }}"
+          alternate_registry: thecodingmachine
+
+      - name: Clean
+        uses: ./.github/actions/clean
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.edge_amd64.outputs.tags }},${{ needs.edge_386.outputs.tags }},${{ needs.edge_arm64.outputs.tags }},${{ needs.edge_arm_v7.outputs.tags }}"

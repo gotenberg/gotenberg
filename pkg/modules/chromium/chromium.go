@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/alexliesenfeld/health"
@@ -491,6 +494,23 @@ func (mod *Chromium) Stop(ctx context.Context) error {
 	return fmt.Errorf("stop Chromium: %w", err)
 }
 
+// Debug returns additional debug data.
+func (mod *Chromium) Debug() map[string]interface{} {
+	debug := make(map[string]interface{})
+
+	cmd := exec.Command(mod.args.binPath, "--version") //nolint:gosec
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	output, err := cmd.Output()
+	if err != nil {
+		debug["version"] = err.Error()
+		return debug
+	}
+
+	debug["version"] = strings.TrimSpace(string(output))
+	return debug
+}
+
 // Metrics returns the metrics.
 func (mod *Chromium) Metrics() ([]gotenberg.Metric, error) {
 	return []gotenberg.Metric{
@@ -600,6 +620,7 @@ var (
 	_ gotenberg.Provisioner     = (*Chromium)(nil)
 	_ gotenberg.Validator       = (*Chromium)(nil)
 	_ gotenberg.App             = (*Chromium)(nil)
+	_ gotenberg.Debuggable      = (*Chromium)(nil)
 	_ gotenberg.MetricsProvider = (*Chromium)(nil)
 	_ api.HealthChecker         = (*Chromium)(nil)
 	_ api.Router                = (*Chromium)(nil)

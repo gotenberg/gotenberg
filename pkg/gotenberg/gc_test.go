@@ -31,7 +31,7 @@ func TestGarbageCollect(t *testing.T) {
 
 				err := os.MkdirAll(path, 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/a_foo_file", path), []byte{1}, 0o755)
