@@ -34,6 +34,14 @@ func (mod *ValidatorMock) Validate() error {
 	return mod.ValidateMock()
 }
 
+type DebuggableMock struct {
+	DebugMock func() map[string]interface{}
+}
+
+func (mod *DebuggableMock) Debug() map[string]interface{} {
+	return mod.DebugMock()
+}
+
 // PdfEngineMock is a mock for the [PdfEngine] interface.
 //
 //nolint:dupl

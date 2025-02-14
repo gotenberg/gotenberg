@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -141,81 +140,6 @@ func TestFileSystem_MkdirAll(t *testing.T) {
 
 			if tc.expectError && err == nil {
 				t.Fatal("expected error but got none")
-			}
-		})
-	}
-}
-
-func TestWalkDir(t *testing.T) {
-	for _, tc := range []struct {
-		scenario    string
-		dir         string
-		ext         string
-		expectError bool
-		expectFiles []string
-	}{
-		{
-			scenario:    "directory does not exist",
-			dir:         uuid.NewString(),
-			ext:         ".pdf",
-			expectError: true,
-		},
-		{
-			scenario: "find PDF files",
-			dir: func() string {
-				path := fmt.Sprintf("%s/a_directory", os.TempDir())
-
-				err := os.MkdirAll(path, 0o755)
-				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
-				}
-
-				err = os.WriteFile(fmt.Sprintf("%s/a_foo_file.pdf", path), []byte{1}, 0o755)
-				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
-				}
-
-				err = os.WriteFile(fmt.Sprintf("%s/a_bar_file.PDF", path), []byte{1}, 0o755)
-				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
-				}
-
-				err = os.WriteFile(fmt.Sprintf("%s/a_baz_file.txt", path), []byte{1}, 0o755)
-				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
-				}
-
-				return path
-			}(),
-			ext:         ".pdf",
-			expectError: false,
-			expectFiles: []string{"/tmp/a_directory/a_bar_file.PDF", "/tmp/a_directory/a_foo_file.pdf"},
-		},
-	} {
-		t.Run(tc.scenario, func(t *testing.T) {
-			defer func() {
-				err := os.RemoveAll(tc.dir)
-				if err != nil {
-					t.Fatalf("expected no error while cleaning up but got: %v", err)
-				}
-			}()
-
-			files, err := WalkDir(tc.dir, tc.ext)
-
-			if !tc.expectError && err != nil {
-				t.Fatalf("expected no error but got: %v", err)
-			}
-
-			if tc.expectError && err == nil {
-				t.Fatal("expected error but got none")
-			}
-
-			if tc.expectError && err != nil {
-				return
-			}
-
-			if !reflect.DeepEqual(files, tc.expectFiles) {
-				t.Errorf("expected files %+v, but got %+v", tc.expectFiles, files)
 			}
 		})
 	}

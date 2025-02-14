@@ -66,6 +66,9 @@ Head to the [documentation](https://gotenberg.dev/docs/getting-started/introduct
     <a href="https://zolsec.com?utm_source=gotenberg_github&utm_medium=website" target="_blank">
         <img src="https://github.com/gotenberg/gotenberg/assets/8983173/707ccc97-a79b-4dcb-8fc8-6827366e5be3" alt="Zolsec Logo" width="333" height="163" />
     </a>
+    <a href="https://pdfme.com?utm_source=gotenberg_github&utm_medium=website" target="_blank">
+        <img src="https://github.com/user-attachments/assets/2a75dd40-ca18-4d34-acd5-5dd474595168" alt="pdfme Logo" width="333" height="163" />
+    </a>
 </p>
 
 Sponsorships help maintaining and improving Gotenberg - [become a sponsor](https://github.com/sponsors/gulien) ❤️

@@ -5,7 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"reflect"
+	"strings"
+	"syscall"
 
 	"github.com/barasher/go-exiftool"
 	"go.uber.org/zap"
@@ -51,6 +54,23 @@ func (engine *ExifTool) Validate() error {
 	}
 
 	return nil
+}
+
+// Debug returns additional debug data.
+func (engine *ExifTool) Debug() map[string]interface{} {
+	debug := make(map[string]interface{})
+
+	cmd := exec.Command(engine.binPath, "-ver") //nolint:gosec
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	output, err := cmd.Output()
+	if err != nil {
+		debug["version"] = err.Error()
+		return debug
+	}
+
+	debug["version"] = strings.TrimSpace(string(output))
+	return debug
 }
 
 // Merge is not available in this implementation.
@@ -161,5 +181,6 @@ var (
 	_ gotenberg.Module      = (*ExifTool)(nil)
 	_ gotenberg.Provisioner = (*ExifTool)(nil)
 	_ gotenberg.Validator   = (*ExifTool)(nil)
+	_ gotenberg.Debuggable  = (*ExifTool)(nil)
 	_ gotenberg.PdfEngine   = (*ExifTool)(nil)
 )

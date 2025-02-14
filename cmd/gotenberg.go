@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -50,14 +51,42 @@ func Run() {
 
 	fmt.Printf("[SYSTEM] modules: %s\n", modsInfo)
 
-	// Parse the flags...
+	// Parse the flags.
 	err := fs.Parse(os.Args[1:])
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	// ...and create a wrapper around those.
+	// Override their values if the corresponding environment variables are
+	// set.
+	fs.VisitAll(func(f *flag.Flag) {
+		envName := strings.ToUpper(strings.ReplaceAll(f.Name, "-", "_"))
+		val, ok := os.LookupEnv(envName)
+		if !ok {
+			return
+		}
+
+		sliceVal, ok := f.Value.(flag.SliceValue)
+		if ok {
+			// We don't want to append the values (default pflag behavior).
+			items := strings.Split(val, ",")
+			err = sliceVal.Replace(items)
+			if err != nil {
+				fmt.Printf("[FATAL] invalid overriding value '%s' from %s: %v\n", val, envName, err)
+				os.Exit(1)
+			}
+			return
+		}
+
+		err = f.Value.Set(val)
+		if err != nil {
+			fmt.Printf("[FATAL] invalid overriding value '%s' from %s: %v\n", val, envName, err)
+			os.Exit(1)
+		}
+	})
+
+	// Create a wrapper around our flags.
 	parsedFlags := gotenberg.ParsedFlags{FlagSet: fs}
 
 	// Get the graceful shutdown duration.
@@ -107,6 +136,9 @@ func Run() {
 			}
 		}(l.(gotenberg.SystemLogger))
 	}
+
+	// Build the debug data.
+	gotenberg.BuildDebug(ctx)
 
 	quit := make(chan os.Signal, 1)
 

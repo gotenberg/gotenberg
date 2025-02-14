@@ -42,6 +42,7 @@ type Api struct {
 	basicAuthPassword         string
 	downloadFromCfg           downloadFromConfig
 	disableHealthCheckLogging bool
+	enableDebugRoute          bool
 
 	routes              []Route
 	externalMiddlewares []Middleware
@@ -187,6 +188,7 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Int("api-download-from-max-retry", 4, "Set the maximum number of retries for the download from feature")
 			fs.Bool("api-disable-download-from", false, "Disable the download from feature")
 			fs.Bool("api-disable-health-check-logging", false, "Disable health check logging")
+			fs.Bool("api-enable-debug-route", false, "Enable the debug route")
 			return fs
 		}(),
 		New: func() gotenberg.Module { return new(Api) },
@@ -212,6 +214,7 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 		disable:   flags.MustBool("api-disable-download-from"),
 	}
 	a.disableHealthCheckLogging = flags.MustBool("api-disable-health-check-logging")
+	a.enableDebugRoute = flags.MustBool("api-enable-debug-route")
 
 	// Port from env?
 	portEnvVar := flags.MustString("api-port-from-env")
@@ -365,9 +368,10 @@ func (a *Api) Validate() error {
 		return err
 	}
 
-	routesMap := make(map[string]string, len(a.routes)+2)
+	routesMap := make(map[string]string, len(a.routes)+3)
 	routesMap["/health"] = "/health"
 	routesMap["/version"] = "/version"
+	routesMap["/debug"] = "/debug"
 
 	for _, route := range a.routes {
 		if route.Path == "" {
@@ -529,7 +533,7 @@ func (a *Api) Start() error {
 		hardTimeoutMiddleware(hardTimeout),
 	)
 
-	// ...and the version route.
+	// ...the version route.
 	a.srv.GET(
 		fmt.Sprintf("%s%s", a.rootPath, "version"),
 		func(c echo.Context) error {
@@ -537,6 +541,17 @@ func (a *Api) Start() error {
 		},
 		securityMiddleware,
 	)
+
+	// ...and the debug route.
+	if a.enableDebugRoute {
+		a.srv.GET(
+			fmt.Sprintf("%s%s", a.rootPath, "debug"),
+			func(c echo.Context) error {
+				return c.JSONPretty(http.StatusOK, gotenberg.Debug(), "  ")
+			},
+			securityMiddleware,
+		)
+	}
 
 	// Wait for all modules to be ready.
 	ctx, cancel := context.WithTimeout(context.Background(), a.startTimeout)

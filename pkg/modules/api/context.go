@@ -1,7 +1,6 @@
 package api
 
 import (
-	"compress/flate"
 	"context"
 	"encoding/json"
 	"errors"
@@ -19,7 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/labstack/echo/v4"
-	"github.com/mholt/archiver/v3"
+	"github.com/mholt/archives"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/text/unicode/norm"
@@ -471,22 +470,33 @@ func (ctx *Context) BuildOutputFile() (string, error) {
 
 	if len(ctx.outputPaths) == 1 {
 		ctx.logger.Debug(fmt.Sprintf("only one output file '%s', skip archive creation", ctx.outputPaths[0]))
-
 		return ctx.outputPaths[0], nil
 	}
 
-	z := archiver.Zip{
-		CompressionLevel:       flate.DefaultCompression,
-		MkdirAll:               true,
-		SelectiveCompression:   true,
-		ContinueOnError:        false,
-		OverwriteExisting:      false,
-		ImplicitTopLevelFolder: false,
+	filesInfo, err := archives.FilesFromDisk(ctx.Context, nil, func() map[string]string {
+		f := make(map[string]string)
+		for _, outputPath := range ctx.outputPaths {
+			f[outputPath] = ""
+		}
+		return f
+	}())
+	if err != nil {
+		return "", fmt.Errorf("create files info: %w", err)
 	}
 
 	archivePath := ctx.GeneratePath(".zip")
+	out, err := os.Create(archivePath)
+	if err != nil {
+		return "", fmt.Errorf("create zip file: %w", err)
+	}
+	defer func(out *os.File) {
+		err := out.Close()
+		if err != nil {
+			ctx.logger.Error(fmt.Sprintf("close zip file: %s", err))
+		}
+	}(out)
 
-	err := z.Archive(ctx.outputPaths, archivePath)
+	err = archives.Zip{}.Archive(ctx.Context, out, filesInfo)
 	if err != nil {
 		return "", fmt.Errorf("archive output files: %w", err)
 	}

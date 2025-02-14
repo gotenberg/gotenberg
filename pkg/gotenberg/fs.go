@@ -3,8 +3,6 @@ package gotenberg
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/google/uuid"
 )
@@ -84,25 +82,6 @@ func (fs *FileSystem) MkdirAll() (string, error) {
 	}
 
 	return path, nil
-}
-
-// WalkDir walks through the root level of a directory and returns a list of
-// files paths that match the specified file extension.
-func WalkDir(dir, ext string) ([]string, error) {
-	var files []string
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, pathErr error) error {
-		if pathErr != nil {
-			return pathErr
-		}
-		if info.IsDir() {
-			return nil
-		}
-		if strings.EqualFold(filepath.Ext(info.Name()), ext) {
-			files = append(files, path)
-		}
-		return nil
-	})
-	return files, err
 }
 
 // Interface guards.

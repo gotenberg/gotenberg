@@ -783,6 +783,7 @@ func TestContext_BuildOutputFile(t *testing.T) {
 			}()
 
 			tc.ctx.dirPath = dirPath
+			tc.ctx.Context = context.Background()
 			tc.ctx.logger = zap.NewNop()
 
 			_, err = tc.ctx.BuildOutputFile()

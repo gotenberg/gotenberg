@@ -71,6 +71,59 @@ func TestPdfCpu_Validate(t *testing.T) {
 	}
 }
 
+func TestPdfCpu_Debug(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		engine      *PdfCpu
+		expect      map[string]interface{}
+		doNotExpect map[string]interface{}
+	}{
+		{
+			scenario: "cannot determine version (command error)",
+			engine: &PdfCpu{
+				binPath: "foo",
+			},
+			expect: map[string]interface{}{
+				"version": `exec: "foo": executable file not found in $PATH`,
+			},
+		},
+		{
+			scenario: "cannot determine version (no pdfcpu)",
+			engine: &PdfCpu{
+				binPath: "echo",
+			},
+			expect: map[string]interface{}{
+				"version": "Unable to determine pdfcpu version",
+			},
+		},
+		{
+			scenario: "success",
+			engine: &PdfCpu{
+				binPath: "pdfcpu",
+			},
+			doNotExpect: map[string]interface{}{
+				"version": "Unable to determine pdfcpu version",
+			},
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			d := tc.engine.Debug()
+
+			if tc.expect != nil {
+				if !reflect.DeepEqual(d, tc.expect) {
+					t.Errorf("expected '%v' but got '%v'", tc.expect, d)
+				}
+			}
+
+			if tc.doNotExpect != nil {
+				if reflect.DeepEqual(d, tc.doNotExpect) {
+					t.Errorf("did not expect '%v'", d)
+				}
+			}
+		})
+	}
+}
+
 func TestPdfCpu_Merge(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string
@@ -177,15 +230,15 @@ func TestPdfCpu_Split(t *testing.T) {
 			scenario:               "success (intervals)",
 			ctx:                    context.TODO(),
 			mode:                   gotenberg.SplitMode{Mode: gotenberg.SplitModeIntervals, Span: "1"},
-			inputPath:              "/tests/test/testdata/pdfengines/sample1.pdf",
+			inputPath:              "/tests/test/testdata/pdfengines/sample4.pdf",
 			expectError:            false,
-			expectOutputPathsCount: 3,
+			expectOutputPathsCount: 20,
 		},
 		{
 			scenario:               "success (pages)",
 			ctx:                    context.TODO(),
 			mode:                   gotenberg.SplitMode{Mode: gotenberg.SplitModePages, Span: "1"},
-			inputPath:              "/tests/test/testdata/pdfengines/sample1.pdf",
+			inputPath:              "/tests/test/testdata/pdfengines/sample4.pdf",
 			expectError:            false,
 			expectOutputPathsCount: 1,
 		},
@@ -193,7 +246,7 @@ func TestPdfCpu_Split(t *testing.T) {
 			scenario:               "success (pages & unify)",
 			ctx:                    context.TODO(),
 			mode:                   gotenberg.SplitMode{Mode: gotenberg.SplitModePages, Span: "1-2", Unify: true},
-			inputPath:              "/tests/test/testdata/pdfengines/sample1.pdf",
+			inputPath:              "/tests/test/testdata/pdfengines/sample4.pdf",
 			expectError:            false,
 			expectOutputPathsCount: 1,
 		},

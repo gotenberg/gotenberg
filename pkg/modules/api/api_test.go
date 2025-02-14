@@ -786,6 +786,7 @@ func TestApi_Start(t *testing.T) {
 			mod.basicAuthUsername = "foo"
 			mod.basicAuthPassword = "bar"
 			mod.disableHealthCheckLogging = true
+			mod.enableDebugRoute = true
 			mod.routes = []Route{
 				{
 					Method:         http.MethodPost,
@@ -904,6 +905,15 @@ func TestApi_Start(t *testing.T) {
 			versionRequest := httptest.NewRequest(http.MethodGet, "/version", nil)
 			versionRequest.SetBasicAuth(mod.basicAuthUsername, mod.basicAuthPassword)
 			mod.srv.ServeHTTP(recorder, versionRequest)
+			if recorder.Code != http.StatusOK {
+				t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
+			}
+
+			// debug request.
+			recorder = httptest.NewRecorder()
+			debugRequest := httptest.NewRequest(http.MethodGet, "/debug", nil)
+			debugRequest.SetBasicAuth(mod.basicAuthUsername, mod.basicAuthPassword)
+			mod.srv.ServeHTTP(recorder, debugRequest)
 			if recorder.Code != http.StatusOK {
 				t.Errorf("expected %d status code but got %d", http.StatusOK, recorder.Code)
 			}

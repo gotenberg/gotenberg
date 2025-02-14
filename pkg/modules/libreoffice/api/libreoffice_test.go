@@ -265,7 +265,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/document.txt", fs.WorkingDirPath()), []byte("Context done"), 0o755)
@@ -295,36 +295,36 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				in, err := os.Open("/tests/test/testdata/libreoffice/protected.docx")
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				defer func() {
 					err := in.Close()
 					if err != nil {
-						t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+						t.Fatalf("expected no error but got: %v", err)
 					}
 				}()
 
 				out, err := os.Create(fmt.Sprintf("%s/protected.docx", fs.WorkingDirPath()))
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				defer func() {
 					err := out.Close()
 					if err != nil {
-						t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+						t.Fatalf("expected no error but got: %v", err)
 					}
 				}()
 
 				_, err = io.Copy(out, in)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				return fs
@@ -348,7 +348,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/document.txt", fs.WorkingDirPath()), []byte("Context done"), 0o755)
@@ -376,7 +376,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/document.txt", fs.WorkingDirPath()), []byte("Success"), 0o755)
@@ -404,7 +404,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/document.txt", fs.WorkingDirPath()), []byte("Success"), 0o755)
@@ -456,7 +456,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/document.txt", fs.WorkingDirPath()), []byte("Landscape"), 0o755)
@@ -485,7 +485,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/document.txt", fs.WorkingDirPath()), []byte("Landscape"), 0o755)
@@ -514,7 +514,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/document.txt", fs.WorkingDirPath()), []byte("Landscape"), 0o755)
@@ -543,7 +543,7 @@ func TestLibreOfficeProcess_pdf(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/document.txt", fs.WorkingDirPath()), []byte("Landscape"), 0o755)
@@ -629,7 +629,7 @@ func TestNonBasicLatinCharactersGuard(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/document.txt", fs.WorkingDirPath()), []byte("Basic latin characters"), 0o755)
@@ -650,7 +650,7 @@ func TestNonBasicLatinCharactersGuard(t *testing.T) {
 
 				err := os.MkdirAll(fs.WorkingDirPath(), 0o755)
 				if err != nil {
-					t.Fatalf(fmt.Sprintf("expected no error but got: %v", err))
+					t.Fatalf("expected no error but got: %v", err)
 				}
 
 				err = os.WriteFile(fmt.Sprintf("%s/éèßàùä.txt", fs.WorkingDirPath()), []byte("Non-basic latin characters"), 0o755)
