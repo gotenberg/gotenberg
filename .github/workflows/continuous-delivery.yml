@@ -50,8 +50,6 @@ jobs:
     name: Release linux/arm64
     runs-on: ubuntu-24.04-arm
     outputs:
-      docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
-      docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
       tags: ${{ steps.build_push.outputs.tags }}
       tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
     steps:
