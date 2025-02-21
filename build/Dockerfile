@@ -63,7 +63,7 @@ ARG NOTO_COLOR_EMOJI_VERSION
 ARG PDFTK_VERSION
 
 LABEL org.opencontainers.image.title="Gotenberg" \
-      org.opencontainers.image.description="A Docker-powered stateless API for PDF files." \
+      org.opencontainers.image.description="A containerized API for seamless PDF conversion." \
       org.opencontainers.image.version="$GOTENBERG_VERSION" \
       org.opencontainers.image.authors="Julien Neuhart <neuhart.julien@gmail.com>" \
       org.opencontainers.image.documentation="https://gotenberg.dev" \

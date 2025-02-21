@@ -24,7 +24,7 @@ const banner = `
 \___/\___/\__/\__/_//_/_.__/\__/_/  \_, / 
                                    /___/
 
-A Docker-powered stateless API for PDF files.
+A containerized API for seamless PDF conversion.
 Version: %s
 -------------------------------------------------------
 `
