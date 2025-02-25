@@ -178,7 +178,3 @@ jobs:
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf 'harbor.onebrief.tools/onebrief/gotenberg@sha256:%s ' *)
-
-
-
-  
