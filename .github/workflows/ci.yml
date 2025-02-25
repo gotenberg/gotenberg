@@ -123,6 +123,12 @@ jobs:
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
 
+      - name: Export amd64 digest
+        if: ${{ matrix.type == 'x86' }}
+        run: |
+          mkdir -p /tmp/digests
+          echo "x86digest=${{ steps.build.outputs.digest }}" >> $GITHUB_OUTPUT
+
       - name: Upload digest
         uses: actions/upload-artifact@v4
         with:
@@ -203,3 +209,29 @@ jobs:
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf 'harbor.onebrief.tools/onebrief/gotenberg@sha256:%s ' *)
+
+      - name: set outputs
+        id: outputs
+        run: |
+          echo "image=harbor.onebrief.tools/onebrief/gotenberg" >> $GITHUB_OUTPUT
+
+  anchore:
+    name: Anchore
+    continue-on-error: true
+    needs:
+      - image-prep
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      - uses: anchore/scan-action@7e1d7c7efead0a0d601d6db77ef537817e3ca6a8
+        id: scan
+        with:
+          image: harbor.onebrief.tools/onebrief/gotenberg@sha256:${{ steps.build-docker-image.outputs.x86digest }}
+          fail-build: false
+          cache-db: true
+      - name: upload Anchore scan SARIF report
+        uses: github/codeql-action/upload-sarif@7e3036b9cd87fc26dd06747b7aa4b96c27aaef3a
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif }}
+          matrix: '{ "images": "harbor.onebrief.tools/onebrief/gotenberg@sha256:${{ steps.build-docker-image.outputs.x86digest }}" }'
