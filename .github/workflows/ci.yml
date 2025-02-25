@@ -40,11 +40,11 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const latestRelease = await github.repos.getLatestRelease({
+            const { data: latestRelease } = await github.rest.repos.getLatestRelease({
               owner: context.repo.owner,
               repo: context.repo.repo
             });
-            core.setOutput('tag_name', latestRelease.data.tag_name);
+            core.setOutput('tag_name', latestRelease.tag_name);
 
       - name: Checkout latest release
         if: ${{ github.event_name == 'schedule' }}
