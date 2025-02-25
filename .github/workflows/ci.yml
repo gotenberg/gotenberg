@@ -24,6 +24,8 @@ jobs:
   build-docker-image:
     name: Docker build
     runs-on: ${{ matrix.type == 'arm' && 'ubuntu-arm-24.04-4core' || 'ubuntu-latest' }}
+    outputs:
+      ${{ matrix.type }}_digest: ${{ steps.build.outputs.digest }}
     strategy:
       matrix:
         type:
@@ -122,12 +124,6 @@ jobs:
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
-
-      - name: Export amd64 digest
-        if: ${{ matrix.type == 'x86' }}
-        run: |
-          mkdir -p /tmp/digests
-          echo "x86digest=${{ steps.build.outputs.digest }}" >> $GITHUB_OUTPUT
 
       - name: Upload digest
         uses: actions/upload-artifact@v4
@@ -228,11 +224,12 @@ jobs:
       - uses: anchore/scan-action@7e1d7c7efead0a0d601d6db77ef537817e3ca6a8
         id: scan
         with:
-          image: harbor.onebrief.tools/onebrief/gotenberg@sha256:${{ steps.build-docker-image.outputs.x86digest }}
+          image: harbor.onebrief.tools/onebrief/gotenberg@sha256:${{ needs.build-docker-image.outputs["x86_digest"] }}
           fail-build: false
           cache-db: true
       - name: upload Anchore scan SARIF report
         uses: github/codeql-action/upload-sarif@7e3036b9cd87fc26dd06747b7aa4b96c27aaef3a
         with:
           sarif_file: ${{ steps.scan.outputs.sarif }}
-          matrix: '{ "images": "harbor.onebrief.tools/onebrief/gotenberg@sha256:${{ steps.build-docker-image.outputs.x86digest }}" }'
+
+  
