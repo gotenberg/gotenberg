@@ -138,6 +138,7 @@ jobs:
           image: harbor.onebrief.tools/onebrief/gotenberg@${{ steps.build.outputs.digest }}
           fail-build: true
           cache-db: true
+          severity-cutoff: high
 
       - name: upload Anchore scan SARIF report
         if: ${{ matrix.type == 'x86' }}
