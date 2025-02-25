@@ -24,8 +24,6 @@ jobs:
   build-docker-image:
     name: Docker build
     runs-on: ${{ matrix.type == 'arm' && 'ubuntu-arm-24.04-4core' || 'ubuntu-latest' }}
-    outputs:
-      ${{ matrix.type }}_digest: ${{ steps.build.outputs.digest }}
     strategy:
       matrix:
         type:
@@ -133,6 +131,19 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+      - uses: anchore/scan-action@7e1d7c7efead0a0d601d6db77ef537817e3ca6a8
+        if: ${{ matrix.type == 'x86' }}
+        id: scan
+        with:
+          image: harbor.onebrief.tools/onebrief/gotenberg@sha256:${{ steps.build.outputs.digest }}
+          fail-build: false
+          cache-db: true
+      - name: upload Anchore scan SARIF report
+        if: ${{ matrix.type == 'x86' }}
+        uses: github/codeql-action/upload-sarif@7e3036b9cd87fc26dd06747b7aa4b96c27aaef3a
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif }}
+
   merge:
     name: Merge
     runs-on: ubuntu-latest
@@ -206,30 +217,6 @@ jobs:
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf 'harbor.onebrief.tools/onebrief/gotenberg@sha256:%s ' *)
 
-      - name: set outputs
-        id: outputs
-        run: |
-          echo "image=harbor.onebrief.tools/onebrief/gotenberg" >> $GITHUB_OUTPUT
 
-  anchore:
-    name: Anchore
-    continue-on-error: true
-    needs:
-      - build-docker-image
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-    steps:
-      - uses: anchore/scan-action@7e1d7c7efead0a0d601d6db77ef537817e3ca6a8
-        id: scan
-        with:
-          image: harbor.onebrief.tools/onebrief/gotenberg@sha256:${{ needs.build-docker-image.outputs["x86_digest"] }}
-          fail-build: false
-          cache-db: true
-      - name: upload Anchore scan SARIF report
-        uses: github/codeql-action/upload-sarif@7e3036b9cd87fc26dd06747b7aa4b96c27aaef3a
-        with:
-          sarif_file: ${{ steps.scan.outputs.sarif }}
 
   
