@@ -219,7 +219,7 @@ jobs:
     name: Anchore
     continue-on-error: true
     needs:
-      - image-prep
+      - build-docker-image
     runs-on: ubuntu-latest
     permissions:
       contents: read
