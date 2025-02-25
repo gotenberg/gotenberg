@@ -136,7 +136,7 @@ jobs:
         id: scan
         with:
           image: harbor.onebrief.tools/onebrief/gotenberg@${{ steps.build.outputs.digest }}
-          fail-build: false
+          fail-build: true
           cache-db: true
 
       - name: upload Anchore scan SARIF report
