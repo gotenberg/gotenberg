@@ -1,0 +1,27 @@
+name: ci
+on:
+  push: {}
+
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Latest Release Tag
+        id: get_latest_release
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const latestRelease = await github.repos.getLatestRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            core.setOutput('tag_name', latestRelease.data.tag_name);
+
+      - name: Checkout latest release
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ steps.get_latest_release.outputs.tag_name }}
+
+      - name: echo variable
+        run: echo ${{ steps.get_latest_release.outputs.tag_name }}

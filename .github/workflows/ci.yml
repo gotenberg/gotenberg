@@ -9,6 +9,8 @@ on:
   pull_request:
     branches:
       - main-bc
+  schedule:
+    - cron: '0 0 * * 0'
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -29,7 +31,26 @@ jobs:
           - x86
     steps:
       - name: Check out repository
+        if: ${{ github.event_name != 'schedule' }}
         uses: actions/checkout@v4
+
+      - name: Get Latest Release Tag
+        if: ${{ github.event_name == 'schedule' }}
+        id: get_latest_release
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const latestRelease = await github.repos.getLatestRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            core.setOutput('tag_name', latestRelease.data.tag_name);
+
+      - name: Checkout latest release
+        if: ${{ github.event_name == 'schedule' }}
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ steps.get_latest_release.outputs.tag_name }}
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -117,7 +138,26 @@ jobs:
       - build-docker-image
     steps:
       - name: Check out repository
+        if: ${{ github.event_name != 'schedule' }}
         uses: actions/checkout@v4
+
+      - name: Get Latest Release Tag
+        if: ${{ github.event_name == 'schedule' }}
+        id: get_latest_release
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const latestRelease = await github.repos.getLatestRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            core.setOutput('tag_name', latestRelease.data.tag_name);
+
+      - name: Checkout latest release
+        if: ${{ github.event_name == 'schedule' }}
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ steps.get_latest_release.outputs.tag_name }}
 
       - name: Set outputs
         id: calculate
