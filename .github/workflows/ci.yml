@@ -224,6 +224,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+    steps:
       - uses: anchore/scan-action@7e1d7c7efead0a0d601d6db77ef537817e3ca6a8
         id: scan
         with:
