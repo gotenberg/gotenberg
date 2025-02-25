@@ -110,6 +110,21 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+      - uses: anchore/scan-action@7e1d7c7efead0a0d601d6db77ef537817e3ca6a8
+        if: ${{ matrix.type == 'x86' }}
+        id: scan
+        with:
+          image: harbor.onebrief.tools/onebrief/gotenberg@${{ steps.build.outputs.digest }}
+          fail-build: true
+          cache-db: true
+          severity-cutoff: high
+
+      - name: upload Anchore scan SARIF report
+        if: ${{ matrix.type == 'x86' }}
+        uses: github/codeql-action/upload-sarif@7e3036b9cd87fc26dd06747b7aa4b96c27aaef3a
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif }}
+
   merge:
     name: Merge
     runs-on: ubuntu-latest
