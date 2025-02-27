@@ -22,7 +22,8 @@ func init() {
 // QPdf abstracts the CLI tool QPDF and implements the [gotenberg.PdfEngine]
 // interface.
 type QPdf struct {
-	binPath string
+	binPath    string
+	globalArgs []string
 }
 
 // Descriptor returns a [QPdf]'s module descriptor.
@@ -41,6 +42,12 @@ func (engine *QPdf) Provision(ctx *gotenberg.Context) error {
 	}
 
 	engine.binPath = binPath
+	engine.globalArgs = make([]string, 0)
+
+	ignoreWarnings, ok := os.LookupEnv("QPDF_IGNORE_WARNINGS")
+	if ok && ignoreWarnings == "true" {
+		engine.globalArgs = append(engine.globalArgs, "--warning-exit-0")
+	}
 
 	return nil
 }
@@ -88,7 +95,10 @@ func (engine *QPdf) Split(ctx context.Context, logger *zap.Logger, mode gotenber
 		if !mode.Unify {
 			return nil, fmt.Errorf("split PDFs using mode '%s' without unify with QPDF: %w", mode.Mode, gotenberg.ErrPdfSplitModeNotSupported)
 		}
-		args = append(args, inputPath, "--pages", ".", mode.Span, "--", outputPath)
+		args = append(args, inputPath)
+		args = append(args, engine.globalArgs...)
+		args = append(args, "--pages", ".", mode.Span)
+		args = append(args, "--", outputPath)
 	default:
 		return nil, fmt.Errorf("split PDFs using mode '%s' with QPDF: %w", mode.Mode, gotenberg.ErrPdfSplitModeNotSupported)
 	}
@@ -110,6 +120,7 @@ func (engine *QPdf) Split(ctx context.Context, logger *zap.Logger, mode gotenber
 func (engine *QPdf) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 	var args []string
 	args = append(args, "--empty")
+	args = append(args, engine.globalArgs...)
 	args = append(args, "--pages")
 	args = append(args, inputPaths...)
 	args = append(args, "--", outputPath)
@@ -134,6 +145,7 @@ func (engine *QPdf) Flatten(ctx context.Context, logger *zap.Logger, inputPath s
 	args = append(args, "--generate-appearances")
 	args = append(args, "--flatten-annotations=all")
 	args = append(args, "--replace-input")
+	args = append(args, engine.globalArgs...)
 	args = append(args, inputPath)
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)

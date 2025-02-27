@@ -29,10 +29,16 @@ func TestQPdf_Provision(t *testing.T) {
 	engine := new(QPdf)
 	ctx := gotenberg.NewContext(gotenberg.ParsedFlags{}, nil)
 
+	t.Setenv("QPDF_IGNORE_WARNINGS", "true")
 	err := engine.Provision(ctx)
 	if err != nil {
 		t.Errorf("expected no error but got: %v", err)
 	}
+	t.Run("setting global vars", func(t *testing.T) {
+		if len(engine.globalArgs) != 1 || engine.globalArgs[0] != "--warning-exit-0" {
+			t.Fatalf("expected to set the correct args based on env vars")
+		}
+	})
 }
 
 func TestQPdf_Validate(t *testing.T) {
@@ -122,6 +128,7 @@ func TestQPdf_Merge(t *testing.T) {
 		scenario    string
 		ctx         context.Context
 		inputPaths  []string
+		env         map[string]string
 		expectError bool
 	}{
 		{
@@ -154,9 +161,32 @@ func TestQPdf_Merge(t *testing.T) {
 			},
 			expectError: false,
 		},
+		{
+			scenario: "fail due to warnings",
+			ctx:      context.TODO(),
+			inputPaths: []string{
+				"/tests/test/testdata/pdfengines/sample1.pdf",
+				"/tests/test/testdata/pdfengines/sample5.pdf",
+			},
+			// TODO: this doesn't fail as expected
+			expectError: true,
+		},
+		{
+			scenario: "success even with warnings",
+			ctx:      context.TODO(),
+			inputPaths: []string{
+				"/tests/test/testdata/pdfengines/sample1.pdf",
+				"/tests/test/testdata/pdfengines/sample5.pdf",
+			},
+			env:         map[string]string{"QPDF_IGNORE_WARNINGS": "true"},
+			expectError: false,
+		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			engine := new(QPdf)
+			for key, value := range tc.env {
+				t.Setenv(key, value)
+			}
 			err := engine.Provision(nil)
 			if err != nil {
 				t.Fatalf("expected error but got: %v", err)
@@ -198,6 +228,7 @@ func TestQPdf_Split(t *testing.T) {
 		expectedError          error
 		expectOutputPathsCount int
 		expectOutputPaths      []string
+		env                    map[string]string
 	}{
 		{
 			scenario:               "ErrPdfSplitModeNotSupported",
@@ -236,9 +267,29 @@ func TestQPdf_Split(t *testing.T) {
 			expectError:            false,
 			expectOutputPathsCount: 1,
 		},
+		{
+			scenario:               "fail due to warnings",
+			ctx:                    context.TODO(),
+			mode:                   gotenberg.SplitMode{Mode: gotenberg.SplitModePages, Span: "1-2", Unify: true},
+			inputPath:              "/tests/test/testdata/pdfengines/sample5.pdf",
+			expectError:            true,
+			expectOutputPathsCount: 0,
+		},
+		{
+			scenario:               "success even with warnings",
+			ctx:                    context.TODO(),
+			mode:                   gotenberg.SplitMode{Mode: gotenberg.SplitModePages, Span: "1-2", Unify: true},
+			inputPath:              "/tests/test/testdata/pdfengines/sample5.pdf",
+			env:                    map[string]string{"QPDF_IGNORE_WARNINGS": "true"},
+			expectError:            false,
+			expectOutputPathsCount: 1,
+		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			engine := new(QPdf)
+			for key, value := range tc.env {
+				t.Setenv(key, value)
+			}
 			err := engine.Provision(nil)
 			if err != nil {
 				t.Fatalf("expected error but got: %v", err)
@@ -285,6 +336,7 @@ func TestQPdf_Flatten(t *testing.T) {
 		inputPath   string
 		createCopy  bool
 		expectError bool
+		env         map[string]string
 	}{
 		{
 			scenario:    "invalid context",
@@ -304,9 +356,27 @@ func TestQPdf_Flatten(t *testing.T) {
 			createCopy:  true,
 			expectError: false,
 		},
+		{
+			scenario:    "fail due to warnings",
+			ctx:         context.TODO(),
+			inputPath:   "/tests/test/testdata/pdfengines/sample5.pdf",
+			createCopy:  true,
+			expectError: true,
+		},
+		{
+			scenario:    "success even with warnings",
+			ctx:         context.TODO(),
+			inputPath:   "/tests/test/testdata/pdfengines/sample5.pdf",
+			env:         map[string]string{"QPDF_IGNORE_WARNINGS": "true"},
+			createCopy:  true,
+			expectError: false,
+		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			engine := new(QPdf)
+			for key, value := range tc.env {
+				t.Setenv(key, value)
+			}
 			err := engine.Provision(nil)
 			if err != nil {
 				t.Fatalf("expected error but got: %v", err)
