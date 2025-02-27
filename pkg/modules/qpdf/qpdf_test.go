@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"slices"
 	"testing"
 
 	"go.uber.org/zap"
@@ -29,16 +30,36 @@ func TestQPdf_Provision(t *testing.T) {
 	engine := new(QPdf)
 	ctx := gotenberg.NewContext(gotenberg.ParsedFlags{}, nil)
 
-	t.Setenv("QPDF_IGNORE_WARNINGS", "true")
-	err := engine.Provision(ctx)
-	if err != nil {
-		t.Errorf("expected no error but got: %v", err)
+	for _, tc := range []struct {
+		env          map[string]string
+		expectedArgs []string
+	}{
+		{
+			env:          map[string]string{"QPDF_DENY_WARNINGS": "true"},
+			expectedArgs: []string{},
+		},
+		{
+			expectedArgs: []string{"--warning-exit-0"},
+		},
+	} {
+		t.Run("global args", func(t *testing.T) {
+			for key, value := range tc.env {
+				t.Setenv(key, value)
+			}
+			err := engine.Provision(ctx)
+			if err != nil {
+				t.Errorf("expected no error but got: %v", err)
+			}
+			slices.Sort(engine.globalArgs)
+			slices.Sort(tc.expectedArgs)
+
+			if !slices.Equal(engine.globalArgs, tc.expectedArgs) {
+				t.Fatalf("expected to have the correct global args: %v %v",
+					engine.globalArgs, tc.expectedArgs,
+				)
+			}
+		})
 	}
-	t.Run("setting global vars", func(t *testing.T) {
-		if len(engine.globalArgs) != 1 || engine.globalArgs[0] != "--warning-exit-0" {
-			t.Fatalf("expected to set the correct args based on env vars")
-		}
-	})
 }
 
 func TestQPdf_Validate(t *testing.T) {
@@ -169,6 +190,7 @@ func TestQPdf_Merge(t *testing.T) {
 				"/tests/test/testdata/pdfengines/sample5.pdf",
 			},
 			// TODO: this doesn't fail as expected
+			env:         map[string]string{"QPDF_DENY_WARNINGS": "true"},
 			expectError: true,
 		},
 		{
@@ -178,7 +200,6 @@ func TestQPdf_Merge(t *testing.T) {
 				"/tests/test/testdata/pdfengines/sample1.pdf",
 				"/tests/test/testdata/pdfengines/sample5.pdf",
 			},
-			env:         map[string]string{"QPDF_IGNORE_WARNINGS": "true"},
 			expectError: false,
 		},
 	} {
@@ -272,6 +293,7 @@ func TestQPdf_Split(t *testing.T) {
 			ctx:                    context.TODO(),
 			mode:                   gotenberg.SplitMode{Mode: gotenberg.SplitModePages, Span: "1-2", Unify: true},
 			inputPath:              "/tests/test/testdata/pdfengines/sample5.pdf",
+			env:                    map[string]string{"QPDF_DENY_WARNINGS": "true"},
 			expectError:            true,
 			expectOutputPathsCount: 0,
 		},
@@ -280,7 +302,6 @@ func TestQPdf_Split(t *testing.T) {
 			ctx:                    context.TODO(),
 			mode:                   gotenberg.SplitMode{Mode: gotenberg.SplitModePages, Span: "1-2", Unify: true},
 			inputPath:              "/tests/test/testdata/pdfengines/sample5.pdf",
-			env:                    map[string]string{"QPDF_IGNORE_WARNINGS": "true"},
 			expectError:            false,
 			expectOutputPathsCount: 1,
 		},
@@ -360,6 +381,7 @@ func TestQPdf_Flatten(t *testing.T) {
 			scenario:    "fail due to warnings",
 			ctx:         context.TODO(),
 			inputPath:   "/tests/test/testdata/pdfengines/sample5.pdf",
+			env:         map[string]string{"QPDF_DENY_WARNINGS": "true"},
 			createCopy:  true,
 			expectError: true,
 		},
@@ -367,7 +389,6 @@ func TestQPdf_Flatten(t *testing.T) {
 			scenario:    "success even with warnings",
 			ctx:         context.TODO(),
 			inputPath:   "/tests/test/testdata/pdfengines/sample5.pdf",
-			env:         map[string]string{"QPDF_IGNORE_WARNINGS": "true"},
 			createCopy:  true,
 			expectError: false,
 		},
