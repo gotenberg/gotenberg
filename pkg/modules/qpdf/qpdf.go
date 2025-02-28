@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"syscall"
 
 	"go.uber.org/zap"
@@ -45,7 +44,6 @@ func (engine *QPdf) Provision(ctx *gotenberg.Context) error {
 	engine.binPath = binPath
 	// Warnings should not cause errors.
 	engine.globalArgs = []string{"--warning-exit-0"}
-
 
 	return nil
 }

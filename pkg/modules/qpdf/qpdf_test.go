@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"reflect"
-	"slices"
 	"testing"
 
 	"go.uber.org/zap"
@@ -30,6 +29,9 @@ func TestQPdf_Provision(t *testing.T) {
 	engine := new(QPdf)
 	ctx := gotenberg.NewContext(gotenberg.ParsedFlags{}, nil)
 
+	err := engine.Provision(ctx)
+	if err != nil {
+		t.Errorf("expected no error but got: %v", err)
 	}
 }
 
