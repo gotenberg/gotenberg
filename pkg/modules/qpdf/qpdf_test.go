@@ -30,35 +30,6 @@ func TestQPdf_Provision(t *testing.T) {
 	engine := new(QPdf)
 	ctx := gotenberg.NewContext(gotenberg.ParsedFlags{}, nil)
 
-	for _, tc := range []struct {
-		env          map[string]string
-		expectedArgs []string
-	}{
-		{
-			env:          map[string]string{"QPDF_DENY_WARNINGS": "true"},
-			expectedArgs: []string{},
-		},
-		{
-			expectedArgs: []string{"--warning-exit-0"},
-		},
-	} {
-		t.Run("global args", func(t *testing.T) {
-			for key, value := range tc.env {
-				t.Setenv(key, value)
-			}
-			err := engine.Provision(ctx)
-			if err != nil {
-				t.Errorf("expected no error but got: %v", err)
-			}
-			slices.Sort(engine.globalArgs)
-			slices.Sort(tc.expectedArgs)
-
-			if !slices.Equal(engine.globalArgs, tc.expectedArgs) {
-				t.Fatalf("expected to have the correct global args: %v %v",
-					engine.globalArgs, tc.expectedArgs,
-				)
-			}
-		})
 	}
 }
 
@@ -149,7 +120,6 @@ func TestQPdf_Merge(t *testing.T) {
 		scenario    string
 		ctx         context.Context
 		inputPaths  []string
-		env         map[string]string
 		expectError bool
 	}{
 		{
@@ -183,17 +153,6 @@ func TestQPdf_Merge(t *testing.T) {
 			expectError: false,
 		},
 		{
-			scenario: "fail due to warnings",
-			ctx:      context.TODO(),
-			inputPaths: []string{
-				"/tests/test/testdata/pdfengines/sample1.pdf",
-				"/tests/test/testdata/pdfengines/sample5.pdf",
-			},
-			// TODO: this doesn't fail as expected
-			env:         map[string]string{"QPDF_DENY_WARNINGS": "true"},
-			expectError: true,
-		},
-		{
 			scenario: "success even with warnings",
 			ctx:      context.TODO(),
 			inputPaths: []string{
@@ -205,9 +164,6 @@ func TestQPdf_Merge(t *testing.T) {
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			engine := new(QPdf)
-			for key, value := range tc.env {
-				t.Setenv(key, value)
-			}
 			err := engine.Provision(nil)
 			if err != nil {
 				t.Fatalf("expected error but got: %v", err)
@@ -249,7 +205,6 @@ func TestQPdf_Split(t *testing.T) {
 		expectedError          error
 		expectOutputPathsCount int
 		expectOutputPaths      []string
-		env                    map[string]string
 	}{
 		{
 			scenario:               "ErrPdfSplitModeNotSupported",
@@ -289,15 +244,6 @@ func TestQPdf_Split(t *testing.T) {
 			expectOutputPathsCount: 1,
 		},
 		{
-			scenario:               "fail due to warnings",
-			ctx:                    context.TODO(),
-			mode:                   gotenberg.SplitMode{Mode: gotenberg.SplitModePages, Span: "1-2", Unify: true},
-			inputPath:              "/tests/test/testdata/pdfengines/sample5.pdf",
-			env:                    map[string]string{"QPDF_DENY_WARNINGS": "true"},
-			expectError:            true,
-			expectOutputPathsCount: 0,
-		},
-		{
 			scenario:               "success even with warnings",
 			ctx:                    context.TODO(),
 			mode:                   gotenberg.SplitMode{Mode: gotenberg.SplitModePages, Span: "1-2", Unify: true},
@@ -308,9 +254,6 @@ func TestQPdf_Split(t *testing.T) {
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			engine := new(QPdf)
-			for key, value := range tc.env {
-				t.Setenv(key, value)
-			}
 			err := engine.Provision(nil)
 			if err != nil {
 				t.Fatalf("expected error but got: %v", err)
@@ -357,7 +300,6 @@ func TestQPdf_Flatten(t *testing.T) {
 		inputPath   string
 		createCopy  bool
 		expectError bool
-		env         map[string]string
 	}{
 		{
 			scenario:    "invalid context",
@@ -378,14 +320,6 @@ func TestQPdf_Flatten(t *testing.T) {
 			expectError: false,
 		},
 		{
-			scenario:    "fail due to warnings",
-			ctx:         context.TODO(),
-			inputPath:   "/tests/test/testdata/pdfengines/sample5.pdf",
-			env:         map[string]string{"QPDF_DENY_WARNINGS": "true"},
-			createCopy:  true,
-			expectError: true,
-		},
-		{
 			scenario:    "success even with warnings",
 			ctx:         context.TODO(),
 			inputPath:   "/tests/test/testdata/pdfengines/sample5.pdf",
@@ -395,9 +329,6 @@ func TestQPdf_Flatten(t *testing.T) {
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			engine := new(QPdf)
-			for key, value := range tc.env {
-				t.Setenv(key, value)
-			}
 			err := engine.Provision(nil)
 			if err != nil {
 				t.Fatalf("expected error but got: %v", err)

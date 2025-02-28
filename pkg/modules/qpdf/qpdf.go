@@ -43,15 +43,9 @@ func (engine *QPdf) Provision(ctx *gotenberg.Context) error {
 	}
 
 	engine.binPath = binPath
-	// warnings should not cause errors by default
+	// Warnings should not cause errors.
 	engine.globalArgs = []string{"--warning-exit-0"}
 
-	denyWarnings, ok := os.LookupEnv("QPDF_DENY_WARNINGS")
-	if ok && denyWarnings == "true" {
-		engine.globalArgs = slices.DeleteFunc(engine.globalArgs, func(s string) bool {
-			return s == "--warning-exit-0"
-		})
-	}
 
 	return nil
 }
