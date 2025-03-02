@@ -1,3 +1,3 @@
 {
-  "plugins": ["prettier-plugin-gherkin"]
+  "plugins": ["prettier-plugin-gherkin", "prettier-plugin-sh"]
 }
