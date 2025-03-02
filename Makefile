@@ -183,12 +183,22 @@ tests-once: ## Run the tests once (prefer the "tests" command while developing)
 	$(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION)-tests \
 	gotest
 
+.PHONY: tests-integration
+tests-integration: ## Run integration tests
+	 go test -tags=integration -v github.com/gotenberg/gotenberg/v8/test/integration
+
+.PHONY: lint
+lint: ## Lint the code.
+	#golangci-lint run
+	npx prettier --check .
+
 # go install mvdan.cc/gofumpt@latest
 # go install github.com/daixiang0/gci@latest
 .PHONY: fmt
 fmt: ## Format the code and "optimize" the dependencies
 	gofumpt -l -w .
 	gci write -s standard -s default -s "prefix(github.com/gotenberg/gotenberg/v8)" --skip-generated --skip-vendor --custom-order .
+	npx prettier --write .
 	go mod tidy
 
 # go install golang.org/x/tools/cmd/godoc@latest

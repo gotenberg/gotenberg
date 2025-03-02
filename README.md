@@ -18,7 +18,7 @@
 
 ---
 
-**Gotenberg** provides a developer-friendly API to interact with powerful tools like Chromium and LibreOffice for converting 
+**Gotenberg** provides a developer-friendly API to interact with powerful tools like Chromium and LibreOffice for converting
 numerous document formats (HTML, Markdown, Word, Excel, etc.) into PDF files, and more!
 
 ## Quick Start
