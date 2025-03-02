@@ -64,7 +64,7 @@ jobs:
   snapshot_amd64:
     if: github.event_name == 'pull_request'
     needs:
-     - tests
+      - tests
     name: Snapshot linux/amd64
     runs-on: ubuntu-latest
     outputs:
@@ -73,7 +73,7 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
-        
+
       - name: Build and push
         id: build_push
         uses: ./.github/actions/build-push
@@ -87,7 +87,7 @@ jobs:
   snapshot_386:
     if: github.event_name == 'pull_request'
     needs:
-     - tests
+      - tests
     name: Snapshot linux/386
     runs-on: ubuntu-latest
     outputs:
@@ -96,7 +96,7 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
-        
+
       - name: Build and push
         id: build_push
         uses: ./.github/actions/build-push
@@ -110,7 +110,7 @@ jobs:
   snapshot_arm64:
     if: github.event_name == 'pull_request'
     needs:
-     - tests
+      - tests
     name: Snapshot linux/arm64
     runs-on: ubuntu-24.04-arm
     outputs:
@@ -119,7 +119,7 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
-        
+
       - name: Build and push
         id: build_push
         uses: ./.github/actions/build-push
@@ -133,7 +133,7 @@ jobs:
   snapshot_arm_v7:
     if: github.event_name == 'pull_request'
     needs:
-     - tests
+      - tests
     name: Snapshot linux/arm/v7
     runs-on: ubuntu-24.04-arm
     outputs:
@@ -142,7 +142,7 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
-        
+
       - name: Build and push
         id: build_push
         uses: ./.github/actions/build-push
@@ -164,7 +164,7 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
-        
+
       - name: Merge
         uses: ./.github/actions/merge
         with:
@@ -182,7 +182,7 @@ jobs:
   edge_amd64:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
-     - tests
+      - tests
     name: Edge linux/amd64
     runs-on: ubuntu-latest
     outputs:
@@ -191,7 +191,7 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
-        
+
       - name: Build and push
         id: build_push
         uses: ./.github/actions/build-push
@@ -213,7 +213,7 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
-        
+
       - name: Build and push
         id: build_push
         uses: ./.github/actions/build-push
@@ -226,7 +226,7 @@ jobs:
   edge_arm64:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
-     - tests
+      - tests
     name: Edge linux/arm64
     runs-on: ubuntu-24.04-arm
     outputs:
@@ -235,7 +235,7 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
-        
+
       - name: Build and push
         id: build_push
         uses: ./.github/actions/build-push
@@ -248,7 +248,7 @@ jobs:
   edge_arm_v7:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
-     - tests
+      - tests
     name: Edge linux/arm/v7
     runs-on: ubuntu-24.04-arm
     outputs:
@@ -257,7 +257,7 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
-        
+
       - name: Build and push
         id: build_push
         uses: ./.github/actions/build-push
@@ -278,7 +278,7 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
-        
+
       - name: Merge
         uses: ./.github/actions/merge
         with:
