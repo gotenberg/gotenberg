@@ -16,7 +16,7 @@ dry_run=""
 while [[ $# -gt 0 ]]; do
   case $1 in
     --version)
-      version="${2//v}"
+      version="${2//v/}"
       shift 2
       ;;
     --platform)
@@ -47,11 +47,11 @@ echo "Target platform: $platform"
 if [ -n "$alternate_repository" ]; then
   DOCKER_REPOSITORY=$alternate_repository
   echo "⚠️ Using $alternate_repository for DOCKER_REPOSITORY"
- fi
+fi
 
- if [ "$dry_run" = "true" ]; then
-   echo "🚧 Dry run"
- fi
+if [ "$dry_run" = "true" ]; then
+  echo "🚧 Dry run"
+fi
 
 # Build tags arrays.
 tags=()
@@ -142,20 +142,20 @@ cmd="docker buildx build \
 run_cmd "$cmd"
 
 if [ "$platform" != "linux/amd64" ]; then
-    echo "⚠️ Skip Cloud Run variant(s)"
-    echo "✅ Done!"
-    echo "tags=$(join "," "${tags[@]}")" >> "$GITHUB_OUTPUT"
-    echo "tags_cloud_run=$(join "," "${tags_cloud_run[@]}")" >> "$GITHUB_OUTPUT"
-    exit 0
+  echo "⚠️ Skip Cloud Run variant(s)"
+  echo "✅ Done!"
+  echo "tags=$(join "," "${tags[@]}")" >> "$GITHUB_OUTPUT"
+  echo "tags_cloud_run=$(join "," "${tags_cloud_run[@]}")" >> "$GITHUB_OUTPUT"
+  exit 0
 fi
 
 source_tag_cloud_run="$DOCKER_REGISTRY/$DOCKER_REPOSITORY:$version-${arch[1]}"
 cmd="docker pull $source_tag_cloud_run"
 run_cmd "$cmd"
 
- target_tag_cloud_run="$DOCKER_REGISTRY/$DOCKER_REPOSITORY:$version"
- cmd="docker image tag $source_tag_cloud_run $target_tag_cloud_run"
- run_cmd "$cmd"
+target_tag_cloud_run="$DOCKER_REGISTRY/$DOCKER_REPOSITORY:$version"
+cmd="docker image tag $source_tag_cloud_run $target_tag_cloud_run"
+run_cmd "$cmd"
 
 cmd="docker build \
     --build-arg DOCKER_REGISTRY=$DOCKER_REGISTRY \
