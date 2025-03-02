@@ -188,18 +188,22 @@ tests-integration: ## Run integration tests
 	 go test -tags=integration -v github.com/gotenberg/gotenberg/v8/test/integration
 
 .PHONY: lint
-lint: ## Lint the code.
+lint: ## Lint codebase.
 	#golangci-lint run
 	npx prettier --check .
 
 # go install mvdan.cc/gofumpt@latest
 # go install github.com/daixiang0/gci@latest
 .PHONY: fmt
-fmt: ## Format the code and "optimize" the dependencies
+fmt: ## Format codebase and "optimize" the dependencies
 	gofumpt -l -w .
 	gci write -s standard -s default -s "prefix(github.com/gotenberg/gotenberg/v8)" --skip-generated --skip-vendor --custom-order .
 	npx prettier --write .
 	go mod tidy
+
+.PHONY: todo
+todo: ## Find TODOs in codebase.
+	golangci-lint run --no-config --disable-all --enable godox
 
 # go install golang.org/x/tools/cmd/godoc@latest
 .PHONY: godoc
