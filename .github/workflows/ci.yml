@@ -17,6 +17,7 @@ permissions:
   id-token: write
   contents: read
   packages: write
+  security-events: write
 
 jobs:
   build-docker-image:
@@ -118,12 +119,6 @@ jobs:
           fail-build: true
           cache-db: true
           severity-cutoff: high
-
-      - name: upload Anchore scan SARIF report
-        if: ${{ matrix.type == 'x86' }}
-        uses: github/codeql-action/upload-sarif@7e3036b9cd87fc26dd06747b7aa4b96c27aaef3a
-        with:
-          sarif_file: ${{ steps.scan.outputs.sarif }}
 
   merge:
     name: Merge
