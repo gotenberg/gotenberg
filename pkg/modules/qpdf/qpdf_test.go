@@ -154,6 +154,15 @@ func TestQPdf_Merge(t *testing.T) {
 			},
 			expectError: false,
 		},
+		{
+			scenario: "success even with warnings",
+			ctx:      context.TODO(),
+			inputPaths: []string{
+				"/tests/test/testdata/pdfengines/sample1.pdf",
+				"/tests/test/testdata/pdfengines/sample5.pdf",
+			},
+			expectError: false,
+		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			engine := new(QPdf)
@@ -236,6 +245,14 @@ func TestQPdf_Split(t *testing.T) {
 			expectError:            false,
 			expectOutputPathsCount: 1,
 		},
+		{
+			scenario:               "success even with warnings",
+			ctx:                    context.TODO(),
+			mode:                   gotenberg.SplitMode{Mode: gotenberg.SplitModePages, Span: "1-2", Unify: true},
+			inputPath:              "/tests/test/testdata/pdfengines/sample5.pdf",
+			expectError:            false,
+			expectOutputPathsCount: 1,
+		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			engine := new(QPdf)
@@ -301,6 +318,13 @@ func TestQPdf_Flatten(t *testing.T) {
 			scenario:    "success",
 			ctx:         context.TODO(),
 			inputPath:   "/tests/test/testdata/pdfengines/sample3.pdf",
+			createCopy:  true,
+			expectError: false,
+		},
+		{
+			scenario:    "success even with warnings",
+			ctx:         context.TODO(),
+			inputPath:   "/tests/test/testdata/pdfengines/sample5.pdf",
 			createCopy:  true,
 			expectError: false,
 		},
