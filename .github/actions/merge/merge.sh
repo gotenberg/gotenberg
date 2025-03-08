@@ -46,23 +46,22 @@ if [ -n "$alternate_registry" ]; then
   echo "⚠️ Will also push to $alternate_registry registry"
 fi
 
- if [ "$dry_run" = "true" ]; then
-   echo "🚧 Dry run"
- fi
+if [ "$dry_run" = "true" ]; then
+  echo "🚧 Dry run"
+fi
+echo
 
- echo
+# Build merge map.
+declare -A merge_map
 
- # Build merge map.
- declare -A merge_map
+for tag in "${tags_to_merge[@]}"; do
+  target_tag="${tag//-amd64/}"
+  target_tag="${target_tag//-arm64/}"
+  target_tag="${target_tag//-arm/}"
+  target_tag="${target_tag//-386/}"
 
- for tag in "${tags_to_merge[@]}"; do
-   target_tag="${tag//-amd64/}"
-   target_tag="${target_tag//-arm64/}"
-   target_tag="${target_tag//-arm/}"
-   target_tag="${target_tag//-386/}"
-
-   merge_map["$target_tag"]+="$tag "
- done
+  merge_map["$target_tag"]+="$tag "
+done
 
 # Merge tags.
 run_cmd() {
@@ -80,30 +79,29 @@ run_cmd() {
   fi
 }
 
- for target in "${!merge_map[@]}"; do
-   IFS=' ' read -ra source_tags <<< "${merge_map[$target]}"
+for target in "${!merge_map[@]}"; do
+  IFS=' ' read -ra source_tags <<< "${merge_map[$target]}"
 
-   cmd="docker buildx imagetools create \
+  cmd="docker buildx imagetools create \
        -t $target \
        ${source_tags[*]}
    "
-   run_cmd "$cmd"
+  run_cmd "$cmd"
 
-   echo "➡️ $target pushed"
-   echo
-   if [ -n "$alternate_registry" ]; then
-     alternate_target="${target/$DOCKER_REGISTRY/$alternate_registry}"
-     cmd="docker buildx imagetools create \
+  echo "➡️ $target pushed"
+  echo
+  if [ -n "$alternate_registry" ]; then
+    alternate_target="${target/$DOCKER_REGISTRY/$alternate_registry}"
+    cmd="docker buildx imagetools create \
             -t $alternate_target \
             $target
         "
-        run_cmd "$cmd"
+    run_cmd "$cmd"
 
-        echo "➡️ $alternate_target pushed"
-        echo
-   fi
- done
-
+    echo "➡️ $alternate_target pushed"
+    echo
+  fi
+done
 
 echo "✅ Done!"
 exit 0
