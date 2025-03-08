@@ -1425,36 +1425,36 @@ func TestFormData_Content(t *testing.T) {
 			scenario: "file does exist without file extension",
 			form: &FormData{
 				files: map[string]string{
-					"foo": "/tests/test/testdata/api/sample1.txt",
+					"foo": "testdata/sample.txt",
 				},
 			},
 			filename:     "foo",
 			defaultValue: "",
-			expect:       "foo",
+			expect:       "This is a text from a text file.",
 			expectError:  false,
 		},
 		{
 			scenario: "file does exist with an uppercase file extension",
 			form: &FormData{
 				files: map[string]string{
-					"foo.TXT": "/tests/test/testdata/api/sample1.txt",
+					"foo.TXT": "testdata/sample.txt",
 				},
 			},
 			filename:     "foo.txt",
 			defaultValue: "",
-			expect:       "foo",
+			expect:       "This is a text from a text file.",
 			expectError:  false,
 		},
 		{
 			scenario: "file does exist without a lowercase file extension",
 			form: &FormData{
 				files: map[string]string{
-					"foo.txt": "/tests/test/testdata/api/sample1.txt",
+					"foo.txt": "testdata/sample.txt",
 				},
 			},
 			filename:     "foo.txt",
 			defaultValue: "",
-			expect:       "foo",
+			expect:       "This is a text from a text file.",
 			expectError:  false,
 		},
 	} {
@@ -1519,33 +1519,33 @@ func TestFormData_MandatoryContent(t *testing.T) {
 			scenario: "mandatory file does exist without file extension",
 			form: &FormData{
 				files: map[string]string{
-					"foo": "/tests/test/testdata/api/sample1.txt",
+					"foo": "testdata/sample.txt",
 				},
 			},
 			filename:    "foo",
-			expect:      "foo",
+			expect:      "This is a text from a text file.",
 			expectError: false,
 		},
 		{
 			scenario: "mandatory file does exist with an uppercase file extension",
 			form: &FormData{
 				files: map[string]string{
-					"foo.TXT": "/tests/test/testdata/api/sample1.txt",
+					"foo.TXT": "testdata/sample.txt",
 				},
 			},
 			filename:    "foo.txt",
-			expect:      "foo",
+			expect:      "This is a text from a text file.",
 			expectError: false,
 		},
 		{
 			scenario: "mandatory file does exist without a lowercase file extension",
 			form: &FormData{
 				files: map[string]string{
-					"foo.txt": "/tests/test/testdata/api/sample1.txt",
+					"foo.txt": "testdata/sample.txt",
 				},
 			},
 			filename:    "foo.txt",
-			expect:      "foo",
+			expect:      "This is a text from a text file.",
 			expectError: false,
 		},
 	} {

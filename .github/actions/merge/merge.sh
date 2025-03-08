@@ -49,7 +49,6 @@ fi
 if [ "$dry_run" = "true" ]; then
   echo "🚧 Dry run"
 fi
-
 echo
 
 # Build merge map.
