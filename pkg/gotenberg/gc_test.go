@@ -3,6 +3,7 @@ package gotenberg
 import (
 	"fmt"
 	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -51,7 +52,7 @@ func TestGarbageCollect(t *testing.T) {
 
 				return path
 			}(),
-			includeSubstr:   []string{"foo", fmt.Sprintf("%s/a_directory/a_bar_file", os.TempDir())},
+			includeSubstr:   []string{"foo", path.Join(os.TempDir(), "/a_directory/a_bar_file")},
 			expectError:     false,
 			expectExists:    []string{"a_baz_file"},
 			expectNotExists: []string{"a_foo_file", "a_bar_file"},
