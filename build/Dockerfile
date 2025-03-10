@@ -52,9 +52,34 @@ COPY pkg ./pkg
 RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v8/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg/main.go
 
 # ----------------------------------------------
+# Font stage
+# ----------------------------------------------
+FROM alpine:3.21 AS fonts
+
+WORKDIR /
+RUN \
+    apk add bzip2 curl xz &&\
+    curl -L https://github.com/google/fonts/archive/master.tar.gz | tar xzf - &&\
+    mkdir /culmus && cd /culmus && curl -L http://deb.debian.org/debian/pool/main/c/culmus/culmus_0.133.orig.tar.gz | tar xzf - \
+    &&\
+    mkdir /samyak && cd /samyak && curl -L http://deb.debian.org/debian/pool/main/f/fonts-samyak/fonts-samyak_1.2.2.orig.tar.gz | tar xzf - \
+    &&\
+    mkdir /sarai && cd /sarai && curl -L http://deb.debian.org/debian/pool/main/f/fonts-sarai/fonts-sarai_1.0.orig.tar.gz | tar xzf - \
+    &&\
+    mkdir /arphic-ukai && cd /arphic-ukai && curl -L http://deb.debian.org/debian/pool/main/f/fonts-arphic-ukai/fonts-arphic-ukai_0.2.20080216.2.orig.tar.bz2 | tar xjf - \
+    &&\
+    mkdir /arphic-uming && cd /arphic-uming && curl -L http://deb.debian.org/debian/pool/main/f/fonts-arphic-uming/fonts-arphic-uming_0.2.20080216.2.orig.tar.bz2 | tar xjf - \
+    &&\
+    mkdir /unfonts && cd /unfonts && curl -L http://deb.debian.org/debian/pool/main/f/fonts-unfonts-core/fonts-unfonts-core_1.0.2-080608.orig.tar.xz | xz -d | tar xf - \
+    &&\
+    mkdir /gentium && cd /gentium && curl -L http://deb.debian.org/debian/pool/main/f/fonts-sil-gentium/fonts-sil-gentium_1.03.orig.tar.xz | xz -d | tar xf - \
+    &&\
+    mkdir /gentium-basic && cd /gentium-basic && curl -L http://deb.debian.org/debian/pool/main/f/fonts-sil-gentium-basic/fonts-sil-gentium-basic_1.102.orig.tar.xz | xz -d | tar xf - 
+
+# ----------------------------------------------
 # Final stage
 # ----------------------------------------------
-FROM ubuntu:24.04
+FROM alpine:3.21
 
 ARG GOTENBERG_VERSION
 ARG GOTENBERG_USER_GID
@@ -72,132 +97,80 @@ LABEL org.opencontainers.image.title="Gotenberg" \
 RUN \
     # Create a non-root user.
     # All processes in the Docker container will run with this dedicated user.
-    groupadd --gid "$GOTENBERG_USER_GID" gotenberg &&\
-    useradd --uid "$GOTENBERG_USER_UID" --gid gotenberg --shell /bin/bash --home /home/gotenberg --no-create-home gotenberg &&\
-    mkdir /home/gotenberg &&\
-    chown gotenberg: /home/gotenberg
+    addgroup -g "$GOTENBERG_USER_GID" gotenberg &&\
+    adduser -D -u "$GOTENBERG_USER_UID" -G gotenberg -s /bin/bash -h /home/gotenberg gotenberg
 
 RUN \
     # Install system dependencies required for the next instructions or debugging.
     # Note: tini is a helper for reaping zombie processes.
-    apt-get update -qq &&\
-    apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg tini python3 python3-setuptools default-jre-headless &&\
-    # Cleanup.
-    # Note: the Debian image does automatically a clean after each install thanks to a hook.
-    # Therefore, there is no need for apt-get clean.
-    # See https://stackoverflow.com/a/24417119/3248473.
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    apk update -q &&\
+    apk add -q --no-cache curl gnupg tini python3 openjdk17-jre-headless
+
+COPY --from=fonts /fonts-main/ofl/carlito /home/gotenberg/.fonts/
+COPY --from=fonts /fonts-main/ofl/caladea /home/gotenberg/.fonts/
+COPY --from=fonts /fonts-main/ofl/amiri /home/gotenberg/.fonts/
+COPY --from=fonts /fonts-main/ofl/amiriquran /home/gotenberg/.fonts/
+COPY --from=fonts /fonts-main/ofl/abyssinicasil /home/gotenberg/.fonts/
+COPY --from=fonts /fonts-main/ofl/padauk /home/gotenberg/.fonts/
+COPY --from=fonts /culmus /home/gotenberg/.fonts/
+COPY --from=fonts /samyak /home/gotenberg/.fonts/
+COPY --from=fonts /sarai /home/gotenberg/.fonts/
+COPY --from=fonts /arphic-ukai /home/gotenberg/.fonts/
+COPY --from=fonts /arphic-uming /home/gotenberg/.fonts/
+COPY --from=fonts /unfonts /home/gotenberg/.fonts/
+COPY --from=fonts /gentium /home/gotenberg/.fonts/
+COPY --from=fonts /gentium-basic /home/gotenberg/.fonts/
 
 RUN \
     # Install fonts.
-    # Credits:
-    # https://github.com/arachnys/athenapdf/blob/master/cli/Dockerfile.
-    # https://help.accusoft.com/PrizmDoc/v12.1/HTML/Installing_Asian_Fonts_on_Ubuntu_and_Debian.html.
-    curl -o ./ttf-mscorefonts-installer_3.8.1_all.deb http://httpredir.debian.org/debian/pool/contrib/m/msttcorefonts/ttf-mscorefonts-installer_3.8.1_all.deb &&\
-    apt-get update -qq &&\
-    apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
-    ./ttf-mscorefonts-installer_3.8.1_all.deb \
-    culmus \
-    fonts-beng \
-    fonts-hosny-amiri \
-    fonts-lklug-sinhala \
-    fonts-lohit-guru \
-    fonts-lohit-knda \
-    fonts-samyak-gujr \
-    fonts-samyak-mlym \
-    fonts-samyak-taml \
-    fonts-sarai \
-    fonts-sil-abyssinica \
-    fonts-sil-padauk \
-    fonts-telu \
-    fonts-thai-tlwg \
-    ttf-wqy-zenhei \
-    fonts-arphic-ukai \
-    fonts-arphic-uming \
-    fonts-ipafont-mincho \
-    fonts-ipafont-gothic \
-    fonts-unfonts-core \
-    # LibreOffice recommends.
-    fonts-crosextra-caladea \
-    fonts-crosextra-carlito \
-    fonts-dejavu \
-    fonts-dejavu-extra \
-    fonts-liberation \
-    fonts-liberation2 \
-    fonts-linuxlibertine \
-    fonts-noto-cjk \
-    fonts-noto-core \
-    fonts-noto-mono \
-    fonts-noto-ui-core \
-    fonts-sil-gentium \
-    fonts-sil-gentium-basic &&\
-    rm -f ./ttf-mscorefonts-installer_3.8.1_all.deb &&\
-    # Add Color and Black-and-White Noto emoji font.
-    # Credits:
-    # https://github.com/gotenberg/gotenberg/pull/325.
-    # https://github.com/googlefonts/noto-emoji.
-    curl -Ls "https://github.com/googlefonts/noto-emoji/raw/$NOTO_COLOR_EMOJI_VERSION/fonts/NotoColorEmoji.ttf" -o /usr/local/share/fonts/NotoColorEmoji.ttf &&\
-    # Cleanup.
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    apk update -q &&\
+    apk add -q --no-cache \
+    font-dejavu \
+    font-ipa \
+    font-ipaex \
+    font-liberation \
+    font-linux-libertine \
+    font-noto-all \
+    font-noto-cjk \
+    font-noto-emoji \
+    font-wqy-zenhei \
+    msttcorefonts-installer \
+    fontconfig \
+    &&\
+    update-ms-fonts &&\
+    fc-cache -fv &&\
+    fc-list
 
 RUN \
-    # Install either Google Chrome stable on amd64 architecture or
-    # Chromium on other architectures.
-    # See https://github.com/gotenberg/gotenberg/issues/328.
-    /bin/bash -c \
-    'set -e &&\
-    if [[ "$(dpkg --print-architecture)" == "amd64" ]]; then \
-      curl https://dl.google.com/linux/linux_signing_key.pub | apt-key add - &&\
-      echo "deb http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list &&\
-      apt-get update -qq &&\
-      apt-get upgrade -yqq &&\
-      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends --allow-unauthenticated google-chrome-stable &&\
-      mv /usr/bin/google-chrome-stable /usr/bin/chromium; \
-    else \
-      apt-get update -qq &&\
-      apt-get upgrade -yqq &&\
-      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium; \
-    fi' &&\
+    # Install Chromium.
+    apk update -q &&\
+    apk add -q --no-cache chromium &&\
     # Verify installation.
-    chromium --version &&\
-    # Cleanup.
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    chromium --version
 
 RUN \
     # Install LibreOffice & unoconverter.
-    apt-get update -qq &&\
-    apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends libreoffice &&\
+    apk update -q &&\
+    apk add -q --no-cache libreoffice &&\
     curl -Ls https://raw.githubusercontent.com/gotenberg/unoconverter/v0.0.1/unoconv -o /usr/bin/unoconverter &&\
     chmod +x /usr/bin/unoconverter &&\
-    # unoconverter will look for the Python binary, which has to be at version 3.
-    ln -s /usr/bin/python3 /usr/bin/python &&\
+    apk add -q --no-cache py3-setuptools py3-looseversion &&\
     # Verify installations.
     libreoffice --version &&\
-    unoconverter --version &&\
-    # Cleanup.
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    unoconverter --version
 
 RUN \
     # Install PDFtk, QPDF & ExifTool (PDF engines).
     # See https://github.com/gotenberg/gotenberg/pull/273.
     curl -o /usr/bin/pdftk-all.jar "https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/$PDFTK_VERSION/pdftk-all.jar" &&\
-    chmod a+x /usr/bin/pdftk-all.jar &&\
-    echo '#!/bin/bash\n\nexec java -jar /usr/bin/pdftk-all.jar "$@"' > /usr/bin/pdftk && \
+    echo -e '#!/bin/sh\n\nexec java -jar /usr/bin/pdftk-all.jar "$@"' > /usr/bin/pdftk && \
     chmod +x /usr/bin/pdftk &&\
-    apt-get update -qq &&\
-    apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends qpdf exiftool &&\
-    # See https://github.com/nextcloud/docker/issues/380.
-    mkdir -p /usr/share/man/man1 &&\
+    apk update -q &&\
+    apk add -q --no-cache qpdf exiftool &&\
     # Verify installations.
     pdftk --version &&\
     qpdf --version &&\
-    exiftool --version &&\
-    # Cleanup.
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    exiftool --version
 
 # Improve fonts subpixel hinting and smoothing.
 # Credits:
@@ -226,5 +199,5 @@ WORKDIR /home/gotenberg
 # Default API port.
 EXPOSE 3000
 
-ENTRYPOINT [ "/usr/bin/tini", "--" ]
+ENTRYPOINT [ "/sbin/tini", "--" ]
 CMD [ "gotenberg" ]
