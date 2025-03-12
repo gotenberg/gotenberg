@@ -2,6 +2,10 @@
 # concatenate them. Also, we have to repeat ARG instructions in each build
 # stage that uses them.
 ARG GOLANG_VERSION
+ARG ALPINE_VERSION
+
+FROM golang:${GOLANG_VERSION:-1.24}-alpine AS go-base
+RUN apk update -q && apk add -q --no-cache curl
 
 # ----------------------------------------------
 # pdfcpu binary build stage
@@ -9,7 +13,7 @@ ARG GOLANG_VERSION
 # Note: this stage is required as pdfcpu does not release an armhf variant by
 # default.
 
-FROM golang:$GOLANG_VERSION AS pdfcpu-binary-stage
+FROM go-base AS pdfcpu-binary-stage
 
 ARG PDFCPU_VERSION
 ENV CGO_ENABLED=0
@@ -31,7 +35,7 @@ RUN go build -o pdfcpu -ldflags "-s -w -X 'main.version=$PDFCPU_VERSION' -X 'git
 # ----------------------------------------------
 # Gotenberg binary build stage
 # ----------------------------------------------
-FROM golang:$GOLANG_VERSION AS gotenberg-binary-stage
+FROM go-base AS gotenberg-binary-stage
 
 ARG GOTENBERG_VERSION
 ENV CGO_ENABLED=0
@@ -54,37 +58,62 @@ RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v8/cmd.Ve
 # ----------------------------------------------
 # Font stage
 # ----------------------------------------------
-FROM alpine:3.21 AS fonts
+FROM alpine:${ALPINE_VERSION:-3.21} AS fonts
 
-WORKDIR /
+WORKDIR /fonts
 RUN \
-    apk add bzip2 curl xz &&\
-    curl -L https://github.com/google/fonts/archive/master.tar.gz | tar xzf - &&\
-    mkdir /culmus && cd /culmus && curl -L http://deb.debian.org/debian/pool/main/c/culmus/culmus_0.133.orig.tar.gz | tar xzf - \
-    &&\
-    mkdir /samyak && cd /samyak && curl -L http://deb.debian.org/debian/pool/main/f/fonts-samyak/fonts-samyak_1.2.2.orig.tar.gz | tar xzf - \
-    &&\
-    mkdir /sarai && cd /sarai && curl -L http://deb.debian.org/debian/pool/main/f/fonts-sarai/fonts-sarai_1.0.orig.tar.gz | tar xzf - \
-    &&\
-    mkdir /arphic-ukai && cd /arphic-ukai && curl -L http://deb.debian.org/debian/pool/main/f/fonts-arphic-ukai/fonts-arphic-ukai_0.2.20080216.2.orig.tar.bz2 | tar xjf - \
-    &&\
-    mkdir /arphic-uming && cd /arphic-uming && curl -L http://deb.debian.org/debian/pool/main/f/fonts-arphic-uming/fonts-arphic-uming_0.2.20080216.2.orig.tar.bz2 | tar xjf - \
-    &&\
-    mkdir /unfonts && cd /unfonts && curl -L http://deb.debian.org/debian/pool/main/f/fonts-unfonts-core/fonts-unfonts-core_1.0.2-080608.orig.tar.xz | xz -d | tar xf - \
-    &&\
-    mkdir /gentium && cd /gentium && curl -L http://deb.debian.org/debian/pool/main/f/fonts-sil-gentium/fonts-sil-gentium_1.03.orig.tar.xz | xz -d | tar xf - \
-    &&\
-    mkdir /gentium-basic && cd /gentium-basic && curl -L http://deb.debian.org/debian/pool/main/f/fonts-sil-gentium-basic/fonts-sil-gentium-basic_1.102.orig.tar.xz | xz -d | tar xf - 
+    apk update -q &&\
+    apk add -q --no-cache curl tar bzip2 xz &&\
+    export DEB_BASE_URL=http://deb.debian.org/debian/pool/main &&\
+    # culmus
+    curl -L $DEB_BASE_URL/c/culmus/culmus_0.133.orig.tar.gz | tar -x --gzip -f - --wildcards '*.ttf' &&\
+    # fonts-beng, fonts-lohit-guru, fonts-lohit-knda, fonts-telu (fonts-lohit-telu)
+    curl -L https://releases.pagure.org/lohit/lohit-ttf-20140220.tar.gz | tar -x --gzip -f - --wildcards '*.ttf' &&\
+    curl -L https://releases.pagure.org/lohit/lohit-gurmukhi-ttf-2.91.2.tar.gz | tar -x --gzip -f - --wildcards '*.ttf' &&\
+    curl -L $DEB_BASE_URL/f/fonts-beng-extra/fonts-beng-extra_3.2.1.orig.tar.gz | tar -x --gzip -f - --wildcards '*.ttf' &&\
+    # fonts-hosny-amiri
+    curl -OL https://github.com/aliftype/amiri/releases/download/1.001/Amiri-1.001.zip && unzip Amiri-1.001.zip && rm -f Amiri-1.001.zip Amiri-1.001/*html Amiri-1.001/*md Amiri-1.001/*txt &&\
+    # fonts-lklug-sinhala
+    curl -L $DEB_BASE_URL/f/fonts-lklug-sinhala/fonts-lklug-sinhala_0.6.orig.tar.xz | tar -x --xz -f - --wildcards '*.ttf' &&\
+    # fonts-samyak-gujr, fonts-samyak-mlym, fonts-samyak-taml
+    mkdir samyak && curl -L $DEB_BASE_URL/f/fonts-samyak/fonts-samyak_1.2.2.orig.tar.gz | tar -x --gzip -f - -C ./samyak --wildcards '*.ttf' &&\
+    # fonts-sarai
+    mkdir Sarai && curl -L -o Sarai/Sarai_07.ttf https://sourceforge.net/p/indlinux/svn/HEAD/tree/trunk/fonts/sarai/Sarai_07.ttf?format=raw &&\
+    # fonts-sil-abyssinica
+    curl -LO https://software.sil.org/downloads/r/abyssinica/AbyssinicaSIL-2.300.zip && unzip AbyssinicaSIL-2.300.zip && rm -rf AbyssinicaSIL-2.300.zip AbyssinicaSIL-2.300/*txt AbyssinicaSIL-2.300/documentation AbyssinicaSIL-2.300/fontmanifest.json AbyssinicaSIL-2.300/web &&\
+    # fonts-sil-padauk
+    curl -LO https://software.sil.org/downloads/r/padauk/Padauk-5.100.zip && unzip Padauk-5.100.zip && rm -rf Padauk-5.100.zip Padauk-5.100/*txt Padauk-5.100/documentation Padauk-5.100/fontmanifest.json Padauk-5.100/web &&\
+    # fonts-telu (fonts-telu-extra)
+    mkdir telu-extra && curl -L $DEB_BASE_URL/f/fonts-telu-extra/fonts-telu-extra_2.0.orig.tar.gz | tar x --gzip -f - -C telu-extra --wildcards '*.ttf' &&\
+    # fonts-telu (fonts-teluguvijayam)
+    curl -L $DEB_BASE_URL/f/fonts-teluguvijayam/fonts-teluguvijayam_2.1.orig.tar.xz | tar x --xz -f - --wildcards '*.ttf' &&\
+    # fonts-thai-tlwg
+    curl -L https://linux.thai.net/pub/thailinux/software/fonts-tlwg/fonts/ttf-tlwg-0.7.3.tar.xz | tar x --xz -f - --wildcards '*.ttf' &&\
+    # fonts-arphic-ukai
+    curl -L $DEB_BASE_URL/f/fonts-arphic-ukai/fonts-arphic-ukai_0.2.20080216.2.orig.tar.bz2 | tar -x --bzip2 -f - --wildcards '*.ttc' &&\
+    # fonts-arphic-uming
+    curl -L $DEB_BASE_URL/f/fonts-arphic-uming/fonts-arphic-uming_0.2.20080216.2.orig.tar.bz2 | tar -x --bzip2 -f - --wildcards '*.ttc' &&\
+    # fonts-ipafont-mincho, fonts-ipafont-gothic
+    curl -L $DEB_BASE_URL/f/fonts-ipafont/fonts-ipafont_00303.orig.tar.gz | tar -x --gzip -f - --wildcards '*.ttf' &&\
+    # fonts-unfonts-core
+    curl -L $DEB_BASE_URL/f/fonts-unfonts-core/fonts-unfonts-core_1.0.2-080608.orig.tar.xz | tar -x --xz -f - --wildcards '*.ttf' &&\
+    # fonts-crosextra-caladea
+    curl -OL https://github.com/huertatipografica/Caladea/archive/refs/heads/master.zip && unzip master.zip -x "Caladea-master/sources/*" && mv Caladea-master/fonts/ttf Caladea && rm -rf Caladea/qaCaladea6 Caladea-master master.zip &&\
+    # fonts-crosextra-carlito
+    curl -OL https://github.com/googlefonts/carlito/archive/refs/heads/main.zip && unzip main.zip && mv carlito-main/fonts/ttf carlito && rm -rf carlito-main main.zip &&\
+    # fonts-sil-gentium
+    curl -L $DEB_BASE_URL/f/fonts-sil-gentium/fonts-sil-gentium_1.03.orig.tar.xz | tar -x --xz -f - --wildcards '*.ttf' &&\
+    # fonts-sil-gentium-basic
+    curl -L $DEB_BASE_URL/f/fonts-sil-gentium-basic/fonts-sil-gentium-basic_1.102.orig.tar.xz | tar -x --xz -f - --wildcards '*.ttf'
 
 # ----------------------------------------------
 # Final stage
 # ----------------------------------------------
-FROM alpine:3.21
+FROM alpine:${ALPINE_VERSION:-3.21}
 
 ARG GOTENBERG_VERSION
 ARG GOTENBERG_USER_GID
 ARG GOTENBERG_USER_UID
-ARG NOTO_COLOR_EMOJI_VERSION
 ARG PDFTK_VERSION
 
 LABEL org.opencontainers.image.title="Gotenberg" \
@@ -106,28 +135,12 @@ RUN \
     apk update -q &&\
     apk add -q --no-cache curl gnupg tini python3 openjdk17-jre-headless
 
-COPY --from=fonts /fonts-main/ofl/carlito /home/gotenberg/.fonts/
-COPY --from=fonts /fonts-main/ofl/caladea /home/gotenberg/.fonts/
-COPY --from=fonts /fonts-main/ofl/amiri /home/gotenberg/.fonts/
-COPY --from=fonts /fonts-main/ofl/amiriquran /home/gotenberg/.fonts/
-COPY --from=fonts /fonts-main/ofl/abyssinicasil /home/gotenberg/.fonts/
-COPY --from=fonts /fonts-main/ofl/padauk /home/gotenberg/.fonts/
-COPY --from=fonts /culmus /home/gotenberg/.fonts/
-COPY --from=fonts /samyak /home/gotenberg/.fonts/
-COPY --from=fonts /sarai /home/gotenberg/.fonts/
-COPY --from=fonts /arphic-ukai /home/gotenberg/.fonts/
-COPY --from=fonts /arphic-uming /home/gotenberg/.fonts/
-COPY --from=fonts /unfonts /home/gotenberg/.fonts/
-COPY --from=fonts /gentium /home/gotenberg/.fonts/
-COPY --from=fonts /gentium-basic /home/gotenberg/.fonts/
-
+# Install fonts.
+COPY --from=fonts /fonts /home/gotenberg/.fonts
 RUN \
-    # Install fonts.
     apk update -q &&\
     apk add -q --no-cache \
     font-dejavu \
-    font-ipa \
-    font-ipaex \
     font-liberation \
     font-linux-libertine \
     font-noto-all \
@@ -137,6 +150,7 @@ RUN \
     msttcorefonts-installer \
     fontconfig \
     &&\
+    chown -R gotenberg:gotenberg /home/gotenberg/.fonts &&\
     update-ms-fonts &&\
     fc-cache -fv &&\
     fc-list

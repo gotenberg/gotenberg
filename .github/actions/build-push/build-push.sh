@@ -131,7 +131,6 @@ cmd="docker buildx build \
     --build-arg GOTENBERG_VERSION=$version \
     --build-arg GOTENBERG_USER_GID=$GOTENBERG_USER_GID \
     --build-arg GOTENBERG_USER_UID=$GOTENBERG_USER_UID \
-    --build-arg NOTO_COLOR_EMOJI_VERSION=$NOTO_COLOR_EMOJI_VERSION \
     --build-arg PDFTK_VERSION=$PDFTK_VERSION \
     --build-arg PDFCPU_VERSION=$PDFCPU_VERSION \
     --push \
