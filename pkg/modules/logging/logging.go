@@ -34,9 +34,10 @@ const (
 // Logging is a module which implements the [gotenberg.LoggerProvider]
 // interface.
 type Logging struct {
-	level        string
-	format       string
-	fieldsPrefix string
+	level             string
+	format            string
+	fieldsPrefix      string
+	enableGcpSeverity bool
 }
 
 // Descriptor returns a [Logging]'s module descriptor.
@@ -48,6 +49,7 @@ func (log *Logging) Descriptor() gotenberg.ModuleDescriptor {
 			fs.String("log-level", infoLoggingLevel, fmt.Sprintf("Choose the level of logging detail. Options include %s, %s, %s, or %s", errorLoggingLevel, warnLoggingLevel, infoLoggingLevel, debugLoggingLevel))
 			fs.String("log-format", autoLoggingFormat, fmt.Sprintf("Specify the format of logging. Options include %s, %s, or %s", autoLoggingFormat, jsonLoggingFormat, textLoggingFormat))
 			fs.String("log-fields-prefix", "", "Prepend a specified prefix to each field in the logs")
+			fs.Bool("log-enable-gcp-severity", false, "Enable Google Cloud Platform severity mapping")
 
 			return fs
 		}(),
@@ -62,6 +64,7 @@ func (log *Logging) Provision(ctx *gotenberg.Context) error {
 	log.level = flags.MustString("log-level")
 	log.format = flags.MustString("log-format")
 	log.fieldsPrefix = flags.MustString("log-fields-prefix")
+	log.enableGcpSeverity = flags.MustBool("log-enable-gcp-severity")
 
 	return nil
 }
@@ -101,7 +104,7 @@ func (log *Logging) Logger(mod gotenberg.Module) (*zap.Logger, error) {
 			return nil, fmt.Errorf("get log level: %w", err)
 		}
 
-		encoder, err := newLogEncoder(log.format)
+		encoder, err := newLogEncoder(log.format, log.enableGcpSeverity)
 		if err != nil {
 			return nil, fmt.Errorf("get log encoder: %w", err)
 		}
@@ -166,7 +169,7 @@ func newLogLevel(level string) (zapcore.Level, error) {
 	return lvl, nil
 }
 
-func newLogEncoder(format string) (zapcore.Encoder, error) {
+func newLogEncoder(format string, gcpSeverity bool) (zapcore.Encoder, error) {
 	isTerminal := term.IsTerminal(int(os.Stdout.Fd()))
 	encCfg := zap.NewProductionEncoderConfig()
 
@@ -177,15 +180,25 @@ func newLogEncoder(format string) (zapcore.Encoder, error) {
 			encoder.AppendString(ts.Local().Format("2006/01/02 15:04:05.000"))
 		}
 
-		if format == textLoggingFormat || format == autoLoggingFormat {
-			encCfg.EncodeLevel = zapcore.CapitalColorLevelEncoder
+		if format == autoLoggingFormat {
+			format = textLoggingFormat
 		}
-	}
 
-	if format == autoLoggingFormat && isTerminal {
-		format = textLoggingFormat
-	} else if format == autoLoggingFormat {
-		format = jsonLoggingFormat
+		if format == textLoggingFormat && gcpSeverity {
+			encCfg.EncodeLevel = gcpSeverityColorEncoder
+		} else if format == textLoggingFormat {
+			encCfg.EncodeLevel = zapcore.CapitalColorLevelEncoder
+		} else if gcpSeverity {
+			encCfg.EncodeLevel = gcpSeverityEncoder
+		}
+	} else {
+		if format == autoLoggingFormat {
+			format = jsonLoggingFormat
+		}
+
+		if gcpSeverity {
+			encCfg.EncodeLevel = gcpSeverityEncoder
+		}
 	}
 
 	switch format {
