@@ -62,8 +62,9 @@ type Options struct {
 	// PageRanges allows to select the pages to convert.
 	PageRanges string
 
-	// UpdateIndexes specifies whether to update the indexes before conversion
-	// or not, with the risk of disabling links in documents.
+	// UpdateIndexes specifies whether to update the indexes before conversion,
+	// keeping in mind that doing so might result in missing links in the final
+	// PDF.
 	UpdateIndexes bool
 
 	// ExportFormFields specifies whether form fields are exported as widgets
