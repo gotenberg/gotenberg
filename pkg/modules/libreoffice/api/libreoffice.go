@@ -279,6 +279,10 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 		args = append(args, "--export", fmt.Sprintf("PageRange=%s", options.PageRanges))
 	}
 
+	if !options.UpdateIndexes {
+		args = append(args, "--disable-update-indexes")
+	}
+
 	args = append(args, "--export", fmt.Sprintf("ExportFormFields=%t", options.ExportFormFields))
 	args = append(args, "--export", fmt.Sprintf("AllowDuplicateFieldNames=%t", options.AllowDuplicateFieldNames))
 	args = append(args, "--export", fmt.Sprintf("ExportBookmarks=%t", options.ExportBookmarks))

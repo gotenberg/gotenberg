@@ -62,6 +62,10 @@ type Options struct {
 	// PageRanges allows to select the pages to convert.
 	PageRanges string
 
+	// UpdateIndexes specifies whether to update the indexes before conversion
+	// or not, with the risk of disabling links in documents.
+	UpdateIndexes bool
+
 	// ExportFormFields specifies whether form fields are exported as widgets
 	// or only their fixed print representation is exported.
 	ExportFormFields bool
@@ -152,6 +156,7 @@ func DefaultOptions() Options {
 		Password:                        "",
 		Landscape:                       false,
 		PageRanges:                      "",
+		UpdateIndexes:                   true,
 		ExportFormFields:                true,
 		AllowDuplicateFieldNames:        false,
 		ExportBookmarks:                 true,
