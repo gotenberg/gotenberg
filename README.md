@@ -10,6 +10,9 @@
         <a href="https://pkg.go.dev/github.com/gotenberg/gotenberg/v8"><img alt="Go Reference" src="https://pkg.go.dev/badge/github.com/gotenberg/gotenberg.svg"></a>
         <a href="https://codecov.io/gh/gotenberg/gotenberg/branch/main/graph/badge.svg"><img alt="Code coverage" src="https://codecov.io/gh/gotenberg/gotenberg/branch/main/graph/badge.svg"></a>
     </p>
+    <p align="center">
+        <a href="https://trendshift.io/repositories/2996"><img src="https://trendshift.io/api/badge/repositories/2996" alt="gotenberg%2Fgotenberg | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+    </p>
     <p align="center"><a href="https://gotenberg.dev/docs/getting-started/introduction">Documentation</a> &#183; <a href="https://gotenberg.dev/docs/getting-started/installation#live-demo-">Live Demo</a> 🔥</p>
 </p>
 
