@@ -166,7 +166,7 @@ RUN \
     # Install LibreOffice & unoconverter.
     apk update -q &&\
     apk add -q --no-cache libreoffice &&\
-    curl -Ls https://raw.githubusercontent.com/gotenberg/unoconverter/v0.0.1/unoconv -o /usr/bin/unoconverter &&\
+    curl -Ls https://raw.githubusercontent.com/gotenberg/unoconverter/v0.1.1/unoconv -o /usr/bin/unoconverter &&\
     chmod +x /usr/bin/unoconverter &&\
     apk add -q --no-cache py3-setuptools py3-looseversion &&\
     # Verify installations.

@@ -39,6 +39,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				password                        string
 				landscape                       bool
 				nativePageRanges                string
+				updateIndexes                   bool
 				exportFormFields                bool
 				allowDuplicateFieldNames        bool
 				exportBookmarks                 bool
@@ -68,6 +69,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				String("password", &password, defaultOptions.Password).
 				Bool("landscape", &landscape, defaultOptions.Landscape).
 				String("nativePageRanges", &nativePageRanges, defaultOptions.PageRanges).
+				Bool("updateIndexes", &updateIndexes, defaultOptions.UpdateIndexes).
 				Bool("exportFormFields", &exportFormFields, defaultOptions.ExportFormFields).
 				Bool("allowDuplicateFieldNames", &allowDuplicateFieldNames, defaultOptions.AllowDuplicateFieldNames).
 				Bool("exportBookmarks", &exportBookmarks, defaultOptions.ExportBookmarks).
@@ -149,6 +151,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					Password:                        password,
 					Landscape:                       landscape,
 					PageRanges:                      nativePageRanges,
+					UpdateIndexes:                   updateIndexes,
 					ExportFormFields:                exportFormFields,
 					AllowDuplicateFieldNames:        allowDuplicateFieldNames,
 					ExportBookmarks:                 exportBookmarks,

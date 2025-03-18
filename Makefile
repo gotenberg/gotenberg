@@ -63,6 +63,7 @@ LIBREOFFICE_DISABLE_ROUTES=false
 LOG_LEVEL=info
 LOG_FORMAT=auto
 LOG_FIELDS_PREFIX=
+LOG_ENABLE_GCP_SEVERITY=false
 PDFENGINES_ENGINES=
 PDFENGINES_MERGE_ENGINES=qpdf,pdfcpu,pdftk
 PDFENGINES_SPLIT_ENGINES=pdfcpu,qpdf,pdftk
@@ -134,6 +135,7 @@ run: ## Start a Gotenberg container
 	--log-level=$(LOG_LEVEL) \
 	--log-format=$(LOG_FORMAT) \
 	--log-fields-prefix=$(LOG_FIELDS_PREFIX) \
+	--log-enable-gcp-severity=$(LOG_ENABLE_GCP_SEVERITY) \
 	--pdfengines-engines=$(PDFENGINES_ENGINES) \
 	--pdfengines-merge-engines=$(PDFENGINES_MERGE_ENGINES) \
 	--pdfengines-split-engines=$(PDFENGINES_SPLIT_ENGINES) \
