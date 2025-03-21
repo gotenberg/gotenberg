@@ -1,7 +1,6 @@
 package libreoffice
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -129,15 +128,6 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				}).
 				Bool("nativePdfFormats", &nativePdfFormats, true).
 				Bool("merge", &merge, false).
-				Custom("metadata", func(value string) error {
-					if len(value) > 0 {
-						err := json.Unmarshal([]byte(value), &metadata)
-						if err != nil {
-							return fmt.Errorf("unmarshal metadata: %w", err)
-						}
-					}
-					return nil
-				}).
 				Bool("flatten", &flatten, false).
 				Validate()
 			if err != nil {

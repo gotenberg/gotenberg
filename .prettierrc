@@ -1,3 +1,4 @@
 {
-  "plugins": ["prettier-plugin-gherkin", "prettier-plugin-sh"]
+  "plugins": ["prettier-plugin-gherkin", "prettier-plugin-sh"],
+  "escapeBackslashes": true
 }

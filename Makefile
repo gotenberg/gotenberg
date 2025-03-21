@@ -2,10 +2,7 @@ include .env
 
 .PHONY: help
 help: ## Show the help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
-
-.PHONY: it
-it: build build-tests ## Initialize the development environment
+	@grep -hE '^[A-Za-z0-9_ \-]*?:.*##.*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: build
 build: ## Build the Gotenberg's Docker image
@@ -158,52 +155,42 @@ run: ## Start a Gotenberg container
 	--webhook-client-timeout=$(WEBHOOK_CLIENT_TIMEOUT) \
 	--webhook-disable=$(WEBHOOK_DISABLE)
 
-.PHONY: build-tests
-build-tests: ## Build the tests' Docker image
-	docker build \
-	--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
-	--build-arg DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
-	--build-arg DOCKER_REPOSITORY=$(DOCKER_REPOSITORY) \
-	--build-arg GOTENBERG_VERSION=$(GOTENBERG_VERSION) \
-	--build-arg GOLANGCI_LINT_VERSION=$(GOLANGCI_LINT_VERSION) \
-	-t $(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION)-tests \
-	-f test/Dockerfile .
+.PHONY: test-unit
+test-unit: ## Run unit tests
+	go test -race ./...
 
-.PHONY: tests
-tests: ## Start the testing environment
-	docker run --rm -it \
-	-v $(PWD):/tests \
-	$(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION)-tests \
-	bash
+PLATFORM=
 
-.PHONY: tests-once
-tests-once: ## Run the tests once (prefer the "tests" command while developing)
-	docker run --rm  \
-	-v $(PWD):/tests \
-	$(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION)-tests \
-	gotest
-
-.PHONY: tests-integration
-tests-integration: ## Run integration tests
-	 go test -tags=integration -v github.com/gotenberg/gotenberg/v8/test/integration
+.PHONY: test-integration
+test-integration: ## Run integration tests
+	go test -tags=integration -v github.com/gotenberg/gotenberg/v8/test/integration -args \
+	--gotenberg-docker-repository=$(DOCKER_REPOSITORY) \
+	--gotenberg-version=$(GOTENBERG_VERSION) \
+ 	--gotenberg-container-platform=$(PLATFORM)
 
 .PHONY: lint
-lint: ## Lint codebase.
-	#golangci-lint run
+lint: ## Lint Golang codebase
+	golangci-lint run
+
+.PHONY: lint-prettier
+lint-prettier: ## Lint non-Golang codebase
 	npx prettier --check .
+
+.PHONY: lint-todo
+lint-todo: ## Find TODOs in Golang codebase
+	golangci-lint run --no-config --disable-all --enable godox
 
 # go install mvdan.cc/gofumpt@latest
 # go install github.com/daixiang0/gci@latest
 .PHONY: fmt
-fmt: ## Format codebase and "optimize" the dependencies
+fmt: ## Format Golang codebase and "optimize" the dependencies
 	gofumpt -l -w .
 	gci write -s standard -s default -s "prefix(github.com/gotenberg/gotenberg/v8)" --skip-generated --skip-vendor --custom-order .
-	npx prettier --write .
 	go mod tidy
 
-.PHONY: todo
-todo: ## Find TODOs in codebase.
-	golangci-lint run --no-config --disable-all --enable godox
+.PHONY: prettify
+prettify: ## Format non-Golang codebase
+	npx prettier --write .
 
 # go install golang.org/x/tools/cmd/godoc@latest
 .PHONY: godoc
