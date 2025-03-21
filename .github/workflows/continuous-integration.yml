@@ -206,9 +206,8 @@ jobs:
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
-          version: pr-${{ github.event.pull_request.number }}
+          version: edge
           platform: linux/amd64
-          alternate_repository: snapshot
 
   edge_386:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -229,9 +228,8 @@ jobs:
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
-          version: pr-${{ github.event.pull_request.number }}
+          version: edge
           platform: linux/386
-          alternate_repository: snapshot
 
   edge_arm64:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -252,9 +250,8 @@ jobs:
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
-          version: pr-${{ github.event.pull_request.number }}
+          version: edge
           platform: linux/arm64
-          alternate_repository: snapshot
 
   edge_arm_v7:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -275,9 +272,8 @@ jobs:
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
-          version: pr-${{ github.event.pull_request.number }}
+          version: edge
           platform: linux/arm/v7
-          alternate_repository: snapshot
 
   merge_clean_edge_tags:
     needs:
