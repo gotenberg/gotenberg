@@ -14,17 +14,11 @@ import (
 	"github.com/gotenberg/gotenberg/v8/test/integration/scenario"
 )
 
-var opts = godog.Options{
-	Format:      "pretty",
-	Paths:       []string{"features"},
-	Output:      colors.Colored(os.Stdout),
-	Concurrency: runtime.NumCPU(),
-}
-
 func TestMain(m *testing.M) {
 	repository := flag.String("gotenberg-docker-repository", "", "")
 	version := flag.String("gotenberg-version", "", "")
 	platform := flag.String("gotenberg-container-platform", "", "")
+	noConcurrency := flag.Bool("no-concurrency", false, "")
 	flag.Parse()
 
 	if *platform == "" {
@@ -40,10 +34,20 @@ func TestMain(m *testing.M) {
 	scenario.GotenbergVersion = *version
 	scenario.GotenbergContainerPlatform = *platform
 
+	concurrency := runtime.NumCPU()
+	if *noConcurrency {
+		concurrency = 0
+	}
+
 	code := godog.TestSuite{
 		Name:                "integration",
 		ScenarioInitializer: scenario.InitializeScenario,
-		Options:             &opts,
+		Options: &godog.Options{
+			Format:      "pretty",
+			Paths:       []string{"features"},
+			Output:      colors.Colored(os.Stdout),
+			Concurrency: concurrency,
+		},
 	}.Run()
 
 	os.Exit(code)
