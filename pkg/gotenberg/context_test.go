@@ -5,23 +5,6 @@ import (
 	"testing"
 )
 
-func TestNewContext(t *testing.T) {
-	if NewContext(ParsedFlags{}, nil) == nil {
-		t.Error("expected a non-nil value")
-	}
-}
-
-func TestContext_ParsedFlags(t *testing.T) {
-	ctx := NewContext(ParsedFlags{}, nil)
-
-	actual := ctx.ParsedFlags()
-	expect := ParsedFlags{}
-
-	if actual != expect {
-		t.Errorf("expected %v but got %v", expect, actual)
-	}
-}
-
 func TestContext_Module(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string

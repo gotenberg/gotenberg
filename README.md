@@ -5,10 +5,8 @@
     <p align="center">
         <a href="https://hub.docker.com/r/gotenberg/gotenberg"><img alt="Total downloads (gotenberg/gotenberg)" src="https://img.shields.io/docker/pulls/gotenberg/gotenberg"></a>
         <a href="https://hub.docker.com/r/thecodingmachine/gotenberg"><img alt="Total downloads (thecodingmachine/gotenberg)" src="https://img.shields.io/docker/pulls/thecodingmachine/gotenberg"></a>
-        <br>
         <a href="https://github.com/gotenberg/gotenberg/actions/workflows/continuous-integration.yml"><img alt="Continuous Integration" src="https://github.com/gotenberg/gotenberg/actions/workflows/continuous-integration.yml/badge.svg"></a>
         <a href="https://pkg.go.dev/github.com/gotenberg/gotenberg/v8"><img alt="Go Reference" src="https://pkg.go.dev/badge/github.com/gotenberg/gotenberg.svg"></a>
-        <a href="https://codecov.io/gh/gotenberg/gotenberg/branch/main/graph/badge.svg"><img alt="Code coverage" src="https://codecov.io/gh/gotenberg/gotenberg/branch/main/graph/badge.svg"></a>
     </p>
     <p align="center">
         <a href="https://trendshift.io/repositories/2996"><img src="https://trendshift.io/api/badge/repositories/2996" alt="gotenberg%2Fgotenberg | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
@@ -18,7 +16,7 @@
 
 ---
 
-**Gotenberg** provides a developer-friendly API to interact with powerful tools like Chromium and LibreOffice for converting 
+**Gotenberg** provides a developer-friendly API to interact with powerful tools like Chromium and LibreOffice for converting
 numerous document formats (HTML, Markdown, Word, Excel, etc.) into PDF files, and more!
 
 ## Quick Start
