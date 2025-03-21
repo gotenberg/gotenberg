@@ -77,7 +77,7 @@ runs:
       shell: bash
       run: |
         .github/actions/build-test-push/push.sh \
-          --tags "${{ steps.build.outputs.tags }}" \
+          --tags "${{ steps.build.outputs.tags }},${{ steps.build.outputs.tags_cloud_run }}" \
           --dry-run "${{ inputs.dry_run }}"
 
     - name: Outputs
