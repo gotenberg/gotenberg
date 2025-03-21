@@ -5,7 +5,7 @@ help: ## Show the help
 	@grep -hE '^[A-Za-z0-9_ \-]*?:.*##.*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: build
-build: ## Build the Gotenberg's Docker image
+build: ## Build the Gotenberg's Docker default image
 	docker build \
 	--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
 	--build-arg GOTENBERG_VERSION=$(GOTENBERG_VERSION) \
@@ -83,7 +83,7 @@ WEBHOOK_CLIENT_TIMEOUT=30s
 WEBHOOK_DISABLE=false
 
 .PHONY: run
-run: ## Start a Gotenberg container
+run: ## Start a Gotenberg default container
 	docker run --rm -it \
 	-p $(API_PORT):$(API_PORT) \
 	-e GOTENBERG_API_BASIC_AUTH_USERNAME=$(GOTENBERG_API_BASIC_AUTH_USERNAME) \
@@ -155,8 +155,8 @@ run: ## Start a Gotenberg container
 	--webhook-disable=$(WEBHOOK_DISABLE)
 
 
-.PHONY: build
-build: ## Build the Gotenberg's Docker alpine image
+.PHONY: build-alpine
+build-alpine: ## Build the Gotenberg's Docker alpine image
 	docker build \
 	--build-arg ALPINE_VERSION=$(ALPINE_VERSION) \
 	--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
@@ -234,8 +234,8 @@ WEBHOOK_RETRY_MAX_WAIT=30s
 WEBHOOK_CLIENT_TIMEOUT=30s
 WEBHOOK_DISABLE=false
 
-.PHONY: run
-run: ## Start a Gotenberg container
+.PHONY: run-alpine
+run-alpine: ## Start a Gotenberg alpine container
 	docker run --rm -it \
 	-p $(API_PORT):$(API_PORT) \
 	-e GOTENBERG_API_BASIC_AUTH_USERNAME=$(GOTENBERG_API_BASIC_AUTH_USERNAME) \
