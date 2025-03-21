@@ -160,13 +160,15 @@ test-unit: ## Run unit tests
 	go test -race ./...
 
 PLATFORM=
+NO_CONCURRENCY=false
 
 .PHONY: test-integration
 test-integration: ## Run integration tests
 	go test -tags=integration -v github.com/gotenberg/gotenberg/v8/test/integration -args \
 	--gotenberg-docker-repository=$(DOCKER_REPOSITORY) \
 	--gotenberg-version=$(GOTENBERG_VERSION) \
- 	--gotenberg-container-platform=$(PLATFORM)
+ 	--gotenberg-container-platform=$(PLATFORM) \
+ 	--no-concurrency=$(NO_CONCURRENCY)
 
 .PHONY: lint
 lint: ## Lint Golang codebase
