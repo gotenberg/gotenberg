@@ -198,6 +198,16 @@ func newLogEncoder(format string, gcpSeverity bool) (zapcore.Encoder, error) {
 
 		if gcpSeverity {
 			encCfg.EncodeLevel = gcpSeverityEncoder
+			encCfg.TimeKey = "time"
+			encCfg.LevelKey = "severity"
+			encCfg.NameKey = "logger"
+			encCfg.CallerKey = "caller"
+			encCfg.MessageKey = "message"
+			encCfg.StacktraceKey = "stacktrace"
+			encCfg.LineEnding = zapcore.DefaultLineEnding
+			encCfg.EncodeTime = zapcore.RFC3339TimeEncoder
+			encCfg.EncodeDuration = zapcore.MillisDurationEncoder
+			encCfg.EncodeCaller = zapcore.ShortCallerEncoder
 		}
 	}
 
