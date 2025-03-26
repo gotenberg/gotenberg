@@ -198,6 +198,12 @@ func newLogEncoder(format string, gcpSeverity bool) (zapcore.Encoder, error) {
 
 		if gcpSeverity {
 			encCfg.EncodeLevel = gcpSeverityEncoder
+			// Those only make sense in JSON.
+			encCfg.TimeKey = "time"
+			encCfg.LevelKey = "severity"
+			encCfg.MessageKey = "message"
+			encCfg.EncodeTime = zapcore.ISO8601TimeEncoder
+			encCfg.EncodeDuration = zapcore.MillisDurationEncoder
 		}
 	}
 
