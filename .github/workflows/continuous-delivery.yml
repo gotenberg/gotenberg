@@ -24,7 +24,7 @@ jobs:
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
-          version: pr-${{ github.event.pull_request.number }}
+          version: ${{ github.event.release.tag_name }}
           platform: linux/amd64
           skip_integrations_tests: true
 
@@ -44,7 +44,7 @@ jobs:
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
-          version: pr-${{ github.event.pull_request.number }}
+          version: ${{ github.event.release.tag_name }}
           platform: linux/386
           skip_integrations_tests: true
 
@@ -64,7 +64,7 @@ jobs:
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
-          version: pr-${{ github.event.pull_request.number }}
+          version: ${{ github.event.release.tag_name }}
           platform: linux/arm64
           skip_integrations_tests: true
 
@@ -84,7 +84,7 @@ jobs:
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
-          version: pr-${{ github.event.pull_request.number }}
+          version: ${{ github.event.release.tag_name }}
           platform: linux/arm/v7
           skip_integrations_tests: true
 
