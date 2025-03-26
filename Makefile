@@ -180,13 +180,9 @@ lint-prettier: ## Lint non-Golang codebase
 lint-todo: ## Find TODOs in Golang codebase
 	golangci-lint run --no-config --disable-all --enable godox
 
-# go install mvdan.cc/gofumpt@latest
-# go install github.com/daixiang0/gci@latest
 .PHONY: fmt
 fmt: ## Format Golang codebase and "optimize" the dependencies
-	gofumpt -l -w .
-	gci write -s standard -s default -s "prefix(github.com/gotenberg/gotenberg/v8)" --skip-generated --skip-vendor --custom-order .
-	go mod tidy
+	golangci-lint fmt
 
 .PHONY: prettify
 prettify: ## Format non-Golang codebase
