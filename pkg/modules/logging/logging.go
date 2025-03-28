@@ -49,7 +49,7 @@ func (log *Logging) Descriptor() gotenberg.ModuleDescriptor {
 			fs.String("log-level", infoLoggingLevel, fmt.Sprintf("Choose the level of logging detail. Options include %s, %s, %s, or %s", errorLoggingLevel, warnLoggingLevel, infoLoggingLevel, debugLoggingLevel))
 			fs.String("log-format", autoLoggingFormat, fmt.Sprintf("Specify the format of logging. Options include %s, %s, or %s", autoLoggingFormat, jsonLoggingFormat, textLoggingFormat))
 			fs.String("log-fields-prefix", "", "Prepend a specified prefix to each field in the logs")
-			fs.Bool("log-enable-gcp-fields", false, "Enable GCP fields - namely: time, message, severity")
+			fs.Bool("log-enable-gcp-fields", false, "Enable Google Cloud Platform fields - namely: time, message, severity")
 
 			// Deprecated flags.
 			fs.Bool("log-enable-gcp-severity", false, "Enable Google Cloud Platform severity mapping")
