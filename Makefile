@@ -183,6 +183,7 @@ lint-todo: ## Find TODOs in Golang codebase
 .PHONY: fmt
 fmt: ## Format Golang codebase and "optimize" the dependencies
 	golangci-lint fmt
+	go mod tidy
 
 .PHONY: prettify
 prettify: ## Format non-Golang codebase
