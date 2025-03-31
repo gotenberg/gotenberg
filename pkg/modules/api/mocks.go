@@ -83,7 +83,7 @@ func (ctx *ContextMock) SetLogger(logger *zap.Logger) {
 //	ctx := &api.ContextMock{Context: &api.Context{}}
 //	ctx.setEchoContext(c)
 func (ctx *ContextMock) SetEchoContext(c echo.Context) {
-	ctx.Context.echoCtx = c
+	ctx.echoCtx = c
 }
 
 // SetMkdirAll sets the [gotenberg.MkdirAll].
@@ -91,7 +91,7 @@ func (ctx *ContextMock) SetEchoContext(c echo.Context) {
 //	ctx := &api.ContextMock{Context: &api.Context{}}
 //	ctx.SetMkdirAll(mkdirAll)
 func (ctx *ContextMock) SetMkdirAll(mkdirAll gotenberg.MkdirAll) {
-	ctx.Context.mkdirAll = mkdirAll
+	ctx.mkdirAll = mkdirAll
 }
 
 // SetPathRename sets the [gotenberg.PathRename].
@@ -99,7 +99,7 @@ func (ctx *ContextMock) SetMkdirAll(mkdirAll gotenberg.MkdirAll) {
 //	ctx := &api.ContextMock{Context: &api.Context{}}
 //	ctx.setPathRename(rename)
 func (ctx *ContextMock) SetPathRename(rename gotenberg.PathRename) {
-	ctx.Context.pathRename = rename
+	ctx.pathRename = rename
 }
 
 // RouterMock is a mock for the [Router] interface.

@@ -63,7 +63,7 @@ ARG NOTO_COLOR_EMOJI_VERSION
 ARG PDFTK_VERSION
 
 LABEL org.opencontainers.image.title="Gotenberg" \
-      org.opencontainers.image.description="A Docker-powered stateless API for PDF files." \
+      org.opencontainers.image.description="A containerized API for seamless PDF conversion." \
       org.opencontainers.image.version="$GOTENBERG_VERSION" \
       org.opencontainers.image.authors="Julien Neuhart <neuhart.julien@gmail.com>" \
       org.opencontainers.image.documentation="https://gotenberg.dev" \
@@ -171,7 +171,7 @@ RUN \
     apt-get update -qq &&\
     apt-get upgrade -yqq &&\
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t bookworm-backports libreoffice &&\
-    curl -Ls https://raw.githubusercontent.com/gotenberg/unoconverter/v0.0.1/unoconv -o /usr/bin/unoconverter &&\
+    curl -Ls https://raw.githubusercontent.com/gotenberg/unoconverter/v0.1.1/unoconv -o /usr/bin/unoconverter &&\
     chmod +x /usr/bin/unoconverter &&\
     # unoconverter will look for the Python binary, which has to be at version 3.
     ln -s /usr/bin/python3 /usr/bin/python &&\

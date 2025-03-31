@@ -20,12 +20,13 @@ jobs:
 
       - name: Build and push
         id: build_push
-        uses: ./.github/actions/build-push
+        uses: ./.github/actions/build-test-push
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
           version: ${{ github.event.release.tag_name }}
           platform: linux/amd64
+          skip_integrations_tests: true
 
   release_386:
     name: Release linux/386
@@ -39,19 +40,18 @@ jobs:
 
       - name: Build and push
         id: build_push
-        uses: ./.github/actions/build-push
+        uses: ./.github/actions/build-test-push
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
           version: ${{ github.event.release.tag_name }}
           platform: linux/386
+          skip_integrations_tests: true
 
   release_arm64:
     name: Release linux/arm64
     runs-on: ubuntu-24.04-arm
     outputs:
-      docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
-      docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
       tags: ${{ steps.build_push.outputs.tags }}
       tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
     steps:
@@ -60,12 +60,13 @@ jobs:
 
       - name: Build and push
         id: build_push
-        uses: ./.github/actions/build-push
+        uses: ./.github/actions/build-test-push
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
           version: ${{ github.event.release.tag_name }}
           platform: linux/arm64
+          skip_integrations_tests: true
 
   release_arm_v7:
     name: Release linux/arm/v7
@@ -79,12 +80,13 @@ jobs:
 
       - name: Build and push
         id: build_push
-        uses: ./.github/actions/build-push
+        uses: ./.github/actions/build-test-push
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
           version: ${{ github.event.release.tag_name }}
           platform: linux/arm/v7
+          skip_integrations_tests: true
 
   merge_clean_release_tags:
     needs:
