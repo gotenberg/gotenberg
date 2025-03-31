@@ -1,16 +1,14 @@
 set DOCKER_REPO_GH=ghcr.io/onebrief
-set GOTENBERG_VERSION=8.16.0
+set GOTENBERG_VERSION=8.19.0
 
-set GOLANG_VERSION=1.23.3
+set GOLANG_VERSION=1.24.0
 set DOCKER_REPOSITORY=onebrief
 set GOTENBERG_USER_GID=1001
 set GOTENBERG_USER_UID=1001
 :: See https://github.com/googlefonts/noto-emoji/releases.
-set NOTO_COLOR_EMOJI_VERSION=v2.034 
+set NOTO_COLOR_EMOJI_VERSION=v2.047 
 :: See https://gitlab.com/pdftk-java/pdftk/-/releases - Binary package.
-set PDFTK_VERSION=v3.3.2 
-:: See https://github.com/golangci/golangci-lint/releases.
-set GOLANGCI_LINT_VERSION=v1.45.0 
+set PDFTK_VERSION=v3.3.3 
 
 
 @REM -t %DOCKER_REPO_GH%/gotenberg:latest ^
