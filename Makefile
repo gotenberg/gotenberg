@@ -59,8 +59,7 @@ LIBREOFFICE_DISABLE_ROUTES=false
 LOG_LEVEL=info
 LOG_FORMAT=auto
 LOG_FIELDS_PREFIX=
-LOG_ENABLE_GCP_SEVERITY=false
-PDFENGINES_ENGINES=
+LOG_ENABLE_GCP_FIELDS=false
 PDFENGINES_MERGE_ENGINES=qpdf,pdfcpu,pdftk
 PDFENGINES_SPLIT_ENGINES=pdfcpu,qpdf,pdftk
 PDFENGINES_FLATTEN_ENGINES=qpdf
@@ -131,8 +130,7 @@ run: ## Start a Gotenberg default container
 	--log-level=$(LOG_LEVEL) \
 	--log-format=$(LOG_FORMAT) \
 	--log-fields-prefix=$(LOG_FIELDS_PREFIX) \
-	--log-enable-gcp-severity=$(LOG_ENABLE_GCP_SEVERITY) \
-	--pdfengines-engines=$(PDFENGINES_ENGINES) \
+	--log-enable-gcp-fields=$(LOG_ENABLE_GCP_FIELDS) \
 	--pdfengines-merge-engines=$(PDFENGINES_MERGE_ENGINES) \
 	--pdfengines-split-engines=$(PDFENGINES_SPLIT_ENGINES) \
 	--pdfengines-flatten-engines=$(PDFENGINES_FLATTEN_ENGINES) \
@@ -316,7 +314,7 @@ NO_CONCURRENCY=false
 
 .PHONY: test-integration
 test-integration: ## Run integration tests
-	go test -tags=integration -v github.com/gotenberg/gotenberg/v8/test/integration -args \
+	go test -timeout 20m -tags=integration -v github.com/gotenberg/gotenberg/v8/test/integration -args \
 	--gotenberg-docker-repository=$(DOCKER_REPOSITORY) \
 	--gotenberg-version=$(GOTENBERG_VERSION) \
  	--gotenberg-container-platform=$(PLATFORM) \
@@ -334,12 +332,9 @@ lint-prettier: ## Lint non-Golang codebase
 lint-todo: ## Find TODOs in Golang codebase
 	golangci-lint run --no-config --disable-all --enable godox
 
-# go install mvdan.cc/gofumpt@latest
-# go install github.com/daixiang0/gci@latest
 .PHONY: fmt
 fmt: ## Format Golang codebase and "optimize" the dependencies
-	gofumpt -l -w .
-	gci write -s standard -s default -s "prefix(github.com/gotenberg/gotenberg/v8)" --skip-generated --skip-vendor --custom-order .
+	golangci-lint fmt
 	go mod tidy
 
 .PHONY: prettify

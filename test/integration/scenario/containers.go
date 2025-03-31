@@ -35,9 +35,9 @@ func startGotenbergContainer(ctx context.Context, env map[string]string) (*testc
 		return nil, nil, fmt.Errorf("create Gotenberg container network: %w", err)
 	}
 
-	heathPath := "/health"
+	healthPath := "/health"
 	if env["API_ROOT_PATH"] != "" {
-		heathPath = fmt.Sprintf("%shealth", env["API_ROOT_PATH"])
+		healthPath = fmt.Sprintf("%shealth", env["API_ROOT_PATH"])
 	}
 
 	req := testcontainers.ContainerRequest{
@@ -48,7 +48,7 @@ func startGotenbergContainer(ctx context.Context, env map[string]string) (*testc
 			hostConfig.ExtraHosts = []string{"host.docker.internal:host-gateway"}
 		},
 		Networks:   []string{n.Name},
-		WaitingFor: wait.ForHTTP(heathPath),
+		WaitingFor: wait.ForHTTP(healthPath),
 		Env:        env,
 	}
 
