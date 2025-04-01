@@ -5,10 +5,9 @@ ARG GOLANG_VERSION
 ARG ALPINE_VERSION
 ARG DOCKER_REGISTRY
 ARG DOCKER_REPOSITORY
-ARG GOTENBERG_VERSION
 
 
-FROM golang:${GOLANG_VERSION:-1.24}-alpine AS go-base
+FROM golang:$GOLANG_VERSION-alpine AS go-base
 RUN apk update -q && apk add -q --no-cache curl
 
 # ----------------------------------------------
@@ -41,6 +40,7 @@ RUN go build -o pdfcpu -ldflags "-s -w -X 'main.version=$PDFCPU_VERSION' -X 'git
 # ----------------------------------------------
 FROM go-base AS gotenberg-binary-stage
 
+ARG GOTENBERG_VERSION
 ENV CGO_ENABLED=0
 
 # Define the working directory outside of $GOPATH (we're using go modules).
@@ -63,13 +63,13 @@ RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v8/cmd.Ve
 # ----------------------------------------------
 ARG DOCKER_REGISTRY
 ARG DOCKER_REPOSITORY
-FROM ${DOCKER_REGISTRY}/${DOCKER_REPOSITORY}:latest AS gotenberg-default-image
+FROM $DOCKER_REGISTRY/$DOCKER_REPOSITORY:latest AS gotenberg-default-image
 
 # ----------------------------------------------
 # Final stage
 # ----------------------------------------------
 ARG ALPINE_VERSION
-FROM alpine:${ALPINE_VERSION:-3.21}
+FROM alpine:$ALPINE_VERSION
 
 ARG GOTENBERG_VERSION
 ARG GOTENBERG_USER_GID
