@@ -49,8 +49,6 @@ func printToPdfActionFunc(logger *zap.Logger, outputPath string, options PdfOpti
 			WithPageRanges(pageRanges).
 			WithPreferCSSPageSize(options.PreferCssPageSize).
 			WithGenerateDocumentOutline(options.GenerateDocumentOutline).
-			// Does not seem to work.
-			// See https://github.com/gotenberg/gotenberg/issues/831.
 			WithGenerateTaggedPDF(false)
 
 		hasCustomHeaderFooter := options.HeaderTemplate != DefaultPdfOptions().HeaderTemplate ||
@@ -392,26 +390,30 @@ func hideDefaultWhiteBackgroundActionFunc(logger *zap.Logger, omitBackground, pr
 	}
 }
 
-func forceExactColorsActionFunc() chromedp.ActionFunc {
+func forceExactColorsActionFunc(logger *zap.Logger, printBackground bool) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
-		// See:
-		// https://github.com/gotenberg/gotenberg/issues/354
-		// https://github.com/puppeteer/puppeteer/issues/2685
-		// https://github.com/chromedp/chromedp/issues/520
-		script := `
-(() => {
-	const css = 'html { -webkit-print-color-adjust: exact !important; }';
+		css := "html { -webkit-print-color-adjust: exact !important; }"
+		if !printBackground {
+			// The -webkit-print-color-adjust: exact CSS property forces the
+			// print of the background, whatever the printToPDF args.
+			// See https://github.com/gotenberg/gotenberg/issues/1154.
+			additionalCss := "html, body { background: none !important; }"
+			logger.Debug(fmt.Sprintf("inject %s as printBackground is %t", additionalCss, printBackground))
+			css += additionalCss
+		}
 
+		script := fmt.Sprintf(`
+(() => {
+	const css = '%s';
 	const style = document.createElement('style');
 	style.type = 'text/css';
 	style.appendChild(document.createTextNode(css));
 	document.head.appendChild(style);
 })();
-`
+`, css)
 
 		evaluate := chromedp.Evaluate(script, nil)
 		err := evaluate.Do(ctx)
-
 		if err == nil {
 			return nil
 		}
