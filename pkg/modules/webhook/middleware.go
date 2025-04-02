@@ -239,10 +239,15 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						}
 
 						headers := map[string]string{
-							echo.HeaderContentDisposition: fmt.Sprintf("attachement; filename=%q", ctx.OutputFilename(outputPath)),
 							echo.HeaderContentType:        http.DetectContentType(fileHeader),
 							echo.HeaderContentLength:      strconv.FormatInt(fileStat.Size(), 10),
 							traceHeader:                   trace,
+						}
+
+						// if Content-Disposition is not set in extraHttpHeaders, we set it.
+						default_disposition := fmt.Sprintf("attachment; filename=%q", ctx.OutputFilename(outputPath))
+						if _, ok := extraHttpHeaders[echo.HeaderContentDisposition]; !ok {
+							headers[echo.HeaderContentDisposition] = default_disposition
 						}
 
 						// Send the output file to the webhook.
