@@ -1,56 +1,65 @@
-linters-settings:
-  gci:
-    sections:
-      - standard
-      - default
-      - prefix(github.com/gotenberg/gotenberg/v8)
-    skip-generated: true
-    custom-order: true
-
+version: "2"
+run:
+  issues-exit-code: 1
+  tests: false
 linters:
-  disable-all: true
+  default: none
   enable:
     - asasalint
     - asciicheck
     - bidichk
     - bodyclose
+    - copyloopvar
     - decorder
     - dogsled
     - dupl
     - dupword
     - durationcheck
-    - copyloopvar
     - errcheck
     - errname
     - exhaustive
-    - gci
-    - gofmt
-    - goimports
-    - gofumpt
     - gosec
-    - gosimple
     - govet
-    - ineffassign
     - importas
+    - ineffassign
     - misspell
     - prealloc
     - promlinter
-    #- sloglint
     - staticcheck
     - testableexamples
     - tparallel
-    - typecheck
     - unconvert
     - unused
     - usetesting
     - wastedassign
     - whitespace
-
-run:
-  timeout: 5m
-  issues-exit-code: 1
-  tests: false
-
-output:
-  print-issued-lines: true
-  print-linter-name: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/gotenberg/gotenberg/v8)
+      custom-order: true
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

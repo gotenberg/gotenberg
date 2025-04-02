@@ -275,8 +275,13 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 		args = append(args, "--printer", "PaperOrientation=landscape")
 	}
 
+	// See: https://github.com/gotenberg/gotenberg/issues/1149.
 	if options.PageRanges != "" {
 		args = append(args, "--export", fmt.Sprintf("PageRange=%s", options.PageRanges))
+	}
+
+	if !options.UpdateIndexes {
+		args = append(args, "--disable-update-indexes")
 	}
 
 	args = append(args, "--export", fmt.Sprintf("ExportFormFields=%t", options.ExportFormFields))

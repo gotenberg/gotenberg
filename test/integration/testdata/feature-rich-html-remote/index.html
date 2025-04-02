@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- net::ERR_CONNECTION_REFUSED -->
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="http://localhost:100/style.css"
+    />
+    <title>Feature Rich HTML</title>
+    <style>
+      @media print {
+        #screen {
+          display: none;
+        }
+      }
+      @media screen {
+        #print {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <p id="wait" style="display: none">
+      Wait delay > 2 seconds or expression window globalVar === 'ready' returns
+      true.
+    </p>
+    <p id="print">Emulated media type is 'print'.</p>
+    <p id="screen">Emulated media type is 'screen'.</p>
+    <p id="javascript" style="display: none">JavaScript is enabled.</p>
+    <iframe src="file:///etc/passwd"></iframe>
+
+    <script type="application/javascript">
+      var globalVar = "notReady";
+
+      const delay = (ms) => new Promise((res) => setTimeout(res, ms));
+      delay(2000).then(() => {
+        document.getElementById("wait").style.display = "contents";
+        window.globalVar = "ready";
+      });
+    </script>
+
+    <script type="application/javascript">
+      document.getElementById("javascript").style.display = "contents";
+    </script>
+
+    <script type="application/javascript">
+      console.log("a simple message");
+      console.debug("a debug message");
+      console.warn("a warning message");
+      console.error("an error message");
+    </script>
+
+    <script type="application/javascript">
+      throw new Error("Exception 1");
+    </script>
+
+    <script type="application/javascript">
+      throw new Error("Exception 2");
+    </script>
+  </body>
+</html>

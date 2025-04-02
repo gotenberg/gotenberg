@@ -1,7 +1,6 @@
 package libreoffice
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -39,6 +38,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				password                        string
 				landscape                       bool
 				nativePageRanges                string
+				updateIndexes                   bool
 				exportFormFields                bool
 				allowDuplicateFieldNames        bool
 				exportBookmarks                 bool
@@ -68,6 +68,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				String("password", &password, defaultOptions.Password).
 				Bool("landscape", &landscape, defaultOptions.Landscape).
 				String("nativePageRanges", &nativePageRanges, defaultOptions.PageRanges).
+				Bool("updateIndexes", &updateIndexes, defaultOptions.UpdateIndexes).
 				Bool("exportFormFields", &exportFormFields, defaultOptions.ExportFormFields).
 				Bool("allowDuplicateFieldNames", &allowDuplicateFieldNames, defaultOptions.AllowDuplicateFieldNames).
 				Bool("exportBookmarks", &exportBookmarks, defaultOptions.ExportBookmarks).
@@ -127,15 +128,6 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				}).
 				Bool("nativePdfFormats", &nativePdfFormats, true).
 				Bool("merge", &merge, false).
-				Custom("metadata", func(value string) error {
-					if len(value) > 0 {
-						err := json.Unmarshal([]byte(value), &metadata)
-						if err != nil {
-							return fmt.Errorf("unmarshal metadata: %w", err)
-						}
-					}
-					return nil
-				}).
 				Bool("flatten", &flatten, false).
 				Validate()
 			if err != nil {
@@ -149,6 +141,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					Password:                        password,
 					Landscape:                       landscape,
 					PageRanges:                      nativePageRanges,
+					UpdateIndexes:                   updateIndexes,
 					ExportFormFields:                exportFormFields,
 					AllowDuplicateFieldNames:        allowDuplicateFieldNames,
 					ExportBookmarks:                 exportBookmarks,

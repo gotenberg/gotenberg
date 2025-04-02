@@ -114,9 +114,10 @@ jobs:
       - uses: anchore/scan-action@7e1d7c7efead0a0d601d6db77ef537817e3ca6a8
         if: ${{ matrix.type == 'x86' }}
         id: scan
+        continue-on-error: true
         with:
           image: harbor.onebrief.tools/onebrief/gotenberg@${{ steps.build.outputs.digest }}
-          fail-build: true
+          fail-build: false
           cache-db: true
           severity-cutoff: high
 

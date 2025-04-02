@@ -3,5 +3,6 @@
 .idea
 .vscode
 .DS_Store
+/node_modules/
 /TODO.txt
 *.exe
