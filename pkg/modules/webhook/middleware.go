@@ -239,9 +239,9 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						}
 
 						headers := map[string]string{
-							echo.HeaderContentType:        http.DetectContentType(fileHeader),
-							echo.HeaderContentLength:      strconv.FormatInt(fileStat.Size(), 10),
-							traceHeader:                   trace,
+							echo.HeaderContentType:   http.DetectContentType(fileHeader),
+							echo.HeaderContentLength: strconv.FormatInt(fileStat.Size(), 10),
+							traceHeader:              trace,
 						}
 
 						// Allow for custom Content-Disposition header.
