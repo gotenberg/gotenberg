@@ -244,10 +244,11 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 							traceHeader:                   trace,
 						}
 
-						// if Content-Disposition is not set in extraHttpHeaders, we set it.
-						default_disposition := fmt.Sprintf("attachment; filename=%q", ctx.OutputFilename(outputPath))
-						if _, ok := extraHttpHeaders[echo.HeaderContentDisposition]; !ok {
-							headers[echo.HeaderContentDisposition] = default_disposition
+						// Allow for custom Content-Disposition header.
+						// See https://github.com/gotenberg/gotenberg/issues/1165.
+						_, ok := extraHttpHeaders[echo.HeaderContentDisposition]
+						if !ok {
+							headers[echo.HeaderContentDisposition] = fmt.Sprintf("attachment; filename=%q", ctx.OutputFilename(outputPath))
 						}
 
 						// Send the output file to the webhook.
