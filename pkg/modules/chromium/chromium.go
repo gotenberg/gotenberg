@@ -138,6 +138,13 @@ type Options struct {
 	// OmitBackground hides default white background and allows generating PDFs
 	// with transparency.
 	OmitBackground bool
+
+	// ClosePageAfterConverted is a flag that check chromium should close context
+	// page or not.
+	// If true, the context page will exec a page.Close call as end, the error
+	// result will be logged.
+	// Remember: error in this call won't be return.
+	ClosePageAfterConvert bool
 }
 
 // DefaultOptions returns the default values for Options.
@@ -156,6 +163,7 @@ func DefaultOptions() Options {
 		ExtraHttpHeaders:              nil,
 		EmulatedMediaType:             "",
 		OmitBackground:                false,
+		ClosePageAfterConvert:         false,
 	}
 }
 

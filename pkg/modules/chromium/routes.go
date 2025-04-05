@@ -43,6 +43,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		extraHttpHeaders              []ExtraHttpHeader
 		emulatedMediaType             string
 		omitBackground                bool
+		closePageAfterConvert         bool
 	)
 
 	form := ctx.FormData().
@@ -172,7 +173,8 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 
 			return nil
 		}).
-		Bool("omitBackground", &omitBackground, defaultOptions.OmitBackground)
+		Bool("omitBackground", &omitBackground, defaultOptions.OmitBackground).
+		Bool("closePageAfterConvert", &closePageAfterConvert, defaultOptions.ClosePageAfterConvert)
 
 	options := Options{
 		SkipNetworkIdleEvent:          skipNetworkIdleEvent,
@@ -188,6 +190,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		ExtraHttpHeaders:              extraHttpHeaders,
 		EmulatedMediaType:             emulatedMediaType,
 		OmitBackground:                omitBackground,
+		ClosePageAfterConvert:         closePageAfterConvert,
 	}
 
 	return form, options

@@ -511,3 +511,18 @@ func waitForExpressionBeforePrintActionFunc(logger *zap.Logger, disableJavaScrip
 		}
 	}
 }
+
+func closePageAfterConvert(logger *zap.Logger, close bool) chromedp.ActionFunc {
+	return func(ctx context.Context) error {
+		// This function won't return error, just log a message to logger.
+		// Close page failure is not very important thing about gotenberg,
+		// if you want clean memery info, you should set `autoRestart` options.
+		if !close {
+			return nil
+		}
+		if err := page.Close().Do(ctx); err != nil {
+			logger.Error(fmt.Sprintf("close context page after convert failure: %s", err))
+		}
+		return nil
+	}
+}
