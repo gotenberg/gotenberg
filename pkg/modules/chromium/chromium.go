@@ -131,6 +131,12 @@ type Options struct {
 	// loading he HTML document.
 	ExtraHttpHeaders []ExtraHttpHeader
 
+	// CustomStealthJS provide an option to set user's local stealth.min.js,
+	// which should access by any web site(without CORS).
+	// You can generate the script by:
+	// https://github.com/berstend/puppeteer-extra/tree/master/packages/extract-stealth-evasions
+	CustomStealthJS string
+
 	// EmulatedMediaType is the media type to emulate, either "screen" or
 	// "print".
 	EmulatedMediaType string
@@ -161,6 +167,7 @@ func DefaultOptions() Options {
 		Cookies:                       nil,
 		UserAgent:                     "",
 		ExtraHttpHeaders:              nil,
+		CustomStealthJS:               "",
 		EmulatedMediaType:             "",
 		OmitBackground:                false,
 		ClosePageAfterConvert:         false,

@@ -41,6 +41,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		cookies                       []Cookie
 		userAgent                     string
 		extraHttpHeaders              []ExtraHttpHeader
+		customStealthJS               string
 		emulatedMediaType             string
 		omitBackground                bool
 		closePageAfterConvert         bool
@@ -159,6 +160,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 
 			return err
 		}).
+		String("customStealthJS", &customStealthJS, defaultOptions.CustomStealthJS).
 		Custom("emulatedMediaType", func(value string) error {
 			if value == "" {
 				emulatedMediaType = defaultOptions.EmulatedMediaType
@@ -188,6 +190,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		Cookies:                       cookies,
 		UserAgent:                     userAgent,
 		ExtraHttpHeaders:              extraHttpHeaders,
+		CustomStealthJS:               customStealthJS,
 		EmulatedMediaType:             emulatedMediaType,
 		OmitBackground:                omitBackground,
 		ClosePageAfterConvert:         closePageAfterConvert,
