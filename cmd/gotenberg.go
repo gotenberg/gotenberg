@@ -137,8 +137,10 @@ func Run() {
 		}(l.(gotenberg.SystemLogger))
 	}
 
-	// Build the debug data.
-	gotenberg.BuildDebug(ctx)
+	if parsedFlags.MustString("log-level") == "debug" {
+		// Build the debug data.
+		gotenberg.BuildDebug(ctx)
+	}
 
 	quit := make(chan os.Signal, 1)
 
