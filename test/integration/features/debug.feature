@@ -86,6 +86,7 @@ Feature: /debug
           "chromium-proxy-server": "",
           "chromium-restart-after": "10",
           "chromium-start-timeout": "20s",
+          "gotenberg-build-debug-data": "true",
           "gotenberg-graceful-shutdown-duration": "30s",
           "libreoffice-auto-start": "false",
           "libreoffice-disable-routes": "false",
