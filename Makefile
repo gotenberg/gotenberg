@@ -18,6 +18,7 @@ build: ## Build the Gotenberg's Docker image
 	-f $(DOCKERFILE) $(DOCKER_BUILD_CONTEXT)
 
 GOTENBERG_GRACEFUL_SHUTDOWN_DURATION=30s
+GOTENBERG_BUILD_DEBUG_DATA=true
 API_PORT=3000
 API_PORT_FROM_ENV=
 API_BIND_IP=
@@ -52,7 +53,6 @@ CHROMIUM_CLEAR_CACHE=false
 CHROMIUM_CLEAR_COOKIES=false
 CHROMIUM_DISABLE_JAVASCRIPT=false
 CHROMIUM_DISABLE_ROUTES=false
-GOTENBERG_BUILD_DEBUG_DATA=true
 LIBREOFFICE_RESTART_AFTER=10
 LIBREOFFICE_MAX_QUEUE_SIZE=0
 LIBREOFFICE_AUTO_START=false
@@ -92,6 +92,7 @@ run: ## Start a Gotenberg container
 	$(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
 	gotenberg \
 	--gotenberg-graceful-shutdown-duration=$(GOTENBERG_GRACEFUL_SHUTDOWN_DURATION) \
+	--gotenberg-build-debug-data=$(GOTENBERG_BUILD_DEBUG_DATA) \	
 	--api-port=$(API_PORT) \
 	--api-port-from-env=$(API_PORT_FROM_ENV) \
 	--api-bind-ip=$(API_BIND_IP) \
@@ -124,7 +125,6 @@ run: ## Start a Gotenberg container
 	--chromium-clear-cookies=$(CHROMIUM_CLEAR_COOKIES) \
 	--chromium-disable-javascript=$(CHROMIUM_DISABLE_JAVASCRIPT) \
 	--chromium-disable-routes=$(CHROMIUM_DISABLE_ROUTES) \
-	--gotenberg-build-debug-data=$(GOTENBERG_BUILD_DEBUG_DATA) \
 	--libreoffice-restart-after=$(LIBREOFFICE_RESTART_AFTER) \
 	--libreoffice-max-queue-size=$(LIBREOFFICE_MAX_QUEUE_SIZE) \
 	--libreoffice-auto-start=$(LIBREOFFICE_AUTO_START) \
