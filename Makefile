@@ -92,7 +92,7 @@ run: ## Start a Gotenberg container
 	$(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
 	gotenberg \
 	--gotenberg-graceful-shutdown-duration=$(GOTENBERG_GRACEFUL_SHUTDOWN_DURATION) \
-	--gotenberg-build-debug-data=$(GOTENBERG_BUILD_DEBUG_DATA) \	
+	--gotenberg-build-debug-data="$(GOTENBERG_BUILD_DEBUG_DATA)" \
 	--api-port=$(API_PORT) \
 	--api-port-from-env=$(API_PORT_FROM_ENV) \
 	--api-bind-ip=$(API_BIND_IP) \
