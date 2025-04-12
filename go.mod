@@ -6,8 +6,8 @@ require (
 	github.com/alexliesenfeld/health v0.8.0
 	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/barasher/go-exiftool v1.10.0
-	github.com/chromedp/cdproto v0.0.0-20250401205909-91afd104e2b8
-	github.com/chromedp/chromedp v0.13.5
+	github.com/chromedp/cdproto v0.0.0-20250403032234-65de8f5d025b
+	github.com/chromedp/chromedp v0.13.6
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.7
@@ -18,18 +18,18 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
-	github.com/prometheus/client_golang v1.21.1
+	github.com/prometheus/client_golang v1.22.0
 	github.com/russross/blackfriday/v2 v2.1.0
 	github.com/spf13/pflag v1.0.6
 	github.com/ulikunitz/xz v0.5.12 // indirect
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.36.0 // indirect
-	golang.org/x/net v0.38.0
-	golang.org/x/sync v0.12.0
-	golang.org/x/sys v0.31.0 // indirect
-	golang.org/x/term v0.30.0
-	golang.org/x/text v0.23.0
+	golang.org/x/crypto v0.37.0 // indirect
+	golang.org/x/net v0.39.0
+	golang.org/x/sync v0.13.0
+	golang.org/x/sys v0.32.0 // indirect
+	golang.org/x/term v0.31.0
+	golang.org/x/text v0.24.0
 )
 
 require (
@@ -37,7 +37,7 @@ require (
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/docker/docker v28.0.4+incompatible
 	github.com/docker/go-connections v0.5.0
-	github.com/mholt/archives v0.1.0
+	github.com/mholt/archives v0.1.1
 	github.com/shirou/gopsutil/v4 v4.25.3
 	github.com/testcontainers/testcontainers-go v0.36.0
 )
@@ -46,7 +46,7 @@ require (
 	dario.cat/mergo v1.0.1 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/STARRY-S/zip v0.2.2 // indirect
+	github.com/STARRY-S/zip v0.2.3 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bodgit/plumbing v1.3.0 // indirect
@@ -83,12 +83,13 @@ require (
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/lufia/plan9stats v0.0.0-20250317134145-8bc96cf8fc35 // indirect
-	github.com/magiconair/properties v1.8.9 // indirect
+	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
+	github.com/minio/minlz v1.0.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/patternmatcher v0.6.0 // indirect
 	github.com/moby/sys/sequential v0.6.0 // indirect
-	github.com/moby/sys/user v0.3.0 // indirect
+	github.com/moby/sys/user v0.4.0 // indirect
 	github.com/moby/sys/userns v0.1.0 // indirect
 	github.com/moby/term v0.5.2 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
@@ -99,7 +100,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
-	github.com/prometheus/client_model v0.6.1 // indirect
+	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.63.0 // indirect
 	github.com/prometheus/procfs v0.16.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
