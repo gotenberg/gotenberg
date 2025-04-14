@@ -86,6 +86,7 @@ Feature: /debug
           "chromium-proxy-server": "",
           "chromium-restart-after": "10",
           "chromium-start-timeout": "20s",
+          "gotenberg-build-debug-data": "true",
           "gotenberg-graceful-shutdown-duration": "30s",
           "libreoffice-auto-start": "false",
           "libreoffice-disable-routes": "false",
@@ -117,6 +118,24 @@ Feature: /debug
           "webhook-retry-max-wait": "30s",
           "webhook-retry-min-wait": "1s"
         }
+      }
+      """
+
+  Scenario: GET /debug (No Debug Data)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | GOTENBERG_BUILD_DEBUG_DATA | false |
+      | API_ENABLE_DEBUG_ROUTE     | true  |
+    When I make a "GET" request to Gotenberg at the "/debug" endpoint
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/json"
+    Then the response body should match JSON:
+      """
+      {
+        "version": "",
+        "architecture": "",
+        "modules": null,
+        "modules_additional_data": null,
+        "flags": null
       }
       """
 

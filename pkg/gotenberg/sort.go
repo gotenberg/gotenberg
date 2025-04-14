@@ -1,6 +1,7 @@
 package gotenberg
 
 import (
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -54,6 +55,9 @@ func (s AlphanumericSort) Less(i, j int) bool {
 // If that fails, it then attempts a trailing numeric pattern.
 // If no number is found, it returns -1 and the original string.
 func extractNumber(str string) (int, string) {
+	// See https://github.com/gotenberg/gotenberg/issues/1168.
+	str = filepath.Base(str)
+
 	// Check for a numeric prefix.
 	if matches := prefixRegexp.FindStringSubmatch(str); len(matches) > 2 {
 		if num, err := strconv.Atoi(matches[1]); err == nil {
