@@ -93,6 +93,9 @@ func (b *chromiumBrowser) Start(logger *zap.Logger) error {
 		chromedp.UserDataDir(b.userProfileDirPath),
 		// See https://github.com/gotenberg/gotenberg/issues/831.
 		chromedp.Flag("disable-pdf-tagging", true),
+		// See https://github.com/gotenberg/gotenberg/issues/1177.
+		chromedp.Flag("no-zygote", true),
+		chromedp.Flag("disable-dev-shm-usage", true),
 	)
 
 	if b.arguments.incognito {
