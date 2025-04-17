@@ -26,7 +26,7 @@ func init() {
 
 var (
 	// ErrInvalidEmulatedMediaType happens if the emulated media type is not
-	// "screen" nor "print". Empty value are allowed though.
+	// "screen" nor "print". Empty value is allowed, though.
 	ErrInvalidEmulatedMediaType = errors.New("invalid emulated media type")
 
 	// ErrInvalidEvaluationExpression happens if an evaluation expression
@@ -38,11 +38,11 @@ var (
 	ErrRpccMessageTooLarge = errors.New("rpcc message too large")
 
 	// ErrInvalidHttpStatusCode happens when the status code from the main page
-	// matches with one of the entry in [Options.FailOnHttpStatusCodes].
+	// matches with one of the entries in [Options.FailOnHttpStatusCodes].
 	ErrInvalidHttpStatusCode = errors.New("invalid HTTP status code")
 
 	// ErrInvalidResourceHttpStatusCode happens when the status code from one
-	// or more resources matches with one of the entry in
+	// or more resources matches with one of the entries in
 	// [Options.FailOnResourceHttpStatusCodes].
 	ErrInvalidResourceHttpStatusCode = errors.New("invalid resource HTTP status code")
 
@@ -68,11 +68,11 @@ var (
 	ErrInvalidPrinterSettings = errors.New("invalid printer settings")
 
 	// ErrPageRangesSyntaxError happens if the PdfOptions have an invalid page
-	// ranges.
+	// range.
 	ErrPageRangesSyntaxError = errors.New("page ranges syntax error")
 )
 
-// Chromium is a module which provides both an [Api] and routes for converting
+// Chromium is a module that provides both an [Api] and routes for converting
 // HTML document to PDF.
 type Chromium struct {
 	autoStart     bool
@@ -128,15 +128,15 @@ type Options struct {
 	UserAgent string
 
 	// ExtraHttpHeaders are extra HTTP headers to send by Chromium while
-	// loading he HTML document.
+	// loading the HTML document.
 	ExtraHttpHeaders []ExtraHttpHeader
 
 	// EmulatedMediaType is the media type to emulate, either "screen" or
 	// "print".
 	EmulatedMediaType string
 
-	// OmitBackground hides default white background and allows generating PDFs
-	// with transparency.
+	// OmitBackground hides the default white background and allows generating
+	// PDFs with transparency.
 	OmitBackground bool
 }
 
@@ -197,9 +197,9 @@ type PdfOptions struct {
 	// Page ranges to print, e.g., '1-5, 8, 11-13'. Empty means all pages.
 	PageRanges string
 
-	// HeaderTemplate is the HTML template of the header. It should be valid
-	// HTML  markup with following classes used to inject printing values into
-	// them:
+	// HeaderTemplate is the HTML template of the header. It should be a valid
+	// HTML markup with the following classes used to inject printing values
+	// into them:
 	// - date: formatted print date
 	// - title: document title
 	// - url: document location
@@ -338,7 +338,7 @@ type Api interface {
 	Screenshot(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error
 }
 
-// Provider is a module interface which exposes a method for creating an [Api]
+// Provider is a module interface that exposes a method for creating an [Api]
 // for other modules.
 //
 //	func (m *YourModule) Provision(ctx *gotenberg.Context) error {
@@ -473,8 +473,8 @@ func (mod *Chromium) StartupMessage() string {
 
 // Stop stops the current browser instance.
 func (mod *Chromium) Stop(ctx context.Context) error {
-	// Block until the context is done so that other module may gracefully stop
-	// before we do a shutdown.
+	// Block until the context is done so that another module may gracefully
+	// stop before we do a shutdown.
 	mod.logger.Debug("wait for the end of grace duration")
 
 	<-ctx.Done()

@@ -74,7 +74,7 @@ func (cmd *Cmd) Start() error {
 }
 
 // Wait waits for the command to complete. It should be called when using the
-// Start method, so that the command does not leak zombies.
+// Start method so that the command does not leak zombies.
 func (cmd *Cmd) Wait() error {
 	err := cmd.process.Wait()
 	if err != nil {
@@ -84,7 +84,7 @@ func (cmd *Cmd) Wait() error {
 	return nil
 }
 
-// Exec executes the command and wait for its completion or until the context
+// Exec executes the command and waits for its completion or until the context
 // is done. In any case, it kills the unix process and all its children.
 func (cmd *Cmd) Exec() (int, error) {
 	if cmd.ctx == nil {

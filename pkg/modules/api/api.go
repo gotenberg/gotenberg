@@ -26,7 +26,7 @@ func init() {
 	gotenberg.MustRegisterModule(new(Api))
 }
 
-// Api is a module which provides an HTTP server. Other modules may add routes,
+// Api is a module that provides an HTTP server. Other modules may add routes,
 // middlewares or health checks.
 type Api struct {
 	port                      int
@@ -60,7 +60,7 @@ type downloadFromConfig struct {
 	disable   bool
 }
 
-// Router is a module interface which adds routes to the [Api].
+// Router is a module interface that adds routes to the [Api].
 type Router interface {
 	Routes() ([]Route, error)
 }
@@ -83,17 +83,17 @@ type Route struct {
 	// Optional.
 	DisableLogging bool
 
-	// Handler is the function which handles the request.
+	// Handler is the function that handles the request.
 	// Required.
 	Handler echo.HandlerFunc
 }
 
-// MiddlewareProvider is a module interface which adds middlewares to the [Api].
+// MiddlewareProvider is a module interface that adds middlewares to the [Api].
 type MiddlewareProvider interface {
 	Middlewares() ([]Middleware, error)
 }
 
-// MiddlewareStack is a type which helps to determine in which stack the
+// MiddlewareStack is a type that helps to determine in which stack the
 // middlewares provided by the [MiddlewareProvider] modules should be located.
 type MiddlewareStack uint32
 
@@ -103,7 +103,7 @@ const (
 	MultipartStack
 )
 
-// MiddlewarePriority is a type which helps to determine the execution order of
+// MiddlewarePriority is a type that helps to determine the execution order of
 // middlewares provided by the [MiddlewareProvider] modules in a stack.
 type MiddlewarePriority uint32
 
@@ -115,7 +115,7 @@ const (
 	VeryHighPriority
 )
 
-// Middleware is a middleware which can be added to the [Api]'s middlewares
+// Middleware is a middleware that can be added to the [Api]'s middlewares
 // chain.
 //
 //	middleware := Middleware{
@@ -157,7 +157,7 @@ type Middleware struct {
 	Handler echo.MiddlewareFunc
 }
 
-// HealthChecker is a module interface which allows adding health checks to the
+// HealthChecker is a module interface that allows adding health checks to the
 // API.
 //
 // See https://github.com/alexliesenfeld/health for more details.
@@ -431,7 +431,7 @@ func (a *Api) Start() error {
 		}
 	}
 
-	// Check if the user wish to add logging entries related to the health
+	// Check if the user wishes to add logging entries related to the health
 	// check route.
 	if a.disableHealthCheckLogging {
 		disableLoggingForPaths = append(disableLoggingForPaths, "health")

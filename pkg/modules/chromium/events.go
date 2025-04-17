@@ -72,10 +72,10 @@ func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, option
 
 				var extraHttpHeadersToSet []ExtraHttpHeader
 				if len(options.extraHttpHeaders) > 0 {
-					// The user want to set extra HTTP headers.
+					// The user wants to set extra HTTP headers.
 
 					// First, we have to check if at least one header has to be
-					// set for current request.
+					// set for the current request.
 					for _, header := range options.extraHttpHeaders {
 						if header.Scope == nil {
 							// Non-scoped header.
@@ -147,8 +147,8 @@ type eventResponseReceivedOptions struct {
 	invalidResourceHttpStatusCodeMu *sync.RWMutex
 }
 
-// listenForEventResponseReceived listens for an invalid HTTP status code that
-// is returned by the main page or by one or more resources.
+// listenForEventResponseReceived listens for an invalid HTTP status code
+// returned by the main page or by one or more resources.
 // See:
 // https://github.com/gotenberg/gotenberg/issues/613.
 // https://github.com/gotenberg/gotenberg/issues/1021.

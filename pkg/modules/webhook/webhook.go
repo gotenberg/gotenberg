@@ -14,7 +14,7 @@ func init() {
 	gotenberg.MustRegisterModule(new(Webhook))
 }
 
-// Webhook is a module which provides a middleware for uploading output files
+// Webhook is a module that provides a middleware for uploading output files
 // to any destinations in an asynchronous fashion.
 type Webhook struct {
 	allowList      *regexp2.Regexp

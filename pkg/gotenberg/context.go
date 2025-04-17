@@ -5,7 +5,7 @@ import (
 	"reflect"
 )
 
-// Context is a struct which helps to initialize modules. When provisioning, a
+// Context is a struct that helps to initialize modules. When provisioning, a
 // module may use the context to get other modules that it needs internally.
 type Context struct {
 	flags           ParsedFlags
@@ -58,7 +58,7 @@ func (ctx *Context) Module(kind interface{}) (interface{}, error) {
 	return mods[0], nil
 }
 
-// Modules returns the list of modules which satisfies the requested interface.
+// Modules return the list of modules which satisfies the requested interface.
 //
 //	func (m *YourModule) Provision(ctx *gotenberg.Context) error {
 //		mods, _ := ctx.Modules(new(ModuleInterface))

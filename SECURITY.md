@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Please ensure to keep your environment up-to-date and use only the latest version of Gotenberg.
+Please ensure to keep your environment up to date and use only the latest version of Gotenberg.
 Security updates and patches will be applied only to the most recent version.
 
 ## Reporting a Vulnerability

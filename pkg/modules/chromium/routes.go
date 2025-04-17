@@ -25,7 +25,7 @@ import (
 )
 
 // FormDataChromiumOptions creates [Options] from the form data. Fallback to
-// default value if the considered key is not present.
+// the default value if the considered key is not present.
 func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 	defaultOptions := DefaultOptions()
 
@@ -194,7 +194,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 }
 
 // FormDataChromiumPdfOptions creates [PdfOptions] from the form data. Fallback to
-// default value if the considered key is not present.
+// the default value if the considered key is not present.
 func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 	form, options := FormDataChromiumOptions(ctx)
 	defaultPdfOptions := DefaultPdfOptions()
@@ -249,7 +249,7 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 }
 
 // FormDataChromiumScreenshotOptions creates [ScreenshotOptions] from the form
-// data. Fallback to default value if the considered key is not present.
+// data. Fallback to the default value if the considered key is not present.
 func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, ScreenshotOptions) {
 	form, options := FormDataChromiumOptions(ctx)
 	defaultScreenshotOptions := DefaultScreenshotOptions()
@@ -483,7 +483,7 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 }
 
 // screenshotMarkdownRoute returns an [api.Route] which can take a screenshot
-// from markdown files.
+// from Markdown files.
 func screenshotMarkdownRoute(chromium Api) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
@@ -522,7 +522,7 @@ func screenshotMarkdownRoute(chromium Api) api.Route {
 }
 
 func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) (string, error) {
-	// We have to convert each markdown file referenced in the HTML
+	// We have to convert each Markdown file referenced in the HTML
 	// file to... HTML. Thanks to the "html/template" package, we are
 	// able to provide the "toHTML" function which the user may call
 	// directly inside the HTML file.

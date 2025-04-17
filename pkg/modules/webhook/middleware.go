@@ -113,7 +113,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						}
 					}
 
-					// Retrieve values from echo.Context before it get recycled.
+					// Retrieve values from echo.Context before it gets recycled.
 					// See https://github.com/gotenberg/gotenberg/issues/1000.
 					startTime := c.Get("startTime").(time.Time)
 					traceHeader := c.Get("traceHeader").(string)
@@ -189,7 +189,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 							return
 						}
 
-						// No error, let's get build the output file.
+						// No error, let's get to build the output file.
 						outputPath, err := ctx.BuildOutputFile()
 						if err != nil {
 							ctx.Log().Error(fmt.Sprintf("build output file: %s", err))

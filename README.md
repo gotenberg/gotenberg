@@ -51,4 +51,4 @@ Head to the [documentation](https://gotenberg.dev/docs/getting-started/introduct
     </a>
 </p>
 
-Sponsorships help maintaining and improving Gotenberg - [become a sponsor](https://github.com/sponsors/gulien) ❤️
+Sponsorships help maintain and improve Gotenberg - [become a sponsor](https://github.com/sponsors/gulien) ❤️
