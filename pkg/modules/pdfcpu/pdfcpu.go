@@ -146,7 +146,7 @@ func (engine *PdfCpu) Split(ctx context.Context, logger *zap.Logger, mode gotenb
 		return nil, fmt.Errorf("walk directory to find resulting PDFs from split with pdfcpu: %w", err)
 	}
 
-	sort.Sort(gotenberg.AlphanumericSort(outputPaths))
+	sort.Sort(digitSuffixSort(outputPaths))
 
 	return outputPaths, nil
 }

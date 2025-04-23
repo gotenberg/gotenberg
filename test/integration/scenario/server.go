@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/cucumber/godog"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/mholt/archives"
 )
@@ -62,7 +63,16 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 
 		filename, ok := params["filename"]
 		if !ok {
-			return webhookErr(errors.New("no filename in Content-Disposition header"))
+			filename = uuid.NewString()
+			contentType := s.req.Header.Get("Content-Type")
+			switch contentType {
+			case "application/zip":
+				filename = fmt.Sprintf("%s.zip", filename)
+			case "application/pdf":
+				filename = fmt.Sprintf("%s.pdf", filename)
+			default:
+				return webhookErr(errors.New("no filename in Content-Disposition header"))
+			}
 		}
 
 		dirPath := fmt.Sprintf("%s/%s", workdir, s.req.Header.Get("Gotenberg-Trace"))

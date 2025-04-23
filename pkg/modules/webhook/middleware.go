@@ -239,10 +239,16 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						}
 
 						headers := map[string]string{
-							echo.HeaderContentDisposition: fmt.Sprintf("attachement; filename=%q", ctx.OutputFilename(outputPath)),
-							echo.HeaderContentType:        http.DetectContentType(fileHeader),
-							echo.HeaderContentLength:      strconv.FormatInt(fileStat.Size(), 10),
-							traceHeader:                   trace,
+							echo.HeaderContentType:   http.DetectContentType(fileHeader),
+							echo.HeaderContentLength: strconv.FormatInt(fileStat.Size(), 10),
+							traceHeader:              trace,
+						}
+
+						// Allow for custom Content-Disposition header.
+						// See https://github.com/gotenberg/gotenberg/issues/1165.
+						_, ok := extraHttpHeaders[echo.HeaderContentDisposition]
+						if !ok {
+							headers[echo.HeaderContentDisposition] = fmt.Sprintf("attachment; filename=%q", ctx.OutputFilename(outputPath))
 						}
 
 						// Send the output file to the webhook.

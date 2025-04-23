@@ -41,6 +41,7 @@ func Run() {
 	// Create the root FlagSet and adds the modules flags to it.
 	fs := flag.NewFlagSet("gotenberg", flag.ExitOnError)
 	fs.Duration("gotenberg-graceful-shutdown-duration", time.Duration(30)*time.Second, "Set the graceful shutdown duration")
+	fs.Bool("gotenberg-build-debug-data", true, "Set if build data is needed")
 
 	descriptors := gotenberg.GetModuleDescriptors()
 	var modsInfo string
@@ -137,8 +138,10 @@ func Run() {
 		}(l.(gotenberg.SystemLogger))
 	}
 
-	// Build the debug data.
-	gotenberg.BuildDebug(ctx)
+	if parsedFlags.MustBool("gotenberg-build-debug-data") {
+		// Build the debug data.
+		gotenberg.BuildDebug(ctx)
+	}
 
 	quit := make(chan os.Signal, 1)
 
