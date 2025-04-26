@@ -39,7 +39,7 @@ require (
 	github.com/docker/go-connections v0.5.0
 	github.com/mholt/archives v0.1.1
 	github.com/shirou/gopsutil/v4 v4.25.3
-	github.com/testcontainers/testcontainers-go v0.36.0
+	github.com/testcontainers/testcontainers-go v0.37.0
 )
 
 require (
