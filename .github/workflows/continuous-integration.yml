@@ -31,7 +31,7 @@ jobs:
       - name: Run linters
         uses: golangci/golangci-lint-action@v7
         with:
-          version: v2.0.2
+          version: v2.1.6
 
   lint-prettier:
     name: Lint non-Golang codebase
