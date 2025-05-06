@@ -12,7 +12,10 @@ ARG GOLANG_VERSION
 FROM golang:$GOLANG_VERSION AS pdfcpu-binary-stage
 
 ARG PDFCPU_VERSION
-ENV CGO_ENABLED=0
+ENV CGO_ENABLED=0 \
+    # Change GoProxy repository to goproxy.cn, only do this if you are Chinese contributors.
+    #GOPROXY=https://goproxy.cn \
+    ENV_FOO=BAR
 
 # Define the working directory outside of $GOPATH (we're using go modules).
 WORKDIR /home
@@ -34,7 +37,10 @@ RUN go build -o pdfcpu -ldflags "-s -w -X 'main.version=$PDFCPU_VERSION' -X 'git
 FROM golang:$GOLANG_VERSION AS gotenberg-binary-stage
 
 ARG GOTENBERG_VERSION
-ENV CGO_ENABLED=0
+ENV CGO_ENABLED=0 \
+    # Change GoProxy repository to goproxy.cn, only do this if you are Chinese contributors.
+    #GOPROXY=https://goproxy.cn \
+    ENV_FOO=BAR
 
 # Define the working directory outside of $GOPATH (we're using go modules).
 WORKDIR /home
@@ -75,7 +81,10 @@ RUN \
     groupadd --gid "$GOTENBERG_USER_GID" gotenberg &&\
     useradd --uid "$GOTENBERG_USER_UID" --gid gotenberg --shell /bin/bash --home /home/gotenberg --no-create-home gotenberg &&\
     mkdir /home/gotenberg &&\
-    chown gotenberg: /home/gotenberg
+    chown gotenberg: /home/gotenberg && \
+    # Change apt repository to mirrors.aliyun.com, only do this for Chinese contributors.
+    #sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources && \
+    true
 
 RUN \
     # Install system dependencies required for the next instructions or debugging.
@@ -205,6 +214,8 @@ RUN \
 # https://github.com/arachnys/athenapdf/issues/69.
 # https://github.com/arachnys/athenapdf/commit/ba25a8d80a25d08d58865519c4cd8756dc9a336d.
 COPY build/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
+# Copy default stealth.min.js to home directory.
+COPY resources/ /home/gotenberg/resources/
 
 # Copy the pdfcpu binary from the pdfcpu-binary-stage.
 COPY --from=pdfcpu-binary-stage /home/pdfcpu /usr/bin/
