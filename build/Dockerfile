@@ -87,7 +87,7 @@ RUN \
     # Note: tini is a helper for reaping zombie processes.
     apt-get update -qq &&\
     apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg tini python3 default-jre-headless &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg=2.2.40-1.1 tini=0.19.0-1 python3=3.11.2-1+b1 default-jre-headless=2:1.17-74 &&\
     # Cleanup.
     # Note: the Debian image does automatically a clean after each install thanks to a hook.
     # Therefore, there is no need for apt-get clean.
