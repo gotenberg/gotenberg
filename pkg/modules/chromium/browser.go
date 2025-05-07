@@ -12,6 +12,7 @@ import (
 
 	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
+	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 	"github.com/dlclark/regexp2"
@@ -280,6 +281,11 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *zap.Logger, url, outp
 		waitDelayBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitDelay),
 		// PDF specific.
 		printToPdfActionFunc(logger, outputPath, options),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			err := page.Close().Do(ctx)
+			logger.Error(fmt.Sprintf("close page context after convert failure: %s", err))
+			return nil
+		}),
 	})
 }
 
@@ -304,6 +310,11 @@ func (b *chromiumBrowser) screenshot(ctx context.Context, logger *zap.Logger, ur
 		// Screenshot specific.
 		setDeviceMetricsOverride(logger, options.Width, options.Height),
 		captureScreenshotActionFunc(logger, outputPath, options),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			err := page.Close().Do(ctx)
+			logger.Error(fmt.Sprintf("close page context after convert failure: %s", err))
+			return nil
+		}),
 	})
 }
 
