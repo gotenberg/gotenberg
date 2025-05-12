@@ -2,6 +2,16 @@
 # concatenate them. Also, we have to repeat ARG instructions in each build
 # stage that uses them.
 ARG GOLANG_VERSION
+ARG ALPINE_VERSION
+
+# ----------------------------------------------
+# Golang base stage
+# ----------------------------------------------
+FROM golang:$GOLANG_VERSION-alpine AS go-base
+
+RUN \
+    apk update -q &&\
+    apk add -q --no-cache curl
 
 # ----------------------------------------------
 # pdfcpu binary build stage
@@ -9,7 +19,7 @@ ARG GOLANG_VERSION
 # Note: this stage is required as pdfcpu does not release an armhf variant by
 # default.
 
-FROM golang:$GOLANG_VERSION AS pdfcpu-binary-stage
+FROM go-base AS pdfcpu-binary-stage
 
 ARG PDFCPU_VERSION
 ENV CGO_ENABLED=0
@@ -31,7 +41,7 @@ RUN go build -o pdfcpu -ldflags "-s -w -X 'main.version=$PDFCPU_VERSION' -X 'git
 # ----------------------------------------------
 # Gotenberg binary build stage
 # ----------------------------------------------
-FROM golang:$GOLANG_VERSION AS gotenberg-binary-stage
+FROM go-base AS gotenberg-binary-stage
 
 ARG GOTENBERG_VERSION
 ENV CGO_ENABLED=0
@@ -52,53 +62,19 @@ COPY pkg ./pkg
 RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v8/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg/main.go
 
 # ----------------------------------------------
-# Final stage
+# Fonts stage
 # ----------------------------------------------
-FROM debian:12-slim
+FROM debian:12-slim AS fonts-stage
 
-ARG GOTENBERG_VERSION
-ARG GOTENBERG_USER_GID
-ARG GOTENBERG_USER_UID
 ARG NOTO_COLOR_EMOJI_VERSION
-ARG PDFTK_VERSION
-
-LABEL org.opencontainers.image.title="Gotenberg" \
-      org.opencontainers.image.description="A containerized API for seamless PDF conversion." \
-      org.opencontainers.image.version="$GOTENBERG_VERSION" \
-      org.opencontainers.image.authors="Julien Neuhart <neuhart.julien@gmail.com>" \
-      org.opencontainers.image.documentation="https://gotenberg.dev" \
-      org.opencontainers.image.source="https://github.com/gotenberg/gotenberg"
-
-RUN \
-    # Create a non-root user.
-    # All processes in the Docker container will run with this dedicated user.
-    groupadd --gid "$GOTENBERG_USER_GID" gotenberg &&\
-    useradd --uid "$GOTENBERG_USER_UID" --gid gotenberg --shell /bin/bash --home /home/gotenberg --no-create-home gotenberg &&\
-    mkdir /home/gotenberg &&\
-    chown gotenberg: /home/gotenberg
-
-RUN \
-    # Install system dependencies required for the next instructions or debugging.
-    # Note: tini is a helper for reaping zombie processes.
-    apt-get update -qq &&\
-    apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg tini python3 default-jre-headless &&\
-    # Cleanup.
-    # Note: the Debian image does automatically a clean after each install thanks to a hook.
-    # Therefore, there is no need for apt-get clean.
-    # See https://stackoverflow.com/a/24417119/3248473.
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 RUN \
     # Install fonts.
     # Credits:
     # https://github.com/arachnys/athenapdf/blob/master/cli/Dockerfile.
-    # https://help.accusoft.com/PrizmDoc/v12.1/HTML/Installing_Asian_Fonts_on_Ubuntu_and_Debian.html.
-    curl -o ./ttf-mscorefonts-installer_3.8.1_all.deb http://httpredir.debian.org/debian/pool/contrib/m/msttcorefonts/ttf-mscorefonts-installer_3.8.1_all.deb &&\
     apt-get update -qq &&\
     apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
-    ./ttf-mscorefonts-installer_3.8.1_all.deb \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl ca-certificates \
     culmus \
     fonts-beng \
     fonts-hosny-amiri \
@@ -133,7 +109,6 @@ RUN \
     fonts-noto-ui-core \
     fonts-sil-gentium \
     fonts-sil-gentium-basic &&\
-    rm -f ./ttf-mscorefonts-installer_3.8.1_all.deb &&\
     # Add Color and Black-and-White Noto emoji font.
     # Credits:
     # https://github.com/gotenberg/gotenberg/pull/325.
@@ -142,63 +117,78 @@ RUN \
     # Cleanup.
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN \
-    # Install either Google Chrome stable on amd64 architecture or
-    # Chromium on other architectures.
-    # See https://github.com/gotenberg/gotenberg/issues/328.
-    /bin/bash -c \
-    'set -e &&\
-    if [[ "$(dpkg --print-architecture)" == "amd64" ]]; then \
-      curl https://dl.google.com/linux/linux_signing_key.pub | apt-key add - &&\
-      echo "deb http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list &&\
-      apt-get update -qq &&\
-      apt-get upgrade -yqq &&\
-      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends --allow-unauthenticated google-chrome-stable &&\
-      mv /usr/bin/google-chrome-stable /usr/bin/chromium; \
-    else \
-      apt-get update -qq &&\
-      apt-get upgrade -yqq &&\
-      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium; \
-    fi' &&\
-    # Verify installation.
-    chromium --version &&\
-    # Cleanup.
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+# ----------------------------------------------
+# Final stage
+# ----------------------------------------------
+FROM alpine:$ALPINE_VERSION
 
+ARG GOTENBERG_VERSION
+ARG GOTENBERG_USER_GID
+ARG GOTENBERG_USER_UID
+ARG PDFTK_VERSION
+
+LABEL org.opencontainers.image.title="Gotenberg" \
+      org.opencontainers.image.description="A containerized API for seamless PDF conversion." \
+      org.opencontainers.image.version="$GOTENBERG_VERSION" \
+      org.opencontainers.image.authors="Julien Neuhart <neuhart.julien@gmail.com>" \
+      org.opencontainers.image.documentation="https://gotenberg.dev" \
+      org.opencontainers.image.source="https://github.com/gotenberg/gotenberg"
+
+# Create a non-root user.
+# All processes in the Docker container will run with this dedicated user.
 RUN \
-    # Install LibreOffice & unoconverter.
-    echo "deb http://deb.debian.org/debian bookworm-backports main" >> /etc/apt/sources.list &&\
-    apt-get update -qq &&\
-    apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t bookworm-backports libreoffice &&\
+    addgroup -g "$GOTENBERG_USER_GID" gotenberg &&\
+    adduser -D -u "$GOTENBERG_USER_UID" -G gotenberg -s /bin/bash -h /home/gotenberg gotenberg
+
+# Install system dependencies required for the next instructions or debugging.
+# Note: tini is a helper for reaping zombie processes.
+RUN \
+    apk update -q &&\
+    apk add -q --no-cache curl gnupg tini poppler python3 openjdk17-jre-headless
+
+# Install Chromium.
+RUN \
+    apk update -q &&\
+    apk add -q --no-cache chromium &&\
+    # Verify installation.
+    chromium --version
+
+# Install LibreOffice & unoconverter.
+RUN \
+    apk update -q  &&\
+    apk add -q --no-cache \
+    --repository https://dl-cdn.alpinelinux.org/alpine/edge/main \
+    --repository https://dl-cdn.alpinelinux.org/alpine/edge/community \
+    libreoffice &&\
+    apk add -q --no-cache py3-setuptools py3-looseversion &&\
     curl -Ls https://raw.githubusercontent.com/gotenberg/unoconverter/v0.1.1/unoconv -o /usr/bin/unoconverter &&\
     chmod +x /usr/bin/unoconverter &&\
-    # unoconverter will look for the Python binary, which has to be at version 3.
-    ln -s /usr/bin/python3 /usr/bin/python &&\
     # Verify installations.
     libreoffice --version &&\
-    unoconverter --version &&\
-    # Cleanup.
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    unoconverter --version
 
+# Install PDFtk, QPDF & ExifTool (PDF engines).
+# See https://github.com/gotenberg/gotenberg/pull/273.
 RUN \
-    # Install PDFtk, QPDF & ExifTool (PDF engines).
-    # See https://github.com/gotenberg/gotenberg/pull/273.
     curl -o /usr/bin/pdftk-all.jar "https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/$PDFTK_VERSION/pdftk-all.jar" &&\
-    chmod a+x /usr/bin/pdftk-all.jar &&\
-    echo '#!/bin/bash\n\nexec java -jar /usr/bin/pdftk-all.jar "$@"' > /usr/bin/pdftk && \
+    echo -e '#!/bin/sh\n\nexec java -jar /usr/bin/pdftk-all.jar "$@"' > /usr/bin/pdftk && \
     chmod +x /usr/bin/pdftk &&\
-    apt-get update -qq &&\
-    apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends qpdf exiftool &&\
-    # See https://github.com/nextcloud/docker/issues/380.
-    mkdir -p /usr/share/man/man1 &&\
+    apk update -q &&\
+    apk add -q --no-cache qpdf exiftool &&\
     # Verify installations.
     pdftk --version &&\
     qpdf --version &&\
-    exiftool --version &&\
-    # Cleanup.
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    exiftool --version
+
+# Install fonts.
+COPY --from=fonts-stage /usr/share/fonts /usr/share/fonts
+COPY --from=fonts-stage /usr/local/share/fonts /usr/local/share/fonts
+
+RUN \
+    apk update -q &&\
+    apk add -q --no-cache fontconfig &&\
+    fc-cache -fv &&\
+    fc-list
 
 # Improve fonts subpixel hinting and smoothing.
 # Credits:
@@ -227,5 +217,5 @@ WORKDIR /home/gotenberg
 # Default API port.
 EXPOSE 3000
 
-ENTRYPOINT [ "/usr/bin/tini", "--" ]
+ENTRYPOINT [ "/sbin/tini", "--" ]
 CMD [ "gotenberg" ]
