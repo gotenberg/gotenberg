@@ -125,7 +125,7 @@ FROM alpine:$ALPINE_VERSION
 ARG GOTENBERG_VERSION
 ARG GOTENBERG_USER_GID=1001
 ARG GOTENBERG_USER_UID=1001
-ARG PDFTK_VERSION
+ARG PDFTK_VERSION=v3.3.3
 
 LABEL org.opencontainers.image.title="Gotenberg" \
     org.opencontainers.image.description="A containerized API for seamless PDF conversion." \

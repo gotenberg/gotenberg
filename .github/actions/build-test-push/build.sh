@@ -131,7 +131,6 @@ no_arch_tag="$DOCKER_REGISTRY/$DOCKER_REPOSITORY:$version"
 cmd="docker buildx build \
     --build-arg GOTENBERG_VERSION=$version \
     --build-arg NOTO_COLOR_EMOJI_VERSION=$NOTO_COLOR_EMOJI_VERSION \
-    --build-arg PDFTK_VERSION=$PDFTK_VERSION \
     --platform $platform \
     --load \
     ${tags_flags[*]} \

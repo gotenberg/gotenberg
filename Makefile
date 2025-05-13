@@ -9,7 +9,6 @@ build: ## Build the Gotenberg's Docker image
 	docker build \
 	--build-arg GOTENBERG_VERSION=$(GOTENBERG_VERSION) \
 	--build-arg NOTO_COLOR_EMOJI_VERSION=$(NOTO_COLOR_EMOJI_VERSION) \
-	--build-arg PDFTK_VERSION=$(PDFTK_VERSION) \
 	-t $(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
 	-f $(DOCKERFILE) $(DOCKER_BUILD_CONTEXT)
 
