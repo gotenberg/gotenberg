@@ -66,7 +66,7 @@ RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v8/cmd.Ve
 # ----------------------------------------------
 FROM debian:12-slim AS fonts-stage
 
-ARG NOTO_COLOR_EMOJI_VERSION
+ARG NOTO_COLOR_EMOJI_VERSION=v2.047
 
 RUN \
     # Install fonts.
