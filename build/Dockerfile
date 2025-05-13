@@ -144,7 +144,7 @@ RUN \
 # Note: tini is a helper for reaping zombie processes.
 RUN \
     apk update -q &&\
-    apk add -q --no-cache curl gnupg tini poppler python3 openjdk17-jre-headless
+    apk add -q --no-cache curl=8.12.1-r1 gnupg tini poppler python3 openjdk17-jre-headless
 
 # Install Chromium.
 RUN \
