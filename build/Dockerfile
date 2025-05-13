@@ -186,7 +186,7 @@ COPY --from=fonts-stage /usr/local/share/fonts /usr/local/share/fonts
 
 RUN \
     apk update -q &&\
-    apk add -q --no-cache fontconfig &&\
+    apk add -q --no-cache fontconfig=2.15.0-r1 &&\
     fc-cache -fv &&\
     fc-list
 
