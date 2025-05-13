@@ -11,7 +11,7 @@ FROM golang:$GOLANG_VERSION-alpine AS go-base
 
 RUN \
     apk update -q &&\
-    apk add -q --no-cache curl
+    apk add -q --no-cache curl=8.12.1-r1
 
 # ----------------------------------------------
 # pdfcpu binary build stage
@@ -21,7 +21,7 @@ RUN \
 
 FROM go-base AS pdfcpu-binary-stage
 
-ARG PDFCPU_VERSION
+ARG PDFCPU_VERSION=v0.8.1
 ENV CGO_ENABLED=0
 
 # Define the working directory outside of $GOPATH (we're using go modules).
