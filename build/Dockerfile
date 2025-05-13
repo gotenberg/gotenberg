@@ -214,6 +214,13 @@ RUN \
     # Cleanup.
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+# Set default characterset encoding to UTF-8.
+# See:
+# https://github.com/gotenberg/gotenberg/issues/104
+# https://github.com/gotenberg/gotenberg/issues/730
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
 RUN \
     # Install LibreOffice & unoconverter.
     echo "deb http://deb.debian.org/debian bookworm-backports main" >> /etc/apt/sources.list &&\
