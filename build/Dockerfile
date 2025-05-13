@@ -69,9 +69,41 @@ RUN \
     upx-ucl --best /home/gotenberg
 
 # ----------------------------------------------
+# Custom JRE stage
+# Credits: https://github.com/jodconverter/docker-image-jodconverter-runtime
+# ----------------------------------------------
+FROM debian:12-slim AS custom-jre-stage
+
+RUN \
+    apt-get update -qq &&\
+    apt-get upgrade -yqq &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends default-jdk-headless binutils
+
+# Note: jdeps helps finding which modules a JAR requires.
+# Currently only for PDFtk, as we don't rely on LibreOffice UNO Java SDK.
+ENV JAVA_MODULES=java.base,java.desktop,java.naming,java.sql
+
+RUN jlink \
+    --add-modules $JAVA_MODULES \
+    --strip-debug \
+    --no-man-pages \
+    --no-header-files \
+    --compress=2 \
+    --output /custom-jre
+
+# ----------------------------------------------
+# Base image stage
+# ----------------------------------------------
+FROM debian:12-slim AS base-image-stage
+
+COPY --from=custom-jre-stage /custom-jre /opt/java
+
+ENV PATH="/opt/java/bin:${PATH}"
+
+# ----------------------------------------------
 # Final stage
 # ----------------------------------------------
-FROM debian:12-slim
+FROM base-image-stage
 
 ARG GOTENBERG_VERSION
 ARG GOTENBERG_USER_GID
@@ -99,7 +131,7 @@ RUN \
     # Note: tini is a helper for reaping zombie processes.
     apt-get update -qq &&\
     apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg tini python3 default-jre-headless &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg tini python3 &&\
     # Cleanup.
     # Note: the Debian image does automatically a clean after each install thanks to a hook.
     # Therefore, there is no need for apt-get clean.
