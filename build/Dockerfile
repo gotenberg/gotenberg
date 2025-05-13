@@ -8,7 +8,6 @@ ARG GOLANG_VERSION
 # ----------------------------------------------
 # Note: this stage is required as pdfcpu does not release an armhf variant by
 # default.
-
 FROM golang:$GOLANG_VERSION AS pdfcpu-binary-stage
 
 ARG PDFCPU_VERSION
@@ -49,7 +48,25 @@ RUN go mod download &&\
 COPY cmd ./cmd
 COPY pkg ./pkg
 
-RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v8/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg/main.go
+RUN go build -o gotenberg -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg/main.go
+
+# ----------------------------------------------
+# Compress Golang binaries stage
+# ----------------------------------------------
+FROM debian:12-slim AS compress-go-binaries-stage
+
+RUN \
+    echo "deb http://deb.debian.org/debian bookworm-backports main" >> /etc/apt/sources.list &&\
+    apt-get update -qq &&\
+    apt-get upgrade -yqq &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t bookworm-backports upx-ucl
+
+COPY --from=pdfcpu-binary-stage /home/pdfcpu /home/pdfcpu
+COPY --from=gotenberg-binary-stage /home/gotenberg /home/gotenberg
+
+RUN \
+    upx-ucl --best /home/pdfcpu &&\
+    upx-ucl --best /home/gotenberg
 
 # ----------------------------------------------
 # Final stage
@@ -206,11 +223,9 @@ RUN \
 # https://github.com/arachnys/athenapdf/commit/ba25a8d80a25d08d58865519c4cd8756dc9a336d.
 COPY build/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 
-# Copy the pdfcpu binary from the pdfcpu-binary-stage.
-COPY --from=pdfcpu-binary-stage /home/pdfcpu /usr/bin/
-
-# Copy the Gotenberg binary from the gotenberg-binary-stage.
-COPY --from=gotenberg-binary-stage /home/gotenberg /usr/bin/
+# Copy the Golang binaries.
+COPY --from=compress-go-binaries-stage /home/pdfcpu /usr/bin/
+COPY --from=compress-go-binaries-stage /home/gotenberg /usr/bin/
 
 # Environment variables required by modules or else.
 ENV CHROMIUM_BIN_PATH=/usr/bin/chromium
