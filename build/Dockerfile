@@ -159,8 +159,8 @@ RUN \
     apk add -q --no-cache \
     --repository https://dl-cdn.alpinelinux.org/alpine/edge/main \
     --repository https://dl-cdn.alpinelinux.org/alpine/edge/community \
-    libreoffice &&\
-    apk add -q --no-cache py3-setuptools py3-looseversion &&\
+    libreoffice=25.2.3.2-r0 &&\
+    apk add -q --no-cache py3-setuptools=70.3.0-r0 py3-looseversion=1.3.0-r3 &&\
     curl -Ls https://raw.githubusercontent.com/gotenberg/unoconverter/v0.1.1/unoconv -o /usr/bin/unoconverter &&\
     chmod +x /usr/bin/unoconverter &&\
     # Verify installations.
