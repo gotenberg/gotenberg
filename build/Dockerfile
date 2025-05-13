@@ -1,8 +1,8 @@
 # ARG instructions do not create additional layers. Instead, next layers will
 # concatenate them. Also, we have to repeat ARG instructions in each build
 # stage that uses them.
-ARG GOLANG_VERSION
-ARG ALPINE_VERSION
+ARG GOLANG_VERSION=1.24
+ARG ALPINE_VERSION=3.21
 
 # ----------------------------------------------
 # Golang base stage
@@ -11,7 +11,7 @@ FROM golang:$GOLANG_VERSION-alpine AS go-base
 
 RUN \
     apk update -q &&\
-    apk add -q --no-cache curl
+    apk add -q --no-cache curl=8.12.1-r1
 
 # ----------------------------------------------
 # pdfcpu binary build stage
@@ -21,7 +21,7 @@ RUN \
 
 FROM go-base AS pdfcpu-binary-stage
 
-ARG PDFCPU_VERSION
+ARG PDFCPU_VERSION=v0.8.1
 ENV CGO_ENABLED=0
 
 # Define the working directory outside of $GOPATH (we're using go modules).
@@ -66,7 +66,7 @@ RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v8/cmd.Ve
 # ----------------------------------------------
 FROM debian:12-slim AS fonts-stage
 
-ARG NOTO_COLOR_EMOJI_VERSION
+ARG NOTO_COLOR_EMOJI_VERSION=v2.047
 
 RUN \
     # Install fonts.
@@ -123,16 +123,16 @@ RUN \
 FROM alpine:$ALPINE_VERSION
 
 ARG GOTENBERG_VERSION
-ARG GOTENBERG_USER_GID
-ARG GOTENBERG_USER_UID
-ARG PDFTK_VERSION
+ARG GOTENBERG_USER_GID=1001
+ARG GOTENBERG_USER_UID=1001
+ARG PDFTK_VERSION=v3.3.3
 
 LABEL org.opencontainers.image.title="Gotenberg" \
-      org.opencontainers.image.description="A containerized API for seamless PDF conversion." \
-      org.opencontainers.image.version="$GOTENBERG_VERSION" \
-      org.opencontainers.image.authors="Julien Neuhart <neuhart.julien@gmail.com>" \
-      org.opencontainers.image.documentation="https://gotenberg.dev" \
-      org.opencontainers.image.source="https://github.com/gotenberg/gotenberg"
+    org.opencontainers.image.description="A containerized API for seamless PDF conversion." \
+    org.opencontainers.image.version="$GOTENBERG_VERSION" \
+    org.opencontainers.image.authors="Julien Neuhart <neuhart.julien@gmail.com>" \
+    org.opencontainers.image.documentation="https://gotenberg.dev" \
+    org.opencontainers.image.source="https://github.com/gotenberg/gotenberg"
 
 # Create a non-root user.
 # All processes in the Docker container will run with this dedicated user.
@@ -144,12 +144,12 @@ RUN \
 # Note: tini is a helper for reaping zombie processes.
 RUN \
     apk update -q &&\
-    apk add -q --no-cache curl gnupg tini poppler python3 openjdk17-jre-headless
+    apk add -q --no-cache curl=8.12.1-r1 gnupg=2.4.7-r0 tini=0.19.0-r3 poppler=24.02.0-r2 python3=3.12.10-r0 openjdk17-jre-headless=17.0.15_p6-r0
 
 # Install Chromium.
 RUN \
     apk update -q &&\
-    apk add -q --no-cache chromium &&\
+    apk add -q --no-cache chromium=135.0.7049.95-r0 &&\
     # Verify installation.
     chromium --version
 
@@ -159,8 +159,8 @@ RUN \
     apk add -q --no-cache \
     --repository https://dl-cdn.alpinelinux.org/alpine/edge/main \
     --repository https://dl-cdn.alpinelinux.org/alpine/edge/community \
-    libreoffice &&\
-    apk add -q --no-cache py3-setuptools py3-looseversion &&\
+    libreoffice=25.2.3.2-r0 &&\
+    apk add -q --no-cache py3-setuptools=70.3.0-r0 py3-looseversion=1.3.0-r3 &&\
     curl -Ls https://raw.githubusercontent.com/gotenberg/unoconverter/v0.1.1/unoconv -o /usr/bin/unoconverter &&\
     chmod +x /usr/bin/unoconverter &&\
     # Verify installations.
@@ -174,7 +174,7 @@ RUN \
     echo -e '#!/bin/sh\n\nexec java -jar /usr/bin/pdftk-all.jar "$@"' > /usr/bin/pdftk && \
     chmod +x /usr/bin/pdftk &&\
     apk update -q &&\
-    apk add -q --no-cache qpdf exiftool &&\
+    apk add -q --no-cache qpdf=11.9.1-r0 exiftool=13.03-r0 &&\
     # Verify installations.
     pdftk --version &&\
     qpdf --version &&\
@@ -186,7 +186,7 @@ COPY --from=fonts-stage /usr/local/share/fonts /usr/local/share/fonts
 
 RUN \
     apk update -q &&\
-    apk add -q --no-cache fontconfig &&\
+    apk add -q --no-cache fontconfig=2.15.0-r1 &&\
     fc-cache -fv &&\
     fc-list
 
