@@ -174,7 +174,7 @@ RUN \
     echo -e '#!/bin/sh\n\nexec java -jar /usr/bin/pdftk-all.jar "$@"' > /usr/bin/pdftk && \
     chmod +x /usr/bin/pdftk &&\
     apk update -q &&\
-    apk add -q --no-cache qpdf exiftool &&\
+    apk add -q --no-cache qpdf=11.9.1-r0 exiftool=13.03-r0 &&\
     # Verify installations.
     pdftk --version &&\
     qpdf --version &&\
