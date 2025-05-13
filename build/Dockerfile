@@ -149,7 +149,7 @@ RUN \
 # Install Chromium.
 RUN \
     apk update -q &&\
-    apk add -q --no-cache chromium &&\
+    apk add -q --no-cache chromium=135.0.7049.95-r0 &&\
     # Verify installation.
     chromium --version
 
