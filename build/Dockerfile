@@ -1,8 +1,8 @@
 # ARG instructions do not create additional layers. Instead, next layers will
 # concatenate them. Also, we have to repeat ARG instructions in each build
 # stage that uses them.
-ARG GOLANG_VERSION
-ARG ALPINE_VERSION
+ARG GOLANG_VERSION=1.24
+ARG ALPINE_VERSION=3.21
 
 # ----------------------------------------------
 # Golang base stage
@@ -128,11 +128,11 @@ ARG GOTENBERG_USER_UID
 ARG PDFTK_VERSION
 
 LABEL org.opencontainers.image.title="Gotenberg" \
-      org.opencontainers.image.description="A containerized API for seamless PDF conversion." \
-      org.opencontainers.image.version="$GOTENBERG_VERSION" \
-      org.opencontainers.image.authors="Julien Neuhart <neuhart.julien@gmail.com>" \
-      org.opencontainers.image.documentation="https://gotenberg.dev" \
-      org.opencontainers.image.source="https://github.com/gotenberg/gotenberg"
+    org.opencontainers.image.description="A containerized API for seamless PDF conversion." \
+    org.opencontainers.image.version="$GOTENBERG_VERSION" \
+    org.opencontainers.image.authors="Julien Neuhart <neuhart.julien@gmail.com>" \
+    org.opencontainers.image.documentation="https://gotenberg.dev" \
+    org.opencontainers.image.source="https://github.com/gotenberg/gotenberg"
 
 # Create a non-root user.
 # All processes in the Docker container will run with this dedicated user.

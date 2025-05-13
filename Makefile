@@ -7,8 +7,6 @@ help: ## Show the help
 .PHONY: build
 build: ## Build the Gotenberg's Docker image
 	docker build \
-	--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
-	--build-arg ALPINE_VERSION=$(ALPINE_VERSION) \
 	--build-arg GOTENBERG_VERSION=$(GOTENBERG_VERSION) \
 	--build-arg GOTENBERG_USER_GID=$(GOTENBERG_USER_GID) \
 	--build-arg GOTENBERG_USER_UID=$(GOTENBERG_USER_UID) \

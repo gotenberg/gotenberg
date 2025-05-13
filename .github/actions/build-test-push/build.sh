@@ -129,8 +129,6 @@ join() {
 no_arch_tag="$DOCKER_REGISTRY/$DOCKER_REPOSITORY:$version"
 
 cmd="docker buildx build \
-    --build-arg GOLANG_VERSION=$GOLANG_VERSION \
-    --build-arg ALPINE_VERSION=$ALPINE_VERSION \
     --build-arg GOTENBERG_VERSION=$version \
     --build-arg GOTENBERG_USER_GID=$GOTENBERG_USER_GID \
     --build-arg GOTENBERG_USER_UID=$GOTENBERG_USER_UID \
