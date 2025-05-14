@@ -12,6 +12,7 @@ import (
 
 	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
+	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 	"github.com/dlclark/regexp2"
@@ -276,10 +277,12 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *zap.Logger, url, outp
 		hideDefaultWhiteBackgroundActionFunc(logger, options.OmitBackground, options.PrintBackground),
 		forceExactColorsActionFunc(logger, options.PrintBackground),
 		emulateMediaTypeActionFunc(logger, options.EmulatedMediaType),
-		waitDelayBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitDelay),
 		waitForExpressionBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitForExpression),
+		waitDelayBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitDelay),
 		// PDF specific.
 		printToPdfActionFunc(logger, outputPath, options),
+		// Teardown.
+		page.Close(),
 	})
 }
 
@@ -299,11 +302,13 @@ func (b *chromiumBrowser) screenshot(ctx context.Context, logger *zap.Logger, ur
 		hideDefaultWhiteBackgroundActionFunc(logger, options.OmitBackground, true),
 		forceExactColorsActionFunc(logger, true),
 		emulateMediaTypeActionFunc(logger, options.EmulatedMediaType),
-		waitDelayBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitDelay),
 		waitForExpressionBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitForExpression),
+		waitDelayBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitDelay),
 		// Screenshot specific.
 		setDeviceMetricsOverride(logger, options.Width, options.Height),
 		captureScreenshotActionFunc(logger, outputPath, options),
+		// Teardown.
+		page.Close(),
 	})
 }
 

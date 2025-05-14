@@ -48,6 +48,7 @@ runs:
       uses: actions/checkout@v4
 
     - name: Log in to Docker Hub
+      if: inputs.docker_hub_username != ''
       uses: docker/login-action@v3
       with:
         username: ${{ inputs.docker_hub_username }}
@@ -64,7 +65,7 @@ runs:
           --dry-run "${{ inputs.dry_run }}"
 
     - name: Run integration tests
-      if: ${{ inputs.skip_integrations_tests != 'true' }}
+      if: inputs.skip_integrations_tests != 'true'
       shell: bash
       run: |
         .github/actions/build-test-push/test.sh \
@@ -74,6 +75,7 @@ runs:
           --dry-run "${{ inputs.dry_run }}"
 
     - name: Push
+      if: inputs.docker_hub_username != ''
       shell: bash
       run: |
         .github/actions/build-test-push/push.sh \

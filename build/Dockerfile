@@ -8,7 +8,6 @@ ARG GOLANG_VERSION=1.24
 # ----------------------------------------------
 # Note: this stage is required as pdfcpu does not release an armhf variant by
 # default.
-
 FROM golang:$GOLANG_VERSION AS pdfcpu-binary-stage
 
 # See https://github.com/pdfcpu/pdfcpu/releases.
@@ -50,12 +49,62 @@ RUN go mod download &&\
 COPY cmd ./cmd
 COPY pkg ./pkg
 
-RUN go build -o gotenberg -ldflags "-X 'github.com/gotenberg/gotenberg/v8/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg/main.go
+RUN go build -o gotenberg -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg/main.go
+
+# ----------------------------------------------
+# Compress Golang binaries stage
+# ----------------------------------------------
+FROM debian:12-slim AS compress-go-binaries-stage
+
+RUN \
+    echo "deb http://deb.debian.org/debian bookworm-backports main" >> /etc/apt/sources.list &&\
+    apt-get update -qq &&\
+    apt-get upgrade -yqq &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t bookworm-backports upx-ucl
+
+COPY --from=pdfcpu-binary-stage /home/pdfcpu /home/pdfcpu
+COPY --from=gotenberg-binary-stage /home/gotenberg /home/gotenberg
+
+RUN \
+    upx-ucl --best /home/pdfcpu &&\
+    upx-ucl --best /home/gotenberg
+
+# ----------------------------------------------
+# Custom JRE stage
+# Credits: https://github.com/jodconverter/docker-image-jodconverter-runtime
+# ----------------------------------------------
+FROM debian:12-slim AS custom-jre-stage
+
+RUN \
+    apt-get update -qq &&\
+    apt-get upgrade -yqq &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends default-jdk-headless binutils
+
+# Note: jdeps helps finding which modules a JAR requires.
+# Currently only for PDFtk, as we don't rely on LibreOffice UNO Java SDK.
+ENV JAVA_MODULES=java.base,java.desktop,java.naming,java.sql
+
+RUN jlink \
+    --add-modules $JAVA_MODULES \
+    --strip-debug \
+    --no-man-pages \
+    --no-header-files \
+    --compress=2 \
+    --output /custom-jre
+
+# ----------------------------------------------
+# Base image stage
+# ----------------------------------------------
+FROM debian:12-slim AS base-image-stage
+
+COPY --from=custom-jre-stage /custom-jre /opt/java
+
+ENV PATH="/opt/java/bin:${PATH}"
 
 # ----------------------------------------------
 # Final stage
 # ----------------------------------------------
-FROM debian:12-slim
+FROM base-image-stage
 
 ARG GOTENBERG_VERSION=snapshot
 ARG GOTENBERG_USER_GID=1001
@@ -87,7 +136,7 @@ RUN \
     # Note: tini is a helper for reaping zombie processes.
     apt-get update -qq &&\
     apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg=2.2.40-1.1 tini=0.19.0-1 python3=3.11.2-1+b1 default-jre-headless=2:1.17-74 &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg=2.2.40-1.1 tini=0.19.0-1 python3=3.11.2-1+b1
     # Cleanup.
     # Note: the Debian image does automatically a clean after each install thanks to a hook.
     # Therefore, there is no need for apt-get clean.
@@ -170,6 +219,13 @@ RUN \
     # Cleanup.
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+# Set default characterset encoding to UTF-8.
+# See:
+# https://github.com/gotenberg/gotenberg/issues/104
+# https://github.com/gotenberg/gotenberg/issues/730
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
 RUN \
     # Install LibreOffice & unoconverter.
     echo "deb http://deb.debian.org/debian bookworm-backports main" >> /etc/apt/sources.list &&\
@@ -211,11 +267,9 @@ RUN \
 # https://github.com/arachnys/athenapdf/commit/ba25a8d80a25d08d58865519c4cd8756dc9a336d.
 COPY build/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 
-# Copy the pdfcpu binary from the pdfcpu-binary-stage.
-COPY --from=pdfcpu-binary-stage /home/pdfcpu /usr/bin/
-
-# Copy the Gotenberg binary from the gotenberg-binary-stage.
-COPY --from=gotenberg-binary-stage /home/gotenberg /usr/bin/
+# Copy the Golang binaries.
+COPY --from=compress-go-binaries-stage /home/pdfcpu /usr/bin/
+COPY --from=compress-go-binaries-stage /home/gotenberg /usr/bin/
 
 # Environment variables required by modules or else.
 ENV CHROMIUM_BIN_PATH=/usr/bin/chromium
