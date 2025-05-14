@@ -173,10 +173,13 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						}
 					}
 
+					w.asyncCount.Add(1)
+
 					// As a webhook URL has been given, we handle the request in a
 					// goroutine and return immediately.
 					go func() {
 						defer cancel()
+						defer w.asyncCount.Add(-1)
 
 						// Call the next middleware in the chain.
 						err := next(c)
