@@ -173,19 +173,32 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						}
 					}
 
+					w.asyncCount.Add(1)
+
 					// As a webhook URL has been given, we handle the request in a
 					// goroutine and return immediately.
 					go func() {
 						defer cancel()
+						defer w.asyncCount.Add(-1)
 
 						// Call the next middleware in the chain.
 						err := next(c)
 						if err != nil {
+							if errors.Is(err, api.ErrNoOutputFile) {
+								errNoOutputFile := fmt.Errorf("%w - the webhook middleware cannot handle the result of this route", err)
+								handleAsyncError(api.WrapError(
+									errNoOutputFile,
+									api.NewSentinelHttpError(
+										http.StatusBadRequest,
+										"The webhook middleware can only work with multipart/form-data routes that results in output files",
+									),
+								))
+								return
+							}
 							// The process failed for whatever reason. Let's send the
 							// details to the webhook.
 							ctx.Log().Error(err.Error())
 							handleAsyncError(err)
-
 							return
 						}
 
@@ -194,7 +207,6 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						if err != nil {
 							ctx.Log().Error(fmt.Sprintf("build output file: %s", err))
 							handleAsyncError(err)
-
 							return
 						}
 
@@ -202,7 +214,6 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						if err != nil {
 							ctx.Log().Error(fmt.Sprintf("open output file: %s", err))
 							handleAsyncError(err)
-
 							return
 						}
 
@@ -218,7 +229,6 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						if err != nil {
 							ctx.Log().Error(fmt.Sprintf("read header of output file: %s", err))
 							handleAsyncError(err)
-
 							return
 						}
 
@@ -226,7 +236,6 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						if err != nil {
 							ctx.Log().Error(fmt.Sprintf("get stat from output file: %s", err))
 							handleAsyncError(err)
-
 							return
 						}
 
@@ -234,7 +243,6 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						if err != nil {
 							ctx.Log().Error(fmt.Sprintf("reset output file reader: %s", err))
 							handleAsyncError(err)
-
 							return
 						}
 

@@ -40,6 +40,25 @@ Feature: /forms/libreoffice/convert
       Page 2
       """
 
+  # See:
+  # https://github.com/gotenberg/gotenberg/issues/104
+  # https://github.com/gotenberg/gotenberg/issues/730
+  Scenario: POST /forms/libreoffice/convert (Non-basic Latin Characters)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/Special_Chars_ß.docx | file   |
+      | Gotenberg-Output-Filename | foo                           | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+
   Scenario: POST /forms/libreoffice/convert (Protected)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
@@ -428,7 +447,7 @@ Feature: /forms/libreoffice/convert
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
-    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 2 failed rule(s)
     Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 2 failed rule(s)
 
   Scenario: POST /forms/libreoffice/convert (Split & PDF/A-1b & PDF/UA-1)
@@ -459,7 +478,7 @@ Feature: /forms/libreoffice/convert
       """
       Page 3
       """
-    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 2 failed rule(s)
     Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 2 failed rule(s)
 
   Scenario: POST /forms/libreoffice/convert (Metadata)

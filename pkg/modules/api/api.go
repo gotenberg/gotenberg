@@ -48,6 +48,7 @@ type Api struct {
 	externalMiddlewares []Middleware
 	healthChecks        []health.CheckerOption
 	readyFn             []func() error
+	asyncCounters       []AsynchronousCounter
 	fs                  *gotenberg.FileSystem
 	logger              *zap.Logger
 	srv                 *echo.Echo
@@ -164,6 +165,14 @@ type Middleware struct {
 type HealthChecker interface {
 	Checks() ([]health.CheckerOption, error)
 	Ready() error
+}
+
+// AsynchronousCounter is a module interface that returns the number of active
+// asynchronous requests.
+//
+// See https://github.com/gotenberg/gotenberg/issues/1022.
+type AsynchronousCounter interface {
+	AsyncCount() int64
 }
 
 // Descriptor returns an [Api]'s module descriptor.
@@ -305,6 +314,17 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 
 		a.healthChecks = append(a.healthChecks, checks...)
 		a.readyFn = append(a.readyFn, healthChecker.Ready)
+	}
+
+	// Get asynchronous counters.
+	mods, err = ctx.Modules(new(AsynchronousCounter))
+	if err != nil {
+		return fmt.Errorf("get asynchronous counters: %w", err)
+	}
+
+	a.asyncCounters = make([]AsynchronousCounter, len(mods))
+	for i, asyncCounter := range mods {
+		a.asyncCounters[i] = asyncCounter.(AsynchronousCounter)
 	}
 
 	// Logger.
@@ -597,7 +617,28 @@ func (a *Api) StartupMessage() string {
 
 // Stop stops the HTTP server.
 func (a *Api) Stop(ctx context.Context) error {
-	return a.srv.Shutdown(ctx)
+	for {
+		count := int64(0)
+		for _, asyncCounter := range a.asyncCounters {
+			count += asyncCounter.AsyncCount()
+		}
+		select {
+		case <-ctx.Done():
+			return a.srv.Shutdown(ctx)
+		default:
+			a.logger.Debug(fmt.Sprintf("%d asynchronous requests", count))
+			if count > 0 {
+				time.Sleep(1 * time.Second)
+				continue
+			}
+			a.logger.Debug("no more asynchronous requests, continue with shutdown")
+			err := a.srv.Shutdown(ctx)
+			if err != nil {
+				return fmt.Errorf("shutdown: %w", err)
+			}
+			return gotenberg.ErrCancelGracefulShutdownContext
+		}
+	}
 }
 
 // Interface guards.

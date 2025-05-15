@@ -2,6 +2,7 @@ package gotenbergcmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -173,7 +174,9 @@ func Run() {
 				id := app.(gotenberg.Module).Descriptor().ID
 
 				err = app.Stop(gracefulShutdownCtx)
-				if err != nil {
+				if errors.Is(err, gotenberg.ErrCancelGracefulShutdownContext) {
+					cancel()
+				} else if err != nil {
 					return fmt.Errorf("stopping %s: %w", id, err)
 				}
 
