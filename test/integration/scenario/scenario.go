@@ -407,11 +407,7 @@ func (s *scenario) theBodyShouldMatchString(kind string, expectedDoc *godog.DocS
 	} else if s.server.req == nil {
 		return errors.New("no webhook request found")
 	} else {
-		body, err := io.ReadAll(s.server.req.Body)
-		if err != nil {
-			return fmt.Errorf("read request body: %w", err)
-		}
-		actual = string(body)
+		actual = string(s.server.bodyCopy)
 	}
 
 	expected := strings.ReplaceAll(expectedDoc.Content, "{version}", GotenbergVersion)
@@ -431,11 +427,7 @@ func (s *scenario) theBodyShouldContainString(kind string, expectedDoc *godog.Do
 	} else if s.server.req == nil {
 		return errors.New("no webhook request found")
 	} else {
-		body, err := io.ReadAll(s.server.req.Body)
-		if err != nil {
-			return fmt.Errorf("read request body: %w", err)
-		}
-		actual = string(body)
+		actual = string(s.server.bodyCopy)
 	}
 
 	expected := strings.ReplaceAll(expectedDoc.Content, "{version}", GotenbergVersion)
@@ -455,11 +447,7 @@ func (s *scenario) theBodyShouldMatchJSON(kind string, expectedDoc *godog.DocStr
 	} else if s.server.req == nil {
 		return errors.New("no webhook request found")
 	} else {
-		b, err := io.ReadAll(s.server.req.Body)
-		if err != nil {
-			return fmt.Errorf("read request body: %w", err)
-		}
-		body = b
+		body = s.server.bodyCopy
 	}
 
 	var expected, actual interface{}
