@@ -109,10 +109,8 @@ FROM base-image-stage
 ARG GOTENBERG_VERSION=snapshot
 ARG GOTENBERG_USER_GID=1001
 ARG GOTENBERG_USER_UID=1001
-
 # See https://github.com/googlefonts/noto-emoji/releases.
 ARG NOTO_COLOR_EMOJI_VERSION=v2.047
-
 # See https://gitlab.com/pdftk-java/pdftk/-/releases - Binary package.
 ARG PDFTK_VERSION=v3.3.3
 
