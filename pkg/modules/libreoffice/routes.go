@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
-	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -250,20 +249,6 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				} else {
 					outputPaths = convertOutputPaths
 				}
-			}
-
-			// See https://github.com/gotenberg/gotenberg/issues/1193.
-			if len(metadata) == 0 {
-				metadata = make(map[string]interface{})
-			}
-			if _, ok := metadata["CreateDate"]; !ok {
-				metadata["CreateDate"] = time.Now().Format("2006-01-02T15:04:05-07:00")
-			}
-			if _, ok := metadata["MetadataDate"]; !ok {
-				metadata["MetadataDate"] = time.Now().Format("2006-01-02T15:04:05-07:00")
-			}
-			if _, ok := metadata["ModifyDate"]; !ok {
-				metadata["ModifyDate"] = time.Now().Format("2006-01-02T15:04:05-07:00")
 			}
 
 			err = pdfengines.WriteMetadataStub(ctx, engine, metadata, outputPaths)
