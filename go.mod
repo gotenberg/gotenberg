@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/alexliesenfeld/health v0.8.0
-	github.com/andybalholm/brotli v1.1.1 // indirect
+	github.com/andybalholm/brotli v1.1.2-0.20250424173009-453214e765f3 // indirect
 	github.com/barasher/go-exiftool v1.10.0
 	github.com/chromedp/cdproto v0.0.0-20250416210000-d7e4d624041a
 	github.com/chromedp/chromedp v0.13.6
@@ -37,7 +37,7 @@ require (
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/docker/docker v28.1.1+incompatible
 	github.com/docker/go-connections v0.5.0
-	github.com/mholt/archives v0.1.1
+	github.com/mholt/archives v0.1.2
 	github.com/shirou/gopsutil/v4 v4.25.4
 	github.com/testcontainers/testcontainers-go v0.37.0
 )
