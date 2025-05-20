@@ -207,6 +207,7 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		headerTemplate, footerTemplate                   string
 		preferCssPageSize                                bool
 		generateDocumentOutline                          bool
+		generateTaggedPdf                                bool
 	)
 
 	form.
@@ -224,7 +225,8 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		Content("header.html", &headerTemplate, defaultPdfOptions.HeaderTemplate).
 		Content("footer.html", &footerTemplate, defaultPdfOptions.FooterTemplate).
 		Bool("preferCssPageSize", &preferCssPageSize, defaultPdfOptions.PreferCssPageSize).
-		Bool("generateDocumentOutline", &generateDocumentOutline, defaultPdfOptions.GenerateDocumentOutline)
+		Bool("generateDocumentOutline", &generateDocumentOutline, defaultPdfOptions.GenerateDocumentOutline).
+		Bool("generateTaggedPdf", &generateTaggedPdf, defaultPdfOptions.GenerateTaggedPdf)
 
 	pdfOptions := PdfOptions{
 		Options:                 options,
@@ -243,6 +245,7 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		FooterTemplate:          footerTemplate,
 		PreferCssPageSize:       preferCssPageSize,
 		GenerateDocumentOutline: generateDocumentOutline,
+		GenerateTaggedPdf:       generateTaggedPdf,
 	}
 
 	return form, pdfOptions
