@@ -73,7 +73,7 @@ var (
 )
 
 // Chromium is a module that provides both an [Api] and routes for converting
-// HTML document to PDF.
+// an HTML document to PDF.
 type Chromium struct {
 	autoStart     bool
 	disableRoutes bool
