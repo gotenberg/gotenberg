@@ -601,6 +601,9 @@ func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) 
 
 func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, options PdfOptions, mode gotenberg.SplitMode, pdfFormats gotenberg.PdfFormats, metadata map[string]interface{}) error {
 	outputPath := ctx.GeneratePath(".pdf")
+	// See https://github.com/gotenberg/gotenberg/issues/1130.
+	filename := ctx.OutputFilename(outputPath)
+	outputPath = ctx.GeneratePathFromFilename(filename)
 
 	err := chromium.Pdf(ctx, ctx.Log(), url, outputPath, options)
 	err = handleChromiumError(err, options.Options)

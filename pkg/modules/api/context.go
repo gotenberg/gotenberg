@@ -409,6 +409,13 @@ func (ctx *Context) GeneratePath(extension string) string {
 	return fmt.Sprintf("%s/%s%s", ctx.dirPath, uuid.New().String(), extension)
 }
 
+// GeneratePathFromFilename generates a path within the context's working
+// directory, using the given filename (with extension). It does not create
+// a file.
+func (ctx *Context) GeneratePathFromFilename(filename string) string {
+	return fmt.Sprintf("%s/%s", ctx.dirPath, filename)
+}
+
 // CreateSubDirectory creates a subdirectory within the context's working
 // directory.
 func (ctx *Context) CreateSubDirectory(dirName string) (string, error) {

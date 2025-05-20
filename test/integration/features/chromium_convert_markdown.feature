@@ -676,6 +676,39 @@ Feature: /forms/chromium/convert/markdown
       Page 3
       """
 
+  # See https://github.com/gotenberg/gotenberg/issues/1130.
+  Scenario: POST /forms/chromium/convert/markdown (Split Output Filename)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
+      | files                     | testdata/pages-3-markdown/index.html | file   |
+      | files                     | testdata/pages-3-markdown/page_1.md  | file   |
+      | files                     | testdata/pages-3-markdown/page_2.md  | file   |
+      | files                     | testdata/pages-3-markdown/page_3.md  | file   |
+      | splitMode                 | intervals                            | field  |
+      | splitSpan                 | 2                                    | field  |
+      | Gotenberg-Output-Filename | foo                                  | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.zip   |
+      | foo_0.pdf |
+      | foo_1.pdf |
+    Then the "foo_0.pdf" PDF should have 2 page(s)
+    Then the "foo_1.pdf" PDF should have 1 page(s)
+    Then the "foo_0.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "foo_0.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
+    Then the "foo_1.pdf" PDF should have the following content at page 1:
+      """
+      Page 3
+      """
+
   Scenario: POST /forms/chromium/convert/markdown (Split Pages)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
@@ -814,6 +847,43 @@ Feature: /forms/chromium/convert/markdown
       Page 2
       """
     Then the "*_1.pdf" PDF should have the following content at page 1:
+      """
+      Page 3
+      """
+    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 2 failed rule(s)
+
+  # See https://github.com/gotenberg/gotenberg/issues/1130.
+  Scenario: POST /forms/chromium/convert/markdown (Split & PDF/A-1b & PDF/UA-1 & Output Filename)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
+      | files                     | testdata/pages-3-markdown/index.html | file   |
+      | files                     | testdata/pages-3-markdown/page_1.md  | file   |
+      | files                     | testdata/pages-3-markdown/page_2.md  | file   |
+      | files                     | testdata/pages-3-markdown/page_3.md  | file   |
+      | splitMode                 | intervals                            | field  |
+      | splitSpan                 | 2                                    | field  |
+      | pdfa                      | PDF/A-1b                             | field  |
+      | pdfua                     | true                                 | field  |
+      | Gotenberg-Output-Filename | foo                                  | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.zip   |
+      | foo_0.pdf |
+      | foo_1.pdf |
+    Then the "foo_0.pdf" PDF should have 2 page(s)
+    Then the "foo_1.pdf" PDF should have 1 page(s)
+    Then the "foo_0.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "foo_0.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
+    Then the "foo_1.pdf" PDF should have the following content at page 1:
       """
       Page 3
       """
