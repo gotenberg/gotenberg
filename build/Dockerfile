@@ -259,6 +259,15 @@ RUN \
     # Cleanup.
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+# Support for arbitrary user ids (OpenShift).
+# See:
+# https://github.com/gotenberg/gotenberg/issues/1049.
+# https://docs.redhat.com/en/documentation/openshift_container_platform/4.15/html/images/creating-images#use-uid_create-images.
+RUN \
+    usermod -aG root gotenberg &&\
+    chgrp -R 0 /home/gotenberg &&\
+    chmod -R g=u /home/gotenberg
+
 # Improve fonts subpixel hinting and smoothing.
 # Credits:
 # https://github.com/arachnys/athenapdf/issues/69.
