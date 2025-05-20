@@ -183,7 +183,12 @@ jobs:
 
   merge_clean_snapshot_tags:
     if: needs.merge_clean_snapshot_guard.outputs.continue == 'true'
-    needs: merge_clean_snapshot_guard
+    needs:
+      - merge_clean_snapshot_guard
+      - snapshot_amd64
+      - snapshot_386
+      - snapshot_arm64
+      - snapshot_arm_v7
     name: Merge and clean snapshot tags
     runs-on: ubuntu-latest
     steps:
