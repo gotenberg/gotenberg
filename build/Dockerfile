@@ -258,7 +258,7 @@ RUN \
     # Cleanup.
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Support for arbitrary user ids (OpenShift).
+# Support for arbitrary user IDs (OpenShift).
 # See:
 # https://github.com/gotenberg/gotenberg/issues/1049.
 # https://docs.redhat.com/en/documentation/openshift_container_platform/4.15/html/images/creating-images#use-uid_create-images.
