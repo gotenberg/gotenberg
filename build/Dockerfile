@@ -175,7 +175,6 @@ RUN \
     fonts-crosextra-caladea=20200211-1 \
     fonts-crosextra-carlito=20220224-1 \
     fonts-dejavu=2.37-6 \
-    fonts-dejavu-extra=2.37-6 \
     fonts-liberation=1:1.07.4-11 \
     fonts-liberation2=2.1.5-1 \
     fonts-linuxlibertine=5.3.0-6 \
