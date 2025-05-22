@@ -23,6 +23,10 @@ var (
 	// ErrPdfEngineMetadataValueNotSupported is returned when a metadata value
 	// is not supported.
 	ErrPdfEngineMetadataValueNotSupported = errors.New("metadata value not supported")
+
+	// ErrPdfPasswordProtectionNotSupported is returned when password protection
+	// is not supported by the PDF engine.
+	ErrPdfPasswordProtectionNotSupported = errors.New("password protection not supported")
 )
 
 const (
@@ -113,6 +117,12 @@ type PdfEngine interface {
 
 	// WriteMetadata writes the metadata into a given PDF file.
 	WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error
+
+	// ProtectWithPassword adds password protection to a PDF file.
+	// The userPassword is required to open the document.
+	// The ownerPassword provides full access to the document.
+	// If the ownerPassword is empty, it defaults to the userPassword.
+	ProtectWithPassword(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error
 }
 
 // PdfEngineProvider offers an interface to instantiate a [PdfEngine].

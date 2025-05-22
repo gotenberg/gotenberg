@@ -18,6 +18,7 @@ type multiPdfEngines struct {
 	convertEngines       []gotenberg.PdfEngine
 	readMetadataEngines  []gotenberg.PdfEngine
 	writeMetadataEngines []gotenberg.PdfEngine
+	passwordEngines      []gotenberg.PdfEngine
 }
 
 func newMultiPdfEngines(
@@ -26,7 +27,8 @@ func newMultiPdfEngines(
 	flattenEngines,
 	convertEngines,
 	readMetadataEngines,
-	writeMetadataEngines []gotenberg.PdfEngine,
+	writeMetadataEngines,
+	passwordEngines []gotenberg.PdfEngine,
 ) *multiPdfEngines {
 	return &multiPdfEngines{
 		mergeEngines:         mergeEngines,
@@ -35,6 +37,7 @@ func newMultiPdfEngines(
 		convertEngines:       convertEngines,
 		readMetadataEngines:  readMetadataEngines,
 		writeMetadataEngines: writeMetadataEngines,
+		passwordEngines:      passwordEngines,
 	}
 }
 
@@ -204,6 +207,31 @@ func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *zap.Log
 	}
 
 	return fmt.Errorf("write PDF metadata with multi PDF engines: %w", err)
+}
+
+// ProtectWithPassword adds password protection to a PDF file using the first available engine
+// that supports password protection.
+func (multi *multiPdfEngines) ProtectWithPassword(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
+	var err error
+	errChan := make(chan error, 1)
+
+	for _, engine := range multi.passwordEngines {
+		go func(engine gotenberg.PdfEngine) {
+			errChan <- engine.ProtectWithPassword(ctx, logger, inputPath, outputPath, userPassword, ownerPassword)
+		}(engine)
+
+		select {
+		case protectErr := <-errChan:
+			errored := multierr.AppendInto(&err, protectErr)
+			if !errored {
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	return fmt.Errorf("protect PDF with password using multi PDF engines: %w", err)
 }
 
 // Interface guards.

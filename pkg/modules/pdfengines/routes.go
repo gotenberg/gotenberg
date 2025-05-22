@@ -254,6 +254,25 @@ func WriteMetadataStub(ctx *api.Context, engine gotenberg.PdfEngine, metadata ma
 	return nil
 }
 
+// ProtectPdfWithPasswordStub adds password protection to PDF files.
+func ProtectPdfWithPasswordStub(ctx *api.Context, engine gotenberg.PdfEngine, userPassword, ownerPassword string, inputPaths []string) ([]string, error) {
+	if userPassword == "" {
+		return inputPaths, nil
+	}
+
+	outputPaths := make([]string, len(inputPaths))
+	for i, inputPath := range inputPaths {
+		outputPaths[i] = ctx.GeneratePath(".pdf")
+
+		err := engine.ProtectWithPassword(ctx, ctx.Log(), inputPath, outputPaths[i], userPassword, ownerPassword)
+		if err != nil {
+			return nil, fmt.Errorf("protect PDF '%s' with password: %w", inputPath, err)
+		}
+	}
+
+	return outputPaths, nil
+}
+
 // mergeRoute returns an [api.Route] which can merge PDFs.
 func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 	return api.Route{
@@ -540,6 +559,44 @@ func writeMetadataRoute(engine gotenberg.PdfEngine) api.Route {
 			}
 
 			err = ctx.AddOutputPaths(inputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
+			}
+
+			return nil
+		},
+	}
+}
+
+// passwordProtectionRoute returns an [api.Route] which can add password protection to PDFs.
+func passwordProtectionRoute(engine gotenberg.PdfEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/add-password",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			form := ctx.FormData()
+
+			var inputPaths []string
+			var userPassword string
+			var ownerPassword string
+			err := form.
+				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				MandatoryString("userPassword", &userPassword).
+				String("ownerPassword", &ownerPassword, "").
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			outputPaths, err := ProtectPdfWithPasswordStub(ctx, engine, userPassword, ownerPassword, inputPaths)
+			if err != nil {
+				return fmt.Errorf("password protect PDFs: %w", err)
+			}
+
+			err = ctx.AddOutputPaths(outputPaths...)
 			if err != nil {
 				return fmt.Errorf("add output paths: %w", err)
 			}

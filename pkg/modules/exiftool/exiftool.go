@@ -176,6 +176,11 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, m
 	return nil
 }
 
+// ProtectWithPassword is not available in this implementation.
+func (engine *ExifTool) ProtectWithPassword(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
+	return fmt.Errorf("protect PDF with password using ExifTool: %w", gotenberg.ErrPdfPasswordProtectionNotSupported)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*ExifTool)(nil)

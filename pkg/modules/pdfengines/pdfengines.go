@@ -33,6 +33,7 @@ type PdfEngines struct {
 	convertNames       []string
 	readMetadataNames  []string
 	writeMetadataNames []string
+	passwordNames      []string
 	engines            []gotenberg.PdfEngine
 	disableRoutes      bool
 }
@@ -49,6 +50,7 @@ func (mod *PdfEngines) Descriptor() gotenberg.ModuleDescriptor {
 			fs.StringSlice("pdfengines-convert-engines", []string{"libreoffice-pdfengine"}, "Set the PDF engines and their order for the convert feature - empty means all")
 			fs.StringSlice("pdfengines-read-metadata-engines", []string{"exiftool"}, "Set the PDF engines and their order for the read metadata feature - empty means all")
 			fs.StringSlice("pdfengines-write-metadata-engines", []string{"exiftool"}, "Set the PDF engines and their order for the write metadata feature - empty means all")
+			fs.StringSlice("pdfengines-password-engines", []string{"qpdf", "pdftk", "pdfcpu", "libreoffice-pdfengine"}, "Set the PDF engines and their order for the password protection feature - empty means all")
 			fs.Bool("pdfengines-disable-routes", false, "Disable the routes")
 
 			// Deprecated flags.
@@ -74,6 +76,7 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 	convertNames := flags.MustStringSlice("pdfengines-convert-engines")
 	readMetadataNames := flags.MustStringSlice("pdfengines-read-metadata-engines")
 	writeMetadataNames := flags.MustStringSlice("pdfengines-write-metadata-engines")
+	passwordNames := flags.MustStringSlice("pdfengines-password-engines")
 	mod.disableRoutes = flags.MustBool("pdfengines-disable-routes")
 
 	engines, err := ctx.Modules(new(gotenberg.PdfEngine))
@@ -130,6 +133,11 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 		mod.writeMetadataNames = writeMetadataNames
 	}
 
+	mod.passwordNames = defaultNames
+	if len(passwordNames) > 0 {
+		mod.passwordNames = passwordNames
+	}
+
 	return nil
 }
 
@@ -183,6 +191,7 @@ func (mod *PdfEngines) Validate() error {
 	findNonExistingEngines(mod.convertNames)
 	findNonExistingEngines(mod.readMetadataNames)
 	findNonExistingEngines(mod.writeMetadataNames)
+	findNonExistingEngines(mod.passwordNames)
 
 	if len(nonExistingEngines) == 0 {
 		return nil
@@ -201,6 +210,7 @@ func (mod *PdfEngines) SystemMessages() []string {
 		fmt.Sprintf("convert engines - %s", strings.Join(mod.convertNames[:], " ")),
 		fmt.Sprintf("read metadata engines - %s", strings.Join(mod.readMetadataNames[:], " ")),
 		fmt.Sprintf("write metadata engines - %s", strings.Join(mod.writeMetadataNames[:], " ")),
+		fmt.Sprintf("password protection engines - %s", strings.Join(mod.passwordNames[:], " ")),
 	}
 }
 
@@ -227,6 +237,7 @@ func (mod *PdfEngines) PdfEngine() (gotenberg.PdfEngine, error) {
 		engines(mod.convertNames),
 		engines(mod.readMetadataNames),
 		engines(mod.writeMetadataNames),
+		engines(mod.passwordNames),
 	), nil
 }
 
@@ -250,6 +261,7 @@ func (mod *PdfEngines) Routes() ([]api.Route, error) {
 		convertRoute(engine),
 		readMetadataRoute(engine),
 		writeMetadataRoute(engine),
+		passwordProtectionRoute(engine),
 	}, nil
 }
 
