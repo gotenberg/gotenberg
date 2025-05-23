@@ -572,7 +572,7 @@ func writeMetadataRoute(engine gotenberg.PdfEngine) api.Route {
 func passwordProtectionRoute(engine gotenberg.PdfEngine) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
-		Path:        "/forms/pdfengines/add-password",
+		Path:        "/forms/pdfengines/encrypt",
 		IsMultipart: true,
 		Handler: func(c echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
