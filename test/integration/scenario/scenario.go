@@ -986,7 +986,6 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have the following content at page (\d+):$`, s.thePdfShouldHaveTheFollowingContentAtPage)
 	ctx.Then(`^the "([^"]*)" PDF should be password protected$`, s.thePdfShouldBePasswordProtected)
 	ctx.Then(`^the "([^"]*)" archive should contain password protected PDF file\(s\)$`, s.theArchiveShouldContainPasswordProtectedPdfFiles)
-	ctx.Then(`^the "([^"]*)" archive should contain (\d+) file\(s\)$`, s.theArchiveShouldContainFiles)
 	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		if s.gotenbergContainer != nil {
 			errTerminate := s.gotenbergContainer.Terminate(ctx, testcontainers.StopTimeout(0))
