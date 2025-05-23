@@ -145,8 +145,8 @@ func (engine *PdfTk) WriteMetadata(ctx context.Context, logger *zap.Logger, meta
 	return fmt.Errorf("write PDF metadata with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
-// ProtectWithPassword adds password protection to a PDF file using PDFtk.
-func (engine *PdfTk) ProtectWithPassword(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
+// Encrypt adds password protection to a PDF file using PDFtk.
+func (engine *PdfTk) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
 	if userPassword == "" {
 		return errors.New("user password cannot be empty")
 	}
@@ -176,7 +176,7 @@ func (engine *PdfTk) ProtectWithPassword(ctx context.Context, logger *zap.Logger
 
 	_, err = cmd.Exec()
 	if err != nil {
-		return fmt.Errorf("protect PDF with PDFtk: %w", err)
+		return fmt.Errorf("encrypt PDF with PDFtk: %w", err)
 	}
 
 	return nil

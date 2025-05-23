@@ -103,7 +103,7 @@ func TestMultiPdfEngines_Merge(t *testing.T) {
 	}
 }
 
-func TestMultiPdfEngines_ProtectWithPassword(t *testing.T) {
+func TestMultiPdfEngines_Encrypt(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string
 		engine      *multiPdfEngines
@@ -115,7 +115,7 @@ func TestMultiPdfEngines_ProtectWithPassword(t *testing.T) {
 			engine: &multiPdfEngines{
 				passwordEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						ProtectWithPasswordMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
+						EncryptMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
 							return nil
 						},
 					},
@@ -128,12 +128,12 @@ func TestMultiPdfEngines_ProtectWithPassword(t *testing.T) {
 			engine: &multiPdfEngines{
 				passwordEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						ProtectWithPasswordMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
+						EncryptMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
 							return errors.New("foo")
 						},
 					},
 					&gotenberg.PdfEngineMock{
-						ProtectWithPasswordMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
+						EncryptMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
 							return nil
 						},
 					},
@@ -146,12 +146,12 @@ func TestMultiPdfEngines_ProtectWithPassword(t *testing.T) {
 			engine: &multiPdfEngines{
 				passwordEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						ProtectWithPasswordMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
+						EncryptMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
 							return errors.New("foo")
 						},
 					},
 					&gotenberg.PdfEngineMock{
-						ProtectWithPasswordMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
+						EncryptMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
 							return errors.New("foo")
 						},
 					},
@@ -165,7 +165,7 @@ func TestMultiPdfEngines_ProtectWithPassword(t *testing.T) {
 			engine: &multiPdfEngines{
 				passwordEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						ProtectWithPasswordMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
+						EncryptMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
 							return nil
 						},
 					},
@@ -181,7 +181,7 @@ func TestMultiPdfEngines_ProtectWithPassword(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			err := tc.engine.ProtectWithPassword(tc.ctx, zap.NewNop(), "", "", "", "")
+			err := tc.engine.Encrypt(tc.ctx, zap.NewNop(), "", "", "", "")
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)

@@ -254,8 +254,8 @@ func WriteMetadataStub(ctx *api.Context, engine gotenberg.PdfEngine, metadata ma
 	return nil
 }
 
-// ProtectPdfWithPasswordStub adds password protection to PDF files.
-func ProtectPdfWithPasswordStub(ctx *api.Context, engine gotenberg.PdfEngine, userPassword, ownerPassword string, inputPaths []string) ([]string, error) {
+// EncryptPdfStub adds password protection to PDF files.
+func EncryptPdfStub(ctx *api.Context, engine gotenberg.PdfEngine, userPassword, ownerPassword string, inputPaths []string) ([]string, error) {
 	if userPassword == "" {
 		return inputPaths, nil
 	}
@@ -264,9 +264,9 @@ func ProtectPdfWithPasswordStub(ctx *api.Context, engine gotenberg.PdfEngine, us
 	for i, inputPath := range inputPaths {
 		outputPaths[i] = ctx.GeneratePath(".pdf")
 
-		err := engine.ProtectWithPassword(ctx, ctx.Log(), inputPath, outputPaths[i], userPassword, ownerPassword)
+		err := engine.Encrypt(ctx, ctx.Log(), inputPath, outputPaths[i], userPassword, ownerPassword)
 		if err != nil {
-			return nil, fmt.Errorf("protect PDF '%s' with password: %w", inputPath, err)
+			return nil, fmt.Errorf("encrypt PDF '%s': %w", inputPath, err)
 		}
 	}
 
@@ -591,9 +591,9 @@ func passwordProtectionRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			outputPaths, err := ProtectPdfWithPasswordStub(ctx, engine, userPassword, ownerPassword, inputPaths)
+			outputPaths, err := EncryptPdfStub(ctx, engine, userPassword, ownerPassword, inputPaths)
 			if err != nil {
-				return fmt.Errorf("password protect PDFs: %w", err)
+				return fmt.Errorf("encrypt PDFs: %w", err)
 			}
 
 			err = ctx.AddOutputPaths(outputPaths...)

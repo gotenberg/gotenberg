@@ -172,8 +172,8 @@ func (engine *QPdf) WriteMetadata(ctx context.Context, logger *zap.Logger, metad
 	return fmt.Errorf("write PDF metadata with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
-// ProtectWithPassword adds password protection to a PDF file using QPDF.
-func (engine *QPdf) ProtectWithPassword(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
+// Encrypt adds password protection to a PDF file using QPDF.
+func (engine *QPdf) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
 	if userPassword == "" {
 		return errors.New("user password cannot be empty")
 	}
@@ -197,7 +197,7 @@ func (engine *QPdf) ProtectWithPassword(ctx context.Context, logger *zap.Logger,
 
 	_, err = cmd.Exec()
 	if err != nil {
-		return fmt.Errorf("protect PDF with QPDF: %w", err)
+		return fmt.Errorf("encrypt PDF with QPDF: %w", err)
 	}
 
 	return nil

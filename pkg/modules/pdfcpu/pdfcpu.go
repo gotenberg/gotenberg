@@ -171,8 +171,8 @@ func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *zap.Logger, met
 	return fmt.Errorf("write PDF metadata with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
-// ProtectWithPassword adds password protection to a PDF file using pdfcpu.
-func (engine *PdfCpu) ProtectWithPassword(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
+// Encrypt adds password protection to a PDF file using pdfcpu.
+func (engine *PdfCpu) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
 	if userPassword == "" {
 		return errors.New("user password cannot be empty")
 	}
@@ -197,7 +197,7 @@ func (engine *PdfCpu) ProtectWithPassword(ctx context.Context, logger *zap.Logge
 
 	_, err = cmd.Exec()
 	if err != nil {
-		return fmt.Errorf("protect PDF with pdfcpu: %w", err)
+		return fmt.Errorf("encrypt PDF with pdfcpu: %w", err)
 	}
 
 	return nil
