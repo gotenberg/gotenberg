@@ -160,11 +160,11 @@ func (engine *PdfTk) ProtectWithPassword(ctx context.Context, logger *zap.Logger
 	args = append(args, inputPath)
 	args = append(args, "output", outputPath)
 	args = append(args, "encrypt_128bit")
-	
+
 	if userPassword != "" {
 		args = append(args, "user_pw", userPassword)
 	}
-	
+
 	if ownerPassword != "" {
 		args = append(args, "owner_pw", ownerPassword)
 	}

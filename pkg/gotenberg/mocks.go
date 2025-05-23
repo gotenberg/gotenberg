@@ -46,12 +46,12 @@ func (mod *DebuggableMock) Debug() map[string]interface{} {
 //
 //nolint:dupl
 type PdfEngineMock struct {
-	MergeMock             func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error
-	SplitMock             func(ctx context.Context, logger *zap.Logger, mode SplitMode, inputPath, outputDirPath string) ([]string, error)
-	FlattenMock           func(ctx context.Context, logger *zap.Logger, inputPath string) error
-	ConvertMock           func(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error
-	ReadMetadataMock      func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error)
-	WriteMetadataMock     func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error
+	MergeMock               func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error
+	SplitMock               func(ctx context.Context, logger *zap.Logger, mode SplitMode, inputPath, outputDirPath string) ([]string, error)
+	FlattenMock             func(ctx context.Context, logger *zap.Logger, inputPath string) error
+	ConvertMock             func(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error
+	ReadMetadataMock        func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error)
+	WriteMetadataMock       func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error
 	ProtectWithPasswordMock func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error
 }
 

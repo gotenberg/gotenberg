@@ -100,7 +100,7 @@ func (engine *LibreOfficePdfEngine) ProtectWithPassword(ctx context.Context, log
 
 	// LibreOffice can set PDF passwords during conversion
 	opts := api.DefaultOptions()
-	
+
 	// Configure PDF security options
 	// LibreOffice uses the same options as during export to PDF
 	err := engine.unoApi.Pdf(ctx, logger, inputPath, outputPath, opts)
@@ -110,40 +110,40 @@ func (engine *LibreOfficePdfEngine) ProtectWithPassword(ctx context.Context, log
 
 	// After LibreOffice generates the PDF, we'll use QPDF to add the password
 	// because LibreOffice doesn't support adding passwords to existing PDFs through command line
-	
+
 	// Check if QPDF binary exists
 	qpdfBinPath, ok := os.LookupEnv("QPDF_BIN_PATH")
 	if !ok {
 		return errors.New("QPDF_BIN_PATH environment variable is not set")
 	}
-	
+
 	// If owner password is not provided, use the user password as owner password
 	if ownerPassword == "" {
 		ownerPassword = userPassword
 	}
-	
+
 	// Use QPDF to apply password protection
 	var args []string
 	args = append(args, outputPath)
 	args = append(args, "--encrypt", userPassword, ownerPassword, "128", "--use-aes=y", "--")
-	args = append(args, outputPath + ".protected")
-	
+	args = append(args, outputPath+".protected")
+
 	cmd, err := gotenberg.CommandContext(ctx, logger, qpdfBinPath, args...)
 	if err != nil {
 		return fmt.Errorf("create command: %w", err)
 	}
-	
+
 	_, err = cmd.Exec()
 	if err != nil {
 		return fmt.Errorf("protect PDF with QPDF: %w", err)
 	}
-	
+
 	// Replace the original file with the protected one
-	err = os.Rename(outputPath + ".protected", outputPath)
+	err = os.Rename(outputPath+".protected", outputPath)
 	if err != nil {
 		return fmt.Errorf("replace original file with protected one: %w", err)
 	}
-	
+
 	return nil
 }
 
