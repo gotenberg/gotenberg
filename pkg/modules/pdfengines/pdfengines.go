@@ -50,7 +50,7 @@ func (mod *PdfEngines) Descriptor() gotenberg.ModuleDescriptor {
 			fs.StringSlice("pdfengines-convert-engines", []string{"libreoffice-pdfengine"}, "Set the PDF engines and their order for the convert feature - empty means all")
 			fs.StringSlice("pdfengines-read-metadata-engines", []string{"exiftool"}, "Set the PDF engines and their order for the read metadata feature - empty means all")
 			fs.StringSlice("pdfengines-write-metadata-engines", []string{"exiftool"}, "Set the PDF engines and their order for the write metadata feature - empty means all")
-			fs.StringSlice("pdfengines-password-engines", []string{"qpdf", "pdftk", "pdfcpu", "libreoffice-pdfengine"}, "Set the PDF engines and their order for the password protection feature - empty means all")
+			fs.StringSlice("pdfengines-password-engines", []string{"qpdf", "pdftk", "pdfcpu"}, "Set the PDF engines and their order for the password protection feature - empty means all")
 			fs.Bool("pdfengines-disable-routes", false, "Disable the routes")
 
 			// Deprecated flags.
