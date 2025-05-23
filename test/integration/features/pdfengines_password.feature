@@ -69,7 +69,6 @@ Feature: /forms/pdfengines/add-password
       | protected.pdf |
     Then the "protected.pdf" PDF should be password protected
 
-
   Scenario: POST /forms/pdfengines/add-password with multiple files
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/add-password" endpoint with the following form data and header(s):
