@@ -11,7 +11,7 @@ Feature: /forms/pdfengines/encrypt
     Then there should be 1 PDF(s) in the response
     Then there should be the following file(s) in the response:
       | protected.pdf |
-    Then the "protected.pdf" PDF should be password protected
+    Then the "protected.pdf" PDF should be encrypted
 
   Scenario: POST /forms/pdfengines/encrypt with user and owner passwords (QPDF)
     Given I have a default Gotenberg container
@@ -25,7 +25,7 @@ Feature: /forms/pdfengines/encrypt
     Then there should be 1 PDF(s) in the response
     Then there should be the following file(s) in the response:
       | protected.pdf |
-    Then the "protected.pdf" PDF should be password protected
+    Then the "protected.pdf" PDF should be encrypted
 
   Scenario: POST /forms/pdfengines/encrypt (PDFtk)
     Given I have a Gotenberg container with the following environment variable(s):
@@ -39,7 +39,7 @@ Feature: /forms/pdfengines/encrypt
     Then there should be 1 PDF(s) in the response
     Then there should be the following file(s) in the response:
       | protected.pdf |
-    Then the "protected.pdf" PDF should be password protected
+    Then the "protected.pdf" PDF should be encrypted
 
   Scenario: POST /forms/pdfengines/encrypt (pdfcpu)
     Given I have a Gotenberg container with the following environment variable(s):
@@ -53,7 +53,7 @@ Feature: /forms/pdfengines/encrypt
     Then there should be 1 PDF(s) in the response
     Then there should be the following file(s) in the response:
       | protected.pdf |
-    Then the "protected.pdf" PDF should be password protected
+    Then the "protected.pdf" PDF should be encrypted
 
   Scenario: POST /forms/pdfengines/encrypt with multiple files
     Given I have a default Gotenberg container
@@ -67,7 +67,7 @@ Feature: /forms/pdfengines/encrypt
     Then there should be the following file(s) in the response:
       | protected.zip |
     Then the "protected.zip" archive should contain 2 file(s)
-    Then the "protected.zip" archive should contain password protected PDF file(s)
+    Then the "protected.zip" archive should contain encrypted PDF file(s)
 
   Scenario: POST /forms/pdfengines/encrypt without required userPassword field
     Given I have a default Gotenberg container
