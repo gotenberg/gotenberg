@@ -211,13 +211,13 @@ func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *zap.Log
 
 // Encrypt adds password protection to a PDF file using the first available engine
 // that supports password protection.
-func (multi *multiPdfEngines) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
+func (multi *multiPdfEngines) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
 	var err error
 	errChan := make(chan error, 1)
 
 	for _, engine := range multi.passwordEngines {
 		go func(engine gotenberg.PdfEngine) {
-			errChan <- engine.Encrypt(ctx, logger, inputPath, outputPath, userPassword, ownerPassword)
+			errChan <- engine.Encrypt(ctx, logger, inputPath, userPassword, ownerPassword)
 		}(engine)
 
 		select {

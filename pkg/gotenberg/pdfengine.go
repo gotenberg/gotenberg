@@ -122,7 +122,7 @@ type PdfEngine interface {
 	// The userPassword is required to open the document.
 	// The ownerPassword provides full access to the document.
 	// If the ownerPassword is empty, it defaults to the userPassword.
-	Encrypt(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error
+	Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error
 }
 
 // PdfEngineProvider offers an interface to instantiate a [PdfEngine].

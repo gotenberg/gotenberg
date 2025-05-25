@@ -172,7 +172,7 @@ func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *zap.Logger, met
 }
 
 // Encrypt adds password protection to a PDF file using pdfcpu.
-func (engine *PdfCpu) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
+func (engine *PdfCpu) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
 	if userPassword == "" {
 		return errors.New("user password cannot be empty")
 	}
@@ -188,7 +188,7 @@ func (engine *PdfCpu) Encrypt(ctx context.Context, logger *zap.Logger, inputPath
 	args = append(args, "-upw", userPassword)
 	args = append(args, "-opw", ownerPassword)
 	args = append(args, "-perm", "all") // Grant all permissions with owner password
-	args = append(args, inputPath, outputPath)
+	args = append(args, inputPath, inputPath)
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
 	if err != nil {

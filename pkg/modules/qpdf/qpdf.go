@@ -173,7 +173,7 @@ func (engine *QPdf) WriteMetadata(ctx context.Context, logger *zap.Logger, metad
 }
 
 // Encrypt adds password protection to a PDF file using QPDF.
-func (engine *QPdf) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
+func (engine *QPdf) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
 	if userPassword == "" {
 		return errors.New("user password cannot be empty")
 	}
@@ -187,8 +187,8 @@ func (engine *QPdf) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, 
 	var args []string
 	args = append(args, inputPath)
 	args = append(args, engine.globalArgs...)
-	args = append(args, "--encrypt", userPassword, ownerPassword, "128", "--use-aes=y", "--")
-	args = append(args, outputPath)
+	args = append(args, "--encrypt", userPassword, ownerPassword, "256", "--use-aes=y", "--")
+	args = append(args, inputPath)
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
 	if err != nil {

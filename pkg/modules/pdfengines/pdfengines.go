@@ -261,7 +261,7 @@ func (mod *PdfEngines) Routes() ([]api.Route, error) {
 		convertRoute(engine),
 		readMetadataRoute(engine),
 		writeMetadataRoute(engine),
-		passwordProtectionRoute(engine),
+		encryptRoute(engine),
 	}, nil
 }
 

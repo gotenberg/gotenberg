@@ -92,7 +92,7 @@ func (engine *LibreOfficePdfEngine) WriteMetadata(ctx context.Context, logger *z
 }
 
 // Encrypt is not available in this implementation.
-func (engine *LibreOfficePdfEngine) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
+func (engine *LibreOfficePdfEngine) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
 	return fmt.Errorf("encrypt PDF using LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 

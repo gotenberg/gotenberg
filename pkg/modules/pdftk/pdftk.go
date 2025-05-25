@@ -146,7 +146,7 @@ func (engine *PdfTk) WriteMetadata(ctx context.Context, logger *zap.Logger, meta
 }
 
 // Encrypt adds password protection to a PDF file using PDFtk.
-func (engine *PdfTk) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, userPassword, ownerPassword string) error {
+func (engine *PdfTk) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
 	if userPassword == "" {
 		return errors.New("user password cannot be empty")
 	}
@@ -158,7 +158,7 @@ func (engine *PdfTk) Encrypt(ctx context.Context, logger *zap.Logger, inputPath,
 
 	var args []string
 	args = append(args, inputPath)
-	args = append(args, "output", outputPath)
+	args = append(args, "output", inputPath)
 	args = append(args, "encrypt_128bit")
 
 	if userPassword != "" {
