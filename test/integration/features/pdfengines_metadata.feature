@@ -326,7 +326,7 @@ Feature: /forms/pdfengines/{write|read}
     Then the response header "Content-Type" should be "application/zip"
     Then there should be the following file(s) in the response:
       | encrypted.zip |
-    Then the "encrypted.zip" archive should contain 2 file(s)
+    Then the response PDF(s) should be encrypted
     Then the "encrypted.zip" archive should contain encrypted PDF file(s)
 
   Scenario: POST /forms/pdfengines/metadata/write without encryption (empty password)

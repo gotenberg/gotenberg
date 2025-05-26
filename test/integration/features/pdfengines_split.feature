@@ -563,7 +563,7 @@ Feature: /forms/pdfengines/split
     Then there should be 2 PDF(s) in the response
     Then there should be the following file(s) in the response:
       | encrypted.zip |
-    Then the "encrypted.zip" archive should contain 2 file(s)
+    Then the response PDF(s) should be encrypted
     Then the "encrypted.zip" archive should contain encrypted PDF file(s)
 
   Scenario: POST /forms/pdfengines/split with encryption (pages)
@@ -580,7 +580,7 @@ Feature: /forms/pdfengines/split
     Then there should be 2 PDF(s) in the response
     Then there should be the following file(s) in the response:
       | encrypted.zip |
-    Then the "encrypted.zip" archive should contain 2 file(s)
+    Then the response PDF(s) should be encrypted
     Then the "encrypted.zip" archive should contain encrypted PDF file(s)
 
   Scenario: POST /forms/pdfengines/split with encryption and PDF/A conversion
@@ -597,7 +597,7 @@ Feature: /forms/pdfengines/split
     Then there should be 2 PDF(s) in the response
     Then there should be the following file(s) in the response:
       | encrypted.zip |
-    Then the "encrypted.zip" archive should contain 2 file(s)
+    Then the response PDF(s) should be encrypted
     Then the "encrypted.zip" archive should contain encrypted PDF file(s)
 
   Scenario: POST /forms/pdfengines/split without encryption (empty password)

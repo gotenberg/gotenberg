@@ -30,7 +30,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			splitMode := pdfengines.FormDataPdfSplitMode(form, false)
 			pdfFormats := pdfengines.FormDataPdfFormats(form)
 			metadata := pdfengines.FormDataPdfMetadata(form, false)
-			userPassword, ownerPassword := pdfengines.FormDataPdfEncryption(form)
+			userPassword, ownerPassword := pdfengines.FormDataPdfEncrypt(form)
 
 			zeroValuedSplitMode := gotenberg.SplitMode{}
 

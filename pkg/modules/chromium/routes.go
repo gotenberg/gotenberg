@@ -332,7 +332,7 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			mode := pdfengines.FormDataPdfSplitMode(form, false)
 			pdfFormats := pdfengines.FormDataPdfFormats(form)
 			metadata := pdfengines.FormDataPdfMetadata(form, false)
-			userPassword, ownerPassword := pdfengines.FormDataPdfEncryption(form)
+			userPassword, ownerPassword := pdfengines.FormDataPdfEncrypt(form)
 
 			var url string
 			err := form.
@@ -394,7 +394,7 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			mode := pdfengines.FormDataPdfSplitMode(form, false)
 			pdfFormats := pdfengines.FormDataPdfFormats(form)
 			metadata := pdfengines.FormDataPdfMetadata(form, false)
-			userPassword, ownerPassword := pdfengines.FormDataPdfEncryption(form)
+			userPassword, ownerPassword := pdfengines.FormDataPdfEncrypt(form)
 
 			var inputPath string
 			err := form.
@@ -458,7 +458,7 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			mode := pdfengines.FormDataPdfSplitMode(form, false)
 			pdfFormats := pdfengines.FormDataPdfFormats(form)
 			metadata := pdfengines.FormDataPdfMetadata(form, false)
-			userPassword, ownerPassword := pdfengines.FormDataPdfEncryption(form)
+			userPassword, ownerPassword := pdfengines.FormDataPdfEncrypt(form)
 
 			var (
 				inputPath     string
