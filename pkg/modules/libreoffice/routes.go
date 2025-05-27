@@ -30,6 +30,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			splitMode := pdfengines.FormDataPdfSplitMode(form, false)
 			pdfFormats := pdfengines.FormDataPdfFormats(form)
 			metadata := pdfengines.FormDataPdfMetadata(form, false)
+			userPassword, ownerPassword := pdfengines.FormDataPdfEncrypt(form)
 
 			zeroValuedSplitMode := gotenberg.SplitMode{}
 
@@ -275,6 +276,11 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 
 					outputPaths[i] = outputPath
 				}
+			}
+
+			err = pdfengines.EncryptPdfStub(ctx, engine, userPassword, ownerPassword, outputPaths)
+			if err != nil {
+				return fmt.Errorf("encrypt PDFs: %w", err)
 			}
 
 			err = ctx.AddOutputPaths(outputPaths...)

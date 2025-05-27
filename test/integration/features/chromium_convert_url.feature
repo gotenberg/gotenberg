@@ -997,3 +997,80 @@ Feature: /forms/chromium/convert/url
       | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
+
+  Scenario: POST /forms/chromium/convert/url with encryption (user password only)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
+      | userPassword              | test123                                                             | field  |
+      | Gotenberg-Output-Filename | encrypted                                                           | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | encrypted.pdf |
+    Then the "encrypted.pdf" PDF should be encrypted
+    Then the "encrypted.pdf" PDF should have 1 page(s)
+
+  Scenario: POST /forms/chromium/convert/url with encryption (user and owner passwords)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
+      | userPassword              | user123                                                             | field  |
+      | ownerPassword             | owner456                                                            | field  |
+      | Gotenberg-Output-Filename | encrypted                                                           | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | encrypted.pdf |
+    Then the "encrypted.pdf" PDF should be encrypted
+    Then the "encrypted.pdf" PDF should have 1 page(s)
+
+  Scenario: POST /forms/chromium/convert/url with encryption and PDF/A conversion
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
+      | userPassword              | test123                                                             | field  |
+      | pdfa                      | PDF/A-1a                                                            | field  |
+      | Gotenberg-Output-Filename | encrypted                                                           | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | encrypted.pdf |
+    Then the "encrypted.pdf" PDF should be encrypted
+    Then the "encrypted.pdf" PDF should have 1 page(s)
+
+  Scenario: POST /forms/chromium/convert/url with encryption and page splitting
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                       | http://host.docker.internal:%d/html/testdata/pages-12-html/index.html | field  |
+      | userPassword              | test123                                                               | field  |
+      | splitMode                 | intervals                                                             | field  |
+      | splitSpan                 | 5                                                                     | field  |
+      | Gotenberg-Output-Filename | encrypted                                                             | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be the following file(s) in the response:
+      | encrypted.zip |
+    Then the "encrypted.zip" archive should contain encrypted PDF file(s)
+
+  Scenario: POST /forms/chromium/convert/url without encryption (empty password)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
+      | userPassword              |                                                                     | field  |
+      | Gotenberg-Output-Filename | unencrypted                                                         | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | unencrypted.pdf |
+    Then the "unencrypted.pdf" PDF should NOT be encrypted
+    Then the "unencrypted.pdf" PDF should have 1 page(s)

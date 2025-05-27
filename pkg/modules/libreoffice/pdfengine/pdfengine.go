@@ -91,6 +91,11 @@ func (engine *LibreOfficePdfEngine) WriteMetadata(ctx context.Context, logger *z
 	return fmt.Errorf("write PDF metadata with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// Encrypt is not available in this implementation.
+func (engine *LibreOfficePdfEngine) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
+	return fmt.Errorf("encrypt PDF using LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*LibreOfficePdfEngine)(nil)
