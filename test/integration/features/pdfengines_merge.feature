@@ -322,3 +322,81 @@ Feature: /forms/pdfengines/merge
       | files | testdata/page_2.pdf | file |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
+
+  Scenario: POST /forms/pdfengines/merge with encryption (user password only)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf | file   |
+      | files                     | testdata/page_2.pdf | file   |
+      | userPassword              | test123             | field  |
+      | Gotenberg-Output-Filename | encrypted           | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | encrypted.pdf |
+    Then the "encrypted.pdf" PDF should be encrypted
+    Then the "encrypted.pdf" PDF should have 2 page(s)
+
+  Scenario: POST /forms/pdfengines/merge with encryption (user and owner passwords)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf | file   |
+      | files                     | testdata/page_2.pdf | file   |
+      | userPassword              | user123             | field  |
+      | ownerPassword             | owner456            | field  |
+      | Gotenberg-Output-Filename | encrypted           | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | encrypted.pdf |
+    Then the "encrypted.pdf" PDF should be encrypted
+    Then the "encrypted.pdf" PDF should have 2 page(s)
+
+  Scenario: POST /forms/pdfengines/merge with encryption and PDF/A conversion
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf | file   |
+      | files                     | testdata/page_2.pdf | file   |
+      | userPassword              | test123             | field  |
+      | pdfa                      | PDF/A-1a            | field  |
+      | Gotenberg-Output-Filename | encrypted           | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | encrypted.pdf |
+    Then the "encrypted.pdf" PDF should be encrypted
+    Then the "encrypted.pdf" PDF should have 2 page(s)
+
+  Scenario: POST /forms/pdfengines/merge with encryption and flattening
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf | file   |
+      | files                     | testdata/page_2.pdf | file   |
+      | userPassword              | test123             | field  |
+      | flatten                   | true                | field  |
+      | Gotenberg-Output-Filename | encrypted           | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | encrypted.pdf |
+    Then the "encrypted.pdf" PDF should be encrypted
+    Then the "encrypted.pdf" PDF should have 2 page(s)
+
+  Scenario: POST /forms/pdfengines/merge without encryption (empty password)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf | file   |
+      | files                     | testdata/page_2.pdf | file   |
+      | userPassword              |                     | field  |
+      | Gotenberg-Output-Filename | unencrypted         | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | unencrypted.pdf |
+    Then the "unencrypted.pdf" PDF should NOT be encrypted
+    Then the "unencrypted.pdf" PDF should have 2 page(s)

@@ -839,6 +839,98 @@ func (s *scenario) thePdfsShouldBeFlatten(ctx context.Context, kind, should stri
 	return nil
 }
 
+// thePdfShouldBeEncrypted checks if a PDF file is encrypted or not encrypted based on condition.
+func (s *scenario) thePdfShouldBeEncrypted(ctx context.Context, filename, should string) error {
+	filePath := fmt.Sprintf("%s/%s", s.workdir, filename)
+
+	cmd := []string{
+		"qpdf",
+		"--check",
+		filepath.Base(filePath),
+	}
+
+	output, err := execCommandInIntegrationToolsContainer(ctx, cmd, filePath)
+
+	invert := should == "should NOT"
+	isEncrypted := err != nil && (strings.Contains(output, "password") || strings.Contains(output, "encrypted"))
+
+	if invert && isEncrypted {
+		return fmt.Errorf("expected PDF %s to not be encrypted, but it is encrypted", filename)
+	}
+
+	if !invert && !isEncrypted {
+		return fmt.Errorf("expected PDF %s to be encrypted, but it is not", filename)
+	}
+
+	return nil
+}
+
+// theArchiveShouldContainEncryptedPdfFiles checks if a zip archive contains encrypted PDF files based on condition.
+func (s *scenario) theArchiveShouldContainEncryptedPdfFiles(ctx context.Context, archiveFilename, should string) error {
+	archivePath := fmt.Sprintf("%s/%s", s.workdir, archiveFilename)
+
+	// First, extract the archive inside the container
+	extractCmd := []string{
+		"sh",
+		"-c",
+		fmt.Sprintf("mkdir -p /tmp/extract && unzip -o %s -d /tmp/extract", filepath.Base(archivePath)),
+	}
+
+	_, err := execCommandInIntegrationToolsContainer(ctx, extractCmd, archivePath)
+	if err != nil {
+		return fmt.Errorf("extract archive in container: %w", err)
+	}
+
+	// List PDF files in the extracted directory
+	listCmd := []string{
+		"sh",
+		"-c",
+		"find /tmp/extract -name '*.pdf' -type f",
+	}
+
+	output, err := execCommandInIntegrationToolsContainer(ctx, listCmd, archivePath)
+	if err != nil {
+		return fmt.Errorf("list PDFs in container: %w", err)
+	}
+
+	// No PDFs found
+	if output == "" {
+		return fmt.Errorf("no PDF files found in archive %s", archiveFilename)
+	}
+
+	// Check each PDF for password protection
+	pdfPaths := strings.Split(strings.TrimSpace(output), "\n")
+	foundProtectedPdf := false
+
+	for _, pdfPath := range pdfPaths {
+		checkCmd := []string{
+			"qpdf",
+			"--check",
+			pdfPath,
+		}
+
+		checkOutput, err := execCommandInIntegrationToolsContainer(ctx, checkCmd, archivePath)
+
+		// If we get a password error, we found a protected PDF
+		if err != nil && (strings.Contains(checkOutput, "password") || strings.Contains(checkOutput, "encrypted")) {
+			foundProtectedPdf = true
+			break
+		}
+	}
+
+	invert := should == "should NOT"
+
+	if invert && foundProtectedPdf {
+		return fmt.Errorf("found encrypted PDF files in archive %s, but expected none", archiveFilename)
+	}
+
+	if !invert && !foundProtectedPdf {
+		return fmt.Errorf("no encrypted PDF files found in archive %s", archiveFilename)
+	}
+
+	return nil
+}
+
 func InitializeScenario(ctx *godog.ScenarioContext) {
 	s := &scenario{}
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
@@ -874,6 +966,8 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the "([^"]*)" PDF should have (\d+) page\(s\)$`, s.thePdfShouldHavePages)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) be set to landscape orientation$`, s.thePdfShouldBeSetToLandscapeOrientation)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have the following content at page (\d+):$`, s.thePdfShouldHaveTheFollowingContentAtPage)
+	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) be encrypted$`, s.thePdfShouldBeEncrypted)
+	ctx.Then(`^the "([^"]*)" archive (should|should NOT) contain encrypted PDF file\(s\)$`, s.theArchiveShouldContainEncryptedPdfFiles)
 	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		if s.gotenbergContainer != nil {
 			errTerminate := s.gotenbergContainer.Terminate(ctx, testcontainers.StopTimeout(0))
