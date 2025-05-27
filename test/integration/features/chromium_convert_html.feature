@@ -920,3 +920,75 @@ Feature: /forms/chromium/convert/html
       | files | testdata/page-1-html/index.html | file |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
+
+  Scenario: POST /forms/chromium/convert/html with encryption (user password only)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/page-1-html/index.html | file   |
+      | userPassword              | test123                         | field  |
+      | Gotenberg-Output-Filename | encrypted                       | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | encrypted.pdf |
+    Then the "encrypted.pdf" PDF should be encrypted
+    Then the "encrypted.pdf" PDF should have 1 page(s)
+
+  Scenario: POST /forms/chromium/convert/html with encryption (user and owner passwords)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/page-1-html/index.html | file   |
+      | userPassword              | user123                         | field  |
+      | ownerPassword             | owner456                        | field  |
+      | Gotenberg-Output-Filename | encrypted                       | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | encrypted.pdf |
+    Then the "encrypted.pdf" PDF should be encrypted
+    Then the "encrypted.pdf" PDF should have 1 page(s)
+
+  Scenario: POST /forms/chromium/convert/html with encryption and PDF/A conversion
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/page-1-html/index.html | file   |
+      | userPassword              | test123                         | field  |
+      | pdfa                      | PDF/A-1a                        | field  |
+      | Gotenberg-Output-Filename | encrypted                       | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | encrypted.pdf |
+    Then the "encrypted.pdf" PDF should be encrypted
+    Then the "encrypted.pdf" PDF should have 1 page(s)
+
+  Scenario: POST /forms/chromium/convert/html with encryption and page splitting
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/pages-12-html/index.html | file   |
+      | userPassword              | test123                           | field  |
+      | splitMode                 | intervals                         | field  |
+      | splitSpan                 | 5                                 | field  |
+      | Gotenberg-Output-Filename | encrypted                         | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be the following file(s) in the response:
+      | encrypted.zip |
+    Then the "encrypted.zip" archive should contain encrypted PDF file(s)
+
+  Scenario: POST /forms/chromium/convert/html without encryption (empty password)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/page-1-html/index.html | file   |
+      | userPassword              |                                 | field  |
+      | Gotenberg-Output-Filename | unencrypted                     | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | unencrypted.pdf |
+    Then the "unencrypted.pdf" PDF should NOT be encrypted
+    Then the "unencrypted.pdf" PDF should have 1 page(s)
