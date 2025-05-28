@@ -79,6 +79,7 @@ Feature: /forms/pdfengines/flatten
     Then the file request header "X-Foo" should be "bar"
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
+    Then the response PDF(s) should be flatten
 
   Scenario: POST /forms/pdfengines/flatten (Webhook)
     Given I have a default Gotenberg container

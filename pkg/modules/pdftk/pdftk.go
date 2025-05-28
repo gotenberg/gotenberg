@@ -151,7 +151,6 @@ func (engine *PdfTk) Encrypt(ctx context.Context, logger *zap.Logger, inputPath,
 		return errors.New("user password cannot be empty")
 	}
 
-	// If owner password is not provided, use the user password as owner password
 	if ownerPassword == "" {
 		ownerPassword = userPassword
 	}
@@ -160,14 +159,8 @@ func (engine *PdfTk) Encrypt(ctx context.Context, logger *zap.Logger, inputPath,
 	args = append(args, inputPath)
 	args = append(args, "output", inputPath)
 	args = append(args, "encrypt_128bit")
-
-	if userPassword != "" {
-		args = append(args, "user_pw", userPassword)
-	}
-
-	if ownerPassword != "" {
-		args = append(args, "owner_pw", ownerPassword)
-	}
+	args = append(args, "user_pw", userPassword)
+	args = append(args, "owner_pw", ownerPassword)
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
 	if err != nil {

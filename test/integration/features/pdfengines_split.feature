@@ -365,6 +365,32 @@ Feature: /forms/pdfengines/split
       """
     Then the response PDF(s) should be flatten
 
+  Scenario: POST /forms/pdfengines/split (Encrypt - user password only)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
+      | files        | testdata/pages_3.pdf | file  |
+      | splitMode    | intervals            | field |
+      | splitSpan    | 2                    | field |
+      | userPassword | foo                  | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then the response PDF(s) should be encrypted
+
+  Scenario: POST /forms/pdfengines/split (Encrypt - both user and owner passwords)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
+      | files         | testdata/pages_3.pdf | file  |
+      | splitMode     | intervals            | field |
+      | splitSpan     | 2                    | field |
+      | userPassword  | foo                  | field |
+      | ownerPassword | bar                  | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then the response PDF(s) should be encrypted
+
+  # FIXME: once decrypt is done, add encrypt and check after the content of the PDFs.
   Scenario: POST /forms/pdfengines/split (PDF/A-1b & PDF/UA-1 & Metadata & Flatten)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
@@ -549,69 +575,3 @@ Feature: /forms/pdfengines/split
       | splitSpan | 2                    | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
-
-  Scenario: POST /forms/pdfengines/split with encryption (intervals)
-    Given I have a default Gotenberg container
-    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
-      | files                     | testdata/pages_3.pdf | file   |
-      | splitMode                 | intervals            | field  |
-      | splitSpan                 | 2                    | field  |
-      | userPassword              | test123              | field  |
-      | Gotenberg-Output-Filename | encrypted            | header |
-    Then the response status code should be 200
-    Then the response header "Content-Type" should be "application/zip"
-    Then there should be 2 PDF(s) in the response
-    Then there should be the following file(s) in the response:
-      | encrypted.zip |
-    Then the response PDF(s) should be encrypted
-    Then the "encrypted.zip" archive should contain encrypted PDF file(s)
-
-  Scenario: POST /forms/pdfengines/split with encryption (pages)
-    Given I have a default Gotenberg container
-    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
-      | files                     | testdata/pages_3.pdf | file   |
-      | splitMode                 | pages                | field  |
-      | splitSpan                 | 2-                   | field  |
-      | userPassword              | user123              | field  |
-      | ownerPassword             | owner456             | field  |
-      | Gotenberg-Output-Filename | encrypted            | header |
-    Then the response status code should be 200
-    Then the response header "Content-Type" should be "application/zip"
-    Then there should be 2 PDF(s) in the response
-    Then there should be the following file(s) in the response:
-      | encrypted.zip |
-    Then the response PDF(s) should be encrypted
-    Then the "encrypted.zip" archive should contain encrypted PDF file(s)
-
-  Scenario: POST /forms/pdfengines/split with encryption and PDF/A conversion
-    Given I have a default Gotenberg container
-    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
-      | files                     | testdata/pages_3.pdf | file   |
-      | splitMode                 | intervals            | field  |
-      | splitSpan                 | 2                    | field  |
-      | userPassword              | test123              | field  |
-      | pdfa                      | PDF/A-1a             | field  |
-      | Gotenberg-Output-Filename | encrypted            | header |
-    Then the response status code should be 200
-    Then the response header "Content-Type" should be "application/zip"
-    Then there should be 2 PDF(s) in the response
-    Then there should be the following file(s) in the response:
-      | encrypted.zip |
-    Then the response PDF(s) should be encrypted
-    Then the "encrypted.zip" archive should contain encrypted PDF file(s)
-
-  Scenario: POST /forms/pdfengines/split without encryption (empty password)
-    Given I have a default Gotenberg container
-    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
-      | files                     | testdata/pages_3.pdf | file   |
-      | splitMode                 | intervals            | field  |
-      | splitSpan                 | 2                    | field  |
-      | userPassword              |                      | field  |
-      | Gotenberg-Output-Filename | unencrypted          | header |
-    Then the response status code should be 200
-    Then the response header "Content-Type" should be "application/zip"
-    Then there should be 2 PDF(s) in the response
-    Then there should be the following file(s) in the response:
-      | unencrypted.zip |
-    Then the "unencrypted.zip" archive should contain 2 file(s)
-    Then the "unencrypted.zip" archive should NOT contain encrypted PDF file(s)
