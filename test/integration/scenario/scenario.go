@@ -580,6 +580,7 @@ func (s *scenario) thePdfsShouldBeValidWithAToleranceOf(ctx context.Context, kin
 		return fmt.Errorf("unknown %q", validate)
 	}
 
+	re := regexp.MustCompile(`failedRules="(\d+)"`)
 	for _, path := range paths {
 		cmd := []string{
 			"verapdf",
@@ -593,9 +594,7 @@ func (s *scenario) thePdfsShouldBeValidWithAToleranceOf(ctx context.Context, kin
 			return fmt.Errorf("exec %q: %w", cmd, err)
 		}
 
-		re := regexp.MustCompile(`failedRules="(\d+)"`)
 		matches := re.FindStringSubmatch(output)
-
 		if len(matches) < 2 {
 			return errors.New("expected failed rules")
 		}
@@ -812,6 +811,8 @@ func (s *scenario) thePdfsShouldBeFlatten(ctx context.Context, kind, should stri
 		return fmt.Errorf("walk %q: %w", s.workdir, err)
 	}
 
+	invert := should == "should NOT"
+
 	for _, path := range paths {
 		cmd := []string{
 			"verapdf",
@@ -826,7 +827,6 @@ func (s *scenario) thePdfsShouldBeFlatten(ctx context.Context, kind, should stri
 			return fmt.Errorf("exec %q: %w", cmd, err)
 		}
 
-		invert := should == "should NOT"
 		if invert && strings.Contains(output, "<featuresReport></featuresReport>") {
 			return fmt.Errorf("PDF %q is flatten", path)
 		}
@@ -839,93 +839,53 @@ func (s *scenario) thePdfsShouldBeFlatten(ctx context.Context, kind, should stri
 	return nil
 }
 
-// thePdfShouldBeEncrypted checks if a PDF file is encrypted or not encrypted based on condition.
-func (s *scenario) thePdfShouldBeEncrypted(ctx context.Context, filename, should string) error {
-	filePath := fmt.Sprintf("%s/%s", s.workdir, filename)
+func (s *scenario) thePdfsShouldBeEncrypted(ctx context.Context, kind string, should string) error {
+	dirPath := fmt.Sprintf("%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"))
 
-	cmd := []string{
-		"qpdf",
-		"--check",
-		filepath.Base(filePath),
+	_, err := os.Stat(dirPath)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("directory %q does not exist", dirPath)
 	}
 
-	output, err := execCommandInIntegrationToolsContainer(ctx, cmd, filePath)
-
-	invert := should == "should NOT"
-	isEncrypted := err != nil && (strings.Contains(output, "password") || strings.Contains(output, "encrypted"))
-
-	if invert && isEncrypted {
-		return fmt.Errorf("expected PDF %s to not be encrypted, but it is encrypted", filename)
-	}
-
-	if !invert && !isEncrypted {
-		return fmt.Errorf("expected PDF %s to be encrypted, but it is not", filename)
-	}
-
-	return nil
-}
-
-// theArchiveShouldContainEncryptedPdfFiles checks if a zip archive contains encrypted PDF files based on condition.
-func (s *scenario) theArchiveShouldContainEncryptedPdfFiles(ctx context.Context, archiveFilename, should string) error {
-	archivePath := fmt.Sprintf("%s/%s", s.workdir, archiveFilename)
-
-	// First, extract the archive inside the container
-	extractCmd := []string{
-		"sh",
-		"-c",
-		fmt.Sprintf("mkdir -p /tmp/extract && unzip -o %s -d /tmp/extract", filepath.Base(archivePath)),
-	}
-
-	_, err := execCommandInIntegrationToolsContainer(ctx, extractCmd, archivePath)
-	if err != nil {
-		return fmt.Errorf("extract archive in container: %w", err)
-	}
-
-	// List PDF files in the extracted directory
-	listCmd := []string{
-		"sh",
-		"-c",
-		"find /tmp/extract -name '*.pdf' -type f",
-	}
-
-	output, err := execCommandInIntegrationToolsContainer(ctx, listCmd, archivePath)
-	if err != nil {
-		return fmt.Errorf("list PDFs in container: %w", err)
-	}
-
-	// No PDFs found
-	if output == "" {
-		return fmt.Errorf("no PDF files found in archive %s", archiveFilename)
-	}
-
-	// Check each PDF for password protection
-	pdfPaths := strings.Split(strings.TrimSpace(output), "\n")
-	foundProtectedPdf := false
-
-	for _, pdfPath := range pdfPaths {
-		checkCmd := []string{
-			"qpdf",
-			"--check",
-			pdfPath,
+	var paths []string
+	err = filepath.Walk(dirPath, func(path string, info os.FileInfo, pathErr error) error {
+		if pathErr != nil {
+			return pathErr
 		}
-
-		checkOutput, err := execCommandInIntegrationToolsContainer(ctx, checkCmd, archivePath)
-
-		// If we get a password error, we found a protected PDF
-		if err != nil && (strings.Contains(checkOutput, "password") || strings.Contains(checkOutput, "encrypted")) {
-			foundProtectedPdf = true
-			break
+		if strings.EqualFold(filepath.Ext(info.Name()), ".pdf") {
+			paths = append(paths, path)
 		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("walk %q: %w", dirPath, err)
 	}
 
 	invert := should == "should NOT"
+	re := regexp.MustCompile(`CommandLineError:Incorrectpassword`)
 
-	if invert && foundProtectedPdf {
-		return fmt.Errorf("found encrypted PDF files in archive %s, but expected none", archiveFilename)
-	}
+	for _, path := range paths {
+		cmd := []string{
+			"pdfinfo",
+			filepath.Base(path),
+		}
 
-	if !invert && !foundProtectedPdf {
-		return fmt.Errorf("no encrypted PDF files found in archive %s", archiveFilename)
+		output, err := execCommandInIntegrationToolsContainer(ctx, cmd, path)
+		if err != nil {
+			return fmt.Errorf("exec %q: %w", cmd, err)
+		}
+
+		output = strings.ReplaceAll(output, " ", "")
+		output = strings.ReplaceAll(output, "\n", "")
+		matches := re.FindStringSubmatch(output)
+		isEncrypted := len(matches) >= 1 && matches[0] == "CommandLineError:Incorrectpassword"
+
+		if invert && isEncrypted {
+			return fmt.Errorf("PDF %q is encrypted", path)
+		}
+		if !invert && !isEncrypted {
+			return fmt.Errorf("PDF %q is not encrypted: %q", path, output)
+		}
 	}
 
 	return nil
@@ -963,11 +923,10 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^there should be the following file\(s\) in the (response|webhook request):$`, s.thereShouldBeTheFollowingFiles)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) should be valid "([^"]*)" with a tolerance of (\d+) failed rule\(s\)$`, s.thePdfsShouldBeValidWithAToleranceOf)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) be flatten$`, s.thePdfsShouldBeFlatten)
+	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) be encrypted`, s.thePdfsShouldBeEncrypted)
 	ctx.Then(`^the "([^"]*)" PDF should have (\d+) page\(s\)$`, s.thePdfShouldHavePages)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) be set to landscape orientation$`, s.thePdfShouldBeSetToLandscapeOrientation)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have the following content at page (\d+):$`, s.thePdfShouldHaveTheFollowingContentAtPage)
-	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) be encrypted$`, s.thePdfShouldBeEncrypted)
-	ctx.Then(`^the "([^"]*)" archive (should|should NOT) contain encrypted PDF file\(s\)$`, s.theArchiveShouldContainEncryptedPdfFiles)
 	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		if s.gotenbergContainer != nil {
 			errTerminate := s.gotenbergContainer.Terminate(ctx, testcontainers.StopTimeout(0))

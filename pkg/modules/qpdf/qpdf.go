@@ -178,12 +178,10 @@ func (engine *QPdf) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, 
 		return errors.New("user password cannot be empty")
 	}
 
-	// If owner password is not provided, use the user password as owner password
 	if ownerPassword == "" {
 		ownerPassword = userPassword
 	}
 
-	// QPDF command to encrypt a PDF
 	var args []string
 	args = append(args, inputPath)
 	args = append(args, engine.globalArgs...)

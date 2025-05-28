@@ -264,6 +264,11 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				}
 			}
 
+			err = pdfengines.EncryptPdfStub(ctx, engine, userPassword, ownerPassword, outputPaths)
+			if err != nil {
+				return fmt.Errorf("encrypt PDFs: %w", err)
+			}
+
 			if len(outputPaths) > 1 && splitMode == zeroValuedSplitMode {
 				// If .zip archive, document.docx -> document.docx.pdf.
 				for i, inputPath := range inputPaths {
@@ -276,11 +281,6 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 
 					outputPaths[i] = outputPath
 				}
-			}
-
-			err = pdfengines.EncryptPdfStub(ctx, engine, userPassword, ownerPassword, outputPaths)
-			if err != nil {
-				return fmt.Errorf("encrypt PDFs: %w", err)
 			}
 
 			err = ctx.AddOutputPaths(outputPaths...)

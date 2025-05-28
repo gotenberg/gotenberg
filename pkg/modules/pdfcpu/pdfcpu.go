@@ -177,17 +177,16 @@ func (engine *PdfCpu) Encrypt(ctx context.Context, logger *zap.Logger, inputPath
 		return errors.New("user password cannot be empty")
 	}
 
-	// If owner password is not provided, use the user password as owner password
 	if ownerPassword == "" {
 		ownerPassword = userPassword
 	}
 
 	var args []string
 	args = append(args, "encrypt")
-	args = append(args, "-mode", "aes") // Use AES encryption
+	args = append(args, "-mode", "aes")
 	args = append(args, "-upw", userPassword)
 	args = append(args, "-opw", ownerPassword)
-	args = append(args, "-perm", "all") // Grant all permissions with owner password
+	args = append(args, "-perm", "all")
 	args = append(args, inputPath, inputPath)
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)

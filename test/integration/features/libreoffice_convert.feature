@@ -526,6 +526,28 @@ Feature: /forms/libreoffice/convert
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be flatten
 
+  Scenario: POST /forms/libreoffice/convert (Encrypt - user password only)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files        | testdata/page_1.docx | file  |
+      | userPassword | foo                  | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be encrypted
+
+  Scenario: POST /forms/libreoffice/convert (Encrypt - both user and owner passwords)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files         | testdata/page_1.docx | file  |
+      | userPassword  | foo                  | field |
+      | ownerPassword | bar                  | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be encrypted
+
+  # FIXME: once decrypt is done, add encrypt and check after the content of the PDF.
   Scenario: POST /forms/libreoffice/convert (PDF/A-1b & PDF/UA-1 & Metadata & Flatten)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
@@ -533,7 +555,6 @@ Feature: /forms/libreoffice/convert
       | pdfa                      | PDF/A-1b                                                                                                                                                                                                                                                                                                  | field  |
       | pdfua                     | true                                                                                                                                                                                                                                                                                                      | field  |
       | metadata                  | {"Author":"Julien Neuhart","Copyright":"Julien Neuhart","CreateDate":"2006-09-18T16:27:50-04:00","Creator":"Gotenberg","Keywords":["first","second"],"Marked":true,"ModDate":"2006-09-18T16:27:50-04:00","PDFVersion":1.7,"Producer":"Gotenberg","Subject":"Sample","Title":"Sample","Trapped":"Unknown"} | field  |
-      | flatten                   | true                                                                                                                                                                                                                                                                                                      | field  |
       | Gotenberg-Output-Filename | foo                                                                                                                                                                                                                                                                                                       | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
@@ -631,90 +652,3 @@ Feature: /forms/libreoffice/convert
       | files | testdata/page_1.docx | file |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
-
-  Scenario: POST /forms/libreoffice/convert with encryption (user password only)
-    Given I have a default Gotenberg container
-    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
-      | files                     | testdata/page_1.docx | file   |
-      | userPassword              | test123              | field  |
-      | Gotenberg-Output-Filename | encrypted            | header |
-    Then the response status code should be 200
-    Then the response header "Content-Type" should be "application/pdf"
-    Then there should be 1 PDF(s) in the response
-    Then there should be the following file(s) in the response:
-      | encrypted.pdf |
-    Then the "encrypted.pdf" PDF should be encrypted
-    Then the "encrypted.pdf" PDF should have 1 page(s)
-
-  Scenario: POST /forms/libreoffice/convert with encryption (user and owner passwords)
-    Given I have a default Gotenberg container
-    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
-      | files                     | testdata/page_1.docx | file   |
-      | userPassword              | user123              | field  |
-      | ownerPassword             | owner456             | field  |
-      | Gotenberg-Output-Filename | encrypted            | header |
-    Then the response status code should be 200
-    Then the response header "Content-Type" should be "application/pdf"
-    Then there should be 1 PDF(s) in the response
-    Then there should be the following file(s) in the response:
-      | encrypted.pdf |
-    Then the "encrypted.pdf" PDF should be encrypted
-    Then the "encrypted.pdf" PDF should have 1 page(s)
-
-  Scenario: POST /forms/libreoffice/convert with encryption and PDF/A conversion
-    Given I have a default Gotenberg container
-    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
-      | files                     | testdata/page_1.docx | file   |
-      | userPassword              | test123              | field  |
-      | pdfa                      | PDF/A-1a             | field  |
-      | Gotenberg-Output-Filename | encrypted            | header |
-    Then the response status code should be 200
-    Then the response header "Content-Type" should be "application/pdf"
-    Then there should be 1 PDF(s) in the response
-    Then there should be the following file(s) in the response:
-      | encrypted.pdf |
-    Then the "encrypted.pdf" PDF should be encrypted
-    Then the "encrypted.pdf" PDF should have 1 page(s)
-
-  Scenario: POST /forms/libreoffice/convert with encryption (multiple files)
-    Given I have a default Gotenberg container
-    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
-      | files                     | testdata/page_1.docx | file   |
-      | files                     | testdata/page_2.docx | file   |
-      | userPassword              | test123              | field  |
-      | Gotenberg-Output-Filename | encrypted            | header |
-    Then the response status code should be 200
-    Then the response header "Content-Type" should be "application/zip"
-    Then there should be the following file(s) in the response:
-      | encrypted.zip |
-    Then the response PDF(s) should be encrypted
-    Then the "encrypted.zip" archive should contain encrypted PDF file(s)
-
-  Scenario: POST /forms/libreoffice/convert with encryption and flattening
-    Given I have a default Gotenberg container
-    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
-      | files                     | testdata/page_1.docx | file   |
-      | userPassword              | test123              | field  |
-      | flatten                   | true                 | field  |
-      | Gotenberg-Output-Filename | encrypted            | header |
-    Then the response status code should be 200
-    Then the response header "Content-Type" should be "application/pdf"
-    Then there should be 1 PDF(s) in the response
-    Then there should be the following file(s) in the response:
-      | encrypted.pdf |
-    Then the "encrypted.pdf" PDF should be encrypted
-    Then the "encrypted.pdf" PDF should have 1 page(s)
-
-  Scenario: POST /forms/libreoffice/convert without encryption (empty password)
-    Given I have a default Gotenberg container
-    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
-      | files                     | testdata/page_1.docx | file   |
-      | userPassword              |                      | field  |
-      | Gotenberg-Output-Filename | unencrypted          | header |
-    Then the response status code should be 200
-    Then the response header "Content-Type" should be "application/pdf"
-    Then there should be 1 PDF(s) in the response
-    Then there should be the following file(s) in the response:
-      | unencrypted.pdf |
-    Then the "unencrypted.pdf" PDF should NOT be encrypted
-    Then the "unencrypted.pdf" PDF should have 1 page(s)

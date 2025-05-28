@@ -210,7 +210,7 @@ func (mod *PdfEngines) SystemMessages() []string {
 		fmt.Sprintf("convert engines - %s", strings.Join(mod.convertNames[:], " ")),
 		fmt.Sprintf("read metadata engines - %s", strings.Join(mod.readMetadataNames[:], " ")),
 		fmt.Sprintf("write metadata engines - %s", strings.Join(mod.writeMetadataNames[:], " ")),
-		fmt.Sprintf("password protection engines - %s", strings.Join(mod.encryptNames[:], " ")),
+		fmt.Sprintf("encrypt engines - %s", strings.Join(mod.encryptNames[:], " ")),
 	}
 }
 

@@ -254,7 +254,6 @@ func WriteMetadataStub(ctx *api.Context, engine gotenberg.PdfEngine, metadata ma
 	return nil
 }
 
-// EncryptPdfStub adds password protection to PDF files.
 // FormDataPdfEncrypt extracts encryption parameters from form data.
 func FormDataPdfEncrypt(form *api.FormData) (userPassword, ownerPassword string) {
 	form.String("userPassword", &userPassword, "")
@@ -262,6 +261,7 @@ func FormDataPdfEncrypt(form *api.FormData) (userPassword, ownerPassword string)
 	return userPassword, ownerPassword
 }
 
+// EncryptPdfStub adds password protection to PDF files.
 func EncryptPdfStub(ctx *api.Context, engine gotenberg.PdfEngine, userPassword, ownerPassword string, inputPaths []string) error {
 	if userPassword == "" {
 		return nil
@@ -459,7 +459,6 @@ func convertRoute(engine gotenberg.PdfEngine) api.Route {
 
 			form := ctx.FormData()
 			pdfFormats := FormDataPdfFormats(form)
-			userPassword, ownerPassword := FormDataPdfEncrypt(form)
 
 			var inputPaths []string
 			err := form.
@@ -494,11 +493,6 @@ func convertRoute(engine gotenberg.PdfEngine) api.Route {
 					}
 					outputPaths[i] = inputPath
 				}
-			}
-
-			err = EncryptPdfStub(ctx, engine, userPassword, ownerPassword, outputPaths)
-			if err != nil {
-				return fmt.Errorf("encrypt PDFs: %w", err)
 			}
 
 			err = ctx.AddOutputPaths(outputPaths...)

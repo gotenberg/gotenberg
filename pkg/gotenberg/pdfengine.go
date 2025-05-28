@@ -104,7 +104,7 @@ type PdfEngine interface {
 
 	// Flatten merges existing annotation appearances with page content,
 	// effectively deleting the original annotations. This process can flatten
-	// forms as well, as forms share a relationship with annotations. Note that
+	// forms as well as forms share a relationship with annotations. Note that
 	// this operation is irreversible.
 	Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error
 
