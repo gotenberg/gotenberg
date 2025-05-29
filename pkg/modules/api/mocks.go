@@ -54,7 +54,7 @@ func (ctx *ContextMock) SetFiles(files map[string]string) {
 	ctx.files = files
 }
 
-// SetCancelled sets if the context is cancelled or not.
+// SetCancelled sets if the context is canceled or not.
 //
 //	ctx := &api.ContextMock{Context: &api.Context{}}
 //	ctx.SetCancelled(true)
@@ -120,7 +120,7 @@ func (provider *MiddlewareProviderMock) Middlewares() ([]Middleware, error) {
 	return provider.MiddlewaresMock()
 }
 
-// HealthCheckerMock is mock for the [HealthChecker] interface.
+// HealthCheckerMock is a mock for the [HealthChecker] interface.
 type HealthCheckerMock struct {
 	ChecksMock func() ([]health.CheckerOption, error)
 	ReadyMock  func() error

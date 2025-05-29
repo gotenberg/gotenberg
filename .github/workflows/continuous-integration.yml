@@ -29,9 +29,9 @@ jobs:
           go-version-file: go.mod
 
       - name: Run linters
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.0.2
+          version: v2.1.6
 
   lint-prettier:
     name: Lint non-Golang codebase
@@ -161,8 +161,30 @@ jobs:
           platform: linux/arm/v7
           alternate_repository: snapshot
 
-  merge_clean_snapshot_tags:
+  merge_clean_snapshot_guard:
     needs:
+      - snapshot_amd64
+      - snapshot_386
+      - snapshot_arm64
+      - snapshot_arm_v7
+    name: Secrets access check
+    runs-on: ubuntu-latest
+    outputs:
+      continue: ${{ steps.check.outputs.continue }}
+    steps:
+      - name: Check
+        id: check
+        run: |
+          if [ -n "${{ secrets.DOCKERHUB_USERNAME }}" ]; then
+            echo "continue=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "continue=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  merge_clean_snapshot_tags:
+    if: needs.merge_clean_snapshot_guard.outputs.continue == 'true'
+    needs:
+      - merge_clean_snapshot_guard
       - snapshot_amd64
       - snapshot_386
       - snapshot_arm64

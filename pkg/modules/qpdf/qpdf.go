@@ -34,7 +34,7 @@ func (engine *QPdf) Descriptor() gotenberg.ModuleDescriptor {
 	}
 }
 
-// Provision sets the modules properties.
+// Provision sets the module properties.
 func (engine *QPdf) Provision(ctx *gotenberg.Context) error {
 	binPath, ok := os.LookupEnv("QPDF_BIN_PATH")
 	if !ok {

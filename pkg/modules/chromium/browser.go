@@ -12,6 +12,7 @@ import (
 
 	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
+	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 	"github.com/dlclark/regexp2"
@@ -93,6 +94,9 @@ func (b *chromiumBrowser) Start(logger *zap.Logger) error {
 		chromedp.UserDataDir(b.userProfileDirPath),
 		// See https://github.com/gotenberg/gotenberg/issues/831.
 		chromedp.Flag("disable-pdf-tagging", true),
+		// See https://github.com/gotenberg/gotenberg/issues/1177.
+		chromedp.Flag("no-zygote", true),
+		chromedp.Flag("disable-dev-shm-usage", true),
 	)
 
 	if b.arguments.incognito {
@@ -211,7 +215,7 @@ func (b *chromiumBrowser) Stop(logger *zap.Logger) error {
 				logger.Debug(fmt.Sprintf("'%s' Chromium's user profile directory removed", userProfileDirPath))
 			}
 
-			// Also remove Chromium specific files in the temporary directory.
+			// Also, remove Chromium-specific files in the temporary directory.
 			err = gotenberg.GarbageCollect(logger, os.TempDir(), []string{".org.chromium.Chromium", ".com.google.Chrome"}, expirationTime)
 			if err != nil {
 				logger.Error(err.Error())
@@ -273,10 +277,12 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *zap.Logger, url, outp
 		hideDefaultWhiteBackgroundActionFunc(logger, options.OmitBackground, options.PrintBackground),
 		forceExactColorsActionFunc(logger, options.PrintBackground),
 		emulateMediaTypeActionFunc(logger, options.EmulatedMediaType),
-		waitDelayBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitDelay),
 		waitForExpressionBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitForExpression),
+		waitDelayBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitDelay),
 		// PDF specific.
 		printToPdfActionFunc(logger, outputPath, options),
+		// Teardown.
+		page.Close(),
 	})
 }
 
@@ -296,11 +302,13 @@ func (b *chromiumBrowser) screenshot(ctx context.Context, logger *zap.Logger, ur
 		hideDefaultWhiteBackgroundActionFunc(logger, options.OmitBackground, true),
 		forceExactColorsActionFunc(logger, true),
 		emulateMediaTypeActionFunc(logger, options.EmulatedMediaType),
-		waitDelayBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitDelay),
 		waitForExpressionBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitForExpression),
+		waitDelayBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitDelay),
 		// Screenshot specific.
 		setDeviceMetricsOverride(logger, options.Width, options.Height),
 		captureScreenshotActionFunc(logger, outputPaths, options),
+		// Teardown.
+		page.Close(),
 	})
 }
 
@@ -314,7 +322,7 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 		return errors.New("context has no deadline")
 	}
 
-	// We validate the "main" URL against our allow / deny lists.
+	// We validate the "main" URL against our allowed / deny lists.
 	err := gotenberg.FilterDeadline(b.arguments.allowList, b.arguments.denyList, url, deadline)
 	if err != nil {
 		return fmt.Errorf("filter URL: %w", err)
@@ -329,7 +337,7 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 	taskCtx, taskCancel := chromedp.NewContext(timeoutCtx)
 	defer taskCancel()
 
-	// We validate all others requests against our allow / deny lists.
+	// We validate all other requests against our allowed / deny lists.
 	// If a request does not pass the validation, we make it fail. It also set
 	// the extra HTTP headers, if any.
 	// See https://github.com/gotenberg/gotenberg/issues/1011.

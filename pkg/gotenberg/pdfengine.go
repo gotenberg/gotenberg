@@ -13,7 +13,7 @@ var (
 	ErrPdfEngineMethodNotSupported = errors.New("method not supported")
 
 	// ErrPdfSplitModeNotSupported is returned when the Split method of the
-	// PdfEngine interface does not sumport a requested PDF split mode.
+	// PdfEngine interface does not support a requested PDF split mode.
 	ErrPdfSplitModeNotSupported = errors.New("split mode not supported")
 
 	// ErrPdfFormatNotSupported is returned when the Convert method of the
@@ -86,7 +86,7 @@ type PdfFormats struct {
 }
 
 // PdfEngine provides an interface for operations on PDFs. Implementations
-// can utilize various tools like PDFtk, or implement functionality directly in
+// can use various tools like PDFtk, or implement functionality directly in
 // Go.
 //
 //nolint:dupl

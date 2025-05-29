@@ -24,7 +24,7 @@ type streamReader struct {
 // Read a chunk of the stream.
 func (reader *streamReader) Read(p []byte) (n int, err error) {
 	if reader.r != nil {
-		// Continue reading from buffer.
+		// Continue reading from the buffer.
 		return reader.read(p)
 	}
 

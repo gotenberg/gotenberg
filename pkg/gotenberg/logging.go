@@ -18,7 +18,7 @@ type LoggerProvider interface {
 	Logger(mod Module) (*zap.Logger, error)
 }
 
-// LeveledLogger is wrapper around a [zap.Logger] so that it may be used by a
+// LeveledLogger is a wrapper around a [zap.Logger] so that it may be used by a
 // [retryablehttp.Client].
 type LeveledLogger struct {
 	logger *zap.Logger
@@ -31,22 +31,22 @@ func NewLeveledLogger(logger *zap.Logger) *LeveledLogger {
 	}
 }
 
-// Error logs a message at error level using the wrapped zap.Logger.
+// Error logs a message at the error level using the wrapped zap.Logger.
 func (leveled LeveledLogger) Error(msg string, keysAndValues ...interface{}) {
 	leveled.logger.Error(fmt.Sprintf("%s: %+v", msg, keysAndValues))
 }
 
-// Warn logs a message at warning level using the wrapped zap.Logger.
+// Warn logs a message at the warning level using the wrapped zap.Logger.
 func (leveled LeveledLogger) Warn(msg string, keysAndValues ...interface{}) {
 	leveled.logger.Warn(fmt.Sprintf("%s: %+v", msg, keysAndValues))
 }
 
-// Info logs a message at info level using the wrapped zap.Logger.
+// Info logs a message at the info level using the wrapped zap.Logger.
 func (leveled LeveledLogger) Info(msg string, keysAndValues ...interface{}) {
 	leveled.logger.Info(fmt.Sprintf("%s: %+v", msg, keysAndValues))
 }
 
-// Debug logs a message at debug level using the wrapped zap.Logger.
+// Debug logs a message at the debug level using the wrapped zap.Logger.
 func (leveled LeveledLogger) Debug(msg string, keysAndValues ...interface{}) {
 	leveled.logger.Debug(fmt.Sprintf("%s: %+v", msg, keysAndValues))
 }

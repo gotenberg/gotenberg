@@ -19,9 +19,10 @@ import (
 )
 
 type server struct {
-	srv     *echo.Echo
-	req     *http.Request
-	errChan chan error
+	srv      *echo.Echo
+	req      *http.Request
+	bodyCopy []byte
+	errChan  chan error
 }
 
 func newServer(ctx context.Context, workdir string) (*server, error) {
@@ -50,6 +51,8 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 		if err != nil {
 			return webhookErr(fmt.Errorf("read request body: %w", err))
 		}
+
+		s.bodyCopy = body
 
 		cd := s.req.Header.Get("Content-Disposition")
 		if cd == "" {
@@ -125,6 +128,11 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 	}
 	webhookErrorHandler := func(c echo.Context) error {
 		s.req = c.Request()
+		body, err := io.ReadAll(s.req.Body)
+		if err != nil {
+			return webhookErr(fmt.Errorf("read request body: %w", err))
+		}
+		s.bodyCopy = body
 		return webhookErr(c.String(http.StatusOK, http.StatusText(http.StatusOK)))
 	}
 

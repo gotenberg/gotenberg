@@ -86,7 +86,7 @@ func httpErrorHandler() echo.HTTPErrorHandler {
 }
 
 // latencyMiddleware sets the start time in the [echo.Context] under
-// "startTime". Its value will be used later to calculate a request latency.
+// "startTime". Its value will be used later to calculate request latency.
 //
 //	startTime := c.Get("startTime").(time.Time)
 func latencyMiddleware() echo.MiddlewareFunc {
@@ -109,7 +109,7 @@ func latencyMiddleware() echo.MiddlewareFunc {
 //	rootPath := c.Get("rootPath").(string)
 //	healthURI := fmt.Sprintf("%s/health", rootPath)
 //
-//	// Skip the middleware if health check URI.
+//	// Skip the middleware if it's the health check URI.
 //	if c.Request().RequestURI == healthURI {
 //	  // Call the next middleware in the chain.
 //	  return next(c)
@@ -241,7 +241,7 @@ func basicAuthMiddleware(username, password string) echo.MiddlewareFunc {
 	})
 }
 
-// contextMiddleware, a middleware for "multipart/form-data" requests, sets the
+// contextMiddleware, middleware for "multipart/form-data" requests, sets the
 // [Context] and related context.CancelFunc in the [echo.Context] under
 // "context" and "cancel". If the process is synchronous, it also handles the
 // result of a "multipart/form-data" request.
@@ -256,7 +256,7 @@ func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, bodyLimi
 			trace := c.Get("trace").(string)
 
 			// We create a context with a timeout so that underlying processes are
-			// able to stop early and handle correctly a timeout scenario.
+			// able to stop early and correctly handle a timeout scenario.
 			ctx, cancel, err := newContext(c, logger, fs, timeout, bodyLimit, downloadFromCfg, traceHeader, trace)
 			if err != nil {
 				cancel()
