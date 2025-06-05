@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  gotenberg:
+    build: .
+    image: your-username/gotenberg-local:latest  # 可自行更改為自己喜歡的本地映像名稱
+    ports:
+      - "3000:3000"
+    environment:
+      API_BODY_LIMIT: "100MB"
+      DEFAULT_GOOGLE_CHROME_RPCC_BUFFER_SIZE: "104857600"
+      DEFAULT_WAIT_TIMEOUT: "15"
+      MAXIMUM_WAIT_TIMEOUT: "60"
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: "4G"
+        reservations:
+          cpus: "1.0"
+          memory: "2G"
