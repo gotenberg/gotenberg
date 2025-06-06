@@ -462,6 +462,7 @@ func (a *Api) Start() error {
 		latencyMiddleware(),
 		rootPathMiddleware(a.rootPath),
 		traceMiddleware(a.traceHeader),
+		outputFilenameMiddleware(),
 		loggerMiddleware(a.logger, disableLoggingForPaths),
 	)
 
