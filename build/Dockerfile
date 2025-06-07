@@ -206,12 +206,12 @@ RUN \
     echo "deb http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list &&\
     apt-get update -qq &&\
     apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends --allow-unauthenticated google-chrome-stable=$CHROME_VERSION &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends --allow-unauthenticated google-chrome-stable=${CHROME_VERSION} &&\
     mv /usr/bin/google-chrome-stable /usr/bin/chromium; \
     else \
     apt-get update -qq &&\
     apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium=$CHROMIUM_VERSION; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium=${CHROMIUM_VERSION}; \
     fi' &&\
     # Verify installation.
     chromium --version &&\
