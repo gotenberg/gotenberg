@@ -2,6 +2,7 @@
 # concatenate them. Also, we have to repeat ARG instructions in each build
 # stage that uses them.
 ARG GOLANG_VERSION=1.24
+ARG CHROMIUM_VERSION=137.0.7151.68
 
 # ----------------------------------------------
 # pdfcpu binary build stage
@@ -209,7 +210,7 @@ RUN \
     else \
     apt-get update -qq &&\
     apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium=$CHROMIUM_VERSION; \
     fi' &&\
     # Verify installation.
     chromium --version &&\
