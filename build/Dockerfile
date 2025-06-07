@@ -111,6 +111,8 @@ FROM base-image-stage
 ARG GOTENBERG_VERSION=snapshot
 ARG GOTENBERG_USER_GID=1001
 ARG GOTENBERG_USER_UID=1001
+ARG CHROME_VERSION
+ARG CHROMIUM_VERSION
 # See https://github.com/googlefonts/noto-emoji/releases.
 ARG NOTO_COLOR_EMOJI_VERSION=v2.047
 # See https://gitlab.com/pdftk-java/pdftk/-/releases - Binary package.
@@ -206,12 +208,12 @@ RUN \
     echo "deb http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list &&\
     apt-get update -qq &&\
     apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends --allow-unauthenticated google-chrome-stable=${CHROME_VERSION} &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends --allow-unauthenticated google-chrome-stable='${CHROME_VERSION}' &&\
     mv /usr/bin/google-chrome-stable /usr/bin/chromium; \
     else \
     apt-get update -qq &&\
     apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium=${CHROMIUM_VERSION}; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium='${CHROMIUM_VERSION}'; \
     fi' &&\
     # Verify installation.
     chromium --version &&\
