@@ -2,7 +2,8 @@
 # concatenate them. Also, we have to repeat ARG instructions in each build
 # stage that uses them.
 ARG GOLANG_VERSION=1.24
-ARG CHROMIUM_VERSION=137.0.7151.68
+ARG CHROME_VERSION=137.0.7151.68
+ARG CHROMIUM_VERSION=135.0.7049.95-1~deb12u1
 
 # ----------------------------------------------
 # pdfcpu binary build stage
@@ -205,7 +206,7 @@ RUN \
     echo "deb http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list &&\
     apt-get update -qq &&\
     apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends --allow-unauthenticated google-chrome-stable &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends --allow-unauthenticated google-chrome-stable=$CHROME_VERSION &&\
     mv /usr/bin/google-chrome-stable /usr/bin/chromium; \
     else \
     apt-get update -qq &&\
