@@ -37,6 +37,8 @@ require (
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/docker/docker v28.2.2+incompatible
 	github.com/docker/go-connections v0.5.0
+	github.com/getsentry/sentry-go v0.33.0
+	github.com/getsentry/sentry-go/echo v0.33.0
 	github.com/mholt/archives v0.1.2
 	github.com/shirou/gopsutil/v4 v4.25.5
 	github.com/testcontainers/testcontainers-go v0.37.0
