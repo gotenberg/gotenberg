@@ -580,6 +580,7 @@ func (s *scenario) thePdfsShouldBeValidWithAToleranceOf(ctx context.Context, kin
 		return fmt.Errorf("unknown %q", validate)
 	}
 
+	re := regexp.MustCompile(`failedRules="(\d+)"`)
 	for _, path := range paths {
 		cmd := []string{
 			"verapdf",
@@ -593,9 +594,7 @@ func (s *scenario) thePdfsShouldBeValidWithAToleranceOf(ctx context.Context, kin
 			return fmt.Errorf("exec %q: %w", cmd, err)
 		}
 
-		re := regexp.MustCompile(`failedRules="(\d+)"`)
 		matches := re.FindStringSubmatch(output)
-
 		if len(matches) < 2 {
 			return errors.New("expected failed rules")
 		}
@@ -812,6 +811,8 @@ func (s *scenario) thePdfsShouldBeFlatten(ctx context.Context, kind, should stri
 		return fmt.Errorf("walk %q: %w", s.workdir, err)
 	}
 
+	invert := should == "should NOT"
+
 	for _, path := range paths {
 		cmd := []string{
 			"verapdf",
@@ -826,13 +827,64 @@ func (s *scenario) thePdfsShouldBeFlatten(ctx context.Context, kind, should stri
 			return fmt.Errorf("exec %q: %w", cmd, err)
 		}
 
-		invert := should == "should NOT"
 		if invert && strings.Contains(output, "<featuresReport></featuresReport>") {
 			return fmt.Errorf("PDF %q is flatten", path)
 		}
 
 		if !invert && !strings.Contains(output, "<featuresReport></featuresReport>") {
 			return fmt.Errorf("PDF %q is not flatten", path)
+		}
+	}
+
+	return nil
+}
+
+func (s *scenario) thePdfsShouldBeEncrypted(ctx context.Context, kind string, should string) error {
+	dirPath := fmt.Sprintf("%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"))
+
+	_, err := os.Stat(dirPath)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("directory %q does not exist", dirPath)
+	}
+
+	var paths []string
+	err = filepath.Walk(dirPath, func(path string, info os.FileInfo, pathErr error) error {
+		if pathErr != nil {
+			return pathErr
+		}
+		if strings.EqualFold(filepath.Ext(info.Name()), ".pdf") {
+			paths = append(paths, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("walk %q: %w", dirPath, err)
+	}
+
+	invert := should == "should NOT"
+	re := regexp.MustCompile(`CommandLineError:Incorrectpassword`)
+
+	for _, path := range paths {
+		cmd := []string{
+			"pdfinfo",
+			filepath.Base(path),
+		}
+
+		output, err := execCommandInIntegrationToolsContainer(ctx, cmd, path)
+		if err != nil {
+			return fmt.Errorf("exec %q: %w", cmd, err)
+		}
+
+		output = strings.ReplaceAll(output, " ", "")
+		output = strings.ReplaceAll(output, "\n", "")
+		matches := re.FindStringSubmatch(output)
+		isEncrypted := len(matches) >= 1 && matches[0] == "CommandLineError:Incorrectpassword"
+
+		if invert && isEncrypted {
+			return fmt.Errorf("PDF %q is encrypted", path)
+		}
+		if !invert && !isEncrypted {
+			return fmt.Errorf("PDF %q is not encrypted: %q", path, output)
 		}
 	}
 
@@ -871,6 +923,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^there should be the following file\(s\) in the (response|webhook request):$`, s.thereShouldBeTheFollowingFiles)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) should be valid "([^"]*)" with a tolerance of (\d+) failed rule\(s\)$`, s.thePdfsShouldBeValidWithAToleranceOf)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) be flatten$`, s.thePdfsShouldBeFlatten)
+	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) be encrypted`, s.thePdfsShouldBeEncrypted)
 	ctx.Then(`^the "([^"]*)" PDF should have (\d+) page\(s\)$`, s.thePdfShouldHavePages)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) be set to landscape orientation$`, s.thePdfShouldBeSetToLandscapeOrientation)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have the following content at page (\d+):$`, s.thePdfShouldHaveTheFollowingContentAtPage)
