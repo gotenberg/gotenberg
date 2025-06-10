@@ -20,7 +20,7 @@ import (
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
 )
 
-type SendOutputFileParams struct {
+type sendOutputFileParams struct {
 	Ctx              *api.Context
 	OutputPath       string
 	ExtraHttpHeaders map[string]string
@@ -35,7 +35,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 		Stack: api.MultipartStack,
 		Handler: func() echo.MiddlewareFunc {
 			return func(next echo.HandlerFunc) echo.HandlerFunc {
-				sendOutputFile := func(params SendOutputFileParams) {
+				sendOutputFile := func(params sendOutputFileParams) {
 					outputFile, err := os.Open(params.OutputPath)
 					if err != nil {
 						params.Ctx.Log().Error(fmt.Sprintf("open output file: %s", err))
@@ -235,7 +235,15 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						}
 					}
 
-					webhookSync := strings.ToLower(c.Request().Header.Get("Gotenberg-Webhook-Sync")) == "true"
+					webhookSyncHeader := c.Request().Header.Get("Gotenberg-Webhook-Sync")
+					webhookSync := false
+					if webhookSyncHeader != "" {
+						var err error
+						webhookSync, err = strconv.ParseBool(webhookSyncHeader)
+						if err != nil {
+							return fmt.Errorf("parse webhook sync header: %w", err)
+						}
+					}
 
 					if webhookSync {
 						// Synchronous mode has been requested.
@@ -264,7 +272,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 							return nil
 						}
 						// No error, let's send the output file to the webhook URL.
-						sendOutputFile(SendOutputFileParams{
+						sendOutputFile(sendOutputFileParams{
 							Ctx:              ctx,
 							OutputPath:       outputPath,
 							ExtraHttpHeaders: extraHttpHeaders,
@@ -311,7 +319,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 							return
 						}
 
-						sendOutputFile(SendOutputFileParams{
+						sendOutputFile(sendOutputFileParams{
 							Ctx:              ctx,
 							OutputPath:       outputPath,
 							ExtraHttpHeaders: extraHttpHeaders,
