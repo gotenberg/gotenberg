@@ -21,13 +21,13 @@ import (
 )
 
 type sendOutputFileParams struct {
-	Ctx              *api.Context
-	OutputPath       string
-	ExtraHttpHeaders map[string]string
-	TraceHeader      string
-	Trace            string
-	Client           *client
-	HandleError      func(error)
+	ctx              *api.Context
+	outputPath       string
+	extraHttpHeaders map[string]string
+	traceHeader      string
+	trace            string
+	client           *client
+	handleError      func(error)
 }
 
 func webhookMiddleware(w *Webhook) api.Middleware {
@@ -36,55 +36,55 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 		Handler: func() echo.MiddlewareFunc {
 			return func(next echo.HandlerFunc) echo.HandlerFunc {
 				sendOutputFile := func(params sendOutputFileParams) {
-					outputFile, err := os.Open(params.OutputPath)
+					outputFile, err := os.Open(params.outputPath)
 					if err != nil {
-						params.Ctx.Log().Error(fmt.Sprintf("open output file: %s", err))
-						params.HandleError(err)
+						params.ctx.Log().Error(fmt.Sprintf("open output file: %s", err))
+						params.handleError(err)
 						return
 					}
 					defer func() {
 						err := outputFile.Close()
 						if err != nil {
-							params.Ctx.Log().Error(fmt.Sprintf("close output file: %s", err))
+							params.ctx.Log().Error(fmt.Sprintf("close output file: %s", err))
 						}
 					}()
 
 					fileHeader := make([]byte, 512)
 					_, err = outputFile.Read(fileHeader)
 					if err != nil {
-						params.Ctx.Log().Error(fmt.Sprintf("read header of output file: %s", err))
-						params.HandleError(err)
+						params.ctx.Log().Error(fmt.Sprintf("read header of output file: %s", err))
+						params.handleError(err)
 						return
 					}
 
 					fileStat, err := outputFile.Stat()
 					if err != nil {
-						params.Ctx.Log().Error(fmt.Sprintf("get stat from output file: %s", err))
-						params.HandleError(err)
+						params.ctx.Log().Error(fmt.Sprintf("get stat from output file: %s", err))
+						params.handleError(err)
 						return
 					}
 
 					_, err = outputFile.Seek(0, 0)
 					if err != nil {
-						params.Ctx.Log().Error(fmt.Sprintf("reset output file reader: %s", err))
-						params.HandleError(err)
+						params.ctx.Log().Error(fmt.Sprintf("reset output file reader: %s", err))
+						params.handleError(err)
 						return
 					}
 
 					headers := map[string]string{
 						echo.HeaderContentType:   http.DetectContentType(fileHeader),
 						echo.HeaderContentLength: strconv.FormatInt(fileStat.Size(), 10),
-						params.TraceHeader:       params.Trace,
+						params.traceHeader:       params.trace,
 					}
-					_, ok := params.ExtraHttpHeaders[echo.HeaderContentDisposition]
+					_, ok := params.extraHttpHeaders[echo.HeaderContentDisposition]
 					if !ok {
-						headers[echo.HeaderContentDisposition] = fmt.Sprintf("attachment; filename=%q", params.Ctx.OutputFilename(params.OutputPath))
+						headers[echo.HeaderContentDisposition] = fmt.Sprintf("attachment; filename=%q", params.ctx.OutputFilename(params.outputPath))
 					}
 
-					err = params.Client.send(bufio.NewReader(outputFile), headers, false)
+					err = params.client.send(bufio.NewReader(outputFile), headers, false)
 					if err != nil {
-						params.Ctx.Log().Error(fmt.Sprintf("send output file to webhook: %s", err))
-						params.HandleError(err)
+						params.ctx.Log().Error(fmt.Sprintf("send output file to webhook: %s", err))
+						params.handleError(err)
 					}
 				}
 
@@ -273,13 +273,13 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						}
 						// No error, let's send the output file to the webhook URL.
 						sendOutputFile(sendOutputFileParams{
-							Ctx:              ctx,
-							OutputPath:       outputPath,
-							ExtraHttpHeaders: extraHttpHeaders,
-							TraceHeader:      traceHeader,
-							Trace:            trace,
-							Client:           client,
-							HandleError:      handleError,
+							ctx:              ctx,
+							outputPath:       outputPath,
+							extraHttpHeaders: extraHttpHeaders,
+							traceHeader:      traceHeader,
+							trace:            trace,
+							client:           client,
+							handleError:      handleError,
 						})
 						return c.NoContent(http.StatusNoContent)
 					}
@@ -320,13 +320,13 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						}
 
 						sendOutputFile(sendOutputFileParams{
-							Ctx:              ctx,
-							OutputPath:       outputPath,
-							ExtraHttpHeaders: extraHttpHeaders,
-							TraceHeader:      traceHeader,
-							Trace:            trace,
-							Client:           client,
-							HandleError:      handleError,
+							ctx:              ctx,
+							outputPath:       outputPath,
+							extraHttpHeaders: extraHttpHeaders,
+							traceHeader:      traceHeader,
+							trace:            trace,
+							client:           client,
+							handleError:      handleError,
 						})
 					}()
 
