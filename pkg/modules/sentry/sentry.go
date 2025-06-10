@@ -86,6 +86,7 @@ func (s *Sentry) Provision(ctx *gotenberg.Context) error {
 		s.sentryClientOptions.Debug = true
 	}
 
+	// Used to track if Sentry client was initialized in Start() which allows Stop() to correctly flush any buffered events.
 	s.sentryInitialized = false
 
 	return nil
@@ -93,13 +94,15 @@ func (s *Sentry) Provision(ctx *gotenberg.Context) error {
 
 // Start initializing the Sentry SDK.
 func (s *Sentry) Start() error {
-	err := sentry.Init(s.sentryClientOptions)
-	if err != nil {
-		// This error is reported if a dsn was provided but Sentry failed to initialize.
-		return fmt.Errorf("Sentry configuration error: %w", err)
-	}
+	if s.sentryClientOptions.Dsn != "" {
+		err := sentry.Init(s.sentryClientOptions)
+		if err != nil {
+			// This error is reported if a dsn was provided but Sentry failed to initialize.
+			return fmt.Errorf("Sentry configuration error: %w", err)
+		}
 
-	s.sentryInitialized = true
+		s.sentryInitialized = true
+	}
 
 	return nil
 }
@@ -114,7 +117,7 @@ func (s *Sentry) StartupMessage() string {
 
 // Stop flushes any remaining events.
 func (s *Sentry) Stop(ctx context.Context) error {
-	// Flush buffered events before the program terminates.
+	// Flush buffered events before the program terminates, but only when Sentry client is initialized.
 	// Set the timeout to the maximum duration the program can afford to wait.
 	if s.sentryInitialized {
 		defer sentry.Flush(2 * time.Second)
