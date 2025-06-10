@@ -111,7 +111,10 @@ func (s *Sentry) Validate() error {
 
 // Start does nothing
 func (s *Sentry) Start() error {
-	return nil
+	err = sentry.Init(initOpts)
+	if err != nil {
+	// etc.
+	}
 }
 
 // StartupMessage returns a custom startup message.
