@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
 )
 
 func init() {
@@ -95,6 +96,15 @@ func (s *Sentry) Provision(ctx *gotenberg.Context) error {
 	return nil
 }
 
+// Debug returns additional debug data.
+func (s *Sentry) Debug() map[string]interface{} {
+	debug := make(map[string]interface{})
+
+	debug["version"] = fmt.Sprintf("Sentry Go SDK Version: %s", sentry.SDKVersion)
+
+	return debug
+}
+
 // Start initializing the Sentry SDK.
 func (s *Sentry) Start() error {
 	if s.sentryClientOptions.Dsn != "" {
@@ -129,9 +139,24 @@ func (s *Sentry) Stop(ctx context.Context) error {
 	return nil
 }
 
+// Middlewares returns the middleware.
+func (s *Sentry) Middlewares() ([]api.Middleware, error) {
+	// Check if middleware should be returned
+	// Do not use s.sentryInitialized as that occurrs later in the bootstrapping process
+	if s.sentryClientOptions.Dsn == "" {
+		return nil, nil
+	}
+
+	return []api.Middleware{
+		sentryMiddleware(),
+	}, nil
+}
+
 // Interface guards to ensure the module implements Gotenberg interfaces.
 var (
-	_ gotenberg.Module      = (*Sentry)(nil)
-	_ gotenberg.Provisioner = (*Sentry)(nil)
-	_ gotenberg.App         = (*Sentry)(nil)
+	_ gotenberg.Module       = (*Sentry)(nil)
+	_ gotenberg.Provisioner  = (*Sentry)(nil)
+	_ gotenberg.App          = (*Sentry)(nil)
+	_ api.MiddlewareProvider = (*Sentry)(nil)
+	_ gotenberg.Debuggable   = (*Sentry)(nil)
 )
