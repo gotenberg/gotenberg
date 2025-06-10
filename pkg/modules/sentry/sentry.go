@@ -22,6 +22,7 @@ type Sentry struct {
 	dsn            string
 	sendDefaultPii bool
 	environment    string
+	flushTimeout   time.Duration
 
 	sentryClientOptions sentry.ClientOptions
 	sentryInitialized   bool
@@ -37,6 +38,7 @@ func (s *Sentry) Descriptor() gotenberg.ModuleDescriptor {
 			fs.String("sentry-dsn", "", "Sentry DSN. If empty, Sentry is disabled")
 			fs.Bool("sentry-send-default-pii", false, "Enable sending of default PII to Sentry")
 			fs.String("sentry-environment", "", "Sentry environment. If empty, the environment is not used")
+			fs.Duration("sentry-flush-timeout", time.Duration(2)*time.Second, "Set the time limit (seconds) to wait for the underlying Sentry Transport to send any buffered events to Sentry server during Gotenberg stop")
 			return fs
 		}(),
 		New: func() gotenberg.Module { return new(Sentry) },
@@ -64,6 +66,7 @@ func (s *Sentry) Provision(ctx *gotenberg.Context) error {
 	s.dsn = flags.MustString("sentry-dsn")
 	s.sendDefaultPii = flags.MustBool("sentry-send-default-pii")
 	s.environment = flags.MustString("sentry-environment")
+	s.flushTimeout = flags.MustDuration("sentry-flush-timeout")
 
 	// If no dsn is provided, Sentry integration is disabled.
 	if s.dsn == "" {
@@ -120,7 +123,7 @@ func (s *Sentry) Stop(ctx context.Context) error {
 	// Flush buffered events before the program terminates, but only when Sentry client is initialized.
 	// Set the timeout to the maximum duration the program can afford to wait.
 	if s.sentryInitialized {
-		defer sentry.Flush(2 * time.Second)
+		defer sentry.Flush(s.flushTimeout)
 	}
 
 	return nil
