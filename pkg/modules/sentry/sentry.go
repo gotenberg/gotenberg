@@ -19,11 +19,13 @@ func init() {
 
 // Sentry is a module for Sentry.io integration.
 type Sentry struct {
-	dsn                   string
+	dsn            string
 	sendDefaultPii bool
 	environment    string
 
-	logger        *zap.Logger
+	sentryClientOptions sentry.ClientOptions
+	sentryInitialized   bool
+	logger              *zap.Logger
 }
 
 // Descriptor returns a [Sentry]'s module descriptor.
@@ -41,7 +43,7 @@ func (s *Sentry) Descriptor() gotenberg.ModuleDescriptor {
 	}
 }
 
-// Provision configures the Sentry module by reading flags and initializing the Sentry SDK.
+// Provision configures the Sentry module by reading flags.
 func (s *Sentry) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 
@@ -59,67 +61,52 @@ func (s *Sentry) Provision(ctx *gotenberg.Context) error {
 	s.logger = logger
 
 	// Populate Sentry configuration from flags.
-	s.DSN = flags.MustString("sentry-dsn")
-	s.SendDefaultPII = flags.MustBool("sentry-send-default-pii")
-	s.Environment = flags.MustString("sentry-environment")
-	s.isInitialized = false
+	s.dsn = flags.MustString("sentry-dsn")
+	s.sendDefaultPii = flags.MustBool("sentry-send-default-pii")
+	s.environment = flags.MustString("sentry-environment")
 
-	// If no DSN is provided, Sentry integration is disabled.
-	if s.DSN == "" {
+	// If no dsn is provided, Sentry integration is disabled.
+	if s.dsn == "" {
 		return nil
 	}
 
 	// Prepare Sentry client options.
-	initOpts := sentry.ClientOptions{
-		Dsn:            s.DSN,
-		SendDefaultPII: s.SendDefaultPII,
+	s.sentryClientOptions = sentry.ClientOptions{
+		Dsn:            s.dsn,
+		SendDefaultPII: s.sendDefaultPii,
 	}
 
 	// Set environment if defined.
-	if s.Environment != "" {
-		initOpts.Environment = s.Environment
+	if s.environment != "" {
+		s.sentryClientOptions.Environment = s.environment
 	}
 
 	// Enable Sentry SDK debug logging if the application's log level is debug.
 	if s.logger.Core().Enabled(zapcore.DebugLevel) {
-		initOpts.Debug = true
+		s.sentryClientOptions.Debug = true
 	}
 
-	// Initialize the Sentry SDK.
-	if err = sentry.Init(initOpts); err != nil {
-		s.initError = err // Store error for Validate()
-		// Do not return the error here to allow the application to start even if Sentry fails.
-		// Validate() will report this as a configuration error if DSN was set.
-		return nil
-	}
-
-	s.isInitialized = true
+	s.sentryInitialized = false
 
 	return nil
 }
 
-// Validate checks if the Sentry module was configured correctly.
-func (s *Sentry) Validate() error {
-	if s.initError != nil {
-		// This error is reported if a DSN was provided but Sentry failed to initialize.
-		return fmt.Errorf("Sentry configuration error: %w", s.initError)
-	}
-	// If DSN was empty, isInitialized is false and initError is nil (valid: Sentry disabled).
-	// If DSN was present and init was successful, isInitialized is true and initError is nil (valid).
-	return nil
-}
-
-// Start does nothing
+// Start initializing the Sentry SDK.
 func (s *Sentry) Start() error {
-	err = sentry.Init(initOpts)
+	err := sentry.Init(s.sentryClientOptions)
 	if err != nil {
-	// etc.
+		// This error is reported if a dsn was provided but Sentry failed to initialize.
+		return fmt.Errorf("Sentry configuration error: %w", err)
 	}
+
+	s.sentryInitialized = true
+
+	return nil
 }
 
 // StartupMessage returns a custom startup message.
 func (s *Sentry) StartupMessage() string {
-	if s.isInitialized {
+	if s.sentryInitialized {
 		return "initialized successfully"
 	}
 	return "integration is disabled - no DSN provided"
@@ -129,7 +116,9 @@ func (s *Sentry) StartupMessage() string {
 func (s *Sentry) Stop(ctx context.Context) error {
 	// Flush buffered events before the program terminates.
 	// Set the timeout to the maximum duration the program can afford to wait.
-	defer sentry.Flush(2 * time.Second)
+	if s.sentryInitialized {
+		defer sentry.Flush(2 * time.Second)
+	}
 
 	return nil
 }
@@ -138,6 +127,5 @@ func (s *Sentry) Stop(ctx context.Context) error {
 var (
 	_ gotenberg.Module      = (*Sentry)(nil)
 	_ gotenberg.Provisioner = (*Sentry)(nil)
-	_ gotenberg.Validator   = (*Sentry)(nil)
 	_ gotenberg.App         = (*Sentry)(nil)
 )
