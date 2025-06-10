@@ -34,9 +34,9 @@ func (s *Sentry) Descriptor() gotenberg.ModuleDescriptor {
 		ID: "sentry",
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("sentry", flag.ExitOnError)
-			fs.String("sentry-dsn", "", "Sentry DSN. If empty, Sentry is disabled.")
-			fs.Bool("sentry-send-default-pii", false, "Enable sending of default PII to Sentry.")
-			fs.String("sentry-environment", "", "Sentry environment. If empty, the environment is not used.")
+			fs.String("sentry-dsn", "", "Sentry DSN. If empty, Sentry is disabled")
+			fs.Bool("sentry-send-default-pii", false, "Enable sending of default PII to Sentry")
+			fs.String("sentry-environment", "", "Sentry environment. If empty, the environment is not used")
 			return fs
 		}(),
 		New: func() gotenberg.Module { return new(Sentry) },
