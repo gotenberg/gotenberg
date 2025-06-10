@@ -19,13 +19,11 @@ func init() {
 
 // Sentry is a module for Sentry.io integration.
 type Sentry struct {
-	DSN            string
-	SendDefaultPII bool
-	Environment    string
+	dsn                   string
+	sendDefaultPii bool
+	environment    string
 
 	logger        *zap.Logger
-	isInitialized bool
-	initError     error
 }
 
 // Descriptor returns a [Sentry]'s module descriptor.
