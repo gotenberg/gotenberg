@@ -107,16 +107,18 @@ func (s *Sentry) Debug() map[string]interface{} {
 
 // Start initializing the Sentry SDK.
 func (s *Sentry) Start() error {
-	if s.sentryClientOptions.Dsn != "" {
-		err := sentry.Init(s.sentryClientOptions)
-		if err != nil {
-			// This error is reported if a dsn was provided but Sentry failed to initialize.
-			return fmt.Errorf("Sentry configuration error: %w", err)
-		}
-
-		s.sentryInitialized = true
-	}
-
+        if s.sentryClientOptions.Dsn == "" {
+            return nil
+        }
+        
+	err := sentry.Init(s.sentryClientOptions)
+	if err != nil {
+	        // This error is reported if a dsn was provided but Sentry failed to initialize.
+	        return fmt.Errorf("Sentry configuration error: %w", err)
+        }
+        
+        s.sentryInitialized = true
+		
 	return nil
 }
 
