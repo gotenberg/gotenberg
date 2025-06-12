@@ -124,7 +124,7 @@ func (multi *multiPdfEngines) Flatten(ctx context.Context, logger *zap.Logger, i
 	return fmt.Errorf("flatten PDF with multi PDF engines: %w", err)
 }
 
-// Convert converts the given PDF to a specific PDF format. thanks to its
+// Convert converts the given PDF to a specific PDF format, thanks to its
 // children. If the context is done, it stops and returns an error.
 func (multi *multiPdfEngines) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 	var err error

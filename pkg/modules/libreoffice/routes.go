@@ -164,7 +164,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				}
 
 				if nativePdfFormats && splitMode == zeroValuedSplitMode {
-					// Only apply natively given PDF formats if we're not
+					// Only natively apply given PDF formats if we're not
 					// splitting the PDF later.
 					options.PdfFormats = pdfFormats
 				}

@@ -4,16 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
@@ -200,7 +197,7 @@ func (p *libreOfficeProcess) Stop(logger *zap.Logger) error {
 				logger.Debug(fmt.Sprintf("'%s' LibreOffice's user profile directory removed", userProfileDirPath))
 			}
 
-			// Also remove LibreOffice specific files in the temporary directory.
+			// Also, remove LibreOffice specific files in the temporary directory.
 			err = gotenberg.GarbageCollect(logger, os.TempDir(), []string{"OSL_PIPE", ".tmp"}, expirationTime)
 			if err != nil {
 				logger.Error(err.Error())
@@ -333,11 +330,6 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 		)
 	}
 
-	inputPath, err := nonBasicLatinCharactersGuard(logger, inputPath)
-	if err != nil {
-		return fmt.Errorf("non-basic latin characters guard: %w", err)
-	}
-
 	args = append(args, "--output", outputPath, inputPath)
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, p.arguments.unoBinPath, args...)
@@ -353,10 +345,10 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 	}
 
 	// LibreOffice's errors are not explicit.
-	// For instance, an exit code 5 may be explained by a malformed page
-	// ranges, but also by a not required password.
+	// For instance, exit code 5 may be explained by a malformed page range
+	// but also by a not required password.
 
-	// We may want to retry in case of a core dumped event.
+	// We may want to retry in case of a core-dumped event.
 	// See https://github.com/gotenberg/gotenberg/issues/639.
 	if strings.Contains(err.Error(), "core dumped") {
 		return ErrCoreDumped
@@ -372,65 +364,6 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 	}
 
 	return fmt.Errorf("convert to PDF: %w", err)
-}
-
-// LibreOffice cannot convert a file with a name containing non-basic Latin
-// characters.
-// See:
-// https://github.com/gotenberg/gotenberg/issues/104
-// https://github.com/gotenberg/gotenberg/issues/730
-func nonBasicLatinCharactersGuard(logger *zap.Logger, inputPath string) (string, error) {
-	hasNonBasicLatinChars := func(str string) bool {
-		for _, r := range str {
-			// Check if the character is outside basic Latin.
-			if r != '.' && (r < ' ' || r > '~') {
-				return true
-			}
-		}
-		return false
-	}
-
-	filename := filepath.Base(inputPath)
-	if !hasNonBasicLatinChars(filename) {
-		logger.Debug("no non-basic latin characters in filename, skip copy")
-		return inputPath, nil
-	}
-
-	logger.Warn("non-basic latin characters in filename, copy to a file with a valid filename")
-	basePath := filepath.Dir(inputPath)
-	ext := filepath.Ext(inputPath)
-	newInputPath := filepath.Join(basePath, fmt.Sprintf("%s%s", uuid.NewString(), ext))
-
-	in, err := os.Open(inputPath)
-	if err != nil {
-		return "", fmt.Errorf("open file: %w", err)
-	}
-
-	defer func() {
-		err := in.Close()
-		if err != nil {
-			logger.Error(fmt.Sprintf("close file: %s", err))
-		}
-	}()
-
-	out, err := os.Create(newInputPath)
-	if err != nil {
-		return "", fmt.Errorf("create new file: %w", err)
-	}
-
-	defer func() {
-		err := out.Close()
-		if err != nil {
-			logger.Error(fmt.Sprintf("close new file: %s", err))
-		}
-	}()
-
-	_, err = io.Copy(out, in)
-	if err != nil {
-		return "", fmt.Errorf("copy file to new file: %w", err)
-	}
-
-	return newInputPath, nil
 }
 
 // Interface guards.

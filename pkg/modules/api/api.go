@@ -26,7 +26,7 @@ func init() {
 	gotenberg.MustRegisterModule(new(Api))
 }
 
-// Api is a module which provides an HTTP server. Other modules may add routes,
+// Api is a module that provides an HTTP server. Other modules may add routes,
 // middlewares or health checks.
 type Api struct {
 	port                      int
@@ -48,6 +48,7 @@ type Api struct {
 	externalMiddlewares []Middleware
 	healthChecks        []health.CheckerOption
 	readyFn             []func() error
+	asyncCounters       []AsynchronousCounter
 	fs                  *gotenberg.FileSystem
 	logger              *zap.Logger
 	srv                 *echo.Echo
@@ -60,7 +61,7 @@ type downloadFromConfig struct {
 	disable   bool
 }
 
-// Router is a module interface which adds routes to the [Api].
+// Router is a module interface that adds routes to the [Api].
 type Router interface {
 	Routes() ([]Route, error)
 }
@@ -83,17 +84,17 @@ type Route struct {
 	// Optional.
 	DisableLogging bool
 
-	// Handler is the function which handles the request.
+	// Handler is the function that handles the request.
 	// Required.
 	Handler echo.HandlerFunc
 }
 
-// MiddlewareProvider is a module interface which adds middlewares to the [Api].
+// MiddlewareProvider is a module interface that adds middlewares to the [Api].
 type MiddlewareProvider interface {
 	Middlewares() ([]Middleware, error)
 }
 
-// MiddlewareStack is a type which helps to determine in which stack the
+// MiddlewareStack is a type that helps to determine in which stack the
 // middlewares provided by the [MiddlewareProvider] modules should be located.
 type MiddlewareStack uint32
 
@@ -103,7 +104,7 @@ const (
 	MultipartStack
 )
 
-// MiddlewarePriority is a type which helps to determine the execution order of
+// MiddlewarePriority is a type that helps to determine the execution order of
 // middlewares provided by the [MiddlewareProvider] modules in a stack.
 type MiddlewarePriority uint32
 
@@ -115,7 +116,7 @@ const (
 	VeryHighPriority
 )
 
-// Middleware is a middleware which can be added to the [Api]'s middlewares
+// Middleware is a middleware that can be added to the [Api]'s middlewares
 // chain.
 //
 //	middleware := Middleware{
@@ -157,13 +158,21 @@ type Middleware struct {
 	Handler echo.MiddlewareFunc
 }
 
-// HealthChecker is a module interface which allows adding health checks to the
+// HealthChecker is a module interface that allows adding health checks to the
 // API.
 //
 // See https://github.com/alexliesenfeld/health for more details.
 type HealthChecker interface {
 	Checks() ([]health.CheckerOption, error)
 	Ready() error
+}
+
+// AsynchronousCounter is a module interface that returns the number of active
+// asynchronous requests.
+//
+// See https://github.com/gotenberg/gotenberg/issues/1022.
+type AsynchronousCounter interface {
+	AsyncCount() int64
 }
 
 // Descriptor returns an [Api]'s module descriptor.
@@ -307,6 +316,17 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 		a.readyFn = append(a.readyFn, healthChecker.Ready)
 	}
 
+	// Get asynchronous counters.
+	mods, err = ctx.Modules(new(AsynchronousCounter))
+	if err != nil {
+		return fmt.Errorf("get asynchronous counters: %w", err)
+	}
+
+	a.asyncCounters = make([]AsynchronousCounter, len(mods))
+	for i, asyncCounter := range mods {
+		a.asyncCounters[i] = asyncCounter.(AsynchronousCounter)
+	}
+
 	// Logger.
 	loggerProvider, err := ctx.Module(new(gotenberg.LoggerProvider))
 	if err != nil {
@@ -431,7 +451,7 @@ func (a *Api) Start() error {
 		}
 	}
 
-	// Check if the user wish to add logging entries related to the health
+	// Check if the user wishes to add logging entries related to the health
 	// check route.
 	if a.disableHealthCheckLogging {
 		disableLoggingForPaths = append(disableLoggingForPaths, "health")
@@ -597,7 +617,28 @@ func (a *Api) StartupMessage() string {
 
 // Stop stops the HTTP server.
 func (a *Api) Stop(ctx context.Context) error {
-	return a.srv.Shutdown(ctx)
+	for {
+		count := int64(0)
+		for _, asyncCounter := range a.asyncCounters {
+			count += asyncCounter.AsyncCount()
+		}
+		select {
+		case <-ctx.Done():
+			return a.srv.Shutdown(ctx)
+		default:
+			a.logger.Debug(fmt.Sprintf("%d asynchronous requests", count))
+			if count > 0 {
+				time.Sleep(1 * time.Second)
+				continue
+			}
+			a.logger.Debug("no more asynchronous requests, continue with shutdown")
+			err := a.srv.Shutdown(ctx)
+			if err != nil {
+				return fmt.Errorf("shutdown: %w", err)
+			}
+			return gotenberg.ErrCancelGracefulShutdownContext
+		}
+	}
 }
 
 // Interface guards.

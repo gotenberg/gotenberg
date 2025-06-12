@@ -1,6 +1,7 @@
 package webhook
 
 import (
+	"sync/atomic"
 	"time"
 
 	"github.com/dlclark/regexp2"
@@ -14,7 +15,7 @@ func init() {
 	gotenberg.MustRegisterModule(new(Webhook))
 }
 
-// Webhook is a module which provides a middleware for uploading output files
+// Webhook is a module that provides a middleware for uploading output files
 // to any destinations in an asynchronous fashion.
 type Webhook struct {
 	allowList      *regexp2.Regexp
@@ -25,6 +26,7 @@ type Webhook struct {
 	retryMinWait   time.Duration
 	retryMaxWait   time.Duration
 	clientTimeout  time.Duration
+	asyncCount     atomic.Int64
 	disable        bool
 }
 
@@ -62,6 +64,7 @@ func (w *Webhook) Provision(ctx *gotenberg.Context) error {
 	w.retryMaxWait = flags.MustDuration("webhook-retry-max-wait")
 	w.clientTimeout = flags.MustDuration("webhook-client-timeout")
 	w.disable = flags.MustBool("webhook-disable")
+	w.asyncCount.Store(0)
 
 	return nil
 }
@@ -77,9 +80,15 @@ func (w *Webhook) Middlewares() ([]api.Middleware, error) {
 	}, nil
 }
 
+// AsyncCount returns the number of asynchronous requests.
+func (w *Webhook) AsyncCount() int64 {
+	return w.asyncCount.Load()
+}
+
 // Interface guards.
 var (
-	_ gotenberg.Module       = (*Webhook)(nil)
-	_ gotenberg.Provisioner  = (*Webhook)(nil)
-	_ api.MiddlewareProvider = (*Webhook)(nil)
+	_ gotenberg.Module        = (*Webhook)(nil)
+	_ gotenberg.Provisioner   = (*Webhook)(nil)
+	_ api.MiddlewareProvider  = (*Webhook)(nil)
+	_ api.AsynchronousCounter = (*Webhook)(nil)
 )

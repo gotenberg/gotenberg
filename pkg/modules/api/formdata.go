@@ -27,7 +27,7 @@ type FormData struct {
 }
 
 // Validate returns nil or an error related to the [FormData] values, with a
-// [SentinelHttpError] (status code 400, errors' details as message) wrapped
+// [SentinelHttpError] (status code 400, errors' details as a message) wrapped
 // inside.
 //
 //	var foo string
@@ -96,7 +96,7 @@ func (form *FormData) Int(key string, target *int, defaultValue int) *FormData {
 }
 
 // MandatoryInt binds a form field to an int variable. It populates an
-// error if the value is not int, is empty, or the "key" does not exist.
+// error if the value is not int, or is empty, or the "key" does not exist.
 //
 //	var foo int
 //
@@ -116,7 +116,7 @@ func (form *FormData) Float64(key string, target *float64, defaultValue float64)
 }
 
 // MandatoryFloat64 binds a form field to a float64 variable. It populates
-// an error if the is not float64, is empty, or the "key" does not exist.
+// an error if the value is not float64, is empty, or the "key" does not exist.
 //
 //	var foo float64
 //
@@ -136,8 +136,8 @@ func (form *FormData) Duration(key string, target *time.Duration, defaultValue t
 }
 
 // MandatoryDuration binds a form field to a time.Duration variable. It
-// populates an error if the value is not time.Duration, is empty, or the "key"
-// does not exist.
+// populates an error if the value is not time.Duration, or is empty, or the
+// "key" does not exist.
 //
 //	var foo time.Duration
 //
@@ -146,7 +146,7 @@ func (form *FormData) MandatoryDuration(key string, target *time.Duration) *Form
 	return form.mustMandatoryField(key, target)
 }
 
-// Inches binds a form field to a float64 variable. It populates an error
+// Inches bind a form field to a float64 variable. It populates an error
 // if the value cannot be computed back to inches.
 //
 //	var foo float64
@@ -303,7 +303,7 @@ func (form *FormData) Path(filename string, target *string) *FormData {
 	return form.path(filename, target)
 }
 
-// MandatoryPath binds the absolute path ofa  form data file to a string
+// MandatoryPath binds the absolute path of a form data file to a string
 // variable. It populates an error if the file does not exist.
 //
 //	var path string
@@ -348,7 +348,7 @@ func (form *FormData) MandatoryContent(filename string, target *string) *FormDat
 	return form.readFile(path, filename, target)
 }
 
-// Paths binds the absolute paths of form data files, according to a list of
+// Paths bind the absolute paths of form data files, according to a list of
 // file extensions, to a string slice variable.
 //
 //	var paths []string
@@ -379,7 +379,7 @@ func (form *FormData) MandatoryPaths(extensions []string, target *[]string) *For
 	return form
 }
 
-// paths binds the absolute paths of form data files, according to a list of
+// paths bind the absolute paths of form data files, according to a list of
 // file extensions, to a string slice variable.
 func (form *FormData) paths(extensions []string, target *[]string) *FormData {
 	for filename, path := range form.files {

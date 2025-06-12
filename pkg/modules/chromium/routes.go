@@ -25,7 +25,7 @@ import (
 )
 
 // FormDataChromiumOptions creates [Options] from the form data. Fallback to
-// default value if the considered key is not present.
+// the default value if the considered key is not present.
 func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 	defaultOptions := DefaultOptions()
 
@@ -194,7 +194,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 }
 
 // FormDataChromiumPdfOptions creates [PdfOptions] from the form data. Fallback to
-// default value if the considered key is not present.
+// the default value if the considered key is not present.
 func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 	form, options := FormDataChromiumOptions(ctx)
 	defaultPdfOptions := DefaultPdfOptions()
@@ -207,6 +207,7 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		headerTemplate, footerTemplate                   string
 		preferCssPageSize                                bool
 		generateDocumentOutline                          bool
+		generateTaggedPdf                                bool
 	)
 
 	form.
@@ -224,7 +225,8 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		Content("header.html", &headerTemplate, defaultPdfOptions.HeaderTemplate).
 		Content("footer.html", &footerTemplate, defaultPdfOptions.FooterTemplate).
 		Bool("preferCssPageSize", &preferCssPageSize, defaultPdfOptions.PreferCssPageSize).
-		Bool("generateDocumentOutline", &generateDocumentOutline, defaultPdfOptions.GenerateDocumentOutline)
+		Bool("generateDocumentOutline", &generateDocumentOutline, defaultPdfOptions.GenerateDocumentOutline).
+		Bool("generateTaggedPdf", &generateTaggedPdf, defaultPdfOptions.GenerateTaggedPdf)
 
 	pdfOptions := PdfOptions{
 		Options:                 options,
@@ -243,13 +245,14 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		FooterTemplate:          footerTemplate,
 		PreferCssPageSize:       preferCssPageSize,
 		GenerateDocumentOutline: generateDocumentOutline,
+		GenerateTaggedPdf:       generateTaggedPdf,
 	}
 
 	return form, pdfOptions
 }
 
 // FormDataChromiumScreenshotOptions creates [ScreenshotOptions] from the form
-// data. Fallback to default value if the considered key is not present.
+// data. Fallback to the default value if the considered key is not present.
 func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, ScreenshotOptions) {
 	form, options := FormDataChromiumOptions(ctx)
 	defaultScreenshotOptions := DefaultScreenshotOptions()
@@ -517,7 +520,7 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 }
 
 // screenshotMarkdownRoute returns an [api.Route] which can take a screenshot
-// from markdown files.
+// from Markdown files.
 func screenshotMarkdownRoute(chromium Api) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
@@ -556,7 +559,7 @@ func screenshotMarkdownRoute(chromium Api) api.Route {
 }
 
 func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) (string, error) {
-	// We have to convert each markdown file referenced in the HTML
+	// We have to convert each Markdown file referenced in the HTML
 	// file to... HTML. Thanks to the "html/template" package, we are
 	// able to provide the "toHTML" function which the user may call
 	// directly inside the HTML file.
@@ -632,6 +635,9 @@ func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) 
 
 func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, options PdfOptions, mode gotenberg.SplitMode, pdfFormats gotenberg.PdfFormats, metadata map[string]interface{}) error {
 	outputPath := ctx.GeneratePath(".pdf")
+	// See https://github.com/gotenberg/gotenberg/issues/1130.
+	filename := ctx.OutputFilename(outputPath)
+	outputPath = ctx.GeneratePathFromFilename(filename)
 
 	err := chromium.Pdf(ctx, ctx.Log(), url, outputPath, options)
 	err = handleChromiumError(err, options.Options)

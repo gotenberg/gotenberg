@@ -31,7 +31,7 @@ const (
 	textLoggingFormat = "text"
 )
 
-// Logging is a module which implements the [gotenberg.LoggerProvider]
+// Logging is a module that implements the [gotenberg.LoggerProvider]
 // interface.
 type Logging struct {
 	level           string

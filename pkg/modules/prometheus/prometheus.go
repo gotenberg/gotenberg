@@ -20,7 +20,7 @@ func init() {
 	gotenberg.MustRegisterModule(new(Prometheus))
 }
 
-// Prometheus is a module which collects metrics and exposes them via an HTTP
+// Prometheus is a module that collects metrics and exposes them via an HTTP
 // route.
 type Prometheus struct {
 	namespace           string
@@ -49,7 +49,7 @@ func (mod *Prometheus) Descriptor() gotenberg.ModuleDescriptor {
 	}
 }
 
-// Provision sets the modules properties.
+// Provision sets the module properties.
 func (mod *Prometheus) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	mod.namespace = flags.MustString("prometheus-namespace")

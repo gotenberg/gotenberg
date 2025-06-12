@@ -4,9 +4,9 @@ go 1.24.0
 
 require (
 	github.com/alexliesenfeld/health v0.8.0
-	github.com/andybalholm/brotli v1.1.1 // indirect
+	github.com/andybalholm/brotli v1.1.2-0.20250424173009-453214e765f3 // indirect
 	github.com/barasher/go-exiftool v1.10.0
-	github.com/chromedp/cdproto v0.0.0-20250403032234-65de8f5d025b
+	github.com/chromedp/cdproto v0.0.0-20250416210000-d7e4d624041a
 	github.com/chromedp/chromedp v0.13.6
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
@@ -24,22 +24,22 @@ require (
 	github.com/ulikunitz/xz v0.5.12 // indirect
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.37.0 // indirect
-	golang.org/x/net v0.39.0
-	golang.org/x/sync v0.13.0
-	golang.org/x/sys v0.32.0 // indirect
-	golang.org/x/term v0.31.0
-	golang.org/x/text v0.24.0
+	golang.org/x/crypto v0.38.0 // indirect
+	golang.org/x/net v0.40.0
+	golang.org/x/sync v0.14.0
+	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/term v0.32.0
+	golang.org/x/text v0.25.0
 )
 
 require (
 	github.com/cucumber/godog v0.15.0
 	github.com/dlclark/regexp2 v1.11.5
-	github.com/docker/docker v28.0.4+incompatible
+	github.com/docker/docker v28.1.1+incompatible
 	github.com/docker/go-connections v0.5.0
-	github.com/mholt/archives v0.1.1
-	github.com/shirou/gopsutil/v4 v4.25.3
-	github.com/testcontainers/testcontainers-go v0.36.0
+	github.com/mholt/archives v0.1.2
+	github.com/shirou/gopsutil/v4 v4.25.4
+	github.com/testcontainers/testcontainers-go v0.37.0
 )
 
 require (
@@ -87,7 +87,9 @@ require (
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/minio/minlz v1.0.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
+	github.com/moby/go-archive v0.1.0 // indirect
 	github.com/moby/patternmatcher v0.6.0 // indirect
+	github.com/moby/sys/atomicwriter v0.1.0 // indirect
 	github.com/moby/sys/sequential v0.6.0 // indirect
 	github.com/moby/sys/user v0.4.0 // indirect
 	github.com/moby/sys/userns v0.1.0 // indirect

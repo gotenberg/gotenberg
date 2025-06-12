@@ -24,23 +24,23 @@ func init() {
 }
 
 var (
-	// ErrInvalidPdfFormats happens if the PDF formats option cannot be handled
-	// by LibreOffice.
+	// ErrInvalidPdfFormats happens if LibreOffice cannot handle the PDF
+	// formats option.
 	ErrInvalidPdfFormats = errors.New("invalid PDF formats")
 
-	// ErrUnoException happens when unoconverter returns an exit code 5.
+	// ErrUnoException happens when unoconverter returns exit code 5.
 	ErrUnoException = errors.New("uno exception")
 
-	// ErrRuntimeException happens when unoconverter returns an exit code 6.
+	// ErrRuntimeException happens when unoconverter returns exit code 6.
 	ErrRuntimeException = errors.New("uno exception")
 
-	// ErrCoreDumped happens randomly; sometime a conversion will work as
+	// ErrCoreDumped happens randomly; sometimes a conversion will work as
 	// expected, and some other time the same conversion will fail.
 	// See https://github.com/gotenberg/gotenberg/issues/639.
 	ErrCoreDumped = errors.New("core dumped")
 )
 
-// Api is a module which provides a [Uno] to interact with LibreOffice.
+// Api is a module that provides a [Uno] to interact with LibreOffice.
 type Api struct {
 	autoStart bool
 	args      libreOfficeArguments
@@ -56,10 +56,10 @@ type Options struct {
 	// Password specifies the password for opening the source file.
 	Password string
 
-	// Landscape allows to change the orientation of the resulting PDF.
+	// Landscape allows changing the orientation of the resulting PDF.
 	Landscape bool
 
-	// PageRanges allows to select the pages to convert.
+	// PageRanges allows selecting the pages to convert.
 	PageRanges string
 
 	// UpdateIndexes specifies whether to update the indexes before conversion,
@@ -83,7 +83,7 @@ type Options struct {
 	// Named Destination.
 	ExportBookmarksToPdfDestination bool
 
-	// ExportPlaceholders exports the placeholders fields visual markings only.
+	// ExportPlaceholders exports the placeholder fields visual markings only.
 	// The exported placeholder is ineffective.
 	ExportPlaceholders bool
 
@@ -94,15 +94,16 @@ type Options struct {
 	// Notes pages are available in Impress documents only.
 	ExportNotesPages bool
 
-	// ExportOnlyNotesPages specifies, if the property ExportNotesPages is set
-	// to true, if only notes pages are exported to PDF.
+	// ExportOnlyNotesPages specifies if the property ExportNotesPages is set
+	// to true if only notes pages are exported to PDF.
 	ExportOnlyNotesPages bool
 
-	// ExportNotesInMargin specifies if notes in margin are exported to PDF.
+	// ExportNotesInMargin specifies if notes in the margin are exported to
+	// PDF.
 	ExportNotesInMargin bool
 
 	// ConvertOooTargetToPdfTarget specifies that the target documents with
-	// .od[tpgs] extension, will have that extension changed to .pdf when the
+	// .od[tpgs] extension will have that extension changed to .pdf when the
 	// link is exported to PDF. The source document remains untouched.
 	ConvertOooTargetToPdfTarget bool
 
@@ -190,7 +191,7 @@ type Uno interface {
 	Extensions() []string
 }
 
-// Provider is a module interface which exposes a method for creating a
+// Provider is a module interface that exposes a method for creating a
 // [Uno] for other modules.
 //
 //	func (m *YourModule) Provision(ctx *gotenberg.Context) error {
@@ -300,8 +301,8 @@ func (a *Api) StartupMessage() string {
 
 // Stop stops the current browser instance.
 func (a *Api) Stop(ctx context.Context) error {
-	// Block until the context is done so that other module may gracefully stop
-	// before we do a shutdown.
+	// Block until the context is done so that another module may gracefully
+	// stop before we do a shutdown.
 	a.logger.Debug("wait for the end of grace duration")
 
 	<-ctx.Done()

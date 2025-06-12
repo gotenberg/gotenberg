@@ -26,14 +26,14 @@ type client struct {
 }
 
 // send call the webhook either to send the success response or the error response.
-func (c client) send(body io.Reader, headers map[string]string, erroed bool) error {
+func (c client) send(body io.Reader, headers map[string]string, errored bool) error {
 	url := c.url
-	if erroed {
+	if errored {
 		url = c.errorUrl
 	}
 
 	method := c.method
-	if erroed {
+	if errored {
 		method = c.errorMethod
 	}
 
@@ -54,9 +54,9 @@ func (c client) send(body io.Reader, headers map[string]string, erroed bool) err
 	contentLength, ok := headers[echo.HeaderContentLength]
 	if ok {
 		// Golang "http" package should automatically calculate the size of the
-		// body. But, when using a buffered file reader, it does not work.
-		// Worse, the "Content-Length" header is also removed. Therefore, in
-		// order to keep this valuable information, we have to trust the caller
+		// body. But when using a buffered file reader, it does not work.
+		// Worse, the "Content-Length" header is also removed. Therefore,
+		// to keep this valuable information, we have to trust the caller
 		// by reading the value of the "Content-Length" entry and set it as the
 		// content length of the request. It's kinda suboptimal, but hey, at
 		// least it works.
@@ -100,7 +100,7 @@ func (c client) send(body io.Reader, headers map[string]string, erroed bool) err
 	fields[3] = zap.String("latency_human", finishTime.Sub(c.startTime).String())
 	fields[4] = zap.Int64("bytes_out", req.ContentLength)
 
-	if erroed {
+	if errored {
 		c.logger.Warn("request to webhook with error details handled", fields...)
 
 		return nil

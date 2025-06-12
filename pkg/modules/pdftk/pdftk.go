@@ -33,7 +33,7 @@ func (engine *PdfTk) Descriptor() gotenberg.ModuleDescriptor {
 	}
 }
 
-// Provision sets the modules properties.
+// Provision sets the module properties.
 func (engine *PdfTk) Provision(ctx *gotenberg.Context) error {
 	binPath, ok := os.LookupEnv("PDFTK_BIN_PATH")
 	if !ok {

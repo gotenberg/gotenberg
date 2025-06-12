@@ -28,29 +28,29 @@ func TestGarbageCollect(t *testing.T) {
 		{
 			scenario: "remove include substrings",
 			rootPath: func() string {
-				path := fmt.Sprintf("%s/a_directory", os.TempDir())
+				p := fmt.Sprintf("%s/a_directory", os.TempDir())
 
-				err := os.MkdirAll(path, 0o755)
+				err := os.MkdirAll(p, 0o755)
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
 
-				err = os.WriteFile(fmt.Sprintf("%s/a_foo_file", path), []byte{1}, 0o755)
+				err = os.WriteFile(fmt.Sprintf("%s/a_foo_file", p), []byte{1}, 0o755)
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
 
-				err = os.WriteFile(fmt.Sprintf("%s/a_bar_file", path), []byte{1}, 0o755)
+				err = os.WriteFile(fmt.Sprintf("%s/a_bar_file", p), []byte{1}, 0o755)
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
 
-				err = os.WriteFile(fmt.Sprintf("%s/a_baz_file", path), []byte{1}, 0o755)
+				err = os.WriteFile(fmt.Sprintf("%s/a_baz_file", p), []byte{1}, 0o755)
 				if err != nil {
 					t.Fatalf("expected no error but got: %v", err)
 				}
 
-				return path
+				return p
 			}(),
 			includeSubstr:   []string{"foo", path.Join(os.TempDir(), "/a_directory/a_bar_file")},
 			expectError:     false,
@@ -81,18 +81,18 @@ func TestGarbageCollect(t *testing.T) {
 			}
 
 			for _, name := range tc.expectNotExists {
-				path := fmt.Sprintf("%s/%s", tc.rootPath, name)
-				_, err = os.Stat(path)
+				p := fmt.Sprintf("%s/%s", tc.rootPath, name)
+				_, err = os.Stat(p)
 				if !os.IsNotExist(err) {
-					t.Errorf("expected '%s' not to exist but it does: %v", path, err)
+					t.Errorf("expected '%s' not to exist but it does: %v", p, err)
 				}
 			}
 
 			for _, name := range tc.expectExists {
-				path := fmt.Sprintf("%s/%s", tc.rootPath, name)
-				_, err = os.Stat(path)
+				p := fmt.Sprintf("%s/%s", tc.rootPath, name)
+				_, err = os.Stat(p)
 				if os.IsNotExist(err) {
-					t.Errorf("expected '%s' to exist but it does not: %v", path, err)
+					t.Errorf("expected '%s' to exist but it does not: %v", p, err)
 				}
 			}
 		})

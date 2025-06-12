@@ -11,7 +11,7 @@ import (
 )
 
 // GarbageCollect scans the root path and deletes files or directories with
-// names containing specific substrings and before a given experiation time.
+// names containing specific substrings and before a given expiration time.
 func GarbageCollect(logger *zap.Logger, rootPath string, includeSubstr []string, expirationTime time.Time) error {
 	logger = logger.Named("gc")
 

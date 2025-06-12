@@ -233,6 +233,24 @@ Feature: /forms/pdfengines/{write|read}
       }
       """
 
+  Scenario: POST /forms/pdfengines/metadata/read (Webhook)
+    Given I have a default Gotenberg container
+    Given I have a webhook server
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/read" endpoint with the following form data and header(s):
+      | files                       | testdata/page_1.pdf                          | file   |
+      | Gotenberg-Webhook-Url       | http://host.docker.internal:%d/webhook       | header |
+      | Gotenberg-Webhook-Error-Url | http://host.docker.internal:%d/webhook/error | header |
+    Then the response status code should be 204
+    When I wait for the asynchronous request to the webhook
+    Then the webhook request header "Content-Type" should be "application/json"
+    Then the webhook request body should match JSON:
+      """
+      {
+        "status": 400,
+        "message": "The webhook middleware can only work with multipart/form-data routes that results in output files"
+      }
+      """
+
   Scenario: POST /forms/pdfengines/metadata/write (Basic Auth)
     Given I have a Gotenberg container with the following environment variable(s):
       | API_ENABLE_BASIC_AUTH             | true |

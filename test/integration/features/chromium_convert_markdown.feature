@@ -469,6 +469,7 @@ Feature: /forms/chromium/convert/markdown
       | marginRight                   | foo | field |
       | preferCssPageSize             | foo | field |
       | generateDocumentOutline       | foo | field |
+      | generateTaggedPdf             | foo | field |
       | printBackground               | foo | field |
       | omitBackground                | foo | field |
       | landscape                     | foo | field |
@@ -484,7 +485,7 @@ Feature: /forms/chromium/convert/markdown
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Invalid form data: form field 'skipNetworkIdleEvent' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax); form field 'failOnHttpStatusCodes' is invalid (got 'foo', resulting to unmarshal failOnHttpStatusCodes: invalid character 'o' in literal false (expecting 'a')); form field 'failOnResourceHttpStatusCodes' is invalid (got 'foo', resulting to unmarshal failOnResourceHttpStatusCodes: invalid character 'o' in literal false (expecting 'a')); form field 'failOnResourceLoadingFailed' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax); form field 'failOnConsoleExceptions' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax); form field 'waitDelay' is invalid (got 'foo', resulting to time: invalid duration "foo"); form field 'emulatedMediaType' is invalid (got 'foo', resulting to wrong value, expected either 'screen', 'print' or empty); form field 'omitBackground' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax); form field 'landscape' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax); form field 'printBackground' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax); form field 'scale' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax); form field 'singlePage' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax); form field 'paperWidth' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax); form field 'paperHeight' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax); form field 'marginTop' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax); form field 'marginBottom' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax); form field 'marginLeft' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax); form field 'marginRight' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax); form field 'preferCssPageSize' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax); form field 'generateDocumentOutline' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax); form file 'index.html' is required; no form file found for extensions: [.md]
+      Invalid form data: form field 'skipNetworkIdleEvent' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax); form field 'failOnHttpStatusCodes' is invalid (got 'foo', resulting to unmarshal failOnHttpStatusCodes: invalid character 'o' in literal false (expecting 'a')); form field 'failOnResourceHttpStatusCodes' is invalid (got 'foo', resulting to unmarshal failOnResourceHttpStatusCodes: invalid character 'o' in literal false (expecting 'a')); form field 'failOnResourceLoadingFailed' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax); form field 'failOnConsoleExceptions' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax); form field 'waitDelay' is invalid (got 'foo', resulting to time: invalid duration "foo"); form field 'emulatedMediaType' is invalid (got 'foo', resulting to wrong value, expected either 'screen', 'print' or empty); form field 'omitBackground' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax); form field 'landscape' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax); form field 'printBackground' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax); form field 'scale' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax); form field 'singlePage' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax); form field 'paperWidth' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax); form field 'paperHeight' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax); form field 'marginTop' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax); form field 'marginBottom' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax); form field 'marginLeft' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax); form field 'marginRight' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax); form field 'preferCssPageSize' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax); form field 'generateDocumentOutline' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax); form field 'generateTaggedPdf' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax); form file 'index.html' is required; no form file found for extensions: [.md]
       """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
       | files          | testdata/page-1-markdown/index.html | file  |
@@ -675,6 +676,39 @@ Feature: /forms/chromium/convert/markdown
       Page 3
       """
 
+  # See https://github.com/gotenberg/gotenberg/issues/1130.
+  Scenario: POST /forms/chromium/convert/markdown (Split Output Filename)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
+      | files                     | testdata/pages-3-markdown/index.html | file   |
+      | files                     | testdata/pages-3-markdown/page_1.md  | file   |
+      | files                     | testdata/pages-3-markdown/page_2.md  | file   |
+      | files                     | testdata/pages-3-markdown/page_3.md  | file   |
+      | splitMode                 | intervals                            | field  |
+      | splitSpan                 | 2                                    | field  |
+      | Gotenberg-Output-Filename | foo                                  | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.zip   |
+      | foo_0.pdf |
+      | foo_1.pdf |
+    Then the "foo_0.pdf" PDF should have 2 page(s)
+    Then the "foo_1.pdf" PDF should have 1 page(s)
+    Then the "foo_0.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "foo_0.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
+    Then the "foo_1.pdf" PDF should have the following content at page 1:
+      """
+      Page 3
+      """
+
   Scenario: POST /forms/chromium/convert/markdown (Split Pages)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
@@ -813,6 +847,43 @@ Feature: /forms/chromium/convert/markdown
       Page 2
       """
     Then the "*_1.pdf" PDF should have the following content at page 1:
+      """
+      Page 3
+      """
+    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 2 failed rule(s)
+
+  # See https://github.com/gotenberg/gotenberg/issues/1130.
+  Scenario: POST /forms/chromium/convert/markdown (Split & PDF/A-1b & PDF/UA-1 & Output Filename)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
+      | files                     | testdata/pages-3-markdown/index.html | file   |
+      | files                     | testdata/pages-3-markdown/page_1.md  | file   |
+      | files                     | testdata/pages-3-markdown/page_2.md  | file   |
+      | files                     | testdata/pages-3-markdown/page_3.md  | file   |
+      | splitMode                 | intervals                            | field  |
+      | splitSpan                 | 2                                    | field  |
+      | pdfa                      | PDF/A-1b                             | field  |
+      | pdfua                     | true                                 | field  |
+      | Gotenberg-Output-Filename | foo                                  | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.zip   |
+      | foo_0.pdf |
+      | foo_1.pdf |
+    Then the "foo_0.pdf" PDF should have 2 page(s)
+    Then the "foo_1.pdf" PDF should have 1 page(s)
+    Then the "foo_0.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "foo_0.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
+    Then the "foo_1.pdf" PDF should have the following content at page 1:
       """
       Page 3
       """

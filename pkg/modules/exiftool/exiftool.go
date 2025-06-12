@@ -142,15 +142,15 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, m
 			fileMetadata[0].SetStrings(key, val)
 		case []interface{}:
 			// See https://github.com/gotenberg/gotenberg/issues/1048.
-			strings := make([]string, len(val))
+			strs := make([]string, len(val))
 			for i, entry := range val {
 				if str, ok := entry.(string); ok {
-					strings[i] = str
+					strs[i] = str
 					continue
 				}
 				return fmt.Errorf("write PDF metadata with ExifTool: %s %+v %s %w", key, val, reflect.TypeOf(val), gotenberg.ErrPdfEngineMetadataValueNotSupported)
 			}
-			fileMetadata[0].SetStrings(key, strings)
+			fileMetadata[0].SetStrings(key, strs)
 		case bool:
 			fileMetadata[0].SetString(key, fmt.Sprintf("%t", val))
 		case int:
