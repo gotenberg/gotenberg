@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	sentryecho "github.com/getsentry/sentry-go/echo"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -76,17 +75,6 @@ func httpErrorHandler() echo.HTTPErrorHandler {
 	return func(err error, c echo.Context) {
 		logger := c.Get("logger").(*zap.Logger)
 		status, message := ParseError(err)
-
-		// Capture non-panic errors and send them to Sentry.
-		// Panics are already handled by the sentryecho middleware.
-		// Send errors to Sentry if the status code indicates a client error (400),
-		// an internal server error (500), or service unavailability (503).
-		// hub.CaptureException(err) sends the event with sentry.LevelError by default.
-		if status == http.StatusBadRequest || status == http.StatusInternalServerError || status == http.StatusServiceUnavailable {
-			if hub := sentryecho.GetHubFromContext(c); hub != nil {
-				hub.CaptureException(err)
-			}
-		}
 
 		c.Response().Header().Add(echo.HeaderContentType, echo.MIMETextPlainCharsetUTF8)
 

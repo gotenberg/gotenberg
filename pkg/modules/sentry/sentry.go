@@ -107,18 +107,16 @@ func (s *Sentry) Debug() map[string]interface{} {
 
 // Start initializing the Sentry SDK.
 func (s *Sentry) Start() error {
-        if s.sentryClientOptions.Dsn == "" {
-            return nil
-        }
-        
-	err := sentry.Init(s.sentryClientOptions)
-	if err != nil {
-	        // This error is reported if a dsn was provided but Sentry failed to initialize.
-	        return fmt.Errorf("Sentry configuration error: %w", err)
-        }
-        
-        s.sentryInitialized = true
-		
+	if s.sentryClientOptions.Dsn != "" {
+		err := sentry.Init(s.sentryClientOptions)
+		if err != nil {
+			// This error is reported if a dsn was provided but Sentry failed to initialize.
+			return fmt.Errorf("Sentry configuration error: %w", err)
+		}
+
+		s.sentryInitialized = true
+	}
+
 	return nil
 }
 
@@ -133,24 +131,52 @@ func (s *Sentry) StartupMessage() string {
 // Stop flushes any remaining events.
 func (s *Sentry) Stop(ctx context.Context) error {
 	// Flush buffered events before the program terminates, but only when Sentry client is initialized.
-	// Set the timeout to the maximum duration the program can afford to wait.
 	if s.sentryInitialized {
-		defer sentry.Flush(s.flushTimeout)
+		// Defer the flush operation. The timeout will be determined based on the context
+		// when the deferred function executes.
+		defer func(stopCtx context.Context) {
+			// Start with the configured Sentry flush timeout as the default/upper bound.
+			timeoutForFlush := s.flushTimeout
+
+			// If the Stop context has a deadline, the flush must not exceed
+			// the time remaining for that deadline.
+			if deadline, ok := stopCtx.Deadline(); ok {
+				remainingTimeForContext := time.Until(deadline)
+				if remainingTimeForContext < timeoutForFlush {
+					// Context offers less time than s.flushTimeout, so use the context's remaining time.
+					timeoutForFlush = remainingTimeForContext
+				}
+			}
+
+			// If the context is already marked as "done" (e.g., canceled, or deadline already passed),
+			// or if the calculated timeout ended up being non-positive (deadline passed during Stop execution),
+			// then use a very small positive timeout for a best-effort, non-blocking flush.
+			if err := stopCtx.Err(); err != nil {
+				s.logger.Debug("Sentry Stop: context is already done, using minimal flush timeout.", zap.Error(err))
+				timeoutForFlush = 1 * time.Second // Minimal positive timeout
+			} else if timeoutForFlush <= 0 {
+				s.logger.Debug("Sentry Stop: calculated flush timeout is non-positive (deadline likely passed), using minimal flush timeout.")
+				timeoutForFlush = 1 * time.Second // Minimal positive timeout
+			}
+
+			s.logger.Debug("Sentry: flushing events", zap.Duration("timeout", timeoutForFlush))
+			sentry.Flush(timeoutForFlush)
+		}(ctx) // Pass the context to the deferred function's closure
 	}
 
 	return nil
 }
 
-// Middlewares returns the middleware.
+// Middlewares returns the Sentry middlewares.
 func (s *Sentry) Middlewares() ([]api.Middleware, error) {
 	// Check if middleware should be returned
 	// Do not use s.sentryInitialized as that occurrs later in the bootstrapping process
 	if s.sentryClientOptions.Dsn == "" {
 		return nil, nil
 	}
-
 	return []api.Middleware{
-		sentryMiddleware(),
+		sentryPanicMiddleware(),        // Sets up Sentry hub, captures panics.
+		sentryErrorCaptureMiddleware(), // Captures specific non-panic errors.
 	}, nil
 }
 
