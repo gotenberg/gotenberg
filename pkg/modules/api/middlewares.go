@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -144,6 +145,25 @@ func traceMiddleware(header string) echo.MiddlewareFunc {
 			c.Set("traceHeader", header)
 			c.Response().Header().Add(header, trace)
 
+			// Call the next middleware in the chain.
+			return next(c)
+		}
+	}
+}
+
+// outputFilenameMiddleware sets the output filename in the [echo.Context]
+// under "outputFilename".
+//
+//	outputFilename := c.Get("outputFilename").(string)
+func outputFilenameMiddleware() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			filename := c.Request().Header.Get("Gotenberg-Output-Filename")
+			// See https://github.com/gotenberg/gotenberg/issues/1227.
+			if filename != "" {
+				filename = filepath.Base(filename)
+			}
+			c.Set("outputFilename", filename)
 			// Call the next middleware in the chain.
 			return next(c)
 		}

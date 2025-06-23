@@ -175,7 +175,6 @@ RUN \
     fonts-crosextra-caladea=20200211-1 \
     fonts-crosextra-carlito=20220224-1 \
     fonts-dejavu=2.37-6 \
-    fonts-dejavu-extra=2.37-6 \
     fonts-liberation=1:1.07.4-11 \
     fonts-liberation2=2.1.5-1 \
     fonts-linuxlibertine=5.3.0-6 \
@@ -259,7 +258,7 @@ RUN \
     # Cleanup.
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Support for arbitrary user ids (OpenShift).
+# Support for arbitrary user IDs (OpenShift).
 # See:
 # https://github.com/gotenberg/gotenberg/issues/1049.
 # https://docs.redhat.com/en/documentation/openshift_container_platform/4.15/html/images/creating-images#use-uid_create-images.
