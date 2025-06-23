@@ -3,7 +3,7 @@ module github.com/gotenberg/gotenberg/v8
 go 1.24.0
 
 require (
-	github.com/alexliesenfeld/health v0.8.0
+	github.com/alexliesenfeld/health v0.8.1
 	github.com/andybalholm/brotli v1.1.2-0.20250424173009-453214e765f3 // indirect
 	github.com/barasher/go-exiftool v1.10.0
 	github.com/chromedp/cdproto v0.0.0-20250416210000-d7e4d624041a
