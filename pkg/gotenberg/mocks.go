@@ -52,6 +52,7 @@ type PdfEngineMock struct {
 	ConvertMock       func(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error
 	ReadMetadataMock  func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error)
 	WriteMetadataMock func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error
+	EncryptMock       func(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error
 }
 
 func (engine *PdfEngineMock) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
@@ -76,6 +77,10 @@ func (engine *PdfEngineMock) ReadMetadata(ctx context.Context, logger *zap.Logge
 
 func (engine *PdfEngineMock) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
 	return engine.WriteMetadataMock(ctx, logger, metadata, inputPath)
+}
+
+func (engine *PdfEngineMock) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
+	return engine.EncryptMock(ctx, logger, inputPath, userPassword, ownerPassword)
 }
 
 // PdfEngineProviderMock is a mock for the [PdfEngineProvider] interface.

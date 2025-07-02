@@ -898,6 +898,30 @@ Feature: /forms/chromium/convert/url
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be flatten
 
+  Scenario: POST /forms/chromium/convert/url (Encrypt - user password only)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url          | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+      | userPassword | foo                                                                 | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be encrypted
+
+  Scenario: POST /forms/chromium/convert/url (Encrypt - both user and owner passwords)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url           | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+      | userPassword  | foo                                                                 | field |
+      | ownerPassword | bar                                                                 | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be encrypted
+
+  # FIXME: once decrypt is done, add encrypt and check after the content of the PDF.
   Scenario: POST /forms/chromium/convert/url (PDF/A-1b & PDF/UA-1 & Metadata & Flatten)
     Given I have a default Gotenberg container
     Given I have a static server
