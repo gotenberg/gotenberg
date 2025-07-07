@@ -38,7 +38,7 @@ require (
 	github.com/docker/docker v28.3.0+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/mholt/archives v0.1.3
-	github.com/shirou/gopsutil/v4 v4.25.5
+	github.com/shirou/gopsutil/v4 v4.25.6
 	github.com/testcontainers/testcontainers-go v0.37.0
 )
 
