@@ -93,6 +93,30 @@ jobs:
           platform: linux/amd64
           alternate_repository: snapshot
 
+  snapshot_ppc64le:
+    if: github.event_name == 'pull_request'
+    needs:
+      - test-unit
+    name: Snapshot linux/ppc64le
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.build_test_push.outputs.tags }}
+      tags_cloud_run: ${{ steps.build_test_push.outputs.tags_cloud_run }}
+      tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Build, test and push
+        id: build_test_push
+        uses: ./.github/actions/build-test-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: pr-${{ github.event.pull_request.number }}
+          platform: linux/ppc64le
+          alternate_repository: snapshot
+
   snapshot_386:
     if: github.event_name == 'pull_request'
     needs:
@@ -169,6 +193,7 @@ jobs:
     needs:
       - snapshot_amd64
       - snapshot_386
+      - snapshot_ppc64le
       - snapshot_arm64
       - snapshot_arm_v7
     name: Secrets access check
@@ -191,6 +216,7 @@ jobs:
       - merge_clean_snapshot_guard
       - snapshot_amd64
       - snapshot_386
+      - snapshot_ppc64le
       - snapshot_arm64
       - snapshot_arm_v7
     name: Merge and clean snapshot tags
@@ -204,7 +230,7 @@ jobs:
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
-          tags: "${{ needs.snapshot_amd64.outputs.tags }},${{ needs.snapshot_386.outputs.tags }},${{ needs.snapshot_arm64.outputs.tags }},${{ needs.snapshot_arm_v7.outputs.tags }}"
+          tags: "${{ needs.snapshot_amd64.outputs.tags }},${{ needs.snapshot_386.outputs.tags }},${{ needs.snapshot_ppc64le.outputs.tags }},${{ needs.snapshot_arm64.outputs.tags }},${{ needs.snapshot_arm_v7.outputs.tags }}"
 
       - name: Merge AWS Lambda
         uses: ./.github/actions/merge
@@ -218,7 +244,7 @@ jobs:
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
-          tags: "${{ needs.snapshot_amd64.outputs.tags }},${{ needs.snapshot_386.outputs.tags }},${{ needs.snapshot_arm64.outputs.tags }},${{ needs.snapshot_arm_v7.outputs.tags }},${{ needs.snapshot_amd64.outputs.tags_aws_lambda }},${{ needs.snapshot_arm64.outputs.tags_aws_lambda }}"
+          tags: "${{ needs.snapshot_amd64.outputs.tags }},${{ needs.snapshot_386.outputs.tags }},${{ needs.snapshot_ppc64le.outputs.tags }},${{ needs.snapshot_arm64.outputs.tags }},${{ needs.snapshot_arm_v7.outputs.tags }},${{ needs.snapshot_amd64.outputs.tags_aws_lambda }},${{ needs.snapshot_arm64.outputs.tags_aws_lambda }}"
 
   edge_amd64:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -265,6 +291,29 @@ jobs:
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
           version: edge
           platform: linux/386
+
+  edge_ppc64le:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - test-unit
+    name: Edge linux/ppc64le
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.build_test_push.outputs.tags }}
+      tags_cloud_run: ${{ steps.build_test_push.outputs.tags_cloud_run }}
+      tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Build, test and push
+        id: build_test_push
+        uses: ./.github/actions/build-test-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: edge
+          platform: linux/ppc64le
 
   edge_arm64:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -316,6 +365,7 @@ jobs:
     needs:
       - edge_amd64
       - edge_386
+      - edge_ppc64le
       - edge_arm64
       - edge_arm_v7
     name: Merge and clean edge tags
@@ -329,7 +379,7 @@ jobs:
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
-          tags: "${{ needs.edge_amd64.outputs.tags }},${{ needs.edge_386.outputs.tags }},${{ needs.edge_arm64.outputs.tags }},${{ needs.edge_arm_v7.outputs.tags }}"
+          tags: "${{ needs.edge_amd64.outputs.tags }},${{ needs.edge_386.outputs.tags }},${{ needs.edge_ppc64le.outputs.tags }},${{ needs.edge_arm64.outputs.tags }},${{ needs.edge_arm_v7.outputs.tags }}"
           alternate_registry: thecodingmachine
 
       - name: Merge AWS Lambda
@@ -345,4 +395,4 @@ jobs:
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
-          tags: "${{ needs.edge_amd64.outputs.tags }},${{ needs.edge_386.outputs.tags }},${{ needs.edge_arm64.outputs.tags }},${{ needs.edge_arm_v7.outputs.tags }},${{ needs.edge_amd64.outputs.tags_aws_lambda }},${{ needs.edge_arm64.outputs.tags_aws_lambda }}"
+          tags: "${{ needs.edge_amd64.outputs.tags }},${{ needs.edge_386.outputs.tags }},${{ needs.edge_ppc64le.outputs.tags }},${{ needs.edge_arm64.outputs.tags }},${{ needs.edge_arm_v7.outputs.tags }},${{ needs.edge_amd64.outputs.tags_aws_lambda }},${{ needs.edge_arm64.outputs.tags_aws_lambda }}"
