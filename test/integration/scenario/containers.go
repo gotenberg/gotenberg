@@ -70,6 +70,7 @@ func execCommandInIntegrationToolsContainer(ctx context.Context, cmd []string, p
 
 	req := testcontainers.ContainerRequest{
 		Image: "gotenberg/integration-tools:latest",
+		ImagePlatform: GotenbergContainerPlatform,
 		Files: []testcontainers.ContainerFile{
 			{
 				HostFilePath:      path,
