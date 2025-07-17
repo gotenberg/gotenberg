@@ -513,7 +513,7 @@ func (ctx *Context) BuildOutputFile() (string, error) {
 // OutputFilename returns the filename based on the given output path or the
 // "Gotenberg-Output-Filename" header's value.
 func (ctx *Context) OutputFilename(outputPath string) string {
-	filename := ctx.echoCtx.Request().Header.Get("Gotenberg-Output-Filename")
+	filename := ctx.echoCtx.Get("outputFilename").(string)
 
 	if filename == "" {
 		return filepath.Base(outputPath)
