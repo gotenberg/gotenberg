@@ -554,6 +554,7 @@ func (a *Api) Extensions() []string {
 		".xml",
 		".xpm",
 		".zabw",
+		".bin",
 	}
 }
 
