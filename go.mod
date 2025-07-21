@@ -20,7 +20,7 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/prometheus/client_golang v1.22.0
 	github.com/russross/blackfriday/v2 v2.1.0
-	github.com/spf13/pflag v1.0.6
+	github.com/spf13/pflag v1.0.7
 	github.com/ulikunitz/xz v0.5.12 // indirect
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0
@@ -33,7 +33,7 @@ require (
 )
 
 require (
-	github.com/cucumber/godog v0.15.0
+	github.com/cucumber/godog v0.15.1
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/docker/docker v28.3.2+incompatible
 	github.com/docker/go-connections v0.5.0
