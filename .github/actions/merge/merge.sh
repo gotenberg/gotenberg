@@ -56,6 +56,7 @@ declare -A merge_map
 
 for tag in "${tags_to_merge[@]}"; do
   target_tag="${tag//-amd64/}"
+  target_tag="${target_tag//-ppc64le/}"
   target_tag="${target_tag//-arm64/}"
   target_tag="${target_tag//-arm/}"
   target_tag="${target_tag//-386/}"
