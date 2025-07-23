@@ -635,6 +635,6 @@ Feature: /forms/libreoffice/convert
     Scenario: POST /forms/libreoffice/convert (Renamed .docx to .bin)
   Given I have a default Gotenberg container
   When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
-    | files | testdata/converted_from_docx_document.bin | file |
+    | files | testdata/renamed_from_docx_document.bin | file |
   Then the response status code should be 200
   Then the response header "Content-Type" should be "application/pdf"
