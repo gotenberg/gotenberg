@@ -441,11 +441,11 @@ Feature: /forms/chromium/convert/markdown
       """
     Then the response body should contain string:
       """
-      exception "Uncaught" (93:12): Error: Exception 1
+      Error: Exception 1
       """
     Then the response body should contain string:
       """
-      exception "Uncaught" (97:12): Error: Exception 2
+      Error: Exception 2
       """
 
   Scenario: POST /forms/chromium/convert/markdown (Bad Request)

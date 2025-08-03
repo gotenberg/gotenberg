@@ -374,11 +374,11 @@ Feature: /forms/chromium/convert/html
       """
     Then the response body should contain string:
       """
-      exception "Uncaught" (61:12): Error: Exception 1
+      Error: Exception 1
       """
     Then the response body should contain string:
       """
-      exception "Uncaught" (65:12): Error: Exception 2
+      Error: Exception 2
       """
 
   Scenario: POST /forms/chromium/convert/html (Bad Request)
