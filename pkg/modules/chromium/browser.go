@@ -84,10 +84,6 @@ func (b *chromiumBrowser) Start(logger *zap.Logger) error {
 		chromedp.ExecPath(b.arguments.binPath),
 		chromedp.NoSandbox,
 		// See:
-		// https://github.com/gotenberg/gotenberg/issues/327
-		// https://github.com/chromedp/chromedp/issues/904
-		chromedp.DisableGPU,
-		// See:
 		// https://github.com/puppeteer/puppeteer/issues/661
 		// https://github.com/puppeteer/puppeteer/issues/2410
 		chromedp.Flag("font-render-hinting", "none"),
