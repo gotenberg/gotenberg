@@ -235,18 +235,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						}
 					}
 
-					webhookSyncHeader := c.Request().Header.Get("Gotenberg-Webhook-Sync")
-					webhookSync := false
-					if webhookSyncHeader != "" {
-						var err error
-						webhookSync, err = strconv.ParseBool(webhookSyncHeader)
-						if err != nil {
-							return fmt.Errorf("parse webhook sync header: %w", err)
-						}
-					}
-
-					if webhookSync {
-						// Synchronous mode has been requested.
+					if w.enableSyncMode {
 						err := next(c)
 						if err != nil {
 							if errors.Is(err, api.ErrNoOutputFile) {

@@ -66,6 +66,7 @@ PROMETHEUS_NAMESPACE=gotenberg
 PROMETHEUS_COLLECT_INTERVAL=1s
 PROMETHEUS_DISABLE_ROUTE_LOGGING=false
 PROMETHEUS_DISABLE_COLLECT=false
+WEBHOOK_ENABLE_SYNC_MODE=false
 WEBHOOK_ALLOW_LIST=
 WEBHOOK_DENY_LIST=
 WEBHOOK_ERROR_ALLOW_LIST=
@@ -138,6 +139,7 @@ run: ## Start a Gotenberg container
 	--prometheus-collect-interval=$(PROMETHEUS_COLLECT_INTERVAL) \
 	--prometheus-disable-route-logging=$(PROMETHEUS_DISABLE_ROUTE_LOGGING) \
 	--prometheus-disable-collect=$(PROMETHEUS_DISABLE_COLLECT) \
+	--webhook-enable-sync-mode="$(WEBHOOK_ENABLE_SYNC_MODE)" \
 	--webhook-allow-list="$(WEBHOOK_ALLOW_LIST)" \
 	--webhook-deny-list="$(WEBHOOK_DENY_LIST)" \
 	--webhook-error-allow-list=$(WEBHOOK_ERROR_ALLOW_LIST) \
