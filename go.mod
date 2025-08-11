@@ -10,7 +10,7 @@ require (
 	github.com/cucumber/godog v0.15.1
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/docker/docker v28.3.3+incompatible
-	github.com/docker/go-connections v0.5.0
+	github.com/docker/go-connections v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/labstack/echo/v4 v4.13.4
