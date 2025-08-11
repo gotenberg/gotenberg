@@ -6,7 +6,7 @@ require (
 	github.com/alexliesenfeld/health v0.8.1
 	github.com/barasher/go-exiftool v1.10.0
 	github.com/chromedp/cdproto v0.0.0-20250724212937-08a3db8b4327
-	github.com/chromedp/chromedp v0.14.0
+	github.com/chromedp/chromedp v0.14.1
 	github.com/cucumber/godog v0.15.1
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/docker/docker v28.3.3+incompatible
