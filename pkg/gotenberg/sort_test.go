@@ -32,6 +32,12 @@ func TestAlphanumericSort(t *testing.T) {
 			values:       []string{"245654773395259", "245654773395039", "245654773395149", "245654773394919", "245654773394369"},
 			expectedSort: []string{"245654773394369", "245654773394919", "245654773395039", "245654773395149", "245654773395259"},
 		},
+		{
+			// https://github.com/gotenberg/gotenberg/issues/1287.
+			scenario:     "different basenames with numeric suffixes",
+			values:       []string{"RIJNMOND-attach-Opdrachtbevestiging_P0007104.pdf", "Bundle-25029.pdf"},
+			expectedSort: []string{"Bundle-25029.pdf", "RIJNMOND-attach-Opdrachtbevestiging_P0007104.pdf"},
+		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			sort.Sort(AlphanumericSort(tc.values))
