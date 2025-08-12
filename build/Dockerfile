@@ -273,12 +273,17 @@ RUN \
 # https://github.com/arachnys/athenapdf/commit/ba25a8d80a25d08d58865519c4cd8756dc9a336d.
 COPY build/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 
+# Copy dictionnaries so that hypens work on Chromium.
+# See https://github.com/gotenberg/gotenberg/issues/1293.
+COPY --chown=gotenberg:gotenberg build/chromium-hyphen-data /home/gotenberg/chromium-hyphen-data
+
 # Copy the Golang binaries.
 COPY --from=compress-go-binaries-stage /home/pdfcpu /usr/bin/
 COPY --from=compress-go-binaries-stage /home/gotenberg /usr/bin/
 
 # Environment variables required by modules or else.
 ENV CHROMIUM_BIN_PATH=/usr/bin/chromium
+ENV CHROMIUM_HYPHEN_DATA_DIR_PATH=/home/gotenberg/chromium-hyphen-data
 ENV LIBREOFFICE_BIN_PATH=/usr/lib/libreoffice/program/soffice.bin
 ENV UNOCONVERTER_BIN_PATH=/usr/bin/unoconverter
 ENV PDFTK_BIN_PATH=/usr/bin/pdftk
