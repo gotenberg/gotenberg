@@ -34,7 +34,7 @@ echo
 echo "Tag(s) to push:"
 IFS=',' read -ra tags_to_push <<< "$tags"
 for tag in "${tags_to_push[@]}"; do
-  echo "- $tag"
+  [ -n "$tag" ] && echo "- $tag"
 done
 
 if [ "$dry_run" = "true" ]; then
