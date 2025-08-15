@@ -14,6 +14,7 @@ jobs:
     outputs:
       tags: ${{ steps.build_push.outputs.tags }}
       tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
+      tags_aws_lambda: ${{ steps.build_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -33,7 +34,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tags: ${{ steps.build_push.outputs.tags }}
-      tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -54,6 +54,7 @@ jobs:
     outputs:
       tags: ${{ steps.build_push.outputs.tags }}
       tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
+      tags_aws_lambda: ${{ steps.build_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -74,6 +75,7 @@ jobs:
     outputs:
       tags: ${{ steps.build_push.outputs.tags }}
       tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
+      tags_aws_lambda: ${{ steps.build_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
