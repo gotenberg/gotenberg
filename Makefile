@@ -10,6 +10,7 @@ build: ## Build the Gotenberg's Docker image
 	-t $(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
 	-f $(DOCKERFILE) $(DOCKER_BUILD_CONTEXT)
 
+GOTENBERG_HIDE_BANNER=false
 GOTENBERG_GRACEFUL_SHUTDOWN_DURATION=30s
 GOTENBERG_BUILD_DEBUG_DATA=true
 API_PORT=3000
@@ -85,6 +86,7 @@ run: ## Start a Gotenberg container
 	-e GOTENBERG_API_BASIC_AUTH_PASSWORD=$(GOTENBERG_API_BASIC_AUTH_PASSWORD) \
 	$(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
 	gotenberg \
+	--gotenberg-hide-banner=$(GOTENBERG_HIDE_BANNER) \
 	--gotenberg-graceful-shutdown-duration=$(GOTENBERG_GRACEFUL_SHUTDOWN_DURATION) \
 	--gotenberg-build-debug-data="$(GOTENBERG_BUILD_DEBUG_DATA)" \
 	--api-port=$(API_PORT) \
