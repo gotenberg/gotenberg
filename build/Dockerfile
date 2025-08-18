@@ -54,7 +54,7 @@ RUN go build -o gotenberg -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/
 # ----------------------------------------------
 # Compress Golang binaries stage
 # ----------------------------------------------
-FROM debian:12-slim AS compress-go-binaries-stage
+FROM debian:13-slim AS compress-go-binaries-stage
 
 RUN \
     echo "deb http://deb.debian.org/debian bookworm-backports main" >> /etc/apt/sources.list &&\
@@ -73,7 +73,7 @@ RUN \
 # Custom JRE stage
 # Credits: https://github.com/jodconverter/docker-image-jodconverter-runtime
 # ----------------------------------------------
-FROM debian:12-slim AS custom-jre-stage
+FROM debian:13-slim AS custom-jre-stage
 
 RUN \
     apt-get update -qq &&\
@@ -95,7 +95,7 @@ RUN jlink \
 # ----------------------------------------------
 # Base image stage
 # ----------------------------------------------
-FROM debian:12-slim AS base-image-stage
+FROM debian:13-slim AS base-image-stage
 
 COPY --from=custom-jre-stage /custom-jre /opt/java
 
@@ -134,7 +134,7 @@ RUN \
     # Note: tini is a helper for reaping zombie processes.
     apt-get update -qq &&\
     apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg=2.2.40-1.1 tini=0.19.0-1 python3=3.11.2-1+b1 &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg tini python3 python3-distutils-extra &&\
     # Cleanup.
     # Note: the Debian image does automatically a clean after each install thanks to a hook.
     # Therefore, there is no need for apt-get clean.
@@ -151,39 +151,39 @@ RUN \
     apt-get upgrade -yqq &&\
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
     ./ttf-mscorefonts-installer_3.8.1_all.deb \
-    culmus=0.133-1 \
-    fonts-beng=2:1.3 \
-    fonts-hosny-amiri=0.113-1 \
-    fonts-lklug-sinhala=0.6-4 \
-    fonts-lohit-guru=2.91.2-3 \
-    fonts-lohit-knda=2.5.4-3 \
-    fonts-samyak-gujr=1.2.2-6 \
-    fonts-samyak-mlym=1.2.2-6 \
-    fonts-samyak-taml=1.2.2-6 \
-    fonts-sarai=1.0-3 \
-    fonts-sil-abyssinica=2.100-3 \
-    fonts-sil-padauk=5.000-3 \
-    fonts-telu=2:1.3 \
-    fonts-thai-tlwg=1:0.7.3-1 \
+    culmus \
+    fonts-beng \
+    fonts-hosny-amiri \
+    fonts-lklug-sinhala \
+    fonts-lohit-guru \
+    fonts-lohit-knda \
+    fonts-samyak-gujr \
+    fonts-samyak-mlym \
+    fonts-samyak-taml \
+    fonts-sarai \
+    fonts-sil-abyssinica \
+    fonts-sil-padauk \
+    fonts-telu \
+    fonts-thai-tlwg \
     ttf-wqy-zenhei \
-    fonts-arphic-ukai=0.2.20080216.2-5 \
-    fonts-arphic-uming=0.2.20080216.2-11 \
-    fonts-ipafont-mincho=00303-23 \
-    fonts-ipafont-gothic=00303-23 \
-    fonts-unfonts-core=1:1.0.2-080608-18 \
+    fonts-arphic-ukai \
+    fonts-arphic-uming \
+    fonts-ipafont-mincho \
+    fonts-ipafont-gothic \
+    fonts-unfonts-core \
     # LibreOffice recommends.
-    fonts-crosextra-caladea=20200211-1 \
-    fonts-crosextra-carlito=20220224-1 \
-    fonts-dejavu=2.37-6 \
-    fonts-liberation=1:1.07.4-11 \
-    fonts-liberation2=2.1.5-1 \
-    fonts-linuxlibertine=5.3.0-6 \
-    fonts-noto-cjk=1:20220127+repack1-1 \
-    fonts-noto-core=20201225-1 \
-    fonts-noto-mono=20201225-1 \
-    fonts-noto-ui-core=20201225-1 \
-    fonts-sil-gentium=20081126:1.03-4 \
-    fonts-sil-gentium-basic=1.102-1.1 &&\
+    fonts-crosextra-caladea \
+    fonts-crosextra-carlito \
+    fonts-dejavu \
+    fonts-liberation \
+    fonts-liberation2 \
+    fonts-linuxlibertine \
+    fonts-noto-cjk \
+    fonts-noto-core \
+    fonts-noto-mono \
+    fonts-noto-ui-core \
+    fonts-sil-gentium \
+    fonts-sil-gentium-basic &&\
     rm -f ./ttf-mscorefonts-installer_3.8.1_all.deb &&\
     # Add Color and Black-and-White Noto emoji font.
     # Credits:
@@ -225,10 +225,9 @@ ENV LC_ALL=C.UTF-8
 
 RUN \
     # Install LibreOffice & unoconverter.
-    echo "deb http://deb.debian.org/debian bookworm-backports main" >> /etc/apt/sources.list &&\
     apt-get update -qq &&\
     apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t bookworm-backports libreoffice &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends libreoffice &&\
     curl -Ls https://raw.githubusercontent.com/gotenberg/unoconverter/v0.1.1/unoconv -o /usr/bin/unoconverter &&\
     chmod +x /usr/bin/unoconverter &&\
     # unoconverter will look for the Python binary, which has to be at version 3.
@@ -248,7 +247,7 @@ RUN \
     chmod +x /usr/bin/pdftk &&\
     apt-get update -qq &&\
     apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends qpdf=11.3.0-1+deb12u1 exiftool &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends qpdf exiftool &&\
     # See https://github.com/nextcloud/docker/issues/380.
     mkdir -p /usr/share/man/man1 &&\
     # Verify installations.
