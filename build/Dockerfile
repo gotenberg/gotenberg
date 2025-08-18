@@ -54,7 +54,7 @@ RUN go build -o gotenberg -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/
 # ----------------------------------------------
 # Compress Golang binaries stage
 # ----------------------------------------------
-FROM debian:12-slim AS compress-go-binaries-stage
+FROM debian:13-slim AS compress-go-binaries-stage
 
 RUN \
     echo "deb http://deb.debian.org/debian bookworm-backports main" >> /etc/apt/sources.list &&\
@@ -73,7 +73,7 @@ RUN \
 # Custom JRE stage
 # Credits: https://github.com/jodconverter/docker-image-jodconverter-runtime
 # ----------------------------------------------
-FROM debian:12-slim AS custom-jre-stage
+FROM debian:13-slim AS custom-jre-stage
 
 RUN \
     apt-get update -qq &&\
@@ -95,7 +95,7 @@ RUN jlink \
 # ----------------------------------------------
 # Base image stage
 # ----------------------------------------------
-FROM debian:12-slim AS base-image-stage
+FROM debian:13-slim AS base-image-stage
 
 COPY --from=custom-jre-stage /custom-jre /opt/java
 
