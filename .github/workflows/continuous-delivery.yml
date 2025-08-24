@@ -14,9 +14,10 @@ jobs:
     outputs:
       tags: ${{ steps.build_push.outputs.tags }}
       tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
+      tags_aws_lambda: ${{ steps.build_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Build and push
         id: build_push
@@ -33,10 +34,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tags: ${{ steps.build_push.outputs.tags }}
-      tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Build and push
         id: build_push
@@ -54,9 +54,10 @@ jobs:
     outputs:
       tags: ${{ steps.build_push.outputs.tags }}
       tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
+      tags_aws_lambda: ${{ steps.build_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Build and push
         id: build_push
@@ -74,9 +75,10 @@ jobs:
     outputs:
       tags: ${{ steps.build_push.outputs.tags }}
       tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
+      tags_aws_lambda: ${{ steps.build_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Build and push
         id: build_push
@@ -98,7 +100,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Merge
         uses: ./.github/actions/merge
@@ -108,9 +110,17 @@ jobs:
           tags: "${{ needs.release_amd64.outputs.tags }},${{ needs.release_386.outputs.tags }},${{ needs.release_arm64.outputs.tags }},${{ needs.release_arm_v7.outputs.tags }}"
           alternate_registry: thecodingmachine
 
+      - name: Merge AWS Lambda
+        uses: ./.github/actions/merge
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.release_amd64.outputs.tags_aws_lambda }},${{ needs.release_arm64.outputs.tags_aws_lambda }}"
+          alternate_registry: thecodingmachine
+
       - name: Clean
         uses: ./.github/actions/clean
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
-          tags: "${{ needs.release_amd64.outputs.tags }},${{ needs.release_386.outputs.tags }},${{ needs.release_arm64.outputs.tags }},${{ needs.release_arm_v7.outputs.tags }}"
+          tags: "${{ needs.release_amd64.outputs.tags }},${{ needs.release_386.outputs.tags }},${{ needs.release_arm64.outputs.tags }},${{ needs.release_arm_v7.outputs.tags }},${{ needs.release_amd64.outputs.tags_aws_lambda }},${{ needs.release_arm64.outputs.tags_aws_lambda }}"

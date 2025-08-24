@@ -431,11 +431,11 @@ Feature: /forms/chromium/convert/url
       """
     Then the response body should contain string:
       """
-      exception "Uncaught" (56:12): Error: Exception 1
+      Error: Exception 1
       """
     Then the response body should contain string:
       """
-      exception "Uncaught" (60:12): Error: Exception 2
+      Error: Exception 2
       """
 
   Scenario: POST /forms/chromium/convert/url (Bad Request)

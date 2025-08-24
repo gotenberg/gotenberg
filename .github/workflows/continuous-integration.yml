@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -31,14 +31,14 @@ jobs:
       - name: Run linters
         uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.1.6
+          version: v2.4.0
 
   lint-prettier:
     name: Lint non-Golang codebase
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -78,9 +78,10 @@ jobs:
     outputs:
       tags: ${{ steps.build_test_push.outputs.tags }}
       tags_cloud_run: ${{ steps.build_test_push.outputs.tags_cloud_run }}
+      tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Build, test and push
         id: build_test_push
@@ -101,9 +102,10 @@ jobs:
     outputs:
       tags: ${{ steps.build_test_push.outputs.tags }}
       tags_cloud_run: ${{ steps.build_test_push.outputs.tags_cloud_run }}
+      tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Build, test and push
         id: build_test_push
@@ -124,9 +126,10 @@ jobs:
     outputs:
       tags: ${{ steps.build_test_push.outputs.tags }}
       tags_cloud_run: ${{ steps.build_test_push.outputs.tags_cloud_run }}
+      tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Build, test and push
         id: build_test_push
@@ -147,9 +150,10 @@ jobs:
     outputs:
       tags: ${{ steps.build_test_push.outputs.tags }}
       tags_cloud_run: ${{ steps.build_test_push.outputs.tags_cloud_run }}
+      tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Build, test and push
         id: build_test_push
@@ -193,7 +197,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Merge
         uses: ./.github/actions/merge
@@ -202,12 +206,19 @@ jobs:
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
           tags: "${{ needs.snapshot_amd64.outputs.tags }},${{ needs.snapshot_386.outputs.tags }},${{ needs.snapshot_arm64.outputs.tags }},${{ needs.snapshot_arm_v7.outputs.tags }}"
 
+      - name: Merge AWS Lambda
+        uses: ./.github/actions/merge
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.snapshot_amd64.outputs.tags_aws_lambda }},${{ needs.snapshot_arm64.outputs.tags_aws_lambda }}"
+
       - name: Clean
         uses: ./.github/actions/clean
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
-          tags: "${{ needs.snapshot_amd64.outputs.tags }},${{ needs.snapshot_386.outputs.tags }},${{ needs.snapshot_arm64.outputs.tags }},${{ needs.snapshot_arm_v7.outputs.tags }}"
+          tags: "${{ needs.snapshot_amd64.outputs.tags }},${{ needs.snapshot_386.outputs.tags }},${{ needs.snapshot_arm64.outputs.tags }},${{ needs.snapshot_arm_v7.outputs.tags }},${{ needs.snapshot_amd64.outputs.tags_aws_lambda }},${{ needs.snapshot_arm64.outputs.tags_aws_lambda }}"
 
   edge_amd64:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -218,9 +229,10 @@ jobs:
     outputs:
       tags: ${{ steps.build_test_push.outputs.tags }}
       tags_cloud_run: ${{ steps.build_test_push.outputs.tags_cloud_run }}
+      tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Build, test and push
         id: build_test_push
@@ -240,9 +252,10 @@ jobs:
     outputs:
       tags: ${{ steps.build_test_push.outputs.tags }}
       tags_cloud_run: ${{ steps.build_test_push.outputs.tags_cloud_run }}
+      tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Build, test and push
         id: build_test_push
@@ -262,9 +275,10 @@ jobs:
     outputs:
       tags: ${{ steps.build_test_push.outputs.tags }}
       tags_cloud_run: ${{ steps.build_test_push.outputs.tags_cloud_run }}
+      tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Build, test and push
         id: build_test_push
@@ -284,9 +298,10 @@ jobs:
     outputs:
       tags: ${{ steps.build_test_push.outputs.tags }}
       tags_cloud_run: ${{ steps.build_test_push.outputs.tags_cloud_run }}
+      tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Build, test and push
         id: build_test_push
@@ -307,7 +322,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Merge
         uses: ./.github/actions/merge
@@ -317,9 +332,17 @@ jobs:
           tags: "${{ needs.edge_amd64.outputs.tags }},${{ needs.edge_386.outputs.tags }},${{ needs.edge_arm64.outputs.tags }},${{ needs.edge_arm_v7.outputs.tags }}"
           alternate_registry: thecodingmachine
 
+      - name: Merge AWS Lambda
+        uses: ./.github/actions/merge
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.edge_amd64.outputs.tags_aws_lambda }},${{ needs.edge_arm64.outputs.tags_aws_lambda }}"
+          alternate_registry: thecodingmachine
+
       - name: Clean
         uses: ./.github/actions/clean
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
-          tags: "${{ needs.edge_amd64.outputs.tags }},${{ needs.edge_386.outputs.tags }},${{ needs.edge_arm64.outputs.tags }},${{ needs.edge_arm_v7.outputs.tags }}"
+          tags: "${{ needs.edge_amd64.outputs.tags }},${{ needs.edge_386.outputs.tags }},${{ needs.edge_arm64.outputs.tags }},${{ needs.edge_arm_v7.outputs.tags }},${{ needs.edge_amd64.outputs.tags_aws_lambda }},${{ needs.edge_arm64.outputs.tags_aws_lambda }}"

@@ -34,6 +34,9 @@ outputs:
   tags_cloud_run:
     description: Comma separated list of Cloud Run tags (linux/amd64 only)
     value: ${{ steps.build.outputs.tags_cloud_run }}
+  tags_aws_lambda:
+    description: Comma separated list of AWS Lambda tags (linux/amd64 and linux/arm64 only)
+    value: ${{ steps.build.outputs.tags_aws_lambda }}
 
 runs:
   using: composite
@@ -79,7 +82,7 @@ runs:
       shell: bash
       run: |
         .github/actions/build-test-push/push.sh \
-          --tags "${{ steps.build.outputs.tags }},${{ steps.build.outputs.tags_cloud_run }}" \
+          --tags "${{ steps.build.outputs.tags }},${{ steps.build.outputs.tags_cloud_run }},${{ steps.build.outputs.tags_aws_lambda }}" \
           --dry-run "${{ inputs.dry_run }}"
 
     - name: Outputs
@@ -87,3 +90,4 @@ runs:
       run: |
         echo "tags=${{ steps.build.outputs.tags }}"
         echo "tags_cloud_run=${{ steps.build.outputs.tags_cloud_run }}"
+        echo "tags_aws_lambda=${{ steps.build.outputs.tags_aws_lambda }}"
