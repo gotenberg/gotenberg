@@ -14,9 +14,9 @@ import (
 	"time"
 
 	"github.com/dlclark/regexp2"
+	"github.com/gomarkdown/markdown"
 	"github.com/labstack/echo/v4"
 	"github.com/microcosm-cc/bluemonday"
-	"github.com/russross/blackfriday/v2"
 	"go.uber.org/multierr"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
@@ -561,7 +561,7 @@ func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) 
 					return "", fmt.Errorf("read markdown file '%s': %w", filename, err)
 				}
 
-				unsafe := blackfriday.Run(b)
+				unsafe := markdown.ToHTML(b, nil, nil)
 				sanitized := bluemonday.UGCPolicy().SanitizeBytes(unsafe)
 
 				// #nosec

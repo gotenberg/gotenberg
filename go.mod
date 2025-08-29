@@ -11,6 +11,7 @@ require (
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/docker/docker v28.3.3+incompatible
 	github.com/docker/go-connections v0.6.0
+	github.com/gomarkdown/markdown v0.0.0-20250810172220-2e2c11897d1a
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/labstack/echo/v4 v4.13.4
@@ -18,7 +19,6 @@ require (
 	github.com/mholt/archives v0.1.3
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/prometheus/client_golang v1.23.0
-	github.com/russross/blackfriday/v2 v2.1.0
 	github.com/shirou/gopsutil/v4 v4.25.7
 	github.com/spf13/pflag v1.0.7
 	github.com/testcontainers/testcontainers-go v0.38.0
