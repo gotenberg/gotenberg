@@ -1,6 +1,6 @@
 Feature: /forms/pdfengines/split
 
-  Scenario: POST /forms/pdfengines/split (Intervals - Default - pdfcpu)
+  Scenario: POST /forms/pdfengines/split (Intervals - Default)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
       | files     | testdata/pages_3.pdf | file  |
@@ -27,7 +27,7 @@ Feature: /forms/pdfengines/split
       Page 3
       """
 
-  Scenario: POST /forms/pdfengines/split (Pages - Default - pdfcpu)
+  Scenario: POST /forms/pdfengines/split (Pages - Default)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
       | files     | testdata/pages_3.pdf | file  |
@@ -50,8 +50,83 @@ Feature: /forms/pdfengines/split
       Page 3
       """
 
-  Scenario: POST /forms/pdfengines/split (Pages & Unify - Default - pdfcpu)
+  Scenario: POST /forms/pdfengines/split (Pages & Unify - Default)
     Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
+      | files      | testdata/pages_3.pdf | file  |
+      | splitMode  | pages                | field |
+      | splitSpan  | 2-                   | field |
+      | splitUnify | true                 | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | pages_3.pdf |
+    Then the "pages_3.pdf" PDF should have 2 page(s)
+    Then the "pages_3.pdf" PDF should have the following content at page 1:
+      """
+      Page 2
+      """
+    Then the "pages_3.pdf" PDF should have the following content at page 2:
+      """
+      Page 3
+      """
+
+  Scenario: POST /forms/pdfengines/split (Intervals - pdfcpu)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PDFENGINES_SPLIT_ENGINES | pdfcpu |
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
+      | files     | testdata/pages_3.pdf | file  |
+      | splitMode | intervals            | field |
+      | splitSpan | 2                    | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | pages_3_0.pdf |
+      | pages_3_1.pdf |
+    Then the "pages_3_0.pdf" PDF should have 2 page(s)
+    Then the "pages_3_1.pdf" PDF should have 1 page(s)
+    Then the "pages_3_0.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "pages_3_0.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
+    Then the "pages_3_1.pdf" PDF should have the following content at page 1:
+      """
+      Page 3
+      """
+
+  Scenario: POST /forms/pdfengines/split (Pages - pdfcpu)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PDFENGINES_SPLIT_ENGINES | pdfcpu |
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
+      | files     | testdata/pages_3.pdf | file  |
+      | splitMode | pages                | field |
+      | splitSpan | 2-                   | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | pages_3_0.pdf |
+      | pages_3_1.pdf |
+    Then the "pages_3_0.pdf" PDF should have 1 page(s)
+    Then the "pages_3_1.pdf" PDF should have 1 page(s)
+    Then the "pages_3_0.pdf" PDF should have the following content at page 1:
+      """
+      Page 2
+      """
+    Then the "pages_3_1.pdf" PDF should have the following content at page 1:
+      """
+      Page 3
+      """
+
+  Scenario: POST /forms/pdfengines/split (Pages & Unify - pdfcpu)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PDFENGINES_SPLIT_ENGINES | pdfcpu |
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
       | files      | testdata/pages_3.pdf | file  |
       | splitMode  | pages                | field |

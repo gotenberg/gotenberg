@@ -62,6 +62,7 @@ PDFENGINES_FLATTEN_ENGINES=qpdf
 PDFENGINES_CONVERT_ENGINES=libreoffice-pdfengine
 PDFENGINES_READ_METADATA_ENGINES=exiftool
 PDFENGINES_WRITE_METADATA_ENGINES=exiftool
+PDFENGINES_ENCRYPT_ENGINES=qpdf,pdfcpu,pdftk
 PDFENGINES_DISABLE_ROUTES=false
 PROMETHEUS_NAMESPACE=gotenberg
 PROMETHEUS_COLLECT_INTERVAL=1s
@@ -136,6 +137,7 @@ run: ## Start a Gotenberg container
 	--pdfengines-convert-engines=$(PDFENGINES_CONVERT_ENGINES) \
 	--pdfengines-read-metadata-engines=$(PDFENGINES_READ_METADATA_ENGINES) \
 	--pdfengines-write-metadata-engines=$(PDFENGINES_WRITE_METADATA_ENGINES) \
+	--pdfengines-encrypt-engines=$(PDFENGINES_ENCRYPT_ENGINES) \
 	--pdfengines-disable-routes=$(PDFENGINES_DISABLE_ROUTES) \
 	--prometheus-namespace=$(PROMETHEUS_NAMESPACE) \
 	--prometheus-collect-interval=$(PROMETHEUS_COLLECT_INTERVAL) \
