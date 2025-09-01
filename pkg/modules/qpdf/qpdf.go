@@ -185,8 +185,8 @@ func (engine *QPdf) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, 
 	var args []string
 	args = append(args, inputPath)
 	args = append(args, engine.globalArgs...)
-	args = append(args, "--encrypt", userPassword, ownerPassword, "256", "--use-aes=y", "--")
-	args = append(args, inputPath)
+	args = append(args, "--replace-input")
+	args = append(args, "--encrypt", userPassword, ownerPassword, "256", "--")
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
 	if err != nil {

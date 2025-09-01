@@ -151,13 +151,16 @@ func (engine *PdfTk) Encrypt(ctx context.Context, logger *zap.Logger, inputPath,
 		return errors.New("user password cannot be empty")
 	}
 
-	if ownerPassword == "" {
-		ownerPassword = userPassword
+	if ownerPassword == userPassword || ownerPassword == "" {
+		return gotenberg.ErrPdfEngineEncryptionPasswordsNotSupported
 	}
+
+	// Create a temp output file in the same directory.
+	tmpPath := inputPath + ".tmp"
 
 	var args []string
 	args = append(args, inputPath)
-	args = append(args, "output", inputPath)
+	args = append(args, "output", tmpPath)
 	args = append(args, "encrypt_128bit")
 	args = append(args, "user_pw", userPassword)
 	args = append(args, "owner_pw", ownerPassword)
@@ -170,6 +173,11 @@ func (engine *PdfTk) Encrypt(ctx context.Context, logger *zap.Logger, inputPath,
 	_, err = cmd.Exec()
 	if err != nil {
 		return fmt.Errorf("encrypt PDF with PDFtk: %w", err)
+	}
+
+	err = os.Rename(tmpPath, inputPath)
+	if err != nil {
+		return fmt.Errorf("rename temporary output file with input file: %w", err)
 	}
 
 	return nil

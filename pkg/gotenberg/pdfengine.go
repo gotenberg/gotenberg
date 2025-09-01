@@ -27,6 +27,10 @@ var (
 	// ErrPdfEncryptionNotSupported is returned when encryption
 	// is not supported by the PDF engine.
 	ErrPdfEncryptionNotSupported = errors.New("encryption not supported")
+
+	// ErrPdfEngineEncryptionPasswordsNotSupported is returned when provided
+	// passwords are not supported by the PDF engine.
+	ErrPdfEngineEncryptionPasswordsNotSupported = errors.New("passwords not supported")
 )
 
 const (
