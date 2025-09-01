@@ -158,7 +158,7 @@ func DefaultOptions() Options {
 		Password:                        "",
 		Landscape:                       false,
 		PageRanges:                      "",
-		UpdateIndexes:                   true,
+		UpdateIndexes:                   false,
 		ExportFormFields:                true,
 		AllowDuplicateFieldNames:        false,
 		ExportBookmarks:                 true,
@@ -428,6 +428,7 @@ func (a *Api) Extensions() []string {
 		".602",
 		".abw",
 		".bib",
+		".bin",
 		".bmp",
 		".cdr",
 		".cgm",
@@ -554,7 +555,6 @@ func (a *Api) Extensions() []string {
 		".xml",
 		".xpm",
 		".zabw",
-		".bin",
 	}
 }
 
