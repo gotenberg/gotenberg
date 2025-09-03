@@ -152,7 +152,7 @@ func (engine *PdfTk) Encrypt(ctx context.Context, logger *zap.Logger, inputPath,
 	}
 
 	if ownerPassword == userPassword || ownerPassword == "" {
-		return gotenberg.ErrPdfEngineEncryptionPasswordsNotSupported
+		return gotenberg.NewPdfEngineInvalidArgs("pdftk", "both 'userPassword' and 'ownerPassword' must be provided and different. Consider switching to another PDF engine if this behavior does not work with your workflow")
 	}
 
 	// Create a temp output file in the same directory.

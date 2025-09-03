@@ -3,6 +3,7 @@ package gotenberg
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"go.uber.org/zap"
 )
@@ -27,11 +28,26 @@ var (
 	// ErrPdfEncryptionNotSupported is returned when encryption
 	// is not supported by the PDF engine.
 	ErrPdfEncryptionNotSupported = errors.New("encryption not supported")
-
-	// ErrPdfEngineEncryptionPasswordsNotSupported is returned when provided
-	// passwords are not supported by the PDF engine.
-	ErrPdfEngineEncryptionPasswordsNotSupported = errors.New("passwords not supported")
 )
+
+// PdfEngineInvalidArgsError represents an error returned by a PDF engine when
+// invalid arguments are provided. It includes the name of the engine and a
+// detailed message describing the issue.
+type PdfEngineInvalidArgsError struct {
+	engine string
+	msg    string
+}
+
+// Error implements the error interface.
+func (e *PdfEngineInvalidArgsError) Error() string {
+	return fmt.Sprintf("%s: %s", e.engine, e.msg)
+}
+
+// NewPdfEngineInvalidArgs creates a new PdfEngineInvalidArgsError with the
+// given engine name and message.
+func NewPdfEngineInvalidArgs(engine, msg string) error {
+	return &PdfEngineInvalidArgsError{engine, msg}
+}
 
 const (
 	// SplitModeIntervals represents a mode where a PDF is split at specific
