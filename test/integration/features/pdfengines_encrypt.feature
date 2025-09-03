@@ -54,7 +54,7 @@ Feature: /forms/pdfengines/encrypt
     Then the response status code should be 400
     Then the response body should match string:
       """
-      Invalid form data: both 'userPassword' and 'ownerPassword' form fields must be provided and different
+      pdftk: both 'userPassword' and 'ownerPassword' must be provided and different. Consider switching to another PDF engine if this behavior does not work with your workflow
       """
 
   Scenario: POST /forms/pdfengines/encrypt (PDFtk - both user and owner passwords)

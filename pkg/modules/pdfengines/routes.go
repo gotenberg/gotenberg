@@ -270,16 +270,6 @@ func EncryptPdfStub(ctx *api.Context, engine gotenberg.PdfEngine, userPassword, 
 	for _, inputPath := range inputPaths {
 		err := engine.Encrypt(ctx, ctx.Log(), inputPath, userPassword, ownerPassword)
 		if err != nil {
-			if errors.Is(err, gotenberg.ErrPdfEngineEncryptionPasswordsNotSupported) {
-				return api.WrapError(
-					err,
-					api.NewSentinelHttpError(
-						http.StatusBadRequest,
-						"Invalid form data: both 'userPassword' and 'ownerPassword' form fields must be provided and different",
-					),
-				)
-			}
-
 			return fmt.Errorf("encrypt PDF '%s': %w", inputPath, err)
 		}
 	}
