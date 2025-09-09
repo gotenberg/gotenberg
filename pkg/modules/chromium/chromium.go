@@ -395,6 +395,11 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 		return errors.New("CHROMIUM_BIN_PATH environment variable is not set")
 	}
 
+	hyphenDataDirPath, ok := os.LookupEnv("CHROMIUM_HYPHEN_DATA_DIR_PATH")
+	if !ok {
+		return errors.New("CHROMIUM_HYPHEN_DATA_DIR_PATH environment variable is not set")
+	}
+
 	mod.args = browserArguments{
 		binPath:                  binPath,
 		incognito:                flags.MustBool("chromium-incognito"),
@@ -405,6 +410,7 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 		hostResolverRules:        flags.MustString("chromium-host-resolver-rules"),
 		proxyServer:              flags.MustString("chromium-proxy-server"),
 		wsUrlReadTimeout:         flags.MustDuration("chromium-start-timeout"),
+		hyphenDataDirPath:        hyphenDataDirPath,
 
 		allowList:         flags.MustRegexp("chromium-allow-list"),
 		denyList:          flags.MustRegexp("chromium-deny-list"),
@@ -447,6 +453,11 @@ func (mod *Chromium) Validate() error {
 	_, err := os.Stat(mod.args.binPath)
 	if os.IsNotExist(err) {
 		return fmt.Errorf("chromium binary path does not exist: %w", err)
+	}
+
+	_, err = os.Stat(mod.args.hyphenDataDirPath)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("chromium hyphen-data directory path does not exist: %w", err)
 	}
 
 	return nil

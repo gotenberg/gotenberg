@@ -10,6 +10,7 @@ build: ## Build the Gotenberg's Docker image
 	-t $(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
 	-f $(DOCKERFILE) $(DOCKER_BUILD_CONTEXT)
 
+GOTENBERG_HIDE_BANNER=false
 GOTENBERG_GRACEFUL_SHUTDOWN_DURATION=30s
 GOTENBERG_BUILD_DEBUG_DATA=true
 API_PORT=3000
@@ -61,11 +62,13 @@ PDFENGINES_FLATTEN_ENGINES=qpdf
 PDFENGINES_CONVERT_ENGINES=libreoffice-pdfengine
 PDFENGINES_READ_METADATA_ENGINES=exiftool
 PDFENGINES_WRITE_METADATA_ENGINES=exiftool
+PDFENGINES_ENCRYPT_ENGINES=qpdf,pdfcpu,pdftk
 PDFENGINES_DISABLE_ROUTES=false
 PROMETHEUS_NAMESPACE=gotenberg
 PROMETHEUS_COLLECT_INTERVAL=1s
 PROMETHEUS_DISABLE_ROUTE_LOGGING=false
 PROMETHEUS_DISABLE_COLLECT=false
+WEBHOOK_ENABLE_SYNC_MODE=false
 WEBHOOK_ALLOW_LIST=
 WEBHOOK_DENY_LIST=
 WEBHOOK_ERROR_ALLOW_LIST=
@@ -84,6 +87,7 @@ run: ## Start a Gotenberg container
 	-e GOTENBERG_API_BASIC_AUTH_PASSWORD=$(GOTENBERG_API_BASIC_AUTH_PASSWORD) \
 	$(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
 	gotenberg \
+	--gotenberg-hide-banner=$(GOTENBERG_HIDE_BANNER) \
 	--gotenberg-graceful-shutdown-duration=$(GOTENBERG_GRACEFUL_SHUTDOWN_DURATION) \
 	--gotenberg-build-debug-data="$(GOTENBERG_BUILD_DEBUG_DATA)" \
 	--api-port=$(API_PORT) \
@@ -133,11 +137,13 @@ run: ## Start a Gotenberg container
 	--pdfengines-convert-engines=$(PDFENGINES_CONVERT_ENGINES) \
 	--pdfengines-read-metadata-engines=$(PDFENGINES_READ_METADATA_ENGINES) \
 	--pdfengines-write-metadata-engines=$(PDFENGINES_WRITE_METADATA_ENGINES) \
+	--pdfengines-encrypt-engines=$(PDFENGINES_ENCRYPT_ENGINES) \
 	--pdfengines-disable-routes=$(PDFENGINES_DISABLE_ROUTES) \
 	--prometheus-namespace=$(PROMETHEUS_NAMESPACE) \
 	--prometheus-collect-interval=$(PROMETHEUS_COLLECT_INTERVAL) \
 	--prometheus-disable-route-logging=$(PROMETHEUS_DISABLE_ROUTE_LOGGING) \
 	--prometheus-disable-collect=$(PROMETHEUS_DISABLE_COLLECT) \
+	--webhook-enable-sync-mode="$(WEBHOOK_ENABLE_SYNC_MODE)" \
 	--webhook-allow-list="$(WEBHOOK_ALLOW_LIST)" \
 	--webhook-deny-list="$(WEBHOOK_DENY_LIST)" \
 	--webhook-error-allow-list=$(WEBHOOK_ERROR_ALLOW_LIST) \

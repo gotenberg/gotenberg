@@ -3,6 +3,7 @@ package gotenberg
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"go.uber.org/zap"
 )
@@ -23,7 +24,30 @@ var (
 	// ErrPdfEngineMetadataValueNotSupported is returned when a metadata value
 	// is not supported.
 	ErrPdfEngineMetadataValueNotSupported = errors.New("metadata value not supported")
+
+	// ErrPdfEncryptionNotSupported is returned when encryption
+	// is not supported by the PDF engine.
+	ErrPdfEncryptionNotSupported = errors.New("encryption not supported")
 )
+
+// PdfEngineInvalidArgsError represents an error returned by a PDF engine when
+// invalid arguments are provided. It includes the name of the engine and a
+// detailed message describing the issue.
+type PdfEngineInvalidArgsError struct {
+	engine string
+	msg    string
+}
+
+// Error implements the error interface.
+func (e *PdfEngineInvalidArgsError) Error() string {
+	return fmt.Sprintf("%s: %s", e.engine, e.msg)
+}
+
+// NewPdfEngineInvalidArgs creates a new PdfEngineInvalidArgsError with the
+// given engine name and message.
+func NewPdfEngineInvalidArgs(engine, msg string) error {
+	return &PdfEngineInvalidArgsError{engine, msg}
+}
 
 const (
 	// SplitModeIntervals represents a mode where a PDF is split at specific
@@ -100,7 +124,7 @@ type PdfEngine interface {
 
 	// Flatten merges existing annotation appearances with page content,
 	// effectively deleting the original annotations. This process can flatten
-	// forms as well, as forms share a relationship with annotations. Note that
+	// forms as well as forms share a relationship with annotations. Note that
 	// this operation is irreversible.
 	Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error
 
@@ -113,6 +137,12 @@ type PdfEngine interface {
 
 	// WriteMetadata writes the metadata into a given PDF file.
 	WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error
+
+	// Encrypt adds password protection to a PDF file.
+	// The userPassword is required to open the document.
+	// The ownerPassword provides full access to the document.
+	// If the ownerPassword is empty, it defaults to the userPassword.
+	Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error
 }
 
 // PdfEngineProvider offers an interface to instantiate a [PdfEngine].

@@ -18,6 +18,7 @@ type multiPdfEngines struct {
 	convertEngines       []gotenberg.PdfEngine
 	readMetadataEngines  []gotenberg.PdfEngine
 	writeMetadataEngines []gotenberg.PdfEngine
+	passwordEngines      []gotenberg.PdfEngine
 }
 
 func newMultiPdfEngines(
@@ -26,7 +27,8 @@ func newMultiPdfEngines(
 	flattenEngines,
 	convertEngines,
 	readMetadataEngines,
-	writeMetadataEngines []gotenberg.PdfEngine,
+	writeMetadataEngines,
+	passwordEngines []gotenberg.PdfEngine,
 ) *multiPdfEngines {
 	return &multiPdfEngines{
 		mergeEngines:         mergeEngines,
@@ -35,11 +37,12 @@ func newMultiPdfEngines(
 		convertEngines:       convertEngines,
 		readMetadataEngines:  readMetadataEngines,
 		writeMetadataEngines: writeMetadataEngines,
+		passwordEngines:      passwordEngines,
 	}
 }
 
-// Merge tries to merge the given PDFs into a unique PDF thanks to its
-// children. If the context is done, it stops and returns an error.
+// Merge combines multiple PDF files into a single document using the first
+// available engine that supports PDF merging.
 func (multi *multiPdfEngines) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
 	var err error
 	errChan := make(chan error, 1)
@@ -68,8 +71,8 @@ type splitResult struct {
 	err         error
 }
 
-// Split tries to split at intervals a given PDF thanks to its children. If the
-// context is done, it stops and returns an error.
+// Split divides the PDF into separate pages using the first available engine
+// that supports PDF splitting.
 func (multi *multiPdfEngines) Split(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
 	var err error
 	var mu sync.Mutex // to safely append errors.
@@ -99,8 +102,8 @@ func (multi *multiPdfEngines) Split(ctx context.Context, logger *zap.Logger, mod
 	return nil, fmt.Errorf("split PDF with multi PDF engines: %w", err)
 }
 
-// Flatten merges existing annotation appearances with page content, thanks to
-// its children. If the context is done, it stops and returns an error
+// Flatten merges existing annotation appearances with page content using the
+// first available engine that supports flattening.
 func (multi *multiPdfEngines) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
 	var err error
 	errChan := make(chan error, 1)
@@ -124,8 +127,8 @@ func (multi *multiPdfEngines) Flatten(ctx context.Context, logger *zap.Logger, i
 	return fmt.Errorf("flatten PDF with multi PDF engines: %w", err)
 }
 
-// Convert converts the given PDF to a specific PDF format, thanks to its
-// children. If the context is done, it stops and returns an error.
+// Convert transforms the given PDF to a specific PDF format using the first
+// available engine that supports PDF conversion.
 func (multi *multiPdfEngines) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 	var err error
 	errChan := make(chan error, 1)
@@ -154,6 +157,8 @@ type readMetadataResult struct {
 	err      error
 }
 
+// ReadMetadata extracts metadata from a PDF file using the first available
+// engine that supports metadata reading.
 func (multi *multiPdfEngines) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
 	var err error
 	var mu sync.Mutex // to safely append errors.
@@ -183,6 +188,8 @@ func (multi *multiPdfEngines) ReadMetadata(ctx context.Context, logger *zap.Logg
 	return nil, fmt.Errorf("read PDF metadata with multi PDF engines: %w", err)
 }
 
+// WriteMetadata embeds metadata into a PDF file using the first available
+// engine that supports metadata writing.
 func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
 	var err error
 	errChan := make(chan error, 1)
@@ -204,6 +211,31 @@ func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *zap.Log
 	}
 
 	return fmt.Errorf("write PDF metadata with multi PDF engines: %w", err)
+}
+
+// Encrypt adds password protection to a PDF file using the first available
+// engine that supports password protection.
+func (multi *multiPdfEngines) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
+	var err error
+	errChan := make(chan error, 1)
+
+	for _, engine := range multi.passwordEngines {
+		go func(engine gotenberg.PdfEngine) {
+			errChan <- engine.Encrypt(ctx, logger, inputPath, userPassword, ownerPassword)
+		}(engine)
+
+		select {
+		case protectErr := <-errChan:
+			errored := multierr.AppendInto(&err, protectErr)
+			if !errored {
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	return fmt.Errorf("encrypt PDF using multi PDF engines: %w", err)
 }
 
 // Interface guards.

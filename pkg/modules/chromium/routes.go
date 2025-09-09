@@ -14,9 +14,9 @@ import (
 	"time"
 
 	"github.com/dlclark/regexp2"
+	"github.com/gomarkdown/markdown"
 	"github.com/labstack/echo/v4"
 	"github.com/microcosm-cc/bluemonday"
-	"github.com/russross/blackfriday/v2"
 	"go.uber.org/multierr"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
@@ -332,6 +332,7 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			mode := pdfengines.FormDataPdfSplitMode(form, false)
 			pdfFormats := pdfengines.FormDataPdfFormats(form)
 			metadata := pdfengines.FormDataPdfMetadata(form, false)
+			userPassword, ownerPassword := pdfengines.FormDataPdfEncrypt(form)
 
 			var url string
 			err := form.
@@ -341,7 +342,7 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata)
+			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword)
 			if err != nil {
 				return fmt.Errorf("convert URL to PDF: %w", err)
 			}
@@ -393,6 +394,7 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			mode := pdfengines.FormDataPdfSplitMode(form, false)
 			pdfFormats := pdfengines.FormDataPdfFormats(form)
 			metadata := pdfengines.FormDataPdfMetadata(form, false)
+			userPassword, ownerPassword := pdfengines.FormDataPdfEncrypt(form)
 
 			var inputPath string
 			err := form.
@@ -403,7 +405,7 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			}
 
 			url := fmt.Sprintf("file://%s", inputPath)
-			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata)
+			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword)
 			if err != nil {
 				return fmt.Errorf("convert HTML to PDF: %w", err)
 			}
@@ -456,6 +458,7 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			mode := pdfengines.FormDataPdfSplitMode(form, false)
 			pdfFormats := pdfengines.FormDataPdfFormats(form)
 			metadata := pdfengines.FormDataPdfMetadata(form, false)
+			userPassword, ownerPassword := pdfengines.FormDataPdfEncrypt(form)
 
 			var (
 				inputPath     string
@@ -475,7 +478,7 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("transform markdown file(s) to HTML: %w", err)
 			}
 
-			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata)
+			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword)
 			if err != nil {
 				return fmt.Errorf("convert markdown to PDF: %w", err)
 			}
@@ -561,7 +564,7 @@ func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) 
 					return "", fmt.Errorf("read markdown file '%s': %w", filename, err)
 				}
 
-				unsafe := blackfriday.Run(b)
+				unsafe := markdown.ToHTML(b, nil, nil)
 				sanitized := bluemonday.UGCPolicy().SanitizeBytes(unsafe)
 
 				// #nosec
@@ -599,7 +602,7 @@ func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) 
 	return fmt.Sprintf("file://%s", inputPath), nil
 }
 
-func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, options PdfOptions, mode gotenberg.SplitMode, pdfFormats gotenberg.PdfFormats, metadata map[string]interface{}) error {
+func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, options PdfOptions, mode gotenberg.SplitMode, pdfFormats gotenberg.PdfFormats, metadata map[string]interface{}, userPassword, ownerPassword string) error {
 	outputPath := ctx.GeneratePath(".pdf")
 	// See https://github.com/gotenberg/gotenberg/issues/1130.
 	filename := ctx.OutputFilename(outputPath)
@@ -654,6 +657,11 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 	err = pdfengines.WriteMetadataStub(ctx, engine, metadata, convertOutputPaths)
 	if err != nil {
 		return fmt.Errorf("write metadata: %w", err)
+	}
+
+	err = pdfengines.EncryptPdfStub(ctx, engine, userPassword, ownerPassword, convertOutputPaths)
+	if err != nil {
+		return fmt.Errorf("encrypt PDFs: %w", err)
 	}
 
 	zeroValuedSplitMode := gotenberg.SplitMode{}

@@ -36,11 +36,11 @@ var Version = "snapshot"
 
 // Run starts the Gotenberg application. Call this in the main of your program.
 func Run() {
-	fmt.Printf(banner, Version)
 	gotenberg.Version = Version
 
 	// Create the root FlagSet and adds the modules flags to it.
 	fs := flag.NewFlagSet("gotenberg", flag.ExitOnError)
+	fs.Bool("gotenberg-hide-banner", false, "Hide the banner")
 	fs.Duration("gotenberg-graceful-shutdown-duration", time.Duration(30)*time.Second, "Set the graceful shutdown duration")
 	fs.Bool("gotenberg-build-debug-data", true, "Set if build data is needed")
 
@@ -50,8 +50,6 @@ func Run() {
 		fs.AddFlagSet(desc.FlagSet)
 		modsInfo += desc.ID + " "
 	}
-
-	fmt.Printf("[SYSTEM] modules: %s\n", modsInfo)
 
 	// Parse the flags.
 	err := fs.Parse(os.Args[1:])
@@ -90,9 +88,13 @@ func Run() {
 
 	// Create a wrapper around our flags.
 	parsedFlags := gotenberg.ParsedFlags{FlagSet: fs}
-
-	// Get the graceful shutdown duration.
+	hideBanner := parsedFlags.MustBool("gotenberg-hide-banner")
 	gracefulShutdownDuration := parsedFlags.MustDuration("gotenberg-graceful-shutdown-duration")
+
+	if !hideBanner {
+		fmt.Printf(banner, Version)
+	}
+	fmt.Printf("[SYSTEM] modules: %s\n", modsInfo)
 
 	ctx := gotenberg.NewContext(parsedFlags, descriptors)
 

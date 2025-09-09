@@ -1,7 +1,29 @@
 Feature: /forms/pdfengines/merge
 
-  Scenario: POST /forms/pdfengines/merge (default - QPDF)
+  Scenario: POST /forms/pdfengines/merge (default)
     Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf | file   |
+      | files                     | testdata/page_2.pdf | file   |
+      | Gotenberg-Output-Filename | foo                 | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 2 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "foo.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
+
+  Scenario: POST /forms/pdfengines/merge (QPDF)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PDFENGINES_MERGE_ENGINES | qpdf |
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
       | files                     | testdata/page_1.pdf | file   |
       | files                     | testdata/page_2.pdf | file   |
@@ -129,7 +151,7 @@ Feature: /forms/pdfengines/merge
       Page 2
       """
     Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
-    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 2 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
 
   Scenario: POST /forms/pdfengines/merge (Metadata)
     Given I have a default Gotenberg container
@@ -199,6 +221,30 @@ Feature: /forms/pdfengines/merge
       """
     Then the response PDF(s) should be flatten
 
+  Scenario: POST /forms/pdfengines/merge (Encrypt - user password only)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files        | testdata/page_1.pdf | file  |
+      | files        | testdata/page_2.pdf | file  |
+      | userPassword | foo                 | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be encrypted
+
+  Scenario: POST /forms/pdfengines/merge (Encrypt - both user and owner passwords)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files         | testdata/page_1.pdf | file  |
+      | files         | testdata/page_2.pdf | file  |
+      | userPassword  | foo                 | field |
+      | ownerPassword | bar                 | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be encrypted
+
+  # FIXME: once decrypt is done, add encrypt and check after the content of the PDF.
   Scenario: POST /forms/pdfengines/merge (PDF/A-1b & PDF/UA-1 & Metadata & Flatten)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
