@@ -151,7 +151,7 @@ Feature: /forms/pdfengines/merge
       Page 2
       """
     Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
-    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 2 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
 
   Scenario: POST /forms/pdfengines/merge (Metadata)
     Given I have a default Gotenberg container

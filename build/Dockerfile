@@ -57,10 +57,9 @@ RUN go build -o gotenberg -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/
 FROM debian:13-slim AS compress-go-binaries-stage
 
 RUN \
-    echo "deb http://deb.debian.org/debian bookworm-backports main" >> /etc/apt/sources.list &&\
     apt-get update -qq &&\
     apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t bookworm-backports upx-ucl
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends upx-ucl
 
 COPY --from=pdfcpu-binary-stage /home/pdfcpu /home/pdfcpu
 COPY --from=gotenberg-binary-stage /home/gotenberg /home/gotenberg
@@ -211,10 +210,11 @@ ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 
 RUN \
-    # Install LibreOffice & unoconverter.
+    # Install LibreOffice & unoconverter. \
+    echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/sources.list &&\
     apt-get update -qq &&\
     apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends libreoffice &&\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t trixie-backports libreoffice &&\
     curl -Ls https://raw.githubusercontent.com/gotenberg/unoconverter/v0.1.1/unoconv -o /usr/bin/unoconverter &&\
     chmod +x /usr/bin/unoconverter &&\
     # unoconverter will look for the Python binary, which has to be at version 3.

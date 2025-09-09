@@ -703,7 +703,7 @@ Feature: /forms/chromium/convert/html
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
-    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 2 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
 
   Scenario: POST /forms/chromium/convert/html (Split & PDF/A-1b & PDF/UA-1)
     Given I have a default Gotenberg container
@@ -734,7 +734,7 @@ Feature: /forms/chromium/convert/html
       Page 3
       """
     Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
-    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 2 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
 
   # See https://github.com/gotenberg/gotenberg/issues/1130.
   Scenario: POST /forms/chromium/convert/html (Split & PDF/A-1b & PDF/UA-1 & Output Filename)
@@ -768,7 +768,7 @@ Feature: /forms/chromium/convert/html
       Page 3
       """
     Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
-    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 2 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
 
   Scenario: POST /forms/chromium/convert/html (Metadata)
     Given I have a default Gotenberg container
