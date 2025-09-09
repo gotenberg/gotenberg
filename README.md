@@ -49,3 +49,15 @@ Head to the [documentation](https://gotenberg.dev/docs/getting-started/introduct
 </p>
 
 Sponsorships help maintain and improve Gotenberg - [become a sponsor](https://github.com/sponsors/gulien) ❤️
+
+---
+
+<p align="center">
+  <strong>Powered by</strong>
+</p>
+
+<p align="center">
+  <a href="https://jb.gg/OpenSource">
+    <img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg" alt="JetBrains logo" width="200"/>
+  </a>
+</p>
