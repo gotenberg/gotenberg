@@ -14,7 +14,7 @@ inputs:
     description: The Docker Hub password
     required: true
   platform:
-    description: linux/amd64, linux/386, linux/arm64, linux/arm/v7
+    description: linux/amd64, linux/ppc64le, linux/386, linux/arm64, linux/arm/v7
     required: true
   version:
     description: Gotenberg version
