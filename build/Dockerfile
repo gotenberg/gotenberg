@@ -52,23 +52,6 @@ COPY pkg ./pkg
 RUN go build -o gotenberg -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg/main.go
 
 # ----------------------------------------------
-# Compress Golang binaries stage
-# ----------------------------------------------
-FROM debian:13-slim AS compress-go-binaries-stage
-
-RUN \
-    apt-get update -qq &&\
-    apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends upx-ucl
-
-COPY --from=pdfcpu-binary-stage /home/pdfcpu /home/pdfcpu
-COPY --from=gotenberg-binary-stage /home/gotenberg /home/gotenberg
-
-RUN \
-    upx-ucl --best /home/pdfcpu &&\
-    upx-ucl --best /home/gotenberg
-
-# ----------------------------------------------
 # Custom JRE stage
 # Credits: https://github.com/jodconverter/docker-image-jodconverter-runtime
 # ----------------------------------------------
@@ -264,8 +247,8 @@ COPY build/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 COPY --chown=gotenberg:gotenberg build/chromium-hyphen-data /opt/gotenberg/chromium-hyphen-data
 
 # Copy the Golang binaries.
-COPY --from=compress-go-binaries-stage /home/pdfcpu /usr/bin/
-COPY --from=compress-go-binaries-stage /home/gotenberg /usr/bin/
+COPY --from=pdfcpu-binary-stage /home/pdfcpu /usr/bin/
+COPY --from=gotenberg-binary-stage /home/gotenberg /usr/bin/
 
 # Environment variables required by modules or else.
 ENV CHROMIUM_BIN_PATH=/usr/bin/chromium
