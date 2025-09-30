@@ -254,7 +254,7 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 	args := []string{
 		"--no-launch",
 		"--format",
-		"pdf",
+		options.OutputFormat,
 	}
 
 	args = append(args, "--port", fmt.Sprintf("%d", p.socketPort))

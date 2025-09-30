@@ -62,6 +62,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				nativePdfFormats                bool
 				merge                           bool
 				flatten                         bool
+				outputFormat                    string
 			)
 
 			err := form.
@@ -130,6 +131,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				Bool("nativePdfFormats", &nativePdfFormats, true).
 				Bool("merge", &merge, false).
 				Bool("flatten", &flatten, false).
+				String("outputFormat", &outputFormat, defaultOptions.OutputFormat).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -137,7 +139,17 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 
 			outputPaths := make([]string, len(inputPaths))
 			for i, inputPath := range inputPaths {
-				outputPaths[i] = ctx.GeneratePath(".pdf")
+				switch outputFormat {
+				case "pdf":
+					outputPaths[i] = ctx.GeneratePath(".pdf")
+				case "text":
+					outputPaths[i] = ctx.GeneratePath(".txt")
+				default:
+					return api.WrapError(
+						fmt.Errorf("invalid out format: %s", outputFormat),
+						api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("invalid out format: %s", outputFormat)),
+					)
+				}
 				options := libreofficeapi.Options{
 					Password:                        password,
 					Landscape:                       landscape,
@@ -162,6 +174,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					Quality:                         quality,
 					ReduceImageResolution:           reduceImageResolution,
 					MaxImageResolution:              maxImageResolution,
+					OutputFormat:                    outputFormat,
 				}
 
 				if nativePdfFormats && splitMode == zeroValuedSplitMode {
@@ -272,6 +285,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			if len(outputPaths) > 1 && splitMode == zeroValuedSplitMode {
 				// If .zip archive, document.docx -> document.docx.pdf.
 				for i, inputPath := range inputPaths {
+					// TODO: replace .pdf for text conversions
 					outputPath := fmt.Sprintf("%s.pdf", inputPath)
 
 					err = ctx.Rename(outputPaths[i], outputPath)
