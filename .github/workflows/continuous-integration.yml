@@ -98,7 +98,7 @@ jobs:
     needs:
       - test-unit
     name: Snapshot linux/ppc64le
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-ppc64le
     outputs:
       tags: ${{ steps.build_test_push.outputs.tags }}
       tags_cloud_run: ${{ steps.build_test_push.outputs.tags_cloud_run }}
@@ -297,7 +297,7 @@ jobs:
     needs:
       - test-unit
     name: Edge linux/ppc64le
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-ppc64le
     outputs:
       tags: ${{ steps.build_test_push.outputs.tags }}
       tags_cloud_run: ${{ steps.build_test_push.outputs.tags_cloud_run }}
