@@ -34,6 +34,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tags: ${{ steps.build_push.outputs.tags }}
+      tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
+      tags_aws_lambda: ${{ steps.build_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
         uses: actions/checkout@v5
@@ -46,6 +48,27 @@ jobs:
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
           version: ${{ github.event.release.tag_name }}
           platform: linux/386
+          skip_integrations_tests: true
+
+  release_ppc64le:
+    name: Release linux/ppc64le
+    runs-on: ubuntu-24.04-ppc64le
+    outputs:
+      tags: ${{ steps.build_push.outputs.tags }}
+      tags_cloud_run: ${{ steps.build_push.outputs.tags_cloud_run }}
+      tags_aws_lambda: ${{ steps.build_push.outputs.tags_aws_lambda }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Build and push
+        id: build_push
+        uses: ./.github/actions/build-test-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: ${{ github.event.release.tag_name }}
+          platform: linux/ppc64le
           skip_integrations_tests: true
 
   release_arm64:
@@ -94,6 +117,7 @@ jobs:
     needs:
       - release_amd64
       - release_386
+      - release_ppc64le
       - release_arm64
       - release_arm_v7
     name: Merge and clean release tags
@@ -107,7 +131,7 @@ jobs:
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
-          tags: "${{ needs.release_amd64.outputs.tags }},${{ needs.release_386.outputs.tags }},${{ needs.release_arm64.outputs.tags }},${{ needs.release_arm_v7.outputs.tags }}"
+          tags: "${{ needs.release_amd64.outputs.tags }},${{ needs.release_386.outputs.tags }},${{ needs.release_ppc64le.outputs.tags }},${{ needs.release_arm64.outputs.tags }},${{ needs.release_arm_v7.outputs.tags }}"
           alternate_registry: thecodingmachine
 
       - name: Merge AWS Lambda
@@ -123,4 +147,4 @@ jobs:
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
-          tags: "${{ needs.release_amd64.outputs.tags }},${{ needs.release_386.outputs.tags }},${{ needs.release_arm64.outputs.tags }},${{ needs.release_arm_v7.outputs.tags }},${{ needs.release_amd64.outputs.tags_aws_lambda }},${{ needs.release_arm64.outputs.tags_aws_lambda }}"
+          tags: "${{ needs.release_amd64.outputs.tags }},${{ needs.release_386.outputs.tags }},${{ needs.release_ppc64le.outputs.tags }},${{ needs.release_arm64.outputs.tags }},${{ needs.release_arm_v7.outputs.tags }},${{ needs.release_amd64.outputs.tags_aws_lambda }},${{ needs.release_arm64.outputs.tags_aws_lambda }}"
