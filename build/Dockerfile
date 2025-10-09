@@ -177,7 +177,7 @@ RUN \
 
 RUN \
     # Install Hyphenation for LibreOffice.
-    # Credits: https://wiki.archlinux.org/title/LibreOffice
+    # Credits: https://wiki.archlinux.org/title/LibreOffice.
     apt-get update -qq &&\
     apt-get upgrade -yqq &&\
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
