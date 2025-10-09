@@ -11,4 +11,12 @@ USER root
 # See https://github.com/gotenberg/gotenberg/issues/90#issuecomment-543551353.
 RUN chown gotenberg: /usr/bin/tini
 
+# Gotenberg.
+ENV API_PORT_FROM_ENV=PORT
+ENV CHROMIUM_AUTO_START=true
+ENV LIBREOFFICE_AUTO_START=true
+ENV WEBHOOK_ENABLE_SYNC_MODE=true
+ENV GOTENBERG_BUILD_DEBUG_DATA=false
+ENV LOG_ENABLE_GCP_FIELDS=true
+
 USER gotenberg

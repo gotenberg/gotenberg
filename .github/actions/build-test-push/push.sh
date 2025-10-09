@@ -32,7 +32,13 @@ echo "Push tag(s) 📦"
 echo
 
 echo "Tag(s) to push:"
-IFS=',' read -ra tags_to_push <<< "$tags"
+IFS=',' read -ra tmp_tags_to_push <<< "$tags"
+
+tags_to_push=()
+for tag in "${tmp_tags_to_push[@]}"; do
+  [ -n "$tag" ] && tags_to_push+=("$tag")
+done
+
 for tag in "${tags_to_push[@]}"; do
   echo "- $tag"
 done
