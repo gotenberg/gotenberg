@@ -18,6 +18,7 @@ func init() {
 // Webhook is a module that provides a middleware for uploading output files
 // to any destinations in an asynchronous fashion.
 type Webhook struct {
+	enableSyncMode bool
 	allowList      *regexp2.Regexp
 	denyList       *regexp2.Regexp
 	errorAllowList *regexp2.Regexp
@@ -36,6 +37,7 @@ func (w *Webhook) Descriptor() gotenberg.ModuleDescriptor {
 		ID: "webhook",
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("webhook", flag.ExitOnError)
+			fs.Bool("webhook-enable-sync-mode", false, "Enable synchronous mode for the webhook feature")
 			fs.String("webhook-allow-list", "", "Set the allowed URLs for the webhook feature using a regular expression")
 			fs.String("webhook-deny-list", "", "Set the denied URLs for the webhook feature using a regular expression")
 			fs.String("webhook-error-allow-list", "", "Set the allowed URLs in case of an error for the webhook feature using a regular expression")
@@ -55,6 +57,7 @@ func (w *Webhook) Descriptor() gotenberg.ModuleDescriptor {
 // Provision sets the module properties.
 func (w *Webhook) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
+	w.enableSyncMode = flags.MustBool("webhook-enable-sync-mode")
 	w.allowList = flags.MustRegexp("webhook-allow-list")
 	w.denyList = flags.MustRegexp("webhook-deny-list")
 	w.errorAllowList = flags.MustRegexp("webhook-error-allow-list")

@@ -20,11 +20,74 @@ import (
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
 )
 
+type sendOutputFileParams struct {
+	ctx              *api.Context
+	outputPath       string
+	extraHttpHeaders map[string]string
+	traceHeader      string
+	trace            string
+	client           *client
+	handleError      func(error)
+}
+
 func webhookMiddleware(w *Webhook) api.Middleware {
 	return api.Middleware{
 		Stack: api.MultipartStack,
 		Handler: func() echo.MiddlewareFunc {
 			return func(next echo.HandlerFunc) echo.HandlerFunc {
+				sendOutputFile := func(params sendOutputFileParams) {
+					outputFile, err := os.Open(params.outputPath)
+					if err != nil {
+						params.ctx.Log().Error(fmt.Sprintf("open output file: %s", err))
+						params.handleError(err)
+						return
+					}
+					defer func() {
+						err := outputFile.Close()
+						if err != nil {
+							params.ctx.Log().Error(fmt.Sprintf("close output file: %s", err))
+						}
+					}()
+
+					fileHeader := make([]byte, 512)
+					_, err = outputFile.Read(fileHeader)
+					if err != nil {
+						params.ctx.Log().Error(fmt.Sprintf("read header of output file: %s", err))
+						params.handleError(err)
+						return
+					}
+
+					fileStat, err := outputFile.Stat()
+					if err != nil {
+						params.ctx.Log().Error(fmt.Sprintf("get stat from output file: %s", err))
+						params.handleError(err)
+						return
+					}
+
+					_, err = outputFile.Seek(0, 0)
+					if err != nil {
+						params.ctx.Log().Error(fmt.Sprintf("reset output file reader: %s", err))
+						params.handleError(err)
+						return
+					}
+
+					headers := map[string]string{
+						echo.HeaderContentType:   http.DetectContentType(fileHeader),
+						echo.HeaderContentLength: strconv.FormatInt(fileStat.Size(), 10),
+						params.traceHeader:       params.trace,
+					}
+					_, ok := params.extraHttpHeaders[echo.HeaderContentDisposition]
+					if !ok {
+						headers[echo.HeaderContentDisposition] = fmt.Sprintf("attachment; filename=%q", params.ctx.OutputFilename(params.outputPath))
+					}
+
+					err = params.client.send(bufio.NewReader(outputFile), headers, false)
+					if err != nil {
+						params.ctx.Log().Error(fmt.Sprintf("send output file to webhook: %s", err))
+						params.handleError(err)
+					}
+				}
+
 				return func(c echo.Context) error {
 					webhookUrl := c.Request().Header.Get("Gotenberg-Webhook-Url")
 					if webhookUrl == "" {
@@ -144,7 +207,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 					// This method parses an "asynchronous" error and sends a
 					// request to the webhook error URL with a JSON body
 					// containing the status and the error message.
-					handleAsyncError := func(err error) {
+					handleError := func(err error) {
 						status, message := api.ParseError(err)
 
 						body := struct {
@@ -158,7 +221,6 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						b, err := json.Marshal(body)
 						if err != nil {
 							ctx.Log().Error(fmt.Sprintf("marshal JSON: %s", err.Error()))
-
 							return
 						}
 
@@ -173,10 +235,46 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						}
 					}
 
-					w.asyncCount.Add(1)
+					if w.enableSyncMode {
+						err := next(c)
+						if err != nil {
+							if errors.Is(err, api.ErrNoOutputFile) {
+								errNoOutputFile := fmt.Errorf("%w - the webhook middleware cannot handle the result of this route", err)
+								handleError(api.WrapError(
+									errNoOutputFile,
+									api.NewSentinelHttpError(
+										http.StatusBadRequest,
+										"The webhook middleware can only work with multipart/form-data routes that results in output files",
+									),
+								))
+								return nil
+							}
+							ctx.Log().Error(err.Error())
+							handleError(err)
+							return nil
+						}
 
+						outputPath, err := ctx.BuildOutputFile()
+						if err != nil {
+							ctx.Log().Error(fmt.Sprintf("build output file: %s", err))
+							handleError(err)
+							return nil
+						}
+						// No error, let's send the output file to the webhook URL.
+						sendOutputFile(sendOutputFileParams{
+							ctx:              ctx,
+							outputPath:       outputPath,
+							extraHttpHeaders: extraHttpHeaders,
+							traceHeader:      traceHeader,
+							trace:            trace,
+							client:           client,
+							handleError:      handleError,
+						})
+						return c.NoContent(http.StatusNoContent)
+					}
 					// As a webhook URL has been given, we handle the request in a
 					// goroutine and return immediately.
+					w.asyncCount.Add(1)
 					go func() {
 						defer cancel()
 						defer w.asyncCount.Add(-1)
@@ -186,7 +284,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						if err != nil {
 							if errors.Is(err, api.ErrNoOutputFile) {
 								errNoOutputFile := fmt.Errorf("%w - the webhook middleware cannot handle the result of this route", err)
-								handleAsyncError(api.WrapError(
+								handleError(api.WrapError(
 									errNoOutputFile,
 									api.NewSentinelHttpError(
 										http.StatusBadRequest,
@@ -198,7 +296,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 							// The process failed for whatever reason. Let's send the
 							// details to the webhook.
 							ctx.Log().Error(err.Error())
-							handleAsyncError(err)
+							handleError(err)
 							return
 						}
 
@@ -206,65 +304,19 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						outputPath, err := ctx.BuildOutputFile()
 						if err != nil {
 							ctx.Log().Error(fmt.Sprintf("build output file: %s", err))
-							handleAsyncError(err)
+							handleError(err)
 							return
 						}
 
-						outputFile, err := os.Open(outputPath)
-						if err != nil {
-							ctx.Log().Error(fmt.Sprintf("open output file: %s", err))
-							handleAsyncError(err)
-							return
-						}
-
-						defer func() {
-							err := outputFile.Close()
-							if err != nil {
-								ctx.Log().Error(fmt.Sprintf("close output file: %s", err))
-							}
-						}()
-
-						fileHeader := make([]byte, 512)
-						_, err = outputFile.Read(fileHeader)
-						if err != nil {
-							ctx.Log().Error(fmt.Sprintf("read header of output file: %s", err))
-							handleAsyncError(err)
-							return
-						}
-
-						fileStat, err := outputFile.Stat()
-						if err != nil {
-							ctx.Log().Error(fmt.Sprintf("get stat from output file: %s", err))
-							handleAsyncError(err)
-							return
-						}
-
-						_, err = outputFile.Seek(0, 0)
-						if err != nil {
-							ctx.Log().Error(fmt.Sprintf("reset output file reader: %s", err))
-							handleAsyncError(err)
-							return
-						}
-
-						headers := map[string]string{
-							echo.HeaderContentType:   http.DetectContentType(fileHeader),
-							echo.HeaderContentLength: strconv.FormatInt(fileStat.Size(), 10),
-							traceHeader:              trace,
-						}
-
-						// Allow for custom Content-Disposition header.
-						// See https://github.com/gotenberg/gotenberg/issues/1165.
-						_, ok := extraHttpHeaders[echo.HeaderContentDisposition]
-						if !ok {
-							headers[echo.HeaderContentDisposition] = fmt.Sprintf("attachment; filename=%q", ctx.OutputFilename(outputPath))
-						}
-
-						// Send the output file to the webhook.
-						err = client.send(bufio.NewReader(outputFile), headers, false)
-						if err != nil {
-							ctx.Log().Error(fmt.Sprintf("send output file to webhook: %s", err))
-							handleAsyncError(err)
-						}
+						sendOutputFile(sendOutputFileParams{
+							ctx:              ctx,
+							outputPath:       outputPath,
+							extraHttpHeaders: extraHttpHeaders,
+							traceHeader:      traceHeader,
+							trace:            trace,
+							client:           client,
+							handleError:      handleError,
+						})
 					}()
 
 					return api.ErrAsyncProcess
