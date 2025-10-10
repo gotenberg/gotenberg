@@ -292,3 +292,80 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 		},
 	}
 }
+
+// convertToTxtRoute returns an [api.Route] which can convert LibreOffice documents
+// to TXT.
+func convertToTxtRoute(libreOffice libreofficeapi.Uno) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/libreoffice/convert/txt",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+			defaultOptions := libreofficeapi.DefaultTxtOptions()
+
+			form := ctx.FormData()
+
+			var (
+				inputPaths []string
+				password   string
+			)
+
+			err := form.
+				MandatoryPaths(libreOffice.Extensions(), &inputPaths).
+				String("password", &password, defaultOptions.Password).
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			outputPaths := make([]string, len(inputPaths))
+			for i, inputPath := range inputPaths {
+				outputPaths[i] = ctx.GeneratePath(".txt")
+				options := libreofficeapi.TxtOptions{
+					Password: password,
+				}
+
+				err = libreOffice.Txt(ctx, ctx.Log(), inputPath, outputPaths[i], options)
+				if err != nil {
+					if errors.Is(err, libreofficeapi.ErrUnoException) {
+						return api.WrapError(
+							fmt.Errorf("convert to TXT: %w", err),
+							api.NewSentinelHttpError(http.StatusBadRequest, "LibreOffice failed to process a document: possible causes include a malformed document, or, if a password has been provided, it may not be required. In any case, the exact cause is uncertain."),
+						)
+					}
+
+					if errors.Is(err, libreofficeapi.ErrRuntimeException) {
+						return api.WrapError(
+							fmt.Errorf("convert to TXT: %w", err),
+							api.NewSentinelHttpError(http.StatusBadRequest, "LibreOffice failed to process a document: a password may be required, or, if one has been given, it is invalid. In any case, the exact cause is uncertain."),
+						)
+					}
+
+					return fmt.Errorf("convert to TXT: %w", err)
+				}
+			}
+
+			if len(outputPaths) > 1 {
+				// If .zip archive, document.docx -> document.docx.txt.
+				for i, inputPath := range inputPaths {
+					outputPath := fmt.Sprintf("%s.txt", inputPath)
+
+					err = ctx.Rename(outputPaths[i], outputPath)
+					if err != nil {
+						return fmt.Errorf("rename output path: %w", err)
+					}
+
+					outputPaths[i] = outputPath
+				}
+			}
+
+			err = ctx.AddOutputPaths(outputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
+			}
+
+			return nil
+		},
+	}
+}

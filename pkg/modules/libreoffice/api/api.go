@@ -185,9 +185,23 @@ func DefaultOptions() Options {
 	}
 }
 
+// TxtOptions gathers available options when converting a document to TXT.
+type TxtOptions struct {
+	// Password specifies the password for opening the source file.
+	Password string
+}
+
+// DefaultTxtOptions returns the default values for TxtOptions.
+func DefaultTxtOptions() TxtOptions {
+	return TxtOptions{
+		Password: "",
+	}
+}
+
 // Uno is an abstraction on top of the Universal Network Objects API.
 type Uno interface {
 	Pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
+	Txt(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options TxtOptions) error
 	Extensions() []string
 }
 
@@ -415,6 +429,25 @@ func (a *Api) Pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath
 	if errors.Is(err, ErrCoreDumped) {
 		logger.Debug(fmt.Sprintf("got a '%s' error, retry conversion", err))
 		return a.Pdf(ctx, logger, inputPath, outputPath, options)
+	}
+
+	return fmt.Errorf("supervisor run task: %w", err)
+}
+
+// Txt converts a document to TXT.
+func (a *Api) Txt(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options TxtOptions) error {
+	err := a.supervisor.Run(ctx, logger, func() error {
+		return a.libreOffice.txt(ctx, logger, inputPath, outputPath, options)
+	})
+
+	if err == nil {
+		return nil
+	}
+
+	// See https://github.com/gotenberg/gotenberg/issues/639.
+	if errors.Is(err, ErrCoreDumped) {
+		logger.Debug(fmt.Sprintf("got a '%s' error, retry conversion", err))
+		return a.Txt(ctx, logger, inputPath, outputPath, options)
 	}
 
 	return fmt.Errorf("supervisor run task: %w", err)

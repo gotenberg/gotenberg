@@ -19,6 +19,7 @@ import (
 type libreOffice interface {
 	gotenberg.Process
 	pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
+	txt(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options TxtOptions) error
 }
 
 type libreOfficeArguments struct {
@@ -364,6 +365,64 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 	}
 
 	return fmt.Errorf("convert to PDF: %w", err)
+}
+
+func (p *libreOfficeProcess) txt(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options TxtOptions) error {
+	if !p.isStarted.Load() {
+		return errors.New("LibreOffice not started, cannot handle TXT conversion")
+	}
+
+	args := []string{
+		"--no-launch",
+		"--format",
+		"txt",
+	}
+
+	args = append(args, "--port", fmt.Sprintf("%d", p.socketPort))
+
+	checkedEntry := logger.Check(zap.DebugLevel, "check for debug level before setting high verbosity")
+	if checkedEntry != nil {
+		args = append(args, "-vvv")
+	}
+
+	if options.Password != "" {
+		args = append(args, "--password", options.Password)
+	}
+
+	args = append(args, "--output", outputPath, inputPath)
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, p.arguments.unoBinPath, args...)
+	if err != nil {
+		return fmt.Errorf("create uno command: %w", err)
+	}
+
+	logger.Debug(fmt.Sprintf("convert to TXT with: %+v", options))
+
+	exitCode, err := cmd.Exec()
+	if err == nil {
+		return nil
+	}
+
+	// LibreOffice's errors are not explicit.
+	// For instance, exit code 5 may be explained by a malformed page range
+	// but also by a not required password.
+
+	// We may want to retry in case of a core-dumped event.
+	// See https://github.com/gotenberg/gotenberg/issues/639.
+	if strings.Contains(err.Error(), "core dumped") {
+		return ErrCoreDumped
+	}
+
+	if exitCode == 5 {
+		// Potentially malformed document or password not required.
+		return ErrUnoException
+	}
+	if exitCode == 6 {
+		// Password potentially required or invalid.
+		return ErrRuntimeException
+	}
+
+	return fmt.Errorf("convert to TXT: %w", err)
 }
 
 // Interface guards.

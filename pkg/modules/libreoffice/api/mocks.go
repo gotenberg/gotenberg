@@ -12,11 +12,16 @@ import (
 // ApiMock is a mock for the [Uno] interface.
 type ApiMock struct {
 	PdfMock        func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
+	TxtMock        func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options TxtOptions) error
 	ExtensionsMock func() []string
 }
 
 func (api *ApiMock) Pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error {
 	return api.PdfMock(ctx, logger, inputPath, outputPath, options)
+}
+
+func (api *ApiMock) Txt(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options TxtOptions) error {
+	return api.TxtMock(ctx, logger, inputPath, outputPath, options)
 }
 
 func (api *ApiMock) Extensions() []string {
@@ -38,10 +43,22 @@ type libreOfficeMock struct {
 
 	gotenberg.ProcessMock
 	pdfMock func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
+	txtMock func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options TxtOptions) error
 }
 
 func (b *libreOfficeMock) pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error {
 	err := b.pdfMock(ctx, logger, inputPath, outputPath, options)
+	if errors.Is(err, ErrCoreDumped) {
+		b.errCoreDumpedCount += 1
+	}
+	if b.errCoreDumpedCount > 1 {
+		return nil
+	}
+	return err
+}
+
+func (b *libreOfficeMock) txt(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options TxtOptions) error {
+	err := b.txtMock(ctx, logger, inputPath, outputPath, options)
 	if errors.Is(err, ErrCoreDumped) {
 		b.errCoreDumpedCount += 1
 	}
