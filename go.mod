@@ -9,7 +9,7 @@ require (
 	github.com/chromedp/chromedp v0.14.2
 	github.com/cucumber/godog v0.15.1
 	github.com/dlclark/regexp2 v1.11.5
-	github.com/docker/docker v28.5.0+incompatible
+	github.com/docker/docker v28.5.1+incompatible
 	github.com/docker/go-connections v0.6.0
 	github.com/gomarkdown/markdown v0.0.0-20250810172220-2e2c11897d1a
 	github.com/google/uuid v1.6.0
