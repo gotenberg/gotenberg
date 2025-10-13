@@ -59,7 +59,7 @@ jobs:
       tags_aws_lambda: ${{ steps.build_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Build and push
         id: build_push
