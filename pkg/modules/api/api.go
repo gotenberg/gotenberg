@@ -40,6 +40,11 @@ type Api struct {
 	traceHeader               string
 	basicAuthUsername         string
 	basicAuthPassword         string
+	oidcEnabled               bool
+	oidcIssuer                string
+	oidcAudience              string
+	oidcJwksURL               string
+	oidcJwksCache             time.Duration
 	downloadFromCfg           downloadFromConfig
 	disableHealthCheckLogging bool
 	enableDebugRoute          bool
@@ -192,6 +197,11 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.String("api-root-path", "/", "Set the root path of the API - for service discovery via URL paths")
 			fs.String("api-trace-header", "Gotenberg-Trace", "Set the header name to use for identifying requests")
 			fs.Bool("api-enable-basic-auth", false, "Enable basic authentication - will look for the GOTENBERG_API_BASIC_AUTH_USERNAME and GOTENBERG_API_BASIC_AUTH_PASSWORD environment variables")
+			fs.Bool("api-enable-oidc-auth", false, "Enable OIDC authentication - will look for OIDC configuration in environment variables")
+			fs.String("api-oidc-issuer", "", "OIDC issuer URL (e.g., https://your-tenant.auth0.com/) - can be overridden by GOTENBERG_API_OIDC_ISSUER env var")
+			fs.String("api-oidc-audience", "", "OIDC audience - can be overridden by GOTENBERG_API_OIDC_AUDIENCE env var")
+			fs.String("api-oidc-jwks-url", "", "OIDC JWKS URL (optional, auto-discovered if not provided) - can be overridden by GOTENBERG_API_OIDC_JWKS_URL env var")
+			fs.Duration("api-oidc-jwks-cache-duration", time.Duration(1)*time.Hour, "Duration to cache JWKS keys")
 			fs.String("api-download-from-allow-list", "", "Set the allowed URLs for the download from feature using a regular expression")
 			fs.String("api-download-from-deny-list", "", "Set the denied URLs for the download from feature using a regular expression")
 			fs.Int("api-download-from-max-retry", 4, "Set the maximum number of retries for the download from feature")
@@ -248,6 +258,43 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 		}
 		a.basicAuthUsername = basicAuthUsername
 		a.basicAuthPassword = basicAuthPassword
+	}
+
+	// Enable OIDC auth?
+	enableOidcAuth := flags.MustBool("api-enable-oidc-auth")
+	if enableOidcAuth {
+		// Check for mutual exclusion
+		if a.basicAuthUsername != "" {
+			return fmt.Errorf("cannot enable both basic auth and OIDC auth simultaneously")
+		}
+
+		oidcIssuer := flags.MustString("api-oidc-issuer")
+		oidcAudience := flags.MustString("api-oidc-audience")
+		oidcJwksURL := flags.MustString("api-oidc-jwks-url")
+
+		// Override with env vars if present
+		if envIssuer, err := gotenberg.StringEnv("GOTENBERG_API_OIDC_ISSUER"); err == nil {
+			oidcIssuer = envIssuer
+		}
+		if envAudience, err := gotenberg.StringEnv("GOTENBERG_API_OIDC_AUDIENCE"); err == nil {
+			oidcAudience = envAudience
+		}
+		if envJwksURL, err := gotenberg.StringEnv("GOTENBERG_API_OIDC_JWKS_URL"); err == nil {
+			oidcJwksURL = envJwksURL
+		}
+
+		if oidcIssuer == "" {
+			return fmt.Errorf("OIDC issuer is required when OIDC auth is enabled")
+		}
+		if oidcAudience == "" {
+			return fmt.Errorf("OIDC audience is required when OIDC auth is enabled")
+		}
+
+		a.oidcEnabled = true
+		a.oidcIssuer = oidcIssuer
+		a.oidcAudience = oidcAudience
+		a.oidcJwksURL = oidcJwksURL
+		a.oidcJwksCache = flags.MustDuration("api-oidc-jwks-cache-duration")
 	}
 
 	// Get routes from modules.
@@ -384,6 +431,21 @@ func (a *Api) Validate() error {
 		)
 	}
 
+	if a.basicAuthUsername != "" && a.oidcEnabled {
+		err = multierr.Append(err,
+			errors.New("cannot enable both basic authentication and OIDC authentication"),
+		)
+	}
+
+	if a.oidcEnabled {
+		if a.oidcIssuer == "" {
+			err = multierr.Append(err, errors.New("OIDC issuer must not be empty when OIDC auth is enabled"))
+		}
+		if a.oidcAudience == "" {
+			err = multierr.Append(err, errors.New("OIDC audience must not be empty when OIDC auth is enabled"))
+		}
+	}
+
 	if err != nil {
 		return err
 	}
@@ -481,10 +543,16 @@ func (a *Api) Start() error {
 
 	hardTimeout := a.timeout + (time.Duration(5) * time.Second)
 
-	// Basic auth?
+	// Security middleware (Basic auth or OIDC)?
 	var securityMiddleware echo.MiddlewareFunc
 	if a.basicAuthUsername != "" {
 		securityMiddleware = basicAuthMiddleware(a.basicAuthUsername, a.basicAuthPassword)
+	} else if a.oidcEnabled {
+		oidcMiddleware, err := oidcAuthMiddleware(a.oidcIssuer, a.oidcAudience, a.oidcJwksURL, a.oidcJwksCache, a.logger)
+		if err != nil {
+			return fmt.Errorf("create OIDC middleware: %w", err)
+		}
+		securityMiddleware = oidcMiddleware
 	} else {
 		securityMiddleware = func(next echo.HandlerFunc) echo.HandlerFunc {
 			return func(c echo.Context) error {

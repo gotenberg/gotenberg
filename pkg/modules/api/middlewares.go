@@ -10,9 +10,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
@@ -264,6 +266,114 @@ func basicAuthMiddleware(username, password string) echo.MiddlewareFunc {
 		}
 		return false, nil
 	})
+}
+
+// oidcAuthMiddleware manages OIDC JWT token authentication.
+func oidcAuthMiddleware(issuer, audience, jwksURL string, cacheTimeout time.Duration, logger *zap.Logger) (echo.MiddlewareFunc, error) {
+	// Auto-discover JWKS URL if not provided
+	if jwksURL == "" {
+		jwksURL = strings.TrimSuffix(issuer, "/") + "/.well-known/jwks.json"
+	}
+
+	// Create JWKS cache
+	jwksCache := jwk.NewCache(context.Background())
+	err := jwksCache.Register(jwksURL, jwk.WithMinRefreshInterval(cacheTimeout))
+	if err != nil {
+		return nil, fmt.Errorf("failed to register JWKS URL: %w", err)
+	}
+
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			authHeader := c.Request().Header.Get("Authorization")
+			if authHeader == "" {
+				return echo.NewHTTPError(http.StatusUnauthorized, "Authorization header is required")
+			}
+
+			// Extract Bearer token
+			const bearerPrefix = "Bearer "
+			if !strings.HasPrefix(authHeader, bearerPrefix) {
+				return echo.NewHTTPError(http.StatusUnauthorized, "Authorization header must start with 'Bearer '")
+			}
+
+			tokenString := authHeader[len(bearerPrefix):]
+			if tokenString == "" {
+				return echo.NewHTTPError(http.StatusUnauthorized, "Bearer token is required")
+			}
+
+			// Parse and validate JWT
+			token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
+				// Verify signing algorithm
+				if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+					return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+				}
+
+				// Get JWKS key
+				keySet, err := jwksCache.Get(context.Background(), jwksURL)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get JWKS: %w", err)
+				}
+
+				keyID, ok := token.Header["kid"].(string)
+				if !ok {
+					return nil, fmt.Errorf("token header missing 'kid'")
+				}
+
+				key, found := keySet.LookupKeyID(keyID)
+				if !found {
+					return nil, fmt.Errorf("key with ID '%s' not found", keyID)
+				}
+
+				var rawKey interface{}
+				if err := key.Raw(&rawKey); err != nil {
+					return nil, fmt.Errorf("failed to get raw key: %w", err)
+				}
+
+				return rawKey, nil
+			})
+
+			if err != nil {
+				logger.Debug("OIDC token validation failed", zap.Error(err))
+				return echo.NewHTTPError(http.StatusUnauthorized, "Invalid token")
+			}
+
+			if claims, ok := token.Claims.(*jwt.RegisteredClaims); ok && token.Valid {
+				// Validate issuer
+				if claims.Issuer != issuer {
+					return echo.NewHTTPError(http.StatusUnauthorized, "Invalid token issuer")
+				}
+
+				// Validate audience
+				audienceValid := false
+				for _, aud := range claims.Audience {
+					if aud == audience {
+						audienceValid = true
+						break
+					}
+				}
+				if !audienceValid {
+					return echo.NewHTTPError(http.StatusUnauthorized, "Invalid token audience")
+				}
+
+				// Validate expiration
+				if claims.ExpiresAt != nil && claims.ExpiresAt.Before(time.Now()) {
+					return echo.NewHTTPError(http.StatusUnauthorized, "Token has expired")
+				}
+
+				// Validate issued at (if present)
+				if claims.IssuedAt != nil && claims.IssuedAt.After(time.Now()) {
+					return echo.NewHTTPError(http.StatusUnauthorized, "Token used before issued")
+				}
+
+				// Store validated claims in context for potential use by handlers
+				c.Set("oidc_claims", claims)
+				c.Set("oidc_subject", claims.Subject)
+
+				return next(c)
+			}
+
+			return echo.NewHTTPError(http.StatusUnauthorized, "Invalid token claims")
+		}
+	}, nil
 }
 
 // contextMiddleware, middleware for "multipart/form-data" requests, sets the
