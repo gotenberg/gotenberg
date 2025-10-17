@@ -38,11 +38,12 @@ var (
 
 // Context is the request context for a "multipart/form-data" requests.
 type Context struct {
-	dirPath     string
-	values      map[string][]string
-	files       map[string]string
-	outputPaths []string
-	cancelled   bool
+	dirPath      string
+	values       map[string][]string
+	files        map[string]string
+	filesByField map[string][]string
+	outputPaths  []string
+	cancelled    bool
 
 	logger     *zap.Logger
 	echoCtx    echo.Context
@@ -184,6 +185,7 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 	ctx.dirPath = dirPath
 	ctx.values = form.Value
 	ctx.files = make(map[string]string)
+	ctx.filesByField = make(map[string][]string)
 
 	// First, try to download files listed in the "downloadFrom" form field, if
 	// any.
@@ -373,17 +375,22 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 	}
 
 	// Then, copy the form files, if any.
-	for _, files := range form.File {
+	for fieldName, files := range form.File {
 		for _, fh := range files {
 			err = copyToDisk(fh)
 			if err != nil {
 				return ctx, cancel, fmt.Errorf("copy to disk: %w", err)
 			}
+			// Track files by field name
+			filename := norm.NFC.String(filepath.Base(fh.Filename))
+			filePath := ctx.files[filename]
+			ctx.filesByField[fieldName] = append(ctx.filesByField[fieldName], filePath)
 		}
 	}
 
 	ctx.Log().Debug(fmt.Sprintf("form fields: %+v", ctx.values))
 	ctx.Log().Debug(fmt.Sprintf("form files: %+v", ctx.files))
+	ctx.Log().Debug(fmt.Sprintf("form files by field: %+v", ctx.filesByField))
 	ctx.Log().Debug(fmt.Sprintf("total bytes: %d", totalBytesRead.Load()))
 
 	return ctx, cancel, err
@@ -397,9 +404,10 @@ func (ctx *Context) Request() *http.Request {
 // FormData return a [FormData].
 func (ctx *Context) FormData() *FormData {
 	return &FormData{
-		values: ctx.values,
-		files:  ctx.files,
-		errors: nil,
+		values:      ctx.values,
+		files:       ctx.files,
+		filesByField: ctx.filesByField,
+		errors:      nil,
 	}
 }
 

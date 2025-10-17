@@ -21,9 +21,10 @@ import (
 //
 //	form := ctx.FormData()
 type FormData struct {
-	values map[string][]string
-	files  map[string]string
-	errors error
+	values       map[string][]string
+	files        map[string]string
+	filesByField map[string][]string
+	errors       error
 }
 
 // Validate returns nil or an error related to the [FormData] values, with a
@@ -356,6 +357,26 @@ func (form *FormData) MandatoryContent(filename string, target *string) *FormDat
 //	ctx.FormData().Paths([]string{".txt"}, &paths)
 func (form *FormData) Paths(extensions []string, target *[]string) *FormData {
 	return form.paths(extensions, target)
+}
+
+// Embeds binds the absolute paths of form data files that should be
+// embedded in the PDF. Only files uploaded with the "embeds" field name
+// will be included.
+//
+//	var embeds []string
+//
+//	ctx.FormData().Embeds(&embeds)
+func (form *FormData) Embeds(target *[]string) *FormData {
+	if form.errors != nil {
+		return form
+	}
+
+	// Get files from the "embeds" field
+	if paths, ok := form.filesByField["embeds"]; ok {
+		*target = append(*target, paths...)
+	}
+
+	return form
 }
 
 // MandatoryPaths binds the absolute paths of form data files, according to a
