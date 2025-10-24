@@ -24,6 +24,11 @@ import (
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/pdfengines"
 )
 
+var sameSiteRegexp = regexp2.MustCompile(
+	`("sameSite"\s*:\s*")(?i:(lax|strict|none))(")`,
+	regexp2.None,
+)
+
 // FormDataChromiumOptions creates [Options] from the form data. Fallback to
 // the default value if the considered key is not present.
 func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
@@ -84,7 +89,30 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 				return nil
 			}
 
-			err := json.Unmarshal([]byte(value), &cookies)
+			// sameSite attribute from cookies must accept case-insensitive
+			// values.
+			// See https://github.com/gotenberg/gotenberg/issues/1331.
+			normalized, err := sameSiteRegexp.ReplaceFunc(value, func(m regexp2.Match) string {
+				groups := m.Groups()
+				provided := groups[2].String()
+				var canon string
+				switch strings.ToLower(provided) {
+				case "lax":
+					canon = "Lax"
+				case "strict":
+					canon = "Strict"
+				case "none":
+					canon = "None"
+				default:
+					canon = provided
+				}
+				return groups[1].String() + canon + groups[3].String()
+			}, -1, -1)
+			if err != nil {
+				return fmt.Errorf("normalize sameSite from cookies: %w")
+			}
+
+			err = json.Unmarshal([]byte(normalized), &cookies)
 			if err != nil {
 				return fmt.Errorf("unmarshal cookies: %w", err)
 			}
@@ -141,7 +169,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 
 				var scopeRegexp *regexp2.Regexp
 				if len(scope) > 0 {
-					p, errCompile := regexp2.Compile(scope, 0)
+					p, errCompile := regexp2.Compile(scope, regexp2.None)
 					if errCompile != nil {
 						err = multierr.Append(err, fmt.Errorf("invalid scope regex pattern for header '%s': %w", k, errCompile))
 						continue

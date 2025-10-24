@@ -173,6 +173,22 @@ Feature: /forms/chromium/convert/url
     Then the server request cookie "cookie_1" should be "foo"
     Then the server request cookie "cookie_2" should be ""
 
+  # See https://github.com/gotenberg/gotenberg/issues/1130.
+  Scenario: POST /forms/chromium/convert/url (case-insensitive sameSite)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html                                                                             | field  |
+      | cookies                   | [{"name":"cookie_1","value":"foo","domain":"host.docker.internal:%d"},{"name":"cookie_2","value":"bar","domain":"domain.com","sameSite":"lax"}] | field  |
+      | Gotenberg-Output-Filename | foo                                                                                                                                             | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the server request cookie "cookie_1" should be "foo"
+    Then the server request cookie "cookie_2" should be ""
+
   Scenario: POST /forms/chromium/convert/url (Wait Delay)
     Given I have a default Gotenberg container
     Given I have a static server
