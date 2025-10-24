@@ -109,7 +109,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 				return groups[1].String() + canon + groups[3].String()
 			}, -1, -1)
 			if err != nil {
-				return fmt.Errorf("normalize sameSite from cookies: %w")
+				return fmt.Errorf("normalize sameSite from cookies: %w", err)
 			}
 
 			err = json.Unmarshal([]byte(normalized), &cookies)
