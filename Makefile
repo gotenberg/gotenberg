@@ -34,7 +34,6 @@ CHROMIUM_RESTART_AFTER=10
 CHROMIUM_MAX_QUEUE_SIZE=0
 CHROMIUM_AUTO_START=false
 CHROMIUM_START_TIMEOUT=20s
-CHROMIUM_INCOGNITO=false
 CHROMIUM_ALLOW_INSECURE_LOCALHOST=false
 CHROMIUM_IGNORE_CERTIFICATE_ERRORS=false
 CHROMIUM_DISABLE_WEB_SECURITY=false
@@ -109,7 +108,6 @@ run: ## Start a Gotenberg container
 	--chromium-auto-start=$(CHROMIUM_AUTO_START) \
 	--chromium-max-queue-size=$(CHROMIUM_MAX_QUEUE_SIZE) \
 	--chromium-start-timeout=$(CHROMIUM_START_TIMEOUT) \
-	--chromium-incognito=$(CHROMIUM_INCOGNITO) \
 	--chromium-allow-insecure-localhost=$(CHROMIUM_ALLOW_INSECURE_LOCALHOST) \
 	--chromium-ignore-certificate-errors=$(CHROMIUM_IGNORE_CERTIFICATE_ERRORS) \
 	--chromium-disable-web-security=$(CHROMIUM_DISABLE_WEB_SECURITY) \

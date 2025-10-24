@@ -364,7 +364,6 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Int64("chromium-max-queue-size", 0, "Maximum request queue size for Chromium. Set to 0 to disable this feature")
 			fs.Bool("chromium-auto-start", false, "Automatically launch Chromium upon initialization if set to true; otherwise, Chromium will start at the time of the first conversion")
 			fs.Duration("chromium-start-timeout", time.Duration(20)*time.Second, "Maximum duration to wait for Chromium to start or restart")
-			fs.Bool("chromium-incognito", false, "Start Chromium with incognito mode")
 			fs.Bool("chromium-allow-insecure-localhost", false, "Ignore TLS/SSL errors on localhost")
 			fs.Bool("chromium-ignore-certificate-errors", false, "Ignore the certificate errors")
 			fs.Bool("chromium-disable-web-security", false, "Don't enforce the same-origin policy")
@@ -377,6 +376,13 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Bool("chromium-clear-cookies", false, "Clear Chromium cookies between each conversion")
 			fs.Bool("chromium-disable-javascript", false, "Disable JavaScript")
 			fs.Bool("chromium-disable-routes", false, "Disable the routes")
+
+			// Deprecated flags.
+			fs.Bool("chromium-incognito", false, "Start Chromium with incognito mode")
+			err := fs.MarkDeprecated("chromium-incognito", "this flag is ignored as it provides no benefits")
+			if err != nil {
+				panic(err)
+			}
 
 			return fs
 		}(),
@@ -402,7 +408,6 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 
 	mod.args = browserArguments{
 		binPath:                  binPath,
-		incognito:                flags.MustBool("chromium-incognito"),
 		allowInsecureLocalhost:   flags.MustBool("chromium-allow-insecure-localhost"),
 		ignoreCertificateErrors:  flags.MustBool("chromium-ignore-certificate-errors"),
 		disableWebSecurity:       flags.MustBool("chromium-disable-web-security"),

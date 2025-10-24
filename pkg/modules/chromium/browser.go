@@ -31,7 +31,6 @@ type browser interface {
 type browserArguments struct {
 	// Executor args.
 	binPath                  string
-	incognito                bool
 	allowInsecureLocalhost   bool
 	ignoreCertificateErrors  bool
 	disableWebSecurity       bool
@@ -107,10 +106,6 @@ func (b *chromiumBrowser) Start(logger *zap.Logger) error {
 		// See https://github.com/gotenberg/gotenberg/issues/1293.
 		chromedp.Flag("disable-component-update", false),
 	)
-
-	if b.arguments.incognito {
-		opts = append(opts, chromedp.Flag("incognito", b.arguments.incognito))
-	}
 
 	if b.arguments.allowInsecureLocalhost {
 		// See https://github.com/gotenberg/gotenberg/issues/488.
