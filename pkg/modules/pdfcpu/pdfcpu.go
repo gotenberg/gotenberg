@@ -180,7 +180,6 @@ func (engine *PdfCpu) EmbedFiles(ctx context.Context, logger *zap.Logger, filePa
 
 	logger.Debug(fmt.Sprintf("embedding %d file(s) to %s: %v", len(filePaths), inputPath, filePaths))
 
-	// Build command with all files to attach in a single command
 	args := []string{
 		"attachments", "add",
 		inputPath,
