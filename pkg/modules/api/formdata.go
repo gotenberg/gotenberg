@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -402,8 +403,15 @@ func (form *FormData) MandatoryPaths(extensions []string, target *[]string) *For
 
 // paths bind the absolute paths of form data files, according to a list of
 // file extensions, to a string slice variable.
+// embeds are excluded.
 func (form *FormData) paths(extensions []string, target *[]string) *FormData {
+	embeds, ok := form.filesByField["embeds"]
+
 	for filename, path := range form.files {
+		if ok && slices.Contains(embeds, path) {
+			continue
+		}
+
 		for _, ext := range extensions {
 			// See https://github.com/gotenberg/gotenberg/issues/228.
 			if strings.ToLower(filepath.Ext(filename)) == ext {

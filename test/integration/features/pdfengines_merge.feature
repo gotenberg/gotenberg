@@ -368,3 +368,16 @@ Feature: /forms/pdfengines/merge
       | files | testdata/page_2.pdf | file |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
+
+  @embeds
+  Scenario: POST /foo/forms/pdfengines/merge (Embeds)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf  | file   |
+      | files                     | testdata/page_2.pdf  | file   |
+      | embeds                    | testdata/embed_1.xml | file   |
+      | embeds                    | testdata/embed_2.xml | file   |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    And the "foo.pdf" PDF should have the "embed_1.xml" file embedded in it
+    And the "foo.pdf" PDF should have the "embed_2.xml" file embedded in it

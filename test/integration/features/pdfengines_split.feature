@@ -650,3 +650,23 @@ Feature: /forms/pdfengines/split
       | splitSpan | 2                    | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
+
+  @embeds
+  Scenario: POST /foo/forms/pdfengines/split (Embeds)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
+      | files     | testdata/pages_3.pdf | file  |
+      | embeds    | testdata/embed_1.xml | file  |
+      | embeds    | testdata/embed_2.xml | file  |
+      | splitMode | intervals            | field |
+      | splitSpan | 2                    | field |
+    Then the response status code should be 200
+    And the response header "Content-Type" should be "application/zip"
+    And there should be 2 PDF(s) in the response
+    And there should be the following file(s) in the response:
+      | pages_3_0.pdf |
+      | pages_3_1.pdf |
+    And the "pages_3_0.pdf" PDF should have the "embed_1.xml" file embedded in it
+    And the "pages_3_0.pdf" PDF should have the "embed_2.xml" file embedded in it
+    And the "pages_3_1.pdf" PDF should have the "embed_1.xml" file embedded in it
+    And the "pages_3_1.pdf" PDF should have the "embed_2.xml" file embedded in it
