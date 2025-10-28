@@ -77,6 +77,10 @@ type downloadFrom struct {
 	// Url is the URL to download a file from.
 	Url string `json:"url"`
 
+	// Filename is the optional filename to use for the downloaded file.
+	// If not provided, the filename will be extracted from the Content-Disposition header.
+	Filename string `json:"filename"`
+
 	// ExtraHttpHeaders are the HTTP headers to send alongside.
 	ExtraHttpHeaders map[string]string `json:"extraHttpHeaders"`
 }
@@ -265,31 +269,41 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 					)
 				}
 
-				contentDisposition := resp.Header.Get("Content-Disposition")
-				if contentDisposition == "" {
-					return WrapError(
-						fmt.Errorf("no 'Content-Disposition' header from '%s'", dl.Url),
-						NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("No 'Content-Disposition' header from '%s'", dl.Url)),
-					)
-				}
+				var filename string
 
-				// FIXME: the implementation of this method might not be
-				//  complete, as it fails to parse an empty mediatype.
-				//  See: https://github.com/golang/go/issues/69551.
-				_, params, err := mime.ParseMediaType(contentDisposition)
-				if err != nil {
-					return WrapError(
-						fmt.Errorf("parse 'Content-Disposition' header '%s' from '%s': %w", contentDisposition, dl.Url, err),
-						NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'Content-Disposition' header '%s' from '%s': %s", contentDisposition, dl.Url, err)),
-					)
-				}
+				// If filename is explicitly provided, use it; otherwise, extract from Content-Disposition header
+				if strings.TrimSpace(dl.Filename) != "" {
+					// Use the provided filename
+					filename = strings.TrimSpace(dl.Filename)
+				} else {
+					// Fall back to existing behavior: require Content-Disposition header
+					contentDisposition := resp.Header.Get("Content-Disposition")
+					if contentDisposition == "" {
+						return WrapError(
+							fmt.Errorf("no 'Content-Disposition' header from '%s'", dl.Url),
+							NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("No 'Content-Disposition' header from '%s'", dl.Url)),
+						)
+					}
 
-				filename, ok := params["filename"]
-				if !ok {
-					return WrapError(
-						fmt.Errorf("get filename from 'Content-Disposition' header '%s' from '%s'", contentDisposition, dl.Url),
-						NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'Content-Disposition' header '%s' from '%s': no filename", contentDisposition, dl.Url)),
-					)
+					// FIXME: the implementation of this method might not be
+					//  complete, as it fails to parse an empty mediatype.
+					//  See: https://github.com/golang/go/issues/69551.
+					_, params, err := mime.ParseMediaType(contentDisposition)
+					if err != nil {
+						return WrapError(
+							fmt.Errorf("parse 'Content-Disposition' header '%s' from '%s': %w", contentDisposition, dl.Url, err),
+							NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'Content-Disposition' header '%s' from '%s': %s", contentDisposition, dl.Url, err)),
+						)
+					}
+
+					var ok bool
+					filename, ok = params["filename"]
+					if !ok {
+						return WrapError(
+							fmt.Errorf("get filename from 'Content-Disposition' header '%s' from '%s'", contentDisposition, dl.Url),
+							NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'Content-Disposition' header '%s' from '%s': no filename", contentDisposition, dl.Url)),
+						)
+					}
 				}
 
 				// Avoid directory traversal and make sure filename characters are
