@@ -264,6 +264,13 @@ ENV QPDF_BIN_PATH=/usr/bin/qpdf
 ENV EXIFTOOL_BIN_PATH=/usr/bin/exiftool
 ENV PDFCPU_BIN_PATH=/usr/bin/pdfcpu
 
+# Prorenata: Disable modules per default
+ENV CHROMIUM_DISABLE_ROUTES=true
+ENV PDFENGINES_DISABLE_ROUTES=true
+ENV PDFENGINES_MERGE_ENGINES=qpdf,pdfcpu
+ENV PDFENGINES_SPLIT_ENGINES=pdfcpu,qpdf
+ENV PDFENGINES_ENCRYPT_ENGINES=qpdf,pdfcpu
+
 USER gotenberg
 WORKDIR /home/gotenberg
 
