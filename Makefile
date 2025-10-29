@@ -6,7 +6,7 @@ help: ## Show the help
 
 .PHONY: build
 build: ## Build the Gotenberg's Docker image
-	docker build \
+	docker build --progress=plain \
 	-t $(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
 	-f $(DOCKERFILE) $(DOCKER_BUILD_CONTEXT)
 
@@ -46,7 +46,7 @@ CHROMIUM_DENY_LIST=^file:(?!//\/tmp/).*
 CHROMIUM_CLEAR_CACHE=false
 CHROMIUM_CLEAR_COOKIES=false
 CHROMIUM_DISABLE_JAVASCRIPT=false
-CHROMIUM_DISABLE_ROUTES=false
+CHROMIUM_DISABLE_ROUTES=true
 LIBREOFFICE_RESTART_AFTER=10
 LIBREOFFICE_MAX_QUEUE_SIZE=0
 LIBREOFFICE_AUTO_START=false

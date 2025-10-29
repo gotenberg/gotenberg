@@ -175,15 +175,16 @@ RUN \
     # Cleanup.
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN \
-    # Install Chromium.
-    apt-get update -qq &&\
-    apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium &&\
-    # Verify installation.
-    chromium --version &&\
-    # Cleanup.
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+# Prorenata: Exclude chromium from image if we don't use it
+# RUN \
+#     # Install Chromium.
+#     apt-get update -qq &&\
+#     apt-get upgrade -yqq &&\
+#     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium &&\
+#     # Verify installation.
+#     chromium --version &&\
+#     # Cleanup.
+#     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Set default characterset encoding to UTF-8.
 # See:
