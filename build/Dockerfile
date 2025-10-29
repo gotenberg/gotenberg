@@ -55,33 +55,34 @@ RUN go build -o gotenberg -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/
 # Custom JRE stage
 # Credits: https://github.com/jodconverter/docker-image-jodconverter-runtime
 # ----------------------------------------------
+# Proreanta: Avoid installing Java runtim at all (This build stage can be removed...)
 FROM debian:13-slim AS custom-jre-stage
 
-RUN \
-    apt-get update -qq &&\
-    apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends default-jdk-headless binutils
+# RUN \
+#     apt-get update -qq &&\
+#     apt-get upgrade -yqq &&\
+#     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends default-jdk-headless binutils
 
 # Note: jdeps helps finding which modules a JAR requires.
 # Currently only for PDFtk, as we don't rely on LibreOffice UNO Java SDK.
-ENV JAVA_MODULES=java.base,java.desktop,java.naming,java.sql
+# ENV JAVA_MODULES=java.base,java.desktop,java.naming,java.sql
 
-RUN jlink \
-    --add-modules $JAVA_MODULES \
-    --strip-debug \
-    --no-man-pages \
-    --no-header-files \
-    --compress=2 \
-    --output /custom-jre
+# RUN jlink \
+#     --add-modules $JAVA_MODULES \
+#     --strip-debug \
+#     --no-man-pages \
+#     --no-header-files \
+#     --compress=2 \
+#     --output /custom-jre
 
 # ----------------------------------------------
 # Base image stage
 # ----------------------------------------------
 FROM debian:13-slim AS base-image-stage
 
-COPY --from=custom-jre-stage /custom-jre /opt/java
+# COPY --from=custom-jre-stage /custom-jre /opt/java
 
-ENV PATH="/opt/java/bin:${PATH}"
+# ENV PATH="/opt/java/bin:${PATH}"
 
 # ----------------------------------------------
 # Final stage
@@ -193,6 +194,7 @@ RUN \
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 
+# Prorenata: This libreOffice installation is about 500MB 
 RUN \
     # Install LibreOffice & unoconverter. \
     echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/sources.list &&\
@@ -209,20 +211,21 @@ RUN \
     # Cleanup.
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+# Prorenata: exclude pdftk from image (avoid Java runtime...)
 RUN \
     # Install PDFtk, QPDF & ExifTool (PDF engines).
     # See https://github.com/gotenberg/gotenberg/pull/273.
-    curl -o /usr/bin/pdftk-all.jar "https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/$PDFTK_VERSION/pdftk-all.jar" &&\
-    chmod a+x /usr/bin/pdftk-all.jar &&\
-    printf '#!/bin/bash\n\nexec java -jar /usr/bin/pdftk-all.jar "$@"' > /usr/bin/pdftk && \
-    chmod +x /usr/bin/pdftk &&\
+    # curl -o /usr/bin/pdftk-all.jar "https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/$PDFTK_VERSION/pdftk-all.jar" &&\
+    # chmod a+x /usr/bin/pdftk-all.jar &&\
+    # printf '#!/bin/bash\n\nexec java -jar /usr/bin/pdftk-all.jar "$@"' > /usr/bin/pdftk && \
+    # chmod +x /usr/bin/pdftk &&\
     apt-get update -qq &&\
     apt-get upgrade -yqq &&\
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends qpdf exiftool &&\
     # See https://github.com/nextcloud/docker/issues/380.
     mkdir -p /usr/share/man/man1 &&\
     # Verify installations.
-    pdftk --version &&\
+    # pdftk --version &&\
     qpdf --version &&\
     exiftool --version &&\
     # Cleanup.
