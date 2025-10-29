@@ -301,6 +301,17 @@ func EmbedFilesStub(ctx *api.Context, engine gotenberg.PdfEngine, embedPaths []s
 	return nil
 }
 
+func WatermarkPdfStub(ctx *api.Context, engine gotenberg.PdfEngine, mode, watermark string, inputPaths []string, params string) error {
+	for _, inputPath := range inputPaths {
+		err := engine.AddWatermark(ctx, ctx.Log(), mode, watermark, inputPath, params)
+		if err != nil {
+			return fmt.Errorf("add watermark PDF '%s': %w", inputPath, err)
+		}
+	}
+
+	return nil
+}
+
 // mergeRoute returns an [api.Route] which can merge PDFs.
 func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 	return api.Route{
@@ -680,6 +691,69 @@ func embedRoute(engine gotenberg.PdfEngine) api.Route {
 			err = EmbedFilesStub(ctx, engine, embedPaths, inputPaths)
 			if err != nil {
 				return fmt.Errorf("embed files into PDFs: %w", err)
+			}
+
+			err = ctx.AddOutputPaths(inputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
+			}
+
+			return nil
+		},
+	}
+}
+
+// watermarkRoute returns an [api.Route] which can add password protection to PDFs.
+func watermarkRoute(engine gotenberg.PdfEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/add-watermark",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			form := ctx.FormData()
+
+			var inputPaths []string
+			var watermarkPath string
+			var watermarkFilename string
+			var watermarkMode string
+			var params string
+
+			err := form.
+				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				MandatoryString("watermarkFilename", &watermarkFilename).
+				String("watermarkMode", &watermarkMode, "image").
+				String("params", &params, "").
+				Custom("watermarkMode", func(value string) error {
+					if value == "text" {
+						if watermarkText == "" {
+							return errors.New("watermarkText is required for text mode")
+						}
+					} else {
+						if watermarkFilename == "" {
+							return fmt.Errorf("watermarkFilename is required for %s mode", value)
+						}
+					}
+					return nil
+				}).
+				Validate()
+
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			// Get the watermark file path by filename
+			err = form.
+				MandatoryPath(watermarkFilename, &watermarkPath).
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate watermark file: %w", err)
+			}
+
+			err = WatermarkPdfStub(ctx, engine, watermarkMode, watermarkPath, inputPaths, params)
+			if err != nil {
+				return fmt.Errorf("watermark PDFs: %w", err)
 			}
 
 			err = ctx.AddOutputPaths(inputPaths...)
