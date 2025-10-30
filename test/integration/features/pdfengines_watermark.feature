@@ -35,16 +35,6 @@ Feature: /forms/pdfengines/add-watermark
     Then there should be 2 PDF(s) in the response
     Then the response PDF(s) should have a watermark
 
-  Scenario: POST /forms/pdfengines/add-watermark (Bad Request)
-    Given I have a default Gotenberg container
-    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/add-watermark" endpoint with the following form data and header(s):
-      | files | testdata/page_1.pdf | file |
-    Then the response status code should be 400
-    Then the response body should match string:
-      """
-      Invalid form data: form field 'watermarkFilename' is required
-      """
-
   Scenario: POST /forms/pdfengines/add-watermark (Routes Disabled)
     Given I have a Gotenberg container with the following environment variable(s):
       | PDFENGINES_DISABLE_ROUTES | true |
@@ -109,6 +99,76 @@ Feature: /forms/pdfengines/add-watermark
       | files             | testdata/page_1.pdf              | file  |
       | watermark.png     | testdata/watermark/watermark.png | file  |
       | watermarkFilename | watermark.png                    | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should have a watermark
+
+  Scenario: POST /forms/pdfengines/add-watermark (Text Mode - default params)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/add-watermark" endpoint with the following form data and header(s):
+      | myfile.pdf    | testdata/page_1.pdf | file  |
+      | watermarkMode | text                | field |
+      | watermarkText | Confidential        | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should have a watermark
+
+  Scenario: POST /forms/pdfengines/add-watermark (Text Mode - with params)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/add-watermark" endpoint with the following form data and header(s):
+      | myfile.pdf    | testdata/page_1.pdf      | file  |
+      | watermarkMode | text                     | field |
+      | watermarkText | DRAFT DOCUMENT           | field |
+      | params        | position:tl, opacity:0.4 | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should have a watermark
+
+  Scenario: POST /forms/pdfengines/add-watermark (Text Mode - Many PDFs)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/add-watermark" endpoint with the following form data and header(s):
+      | files         | testdata/page_1.pdf      | file  |
+      | files         | testdata/page_2.pdf      | file  |
+      | watermarkMode | text                     | field |
+      | watermarkText | CONFIDENTIAL             | field |
+      | params        | position:tl, opacity:0.4 | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then the response PDF(s) should have a watermark
+
+  Scenario: POST /forms/pdfengines/add-watermark (Text Mode - Bad Request - Missing watermarkText)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/add-watermark" endpoint with the following form data and header(s):
+      | files         | testdata/page_1.pdf | file  |
+      | watermarkMode | text                | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'watermarkMode' is invalid (got 'text', resulting to watermarkText is required for text mode)
+      """
+
+  Scenario: POST /forms/pdfengines/add-watermark (Image Mode - Bad Request - Missing watermarkFilename)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/add-watermark" endpoint with the following form data and header(s):
+      | files         | testdata/page_1.pdf | file  |
+      | watermarkMode | image               | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'watermarkMode' is invalid (got 'image', resulting to watermarkFilename is required for image mode)
+      """
+
+  Scenario: POST /forms/pdfengines/add-watermark (Text Mode - Page numbers)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/add-watermark" endpoint with the following form data and header(s):
+      | myfile.pdf    | testdata/page_1.pdf      | file  |
+      | watermarkMode | text                     | field |
+      | watermarkText | Page %p of %P            | field |
+      | params        | position:tl, opacity:0.4 | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
