@@ -717,12 +717,14 @@ func watermarkRoute(engine gotenberg.PdfEngine) api.Route {
 			var inputPaths []string
 			var watermarkPath string
 			var watermarkFilename string
+			var watermarkText string
 			var watermarkMode string
 			var params string
 
 			err := form.
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
-				MandatoryString("watermarkFilename", &watermarkFilename).
+				String("watermarkFilename", &watermarkFilename, "").
+				String("watermarkText", &watermarkText, "").
 				String("watermarkMode", &watermarkMode, "image").
 				String("params", &params, "").
 				Custom("watermarkMode", func(value string) error {
@@ -743,15 +745,21 @@ func watermarkRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			// Get the watermark file path by filename
-			err = form.
-				MandatoryPath(watermarkFilename, &watermarkPath).
-				Validate()
-			if err != nil {
-				return fmt.Errorf("validate watermark file: %w", err)
+			var watermarkContent string
+			if watermarkMode == "text" {
+				watermarkContent = watermarkText
+			} else {
+				// Get the watermark file path by filename
+				err = form.
+					MandatoryPath(watermarkFilename, &watermarkPath).
+					Validate()
+				if err != nil {
+					return fmt.Errorf("validate watermark file: %w", err)
+				}
+				watermarkContent = watermarkPath
 			}
 
-			err = WatermarkPdfStub(ctx, engine, watermarkMode, watermarkPath, inputPaths, params)
+			err = WatermarkPdfStub(ctx, engine, watermarkMode, watermarkContent, inputPaths, params)
 			if err != nil {
 				return fmt.Errorf("watermark PDFs: %w", err)
 			}
