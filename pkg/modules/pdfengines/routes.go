@@ -656,3 +656,38 @@ func encryptRoute(engine gotenberg.PdfEngine) api.Route {
 		},
 	}
 }
+
+// embedRoute returns an [api.Route] which can add embedded files to PDFs.
+func embedRoute(engine gotenberg.PdfEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/embed",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			form := ctx.FormData()
+			embedPaths := FormDataPdfEmbeds(form)
+
+			var inputPaths []string
+			err := form.
+				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			err = EmbedFilesStub(ctx, engine, embedPaths, inputPaths)
+			if err != nil {
+				return fmt.Errorf("embed files into PDFs: %w", err)
+			}
+
+			err = ctx.AddOutputPaths(inputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
+			}
+
+			return nil
+		},
+	}
+}

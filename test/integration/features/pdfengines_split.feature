@@ -651,7 +651,7 @@ Feature: /forms/pdfengines/split
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
 
-  @embeds
+  @embed
   Scenario: POST /foo/forms/pdfengines/split (Embeds)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):

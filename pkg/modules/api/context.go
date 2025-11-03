@@ -404,10 +404,10 @@ func (ctx *Context) Request() *http.Request {
 // FormData return a [FormData].
 func (ctx *Context) FormData() *FormData {
 	return &FormData{
-		values:      ctx.values,
-		files:       ctx.files,
+		values:       ctx.values,
+		files:        ctx.files,
 		filesByField: ctx.filesByField,
-		errors:      nil,
+		errors:       nil,
 	}
 }
 

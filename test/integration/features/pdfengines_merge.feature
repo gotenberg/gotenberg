@@ -369,7 +369,7 @@ Feature: /forms/pdfengines/merge
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
 
-  @embeds
+  @embed
   Scenario: POST /foo/forms/pdfengines/merge (Embeds)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):

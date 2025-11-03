@@ -943,7 +943,7 @@ Feature: /forms/chromium/convert/html
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
 
-  @embeds
+  @embed
   Scenario: POST /forms/chromium/convert/html (Embeds)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):

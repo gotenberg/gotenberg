@@ -1024,7 +1024,7 @@ Feature: /forms/chromium/convert/url
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
 
-  @embeds
+  @embed
   Scenario: POST /foo/forms/chromium/convert/url (Embeds)
     Given I have a default Gotenberg container
     And I have a static server
