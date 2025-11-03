@@ -80,6 +80,9 @@ type downloadFrom struct {
 
 	// ExtraHttpHeaders are the HTTP headers to send alongside.
 	ExtraHttpHeaders map[string]string `json:"extraHttpHeaders"`
+
+	// Download as embed file
+	Embedded bool `json:"embedded"`
 }
 
 // newContext returns a [Context] by parsing a "multipart/form-data" request.
@@ -320,6 +323,9 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 				}
 
 				ctx.files[filename] = path
+				if dl.Embedded {
+					ctx.filesByField[EmbedsFormField] = append(ctx.filesByField[EmbedsFormField], path)
+				}
 
 				return nil
 			})

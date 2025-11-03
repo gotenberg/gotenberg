@@ -17,6 +17,11 @@ import (
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
+// EmbedsFormField represents the form field name for embedding files.
+const (
+	EmbedsFormField string = "embeds"
+)
+
 // FormData is a helper for validating and hydrating values from a
 // "multipart/form-data" request.
 //
@@ -373,7 +378,7 @@ func (form *FormData) Embeds(target *[]string) *FormData {
 	}
 
 	// Get files from the "embeds" field
-	if paths, ok := form.filesByField["embeds"]; ok {
+	if paths, ok := form.filesByField[EmbedsFormField]; ok {
 		*target = append(*target, paths...)
 	}
 
@@ -405,7 +410,7 @@ func (form *FormData) MandatoryPaths(extensions []string, target *[]string) *For
 // file extensions, to a string slice variable.
 // embeds are excluded.
 func (form *FormData) paths(extensions []string, target *[]string) *FormData {
-	embeds, ok := form.filesByField["embeds"]
+	embeds, ok := form.filesByField[EmbedsFormField]
 
 	for filename, path := range form.files {
 		if ok && slices.Contains(embeds, path) {
