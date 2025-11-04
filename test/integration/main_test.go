@@ -19,6 +19,7 @@ func TestMain(m *testing.M) {
 	version := flag.String("gotenberg-version", "", "")
 	platform := flag.String("gotenberg-container-platform", "", "")
 	noConcurrency := flag.Bool("no-concurrency", false, "")
+	tags := flag.String("tags", "", "")
 	flag.Parse()
 
 	if *platform == "" {
@@ -47,6 +48,7 @@ func TestMain(m *testing.M) {
 			Paths:       []string{"features"},
 			Output:      colors.Colored(os.Stdout),
 			Concurrency: concurrency,
+			Tags:        *tags,
 		},
 	}.Run()
 
