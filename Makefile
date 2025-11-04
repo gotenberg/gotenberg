@@ -162,12 +162,13 @@ PLATFORM=
 NO_CONCURRENCY=false
 
 .PHONY: test-integration
-test-integration: ## Run integration tests
+test-integration: ## Run integration tests, use TAGS environment variable to filter tests by tags
 	go test -timeout 40m -tags=integration -v github.com/gotenberg/gotenberg/v8/test/integration -args \
 	--gotenberg-docker-repository=$(DOCKER_REPOSITORY) \
 	--gotenberg-version=$(GOTENBERG_VERSION) \
  	--gotenberg-container-platform=$(PLATFORM) \
- 	--no-concurrency=$(NO_CONCURRENCY)
+ 	--no-concurrency=$(NO_CONCURRENCY) \
+ 	--tags="$(TAGS)"
 
 .PHONY: lint
 lint: ## Lint Golang codebase
