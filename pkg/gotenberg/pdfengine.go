@@ -143,6 +143,11 @@ type PdfEngine interface {
 	// The ownerPassword provides full access to the document.
 	// If the ownerPassword is empty, it defaults to the userPassword.
 	Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error
+
+	// AddWatermark adds a watermark to a PDF file.
+	// The mode can be "text", "image", or "pdf".
+	// The watermark is either text content or a file path depending on the mode.
+	AddWatermark(ctx context.Context, logger *zap.Logger, mode, watermark, inputPath, description string) error
 }
 
 // PdfEngineProvider offers an interface to instantiate a [PdfEngine].
