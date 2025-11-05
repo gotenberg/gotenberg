@@ -181,6 +181,11 @@ func (engine *ExifTool) Encrypt(ctx context.Context, logger *zap.Logger, inputPa
 	return fmt.Errorf("encrypt PDF using ExifTool: %w", gotenberg.ErrPdfEncryptionNotSupported)
 }
 
+// EmbedFiles is not available in this implementation.
+func (engine *ExifTool) EmbedFiles(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error {
+	return fmt.Errorf("embed files with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*ExifTool)(nil)

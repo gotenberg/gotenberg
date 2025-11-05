@@ -143,6 +143,10 @@ type PdfEngine interface {
 	// The ownerPassword provides full access to the document.
 	// If the ownerPassword is empty, it defaults to the userPassword.
 	Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error
+
+	// EmbedFiles embeds files into a PDF. All files are embedded as file attachments
+	// without modifying the main PDF content.
+	EmbedFiles(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error
 }
 
 // PdfEngineProvider offers an interface to instantiate a [PdfEngine].

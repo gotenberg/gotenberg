@@ -1039,3 +1039,20 @@ Feature: /forms/chromium/convert/url
       | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
+
+  @embed
+  Scenario: POST /foo/forms/chromium/convert/url (Embeds)
+    Given I have a default Gotenberg container
+    And I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | embeds                    | testdata/embed_1.xml                                                | file   |
+      | embeds                    | testdata/embed_2.xml                                                | file   |
+      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                                 | header |
+    Then the response status code should be 200
+    And the response header "Content-Type" should be "application/pdf"
+    And there should be 1 PDF(s) in the response
+    And there should be the following file(s) in the webhook request:
+      | foo.pdf |
+    And the "foo.pdf" PDF should have the "embed_1.xml" file embedded in it
+    And the "foo.pdf" PDF should have the "embed_2.xml" file embedded in it
