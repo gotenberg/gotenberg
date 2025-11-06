@@ -31,7 +31,6 @@ type browser interface {
 type browserArguments struct {
 	// Executor args.
 	binPath                  string
-	incognito                bool
 	allowInsecureLocalhost   bool
 	ignoreCertificateErrors  bool
 	disableWebSecurity       bool
@@ -39,6 +38,7 @@ type browserArguments struct {
 	hostResolverRules        string
 	proxyServer              string
 	wsUrlReadTimeout         time.Duration
+	hyphenDataDirPath        string
 
 	// Tasks specific.
 	allowList         *regexp2.Regexp
@@ -79,14 +79,20 @@ func (b *chromiumBrowser) Start(logger *zap.Logger) error {
 	debug := &debugLogger{logger: logger}
 	b.userProfileDirPath = b.fs.NewDirPath()
 
+	// See https://github.com/gotenberg/gotenberg/issues/1293.
+	err := os.MkdirAll(b.userProfileDirPath, 0o755)
+	if err != nil {
+		return fmt.Errorf("could not create user profile directory: %w", err)
+	}
+	err = os.Symlink(b.arguments.hyphenDataDirPath, fmt.Sprintf("%s/hyphen-data", b.userProfileDirPath))
+	if err != nil {
+		return fmt.Errorf("create symlink to hyphen-data directory: %w", err)
+	}
+
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.CombinedOutput(debug),
 		chromedp.ExecPath(b.arguments.binPath),
 		chromedp.NoSandbox,
-		// See:
-		// https://github.com/gotenberg/gotenberg/issues/327
-		// https://github.com/chromedp/chromedp/issues/904
-		chromedp.DisableGPU,
 		// See:
 		// https://github.com/puppeteer/puppeteer/issues/661
 		// https://github.com/puppeteer/puppeteer/issues/2410
@@ -97,11 +103,9 @@ func (b *chromiumBrowser) Start(logger *zap.Logger) error {
 		// See https://github.com/gotenberg/gotenberg/issues/1177.
 		chromedp.Flag("no-zygote", true),
 		chromedp.Flag("disable-dev-shm-usage", true),
+		// See https://github.com/gotenberg/gotenberg/issues/1293.
+		chromedp.Flag("disable-component-update", false),
 	)
-
-	if b.arguments.incognito {
-		opts = append(opts, chromedp.Flag("incognito", b.arguments.incognito))
-	}
 
 	if b.arguments.allowInsecureLocalhost {
 		// See https://github.com/gotenberg/gotenberg/issues/488.
@@ -137,7 +141,7 @@ func (b *chromiumBrowser) Start(logger *zap.Logger) error {
 	allocatorCtx, allocatorCancel := chromedp.NewExecAllocator(b.initialCtx, opts...)
 	ctx, cancel := chromedp.NewContext(allocatorCtx, chromedp.WithDebugf(debug.Printf))
 
-	err := chromedp.Run(ctx)
+	err = chromedp.Run(ctx)
 	if err != nil {
 		cancel()
 		allocatorCancel()

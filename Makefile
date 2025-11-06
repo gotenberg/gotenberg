@@ -10,6 +10,7 @@ build: ## Build the Gotenberg's Docker image
 	-t $(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
 	-f $(DOCKERFILE) $(DOCKER_BUILD_CONTEXT)
 
+GOTENBERG_HIDE_BANNER=false
 GOTENBERG_GRACEFUL_SHUTDOWN_DURATION=30s
 GOTENBERG_BUILD_DEBUG_DATA=true
 API_PORT=3000
@@ -33,7 +34,6 @@ CHROMIUM_RESTART_AFTER=10
 CHROMIUM_MAX_QUEUE_SIZE=0
 CHROMIUM_AUTO_START=false
 CHROMIUM_START_TIMEOUT=20s
-CHROMIUM_INCOGNITO=false
 CHROMIUM_ALLOW_INSECURE_LOCALHOST=false
 CHROMIUM_IGNORE_CERTIFICATE_ERRORS=false
 CHROMIUM_DISABLE_WEB_SECURITY=false
@@ -61,7 +61,9 @@ PDFENGINES_FLATTEN_ENGINES=qpdf
 PDFENGINES_CONVERT_ENGINES=libreoffice-pdfengine
 PDFENGINES_READ_METADATA_ENGINES=exiftool
 PDFENGINES_WRITE_METADATA_ENGINES=exiftool
+PDFENGINES_ENCRYPT_ENGINES=qpdf,pdfcpu,pdftk
 PDFENGINES_DISABLE_ROUTES=false
+PDFENGINES_EMBED_ENGINES=pdfcpu
 PROMETHEUS_NAMESPACE=gotenberg
 PROMETHEUS_COLLECT_INTERVAL=1s
 PROMETHEUS_DISABLE_ROUTE_LOGGING=false
@@ -70,6 +72,7 @@ SENTRY_DSN=
 SENTRY_SEND_DEFAULT_PII=false
 SENTRY_ENVIRONMENT=
 SENTRY_FLUSH_TIMEOUT=2s
+WEBHOOK_ENABLE_SYNC_MODE=false
 WEBHOOK_ALLOW_LIST=
 WEBHOOK_DENY_LIST=
 WEBHOOK_ERROR_ALLOW_LIST=
@@ -88,6 +91,7 @@ run: ## Start a Gotenberg container
 	-e GOTENBERG_API_BASIC_AUTH_PASSWORD=$(GOTENBERG_API_BASIC_AUTH_PASSWORD) \
 	$(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
 	gotenberg \
+	--gotenberg-hide-banner=$(GOTENBERG_HIDE_BANNER) \
 	--gotenberg-graceful-shutdown-duration=$(GOTENBERG_GRACEFUL_SHUTDOWN_DURATION) \
 	--gotenberg-build-debug-data="$(GOTENBERG_BUILD_DEBUG_DATA)" \
 	--api-port=$(API_PORT) \
@@ -109,7 +113,6 @@ run: ## Start a Gotenberg container
 	--chromium-auto-start=$(CHROMIUM_AUTO_START) \
 	--chromium-max-queue-size=$(CHROMIUM_MAX_QUEUE_SIZE) \
 	--chromium-start-timeout=$(CHROMIUM_START_TIMEOUT) \
-	--chromium-incognito=$(CHROMIUM_INCOGNITO) \
 	--chromium-allow-insecure-localhost=$(CHROMIUM_ALLOW_INSECURE_LOCALHOST) \
 	--chromium-ignore-certificate-errors=$(CHROMIUM_IGNORE_CERTIFICATE_ERRORS) \
 	--chromium-disable-web-security=$(CHROMIUM_DISABLE_WEB_SECURITY) \
@@ -137,7 +140,9 @@ run: ## Start a Gotenberg container
 	--pdfengines-convert-engines=$(PDFENGINES_CONVERT_ENGINES) \
 	--pdfengines-read-metadata-engines=$(PDFENGINES_READ_METADATA_ENGINES) \
 	--pdfengines-write-metadata-engines=$(PDFENGINES_WRITE_METADATA_ENGINES) \
+	--pdfengines-encrypt-engines=$(PDFENGINES_ENCRYPT_ENGINES) \
 	--pdfengines-disable-routes=$(PDFENGINES_DISABLE_ROUTES) \
+	--pdfengines-embed-engines=$(PDFENGINES_EMBED_ENGINES) \
 	--prometheus-namespace=$(PROMETHEUS_NAMESPACE) \
 	--prometheus-collect-interval=$(PROMETHEUS_COLLECT_INTERVAL) \
 	--prometheus-disable-route-logging=$(PROMETHEUS_DISABLE_ROUTE_LOGGING) \
@@ -146,6 +151,7 @@ run: ## Start a Gotenberg container
 	--sentry-send-default-pii=$(SENTRY_SEND_DEFAULT_PII) \
 	--sentry-environment=$(SENTRY_ENVIRONMENT) \
 	--sentry-flush-timeout=$(SENTRY_FLUSH_TIMEOUT) \
+	--webhook-enable-sync-mode="$(WEBHOOK_ENABLE_SYNC_MODE)" \
 	--webhook-allow-list="$(WEBHOOK_ALLOW_LIST)" \
 	--webhook-deny-list="$(WEBHOOK_DENY_LIST)" \
 	--webhook-error-allow-list=$(WEBHOOK_ERROR_ALLOW_LIST) \
@@ -164,12 +170,13 @@ PLATFORM=
 NO_CONCURRENCY=false
 
 .PHONY: test-integration
-test-integration: ## Run integration tests
-	go test -timeout 20m -tags=integration -v github.com/gotenberg/gotenberg/v8/test/integration -args \
+test-integration: ## Run integration tests, use TAGS environment variable to filter tests by tags
+	go test -timeout 40m -tags=integration -v github.com/gotenberg/gotenberg/v8/test/integration -args \
 	--gotenberg-docker-repository=$(DOCKER_REPOSITORY) \
 	--gotenberg-version=$(GOTENBERG_VERSION) \
  	--gotenberg-container-platform=$(PLATFORM) \
- 	--no-concurrency=$(NO_CONCURRENCY)
+ 	--no-concurrency=$(NO_CONCURRENCY) \
+ 	--tags="$(TAGS)"
 
 .PHONY: lint
 lint: ## Lint Golang codebase

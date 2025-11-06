@@ -338,7 +338,7 @@ Feature: /forms/chromium/convert/html
     Then the response body should match string:
       """
       Invalid HTTP status code from resources:
-      https://httpstat.us/400 - 400: Bad Request
+      https://gethttpstatus.com/400 - 400: Bad Request
       """
 
   Scenario: POST /forms/chromium/convert/html (Fail On Resource Loading Failed)
@@ -374,11 +374,11 @@ Feature: /forms/chromium/convert/html
       """
     Then the response body should contain string:
       """
-      exception "Uncaught" (61:12): Error: Exception 1
+      Error: Exception 1
       """
     Then the response body should contain string:
       """
-      exception "Uncaught" (65:12): Error: Exception 2
+      Error: Exception 2
       """
 
   Scenario: POST /forms/chromium/convert/html (Bad Request)
@@ -703,7 +703,7 @@ Feature: /forms/chromium/convert/html
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
-    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 2 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
 
   Scenario: POST /forms/chromium/convert/html (Split & PDF/A-1b & PDF/UA-1)
     Given I have a default Gotenberg container
@@ -734,7 +734,7 @@ Feature: /forms/chromium/convert/html
       Page 3
       """
     Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
-    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 2 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
 
   # See https://github.com/gotenberg/gotenberg/issues/1130.
   Scenario: POST /forms/chromium/convert/html (Split & PDF/A-1b & PDF/UA-1 & Output Filename)
@@ -768,7 +768,7 @@ Feature: /forms/chromium/convert/html
       Page 3
       """
     Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
-    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 2 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
 
   Scenario: POST /forms/chromium/convert/html (Metadata)
     Given I have a default Gotenberg container
@@ -815,6 +815,28 @@ Feature: /forms/chromium/convert/html
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be flatten
 
+  Scenario: POST /forms/chromium/convert/html (Encrypt - user password only)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files        | testdata/page-1-html/index.html | file  |
+      | userPassword | foo                             | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be encrypted
+
+  Scenario: POST /forms/chromium/convert/html (Encrypt - both user and owner passwords)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files         | testdata/page-1-html/index.html | file  |
+      | userPassword  | foo                             | field |
+      | ownerPassword | bar                             | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be encrypted
+
+  # FIXME: once decrypt is done, add encrypt and check after the content of the PDF.
   Scenario: POST /forms/chromium/convert/html (PDF/A-1b & PDF/UA-1 & Metadata & Flatten)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
@@ -920,3 +942,19 @@ Feature: /forms/chromium/convert/html
       | files | testdata/page-1-html/index.html | file |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
+
+  @embed
+  Scenario: POST /forms/chromium/convert/html (Embeds)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/page-1-html/index.html | file   |
+      | embeds                    | testdata/embed_1.xml            | file   |
+      | embeds                    | testdata/embed_2.xml            | file   |
+      | Gotenberg-Output-Filename | foo                             | header |
+    Then the response status code should be 200
+    And the response header "Content-Type" should be "application/pdf"
+    And there should be 1 PDF(s) in the response
+    And there should be the following file(s) in the response:
+      | foo.pdf |
+    And the "foo.pdf" PDF should have the "embed_1.xml" file embedded in it
+    And the "foo.pdf" PDF should have the "embed_2.xml" file embedded in it

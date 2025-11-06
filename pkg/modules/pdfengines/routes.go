@@ -254,6 +254,53 @@ func WriteMetadataStub(ctx *api.Context, engine gotenberg.PdfEngine, metadata ma
 	return nil
 }
 
+// FormDataPdfEmbeds extracts embedded file paths from form data.
+// Only files uploaded with the "embeds" field name are included.
+func FormDataPdfEmbeds(form *api.FormData) []string {
+	var embedPaths []string
+	form.Embeds(&embedPaths)
+	return embedPaths
+}
+
+// FormDataPdfEncrypt extracts encryption parameters from form data.
+func FormDataPdfEncrypt(form *api.FormData) (userPassword, ownerPassword string) {
+	form.String("userPassword", &userPassword, "")
+	form.String("ownerPassword", &ownerPassword, "")
+	return userPassword, ownerPassword
+}
+
+// EncryptPdfStub adds password protection to PDF files.
+func EncryptPdfStub(ctx *api.Context, engine gotenberg.PdfEngine, userPassword, ownerPassword string, inputPaths []string) error {
+	if userPassword == "" {
+		return nil
+	}
+
+	for _, inputPath := range inputPaths {
+		err := engine.Encrypt(ctx, ctx.Log(), inputPath, userPassword, ownerPassword)
+		if err != nil {
+			return fmt.Errorf("encrypt PDF '%s': %w", inputPath, err)
+		}
+	}
+
+	return nil
+}
+
+// EmbedFilesStub embeds files into PDF files.
+func EmbedFilesStub(ctx *api.Context, engine gotenberg.PdfEngine, embedPaths []string, inputPaths []string) error {
+	if len(embedPaths) == 0 {
+		return nil
+	}
+
+	for _, inputPath := range inputPaths {
+		err := engine.EmbedFiles(ctx, ctx.Log(), embedPaths, inputPath)
+		if err != nil {
+			return fmt.Errorf("embed files into PDF '%s': %w", inputPath, err)
+		}
+	}
+
+	return nil
+}
+
 // mergeRoute returns an [api.Route] which can merge PDFs.
 func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 	return api.Route{
@@ -266,6 +313,8 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			form := ctx.FormData()
 			pdfFormats := FormDataPdfFormats(form)
 			metadata := FormDataPdfMetadata(form, false)
+			userPassword, ownerPassword := FormDataPdfEncrypt(form)
+			embedPaths := FormDataPdfEmbeds(form)
 
 			var inputPaths []string
 			var flatten bool
@@ -300,6 +349,16 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 				}
 			}
 
+			err = EmbedFilesStub(ctx, engine, embedPaths, outputPaths)
+			if err != nil {
+				return fmt.Errorf("embed files into PDFs: %w", err)
+			}
+
+			err = EncryptPdfStub(ctx, engine, userPassword, ownerPassword, outputPaths)
+			if err != nil {
+				return fmt.Errorf("encrypt PDFs: %w", err)
+			}
+
 			err = ctx.AddOutputPaths(outputPaths...)
 			if err != nil {
 				return fmt.Errorf("add output paths: %w", err)
@@ -323,6 +382,8 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 			mode := FormDataPdfSplitMode(form, true)
 			pdfFormats := FormDataPdfFormats(form)
 			metadata := FormDataPdfMetadata(form, false)
+			userPassword, ownerPassword := FormDataPdfEncrypt(form)
+			embedPaths := FormDataPdfEmbeds(form)
 
 			var inputPaths []string
 			var flatten bool
@@ -354,6 +415,16 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 				if err != nil {
 					return fmt.Errorf("flatten PDFs: %w", err)
 				}
+			}
+
+			err = EmbedFilesStub(ctx, engine, embedPaths, convertOutputPaths)
+			if err != nil {
+				return fmt.Errorf("embed files into PDFs: %w", err)
+			}
+
+			err = EncryptPdfStub(ctx, engine, userPassword, ownerPassword, convertOutputPaths)
+			if err != nil {
+				return fmt.Errorf("encrypt PDFs: %w", err)
 			}
 
 			zeroValuedSplitMode := gotenberg.SplitMode{}
@@ -456,7 +527,6 @@ func convertRoute(engine gotenberg.PdfEngine) api.Route {
 					if err != nil {
 						return fmt.Errorf("rename output path: %w", err)
 					}
-
 					outputPaths[i] = inputPath
 				}
 			}
@@ -537,6 +607,79 @@ func writeMetadataRoute(engine gotenberg.PdfEngine) api.Route {
 			err = WriteMetadataStub(ctx, engine, metadata, inputPaths)
 			if err != nil {
 				return fmt.Errorf("write metadata: %w", err)
+			}
+
+			err = ctx.AddOutputPaths(inputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
+			}
+
+			return nil
+		},
+	}
+}
+
+// encryptRoute returns an [api.Route] which can add password protection to PDFs.
+func encryptRoute(engine gotenberg.PdfEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/encrypt",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			form := ctx.FormData()
+
+			var inputPaths []string
+			var userPassword string
+			var ownerPassword string
+			err := form.
+				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				MandatoryString("userPassword", &userPassword).
+				String("ownerPassword", &ownerPassword, "").
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			err = EncryptPdfStub(ctx, engine, userPassword, ownerPassword, inputPaths)
+			if err != nil {
+				return fmt.Errorf("encrypt PDFs: %w", err)
+			}
+
+			err = ctx.AddOutputPaths(inputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
+			}
+
+			return nil
+		},
+	}
+}
+
+// embedRoute returns an [api.Route] which can add embedded files to PDFs.
+func embedRoute(engine gotenberg.PdfEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/embed",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			form := ctx.FormData()
+			embedPaths := FormDataPdfEmbeds(form)
+
+			var inputPaths []string
+			err := form.
+				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			err = EmbedFilesStub(ctx, engine, embedPaths, inputPaths)
+			if err != nil {
+				return fmt.Errorf("embed files into PDFs: %w", err)
 			}
 
 			err = ctx.AddOutputPaths(inputPaths...)

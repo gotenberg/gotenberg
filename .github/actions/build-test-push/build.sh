@@ -56,6 +56,7 @@ fi
 # Build tags arrays.
 tags=()
 tags_cloud_run=()
+tags_aws_lambda=()
 
 IFS='/' read -ra arch <<< "$platform"
 IFS='.' read -ra semver <<< "$version"
@@ -79,6 +80,13 @@ if [ "${#semver[@]}" -eq 3 ]; then
     tags_cloud_run+=("$DOCKER_REGISTRY/$DOCKER_REPOSITORY:$major.$minor-cloudrun")
     tags_cloud_run+=("$DOCKER_REGISTRY/$DOCKER_REPOSITORY:$major.$minor.$patch-cloudrun")
   fi
+
+  if [ "$platform" = "linux/amd64" ] || [ "$platform" = "linux/arm64" ]; then
+    tags_aws_lambda+=("$DOCKER_REGISTRY/$DOCKER_REPOSITORY:latest-aws-lambda-${arch[1]}")
+    tags_aws_lambda+=("$DOCKER_REGISTRY/$DOCKER_REPOSITORY:$major-aws-lambda-${arch[1]}")
+    tags_aws_lambda+=("$DOCKER_REGISTRY/$DOCKER_REPOSITORY:$major.$minor-aws-lambda-${arch[1]}")
+    tags_aws_lambda+=("$DOCKER_REGISTRY/$DOCKER_REPOSITORY:$major.$minor.$patch-aws-lambda-${arch[1]}")
+  fi
 else
   echo
   echo "Non-semver version detected, fallback to $version"
@@ -87,10 +95,15 @@ else
   if [ "$platform" = "linux/amd64" ]; then
     tags_cloud_run+=("$DOCKER_REGISTRY/$DOCKER_REPOSITORY:$version-cloudrun")
   fi
+
+  if [ "$platform" = "linux/amd64" ] || [ "$platform" = "linux/arm64" ]; then
+    tags_aws_lambda+=("$DOCKER_REGISTRY/$DOCKER_REPOSITORY:$version-aws-lambda-${arch[1]}")
+  fi
 fi
 
 tags_flags=()
 tags_cloud_run_flags=()
+tags_aws_lambda_flags=()
 
 echo "Will use the following tags:"
 for tag in "${tags[@]}"; do
@@ -99,6 +112,10 @@ for tag in "${tags[@]}"; do
 done
 for tag in "${tags_cloud_run[@]}"; do
   tags_cloud_run_flags+=("-t" "$tag")
+  echo "- $tag"
+done
+for tag in "${tags_aws_lambda[@]}"; do
+  tags_aws_lambda_flags+=("-t" "$tag")
   echo "- $tag"
 done
 echo
@@ -138,24 +155,30 @@ cmd="docker buildx build \
 "
 run_cmd "$cmd"
 
-if [ "$platform" != "linux/amd64" ]; then
-  echo "⚠️ Skip Cloud Run variant(s)"
-  echo "✅ Done!"
-  echo "tags=$(join "," "${tags[@]}")" >> "$GITHUB_OUTPUT"
-  echo "tags_cloud_run=$(join "," "${tags_cloud_run[@]}")" >> "$GITHUB_OUTPUT"
-  exit 0
+if [ "$platform" = "linux/amd64" ]; then
+  cmd="docker build \
+      --build-arg DOCKER_REGISTRY=$DOCKER_REGISTRY \
+      --build-arg DOCKER_REPOSITORY=$DOCKER_REPOSITORY \
+      --build-arg GOTENBERG_VERSION=$version \
+      ${tags_cloud_run_flags[*]} \
+      -f $DOCKERFILE_CLOUDRUN $DOCKER_BUILD_CONTEXT
+  "
+  run_cmd "$cmd"
 fi
 
-cmd="docker build \
-    --build-arg DOCKER_REGISTRY=$DOCKER_REGISTRY \
-    --build-arg DOCKER_REPOSITORY=$DOCKER_REPOSITORY \
-    --build-arg GOTENBERG_VERSION=$version \
-    ${tags_cloud_run_flags[*]} \
-    -f $DOCKERFILE_CLOUDRUN $DOCKER_BUILD_CONTEXT
-"
-run_cmd "$cmd"
+if [ "$platform" = "linux/amd64" ] || [ "$platform" = "linux/arm64" ]; then
+  cmd="docker build \
+        --build-arg DOCKER_REGISTRY=$DOCKER_REGISTRY \
+        --build-arg DOCKER_REPOSITORY=$DOCKER_REPOSITORY \
+        --build-arg GOTENBERG_VERSION=$version \
+        ${tags_aws_lambda_flags[*]} \
+        -f $DOCKERFILE_AWS_LAMBDA $DOCKER_BUILD_CONTEXT
+  "
+  run_cmd "$cmd"
+fi
 
 echo "✅ Done!"
 echo "tags=$(join "," "${tags[@]}")" >> "$GITHUB_OUTPUT"
 echo "tags_cloud_run=$(join "," "${tags_cloud_run[@]}")" >> "$GITHUB_OUTPUT"
+echo "tags_aws_lambda=$(join "," "${tags_aws_lambda[@]}")" >> "$GITHUB_OUTPUT"
 exit 0

@@ -7,11 +7,22 @@ import (
 	"strconv"
 )
 
+type numberLoc int
+
+const (
+	numberNone numberLoc = iota
+	numberPrefix
+	numberExtSuffix // number right before extension.
+	numberSuffix    // trailing number with no extension.
+)
+
 // AlphanumericSort implements sort.Interface and helps to sort strings
 // alphanumerically by either a numeric prefix or, if missing, a numeric
 // suffix.
 //
-// See: https://github.com/gotenberg/gotenberg/issues/805.
+// See:
+// https://github.com/gotenberg/gotenberg/issues/805.
+// https://github.com/gotenberg/gotenberg/issues/1287.
 type AlphanumericSort []string
 
 func (s AlphanumericSort) Len() int {
@@ -23,20 +34,39 @@ func (s AlphanumericSort) Swap(i, j int) {
 }
 
 func (s AlphanumericSort) Less(i, j int) bool {
-	numI, restI := extractNumber(s[i])
-	numJ, restJ := extractNumber(s[j])
+	numI, restI, locI := extractNumber(s[i])
+	numJ, restJ, locJ := extractNumber(s[j])
 
-	// If both strings contain a number, compare them numerically.
+	// Both have a number.
 	if numI != -1 && numJ != -1 {
-		if numI != numJ {
-			return numI < numJ
+		// Both prefix numbers: numeric first, then rest.
+		if locI == numberPrefix && locJ == numberPrefix {
+			if numI != numJ {
+				return numI < numJ
+			}
+			return restI < restJ
 		}
-		// If the numbers are equal, compare the "rest" strings.
-		return restI < restJ
+
+		// Both are suffix-ish (right-before-ext or trailing): rest first, then
+		// number.
+		if locI != numberPrefix && locJ != numberPrefix {
+			if restI != restJ {
+				return restI < restJ
+			}
+			if numI != numJ {
+				return numI < numJ
+			}
+			return s[i] < s[j]
+		}
+
+		// Mixed: one prefix, one not.
+		if restI != restJ {
+			return restI < restJ
+		}
+		return locI == numberPrefix
 	}
 
-	// If one contains a number and the other doesn't, the one with the number
-	// comes first.
+	// One has a number: it comes first.
 	if numI != -1 {
 		return true
 	}
@@ -44,44 +74,29 @@ func (s AlphanumericSort) Less(i, j int) bool {
 		return false
 	}
 
-	// Neither has a number; fall back to lexicographical order.
+	// Neither has a number: plain lexicographic.
 	return s[i] < s[j]
 }
 
-// extractNumber attempts to extract a numeric portion from the filename.
-// It first checks for a numeric prefix (digits at the beginning).
-// If none is found, it next attempts to match a number immediately before the
-// extension (for filenames such as "sample1_1.pdf").
-// If that fails, it then attempts a trailing numeric pattern.
-// If no number is found, it returns -1 and the original string.
-func extractNumber(str string) (int, string) {
-	// See https://github.com/gotenberg/gotenberg/issues/1168.
+func extractNumber(str string) (int, string, numberLoc) {
 	str = filepath.Base(str)
 
-	// Check for a numeric prefix.
 	if matches := prefixRegexp.FindStringSubmatch(str); len(matches) > 2 {
 		if num, err := strconv.Atoi(matches[1]); err == nil {
-			return num, matches[2]
+			return num, matches[2], numberPrefix
 		}
 	}
-
-	// Check for a number immediately before an extension.
 	if matches := extensionSuffixRegexp.FindStringSubmatch(str); len(matches) > 3 {
 		if num, err := strconv.Atoi(matches[2]); err == nil {
-			// Remove the numeric block but keep the extension.
-			return num, matches[1] + matches[3]
+			return num, matches[1] + matches[3], numberExtSuffix
 		}
 	}
-
-	// Check for a trailing number (with no extension following).
 	if matches := suffixRegexp.FindStringSubmatch(str); len(matches) > 2 {
 		if num, err := strconv.Atoi(matches[2]); err == nil {
-			return num, matches[1]
+			return num, matches[1], numberSuffix
 		}
 	}
-
-	// No numeric portion found.
-	return -1, str
+	return -1, str, numberNone
 }
 
 // Regular expressions used by extractNumber.

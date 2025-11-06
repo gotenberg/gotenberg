@@ -330,7 +330,7 @@ func navigateActionFunc(logger *zap.Logger, url string, skipNetworkIdleEvent boo
 	return func(ctx context.Context) error {
 		logger.Debug(fmt.Sprintf("navigate to '%s'", url))
 
-		_, _, _, err := page.Navigate(url).Do(ctx)
+		_, _, _, _, err := page.Navigate(url).Do(ctx)
 		if err != nil {
 			return fmt.Errorf("navigate to '%s': %w", url, err)
 		}

@@ -364,7 +364,6 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Int64("chromium-max-queue-size", 0, "Maximum request queue size for Chromium. Set to 0 to disable this feature")
 			fs.Bool("chromium-auto-start", false, "Automatically launch Chromium upon initialization if set to true; otherwise, Chromium will start at the time of the first conversion")
 			fs.Duration("chromium-start-timeout", time.Duration(20)*time.Second, "Maximum duration to wait for Chromium to start or restart")
-			fs.Bool("chromium-incognito", false, "Start Chromium with incognito mode")
 			fs.Bool("chromium-allow-insecure-localhost", false, "Ignore TLS/SSL errors on localhost")
 			fs.Bool("chromium-ignore-certificate-errors", false, "Ignore the certificate errors")
 			fs.Bool("chromium-disable-web-security", false, "Don't enforce the same-origin policy")
@@ -377,6 +376,13 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Bool("chromium-clear-cookies", false, "Clear Chromium cookies between each conversion")
 			fs.Bool("chromium-disable-javascript", false, "Disable JavaScript")
 			fs.Bool("chromium-disable-routes", false, "Disable the routes")
+
+			// Deprecated flags.
+			fs.Bool("chromium-incognito", false, "Start Chromium with incognito mode")
+			err := fs.MarkDeprecated("chromium-incognito", "this flag is ignored as it provides no benefits")
+			if err != nil {
+				panic(err)
+			}
 
 			return fs
 		}(),
@@ -395,9 +401,13 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 		return errors.New("CHROMIUM_BIN_PATH environment variable is not set")
 	}
 
+	hyphenDataDirPath, ok := os.LookupEnv("CHROMIUM_HYPHEN_DATA_DIR_PATH")
+	if !ok {
+		return errors.New("CHROMIUM_HYPHEN_DATA_DIR_PATH environment variable is not set")
+	}
+
 	mod.args = browserArguments{
 		binPath:                  binPath,
-		incognito:                flags.MustBool("chromium-incognito"),
 		allowInsecureLocalhost:   flags.MustBool("chromium-allow-insecure-localhost"),
 		ignoreCertificateErrors:  flags.MustBool("chromium-ignore-certificate-errors"),
 		disableWebSecurity:       flags.MustBool("chromium-disable-web-security"),
@@ -405,6 +415,7 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 		hostResolverRules:        flags.MustString("chromium-host-resolver-rules"),
 		proxyServer:              flags.MustString("chromium-proxy-server"),
 		wsUrlReadTimeout:         flags.MustDuration("chromium-start-timeout"),
+		hyphenDataDirPath:        hyphenDataDirPath,
 
 		allowList:         flags.MustRegexp("chromium-allow-list"),
 		denyList:          flags.MustRegexp("chromium-deny-list"),
@@ -447,6 +458,11 @@ func (mod *Chromium) Validate() error {
 	_, err := os.Stat(mod.args.binPath)
 	if os.IsNotExist(err) {
 		return fmt.Errorf("chromium binary path does not exist: %w", err)
+	}
+
+	_, err = os.Stat(mod.args.hyphenDataDirPath)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("chromium hyphen-data directory path does not exist: %w", err)
 	}
 
 	return nil

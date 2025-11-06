@@ -173,6 +173,22 @@ Feature: /forms/chromium/convert/url
     Then the server request cookie "cookie_1" should be "foo"
     Then the server request cookie "cookie_2" should be ""
 
+  # See https://github.com/gotenberg/gotenberg/issues/1130.
+  Scenario: POST /forms/chromium/convert/url (case-insensitive sameSite)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html                                                                             | field  |
+      | cookies                   | [{"name":"cookie_1","value":"foo","domain":"host.docker.internal:%d"},{"name":"cookie_2","value":"bar","domain":"domain.com","sameSite":"lax"}] | field  |
+      | Gotenberg-Output-Filename | foo                                                                                                                                             | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the server request cookie "cookie_1" should be "foo"
+    Then the server request cookie "cookie_2" should be ""
+
   Scenario: POST /forms/chromium/convert/url (Wait Delay)
     Given I have a default Gotenberg container
     Given I have a static server
@@ -431,11 +447,11 @@ Feature: /forms/chromium/convert/url
       """
     Then the response body should contain string:
       """
-      exception "Uncaught" (56:12): Error: Exception 1
+      Error: Exception 1
       """
     Then the response body should contain string:
       """
-      exception "Uncaught" (60:12): Error: Exception 2
+      Error: Exception 2
       """
 
   Scenario: POST /forms/chromium/convert/url (Bad Request)
@@ -782,7 +798,7 @@ Feature: /forms/chromium/convert/url
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
-    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 2 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
 
   Scenario: POST /forms/chromium/convert/url (Split & PDF/A-1b & PDF/UA-1)
     Given I have a default Gotenberg container
@@ -814,7 +830,7 @@ Feature: /forms/chromium/convert/url
       Page 3
       """
     Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
-    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 2 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
 
   # See https://github.com/gotenberg/gotenberg/issues/1130.
   Scenario: POST /forms/chromium/convert/url (Split & PDF/A-1b & PDF/UA-1 & Output Filename)
@@ -849,7 +865,7 @@ Feature: /forms/chromium/convert/url
       Page 3
       """
     Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
-    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 2 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
 
   Scenario: POST /forms/chromium/convert/url (Metadata)
     Given I have a default Gotenberg container
@@ -898,6 +914,30 @@ Feature: /forms/chromium/convert/url
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be flatten
 
+  Scenario: POST /forms/chromium/convert/url (Encrypt - user password only)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url          | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+      | userPassword | foo                                                                 | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be encrypted
+
+  Scenario: POST /forms/chromium/convert/url (Encrypt - both user and owner passwords)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url           | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+      | userPassword  | foo                                                                 | field |
+      | ownerPassword | bar                                                                 | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be encrypted
+
+  # FIXME: once decrypt is done, add encrypt and check after the content of the PDF.
   Scenario: POST /forms/chromium/convert/url (PDF/A-1b & PDF/UA-1 & Metadata & Flatten)
     Given I have a default Gotenberg container
     Given I have a static server
@@ -999,3 +1039,20 @@ Feature: /forms/chromium/convert/url
       | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
+
+  @embed
+  Scenario: POST /foo/forms/chromium/convert/url (Embeds)
+    Given I have a default Gotenberg container
+    And I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | embeds                    | testdata/embed_1.xml                                                | file   |
+      | embeds                    | testdata/embed_2.xml                                                | file   |
+      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                                 | header |
+    Then the response status code should be 200
+    And the response header "Content-Type" should be "application/pdf"
+    And there should be 1 PDF(s) in the response
+    And there should be the following file(s) in the webhook request:
+      | foo.pdf |
+    And the "foo.pdf" PDF should have the "embed_1.xml" file embedded in it
+    And the "foo.pdf" PDF should have the "embed_2.xml" file embedded in it

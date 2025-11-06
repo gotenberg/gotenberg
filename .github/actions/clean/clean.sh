@@ -40,6 +40,7 @@ IFS=',' read -ra tags_to_delete <<< "$tags"
 if [ -n "$snapshot_version" ]; then
   tags_to_delete+=("$DOCKER_REGISTRY/snapshot:$snapshot_version")
   tags_to_delete+=("$DOCKER_REGISTRY/snapshot:$snapshot_version-cloudrun")
+  tags_to_delete+=("$DOCKER_REGISTRY/snapshot:$snapshot_version-aws-lambda")
 fi
 
 echo "Will delete the following tag(s):"
