@@ -1,3 +1,6 @@
+@pdfengines
+@pdfengines-metadata
+@metadata
 Feature: /forms/pdfengines/{write|read}
 
   Scenario: POST /forms/pdfengines/metadata/{write|read} (Single PDF)
@@ -151,6 +154,7 @@ Feature: /forms/pdfengines/{write|read}
     Then the Gotenberg container should log the following entries:
       | "trace":"forms_pdfengines_metadata_read" |
 
+  @output-filename
   Scenario: POST /forms/pdfengines/metadata/write (Output Filename - Single PDF)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/write" endpoint with the following form data and header(s):
@@ -162,6 +166,7 @@ Feature: /forms/pdfengines/{write|read}
     Then there should be the following file(s) in the response:
       | foo.pdf |
 
+  @output-filename
   Scenario: POST /forms/pdfengines/metadata/write (Output Filename - Many PDFs)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/write" endpoint with the following form data and header(s):
@@ -176,6 +181,7 @@ Feature: /forms/pdfengines/{write|read}
       | page_1.pdf |
       | page_2.pdf |
 
+  @download-from
   Scenario: POST /forms/pdfengines/metadata/write (Download From)
     Given I have a default Gotenberg container
     Given I have a static server
@@ -187,6 +193,7 @@ Feature: /forms/pdfengines/{write|read}
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
 
+  @download-from
   Scenario: POST /forms/pdfengines/metadata/read (Download From)
     Given I have a default Gotenberg container
     Given I have a static server
@@ -196,6 +203,7 @@ Feature: /forms/pdfengines/{write|read}
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/json"
 
+  @webhook
   Scenario: POST /forms/pdfengines/metadata/write (Webhook)
     Given I have a default Gotenberg container
     Given I have a webhook server
@@ -233,6 +241,7 @@ Feature: /forms/pdfengines/{write|read}
       }
       """
 
+  @webhook
   Scenario: POST /forms/pdfengines/metadata/read (Webhook)
     Given I have a default Gotenberg container
     Given I have a webhook server

@@ -735,41 +735,6 @@ func (s *scenario) thePdfShouldBeSetToLandscapeOrientation(ctx context.Context, 
 	return nil
 }
 
-func (s *scenario) thePdfShouldHaveTheFollowingEmbedsInIt(ctx context.Context, name, should string, embed string) error {
-	path, err := s.getPath(name)
-	if err != nil {
-		return fmt.Errorf("get path %q: %w", name, err)
-	}
-	invert := should == "should NOT"
-
-	cmd := []string{
-		"verapdf",
-		"--off",
-		"--loglevel",
-		"0",
-		"--extract",
-		"embeddedFile",
-		name,
-	}
-
-	output, err := execCommandInIntegrationToolsContainer(ctx, cmd, path)
-	if err != nil {
-		return fmt.Errorf("exec %q: %w", cmd, err)
-	}
-
-	found := strings.Contains(output, fmt.Sprintf("<fileName>%s</fileName>", embed))
-
-	if invert && found {
-		return fmt.Errorf("embed %q found", embed)
-	}
-
-	if !invert && !found {
-		return fmt.Errorf("embed %q not found", embed)
-	}
-
-	return nil
-}
-
 func (s *scenario) thePdfShouldHaveTheFollowingContentAtPage(ctx context.Context, name, kind string, page int, expected *godog.DocString) error {
 	var path string
 	if !strings.HasPrefix(name, "*_") {
@@ -926,6 +891,60 @@ func (s *scenario) thePdfsShouldBeEncrypted(ctx context.Context, kind string, sh
 	return nil
 }
 
+func (s *scenario) thePdfsShouldHaveEmbeddedFile(ctx context.Context, kind, should, embed string) error {
+	dirPath := fmt.Sprintf("%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"))
+
+	_, err := os.Stat(dirPath)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("directory %q does not exist", dirPath)
+	}
+
+	var paths []string
+	err = filepath.Walk(dirPath, func(path string, info os.FileInfo, pathErr error) error {
+		if pathErr != nil {
+			return pathErr
+		}
+		if strings.EqualFold(filepath.Ext(info.Name()), ".pdf") {
+			paths = append(paths, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("walk %q: %w", dirPath, err)
+	}
+
+	invert := should == "should NOT"
+
+	for _, path := range paths {
+		cmd := []string{
+			"verapdf",
+			"--off",
+			"--loglevel",
+			"0",
+			"--extract",
+			"embeddedFile",
+			filepath.Base(path),
+		}
+
+		output, err := execCommandInIntegrationToolsContainer(ctx, cmd, path)
+		if err != nil {
+			return fmt.Errorf("exec %q: %w", cmd, err)
+		}
+
+		found := strings.Contains(output, fmt.Sprintf("<fileName>%s</fileName>", embed))
+
+		if invert && found {
+			return fmt.Errorf("embed %q found", embed)
+		}
+
+		if !invert && !found {
+			return fmt.Errorf("embed %q not found", embed)
+		}
+	}
+
+	return nil
+}
+
 func InitializeScenario(ctx *godog.ScenarioContext) {
 	s := &scenario{}
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
@@ -959,10 +978,10 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the (response|webhook request) PDF\(s\) should be valid "([^"]*)" with a tolerance of (\d+) failed rule\(s\)$`, s.thePdfsShouldBeValidWithAToleranceOf)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) be flatten$`, s.thePdfsShouldBeFlatten)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) be encrypted`, s.thePdfsShouldBeEncrypted)
+	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) have the "([^"]*)" file embedded$`, s.thePdfsShouldHaveEmbeddedFile)
 	ctx.Then(`^the "([^"]*)" PDF should have (\d+) page\(s\)$`, s.thePdfShouldHavePages)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) be set to landscape orientation$`, s.thePdfShouldBeSetToLandscapeOrientation)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have the following content at page (\d+):$`, s.thePdfShouldHaveTheFollowingContentAtPage)
-	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have the "([^"]*)" file embedded in it$`, s.thePdfShouldHaveTheFollowingEmbedsInIt)
 	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		if s.gotenbergContainer != nil {
 			errTerminate := s.gotenbergContainer.Terminate(ctx, testcontainers.StopTimeout(0))

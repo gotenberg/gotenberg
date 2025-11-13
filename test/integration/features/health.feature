@@ -2,6 +2,7 @@
 # 1. Check if down for each module.
 # 2. Restarting modules do not make health check fail.
 
+@health
 Feature: /health
 
   Scenario: GET /health

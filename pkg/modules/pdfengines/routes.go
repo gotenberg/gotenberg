@@ -337,6 +337,11 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("convert PDF: %w", err)
 			}
 
+			err = EmbedFilesStub(ctx, engine, embedPaths, outputPaths)
+			if err != nil {
+				return fmt.Errorf("embed files into PDFs: %w", err)
+			}
+
 			err = WriteMetadataStub(ctx, engine, metadata, outputPaths)
 			if err != nil {
 				return fmt.Errorf("write metadata: %w", err)
@@ -347,11 +352,6 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 				if err != nil {
 					return fmt.Errorf("flatten PDFs: %w", err)
 				}
-			}
-
-			err = EmbedFilesStub(ctx, engine, embedPaths, outputPaths)
-			if err != nil {
-				return fmt.Errorf("embed files into PDFs: %w", err)
 			}
 
 			err = EncryptPdfStub(ctx, engine, userPassword, ownerPassword, outputPaths)
@@ -405,6 +405,11 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("convert PDFs: %w", err)
 			}
 
+			err = EmbedFilesStub(ctx, engine, embedPaths, convertOutputPaths)
+			if err != nil {
+				return fmt.Errorf("embed files into PDFs: %w", err)
+			}
+
 			err = WriteMetadataStub(ctx, engine, metadata, convertOutputPaths)
 			if err != nil {
 				return fmt.Errorf("write metadata: %w", err)
@@ -415,11 +420,6 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 				if err != nil {
 					return fmt.Errorf("flatten PDFs: %w", err)
 				}
-			}
-
-			err = EmbedFilesStub(ctx, engine, embedPaths, convertOutputPaths)
-			if err != nil {
-				return fmt.Errorf("embed files into PDFs: %w", err)
 			}
 
 			err = EncryptPdfStub(ctx, engine, userPassword, ownerPassword, convertOutputPaths)

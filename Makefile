@@ -160,9 +160,39 @@ test-unit: ## Run unit tests
 
 PLATFORM=
 NO_CONCURRENCY=false
+# Available tags:
+# chromium
+# chromium-convert-html
+# chromium-convert-markdown
+# chromium-convert-url
+# debug
+# health
+# libreoffice
+# libreoffice-convert
+# output-filename
+# pdfengines
+# pdfengines-convert
+# pdfengines-embed
+# embed
+# pdfengines-encrypt
+# encrypt
+# pdfengines-flatten
+# flatten
+# pdfengines-merge
+# merge
+# pdfengines-metadata
+# metadata
+# pdfengines-split
+# split
+# prometheus-metrics
+# root
+# version
+# webhook
+# download-from
+TAGS=
 
 .PHONY: test-integration
-test-integration: ## Run integration tests, use TAGS environment variable to filter tests by tags
+test-integration: ## Run integration tests
 	go test -timeout 40m -tags=integration -v github.com/gotenberg/gotenberg/v8/test/integration -args \
 	--gotenberg-docker-repository=$(DOCKER_REPOSITORY) \
 	--gotenberg-version=$(GOTENBERG_VERSION) \

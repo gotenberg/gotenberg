@@ -685,14 +685,14 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 		return fmt.Errorf("convert PDF(s): %w", err)
 	}
 
-	err = pdfengines.WriteMetadataStub(ctx, engine, metadata, convertOutputPaths)
-	if err != nil {
-		return fmt.Errorf("write metadata: %w", err)
-	}
-
 	err = pdfengines.EmbedFilesStub(ctx, engine, embedPaths, convertOutputPaths)
 	if err != nil {
 		return fmt.Errorf("embed files into PDFs: %w", err)
+	}
+
+	err = pdfengines.WriteMetadataStub(ctx, engine, metadata, convertOutputPaths)
+	if err != nil {
+		return fmt.Errorf("write metadata: %w", err)
 	}
 
 	err = pdfengines.EncryptPdfStub(ctx, engine, userPassword, ownerPassword, convertOutputPaths)
