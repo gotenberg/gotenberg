@@ -1005,14 +1005,3 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 		return ctx, nil
 	})
 }
-
-func (s *scenario) getPath(name string) (string, error) {
-	path := fmt.Sprintf("%s/%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"), name)
-
-	_, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		return "", fmt.Errorf("PDF %q does not exist", path)
-	}
-
-	return path, nil
-}
