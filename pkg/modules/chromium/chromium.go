@@ -63,13 +63,20 @@ var (
 	// PdfOptions.OmitBackground is set to true but not PdfOptions.PrintBackground.
 	ErrOmitBackgroundWithoutPrintBackground = errors.New("omit background without print background")
 
+	// ErrPrintingFailed happens if the printing failed for an unknown reason.
+	ErrPrintingFailed = errors.New("printing failed")
+
 	// ErrInvalidPrinterSettings happens if the PdfOptions have one or more
 	// aberrant values.
 	ErrInvalidPrinterSettings = errors.New("invalid printer settings")
 
-	// ErrPageRangesSyntaxError happens if the PdfOptions have an invalid page
-	// range.
+	// ErrPageRangesSyntaxError happens if the PdfOptions page
+	// range syntax is invalid.
 	ErrPageRangesSyntaxError = errors.New("page ranges syntax error")
+
+	// ErrPageRangesExceedsPageCount happens if the PdfOptions have an invalid
+	// page range.
+	ErrPageRangesExceedsPageCount = errors.New("page ranges exceeds page count")
 )
 
 // Chromium is a module that provides both an [Api] and routes for converting

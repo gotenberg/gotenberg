@@ -524,7 +524,17 @@ Feature: /forms/chromium/convert/markdown
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Chromium does not handle the page ranges 'foo' (nativePageRanges)
+      Chromium does not handle the page ranges 'foo' (nativePageRanges) syntax
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
+      | files            | testdata/page-1-markdown/index.html | file  |
+      | files            | testdata/page-1-markdown/page_1.md  | file  |
+      | nativePageRanges | 2-3                                 | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      The page ranges '2-3' (nativePageRanges) exceeds the page count
       """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
       | files             | testdata/page-1-markdown/index.html | file  |

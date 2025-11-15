@@ -652,6 +652,16 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 			)
 		}
 
+		if errors.Is(err, ErrPrintingFailed) {
+			return api.WrapError(
+				fmt.Errorf("convert to PDF: %w", err),
+				api.NewSentinelHttpError(
+					http.StatusBadRequest,
+					"Chromium failed to print the PDF; this usually happens when the page is too large",
+				),
+			)
+		}
+
 		if errors.Is(err, ErrInvalidPrinterSettings) {
 			return api.WrapError(
 				fmt.Errorf("convert to PDF: %w", err),
@@ -662,12 +672,22 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 			)
 		}
 
+		if errors.Is(err, ErrPageRangesExceedsPageCount) {
+			return api.WrapError(
+				fmt.Errorf("convert to PDF: %w", err),
+				api.NewSentinelHttpError(
+					http.StatusBadRequest,
+					fmt.Sprintf("The page ranges '%s' (nativePageRanges) exceeds the page count", options.PageRanges),
+				),
+			)
+		}
+
 		if errors.Is(err, ErrPageRangesSyntaxError) {
 			return api.WrapError(
 				fmt.Errorf("convert to PDF: %w", err),
 				api.NewSentinelHttpError(
 					http.StatusBadRequest,
-					fmt.Sprintf("Chromium does not handle the page ranges '%s' (nativePageRanges)", options.PageRanges),
+					fmt.Sprintf("Chromium does not handle the page ranges '%s' (nativePageRanges) syntax", options.PageRanges),
 				),
 			)
 		}

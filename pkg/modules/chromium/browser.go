@@ -405,12 +405,20 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 	if err != nil {
 		errMessage := err.Error()
 
+		if strings.Contains(errMessage, "Printing failed (-32000)") {
+			return ErrPrintingFailed
+		}
+
 		if strings.Contains(errMessage, "Show invalid printer settings error (-32000)") || strings.Contains(errMessage, "content area is empty (-32602)") {
 			return ErrInvalidPrinterSettings
 		}
 
 		if strings.Contains(errMessage, "Page range syntax error") {
 			return ErrPageRangesSyntaxError
+		}
+
+		if strings.Contains(errMessage, "Page range exceeds page count (-32000)") {
+			return ErrPageRangesExceedsPageCount
 		}
 
 		if strings.Contains(errMessage, "rpcc: message too large") {

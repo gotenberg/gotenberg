@@ -2,7 +2,7 @@
 # 1. JavaScript disabled on some feature.
 
 @chromium
-@chromium-pdf-html
+@chromium-convert-html
 Feature: /forms/chromium/convert/html
 
   Scenario: POST /forms/chromium/convert/html (Default)
@@ -445,7 +445,16 @@ Feature: /forms/chromium/convert/html
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Chromium does not handle the page ranges 'foo' (nativePageRanges)
+      Chromium does not handle the page ranges 'foo' (nativePageRanges) syntax
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files            | testdata/page-1-html/index.html | file  |
+      | nativePageRanges | 2-3                             | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      The page ranges '2-3' (nativePageRanges) exceeds the page count
       """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
       | files             | testdata/page-1-html/index.html | file  |

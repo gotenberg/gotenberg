@@ -522,7 +522,17 @@ Feature: /forms/chromium/convert/url
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Chromium does not handle the page ranges 'foo' (nativePageRanges)
+      Chromium does not handle the page ranges 'foo' (nativePageRanges) syntax
+      """
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url              | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+      | nativePageRanges | 2-3                                                                 | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      The page ranges '2-3' (nativePageRanges) exceeds the page count
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
