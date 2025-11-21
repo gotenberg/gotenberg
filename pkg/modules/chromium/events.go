@@ -235,7 +235,7 @@ func listenForEventLoadingFailed(ctx context.Context, logger *zap.Logger, option
 				"net::ERR_BLOCKED_BY_CLIENT",
 				"net::ERR_BLOCKED_BY_RESPONSE",
 				"net::ERR_FILE_NOT_FOUND",
-				"net::ERR_HTTP2_PROTOCOL_ERROR"
+				"net::ERR_HTTP2_PROTOCOL_ERROR",
 			}
 			if !slices.Contains(errors, ev.ErrorText) {
 				logger.Debug(fmt.Sprintf("skip EventLoadingFailed: '%s' is not part of %+v", ev.ErrorText, errors))
