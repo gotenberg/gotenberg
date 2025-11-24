@@ -23,7 +23,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/testcontainers/testcontainers-go v0.40.0
 	go.uber.org/multierr v1.11.0
-	go.uber.org/zap v1.27.0
+	go.uber.org/zap v1.27.1
 	golang.org/x/net v0.47.0
 	golang.org/x/sync v0.18.0
 	golang.org/x/term v0.37.0
