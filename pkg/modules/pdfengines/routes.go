@@ -303,9 +303,20 @@ func EmbedFilesStub(ctx *api.Context, engine gotenberg.PdfEngine, embedPaths []s
 
 func WatermarkPdfStub(ctx *api.Context, engine gotenberg.PdfEngine, mode, watermark string, inputPaths []string, params string) error {
 	for _, inputPath := range inputPaths {
-		err := engine.AddWatermark(ctx, ctx.Log(), mode, watermark, inputPath, params)
+		err := engine.Watermark(ctx, ctx.Log(), mode, watermark, inputPath, params)
 		if err != nil {
 			return fmt.Errorf("add watermark PDF '%s': %w", inputPath, err)
+		}
+	}
+
+	return nil
+}
+
+func StampPdfStub(ctx *api.Context, engine gotenberg.PdfEngine, mode, stamp string, inputPaths []string, params string) error {
+	for _, inputPath := range inputPaths {
+		err := engine.Stamp(ctx, ctx.Log(), mode, stamp, inputPath, params)
+		if err != nil {
+			return fmt.Errorf("add stamp PDF '%s': %w", inputPath, err)
 		}
 	}
 
@@ -707,19 +718,21 @@ func embedRoute(engine gotenberg.PdfEngine) api.Route {
 func watermarkRoute(engine gotenberg.PdfEngine) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
-		Path:        "/forms/pdfengines/add-watermark",
+		Path:        "/forms/pdfengines/watermark",
 		IsMultipart: true,
 		Handler: func(c echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
 			form := ctx.FormData()
 
-			var inputPaths []string
-			var watermarkPath string
-			var watermarkFilename string
-			var watermarkText string
-			var watermarkMode string
-			var params string
+			var (
+				inputPaths        []string
+				watermarkPath     string
+				watermarkFilename string
+				watermarkText     string
+				watermarkMode     string
+				params            string
+			)
 
 			err := form.
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
@@ -762,6 +775,79 @@ func watermarkRoute(engine gotenberg.PdfEngine) api.Route {
 			err = WatermarkPdfStub(ctx, engine, watermarkMode, watermarkContent, inputPaths, params)
 			if err != nil {
 				return fmt.Errorf("watermark PDFs: %w", err)
+			}
+
+			err = ctx.AddOutputPaths(inputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
+			}
+
+			return nil
+		},
+	}
+}
+
+// stampRoute returns an [api.Route] which can add password protection to PDFs.
+func stampRoute(engine gotenberg.PdfEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/stamp",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			form := ctx.FormData()
+
+			var (
+				inputPaths    []string
+				stampPath     string
+				stampFilename string
+				stampText     string
+				stampMode     string
+				params        string
+			)
+
+			err := form.
+				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				String("stampFilename", &stampFilename, "").
+				String("stampText", &stampText, "").
+				String("stampMode", &stampMode, "image").
+				String("params", &params, "").
+				Custom("stampMode", func(value string) error {
+					if value == "text" {
+						if stampText == "" {
+							return errors.New("stampText is required for text mode")
+						}
+					} else {
+						if stampFilename == "" {
+							return fmt.Errorf("stampFilename is required for %s mode", value)
+						}
+					}
+					return nil
+				}).
+				Validate()
+
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			var stampContent string
+			if stampMode == "text" {
+				stampContent = stampText
+			} else {
+				// Get the stamp file path by filename
+				err = form.
+					MandatoryPath(stampFilename, &stampPath).
+					Validate()
+				if err != nil {
+					return fmt.Errorf("validate stamp file: %w", err)
+				}
+				stampContent = stampPath
+			}
+
+			err = StampPdfStub(ctx, engine, stampMode, stampContent, inputPaths, params)
+			if err != nil {
+				return fmt.Errorf("stamp PDFs: %w", err)
 			}
 
 			err = ctx.AddOutputPaths(inputPaths...)

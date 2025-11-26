@@ -148,10 +148,15 @@ type PdfEngine interface {
 	// without modifying the main PDF content.
 	EmbedFiles(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error
 
-	// AddWatermark adds a watermark to a PDF file.
+	// Watermark adds a watermark to a PDF file.
 	// The mode can be "text", "image", or "pdf".
 	// The watermark is either text content or a file path depending on the mode.
-	AddWatermark(ctx context.Context, logger *zap.Logger, mode, watermark, inputPath, description string) error
+	Watermark(ctx context.Context, logger *zap.Logger, mode, watermark, inputPath, description string) error
+
+	// Stamp adds a stamp to a PDF file.
+	// The mode can be "text", "image", or "pdf".
+	// The stamp is either text content or a file path depending on the mode.
+	Stamp(ctx context.Context, logger *zap.Logger, mode, stamp, inputPath, description string) error
 }
 
 // PdfEngineProvider offers an interface to instantiate a [PdfEngine].

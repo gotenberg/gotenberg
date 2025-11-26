@@ -36,6 +36,7 @@ type PdfEngines struct {
 	encryptNames       []string
 	embedNames         []string
 	watermarkNames     []string
+	stampNames         []string
 	engines            []gotenberg.PdfEngine
 	disableRoutes      bool
 }
@@ -55,6 +56,7 @@ func (mod *PdfEngines) Descriptor() gotenberg.ModuleDescriptor {
 			fs.StringSlice("pdfengines-encrypt-engines", []string{"qpdf", "pdftk", "pdfcpu"}, "Set the PDF engines and their order for the password protection feature - empty means all")
 			fs.StringSlice("pdfengines-embed-engines", []string{"pdfcpu"}, "Set the PDF engines and their order for the file embedding feature - empty means all")
 			fs.StringSlice("pdfengines-watermark-engines", []string{"pdfcpu"}, "Set the PDF engines and their order for the watermark feature - empty means all")
+			fs.StringSlice("pdfengines-stamp-engines", []string{"pdfcpu"}, "Set the PDF engines and their order for the stamp feature - empty means all")
 			fs.Bool("pdfengines-disable-routes", false, "Disable the routes")
 
 			// Deprecated flags.
@@ -83,6 +85,7 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 	encryptNames := flags.MustStringSlice("pdfengines-encrypt-engines")
 	embedNames := flags.MustStringSlice("pdfengines-embed-engines")
 	watermarkNames := flags.MustStringSlice("pdfengines-watermark-engines")
+	stampNames := flags.MustStringSlice("pdfengines-stamp-engines")
 	mod.disableRoutes = flags.MustBool("pdfengines-disable-routes")
 
 	engines, err := ctx.Modules(new(gotenberg.PdfEngine))
@@ -152,6 +155,11 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 	mod.watermarkNames = defaultNames
 	if len(watermarkNames) > 0 {
 		mod.watermarkNames = watermarkNames
+	}
+
+	mod.stampNames = defaultNames
+	if len(stampNames) > 0 {
+		mod.stampNames = stampNames
 	}
 
 	return nil
@@ -229,6 +237,7 @@ func (mod *PdfEngines) SystemMessages() []string {
 		fmt.Sprintf("write metadata engines - %s", strings.Join(mod.writeMetadataNames[:], " ")),
 		fmt.Sprintf("encrypt engines - %s", strings.Join(mod.encryptNames[:], " ")),
 		fmt.Sprintf("watermark engines - %s", strings.Join(mod.watermarkNames[:], " ")),
+		fmt.Sprintf("stamp engines - %s", strings.Join(mod.stampNames[:], " ")),
 	}
 }
 
@@ -258,6 +267,7 @@ func (mod *PdfEngines) PdfEngine() (gotenberg.PdfEngine, error) {
 		engines(mod.encryptNames),
 		engines(mod.embedNames),
 		engines(mod.watermarkNames),
+		engines(mod.stampNames),
 	), nil
 }
 
@@ -284,6 +294,7 @@ func (mod *PdfEngines) Routes() ([]api.Route, error) {
 		encryptRoute(engine),
 		embedRoute(engine),
 		watermarkRoute(engine),
+		stampRoute(engine),
 	}, nil
 }
 

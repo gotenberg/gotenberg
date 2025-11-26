@@ -230,18 +230,18 @@ func (engine *PdfCpu) Encrypt(ctx context.Context, logger *zap.Logger, inputPath
 	return nil
 }
 
-// AddWatermark adds a watermark (text, image, or PDF) to a PDF file using pdfcpu.
+// Watermark adds a watermark (text, image, or PDF) to a PDF file using pdfcpu.
 // The mode parameter specifies the watermark type: "text", "image", or "pdf".
 // The watermark parameter is either text content (for text mode) or a file path (for image/pdf modes).
 // The parameters string contains pdfcpu configuration options (position, rotation, opacity, etc.).
-func (engine *PdfCpu) AddWatermark(ctx context.Context, logger *zap.Logger, mode, watermark, inputPath, parameters string) error {
+func (engine *PdfCpu) Watermark(ctx context.Context, logger *zap.Logger, mode, watermark, inputPath, parameters string) error {
 	// Validate mode
 	if mode != "text" && mode != "image" && mode != "pdf" {
 		return fmt.Errorf("invalid watermark mode '%s': must be 'text', 'image', or 'pdf'", mode)
 	}
 
 	var args []string
-	args = append(args, "stamp", "add")
+	args = append(args, "watermark", "add")
 	args = append(args, "-p", "1-")
 	args = append(args, "-m", mode)
 	args = append(args, "--", watermark)
@@ -256,6 +256,37 @@ func (engine *PdfCpu) AddWatermark(ctx context.Context, logger *zap.Logger, mode
 	_, err = cmd.Exec()
 	if err != nil {
 		return fmt.Errorf("add watermark to PDF with pdfcpu: %w", err)
+	}
+
+	return nil
+}
+
+// Stamp adds a stamp (text, image, or PDF) to a PDF file using pdfcpu.
+// The mode parameter specifies the stamp type: "text", "image", or "pdf".
+// The stamp parameter is either text content (for text mode) or a file path (for image/pdf modes).
+// The parameters string contains pdfcpu configuration options (position, rotation, opacity, etc.).
+func (engine *PdfCpu) Stamp(ctx context.Context, logger *zap.Logger, mode, stamp, inputPath, parameters string) error {
+	// Validate mode
+	if mode != "text" && mode != "image" && mode != "pdf" {
+		return fmt.Errorf("invalid stamp mode '%s': must be 'text', 'image', or 'pdf'", mode)
+	}
+
+	var args []string
+	args = append(args, "stamp", "add")
+	args = append(args, "-p", "1-")
+	args = append(args, "-m", mode)
+	args = append(args, "--", stamp)
+	args = append(args, parameters)
+	args = append(args, inputPath, inputPath)
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		return fmt.Errorf("create command: %w", err)
+	}
+
+	_, err = cmd.Exec()
+	if err != nil {
+		return fmt.Errorf("add stamp to PDF with pdfcpu: %w", err)
 	}
 
 	return nil

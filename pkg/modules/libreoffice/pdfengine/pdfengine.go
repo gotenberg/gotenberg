@@ -101,9 +101,14 @@ func (engine *LibreOfficePdfEngine) EmbedFiles(ctx context.Context, logger *zap.
 	return fmt.Errorf("embed files with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
-// AddWatermark is not available in this implementation.
-func (engine *LibreOfficePdfEngine) AddWatermark(ctx context.Context, logger *zap.Logger, mode, watermark, inputPath, description string) error {
+// Watermark is not available in this implementation.
+func (engine *LibreOfficePdfEngine) Watermark(ctx context.Context, logger *zap.Logger, mode, watermark, inputPath, description string) error {
 	return fmt.Errorf("add watermark with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
+// Stamp is not available in this implementation.
+func (engine *LibreOfficePdfEngine) Stamp(ctx context.Context, logger *zap.Logger, mode, stamp, inputPath, description string) error {
+	return fmt.Errorf("add stamp with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Interface guards.
