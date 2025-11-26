@@ -181,9 +181,14 @@ func (engine *ExifTool) Encrypt(ctx context.Context, logger *zap.Logger, inputPa
 	return fmt.Errorf("encrypt PDF using ExifTool: %w", gotenberg.ErrPdfEncryptionNotSupported)
 }
 
-// AddWatermark is not available in this implementation.
-func (engine *ExifTool) AddWatermark(ctx context.Context, logger *zap.Logger, mode, watermark, inputPath, description string) error {
+// Watermark is not available in this implementation.
+func (engine *ExifTool) Watermark(ctx context.Context, logger *zap.Logger, mode, watermark, inputPath, description string) error {
 	return fmt.Errorf("add watermark with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
+// Stamp is not available in this implementation.
+func (engine *ExifTool) Stamp(ctx context.Context, logger *zap.Logger, mode, stamp, inputPath, description string) error {
+	return fmt.Errorf("add stamp with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Interface guards.
