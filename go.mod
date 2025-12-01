@@ -19,7 +19,7 @@ require (
 	github.com/mholt/archives v0.1.5
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/prometheus/client_golang v1.23.2
-	github.com/shirou/gopsutil/v4 v4.25.10
+	github.com/shirou/gopsutil/v4 v4.25.11
 	github.com/spf13/pflag v1.0.10
 	github.com/testcontainers/testcontainers-go v0.40.0
 	go.uber.org/multierr v1.11.0
