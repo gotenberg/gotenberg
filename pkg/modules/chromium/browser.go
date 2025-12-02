@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	cdprotobrowser "github.com/chromedp/cdproto/browser"
 	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
@@ -250,13 +251,20 @@ func (b *chromiumBrowser) Healthy(logger *zap.Logger) bool {
 	b.ctxMu.RLock()
 	defer b.ctxMu.RUnlock()
 
-	timeoutCtx, timeoutCancel := context.WithTimeout(b.ctx, time.Duration(10)*time.Second)
-	defer timeoutCancel()
+	// Create a timeout based on the existing browser context (b.ctx).
+	// IMPORTANT: We do NOT call chromedp.NewContext here.
+	// We want to execute this against the main browser connection,
+	// avoiding the creation of a new target (tab).
+	ctx, cancel := context.WithTimeout(b.ctx, 5*time.Second)
+	defer cancel()
 
-	taskCtx, taskCancel := chromedp.NewContext(timeoutCtx)
-	defer taskCancel()
-
-	err := chromedp.Run(taskCtx, chromedp.Navigate("about:blank"))
+	// Check if the browser is responsive by asking for its version.
+	// This involves a simple JSON payload roundtrip over the websocket.
+	// See https://github.com/gotenberg/gotenberg/issues/1169.
+	err := chromedp.Run(ctx, chromedp.ActionFunc(func(ctx context.Context) error {
+		_, _, _, _, _, err := cdprotobrowser.GetVersion().Do(ctx)
+		return err
+	}))
 	if err != nil {
 		logger.Error(fmt.Sprintf("browser health check failed: %s", err))
 		return false
