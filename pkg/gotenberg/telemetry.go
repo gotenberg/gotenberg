@@ -1,9 +1,11 @@
 package gotenberg
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hashicorp/go-retryablehttp"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -49,6 +51,61 @@ func (leveled LeveledLogger) Info(msg string, keysAndValues ...interface{}) {
 // Debug logs a message at the debug level using the wrapped zap.Logger.
 func (leveled LeveledLogger) Debug(msg string, keysAndValues ...interface{}) {
 	leveled.logger.Debug(fmt.Sprintf("%s: %+v", msg, keysAndValues))
+}
+
+type MetricInstrument int
+
+const (
+	CounterInstrument MetricInstrument = iota
+	UpDownCounterInstrument
+	HistogramInstrument
+	GaugeInstrument // trailing number with no extension.
+)
+
+// Metric represents a unitary metric.
+type Metric struct {
+	// Name is the unique identifier.
+	// Required.
+	Name string
+
+	// Description describes the metric.
+	// Optional.
+	Description string
+
+	// Instrument is the type of the metric.
+	// Required.
+	Instrument MetricInstrument
+
+	// Read returns the current value.
+	// Required.
+	Read func() float64
+}
+
+// MetricsProvider is a module interface which provides a list of [Metric].
+//
+//	func (m *YourModule) Provision(ctx *gotenberg.Context) error {
+//		provider, _ := ctx.Module(new(gotenberg.MetricsProvider))
+//		metrics, _  := provider.(gotenberg.MetricsProvider).Metrics()
+//	}
+type MetricsProvider interface {
+	Metrics() ([]Metric, error)
+}
+
+type TracerSpan interface {
+	// FIXME.
+	oteltrace.Span
+}
+
+// TracerProvider provides distributed tracing.
+//
+//	func (m *YourModule) Provision(ctx *gotenberg.Context) error {
+//		provider, _ := ctx.Module(new(gotenberg.TracerProvider))
+//	}
+type TracerProvider interface {
+	// TraceStart creates a span using the tracer. It starts a new span with
+	// the given name and returns a context containing the span, as well as the
+	// span itself. It is the caller's responsibility to end the span.
+	TraceStart(ctx context.Context, name string) (context.Context, TracerSpan)
 }
 
 // Interface guards.
