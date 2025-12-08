@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -27,6 +28,7 @@ type Prometheus struct {
 	interval            time.Duration
 	disableRouteLogging bool
 	disableCollect      bool
+	metricsPath         string
 
 	metrics  []gotenberg.Metric
 	registry *prometheus.Registry
@@ -42,6 +44,7 @@ func (mod *Prometheus) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Duration("prometheus-collect-interval", time.Duration(1)*time.Second, "Set the interval for collecting modules' metrics")
 			fs.Bool("prometheus-disable-route-logging", false, "Disable the route logging")
 			fs.Bool("prometheus-disable-collect", false, "Disable the collect of metrics")
+			fs.String("prometheus-metrics-path", "/prometheus/metrics", "Path for Prometheus metrics endpoint")
 
 			return fs
 		}(),
@@ -56,6 +59,7 @@ func (mod *Prometheus) Provision(ctx *gotenberg.Context) error {
 	mod.interval = flags.MustDuration("prometheus-collect-interval")
 	mod.disableRouteLogging = flags.MustBool("prometheus-disable-route-logging")
 	mod.disableCollect = flags.MustBool("prometheus-disable-collect")
+	mod.metricsPath = flags.MustString("prometheus-metrics-path")
 
 	if mod.disableCollect {
 		// Exit early.
@@ -98,6 +102,10 @@ func (mod *Prometheus) Validate() error {
 		return errors.New("namespace must not be empty")
 	}
 
+	if pathErr := validateMetricsPath(mod.namespace); pathErr != nil {
+		return fmt.Errorf("invalid metrics path: %w", pathErr)
+	}
+
 	metricsMap := make(map[string]string, len(mod.metrics))
 
 	for _, metric := range mod.metrics {
@@ -114,6 +122,18 @@ func (mod *Prometheus) Validate() error {
 		}
 
 		metricsMap[metric.Name] = metric.Name
+	}
+
+	return nil
+}
+
+func validateMetricsPath(path string) error {
+	if path == "" {
+		return errors.New("path cannot be empty")
+	}
+
+	if !strings.HasPrefix(path, "/") {
+		return errors.New("path must start with '/'")
 	}
 
 	return nil
@@ -171,7 +191,7 @@ func (mod *Prometheus) Routes() ([]api.Route, error) {
 	return []api.Route{
 		{
 			Method:         http.MethodGet,
-			Path:           "/prometheus/metrics",
+			Path:           mod.metricsPath,
 			DisableLogging: mod.disableRouteLogging,
 			Handler: echo.WrapHandler(
 				promhttp.HandlerFor(mod.registry, promhttp.HandlerOpts{}),
