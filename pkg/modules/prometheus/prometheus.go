@@ -102,8 +102,12 @@ func (mod *Prometheus) Validate() error {
 		return errors.New("namespace must not be empty")
 	}
 
-	if pathErr := validateMetricsPath(mod.namespace); pathErr != nil {
-		return fmt.Errorf("invalid metrics path: %w", pathErr)
+	if mod.metricsPath == "" {
+		return errors.New("metrics path cannot be empty")
+	}
+
+	if !strings.HasPrefix(mod.metricsPath, "/") {
+		return errors.New("metrics path must start with '/'")
 	}
 
 	metricsMap := make(map[string]string, len(mod.metrics))
@@ -122,18 +126,6 @@ func (mod *Prometheus) Validate() error {
 		}
 
 		metricsMap[metric.Name] = metric.Name
-	}
-
-	return nil
-}
-
-func validateMetricsPath(path string) error {
-	if path == "" {
-		return errors.New("path cannot be empty")
-	}
-
-	if !strings.HasPrefix(path, "/") {
-		return errors.New("path must start with '/'")
 	}
 
 	return nil
