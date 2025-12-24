@@ -29,25 +29,37 @@ var sameSiteRegexp = regexp2.MustCompile(
 	regexp2.None,
 )
 
-// FormDataChromiumOptions creates [Options] from the form data. Fallback to
-// the default value if the considered key is not present.
+// FormDataChromiumOptions creates [Options] from the form data.
+//
+// It falls back to the default value if the considered key is not present.
+//
+// JSON-encoded fields:
+//   - failOnHttpStatusCodes: []int
+//   - failOnResourceHttpStatusCodes: []int
+//   - ignoreResourceHttpStatusDomains: []string
+//   - cookies: []Cookie
+//   - extraHttpHeaders: map[string]string
+//
+// Domain filtering only applies to resource checks triggered by
+// "failOnResourceHttpStatusCodes".
 func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 	defaultOptions := DefaultOptions()
 
 	var (
-		skipNetworkIdleEvent          bool
-		failOnHttpStatusCodes         []int64
-		failOnResourceHttpStatusCodes []int64
-		failOnResourceLoadingFailed   bool
-		failOnConsoleExceptions       bool
-		waitDelay                     time.Duration
-		waitWindowStatus              string
-		waitForExpression             string
-		cookies                       []Cookie
-		userAgent                     string
-		extraHttpHeaders              []ExtraHttpHeader
-		emulatedMediaType             string
-		omitBackground                bool
+		skipNetworkIdleEvent            bool
+		failOnHttpStatusCodes           []int64
+		failOnResourceHttpStatusCodes   []int64
+		ignoreResourceHttpStatusDomains []string
+		failOnResourceLoadingFailed     bool
+		failOnConsoleExceptions         bool
+		waitDelay                       time.Duration
+		waitWindowStatus                string
+		waitForExpression               string
+		cookies                         []Cookie
+		userAgent                       string
+		extraHttpHeaders                []ExtraHttpHeader
+		emulatedMediaType               string
+		omitBackground                  bool
 	)
 
 	form := ctx.FormData().
@@ -74,6 +86,19 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 			err := json.Unmarshal([]byte(value), &failOnResourceHttpStatusCodes)
 			if err != nil {
 				return fmt.Errorf("unmarshal failOnResourceHttpStatusCodes: %w", err)
+			}
+
+			return nil
+		}).
+		Custom("ignoreResourceHttpStatusDomains", func(value string) error {
+			if value == "" {
+				ignoreResourceHttpStatusDomains = defaultOptions.IgnoreResourceHttpStatusDomains
+				return nil
+			}
+
+			err := json.Unmarshal([]byte(value), &ignoreResourceHttpStatusDomains)
+			if err != nil {
+				return fmt.Errorf("unmarshal ignoreResourceHttpStatusDomains: %w", err)
 			}
 
 			return nil
@@ -203,19 +228,20 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		Bool("omitBackground", &omitBackground, defaultOptions.OmitBackground)
 
 	options := Options{
-		SkipNetworkIdleEvent:          skipNetworkIdleEvent,
-		FailOnHttpStatusCodes:         failOnHttpStatusCodes,
-		FailOnResourceHttpStatusCodes: failOnResourceHttpStatusCodes,
-		FailOnResourceLoadingFailed:   failOnResourceLoadingFailed,
-		FailOnConsoleExceptions:       failOnConsoleExceptions,
-		WaitDelay:                     waitDelay,
-		WaitWindowStatus:              waitWindowStatus,
-		WaitForExpression:             waitForExpression,
-		Cookies:                       cookies,
-		UserAgent:                     userAgent,
-		ExtraHttpHeaders:              extraHttpHeaders,
-		EmulatedMediaType:             emulatedMediaType,
-		OmitBackground:                omitBackground,
+		SkipNetworkIdleEvent:            skipNetworkIdleEvent,
+		FailOnHttpStatusCodes:           failOnHttpStatusCodes,
+		FailOnResourceHttpStatusCodes:   failOnResourceHttpStatusCodes,
+		IgnoreResourceHttpStatusDomains: ignoreResourceHttpStatusDomains,
+		FailOnResourceLoadingFailed:     failOnResourceLoadingFailed,
+		FailOnConsoleExceptions:         failOnConsoleExceptions,
+		WaitDelay:                       waitDelay,
+		WaitWindowStatus:                waitWindowStatus,
+		WaitForExpression:               waitForExpression,
+		Cookies:                         cookies,
+		UserAgent:                       userAgent,
+		ExtraHttpHeaders:                extraHttpHeaders,
+		EmulatedMediaType:               emulatedMediaType,
+		OmitBackground:                  omitBackground,
 	}
 
 	return form, options

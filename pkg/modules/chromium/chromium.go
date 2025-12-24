@@ -108,6 +108,20 @@ type Options struct {
 	// status code from at least one resource matches with one if its entries.
 	FailOnResourceHttpStatusCodes []int64
 
+	// IgnoreResourceHttpStatusDomains excludes resources whose hostname matches
+	// one of these domains from the application of
+	// [Options.FailOnResourceHttpStatusCodes].
+	//
+	// A match happens if the hostname equals the domain or is a subdomain of it
+	// (e.g., "browser.sentry-cdn.com" matches "sentry-cdn.com").
+	//
+	// Values are normalized (trimmed, lowercased) and may be provided as:
+	// - "example.com"
+	// - "*.example.com" or ".example.com"
+	// - "example.com:443" (port is ignored)
+	// - "https://example.com/path" (scheme/path are ignored)
+	IgnoreResourceHttpStatusDomains []string
+
 	// FailOnResourceLoadingFailed sets if the conversion should fail like the
 	// main page if Chromium fails to load at least one resource.
 	FailOnResourceLoadingFailed bool
@@ -150,19 +164,20 @@ type Options struct {
 // DefaultOptions returns the default values for Options.
 func DefaultOptions() Options {
 	return Options{
-		SkipNetworkIdleEvent:          true,
-		FailOnHttpStatusCodes:         []int64{499, 599},
-		FailOnResourceHttpStatusCodes: nil,
-		FailOnResourceLoadingFailed:   false,
-		FailOnConsoleExceptions:       false,
-		WaitDelay:                     0,
-		WaitWindowStatus:              "",
-		WaitForExpression:             "",
-		Cookies:                       nil,
-		UserAgent:                     "",
-		ExtraHttpHeaders:              nil,
-		EmulatedMediaType:             "",
-		OmitBackground:                false,
+		SkipNetworkIdleEvent:            true,
+		FailOnHttpStatusCodes:           []int64{499, 599},
+		FailOnResourceHttpStatusCodes:   nil,
+		IgnoreResourceHttpStatusDomains: nil,
+		FailOnResourceLoadingFailed:     false,
+		FailOnConsoleExceptions:         false,
+		WaitDelay:                       0,
+		WaitWindowStatus:                "",
+		WaitForExpression:               "",
+		Cookies:                         nil,
+		UserAgent:                       "",
+		ExtraHttpHeaders:                nil,
+		EmulatedMediaType:               "",
+		OmitBackground:                  false,
 	}
 }
 

@@ -376,6 +376,7 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 			invalidHttpStatusCode:           &invalidHttpStatusCode,
 			invalidHttpStatusCodeMu:         &invalidHttpStatusCodeMu,
 			failOnResourceOnHttpStatusCode:  options.FailOnResourceHttpStatusCodes,
+			ignoreResourceHttpStatusDomains: options.IgnoreResourceHttpStatusDomains,
 			invalidResourceHttpStatusCode:   &invalidResourceHttpStatusCode,
 			invalidResourceHttpStatusCodeMu: &invalidResourceHttpStatusCodeMu,
 		})

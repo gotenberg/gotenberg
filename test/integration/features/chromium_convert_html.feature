@@ -343,6 +343,16 @@ Feature: /forms/chromium/convert/html
       https://gethttpstatus.com/400 - 400: Bad Request
       """
 
+  Scenario: POST /forms/chromium/convert/html (Fail On Resource HTTP Status Codes - Ignore Domains)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                           | testdata/feature-rich-html/index.html | file  |
+      | failOnResourceHttpStatusCodes   | [499,599]                             | field |
+      | ignoreResourceHttpStatusDomains | ["gethttpstatus.com"]                 | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
   Scenario: POST /forms/chromium/convert/html (Fail On Resource Loading Failed)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
