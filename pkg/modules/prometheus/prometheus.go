@@ -27,6 +27,7 @@ type Prometheus struct {
 	interval            time.Duration
 	disableRouteLogging bool
 	disableCollect      bool
+	metricsPath         string
 
 	metrics  []gotenberg.Metric
 	registry *prometheus.Registry
@@ -42,6 +43,7 @@ func (mod *Prometheus) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Duration("prometheus-collect-interval", time.Duration(1)*time.Second, "Set the interval for collecting modules' metrics")
 			fs.Bool("prometheus-disable-route-logging", false, "Disable the route logging")
 			fs.Bool("prometheus-disable-collect", false, "Disable the collect of metrics")
+			fs.String("prometheus-metrics-path", "/prometheus/metrics", "Path for Prometheus metrics endpoint")
 
 			return fs
 		}(),
@@ -56,6 +58,7 @@ func (mod *Prometheus) Provision(ctx *gotenberg.Context) error {
 	mod.interval = flags.MustDuration("prometheus-collect-interval")
 	mod.disableRouteLogging = flags.MustBool("prometheus-disable-route-logging")
 	mod.disableCollect = flags.MustBool("prometheus-disable-collect")
+	mod.metricsPath = flags.MustString("prometheus-metrics-path")
 
 	if mod.disableCollect {
 		// Exit early.
@@ -96,6 +99,10 @@ func (mod *Prometheus) Validate() error {
 
 	if mod.namespace == "" {
 		return errors.New("namespace must not be empty")
+	}
+
+	if mod.metricsPath == "" {
+		return errors.New("metrics path cannot be empty")
 	}
 
 	metricsMap := make(map[string]string, len(mod.metrics))
@@ -171,7 +178,7 @@ func (mod *Prometheus) Routes() ([]api.Route, error) {
 	return []api.Route{
 		{
 			Method:         http.MethodGet,
-			Path:           "/prometheus/metrics",
+			Path:           mod.metricsPath,
 			DisableLogging: mod.disableRouteLogging,
 			Handler: echo.WrapHandler(
 				promhttp.HandlerFor(mod.registry, promhttp.HandlerOpts{}),
