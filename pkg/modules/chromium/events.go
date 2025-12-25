@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/chromedp/cdproto/cdp"
@@ -143,6 +145,7 @@ type eventResponseReceivedOptions struct {
 	invalidHttpStatusCode           *error
 	invalidHttpStatusCodeMu         *sync.RWMutex
 	failOnResourceOnHttpStatusCode  []int64
+	ignoreResourceHttpStatusDomains []string
 	invalidResourceHttpStatusCode   *error
 	invalidResourceHttpStatusCodeMu *sync.RWMutex
 }
@@ -157,6 +160,8 @@ func listenForEventResponseReceived(
 	logger *zap.Logger,
 	options eventResponseReceivedOptions,
 ) {
+	normalizedIgnoreDomains := normalizeDomains(options.ignoreResourceHttpStatusDomains)
+
 	for _, code := range []int64{199, 299, 399, 499, 599} {
 		if slices.Contains(options.failOnHttpStatusCodes, code) {
 			for i := code - 99; i <= code; i++ {
@@ -190,6 +195,11 @@ func listenForEventResponseReceived(
 			logger.Debug(fmt.Sprintf("event EventResponseReceived fired for a resource: %+v", ev.Response))
 
 			if slices.Contains(options.failOnResourceOnHttpStatusCode, ev.Response.Status) {
+				if !shouldCheckResourceHttpStatusCode(ev.Response.URL, normalizedIgnoreDomains) {
+					logger.Debug(fmt.Sprintf("skip resource HTTP status code check for '%s' due to domain filtering", ev.Response.URL))
+					return
+				}
+
 				options.invalidResourceHttpStatusCodeMu.Lock()
 				defer options.invalidResourceHttpStatusCodeMu.Unlock()
 
@@ -200,6 +210,79 @@ func listenForEventResponseReceived(
 			}
 		}
 	})
+}
+
+func shouldCheckResourceHttpStatusCode(rawURL string, ignoreDomains []string) bool {
+	host := hostnameFromURL(rawURL)
+
+	if len(ignoreDomains) > 0 && matchesAnyDomain(host, ignoreDomains) {
+		return false
+	}
+
+	return true
+}
+
+func hostnameFromURL(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+	return strings.ToLower(u.Hostname())
+}
+
+func normalizeDomains(domains []string) []string {
+	normalized := make([]string, 0, len(domains))
+
+	for _, domain := range domains {
+		d := normalizeDomain(domain)
+		if d == "" {
+			continue
+		}
+		normalized = append(normalized, d)
+	}
+
+	return normalized
+}
+
+func normalizeDomain(domain string) string {
+	d := strings.ToLower(strings.TrimSpace(domain))
+	if d == "" {
+		return ""
+	}
+
+	// Accept "example.com", "*.example.com", ".example.com", "https://example.com/path",
+	// or "example.com:443".
+	if strings.Contains(d, "://") || strings.HasPrefix(d, "//") {
+		u, err := url.Parse(d)
+		if err == nil && u.Hostname() != "" {
+			d = strings.ToLower(u.Hostname())
+		}
+	} else {
+		// Make it parseable as a URL to extract the hostname and drop any port/path.
+		u, err := url.Parse("https://" + d)
+		if err == nil && u.Hostname() != "" {
+			d = strings.ToLower(u.Hostname())
+		}
+	}
+
+	d = strings.TrimPrefix(d, "*.")
+	d = strings.TrimPrefix(d, ".")
+
+	return d
+}
+
+func matchesAnyDomain(host string, domains []string) bool {
+	if host == "" || len(domains) == 0 {
+		return false
+	}
+
+	for _, domain := range domains {
+		if host == domain || strings.HasSuffix(host, "."+domain) {
+			return true
+		}
+	}
+
+	return false
 }
 
 type eventLoadingFailedOptions struct {
