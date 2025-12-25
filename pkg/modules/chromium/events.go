@@ -231,7 +231,7 @@ func hostnameFromURL(rawURL string) string {
 }
 
 func normalizeDomains(domains []string) []string {
-	var normalized []string
+	normalized := make([]string, 0, len(domains))
 
 	for _, domain := range domains {
 		d := normalizeDomain(domain)
