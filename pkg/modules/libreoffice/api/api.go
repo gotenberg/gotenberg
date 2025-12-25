@@ -338,6 +338,7 @@ func (a *Api) Metrics() ([]gotenberg.Metric, error) {
 		{
 			Name:        "libreoffice_requests_queue_size",
 			Description: "Current number of LibreOffice conversion requests waiting to be treated.",
+			Instrument:  gotenberg.HistogramInstrument,
 			Read: func() float64 {
 				return float64(a.supervisor.ReqQueueSize())
 			},
@@ -345,6 +346,7 @@ func (a *Api) Metrics() ([]gotenberg.Metric, error) {
 		{
 			Name:        "libreoffice_restarts_count",
 			Description: "Current number of LibreOffice restarts.",
+			Instrument:  gotenberg.CounterInstrument,
 			Read: func() float64 {
 				return float64(a.supervisor.RestartsCount())
 			},

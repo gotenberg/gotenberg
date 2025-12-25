@@ -65,9 +65,19 @@ PDFENGINES_ENCRYPT_ENGINES=qpdf,pdfcpu,pdftk
 PDFENGINES_DISABLE_ROUTES=false
 PDFENGINES_EMBED_ENGINES=pdfcpu
 PROMETHEUS_NAMESPACE=gotenberg
-PROMETHEUS_COLLECT_INTERVAL=1s
+PROMETHEUS_COLLECT_INTERVAL=5s
 PROMETHEUS_DISABLE_ROUTE_LOGGING=false
 PROMETHEUS_DISABLE_COLLECT=false
+OTEL_SERVICE_NAME=gotenberg
+OTEL_LOG_EXPORTER_PROTOCOL=grpc
+OTEL_DISABLE_LOG_EXPORTER=true
+OTEL_METRIC_EXPORTER_PROTOCOL=grpc
+OTEL_DISABLE_METRIC_EXPORTER=true
+OTEL_METRICS_COLLECT_INTERVAL=5s
+OTEL_SPAN_EXPORTER_PROTOCOL=grpc
+OTEL_DISABLE_SPAN_EXPORTER=true
+OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
+OTEL_EXPORTER_OTLP_INSECURE=true
 WEBHOOK_ENABLE_SYNC_MODE=false
 WEBHOOK_ALLOW_LIST=
 WEBHOOK_DENY_LIST=
@@ -81,7 +91,9 @@ WEBHOOK_DISABLE=false
 
 .PHONY: run
 run: ## Start a Gotenberg container
+	docker network create gotenberg || true &&\
 	docker run --rm -it \
+	--network gotenberg \
 	-p $(API_PORT):$(API_PORT) \
 	-e GOTENBERG_API_BASIC_AUTH_USERNAME=$(GOTENBERG_API_BASIC_AUTH_USERNAME) \
 	-e GOTENBERG_API_BASIC_AUTH_PASSWORD=$(GOTENBERG_API_BASIC_AUTH_PASSWORD) \
@@ -143,6 +155,14 @@ run: ## Start a Gotenberg container
 	--prometheus-collect-interval=$(PROMETHEUS_COLLECT_INTERVAL) \
 	--prometheus-disable-route-logging=$(PROMETHEUS_DISABLE_ROUTE_LOGGING) \
 	--prometheus-disable-collect=$(PROMETHEUS_DISABLE_COLLECT) \
+	--otel-service-name=$(OTEL_SERVICE_NAME) \
+	--otel-log-exporter-protocol=$(OTEL_LOG_EXPORTER_PROTOCOL) \
+	--otel-disable-log-exporter=$(OTEL_DISABLE_LOG_EXPORTER) \
+	--otel-metric-exporter-protocol=$(OTEL_METRIC_EXPORTER_PROTOCOL) \
+	--otel-disable-metric-exporter=$(OTEL_DISABLE_METRIC_EXPORTER) \
+	--otel-metrics-collect-interval=$(OTEL_METRICS_COLLECT_INTERVAL) \
+	--otel-span-exporter-protocol=$(OTEL_SPAN_EXPORTER_PROTOCOL) \
+	--otel-disable-span-exporter=$(OTEL_DISABLE_SPAN_EXPORTER) \
 	--webhook-enable-sync-mode="$(WEBHOOK_ENABLE_SYNC_MODE)" \
 	--webhook-allow-list="$(WEBHOOK_ALLOW_LIST)" \
 	--webhook-deny-list="$(WEBHOOK_DENY_LIST)" \
@@ -153,6 +173,18 @@ run: ## Start a Gotenberg container
 	--webhook-retry-max-wait=$(WEBHOOK_RETRY_MAX_WAIT) \
 	--webhook-client-timeout=$(WEBHOOK_CLIENT_TIMEOUT) \
 	--webhook-disable=$(WEBHOOK_DISABLE)
+
+.PHONY: collector
+collector: ## Start a Jaeger collector
+	docker network create gotenberg || true &&\
+	docker run --rm -it \
+	--name jaeger \
+	--network gotenberg \
+	-p 4317:4317 \
+	-p 16686:16686 \
+	-p 14269:14269 \
+	-e COLLECTOR_OTLP_ENABLED=true \
+	jaegertracing/all-in-one:1.76.0
 
 .PHONY: test-unit
 test-unit: ## Run unit tests
