@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -104,10 +103,6 @@ func (mod *Prometheus) Validate() error {
 
 	if mod.metricsPath == "" {
 		return errors.New("metrics path cannot be empty")
-	}
-
-	if !strings.HasPrefix(mod.metricsPath, "/") {
-		return errors.New("metrics path must start with '/'")
 	}
 
 	metricsMap := make(map[string]string, len(mod.metrics))
