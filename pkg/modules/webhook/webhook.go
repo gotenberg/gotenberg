@@ -1,6 +1,7 @@
 package webhook
 
 import (
+	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -29,6 +30,8 @@ type Webhook struct {
 	clientTimeout  time.Duration
 	asyncCount     atomic.Int64
 	disable        bool
+
+	tracer gotenberg.TracerProvider
 }
 
 // Descriptor returns an [Webhook]'s module descriptor.
@@ -68,6 +71,13 @@ func (w *Webhook) Provision(ctx *gotenberg.Context) error {
 	w.clientTimeout = flags.MustDuration("webhook-client-timeout")
 	w.disable = flags.MustBool("webhook-disable")
 	w.asyncCount.Store(0)
+
+	// Tracer.
+	tracerProvider, err := ctx.Module(new(gotenberg.TracerProvider))
+	if err != nil {
+		return fmt.Errorf("get tracer provider: %w", err)
+	}
+	w.tracer = tracerProvider.(gotenberg.TracerProvider)
 
 	return nil
 }

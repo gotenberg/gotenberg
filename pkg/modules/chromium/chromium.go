@@ -538,6 +538,7 @@ func (mod *Chromium) Metrics() ([]gotenberg.Metric, error) {
 		{
 			Name:        "chromium_requests_queue_size",
 			Description: "Current number of Chromium conversion requests waiting to be treated.",
+			Instrument:  gotenberg.HistogramInstrument,
 			Read: func() float64 {
 				return float64(mod.supervisor.ReqQueueSize())
 			},
@@ -545,6 +546,7 @@ func (mod *Chromium) Metrics() ([]gotenberg.Metric, error) {
 		{
 			Name:        "chromium_restarts_count",
 			Description: "Current number of Chromium restarts.",
+			Instrument:  gotenberg.CounterInstrument,
 			Read: func() float64 {
 				return float64(mod.supervisor.RestartsCount())
 			},

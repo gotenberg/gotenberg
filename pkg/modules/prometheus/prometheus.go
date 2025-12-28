@@ -39,7 +39,7 @@ func (mod *Prometheus) Descriptor() gotenberg.ModuleDescriptor {
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("prometheus", flag.ExitOnError)
 			fs.String("prometheus-namespace", "gotenberg", "Set the namespace of modules' metrics")
-			fs.Duration("prometheus-collect-interval", time.Duration(1)*time.Second, "Set the interval for collecting modules' metrics")
+			fs.Duration("prometheus-collect-interval", time.Duration(5)*time.Second, "Set the interval for collecting modules' metrics")
 			fs.Bool("prometheus-disable-route-logging", false, "Disable the route logging")
 			fs.Bool("prometheus-disable-collect", false, "Disable the collect of metrics")
 
@@ -127,22 +127,70 @@ func (mod *Prometheus) Start() error {
 	}
 
 	for _, metric := range mod.metrics {
-		gauge := prometheus.NewGauge(
-			prometheus.GaugeOpts{
-				Namespace: mod.namespace,
-				Name:      metric.Name,
-				Help:      metric.Description,
-			},
-		)
-
-		mod.registry.MustRegister(gauge)
-
-		go func(gauge prometheus.Gauge, metric gotenberg.Metric) {
-			for {
-				gauge.Set(metric.Read())
-				time.Sleep(mod.interval)
-			}
-		}(gauge, metric)
+		switch metric.Instrument {
+		case gotenberg.CounterInstrument:
+			counter := prometheus.NewCounter(
+				prometheus.CounterOpts{
+					Namespace: mod.namespace,
+					Name:      metric.Name,
+					Help:      metric.Description,
+				},
+			)
+			mod.registry.MustRegister(counter)
+			go func(counter prometheus.Counter, metric gotenberg.Metric) {
+				for {
+					counter.Add(metric.Read())
+					time.Sleep(mod.interval)
+				}
+			}(counter, metric)
+		case gotenberg.UpDownCounterInstrument:
+			counter := prometheus.NewCounter(
+				prometheus.CounterOpts{
+					Namespace: mod.namespace,
+					Name:      metric.Name,
+					Help:      metric.Description,
+				},
+			)
+			mod.registry.MustRegister(counter)
+			go func(counter prometheus.Counter, metric gotenberg.Metric) {
+				for {
+					counter.Add(metric.Read())
+					time.Sleep(mod.interval)
+				}
+			}(counter, metric)
+		case gotenberg.HistogramInstrument:
+			histogram := prometheus.NewHistogram(
+				prometheus.HistogramOpts{
+					Namespace: mod.namespace,
+					Name:      metric.Name,
+					Help:      metric.Description,
+				},
+			)
+			mod.registry.MustRegister(histogram)
+			go func(histogram prometheus.Histogram, metric gotenberg.Metric) {
+				for {
+					histogram.Observe(metric.Read())
+					time.Sleep(mod.interval)
+				}
+			}(histogram, metric)
+		case gotenberg.GaugeInstrument:
+			gauge := prometheus.NewGauge(
+				prometheus.GaugeOpts{
+					Namespace: mod.namespace,
+					Name:      metric.Name,
+					Help:      metric.Description,
+				},
+			)
+			mod.registry.MustRegister(gauge)
+			go func(gauge prometheus.Gauge, metric gotenberg.Metric) {
+				for {
+					gauge.Set(metric.Read())
+					time.Sleep(mod.interval)
+				}
+			}(gauge, metric)
+		default:
+			return fmt.Errorf("unknown instrument: %d", metric.Instrument)
+		}
 	}
 
 	return nil
