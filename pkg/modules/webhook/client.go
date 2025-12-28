@@ -26,7 +26,7 @@ type client struct {
 }
 
 // send call the webhook either to send the success response or the error response.
-func (c client) send(body io.Reader, headers map[string]string, errored bool) error {
+func (c client) send(body io.Reader, headers http.Header, errored bool) error {
 	url := c.url
 	if errored {
 		url = c.errorUrl
@@ -51,26 +51,24 @@ func (c client) send(body io.Reader, headers map[string]string, errored bool) er
 
 	// Middleware caller's headers > extra HTTP headers from the user.
 
-	contentLength, ok := headers[echo.HeaderContentLength]
-	if ok {
-		// Golang "http" package should automatically calculate the size of the
-		// body. But when using a buffered file reader, it does not work.
-		// Worse, the "Content-Length" header is also removed. Therefore,
-		// to keep this valuable information, we have to trust the caller
-		// by reading the value of the "Content-Length" entry and set it as the
-		// content length of the request. It's kinda suboptimal, but hey, at
-		// least it works.
+	contentLength := headers.Get(echo.HeaderContentLength)
+	// Golang "http" package should automatically calculate the size of the
+	// body. But when using a buffered file reader, it does not work.
+	// Worse, the "Content-Length" header is also removed. Therefore,
+	// to keep this valuable information, we have to trust the caller
+	// by reading the value of the "Content-Length" entry and set it as the
+	// content length of the request. It's kinda suboptimal, but hey, at
+	// least it works.
 
-		bodySize, err := strconv.ParseInt(contentLength, 10, 64)
-		if err != nil {
-			return fmt.Errorf("parse content length entry: %w", err)
-		}
-
-		req.ContentLength = bodySize
+	bodySize, err := strconv.ParseInt(contentLength, 10, 64)
+	if err != nil {
+		return fmt.Errorf("parse content length entry: %w", err)
 	}
 
-	for key, value := range headers {
-		req.Header.Set(key, value)
+	req.ContentLength = bodySize
+
+	for key := range headers {
+		req.Header.Set(key, headers.Get(key))
 	}
 
 	resp, err := c.client.Do(req)

@@ -2,14 +2,12 @@ package logging
 
 import (
 	"fmt"
-	"os"
-	"time"
+	"sync"
 
 	flag "github.com/spf13/pflag"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"golang.org/x/term"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
@@ -38,6 +36,9 @@ type Logging struct {
 	format          string
 	fieldsPrefix    string
 	enableGcpFields bool
+
+	bridgeCore   *bridgeCore
+	bridgeCoreMu sync.Mutex
 }
 
 // Descriptor returns a [Logging]'s module descriptor.
@@ -67,7 +68,6 @@ func (log *Logging) Descriptor() gotenberg.ModuleDescriptor {
 // Provision sets the log level and format.
 func (log *Logging) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
-
 	log.level = flags.MustString("log-level")
 	log.format = flags.MustString("log-format")
 	log.fieldsPrefix = flags.MustString("log-fields-prefix")
@@ -106,63 +106,49 @@ func (log *Logging) Validate() error {
 // Logger returns a [zap.Logger].
 func (log *Logging) Logger(mod gotenberg.Module) (*zap.Logger, error) {
 	if logger == nil {
-		lvl, err := newLogLevel(log.level)
+		level, err := newLogLevel(log.level)
 		if err != nil {
 			return nil, fmt.Errorf("get log level: %w", err)
 		}
 
-		encoder, err := newLogEncoder(log.format, log.enableGcpFields)
+		stdCore, err := newStdCore(level, log.format, log.enableGcpFields)
 		if err != nil {
-			return nil, fmt.Errorf("get log encoder: %w", err)
+			return nil, fmt.Errorf("create std core: %w", err)
 		}
 
-		logger = zap.New(customCore{
-			Core:         zapcore.NewCore(encoder, os.Stderr, lvl),
-			fieldsPrefix: log.fieldsPrefix,
-		})
+		log.bridgeCoreMu.Lock()
+		log.bridgeCore = newBridgeCore(level)
+		log.bridgeCoreMu.Unlock()
+
+		teeCore := zapcore.NewTee(
+			rootCore{
+				Core: stdCore,
+				// See https://github.com/gotenberg/gotenberg/issues/659.
+				fieldsPrefix: log.fieldsPrefix,
+			},
+			rootCore{
+				Core: log.bridgeCore,
+				// See https://github.com/gotenberg/gotenberg/issues/659.
+				fieldsPrefix: log.fieldsPrefix,
+			},
+		)
+
+		logger = zap.New(teeCore)
 	}
 
 	return logger.Named(mod.Descriptor().ID), nil
 }
 
-// See https://github.com/gotenberg/gotenberg/issues/659.
-type customCore struct {
-	zapcore.Core
-	fieldsPrefix string
-}
+// RegisterCore implements [gotenberg.LogExporterHook].
+func (log *Logging) RegisterCore(core zapcore.Core) error {
+	log.bridgeCoreMu.Lock()
+	defer log.bridgeCoreMu.Unlock()
 
-func (c customCore) With(fields []zapcore.Field) zapcore.Core {
-	if c.fieldsPrefix != "" {
-		for i := range fields {
-			fields[i].Key = c.fieldsPrefix + "_" + fields[i].Key
-		}
+	if log.bridgeCore != nil {
+		log.bridgeCore.SetTarget(core)
 	}
 
-	return customCore{
-		Core:         c.Core.With(fields),
-		fieldsPrefix: c.fieldsPrefix,
-	}
-}
-
-func (c customCore) Check(ent zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
-	// This is a copy from the zapcore.ioCore implementation. Indeed, by doing
-	// so, we are able to prefix the fields given to the logger methods like
-	// Debug, Info, Warn, Error, etc.
-	if c.Enabled(ent.Level) {
-		return ce.AddCore(ent, c)
-	}
-
-	return ce
-}
-
-func (c customCore) Write(entry zapcore.Entry, fields []zapcore.Field) error {
-	if c.fieldsPrefix != "" {
-		for i := range fields {
-			fields[i].Key = c.fieldsPrefix + "_" + fields[i].Key
-		}
-	}
-
-	return c.Core.Write(entry, fields)
+	return nil
 }
 
 func newLogLevel(level string) (zapcore.Level, error) {
@@ -176,64 +162,14 @@ func newLogLevel(level string) (zapcore.Level, error) {
 	return lvl, nil
 }
 
-func newLogEncoder(format string, gcpFields bool) (zapcore.Encoder, error) {
-	isTerminal := term.IsTerminal(int(os.Stdout.Fd()))
-	encCfg := zap.NewProductionEncoderConfig()
-
-	// Normalize the log format based on the output device.
-	if format == autoLoggingFormat {
-		if isTerminal {
-			format = textLoggingFormat
-		} else {
-			format = jsonLoggingFormat
-		}
-	}
-
-	// Use a human-readable time format if running in a terminal.
-	if isTerminal {
-		encCfg.EncodeTime = func(ts time.Time, encoder zapcore.PrimitiveArrayEncoder) {
-			encoder.AppendString(ts.Local().Format("2006/01/02 15:04:05.000"))
-		}
-	}
-
-	// Configure level encoding based on format and GCP settings.
-	if format == textLoggingFormat && isTerminal {
-		if gcpFields {
-			encCfg.EncodeLevel = gcpSeverityColorEncoder
-		} else {
-			encCfg.EncodeLevel = zapcore.CapitalColorLevelEncoder
-		}
-	}
-
-	// For non-text (JSON) or when GCP fields are requested outside a terminal text output,
-	// adjust the configuration to use GCP-specific field names and encoders.
-	if gcpFields && format != textLoggingFormat {
-		encCfg.EncodeLevel = gcpSeverityEncoder
-		encCfg.TimeKey = "time"
-		encCfg.LevelKey = "severity"
-		encCfg.MessageKey = "message"
-		encCfg.EncodeTime = zapcore.ISO8601TimeEncoder
-		encCfg.EncodeDuration = zapcore.MillisDurationEncoder
-	}
-
-	switch format {
-	case textLoggingFormat:
-		return zapcore.NewConsoleEncoder(encCfg), nil
-	case jsonLoggingFormat:
-		return zapcore.NewJSONEncoder(encCfg), nil
-	default:
-		return nil, fmt.Errorf("%s is not a recognized log format", format)
-	}
-}
-
 // Singleton so that we instantiate our logger only once.
 var logger *zap.Logger = nil
 
 // Interface guards.
 var (
-	_ gotenberg.Module         = (*Logging)(nil)
-	_ gotenberg.Provisioner    = (*Logging)(nil)
-	_ gotenberg.Validator      = (*Logging)(nil)
-	_ gotenberg.LoggerProvider = (*Logging)(nil)
-	_ zapcore.Core             = (*customCore)(nil)
+	_ gotenberg.Module          = (*Logging)(nil)
+	_ gotenberg.Provisioner     = (*Logging)(nil)
+	_ gotenberg.Validator       = (*Logging)(nil)
+	_ gotenberg.LoggerProvider  = (*Logging)(nil)
+	_ gotenberg.LogExporterHook = (*Logging)(nil)
 )

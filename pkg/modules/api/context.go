@@ -86,7 +86,7 @@ type downloadFrom struct {
 }
 
 // newContext returns a [Context] by parsing a "multipart/form-data" request.
-func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig, traceHeader, trace string) (*Context, context.CancelFunc, error) {
+func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig, tracer gotenberg.TracerProvider, traceHeader, trace string) (*Context, context.CancelFunc, error) {
 	processCtx, processCancel := context.WithTimeout(context.Background(), timeout)
 
 	// We want to make sure the multipart/form-data does not exceed a given
@@ -236,6 +236,7 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 					req.Header.Set(key, value)
 				}
 				req.Header.Set(traceHeader, trace)
+				tracer.Inject(ctx, req.Header)
 
 				client := &retryablehttp.Client{
 					HTTPClient: &http.Client{
