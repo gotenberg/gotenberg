@@ -38,6 +38,7 @@ type Api struct {
 	timeout                   time.Duration
 	rootPath                  string
 	traceHeader               string
+	traceFieldKey             string
 	basicAuthUsername         string
 	basicAuthPassword         string
 	downloadFromCfg           downloadFromConfig
@@ -50,6 +51,7 @@ type Api struct {
 	readyFn             []func() error
 	asyncCounters       []AsynchronousCounter
 	fs                  *gotenberg.FileSystem
+	tracer              gotenberg.TracerProvider
 	logger              *zap.Logger
 	srv                 *echo.Echo
 }
@@ -191,6 +193,7 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.String("api-body-limit", "", "Set the body limit for multipart/form-data requests - it accepts values like 5MB, 1GB, etc")
 			fs.String("api-root-path", "/", "Set the root path of the API - for service discovery via URL paths")
 			fs.String("api-trace-header", "Gotenberg-Trace", "Set the header name to use for identifying requests")
+			fs.String("api-trace-field-key", "trace", "Set the field key for the trace value in the logs")
 			fs.Bool("api-enable-basic-auth", false, "Enable basic authentication - will look for the GOTENBERG_API_BASIC_AUTH_USERNAME and GOTENBERG_API_BASIC_AUTH_PASSWORD environment variables")
 			fs.String("api-download-from-allow-list", "", "Set the allowed URLs for the download from feature using a regular expression")
 			fs.String("api-download-from-deny-list", "", "Set the denied URLs for the download from feature using a regular expression")
@@ -216,6 +219,7 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 	a.bodyLimit = flags.MustHumanReadableBytes("api-body-limit")
 	a.rootPath = flags.MustString("api-root-path")
 	a.traceHeader = flags.MustString("api-trace-header")
+	a.traceFieldKey = flags.MustString("api-trace-field-key")
 	a.downloadFromCfg = downloadFromConfig{
 		allowList: flags.MustRegexp("api-download-from-allow-list"),
 		denyList:  flags.MustRegexp("api-download-from-deny-list"),
@@ -327,6 +331,13 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 		a.asyncCounters[i] = asyncCounter.(AsynchronousCounter)
 	}
 
+	// Tracer.
+	tracerProvider, err := ctx.Module(new(gotenberg.TracerProvider))
+	if err != nil {
+		return fmt.Errorf("get tracer provider: %w", err)
+	}
+	a.tracer = tracerProvider.(gotenberg.TracerProvider)
+
 	// Logger.
 	loggerProvider, err := ctx.Module(new(gotenberg.LoggerProvider))
 	if err != nil {
@@ -381,6 +392,12 @@ func (a *Api) Validate() error {
 	if len(strings.TrimSpace(a.traceHeader)) == 0 {
 		err = multierr.Append(err,
 			errors.New("trace header must not be empty"),
+		)
+	}
+
+	if len(strings.TrimSpace(a.traceFieldKey)) == 0 {
+		err = multierr.Append(err,
+			errors.New("trace field key must not be empty"),
 		)
 	}
 
@@ -461,9 +478,9 @@ func (a *Api) Start() error {
 	a.srv.Pre(
 		latencyMiddleware(),
 		rootPathMiddleware(a.rootPath),
-		traceMiddleware(a.traceHeader),
+		traceMiddleware(a.traceHeader, a.tracer),
 		outputFilenameMiddleware(),
-		loggerMiddleware(a.logger, disableLoggingForPaths),
+		loggerMiddleware(a.logger, a.traceFieldKey, disableLoggingForPaths),
 	)
 
 	// Add the modules' middlewares in their respective stacks.
@@ -499,7 +516,7 @@ func (a *Api) Start() error {
 		middlewares = append(middlewares, securityMiddleware)
 
 		if route.IsMultipart {
-			middlewares = append(middlewares, contextMiddleware(a.fs, a.timeout, a.bodyLimit, a.downloadFromCfg))
+			middlewares = append(middlewares, contextMiddleware(a.fs, a.timeout, a.bodyLimit, a.downloadFromCfg, a.tracer))
 
 			for _, externalMultipartMiddleware := range externalMultipartMiddlewares {
 				middlewares = append(middlewares, externalMultipartMiddleware.Handler)

@@ -24,8 +24,7 @@ type sendOutputFileParams struct {
 	ctx              *api.Context
 	outputPath       string
 	extraHttpHeaders map[string]string
-	traceHeader      string
-	trace            string
+	headers          http.Header
 	client           *client
 	handleError      func(error)
 }
@@ -71,17 +70,15 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						return
 					}
 
-					headers := map[string]string{
-						echo.HeaderContentType:   http.DetectContentType(fileHeader),
-						echo.HeaderContentLength: strconv.FormatInt(fileStat.Size(), 10),
-						params.traceHeader:       params.trace,
-					}
+					params.headers.Set(echo.HeaderContentType, http.DetectContentType(fileHeader))
+					params.headers.Set(echo.HeaderContentLength, strconv.FormatInt(fileStat.Size(), 10))
+
 					_, ok := params.extraHttpHeaders[echo.HeaderContentDisposition]
 					if !ok {
-						headers[echo.HeaderContentDisposition] = fmt.Sprintf("attachment; filename=%q", params.ctx.OutputFilename(params.outputPath))
+						params.headers.Set(echo.HeaderContentDisposition, fmt.Sprintf("attachment; filename=%q", params.ctx.OutputFilename(params.outputPath)))
 					}
 
-					err = params.client.send(bufio.NewReader(outputFile), headers, false)
+					err = params.client.send(bufio.NewReader(outputFile), params.headers, false)
 					if err != nil {
 						params.ctx.Log().Error(fmt.Sprintf("send output file to webhook: %s", err))
 						params.handleError(err)
@@ -182,6 +179,11 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 					traceHeader := c.Get("traceHeader").(string)
 					trace := c.Get("trace").(string)
 
+					var headers http.Header
+					w.tracer.Inject(ctx, headers)
+					headers.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+					headers.Set(traceHeader, trace)
+
 					client := &client{
 						url:              webhookUrl,
 						method:           webhookMethod,
@@ -224,11 +226,6 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 							return
 						}
 
-						headers := map[string]string{
-							echo.HeaderContentType: echo.MIMEApplicationJSON,
-							traceHeader:            trace,
-						}
-
 						err = client.send(bytes.NewReader(b), headers, true)
 						if err != nil {
 							ctx.Log().Error(fmt.Sprintf("send error response to webhook: %s", err.Error()))
@@ -265,8 +262,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 							ctx:              ctx,
 							outputPath:       outputPath,
 							extraHttpHeaders: extraHttpHeaders,
-							traceHeader:      traceHeader,
-							trace:            trace,
+							headers:          headers,
 							client:           client,
 							handleError:      handleError,
 						})
@@ -312,8 +308,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 							ctx:              ctx,
 							outputPath:       outputPath,
 							extraHttpHeaders: extraHttpHeaders,
-							traceHeader:      traceHeader,
-							trace:            trace,
+							headers:          headers,
 							client:           client,
 							handleError:      handleError,
 						})

@@ -131,26 +131,37 @@ func rootPathMiddleware(rootPath string) echo.MiddlewareFunc {
 }
 
 // traceMiddleware sets the request identifier in the [echo.Context] under
-// "trace". Its value is either retrieved from the trace header or generated if
-// the header is not present / its value is empty.
+// "trace".
+//
+// It implements basic tracing per request using the provided TracerProvider.
 //
 //	trace := c.Get("trace").(string)
 //	traceHeader := c.Get("traceHeader").(string).
-func traceMiddleware(header string) echo.MiddlewareFunc {
+func traceMiddleware(header string, tracer gotenberg.TracerProvider) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			// Get or create the request identifier.
-			trace := c.Request().Header.Get(header)
+			// FIXME: requires the span exporter to actually be enabled.
+			ctx, span := tracer.TraceStart(c.Request().Context(), fmt.Sprintf("%s %s", c.Request().Method, c.Request().URL.Path))
+			defer span.End()
+			// TODO: handle errors.
+			// TODO: inject more data.
+			// TODO: avoid split brain issue with legacy header with a propagator.
 
-			if trace == "" {
-				trace = uuid.New().String()
+			c.SetRequest(c.Request().WithContext(ctx))
+
+			spanCtx := span.SpanContext()
+			var traceId string
+
+			if spanCtx.IsValid() {
+				traceId = spanCtx.TraceID().String()
+			} else {
+				traceId = uuid.New().String()
 			}
 
-			c.Set("trace", trace)
+			c.Set("trace", traceId)
 			c.Set("traceHeader", header)
-			c.Response().Header().Add(header, trace)
+			c.Response().Header().Set(header, traceId)
 
-			// Call the next middleware in the chain.
 			return next(c)
 		}
 	}
@@ -179,7 +190,7 @@ func outputFilenameMiddleware() echo.MiddlewareFunc {
 // logs a synchronous request result.
 //
 //	logger := c.Get("logger").(*zap.Logger)
-func loggerMiddleware(logger *zap.Logger, disableLoggingForPaths []string) echo.MiddlewareFunc {
+func loggerMiddleware(logger *zap.Logger, traceFieldKey string, disableLoggingForPaths []string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			startTime := c.Get("startTime").(time.Time)
@@ -189,7 +200,7 @@ func loggerMiddleware(logger *zap.Logger, disableLoggingForPaths []string) echo.
 			// Create the application logger and add it to our locals.
 			appLogger := logger.
 				With(zap.String("log_type", "application")).
-				With(zap.String("trace", trace))
+				With(zap.String(traceFieldKey, trace))
 
 			c.Set("logger", appLogger.Named(func() string {
 				return strings.ReplaceAll(
@@ -208,7 +219,7 @@ func loggerMiddleware(logger *zap.Logger, disableLoggingForPaths []string) echo.
 			// Create the access logger.
 			accessLogger := logger.
 				With(zap.String("log_type", "access")).
-				With(zap.String("trace", trace))
+				With(zap.String(traceFieldKey, trace))
 
 			for _, path := range disableLoggingForPaths {
 				URI := fmt.Sprintf("%s%s", rootPath, path)
@@ -273,7 +284,7 @@ func basicAuthMiddleware(username, password string) echo.MiddlewareFunc {
 //
 //	ctx := c.Get("context").(*api.Context)
 //	cancel := c.Get("cancel").(context.CancelFunc)
-func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig) echo.MiddlewareFunc {
+func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig, tracer gotenberg.TracerProvider) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			logger := c.Get("logger").(*zap.Logger)
@@ -282,7 +293,7 @@ func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, bodyLimi
 
 			// We create a context with a timeout so that underlying processes are
 			// able to stop early and correctly handle a timeout scenario.
-			ctx, cancel, err := newContext(c, logger, fs, timeout, bodyLimit, downloadFromCfg, traceHeader, trace)
+			ctx, cancel, err := newContext(c, logger, fs, timeout, bodyLimit, downloadFromCfg, tracer, traceHeader, trace)
 			if err != nil {
 				cancel()
 
