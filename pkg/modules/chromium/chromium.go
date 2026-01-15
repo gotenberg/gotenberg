@@ -33,6 +33,10 @@ var (
 	// returns an exception or undefined.
 	ErrInvalidEvaluationExpression = errors.New("invalid evaluation expression")
 
+	// ErrInvalidSelectorQuery happens if a selector query returns an exception
+	// or undefined.
+	ErrInvalidSelectorQuery = errors.New("invalid selector query")
+
 	// ErrRpccMessageTooLarge happens when the messages received by
 	// ChromeDevTools are larger than 100 MB.
 	ErrRpccMessageTooLarge = errors.New("rpcc message too large")
@@ -142,6 +146,10 @@ type Options struct {
 	// converting an HTML document until it returns true
 	WaitForExpression string
 
+	// WaitForSelector is the element query to wait until visible before
+	// converting an HTML document.
+	WaitForSelector string
+
 	// Cookies are the cookies to put in the Chromium cookies' jar.
 	Cookies []Cookie
 
@@ -173,6 +181,7 @@ func DefaultOptions() Options {
 		WaitDelay:                       0,
 		WaitWindowStatus:                "",
 		WaitForExpression:               "",
+		WaitForSelector:                 "",
 		Cookies:                         nil,
 		UserAgent:                       "",
 		ExtraHttpHeaders:                nil,

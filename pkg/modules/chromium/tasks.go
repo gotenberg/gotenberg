@@ -512,3 +512,18 @@ func waitForExpressionBeforePrintActionFunc(logger *zap.Logger, disableJavaScrip
 		}
 	}
 }
+
+func waitForSelectorVisibleBeforePrintActionFunc(logger *zap.Logger, selector string) chromedp.ActionFunc {
+	return func(ctx context.Context) error {
+		if selector == "" {
+			logger.Debug("no wait selector")
+			return nil
+		}
+
+		logger.Debug(fmt.Sprintf("wait until '%s' is visible before print", selector))
+		if err := chromedp.WaitVisible(selector, chromedp.ByQuery, chromedp.RetryInterval(time.Duration(100)*time.Millisecond)).Do(ctx); err != nil {
+			return fmt.Errorf("wait visible: %v: %w", err, ErrInvalidSelectorQuery)
+		}
+		return nil
+	}
+}

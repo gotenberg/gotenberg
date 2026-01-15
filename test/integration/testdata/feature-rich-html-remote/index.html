@@ -37,8 +37,14 @@
 
       const delay = (ms) => new Promise((res) => setTimeout(res, ms));
       delay(2000).then(() => {
-        document.getElementById("wait").style.display = "contents";
+        const waitText = document.getElementById("wait")
+        waitText.style.display = "contents";
         window.globalVar = "ready";
+
+        const newText = document.createElement("p")
+        newText.id = "wait-selector"
+        newText.textContent = "Wait on selector returns true."
+        waitText.parentNode.insertBefore(newText, waitText)
       });
     </script>
 

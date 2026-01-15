@@ -55,6 +55,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		waitDelay                       time.Duration
 		waitWindowStatus                string
 		waitForExpression               string
+		waitForSelector                 string
 		cookies                         []Cookie
 		userAgent                       string
 		extraHttpHeaders                []ExtraHttpHeader
@@ -108,6 +109,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		Duration("waitDelay", &waitDelay, defaultOptions.WaitDelay).
 		String("waitWindowStatus", &waitWindowStatus, defaultOptions.WaitWindowStatus).
 		String("waitForExpression", &waitForExpression, defaultOptions.WaitForExpression).
+		String("waitForSelector", &waitForSelector, defaultOptions.WaitForSelector).
 		Custom("cookies", func(value string) error {
 			if value == "" {
 				cookies = defaultOptions.Cookies
@@ -237,6 +239,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		WaitDelay:                       waitDelay,
 		WaitWindowStatus:                waitWindowStatus,
 		WaitForExpression:               waitForExpression,
+		WaitForSelector:                 waitForSelector,
 		Cookies:                         cookies,
 		UserAgent:                       userAgent,
 		ExtraHttpHeaders:                extraHttpHeaders,
@@ -805,6 +808,22 @@ func handleChromiumError(err error, options Options) error {
 			api.NewSentinelHttpError(
 				http.StatusBadRequest,
 				fmt.Sprintf("The expression '%s' (waitForExpression) returned an exception or undefined", options.WaitForExpression),
+			),
+		)
+	}
+
+	if errors.Is(err, ErrInvalidSelectorQuery) {
+		if options.WaitForSelector == "" {
+			// We only expect to see this error if the user specified a selector.
+			// If they didn't and we still generated the error, return a 500.
+			return err
+		}
+
+		return api.WrapError(
+			err,
+			api.NewSentinelHttpError(
+				http.StatusBadRequest,
+				fmt.Sprintf("The selector '%s' (waitForSelector) returned an exception or undefined", options.WaitForSelector),
 			),
 		)
 	}
