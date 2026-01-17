@@ -521,7 +521,8 @@ func waitForSelectorVisibleBeforePrintActionFunc(logger *zap.Logger, selector st
 		}
 
 		logger.Debug(fmt.Sprintf("wait until '%s' is visible before print", selector))
-		if err := chromedp.WaitVisible(selector, chromedp.ByQuery, chromedp.RetryInterval(time.Duration(100)*time.Millisecond)).Do(ctx); err != nil {
+		err := chromedp.WaitVisible(selector, chromedp.ByQuery, chromedp.RetryInterval(time.Duration(100)*time.Millisecond)).Do(ctx)
+		if err != nil {
 			return fmt.Errorf("wait visible: %v: %w", err, ErrInvalidSelectorQuery)
 		}
 		return nil
