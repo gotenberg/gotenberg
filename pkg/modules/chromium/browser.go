@@ -290,6 +290,7 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *zap.Logger, url, outp
 		forceExactColorsActionFunc(logger, options.PrintBackground),
 		emulateMediaTypeActionFunc(logger, options.EmulatedMediaType),
 		waitForExpressionBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitForExpression),
+		waitForSelectorVisibleBeforePrintActionFunc(logger, options.WaitForSelector),
 		waitDelayBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitDelay),
 		// PDF specific.
 		printToPdfActionFunc(logger, outputPath, options),
@@ -315,6 +316,7 @@ func (b *chromiumBrowser) screenshot(ctx context.Context, logger *zap.Logger, ur
 		forceExactColorsActionFunc(logger, true),
 		emulateMediaTypeActionFunc(logger, options.EmulatedMediaType),
 		waitForExpressionBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitForExpression),
+		waitForSelectorVisibleBeforePrintActionFunc(logger, options.WaitForSelector),
 		waitDelayBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitDelay),
 		// Screenshot specific.
 		setDeviceMetricsOverride(logger, options.Width, options.Height),
