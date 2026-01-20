@@ -343,7 +343,7 @@ Feature: /forms/pdfengines/merge
     Then the response header "Content-Type" should be "application/pdf"
     Then the response header "Gotenberg-Trace" should be "forms_pdfengines_merge"
     Then the Gotenberg container should log the following entries:
-      | "trace":"forms_pdfengines_merge" |
+      | "correlation_id":"forms_pdfengines_merge" |
 
   @download-from
   Scenario: POST /forms/pdfengines/merge (Download From)

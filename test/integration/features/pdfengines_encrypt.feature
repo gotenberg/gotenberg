@@ -133,7 +133,7 @@ Feature: /forms/pdfengines/encrypt
     Then the response header "Content-Type" should be "application/pdf"
     Then the response header "Gotenberg-Trace" should be "forms_pdfengines_encrypt"
     Then the Gotenberg container should log the following entries:
-      | "trace":"forms_pdfengines_encrypt" |
+      | "correlation_id":"forms_pdfengines_encrypt" |
 
   @download-from
   Scenario: POST /forms/pdfengines/encrypt (Download From)

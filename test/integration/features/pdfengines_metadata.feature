@@ -141,7 +141,7 @@ Feature: /forms/pdfengines/{write|read}
     Then the response header "Content-Type" should be "application/pdf"
     Then the response header "Gotenberg-Trace" should be "forms_pdfengines_metadata_write"
     Then the Gotenberg container should log the following entries:
-      | "trace":"forms_pdfengines_metadata_write" |
+      | "correlation_id":"forms_pdfengines_metadata_write" |
 
   Scenario: POST /forms/pdfengines/metadata/read (Gotenberg Trace)
     Given I have a default Gotenberg container
@@ -152,7 +152,7 @@ Feature: /forms/pdfengines/{write|read}
     Then the response header "Content-Type" should be "application/json"
     Then the response header "Gotenberg-Trace" should be "forms_pdfengines_metadata_read"
     Then the Gotenberg container should log the following entries:
-      | "trace":"forms_pdfengines_metadata_read" |
+      | "correlation_id":"forms_pdfengines_metadata_read" |
 
   @output-filename
   Scenario: POST /forms/pdfengines/metadata/write (Output Filename - Single PDF)

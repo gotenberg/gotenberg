@@ -10,21 +10,45 @@ Feature: /prometheus/metrics
     When I make a "GET" request to Gotenberg at the "/prometheus/metrics" endpoint
     Then the response status code should be 200
     Then the response header "Content-Type" should be "text/plain; version=0.0.4; charset=utf-8; escaping=underscores"
-    Then the response body should match string:
+    Then the response body should contain string:
       """
-      # HELP gotenberg_chromium_requests_queue_size Current number of Chromium conversion requests waiting to be treated.
-      # TYPE gotenberg_chromium_requests_queue_size gauge
-      gotenberg_chromium_requests_queue_size 0
-      # HELP gotenberg_chromium_restarts_count Current number of Chromium restarts.
-      # TYPE gotenberg_chromium_restarts_count gauge
-      gotenberg_chromium_restarts_count 0
-      # HELP gotenberg_libreoffice_requests_queue_size Current number of LibreOffice conversion requests waiting to be treated.
-      # TYPE gotenberg_libreoffice_requests_queue_size gauge
-      gotenberg_libreoffice_requests_queue_size 0
-      # HELP gotenberg_libreoffice_restarts_count Current number of LibreOffice restarts.
-      # TYPE gotenberg_libreoffice_restarts_count gauge
-      gotenberg_libreoffice_restarts_count 0
-
+      # HELP chromium_process_restarts_total Current number of Chromium restarts.
+      """
+    Then the response body should contain string:
+      """
+      # TYPE chromium_process_restarts_total counter
+      """
+    Then the response body should contain string:
+      """
+      # HELP chromium_requests_queue_size Current number of Chromium conversion requests waiting to be treated.
+      """
+    Then the response body should contain string:
+      """
+      # TYPE chromium_requests_queue_size gauge
+      """
+    Then the response body should contain string:
+      """
+      # HELP libreoffice_process_restarts_total Current number of LibreOffice restarts.
+      """
+    Then the response body should contain string:
+      """
+      # TYPE libreoffice_process_restarts_total counter
+      """
+    Then the response body should contain string:
+      """
+      # HELP libreoffice_requests_queue_size Current number of LibreOffice conversion requests waiting to be treated.
+      """
+    Then the response body should contain string:
+      """
+      # TYPE libreoffice_requests_queue_size gauge
+      """
+    Then the response body should contain string:
+      """
+      # HELP http_server_request_duration_seconds Duration of HTTP server requests.
+      """
+    Then the response body should contain string:
+      """
+      # TYPE http_server_request_duration_seconds histogram
       """
     Then the Gotenberg container should log the following entries:
       | "path":"/prometheus/metrics" |
@@ -35,51 +59,52 @@ Feature: /prometheus/metrics
     When I make a "GET" request to Gotenberg at the "/custom/metrics" endpoint
     Then the response status code should be 200
     Then the response header "Content-Type" should be "text/plain; version=0.0.4; charset=utf-8; escaping=underscores"
-    Then the response body should match string:
+    Then the response body should contain string:
       """
-      # HELP gotenberg_chromium_requests_queue_size Current number of Chromium conversion requests waiting to be treated.
-      # TYPE gotenberg_chromium_requests_queue_size gauge
-      gotenberg_chromium_requests_queue_size 0
-      # HELP gotenberg_chromium_restarts_count Current number of Chromium restarts.
-      # TYPE gotenberg_chromium_restarts_count gauge
-      gotenberg_chromium_restarts_count 0
-      # HELP gotenberg_libreoffice_requests_queue_size Current number of LibreOffice conversion requests waiting to be treated.
-      # TYPE gotenberg_libreoffice_requests_queue_size gauge
-      gotenberg_libreoffice_requests_queue_size 0
-      # HELP gotenberg_libreoffice_restarts_count Current number of LibreOffice restarts.
-      # TYPE gotenberg_libreoffice_restarts_count gauge
-      gotenberg_libreoffice_restarts_count 0
-
+      # HELP chromium_process_restarts_total Current number of Chromium restarts.
+      """
+    Then the response body should contain string:
+      """
+      # TYPE chromium_process_restarts_total counter
+      """
+    Then the response body should contain string:
+      """
+      # HELP chromium_requests_queue_size Current number of Chromium conversion requests waiting to be treated.
+      """
+    Then the response body should contain string:
+      """
+      # TYPE chromium_requests_queue_size gauge
+      """
+    Then the response body should contain string:
+      """
+      # HELP libreoffice_process_restarts_total Current number of LibreOffice restarts.
+      """
+    Then the response body should contain string:
+      """
+      # TYPE libreoffice_process_restarts_total counter
+      """
+    Then the response body should contain string:
+      """
+      # HELP libreoffice_requests_queue_size Current number of LibreOffice conversion requests waiting to be treated.
+      """
+    Then the response body should contain string:
+      """
+      # TYPE libreoffice_requests_queue_size gauge
+      """
+    Then the response body should contain string:
+      """
+      # HELP http_server_request_duration_seconds Duration of HTTP server requests.
+      """
+    Then the response body should contain string:
+      """
+      # TYPE http_server_request_duration_seconds histogram
       """
     Then the Gotenberg container should log the following entries:
       | "path":"/custom/metrics" |
 
-  Scenario: GET /prometheus/metrics (Custom Namespace)
-    Given I have a Gotenberg container with the following environment variable(s):
-      | PROMETHEUS_NAMESPACE | foo |
-    When I make a "GET" request to Gotenberg at the "/prometheus/metrics" endpoint
-    Then the response status code should be 200
-    Then the response header "Content-Type" should be "text/plain; version=0.0.4; charset=utf-8; escaping=underscores"
-    Then the response body should match string:
-      """
-      # HELP foo_chromium_requests_queue_size Current number of Chromium conversion requests waiting to be treated.
-      # TYPE foo_chromium_requests_queue_size gauge
-      foo_chromium_requests_queue_size 0
-      # HELP foo_chromium_restarts_count Current number of Chromium restarts.
-      # TYPE foo_chromium_restarts_count gauge
-      foo_chromium_restarts_count 0
-      # HELP foo_libreoffice_requests_queue_size Current number of LibreOffice conversion requests waiting to be treated.
-      # TYPE foo_libreoffice_requests_queue_size gauge
-      foo_libreoffice_requests_queue_size 0
-      # HELP foo_libreoffice_restarts_count Current number of LibreOffice restarts.
-      # TYPE foo_libreoffice_restarts_count gauge
-      foo_libreoffice_restarts_count 0
-
-      """
-
   Scenario: GET /prometheus/metrics (Disabled)
     Given I have a Gotenberg container with the following environment variable(s):
-      | PROMETHEUS_DISABLE_COLLECT | true |
+      | TELEMETRY_METRIC_EXPORTER_PROTOCOLS |  |
     When I make a "GET" request to Gotenberg at the "/prometheus/metrics" endpoint
     Then the response status code should be 404
 
@@ -98,7 +123,7 @@ Feature: /prometheus/metrics
     Then the response status code should be 200
     Then the response header "Gotenberg-Trace" should be "prometheus_metrics"
     Then the Gotenberg container should log the following entries:
-      | "trace":"prometheus_metrics" |
+      | "correlation_id":"prometheus_metrics" |
 
   Scenario: GET /prometheus/metrics (Basic Auth)
     Given I have a Gotenberg container with the following environment variable(s):

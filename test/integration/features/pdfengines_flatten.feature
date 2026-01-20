@@ -49,7 +49,7 @@ Feature: /forms/pdfengines/flatten
     Then the response header "Content-Type" should be "application/pdf"
     Then the response header "Gotenberg-Trace" should be "forms_pdfengines_flatten"
     Then the Gotenberg container should log the following entries:
-      | "trace":"forms_pdfengines_flatten" |
+      | "correlation_id":"forms_pdfengines_flatten" |
 
   @output-filename
   Scenario: POST /forms/pdfengines/flatten (Output Filename - Single PDF)

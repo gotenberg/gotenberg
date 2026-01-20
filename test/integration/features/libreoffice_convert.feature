@@ -645,7 +645,7 @@ Feature: /forms/libreoffice/convert
     Then the response header "Content-Type" should be "application/pdf"
     Then the response header "Gotenberg-Trace" should be "forms_libreoffice_convert"
     Then the Gotenberg container should log the following entries:
-      | "trace":"forms_libreoffice_convert" |
+      | "correlation_id":"forms_libreoffice_convert" |
 
   @download-from
   Scenario: POST /forms/libreoffice/convert (Download From)
