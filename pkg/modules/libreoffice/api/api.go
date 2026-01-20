@@ -12,6 +12,8 @@ import (
 
 	"github.com/alexliesenfeld/health"
 	flag "github.com/spf13/pflag"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 
@@ -241,19 +243,41 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 	}
 
 	// Logger.
-	loggerProvider, err := ctx.Module(new(gotenberg.LoggerProvider))
-	if err != nil {
-		return fmt.Errorf("get logger provider: %w", err)
-	}
-	logger, err := loggerProvider.(gotenberg.LoggerProvider).Logger(a)
-	if err != nil {
-		return fmt.Errorf("get logger: %w", err)
-	}
-	a.logger = logger.Named("libreoffice")
+	a.logger = gotenberg.Logger(a).Named("libreoffice")
 
 	// Process.
 	a.libreOffice = newLibreOfficeProcess(a.args)
 	a.supervisor = gotenberg.NewProcessSupervisor(a.logger, a.libreOffice, flags.MustInt64("libreoffice-restart-after"), flags.MustInt64("libreoffice-max-queue-size"))
+
+	// OpenTelemetry.
+	meter := otel.GetMeterProvider().Meter("gotenberg")
+	_, err := meter.Int64ObservableCounter(
+		"libreoffice.process.restarts.total",
+		metric.WithDescription("Current number of LibreOffice restarts."),
+		metric.WithUnit("{restart}"),
+		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
+			val := a.supervisor.RestartsCount()
+			o.Observe(val)
+			return nil
+		}),
+	)
+	if err != nil {
+		return fmt.Errorf("create process restarts observable counter: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"libreoffice.requests.queue_size",
+		metric.WithDescription("Current number of LibreOffice conversion requests waiting to be treated."),
+		metric.WithUnit("{request}"),
+		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
+			val := a.supervisor.ReqQueueSize()
+			o.Observe(val)
+			return nil
+		}),
+	)
+	if err != nil {
+		return fmt.Errorf("create requests queue size observable gauge: %w", err)
+	}
 
 	return nil
 }
@@ -330,26 +354,6 @@ func (a *Api) Debug() map[string]interface{} {
 
 	debug["version"] = strings.TrimSpace(string(output))
 	return debug
-}
-
-// Metrics returns the metrics.
-func (a *Api) Metrics() ([]gotenberg.Metric, error) {
-	return []gotenberg.Metric{
-		{
-			Name:        "libreoffice_requests_queue_size",
-			Description: "Current number of LibreOffice conversion requests waiting to be treated.",
-			Read: func() float64 {
-				return float64(a.supervisor.ReqQueueSize())
-			},
-		},
-		{
-			Name:        "libreoffice_restarts_count",
-			Description: "Current number of LibreOffice restarts.",
-			Read: func() float64 {
-				return float64(a.supervisor.RestartsCount())
-			},
-		},
-	}, nil
 }
 
 // Checks adds a health check that verifies if LibreOffice is healthy.
@@ -559,13 +563,12 @@ func (a *Api) Extensions() []string {
 
 // Interface guards.
 var (
-	_ gotenberg.Module          = (*Api)(nil)
-	_ gotenberg.Provisioner     = (*Api)(nil)
-	_ gotenberg.Validator       = (*Api)(nil)
-	_ gotenberg.App             = (*Api)(nil)
-	_ gotenberg.Debuggable      = (*Api)(nil)
-	_ gotenberg.MetricsProvider = (*Api)(nil)
-	_ api.HealthChecker         = (*Api)(nil)
-	_ Uno                       = (*Api)(nil)
-	_ Provider                  = (*Api)(nil)
+	_ gotenberg.Module      = (*Api)(nil)
+	_ gotenberg.Provisioner = (*Api)(nil)
+	_ gotenberg.Validator   = (*Api)(nil)
+	_ gotenberg.App         = (*Api)(nil)
+	_ gotenberg.Debuggable  = (*Api)(nil)
+	_ api.HealthChecker     = (*Api)(nil)
+	_ Uno                   = (*Api)(nil)
+	_ Provider              = (*Api)(nil)
 )

@@ -1,0 +1,32 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"
+
+processors:
+  batch:
+
+exporters:
+  otlp/openobserve:
+    endpoint: "openobserve:5081"
+    tls:
+      insecure: true
+    headers:
+      Authorization: "Basic dGVsZW1ldHJ5QGdvdGVuYmVyZy5kZXY6dGVsZW1ldHJ5"
+      organization: "default"
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/openobserve]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/openobserve]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/openobserve]

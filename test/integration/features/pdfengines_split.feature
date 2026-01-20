@@ -592,7 +592,7 @@ Feature: /forms/pdfengines/split
     Then the response header "Content-Type" should be "application/zip"
     Then the response header "Gotenberg-Trace" should be "forms_pdfengines_split"
     Then the Gotenberg container should log the following entries:
-      | "trace":"forms_pdfengines_split" |
+      | "correlation_id":"forms_pdfengines_split" |
 
   @output-filename
   Scenario: POST /forms/pdfengines/split (Output Filename - Single PDF)

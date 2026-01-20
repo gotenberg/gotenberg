@@ -19,6 +19,8 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/labstack/echo/v4"
 	"github.com/mholt/archives"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/text/unicode/norm"
@@ -86,7 +88,7 @@ type downloadFrom struct {
 }
 
 // newContext returns a [Context] by parsing a "multipart/form-data" request.
-func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig, traceHeader, trace string) (*Context, context.CancelFunc, error) {
+func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig) (*Context, context.CancelFunc, error) {
 	processCtx, processCancel := context.WithTimeout(context.Background(), timeout)
 
 	// We want to make sure the multipart/form-data does not exceed a given
@@ -235,7 +237,8 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 				for key, value := range dl.ExtraHttpHeaders {
 					req.Header.Set(key, value)
 				}
-				req.Header.Set(traceHeader, trace)
+				req.Header.Set(echoCtx.Get("correlationIdHeader").(string), echoCtx.Get("correlationId").(string))
+				otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 
 				client := &retryablehttp.Client{
 					HTTPClient: &http.Client{

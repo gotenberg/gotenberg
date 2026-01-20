@@ -1049,7 +1049,7 @@ Feature: /forms/chromium/convert/url
     Then the response header "Content-Type" should be "application/pdf"
     Then the response header "Gotenberg-Trace" should be "forms_chromium_convert_url"
     Then the Gotenberg container should log the following entries:
-      | "trace":"forms_chromium_convert_url" |
+      | "correlation_id":"forms_chromium_convert_url" |
 
   @webhook
   Scenario: POST /forms/chromium/convert/url (Webhook)

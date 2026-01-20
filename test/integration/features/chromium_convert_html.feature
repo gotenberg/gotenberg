@@ -955,7 +955,7 @@ Feature: /forms/chromium/convert/html
     Then the response header "Content-Type" should be "application/pdf"
     Then the response header "Gotenberg-Trace" should be "forms_chromium_convert_html"
     Then the Gotenberg container should log the following entries:
-      | "trace":"forms_chromium_convert_html" |
+      | "correlation_id":"forms_chromium_convert_html" |
 
   @download-from
   Scenario: POST /forms/chromium/convert/html (Download From)

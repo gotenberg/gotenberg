@@ -18,7 +18,7 @@ Feature: /
     Then the response status code should be 200
     Then the response header "Gotenberg-Trace" should be "root"
     Then the Gotenberg container should log the following entries:
-      | "trace":"root" |
+      | "correlation_id":"root" |
 
   Scenario: GET / (Basic Auth)
     Given I have a Gotenberg container with the following environment variable(s):
@@ -46,7 +46,7 @@ Feature: /
     Then the response status code should be 204
     Then the response header "Gotenberg-Trace" should be "favicon"
     Then the Gotenberg container should log the following entries:
-      | "trace":"favicon" |
+      | "correlation_id":"favicon" |
 
   Scenario: GET /favicon.ico (Basic Auth)
     Given I have a Gotenberg container with the following environment variable(s):

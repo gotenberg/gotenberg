@@ -18,7 +18,7 @@ Feature: /forms/pdfengines/embed
     Then the response PDF(s) should have the "embed_2.xml" file embedded
 
   @download-from
-  Scenario: POST /forms/pdfengines/embed with (Download From)
+  Scenario: POST /forms/pdfengines/embed (Download From)
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/embed" endpoint with the following form data and header(s):

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -27,7 +28,7 @@ func init() {
 }
 
 // Api is a module that provides an HTTP server. Other modules may add routes,
-// middlewares or health checks.
+// middlewares, or health checks.
 type Api struct {
 	port                      int
 	bindIp                    string
@@ -37,9 +38,9 @@ type Api struct {
 	bodyLimit                 int64
 	timeout                   time.Duration
 	rootPath                  string
-	traceHeader               string
 	basicAuthUsername         string
 	basicAuthPassword         string
+	correlationIdHeader       string
 	downloadFromCfg           downloadFromConfig
 	disableHealthCheckLogging bool
 	enableDebugRoute          bool
@@ -190,14 +191,22 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Duration("api-timeout", time.Duration(30)*time.Second, "Set the time limit for requests")
 			fs.String("api-body-limit", "", "Set the body limit for multipart/form-data requests - it accepts values like 5MB, 1GB, etc")
 			fs.String("api-root-path", "/", "Set the root path of the API - for service discovery via URL paths")
-			fs.String("api-trace-header", "Gotenberg-Trace", "Set the header name to use for identifying requests")
 			fs.Bool("api-enable-basic-auth", false, "Enable basic authentication - will look for the GOTENBERG_API_BASIC_AUTH_USERNAME and GOTENBERG_API_BASIC_AUTH_PASSWORD environment variables")
+			fs.String("api-correlation-id-header", "Gotenberg-Trace", "Set the header name to use to set the correlation id in the logs")
 			fs.String("api-download-from-allow-list", "", "Set the allowed URLs for the download from feature using a regular expression")
 			fs.String("api-download-from-deny-list", "", "Set the denied URLs for the download from feature using a regular expression")
 			fs.Int("api-download-from-max-retry", 4, "Set the maximum number of retries for the download from feature")
 			fs.Bool("api-disable-download-from", false, "Disable the download from feature")
 			fs.Bool("api-disable-health-check-logging", false, "Disable health check logging")
 			fs.Bool("api-enable-debug-route", false, "Enable the debug route")
+
+			// Deprecated flags.
+			fs.String("api-trace-header", "Gotenberg-Trace", "Set the header name to use for identifying requests")
+			err := fs.MarkDeprecated("api-trace-header", "use api-correlation-id-header instead")
+			if err != nil {
+				panic(err)
+			}
+
 			return fs
 		}(),
 		New: func() gotenberg.Module { return new(Api) },
@@ -215,7 +224,7 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 	a.timeout = flags.MustDuration("api-timeout")
 	a.bodyLimit = flags.MustHumanReadableBytes("api-body-limit")
 	a.rootPath = flags.MustString("api-root-path")
-	a.traceHeader = flags.MustString("api-trace-header")
+	a.correlationIdHeader = flags.MustDeprecatedString("api-trace-header", "api-correlation-id-header")
 	a.downloadFromCfg = downloadFromConfig{
 		allowList: flags.MustRegexp("api-download-from-allow-list"),
 		denyList:  flags.MustRegexp("api-download-from-deny-list"),
@@ -328,17 +337,7 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 	}
 
 	// Logger.
-	loggerProvider, err := ctx.Module(new(gotenberg.LoggerProvider))
-	if err != nil {
-		return fmt.Errorf("get logger provider: %w", err)
-	}
-
-	logger, err := loggerProvider.(gotenberg.LoggerProvider).Logger(a)
-	if err != nil {
-		return fmt.Errorf("get logger: %w", err)
-	}
-
-	a.logger = logger
+	a.logger = gotenberg.Logger(a)
 
 	// File system.
 	a.fs = gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
@@ -375,12 +374,6 @@ func (a *Api) Validate() error {
 	if !strings.HasSuffix(a.rootPath, "/") {
 		err = multierr.Append(err,
 			errors.New("root path must end with /"),
-		)
-	}
-
-	if len(strings.TrimSpace(a.traceHeader)) == 0 {
-		err = multierr.Append(err,
-			errors.New("trace header must not be empty"),
 		)
 	}
 
@@ -458,12 +451,16 @@ func (a *Api) Start() error {
 	}
 
 	// Add the API middlewares.
+	hostname, err := os.Hostname()
+	if err != nil {
+		return fmt.Errorf("get hostname: %w", err)
+	}
+
 	a.srv.Pre(
 		latencyMiddleware(),
 		rootPathMiddleware(a.rootPath),
-		traceMiddleware(a.traceHeader),
 		outputFilenameMiddleware(),
-		loggerMiddleware(a.logger, disableLoggingForPaths),
+		telemetryMiddleware(a.logger, hostname, a.correlationIdHeader, disableLoggingForPaths),
 	)
 
 	// Add the modules' middlewares in their respective stacks.
@@ -583,7 +580,7 @@ func (a *Api) Start() error {
 		eg.Go(f)
 	}
 
-	err := eg.Wait()
+	err = eg.Wait()
 	if err != nil {
 		return fmt.Errorf("waiting for modules readiness: %w", err)
 	}
