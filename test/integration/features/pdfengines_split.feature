@@ -1,3 +1,6 @@
+@pdfengines
+@pdfengines-split
+@split
 Feature: /forms/pdfengines/split
 
   Scenario: POST /forms/pdfengines/split (Intervals - Default)
@@ -314,6 +317,7 @@ Feature: /forms/pdfengines/split
       Invalid form data: form field 'metadata' is invalid (got 'foo', resulting to unmarshal metadata: invalid character 'o' in literal false (expecting 'a'))
       """
 
+  @convert
   Scenario: POST /forms/pdfengines/split (PDF/A-1b & PDF/UA-1)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
@@ -345,6 +349,7 @@ Feature: /forms/pdfengines/split
     Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
     Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
 
+  @metadata
   Scenario: POST /forms/pdfengines/split (Metadata)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
@@ -411,6 +416,7 @@ Feature: /forms/pdfengines/split
       }
       """
 
+  @flatten
   Scenario: POST /forms/pdfengines/split (Flatten)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
@@ -440,6 +446,7 @@ Feature: /forms/pdfengines/split
       """
     Then the response PDF(s) should be flatten
 
+  @encrypt
   Scenario: POST /forms/pdfengines/split (Encrypt - user password only)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
@@ -452,6 +459,7 @@ Feature: /forms/pdfengines/split
     Then there should be 2 PDF(s) in the response
     Then the response PDF(s) should be encrypted
 
+  @encrypt
   Scenario: POST /forms/pdfengines/split (Encrypt - both user and owner passwords)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
@@ -465,8 +473,30 @@ Feature: /forms/pdfengines/split
     Then there should be 2 PDF(s) in the response
     Then the response PDF(s) should be encrypted
 
+  @embed
+  Scenario: POST /foo/forms/pdfengines/split (Embeds)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
+      | files     | testdata/pages_3.pdf | file  |
+      | embeds    | testdata/embed_1.xml | file  |
+      | embeds    | testdata/embed_2.xml | file  |
+      | splitMode | intervals            | field |
+      | splitSpan | 2                    | field |
+    Then the response status code should be 200
+    And the response header "Content-Type" should be "application/zip"
+    And there should be 2 PDF(s) in the response
+    And there should be the following file(s) in the response:
+      | pages_3_0.pdf |
+      | pages_3_1.pdf |
+    Then the response PDF(s) should have the "embed_1.xml" file embedded
+    Then the response PDF(s) should have the "embed_2.xml" file embedded
+
   # FIXME: once decrypt is done, add encrypt and check after the content of the PDFs.
-  Scenario: POST /forms/pdfengines/split (PDF/A-1b & PDF/UA-1 & Metadata & Flatten)
+  @convert
+  @metadata
+  @flatten
+  @embed
+  Scenario: POST /forms/pdfengines/split (PDF/A-1b & PDF/UA-1 & Metadata & Flatten & Embeds)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
       | files     | testdata/pages_3.pdf                                                                                                                                                                                                                                                                                      | file  |
@@ -476,6 +506,8 @@ Feature: /forms/pdfengines/split
       | pdfua     | true                                                                                                                                                                                                                                                                                                      | field |
       | metadata  | {"Author":"Julien Neuhart","Copyright":"Julien Neuhart","CreateDate":"2006-09-18T16:27:50-04:00","Creator":"Gotenberg","Keywords":["first","second"],"Marked":true,"ModDate":"2006-09-18T16:27:50-04:00","PDFVersion":1.7,"Producer":"Gotenberg","Subject":"Sample","Title":"Sample","Trapped":"Unknown"} | field |
       | flatten   | true                                                                                                                                                                                                                                                                                                      | field |
+      | embeds    | testdata/embed_1.xml                                                                                                                                                                                                                                                                                      | file  |
+      | embeds    | testdata/embed_2.xml                                                                                                                                                                                                                                                                                      | file  |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
     Then there should be 2 PDF(s) in the response
@@ -496,9 +528,11 @@ Feature: /forms/pdfengines/split
       """
       Page 3
       """
-    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 7 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 10 failed rule(s)
     Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 2 failed rule(s)
     Then the response PDF(s) should be flatten
+    Then the response PDF(s) should have the "embed_1.xml" file embedded
+    Then the response PDF(s) should have the "embed_2.xml" file embedded
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/read" endpoint with the following form data and header(s):
       | files | teststore/pages_3_0.pdf | file |
       | files | teststore/pages_3_1.pdf | file |
@@ -560,6 +594,7 @@ Feature: /forms/pdfengines/split
     Then the Gotenberg container should log the following entries:
       | "trace":"forms_pdfengines_split" |
 
+  @output-filename
   Scenario: POST /forms/pdfengines/split (Output Filename - Single PDF)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
@@ -573,6 +608,7 @@ Feature: /forms/pdfengines/split
     Then there should be the following file(s) in the response:
       | foo.pdf |
 
+  @output-filename
   Scenario: POST /forms/pdfengines/split (Output Filename - Many PDFs)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
@@ -587,6 +623,7 @@ Feature: /forms/pdfengines/split
       | pages_3_0.pdf |
       | pages_3_1.pdf |
 
+  @download-from
   Scenario: POST /forms/pdfengines/split (Download From)
     Given I have a default Gotenberg container
     Given I have a static server
@@ -598,6 +635,7 @@ Feature: /forms/pdfengines/split
     Then the file request header "X-Foo" should be "bar"
     Then the response header "Content-Type" should be "application/zip"
 
+  @webhook
   Scenario: POST /forms/pdfengines/split (Webhook)
     Given I have a default Gotenberg container
     Given I have a webhook server

@@ -171,6 +171,34 @@ func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *zap.Logger, met
 	return fmt.Errorf("write PDF metadata with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// EmbedFiles embeds files into a PDF. All files are embedded as file attachments
+// without modifying the main PDF content.
+func (engine *PdfCpu) EmbedFiles(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error {
+	if len(filePaths) == 0 {
+		return nil
+	}
+
+	logger.Debug(fmt.Sprintf("embedding %d file(s) to %s: %v", len(filePaths), inputPath, filePaths))
+
+	args := []string{
+		"attachments", "add",
+		inputPath,
+	}
+	args = append(args, filePaths...)
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		return fmt.Errorf("create command for attaching files: %w", err)
+	}
+
+	_, err = cmd.Exec()
+	if err != nil {
+		return fmt.Errorf("attach files with pdfcpu: %w", err)
+	}
+
+	return nil
+}
+
 // Encrypt adds password protection to a PDF file using pdfcpu.
 func (engine *PdfCpu) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
 	if userPassword == "" {

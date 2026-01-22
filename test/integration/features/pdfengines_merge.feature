@@ -1,3 +1,6 @@
+@pdfengines
+@pdfengines-encrypt
+@merge
 Feature: /forms/pdfengines/merge
 
   Scenario: POST /forms/pdfengines/merge (default)
@@ -128,6 +131,7 @@ Feature: /forms/pdfengines/merge
       Invalid form data: form field 'metadata' is invalid (got 'foo', resulting to unmarshal metadata: invalid character 'o' in literal false (expecting 'a'))
       """
 
+  @convert
   Scenario: POST /forms/pdfengines/merge (PDF/A-1b & PDF/UA-1)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
@@ -153,6 +157,7 @@ Feature: /forms/pdfengines/merge
     Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
     Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
 
+  @metadata
   Scenario: POST /forms/pdfengines/merge (Metadata)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
@@ -198,6 +203,7 @@ Feature: /forms/pdfengines/merge
       }
       """
 
+  @flatten
   Scenario: POST /forms/pdfengines/merge (Flatten)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
@@ -221,6 +227,7 @@ Feature: /forms/pdfengines/merge
       """
     Then the response PDF(s) should be flatten
 
+  @encrypt
   Scenario: POST /forms/pdfengines/merge (Encrypt - user password only)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
@@ -232,6 +239,7 @@ Feature: /forms/pdfengines/merge
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be encrypted
 
+  @encrypt
   Scenario: POST /forms/pdfengines/merge (Encrypt - both user and owner passwords)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
@@ -244,8 +252,25 @@ Feature: /forms/pdfengines/merge
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be encrypted
 
+  @embed
+  Scenario: POST /foo/forms/pdfengines/merge (Embeds)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf  | file   |
+      | files                     | testdata/page_2.pdf  | file   |
+      | embeds                    | testdata/embed_1.xml | file   |
+      | embeds                    | testdata/embed_2.xml | file   |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then the response PDF(s) should have the "embed_1.xml" file embedded
+    Then the response PDF(s) should have the "embed_2.xml" file embedded
+
   # FIXME: once decrypt is done, add encrypt and check after the content of the PDF.
-  Scenario: POST /forms/pdfengines/merge (PDF/A-1b & PDF/UA-1 & Metadata & Flatten)
+  @convert
+  @metadata
+  @flatten
+  @embed
+  Scenario: POST /forms/pdfengines/merge (PDF/A-1b & PDF/UA-1 & Metadata & Flatten & Embeds)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
       | files                     | testdata/page_1.pdf                                                                                                                                                                                                                                                                                       | file   |
@@ -254,6 +279,8 @@ Feature: /forms/pdfengines/merge
       | pdfua                     | true                                                                                                                                                                                                                                                                                                      | field  |
       | metadata                  | {"Author":"Julien Neuhart","Copyright":"Julien Neuhart","CreateDate":"2006-09-18T16:27:50-04:00","Creator":"Gotenberg","Keywords":["first","second"],"Marked":true,"ModDate":"2006-09-18T16:27:50-04:00","PDFVersion":1.7,"Producer":"Gotenberg","Subject":"Sample","Title":"Sample","Trapped":"Unknown"} | field  |
       | flatten                   | true                                                                                                                                                                                                                                                                                                      | field  |
+      | embeds                    | testdata/embed_1.xml                                                                                                                                                                                                                                                                                      | file   |
+      | embeds                    | testdata/embed_2.xml                                                                                                                                                                                                                                                                                      | file   |
       | Gotenberg-Output-Filename | foo                                                                                                                                                                                                                                                                                                       | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
@@ -269,9 +296,11 @@ Feature: /forms/pdfengines/merge
       """
       Page 2
       """
-    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 7 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 10 failed rule(s)
     Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 2 failed rule(s)
     Then the response PDF(s) should be flatten
+    Then the response PDF(s) should have the "embed_1.xml" file embedded
+    Then the response PDF(s) should have the "embed_2.xml" file embedded
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/read" endpoint with the following form data and header(s):
       | files | teststore/foo.pdf | file |
     Then the response status code should be 200
@@ -316,6 +345,7 @@ Feature: /forms/pdfengines/merge
     Then the Gotenberg container should log the following entries:
       | "trace":"forms_pdfengines_merge" |
 
+  @download-from
   Scenario: POST /forms/pdfengines/merge (Download From)
     Given I have a default Gotenberg container
     Given I have a static server
@@ -324,6 +354,7 @@ Feature: /forms/pdfengines/merge
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
 
+  @webhook
   Scenario: POST /forms/pdfengines/merge (Webhook)
     Given I have a default Gotenberg container
     Given I have a webhook server

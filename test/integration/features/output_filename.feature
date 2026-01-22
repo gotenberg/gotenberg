@@ -1,3 +1,4 @@
+@output-filename
 Feature: Output Filename
 
   Scenario: Default (Single Output File)

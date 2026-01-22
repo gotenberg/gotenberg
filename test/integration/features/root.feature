@@ -1,3 +1,4 @@
+@root
 Feature: /
 
   Scenario: GET /

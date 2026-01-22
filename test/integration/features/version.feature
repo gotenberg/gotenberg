@@ -1,3 +1,4 @@
+@version
 Feature: /version
 
   Scenario: GET /version

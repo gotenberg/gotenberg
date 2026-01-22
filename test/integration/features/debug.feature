@@ -1,3 +1,4 @@
+@debug
 Feature: /debug
 
   Scenario: GET /debug (Disabled)
