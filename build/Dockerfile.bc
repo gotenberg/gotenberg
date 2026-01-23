@@ -1,6 +1,6 @@
 ARG GOLANG_VERSION=1.25.4
 ARG GOTENBERG_VERSION=8.25.1
-ARG BASE_IMAGE=harbor.onebrief.tools/cgr.dev/onebrief.com/gotenberg
+ARG BASE_IMAGE=nexus.int.onebrief.tools/cgr.dev/onebrief.com/gotenberg
 ARG UNOCONVERTER_BIN_PATH=/usr/bin/unoconv
 
 # ----------------------------------------------

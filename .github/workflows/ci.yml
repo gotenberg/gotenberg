@@ -38,12 +38,12 @@ jobs:
           go-version: 1.23.3
           cache: false
 
-      - name: Login to harbor.onebrief.tools
+      - name: Login to nexus.int.onebrief.tools
         uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 #v3.4.0
         with:
-          registry: harbor.onebrief.tools
-          username: ${{ secrets.HARBOR_USER }}
-          password: ${{ secrets.HARBOR_TOKEN }}
+          registry: nexus.int.onebrief.tools
+          username: ${{ secrets.NEXUS_USER }}
+          password: ${{ secrets.NEXUS_PASSWORD }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@4fc4975a852c8cd99761e2de1f4ba73402e44dd9 #v4.0.3
@@ -66,7 +66,7 @@ jobs:
         uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 #v5.7.0
         with:
           images: |
-            harbor.onebrief.tools/onebrief/gotenberg
+            nexus.int.onebrief.tools/onebrief/gotenberg
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -82,11 +82,11 @@ jobs:
           context: .
           file: ./build/Dockerfile.bc
           build-args: |
-            BASE_IMAGE=harbor.onebrief.tools/cgr.dev/onebrief.com/gotenberg
+            BASE_IMAGE=nexus.int.onebrief.tools/cgr.dev/onebrief.com/gotenberg
             UNOCONVERTER_BIN_PATH=/usr/bin/unoconv
           push: true
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=harbor.onebrief.tools/onebrief/gotenberg,push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=nexus.int.onebrief.tools/onebrief/gotenberg,push-by-digest=true,name-canonical=true,push=true
 
       - name: Set outputs
         id: setout
@@ -116,7 +116,7 @@ jobs:
         id: scan
         continue-on-error: true
         with:
-          image: harbor.onebrief.tools/onebrief/gotenberg@${{ steps.build.outputs.digest }}
+          image: nexus.int.onebrief.tools/onebrief/gotenberg@${{ steps.build.outputs.digest }}
           fail-build: false
           cache-db: true
           severity-cutoff: high
@@ -157,15 +157,15 @@ jobs:
       - name: Login to container registry
         uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 #v3.4.0
         with:
-          registry: harbor.onebrief.tools
-          username: ${{ secrets.HARBOR_USER }}
-          password: ${{ secrets.HARBOR_TOKEN }}
+          registry: nexus.int.onebrief.tools
+          username: ${{ secrets.NEXUS_USER }}
+          password: ${{ secrets.NEXUS_PASSWORD }}
 
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 #v5.7.0
         with:
-          images: harbor.onebrief.tools/onebrief/gotenberg
+          images: nexus.int.onebrief.tools/onebrief/gotenberg
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -179,4 +179,4 @@ jobs:
         shell: bash
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf 'harbor.onebrief.tools/onebrief/gotenberg@sha256:%s ' *)
+            $(printf 'nexus.int.onebrief.tools/onebrief/gotenberg@sha256:%s ' *)
