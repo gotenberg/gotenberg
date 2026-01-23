@@ -27,7 +27,7 @@ func TestNewContext_Cancellation(t *testing.T) {
 		t.Fatalf("failed to close multipart writer: %v", err)
 	}
 
-    // Create a request with a cancellable context.
+	// Create a request with a cancellable context.
 	reqCtx, cancelReq := context.WithCancel(context.Background())
 	req := httptest.NewRequest(http.MethodPost, "/", body).WithContext(reqCtx)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -48,7 +48,7 @@ func TestNewContext_Cancellation(t *testing.T) {
 	}
 	defer cancel()
 
-    // Verify initial state: context SHOULD NOT be done yet.
+	// Verify initial state: context SHOULD NOT be done yet.
 	select {
 	case <-ctx.Done():
 		t.Fatal("context should not be done immediately")
