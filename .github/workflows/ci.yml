@@ -172,11 +172,11 @@ jobs:
             type=semver,pattern={{major}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{version}}
-            type=semver,pattern=1.{{major}}.{{minor}}0{{patch}}
+            type=semver,pattern=1.{{major}}.{{minor}}.{{patch}}
 
       - name: Create manifest list and push
         working-directory: /tmp/digests
         shell: bash
         run: |
-          docker buildx imagetools create -t nexus.int.onebrief.tools/onebrief/gotenberg:1.$DOCKER_METADATA_OUTPUT_VERSION $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf 'nexus.int.onebrief.tools/onebrief/gotenberg@sha256:%s ' *)
