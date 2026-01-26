@@ -1,3 +1,6 @@
+@pdfengines
+@pdfengines-encrypt
+@encrypt
 Feature: /forms/pdfengines/encrypt
 
   Scenario: POST /forms/pdfengines/encrypt (default - user password only)
@@ -132,6 +135,7 @@ Feature: /forms/pdfengines/encrypt
     Then the Gotenberg container should log the following entries:
       | "trace":"forms_pdfengines_encrypt" |
 
+  @download-from
   Scenario: POST /forms/pdfengines/encrypt (Download From)
     Given I have a default Gotenberg container
     Given I have a static server
@@ -143,6 +147,7 @@ Feature: /forms/pdfengines/encrypt
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be encrypted
 
+  @webhook
   Scenario: POST /forms/pdfengines/encrypt (Webhook)
     Given I have a default Gotenberg container
     Given I have a webhook server

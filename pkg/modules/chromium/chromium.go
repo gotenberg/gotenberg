@@ -63,13 +63,20 @@ var (
 	// PdfOptions.OmitBackground is set to true but not PdfOptions.PrintBackground.
 	ErrOmitBackgroundWithoutPrintBackground = errors.New("omit background without print background")
 
+	// ErrPrintingFailed happens if the printing failed for an unknown reason.
+	ErrPrintingFailed = errors.New("printing failed")
+
 	// ErrInvalidPrinterSettings happens if the PdfOptions have one or more
 	// aberrant values.
 	ErrInvalidPrinterSettings = errors.New("invalid printer settings")
 
-	// ErrPageRangesSyntaxError happens if the PdfOptions have an invalid page
-	// range.
+	// ErrPageRangesSyntaxError happens if the PdfOptions page
+	// range syntax is invalid.
 	ErrPageRangesSyntaxError = errors.New("page ranges syntax error")
+
+	// ErrPageRangesExceedsPageCount happens if the PdfOptions have an invalid
+	// page range.
+	ErrPageRangesExceedsPageCount = errors.New("page ranges exceeds page count")
 )
 
 // Chromium is a module that provides both an [Api] and routes for converting
@@ -371,7 +378,6 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Int64("chromium-max-queue-size", 0, "Maximum request queue size for Chromium. Set to 0 to disable this feature")
 			fs.Bool("chromium-auto-start", false, "Automatically launch Chromium upon initialization if set to true; otherwise, Chromium will start at the time of the first conversion")
 			fs.Duration("chromium-start-timeout", time.Duration(20)*time.Second, "Maximum duration to wait for Chromium to start or restart")
-			fs.Bool("chromium-incognito", false, "Start Chromium with incognito mode")
 			fs.Bool("chromium-allow-insecure-localhost", false, "Ignore TLS/SSL errors on localhost")
 			fs.Bool("chromium-ignore-certificate-errors", false, "Ignore the certificate errors")
 			fs.Bool("chromium-disable-web-security", false, "Don't enforce the same-origin policy")
@@ -384,6 +390,13 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Bool("chromium-clear-cookies", false, "Clear Chromium cookies between each conversion")
 			fs.Bool("chromium-disable-javascript", false, "Disable JavaScript")
 			fs.Bool("chromium-disable-routes", false, "Disable the routes")
+
+			// Deprecated flags.
+			fs.Bool("chromium-incognito", false, "Start Chromium with incognito mode")
+			err := fs.MarkDeprecated("chromium-incognito", "this flag is ignored as it provides no benefits")
+			if err != nil {
+				panic(err)
+			}
 
 			return fs
 		}(),
@@ -409,7 +422,6 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 
 	mod.args = browserArguments{
 		binPath:                  binPath,
-		incognito:                flags.MustBool("chromium-incognito"),
 		allowInsecureLocalhost:   flags.MustBool("chromium-allow-insecure-localhost"),
 		ignoreCertificateErrors:  flags.MustBool("chromium-ignore-certificate-errors"),
 		disableWebSecurity:       flags.MustBool("chromium-disable-web-security"),

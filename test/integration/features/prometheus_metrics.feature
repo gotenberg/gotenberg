@@ -2,6 +2,7 @@
 # 1. Count restarts.
 # 2. Count queue size.
 
+@prometheus-metrics
 Feature: /prometheus/metrics
 
   Scenario: GET /prometheus/metrics (Enabled)

@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -29,7 +29,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Run linters
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         with:
           version: v2.5.0
 
@@ -38,10 +38,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version-file: .node-version
 
@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -81,7 +81,7 @@ jobs:
       tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Build, test and push
         id: build_test_push
@@ -105,7 +105,7 @@ jobs:
       tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build, test and push
         id: build_test_push
@@ -129,7 +129,7 @@ jobs:
       tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Build, test and push
         id: build_test_push
@@ -153,7 +153,7 @@ jobs:
       tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Build, test and push
         id: build_test_push
@@ -177,7 +177,7 @@ jobs:
       tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Build, test and push
         id: build_test_push
@@ -223,7 +223,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Merge
         uses: ./.github/actions/merge
@@ -258,7 +258,7 @@ jobs:
       tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Build, test and push
         id: build_test_push
@@ -281,7 +281,7 @@ jobs:
       tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Build, test and push
         id: build_test_push
@@ -304,7 +304,7 @@ jobs:
       tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build, test and push
         id: build_test_push
@@ -327,7 +327,7 @@ jobs:
       tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Build, test and push
         id: build_test_push
@@ -350,7 +350,7 @@ jobs:
       tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Build, test and push
         id: build_test_push
@@ -372,7 +372,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Merge
         uses: ./.github/actions/merge

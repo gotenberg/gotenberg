@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -16,14 +17,20 @@ import (
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
+// EmbedsFormField represents the form field name for embedding files.
+const (
+	EmbedsFormField string = "embeds"
+)
+
 // FormData is a helper for validating and hydrating values from a
 // "multipart/form-data" request.
 //
 //	form := ctx.FormData()
 type FormData struct {
-	values map[string][]string
-	files  map[string]string
-	errors error
+	values       map[string][]string
+	files        map[string]string
+	filesByField map[string][]string
+	errors       error
 }
 
 // Validate returns nil or an error related to the [FormData] values, with a
@@ -358,6 +365,26 @@ func (form *FormData) Paths(extensions []string, target *[]string) *FormData {
 	return form.paths(extensions, target)
 }
 
+// Embeds binds the absolute paths of form data files that should be
+// embedded in the PDF. Only files uploaded with the "embeds" field name
+// will be included.
+//
+//	var embeds []string
+//
+//	ctx.FormData().Embeds(&embeds)
+func (form *FormData) Embeds(target *[]string) *FormData {
+	if form.errors != nil {
+		return form
+	}
+
+	// Get files from the "embeds" field
+	if paths, ok := form.filesByField[EmbedsFormField]; ok {
+		*target = append(*target, paths...)
+	}
+
+	return form
+}
+
 // MandatoryPaths binds the absolute paths of form data files, according to a
 // list of file extensions, to a string slice variable. It populates an error
 // if there is no file for given file extensions.
@@ -381,8 +408,15 @@ func (form *FormData) MandatoryPaths(extensions []string, target *[]string) *For
 
 // paths bind the absolute paths of form data files, according to a list of
 // file extensions, to a string slice variable.
+// embeds are excluded.
 func (form *FormData) paths(extensions []string, target *[]string) *FormData {
+	embeds, ok := form.filesByField[EmbedsFormField]
+
 	for filename, path := range form.files {
+		if ok && slices.Contains(embeds, path) {
+			continue
+		}
+
 		for _, ext := range extensions {
 			// See https://github.com/gotenberg/gotenberg/issues/228.
 			if strings.ToLower(filepath.Ext(filename)) == ext {

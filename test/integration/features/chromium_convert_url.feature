@@ -1,6 +1,8 @@
 # TODO:
 # 1. JavaScript disabled on some feature.
 
+@chromium
+@chromium-convert-url
 Feature: /forms/chromium/convert/url
 
   Scenario: POST /forms/chromium/convert/url (Default)
@@ -165,6 +167,22 @@ Feature: /forms/chromium/convert/url
       | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html                                                            | field  |
       | cookies                   | [{"name":"cookie_1","value":"foo","domain":"host.docker.internal:%d"},{"name":"cookie_2","value":"bar","domain":"domain.com"}] | field  |
       | Gotenberg-Output-Filename | foo                                                                                                                            | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the server request cookie "cookie_1" should be "foo"
+    Then the server request cookie "cookie_2" should be ""
+
+  # See https://github.com/gotenberg/gotenberg/issues/1130.
+  Scenario: POST /forms/chromium/convert/url (case-insensitive sameSite)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html                                                                             | field  |
+      | cookies                   | [{"name":"cookie_1","value":"foo","domain":"host.docker.internal:%d"},{"name":"cookie_2","value":"bar","domain":"domain.com","sameSite":"lax"}] | field  |
+      | Gotenberg-Output-Filename | foo                                                                                                                                             | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -504,7 +522,17 @@ Feature: /forms/chromium/convert/url
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Chromium does not handle the page ranges 'foo' (nativePageRanges)
+      Chromium does not handle the page ranges 'foo' (nativePageRanges) syntax
+      """
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url              | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+      | nativePageRanges | 2-3                                                                 | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      The page ranges '2-3' (nativePageRanges) exceeds the page count
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
@@ -630,6 +658,7 @@ Feature: /forms/chromium/convert/url
       Invalid form data: form field 'metadata' is invalid (got 'foo', resulting to unmarshal metadata: invalid character 'o' in literal false (expecting 'a'))
       """
 
+  @split
   Scenario: POST /forms/chromium/convert/url (Split Intervals)
     Given I have a default Gotenberg container
     Given I have a static server
@@ -659,6 +688,8 @@ Feature: /forms/chromium/convert/url
       """
 
   # See https://github.com/gotenberg/gotenberg/issues/1130.
+  @split
+  @output-filename
   Scenario: POST /forms/chromium/convert/url (Split Output Filename)
     Given I have a default Gotenberg container
     Given I have a static server
@@ -689,6 +720,7 @@ Feature: /forms/chromium/convert/url
       Page 3
       """
 
+  @split
   Scenario: POST /forms/chromium/convert/url (Split Pages)
     Given I have a default Gotenberg container
     Given I have a static server
@@ -713,6 +745,7 @@ Feature: /forms/chromium/convert/url
       Page 3
       """
 
+  @split
   Scenario: POST /forms/chromium/convert/url (Split Pages & Unify)
     Given I have a default Gotenberg container
     Given I have a static server
@@ -737,6 +770,7 @@ Feature: /forms/chromium/convert/url
       Page 3
       """
 
+  @split
   Scenario: POST /forms/chromium/convert/url (Split Many PDFs - Lot of Pages)
     Given I have a default Gotenberg container
     Given I have a static server
@@ -771,6 +805,7 @@ Feature: /forms/chromium/convert/url
       Page 12
       """
 
+  @convert
   Scenario: POST /forms/chromium/convert/url (PDF/A-1b & PDF/UA-1)
     Given I have a default Gotenberg container
     Given I have a static server
@@ -817,6 +852,9 @@ Feature: /forms/chromium/convert/url
     Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
 
   # See https://github.com/gotenberg/gotenberg/issues/1130.
+  @convert
+  @split
+  @output-filename
   Scenario: POST /forms/chromium/convert/url (Split & PDF/A-1b & PDF/UA-1 & Output Filename)
     Given I have a default Gotenberg container
     Given I have a static server
@@ -851,6 +889,7 @@ Feature: /forms/chromium/convert/url
     Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
     Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
 
+  @metadata
   Scenario: POST /forms/chromium/convert/url (Metadata)
     Given I have a default Gotenberg container
     Given I have a static server
@@ -887,6 +926,7 @@ Feature: /forms/chromium/convert/url
       }
       """
 
+  @flatten
   Scenario: POST /forms/chromium/convert/url (Flatten)
     Given I have a default Gotenberg container
     Given I have a static server
@@ -898,6 +938,7 @@ Feature: /forms/chromium/convert/url
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be flatten
 
+  @encrypt
   Scenario: POST /forms/chromium/convert/url (Encrypt - user password only)
     Given I have a default Gotenberg container
     Given I have a static server
@@ -909,6 +950,7 @@ Feature: /forms/chromium/convert/url
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be encrypted
 
+  @encrypt
   Scenario: POST /forms/chromium/convert/url (Encrypt - both user and owner passwords)
     Given I have a default Gotenberg container
     Given I have a static server
@@ -921,7 +963,28 @@ Feature: /forms/chromium/convert/url
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be encrypted
 
+  @embed
+  Scenario: POST /foo/forms/chromium/convert/url (Embeds)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
+      | embeds                    | testdata/embed_1.xml                                                | file   |
+      | embeds                    | testdata/embed_2.xml                                                | file   |
+      | Gotenberg-Output-Filename | foo                                                                 | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the webhook request:
+      | foo.pdf |
+    Then the response PDF(s) should have the "embed_1.xml" file embedded
+    Then the response PDF(s) should have the "embed_2.xml" file embedded
+
   # FIXME: once decrypt is done, add encrypt and check after the content of the PDF.
+  @convert
+  @metadata
+  @flatten
+  @embed
   Scenario: POST /forms/chromium/convert/url (PDF/A-1b & PDF/UA-1 & Metadata & Flatten)
     Given I have a default Gotenberg container
     Given I have a static server
@@ -931,15 +994,19 @@ Feature: /forms/chromium/convert/url
       | pdfua                     | true                                                                                                                                                                                                                                                                                                      | field  |
       | metadata                  | {"Author":"Julien Neuhart","Copyright":"Julien Neuhart","CreateDate":"2006-09-18T16:27:50-04:00","Creator":"Gotenberg","Keywords":["first","second"],"Marked":true,"ModDate":"2006-09-18T16:27:50-04:00","PDFVersion":1.7,"Producer":"Gotenberg","Subject":"Sample","Title":"Sample","Trapped":"Unknown"} | field  |
       | flatten                   | true                                                                                                                                                                                                                                                                                                      | field  |
+      | embeds                    | testdata/embed_1.xml                                                                                                                                                                                                                                                                                      | file   |
+      | embeds                    | testdata/embed_2.xml                                                                                                                                                                                                                                                                                      | file   |
       | Gotenberg-Output-Filename | foo                                                                                                                                                                                                                                                                                                       | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
     Then there should be the following file(s) in the response:
       | foo.pdf |
-    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 7 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 9 failed rule(s)
     Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 2 failed rule(s)
     Then the response PDF(s) should be flatten
+    Then the response PDF(s) should have the "embed_1.xml" file embedded
+    Then the response PDF(s) should have the "embed_2.xml" file embedded
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/read" endpoint with the following form data and header(s):
       | files | teststore/foo.pdf | file |
     Then the response status code should be 200
@@ -984,6 +1051,7 @@ Feature: /forms/chromium/convert/url
     Then the Gotenberg container should log the following entries:
       | "trace":"forms_chromium_convert_url" |
 
+  @webhook
   Scenario: POST /forms/chromium/convert/url (Webhook)
     Given I have a default Gotenberg container
     Given I have a webhook server

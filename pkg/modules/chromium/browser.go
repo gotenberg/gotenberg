@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	cdprotobrowser "github.com/chromedp/cdproto/browser"
 	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
@@ -31,7 +32,6 @@ type browser interface {
 type browserArguments struct {
 	// Executor args.
 	binPath                  string
-	incognito                bool
 	allowInsecureLocalhost   bool
 	ignoreCertificateErrors  bool
 	disableWebSecurity       bool
@@ -95,10 +95,6 @@ func (b *chromiumBrowser) Start(logger *zap.Logger) error {
 		chromedp.ExecPath(b.arguments.binPath),
 		chromedp.NoSandbox,
 		// See:
-		// https://github.com/gotenberg/gotenberg/issues/327
-		// https://github.com/chromedp/chromedp/issues/904
-		// chromedp.DisableGPU,
-		// See:
 		// https://github.com/puppeteer/puppeteer/issues/661
 		// https://github.com/puppeteer/puppeteer/issues/2410
 		chromedp.Flag("font-render-hinting", "none"),
@@ -111,10 +107,6 @@ func (b *chromiumBrowser) Start(logger *zap.Logger) error {
 		// See https://github.com/gotenberg/gotenberg/issues/1293.
 		chromedp.Flag("disable-component-update", false),
 	)
-
-	if b.arguments.incognito {
-		opts = append(opts, chromedp.Flag("incognito", b.arguments.incognito))
-	}
 
 	if b.arguments.allowInsecureLocalhost {
 		// See https://github.com/gotenberg/gotenberg/issues/488.
@@ -259,13 +251,20 @@ func (b *chromiumBrowser) Healthy(logger *zap.Logger) bool {
 	b.ctxMu.RLock()
 	defer b.ctxMu.RUnlock()
 
-	timeoutCtx, timeoutCancel := context.WithTimeout(b.ctx, time.Duration(10)*time.Second)
-	defer timeoutCancel()
+	// Create a timeout based on the existing browser context (b.ctx).
+	// IMPORTANT: We do NOT call chromedp.NewContext here.
+	// We want to execute this against the main browser connection,
+	// avoiding the creation of a new target (tab).
+	ctx, cancel := context.WithTimeout(b.ctx, 5*time.Second)
+	defer cancel()
 
-	taskCtx, taskCancel := chromedp.NewContext(timeoutCtx)
-	defer taskCancel()
-
-	err := chromedp.Run(taskCtx, chromedp.Navigate("about:blank"))
+	// Check if the browser is responsive by asking for its version.
+	// This involves a simple JSON payload roundtrip over the websocket.
+	// See https://github.com/gotenberg/gotenberg/issues/1169.
+	err := chromedp.Run(ctx, chromedp.ActionFunc(func(ctx context.Context) error {
+		_, _, _, _, _, err := cdprotobrowser.GetVersion().Do(ctx)
+		return err
+	}))
 	if err != nil {
 		logger.Error(fmt.Sprintf("browser health check failed: %s", err))
 		return false
@@ -414,12 +413,20 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 	if err != nil {
 		errMessage := err.Error()
 
+		if strings.Contains(errMessage, "Printing failed (-32000)") {
+			return ErrPrintingFailed
+		}
+
 		if strings.Contains(errMessage, "Show invalid printer settings error (-32000)") || strings.Contains(errMessage, "content area is empty (-32602)") {
 			return ErrInvalidPrinterSettings
 		}
 
 		if strings.Contains(errMessage, "Page range syntax error") {
 			return ErrPageRangesSyntaxError
+		}
+
+		if strings.Contains(errMessage, "Page range exceeds page count (-32000)") {
+			return ErrPageRangesExceedsPageCount
 		}
 
 		if strings.Contains(errMessage, "rpcc: message too large") {

@@ -34,7 +34,6 @@ CHROMIUM_RESTART_AFTER=10
 CHROMIUM_MAX_QUEUE_SIZE=0
 CHROMIUM_AUTO_START=false
 CHROMIUM_START_TIMEOUT=20s
-CHROMIUM_INCOGNITO=false
 CHROMIUM_ALLOW_INSECURE_LOCALHOST=false
 CHROMIUM_IGNORE_CERTIFICATE_ERRORS=false
 CHROMIUM_DISABLE_WEB_SECURITY=false
@@ -64,6 +63,7 @@ PDFENGINES_READ_METADATA_ENGINES=exiftool
 PDFENGINES_WRITE_METADATA_ENGINES=exiftool
 PDFENGINES_ENCRYPT_ENGINES=qpdf,pdfcpu,pdftk
 PDFENGINES_DISABLE_ROUTES=false
+PDFENGINES_EMBED_ENGINES=pdfcpu
 PROMETHEUS_NAMESPACE=gotenberg
 PROMETHEUS_COLLECT_INTERVAL=1s
 PROMETHEUS_DISABLE_ROUTE_LOGGING=false
@@ -109,7 +109,6 @@ run: ## Start a Gotenberg container
 	--chromium-auto-start=$(CHROMIUM_AUTO_START) \
 	--chromium-max-queue-size=$(CHROMIUM_MAX_QUEUE_SIZE) \
 	--chromium-start-timeout=$(CHROMIUM_START_TIMEOUT) \
-	--chromium-incognito=$(CHROMIUM_INCOGNITO) \
 	--chromium-allow-insecure-localhost=$(CHROMIUM_ALLOW_INSECURE_LOCALHOST) \
 	--chromium-ignore-certificate-errors=$(CHROMIUM_IGNORE_CERTIFICATE_ERRORS) \
 	--chromium-disable-web-security=$(CHROMIUM_DISABLE_WEB_SECURITY) \
@@ -139,6 +138,7 @@ run: ## Start a Gotenberg container
 	--pdfengines-write-metadata-engines=$(PDFENGINES_WRITE_METADATA_ENGINES) \
 	--pdfengines-encrypt-engines=$(PDFENGINES_ENCRYPT_ENGINES) \
 	--pdfengines-disable-routes=$(PDFENGINES_DISABLE_ROUTES) \
+	--pdfengines-embed-engines=$(PDFENGINES_EMBED_ENGINES) \
 	--prometheus-namespace=$(PROMETHEUS_NAMESPACE) \
 	--prometheus-collect-interval=$(PROMETHEUS_COLLECT_INTERVAL) \
 	--prometheus-disable-route-logging=$(PROMETHEUS_DISABLE_ROUTE_LOGGING) \
@@ -160,6 +160,36 @@ test-unit: ## Run unit tests
 
 PLATFORM=
 NO_CONCURRENCY=false
+# Available tags:
+# chromium
+# chromium-convert-html
+# chromium-convert-markdown
+# chromium-convert-url
+# debug
+# health
+# libreoffice
+# libreoffice-convert
+# output-filename
+# pdfengines
+# pdfengines-convert
+# pdfengines-embed
+# embed
+# pdfengines-encrypt
+# encrypt
+# pdfengines-flatten
+# flatten
+# pdfengines-merge
+# merge
+# pdfengines-metadata
+# metadata
+# pdfengines-split
+# split
+# prometheus-metrics
+# root
+# version
+# webhook
+# download-from
+TAGS=
 
 .PHONY: test-integration
 test-integration: ## Run integration tests
@@ -167,7 +197,8 @@ test-integration: ## Run integration tests
 	--gotenberg-docker-repository=$(DOCKER_REPOSITORY) \
 	--gotenberg-version=$(GOTENBERG_VERSION) \
  	--gotenberg-container-platform=$(PLATFORM) \
- 	--no-concurrency=$(NO_CONCURRENCY)
+ 	--no-concurrency=$(NO_CONCURRENCY) \
+ 	--tags="$(TAGS)"
 
 .PHONY: lint
 lint: ## Lint Golang codebase

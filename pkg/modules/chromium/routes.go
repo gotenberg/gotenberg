@@ -24,6 +24,11 @@ import (
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/pdfengines"
 )
 
+var sameSiteRegexp = regexp2.MustCompile(
+	`("sameSite"\s*:\s*")(?i:(lax|strict|none))(")`,
+	regexp2.None,
+)
+
 // FormDataChromiumOptions creates [Options] from the form data. Fallback to
 // the default value if the considered key is not present.
 func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
@@ -84,7 +89,30 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 				return nil
 			}
 
-			err := json.Unmarshal([]byte(value), &cookies)
+			// sameSite attribute from cookies must accept case-insensitive
+			// values.
+			// See https://github.com/gotenberg/gotenberg/issues/1331.
+			normalized, err := sameSiteRegexp.ReplaceFunc(value, func(m regexp2.Match) string {
+				groups := m.Groups()
+				provided := groups[2].String()
+				var canon string
+				switch strings.ToLower(provided) {
+				case "lax":
+					canon = "Lax"
+				case "strict":
+					canon = "Strict"
+				case "none":
+					canon = "None"
+				default:
+					canon = provided
+				}
+				return groups[1].String() + canon + groups[3].String()
+			}, -1, -1)
+			if err != nil {
+				return fmt.Errorf("normalize sameSite from cookies: %w", err)
+			}
+
+			err = json.Unmarshal([]byte(normalized), &cookies)
 			if err != nil {
 				return fmt.Errorf("unmarshal cookies: %w", err)
 			}
@@ -141,7 +169,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 
 				var scopeRegexp *regexp2.Regexp
 				if len(scope) > 0 {
-					p, errCompile := regexp2.Compile(scope, 0)
+					p, errCompile := regexp2.Compile(scope, regexp2.None)
 					if errCompile != nil {
 						err = multierr.Append(err, fmt.Errorf("invalid scope regex pattern for header '%s': %w", k, errCompile))
 						continue
@@ -367,6 +395,7 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			pdfFormats := pdfengines.FormDataPdfFormats(form)
 			metadata := pdfengines.FormDataPdfMetadata(form, false)
 			userPassword, ownerPassword := pdfengines.FormDataPdfEncrypt(form)
+			embedPaths := pdfengines.FormDataPdfEmbeds(form)
 
 			var url string
 			err := form.
@@ -376,7 +405,7 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword)
+			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword, embedPaths)
 			if err != nil {
 				return fmt.Errorf("convert URL to PDF: %w", err)
 			}
@@ -429,6 +458,7 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			pdfFormats := pdfengines.FormDataPdfFormats(form)
 			metadata := pdfengines.FormDataPdfMetadata(form, false)
 			userPassword, ownerPassword := pdfengines.FormDataPdfEncrypt(form)
+			embedPaths := pdfengines.FormDataPdfEmbeds(form)
 
 			var inputPath string
 			err := form.
@@ -439,7 +469,7 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			}
 
 			url := fmt.Sprintf("file://%s", inputPath)
-			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword)
+			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword, embedPaths)
 			if err != nil {
 				return fmt.Errorf("convert HTML to PDF: %w", err)
 			}
@@ -493,6 +523,7 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			pdfFormats := pdfengines.FormDataPdfFormats(form)
 			metadata := pdfengines.FormDataPdfMetadata(form, false)
 			userPassword, ownerPassword := pdfengines.FormDataPdfEncrypt(form)
+			embedPaths := pdfengines.FormDataPdfEmbeds(form)
 
 			var (
 				inputPath     string
@@ -512,7 +543,7 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("transform markdown file(s) to HTML: %w", err)
 			}
 
-			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword)
+			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword, embedPaths)
 			if err != nil {
 				return fmt.Errorf("convert markdown to PDF: %w", err)
 			}
@@ -636,7 +667,7 @@ func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) 
 	return fmt.Sprintf("file://%s", inputPath), nil
 }
 
-func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, options PdfOptions, mode gotenberg.SplitMode, pdfFormats gotenberg.PdfFormats, metadata map[string]interface{}, userPassword, ownerPassword string) error {
+func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, options PdfOptions, mode gotenberg.SplitMode, pdfFormats gotenberg.PdfFormats, metadata map[string]interface{}, userPassword, ownerPassword string, embedPaths []string) error {
 	outputPath := ctx.GeneratePath(".pdf")
 	// See https://github.com/gotenberg/gotenberg/issues/1130.
 	filename := ctx.OutputFilename(outputPath)
@@ -655,6 +686,16 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 			)
 		}
 
+		if errors.Is(err, ErrPrintingFailed) {
+			return api.WrapError(
+				fmt.Errorf("convert to PDF: %w", err),
+				api.NewSentinelHttpError(
+					http.StatusBadRequest,
+					"Chromium failed to print the PDF; this usually happens when the page is too large",
+				),
+			)
+		}
+
 		if errors.Is(err, ErrInvalidPrinterSettings) {
 			return api.WrapError(
 				fmt.Errorf("convert to PDF: %w", err),
@@ -665,12 +706,22 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 			)
 		}
 
+		if errors.Is(err, ErrPageRangesExceedsPageCount) {
+			return api.WrapError(
+				fmt.Errorf("convert to PDF: %w", err),
+				api.NewSentinelHttpError(
+					http.StatusBadRequest,
+					fmt.Sprintf("The page ranges '%s' (nativePageRanges) exceeds the page count", options.PageRanges),
+				),
+			)
+		}
+
 		if errors.Is(err, ErrPageRangesSyntaxError) {
 			return api.WrapError(
 				fmt.Errorf("convert to PDF: %w", err),
 				api.NewSentinelHttpError(
 					http.StatusBadRequest,
-					fmt.Sprintf("Chromium does not handle the page ranges '%s' (nativePageRanges)", options.PageRanges),
+					fmt.Sprintf("Chromium does not handle the page ranges '%s' (nativePageRanges) syntax", options.PageRanges),
 				),
 			)
 		}
@@ -686,6 +737,11 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 	convertOutputPaths, err := pdfengines.ConvertStub(ctx, engine, pdfFormats, outputPaths)
 	if err != nil {
 		return fmt.Errorf("convert PDF(s): %w", err)
+	}
+
+	err = pdfengines.EmbedFilesStub(ctx, engine, embedPaths, convertOutputPaths)
+	if err != nil {
+		return fmt.Errorf("embed files into PDFs: %w", err)
 	}
 
 	err = pdfengines.WriteMetadataStub(ctx, engine, metadata, convertOutputPaths)
