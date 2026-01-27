@@ -174,12 +174,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern=1.{{major}}.{{minor}}.{{patch}}
             type=semver,pattern=1.{{major}}.{{minor}}0{{patch}}
-            type=semver,pattern=1.{{major}}.{{minor}}.{{patch}}-{{prerelease}}
-            type=semver,pattern=1.{{major}}.{{minor}}0{{patch}}-{{prerelease}}
-            type=semver,pattern=1.{{major}}.{{minor}}.{{patch}}+{{build}}
-            type=semver,pattern=1.{{major}}.{{minor}}0{{patch}}+{{build}}
-            type=semver,pattern=1.{{major}}.{{minor}}.{{patch}}-{{prerelease}}+{{build}}
-            type=semver,pattern=1.{{major}}.{{minor}}0{{patch}}-{{prerelease}}+{{build}}
+            type=semver,pattern=1.{{major}}.{{minor}}0{{patch}}+{{build}}}
 
       - name: Create manifest list and push
         working-directory: /tmp/digests
