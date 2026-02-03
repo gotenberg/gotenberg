@@ -13,6 +13,8 @@ func TestBuildDebug(t *testing.T) {
 		t.Errorf("Debug() should return empty debug data")
 	}
 
+	t.Setenv("TZ", "UTC")
+
 	fs := flag.NewFlagSet("gotenberg", flag.ExitOnError)
 	fs.String("foo", "bar", "Set foo")
 	ctx := NewContext(ParsedFlags{
@@ -51,6 +53,7 @@ func TestBuildDebug(t *testing.T) {
 
 	expect := DebugInfo{
 		Version:      Version,
+		Timezone:     "UTC",
 		Architecture: runtime.GOARCH,
 		Modules: []string{
 			"bar",
