@@ -126,8 +126,8 @@ Feature: /debug
 
   Scenario: GET /debug (Environment based timezone)
     Given I have a Gotenberg container with the following environment variable(s):
-      | API_ENABLE_DEBUG_ROUTE | true |
-      | TZ | America/New_York |
+      | API_ENABLE_DEBUG_ROUTE | true             |
+      | TZ                     | America/New_York |
     When I make a "GET" request to Gotenberg at the "/debug" endpoint
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/json"
