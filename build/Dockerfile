@@ -79,6 +79,9 @@ RUN jlink \
 # ----------------------------------------------
 FROM debian:13-slim AS base-image-stage
 
+ARG TIMEZONE=UTC
+ENV TZ=$TIMEZONE
+
 COPY --from=custom-jre-stage /custom-jre /opt/java
 
 ENV PATH="/opt/java/bin:${PATH}"
