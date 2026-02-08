@@ -253,7 +253,7 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 
 	// Process.
 	a.libreOffice = newLibreOfficeProcess(a.args)
-	a.supervisor = gotenberg.NewProcessSupervisor(a.logger, a.libreOffice, flags.MustInt64("libreoffice-restart-after"), flags.MustInt64("libreoffice-max-queue-size"))
+	a.supervisor = gotenberg.NewProcessSupervisor(a.logger, a.libreOffice, flags.MustInt64("libreoffice-restart-after"), flags.MustInt64("libreoffice-max-queue-size"), 1)
 
 	return nil
 }
