@@ -32,6 +32,7 @@ API_DISABLE_HEALTH_CHECK_LOGGING=false
 API_ENABLE_DEBUG_ROUTE=false
 CHROMIUM_RESTART_AFTER=100
 CHROMIUM_MAX_QUEUE_SIZE=0
+CHROMIUM_MAX_CONCURRENCY=6
 CHROMIUM_AUTO_START=false
 CHROMIUM_START_TIMEOUT=20s
 CHROMIUM_ALLOW_INSECURE_LOCALHOST=false
@@ -109,6 +110,7 @@ run: ## Start a Gotenberg container
 	--chromium-restart-after=$(CHROMIUM_RESTART_AFTER) \
 	--chromium-auto-start=$(CHROMIUM_AUTO_START) \
 	--chromium-max-queue-size=$(CHROMIUM_MAX_QUEUE_SIZE) \
+	--chromium-max-concurrency=$(CHROMIUM_MAX_CONCURRENCY) \
 	--chromium-start-timeout=$(CHROMIUM_START_TIMEOUT) \
 	--chromium-allow-insecure-localhost=$(CHROMIUM_ALLOW_INSECURE_LOCALHOST) \
 	--chromium-ignore-certificate-errors=$(CHROMIUM_IGNORE_CERTIFICATE_ERRORS) \
@@ -164,6 +166,7 @@ PLATFORM=
 NO_CONCURRENCY=false
 # Available tags:
 # chromium
+# chromium-concurrent
 # chromium-convert-html
 # chromium-convert-markdown
 # chromium-convert-url
