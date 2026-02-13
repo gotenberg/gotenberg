@@ -4,6 +4,7 @@ import (
 	"runtime"
 	"sort"
 	"sync"
+	"time"
 
 	flag "github.com/spf13/pflag"
 )
@@ -11,6 +12,7 @@ import (
 // DebugInfo gathers data for debugging.
 type DebugInfo struct {
 	Version               string                            `json:"version"`
+	Timezone              string                            `json:"timezone"`
 	Architecture          string                            `json:"architecture"`
 	Modules               []string                          `json:"modules"`
 	ModulesAdditionalData map[string]map[string]interface{} `json:"modules_additional_data"`
@@ -24,6 +26,7 @@ func BuildDebug(ctx *Context) {
 
 	debug = &DebugInfo{
 		Version:               Version,
+		Timezone:              time.Now().Location().String(),
 		Architecture:          runtime.GOARCH,
 		Modules:               make([]string, len(ctx.moduleInstances)),
 		ModulesAdditionalData: make(map[string]map[string]interface{}),
