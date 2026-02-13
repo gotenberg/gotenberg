@@ -213,6 +213,16 @@ func (engine *ExifTool) EmbedFiles(ctx context.Context, logger *zap.Logger, file
 	return fmt.Errorf("embed files with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// Watermark is not available in this implementation.
+func (engine *ExifTool) Watermark(ctx context.Context, logger *zap.Logger, mode, watermark, inputPath, description string) error {
+	return fmt.Errorf("add watermark with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
+// Stamp is not available in this implementation.
+func (engine *ExifTool) Stamp(ctx context.Context, logger *zap.Logger, mode, stamp, inputPath, description string) error {
+	return fmt.Errorf("add stamp with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*ExifTool)(nil)
