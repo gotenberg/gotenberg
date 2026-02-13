@@ -46,7 +46,7 @@ func TestProcessSupervisor_Launch(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, 5, 0).(*processSupervisor)
+			ps := NewProcessSupervisor(logger, process, 5, 0, 1).(*processSupervisor)
 			if tc.firstStartSet {
 				ps.firstStart.Store(true)
 			}
@@ -94,7 +94,7 @@ func TestProcessSupervisor_Shutdown(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, 5, 0)
+			ps := NewProcessSupervisor(logger, process, 5, 0, 1)
 			err := ps.Shutdown()
 
 			if !tc.expectError && err != nil {
@@ -110,19 +110,11 @@ func TestProcessSupervisor_Shutdown(t *testing.T) {
 
 func TestProcessSupervisor_restart(t *testing.T) {
 	for _, tc := range []struct {
-		scenario            string
-		initiallyRestarting bool
-		startError          error
-		stopError           error
-		expectError         bool
-		expectedError       error
+		scenario    string
+		startError  error
+		stopError   error
+		expectError bool
 	}{
-		{
-			scenario:            "already restarting",
-			initiallyRestarting: true,
-			expectError:         true,
-			expectedError:       ErrProcessAlreadyRestarting,
-		},
 		{
 			scenario:    "successful restart",
 			startError:  nil,
@@ -154,10 +146,7 @@ func TestProcessSupervisor_restart(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, 5, 0).(*processSupervisor)
-			if tc.initiallyRestarting {
-				ps.isRestarting.Store(true)
-			}
+			ps := NewProcessSupervisor(logger, process, 5, 0, 1).(*processSupervisor)
 
 			err := ps.restart()
 
@@ -167,10 +156,6 @@ func TestProcessSupervisor_restart(t *testing.T) {
 
 			if tc.expectError && err == nil {
 				t.Fatal("expected error but got none")
-			}
-
-			if tc.expectedError != nil && !errors.Is(err, tc.expectedError) {
-				t.Fatalf("expected error %v but got: %v", tc.expectedError, err)
 			}
 		})
 	}
@@ -217,7 +202,7 @@ func TestProcessSupervisor_Healthy(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, 5, 0).(*processSupervisor)
+			ps := NewProcessSupervisor(logger, process, 5, 0, 1).(*processSupervisor)
 			if tc.initiallyStarted {
 				ps.firstStart.Store(true)
 			}
@@ -402,7 +387,7 @@ func TestProcessSupervisor_Run(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, tc.maxReqLimit, tc.maxQueueSize).(*processSupervisor)
+			ps := NewProcessSupervisor(logger, process, tc.maxReqLimit, tc.maxQueueSize, 1).(*processSupervisor)
 			if tc.initiallyStarted {
 				ps.firstStart.Store(true)
 			}
@@ -452,8 +437,8 @@ func TestProcessSupervisor_Run(t *testing.T) {
 			}
 
 			// Making sure restarts are finished.
-			ps.mutexChan <- struct{}{}
-			<-ps.mutexChan
+			ps.semaphore <- struct{}{}
+			<-ps.semaphore
 
 			if startCalls.Load() != tc.expectedStartCalls {
 				t.Errorf("expected %d process.Start calls, got %d", tc.expectedStartCalls, startCalls.Load())
@@ -488,7 +473,7 @@ func TestProcessSupervisor_runWithDeadline(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			ps := NewProcessSupervisor(zap.NewNop(), new(ProcessMock), 0, 0).(*processSupervisor)
+			ps := NewProcessSupervisor(zap.NewNop(), new(ProcessMock), 0, 0, 1).(*processSupervisor)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 			if tc.ctxDone {
@@ -522,10 +507,10 @@ func TestProcessSupervisor_ReqQueueSize(t *testing.T) {
 			return true
 		},
 	}
-	ps := NewProcessSupervisor(logger, process, 0, 0).(*processSupervisor)
+	ps := NewProcessSupervisor(logger, process, 0, 0, 1).(*processSupervisor)
 
 	// Simulating a lock.
-	ps.mutexChan <- struct{}{}
+	ps.semaphore <- struct{}{}
 
 	if ps.ReqQueueSize() != 0 {
 		t.Fatalf("expected queue size to be 0 but got %d", ps.ReqQueueSize())
@@ -623,7 +608,7 @@ func TestProcessSupervisor_RestartsCount(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, 0, 0).(*processSupervisor)
+			ps := NewProcessSupervisor(logger, process, 0, 0, 1).(*processSupervisor)
 			ps.restartsCounter.Store(tc.initialRestartsCount)
 
 			for i := 0; i < tc.restartAttempts; i++ {
@@ -635,5 +620,128 @@ func TestProcessSupervisor_RestartsCount(t *testing.T) {
 				t.Fatalf("expected restarts count to be %d, but got  %d", tc.expectedRestartsCount, actualRestartsCount)
 			}
 		})
+	}
+}
+
+func TestProcessSupervisor_ConcurrentRun(t *testing.T) {
+	logger := zap.NewNop()
+
+	var startCalls atomic.Int64
+	process := &ProcessMock{
+		StartMock: func(logger *zap.Logger) error {
+			startCalls.Add(1)
+			return nil
+		},
+		StopMock: func(logger *zap.Logger) error {
+			return nil
+		},
+		HealthyMock: func(logger *zap.Logger) bool {
+			return true
+		},
+	}
+
+	maxConcurrency := int64(3)
+	ps := NewProcessSupervisor(logger, process, 0, 0, maxConcurrency).(*processSupervisor)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var running atomic.Int64
+	var maxRunning atomic.Int64
+
+	var wg sync.WaitGroup
+	tasks := 6
+
+	for i := 0; i < tasks; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := ps.Run(ctx, logger, func() error {
+				cur := running.Add(1)
+				for {
+					old := maxRunning.Load()
+					if cur <= old || maxRunning.CompareAndSwap(old, cur) {
+						break
+					}
+				}
+				time.Sleep(50 * time.Millisecond)
+				running.Add(-1)
+				return nil
+			})
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	observed := maxRunning.Load()
+	if observed > maxConcurrency {
+		t.Fatalf("expected at most %d concurrent tasks, but observed %d", maxConcurrency, observed)
+	}
+	if observed < 2 {
+		t.Fatalf("expected concurrent execution (at least 2 tasks running simultaneously), but observed max %d", observed)
+	}
+
+	if startCalls.Load() != 1 {
+		t.Errorf("expected 1 start call, got %d", startCalls.Load())
+	}
+}
+
+func TestProcessSupervisor_RestartDrainsAllSlots(t *testing.T) {
+	logger := zap.NewNop()
+
+	process := &ProcessMock{
+		StartMock: func(logger *zap.Logger) error {
+			return nil
+		},
+		StopMock: func(logger *zap.Logger) error {
+			return nil
+		},
+		HealthyMock: func(logger *zap.Logger) bool {
+			return true
+		},
+	}
+
+	maxConcurrency := int64(3)
+	ps := NewProcessSupervisor(logger, process, 3, 0, maxConcurrency).(*processSupervisor)
+	ps.firstStart.Store(true)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var wg sync.WaitGroup
+	tasks := 3
+
+	for i := 0; i < tasks; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := ps.Run(ctx, logger, func() error {
+				time.Sleep(50 * time.Millisecond)
+				return nil
+			})
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	// Wait for the async restart goroutine to complete.
+	deadline := time.After(5 * time.Second)
+	for ps.RestartsCount() < 1 {
+		select {
+		case <-deadline:
+			t.Fatal("timed out waiting for restart to complete")
+		default:
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+
+	if ps.RestartsCount() != 1 {
+		t.Fatalf("expected 1 restart, got %d", ps.RestartsCount())
 	}
 }
