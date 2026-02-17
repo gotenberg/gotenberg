@@ -346,6 +346,86 @@ Feature: /forms/chromium/convert/url
       Emulated media type is 'print'.
       """
 
+  Scenario: POST /forms/chromium/convert/url (Emulated Media Features)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                                              | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should NOT have the following content at page 1:
+      """
+      Prefers reduced motion.
+      """
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field  |
+      | emulatedMediaFeatures     | {"prefers-reduced-motion":"reduce"}                                              | field  |
+      | Gotenberg-Output-Filename | foo                                                                              | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Prefers reduced motion.
+      """
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field  |
+      | emulatedMediaType         | screen                                                                           | field  |
+      | emulatedMediaFeatures     | {"prefers-reduced-motion":"reduce"}                                              | field  |
+      | Gotenberg-Output-Filename | foo                                                                              | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Emulated media type is 'screen'.
+      """
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Prefers reduced motion.
+      """
+    Then the "foo.pdf" PDF should NOT have the following content at page 1:
+      """
+      Emulated media type is 'print'.
+      """
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field  |
+      | emulatedMediaType         | print                                                                            | field  |
+      | emulatedMediaFeatures     | {"prefers-reduced-motion":"reduce"}                                              | field  |
+      | Gotenberg-Output-Filename | foo                                                                              | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Emulated media type is 'print'.
+      """
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Prefers reduced motion.
+      """
+    Then the "foo.pdf" PDF should NOT have the following content at page 1:
+      """
+      Emulated media type is 'screen'.
+      """
+
   Scenario: POST /forms/chromium/convert/url (Default Allow / Deny Lists)
     Given I have a default Gotenberg container
     Given I have a static server
@@ -625,6 +705,16 @@ Feature: /forms/chromium/convert/url
     Then the response body should match string:
       """
       Invalid form data: form field 'extraHttpHeaders' is invalid (got '{"foo":"bar;scope=*."}', resulting to invalid scope regex pattern for header 'foo': error parsing regexp: missing argument to repetition operator in `*.`)
+      """
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                   | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+      | emulatedMediaFeatures | foo                                                                 | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'emulatedMediaFeatures' is invalid (got 'foo', resulting to unmarshal emulatedMediaFeatures: invalid character 'o' in literal false (expecting 'a'))
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
