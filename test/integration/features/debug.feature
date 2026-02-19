@@ -109,6 +109,7 @@ Feature: /debug
           "prometheus-disable-collect": "false",
           "prometheus-disable-route-logging": "false",
           "prometheus-namespace": "gotenberg",
+          "prometheus-metrics-path": "/prometheus/metrics",
           "webhook-allow-list": "",
           "webhook-client-timeout": "30s",
           "webhook-deny-list": "",

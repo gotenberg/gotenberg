@@ -272,6 +272,29 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						})
 						return c.NoContent(http.StatusNoContent)
 					}
+
+					if deadline, ok := ctx.Deadline(); ok {
+						// Create a new context derived from Background (detached from Request)
+						// but with the same deadline as the original context.
+						detachedCtx, detachedCancel := context.WithDeadline(context.Background(), deadline)
+
+						// Replace the embedded context in the api.Context struct.
+						// The modules downstream will now use this detached context.
+						ctx.Context = detachedCtx
+
+						// We must wrap the cancel function.
+						// 1. detachedCancel() cleans up our new detached context.
+						// 2. originalCancel() (captured from c.Get("cancel")) cleans up the working directory.
+						originalCancel := cancel
+						cancel = func() {
+							detachedCancel()
+							originalCancel()
+						}
+					} else {
+						// Fallback if no deadline was set (rare, as newContext enforces it).
+						ctx.Context = context.Background()
+					}
+
 					// As a webhook URL has been given, we handle the request in a
 					// goroutine and return immediately.
 					w.asyncCount.Add(1)

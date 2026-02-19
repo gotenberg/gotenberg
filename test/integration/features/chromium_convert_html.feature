@@ -195,6 +195,36 @@ Feature: /forms/chromium/convert/html
       Wait delay > 2 seconds or expression window globalVar === 'ready' returns true.
       """
 
+  Scenario: POST /forms/chromium/convert/html (Wait For Selector)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/feature-rich-html/index.html | file   |
+      | Gotenberg-Output-Filename | foo                                   | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should NOT have the following content at page 1:
+      """
+      Wait on selector returns true.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/feature-rich-html/index.html | file   |
+      | waitForSelector           | #wait-selector                        | field  |
+      | Gotenberg-Output-Filename | foo                                   | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Wait on selector returns true.
+      """
+
   Scenario: POST /forms/chromium/convert/html (Emulated Media Type)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
@@ -342,6 +372,16 @@ Feature: /forms/chromium/convert/html
       Invalid HTTP status code from resources:
       https://gethttpstatus.com/400 - 400: Bad Request
       """
+
+  Scenario: POST /forms/chromium/convert/html (Fail On Resource HTTP Status Codes - Ignore Domains)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                           | testdata/feature-rich-html/index.html | file  |
+      | failOnResourceHttpStatusCodes   | [499,599]                             | field |
+      | ignoreResourceHttpStatusDomains | ["gethttpstatus.com"]                 | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
 
   Scenario: POST /forms/chromium/convert/html (Fail On Resource Loading Failed)
     Given I have a default Gotenberg container
