@@ -221,6 +221,7 @@ lint-todo: ## Find TODOs in Golang codebase
 
 .PHONY: fmt
 fmt: ## Format Golang codebase and "optimize" the dependencies
+	go fix ./...
 	golangci-lint fmt
 	go mod tidy
 
