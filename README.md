@@ -10,13 +10,16 @@
     <p align="center">
         <a href="https://trendshift.io/repositories/2996"><img src="https://trendshift.io/api/badge/repositories/2996" alt="gotenberg%2Fgotenberg | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
     </p>
-    <p align="center"><a href="https://gotenberg.dev/docs/getting-started/introduction">Documentation</a> &#183; <a href="https://gotenberg.dev/docs/getting-started/installation#live-demo-">Live Demo</a> 🔥</p>
+    <p align="center"><a href="https://gotenberg.dev/docs/getting-started/introduction">Read the Documentation</a> &#183; <a href="https://gotenberg.dev/docs/getting-started/installation#live-demo-">Try the Live Demo</a> 🔥</p>
 </p>
 
 ---
 
-**Gotenberg** provides a developer-friendly API to interact with powerful tools like Chromium and LibreOffice for converting
-numerous document formats (HTML, Markdown, Word, Excel, etc.) into PDF files, and more!
+**Gotenberg** is a containerized API that abstracts the complexity of PDF conversion.
+
+It provides a `multipart/form-data` interface for interacting with powerful engines like Chromium and LibreOffice.
+Instead of managing heavy dependencies, browser versions, or fonts in your own backend, simply send your files to
+Gotenberg and get a PDF in return.
 
 ## Quick Start
 
@@ -26,21 +29,14 @@ Open a terminal and run the following command:
 docker run --rm -p 3000:3000 gotenberg/gotenberg:8
 ```
 
-With the API running at `http://localhost:3000`, you can immediately convert a URL to a PDF:
-
-```bash
-curl \
-  --request POST http://localhost:3000/forms/chromium/convert/url \
-  --form url=https://sparksuite.github.io/simple-html-invoice-template/ \
-  -o invoice.pdf
-```
-
-**Read the [Full Documentation](https://gotenberg.dev/docs/getting-started/introduction)** to discover how to convert local
-files, inject custom CSS, merge PDFs, and more.
+With the API running at `http://localhost:3000`, you are now ready to head
+to the **[Full Documentation](https://gotenberg.dev/docs/getting-started/introduction)** to discover how to convert URLs,
+local files, inject custom CSS, merge PDFs, and more.
 
 ## Sponsors
 
-Open-source development takes time and effort. Support the continuous improvement of Gotenberg by [**becoming a sponsor**](https://github.com/sponsors/gulien)! ❤️
+Open-source development takes a significant amount of time, energy, and dedication. If Gotenberg helps streamline your
+workflow or powers your business, please consider supporting its continuous improvement by [**becoming a sponsor**](https://github.com/sponsors/gulien)! ❤️
 
 **GitHub Sponsors**
 
