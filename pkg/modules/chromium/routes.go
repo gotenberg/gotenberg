@@ -29,25 +29,40 @@ var sameSiteRegexp = regexp2.MustCompile(
 	regexp2.None,
 )
 
-// FormDataChromiumOptions creates [Options] from the form data. Fallback to
-// the default value if the considered key is not present.
+// FormDataChromiumOptions creates [Options] from the form data.
+//
+// It falls back to the default value if the considered key is not present.
+//
+// JSON-encoded fields:
+//   - failOnHttpStatusCodes: []int
+//   - failOnResourceHttpStatusCodes: []int
+//   - ignoreResourceHttpStatusDomains: []string
+//   - cookies: []Cookie
+//   - extraHttpHeaders: map[string]string
+//   - emulatedMediaFeatures: map[string]string
+//
+// Domain filtering only applies to resource checks triggered by
+// "failOnResourceHttpStatusCodes".
 func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 	defaultOptions := DefaultOptions()
 
 	var (
-		skipNetworkIdleEvent          bool
-		failOnHttpStatusCodes         []int64
-		failOnResourceHttpStatusCodes []int64
-		failOnResourceLoadingFailed   bool
-		failOnConsoleExceptions       bool
-		waitDelay                     time.Duration
-		waitWindowStatus              string
-		waitForExpression             string
-		cookies                       []Cookie
-		userAgent                     string
-		extraHttpHeaders              []ExtraHttpHeader
-		emulatedMediaType             string
-		omitBackground                bool
+		skipNetworkIdleEvent            bool
+		failOnHttpStatusCodes           []int64
+		failOnResourceHttpStatusCodes   []int64
+		ignoreResourceHttpStatusDomains []string
+		failOnResourceLoadingFailed     bool
+		failOnConsoleExceptions         bool
+		waitDelay                       time.Duration
+		waitWindowStatus                string
+		waitForExpression               string
+		waitForSelector                 string
+		cookies                         []Cookie
+		userAgent                       string
+		extraHttpHeaders                []ExtraHttpHeader
+		emulatedMediaType               string
+		emulatedMediaFeatures           []EmulatedMediaFeature
+		omitBackground                  bool
 	)
 
 	form := ctx.FormData().
@@ -78,11 +93,25 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 
 			return nil
 		}).
+		Custom("ignoreResourceHttpStatusDomains", func(value string) error {
+			if value == "" {
+				ignoreResourceHttpStatusDomains = defaultOptions.IgnoreResourceHttpStatusDomains
+				return nil
+			}
+
+			err := json.Unmarshal([]byte(value), &ignoreResourceHttpStatusDomains)
+			if err != nil {
+				return fmt.Errorf("unmarshal ignoreResourceHttpStatusDomains: %w", err)
+			}
+
+			return nil
+		}).
 		Bool("failOnResourceLoadingFailed", &failOnResourceLoadingFailed, defaultOptions.FailOnResourceLoadingFailed).
 		Bool("failOnConsoleExceptions", &failOnConsoleExceptions, defaultOptions.FailOnConsoleExceptions).
 		Duration("waitDelay", &waitDelay, defaultOptions.WaitDelay).
 		String("waitWindowStatus", &waitWindowStatus, defaultOptions.WaitWindowStatus).
 		String("waitForExpression", &waitForExpression, defaultOptions.WaitForExpression).
+		String("waitForSelector", &waitForSelector, defaultOptions.WaitForSelector).
 		Custom("cookies", func(value string) error {
 			if value == "" {
 				cookies = defaultOptions.Cookies
@@ -200,22 +229,46 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 
 			return nil
 		}).
+		Custom("emulatedMediaFeatures", func(value string) error {
+			if value == "" {
+				emulatedMediaFeatures = defaultOptions.EmulatedMediaFeatures
+				return nil
+			}
+
+			var features map[string]string
+			err := json.Unmarshal([]byte(value), &features)
+			if err != nil {
+				return fmt.Errorf("unmarshal emulatedMediaFeatures: %w", err)
+			}
+
+			for k, v := range features {
+				emulatedMediaFeatures = append(emulatedMediaFeatures, EmulatedMediaFeature{
+					Name:  k,
+					Value: v,
+				})
+			}
+
+			return err
+		}).
 		Bool("omitBackground", &omitBackground, defaultOptions.OmitBackground)
 
 	options := Options{
-		SkipNetworkIdleEvent:          skipNetworkIdleEvent,
-		FailOnHttpStatusCodes:         failOnHttpStatusCodes,
-		FailOnResourceHttpStatusCodes: failOnResourceHttpStatusCodes,
-		FailOnResourceLoadingFailed:   failOnResourceLoadingFailed,
-		FailOnConsoleExceptions:       failOnConsoleExceptions,
-		WaitDelay:                     waitDelay,
-		WaitWindowStatus:              waitWindowStatus,
-		WaitForExpression:             waitForExpression,
-		Cookies:                       cookies,
-		UserAgent:                     userAgent,
-		ExtraHttpHeaders:              extraHttpHeaders,
-		EmulatedMediaType:             emulatedMediaType,
-		OmitBackground:                omitBackground,
+		SkipNetworkIdleEvent:            skipNetworkIdleEvent,
+		FailOnHttpStatusCodes:           failOnHttpStatusCodes,
+		FailOnResourceHttpStatusCodes:   failOnResourceHttpStatusCodes,
+		IgnoreResourceHttpStatusDomains: ignoreResourceHttpStatusDomains,
+		FailOnResourceLoadingFailed:     failOnResourceLoadingFailed,
+		FailOnConsoleExceptions:         failOnConsoleExceptions,
+		WaitDelay:                       waitDelay,
+		WaitWindowStatus:                waitWindowStatus,
+		WaitForExpression:               waitForExpression,
+		WaitForSelector:                 waitForSelector,
+		Cookies:                         cookies,
+		UserAgent:                       userAgent,
+		ExtraHttpHeaders:                extraHttpHeaders,
+		EmulatedMediaType:               emulatedMediaType,
+		EmulatedMediaFeatures:           emulatedMediaFeatures,
+		OmitBackground:                  omitBackground,
 	}
 
 	return form, options
@@ -652,6 +705,16 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 			)
 		}
 
+		if errors.Is(err, ErrPrintingFailed) {
+			return api.WrapError(
+				fmt.Errorf("convert to PDF: %w", err),
+				api.NewSentinelHttpError(
+					http.StatusBadRequest,
+					"Chromium failed to print the PDF; this usually happens when the page is too large",
+				),
+			)
+		}
+
 		if errors.Is(err, ErrInvalidPrinterSettings) {
 			return api.WrapError(
 				fmt.Errorf("convert to PDF: %w", err),
@@ -662,12 +725,22 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 			)
 		}
 
+		if errors.Is(err, ErrPageRangesExceedsPageCount) {
+			return api.WrapError(
+				fmt.Errorf("convert to PDF: %w", err),
+				api.NewSentinelHttpError(
+					http.StatusBadRequest,
+					fmt.Sprintf("The page ranges '%s' (nativePageRanges) exceeds the page count", options.PageRanges),
+				),
+			)
+		}
+
 		if errors.Is(err, ErrPageRangesSyntaxError) {
 			return api.WrapError(
 				fmt.Errorf("convert to PDF: %w", err),
 				api.NewSentinelHttpError(
 					http.StatusBadRequest,
-					fmt.Sprintf("Chromium does not handle the page ranges '%s' (nativePageRanges)", options.PageRanges),
+					fmt.Sprintf("Chromium does not handle the page ranges '%s' (nativePageRanges) syntax", options.PageRanges),
 				),
 			)
 		}
@@ -685,14 +758,14 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 		return fmt.Errorf("convert PDF(s): %w", err)
 	}
 
-	err = pdfengines.WriteMetadataStub(ctx, engine, metadata, convertOutputPaths)
-	if err != nil {
-		return fmt.Errorf("write metadata: %w", err)
-	}
-
 	err = pdfengines.EmbedFilesStub(ctx, engine, embedPaths, convertOutputPaths)
 	if err != nil {
 		return fmt.Errorf("embed files into PDFs: %w", err)
+	}
+
+	err = pdfengines.WriteMetadataStub(ctx, engine, metadata, convertOutputPaths)
+	if err != nil {
+		return fmt.Errorf("write metadata: %w", err)
 	}
 
 	err = pdfengines.EncryptPdfStub(ctx, engine, userPassword, ownerPassword, convertOutputPaths)
@@ -759,6 +832,22 @@ func handleChromiumError(err error, options Options) error {
 			api.NewSentinelHttpError(
 				http.StatusBadRequest,
 				fmt.Sprintf("The expression '%s' (waitForExpression) returned an exception or undefined", options.WaitForExpression),
+			),
+		)
+	}
+
+	if errors.Is(err, ErrInvalidSelectorQuery) {
+		if options.WaitForSelector == "" {
+			// We only expect to see this error if the user specified a selector.
+			// If they didn't and we still generated the error, return a 500.
+			return err
+		}
+
+		return api.WrapError(
+			err,
+			api.NewSentinelHttpError(
+				http.StatusBadRequest,
+				fmt.Sprintf("The selector '%s' (waitForSelector) returned an exception or undefined", options.WaitForSelector),
 			),
 		)
 	}

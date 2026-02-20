@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cucumber/godog"
@@ -24,6 +25,7 @@ import (
 
 type scenario struct {
 	resp                      *httptest.ResponseRecorder
+	concurrentResps           []*httptest.ResponseRecorder
 	workdir                   string
 	gotenbergContainer        testcontainers.Container
 	gotenbergContainerNetwork *testcontainers.DockerNetwork
@@ -33,6 +35,7 @@ type scenario struct {
 
 func (s *scenario) reset(ctx context.Context) error {
 	s.resp = httptest.NewRecorder()
+	s.concurrentResps = nil
 
 	err := os.RemoveAll(s.workdir)
 	if err != nil {
@@ -275,6 +278,171 @@ func (s *scenario) iMakeARequestToGotenbergWithTheFollowingFormDataAndHeaders(ct
 		})
 		if err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *scenario) iMakeConcurrentRequestsToGotenberg(ctx context.Context, count int, method, endpoint string, dataTable *godog.Table) error {
+	if s.gotenbergContainer == nil {
+		return errors.New("no Gotenberg container")
+	}
+
+	fields := make(map[string]string)
+	files := make(map[string][]string)
+	headers := make(map[string]string)
+
+	for _, row := range dataTable.Rows {
+		name := row.Cells[0].Value
+		value := row.Cells[1].Value
+		kind := row.Cells[2].Value
+
+		switch kind {
+		case "field":
+			fields[name] = value
+		case "file":
+			wd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("get current directory: %w", err)
+			}
+			value = fmt.Sprintf("%s/%s", wd, value)
+			files[name] = append(files[name], value)
+		case "header":
+			headers[name] = value
+		default:
+			return fmt.Errorf("unexpected %q %q", kind, value)
+		}
+	}
+
+	base, err := containerHttpEndpoint(ctx, s.gotenbergContainer, "3000")
+	if err != nil {
+		return fmt.Errorf("get container HTTP endpoint: %w", err)
+	}
+
+	var (
+		mu sync.Mutex
+		wg sync.WaitGroup
+	)
+	s.concurrentResps = make([]*httptest.ResponseRecorder, 0, count)
+	errs := make([]error, 0)
+
+	for i := 0; i < count; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			resp, reqErr := doFormDataRequest(method, fmt.Sprintf("%s%s", base, endpoint), fields, files, headers)
+			if reqErr != nil {
+				mu.Lock()
+				errs = append(errs, fmt.Errorf("do request: %w", reqErr))
+				mu.Unlock()
+				return
+			}
+			defer resp.Body.Close()
+
+			body, reqErr := io.ReadAll(resp.Body)
+			if reqErr != nil {
+				mu.Lock()
+				errs = append(errs, fmt.Errorf("read response body: %w", reqErr))
+				mu.Unlock()
+				return
+			}
+
+			rec := httptest.NewRecorder()
+			rec.Code = resp.StatusCode
+			for key, values := range resp.Header {
+				for _, v := range values {
+					rec.Header().Add(key, v)
+				}
+			}
+			_, _ = rec.Body.Write(body)
+
+			if resp.StatusCode == http.StatusOK {
+				cd := resp.Header.Get("Content-Disposition")
+				if cd != "" {
+					_, params, parseErr := mime.ParseMediaType(cd)
+					if parseErr == nil {
+						if filename, ok := params["filename"]; ok {
+							traceID := resp.Header.Get("Gotenberg-Trace")
+							dirPath := fmt.Sprintf("%s/%s", s.workdir, traceID)
+
+							mu.Lock()
+							mkErr := os.MkdirAll(dirPath, 0o755)
+							mu.Unlock()
+
+							if mkErr == nil {
+								fpath := fmt.Sprintf("%s/%s", dirPath, filename)
+								f, fErr := os.Create(fpath)
+								if fErr == nil {
+									_, _ = f.Write(body)
+									f.Close()
+								}
+							}
+						}
+					}
+				}
+			}
+
+			mu.Lock()
+			s.concurrentResps = append(s.concurrentResps, rec)
+			mu.Unlock()
+		}()
+	}
+
+	wg.Wait()
+
+	if len(errs) > 0 {
+		return fmt.Errorf("concurrent requests failed: %v", errs)
+	}
+
+	return nil
+}
+
+func (s *scenario) allConcurrentResponseStatusCodesShouldBe(expected int) error {
+	if len(s.concurrentResps) == 0 {
+		return errors.New("no concurrent responses recorded")
+	}
+
+	for i, resp := range s.concurrentResps {
+		if resp.Code != expected {
+			return fmt.Errorf("concurrent response %d: expected status %d, got %d %q", i+1, expected, resp.Code, resp.Body.String())
+		}
+	}
+
+	return nil
+}
+
+func (s *scenario) allConcurrentResponsesShouldHavePdfs(expected int) error {
+	if len(s.concurrentResps) == 0 {
+		return errors.New("no concurrent responses recorded")
+	}
+
+	for i, resp := range s.concurrentResps {
+		traceID := resp.Header().Get("Gotenberg-Trace")
+		dirPath := fmt.Sprintf("%s/%s", s.workdir, traceID)
+
+		_, err := os.Stat(dirPath)
+		if os.IsNotExist(err) {
+			return fmt.Errorf("concurrent response %d: directory %q does not exist", i+1, dirPath)
+		}
+
+		var paths []string
+		err = filepath.Walk(dirPath, func(path string, info os.FileInfo, pathErr error) error {
+			if pathErr != nil {
+				return pathErr
+			}
+			if strings.EqualFold(filepath.Ext(info.Name()), ".pdf") {
+				paths = append(paths, path)
+			}
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("concurrent response %d: walk %q: %w", i+1, dirPath, err)
+		}
+
+		if len(paths) != expected {
+			return fmt.Errorf("concurrent response %d: expected %d PDF(s), got %d", i+1, expected, len(paths))
 		}
 	}
 
@@ -735,41 +903,6 @@ func (s *scenario) thePdfShouldBeSetToLandscapeOrientation(ctx context.Context, 
 	return nil
 }
 
-func (s *scenario) thePdfShouldHaveTheFollowingEmbedsInIt(ctx context.Context, name, should string, embed string) error {
-	path, err := s.getPath(name)
-	if err != nil {
-		return fmt.Errorf("get path %q: %w", name, err)
-	}
-	invert := should == "should NOT"
-
-	cmd := []string{
-		"verapdf",
-		"--off",
-		"--loglevel",
-		"0",
-		"--extract",
-		"embeddedFile",
-		name,
-	}
-
-	output, err := execCommandInIntegrationToolsContainer(ctx, cmd, path)
-	if err != nil {
-		return fmt.Errorf("exec %q: %w", cmd, err)
-	}
-
-	found := strings.Contains(output, fmt.Sprintf("<fileName>%s</fileName>", embed))
-
-	if invert && found {
-		return fmt.Errorf("embed %q found", embed)
-	}
-
-	if !invert && !found {
-		return fmt.Errorf("embed %q not found", embed)
-	}
-
-	return nil
-}
-
 func (s *scenario) thePdfShouldHaveTheFollowingContentAtPage(ctx context.Context, name, kind string, page int, expected *godog.DocString) error {
 	var path string
 	if !strings.HasPrefix(name, "*_") {
@@ -926,6 +1059,60 @@ func (s *scenario) thePdfsShouldBeEncrypted(ctx context.Context, kind string, sh
 	return nil
 }
 
+func (s *scenario) thePdfsShouldHaveEmbeddedFile(ctx context.Context, kind, should, embed string) error {
+	dirPath := fmt.Sprintf("%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"))
+
+	_, err := os.Stat(dirPath)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("directory %q does not exist", dirPath)
+	}
+
+	var paths []string
+	err = filepath.Walk(dirPath, func(path string, info os.FileInfo, pathErr error) error {
+		if pathErr != nil {
+			return pathErr
+		}
+		if strings.EqualFold(filepath.Ext(info.Name()), ".pdf") {
+			paths = append(paths, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("walk %q: %w", dirPath, err)
+	}
+
+	invert := should == "should NOT"
+
+	for _, path := range paths {
+		cmd := []string{
+			"verapdf",
+			"--off",
+			"--loglevel",
+			"0",
+			"--extract",
+			"embeddedFile",
+			filepath.Base(path),
+		}
+
+		output, err := execCommandInIntegrationToolsContainer(ctx, cmd, path)
+		if err != nil {
+			return fmt.Errorf("exec %q: %w", cmd, err)
+		}
+
+		found := strings.Contains(output, fmt.Sprintf("<fileName>%s</fileName>", embed))
+
+		if invert && found {
+			return fmt.Errorf("embed %q found", embed)
+		}
+
+		if !invert && !found {
+			return fmt.Errorf("embed %q not found", embed)
+		}
+	}
+
+	return nil
+}
+
 func InitializeScenario(ctx *godog.ScenarioContext) {
 	s := &scenario{}
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
@@ -946,9 +1133,12 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.When(`^I make a "(GET|HEAD)" request to Gotenberg at the "([^"]*)" endpoint$`, s.iMakeARequestToGotenberg)
 	ctx.When(`^I make a "(GET|HEAD)" request to Gotenberg at the "([^"]*)" endpoint with the following header\(s\):$`, s.iMakeARequestToGotenbergWithTheFollowingHeaders)
 	ctx.When(`^I make a "(POST)" request to Gotenberg at the "([^"]*)" endpoint with the following form data and header\(s\):$`, s.iMakeARequestToGotenbergWithTheFollowingFormDataAndHeaders)
+	ctx.When(`^I make (\d+) concurrent "(POST)" requests to Gotenberg at the "([^"]*)" endpoint with the following form data and header\(s\):$`, s.iMakeConcurrentRequestsToGotenberg)
 	ctx.When(`^I wait for the asynchronous request to the webhook$`, s.iWaitForTheAsynchronousRequestToWebhook)
 	ctx.Then(`^the Gotenberg container (should|should NOT) log the following entries:$`, s.theGotenbergContainerShouldLogTheFollowingEntries)
 	ctx.Then(`^the response status code should be (\d+)$`, s.theResponseStatusCodeShouldBe)
+	ctx.Then(`^all concurrent response status codes should be (\d+)$`, s.allConcurrentResponseStatusCodesShouldBe)
+	ctx.Then(`^all concurrent responses should have (\d+) PDF\(s\)$`, s.allConcurrentResponsesShouldHavePdfs)
 	ctx.Then(`^the (response|webhook request|file request|server request) header "([^"]*)" should be "([^"]*)"$`, s.theHeaderValueShouldBe)
 	ctx.Then(`^the (response|webhook request|file request|server request) cookie "([^"]*)" should be "([^"]*)"$`, s.theCookieValueShouldBe)
 	ctx.Then(`^the (response|webhook request) body should match string:$`, s.theBodyShouldMatchString)
@@ -959,10 +1149,10 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the (response|webhook request) PDF\(s\) should be valid "([^"]*)" with a tolerance of (\d+) failed rule\(s\)$`, s.thePdfsShouldBeValidWithAToleranceOf)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) be flatten$`, s.thePdfsShouldBeFlatten)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) be encrypted`, s.thePdfsShouldBeEncrypted)
+	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) have the "([^"]*)" file embedded$`, s.thePdfsShouldHaveEmbeddedFile)
 	ctx.Then(`^the "([^"]*)" PDF should have (\d+) page\(s\)$`, s.thePdfShouldHavePages)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) be set to landscape orientation$`, s.thePdfShouldBeSetToLandscapeOrientation)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have the following content at page (\d+):$`, s.thePdfShouldHaveTheFollowingContentAtPage)
-	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have the "([^"]*)" file embedded in it$`, s.thePdfShouldHaveTheFollowingEmbedsInIt)
 	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		if s.gotenbergContainer != nil {
 			errTerminate := s.gotenbergContainer.Terminate(ctx, testcontainers.StopTimeout(0))
@@ -985,15 +1175,4 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 		}
 		return ctx, nil
 	})
-}
-
-func (s *scenario) getPath(name string) (string, error) {
-	path := fmt.Sprintf("%s/%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"), name)
-
-	_, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		return "", fmt.Errorf("PDF %q does not exist", path)
-	}
-
-	return path, nil
 }

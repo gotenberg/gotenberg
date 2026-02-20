@@ -10,6 +10,7 @@ build: ## Build the Gotenberg's Docker image
 	-t $(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
 	-f $(DOCKERFILE) $(DOCKER_BUILD_CONTEXT)
 
+TZ=UTC
 GOTENBERG_HIDE_BANNER=false
 GOTENBERG_GRACEFUL_SHUTDOWN_DURATION=30s
 GOTENBERG_BUILD_DEBUG_DATA=true
@@ -30,8 +31,9 @@ API-DOWNLOAD-FROM-FROM-MAX-RETRY=4
 API-DISABLE-DOWNLOAD-FROM=false
 API_DISABLE_HEALTH_CHECK_LOGGING=false
 API_ENABLE_DEBUG_ROUTE=false
-CHROMIUM_RESTART_AFTER=10
+CHROMIUM_RESTART_AFTER=100
 CHROMIUM_MAX_QUEUE_SIZE=0
+CHROMIUM_MAX_CONCURRENCY=6
 CHROMIUM_AUTO_START=false
 CHROMIUM_START_TIMEOUT=20s
 CHROMIUM_ALLOW_INSECURE_LOCALHOST=false
@@ -68,6 +70,7 @@ PROMETHEUS_NAMESPACE=gotenberg
 PROMETHEUS_COLLECT_INTERVAL=1s
 PROMETHEUS_DISABLE_ROUTE_LOGGING=false
 PROMETHEUS_DISABLE_COLLECT=false
+PROMETHEUS_METRICS_PATH=/prometheus/metrics
 SENTRY_DSN=
 SENTRY_SEND_DEFAULT_PII=false
 SENTRY_ENVIRONMENT=
@@ -89,6 +92,7 @@ run: ## Start a Gotenberg container
 	-p $(API_PORT):$(API_PORT) \
 	-e GOTENBERG_API_BASIC_AUTH_USERNAME=$(GOTENBERG_API_BASIC_AUTH_USERNAME) \
 	-e GOTENBERG_API_BASIC_AUTH_PASSWORD=$(GOTENBERG_API_BASIC_AUTH_PASSWORD) \
+	-e TZ=$(TZ) \
 	$(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
 	gotenberg \
 	--gotenberg-hide-banner=$(GOTENBERG_HIDE_BANNER) \
@@ -112,6 +116,7 @@ run: ## Start a Gotenberg container
 	--chromium-restart-after=$(CHROMIUM_RESTART_AFTER) \
 	--chromium-auto-start=$(CHROMIUM_AUTO_START) \
 	--chromium-max-queue-size=$(CHROMIUM_MAX_QUEUE_SIZE) \
+	--chromium-max-concurrency=$(CHROMIUM_MAX_CONCURRENCY) \
 	--chromium-start-timeout=$(CHROMIUM_START_TIMEOUT) \
 	--chromium-allow-insecure-localhost=$(CHROMIUM_ALLOW_INSECURE_LOCALHOST) \
 	--chromium-ignore-certificate-errors=$(CHROMIUM_IGNORE_CERTIFICATE_ERRORS) \
@@ -147,7 +152,8 @@ run: ## Start a Gotenberg container
 	--prometheus-collect-interval=$(PROMETHEUS_COLLECT_INTERVAL) \
 	--prometheus-disable-route-logging=$(PROMETHEUS_DISABLE_ROUTE_LOGGING) \
 	--prometheus-disable-collect=$(PROMETHEUS_DISABLE_COLLECT) \
-	--sentry-dsn=$(SENTRY_DSN) \
+	--prometheus-metrics-path=$(PROMETHEUS_METRICS_PATH) \
+  --sentry-dsn=$(SENTRY_DSN) \
 	--sentry-send-default-pii=$(SENTRY_SEND_DEFAULT_PII) \
 	--sentry-environment=$(SENTRY_ENVIRONMENT) \
 	--sentry-flush-timeout=$(SENTRY_FLUSH_TIMEOUT) \
@@ -168,9 +174,40 @@ test-unit: ## Run unit tests
 
 PLATFORM=
 NO_CONCURRENCY=false
+# Available tags:
+# chromium
+# chromium-concurrent
+# chromium-convert-html
+# chromium-convert-markdown
+# chromium-convert-url
+# debug
+# health
+# libreoffice
+# libreoffice-convert
+# output-filename
+# pdfengines
+# pdfengines-convert
+# pdfengines-embed
+# embed
+# pdfengines-encrypt
+# encrypt
+# pdfengines-flatten
+# flatten
+# pdfengines-merge
+# merge
+# pdfengines-metadata
+# metadata
+# pdfengines-split
+# split
+# prometheus-metrics
+# root
+# version
+# webhook
+# download-from
+TAGS=
 
 .PHONY: test-integration
-test-integration: ## Run integration tests, use TAGS environment variable to filter tests by tags
+test-integration: ## Run integration tests
 	go test -timeout 40m -tags=integration -v github.com/gotenberg/gotenberg/v8/test/integration -args \
 	--gotenberg-docker-repository=$(DOCKER_REPOSITORY) \
 	--gotenberg-version=$(GOTENBERG_VERSION) \

@@ -14,7 +14,7 @@ jobs:
     continue-on-error: true
     steps:
       - name: Check out code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Cleanup
         uses: ./.github/actions/clean

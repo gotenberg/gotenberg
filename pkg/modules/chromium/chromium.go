@@ -33,6 +33,10 @@ var (
 	// returns an exception or undefined.
 	ErrInvalidEvaluationExpression = errors.New("invalid evaluation expression")
 
+	// ErrInvalidSelectorQuery happens if a selector query returns an exception
+	// or undefined.
+	ErrInvalidSelectorQuery = errors.New("invalid selector query")
+
 	// ErrRpccMessageTooLarge happens when the messages received by
 	// ChromeDevTools are larger than 100 MB.
 	ErrRpccMessageTooLarge = errors.New("rpcc message too large")
@@ -63,21 +67,29 @@ var (
 	// PdfOptions.OmitBackground is set to true but not PdfOptions.PrintBackground.
 	ErrOmitBackgroundWithoutPrintBackground = errors.New("omit background without print background")
 
+	// ErrPrintingFailed happens if the printing failed for an unknown reason.
+	ErrPrintingFailed = errors.New("printing failed")
+
 	// ErrInvalidPrinterSettings happens if the PdfOptions have one or more
 	// aberrant values.
 	ErrInvalidPrinterSettings = errors.New("invalid printer settings")
 
-	// ErrPageRangesSyntaxError happens if the PdfOptions have an invalid page
-	// range.
+	// ErrPageRangesSyntaxError happens if the PdfOptions page
+	// range syntax is invalid.
 	ErrPageRangesSyntaxError = errors.New("page ranges syntax error")
+
+	// ErrPageRangesExceedsPageCount happens if the PdfOptions have an invalid
+	// page range.
+	ErrPageRangesExceedsPageCount = errors.New("page ranges exceeds page count")
 )
 
 // Chromium is a module that provides both an [Api] and routes for converting
 // an HTML document to PDF.
 type Chromium struct {
-	autoStart     bool
-	disableRoutes bool
-	args          browserArguments
+	autoStart      bool
+	disableRoutes  bool
+	maxConcurrency int64
+	args           browserArguments
 
 	logger     *zap.Logger
 	browser    browser
@@ -101,6 +113,20 @@ type Options struct {
 	// status code from at least one resource matches with one if its entries.
 	FailOnResourceHttpStatusCodes []int64
 
+	// IgnoreResourceHttpStatusDomains excludes resources whose hostname matches
+	// one of these domains from the application of
+	// [Options.FailOnResourceHttpStatusCodes].
+	//
+	// A match happens if the hostname equals the domain or is a subdomain of it
+	// (e.g., "browser.sentry-cdn.com" matches "sentry-cdn.com").
+	//
+	// Values are normalized (trimmed, lowercased) and may be provided as:
+	// - "example.com"
+	// - "*.example.com" or ".example.com"
+	// - "example.com:443" (port is ignored)
+	// - "https://example.com/path" (scheme/path are ignored)
+	IgnoreResourceHttpStatusDomains []string
+
 	// FailOnResourceLoadingFailed sets if the conversion should fail like the
 	// main page if Chromium fails to load at least one resource.
 	FailOnResourceLoadingFailed bool
@@ -121,6 +147,10 @@ type Options struct {
 	// converting an HTML document until it returns true
 	WaitForExpression string
 
+	// WaitForSelector is the element query to wait until visible before
+	// converting an HTML document.
+	WaitForSelector string
+
 	// Cookies are the cookies to put in the Chromium cookies' jar.
 	Cookies []Cookie
 
@@ -135,27 +165,47 @@ type Options struct {
 	// "print".
 	EmulatedMediaType string
 
+	// EmulatedMediaFeatures are the media features to emulate, e.g.,
+	// [{"name": "prefers-color-scheme", "value": "dark"}].
+	EmulatedMediaFeatures []EmulatedMediaFeature
+
 	// OmitBackground hides the default white background and allows generating
 	// PDFs with transparency.
 	OmitBackground bool
 }
 
+// EmulatedMediaFeature gathers the available entries for emulating a media
+// feature.
+type EmulatedMediaFeature struct {
+	// Name is the media feature name (e.g., "prefers-color-scheme",
+	// "prefers-reduced-motion").
+	// Required.
+	Name string `json:"name"`
+
+	// Value is the media feature value (e.g., "dark", "reduce").
+	// Required.
+	Value string `json:"value"`
+}
+
 // DefaultOptions returns the default values for Options.
 func DefaultOptions() Options {
 	return Options{
-		SkipNetworkIdleEvent:          true,
-		FailOnHttpStatusCodes:         []int64{499, 599},
-		FailOnResourceHttpStatusCodes: nil,
-		FailOnResourceLoadingFailed:   false,
-		FailOnConsoleExceptions:       false,
-		WaitDelay:                     0,
-		WaitWindowStatus:              "",
-		WaitForExpression:             "",
-		Cookies:                       nil,
-		UserAgent:                     "",
-		ExtraHttpHeaders:              nil,
-		EmulatedMediaType:             "",
-		OmitBackground:                false,
+		SkipNetworkIdleEvent:            true,
+		FailOnHttpStatusCodes:           []int64{499, 599},
+		FailOnResourceHttpStatusCodes:   nil,
+		IgnoreResourceHttpStatusDomains: nil,
+		FailOnResourceLoadingFailed:     false,
+		FailOnConsoleExceptions:         false,
+		WaitDelay:                       0,
+		WaitWindowStatus:                "",
+		WaitForExpression:               "",
+		WaitForSelector:                 "",
+		Cookies:                         nil,
+		UserAgent:                       "",
+		ExtraHttpHeaders:                nil,
+		EmulatedMediaType:               "",
+		EmulatedMediaFeatures:           nil,
+		OmitBackground:                  false,
 	}
 }
 
@@ -360,8 +410,9 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 		ID: "chromium",
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("chromium", flag.ExitOnError)
-			fs.Int64("chromium-restart-after", 10, "Number of conversions after which Chromium will automatically restart. Set to 0 to disable this feature")
+			fs.Int64("chromium-restart-after", 100, "Number of conversions after which Chromium will automatically restart. Set to 0 to disable this feature")
 			fs.Int64("chromium-max-queue-size", 0, "Maximum request queue size for Chromium. Set to 0 to disable this feature")
+			fs.Int64("chromium-max-concurrency", 6, "Maximum number of concurrent conversions. Chromium supports up to 6")
 			fs.Bool("chromium-auto-start", false, "Automatically launch Chromium upon initialization if set to true; otherwise, Chromium will start at the time of the first conversion")
 			fs.Duration("chromium-start-timeout", time.Duration(20)*time.Second, "Maximum duration to wait for Chromium to start or restart")
 			fs.Bool("chromium-allow-insecure-localhost", false, "Ignore TLS/SSL errors on localhost")
@@ -395,6 +446,7 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	mod.autoStart = flags.MustBool("chromium-auto-start")
 	mod.disableRoutes = flags.MustBool("chromium-disable-routes")
+	mod.maxConcurrency = flags.MustInt64("chromium-max-concurrency")
 
 	binPath, ok := os.LookupEnv("CHROMIUM_BIN_PATH")
 	if !ok {
@@ -437,7 +489,7 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 
 	// Process.
 	mod.browser = newChromiumBrowser(mod.args)
-	mod.supervisor = gotenberg.NewProcessSupervisor(mod.logger, mod.browser, flags.MustInt64("chromium-restart-after"), flags.MustInt64("chromium-max-queue-size"))
+	mod.supervisor = gotenberg.NewProcessSupervisor(mod.logger, mod.browser, flags.MustInt64("chromium-restart-after"), flags.MustInt64("chromium-max-queue-size"), mod.maxConcurrency)
 
 	// PDF Engine.
 	provider, err := ctx.Module(new(gotenberg.PdfEngineProvider))
@@ -455,6 +507,10 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 
 // Validate validates the module properties.
 func (mod *Chromium) Validate() error {
+	if mod.maxConcurrency < 1 || mod.maxConcurrency > 6 {
+		return fmt.Errorf("chromium-max-concurrency must be between 1 and 6, got %d", mod.maxConcurrency)
+	}
+
 	_, err := os.Stat(mod.args.binPath)
 	if os.IsNotExist(err) {
 		return fmt.Errorf("chromium binary path does not exist: %w", err)

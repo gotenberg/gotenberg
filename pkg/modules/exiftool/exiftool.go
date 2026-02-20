@@ -134,6 +134,33 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, m
 		return fmt.Errorf("read metadata with ExitfTool: %w", fileMetadata[0].Err)
 	}
 
+	// Define a list of derived, system, or computed tags that ExifTool
+	// extracts but should never be written back. Writing these can break PDF/A
+	// compliance (e.g., PageCount -> prism:pageCount) or cause side effects
+	// (e.g., FileModifyDate).
+	derivedTags := []string{
+		"PageCount",           // Causes prism:pageCount injection
+		"Linearized",          // Computed status; writing it may invalidate structure
+		"PDFVersion",          // Header version; should not be manually forced via metadata
+		"MIMEType",            // Read-only derived
+		"FileType",            // Read-only derived
+		"FileTypeExtension",   // Read-only derived
+		"FileSize",            // System attribute
+		"FileModifyDate",      // System attribute
+		"FileAccessDate",      // System attribute
+		"FileInodeChangeDate", // System attribute
+		"FilePermissions",     // System attribute
+		"FileName",            // Writing this triggers a file rename in ExifTool
+		"Directory",           // System attribute
+		"ExifToolVersion",     // Tool metadata
+		"Error",               // Extraction error messages
+		"Warning",             // Extraction warning messages
+	}
+
+	for _, tag := range derivedTags {
+		delete(fileMetadata[0].Fields, tag)
+	}
+
 	for key, value := range metadata {
 		switch val := value.(type) {
 		case string:

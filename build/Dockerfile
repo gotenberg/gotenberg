@@ -1,7 +1,7 @@
 # ARG instructions do not create additional layers. Instead, next layers will
 # concatenate them. Also, we have to repeat ARG instructions in each build
 # stage that uses them.
-ARG GOLANG_VERSION=1.25.0
+ARG GOLANG_VERSION=1.25.7
 
 # ----------------------------------------------
 # pdfcpu binary build stage
@@ -78,6 +78,9 @@ RUN jlink \
 # Base image stage
 # ----------------------------------------------
 FROM debian:13-slim AS base-image-stage
+
+ARG TIMEZONE=UTC
+ENV TZ=$TIMEZONE
 
 COPY --from=custom-jre-stage /custom-jre /opt/java
 

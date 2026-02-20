@@ -423,26 +423,44 @@ func forceExactColorsActionFunc(logger *zap.Logger, printBackground bool) chrome
 	}
 }
 
-func emulateMediaTypeActionFunc(logger *zap.Logger, mediaType string) chromedp.ActionFunc {
+func emulateMediaTypeActionFunc(logger *zap.Logger, mediaType string, mediaFeatures []EmulatedMediaFeature) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
-		if mediaType == "" {
-			logger.Debug("no emulated media type")
+		if mediaType == "" && len(mediaFeatures) == 0 {
+			logger.Debug("no emulated media type or features")
 			return nil
 		}
 
-		if mediaType != "screen" && mediaType != "print" {
+		if mediaType != "" && mediaType != "screen" && mediaType != "print" {
 			return fmt.Errorf("validate emulated media type '%s': %w", mediaType, ErrInvalidEmulatedMediaType)
 		}
 
-		logger.Debug(fmt.Sprintf("emulate media type '%s'", mediaType))
-
 		emulatedMedia := emulation.SetEmulatedMedia()
-		err := emulatedMedia.WithMedia(mediaType).Do(ctx)
+
+		if mediaType != "" {
+			logger.Debug(fmt.Sprintf("emulate media type '%s'", mediaType))
+			emulatedMedia = emulatedMedia.WithMedia(mediaType)
+		}
+
+		if len(mediaFeatures) > 0 {
+			logger.Debug(fmt.Sprintf("emulate media features %+v", mediaFeatures))
+
+			features := make([]*emulation.MediaFeature, len(mediaFeatures))
+			for i, f := range mediaFeatures {
+				features[i] = &emulation.MediaFeature{
+					Name:  f.Name,
+					Value: f.Value,
+				}
+			}
+
+			emulatedMedia = emulatedMedia.WithFeatures(features)
+		}
+
+		err := emulatedMedia.Do(ctx)
 		if err == nil {
 			return nil
 		}
 
-		return fmt.Errorf("emulate media type '%s': %w", mediaType, err)
+		return fmt.Errorf("emulate media: %w", err)
 	}
 }
 
@@ -510,5 +528,21 @@ func waitForExpressionBeforePrintActionFunc(logger *zap.Logger, disableJavaScrip
 				continue
 			}
 		}
+	}
+}
+
+func waitForSelectorVisibleBeforePrintActionFunc(logger *zap.Logger, selector string) chromedp.ActionFunc {
+	return func(ctx context.Context) error {
+		if selector == "" {
+			logger.Debug("no wait selector")
+			return nil
+		}
+
+		logger.Debug(fmt.Sprintf("wait until '%s' is visible before print", selector))
+		err := chromedp.WaitVisible(selector, chromedp.ByQuery, chromedp.RetryInterval(time.Duration(100)*time.Millisecond)).Do(ctx)
+		if err != nil {
+			return fmt.Errorf("wait visible: %v: %w", err, ErrInvalidSelectorQuery)
+		}
+		return nil
 	}
 }

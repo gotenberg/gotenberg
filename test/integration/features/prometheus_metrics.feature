@@ -2,6 +2,7 @@
 # 1. Count restarts.
 # 2. Count queue size.
 
+@prometheus-metrics
 Feature: /prometheus/metrics
 
   Scenario: GET /prometheus/metrics (Enabled)
@@ -27,6 +28,31 @@ Feature: /prometheus/metrics
       """
     Then the Gotenberg container should log the following entries:
       | "path":"/prometheus/metrics" |
+
+  Scenario: GET /custom/metrics (Custom Metrics Path)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PROMETHEUS_METRICS_PATH | /custom/metrics |
+    When I make a "GET" request to Gotenberg at the "/custom/metrics" endpoint
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "text/plain; version=0.0.4; charset=utf-8; escaping=underscores"
+    Then the response body should match string:
+      """
+      # HELP gotenberg_chromium_requests_queue_size Current number of Chromium conversion requests waiting to be treated.
+      # TYPE gotenberg_chromium_requests_queue_size gauge
+      gotenberg_chromium_requests_queue_size 0
+      # HELP gotenberg_chromium_restarts_count Current number of Chromium restarts.
+      # TYPE gotenberg_chromium_restarts_count gauge
+      gotenberg_chromium_restarts_count 0
+      # HELP gotenberg_libreoffice_requests_queue_size Current number of LibreOffice conversion requests waiting to be treated.
+      # TYPE gotenberg_libreoffice_requests_queue_size gauge
+      gotenberg_libreoffice_requests_queue_size 0
+      # HELP gotenberg_libreoffice_restarts_count Current number of LibreOffice restarts.
+      # TYPE gotenberg_libreoffice_restarts_count gauge
+      gotenberg_libreoffice_restarts_count 0
+
+      """
+    Then the Gotenberg container should log the following entries:
+      | "path":"/custom/metrics" |
 
   Scenario: GET /prometheus/metrics (Custom Namespace)
     Given I have a Gotenberg container with the following environment variable(s):

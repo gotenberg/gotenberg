@@ -2,6 +2,7 @@
 # 1. Other HTTP Methods
 # 2. Errors
 
+@webhook
 Feature: Webhook
 
   Scenario: Default
