@@ -10,7 +10,7 @@ import (
 type Context struct {
 	flags           ParsedFlags
 	descriptors     []ModuleDescriptor
-	moduleInstances map[string]interface{}
+	moduleInstances map[string]any
 }
 
 // NewContext creates a [Context].
@@ -22,7 +22,7 @@ func NewContext(
 	return &Context{
 		flags:           flags,
 		descriptors:     descriptors,
-		moduleInstances: make(map[string]interface{}),
+		moduleInstances: make(map[string]any),
 	}
 }
 
@@ -45,7 +45,7 @@ func (ctx *Context) ParsedFlags() ParsedFlags {
 //
 // If the module has not yet been initialized, this method
 // initializes it. Otherwise, returns the already initialized instance.
-func (ctx *Context) Module(kind interface{}) (interface{}, error) {
+func (ctx *Context) Module(kind any) (any, error) {
 	mods, err := ctx.Modules(kind)
 	if err != nil {
 		return nil, fmt.Errorf("get module: %w", err)
@@ -70,10 +70,10 @@ func (ctx *Context) Module(kind interface{}) (interface{}, error) {
 //
 // If one or more modules have not yet been initialized, this method
 // initializes them. Otherwise, returns the already initialized instances.
-func (ctx *Context) Modules(kind interface{}) ([]interface{}, error) {
+func (ctx *Context) Modules(kind any) ([]any, error) {
 	realKind := reflect.TypeOf(kind).Elem()
 
-	var mods []interface{}
+	var mods []any
 
 	for _, desc := range ctx.descriptors {
 		newInstance := desc.New()
@@ -101,7 +101,7 @@ func (ctx *Context) Modules(kind interface{}) ([]interface{}, error) {
 
 // loadModule calls the Provision and/or Validate methods of the requested
 // module if it satisfies the [Provisioner] and/or [Validator] interfaces.
-func (ctx *Context) loadModule(id string, instance interface{}) error {
+func (ctx *Context) loadModule(id string, instance any) error {
 	if prov, ok := instance.(Provisioner); ok {
 		// The instance can be provisioned.
 		err := prov.Provision(ctx)

@@ -327,11 +327,8 @@ func (s *scenario) iMakeConcurrentRequestsToGotenberg(ctx context.Context, count
 	s.concurrentResps = make([]*httptest.ResponseRecorder, 0, count)
 	errs := make([]error, 0)
 
-	for i := 0; i < count; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
+	for range count {
+		wg.Go(func() {
 			resp, reqErr := doFormDataRequest(method, fmt.Sprintf("%s%s", base, endpoint), fields, files, headers)
 			if reqErr != nil {
 				mu.Lock()
@@ -387,7 +384,7 @@ func (s *scenario) iMakeConcurrentRequestsToGotenberg(ctx context.Context, count
 			mu.Lock()
 			s.concurrentResps = append(s.concurrentResps, rec)
 			mu.Unlock()
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -495,7 +492,7 @@ func (s *scenario) theGotenbergContainerShouldLogTheFollowingEntries(ctx context
 	}
 
 	var err error
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		err = check()
 		if err != nil && !invert {
 			// We have to retry as not all logs may have been produced.
@@ -618,7 +615,7 @@ func (s *scenario) theBodyShouldMatchJSON(kind string, expectedDoc *godog.DocStr
 		body = s.server.bodyCopy
 	}
 
-	var expected, actual interface{}
+	var expected, actual any
 
 	content := strings.ReplaceAll(expectedDoc.Content, "{version}", GotenbergVersion)
 	err := json.Unmarshal([]byte(content), &expected)

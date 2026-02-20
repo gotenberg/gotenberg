@@ -59,8 +59,8 @@ func (engine *QPdf) Validate() error {
 }
 
 // Debug returns additional debug data.
-func (engine *QPdf) Debug() map[string]interface{} {
-	debug := make(map[string]interface{})
+func (engine *QPdf) Debug() map[string]any {
+	debug := make(map[string]any)
 
 	cmd := exec.Command(engine.binPath, "--version") //nolint:gosec
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -163,12 +163,12 @@ func (engine *QPdf) Convert(ctx context.Context, logger *zap.Logger, formats got
 }
 
 // ReadMetadata is not available in this implementation.
-func (engine *QPdf) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+func (engine *QPdf) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
 	return nil, fmt.Errorf("read PDF metadata with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // WriteMetadata is not available in this implementation.
-func (engine *QPdf) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+func (engine *QPdf) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
 	return fmt.Errorf("write PDF metadata with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 

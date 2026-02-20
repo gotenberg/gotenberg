@@ -316,8 +316,8 @@ func (a *Api) Stop(ctx context.Context) error {
 }
 
 // Debug returns additional debug data.
-func (a *Api) Debug() map[string]interface{} {
-	debug := make(map[string]interface{})
+func (a *Api) Debug() map[string]any {
+	debug := make(map[string]any)
 
 	cmd := exec.Command(a.args.binPath, "--version") //nolint:gosec
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}

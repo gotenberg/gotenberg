@@ -39,7 +39,7 @@ func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, option
 		logger.Debug(fmt.Sprintf("extra HTTP headers: %+v", options.extraHttpHeaders))
 	}
 
-	chromedp.ListenTarget(ctx, func(ev interface{}) {
+	chromedp.ListenTarget(ctx, func(ev any) {
 		switch e := ev.(type) {
 		case *fetch.EventRequestPaused:
 			go func() {
@@ -176,7 +176,7 @@ func listenForEventResponseReceived(
 		}
 	}
 
-	chromedp.ListenTarget(ctx, func(ev interface{}) {
+	chromedp.ListenTarget(ctx, func(ev any) {
 		switch ev := ev.(type) {
 		case *network.EventResponseReceived:
 			if ev.Response.URL == options.mainPageUrl {
@@ -299,7 +299,7 @@ type eventLoadingFailedOptions struct {
 // https://github.com/gotenberg/gotenberg/issues/959.
 // https://github.com/gotenberg/gotenberg/issues/1021.
 func listenForEventLoadingFailed(ctx context.Context, logger *zap.Logger, options eventLoadingFailedOptions) {
-	chromedp.ListenTarget(ctx, func(ev interface{}) {
+	chromedp.ListenTarget(ctx, func(ev any) {
 		switch ev := ev.(type) {
 		case *network.EventLoadingFailed:
 			logger.Debug(fmt.Sprintf("event EventLoadingFailed fired: %+v", ev.ErrorText))
@@ -355,7 +355,7 @@ func listenForEventLoadingFailed(ctx context.Context, logger *zap.Logger, option
 // appends those exceptions to the given error pointer.
 // See https://github.com/gotenberg/gotenberg/issues/262.
 func listenForEventExceptionThrown(ctx context.Context, logger *zap.Logger, consoleExceptions *error, consoleExceptionsMu *sync.RWMutex) {
-	chromedp.ListenTarget(ctx, func(ev interface{}) {
+	chromedp.ListenTarget(ctx, func(ev any) {
 		switch ev := ev.(type) {
 		case *runtime.EventExceptionThrown:
 			logger.Debug(fmt.Sprintf("event EventExceptionThrown fired: %+v", ev.ExceptionDetails))
@@ -374,7 +374,7 @@ func waitForEventDomContentEventFired(ctx context.Context, logger *zap.Logger) f
 	return func() error {
 		ch := make(chan struct{})
 		cctx, cancel := context.WithCancel(ctx)
-		chromedp.ListenTarget(cctx, func(ev interface{}) {
+		chromedp.ListenTarget(cctx, func(ev any) {
 			switch ev.(type) {
 			case *page.EventDomContentEventFired:
 				cancel()
@@ -398,7 +398,7 @@ func waitForEventLoadEventFired(ctx context.Context, logger *zap.Logger) func() 
 	return func() error {
 		ch := make(chan struct{})
 		cctx, cancel := context.WithCancel(ctx)
-		chromedp.ListenTarget(cctx, func(ev interface{}) {
+		chromedp.ListenTarget(cctx, func(ev any) {
 			switch ev.(type) {
 			case *page.EventLoadEventFired:
 				cancel()
@@ -422,7 +422,7 @@ func waitForEventNetworkIdle(ctx context.Context, logger *zap.Logger) func() err
 	return func() error {
 		ch := make(chan struct{})
 		cctx, cancel := context.WithCancel(ctx)
-		chromedp.ListenTarget(cctx, func(ev interface{}) {
+		chromedp.ListenTarget(cctx, func(ev any) {
 			switch e := ev.(type) {
 			case *page.EventLifecycleEvent:
 				if e.Name == "networkIdle" {
@@ -448,7 +448,7 @@ func waitForEventLoadingFinished(ctx context.Context, logger *zap.Logger) func()
 	return func() error {
 		ch := make(chan struct{})
 		cctx, cancel := context.WithCancel(ctx)
-		chromedp.ListenTarget(cctx, func(ev interface{}) {
+		chromedp.ListenTarget(cctx, func(ev any) {
 			switch ev.(type) {
 			case *network.EventLoadingFinished:
 				cancel()

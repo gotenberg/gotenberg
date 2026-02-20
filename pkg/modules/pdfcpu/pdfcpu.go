@@ -57,8 +57,8 @@ func (engine *PdfCpu) Validate() error {
 }
 
 // Debug returns additional debug data.
-func (engine *PdfCpu) Debug() map[string]interface{} {
-	debug := make(map[string]interface{})
+func (engine *PdfCpu) Debug() map[string]any {
+	debug := make(map[string]any)
 
 	cmd := exec.Command(engine.binPath, "version") //nolint:gosec
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -71,10 +71,10 @@ func (engine *PdfCpu) Debug() map[string]interface{} {
 
 	debug["version"] = "Unable to determine pdfcpu version"
 
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		if strings.HasPrefix(line, "pdfcpu:") {
-			debug["version"] = strings.TrimSpace(strings.TrimPrefix(line, "pdfcpu:"))
+	lines := strings.SplitSeq(string(output), "\n")
+	for line := range lines {
+		if after, ok := strings.CutPrefix(line, "pdfcpu:"); ok {
+			debug["version"] = strings.TrimSpace(after)
 			break
 		}
 	}
@@ -162,12 +162,12 @@ func (engine *PdfCpu) Convert(ctx context.Context, logger *zap.Logger, formats g
 }
 
 // ReadMetadata is not available in this implementation.
-func (engine *PdfCpu) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+func (engine *PdfCpu) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
 	return nil, fmt.Errorf("read PDF metadata with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // WriteMetadata is not available in this implementation.
-func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
 	return fmt.Errorf("write PDF metadata with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 

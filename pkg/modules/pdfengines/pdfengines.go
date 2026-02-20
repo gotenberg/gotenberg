@@ -3,6 +3,7 @@ package pdfengines
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	flag "github.com/spf13/pflag"
@@ -179,13 +180,7 @@ func (mod *PdfEngines) Validate() error {
 				continue
 			}
 
-			alreadyInSlice := false
-			for _, engine := range nonExistingEngines {
-				if engine == name {
-					alreadyInSlice = true
-					break
-				}
-			}
+			alreadyInSlice := slices.Contains(nonExistingEngines, name)
 
 			if !alreadyInSlice {
 				nonExistingEngines = append(nonExistingEngines, name)

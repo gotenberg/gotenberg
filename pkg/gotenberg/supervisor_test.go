@@ -409,14 +409,12 @@ func TestProcessSupervisor_Run(t *testing.T) {
 			errorChan := make(chan error, tc.tasksToRun)
 
 			for i := 0; i < tc.tasksToRun; i++ {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
+				wg.Go(func() {
 					err := ps.Run(ctx, logger, task)
 					if err != nil {
 						errorChan <- err
 					}
-				}()
+				})
 			}
 
 			wg.Wait()
@@ -522,17 +520,15 @@ func TestProcessSupervisor_ReqQueueSize(t *testing.T) {
 	var wg sync.WaitGroup
 	errorChan := make(chan error, 10)
 
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 10 {
+		wg.Go(func() {
 			err := ps.Run(ctx, logger, func() error {
 				return nil
 			})
 			if err != nil {
 				errorChan <- err
 			}
-		}()
+		})
 	}
 
 	// We have to wait a little bit so that the request queue size may change.
@@ -652,10 +648,8 @@ func TestProcessSupervisor_ConcurrentRun(t *testing.T) {
 	var wg sync.WaitGroup
 	tasks := 6
 
-	for i := 0; i < tasks; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range tasks {
+		wg.Go(func() {
 			err := ps.Run(ctx, logger, func() error {
 				cur := running.Add(1)
 				for {
@@ -671,7 +665,7 @@ func TestProcessSupervisor_ConcurrentRun(t *testing.T) {
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -714,10 +708,8 @@ func TestProcessSupervisor_RestartDrainsAllSlots(t *testing.T) {
 	var wg sync.WaitGroup
 	tasks := 3
 
-	for i := 0; i < tasks; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range tasks {
+		wg.Go(func() {
 			err := ps.Run(ctx, logger, func() error {
 				time.Sleep(50 * time.Millisecond)
 				return nil
@@ -725,7 +717,7 @@ func TestProcessSupervisor_RestartDrainsAllSlots(t *testing.T) {
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
-		}()
+		})
 	}
 
 	wg.Wait()

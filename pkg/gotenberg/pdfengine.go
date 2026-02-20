@@ -133,10 +133,10 @@ type PdfEngine interface {
 	Convert(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error
 
 	// ReadMetadata extracts the metadata of a given PDF file.
-	ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error)
+	ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error)
 
 	// WriteMetadata writes the metadata into a given PDF file.
-	WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error
+	WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error
 
 	// Encrypt adds password protection to a PDF file.
 	// The userPassword is required to open the document.

@@ -57,8 +57,8 @@ func (engine *ExifTool) Validate() error {
 }
 
 // Debug returns additional debug data.
-func (engine *ExifTool) Debug() map[string]interface{} {
-	debug := make(map[string]interface{})
+func (engine *ExifTool) Debug() map[string]any {
+	debug := make(map[string]any)
 
 	cmd := exec.Command(engine.binPath, "-ver") //nolint:gosec
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -94,7 +94,7 @@ func (engine *ExifTool) Convert(ctx context.Context, logger *zap.Logger, formats
 }
 
 // ReadMetadata extracts the metadata of a given PDF file.
-func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
 	exifTool, err := exiftool.NewExiftool(exiftool.SetExiftoolBinaryPath(engine.binPath))
 	if err != nil {
 		return nil, fmt.Errorf("new ExifTool: %w", err)
@@ -116,7 +116,7 @@ func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *zap.Logger, in
 }
 
 // WriteMetadata writes the metadata into a given PDF file.
-func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
 	exifTool, err := exiftool.NewExiftool(exiftool.SetExiftoolBinaryPath(engine.binPath))
 	if err != nil {
 		return fmt.Errorf("new ExifTool: %w", err)
@@ -167,7 +167,7 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, m
 			fileMetadata[0].SetString(key, val)
 		case []string:
 			fileMetadata[0].SetStrings(key, val)
-		case []interface{}:
+		case []any:
 			// See https://github.com/gotenberg/gotenberg/issues/1048.
 			strs := make([]string, len(val))
 			for i, entry := range val {
@@ -175,7 +175,7 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, m
 					strs[i] = str
 					continue
 				}
-				return fmt.Errorf("write PDF metadata with ExifTool: %s %+v %s %w", key, val, reflect.TypeOf(val), gotenberg.ErrPdfEngineMetadataValueNotSupported)
+				return fmt.Errorf("write PDF metadata with ExifTool: %s %+v %s %w", key, val, reflect.TypeFor[[]interface{}](), gotenberg.ErrPdfEngineMetadataValueNotSupported)
 			}
 			fileMetadata[0].SetStrings(key, strs)
 		case bool:

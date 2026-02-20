@@ -5,11 +5,11 @@ import (
 	"reflect"
 )
 
-func compareJson(expected, actual interface{}) error {
+func compareJson(expected, actual any) error {
 	// Handle maps (JSON objects).
-	expectedMap, ok := expected.(map[string]interface{})
+	expectedMap, ok := expected.(map[string]any)
 	if ok {
-		actualMap, ok := actual.(map[string]interface{})
+		actualMap, ok := actual.(map[string]any)
 		if !ok {
 			return fmt.Errorf("expected an object, but actual is: %T", actual)
 		}
@@ -31,9 +31,9 @@ func compareJson(expected, actual interface{}) error {
 	}
 
 	// Handle slices (JSON arrays).
-	expectedSlice, ok := expected.([]interface{})
+	expectedSlice, ok := expected.([]any)
 	if ok {
-		actualSlice, ok := actual.([]interface{})
+		actualSlice, ok := actual.([]any)
 		if !ok {
 			return fmt.Errorf("expected an array, but actual is: %T", actual)
 		}

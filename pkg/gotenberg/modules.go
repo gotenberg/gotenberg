@@ -78,7 +78,7 @@ type SystemLogger interface {
 // Debuggable is a module interface for modules which want to provide
 // additional debug data.
 type Debuggable interface {
-	Debug() map[string]interface{}
+	Debug() map[string]any
 }
 
 // MustRegisterModule registers a module.
