@@ -4,7 +4,6 @@
     <p align="center">A containerized API for seamless PDF conversion</p>
     <p align="center">
         <a href="https://hub.docker.com/r/gotenberg/gotenberg"><img alt="Total downloads (gotenberg/gotenberg)" src="https://img.shields.io/docker/pulls/gotenberg/gotenberg"></a>
-        <a href="https://hub.docker.com/r/thecodingmachine/gotenberg"><img alt="Total downloads (thecodingmachine/gotenberg)" src="https://img.shields.io/docker/pulls/thecodingmachine/gotenberg"></a>
         <a href="https://github.com/gotenberg/gotenberg/actions/workflows/continuous-integration.yml"><img alt="Continuous Integration" src="https://github.com/gotenberg/gotenberg/actions/workflows/continuous-integration.yml/badge.svg"></a>
         <a href="https://pkg.go.dev/github.com/gotenberg/gotenberg/v8"><img alt="Go Reference" src="https://pkg.go.dev/badge/github.com/gotenberg/gotenberg.svg"></a>
     </p>
@@ -23,41 +22,32 @@ numerous document formats (HTML, Markdown, Word, Excel, etc.) into PDF files, an
 
 Open a terminal and run the following command:
 
-```
+```bash
 docker run --rm -p 3000:3000 gotenberg/gotenberg:8
 ```
 
-Alternatively, using the historic Docker repository from our sponsor [TheCodingMachine](https://www.thecodingmachine.com):
+With the API running at `http://localhost:3000`, you can immediately convert a URL to a PDF:
 
+```bash
+curl \
+  --request POST http://localhost:3000/forms/chromium/convert/url \
+  --form url=https://sparksuite.github.io/simple-html-invoice-template/ \
+  -o invoice.pdf
 ```
-docker run --rm -p 3000:3000 thecodingmachine/gotenberg:8
-```
 
-The API is now available on your host at http://localhost:3000.
-
-Head to the [documentation](https://gotenberg.dev/docs/getting-started/introduction) to learn how to interact with it 🚀
+**Read the [Full Documentation](https://gotenberg.dev/docs/getting-started/introduction)** to discover how to convert local
+files, inject custom CSS, merge PDFs, and more.
 
 ## Sponsors
 
-<p align="center">
-    <a href="https://thecodingmachine.com">
-        <img src="https://user-images.githubusercontent.com/8983173/130324668-9d6e7b35-53a3-49c7-a574-38190d2bd6b0.png" alt="TheCodingMachine Logo" width="333" height="163" />
-    </a>
-    <a href="https://pdfme.com?utm_source=gotenberg_github&utm_medium=website" target="_blank">
-        <img src="https://github.com/user-attachments/assets/2a75dd40-ca18-4d34-acd5-5dd474595168" alt="pdfme Logo" width="333" height="163" />
-    </a>
-</p>
+Open-source development takes time and effort. Support the continuous improvement of Gotenberg by [**becoming a sponsor**](https://github.com/sponsors/gulien)! ❤️
 
-Sponsorships help maintain and improve Gotenberg - [become a sponsor](https://github.com/sponsors/gulien) ❤️
+**GitHub Sponsors**
 
----
+- [TheCodingMachine](https://thecodingmachine.com/)
+- [pdfme](https://pdfme.com/)
 
-<p align="center">
-  <strong>Powered by</strong>
-</p>
+**Powered By**
 
-<p align="center">
-  <a href="https://jb.gg/OpenSource">
-    <img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg" alt="JetBrains logo" width="200"/>
-  </a>
-</p>
+- [Docker](https://docs.docker.com/docker-hub/repos/manage/trusted-content/dsos-program/)
+- [JetBrains](https://www.jetbrains.com/community/opensource/)
