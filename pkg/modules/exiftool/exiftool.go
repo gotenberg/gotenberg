@@ -175,7 +175,7 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, m
 					strs[i] = str
 					continue
 				}
-				return fmt.Errorf("write PDF metadata with ExifTool: %s %+v %s %w", key, val, reflect.TypeFor[[]interface{}](), gotenberg.ErrPdfEngineMetadataValueNotSupported)
+				return fmt.Errorf("write PDF metadata with ExifTool: %s %+v %s %w", key, val, reflect.TypeFor[[]any](), gotenberg.ErrPdfEngineMetadataValueNotSupported)
 			}
 			fileMetadata[0].SetStrings(key, strs)
 		case bool:

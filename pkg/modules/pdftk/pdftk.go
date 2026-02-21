@@ -108,7 +108,7 @@ func (engine *PdfTk) Split(ctx context.Context, logger *zap.Logger, mode gotenbe
 
 // Merge combines multiple PDFs into a single PDF.
 func (engine *PdfTk) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-	var args []string
+	args := make([]string, 0, 3+len(inputPaths))
 	args = append(args, inputPaths...)
 	args = append(args, "cat", "output", outputPath)
 
@@ -158,7 +158,7 @@ func (engine *PdfTk) Encrypt(ctx context.Context, logger *zap.Logger, inputPath,
 	// Create a temp output file in the same directory.
 	tmpPath := inputPath + ".tmp"
 
-	var args []string
+	args := make([]string, 0, 8)
 	args = append(args, inputPath)
 	args = append(args, "output", tmpPath)
 	args = append(args, "encrypt_128bit")

@@ -114,7 +114,7 @@ func (engine *QPdf) Split(ctx context.Context, logger *zap.Logger, mode gotenber
 
 // Merge combines multiple PDFs into a single PDF.
 func (engine *QPdf) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-	var args []string
+	args := make([]string, 0, 4+len(engine.globalArgs)+len(inputPaths))
 	args = append(args, "--empty")
 	args = append(args, engine.globalArgs...)
 	args = append(args, "--pages")
@@ -137,7 +137,7 @@ func (engine *QPdf) Merge(ctx context.Context, logger *zap.Logger, inputPaths []
 // Flatten merges annotation appearances with page content, deleting the
 // original annotations.
 func (engine *QPdf) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
-	var args []string
+	args := make([]string, 0, 4+len(engine.globalArgs))
 	args = append(args, inputPath)
 	args = append(args, "--generate-appearances")
 	args = append(args, "--flatten-annotations=all")
@@ -182,7 +182,7 @@ func (engine *QPdf) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, 
 		ownerPassword = userPassword
 	}
 
-	var args []string
+	args := make([]string, 0, 7+len(engine.globalArgs))
 	args = append(args, inputPath)
 	args = append(args, engine.globalArgs...)
 	args = append(args, "--replace-input")

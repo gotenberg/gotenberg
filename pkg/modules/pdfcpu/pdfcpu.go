@@ -84,7 +84,7 @@ func (engine *PdfCpu) Debug() map[string]any {
 
 // Merge combines multiple PDFs into a single PDF.
 func (engine *PdfCpu) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-	var args []string
+	args := make([]string, 0, 2+len(inputPaths))
 	args = append(args, "merge", outputPath)
 	args = append(args, inputPaths...)
 
@@ -180,10 +180,8 @@ func (engine *PdfCpu) EmbedFiles(ctx context.Context, logger *zap.Logger, filePa
 
 	logger.Debug(fmt.Sprintf("embedding %d file(s) to %s: %v", len(filePaths), inputPath, filePaths))
 
-	args := []string{
-		"attachments", "add",
-		inputPath,
-	}
+	args := make([]string, 0, 3+len(filePaths))
+	args = append(args, "attachments", "add", inputPath)
 	args = append(args, filePaths...)
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
@@ -209,7 +207,7 @@ func (engine *PdfCpu) Encrypt(ctx context.Context, logger *zap.Logger, inputPath
 		ownerPassword = userPassword
 	}
 
-	var args []string
+	args := make([]string, 0, 11)
 	args = append(args, "encrypt")
 	args = append(args, "-mode", "aes")
 	args = append(args, "-upw", userPassword)

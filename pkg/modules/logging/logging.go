@@ -177,7 +177,7 @@ func newLogLevel(level string) (zapcore.Level, error) {
 }
 
 func newLogEncoder(format string, gcpFields bool) (zapcore.Encoder, error) {
-	isTerminal := term.IsTerminal(int(os.Stdout.Fd()))
+	isTerminal := term.IsTerminal(int(os.Stdout.Fd())) // #nosec
 	encCfg := zap.NewProductionEncoderConfig()
 
 	// Normalize the log format based on the output device.

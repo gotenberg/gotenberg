@@ -54,7 +54,7 @@ type Api struct {
 // See: https://help.libreoffice.org/latest/en-US/text/shared/guide/pdf_params.html.
 type Options struct {
 	// Password specifies the password for opening the source file.
-	Password string
+	Password string // #nosec
 
 	// Landscape allows changing the orientation of the resulting PDF.
 	Landscape bool
