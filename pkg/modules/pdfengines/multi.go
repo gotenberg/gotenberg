@@ -20,6 +20,8 @@ type multiPdfEngines struct {
 	writeMetadataEngines []gotenberg.PdfEngine
 	passwordEngines      []gotenberg.PdfEngine
 	embedEngines         []gotenberg.PdfEngine
+	watermarkEngines     []gotenberg.PdfEngine
+	stampEngines         []gotenberg.PdfEngine
 }
 
 func newMultiPdfEngines(
@@ -30,7 +32,9 @@ func newMultiPdfEngines(
 	readMetadataEngines,
 	writeMetadataEngines,
 	passwordEngines,
-	embedEngines []gotenberg.PdfEngine,
+	embedEngines,
+	watermarkEngines,
+	stampEngines []gotenberg.PdfEngine,
 ) *multiPdfEngines {
 	return &multiPdfEngines{
 		mergeEngines:         mergeEngines,
@@ -41,6 +45,8 @@ func newMultiPdfEngines(
 		writeMetadataEngines: writeMetadataEngines,
 		passwordEngines:      passwordEngines,
 		embedEngines:         embedEngines,
+		watermarkEngines:     watermarkEngines,
+		stampEngines:         stampEngines,
 	}
 }
 
@@ -264,6 +270,56 @@ func (multi *multiPdfEngines) EmbedFiles(ctx context.Context, logger *zap.Logger
 	}
 
 	return fmt.Errorf("embed files into PDF using multi PDF engines: %w", err)
+}
+
+// Watermark adds a watermark to a PDF file using the first available
+// engine that supports watermarking.
+func (multi *multiPdfEngines) Watermark(ctx context.Context, logger *zap.Logger, mode, watermark, inputPath, description string) error {
+	var err error
+	errChan := make(chan error, 1)
+
+	for _, engine := range multi.watermarkEngines {
+		go func(engine gotenberg.PdfEngine) {
+			errChan <- engine.Watermark(ctx, logger, mode, watermark, inputPath, description)
+		}(engine)
+
+		select {
+		case protectErr := <-errChan:
+			errored := multierr.AppendInto(&err, protectErr)
+			if !errored {
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	return fmt.Errorf("Watermark PDF using multi PDF engines: %w", err)
+}
+
+// Stamp adds a stamp to a PDF file using the first available
+// engine that supports stamping.
+func (multi *multiPdfEngines) Stamp(ctx context.Context, logger *zap.Logger, mode, stamp, inputPath, description string) error {
+	var err error
+	errChan := make(chan error, 1)
+
+	for _, engine := range multi.stampEngines {
+		go func(engine gotenberg.PdfEngine) {
+			errChan <- engine.Stamp(ctx, logger, mode, stamp, inputPath, description)
+		}(engine)
+
+		select {
+		case protectErr := <-errChan:
+			errored := multierr.AppendInto(&err, protectErr)
+			if !errored {
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	return fmt.Errorf("Stamp PDF using multi PDF engines: %w", err)
 }
 
 // Interface guards.

@@ -1110,6 +1110,338 @@ func (s *scenario) thePdfsShouldHaveEmbeddedFile(ctx context.Context, kind, shou
 	return nil
 }
 
+func (s *scenario) theResponsePDFsShouldHaveAWatermark(ctx context.Context, responseKind, should string) error {
+	// Get all PDFs from the response
+	var paths []string
+	responseDir := fmt.Sprintf("%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"))
+
+	err := filepath.Walk(responseDir, func(currentPath string, info os.FileInfo, pathErr error) error {
+		if pathErr != nil {
+			return pathErr
+		}
+		if !info.IsDir() && strings.HasSuffix(strings.ToLower(info.Name()), ".pdf") {
+			paths = append(paths, currentPath)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("walk response directory %q: %w", responseDir, err)
+	}
+
+	if len(paths) == 0 {
+		return fmt.Errorf("no PDF files found in response")
+	}
+
+	invert := should == "should NOT"
+
+	// Check each PDF for watermark
+	for _, path := range paths {
+		err := s.checkPdfWatermark(ctx, path, invert)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *scenario) checkPdfWatermark(ctx context.Context, path string, invert bool) error {
+	// Check for watermark using pdfinfo to detect XObjects/forms
+	cmd := []string{
+		"pdfinfo",
+		"-meta",
+		filepath.Base(path),
+	}
+
+	output, err := execCommandInIntegrationToolsContainer(ctx, cmd, path)
+	if err != nil {
+		return fmt.Errorf("exec %q: %w", cmd, err)
+	}
+
+	// Look for common watermark indicators in metadata
+	hasWatermarkMetadata := strings.Contains(strings.ToLower(output), "watermark") ||
+		strings.Contains(strings.ToLower(output), "draft") ||
+		strings.Contains(strings.ToLower(output), "confidential")
+
+	// Use pdfimages to check for overlay images (potential watermarks)
+	cmdImages := []string{
+		"pdfimages",
+		"-list",
+		filepath.Base(path),
+	}
+
+	imagesOutput, err := execCommandInIntegrationToolsContainer(ctx, cmdImages, path)
+	if err != nil {
+		return fmt.Errorf("exec %q: %w", cmdImages, err)
+	}
+
+	// Analyze image objects that could be watermarks
+	lines := strings.Split(imagesOutput, "\n")
+	hasImageWatermark := false
+
+	// Parse pdfimages output to detect watermark patterns
+	for i, line := range lines {
+		if i < 2 || strings.TrimSpace(line) == "" { // Skip header lines
+			continue
+		}
+
+		// Split the line into fields: page num type width height color comp bpc enc interp object ID x-ppi y-ppi size ratio
+		fields := strings.Fields(line)
+		if len(fields) < 8 {
+			continue
+		}
+
+		// Check for potential watermark characteristics
+		width, _ := strconv.Atoi(fields[3])
+		height, _ := strconv.Atoi(fields[4])
+		colorspace := fields[5]
+
+		// Watermarks are often:
+		// - Small to medium sized images
+		// - Grayscale or have transparency (gray, smask)
+		// - Repeated across pages
+		isWatermarkCandidate := (width > 50 && width < 1000) &&
+			(height > 50 && height < 1000) &&
+			(strings.Contains(colorspace, "gray") || strings.Contains(colorspace, "smask"))
+
+		if isWatermarkCandidate {
+			hasImageWatermark = true
+			break
+		}
+	}
+
+	// Extract images and check for transparency/opacity
+	if !hasImageWatermark {
+		cmdExtractImages := []string{
+			"pdfimages",
+			"-png", // Extract as PNG to preserve transparency
+			filepath.Base(path),
+			"extracted",
+		}
+
+		_, err = execCommandInIntegrationToolsContainer(ctx, cmdExtractImages, path)
+		if err == nil {
+			// Check if extracted images exist (indicates image content)
+			cmdListExtracted := []string{
+				"ls",
+				"-la",
+				"extracted*",
+			}
+
+			listOutput, listErr := execCommandInIntegrationToolsContainer(ctx, cmdListExtracted, path)
+			if listErr == nil && strings.Contains(listOutput, "extracted") {
+				hasImageWatermark = true
+			}
+		}
+	}
+
+	// Extract text and look for common watermark text patterns
+	cmdText := []string{
+		"pdftotext",
+		filepath.Base(path),
+		"-",
+	}
+
+	textOutput, err := execCommandInIntegrationToolsContainer(ctx, cmdText, path)
+	if err != nil {
+		return fmt.Errorf("exec %q: %w", cmdText, err)
+	}
+
+	// Look for common watermark text patterns
+	watermarkTextPatterns := []string{
+		"DRAFT", "CONFIDENTIAL", "SAMPLE", "WATERMARK",
+		"DO NOT COPY", "INTERNAL USE", "PREVIEW",
+	}
+
+	hasWatermarkText := false
+	textUpper := strings.ToUpper(textOutput)
+	for _, pattern := range watermarkTextPatterns {
+		if strings.Contains(textUpper, pattern) {
+			hasWatermarkText = true
+			break
+		}
+	}
+
+	// Determine if watermark is present based on multiple indicators
+	hasWatermark := hasWatermarkMetadata || hasImageWatermark || hasWatermarkText
+
+	if invert && hasWatermark {
+		return fmt.Errorf("PDF %q has a watermark but should not", path)
+	}
+
+	if !invert && !hasWatermark {
+		return fmt.Errorf("PDF %q does not have a watermark", path)
+	}
+
+	return nil
+}
+
+func (s *scenario) theResponsePDFsShouldHaveAStamp(ctx context.Context, responseKind, should string) error {
+	// Get all PDFs from the response
+	var paths []string
+	responseDir := fmt.Sprintf("%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"))
+
+	err := filepath.Walk(responseDir, func(currentPath string, info os.FileInfo, pathErr error) error {
+		if pathErr != nil {
+			return pathErr
+		}
+		if !info.IsDir() && strings.HasSuffix(strings.ToLower(info.Name()), ".pdf") {
+			paths = append(paths, currentPath)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("walk response directory %q: %w", responseDir, err)
+	}
+
+	if len(paths) == 0 {
+		return fmt.Errorf("no PDF files found in response")
+	}
+
+	invert := should == "should NOT"
+
+	// Check each PDF for stamp
+	for _, path := range paths {
+		err := s.checkPdfStamp(ctx, path, invert)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *scenario) checkPdfStamp(ctx context.Context, path string, invert bool) error {
+	// Check for stamp using pdfinfo to detect XObjects/forms
+	cmd := []string{
+		"pdfinfo",
+		"-meta",
+		filepath.Base(path),
+	}
+
+	output, err := execCommandInIntegrationToolsContainer(ctx, cmd, path)
+	if err != nil {
+		return fmt.Errorf("exec %q: %w", cmd, err)
+	}
+
+	// Look for common stamp indicators in metadata
+	hasStampMetadata := strings.Contains(strings.ToLower(output), "stamp") ||
+		strings.Contains(strings.ToLower(output), "draft") ||
+		strings.Contains(strings.ToLower(output), "confidential")
+
+	// Use pdfimages to check for overlay images (potential stamps)
+	cmdImages := []string{
+		"pdfimages",
+		"-list",
+		filepath.Base(path),
+	}
+
+	imagesOutput, err := execCommandInIntegrationToolsContainer(ctx, cmdImages, path)
+	if err != nil {
+		return fmt.Errorf("exec %q: %w", cmdImages, err)
+	}
+
+	// Analyze image objects that could be stamps
+	lines := strings.Split(imagesOutput, "\n")
+	hasImageStamp := false
+
+	// Parse pdfimages output to detect stamp patterns
+	for i, line := range lines {
+		if i < 2 || strings.TrimSpace(line) == "" { // Skip header lines
+			continue
+		}
+
+		// Split the line into fields: page num type width height color comp bpc enc interp object ID x-ppi y-ppi size ratio
+		fields := strings.Fields(line)
+		if len(fields) < 8 {
+			continue
+		}
+
+		// Check for potential stamp characteristics
+		width, _ := strconv.Atoi(fields[3])
+		height, _ := strconv.Atoi(fields[4])
+		colorspace := fields[5]
+
+		// Stamps are often:
+		// - Small to medium sized images
+		// - Grayscale or have transparency (gray, smask)
+		// - Repeated across pages
+		isStampCandidate := (width > 50 && width < 1000) &&
+			(height > 50 && height < 1000) &&
+			(strings.Contains(colorspace, "gray") || strings.Contains(colorspace, "smask"))
+
+		if isStampCandidate {
+			hasImageStamp = true
+			break
+		}
+	}
+
+	// Extract images and check for transparency/opacity
+	if !hasImageStamp {
+		cmdExtractImages := []string{
+			"pdfimages",
+			"-png", // Extract as PNG to preserve transparency
+			filepath.Base(path),
+			"extracted",
+		}
+
+		_, err = execCommandInIntegrationToolsContainer(ctx, cmdExtractImages, path)
+		if err == nil {
+			// Check if extracted images exist (indicates image content)
+			cmdListExtracted := []string{
+				"ls",
+				"-la",
+				"extracted*",
+			}
+
+			listOutput, listErr := execCommandInIntegrationToolsContainer(ctx, cmdListExtracted, path)
+			if listErr == nil && strings.Contains(listOutput, "extracted") {
+				hasImageStamp = true
+			}
+		}
+	}
+
+	// Extract text and look for common stamp text patterns
+	cmdText := []string{
+		"pdftotext",
+		filepath.Base(path),
+		"-",
+	}
+
+	textOutput, err := execCommandInIntegrationToolsContainer(ctx, cmdText, path)
+	if err != nil {
+		return fmt.Errorf("exec %q: %w", cmdText, err)
+	}
+
+	// Look for common stamp text patterns
+	stampTextPatterns := []string{
+		"DRAFT", "CONFIDENTIAL", "SAMPLE", "STAMP",
+		"DO NOT COPY", "INTERNAL USE", "PREVIEW",
+	}
+
+	hasStampText := false
+	textUpper := strings.ToUpper(textOutput)
+	for _, pattern := range stampTextPatterns {
+		if strings.Contains(textUpper, pattern) {
+			hasStampText = true
+			break
+		}
+	}
+
+	// Determine if stamp is present based on multiple indicators
+	hasStamp := hasStampMetadata || hasImageStamp || hasStampText
+
+	if invert && hasStamp {
+		return fmt.Errorf("PDF %q has a stamp but should not", path)
+	}
+
+	if !invert && !hasStamp {
+		return fmt.Errorf("PDF %q does not have a stamp", path)
+	}
+
+	return nil
+}
+
 func InitializeScenario(ctx *godog.ScenarioContext) {
 	s := &scenario{}
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
@@ -1124,6 +1456,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 		}
 		return ctx, nil
 	})
+
 	ctx.Given(`^I have a default Gotenberg container$`, s.iHaveADefaultGotenbergContainer)
 	ctx.Given(`^I have a Gotenberg container with the following environment variable\(s\):$`, s.iHaveAGotenbergContainerWithTheFollowingEnvironmentVariables)
 	ctx.Given(`^I have a (webhook|static) server$`, s.iHaveAServer)
@@ -1150,6 +1483,9 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the "([^"]*)" PDF should have (\d+) page\(s\)$`, s.thePdfShouldHavePages)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) be set to landscape orientation$`, s.thePdfShouldBeSetToLandscapeOrientation)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have the following content at page (\d+):$`, s.thePdfShouldHaveTheFollowingContentAtPage)
+	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) have a watermark`, s.theResponsePDFsShouldHaveAWatermark)
+	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) have a stamp`, s.theResponsePDFsShouldHaveAStamp)
+
 	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		if s.gotenbergContainer != nil {
 			errTerminate := s.gotenbergContainer.Terminate(ctx, testcontainers.StopTimeout(0))
