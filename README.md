@@ -38,7 +38,7 @@ local files, inject custom CSS, merge PDFs, and more.
 Open-source development takes a significant amount of time, energy, and dedication. If Gotenberg helps streamline your
 workflow or powers your business, please consider supporting its continuous improvement by [**becoming a sponsor**](https://github.com/sponsors/gulien)! ❤️
 
-**GitHub Sponsors**
+**Historic & GitHub Sponsors**
 
 - [TheCodingMachine](https://thecodingmachine.com/)
 - [pdfme](https://pdfme.com/)
