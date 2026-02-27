@@ -581,18 +581,22 @@ Feature: /forms/pdfengines/split
       | splitSpan | 2                    | field |
     Then the response status code should be 404
 
-  Scenario: POST /forms/pdfengines/split (Gotenberg Trace)
+  @telemetry
+  Scenario: POST /forms/pdfengines/split (Telemetry)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
-      | files           | testdata/pages_3.pdf   | file   |
-      | splitMode       | intervals              | field  |
-      | splitSpan       | 2                      | field  |
-      | Gotenberg-Trace | forms_pdfengines_split | header |
+      | files           | testdata/pages_3.pdf                                    | file   |
+      | splitMode       | intervals                                               | field  |
+      | splitSpan       | 2                                                       | field  |
+      | Gotenberg-Trace | forms_pdfengines_split                                  | header |
+      | traceparent     | 00-12345678901234567890123456789012-1234567890123456-01 | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
     Then the response header "Gotenberg-Trace" should be "forms_pdfengines_split"
     Then the Gotenberg container should log the following entries:
-      | "trace":"forms_pdfengines_split" |
+      | "correlation_id":"forms_pdfengines_split"     |
+      | "trace_id":"12345678901234567890123456789012" |
+      | "span_id":"                                   |
 
   @output-filename
   Scenario: POST /forms/pdfengines/split (Output Filename - Single PDF)

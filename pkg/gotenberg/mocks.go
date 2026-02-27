@@ -150,24 +150,6 @@ func (s *ProcessSupervisorMock) RestartsCount() int64 {
 	return s.RestartsCountMock()
 }
 
-// LoggerProviderMock is a mock for the [LoggerProvider] interface.
-type LoggerProviderMock struct {
-	LoggerMock func(mod Module) (*zap.Logger, error)
-}
-
-func (provider *LoggerProviderMock) Logger(mod Module) (*zap.Logger, error) {
-	return provider.LoggerMock(mod)
-}
-
-// MetricsProviderMock is a mock for the [MetricsProvider] interface.
-type MetricsProviderMock struct {
-	MetricsMock func() ([]Metric, error)
-}
-
-func (provider *MetricsProviderMock) Metrics() ([]Metric, error) {
-	return provider.MetricsMock()
-}
-
 // MkdirAllMock is a mock for the [MkdirAll] interface.
 type MkdirAllMock struct {
 	MkdirAllMock func(path string, perm os.FileMode) error
@@ -194,8 +176,6 @@ var (
 	_ PdfEngineProvider = (*PdfEngineProviderMock)(nil)
 	_ Process           = (*ProcessMock)(nil)
 	_ ProcessSupervisor = (*ProcessSupervisorMock)(nil)
-	_ LoggerProvider    = (*LoggerProviderMock)(nil)
-	_ MetricsProvider   = (*MetricsProviderMock)(nil)
 	_ MkdirAll          = (*MkdirAllMock)(nil)
 	_ PathRename        = (*PathRenameMock)(nil)
 )

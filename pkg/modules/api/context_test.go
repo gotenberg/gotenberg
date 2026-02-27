@@ -42,7 +42,7 @@ func TestNewContext_Cancellation(t *testing.T) {
 		disable: true,
 	}
 
-	ctx, cancel, err := newContext(c, logger, fs, timeout, 0, downloadFromCfg, "trace", "trace")
+	ctx, cancel, err := newContext(c, logger, fs, timeout, 0, downloadFromCfg)
 	if err != nil {
 		t.Fatalf("expected no error from newContext, got: %v", err)
 	}

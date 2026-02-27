@@ -25,7 +25,6 @@ Feature: /debug
           "libreoffice",
           "libreoffice-api",
           "libreoffice-pdfengine",
-          "logging",
           "pdfcpu",
           "pdfengines",
           "pdftk",
@@ -56,6 +55,7 @@ Feature: /debug
         "flags": {
           "api-bind-ip": "",
           "api-body-limit": "",
+          "api-correlation-id-header": "Gotenberg-Trace",
           "api-disable-download-from": "false",
           "api-disable-health-check-logging": "false",
           "api-download-from-allow-list": "",
@@ -84,23 +84,30 @@ Feature: /debug
           "chromium-host-resolver-rules": "",
           "chromium-ignore-certificate-errors": "false",
           "chromium-incognito": "false",
-          "chromium-max-concurrency": "6",
           "chromium-max-queue-size": "0",
+          "chromium-max-concurrency": "6",
           "chromium-proxy-server": "",
           "chromium-restart-after": "100",
           "chromium-start-timeout": "20s",
           "gotenberg-build-debug-data": "true",
           "gotenberg-graceful-shutdown-duration": "30s",
+          "gotenberg-hide-banner": "false",
           "libreoffice-auto-start": "false",
           "libreoffice-disable-routes": "false",
           "libreoffice-max-queue-size": "0",
           "libreoffice-restart-after": "10",
           "libreoffice-start-timeout": "20s",
+          "log-enable-gcp-fields": "false",
+          "log-enable-gcp-severity": "false",
           "log-fields-prefix": "",
           "log-format": "auto",
           "log-level": "info",
+          "log-std-enable-gcp-fields": "false",
+          "log-std-format": "auto",
           "pdfengines-convert-engines": "[libreoffice-pdfengine]",
           "pdfengines-disable-routes": "false",
+          "pdfengines-embed-engines": "[pdfcpu]",
+          "pdfengines-encrypt-engines": "[qpdf,pdfcpu,pdftk]",
           "pdfengines-engines": "[]",
           "pdfengines-flatten-engines": "[qpdf]",
           "pdfengines-merge-engines": "[qpdf,pdfcpu,pdftk]",
@@ -110,12 +117,17 @@ Feature: /debug
           "prometheus-collect-interval": "1s",
           "prometheus-disable-collect": "false",
           "prometheus-disable-route-logging": "false",
-          "prometheus-namespace": "gotenberg",
           "prometheus-metrics-path": "/prometheus/metrics",
+          "prometheus-namespace": "gotenberg",
+          "telemetry-log-exporter-protocols": "[]",
+          "telemetry-metric-exporter-protocols": "[prometheus]",
+          "telemetry-service-name": "gotenberg",
+          "telemetry-trace-exporter-protocols": "[]",
           "webhook-allow-list": "",
           "webhook-client-timeout": "30s",
           "webhook-deny-list": "",
           "webhook-disable": "false",
+          "webhook-enable-sync-mode": "false",
           "webhook-error-allow-list": "",
           "webhook-error-deny-list": "",
           "webhook-max-retry": "4",
@@ -125,7 +137,7 @@ Feature: /debug
       }
       """
 
-  Scenario: GET /debug (Environment based timezone)
+  Scenario: GET /debug (Environment Based Timezone)
     Given I have a Gotenberg container with the following environment variable(s):
       | API_ENABLE_DEBUG_ROUTE | true             |
       | TZ                     | America/New_York |
@@ -145,7 +157,6 @@ Feature: /debug
           "libreoffice",
           "libreoffice-api",
           "libreoffice-pdfengine",
-          "logging",
           "pdfcpu",
           "pdfengines",
           "pdftk",
@@ -176,6 +187,7 @@ Feature: /debug
         "flags": {
           "api-bind-ip": "",
           "api-body-limit": "",
+          "api-correlation-id-header": "Gotenberg-Trace",
           "api-disable-download-from": "false",
           "api-disable-health-check-logging": "false",
           "api-download-from-allow-list": "",
@@ -211,16 +223,23 @@ Feature: /debug
           "chromium-start-timeout": "20s",
           "gotenberg-build-debug-data": "true",
           "gotenberg-graceful-shutdown-duration": "30s",
+          "gotenberg-hide-banner": "false",
           "libreoffice-auto-start": "false",
           "libreoffice-disable-routes": "false",
           "libreoffice-max-queue-size": "0",
           "libreoffice-restart-after": "10",
           "libreoffice-start-timeout": "20s",
+          "log-enable-gcp-fields": "false",
+          "log-enable-gcp-severity": "false",
           "log-fields-prefix": "",
           "log-format": "auto",
           "log-level": "info",
+          "log-std-enable-gcp-fields": "false",
+          "log-std-format": "auto",
           "pdfengines-convert-engines": "[libreoffice-pdfengine]",
           "pdfengines-disable-routes": "false",
+          "pdfengines-embed-engines": "[pdfcpu]",
+          "pdfengines-encrypt-engines": "[qpdf,pdfcpu,pdftk]",
           "pdfengines-engines": "[]",
           "pdfengines-flatten-engines": "[qpdf]",
           "pdfengines-merge-engines": "[qpdf,pdfcpu,pdftk]",
@@ -230,12 +249,17 @@ Feature: /debug
           "prometheus-collect-interval": "1s",
           "prometheus-disable-collect": "false",
           "prometheus-disable-route-logging": "false",
-          "prometheus-namespace": "gotenberg",
           "prometheus-metrics-path": "/prometheus/metrics",
+          "prometheus-namespace": "gotenberg",
+          "telemetry-log-exporter-protocols": "[]",
+          "telemetry-metric-exporter-protocols": "[prometheus]",
+          "telemetry-service-name": "gotenberg",
+          "telemetry-trace-exporter-protocols": "[]",
           "webhook-allow-list": "",
           "webhook-client-timeout": "30s",
           "webhook-deny-list": "",
           "webhook-disable": "false",
+          "webhook-enable-sync-mode": "false",
           "webhook-error-allow-list": "",
           "webhook-error-deny-list": "",
           "webhook-max-retry": "4",
@@ -264,15 +288,19 @@ Feature: /debug
       }
       """
 
-  Scenario: GET /debug (Gotenberg Trace)
+  @telemetry
+  Scenario: GET /debug (Telemetry)
     Given I have a Gotenberg container with the following environment variable(s):
       | API_ENABLE_DEBUG_ROUTE | true |
     When I make a "GET" request to Gotenberg at the "/debug" endpoint with the following header(s):
-      | Gotenberg-Trace | debug |
+      | Gotenberg-Trace | debug                                                   |
+      | traceparent     | 00-12345678901234567890123456789012-1234567890123456-01 |
     Then the response status code should be 200
     Then the response header "Gotenberg-Trace" should be "debug"
     Then the Gotenberg container should log the following entries:
-      | "trace":"debug" |
+      | "correlation_id":"debug"                      |
+      | "trace_id":"12345678901234567890123456789012" |
+      | "span_id":"                                   |
 
   Scenario: GET /debug (Basic Auth)
     Given I have a Gotenberg container with the following environment variable(s):

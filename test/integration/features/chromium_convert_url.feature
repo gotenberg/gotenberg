@@ -1161,17 +1161,21 @@ Feature: /forms/chromium/convert/url
       | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
     Then the response status code should be 404
 
-  Scenario: POST /forms/chromium/convert/url (Gotenberg Trace)
+  @telemetry
+  Scenario: POST /forms/chromium/convert/url (Telemetry)
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
       | url             | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
       | Gotenberg-Trace | forms_chromium_convert_url                                          | header |
+      | traceparent     | 00-12345678901234567890123456789012-1234567890123456-01             | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then the response header "Gotenberg-Trace" should be "forms_chromium_convert_url"
     Then the Gotenberg container should log the following entries:
-      | "trace":"forms_chromium_convert_url" |
+      | "correlation_id":"forms_chromium_convert_url" |
+      | "trace_id":"12345678901234567890123456789012" |
+      | "span_id":"                                   |
 
   @webhook
   Scenario: POST /forms/chromium/convert/url (Webhook)

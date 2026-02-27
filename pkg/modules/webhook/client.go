@@ -1,6 +1,7 @@
 package webhook
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,7 +10,13 @@ import (
 
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/labstack/echo/v4"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	semconvutil "github.com/gotenberg/gotenberg/v8/pkg/gotenberg/semconv"
 )
 
 // client gathers all the data required to send a request to a webhook.
@@ -26,7 +33,7 @@ type client struct {
 }
 
 // send call the webhook either to send the success response or the error response.
-func (c client) send(body io.Reader, headers map[string]string, errored bool) error {
+func (c client) send(ctx context.Context, body io.Reader, headers http.Header, errored bool) error {
 	url := c.url
 	if errored {
 		url = c.errorUrl
@@ -37,7 +44,7 @@ func (c client) send(body io.Reader, headers map[string]string, errored bool) er
 		method = c.errorMethod
 	}
 
-	req, err := retryablehttp.NewRequest(method, url, body)
+	req, err := retryablehttp.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
 		return fmt.Errorf("create '%s' request to '%s': %w", method, url, err)
 	}
@@ -51,32 +58,52 @@ func (c client) send(body io.Reader, headers map[string]string, errored bool) er
 
 	// Middleware caller's headers > extra HTTP headers from the user.
 
-	contentLength, ok := headers[echo.HeaderContentLength]
-	if ok {
-		// Golang "http" package should automatically calculate the size of the
-		// body. But when using a buffered file reader, it does not work.
-		// Worse, the "Content-Length" header is also removed. Therefore,
-		// to keep this valuable information, we have to trust the caller
-		// by reading the value of the "Content-Length" entry and set it as the
-		// content length of the request. It's kinda suboptimal, but hey, at
-		// least it works.
+	contentLength := headers.Get(echo.HeaderContentLength)
+	// Golang "http" package should automatically calculate the size of the
+	// body. But when using a buffered file reader, it does not work.
+	// Worse, the "Content-Length" header is also removed. Therefore,
+	// to keep this valuable information, we have to trust the caller
+	// by reading the value of the "Content-Length" entry and set it as the
+	// content length of the request. It's kinda suboptimal, but hey, at
+	// least it works.
 
-		bodySize, err := strconv.ParseInt(contentLength, 10, 64)
-		if err != nil {
-			return fmt.Errorf("parse content length entry: %w", err)
-		}
-
-		req.ContentLength = bodySize
+	bodySize, err := strconv.ParseInt(contentLength, 10, 64)
+	if err != nil {
+		return fmt.Errorf("parse content length entry: %w", err)
 	}
 
-	for key, value := range headers {
-		req.Header.Set(key, value)
+	req.ContentLength = bodySize
+
+	for key := range headers {
+		req.Header.Set(key, headers.Get(key))
 	}
+
+	// OpenTelemetry.
+	meter := gotenberg.Meter()
+	semconvClient := semconvutil.NewHTTPClient(meter)
+
+	tracer := gotenberg.Tracer()
+	spanName := fmt.Sprintf("%s Webhook", req.Method)
+	if errored {
+		spanName = fmt.Sprintf("%s Webhook Error", req.Method)
+	}
+	ctx, span := tracer.Start(ctx, spanName,
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(semconvClient.RequestTraceAttrs(req.Request)...),
+	)
+	defer span.End()
+
+	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 
 	resp, err := c.client.Do(req)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(semconvClient.Status(0))
 		return fmt.Errorf("send '%s' request to '%s': %w", method, url, err)
 	}
+
+	span.SetAttributes(semconvClient.ResponseTraceAttrs(resp)...)
+	span.SetStatus(semconvClient.Status(resp.StatusCode))
 
 	if resp.StatusCode >= http.StatusBadRequest {
 		return fmt.Errorf("send '%s' request to '%s': got status: '%s'", method, url, resp.Status)
@@ -102,11 +129,9 @@ func (c client) send(body io.Reader, headers map[string]string, errored bool) er
 
 	if errored {
 		c.logger.Warn("request to webhook with error details handled", fields...)
-
 		return nil
 	}
 
 	c.logger.Info("request to webhook handled", fields...)
-
 	return nil
 }

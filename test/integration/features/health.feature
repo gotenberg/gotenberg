@@ -37,14 +37,18 @@ Feature: /health
     Then the Gotenberg container should NOT log the following entries:
       | "path":"/health" |
 
-  Scenario: GET /health (Gotenberg Trace)
+  @telemetry
+  Scenario: GET /health (Telemetry)
     Given I have a default Gotenberg container
     When I make a "GET" request to Gotenberg at the "/health" endpoint with the following header(s):
-      | Gotenberg-Trace | get_health |
+      | Gotenberg-Trace | get_health                                              |
+      | traceparent     | 00-12345678901234567890123456789012-1234567890123456-01 |
     Then the response status code should be 200
     Then the response header "Gotenberg-Trace" should be "get_health"
     Then the Gotenberg container should log the following entries:
-      | "trace":"get_health" |
+      | "correlation_id":"get_health"                 |
+      | "trace_id":"12345678901234567890123456789012" |
+      | "span_id":"                                   |
 
   Scenario: GET /health (Basic Auth)
     Given I have a Gotenberg container with the following environment variable(s):
@@ -71,14 +75,18 @@ Feature: /health
     Then the Gotenberg container should log the following entries:
       | "path":"/health" |
 
-  Scenario: HEAD /health (Gotenberg Trace)
+  @telemetry
+  Scenario: HEAD /health (Telemetry)
     Given I have a default Gotenberg container
     When I make a "HEAD" request to Gotenberg at the "/health" endpoint with the following header(s):
-      | Gotenberg-Trace | head_health |
+      | Gotenberg-Trace | head_health                                             |
+      | traceparent     | 00-12345678901234567890123456789012-1234567890123456-01 |
     Then the response status code should be 200
     Then the response header "Gotenberg-Trace" should be "head_health"
     Then the Gotenberg container should log the following entries:
-      | "trace":"head_health" |
+      | "correlation_id":"head_health"                |
+      | "trace_id":"12345678901234567890123456789012" |
+      | "span_id":"                                   |
 
   Scenario: HEAD /health (No Logging)
     Given I have a Gotenberg container with the following environment variable(s):

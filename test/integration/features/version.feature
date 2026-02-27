@@ -11,14 +11,18 @@ Feature: /version
       {version}
       """
 
-  Scenario: GET /version (Gotenberg Trace)
+  @telemetry
+  Scenario: GET /version (Telemetry)
     Given I have a default Gotenberg container
     When I make a "GET" request to Gotenberg at the "/version" endpoint with the following header(s):
-      | Gotenberg-Trace | version |
+      | Gotenberg-Trace | version                                                 |
+      | traceparent     | 00-12345678901234567890123456789012-1234567890123456-01 |
     Then the response status code should be 200
     Then the response header "Gotenberg-Trace" should be "version"
     Then the Gotenberg container should log the following entries:
-      | "trace":"version" |
+      | "correlation_id":"version"                    |
+      | "trace_id":"12345678901234567890123456789012" |
+      | "span_id":"                                   |
 
   Scenario: GET /version (Basic Auth)
     Given I have a Gotenberg container with the following environment variable(s):

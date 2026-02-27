@@ -105,17 +105,21 @@ Feature: /forms/pdfengines/convert
       Invalid form data: form field 'pdfua' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
       """
 
-  Scenario: POST /forms/pdfengines/convert (Gotenberg Trace)
+  @telemetry
+  Scenario: POST /forms/pdfengines/convert (Telemetry)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/convert" endpoint with the following form data and header(s):
-      | files           | testdata/page_1.pdf      | file   |
-      | pdfa            | PDF/A-1b                 | field  |
-      | Gotenberg-Trace | forms_pdfengines_convert | header |
+      | files           | testdata/page_1.pdf                                     | file   |
+      | pdfa            | PDF/A-1b                                                | field  |
+      | Gotenberg-Trace | forms_pdfengines_convert                                | header |
+      | traceparent     | 00-12345678901234567890123456789012-1234567890123456-01 | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then the response header "Gotenberg-Trace" should be "forms_pdfengines_convert"
     Then the Gotenberg container should log the following entries:
-      | "trace":"forms_pdfengines_convert" |
+      | "correlation_id":"forms_pdfengines_convert"   |
+      | "trace_id":"12345678901234567890123456789012" |
+      | "span_id":"                                   |
 
   @output-filename
   Scenario: POST /forms/pdfengines/convert (Output Filename - Single PDF)

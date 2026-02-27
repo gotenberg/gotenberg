@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/cucumber/godog"
-	"github.com/google/uuid"
 	"github.com/mholt/archives"
 	"github.com/testcontainers/testcontainers-go"
 )
@@ -1110,6 +1109,13 @@ func (s *scenario) thePdfsShouldHaveEmbeddedFile(ctx context.Context, kind, shou
 	return nil
 }
 
+var nonAlphanumericRegex = regexp.MustCompile(`[^a-zA-Z0-9]+`)
+
+func sanitizeDirName(name string) string {
+	sanitized := nonAlphanumericRegex.ReplaceAllString(name, "_")
+	return strings.Trim(sanitized, "_")
+}
+
 func InitializeScenario(ctx *godog.ScenarioContext) {
 	s := &scenario{}
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
@@ -1117,7 +1123,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 		if err != nil {
 			return ctx, fmt.Errorf("get current directory: %w", err)
 		}
-		s.workdir = fmt.Sprintf("%s/teststore/%s", wd, uuid.NewString())
+		s.workdir = fmt.Sprintf("%s/teststore/%s_%s", wd, sanitizeDirName(sc.Name), sc.Id)
 		err = os.MkdirAll(s.workdir, 0o755)
 		if err != nil {
 			return ctx, fmt.Errorf("create working directory: %w", err)

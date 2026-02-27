@@ -11,14 +11,18 @@ Feature: /
       Hey, Gotenberg has no UI, it's an API. Head to the <a href="https://gotenberg.dev">documentation</a> to learn how to interact with it 🚀
       """
 
-  Scenario: GET / (Gotenberg Trace)
+  @telemetry
+  Scenario: GET / (Telemetry)
     Given I have a default Gotenberg container
     When I make a "GET" request to Gotenberg at the "/" endpoint with the following header(s):
-      | Gotenberg-Trace | root |
+      | Gotenberg-Trace | root                                                    |
+      | traceparent     | 00-12345678901234567890123456789012-1234567890123456-01 |
     Then the response status code should be 200
     Then the response header "Gotenberg-Trace" should be "root"
     Then the Gotenberg container should log the following entries:
-      | "trace":"root" |
+      | "correlation_id":"root"                       |
+      | "trace_id":"12345678901234567890123456789012" |
+      | "span_id":"                                   |
 
   Scenario: GET / (Basic Auth)
     Given I have a Gotenberg container with the following environment variable(s):
@@ -39,14 +43,18 @@ Feature: /
     When I make a "GET" request to Gotenberg at the "/favicon.ico" endpoint
     Then the response status code should be 204
 
-  Scenario: GET /favicon.ico (Gotenberg Trace)
+  @telemetry
+  Scenario: GET /favicon.ico (Telemetry)
     Given I have a default Gotenberg container
     When I make a "GET" request to Gotenberg at the "/favicon.ico" endpoint with the following header(s):
-      | Gotenberg-Trace | favicon |
+      | Gotenberg-Trace | favicon                                                 |
+      | traceparent     | 00-12345678901234567890123456789012-1234567890123456-01 |
     Then the response status code should be 204
     Then the response header "Gotenberg-Trace" should be "favicon"
     Then the Gotenberg container should log the following entries:
-      | "trace":"favicon" |
+      | "correlation_id":"favicon"                    |
+      | "trace_id":"12345678901234567890123456789012" |
+      | "span_id":"                                   |
 
   Scenario: GET /favicon.ico (Basic Auth)
     Given I have a Gotenberg container with the following environment variable(s):

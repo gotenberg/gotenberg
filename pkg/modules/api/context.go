@@ -19,11 +19,15 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/labstack/echo/v4"
 	"github.com/mholt/archives"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	semconvutil "github.com/gotenberg/gotenberg/v8/pkg/gotenberg/semconv"
 )
 
 var (
@@ -36,7 +40,7 @@ var (
 	ErrOutOfBoundsOutputPath = errors.New("output path is not within context's working directory")
 )
 
-// Context is the request context for a "multipart/form-data" requests.
+// Context is the request context for a "multipart/form-data" request.
 type Context struct {
 	dirPath      string
 	values       map[string][]string
@@ -81,12 +85,12 @@ type downloadFrom struct {
 	// ExtraHttpHeaders are the HTTP headers to send alongside.
 	ExtraHttpHeaders map[string]string `json:"extraHttpHeaders"`
 
-	// Download as embed file
+	// Download as an embed file.
 	Embedded bool `json:"embedded"`
 }
 
 // newContext returns a [Context] by parsing a "multipart/form-data" request.
-func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig, traceHeader, trace string) (*Context, context.CancelFunc, error) {
+func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig) (*Context, context.CancelFunc, error) {
 	processCtx, processCancel := context.WithTimeout(echoCtx.Request().Context(), timeout)
 
 	// We want to make sure the multipart/form-data does not exceed a given
@@ -226,7 +230,7 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 
 				logger.Debug(fmt.Sprintf("download file from '%s'", dl.Url))
 
-				req, err := retryablehttp.NewRequest(http.MethodGet, dl.Url, nil)
+				req, err := retryablehttp.NewRequestWithContext(ctx, http.MethodGet, dl.Url, nil)
 				if err != nil {
 					return fmt.Errorf("create request to '%s': %w", dl.Url, err)
 				}
@@ -235,7 +239,20 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 				for key, value := range dl.ExtraHttpHeaders {
 					req.Header.Set(key, value)
 				}
-				req.Header.Set(traceHeader, trace)
+				req.Header.Set(echoCtx.Get("correlationIdHeader").(string), echoCtx.Get("correlationId").(string))
+
+				// OpenTelemetry.
+				meter := gotenberg.Meter()
+				semconvClient := semconvutil.NewHTTPClient(meter)
+
+				tracer := gotenberg.Tracer()
+				traceCtx, span := tracer.Start(ctx, fmt.Sprintf("%s Download From", req.Method),
+					trace.WithSpanKind(trace.SpanKindClient),
+					trace.WithAttributes(semconvClient.RequestTraceAttrs(req.Request)...),
+				)
+				defer span.End()
+
+				otel.GetTextMapPropagator().Inject(traceCtx, propagation.HeaderCarrier(req.Header))
 
 				client := &retryablehttp.Client{
 					HTTPClient: &http.Client{
@@ -251,11 +268,16 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 
 				resp, err := client.Do(req)
 				if err != nil {
+					span.RecordError(err)
+					span.SetStatus(semconvClient.Status(0))
 					return WrapError(
 						fmt.Errorf("download file from to '%s': %w", dl.Url, err),
 						NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Unable to download file from '%s': %s", dl.Url, err)),
 					)
 				}
+
+				span.SetAttributes(semconvClient.ResponseTraceAttrs(resp)...)
+				span.SetStatus(semconvClient.Status(resp.StatusCode))
 				defer func() {
 					err := resp.Body.Close()
 					if err != nil {
@@ -301,7 +323,7 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 				// normalized.
 				// See: https://github.com/gotenberg/gotenberg/issues/662.
 				filename = norm.NFC.String(filepath.Base(filename))
-				path := fmt.Sprintf("%s/%s", ctx.dirPath, filename)
+				path := fmt.Sprintf("%s/%s", dirPath, filename)
 
 				out, err := os.Create(path)
 				if err != nil {

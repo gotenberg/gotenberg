@@ -123,17 +123,21 @@ Feature: /forms/pdfengines/encrypt
       | files | testdata/page_1.pdf | file |
     Then the response status code should be 404
 
-  Scenario: POST /forms/pdfengines/encrypt (Gotenberg Trace)
+  @telemetry
+  Scenario: POST /forms/pdfengines/encrypt (Telemetry)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/encrypt" endpoint with the following form data and header(s):
-      | files           | testdata/page_1.pdf      | file   |
-      | userPassword    | foo                      | field  |
-      | Gotenberg-Trace | forms_pdfengines_encrypt | header |
+      | files           | testdata/page_1.pdf                                     | file   |
+      | userPassword    | foo                                                     | field  |
+      | Gotenberg-Trace | forms_pdfengines_encrypt                                | header |
+      | traceparent     | 00-12345678901234567890123456789012-1234567890123456-01 | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then the response header "Gotenberg-Trace" should be "forms_pdfengines_encrypt"
     Then the Gotenberg container should log the following entries:
-      | "trace":"forms_pdfengines_encrypt" |
+      | "correlation_id":"forms_pdfengines_encrypt"   |
+      | "trace_id":"12345678901234567890123456789012" |
+      | "span_id":"                                   |
 
   @download-from
   Scenario: POST /forms/pdfengines/encrypt (Download From)
