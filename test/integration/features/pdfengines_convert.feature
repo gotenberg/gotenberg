@@ -119,7 +119,6 @@ Feature: /forms/pdfengines/convert
     Then the Gotenberg container should log the following entries:
       | "correlation_id":"forms_pdfengines_convert"   |
       | "trace_id":"12345678901234567890123456789012" |
-      | "span_id":"                                   |
 
   @output-filename
   Scenario: POST /forms/pdfengines/convert (Output Filename - Single PDF)

@@ -22,7 +22,18 @@ Feature: /
     Then the Gotenberg container should log the following entries:
       | "correlation_id":"root"                       |
       | "trace_id":"12345678901234567890123456789012" |
-      | "span_id":"                                   |
+
+  @telemetry
+  Scenario: GET / (No Telemetry)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | API_DISABLE_ROOT_ROUTE_TELEMETRY | true |
+    When I make a "GET" request to Gotenberg at the "/" endpoint with the following header(s):
+      | Gotenberg-Trace | root_no_telemetry                                       |
+      | traceparent     | 00-12345678901234567890123456789012-1234567890123456-01 |
+    Then the response status code should be 200
+    Then the Gotenberg container should NOT log the following entries:
+      | "correlation_id":"root_no_telemetry"          |
+      | "trace_id":"12345678901234567890123456789012" |
 
   Scenario: GET / (Basic Auth)
     Given I have a Gotenberg container with the following environment variable(s):
@@ -44,17 +55,15 @@ Feature: /
     Then the response status code should be 204
 
   @telemetry
-  Scenario: GET /favicon.ico (Telemetry)
+  Scenario: GET /favicon.ico (No Telemetry)
     Given I have a default Gotenberg container
     When I make a "GET" request to Gotenberg at the "/favicon.ico" endpoint with the following header(s):
-      | Gotenberg-Trace | favicon                                                 |
+      | Gotenberg-Trace | favicon_no_telemetry                                    |
       | traceparent     | 00-12345678901234567890123456789012-1234567890123456-01 |
     Then the response status code should be 204
-    Then the response header "Gotenberg-Trace" should be "favicon"
-    Then the Gotenberg container should log the following entries:
-      | "correlation_id":"favicon"                    |
+    Then the Gotenberg container should NOT log the following entries:
+      | "correlation_id":"favicon_no_telemetry"       |
       | "trace_id":"12345678901234567890123456789012" |
-      | "span_id":"                                   |
 
   Scenario: GET /favicon.ico (Basic Auth)
     Given I have a Gotenberg container with the following environment variable(s):

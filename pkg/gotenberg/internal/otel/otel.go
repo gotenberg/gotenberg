@@ -3,13 +3,13 @@ package otel
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"sync"
 	"sync/atomic"
 
-	"github.com/go-logr/zapr"
 	"github.com/prometheus/client_golang/prometheus"
-	"go.opentelemetry.io/contrib/bridges/otelzap"
+	"go.opentelemetry.io/contrib/bridges/otelslog"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/propagation"
@@ -18,13 +18,11 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 // InitTracerProvider initializes the OpenTelemetry tracer provider.
-func InitTracerProvider(stdLogger *zap.Logger, serviceName, serviceVersion string, protocols []string) (shutdown func(context.Context) error, err error) {
-	initOtelLogger(stdLogger)
+func InitTracerProvider(logger *slog.Logger, serviceName, serviceVersion string, protocols []string) (shutdown func(context.Context) error, err error) {
+	initOtelLogger(logger)
 
 	ctx := context.Background()
 	hostname, err := os.Hostname()
@@ -70,8 +68,8 @@ func InitTracerProvider(stdLogger *zap.Logger, serviceName, serviceVersion strin
 }
 
 // InitMeterProvider initializes the OpenTelemetry meter provider.
-func InitMeterProvider(stdLogger *zap.Logger, serviceName, serviceVersion string, protocols []string) (shutdown func(context.Context) error, err error) {
-	initOtelLogger(stdLogger)
+func InitMeterProvider(logger *slog.Logger, serviceName, serviceVersion string, protocols []string) (shutdown func(context.Context) error, err error) {
+	initOtelLogger(logger)
 
 	ctx := context.Background()
 	hostname, err := os.Hostname()
@@ -112,8 +110,8 @@ func InitMeterProvider(stdLogger *zap.Logger, serviceName, serviceVersion string
 }
 
 // InitLoggerProvider initializes the OpenTelemetry logger provider.
-func InitLoggerProvider(stdLogger *zap.Logger, serviceName, serviceVersion string, protocols []string) (shutdown func(context.Context) error, core zapcore.Core, err error) {
-	initOtelLogger(stdLogger)
+func InitLoggerProvider(logger *slog.Logger, serviceName, serviceVersion string, protocols []string) (shutdown func(context.Context) error, handler slog.Handler, err error) {
+	initOtelLogger(logger)
 
 	ctx := context.Background()
 	hostname, err := os.Hostname()
@@ -148,23 +146,19 @@ func InitLoggerProvider(stdLogger *zap.Logger, serviceName, serviceVersion strin
 	}
 
 	loggerProvider := log.NewLoggerProvider(logOpts...)
-	otelCore := otelzap.NewCore(
-		serviceName,
-		otelzap.WithLoggerProvider(loggerProvider),
-	)
+	otelHandler := otelslog.NewHandler(serviceName, otelslog.WithLoggerProvider(loggerProvider))
 	global.SetLoggerProvider(loggerProvider)
 
-	return loggerProvider.Shutdown, otelCore, nil
+	return loggerProvider.Shutdown, otelHandler, nil
 }
 
-func initOtelLogger(stdLogger *zap.Logger) {
+func initOtelLogger(logger *slog.Logger) {
 	if otlpLoggerInitialized.Load() {
 		return
 	}
 
-	otel.SetLogger(zapr.NewLogger(stdLogger))
 	otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
-		stdLogger.Error(err.Error())
+		logger.Error(err.Error())
 	}))
 
 	otlpLoggerInitialized.Store(true)

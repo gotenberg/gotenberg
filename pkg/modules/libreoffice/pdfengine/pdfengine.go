@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/libreoffice/api"
@@ -49,7 +49,7 @@ func (engine *LibreOfficePdfEngine) Provision(ctx *gotenberg.Context) error {
 }
 
 // Merge is not available in this implementation.
-func (engine *LibreOfficePdfEngine) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+func (engine *LibreOfficePdfEngine) Merge(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "LibreOfficePdfEngine.Merge", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -63,7 +63,7 @@ func (engine *LibreOfficePdfEngine) Merge(ctx context.Context, logger *zap.Logge
 }
 
 // Split is not available in this implementation.
-func (engine *LibreOfficePdfEngine) Split(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+func (engine *LibreOfficePdfEngine) Split(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
 	_, span := gotenberg.Tracer().Start(ctx, "LibreOfficePdfEngine.Split", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -77,7 +77,7 @@ func (engine *LibreOfficePdfEngine) Split(ctx context.Context, logger *zap.Logge
 }
 
 // Flatten is not available in this implementation.
-func (engine *LibreOfficePdfEngine) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
+func (engine *LibreOfficePdfEngine) Flatten(ctx context.Context, logger *slog.Logger, inputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "LibreOfficePdfEngine.Flatten", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -94,7 +94,7 @@ func (engine *LibreOfficePdfEngine) Flatten(ctx context.Context, logger *zap.Log
 // PDF/A-1b, PDF/A-2b, PDF/A-3b and PDF/UA formats are available. If another
 // PDF format is requested, it returns a [gotenberg.ErrPdfFormatNotSupported]
 // error.
-func (engine *LibreOfficePdfEngine) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+func (engine *LibreOfficePdfEngine) Convert(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "LibreOfficePdfEngine.Convert", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -121,7 +121,7 @@ func (engine *LibreOfficePdfEngine) Convert(ctx context.Context, logger *zap.Log
 }
 
 // ReadMetadata is not available in this implementation.
-func (engine *LibreOfficePdfEngine) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
+func (engine *LibreOfficePdfEngine) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 	_, span := gotenberg.Tracer().Start(ctx, "LibreOfficePdfEngine.ReadMetadata", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -135,7 +135,7 @@ func (engine *LibreOfficePdfEngine) ReadMetadata(ctx context.Context, logger *za
 }
 
 // WriteMetadata is not available in this implementation.
-func (engine *LibreOfficePdfEngine) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
+func (engine *LibreOfficePdfEngine) WriteMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "LibreOfficePdfEngine.WriteMetadata", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -149,7 +149,7 @@ func (engine *LibreOfficePdfEngine) WriteMetadata(ctx context.Context, logger *z
 }
 
 // Encrypt is not available in this implementation.
-func (engine *LibreOfficePdfEngine) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
+func (engine *LibreOfficePdfEngine) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "LibreOfficePdfEngine.Encrypt", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -163,7 +163,7 @@ func (engine *LibreOfficePdfEngine) Encrypt(ctx context.Context, logger *zap.Log
 }
 
 // EmbedFiles is not available in this implementation.
-func (engine *LibreOfficePdfEngine) EmbedFiles(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error {
+func (engine *LibreOfficePdfEngine) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "LibreOfficePdfEngine.EmbedFiles", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 

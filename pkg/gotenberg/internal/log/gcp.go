@@ -1,36 +1,18 @@
 package log
 
-import "go.uber.org/zap/zapcore"
+import "log/slog"
 
-func gcpSeverity(l zapcore.Level) string {
-	switch l {
-	case zapcore.DebugLevel:
+func gcpSeverity(l slog.Level) string {
+	switch {
+	case l < slog.LevelInfo:
 		return "DEBUG"
-	case zapcore.InfoLevel:
+	case l < slog.LevelWarn:
 		return "INFO"
-	case zapcore.WarnLevel:
+	case l < slog.LevelError:
 		return "WARNING"
-	case zapcore.ErrorLevel:
+	case l >= slog.LevelError:
 		return "ERROR"
-	case zapcore.DPanicLevel:
-		return "CRITICAL"
-	case zapcore.PanicLevel:
-		return "ALERT"
-	case zapcore.FatalLevel:
-		return "EMERGENCY"
-	case zapcore.InvalidLevel:
-		return "DEFAULT"
 	default:
 		return "DEFAULT"
 	}
-}
-
-func gcpSeverityEncoder(l zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
-	enc.AppendString(gcpSeverity(l))
-}
-
-func gcpSeverityColorEncoder(l zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
-	severity := gcpSeverity(l)
-	c := levelToColor(l)
-	enc.AppendString(c.Add(severity))
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -12,8 +13,6 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/multierr"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg/internal/log"
 	internalotel "github.com/gotenberg/gotenberg/v8/pkg/gotenberg/internal/otel"
@@ -51,9 +50,12 @@ type TelemetryConfig struct {
 	LogStdEnableGcpFields bool
 }
 
-func (cfg TelemetryConfig) zapLevel() zapcore.Level {
-	level := zapcore.InvalidLevel
-	_ = level.UnmarshalText([]byte(cfg.LogLevel))
+func (cfg TelemetryConfig) slogLevel() slog.Level {
+	var level slog.Level
+	err := level.UnmarshalText([]byte(cfg.LogLevel))
+	if err != nil {
+		return slog.LevelInfo
+	}
 	return level
 }
 
@@ -132,42 +134,42 @@ func (cfg TelemetryConfig) Validate() error {
 
 // StartTelemetry starts the telemetry utilities.
 func StartTelemetry(cfg TelemetryConfig) (shutdown func(context.Context) error, err error) {
-	var cores []zapcore.Core
+	var handlers []slog.Handler
 
-	stdCore, err := log.NewStdCore(cfg.zapLevel(), cfg.LogStdFormat, cfg.LogFieldsPrefix, cfg.LogStdEnableGcpFields)
+	stdHandler, err := log.NewStdHandler(cfg.slogLevel(), cfg.LogStdFormat, cfg.LogFieldsPrefix, cfg.LogStdEnableGcpFields)
 	if err != nil {
-		return nil, fmt.Errorf("get standard logger core: %w", err)
+		return nil, fmt.Errorf("get standard logger handler: %w", err)
 	}
-	stdLogger := zap.New(stdCore)
-	cores = append(cores, stdCore)
+	handlers = append(handlers, stdHandler)
+
+	// We need a logger for the other providers.
+	// We'll use the stdHandler for now.
+	bootstrapLogger := slog.New(stdHandler)
 
 	// OpenTelemetry.
 	var shutdowns []func(context.Context) error
 
-	shutdownFn, err := internalotel.InitTracerProvider(stdLogger, cfg.ServiceName, cfg.ServiceVersion, cfg.TraceExporterProtocols)
+	shutdownFn, err := internalotel.InitTracerProvider(bootstrapLogger, cfg.ServiceName, cfg.ServiceVersion, cfg.TraceExporterProtocols)
 	if err != nil {
 		return nil, fmt.Errorf("initialize OpenTelemetry tracer provider: %w", err)
 	}
 	shutdowns = append(shutdowns, shutdownFn)
 
-	shutdownFn, err = internalotel.InitMeterProvider(stdLogger, cfg.ServiceName, cfg.ServiceVersion, cfg.MetricExporterProtocols)
+	shutdownFn, err = internalotel.InitMeterProvider(bootstrapLogger, cfg.ServiceName, cfg.ServiceVersion, cfg.MetricExporterProtocols)
 	if err != nil {
 		return nil, fmt.Errorf("initialize OpenTelemetry meter provider: %w", err)
 	}
 	shutdowns = append(shutdowns, shutdownFn)
 
-	shutdownFn, otelCore, err := internalotel.InitLoggerProvider(stdLogger, cfg.ServiceName, cfg.ServiceVersion, cfg.LogExporterProtocols)
+	shutdownFn, otelHandler, err := internalotel.InitLoggerProvider(bootstrapLogger, cfg.ServiceName, cfg.ServiceVersion, cfg.LogExporterProtocols)
 	if err != nil {
 		return nil, fmt.Errorf("initialize OpenTelemetry logger provider: %w", err)
 	}
-	cores = append(cores, otelCore)
+	handlers = append(handlers, log.LevelFilter(otelHandler, cfg.slogLevel()))
 	shutdowns = append(shutdowns, shutdownFn)
 
 	// Global logger.
-	err = log.InitLogger(cfg.zapLevel(), cfg.LogFieldsPrefix, cores...)
-	if err != nil {
-		return nil, fmt.Errorf("initialize global logger: %w", err)
-	}
+	log.InitLogger(log.NewGotenbergHandler(log.FanOut(handlers...), cfg.LogFieldsPrefix))
 
 	return func(ctx context.Context) error {
 		filterErr := func(err error) error {
@@ -202,8 +204,8 @@ func StartTelemetry(cfg TelemetryConfig) (shutdown func(context.Context) error, 
 }
 
 // Logger returns the global logger.
-func Logger(mod Module) *zap.Logger {
-	return log.Logger().Named(mod.Descriptor().ID)
+func Logger(mod Module) *slog.Logger {
+	return log.Logger().With(slog.String("logger", mod.Descriptor().ID))
 }
 
 // PrometheusRegistry returns the Prometheus registry.
@@ -235,37 +237,47 @@ func Meter() metric.Meter {
 	)
 }
 
-// LeveledLogger is a wrapper around a [zap.Logger] so that it may be used by a
+// LeveledLogger is a wrapper around a [slog.Logger] so that it may be used by a
 // [retryablehttp.Client].
 type LeveledLogger struct {
-	logger *zap.Logger
+	logger *slog.Logger
+	ctx    context.Context
 }
 
 // NewLeveledLogger instantiates a [LeveledLogger].
-func NewLeveledLogger(logger *zap.Logger) *LeveledLogger {
+func NewLeveledLogger(logger *slog.Logger) *LeveledLogger {
 	return &LeveledLogger{
 		logger: logger,
+		ctx:    context.Background(),
 	}
 }
 
-// Error logs a message at the error level using the wrapped zap.Logger.
+// WithContext returns a new [LeveledLogger] with the given context.
+func (leveled LeveledLogger) WithContext(ctx context.Context) *LeveledLogger {
+	return &LeveledLogger{
+		logger: leveled.logger,
+		ctx:    ctx,
+	}
+}
+
+// Error logs a message at the error level using the wrapped slog.Logger.
 func (leveled LeveledLogger) Error(msg string, keysAndValues ...any) {
-	leveled.logger.Error(fmt.Sprintf("%s: %+v", msg, keysAndValues))
+	leveled.logger.ErrorContext(leveled.ctx, fmt.Sprintf("%s: %+v", msg, keysAndValues))
 }
 
-// Warn logs a message at the warning level using the wrapped zap.Logger.
+// Warn logs a message at the warning level using the wrapped slog.Logger.
 func (leveled LeveledLogger) Warn(msg string, keysAndValues ...any) {
-	leveled.logger.Warn(fmt.Sprintf("%s: %+v", msg, keysAndValues))
+	leveled.logger.WarnContext(leveled.ctx, fmt.Sprintf("%s: %+v", msg, keysAndValues))
 }
 
-// Info logs a message at the info level using the wrapped zap.Logger.
+// Info logs a message at the info level using the wrapped slog.Logger.
 func (leveled LeveledLogger) Info(msg string, keysAndValues ...any) {
-	leveled.logger.Info(fmt.Sprintf("%s: %+v", msg, keysAndValues))
+	leveled.logger.InfoContext(leveled.ctx, fmt.Sprintf("%s: %+v", msg, keysAndValues))
 }
 
-// Debug logs a message at the debug level using the wrapped zap.Logger.
+// Debug logs a message at the debug level using the wrapped slog.Logger.
 func (leveled LeveledLogger) Debug(msg string, keysAndValues ...any) {
-	leveled.logger.Debug(fmt.Sprintf("%s: %+v", msg, keysAndValues))
+	leveled.logger.DebugContext(leveled.ctx, fmt.Sprintf("%s: %+v", msg, keysAndValues))
 }
 
 // Interface guards.

@@ -70,7 +70,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 							RetryMax:     w.maxRetry,
 							RetryWaitMin: w.retryMinWait,
 							RetryWaitMax: w.retryMaxWait,
-							Logger:       gotenberg.NewLeveledLogger(ctx.Log()),
+							Logger:       gotenberg.NewLeveledLogger(ctx.Log()).WithContext(ctx),
 							CheckRetry:   retryablehttp.DefaultRetryPolicy,
 							Backoff:      retryablehttp.DefaultBackoff,
 						},
@@ -103,14 +103,14 @@ func handleSyncWebhook(c echo.Context, next echo.HandlerFunc, ctx *api.Context, 
 			))
 			return nil
 		}
-		ctx.Log().Error(err.Error())
+		ctx.Log().ErrorContext(ctx, err.Error())
 		handleErr(err)
 		return nil
 	}
 
 	outputPath, err := ctx.BuildOutputFile()
 	if err != nil {
-		ctx.Log().Error(fmt.Sprintf("build output file: %s", err))
+		ctx.Log().ErrorContext(ctx, fmt.Sprintf("build output file: %s", err))
 		handleErr(err)
 		return nil
 	}
@@ -151,14 +151,14 @@ func handleAsyncWebhook(c echo.Context, next echo.HandlerFunc, w *Webhook, ctx *
 				))
 				return
 			}
-			ctx.Log().Error(err.Error())
+			ctx.Log().ErrorContext(ctx, err.Error())
 			handleErr(err)
 			return
 		}
 
 		outputPath, err := ctx.BuildOutputFile()
 		if err != nil {
-			ctx.Log().Error(fmt.Sprintf("build output file: %s", err))
+			ctx.Log().ErrorContext(ctx, fmt.Sprintf("build output file: %s", err))
 			handleErr(err)
 			return
 		}
@@ -260,14 +260,14 @@ func sendWebhookError(ctx *api.Context, c *client, headers http.Header, processE
 
 	b, err := json.Marshal(body)
 	if err != nil {
-		ctx.Log().Error(fmt.Sprintf("marshal JSON: %s", err.Error()))
+		ctx.Log().ErrorContext(ctx, fmt.Sprintf("marshal JSON: %s", err.Error()))
 		return
 	}
 
 	headers.Set(echo.HeaderContentLength, strconv.Itoa(len(b)))
 
 	if err := c.send(ctx, bytes.NewReader(b), headers, true); err != nil {
-		ctx.Log().Error(fmt.Sprintf("send error response to webhook: %s", err.Error()))
+		ctx.Log().ErrorContext(ctx, fmt.Sprintf("send error response to webhook: %s", err.Error()))
 	}
 }
 
@@ -283,34 +283,34 @@ type sendOutputFileParams struct {
 func sendOutputFile(params sendOutputFileParams) {
 	outputFile, err := os.Open(params.outputPath)
 	if err != nil {
-		params.ctx.Log().Error(fmt.Sprintf("open output file: %s", err))
+		params.ctx.Log().ErrorContext(params.ctx, fmt.Sprintf("open output file: %s", err))
 		params.handleError(err)
 		return
 	}
 	defer func() {
 		if err := outputFile.Close(); err != nil {
-			params.ctx.Log().Error(fmt.Sprintf("close output file: %s", err))
+			params.ctx.Log().ErrorContext(params.ctx, fmt.Sprintf("close output file: %s", err))
 		}
 	}()
 
 	fileHeader := make([]byte, 512)
 	_, err = outputFile.Read(fileHeader)
 	if err != nil {
-		params.ctx.Log().Error(fmt.Sprintf("read header of output file: %s", err))
+		params.ctx.Log().ErrorContext(params.ctx, fmt.Sprintf("read header of output file: %s", err))
 		params.handleError(err)
 		return
 	}
 
 	fileStat, err := outputFile.Stat()
 	if err != nil {
-		params.ctx.Log().Error(fmt.Sprintf("get stat from output file: %s", err))
+		params.ctx.Log().ErrorContext(params.ctx, fmt.Sprintf("get stat from output file: %s", err))
 		params.handleError(err)
 		return
 	}
 
 	_, err = outputFile.Seek(0, 0)
 	if err != nil {
-		params.ctx.Log().Error(fmt.Sprintf("reset output file reader: %s", err))
+		params.ctx.Log().ErrorContext(params.ctx, fmt.Sprintf("reset output file reader: %s", err))
 		params.handleError(err)
 		return
 	}
@@ -325,7 +325,7 @@ func sendOutputFile(params sendOutputFileParams) {
 
 	err = params.client.send(params.ctx, bufio.NewReader(outputFile), params.headers, false)
 	if err != nil {
-		params.ctx.Log().Error(fmt.Sprintf("send output file to webhook: %s", err))
+		params.ctx.Log().ErrorContext(params.ctx, fmt.Sprintf("send output file to webhook: %s", err))
 		params.handleError(err)
 	}
 }

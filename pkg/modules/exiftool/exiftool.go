@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"reflect"
@@ -13,7 +14,6 @@ import (
 	"github.com/barasher/go-exiftool"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
@@ -76,7 +76,7 @@ func (engine *ExifTool) Debug() map[string]any {
 }
 
 // Merge is not available in this implementation.
-func (engine *ExifTool) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+func (engine *ExifTool) Merge(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "ExifTool.Merge", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -90,7 +90,7 @@ func (engine *ExifTool) Merge(ctx context.Context, logger *zap.Logger, inputPath
 }
 
 // Split is not available in this implementation.
-func (engine *ExifTool) Split(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+func (engine *ExifTool) Split(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
 	_, span := gotenberg.Tracer().Start(ctx, "ExifTool.Split", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -104,7 +104,7 @@ func (engine *ExifTool) Split(ctx context.Context, logger *zap.Logger, mode gote
 }
 
 // Flatten is not available in this implementation.
-func (engine *ExifTool) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
+func (engine *ExifTool) Flatten(ctx context.Context, logger *slog.Logger, inputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "ExifTool.Flatten", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -118,7 +118,7 @@ func (engine *ExifTool) Flatten(ctx context.Context, logger *zap.Logger, inputPa
 }
 
 // Convert is not available in this implementation.
-func (engine *ExifTool) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+func (engine *ExifTool) Convert(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "ExifTool.Convert", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -132,7 +132,7 @@ func (engine *ExifTool) Convert(ctx context.Context, logger *zap.Logger, formats
 }
 
 // ReadMetadata extracts the metadata of a given PDF file.
-func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
+func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 	_, span := gotenberg.Tracer().Start(ctx, "ExifTool.ReadMetadata", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -147,7 +147,7 @@ func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *zap.Logger, in
 	defer func(exifTool *exiftool.Exiftool) {
 		err := exifTool.Close()
 		if err != nil {
-			logger.Error(fmt.Sprintf("close ExifTool: %v", err))
+			logger.ErrorContext(ctx, fmt.Sprintf("close ExifTool: %v", err))
 		}
 	}(exifTool)
 
@@ -163,7 +163,7 @@ func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *zap.Logger, in
 }
 
 // WriteMetadata writes the metadata into a given PDF file.
-func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
+func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "ExifTool.WriteMetadata", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -178,7 +178,7 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, m
 	defer func(exifTool *exiftool.Exiftool) {
 		err := exifTool.Close()
 		if err != nil {
-			logger.Error(fmt.Sprintf("close ExifTool: %v", err))
+			logger.ErrorContext(ctx, fmt.Sprintf("close ExifTool: %v", err))
 		}
 	}(exifTool)
 
@@ -269,7 +269,7 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, m
 }
 
 // Encrypt is not available in this implementation.
-func (engine *ExifTool) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
+func (engine *ExifTool) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "ExifTool.Encrypt", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -283,7 +283,7 @@ func (engine *ExifTool) Encrypt(ctx context.Context, logger *zap.Logger, inputPa
 }
 
 // EmbedFiles is not available in this implementation.
-func (engine *ExifTool) EmbedFiles(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error {
+func (engine *ExifTool) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "ExifTool.EmbedFiles", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 

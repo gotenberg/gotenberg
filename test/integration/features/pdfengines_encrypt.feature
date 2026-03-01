@@ -137,7 +137,6 @@ Feature: /forms/pdfengines/encrypt
     Then the Gotenberg container should log the following entries:
       | "correlation_id":"forms_pdfengines_encrypt"   |
       | "trace_id":"12345678901234567890123456789012" |
-      | "span_id":"                                   |
 
   @download-from
   Scenario: POST /forms/pdfengines/encrypt (Download From)

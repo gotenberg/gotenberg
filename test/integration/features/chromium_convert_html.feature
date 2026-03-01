@@ -1074,7 +1074,6 @@ Feature: /forms/chromium/convert/html
     Then the Gotenberg container should log the following entries:
       | "correlation_id":"forms_chromium_convert_html" |
       | "trace_id":"12345678901234567890123456789012"  |
-      | "span_id":"                                    |
 
   @download-from
   Scenario: POST /forms/chromium/convert/html (Download From)

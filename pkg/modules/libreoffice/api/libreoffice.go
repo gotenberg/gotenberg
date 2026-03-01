@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"strings"
@@ -11,14 +12,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"go.uber.org/zap"
-
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 type libreOffice interface {
 	gotenberg.Process
-	pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
+	pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error
 }
 
 type libreOfficeArguments struct {
@@ -48,7 +47,7 @@ func newLibreOfficeProcess(arguments libreOfficeArguments) libreOffice {
 	return p
 }
 
-func (p *libreOfficeProcess) Start(logger *zap.Logger) error {
+func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 	if p.isStarted.Load() {
 		return errors.New("LibreOffice is already started")
 	}
@@ -86,7 +85,7 @@ func (p *libreOfficeProcess) Start(logger *zap.Logger) error {
 		return fmt.Errorf("execute LibreOffice: %w", err)
 	}
 
-	logger.Debug("got exit code 81, e.g., LibreOffice first start")
+	logger.DebugContext(ctx, "got exit code 81, e.g., LibreOffice first start")
 
 	// Second start (daemon).
 	cmd = gotenberg.Command(logger, p.arguments.binPath, args...)
@@ -123,7 +122,7 @@ func (p *libreOfficeProcess) Start(logger *zap.Logger) error {
 			connChan <- nil
 			err = conn.Close()
 			if err != nil {
-				logger.Debug(fmt.Sprintf("close connection after health checking the LibreOffice: %v", err))
+				logger.DebugContext(ctx, fmt.Sprintf("close connection after health checking the LibreOffice: %v", err))
 			}
 
 			break
@@ -148,19 +147,19 @@ func (p *libreOfficeProcess) Start(logger *zap.Logger) error {
 		// Let's make sure the process is killed.
 		err = cmd.Kill()
 		if err != nil {
-			logger.Debug(fmt.Sprintf("kill LibreOffice process: %v", err))
+			logger.DebugContext(context.Background(), fmt.Sprintf("kill LibreOffice process: %v", err))
 		}
 
 		// And the user profile directory is deleted.
 		err = os.RemoveAll(userProfileDirPath)
 		if err != nil {
-			logger.Error(fmt.Sprintf("remove LibreOffice's user profile directory: %v", err))
+			logger.ErrorContext(context.Background(), fmt.Sprintf("remove LibreOffice's user profile directory: %v", err))
 		}
 
-		logger.Debug(fmt.Sprintf("'%s' LibreOffice's user profile directory removed", userProfileDirPath))
+		logger.DebugContext(context.Background(), fmt.Sprintf("'%s' LibreOffice's user profile directory removed", userProfileDirPath))
 	}()
 
-	logger.Debug("waiting for the LibreOffice socket to be available...")
+	logger.DebugContext(ctx, "waiting for the LibreOffice socket to be available...")
 
 	for {
 		select {
@@ -169,7 +168,7 @@ func (p *libreOfficeProcess) Start(logger *zap.Logger) error {
 				return fmt.Errorf("LibreOffice socket not available: %w", err)
 			}
 
-			logger.Debug("LibreOffice socket available")
+			logger.DebugContext(ctx, "LibreOffice socket available")
 			success = true
 
 			return nil
@@ -179,7 +178,7 @@ func (p *libreOfficeProcess) Start(logger *zap.Logger) error {
 	}
 }
 
-func (p *libreOfficeProcess) Stop(logger *zap.Logger) error {
+func (p *libreOfficeProcess) Stop(logger *slog.Logger) error {
 	if !p.isStarted.Load() {
 		// No big deal? Like calling cancel twice.
 		return nil
@@ -192,15 +191,15 @@ func (p *libreOfficeProcess) Stop(logger *zap.Logger) error {
 		go func() {
 			err := os.RemoveAll(userProfileDirPath)
 			if err != nil {
-				logger.Error(fmt.Sprintf("remove LibreOffice's user profile directory: %v", err))
+				logger.ErrorContext(context.Background(), fmt.Sprintf("remove LibreOffice's user profile directory: %v", err))
 			} else {
-				logger.Debug(fmt.Sprintf("'%s' LibreOffice's user profile directory removed", userProfileDirPath))
+				logger.DebugContext(context.Background(), fmt.Sprintf("'%s' LibreOffice's user profile directory removed", userProfileDirPath))
 			}
 
 			// Also, remove LibreOffice specific files in the temporary directory.
-			err = gotenberg.GarbageCollect(logger, os.TempDir(), []string{"OSL_PIPE", ".tmp"}, expirationTime)
+			err = gotenberg.GarbageCollect(context.Background(), logger, os.TempDir(), []string{"OSL_PIPE", ".tmp"}, expirationTime)
 			if err != nil {
-				logger.Error(err.Error())
+				logger.ErrorContext(context.Background(), err.Error())
 			}
 		}()
 	}(copyUserProfileDirPath, expirationTime)
@@ -221,7 +220,7 @@ func (p *libreOfficeProcess) Stop(logger *zap.Logger) error {
 	return nil
 }
 
-func (p *libreOfficeProcess) Healthy(logger *zap.Logger) bool {
+func (p *libreOfficeProcess) Healthy(logger *slog.Logger) bool {
 	// Good to know: the supervisor does not call this method if no first start
 	// or if the process is restarting.
 
@@ -237,7 +236,7 @@ func (p *libreOfficeProcess) Healthy(logger *zap.Logger) bool {
 	if err == nil {
 		err = conn.Close()
 		if err != nil {
-			logger.Debug(fmt.Sprintf("close connection after health checking LibreOffice: %v", err))
+			logger.DebugContext(context.Background(), fmt.Sprintf("close connection after health checking LibreOffice: %v", err))
 		}
 
 		return true
@@ -246,7 +245,7 @@ func (p *libreOfficeProcess) Healthy(logger *zap.Logger) bool {
 	return false
 }
 
-func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error {
+func (p *libreOfficeProcess) pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error {
 	if !p.isStarted.Load() {
 		return errors.New("LibreOffice not started, cannot handle PDF conversion")
 	}
@@ -259,8 +258,7 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 
 	args = append(args, "--port", fmt.Sprintf("%d", p.socketPort))
 
-	checkedEntry := logger.Check(zap.DebugLevel, "check for debug level before setting high verbosity")
-	if checkedEntry != nil {
+	if logger.Enabled(ctx, slog.LevelDebug) {
 		args = append(args, "-vvv")
 	}
 
@@ -337,7 +335,7 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 		return fmt.Errorf("create uno command: %w", err)
 	}
 
-	logger.Debug(fmt.Sprintf("print to PDF with: %+v", options))
+	logger.DebugContext(ctx, fmt.Sprintf("print to PDF with: %+v", options))
 
 	exitCode, err := cmd.Exec()
 	if err == nil {

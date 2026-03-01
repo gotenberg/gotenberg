@@ -3,10 +3,10 @@ package pdfengines
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 
 	"go.uber.org/multierr"
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
@@ -46,7 +46,7 @@ func newMultiPdfEngines(
 
 // Merge combines multiple PDF files into a single document using the first
 // available engine that supports PDF merging.
-func (multi *multiPdfEngines) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+func (multi *multiPdfEngines) Merge(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
 	var err error
 	errChan := make(chan error, 1)
 
@@ -76,7 +76,7 @@ type splitResult struct {
 
 // Split divides the PDF into separate pages using the first available engine
 // that supports PDF splitting.
-func (multi *multiPdfEngines) Split(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+func (multi *multiPdfEngines) Split(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
 	var err error
 	var mu sync.Mutex // to safely append errors.
 
@@ -107,7 +107,7 @@ func (multi *multiPdfEngines) Split(ctx context.Context, logger *zap.Logger, mod
 
 // Flatten merges existing annotation appearances with page content using the
 // first available engine that supports flattening.
-func (multi *multiPdfEngines) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
+func (multi *multiPdfEngines) Flatten(ctx context.Context, logger *slog.Logger, inputPath string) error {
 	var err error
 	errChan := make(chan error, 1)
 
@@ -132,7 +132,7 @@ func (multi *multiPdfEngines) Flatten(ctx context.Context, logger *zap.Logger, i
 
 // Convert transforms the given PDF to a specific PDF format using the first
 // available engine that supports PDF conversion.
-func (multi *multiPdfEngines) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+func (multi *multiPdfEngines) Convert(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 	var err error
 	errChan := make(chan error, 1)
 
@@ -162,7 +162,7 @@ type readMetadataResult struct {
 
 // ReadMetadata extracts metadata from a PDF file using the first available
 // engine that supports metadata reading.
-func (multi *multiPdfEngines) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
+func (multi *multiPdfEngines) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 	var err error
 	var mu sync.Mutex // to safely append errors.
 
@@ -193,7 +193,7 @@ func (multi *multiPdfEngines) ReadMetadata(ctx context.Context, logger *zap.Logg
 
 // WriteMetadata embeds metadata into a PDF file using the first available
 // engine that supports metadata writing.
-func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
+func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
 	var err error
 	errChan := make(chan error, 1)
 
@@ -218,7 +218,7 @@ func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *zap.Log
 
 // Encrypt adds password protection to a PDF file using the first available
 // engine that supports password protection.
-func (multi *multiPdfEngines) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
+func (multi *multiPdfEngines) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
 	var err error
 	errChan := make(chan error, 1)
 
@@ -243,7 +243,7 @@ func (multi *multiPdfEngines) Encrypt(ctx context.Context, logger *zap.Logger, i
 
 // EmbedFiles embeds files into a PDF using the first available
 // engine that supports file embedding.
-func (multi *multiPdfEngines) EmbedFiles(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error {
+func (multi *multiPdfEngines) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {
 	var err error
 	errChan := make(chan error, 1)
 

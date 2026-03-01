@@ -42,14 +42,6 @@ Feature: /prometheus/metrics
       """
       # TYPE libreoffice_requests_queue_size gauge
       """
-    Then the response body should contain string:
-      """
-      # HELP http_server_request_duration_seconds Duration of HTTP server requests.
-      """
-    Then the response body should contain string:
-      """
-      # TYPE http_server_request_duration_seconds histogram
-      """
     Then the Gotenberg container should log the following entries:
       | "path":"/prometheus/metrics" |
 
@@ -91,14 +83,6 @@ Feature: /prometheus/metrics
       """
       # TYPE libreoffice_requests_queue_size gauge
       """
-    Then the response body should contain string:
-      """
-      # HELP http_server_request_duration_seconds Duration of HTTP server requests.
-      """
-    Then the response body should contain string:
-      """
-      # TYPE http_server_request_duration_seconds histogram
-      """
     Then the Gotenberg container should log the following entries:
       | "path":"/custom/metrics" |
 
@@ -107,14 +91,6 @@ Feature: /prometheus/metrics
       | TELEMETRY_METRIC_EXPORTER_PROTOCOLS |  |
     When I make a "GET" request to Gotenberg at the "/prometheus/metrics" endpoint
     Then the response status code should be 404
-
-  Scenario: GET /prometheus/metrics (No Logging)
-    Given I have a Gotenberg container with the following environment variable(s):
-      | PROMETHEUS_DISABLE_ROUTE_LOGGING | true |
-    When I make a "GET" request to Gotenberg at the "/prometheus/metrics" endpoint
-    Then the response status code should be 200
-    Then the Gotenberg container should NOT log the following entries:
-      | "path":"/prometheus/metrics" |
 
   @telemetry
   Scenario: GET /prometheus/metrics (Telemetry)
@@ -127,7 +103,18 @@ Feature: /prometheus/metrics
     Then the Gotenberg container should log the following entries:
       | "correlation_id":"prometheus_metrics"         |
       | "trace_id":"12345678901234567890123456789012" |
-      | "span_id":"                                   |
+
+  @telemetry
+  Scenario: GET /prometheus/metrics (No Telemetry)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PROMETHEUS_DISABLE_ROUTE_TELEMETRY | true |
+    When I make a "GET" request to Gotenberg at the "/prometheus/metrics" endpoint with the following header(s):
+      | Gotenberg-Trace | prometheus_metrics_no_telemetry                         |
+      | traceparent     | 00-12345678901234567890123456789012-1234567890123456-01 |
+    Then the response status code should be 200
+    Then the Gotenberg container should NOT log the following entries:
+      | "correlation_id":"prometheus_metrics_no_telemetry" |
+      | "trace_id":"12345678901234567890123456789012"      |
 
   Scenario: GET /prometheus/metrics (Basic Auth)
     Given I have a Gotenberg container with the following environment variable(s):

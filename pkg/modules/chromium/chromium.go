@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
@@ -16,7 +17,6 @@ import (
 	flag "github.com/spf13/pflag"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
@@ -93,7 +93,7 @@ type Chromium struct {
 	maxConcurrency int64
 	args           browserArguments
 
-	logger     *zap.Logger
+	logger     *slog.Logger
 	browser    browser
 	supervisor gotenberg.ProcessSupervisor
 	engine     gotenberg.PdfEngine
@@ -391,8 +391,8 @@ type ExtraHttpHeader struct {
 
 // Api helps to interact with Chromium for converting HTML documents to PDF.
 type Api interface {
-	Pdf(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error
-	Screenshot(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error
+	Pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error
+	Screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions) error
 }
 
 // Provider is a module interface that exposes a method for creating an [Api]
@@ -479,7 +479,7 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 	}
 
 	// Logger.
-	mod.logger = gotenberg.Logger(mod).Named("browser")
+	mod.logger = gotenberg.Logger(mod).With(slog.String("logger", "browser"))
 
 	// Process.
 	mod.browser = newChromiumBrowser(mod.args)
@@ -576,7 +576,7 @@ func (mod *Chromium) StartupMessage() string {
 func (mod *Chromium) Stop(ctx context.Context) error {
 	// Block until the context is done so that another module may gracefully
 	// stop before we do a shutdown.
-	mod.logger.Debug("wait for the end of grace duration")
+	mod.logger.DebugContext(ctx, "wait for the end of grace duration")
 
 	<-ctx.Done()
 
@@ -672,7 +672,7 @@ func (mod *Chromium) Routes() ([]api.Route, error) {
 }
 
 // Pdf converts a URL to PDF.
-func (mod *Chromium) Pdf(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
+func (mod *Chromium) Pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error {
 	// Note: no error wrapping because it leaks on errors we want to display to
 	// the end user.
 	ctx, span := gotenberg.Tracer().Start(ctx, "Chromium.Pdf")
@@ -689,7 +689,7 @@ func (mod *Chromium) Pdf(ctx context.Context, logger *zap.Logger, url, outputPat
 	return err
 }
 
-func (mod *Chromium) Screenshot(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+func (mod *Chromium) Screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions) error {
 	// Note: no error wrapping because it leaks on errors we want to display to
 	// the end user.
 	ctx, span := gotenberg.Tracer().Start(ctx, "Chromium.Screenshot")

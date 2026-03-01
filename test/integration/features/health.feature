@@ -29,14 +29,6 @@ Feature: /health
     Then the Gotenberg container should log the following entries:
       | "path":"/health" |
 
-  Scenario: GET /health (No Logging)
-    Given I have a Gotenberg container with the following environment variable(s):
-      | API_DISABLE_HEALTH_CHECK_LOGGING | true |
-    When I make a "GET" request to Gotenberg at the "/health" endpoint
-    Then the response status code should be 200
-    Then the Gotenberg container should NOT log the following entries:
-      | "path":"/health" |
-
   @telemetry
   Scenario: GET /health (Telemetry)
     Given I have a default Gotenberg container
@@ -48,7 +40,18 @@ Feature: /health
     Then the Gotenberg container should log the following entries:
       | "correlation_id":"get_health"                 |
       | "trace_id":"12345678901234567890123456789012" |
-      | "span_id":"                                   |
+
+  @telemetry
+  Scenario: GET /health (No Telemetry)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | API_DISABLE_HEALTH_CHECK_ROUTE_TELEMETRY | true |
+    When I make a "GET" request to Gotenberg at the "/health" endpoint with the following header(s):
+      | Gotenberg-Trace | get_health_no_telemetry                                 |
+      | traceparent     | 00-12345678901234567890123456789012-1234567890123456-01 |
+    Then the response status code should be 200
+    Then the Gotenberg container should NOT log the following entries:
+      | "correlation_id":"get_health_no_telemetry"    |
+      | "trace_id":"12345678901234567890123456789012" |
 
   Scenario: GET /health (Basic Auth)
     Given I have a Gotenberg container with the following environment variable(s):
@@ -86,15 +89,18 @@ Feature: /health
     Then the Gotenberg container should log the following entries:
       | "correlation_id":"head_health"                |
       | "trace_id":"12345678901234567890123456789012" |
-      | "span_id":"                                   |
 
-  Scenario: HEAD /health (No Logging)
+  @telemetry
+  Scenario: HEAD /health (No Telemetry)
     Given I have a Gotenberg container with the following environment variable(s):
-      | API_DISABLE_HEALTH_CHECK_LOGGING | true |
-    When I make a "HEAD" request to Gotenberg at the "/health" endpoint
+      | API_DISABLE_HEALTH_CHECK_ROUTE_TELEMETRY | true |
+    When I make a "HEAD" request to Gotenberg at the "/health" endpoint with the following header(s):
+      | Gotenberg-Trace | head_health_no_telemetry                                |
+      | traceparent     | 00-12345678901234567890123456789012-1234567890123456-01 |
     Then the response status code should be 200
     Then the Gotenberg container should NOT log the following entries:
-      | "path":"/health" |
+      | "correlation_id":"head_health_no_telemetry"   |
+      | "trace_id":"12345678901234567890123456789012" |
 
   Scenario: HEAD /health (Basic Auth)
     Given I have a Gotenberg container with the following environment variable(s):

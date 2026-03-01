@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
@@ -15,7 +16,6 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/multierr"
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
@@ -47,7 +47,7 @@ type Api struct {
 	autoStart bool
 	args      libreOfficeArguments
 
-	logger      *zap.Logger
+	logger      *slog.Logger
 	libreOffice libreOffice
 	supervisor  gotenberg.ProcessSupervisor
 }
@@ -189,7 +189,7 @@ func DefaultOptions() Options {
 
 // Uno is an abstraction on top of the Universal Network Objects API.
 type Uno interface {
-	Pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
+	Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error
 	Extensions() []string
 }
 
@@ -243,7 +243,7 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 	}
 
 	// Logger.
-	a.logger = gotenberg.Logger(a).Named("libreoffice")
+	a.logger = gotenberg.Logger(a).With(slog.String("logger", "libreoffice"))
 
 	// Process.
 	a.libreOffice = newLibreOfficeProcess(a.args)
@@ -327,7 +327,7 @@ func (a *Api) StartupMessage() string {
 func (a *Api) Stop(ctx context.Context) error {
 	// Block until the context is done so that another module may gracefully
 	// stop before we do a shutdown.
-	a.logger.Debug("wait for the end of grace duration")
+	a.logger.DebugContext(ctx, "wait for the end of grace duration")
 
 	<-ctx.Done()
 
@@ -406,7 +406,7 @@ func (a *Api) LibreOffice() (Uno, error) {
 }
 
 // Pdf converts a document to PDF.
-func (a *Api) Pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error {
+func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "LibreOffice.Pdf")
 	defer span.End()
 
@@ -420,7 +420,7 @@ func (a *Api) Pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath
 
 	// See https://github.com/gotenberg/gotenberg/issues/639.
 	if errors.Is(err, ErrCoreDumped) {
-		logger.Debug(fmt.Sprintf("got a '%s' error, retry conversion", err))
+		logger.DebugContext(ctx, fmt.Sprintf("got a '%s' error, retry conversion", err))
 		err = a.Pdf(ctx, logger, inputPath, outputPath, options)
 		if err != nil {
 			span.RecordError(err)

@@ -21,9 +21,9 @@ func init() {
 // Prometheus is a module that collects metrics and exposes them via an HTTP
 // route.
 type Prometheus struct {
-	metricsPath         string
-	disableRouteLogging bool
-	disable             bool
+	metricsPath           string
+	disableRouteTelemetry bool
+	disable               bool
 }
 
 // Descriptor returns a [Prometheus]'s module descriptor.
@@ -33,13 +33,15 @@ func (mod *Prometheus) Descriptor() gotenberg.ModuleDescriptor {
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("prometheus", flag.ExitOnError)
 			fs.String("prometheus-metrics-path", "/prometheus/metrics", "Path for Prometheus metrics endpoint")
-			fs.Bool("prometheus-disable-route-logging", false, "Disable the route logging")
+			fs.Bool("prometheus-disable-route-telemetry", false, "Disable the route telemetry")
 
 			// Deprecated flags.
+			fs.Bool("prometheus-disable-route-logging", false, "Disable the route logging")
 			fs.String("prometheus-namespace", "gotenberg", "Set the namespace of modules' metrics")
 			fs.Duration("prometheus-collect-interval", time.Duration(1)*time.Second, "Set the interval for collecting modules' metrics")
 			fs.Bool("prometheus-disable-collect", false, "Disable the collect of metrics")
 			err := errors.Join(
+				fs.MarkDeprecated("prometheus-disable-route-logging", "use prometheus-disable-route-telemetry instead"),
 				fs.MarkDeprecated("prometheus-namespace", "use telemetry-service-name"),
 				fs.MarkDeprecated("prometheus-collect-interval", "this flag is now ignored"),
 				fs.MarkDeprecated("prometheus-disable-collect", "use telemetry-metric-exporter-protocols"),
@@ -58,7 +60,12 @@ func (mod *Prometheus) Descriptor() gotenberg.ModuleDescriptor {
 func (mod *Prometheus) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	mod.metricsPath = flags.MustString("prometheus-metrics-path")
-	mod.disableRouteLogging = flags.MustBool("prometheus-disable-route-logging")
+
+	if flags.MustDeprecatedBool("prometheus-disable-route-logging", "prometheus-disable-route-telemetry") {
+		mod.disableRouteTelemetry = true
+	} else {
+		mod.disableRouteTelemetry = flags.MustBool("prometheus-disable-route-telemetry")
+	}
 
 	protocols := flags.MustStringSlice("telemetry-metric-exporter-protocols")
 	mod.disable = !slices.Contains(protocols, gotenberg.PrometheusTelemetryMetricExporterProtocol)
@@ -74,9 +81,9 @@ func (mod *Prometheus) Routes() ([]api.Route, error) {
 
 	return []api.Route{
 		{
-			Method:         http.MethodGet,
-			Path:           mod.metricsPath,
-			DisableLogging: mod.disableRouteLogging,
+			Method:           http.MethodGet,
+			Path:             mod.metricsPath,
+			DisableTelemetry: mod.disableRouteTelemetry,
 			Handler: echo.WrapHandler(
 				promhttp.HandlerFor(gotenberg.PrometheusRegistry(), promhttp.HandlerOpts{}),
 			),

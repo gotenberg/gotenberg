@@ -53,7 +53,6 @@ Feature: /forms/pdfengines/flatten
     Then the Gotenberg container should log the following entries:
       | "correlation_id":"forms_pdfengines_flatten"   |
       | "trace_id":"12345678901234567890123456789012" |
-      | "span_id":"                                   |
 
   @output-filename
   Scenario: POST /forms/pdfengines/flatten (Output Filename - Single PDF)

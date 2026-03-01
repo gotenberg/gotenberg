@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -13,7 +14,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	semconvutil "github.com/gotenberg/gotenberg/v8/pkg/gotenberg/semconv"
@@ -29,7 +29,7 @@ type client struct {
 	startTime        time.Time
 
 	client *retryablehttp.Client
-	logger *zap.Logger
+	logger *slog.Logger
 }
 
 // send call the webhook either to send the success response or the error response.
@@ -112,7 +112,7 @@ func (c client) send(ctx context.Context, body io.Reader, headers http.Header, e
 	defer func() {
 		err := resp.Body.Close()
 		if err != nil {
-			c.logger.Error(fmt.Sprintf("close response body from '%s': %s", url, err))
+			c.logger.ErrorContext(ctx, fmt.Sprintf("close response body from '%s': %s", url, err))
 		}
 	}()
 
@@ -120,18 +120,18 @@ func (c client) send(ctx context.Context, body io.Reader, headers http.Header, e
 	finishTime := time.Now()
 
 	// Now let's log!
-	fields := make([]zap.Field, 5)
-	fields[0] = zap.String("webhook_url", url)
-	fields[1] = zap.String("method", method)
-	fields[2] = zap.Int64("latency", int64(finishTime.Sub(c.startTime)))
-	fields[3] = zap.String("latency_human", finishTime.Sub(c.startTime).String())
-	fields[4] = zap.Int64("bytes_out", req.ContentLength)
+	fields := make([]any, 5)
+	fields[0] = slog.String("webhook_url", url)
+	fields[1] = slog.String("method", method)
+	fields[2] = slog.Int64("latency", int64(finishTime.Sub(c.startTime)))
+	fields[3] = slog.String("latency_human", finishTime.Sub(c.startTime).String())
+	fields[4] = slog.Int64("bytes_out", req.ContentLength)
 
 	if errored {
-		c.logger.Warn("request to webhook with error details handled", fields...)
+		c.logger.WarnContext(ctx, "request to webhook with error details handled", fields...)
 		return nil
 	}
 
-	c.logger.Info("request to webhook handled", fields...)
+	c.logger.InfoContext(ctx, "request to webhook handled", fields...)
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,7 +13,6 @@ import (
 
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
@@ -81,7 +81,7 @@ func (engine *PdfTk) Debug() map[string]any {
 }
 
 // Split splits a given PDF file.
-func (engine *PdfTk) Split(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+func (engine *PdfTk) Split(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
 	ctx, span := gotenberg.Tracer().Start(ctx, "PdfTk.Split", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -124,7 +124,7 @@ func (engine *PdfTk) Split(ctx context.Context, logger *zap.Logger, mode gotenbe
 }
 
 // Merge combines multiple PDFs into a single PDF.
-func (engine *PdfTk) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+func (engine *PdfTk) Merge(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "PdfTk.Merge", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -154,7 +154,7 @@ func (engine *PdfTk) Merge(ctx context.Context, logger *zap.Logger, inputPaths [
 }
 
 // Flatten is not available in this implementation.
-func (engine *PdfTk) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
+func (engine *PdfTk) Flatten(ctx context.Context, logger *slog.Logger, inputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "PdfTk.Flatten", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -168,7 +168,7 @@ func (engine *PdfTk) Flatten(ctx context.Context, logger *zap.Logger, inputPath 
 }
 
 // Convert is not available in this implementation.
-func (engine *PdfTk) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+func (engine *PdfTk) Convert(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "PdfTk.Convert", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -182,7 +182,7 @@ func (engine *PdfTk) Convert(ctx context.Context, logger *zap.Logger, formats go
 }
 
 // ReadMetadata is not available in this implementation.
-func (engine *PdfTk) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
+func (engine *PdfTk) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 	_, span := gotenberg.Tracer().Start(ctx, "PdfTk.ReadMetadata", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -196,7 +196,7 @@ func (engine *PdfTk) ReadMetadata(ctx context.Context, logger *zap.Logger, input
 }
 
 // WriteMetadata is not available in this implementation.
-func (engine *PdfTk) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
+func (engine *PdfTk) WriteMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "PdfTk.WriteMetadata", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -210,7 +210,7 @@ func (engine *PdfTk) WriteMetadata(ctx context.Context, logger *zap.Logger, meta
 }
 
 // Encrypt adds password protection to a PDF file using PDFtk.
-func (engine *PdfTk) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
+func (engine *PdfTk) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "PdfTk.Encrypt", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -266,7 +266,7 @@ func (engine *PdfTk) Encrypt(ctx context.Context, logger *zap.Logger, inputPath,
 }
 
 // EmbedFiles is not available in this implementation.
-func (engine *PdfTk) EmbedFiles(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error {
+func (engine *PdfTk) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "PdfTk.EmbedFiles", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 

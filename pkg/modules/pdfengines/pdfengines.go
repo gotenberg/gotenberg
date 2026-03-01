@@ -102,7 +102,7 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 	// Example in the case of deprecated module name.
 	//for i, name := range defaultNames {
 	//	if name == "unoconv-pdfengine" || name == "uno-pdfengine" {
-	//		logger.Warn(fmt.Sprintf("%s is deprecated; prefer libreoffice-pdfengine instead", name))
+	//		logger.WarnContext(ctx, fmt.Sprintf("%s is deprecated; prefer libreoffice-pdfengine instead", name))
 	//		mod.defaultNames[i] = "libreoffice-pdfengine"
 	//	}
 	//}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"sync"
@@ -18,15 +19,14 @@ import (
 	"github.com/chromedp/chromedp"
 	"github.com/dlclark/regexp2"
 	"github.com/shirou/gopsutil/v4/process"
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 type browser interface {
 	gotenberg.Process
-	pdf(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error
-	screenshot(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error
+	pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error
+	screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions) error
 }
 
 type browserArguments struct {
@@ -72,12 +72,15 @@ func newChromiumBrowser(arguments browserArguments) browser {
 	return b
 }
 
-func (b *chromiumBrowser) Start(logger *zap.Logger) error {
+func (b *chromiumBrowser) Start(logger *slog.Logger) error {
 	if b.isStarted.Load() {
 		return errors.New("browser is already started")
 	}
 
-	debug := &debugLogger{logger: logger}
+	debug := &debugLogger{
+		ctx:    b.initialCtx,
+		logger: logger,
+	}
 	b.userProfileDirPath = b.fs.NewDirPath()
 
 	// See https://github.com/gotenberg/gotenberg/issues/1293.
@@ -164,7 +167,7 @@ func (b *chromiumBrowser) Start(logger *zap.Logger) error {
 	return nil
 }
 
-func (b *chromiumBrowser) Stop(logger *zap.Logger) error {
+func (b *chromiumBrowser) Stop(logger *slog.Logger) error {
 	if !b.isStarted.Load() {
 		// No big deal? Like calling cancel twice.
 		return nil
@@ -181,7 +184,7 @@ func (b *chromiumBrowser) Stop(logger *zap.Logger) error {
 		// Clean up stuck processes.
 		ps, err := process.Processes()
 		if err != nil {
-			logger.Error(fmt.Sprintf("list processes: %v", err))
+			logger.ErrorContext(context.Background(), fmt.Sprintf("list processes: %v", err))
 		} else {
 			for _, p := range ps {
 				func() {
@@ -199,9 +202,9 @@ func (b *chromiumBrowser) Stop(logger *zap.Logger) error {
 
 					err = p.KillWithContext(killCtx)
 					if err != nil {
-						logger.Error(fmt.Sprintf("kill process: %v", err))
+						logger.ErrorContext(killCtx, fmt.Sprintf("kill process: %v", err))
 					} else {
-						logger.Debug(fmt.Sprintf("Chromium process %d killed", p.Pid))
+						logger.DebugContext(killCtx, fmt.Sprintf("Chromium process %d killed", p.Pid))
 					}
 				}()
 			}
@@ -215,15 +218,15 @@ func (b *chromiumBrowser) Stop(logger *zap.Logger) error {
 
 			err = os.RemoveAll(userProfileDirPath)
 			if err != nil {
-				logger.Error(fmt.Sprintf("remove Chromium's user profile directory: %s", err))
+				logger.ErrorContext(context.Background(), fmt.Sprintf("remove Chromium's user profile directory: %s", err))
 			} else {
-				logger.Debug(fmt.Sprintf("'%s' Chromium's user profile directory removed", userProfileDirPath))
+				logger.DebugContext(context.Background(), fmt.Sprintf("'%s' Chromium's user profile directory removed", userProfileDirPath))
 			}
 
 			// Also, remove Chromium-specific files in the temporary directory.
-			err = gotenberg.GarbageCollect(logger, os.TempDir(), []string{".org.chromium.Chromium", ".com.google.Chrome"}, expirationTime)
+			err = gotenberg.GarbageCollect(context.Background(), logger, os.TempDir(), []string{".org.chromium.Chromium", ".com.google.Chrome"}, expirationTime)
 			if err != nil {
-				logger.Error(err.Error())
+				logger.ErrorContext(context.Background(), err.Error())
 			}
 		}()
 	}(copyUserProfileDirPath, expirationTime)
@@ -239,7 +242,7 @@ func (b *chromiumBrowser) Stop(logger *zap.Logger) error {
 	return nil
 }
 
-func (b *chromiumBrowser) Healthy(logger *zap.Logger) bool {
+func (b *chromiumBrowser) Healthy(logger *slog.Logger) bool {
 	// Good to know: the supervisor does not call this method if no first start
 	// or if the process is restarting.
 
@@ -266,14 +269,14 @@ func (b *chromiumBrowser) Healthy(logger *zap.Logger) bool {
 		return err
 	}))
 	if err != nil {
-		logger.Error(fmt.Sprintf("browser health check failed: %s", err))
+		logger.ErrorContext(ctx, fmt.Sprintf("browser health check failed: %s", err))
 		return false
 	}
 
 	return true
 }
 
-func (b *chromiumBrowser) pdf(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
+func (b *chromiumBrowser) pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error {
 	// Note: no error wrapping because it leaks on errors we want to display to
 	// the end user.
 	return b.do(ctx, logger, url, options.Options, chromedp.Tasks{
@@ -299,7 +302,7 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *zap.Logger, url, outp
 	})
 }
 
-func (b *chromiumBrowser) screenshot(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+func (b *chromiumBrowser) screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions) error {
 	// Note: no error wrapping because it leaks on errors we want to display to
 	// the end user.
 	return b.do(ctx, logger, url, options.Options, chromedp.Tasks{
@@ -326,7 +329,7 @@ func (b *chromiumBrowser) screenshot(ctx context.Context, logger *zap.Logger, ur
 	})
 }
 
-func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string, options Options, tasks chromedp.Tasks) error {
+func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url string, options Options, tasks chromedp.Tasks) error {
 	if !b.isStarted.Load() {
 		return errors.New("browser not started, cannot handle tasks")
 	}

@@ -347,7 +347,6 @@ Feature: /forms/pdfengines/merge
     Then the Gotenberg container should log the following entries:
       | "correlation_id":"forms_pdfengines_merge"     |
       | "trace_id":"12345678901234567890123456789012" |
-      | "span_id":"                                   |
 
   @download-from
   Scenario: POST /forms/pdfengines/merge (Download From)

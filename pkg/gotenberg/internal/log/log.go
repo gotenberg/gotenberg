@@ -1,16 +1,14 @@
 package log
 
 import (
+	"log/slog"
 	"sync"
-
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 // InitLogger initializes the global logger.
-func InitLogger(level zapcore.Level, fieldsPrefix string, cores ...zapcore.Core) error {
+func InitLogger(handler slog.Handler) {
 	if logger != nil {
-		return nil
+		return
 	}
 
 	mu.Lock()
@@ -18,32 +16,22 @@ func InitLogger(level zapcore.Level, fieldsPrefix string, cores ...zapcore.Core)
 
 	// Double check: ensure it wasn't initialized while we waited for the lock.
 	if logger != nil {
-		return nil
+		return
 	}
 
-	for i, core := range cores {
-		_, ok := core.(rootCore)
-		if !ok {
-			cores[i] = rootCore{Core: core, level: level, fieldsPrefix: fieldsPrefix}
-		}
-	}
-
-	teeCore := zapcore.NewTee(cores...)
-	logger = zap.New(teeCore)
-
-	return nil
+	logger = slog.New(handler)
 }
 
 // Logger returns the global logger.
-func Logger() *zap.Logger {
+func Logger() *slog.Logger {
 	mu.Lock()
 	defer mu.Unlock()
 
 	return logger
 }
 
-// logger is Singleton so that we instantiate our [zap.Logger] only once.
+// logger is Singleton so that we instantiate our [slog.Logger] only once.
 var (
-	logger *zap.Logger
+	logger *slog.Logger
 	mu     sync.Mutex
 )

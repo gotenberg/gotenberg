@@ -5,6 +5,8 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -17,7 +19,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	semconvutil "github.com/gotenberg/gotenberg/v8/pkg/gotenberg/semconv"
@@ -84,14 +85,14 @@ func ParseError(err error) (int, string) {
 // returns a response as "text/plain; charset=UTF-8".
 func httpErrorHandler() echo.HTTPErrorHandler {
 	return func(err error, c echo.Context) {
-		logger := c.Get("logger").(*zap.Logger)
+		logger := c.Get("logger").(*slog.Logger)
 		status, message := ParseError(err)
 
 		c.Response().Header().Add(echo.HeaderContentType, echo.MIMETextPlainCharsetUTF8)
 
 		err = c.String(status, message)
 		if err != nil {
-			logger.Error(fmt.Sprintf("send error response: %s", err.Error()))
+			logger.ErrorContext(c.Request().Context(), fmt.Sprintf("send error response: %s", err.Error()))
 		}
 	}
 }
@@ -159,7 +160,7 @@ func outputFilenameMiddleware() echo.MiddlewareFunc {
 //
 //	correlationIdHeader := c.Get("correlationIdHeader").(string)
 //	correlationId := c.Get("correlationId").(string)
-func telemetryMiddleware(logger *zap.Logger, serverName, correlationIdHeader string, disableLoggingForPaths []string) echo.MiddlewareFunc {
+func telemetryMiddleware(logger *slog.Logger, serverName, correlationIdHeader string, disableTelemetryForPaths []string) echo.MiddlewareFunc {
 	meter := gotenberg.Meter()
 	semconvSrv := semconvutil.NewHTTPServer(meter)
 
@@ -185,6 +186,26 @@ func telemetryMiddleware(logger *zap.Logger, serverName, correlationIdHeader str
 				return path
 			}()
 
+			// Evaluate if we should skip telemetry for this path.
+			skipTelemetry := false
+			for _, path := range disableTelemetryForPaths {
+				URI := fmt.Sprintf("%s%s", rootPath, path)
+				if c.Request().RequestURI == URI {
+					skipTelemetry = true
+					break
+				}
+			}
+
+			if skipTelemetry {
+				c.Set("logger", slog.New(slog.NewJSONHandler(io.Discard, nil)))
+
+				err := next(c)
+				if err != nil {
+					c.Error(err)
+				}
+				return nil
+			}
+
 			correlationId := request.Header.Get(correlationIdHeader)
 			if correlationId == "" {
 				correlationId = uuid.NewString()
@@ -193,6 +214,7 @@ func telemetryMiddleware(logger *zap.Logger, serverName, correlationIdHeader str
 			c.Set("correlationId", correlationId)
 
 			ctx := otel.GetTextMapPropagator().Extract(savedCtx, propagation.HeaderCarrier(request.Header))
+
 			rAttr := semconvSrv.Route(routePath)
 			opts := []trace.SpanStartOption{
 				trace.WithAttributes(
@@ -208,32 +230,21 @@ func telemetryMiddleware(logger *zap.Logger, serverName, correlationIdHeader str
 			defer span.End()
 
 			otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(c.Response().Header()))
+
 			c.Response().Header().Set(correlationIdHeader, correlationId)
 			c.SetRequest(c.Request().WithContext(ctx))
 
-			spanCtx := span.SpanContext()
-
-			var traceFields []zap.Field
-			traceFields = append(traceFields, zap.String("correlation_id", correlationId))
-			if spanCtx.IsValid() {
-				traceFields = append(
-					traceFields,
-					zap.String("trace_id", spanCtx.TraceID().String()),
-					zap.String("span_id", spanCtx.SpanID().String()),
-				)
-			}
-
 			appLogger := logger.
-				With(zap.String("log_type", "application")).
-				With(traceFields...)
+				With(slog.String("log_type", "application")).
+				With(slog.String("correlation_id", correlationId))
 
-			c.Set("logger", appLogger.Named(func() string {
-				return strings.ReplaceAll(
-					strings.ReplaceAll(c.Request().URL.Path, rootPath, ""),
-					"/",
-					"",
-				)
-			}()))
+			loggerName := strings.ReplaceAll(
+				strings.ReplaceAll(c.Request().URL.Path, rootPath, ""),
+				"/",
+				"",
+			)
+
+			c.Set("logger", appLogger.With(slog.String("logger", loggerName)))
 
 			// Call the next middleware in the chain.
 			err := next(c)
@@ -254,41 +265,30 @@ func telemetryMiddleware(logger *zap.Logger, serverName, correlationIdHeader str
 				WriteBytes: c.Response().Size,
 			})...)
 
-			// Record the server-side attributes.
+			accessLogger := logger.
+				With(slog.String("log_type", "access")).
+				With(slog.String("correlation_id", correlationId)).
+				With(slog.String("remote_ip", c.RealIP())).
+				With(slog.String("host", c.Request().Host)).
+				With(slog.String("uri", c.Request().RequestURI)).
+				With(slog.String("method", c.Request().Method)).
+				With(slog.String("path", routePath)).
+				With(slog.String("referer", c.Request().Referer())).
+				With(slog.String("user_agent", c.Request().UserAgent())).
+				With(slog.Int("status", c.Response().Status)).
+				With(slog.Int64("latency", int64(finishTime.Sub(startTime)))).
+				With(slog.String("latency_human", finishTime.Sub(startTime).String())).
+				With(slog.Int64("bytes_in", c.Request().ContentLength)).
+				With(slog.Int64("bytes_out", c.Response().Size))
+
+			if err != nil {
+				accessLogger.ErrorContext(ctx, err.Error())
+			} else {
+				accessLogger.InfoContext(ctx, "request handled")
+			}
+
 			additionalAttributes := []attribute.KeyValue{
 				semconvSrv.Route(routePath),
-			}
-
-			accessLogger := logger.
-				With(zap.String("log_type", "access")).
-				With(traceFields...)
-
-			for _, path := range disableLoggingForPaths {
-				URI := fmt.Sprintf("%s%s", rootPath, path)
-
-				if c.Request().RequestURI == URI {
-					return nil
-				}
-			}
-
-			fields := []zap.Field{
-				zap.String("remote_ip", c.RealIP()),
-				zap.String("host", c.Request().Host),
-				zap.String("uri", c.Request().RequestURI),
-				zap.String("method", c.Request().Method),
-				zap.String("path", routePath),
-				zap.String("referer", c.Request().Referer()),
-				zap.String("user_agent", c.Request().UserAgent()),
-				zap.Int("status", c.Response().Status),
-				zap.Int64("latency", int64(finishTime.Sub(startTime))),
-				zap.String("latency_human", finishTime.Sub(startTime).String()),
-				zap.Int64("bytes_in", c.Request().ContentLength),
-				zap.Int64("bytes_out", c.Response().Size),
-			}
-			if err != nil {
-				accessLogger.Error(err.Error(), fields...)
-			} else {
-				accessLogger.Info("request handled", fields...)
 			}
 
 			semconvSrv.RecordMetrics(ctx, semconvutil.ServerMetricData{
@@ -331,7 +331,7 @@ func basicAuthMiddleware(username, password string) echo.MiddlewareFunc {
 func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			logger := c.Get("logger").(*zap.Logger)
+			logger := c.Get("logger").(*slog.Logger)
 
 			// We create a context with a timeout so that underlying processes are
 			// able to stop early and correctly handle a timeout scenario.
@@ -389,7 +389,7 @@ func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, bodyLimi
 func hardTimeoutMiddleware(hardTimeout time.Duration) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			logger := c.Get("logger").(*zap.Logger)
+			logger := c.Get("logger").(*slog.Logger)
 
 			// Define a hard timeout if the route handler fails to timeout as
 			// expected.
@@ -406,7 +406,7 @@ func hardTimeoutMiddleware(hardTimeout time.Duration) echo.MiddlewareFunc {
 				// This deferred function allows us to recover from such scenarios.
 				defer func() {
 					if r := recover(); r != nil {
-						logger.Debug(fmt.Sprintf("recovering from a panic (possible cause being a hard timeout): %s", r))
+						logger.DebugContext(hardTimeoutCtx, fmt.Sprintf("recovering from a panic (possible cause being a hard timeout): %s", r))
 					}
 				}()
 
@@ -418,7 +418,7 @@ func hardTimeoutMiddleware(hardTimeout time.Duration) echo.MiddlewareFunc {
 			case err := <-errChan:
 				return err
 			case <-hardTimeoutCtx.Done():
-				logger.Debug("hard timeout as the route handler did not timeout as expected")
+				logger.DebugContext(hardTimeoutCtx, "hard timeout as the route handler did not timeout as expected")
 
 				return fmt.Errorf("hard timeout: %w", hardTimeoutCtx.Err())
 			}

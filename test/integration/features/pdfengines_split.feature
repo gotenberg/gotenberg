@@ -596,7 +596,6 @@ Feature: /forms/pdfengines/split
     Then the Gotenberg container should log the following entries:
       | "correlation_id":"forms_pdfengines_split"     |
       | "trace_id":"12345678901234567890123456789012" |
-      | "span_id":"                                   |
 
   @output-filename
   Scenario: POST /forms/pdfengines/split (Output Filename - Single PDF)

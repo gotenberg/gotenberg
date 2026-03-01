@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,7 +14,6 @@ import (
 
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
@@ -85,7 +85,7 @@ func (engine *PdfCpu) Debug() map[string]any {
 }
 
 // Merge combines multiple PDFs into a single PDF.
-func (engine *PdfCpu) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+func (engine *PdfCpu) Merge(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "PdfCpu.Merge", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -115,7 +115,7 @@ func (engine *PdfCpu) Merge(ctx context.Context, logger *zap.Logger, inputPaths 
 }
 
 // Split splits a given PDF file.
-func (engine *PdfCpu) Split(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+func (engine *PdfCpu) Split(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
 	ctx, span := gotenberg.Tracer().Start(ctx, "PdfCpu.Split", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -180,7 +180,7 @@ func (engine *PdfCpu) Split(ctx context.Context, logger *zap.Logger, mode gotenb
 }
 
 // Flatten is not available in this implementation.
-func (engine *PdfCpu) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
+func (engine *PdfCpu) Flatten(ctx context.Context, logger *slog.Logger, inputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "PdfCpu.Flatten", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -194,7 +194,7 @@ func (engine *PdfCpu) Flatten(ctx context.Context, logger *zap.Logger, inputPath
 }
 
 // Convert is not available in this implementation.
-func (engine *PdfCpu) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+func (engine *PdfCpu) Convert(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "PdfCpu.Convert", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -208,7 +208,7 @@ func (engine *PdfCpu) Convert(ctx context.Context, logger *zap.Logger, formats g
 }
 
 // ReadMetadata is not available in this implementation.
-func (engine *PdfCpu) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
+func (engine *PdfCpu) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 	_, span := gotenberg.Tracer().Start(ctx, "PdfCpu.ReadMetadata", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -222,7 +222,7 @@ func (engine *PdfCpu) ReadMetadata(ctx context.Context, logger *zap.Logger, inpu
 }
 
 // WriteMetadata is not available in this implementation.
-func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
+func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "PdfCpu.WriteMetadata", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -237,7 +237,7 @@ func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *zap.Logger, met
 
 // EmbedFiles embeds files into a PDF. All files are embedded as file attachments
 // without modifying the main PDF content.
-func (engine *PdfCpu) EmbedFiles(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error {
+func (engine *PdfCpu) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "PdfCpu.EmbedFiles", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 
@@ -245,7 +245,7 @@ func (engine *PdfCpu) EmbedFiles(ctx context.Context, logger *zap.Logger, filePa
 		return nil
 	}
 
-	logger.Debug(fmt.Sprintf("embedding %d file(s) to %s: %v", len(filePaths), inputPath, filePaths))
+	logger.DebugContext(ctx, fmt.Sprintf("embedding %d file(s) to %s: %v", len(filePaths), inputPath, filePaths))
 
 	args := make([]string, 0, 3+len(filePaths))
 	args = append(args, "attachments", "add", inputPath)
@@ -271,7 +271,7 @@ func (engine *PdfCpu) EmbedFiles(ctx context.Context, logger *zap.Logger, filePa
 }
 
 // Encrypt adds password protection to a PDF file using pdfcpu.
-func (engine *PdfCpu) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
+func (engine *PdfCpu) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "PdfCpu.Encrypt", trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
 

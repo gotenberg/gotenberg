@@ -145,7 +145,6 @@ Feature: /forms/pdfengines/{write|read}
     Then the Gotenberg container should log the following entries:
       | "correlation_id":"forms_pdfengines_metadata_write" |
       | "trace_id":"12345678901234567890123456789012"      |
-      | "span_id":"                                        |
 
   @telemetry
   Scenario: POST /forms/pdfengines/metadata/read (Telemetry)
@@ -160,7 +159,6 @@ Feature: /forms/pdfengines/{write|read}
     Then the Gotenberg container should log the following entries:
       | "correlation_id":"forms_pdfengines_metadata_read" |
       | "trace_id":"12345678901234567890123456789012"     |
-      | "span_id":"                                       |
 
   @output-filename
   Scenario: POST /forms/pdfengines/metadata/write (Output Filename - Single PDF)
