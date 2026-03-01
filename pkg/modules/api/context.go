@@ -261,7 +261,7 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 					RetryMax:     downloadFromCfg.maxRetry,
 					RetryWaitMin: time.Duration(1) * time.Second,
 					RetryWaitMax: time.Until(deadline),
-					Logger:       gotenberg.NewLeveledLogger(logger),
+					Logger:       gotenberg.NewLeveledLogger(logger).WithContext(ctx),
 					CheckRetry:   retryablehttp.DefaultRetryPolicy,
 					Backoff:      retryablehttp.DefaultBackoff,
 				}
