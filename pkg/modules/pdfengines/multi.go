@@ -1,3 +1,4 @@
+//nolint:dupl
 package pdfengines
 
 import (
@@ -6,6 +7,8 @@ import (
 	"log/slog"
 	"sync"
 
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/multierr"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
@@ -47,6 +50,9 @@ func newMultiPdfEngines(
 // Merge combines multiple PDF files into a single document using the first
 // available engine that supports PDF merging.
 func (multi *multiPdfEngines) Merge(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "multiPdfEngines.Merge", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var err error
 	errChan := make(chan error, 1)
 
@@ -66,7 +72,10 @@ func (multi *multiPdfEngines) Merge(ctx context.Context, logger *slog.Logger, in
 		}
 	}
 
-	return fmt.Errorf("merge PDFs with multi PDF engines: %w", err)
+	err = fmt.Errorf("merge PDFs with multi PDF engines: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return err
 }
 
 type splitResult struct {
@@ -77,6 +86,9 @@ type splitResult struct {
 // Split divides the PDF into separate pages using the first available engine
 // that supports PDF splitting.
 func (multi *multiPdfEngines) Split(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+	ctx, span := gotenberg.Tracer().Start(ctx, "multiPdfEngines.Split", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var err error
 	var mu sync.Mutex // to safely append errors.
 
@@ -102,12 +114,18 @@ func (multi *multiPdfEngines) Split(ctx context.Context, logger *slog.Logger, mo
 		}
 	}
 
-	return nil, fmt.Errorf("split PDF with multi PDF engines: %w", err)
+	err = fmt.Errorf("split PDF with multi PDF engines: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return nil, err
 }
 
 // Flatten merges existing annotation appearances with page content using the
 // first available engine that supports flattening.
 func (multi *multiPdfEngines) Flatten(ctx context.Context, logger *slog.Logger, inputPath string) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "multiPdfEngines.Flatten", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var err error
 	errChan := make(chan error, 1)
 
@@ -127,12 +145,18 @@ func (multi *multiPdfEngines) Flatten(ctx context.Context, logger *slog.Logger, 
 		}
 	}
 
-	return fmt.Errorf("flatten PDF with multi PDF engines: %w", err)
+	err = fmt.Errorf("flatten PDF with multi PDF engines: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return err
 }
 
 // Convert transforms the given PDF to a specific PDF format using the first
 // available engine that supports PDF conversion.
 func (multi *multiPdfEngines) Convert(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "multiPdfEngines.Convert", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var err error
 	errChan := make(chan error, 1)
 
@@ -152,7 +176,10 @@ func (multi *multiPdfEngines) Convert(ctx context.Context, logger *slog.Logger, 
 		}
 	}
 
-	return fmt.Errorf("convert PDF to '%+v' with multi PDF engines: %w", formats, err)
+	err = fmt.Errorf("convert PDF to '%+v' with multi PDF engines: %w", formats, err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return err
 }
 
 type readMetadataResult struct {
@@ -163,6 +190,9 @@ type readMetadataResult struct {
 // ReadMetadata extracts metadata from a PDF file using the first available
 // engine that supports metadata reading.
 func (multi *multiPdfEngines) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
+	ctx, span := gotenberg.Tracer().Start(ctx, "multiPdfEngines.ReadMetadata", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var err error
 	var mu sync.Mutex // to safely append errors.
 
@@ -188,12 +218,18 @@ func (multi *multiPdfEngines) ReadMetadata(ctx context.Context, logger *slog.Log
 		}
 	}
 
-	return nil, fmt.Errorf("read PDF metadata with multi PDF engines: %w", err)
+	err = fmt.Errorf("read PDF metadata with multi PDF engines: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return nil, err
 }
 
 // WriteMetadata embeds metadata into a PDF file using the first available
 // engine that supports metadata writing.
 func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "multiPdfEngines.WriteMetadata", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var err error
 	errChan := make(chan error, 1)
 
@@ -213,12 +249,18 @@ func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *slog.Lo
 		}
 	}
 
-	return fmt.Errorf("write PDF metadata with multi PDF engines: %w", err)
+	err = fmt.Errorf("write PDF metadata with multi PDF engines: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return err
 }
 
 // Encrypt adds password protection to a PDF file using the first available
 // engine that supports password protection.
 func (multi *multiPdfEngines) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "multiPdfEngines.Encrypt", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var err error
 	errChan := make(chan error, 1)
 
@@ -238,12 +280,18 @@ func (multi *multiPdfEngines) Encrypt(ctx context.Context, logger *slog.Logger, 
 		}
 	}
 
-	return fmt.Errorf("encrypt PDF using multi PDF engines: %w", err)
+	err = fmt.Errorf("encrypt PDF using multi PDF engines: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return err
 }
 
 // EmbedFiles embeds files into a PDF using the first available
 // engine that supports file embedding.
 func (multi *multiPdfEngines) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "multiPdfEngines.EmbedFiles", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var err error
 	errChan := make(chan error, 1)
 
@@ -263,7 +311,10 @@ func (multi *multiPdfEngines) EmbedFiles(ctx context.Context, logger *slog.Logge
 		}
 	}
 
-	return fmt.Errorf("embed files into PDF using multi PDF engines: %w", err)
+	err = fmt.Errorf("embed files into PDF using multi PDF engines: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return err
 }
 
 // Interface guards.
