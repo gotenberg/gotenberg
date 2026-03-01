@@ -12,6 +12,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
@@ -330,14 +335,35 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *slog.Logger, input
 
 	args = append(args, "--output", outputPath, inputPath)
 
-	cmd, err := gotenberg.CommandContext(ctx, logger, p.arguments.unoBinPath, args...)
+	p.cfgMu.RLock()
+	clientCtx, clientSpan := gotenberg.Tracer().Start(ctx, "uno.execute",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			semconv.ServerAddress("127.0.0.1"),
+			semconv.ServerPort(p.socketPort),
+			semconv.ServicePeerName("libreoffice"),
+			// Legacy attribute for older APMs (Datadog, Jaeger) to draw the
+			// dependency graph.
+			attribute.String("peer.service", "libreoffice"),
+		),
+	)
+	p.cfgMu.RUnlock()
+
+	cmd, err := gotenberg.CommandContext(clientCtx, logger, p.arguments.unoBinPath, args...)
 	if err != nil {
 		return fmt.Errorf("create uno command: %w", err)
 	}
 
-	logger.DebugContext(ctx, fmt.Sprintf("print to PDF with: %+v", options))
+	logger.DebugContext(clientCtx, fmt.Sprintf("print to PDF with: %+v", options))
 
 	exitCode, err := cmd.Exec()
+	if err != nil {
+		clientSpan.RecordError(err)
+		clientSpan.SetStatus(codes.Error, err.Error())
+	}
+
+	clientSpan.End()
+
 	if err == nil {
 		return nil
 	}
