@@ -19,6 +19,10 @@ import (
 	"github.com/chromedp/chromedp"
 	"github.com/dlclark/regexp2"
 	"github.com/shirou/gopsutil/v4/process"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
@@ -415,7 +419,26 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 		resourceLoadingFailedMu: &resourceLoadingFailedMu,
 	})
 
-	err = chromedp.Run(taskCtx, tasks...)
+	clientCtx, clientSpan := gotenberg.Tracer().Start(taskCtx, "cdp.execute",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			semconv.ServerAddress("127.0.0.1"),
+			semconv.ServicePeerName("chromium"),
+			semconv.RPCSystemNameKey.String("cdp"),
+			// Legacy attribute for older APMs (Datadog, Jaeger) to draw the
+			// dependency graph.
+			attribute.String("peer.service", "chromium"),
+		),
+	)
+
+	err = chromedp.Run(clientCtx, tasks...)
+	if err != nil {
+		clientSpan.RecordError(err)
+		clientSpan.SetStatus(codes.Error, err.Error())
+	}
+
+	clientSpan.End()
+
 	if err != nil {
 		errMessage := err.Error()
 
