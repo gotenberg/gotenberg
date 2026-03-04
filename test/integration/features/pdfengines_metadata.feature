@@ -1,7 +1,7 @@
 @pdfengines
 @pdfengines-metadata
 @metadata
-Feature: /forms/pdfengines/{write|read}
+Feature: /forms/pdfengines/metadata/{write|read}
 
   Scenario: POST /forms/pdfengines/metadata/{write|read} (Single PDF)
     Given I have a default Gotenberg container

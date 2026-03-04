@@ -195,6 +195,8 @@ NO_CONCURRENCY=false
 # metadata
 # pdfengines-split
 # split
+# pdfengines-bookmarks
+# bookmarks
 # prometheus-metrics
 # root
 # version

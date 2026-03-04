@@ -1,6 +1,7 @@
 package pdfcpu
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -191,36 +192,58 @@ func (engine *PdfCpu) ReadBookmarks(ctx context.Context, logger *zap.Logger, inp
 		return nil, fmt.Errorf("create command: %w", err)
 	}
 
-	_, err = cmd.Exec()
-	if err != nil {
-		// pdfcpu returns an error if there are no bookmarks.
-		// We should check if the error is "no bookmarks available".
-		// For now, we assume an error means no bookmarks or a real error.
-		// However, let's try to be a bit more robust if possible.
-		// If the file does not exist, it's likely there were no bookmarks.
-		_, statErr := os.Stat(tmpPath)
-		if os.IsNotExist(statErr) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("read bookmarks with pdfcpu: %w", err)
-	}
-
 	defer func() {
 		err := os.Remove(tmpPath)
-		if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			logger.Error(fmt.Sprintf("remove temporary bookmarks JSON file: %v", err))
 		}
 	}()
 
+	_, cmdErr := cmd.Exec()
+
+	// Check file existence and size.
+	info, statErr := os.Stat(tmpPath)
+
+	if cmdErr != nil {
+		// If the file wasn't created, or it was created but is 0 bytes,
+		// it means pdfcpu had no bookmarks to write.
+		if os.IsNotExist(statErr) || (statErr == nil && info.Size() == 0) {
+			return make([]gotenberg.Bookmark, 0), nil
+		}
+
+		// Fallback: Check the error string just in case pdfcpu failed without
+		// touching the file.
+		if strings.Contains(strings.ToLower(cmdErr.Error()), "no bookmarks") {
+			return make([]gotenberg.Bookmark, 0), nil
+		}
+		return nil, fmt.Errorf("read bookmarks with pdfcpu: %w", cmdErr)
+	}
+
+	// If cmd succeeded, but output a 0-byte file anyway.
+	if info != nil && info.Size() == 0 {
+		return make([]gotenberg.Bookmark, 0), nil
+	}
+
+	// Read the file content.
 	jsonBytes, err := os.ReadFile(tmpPath)
 	if err != nil {
 		return nil, fmt.Errorf("read temporary bookmarks JSON file: %w", err)
+	}
+
+	// Check if the content is just empty whitespace.
+	if len(bytes.TrimSpace(jsonBytes)) == 0 {
+		return make([]gotenberg.Bookmark, 0), nil
 	}
 
 	var data pdfcpuBookmarks
 	err = json.Unmarshal(jsonBytes, &data)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshal bookmarks: %w", err)
+	}
+
+	// Safety check: Does the parsed JSON actually contain bookmarks?
+	if len(data.Bookmarks) == 0 {
+		return make([]gotenberg.Bookmark, 0), nil
 	}
 
 	var mapBookmarks func(bookmarks []pdfcpuBookmark) []gotenberg.Bookmark

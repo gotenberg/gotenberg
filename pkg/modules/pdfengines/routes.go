@@ -322,6 +322,7 @@ func WriteBookmarksStub(ctx *api.Context, engine gotenberg.PdfEngine, bookmarks 
 			}
 		}
 	default:
+		// Should not happen.
 		return fmt.Errorf("bookmarks type '%T' not supported", bookmarks)
 	}
 
