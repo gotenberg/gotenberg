@@ -96,6 +96,11 @@ func (engine *LibreOfficePdfEngine) WriteBookmarks(ctx context.Context, logger *
 	return fmt.Errorf("write PDF bookmarks with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// ReadBookmarks is not available in this implementation.
+func (engine *LibreOfficePdfEngine) ReadBookmarks(ctx context.Context, logger *zap.Logger, inputPath string) ([]gotenberg.Bookmark, error) {
+	return nil, fmt.Errorf("read PDF bookmarks with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Encrypt is not available in this implementation.
 func (engine *LibreOfficePdfEngine) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
 	return fmt.Errorf("encrypt PDF using LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)

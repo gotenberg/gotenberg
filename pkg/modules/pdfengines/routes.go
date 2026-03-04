@@ -708,6 +708,48 @@ func writeMetadataRoute(engine gotenberg.PdfEngine) api.Route {
 	}
 }
 
+// readBookmarksRoute returns an [api.Route] which returns the bookmarks of PDFs.
+func readBookmarksRoute(engine gotenberg.PdfEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/bookmarks/read",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			var inputPaths []string
+			err := ctx.FormData().
+				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			res := make(map[string][]gotenberg.Bookmark, len(inputPaths))
+			for _, inputPath := range inputPaths {
+				bookmarks, err := engine.ReadBookmarks(ctx, ctx.Log(), inputPath)
+				if err != nil {
+					return fmt.Errorf("read bookmarks: %w", err)
+				}
+
+				res[filepath.Base(inputPath)] = bookmarks
+			}
+
+			err = c.JSON(http.StatusOK, res)
+			if err != nil {
+				if strings.Contains(err.Error(), "request method or response status code does not allow body") {
+					// High probability that the user is using the webhook
+					// feature. It does not make sense for this route.
+					return api.ErrNoOutputFile
+				}
+				return fmt.Errorf("return JSON response: %w", err)
+			}
+
+			return api.ErrNoOutputFile
+		},
+	}
+}
+
 // writeBookmarksRoute returns an [api.Route] which can write bookmarks into PDFs.
 func writeBookmarksRoute(engine gotenberg.PdfEngine) api.Route {
 	return api.Route{

@@ -146,6 +146,9 @@ type PdfEngine interface {
 	// WriteMetadata writes the metadata into a given PDF file.
 	WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error
 
+	// ReadBookmarks reads the document outline (bookmarks) of a PDF file.
+	ReadBookmarks(ctx context.Context, logger *zap.Logger, inputPath string) ([]Bookmark, error)
+
 	// WriteBookmarks adds a document outline (bookmarks) to a PDF file.
 	// The bookmarks parameter represents the hierarchical tree of the outline.
 	WriteBookmarks(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []Bookmark) error
