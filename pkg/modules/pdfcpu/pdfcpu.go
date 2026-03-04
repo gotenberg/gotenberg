@@ -2,6 +2,7 @@ package pdfcpu
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -171,9 +172,69 @@ func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *zap.Logger, met
 	return fmt.Errorf("write PDF metadata with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
-// WriteBookmarks is not available in this implementation.
+// WriteBookmarks adds a document outline (bookmarks) to a PDF file using pdfcpu.
 func (engine *PdfCpu) WriteBookmarks(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
-	return fmt.Errorf("write PDF bookmarks with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+	if len(bookmarks) == 0 {
+		return nil
+	}
+
+	type pdfcpuBookmark struct {
+		Title    string           `json:"title"`
+		Page     int              `json:"page"`
+		Children []pdfcpuBookmark `json:"kids,omitempty"`
+	}
+
+	type pdfcpuBookmarks struct {
+		Bookmarks []pdfcpuBookmark `json:"bookmarks"`
+	}
+
+	var mapBookmarks func(bookmarks []gotenberg.Bookmark) []pdfcpuBookmark
+	mapBookmarks = func(bookmarks []gotenberg.Bookmark) []pdfcpuBookmark {
+		res := make([]pdfcpuBookmark, len(bookmarks))
+		for i, b := range bookmarks {
+			res[i] = pdfcpuBookmark{
+				Title:    b.Title,
+				Page:     b.Page,
+				Children: mapBookmarks(b.Children),
+			}
+		}
+		return res
+	}
+
+	data := pdfcpuBookmarks{
+		Bookmarks: mapBookmarks(bookmarks),
+	}
+
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("marshal bookmarks: %w", err)
+	}
+
+	tmpPath := fmt.Sprintf("%s.json", inputPath)
+	err = os.WriteFile(tmpPath, jsonBytes, 0o600)
+	if err != nil {
+		return fmt.Errorf("write temporary bookmarks JSON file: %w", err)
+	}
+
+	defer func() {
+		err := os.Remove(tmpPath)
+		if err != nil {
+			logger.Error(fmt.Sprintf("remove temporary bookmarks JSON file: %v", err))
+		}
+	}()
+
+	args := []string{"bookmarks", "import", "-replace", inputPath, tmpPath, inputPath}
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		return fmt.Errorf("create command: %w", err)
+	}
+
+	_, err = cmd.Exec()
+	if err != nil {
+		return fmt.Errorf("write bookmarks with pdfcpu: %w", err)
+	}
+
+	return nil
 }
 
 // EmbedFiles embeds files into a PDF. All files are embedded as file attachments
