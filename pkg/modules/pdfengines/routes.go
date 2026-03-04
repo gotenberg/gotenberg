@@ -84,7 +84,7 @@ func FormDataPdfSplitMode(form *api.FormData, mandatory bool) gotenberg.SplitMod
 }
 
 // FormDataPdfFormats creates [gotenberg.PdfFormats] from the form data.
-// Fallback to default value if the considered key is not present.
+// Fallback to the default value if the considered key is not present.
 func FormDataPdfFormats(form *api.FormData) gotenberg.PdfFormats {
 	var (
 		pdfa  string
@@ -126,6 +126,44 @@ func FormDataPdfMetadata(form *api.FormData, mandatory bool) map[string]any {
 	}
 
 	return metadata
+}
+
+// FormDataPdfBookmarks creates bookmarks from the form data.
+func FormDataPdfBookmarks(form *api.FormData, mandatory bool) any {
+	var bookmarks any
+
+	bookmarksFunc := func(value string) error {
+		if len(value) > 0 {
+			var list []gotenberg.Bookmark
+			err := json.Unmarshal([]byte(value), &list)
+			if err == nil {
+				bookmarks = list
+				return nil
+			}
+
+			var m map[string][]gotenberg.Bookmark
+			err = json.Unmarshal([]byte(value), &m)
+			if err == nil {
+				bookmarks = m
+				return nil
+			}
+
+			return fmt.Errorf("unmarshal bookmarks: %w", err)
+		}
+		return nil
+	}
+
+	if mandatory {
+		form.MandatoryCustom("bookmarks", func(value string) error {
+			return bookmarksFunc(value)
+		})
+	} else {
+		form.Custom("bookmarks", func(value string) error {
+			return bookmarksFunc(value)
+		})
+	}
+
+	return bookmarks
 }
 
 // MergeStub merges given PDFs. If only one input PDF, it does nothing and
@@ -254,6 +292,42 @@ func WriteMetadataStub(ctx *api.Context, engine gotenberg.PdfEngine, metadata ma
 	return nil
 }
 
+// WriteBookmarksStub writes the bookmarks into PDF files. If no bookmarks, it
+// does nothing.
+func WriteBookmarksStub(ctx *api.Context, engine gotenberg.PdfEngine, bookmarks any, inputPaths []string) error {
+	if bookmarks == nil {
+		return nil
+	}
+
+	switch b := bookmarks.(type) {
+	case []gotenberg.Bookmark:
+		if len(b) == 0 {
+			return nil
+		}
+
+		for _, inputPath := range inputPaths {
+			err := engine.WriteBookmarks(ctx, ctx.Log(), inputPath, b)
+			if err != nil {
+				return fmt.Errorf("write bookmarks into '%s': %w", inputPath, err)
+			}
+		}
+	case map[string][]gotenberg.Bookmark:
+		for _, inputPath := range inputPaths {
+			filename := filepath.Base(inputPath)
+			if specificBookmarks, ok := b[filename]; ok {
+				err := engine.WriteBookmarks(ctx, ctx.Log(), inputPath, specificBookmarks)
+				if err != nil {
+					return fmt.Errorf("write bookmarks into '%s': %w", inputPath, err)
+				}
+			}
+		}
+	default:
+		return fmt.Errorf("bookmarks type '%T' not supported", bookmarks)
+	}
+
+	return nil
+}
+
 // FormDataPdfEmbeds extracts embedded file paths from form data.
 // Only files uploaded with the "embeds" field name are included.
 func FormDataPdfEmbeds(form *api.FormData) []string {
@@ -313,6 +387,7 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			form := ctx.FormData()
 			pdfFormats := FormDataPdfFormats(form)
 			metadata := FormDataPdfMetadata(form, false)
+			bookmarks := FormDataPdfBookmarks(form, false)
 			userPassword, ownerPassword := FormDataPdfEncrypt(form)
 			embedPaths := FormDataPdfEmbeds(form)
 
@@ -324,6 +399,13 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			if b, ok := bookmarks.(map[string][]gotenberg.Bookmark); ok {
+				err = WriteBookmarksStub(ctx, engine, b, inputPaths)
+				if err != nil {
+					return fmt.Errorf("write bookmarks: %w", err)
+				}
 			}
 
 			outputPath := ctx.GeneratePath(".pdf")
@@ -340,6 +422,13 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			err = EmbedFilesStub(ctx, engine, embedPaths, outputPaths)
 			if err != nil {
 				return fmt.Errorf("embed files into PDFs: %w", err)
+			}
+
+			if b, ok := bookmarks.([]gotenberg.Bookmark); ok {
+				err = WriteBookmarksStub(ctx, engine, b, outputPaths)
+				if err != nil {
+					return fmt.Errorf("write bookmarks: %w", err)
+				}
 			}
 
 			err = WriteMetadataStub(ctx, engine, metadata, outputPaths)
@@ -619,6 +708,41 @@ func writeMetadataRoute(engine gotenberg.PdfEngine) api.Route {
 	}
 }
 
+// writeBookmarksRoute returns an [api.Route] which can write bookmarks into PDFs.
+func writeBookmarksRoute(engine gotenberg.PdfEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/bookmarks/write",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			form := ctx.FormData()
+			bookmarks := FormDataPdfBookmarks(form, true)
+
+			var inputPaths []string
+			err := form.
+				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			err = WriteBookmarksStub(ctx, engine, bookmarks, inputPaths)
+			if err != nil {
+				return fmt.Errorf("write bookmarks: %w", err)
+			}
+
+			err = ctx.AddOutputPaths(inputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
+			}
+
+			return nil
+		},
+	}
+}
+
 // encryptRoute returns an [api.Route] which can add password protection to PDFs.
 func encryptRoute(engine gotenberg.PdfEngine) api.Route {
 	return api.Route{
@@ -658,6 +782,7 @@ func encryptRoute(engine gotenberg.PdfEngine) api.Route {
 }
 
 // embedRoute returns an [api.Route] which can add embedded files to PDFs.
+// TODO: attachments instead?
 func embedRoute(engine gotenberg.PdfEngine) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
@@ -676,7 +801,6 @@ func embedRoute(engine gotenberg.PdfEngine) api.Route {
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
-
 			err = EmbedFilesStub(ctx, engine, embedPaths, inputPaths)
 			if err != nil {
 				return fmt.Errorf("embed files into PDFs: %w", err)

@@ -36,6 +36,7 @@ type PdfEngines struct {
 	writeMetadataNames []string
 	encryptNames       []string
 	embedNames         []string
+	bookmarksNames     []string
 	engines            []gotenberg.PdfEngine
 	disableRoutes      bool
 }
@@ -54,6 +55,7 @@ func (mod *PdfEngines) Descriptor() gotenberg.ModuleDescriptor {
 			fs.StringSlice("pdfengines-write-metadata-engines", []string{"exiftool"}, "Set the PDF engines and their order for the write metadata feature - empty means all")
 			fs.StringSlice("pdfengines-encrypt-engines", []string{"qpdf", "pdftk", "pdfcpu"}, "Set the PDF engines and their order for the password protection feature - empty means all")
 			fs.StringSlice("pdfengines-embed-engines", []string{"pdfcpu"}, "Set the PDF engines and their order for the file embedding feature - empty means all")
+			fs.StringSlice("pdfengines-bookmarks-engines", []string{"pdfcpu", "pdftk"}, "Set the PDF engines and their order for the bookmarks feature - empty means all")
 			fs.Bool("pdfengines-disable-routes", false, "Disable the routes")
 
 			// Deprecated flags.
@@ -81,6 +83,7 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 	writeMetadataNames := flags.MustStringSlice("pdfengines-write-metadata-engines")
 	encryptNames := flags.MustStringSlice("pdfengines-encrypt-engines")
 	embedNames := flags.MustStringSlice("pdfengines-embed-engines")
+	bookmarksNames := flags.MustStringSlice("pdfengines-bookmarks-engines")
 	mod.disableRoutes = flags.MustBool("pdfengines-disable-routes")
 
 	engines, err := ctx.Modules(new(gotenberg.PdfEngine))
@@ -147,6 +150,11 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 		mod.embedNames = embedNames
 	}
 
+	mod.bookmarksNames = defaultNames
+	if len(bookmarksNames) > 0 {
+		mod.bookmarksNames = bookmarksNames
+	}
+
 	return nil
 }
 
@@ -196,6 +204,7 @@ func (mod *PdfEngines) Validate() error {
 	findNonExistingEngines(mod.writeMetadataNames)
 	findNonExistingEngines(mod.encryptNames)
 	findNonExistingEngines(mod.embedNames)
+	findNonExistingEngines(mod.bookmarksNames)
 
 	if len(nonExistingEngines) == 0 {
 		return nil
@@ -215,6 +224,8 @@ func (mod *PdfEngines) SystemMessages() []string {
 		fmt.Sprintf("read metadata engines - %s", strings.Join(mod.readMetadataNames[:], " ")),
 		fmt.Sprintf("write metadata engines - %s", strings.Join(mod.writeMetadataNames[:], " ")),
 		fmt.Sprintf("encrypt engines - %s", strings.Join(mod.encryptNames[:], " ")),
+		fmt.Sprintf("embed engines - %s", strings.Join(mod.embedNames[:], " ")),
+		fmt.Sprintf("bookmarks engines - %s", strings.Join(mod.bookmarksNames[:], " ")),
 	}
 }
 
@@ -243,6 +254,7 @@ func (mod *PdfEngines) PdfEngine() (gotenberg.PdfEngine, error) {
 		engines(mod.writeMetadataNames),
 		engines(mod.encryptNames),
 		engines(mod.embedNames),
+		engines(mod.bookmarksNames),
 	), nil
 }
 
@@ -266,6 +278,7 @@ func (mod *PdfEngines) Routes() ([]api.Route, error) {
 		convertRoute(engine),
 		readMetadataRoute(engine),
 		writeMetadataRoute(engine),
+		writeBookmarksRoute(engine),
 		encryptRoute(engine),
 		embedRoute(engine),
 	}, nil
