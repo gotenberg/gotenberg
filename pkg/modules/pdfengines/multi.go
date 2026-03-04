@@ -12,16 +12,16 @@ import (
 )
 
 type multiPdfEngines struct {
-	mergeEngines         []gotenberg.PdfEngine
-	splitEngines         []gotenberg.PdfEngine
-	flattenEngines       []gotenberg.PdfEngine
-	convertEngines       []gotenberg.PdfEngine
-	readMetadataEngines  []gotenberg.PdfEngine
-	writeMetadataEngines []gotenberg.PdfEngine
-	passwordEngines      []gotenberg.PdfEngine
-	embedEngines         []gotenberg.PdfEngine
-	bookmarksEngines     []gotenberg.PdfEngine
-	readBookmarksEngines []gotenberg.PdfEngine
+	mergeEngines          []gotenberg.PdfEngine
+	splitEngines          []gotenberg.PdfEngine
+	flattenEngines        []gotenberg.PdfEngine
+	convertEngines        []gotenberg.PdfEngine
+	readMetadataEngines   []gotenberg.PdfEngine
+	writeMetadataEngines  []gotenberg.PdfEngine
+	passwordEngines       []gotenberg.PdfEngine
+	embedEngines          []gotenberg.PdfEngine
+	readBookmarksEngines  []gotenberg.PdfEngine
+	writeBookmarksEngines []gotenberg.PdfEngine
 }
 
 func newMultiPdfEngines(
@@ -33,20 +33,20 @@ func newMultiPdfEngines(
 	writeMetadataEngines,
 	passwordEngines,
 	embedEngines,
-	bookmarksEngines,
-	readBookmarksEngines []gotenberg.PdfEngine,
+	readBookmarksEngines,
+	writeBookmarksEngines []gotenberg.PdfEngine,
 ) *multiPdfEngines {
 	return &multiPdfEngines{
-		mergeEngines:         mergeEngines,
-		splitEngines:         splitEngines,
-		flattenEngines:       flattenEngines,
-		convertEngines:       convertEngines,
-		readMetadataEngines:  readMetadataEngines,
-		writeMetadataEngines: writeMetadataEngines,
-		passwordEngines:      passwordEngines,
-		embedEngines:         embedEngines,
-		bookmarksEngines:     bookmarksEngines,
-		readBookmarksEngines: readBookmarksEngines,
+		mergeEngines:          mergeEngines,
+		splitEngines:          splitEngines,
+		flattenEngines:        flattenEngines,
+		convertEngines:        convertEngines,
+		readMetadataEngines:   readMetadataEngines,
+		writeMetadataEngines:  writeMetadataEngines,
+		passwordEngines:       passwordEngines,
+		embedEngines:          embedEngines,
+		readBookmarksEngines:  readBookmarksEngines,
+		writeBookmarksEngines: writeBookmarksEngines,
 	}
 }
 
@@ -264,7 +264,7 @@ func (multi *multiPdfEngines) WriteBookmarks(ctx context.Context, logger *zap.Lo
 	var err error
 	errChan := make(chan error, 1)
 
-	for _, engine := range multi.bookmarksEngines {
+	for _, engine := range multi.writeBookmarksEngines {
 		go func(engine gotenberg.PdfEngine) {
 			errChan <- engine.WriteBookmarks(ctx, logger, inputPath, bookmarks)
 		}(engine)
