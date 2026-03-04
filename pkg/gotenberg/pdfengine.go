@@ -109,6 +109,14 @@ type PdfFormats struct {
 	PdfUa bool
 }
 
+// Bookmark represents a node in the PDF document's outline
+// (table of contents).
+type Bookmark struct {
+	Title    string     `json:"title"`
+	Page     int        `json:"page"`
+	Children []Bookmark `json:"children,omitempty"`
+}
+
 // PdfEngine provides an interface for operations on PDFs. Implementations
 // can use various tools like PDFtk, or implement functionality directly in
 // Go.
@@ -138,6 +146,10 @@ type PdfEngine interface {
 	// WriteMetadata writes the metadata into a given PDF file.
 	WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error
 
+	// WriteBookmarks adds a document outline (bookmarks) to a PDF file.
+	// The bookmarks parameter represents the hierarchical tree of the outline.
+	WriteBookmarks(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []Bookmark) error
+
 	// Encrypt adds password protection to a PDF file.
 	// The userPassword is required to open the document.
 	// The ownerPassword provides full access to the document.
@@ -146,6 +158,7 @@ type PdfEngine interface {
 
 	// EmbedFiles embeds files into a PDF. All files are embedded as file attachments
 	// without modifying the main PDF content.
+	// TODO: attachments instead? Rename the route?
 	EmbedFiles(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error
 }
 

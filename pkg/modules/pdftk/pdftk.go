@@ -145,6 +145,11 @@ func (engine *PdfTk) WriteMetadata(ctx context.Context, logger *zap.Logger, meta
 	return fmt.Errorf("write PDF metadata with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// WriteBookmarks is not available in this implementation.
+func (engine *PdfTk) WriteBookmarks(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
+	return fmt.Errorf("write PDF bookmarks with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Encrypt adds password protection to a PDF file using PDFtk.
 func (engine *PdfTk) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
 	if userPassword == "" {

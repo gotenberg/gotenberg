@@ -203,6 +203,11 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, m
 	return nil
 }
 
+// WriteBookmarks is not available in this implementation.
+func (engine *ExifTool) WriteBookmarks(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
+	return fmt.Errorf("write PDF bookmarks with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Encrypt is not available in this implementation.
 func (engine *ExifTool) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
 	return fmt.Errorf("encrypt PDF using ExifTool: %w", gotenberg.ErrPdfEncryptionNotSupported)
