@@ -172,6 +172,11 @@ func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *zap.Logger, met
 	return fmt.Errorf("write PDF metadata with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// ReadBookmarks is not available in this implementation.
+func (engine *PdfCpu) ReadBookmarks(ctx context.Context, logger *zap.Logger, inputPath string) ([]gotenberg.Bookmark, error) {
+	return nil, fmt.Errorf("read PDF bookmarks with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // WriteBookmarks adds a document outline (bookmarks) to a PDF file using pdfcpu.
 func (engine *PdfCpu) WriteBookmarks(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
 	if len(bookmarks) == 0 {
