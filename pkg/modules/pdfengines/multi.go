@@ -222,6 +222,42 @@ func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *zap.Log
 	return fmt.Errorf("write PDF metadata with multi PDF engines: %w", err)
 }
 
+type pageCountResult struct {
+	pageCount int
+	err       error
+}
+
+// PageCount returns the number of pages in a PDF file using the first available
+// engine that supports metadata reading.
+func (multi *multiPdfEngines) PageCount(ctx context.Context, logger *zap.Logger, inputPath string) (int, error) {
+	var err error
+	var mu sync.Mutex // to safely append errors.
+
+	for _, engine := range multi.readMetadataEngines {
+		resultChan := make(chan pageCountResult, 1)
+
+		go func(engine gotenberg.PdfEngine) {
+			pageCount, err := engine.PageCount(ctx, logger, inputPath)
+			resultChan <- pageCountResult{pageCount: pageCount, err: err}
+		}(engine)
+
+		select {
+		case result := <-resultChan:
+			if result.err != nil {
+				mu.Lock()
+				err = multierr.Append(err, result.err)
+				mu.Unlock()
+			} else {
+				return result.pageCount, nil
+			}
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		}
+	}
+
+	return 0, fmt.Errorf("page count with multi PDF engines: %w", err)
+}
+
 type readBookmarksResult struct {
 	bookmarks []gotenberg.Bookmark
 	err       error

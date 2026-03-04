@@ -203,6 +203,37 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, m
 	return nil
 }
 
+// PageCount returns the number of pages in a PDF file using ExifTool.
+func (engine *ExifTool) PageCount(ctx context.Context, logger *zap.Logger, inputPath string) (int, error) {
+	metadata, err := engine.ReadMetadata(ctx, logger, inputPath)
+	if err != nil {
+		return 0, fmt.Errorf("read metadata with ExifTool: %w", err)
+	}
+
+	pageCountValue, ok := metadata["PageCount"]
+	if !ok {
+		return 0, errors.New("PageCount not found in metadata")
+	}
+
+	switch val := pageCountValue.(type) {
+	case int:
+		return val, nil
+	case int64:
+		return int(val), nil
+	case float64:
+		return int(val), nil
+	case string:
+		var res int
+		_, err := fmt.Sscanf(val, "%d", &res)
+		if err != nil {
+			return 0, fmt.Errorf("parse PageCount string '%s': %w", val, err)
+		}
+		return res, nil
+	default:
+		return 0, fmt.Errorf("unexpected PageCount type '%T'", pageCountValue)
+	}
+}
+
 // WriteBookmarks is not available in this implementation.
 func (engine *ExifTool) WriteBookmarks(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
 	return fmt.Errorf("write PDF bookmarks with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)

@@ -172,6 +172,11 @@ func (engine *QPdf) WriteMetadata(ctx context.Context, logger *zap.Logger, metad
 	return fmt.Errorf("write PDF metadata with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// PageCount is not available in this implementation.
+func (engine *QPdf) PageCount(ctx context.Context, logger *zap.Logger, inputPath string) (int, error) {
+	return 0, fmt.Errorf("page count with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // WriteBookmarks is not available in this implementation.
 func (engine *QPdf) WriteBookmarks(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
 	return fmt.Errorf("write PDF bookmarks with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
