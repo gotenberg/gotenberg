@@ -143,6 +143,9 @@ type PdfEngine interface {
 	// ReadMetadata extracts the metadata of a given PDF file.
 	ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error)
 
+	// PageCount returns the number of pages in a PDF file.
+	PageCount(ctx context.Context, logger *zap.Logger, inputPath string) (int, error)
+
 	// WriteMetadata writes the metadata into a given PDF file.
 	WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error
 

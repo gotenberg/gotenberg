@@ -27,6 +27,7 @@ type scenario struct {
 	resp                      *httptest.ResponseRecorder
 	concurrentResps           []*httptest.ResponseRecorder
 	workdir                   string
+	teststoreDir              string
 	gotenbergContainer        testcontainers.Container
 	gotenbergContainerNetwork *testcontainers.DockerNetwork
 	server                    *server
@@ -163,12 +164,14 @@ func (s *scenario) iMakeARequestToGotenbergWithTheFollowingFormDataAndHeaders(ct
 			fields[name] = value
 		case "file":
 			if strings.Contains(value, "teststore") {
-				dirPath := fmt.Sprintf("%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"))
-				_, err := os.Stat(dirPath)
-				if os.IsNotExist(err) {
-					return fmt.Errorf("directory %q does not exist", dirPath)
+				if s.teststoreDir == "" {
+					return errors.New("no teststore directory available from previous requests")
 				}
-				value = strings.ReplaceAll(value, "teststore", dirPath)
+				_, err := os.Stat(s.teststoreDir)
+				if os.IsNotExist(err) {
+					return fmt.Errorf("directory %q does not exist", s.teststoreDir)
+				}
+				value = strings.ReplaceAll(value, "teststore", s.teststoreDir)
 			} else {
 				wd, err := os.Getwd()
 				if err != nil {
@@ -216,6 +219,13 @@ func (s *scenario) iMakeARequestToGotenbergWithTheFollowingFormDataAndHeaders(ct
 		return fmt.Errorf("write response body: %w", err)
 	}
 
+	if resp.StatusCode == http.StatusNoContent {
+		// Gotenberg processes this asynchronously. The webhook test server
+		// will save the incoming files under this trace ID directory shortly.
+		s.teststoreDir = fmt.Sprintf("%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"))
+		return nil
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		return nil
 	}
@@ -240,6 +250,8 @@ func (s *scenario) iMakeARequestToGotenbergWithTheFollowingFormDataAndHeaders(ct
 	if err != nil {
 		return fmt.Errorf("create working directory: %w", err)
 	}
+
+	s.teststoreDir = dirPath
 
 	fpath := fmt.Sprintf("%s/%s", dirPath, filename)
 	file, err := os.Create(fpath)
@@ -637,7 +649,7 @@ func (s *scenario) theBodyShouldMatchJSON(kind string, expectedDoc *godog.DocStr
 }
 
 func (s *scenario) thereShouldBePdfs(expected int, kind string) error {
-	dirPath := fmt.Sprintf("%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"))
+	dirPath := s.teststoreDir
 
 	_, err := os.Stat(dirPath)
 	if os.IsNotExist(err) {
@@ -666,7 +678,7 @@ func (s *scenario) thereShouldBePdfs(expected int, kind string) error {
 }
 
 func (s *scenario) thereShouldBeTheFollowingFiles(kind string, filesTable *godog.Table) error {
-	dirPath := fmt.Sprintf("%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"))
+	dirPath := s.teststoreDir
 
 	_, err := os.Stat(dirPath)
 	if os.IsNotExist(err) {
@@ -708,7 +720,7 @@ func (s *scenario) thereShouldBeTheFollowingFiles(kind string, filesTable *godog
 }
 
 func (s *scenario) thePdfsShouldBeValidWithAToleranceOf(ctx context.Context, kind, validate string, tolerance int) error {
-	dirPath := fmt.Sprintf("%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"))
+	dirPath := s.teststoreDir
 
 	_, err := os.Stat(dirPath)
 	if os.IsNotExist(err) {
@@ -788,7 +800,7 @@ func (s *scenario) thePdfShouldHavePages(ctx context.Context, name string, pages
 		}
 	} else {
 		substr := strings.ReplaceAll(name, "*_", "")
-		err := filepath.Walk(fmt.Sprintf("%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace")), func(currentPath string, info os.FileInfo, pathErr error) error {
+		err := filepath.Walk(s.teststoreDir, func(currentPath string, info os.FileInfo, pathErr error) error {
 			if pathErr != nil {
 				return pathErr
 			}
@@ -844,7 +856,7 @@ func (s *scenario) thePdfShouldBeSetToLandscapeOrientation(ctx context.Context, 
 		}
 	} else {
 		substr := strings.ReplaceAll(name, "*_", "")
-		err := filepath.Walk(fmt.Sprintf("%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace")), func(currentPath string, info os.FileInfo, pathErr error) error {
+		err := filepath.Walk(s.teststoreDir, func(currentPath string, info os.FileInfo, pathErr error) error {
 			if pathErr != nil {
 				return pathErr
 			}
@@ -911,7 +923,7 @@ func (s *scenario) thePdfShouldHaveTheFollowingContentAtPage(ctx context.Context
 		}
 	} else {
 		substr := strings.ReplaceAll(name, "*_", "")
-		err := filepath.Walk(fmt.Sprintf("%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace")), func(currentPath string, info os.FileInfo, pathErr error) error {
+		err := filepath.Walk(s.teststoreDir, func(currentPath string, info os.FileInfo, pathErr error) error {
 			if pathErr != nil {
 				return pathErr
 			}
@@ -955,7 +967,7 @@ func (s *scenario) thePdfShouldHaveTheFollowingContentAtPage(ctx context.Context
 }
 
 func (s *scenario) thePdfsShouldBeFlatten(ctx context.Context, kind, should string) error {
-	dirPath := fmt.Sprintf("%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"))
+	dirPath := s.teststoreDir
 
 	_, err := os.Stat(dirPath)
 	if os.IsNotExist(err) {
@@ -1005,7 +1017,7 @@ func (s *scenario) thePdfsShouldBeFlatten(ctx context.Context, kind, should stri
 }
 
 func (s *scenario) thePdfsShouldBeEncrypted(ctx context.Context, kind string, should string) error {
-	dirPath := fmt.Sprintf("%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"))
+	dirPath := s.teststoreDir
 
 	_, err := os.Stat(dirPath)
 	if os.IsNotExist(err) {
@@ -1057,7 +1069,7 @@ func (s *scenario) thePdfsShouldBeEncrypted(ctx context.Context, kind string, sh
 }
 
 func (s *scenario) thePdfsShouldHaveEmbeddedFile(ctx context.Context, kind, should, embed string) error {
-	dirPath := fmt.Sprintf("%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"))
+	dirPath := s.teststoreDir
 
 	_, err := os.Stat(dirPath)
 	if os.IsNotExist(err) {

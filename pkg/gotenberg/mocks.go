@@ -51,6 +51,7 @@ type PdfEngineMock struct {
 	FlattenMock        func(ctx context.Context, logger *zap.Logger, inputPath string) error
 	ConvertMock        func(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error
 	ReadMetadataMock   func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error)
+	PageCountMock      func(ctx context.Context, logger *zap.Logger, inputPath string) (int, error)
 	WriteMetadataMock  func(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error
 	ReadBookmarksMock  func(ctx context.Context, logger *zap.Logger, inputPath string) ([]Bookmark, error)
 	EncryptMock        func(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error
@@ -76,6 +77,10 @@ func (engine *PdfEngineMock) Convert(ctx context.Context, logger *zap.Logger, fo
 
 func (engine *PdfEngineMock) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
 	return engine.ReadMetadataMock(ctx, logger, inputPath)
+}
+
+func (engine *PdfEngineMock) PageCount(ctx context.Context, logger *zap.Logger, inputPath string) (int, error) {
+	return engine.PageCountMock(ctx, logger, inputPath)
 }
 
 func (engine *PdfEngineMock) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {

@@ -145,6 +145,11 @@ func (engine *PdfTk) WriteMetadata(ctx context.Context, logger *zap.Logger, meta
 	return fmt.Errorf("write PDF metadata with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// PageCount is not available in this implementation.
+func (engine *PdfTk) PageCount(ctx context.Context, logger *zap.Logger, inputPath string) (int, error) {
+	return 0, fmt.Errorf("page count with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // WriteBookmarks is not available in this implementation.
 func (engine *PdfTk) WriteBookmarks(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
 	return fmt.Errorf("write PDF bookmarks with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)

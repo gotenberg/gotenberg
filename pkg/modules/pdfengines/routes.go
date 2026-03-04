@@ -292,6 +292,21 @@ func WriteMetadataStub(ctx *api.Context, engine gotenberg.PdfEngine, metadata ma
 	return nil
 }
 
+func shiftBookmarks(bookmarks []gotenberg.Bookmark, offset int) []gotenberg.Bookmark {
+	if offset == 0 {
+		return bookmarks
+	}
+	shifted := make([]gotenberg.Bookmark, len(bookmarks))
+	for i, b := range bookmarks {
+		shifted[i] = gotenberg.Bookmark{
+			Title:    b.Title,
+			Page:     b.Page + offset,
+			Children: shiftBookmarks(b.Children, offset),
+		}
+	}
+	return shifted
+}
+
 // WriteBookmarksStub writes the bookmarks into PDF files. If no bookmarks, it
 // does nothing.
 func WriteBookmarksStub(ctx *api.Context, engine gotenberg.PdfEngine, bookmarks any, inputPaths []string) error {
@@ -402,13 +417,6 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			if b, ok := bookmarks.(map[string][]gotenberg.Bookmark); ok {
-				err = WriteBookmarksStub(ctx, engine, b, inputPaths)
-				if err != nil {
-					return fmt.Errorf("write bookmarks: %w", err)
-				}
-			}
-
 			outputPath := ctx.GeneratePath(".pdf")
 			err = engine.Merge(ctx, ctx.Log(), inputPaths, outputPath)
 			if err != nil {
@@ -425,8 +433,27 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("embed files into PDFs: %w", err)
 			}
 
+			var finalBookmarks []gotenberg.Bookmark
 			if b, ok := bookmarks.([]gotenberg.Bookmark); ok {
-				err = WriteBookmarksStub(ctx, engine, b, outputPaths)
+				finalBookmarks = b
+			} else if b, ok := bookmarks.(map[string][]gotenberg.Bookmark); ok {
+				offset := 0
+				for _, inputPath := range inputPaths {
+					filename := filepath.Base(inputPath)
+					if fileBookmarks, ok := b[filename]; ok {
+						finalBookmarks = append(finalBookmarks, shiftBookmarks(fileBookmarks, offset)...)
+					}
+
+					pageCount, err := engine.PageCount(ctx, ctx.Log(), inputPath)
+					if err != nil {
+						return fmt.Errorf("get page count of '%s': %w", filename, err)
+					}
+					offset += pageCount
+				}
+			}
+
+			if len(finalBookmarks) > 0 {
+				err = WriteBookmarksStub(ctx, engine, finalBookmarks, outputPaths)
 				if err != nil {
 					return fmt.Errorf("write bookmarks: %w", err)
 				}

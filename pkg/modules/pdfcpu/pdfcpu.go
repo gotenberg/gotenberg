@@ -183,6 +183,11 @@ func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *zap.Logger, met
 	return fmt.Errorf("write PDF metadata with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// PageCount is not available in this implementation.
+func (engine *PdfCpu) PageCount(ctx context.Context, logger *zap.Logger, inputPath string) (int, error) {
+	return 0, fmt.Errorf("page count with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // ReadBookmarks reads the document outline (bookmarks) of a PDF file using pdfcpu.
 func (engine *PdfCpu) ReadBookmarks(ctx context.Context, logger *zap.Logger, inputPath string) ([]gotenberg.Bookmark, error) {
 	tmpPath := fmt.Sprintf("%s.read.json", inputPath)
