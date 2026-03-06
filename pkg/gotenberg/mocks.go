@@ -46,14 +46,17 @@ func (mod *DebuggableMock) Debug() map[string]any {
 //
 //nolint:dupl
 type PdfEngineMock struct {
-	MergeMock         func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error
-	SplitMock         func(ctx context.Context, logger *zap.Logger, mode SplitMode, inputPath, outputDirPath string) ([]string, error)
-	FlattenMock       func(ctx context.Context, logger *zap.Logger, inputPath string) error
-	ConvertMock       func(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error
-	ReadMetadataMock  func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error)
-	WriteMetadataMock func(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error
-	EncryptMock       func(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error
-	EmbedFilesMock    func(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error
+	MergeMock          func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error
+	SplitMock          func(ctx context.Context, logger *zap.Logger, mode SplitMode, inputPath, outputDirPath string) ([]string, error)
+	FlattenMock        func(ctx context.Context, logger *zap.Logger, inputPath string) error
+	ConvertMock        func(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error
+	ReadMetadataMock   func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error)
+	PageCountMock      func(ctx context.Context, logger *zap.Logger, inputPath string) (int, error)
+	WriteMetadataMock  func(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error
+	ReadBookmarksMock  func(ctx context.Context, logger *zap.Logger, inputPath string) ([]Bookmark, error)
+	EncryptMock        func(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error
+	EmbedFilesMock     func(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error
+	WriteBookmarksMock func(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []Bookmark) error
 }
 
 func (engine *PdfEngineMock) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
@@ -76,8 +79,16 @@ func (engine *PdfEngineMock) ReadMetadata(ctx context.Context, logger *zap.Logge
 	return engine.ReadMetadataMock(ctx, logger, inputPath)
 }
 
+func (engine *PdfEngineMock) PageCount(ctx context.Context, logger *zap.Logger, inputPath string) (int, error) {
+	return engine.PageCountMock(ctx, logger, inputPath)
+}
+
 func (engine *PdfEngineMock) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
 	return engine.WriteMetadataMock(ctx, logger, metadata, inputPath)
+}
+
+func (engine *PdfEngineMock) ReadBookmarks(ctx context.Context, logger *zap.Logger, inputPath string) ([]Bookmark, error) {
+	return engine.ReadBookmarksMock(ctx, logger, inputPath)
 }
 
 func (engine *PdfEngineMock) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
@@ -86,6 +97,10 @@ func (engine *PdfEngineMock) Encrypt(ctx context.Context, logger *zap.Logger, in
 
 func (engine *PdfEngineMock) EmbedFiles(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error {
 	return engine.EmbedFilesMock(ctx, logger, filePaths, inputPath)
+}
+
+func (engine *PdfEngineMock) WriteBookmarks(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []Bookmark) error {
+	return engine.WriteBookmarksMock(ctx, logger, inputPath, bookmarks)
 }
 
 // PdfEngineProviderMock is a mock for the [PdfEngineProvider] interface.

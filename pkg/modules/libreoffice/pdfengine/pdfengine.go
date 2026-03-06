@@ -91,6 +91,21 @@ func (engine *LibreOfficePdfEngine) WriteMetadata(ctx context.Context, logger *z
 	return fmt.Errorf("write PDF metadata with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// PageCount is not available in this implementation.
+func (engine *LibreOfficePdfEngine) PageCount(ctx context.Context, logger *zap.Logger, inputPath string) (int, error) {
+	return 0, fmt.Errorf("page count with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
+// WriteBookmarks is not available in this implementation.
+func (engine *LibreOfficePdfEngine) WriteBookmarks(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
+	return fmt.Errorf("write PDF bookmarks with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
+// ReadBookmarks is not available in this implementation.
+func (engine *LibreOfficePdfEngine) ReadBookmarks(ctx context.Context, logger *zap.Logger, inputPath string) ([]gotenberg.Bookmark, error) {
+	return nil, fmt.Errorf("read PDF bookmarks with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Encrypt is not available in this implementation.
 func (engine *LibreOfficePdfEngine) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
 	return fmt.Errorf("encrypt PDF using LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)

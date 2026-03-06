@@ -172,6 +172,21 @@ func (engine *QPdf) WriteMetadata(ctx context.Context, logger *zap.Logger, metad
 	return fmt.Errorf("write PDF metadata with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// PageCount is not available in this implementation.
+func (engine *QPdf) PageCount(ctx context.Context, logger *zap.Logger, inputPath string) (int, error) {
+	return 0, fmt.Errorf("page count with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
+// WriteBookmarks is not available in this implementation.
+func (engine *QPdf) WriteBookmarks(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
+	return fmt.Errorf("write PDF bookmarks with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
+// ReadBookmarks is not available in this implementation.
+func (engine *QPdf) ReadBookmarks(ctx context.Context, logger *zap.Logger, inputPath string) ([]gotenberg.Bookmark, error) {
+	return nil, fmt.Errorf("read PDF bookmarks with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Encrypt adds password protection to a PDF file using QPDF.
 func (engine *QPdf) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
 	if userPassword == "" {

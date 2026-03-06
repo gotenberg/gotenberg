@@ -1,7 +1,9 @@
 package pdfcpu
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -24,6 +26,16 @@ func init() {
 // [gotenberg.PdfEngine] interface.
 type PdfCpu struct {
 	binPath string
+}
+
+type pdfcpuBookmark struct {
+	Title    string           `json:"title"`
+	Page     int              `json:"page"`
+	Children []pdfcpuBookmark `json:"kids,omitempty"`
+}
+
+type pdfcpuBookmarks struct {
+	Bookmarks []pdfcpuBookmark `json:"bookmarks"`
 }
 
 // Descriptor returns a [PdfCpu]'s module descriptor.
@@ -169,6 +181,145 @@ func (engine *PdfCpu) ReadMetadata(ctx context.Context, logger *zap.Logger, inpu
 // WriteMetadata is not available in this implementation.
 func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
 	return fmt.Errorf("write PDF metadata with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
+// PageCount is not available in this implementation.
+func (engine *PdfCpu) PageCount(ctx context.Context, logger *zap.Logger, inputPath string) (int, error) {
+	return 0, fmt.Errorf("page count with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
+// ReadBookmarks reads the document outline (bookmarks) of a PDF file using pdfcpu.
+func (engine *PdfCpu) ReadBookmarks(ctx context.Context, logger *zap.Logger, inputPath string) ([]gotenberg.Bookmark, error) {
+	tmpPath := fmt.Sprintf("%s.read.json", inputPath)
+	args := []string{"bookmarks", "export", inputPath, tmpPath}
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		return nil, fmt.Errorf("create command: %w", err)
+	}
+
+	defer func() {
+		err := os.Remove(tmpPath)
+		if err != nil && !os.IsNotExist(err) {
+			logger.Error(fmt.Sprintf("remove temporary bookmarks JSON file: %v", err))
+		}
+	}()
+
+	_, cmdErr := cmd.Exec()
+
+	// Check file existence and size.
+	info, statErr := os.Stat(tmpPath)
+
+	if cmdErr != nil {
+		// If the file wasn't created, or it was created but is 0 bytes,
+		// it means pdfcpu had no bookmarks to write.
+		if os.IsNotExist(statErr) || (statErr == nil && info.Size() == 0) {
+			return make([]gotenberg.Bookmark, 0), nil
+		}
+
+		// Fallback: Check the error string just in case pdfcpu failed without
+		// touching the file.
+		if strings.Contains(strings.ToLower(cmdErr.Error()), "no bookmarks") {
+			return make([]gotenberg.Bookmark, 0), nil
+		}
+		return nil, fmt.Errorf("read bookmarks with pdfcpu: %w", cmdErr)
+	}
+
+	// If cmd succeeded, but output a 0-byte file anyway.
+	if info != nil && info.Size() == 0 {
+		return make([]gotenberg.Bookmark, 0), nil
+	}
+
+	// Read the file content.
+	jsonBytes, err := os.ReadFile(tmpPath)
+	if err != nil {
+		return nil, fmt.Errorf("read temporary bookmarks JSON file: %w", err)
+	}
+
+	// Check if the content is just empty whitespace.
+	if len(bytes.TrimSpace(jsonBytes)) == 0 {
+		return make([]gotenberg.Bookmark, 0), nil
+	}
+
+	var data pdfcpuBookmarks
+	err = json.Unmarshal(jsonBytes, &data)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal bookmarks: %w", err)
+	}
+
+	// Safety check: Does the parsed JSON actually contain bookmarks?
+	if len(data.Bookmarks) == 0 {
+		return make([]gotenberg.Bookmark, 0), nil
+	}
+
+	var mapBookmarks func(bookmarks []pdfcpuBookmark) []gotenberg.Bookmark
+	mapBookmarks = func(bookmarks []pdfcpuBookmark) []gotenberg.Bookmark {
+		res := make([]gotenberg.Bookmark, len(bookmarks))
+		for i, b := range bookmarks {
+			res[i] = gotenberg.Bookmark{
+				Title:    b.Title,
+				Page:     b.Page,
+				Children: mapBookmarks(b.Children),
+			}
+		}
+		return res
+	}
+
+	return mapBookmarks(data.Bookmarks), nil
+}
+
+// WriteBookmarks adds a document outline (bookmarks) to a PDF file using pdfcpu.
+func (engine *PdfCpu) WriteBookmarks(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
+	if len(bookmarks) == 0 {
+		return nil
+	}
+
+	var mapBookmarks func(bookmarks []gotenberg.Bookmark) []pdfcpuBookmark
+	mapBookmarks = func(bookmarks []gotenberg.Bookmark) []pdfcpuBookmark {
+		res := make([]pdfcpuBookmark, len(bookmarks))
+		for i, b := range bookmarks {
+			res[i] = pdfcpuBookmark{
+				Title:    b.Title,
+				Page:     b.Page,
+				Children: mapBookmarks(b.Children),
+			}
+		}
+		return res
+	}
+
+	data := pdfcpuBookmarks{
+		Bookmarks: mapBookmarks(bookmarks),
+	}
+
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("marshal bookmarks: %w", err)
+	}
+
+	tmpPath := fmt.Sprintf("%s.json", inputPath)
+	err = os.WriteFile(tmpPath, jsonBytes, 0o600)
+	if err != nil {
+		return fmt.Errorf("write temporary bookmarks JSON file: %w", err)
+	}
+
+	defer func() {
+		err := os.Remove(tmpPath)
+		if err != nil {
+			logger.Error(fmt.Sprintf("remove temporary bookmarks JSON file: %v", err))
+		}
+	}()
+
+	args := []string{"bookmarks", "import", "-replace", inputPath, tmpPath, inputPath}
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		return fmt.Errorf("create command: %w", err)
+	}
+
+	_, err = cmd.Exec()
+	if err != nil {
+		return fmt.Errorf("write bookmarks with pdfcpu: %w", err)
+	}
+
+	return nil
 }
 
 // EmbedFiles embeds files into a PDF. All files are embedded as file attachments

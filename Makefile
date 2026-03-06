@@ -57,14 +57,16 @@ LOG_LEVEL=info
 LOG_FORMAT=auto
 LOG_FIELDS_PREFIX=
 LOG_ENABLE_GCP_FIELDS=false
+PDFENGINES_DISABLE_ROUTES=false
 PDFENGINES_MERGE_ENGINES=qpdf,pdfcpu,pdftk
 PDFENGINES_SPLIT_ENGINES=pdfcpu,qpdf,pdftk
 PDFENGINES_FLATTEN_ENGINES=qpdf
 PDFENGINES_CONVERT_ENGINES=libreoffice-pdfengine
 PDFENGINES_READ_METADATA_ENGINES=exiftool
 PDFENGINES_WRITE_METADATA_ENGINES=exiftool
+PDFENGINES_READ_BOOKMARKS_ENGINES=pdfcpu
+PDFENGINES_WRITE_BOOKMARKS_ENGINES=pdfcpu
 PDFENGINES_ENCRYPT_ENGINES=qpdf,pdfcpu,pdftk
-PDFENGINES_DISABLE_ROUTES=false
 PDFENGINES_EMBED_ENGINES=pdfcpu
 PROMETHEUS_NAMESPACE=gotenberg
 PROMETHEUS_COLLECT_INTERVAL=1s
@@ -135,14 +137,16 @@ run: ## Start a Gotenberg container
 	--log-format=$(LOG_FORMAT) \
 	--log-fields-prefix=$(LOG_FIELDS_PREFIX) \
 	--log-enable-gcp-fields=$(LOG_ENABLE_GCP_FIELDS) \
+	--pdfengines-disable-routes=$(PDFENGINES_DISABLE_ROUTES) \
 	--pdfengines-merge-engines=$(PDFENGINES_MERGE_ENGINES) \
 	--pdfengines-split-engines=$(PDFENGINES_SPLIT_ENGINES) \
 	--pdfengines-flatten-engines=$(PDFENGINES_FLATTEN_ENGINES) \
 	--pdfengines-convert-engines=$(PDFENGINES_CONVERT_ENGINES) \
 	--pdfengines-read-metadata-engines=$(PDFENGINES_READ_METADATA_ENGINES) \
 	--pdfengines-write-metadata-engines=$(PDFENGINES_WRITE_METADATA_ENGINES) \
+	--pdfengines-read-bookmarks-engines=$(PDFENGINES_READ_BOOKMARKS_ENGINES) \
+	--pdfengines-write-bookmarks-engines=$(PDFENGINES_WRITE_BOOKMARKS_ENGINES) \
 	--pdfengines-encrypt-engines=$(PDFENGINES_ENCRYPT_ENGINES) \
-	--pdfengines-disable-routes=$(PDFENGINES_DISABLE_ROUTES) \
 	--pdfengines-embed-engines=$(PDFENGINES_EMBED_ENGINES) \
 	--prometheus-namespace=$(PROMETHEUS_NAMESPACE) \
 	--prometheus-collect-interval=$(PROMETHEUS_COLLECT_INTERVAL) \
@@ -191,6 +195,8 @@ NO_CONCURRENCY=false
 # metadata
 # pdfengines-split
 # split
+# pdfengines-bookmarks
+# bookmarks
 # prometheus-metrics
 # root
 # version
