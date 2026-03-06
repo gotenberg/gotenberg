@@ -140,6 +140,16 @@ Feature: /forms/pdfengines/merge
       """
       Invalid form data: form field 'bookmarks' is invalid (got 'foo', resulting to unmarshal bookmarks: invalid character 'o' in literal false (expecting 'a'))
       """
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files              | testdata/page_1.pdf | file  |
+      | files              | testdata/page_2.pdf | file  |
+      | autoIndexBookmarks | foo                 | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'autoIndexBookmarks' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      """
 
   @convert
   Scenario: POST /forms/pdfengines/merge (PDF/A-1b & PDF/UA-1)
@@ -276,6 +286,67 @@ Feature: /forms/pdfengines/merge
                 "page": 2
               }
             ]
+          }
+        ]
+      }
+      """
+
+  @bookmarks
+  Scenario: POST /forms/pdfengines/merge (Auto-index Bookmarks)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1_with_bookmarks.pdf | file   |
+      | files                     | testdata/page_2_with_bookmarks.pdf | file   |
+      | autoIndexBookmarks        | true                               | field  |
+      | Gotenberg-Output-Filename | foo                                | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/bookmarks/read" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/json"
+    Then the response body should match JSON:
+      """
+      {
+        "foo.pdf": [
+          {
+            "title": "Page 1",
+            "page": 1
+          },
+          {
+            "title": "Page 2",
+            "page": 2
+          }
+        ]
+      }
+      """
+
+  @bookmarks
+  Scenario: POST /forms/pdfengines/merge (Auto-index Bookmarks + Bookmarks Map)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf                                | file   |
+      | files                     | testdata/page_2_with_bookmarks.pdf                 | file   |
+      | bookmarks                 | {"page_1.pdf":[{"title":"Page 1 Index","page":1}]} | field  |
+      | autoIndexBookmarks        | true                                               | field  |
+      | Gotenberg-Output-Filename | foo                                                | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/bookmarks/read" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/json"
+    Then the response body should match JSON:
+      """
+      {
+        "foo.pdf": [
+          {
+            "title": "Page 1 Index",
+            "page": 1
+          },
+          {
+            "title": "Page 2",
+            "page": 2
           }
         ]
       }

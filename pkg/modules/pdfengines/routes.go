@@ -409,9 +409,11 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 
 			var inputPaths []string
 			var flatten bool
+			var autoIndexBookmarks bool
 			err := form.
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
 				Bool("flatten", &flatten, false).
+				Bool("autoIndexBookmarks", &autoIndexBookmarks, false).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -436,19 +438,36 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			var finalBookmarks []gotenberg.Bookmark
 			if b, ok := bookmarks.([]gotenberg.Bookmark); ok {
 				finalBookmarks = b
-			} else if b, ok := bookmarks.(map[string][]gotenberg.Bookmark); ok {
-				offset := 0
-				for _, inputPath := range inputPaths {
-					filename := filepath.Base(inputPath)
-					if fileBookmarks, ok := b[filename]; ok {
-						finalBookmarks = append(finalBookmarks, shiftBookmarks(fileBookmarks, offset)...)
-					}
+			} else {
+				bMap, _ := bookmarks.(map[string][]gotenberg.Bookmark)
+				if bMap != nil || autoIndexBookmarks {
+					offset := 0
+					for _, inputPath := range inputPaths {
+						filename := filepath.Base(inputPath)
 
-					pageCount, err := engine.PageCount(ctx, ctx.Log(), inputPath)
-					if err != nil {
-						return fmt.Errorf("get page count of '%s': %w", filename, err)
+						var fileBookmarks []gotenberg.Bookmark
+						if bMap != nil {
+							fileBookmarks = bMap[filename]
+						}
+
+						if len(fileBookmarks) == 0 && autoIndexBookmarks {
+							fb, err := engine.ReadBookmarks(ctx, ctx.Log(), inputPath)
+							if err != nil {
+								return fmt.Errorf("read bookmarks of '%s': %w", filename, err)
+							}
+							fileBookmarks = fb
+						}
+
+						if len(fileBookmarks) > 0 {
+							finalBookmarks = append(finalBookmarks, shiftBookmarks(fileBookmarks, offset)...)
+						}
+
+						pageCount, err := engine.PageCount(ctx, ctx.Log(), inputPath)
+						if err != nil {
+							return fmt.Errorf("get page count of '%s': %w", filename, err)
+						}
+						offset += pageCount
 					}
-					offset += pageCount
 				}
 			}
 
