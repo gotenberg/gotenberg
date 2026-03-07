@@ -56,13 +56,6 @@ func (mod *PdfEngines) Descriptor() gotenberg.ModuleDescriptor {
 			fs.StringSlice("pdfengines-embed-engines", []string{"pdfcpu"}, "Set the PDF engines and their order for the file embedding feature - empty means all")
 			fs.Bool("pdfengines-disable-routes", false, "Disable the routes")
 
-			// Deprecated flags.
-			fs.StringSlice("pdfengines-engines", make([]string, 0), "Set the default PDF engines and their default order - all by default")
-			err := fs.MarkDeprecated("pdfengines-engines", "use other flags for a more granular selection of PDF engines per method")
-			if err != nil {
-				panic(err)
-			}
-
 			return fs
 		}(),
 		New: func() gotenberg.Module { return new(PdfEngines) },

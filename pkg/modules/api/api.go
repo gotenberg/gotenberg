@@ -172,7 +172,7 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.String("api-body-limit", "", "Set the body limit for multipart/form-data requests - it accepts values like 5MB, 1GB, etc")
 			fs.String("api-root-path", "/", "Set the root path of the API - for service discovery via URL paths")
 			fs.Bool("api-enable-basic-auth", false, "Enable basic authentication - will look for the GOTENBERG_API_BASIC_AUTH_USERNAME and GOTENBERG_API_BASIC_AUTH_PASSWORD environment variables")
-			fs.String("api-correlation-id-header", "Gotenberg-Trace", "Set the header name to use to set the correlation id in the logs")
+			fs.String("api-correlation-id-header", "X-Correlation-ID", "Set the header name to use to set the correlation id in the logs")
 			fs.String("api-download-from-allow-list", "", "Set the allowed URLs for the download from feature using a regular expression")
 			fs.String("api-download-from-deny-list", "", "Set the denied URLs for the download from feature using a regular expression")
 			fs.Int("api-download-from-max-retry", 4, "Set the maximum number of retries for the download from feature")
@@ -182,17 +182,6 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Bool("api-disable-version-route-telemetry", false, "Disable the version route telemetry")
 			fs.Bool("api-disable-debug-route-telemetry", false, "Disable the debug route telemetry")
 			fs.Bool("api-enable-debug-route", false, "Enable the debug route")
-
-			// Deprecated flags.
-			fs.String("api-trace-header", "Gotenberg-Trace", "Set the header name to use for identifying requests")
-			fs.Bool("api-disable-health-check-logging", false, "Disable health check logging")
-			err := errors.Join(
-				fs.MarkDeprecated("api-trace-header", "use api-correlation-id-header instead"),
-				fs.MarkDeprecated("api-disable-health-check-logging", "use api-disable-health-check-route-telemetry instead"),
-			)
-			if err != nil {
-				panic(err)
-			}
 
 			return fs
 		}(),
@@ -211,21 +200,14 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 	a.timeout = flags.MustDuration("api-timeout")
 	a.bodyLimit = flags.MustHumanReadableBytes("api-body-limit")
 	a.rootPath = flags.MustString("api-root-path")
-	a.correlationIdHeader = flags.MustDeprecatedString("api-trace-header", "api-correlation-id-header")
+	a.correlationIdHeader = flags.MustString("api-correlation-id-header")
 	a.downloadFromCfg = downloadFromConfig{
 		allowList: flags.MustRegexp("api-download-from-allow-list"),
 		denyList:  flags.MustRegexp("api-download-from-deny-list"),
 		maxRetry:  flags.MustInt("api-download-from-max-retry"),
 		disable:   flags.MustBool("api-disable-download-from"),
 	}
-
-	// Backward compatibility for deprecated flags
-	if flags.MustDeprecatedBool("api-disable-health-check-logging", "api-disable-health-check-route-telemetry") {
-		a.disableHealthCheckRouteTelemetry = true
-	} else {
-		a.disableHealthCheckRouteTelemetry = flags.MustBool("api-disable-health-check-route-telemetry")
-	}
-
+	a.disableHealthCheckRouteTelemetry = flags.MustBool("api-disable-health-check-route-telemetry")
 	a.disableRootRouteTelemetry = flags.MustBool("api-disable-root-route-telemetry")
 	a.disableVersionRouteTelemetry = flags.MustBool("api-disable-version-route-telemetry")
 	a.disableDebugRouteTelemetry = flags.MustBool("api-disable-debug-route-telemetry")
@@ -415,11 +397,6 @@ func (a *Api) Validate() error {
 		if middleware.Handler == nil {
 			return errors.New("a middleware has a nil handler")
 		}
-	}
-
-	// TODO deprecated.
-	if a.correlationIdHeader == "Gotenberg-Trace" {
-		a.logger.WarnContext(context.Background(), "the default 'Gotenberg-Trace' header value is deprecated, use 'X-Correlation-ID' instead")
 	}
 
 	return nil

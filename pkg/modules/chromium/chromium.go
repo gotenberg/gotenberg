@@ -430,13 +430,6 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Bool("chromium-disable-javascript", false, "Disable JavaScript")
 			fs.Bool("chromium-disable-routes", false, "Disable the routes")
 
-			// Deprecated flags.
-			fs.Bool("chromium-incognito", false, "Start Chromium with incognito mode")
-			err := fs.MarkDeprecated("chromium-incognito", "this flag is ignored as it provides no benefits")
-			if err != nil {
-				panic(err)
-			}
-
 			return fs
 		}(),
 		New: func() gotenberg.Module { return new(Chromium) },
