@@ -6,6 +6,11 @@ services:
     environment:
       GOTENBERG_API_BASIC_AUTH_USERNAME: ${GOTENBERG_API_BASIC_AUTH_USERNAME}
       GOTENBERG_API_BASIC_AUTH_PASSWORD: ${GOTENBERG_API_BASIC_AUTH_PASSWORD}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME}
+      OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER}
+      OTEL_METRICS_EXPORTER: ${OTEL_METRICS_EXPORTER}
+      OTEL_LOGS_EXPORTER: ${OTEL_LOGS_EXPORTER}
+      OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       OTEL_EXPORTER_OTLP_INSECURE: ${OTEL_EXPORTER_OTLP_INSECURE}
     command:
@@ -66,12 +71,6 @@ services:
       - "--pdfengines-encrypt-engines=${PDFENGINES_ENCRYPT_ENGINES}"
       - "--pdfengines-disable-routes=${PDFENGINES_DISABLE_ROUTES}"
       - "--pdfengines-embed-engines=${PDFENGINES_EMBED_ENGINES}"
-      - "--prometheus-metrics-path=${PROMETHEUS_METRICS_PATH}"
-      - "--prometheus-disable-route-telemetry=${PROMETHEUS_DISABLE_ROUTE_TELEMETRY}"
-      - "--telemetry-service-name=${TELEMETRY_SERVICE_NAME}"
-      - "--telemetry-trace-exporter-protocols=${TELEMETRY_TRACE_EXPORTER_PROTOCOLS}"
-      - "--telemetry-metric-exporter-protocols=${TELEMETRY_METRIC_EXPORTER_PROTOCOLS}"
-      - "--telemetry-log-exporter-protocols=${TELEMETRY_LOG_EXPORTER_PROTOCOLS}"
       - "--webhook-enable-sync-mode=${WEBHOOK_ENABLE_SYNC_MODE}"
       - "--webhook-allow-list=${WEBHOOK_ALLOW_LIST}"
       - "--webhook-deny-list=${WEBHOOK_DENY_LIST}"

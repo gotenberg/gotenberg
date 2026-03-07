@@ -33,10 +33,10 @@ Feature: /health
   Scenario: GET /health (Telemetry)
     Given I have a default Gotenberg container
     When I make a "GET" request to Gotenberg at the "/health" endpoint with the following header(s):
-      | Gotenberg-Trace | get_health                                              |
-      | traceparent     | 00-12345678901234567890123456789012-1234567890123456-01 |
+      | X-Correlation-ID | get_health                                              |
+      | traceparent      | 00-12345678901234567890123456789012-1234567890123456-01 |
     Then the response status code should be 200
-    Then the response header "Gotenberg-Trace" should be "get_health"
+    Then the response header "X-Correlation-ID" should be "get_health"
     Then the Gotenberg container should log the following entries:
       | "correlation_id":"get_health"                 |
       | "trace_id":"12345678901234567890123456789012" |
@@ -46,8 +46,8 @@ Feature: /health
     Given I have a Gotenberg container with the following environment variable(s):
       | API_DISABLE_HEALTH_CHECK_ROUTE_TELEMETRY | true |
     When I make a "GET" request to Gotenberg at the "/health" endpoint with the following header(s):
-      | Gotenberg-Trace | get_health_no_telemetry                                 |
-      | traceparent     | 00-12345678901234567890123456789012-1234567890123456-01 |
+      | X-Correlation-ID | get_health_no_telemetry                                 |
+      | traceparent      | 00-12345678901234567890123456789012-1234567890123456-01 |
     Then the response status code should be 200
     Then the Gotenberg container should NOT log the following entries:
       | "correlation_id":"get_health_no_telemetry"    |
@@ -82,10 +82,10 @@ Feature: /health
   Scenario: HEAD /health (Telemetry)
     Given I have a default Gotenberg container
     When I make a "HEAD" request to Gotenberg at the "/health" endpoint with the following header(s):
-      | Gotenberg-Trace | head_health                                             |
-      | traceparent     | 00-12345678901234567890123456789012-1234567890123456-01 |
+      | X-Correlation-ID | head_health                                             |
+      | traceparent      | 00-12345678901234567890123456789012-1234567890123456-01 |
     Then the response status code should be 200
-    Then the response header "Gotenberg-Trace" should be "head_health"
+    Then the response header "X-Correlation-ID" should be "head_health"
     Then the Gotenberg container should log the following entries:
       | "correlation_id":"head_health"                |
       | "trace_id":"12345678901234567890123456789012" |
@@ -95,8 +95,8 @@ Feature: /health
     Given I have a Gotenberg container with the following environment variable(s):
       | API_DISABLE_HEALTH_CHECK_ROUTE_TELEMETRY | true |
     When I make a "HEAD" request to Gotenberg at the "/health" endpoint with the following header(s):
-      | Gotenberg-Trace | head_health_no_telemetry                                |
-      | traceparent     | 00-12345678901234567890123456789012-1234567890123456-01 |
+      | X-Correlation-ID | head_health_no_telemetry                                |
+      | traceparent      | 00-12345678901234567890123456789012-1234567890123456-01 |
     Then the response status code should be 200
     Then the Gotenberg container should NOT log the following entries:
       | "correlation_id":"head_health_no_telemetry"   |

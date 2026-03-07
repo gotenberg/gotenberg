@@ -1065,12 +1065,12 @@ Feature: /forms/chromium/convert/html
   Scenario: POST /forms/chromium/convert/html (Telemetry)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
-      | files           | testdata/page-1-html/index.html                         | file   |
-      | Gotenberg-Trace | forms_chromium_convert_html                             | header |
-      | traceparent     | 00-12345678901234567890123456789012-1234567890123456-01 | header |
+      | files            | testdata/page-1-html/index.html                         | file   |
+      | X-Correlation-ID | forms_chromium_convert_html                             | header |
+      | traceparent      | 00-12345678901234567890123456789012-1234567890123456-01 | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
-    Then the response header "Gotenberg-Trace" should be "forms_chromium_convert_html"
+    Then the response header "X-Correlation-ID" should be "forms_chromium_convert_html"
     Then the Gotenberg container should log the following entries:
       | "correlation_id":"forms_chromium_convert_html" |
       | "trace_id":"12345678901234567890123456789012"  |

@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"sync"
 	"sync/atomic"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/contrib/bridges/otelslog"
+	"go.opentelemetry.io/contrib/exporters/autoexport"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/propagation"
@@ -17,11 +16,11 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 )
 
 // InitTracerProvider initializes the OpenTelemetry tracer provider.
-func InitTracerProvider(logger *slog.Logger, serviceName, serviceVersion string, protocols []string) (shutdown func(context.Context) error, err error) {
+func InitTracerProvider(logger *slog.Logger, serviceName, serviceVersion string) (shutdown func(context.Context) error, err error) {
 	initOtelLogger(logger)
 
 	ctx := context.Background()
@@ -47,12 +46,12 @@ func InitTracerProvider(logger *slog.Logger, serviceName, serviceVersion string,
 		trace.WithResource(res),
 	}
 
-	for _, protocol := range protocols {
-		traceExporter, err := newTraceExporter(ctx, protocol)
-		if err != nil {
-			return nil, err
-		}
+	traceExporter, err := autoexport.NewSpanExporter(ctx)
+	if err != nil {
+		return nil, err
+	}
 
+	if !autoexport.IsNoneSpanExporter(traceExporter) {
 		traceOpts = append(traceOpts, trace.WithBatcher(traceExporter))
 	}
 
@@ -68,7 +67,7 @@ func InitTracerProvider(logger *slog.Logger, serviceName, serviceVersion string,
 }
 
 // InitMeterProvider initializes the OpenTelemetry meter provider.
-func InitMeterProvider(logger *slog.Logger, serviceName, serviceVersion string, protocols []string) (shutdown func(context.Context) error, err error) {
+func InitMeterProvider(logger *slog.Logger, serviceName, serviceVersion string) (shutdown func(context.Context) error, err error) {
 	initOtelLogger(logger)
 
 	ctx := context.Background()
@@ -94,12 +93,12 @@ func InitMeterProvider(logger *slog.Logger, serviceName, serviceVersion string, 
 		metric.WithResource(res),
 	}
 
-	for _, protocol := range protocols {
-		metricReader, err := newMetricReader(ctx, protocol)
-		if err != nil {
-			return nil, err
-		}
+	metricReader, err := autoexport.NewMetricReader(ctx)
+	if err != nil {
+		return nil, err
+	}
 
+	if !autoexport.IsNoneMetricReader(metricReader) {
 		metricOpts = append(metricOpts, metric.WithReader(metricReader))
 	}
 
@@ -110,7 +109,7 @@ func InitMeterProvider(logger *slog.Logger, serviceName, serviceVersion string, 
 }
 
 // InitLoggerProvider initializes the OpenTelemetry logger provider.
-func InitLoggerProvider(logger *slog.Logger, serviceName, serviceVersion string, protocols []string) (shutdown func(context.Context) error, handler slog.Handler, err error) {
+func InitLoggerProvider(logger *slog.Logger, serviceName, serviceVersion string) (shutdown func(context.Context) error, handler slog.Handler, err error) {
 	initOtelLogger(logger)
 
 	ctx := context.Background()
@@ -136,12 +135,12 @@ func InitLoggerProvider(logger *slog.Logger, serviceName, serviceVersion string,
 		log.WithResource(res),
 	}
 
-	for _, protocol := range protocols {
-		logExporter, err := newLogExporter(ctx, protocol)
-		if err != nil {
-			return nil, nil, err
-		}
+	logExporter, err := autoexport.NewLogExporter(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
 
+	if !autoexport.IsNoneLogExporter(logExporter) {
 		logOpts = append(logOpts, log.WithProcessor(log.NewBatchProcessor(logExporter)))
 	}
 
@@ -164,20 +163,4 @@ func initOtelLogger(logger *slog.Logger) {
 	otlpLoggerInitialized.Store(true)
 }
 
-// PrometheusRegistry returns the Prometheus registry.
-func PrometheusRegistry() *prometheus.Registry {
-	promRegistryMu.Lock()
-	defer promRegistryMu.Unlock()
-
-	if promRegistry == nil {
-		promRegistry = prometheus.NewRegistry()
-	}
-
-	return promRegistry
-}
-
-var (
-	otlpLoggerInitialized atomic.Bool
-	promRegistry          *prometheus.Registry
-	promRegistryMu        sync.Mutex
-)
+var otlpLoggerInitialized atomic.Bool

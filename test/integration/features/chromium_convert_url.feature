@@ -1166,12 +1166,12 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url             | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
-      | Gotenberg-Trace | forms_chromium_convert_url                                          | header |
-      | traceparent     | 00-12345678901234567890123456789012-1234567890123456-01             | header |
+      | url              | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
+      | X-Correlation-ID | forms_chromium_convert_url                                          | header |
+      | traceparent      | 00-12345678901234567890123456789012-1234567890123456-01             | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
-    Then the response header "Gotenberg-Trace" should be "forms_chromium_convert_url"
+    Then the response header "X-Correlation-ID" should be "forms_chromium_convert_url"
     Then the Gotenberg container should log the following entries:
       | "correlation_id":"forms_chromium_convert_url" |
       | "trace_id":"12345678901234567890123456789012" |

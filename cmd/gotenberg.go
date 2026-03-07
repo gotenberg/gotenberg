@@ -43,27 +43,10 @@ func Run() {
 	fs.Bool("gotenberg-hide-banner", false, "Hide the banner")
 	fs.Duration("gotenberg-graceful-shutdown-duration", time.Duration(30)*time.Second, "Set the graceful shutdown duration")
 	fs.Bool("gotenberg-build-debug-data", true, "Set if build data is needed")
-	fs.String("telemetry-service-name", "gotenberg", "Set the telemetry service name")
-	fs.StringSlice("telemetry-trace-exporter-protocols", []string{}, fmt.Sprintf("Set the telemetry trace exporter protocols - leave empty to disable this feature. Option include only %s for now", gotenberg.GrpcTelemetryExporterProtocol))
-	fs.StringSlice("telemetry-metric-exporter-protocols", []string{gotenberg.PrometheusTelemetryMetricExporterProtocol}, fmt.Sprintf("Set the telemetry metric exporter protocols - leave empty to disable this feature. Options include %s and %s", gotenberg.PrometheusTelemetryMetricExporterProtocol, gotenberg.GrpcTelemetryExporterProtocol))
-	fs.StringSlice("telemetry-log-exporter-protocols", []string{}, fmt.Sprintf("Set the telemetry log exporter protocols - leave empty to disable this feature. Option include only %s for now", gotenberg.GrpcTelemetryExporterProtocol))
 	fs.String("log-level", gotenberg.InfoLoggingLevel, fmt.Sprintf("Choose the level of logging detail. Options include %s, %s, %s, or %s", gotenberg.ErrorLoggingLevel, gotenberg.WarnLoggingLevel, gotenberg.InfoLoggingLevel, gotenberg.DebugLoggingLevel))
 	fs.String("log-fields-prefix", "", "Prepend a specified prefix to each field in the logs")
 	fs.String("log-std-format", gotenberg.AutoLoggingFormat, fmt.Sprintf("Specify the format of standard logging. Options include %s, %s, or %s", gotenberg.AutoLoggingFormat, gotenberg.JsonLoggingFormat, gotenberg.TextLoggingFormat))
 	fs.Bool("log-std-enable-gcp-fields", false, "Enable Google Cloud Platform fields for standard logging - namely: time, message, severity")
-
-	// Deprecated flags.
-	fs.String("log-format", gotenberg.AutoLoggingFormat, fmt.Sprintf("Specify the format of logging. Options include %s, %s, or %s", gotenberg.AutoLoggingFormat, gotenberg.JsonLoggingFormat, gotenberg.TextLoggingFormat))
-	fs.Bool("log-enable-gcp-fields", false, "Enable Google Cloud Platform fields - namely: time, message, severity")
-	fs.Bool("log-enable-gcp-severity", false, "Enable Google Cloud Platform severity mapping")
-	err := errors.Join(
-		fs.MarkDeprecated("log-format", "use log-std-format"),
-		fs.MarkDeprecated("log-enable-gcp-fields", "use log-std-enable-gcp-fields"),
-		fs.MarkDeprecated("log-enable-gcp-severity", "use log-std-enable-gcp-fields"),
-	)
-	if err != nil {
-		panic(err)
-	}
 
 	descriptors := gotenberg.GetModuleDescriptors()
 	var modsInfo strings.Builder
@@ -73,7 +56,7 @@ func Run() {
 	}
 
 	// Parse the flags.
-	err = fs.Parse(os.Args[1:])
+	err := fs.Parse(os.Args[1:])
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -111,13 +94,16 @@ func Run() {
 	parsedFlags := gotenberg.ParsedFlags{FlagSet: fs}
 	hideBanner := parsedFlags.MustBool("gotenberg-hide-banner")
 	gracefulShutdownDuration := parsedFlags.MustDuration("gotenberg-graceful-shutdown-duration")
+
+	serviceName := os.Getenv("OTEL_SERVICE_NAME")
+	if serviceName == "" {
+		serviceName = "gotenberg"
+	}
+
 	telemetryConfig := gotenberg.TelemetryConfig{
 		// OpenTelemetry.
-		ServiceName:             parsedFlags.MustString("telemetry-service-name"),
-		ServiceVersion:          Version,
-		TraceExporterProtocols:  parsedFlags.MustStringSlice("telemetry-trace-exporter-protocols"),
-		MetricExporterProtocols: parsedFlags.MustStringSlice("telemetry-metric-exporter-protocols"),
-		LogExporterProtocols:    parsedFlags.MustStringSlice("telemetry-log-exporter-protocols"),
+		ServiceName:    serviceName,
+		ServiceVersion: Version,
 		// Logging.
 		LogLevel:              parsedFlags.MustString("log-level"),
 		LogFieldsPrefix:       parsedFlags.MustString("log-fields-prefix"),
@@ -141,15 +127,6 @@ func Run() {
 		fmt.Printf("[FATAL] telemetry: %s\n", err)
 		os.Exit(1)
 	}
-	printExporters := func(protocols []string) string {
-		if len(protocols) == 0 {
-			return "none"
-		}
-		return strings.Join(protocols, " ")
-	}
-	fmt.Printf("[SYSTEM] telemetry: trace exporters: %s\n", printExporters(telemetryConfig.TraceExporterProtocols))
-	fmt.Printf("[SYSTEM] telemetry: metric exporters: %s\n", printExporters(telemetryConfig.MetricExporterProtocols))
-	fmt.Printf("[SYSTEM] telemetry: log exporters: %s\n", printExporters(telemetryConfig.LogExporterProtocols))
 
 	// Modules.
 	fmt.Printf("[SYSTEM] modules: %s\n", modsInfo.String())

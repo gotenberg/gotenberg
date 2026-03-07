@@ -640,12 +640,12 @@ Feature: /forms/libreoffice/convert
   Scenario: POST /forms/libreoffice/convert (Telemetry)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
-      | files           | testdata/page_1.docx                                    | file   |
-      | Gotenberg-Trace | forms_libreoffice_convert                               | header |
-      | traceparent     | 00-12345678901234567890123456789012-1234567890123456-01 | header |
+      | files            | testdata/page_1.docx                                    | file   |
+      | X-Correlation-ID | forms_libreoffice_convert                               | header |
+      | traceparent      | 00-12345678901234567890123456789012-1234567890123456-01 | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
-    Then the response header "Gotenberg-Trace" should be "forms_libreoffice_convert"
+    Then the response header "X-Correlation-ID" should be "forms_libreoffice_convert"
     Then the Gotenberg container should log the following entries:
       | "correlation_id":"forms_libreoffice_convert"  |
       | "trace_id":"12345678901234567890123456789012" |

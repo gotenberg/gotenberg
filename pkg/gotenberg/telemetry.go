@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/hashicorp/go-retryablehttp"
-	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
@@ -31,18 +30,10 @@ const (
 	DebugLoggingLevel = "debug"
 )
 
-const (
-	GrpcTelemetryExporterProtocol             = "grpc"
-	PrometheusTelemetryMetricExporterProtocol = "prometheus"
-)
-
 // TelemetryConfig gathers the configuration data for Gotenberg's telemetry.
 type TelemetryConfig struct {
-	ServiceName             string
-	ServiceVersion          string
-	TraceExporterProtocols  []string
-	MetricExporterProtocols []string
-	LogExporterProtocols    []string
+	ServiceName    string
+	ServiceVersion string
 
 	LogLevel              string
 	LogFieldsPrefix       string
@@ -73,40 +64,6 @@ func (cfg TelemetryConfig) Validate() error {
 		err = multierr.Append(err,
 			errors.New("service version must not be empty"),
 		)
-	}
-
-	for _, protocol := range cfg.TraceExporterProtocols {
-		switch protocol {
-		case GrpcTelemetryExporterProtocol:
-			continue
-		default:
-			err = multierr.Append(err,
-				fmt.Errorf("unknown trace export protocol %s: must be %s ", protocol, GrpcTelemetryExporterProtocol),
-			)
-		}
-	}
-
-	for _, protocol := range cfg.MetricExporterProtocols {
-		switch protocol {
-		case GrpcTelemetryExporterProtocol:
-		case PrometheusTelemetryMetricExporterProtocol:
-			continue
-		default:
-			err = multierr.Append(err,
-				fmt.Errorf("unknown metric export protocol %s: must be at least one of %s and %s", protocol, GrpcTelemetryExporterProtocol, PrometheusTelemetryMetricExporterProtocol),
-			)
-		}
-	}
-
-	for _, protocol := range cfg.LogExporterProtocols {
-		switch protocol {
-		case GrpcTelemetryExporterProtocol:
-			continue
-		default:
-			err = multierr.Append(err,
-				fmt.Errorf("unknown trace export protocol %s: must be %s ", protocol, GrpcTelemetryExporterProtocol),
-			)
-		}
 	}
 
 	switch cfg.LogLevel {
@@ -149,19 +106,19 @@ func StartTelemetry(cfg TelemetryConfig) (shutdown func(context.Context) error, 
 	// OpenTelemetry.
 	var shutdowns []func(context.Context) error
 
-	shutdownFn, err := internalotel.InitTracerProvider(bootstrapLogger, cfg.ServiceName, cfg.ServiceVersion, cfg.TraceExporterProtocols)
+	shutdownFn, err := internalotel.InitTracerProvider(bootstrapLogger, cfg.ServiceName, cfg.ServiceVersion)
 	if err != nil {
 		return nil, fmt.Errorf("initialize OpenTelemetry tracer provider: %w", err)
 	}
 	shutdowns = append(shutdowns, shutdownFn)
 
-	shutdownFn, err = internalotel.InitMeterProvider(bootstrapLogger, cfg.ServiceName, cfg.ServiceVersion, cfg.MetricExporterProtocols)
+	shutdownFn, err = internalotel.InitMeterProvider(bootstrapLogger, cfg.ServiceName, cfg.ServiceVersion)
 	if err != nil {
 		return nil, fmt.Errorf("initialize OpenTelemetry meter provider: %w", err)
 	}
 	shutdowns = append(shutdowns, shutdownFn)
 
-	shutdownFn, otelHandler, err := internalotel.InitLoggerProvider(bootstrapLogger, cfg.ServiceName, cfg.ServiceVersion, cfg.LogExporterProtocols)
+	shutdownFn, otelHandler, err := internalotel.InitLoggerProvider(bootstrapLogger, cfg.ServiceName, cfg.ServiceVersion)
 	if err != nil {
 		return nil, fmt.Errorf("initialize OpenTelemetry logger provider: %w", err)
 	}
@@ -206,11 +163,6 @@ func StartTelemetry(cfg TelemetryConfig) (shutdown func(context.Context) error, 
 // Logger returns the global logger.
 func Logger(mod Module) *slog.Logger {
 	return log.Logger().With(slog.String("logger", mod.Descriptor().ID))
-}
-
-// PrometheusRegistry returns the Prometheus registry.
-func PrometheusRegistry() *prometheus.Registry {
-	return internalotel.PrometheusRegistry()
 }
 
 const (
