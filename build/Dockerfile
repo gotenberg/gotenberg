@@ -94,8 +94,6 @@ FROM base-image-stage
 ARG GOTENBERG_VERSION=snapshot
 ARG GOTENBERG_USER_GID=1001
 ARG GOTENBERG_USER_UID=1001
-# See https://github.com/googlefonts/noto-emoji/releases.
-ARG NOTO_COLOR_EMOJI_VERSION=v2.051
 # See https://gitlab.com/pdftk-java/pdftk/-/releases - Binary package.
 ARG PDFTK_VERSION=v3.3.3
 
@@ -128,53 +126,20 @@ RUN \
 
 RUN \
     # Install fonts.
-    # Credits:
-    # https://github.com/arachnys/athenapdf/blob/master/cli/Dockerfile.
-    # https://help.accusoft.com/PrizmDoc/v12.1/HTML/Installing_Asian_Fonts_on_Ubuntu_and_Debian.html.
-    curl -o ./ttf-mscorefonts-installer_3.8.1_all.deb http://httpredir.debian.org/debian/pool/contrib/m/msttcorefonts/ttf-mscorefonts-installer_3.8.1_all.deb &&\
     apt-get update -qq &&\
     apt-get upgrade -yqq &&\
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
-    ./ttf-mscorefonts-installer_3.8.1_all.deb \
-    culmus \
-    fonts-beng \
-    fonts-hosny-amiri \
-    fonts-lklug-sinhala \
-    fonts-lohit-guru \
-    fonts-lohit-knda \
-    fonts-samyak-gujr \
-    fonts-samyak-mlym \
-    fonts-samyak-taml \
-    fonts-sarai \
-    fonts-sil-abyssinica \
-    fonts-sil-padauk \
-    fonts-telu \
-    fonts-thai-tlwg \
-    ttf-wqy-zenhei \
-    fonts-arphic-ukai \
-    fonts-arphic-uming \
-    fonts-ipafont-mincho \
-    fonts-ipafont-gothic \
-    fonts-unfonts-core \
-    # LibreOffice recommends.
-    fonts-crosextra-caladea \
-    fonts-crosextra-carlito \
-    fonts-dejavu \
-    fonts-liberation \
-    fonts-liberation2 \
-    fonts-linuxlibertine \
-    fonts-noto-cjk \
-    fonts-noto-core \
-    fonts-noto-mono \
-    fonts-noto-ui-core \
-    fonts-sil-gentium \
-    fonts-sil-gentium-basic &&\
-    rm -f ./ttf-mscorefonts-installer_3.8.1_all.deb &&\
-    # Add Color and Black-and-White Noto emoji font.
-    # Credits:
-    # https://github.com/gotenberg/gotenberg/pull/325.
-    # https://github.com/googlefonts/noto-emoji.
-    curl -Ls "https://github.com/googlefonts/noto-emoji/raw/$NOTO_COLOR_EMOJI_VERSION/fonts/NotoColorEmoji.ttf" -o /usr/local/share/fonts/NotoColorEmoji.ttf &&\
+        # Essential metric-compatible fonts for LibreOffice layout fidelity (replaces MS Fonts).
+        fonts-crosextra-carlito \
+        fonts-crosextra-caladea \
+        fonts-liberation \
+        fonts-liberation2 \
+        # Reliable general-purpose fallback for Chromium.
+        fonts-dejavu \
+        # Unified CJK (Chinese, Japanese, Korean) support.
+        fonts-noto-cjk \
+        # Standard Emoji support.
+        fonts-noto-color-emoji &&\
     # Cleanup.
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
