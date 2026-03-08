@@ -64,7 +64,7 @@ RUN \
 
 # Note: jdeps helps finding which modules a JAR requires.
 # Currently only for PDFtk, as we don't rely on LibreOffice UNO Java SDK.
-ENV JAVA_MODULES=java.base,java.desktop,java.naming,java.sql
+ENV JAVA_MODULES=java.base,java.desktop,java.xml
 
 RUN jlink \
     --add-modules $JAVA_MODULES \
