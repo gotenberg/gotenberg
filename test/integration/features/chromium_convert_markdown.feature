@@ -1066,17 +1066,20 @@ Feature: /forms/chromium/convert/markdown
       | files | testdata/page-1-markdown/page_1.md  | file |
     Then the response status code should be 404
 
-  Scenario: POST /forms/chromium/convert/markdown (Gotenberg Trace)
+  @telemetry
+  Scenario: POST /forms/chromium/convert/markdown (Telemetry)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files           | testdata/page-1-markdown/index.html | file   |
-      | files           | testdata/page-1-markdown/page_1.md  | file   |
-      | Gotenberg-Trace | forms_chromium_convert_html         | header |
+      | files            | testdata/page-1-markdown/index.html                     | file   |
+      | files            | testdata/page-1-markdown/page_1.md                      | file   |
+      | X-Correlation-ID | forms_chromium_convert_markdown                         | header |
+      | traceparent      | 00-12345678901234567890123456789012-1234567890123456-01 | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
-    Then the response header "Gotenberg-Trace" should be "forms_chromium_convert_html"
+    Then the response header "X-Correlation-ID" should be "forms_chromium_convert_markdown"
     Then the Gotenberg container should log the following entries:
-      | "trace":"forms_chromium_convert_html" |
+      | "correlation_id":"forms_chromium_convert_markdown" |
+      | "trace_id":"12345678901234567890123456789012"      |
 
   @download-from
   Scenario: POST /forms/chromium/convert/markdown (Download From)

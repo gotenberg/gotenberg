@@ -52,16 +52,9 @@ func (mod *PdfEngines) Descriptor() gotenberg.ModuleDescriptor {
 			fs.StringSlice("pdfengines-convert-engines", []string{"libreoffice-pdfengine"}, "Set the PDF engines and their order for the convert feature - empty means all")
 			fs.StringSlice("pdfengines-read-metadata-engines", []string{"exiftool"}, "Set the PDF engines and their order for the read metadata feature - empty means all")
 			fs.StringSlice("pdfengines-write-metadata-engines", []string{"exiftool"}, "Set the PDF engines and their order for the write metadata feature - empty means all")
-			fs.StringSlice("pdfengines-encrypt-engines", []string{"qpdf", "pdftk", "pdfcpu"}, "Set the PDF engines and their order for the password protection feature - empty means all")
+			fs.StringSlice("pdfengines-encrypt-engines", []string{"qpdf", "pdfcpu", "pdftk"}, "Set the PDF engines and their order for the password protection feature - empty means all")
 			fs.StringSlice("pdfengines-embed-engines", []string{"pdfcpu"}, "Set the PDF engines and their order for the file embedding feature - empty means all")
 			fs.Bool("pdfengines-disable-routes", false, "Disable the routes")
-
-			// Deprecated flags.
-			fs.StringSlice("pdfengines-engines", make([]string, 0), "Set the default PDF engines and their default order - all by default")
-			err := fs.MarkDeprecated("pdfengines-engines", "use other flags for a more granular selection of PDF engines per method")
-			if err != nil {
-				panic(err)
-			}
 
 			return fs
 		}(),
@@ -102,7 +95,7 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 	// Example in the case of deprecated module name.
 	//for i, name := range defaultNames {
 	//	if name == "unoconv-pdfengine" || name == "uno-pdfengine" {
-	//		logger.Warn(fmt.Sprintf("%s is deprecated; prefer libreoffice-pdfengine instead", name))
+	//		logger.WarnContext(ctx, fmt.Sprintf("%s is deprecated; prefer libreoffice-pdfengine instead", name))
 	//		mod.defaultNames[i] = "libreoffice-pdfengine"
 	//	}
 	//}

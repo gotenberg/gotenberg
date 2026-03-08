@@ -1,9 +1,8 @@
-package logging
+package log
 
 import (
 	"fmt"
-
-	"go.uber.org/zap/zapcore"
+	"log/slog"
 )
 
 // Foreground colors.
@@ -25,23 +24,15 @@ func (c color) Add(s string) string {
 	return fmt.Sprintf("\x1b[%dm%s\x1b[0m", uint8(c), s)
 }
 
-func levelToColor(l zapcore.Level) color {
+func levelToColor(l slog.Level) color {
 	switch l {
-	case zapcore.DebugLevel:
+	case slog.LevelDebug:
 		return cyan
-	case zapcore.InfoLevel:
+	case slog.LevelInfo:
 		return blue
-	case zapcore.WarnLevel:
+	case slog.LevelWarn:
 		return yellow
-	case zapcore.ErrorLevel:
-		return red
-	case zapcore.DPanicLevel:
-		return red
-	case zapcore.PanicLevel:
-		return red
-	case zapcore.FatalLevel:
-		return red
-	case zapcore.InvalidLevel:
+	case slog.LevelError:
 		return red
 	default:
 		return red

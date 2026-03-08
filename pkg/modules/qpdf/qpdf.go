@@ -5,12 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"syscall"
 
-	"go.uber.org/zap"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
@@ -82,38 +84,56 @@ func (engine *QPdf) Debug() map[string]any {
 }
 
 // Split splits a given PDF file.
-func (engine *QPdf) Split(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+func (engine *QPdf) Split(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+	ctx, span := gotenberg.Tracer().Start(ctx, "QPdf.Split", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var args []string
 	outputPath := fmt.Sprintf("%s/%s", outputDirPath, filepath.Base(inputPath))
 
 	switch mode.Mode {
 	case gotenberg.SplitModePages:
 		if !mode.Unify {
-			return nil, fmt.Errorf("split PDFs using mode '%s' without unify with QPDF: %w", mode.Mode, gotenberg.ErrPdfSplitModeNotSupported)
+			err := fmt.Errorf("split PDFs using mode '%s' without unify with QPDF: %w", mode.Mode, gotenberg.ErrPdfSplitModeNotSupported)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			return nil, err
 		}
 		args = append(args, inputPath)
 		args = append(args, engine.globalArgs...)
 		args = append(args, "--pages", ".", mode.Span)
 		args = append(args, "--", outputPath)
 	default:
-		return nil, fmt.Errorf("split PDFs using mode '%s' with QPDF: %w", mode.Mode, gotenberg.ErrPdfSplitModeNotSupported)
+		err := fmt.Errorf("split PDFs using mode '%s' with QPDF: %w", mode.Mode, gotenberg.ErrPdfSplitModeNotSupported)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
 	}
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
 	if err != nil {
-		return nil, fmt.Errorf("create command: %w", err)
+		err = fmt.Errorf("create command: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
 	}
 
 	_, err = cmd.Exec()
 	if err != nil {
-		return nil, fmt.Errorf("split PDFs with QPDF: %w", err)
+		err = fmt.Errorf("split PDFs with QPDF: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
 	}
 
 	return []string{outputPath}, nil
 }
 
 // Merge combines multiple PDFs into a single PDF.
-func (engine *QPdf) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+func (engine *QPdf) Merge(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "QPdf.Merge", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	args := make([]string, 0, 4+len(engine.globalArgs)+len(inputPaths))
 	args = append(args, "--empty")
 	args = append(args, engine.globalArgs...)
@@ -123,7 +143,10 @@ func (engine *QPdf) Merge(ctx context.Context, logger *zap.Logger, inputPaths []
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
 	if err != nil {
-		return fmt.Errorf("create command: %w", err)
+		err = fmt.Errorf("create command: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
 
 	_, err = cmd.Exec()
@@ -131,12 +154,20 @@ func (engine *QPdf) Merge(ctx context.Context, logger *zap.Logger, inputPaths []
 		return nil
 	}
 
-	return fmt.Errorf("merge PDFs with QPDF: %w", err)
+	err = fmt.Errorf("merge PDFs with QPDF: %w", err)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+	return err
 }
 
 // Flatten merges annotation appearances with page content, deleting the
 // original annotations.
-func (engine *QPdf) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
+func (engine *QPdf) Flatten(ctx context.Context, logger *slog.Logger, inputPath string) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "QPdf.Flatten", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	args := make([]string, 0, 4+len(engine.globalArgs))
 	args = append(args, inputPath)
 	args = append(args, "--generate-appearances")
@@ -146,7 +177,10 @@ func (engine *QPdf) Flatten(ctx context.Context, logger *zap.Logger, inputPath s
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
 	if err != nil {
-		return fmt.Errorf("create command: %w", err)
+		err = fmt.Errorf("create command: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
 
 	_, err = cmd.Exec()
@@ -154,28 +188,66 @@ func (engine *QPdf) Flatten(ctx context.Context, logger *zap.Logger, inputPath s
 		return nil
 	}
 
-	return fmt.Errorf("flatten PDFs with QPDF: %w", err)
+	err = fmt.Errorf("flatten PDFs with QPDF: %w", err)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+	return err
 }
 
 // Convert is not available in this implementation.
-func (engine *QPdf) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
-	return fmt.Errorf("convert PDF to '%+v' with QPDF: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)
+func (engine *QPdf) Convert(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+	_, span := gotenberg.Tracer().Start(ctx, "QPdf.Convert", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
+	err := fmt.Errorf("convert PDF to '%+v' with QPDF: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+
+	return err
 }
 
 // ReadMetadata is not available in this implementation.
-func (engine *QPdf) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
-	return nil, fmt.Errorf("read PDF metadata with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+func (engine *QPdf) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
+	_, span := gotenberg.Tracer().Start(ctx, "QPdf.ReadMetadata", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
+	err := fmt.Errorf("read PDF metadata with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+
+	return nil, err
 }
 
 // WriteMetadata is not available in this implementation.
-func (engine *QPdf) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
-	return fmt.Errorf("write PDF metadata with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+func (engine *QPdf) WriteMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
+	_, span := gotenberg.Tracer().Start(ctx, "QPdf.WriteMetadata", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
+	err := fmt.Errorf("write PDF metadata with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+
+	return err
 }
 
 // Encrypt adds password protection to a PDF file using QPDF.
-func (engine *QPdf) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
+func (engine *QPdf) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "QPdf.Encrypt", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	if userPassword == "" {
-		return errors.New("user password cannot be empty")
+		err := errors.New("user password cannot be empty")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
 
 	if ownerPassword == "" {
@@ -190,20 +262,35 @@ func (engine *QPdf) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, 
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
 	if err != nil {
-		return fmt.Errorf("create command: %w", err)
+		err = fmt.Errorf("create command: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
 
 	_, err = cmd.Exec()
 	if err != nil {
-		return fmt.Errorf("encrypt PDF with QPDF: %w", err)
+		err = fmt.Errorf("encrypt PDF with QPDF: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
 
 	return nil
 }
 
 // EmbedFiles is not available in this implementation.
-func (engine *QPdf) EmbedFiles(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error {
-	return fmt.Errorf("embed files with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+func (engine *QPdf) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {
+	_, span := gotenberg.Tracer().Start(ctx, "QPdf.EmbedFiles", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
+	err := fmt.Errorf("embed files with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+
+	return err
 }
 
 var (

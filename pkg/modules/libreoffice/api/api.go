@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
@@ -12,8 +13,9 @@ import (
 
 	"github.com/alexliesenfeld/health"
 	flag "github.com/spf13/pflag"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/multierr"
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
@@ -45,7 +47,7 @@ type Api struct {
 	autoStart bool
 	args      libreOfficeArguments
 
-	logger      *zap.Logger
+	logger      *slog.Logger
 	libreOffice libreOffice
 	supervisor  gotenberg.ProcessSupervisor
 }
@@ -187,7 +189,7 @@ func DefaultOptions() Options {
 
 // Uno is an abstraction on top of the Universal Network Objects API.
 type Uno interface {
-	Pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
+	Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error
 	Extensions() []string
 }
 
@@ -241,19 +243,41 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 	}
 
 	// Logger.
-	loggerProvider, err := ctx.Module(new(gotenberg.LoggerProvider))
-	if err != nil {
-		return fmt.Errorf("get logger provider: %w", err)
-	}
-	logger, err := loggerProvider.(gotenberg.LoggerProvider).Logger(a)
-	if err != nil {
-		return fmt.Errorf("get logger: %w", err)
-	}
-	a.logger = logger.Named("libreoffice")
+	a.logger = gotenberg.Logger(a).With(slog.String("logger", "libreoffice"))
 
 	// Process.
 	a.libreOffice = newLibreOfficeProcess(a.args)
 	a.supervisor = gotenberg.NewProcessSupervisor(a.logger, a.libreOffice, flags.MustInt64("libreoffice-restart-after"), flags.MustInt64("libreoffice-max-queue-size"), 1)
+
+	// OpenTelemetry.
+	meter := gotenberg.Meter()
+	_, err := meter.Int64ObservableCounter(
+		"libreoffice.process.restarts.total",
+		metric.WithDescription("Current number of LibreOffice restarts."),
+		metric.WithUnit("{restart}"),
+		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
+			val := a.supervisor.RestartsCount()
+			o.Observe(val)
+			return nil
+		}),
+	)
+	if err != nil {
+		return fmt.Errorf("create process restarts observable counter: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"libreoffice.requests.queue_size",
+		metric.WithDescription("Current number of LibreOffice conversion requests waiting to be treated."),
+		metric.WithUnit("{request}"),
+		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
+			val := a.supervisor.ReqQueueSize()
+			o.Observe(val)
+			return nil
+		}),
+	)
+	if err != nil {
+		return fmt.Errorf("create requests queue size observable gauge: %w", err)
+	}
 
 	return nil
 }
@@ -303,7 +327,7 @@ func (a *Api) StartupMessage() string {
 func (a *Api) Stop(ctx context.Context) error {
 	// Block until the context is done so that another module may gracefully
 	// stop before we do a shutdown.
-	a.logger.Debug("wait for the end of grace duration")
+	a.logger.DebugContext(ctx, "wait for the end of grace duration")
 
 	<-ctx.Done()
 
@@ -330,26 +354,6 @@ func (a *Api) Debug() map[string]any {
 
 	debug["version"] = strings.TrimSpace(string(output))
 	return debug
-}
-
-// Metrics returns the metrics.
-func (a *Api) Metrics() ([]gotenberg.Metric, error) {
-	return []gotenberg.Metric{
-		{
-			Name:        "libreoffice_requests_queue_size",
-			Description: "Current number of LibreOffice conversion requests waiting to be treated.",
-			Read: func() float64 {
-				return float64(a.supervisor.ReqQueueSize())
-			},
-		},
-		{
-			Name:        "libreoffice_restarts_count",
-			Description: "Current number of LibreOffice restarts.",
-			Read: func() float64 {
-				return float64(a.supervisor.RestartsCount())
-			},
-		},
-	}, nil
 }
 
 // Checks adds a health check that verifies if LibreOffice is healthy.
@@ -402,7 +406,10 @@ func (a *Api) LibreOffice() (Uno, error) {
 }
 
 // Pdf converts a document to PDF.
-func (a *Api) Pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error {
+func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "LibreOffice.Pdf")
+	defer span.End()
+
 	err := a.supervisor.Run(ctx, logger, func() error {
 		return a.libreOffice.pdf(ctx, logger, inputPath, outputPath, options)
 	})
@@ -413,11 +420,20 @@ func (a *Api) Pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath
 
 	// See https://github.com/gotenberg/gotenberg/issues/639.
 	if errors.Is(err, ErrCoreDumped) {
-		logger.Debug(fmt.Sprintf("got a '%s' error, retry conversion", err))
-		return a.Pdf(ctx, logger, inputPath, outputPath, options)
+		logger.DebugContext(ctx, fmt.Sprintf("got a '%s' error, retry conversion", err))
+		err = a.Pdf(ctx, logger, inputPath, outputPath, options)
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+		}
+		return err
 	}
 
-	return fmt.Errorf("supervisor run task: %w", err)
+	err = fmt.Errorf("supervisor run task: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+
+	return err
 }
 
 // Extensions returns the file extensions available for conversions.
@@ -559,13 +575,12 @@ func (a *Api) Extensions() []string {
 
 // Interface guards.
 var (
-	_ gotenberg.Module          = (*Api)(nil)
-	_ gotenberg.Provisioner     = (*Api)(nil)
-	_ gotenberg.Validator       = (*Api)(nil)
-	_ gotenberg.App             = (*Api)(nil)
-	_ gotenberg.Debuggable      = (*Api)(nil)
-	_ gotenberg.MetricsProvider = (*Api)(nil)
-	_ api.HealthChecker         = (*Api)(nil)
-	_ Uno                       = (*Api)(nil)
-	_ Provider                  = (*Api)(nil)
+	_ gotenberg.Module      = (*Api)(nil)
+	_ gotenberg.Provisioner = (*Api)(nil)
+	_ gotenberg.Validator   = (*Api)(nil)
+	_ gotenberg.App         = (*Api)(nil)
+	_ gotenberg.Debuggable  = (*Api)(nil)
+	_ api.HealthChecker     = (*Api)(nil)
+	_ Uno                   = (*Api)(nil)
+	_ Provider              = (*Api)(nil)
 )

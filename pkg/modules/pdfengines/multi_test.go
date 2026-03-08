@@ -3,9 +3,9 @@ package pdfengines
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"os"
 	"testing"
-
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
@@ -22,7 +22,7 @@ func TestMultiPdfEngines_Merge(t *testing.T) {
 			engine: &multiPdfEngines{
 				mergeEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+						MergeMock: func(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
 							return nil
 						},
 					},
@@ -36,12 +36,12 @@ func TestMultiPdfEngines_Merge(t *testing.T) {
 			engine: &multiPdfEngines{
 				mergeEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+						MergeMock: func(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
 							return errors.New("foo")
 						},
 					},
 					&gotenberg.PdfEngineMock{
-						MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+						MergeMock: func(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
 							return nil
 						},
 					},
@@ -55,12 +55,12 @@ func TestMultiPdfEngines_Merge(t *testing.T) {
 			engine: &multiPdfEngines{
 				mergeEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+						MergeMock: func(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
 							return errors.New("foo")
 						},
 					},
 					&gotenberg.PdfEngineMock{
-						MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+						MergeMock: func(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
 							return errors.New("foo")
 						},
 					},
@@ -74,7 +74,7 @@ func TestMultiPdfEngines_Merge(t *testing.T) {
 			engine: &multiPdfEngines{
 				mergeEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+						MergeMock: func(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
 							return nil
 						},
 					},
@@ -90,7 +90,7 @@ func TestMultiPdfEngines_Merge(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			err := tc.engine.Merge(tc.ctx, zap.NewNop(), nil, "")
+			err := tc.engine.Merge(tc.ctx, slog.New(slog.NewJSONHandler(os.Stdout, nil)), nil, "")
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
@@ -115,7 +115,7 @@ func TestMultiPdfEngines_Encrypt(t *testing.T) {
 			engine: &multiPdfEngines{
 				passwordEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						EncryptMock: func(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
+						EncryptMock: func(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
 							return nil
 						},
 					},
@@ -128,12 +128,12 @@ func TestMultiPdfEngines_Encrypt(t *testing.T) {
 			engine: &multiPdfEngines{
 				passwordEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						EncryptMock: func(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
+						EncryptMock: func(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
 							return errors.New("foo")
 						},
 					},
 					&gotenberg.PdfEngineMock{
-						EncryptMock: func(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
+						EncryptMock: func(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
 							return nil
 						},
 					},
@@ -146,12 +146,12 @@ func TestMultiPdfEngines_Encrypt(t *testing.T) {
 			engine: &multiPdfEngines{
 				passwordEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						EncryptMock: func(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
+						EncryptMock: func(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
 							return errors.New("foo")
 						},
 					},
 					&gotenberg.PdfEngineMock{
-						EncryptMock: func(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
+						EncryptMock: func(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
 							return errors.New("foo")
 						},
 					},
@@ -165,7 +165,7 @@ func TestMultiPdfEngines_Encrypt(t *testing.T) {
 			engine: &multiPdfEngines{
 				passwordEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						EncryptMock: func(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
+						EncryptMock: func(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
 							return nil
 						},
 					},
@@ -181,7 +181,7 @@ func TestMultiPdfEngines_Encrypt(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			err := tc.engine.Encrypt(tc.ctx, zap.NewNop(), "", "", "")
+			err := tc.engine.Encrypt(tc.ctx, slog.New(slog.NewJSONHandler(os.Stdout, nil)), "", "", "")
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
@@ -206,7 +206,7 @@ func TestMultiPdfEngines_Split(t *testing.T) {
 			engine: &multiPdfEngines{
 				splitEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						SplitMock: func(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+						SplitMock: func(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
 							return nil, nil
 						},
 					},
@@ -219,12 +219,12 @@ func TestMultiPdfEngines_Split(t *testing.T) {
 			engine: &multiPdfEngines{
 				splitEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						SplitMock: func(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+						SplitMock: func(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
 							return nil, errors.New("foo")
 						},
 					},
 					&gotenberg.PdfEngineMock{
-						SplitMock: func(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+						SplitMock: func(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
 							return nil, nil
 						},
 					},
@@ -237,12 +237,12 @@ func TestMultiPdfEngines_Split(t *testing.T) {
 			engine: &multiPdfEngines{
 				splitEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						SplitMock: func(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+						SplitMock: func(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
 							return nil, errors.New("foo")
 						},
 					},
 					&gotenberg.PdfEngineMock{
-						SplitMock: func(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+						SplitMock: func(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
 							return nil, errors.New("foo")
 						},
 					},
@@ -256,7 +256,7 @@ func TestMultiPdfEngines_Split(t *testing.T) {
 			engine: &multiPdfEngines{
 				splitEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						SplitMock: func(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+						SplitMock: func(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
 							return nil, nil
 						},
 					},
@@ -272,7 +272,7 @@ func TestMultiPdfEngines_Split(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			_, err := tc.engine.Split(tc.ctx, zap.NewNop(), gotenberg.SplitMode{}, "", "")
+			_, err := tc.engine.Split(tc.ctx, slog.New(slog.NewJSONHandler(os.Stdout, nil)), gotenberg.SplitMode{}, "", "")
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
@@ -297,7 +297,7 @@ func TestMultiPdfEngines_Flatten(t *testing.T) {
 			engine: &multiPdfEngines{
 				flattenEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
+						FlattenMock: func(ctx context.Context, logger *slog.Logger, inputPath string) error {
 							return nil
 						},
 					},
@@ -310,12 +310,12 @@ func TestMultiPdfEngines_Flatten(t *testing.T) {
 			engine: &multiPdfEngines{
 				flattenEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
+						FlattenMock: func(ctx context.Context, logger *slog.Logger, inputPath string) error {
 							return errors.New("foo")
 						},
 					},
 					&gotenberg.PdfEngineMock{
-						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
+						FlattenMock: func(ctx context.Context, logger *slog.Logger, inputPath string) error {
 							return nil
 						},
 					},
@@ -328,12 +328,12 @@ func TestMultiPdfEngines_Flatten(t *testing.T) {
 			engine: &multiPdfEngines{
 				flattenEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
+						FlattenMock: func(ctx context.Context, logger *slog.Logger, inputPath string) error {
 							return errors.New("foo")
 						},
 					},
 					&gotenberg.PdfEngineMock{
-						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
+						FlattenMock: func(ctx context.Context, logger *slog.Logger, inputPath string) error {
 							return errors.New("foo")
 						},
 					},
@@ -347,7 +347,7 @@ func TestMultiPdfEngines_Flatten(t *testing.T) {
 			engine: &multiPdfEngines{
 				flattenEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						FlattenMock: func(ctx context.Context, logger *zap.Logger, inputPath string) error {
+						FlattenMock: func(ctx context.Context, logger *slog.Logger, inputPath string) error {
 							return nil
 						},
 					},
@@ -363,7 +363,7 @@ func TestMultiPdfEngines_Flatten(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			err := tc.engine.Flatten(tc.ctx, zap.NewNop(), "")
+			err := tc.engine.Flatten(tc.ctx, slog.New(slog.NewJSONHandler(os.Stdout, nil)), "")
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
@@ -388,7 +388,7 @@ func TestMultiPdfEngines_Convert(t *testing.T) {
 			engine: &multiPdfEngines{
 				convertEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+						ConvertMock: func(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 							return nil
 						},
 					},
@@ -401,12 +401,12 @@ func TestMultiPdfEngines_Convert(t *testing.T) {
 			engine: &multiPdfEngines{
 				convertEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+						ConvertMock: func(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 							return errors.New("foo")
 						},
 					},
 					&gotenberg.PdfEngineMock{
-						ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+						ConvertMock: func(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 							return nil
 						},
 					},
@@ -419,12 +419,12 @@ func TestMultiPdfEngines_Convert(t *testing.T) {
 			engine: &multiPdfEngines{
 				convertEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+						ConvertMock: func(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 							return errors.New("foo")
 						},
 					},
 					&gotenberg.PdfEngineMock{
-						ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+						ConvertMock: func(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 							return errors.New("foo")
 						},
 					},
@@ -438,7 +438,7 @@ func TestMultiPdfEngines_Convert(t *testing.T) {
 			engine: &multiPdfEngines{
 				convertEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+						ConvertMock: func(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 							return nil
 						},
 					},
@@ -454,7 +454,7 @@ func TestMultiPdfEngines_Convert(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			err := tc.engine.Convert(tc.ctx, zap.NewNop(), gotenberg.PdfFormats{}, "", "")
+			err := tc.engine.Convert(tc.ctx, slog.New(slog.NewJSONHandler(os.Stdout, nil)), gotenberg.PdfFormats{}, "", "")
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
@@ -479,7 +479,7 @@ func TestMultiPdfEngines_ReadMetadata(t *testing.T) {
 			engine: &multiPdfEngines{
 				readMetadataEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
+						ReadMetadataMock: func(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 							return make(map[string]any), nil
 						},
 					},
@@ -492,12 +492,12 @@ func TestMultiPdfEngines_ReadMetadata(t *testing.T) {
 			engine: &multiPdfEngines{
 				readMetadataEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
+						ReadMetadataMock: func(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 							return nil, errors.New("foo")
 						},
 					},
 					&gotenberg.PdfEngineMock{
-						ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
+						ReadMetadataMock: func(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 							return make(map[string]any), nil
 						},
 					},
@@ -510,12 +510,12 @@ func TestMultiPdfEngines_ReadMetadata(t *testing.T) {
 			engine: &multiPdfEngines{
 				readMetadataEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
+						ReadMetadataMock: func(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 							return nil, errors.New("foo")
 						},
 					},
 					&gotenberg.PdfEngineMock{
-						ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
+						ReadMetadataMock: func(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 							return nil, errors.New("foo")
 						},
 					},
@@ -529,7 +529,7 @@ func TestMultiPdfEngines_ReadMetadata(t *testing.T) {
 			engine: &multiPdfEngines{
 				readMetadataEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						ReadMetadataMock: func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
+						ReadMetadataMock: func(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 							return make(map[string]any), nil
 						},
 					},
@@ -545,7 +545,7 @@ func TestMultiPdfEngines_ReadMetadata(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			_, err := tc.engine.ReadMetadata(tc.ctx, zap.NewNop(), "")
+			_, err := tc.engine.ReadMetadata(tc.ctx, slog.New(slog.NewJSONHandler(os.Stdout, nil)), "")
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
@@ -570,7 +570,7 @@ func TestMultiPdfEngines_WriteMetadata(t *testing.T) {
 			engine: &multiPdfEngines{
 				writeMetadataEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
+						WriteMetadataMock: func(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
 							return nil
 						},
 					},
@@ -583,12 +583,12 @@ func TestMultiPdfEngines_WriteMetadata(t *testing.T) {
 			engine: &multiPdfEngines{
 				writeMetadataEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
+						WriteMetadataMock: func(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
 							return errors.New("foo")
 						},
 					},
 					&gotenberg.PdfEngineMock{
-						WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
+						WriteMetadataMock: func(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
 							return nil
 						},
 					},
@@ -601,12 +601,12 @@ func TestMultiPdfEngines_WriteMetadata(t *testing.T) {
 			engine: &multiPdfEngines{
 				writeMetadataEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
+						WriteMetadataMock: func(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
 							return errors.New("foo")
 						},
 					},
 					&gotenberg.PdfEngineMock{
-						WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
+						WriteMetadataMock: func(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
 							return errors.New("foo")
 						},
 					},
@@ -620,7 +620,7 @@ func TestMultiPdfEngines_WriteMetadata(t *testing.T) {
 			engine: &multiPdfEngines{
 				writeMetadataEngines: []gotenberg.PdfEngine{
 					&gotenberg.PdfEngineMock{
-						WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
+						WriteMetadataMock: func(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
 							return nil
 						},
 					},
@@ -636,7 +636,7 @@ func TestMultiPdfEngines_WriteMetadata(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			err := tc.engine.WriteMetadata(tc.ctx, zap.NewNop(), nil, "")
+			err := tc.engine.WriteMetadata(tc.ctx, slog.New(slog.NewJSONHandler(os.Stdout, nil)), nil, "")
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)

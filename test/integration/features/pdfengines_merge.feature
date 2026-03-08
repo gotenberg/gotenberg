@@ -333,17 +333,20 @@ Feature: /forms/pdfengines/merge
       | files | testdata/page_2.pdf | file |
     Then the response status code should be 404
 
-  Scenario: POST /forms/pdfengines/merge (Gotenberg Trace)
+  @telemetry
+  Scenario: POST /forms/pdfengines/merge (Telemetry)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
-      | files           | testdata/page_1.pdf    | file   |
-      | files           | testdata/page_2.pdf    | file   |
-      | Gotenberg-Trace | forms_pdfengines_merge | header |
+      | files            | testdata/page_1.pdf                                     | file   |
+      | files            | testdata/page_2.pdf                                     | file   |
+      | X-Correlation-ID | forms_pdfengines_merge                                  | header |
+      | traceparent      | 00-12345678901234567890123456789012-1234567890123456-01 | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
-    Then the response header "Gotenberg-Trace" should be "forms_pdfengines_merge"
+    Then the response header "X-Correlation-ID" should be "forms_pdfengines_merge"
     Then the Gotenberg container should log the following entries:
-      | "trace":"forms_pdfengines_merge" |
+      | "correlation_id":"forms_pdfengines_merge"     |
+      | "trace_id":"12345678901234567890123456789012" |
 
   @download-from
   Scenario: POST /forms/pdfengines/merge (Download From)

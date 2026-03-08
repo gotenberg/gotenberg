@@ -78,7 +78,7 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 			}
 		}
 
-		dirPath := fmt.Sprintf("%s/%s", workdir, s.req.Header.Get("Gotenberg-Trace"))
+		dirPath := fmt.Sprintf("%s/%s", workdir, s.req.Header.Get("X-Correlation-ID"))
 		// #nosec
 		err = os.MkdirAll(dirPath, 0o755)
 		if err != nil {
@@ -148,7 +148,7 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 		s.req = c.Request()
 		path := c.Param("path")
 		if strings.Contains(path, "teststore") {
-			return c.Attachment(fmt.Sprintf("%s/%s/%s", workdir, s.req.Header.Get("Gotenberg-Trace"), filepath.Base(path)), filepath.Base(path))
+			return c.Attachment(fmt.Sprintf("%s/%s/%s", workdir, s.req.Header.Get("X-Correlation-ID"), filepath.Base(path)), filepath.Base(path))
 		}
 		return c.Attachment(fmt.Sprintf("%s/%s", wd, path), filepath.Base(path))
 	})

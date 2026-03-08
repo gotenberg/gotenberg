@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"reflect"
@@ -11,7 +12,8 @@ import (
 	"syscall"
 
 	"github.com/barasher/go-exiftool"
-	"go.uber.org/zap"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
@@ -74,64 +76,118 @@ func (engine *ExifTool) Debug() map[string]any {
 }
 
 // Merge is not available in this implementation.
-func (engine *ExifTool) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-	return fmt.Errorf("merge PDFs with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+func (engine *ExifTool) Merge(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
+	_, span := gotenberg.Tracer().Start(ctx, "ExifTool.Merge", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
+	err := fmt.Errorf("merge PDFs with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+
+	return err
 }
 
 // Split is not available in this implementation.
-func (engine *ExifTool) Split(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
-	return nil, fmt.Errorf("split PDF with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+func (engine *ExifTool) Split(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+	_, span := gotenberg.Tracer().Start(ctx, "ExifTool.Split", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
+	err := fmt.Errorf("split PDF with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+
+	return nil, err
 }
 
 // Flatten is not available in this implementation.
-func (engine *ExifTool) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
-	return fmt.Errorf("flatten PDF with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+func (engine *ExifTool) Flatten(ctx context.Context, logger *slog.Logger, inputPath string) error {
+	_, span := gotenberg.Tracer().Start(ctx, "ExifTool.Flatten", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
+	err := fmt.Errorf("flatten PDF with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+
+	return err
 }
 
 // Convert is not available in this implementation.
-func (engine *ExifTool) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
-	return fmt.Errorf("convert PDF to '%+v' with ExifTool: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)
+func (engine *ExifTool) Convert(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+	_, span := gotenberg.Tracer().Start(ctx, "ExifTool.Convert", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
+	err := fmt.Errorf("convert PDF to '%+v' with ExifTool: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+
+	return err
 }
 
 // ReadMetadata extracts the metadata of a given PDF file.
-func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
+func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
+	_, span := gotenberg.Tracer().Start(ctx, "ExifTool.ReadMetadata", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	exifTool, err := exiftool.NewExiftool(exiftool.SetExiftoolBinaryPath(engine.binPath))
 	if err != nil {
-		return nil, fmt.Errorf("new ExifTool: %w", err)
+		err = fmt.Errorf("new ExifTool: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
 	}
 
 	defer func(exifTool *exiftool.Exiftool) {
 		err := exifTool.Close()
 		if err != nil {
-			logger.Error(fmt.Sprintf("close ExifTool: %v", err))
+			logger.ErrorContext(ctx, fmt.Sprintf("close ExifTool: %v", err))
 		}
 	}(exifTool)
 
 	fileMetadata := exifTool.ExtractMetadata(inputPath)
 	if fileMetadata[0].Err != nil {
-		return nil, fmt.Errorf("read metadata with ExitfTool: %w", fileMetadata[0].Err)
+		err = fmt.Errorf("read metadata with ExitfTool: %w", fileMetadata[0].Err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
 	}
 
 	return fileMetadata[0].Fields, nil
 }
 
 // WriteMetadata writes the metadata into a given PDF file.
-func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
+func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
+	_, span := gotenberg.Tracer().Start(ctx, "ExifTool.WriteMetadata", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	exifTool, err := exiftool.NewExiftool(exiftool.SetExiftoolBinaryPath(engine.binPath))
 	if err != nil {
-		return fmt.Errorf("new ExifTool: %w", err)
+		err = fmt.Errorf("new ExifTool: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
 
 	defer func(exifTool *exiftool.Exiftool) {
 		err := exifTool.Close()
 		if err != nil {
-			logger.Error(fmt.Sprintf("close ExifTool: %v", err))
+			logger.ErrorContext(ctx, fmt.Sprintf("close ExifTool: %v", err))
 		}
 	}(exifTool)
 
 	fileMetadata := exifTool.ExtractMetadata(inputPath)
 	if fileMetadata[0].Err != nil {
-		return fmt.Errorf("read metadata with ExitfTool: %w", fileMetadata[0].Err)
+		err = fmt.Errorf("read metadata with ExitfTool: %w", fileMetadata[0].Err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
 
 	// Define a list of derived, system, or computed tags that ExifTool
@@ -175,7 +231,10 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, m
 					strs[i] = str
 					continue
 				}
-				return fmt.Errorf("write PDF metadata with ExifTool: %s %+v %s %w", key, val, reflect.TypeFor[[]any](), gotenberg.ErrPdfEngineMetadataValueNotSupported)
+				err = fmt.Errorf("write PDF metadata with ExifTool: %s %+v %s %w", key, val, reflect.TypeFor[[]any](), gotenberg.ErrPdfEngineMetadataValueNotSupported)
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+				return err
 			}
 			fileMetadata[0].SetStrings(key, strs)
 		case bool:
@@ -191,26 +250,50 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, m
 		// TODO: support more complex cases, e.g., arrays and nested objects
 		// 	(limitations in underlying library).
 		default:
-			return fmt.Errorf("write PDF metadata with ExifTool: %s %+v %s %w", key, val, reflect.TypeOf(val), gotenberg.ErrPdfEngineMetadataValueNotSupported)
+			err = fmt.Errorf("write PDF metadata with ExifTool: %s %+v %s %w", key, val, reflect.TypeOf(val), gotenberg.ErrPdfEngineMetadataValueNotSupported)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			return err
 		}
 	}
 
 	exifTool.WriteMetadata(fileMetadata)
 	if fileMetadata[0].Err != nil {
-		return fmt.Errorf("write PDF metadata with ExifTool: %w", fileMetadata[0].Err)
+		err = fmt.Errorf("write PDF metadata with ExifTool: %w", fileMetadata[0].Err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
 
 	return nil
 }
 
 // Encrypt is not available in this implementation.
-func (engine *ExifTool) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
-	return fmt.Errorf("encrypt PDF using ExifTool: %w", gotenberg.ErrPdfEncryptionNotSupported)
+func (engine *ExifTool) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
+	_, span := gotenberg.Tracer().Start(ctx, "ExifTool.Encrypt", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
+	err := fmt.Errorf("encrypt PDF using ExifTool: %w", gotenberg.ErrPdfEncryptionNotSupported)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+
+	return err
 }
 
 // EmbedFiles is not available in this implementation.
-func (engine *ExifTool) EmbedFiles(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error {
-	return fmt.Errorf("embed files with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+func (engine *ExifTool) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {
+	_, span := gotenberg.Tracer().Start(ctx, "ExifTool.EmbedFiles", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
+	err := fmt.Errorf("embed files with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+
+	return err
 }
 
 // Interface guards.

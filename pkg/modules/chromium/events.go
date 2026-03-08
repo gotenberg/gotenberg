@@ -3,6 +3,7 @@ package chromium
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"slices"
@@ -17,7 +18,6 @@ import (
 	"github.com/chromedp/chromedp"
 	"github.com/dlclark/regexp2"
 	"go.uber.org/multierr"
-	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
@@ -32,29 +32,29 @@ type eventRequestPausedOptions struct {
 // allowed or not.  It also set the extra HTTP headers, if any.
 // See https://github.com/gotenberg/gotenberg/issues/1011.
 // TODO: https://chromedevtools.github.io/devtools-protocol/tot/Network/#method-setBlockedURLs (experimental for now).
-func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, options eventRequestPausedOptions) {
+func listenForEventRequestPaused(ctx context.Context, logger *slog.Logger, options eventRequestPausedOptions) {
 	if len(options.extraHttpHeaders) == 0 {
-		logger.Debug("no extra HTTP headers")
+		logger.DebugContext(ctx, "no extra HTTP headers")
 	} else {
-		logger.Debug(fmt.Sprintf("extra HTTP headers: %+v", options.extraHttpHeaders))
+		logger.DebugContext(ctx, fmt.Sprintf("extra HTTP headers: %+v", options.extraHttpHeaders))
 	}
 
 	chromedp.ListenTarget(ctx, func(ev any) {
 		switch e := ev.(type) {
 		case *fetch.EventRequestPaused:
 			go func() {
-				logger.Debug(fmt.Sprintf("event EventRequestPaused fired for '%s'", e.Request.URL))
+				logger.DebugContext(ctx, fmt.Sprintf("event EventRequestPaused fired for '%s'", e.Request.URL))
 				allow := true
 
 				deadline, ok := ctx.Deadline()
 				if !ok {
-					logger.Error("context has no deadline, cannot filter URL")
+					logger.ErrorContext(ctx, "context has no deadline, cannot filter URL")
 					return
 				}
 
 				err := gotenberg.FilterDeadline(options.allowList, options.denyList, e.Request.URL, deadline)
 				if err != nil {
-					logger.Warn(err.Error())
+					logger.WarnContext(ctx, err.Error())
 					allow = false
 				}
 
@@ -65,7 +65,7 @@ func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, option
 					req := fetch.FailRequest(e.RequestID, network.ErrorReasonAccessDenied)
 					err = req.Do(executorCtx)
 					if err != nil {
-						logger.Error(fmt.Sprintf("fail request: %s", err))
+						logger.ErrorContext(ctx, fmt.Sprintf("fail request: %s", err))
 					}
 					return
 				}
@@ -81,25 +81,25 @@ func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, option
 					for _, header := range options.extraHttpHeaders {
 						if header.Scope == nil {
 							// Non-scoped header.
-							logger.Debug(fmt.Sprintf("extra HTTP header '%s' will be set for request URL '%s'", header.Name, e.Request.URL))
+							logger.DebugContext(ctx, fmt.Sprintf("extra HTTP header '%s' will be set for request URL '%s'", header.Name, e.Request.URL))
 							extraHttpHeadersToSet = append(extraHttpHeadersToSet, header)
 							continue
 						}
 
 						ok, err := header.Scope.MatchString(e.Request.URL)
 						if err != nil {
-							logger.Error(fmt.Sprintf("fail to match extra HTTP header '%s' scope with URL '%s': %s", header.Name, e.Request.URL, err))
+							logger.ErrorContext(ctx, fmt.Sprintf("fail to match extra HTTP header '%s' scope with URL '%s': %s", header.Name, e.Request.URL, err))
 						} else if ok {
-							logger.Debug(fmt.Sprintf("extra HTTP header '%s' (scoped) will be set for request URL '%s'", header.Name, e.Request.URL))
+							logger.DebugContext(ctx, fmt.Sprintf("extra HTTP header '%s' (scoped) will be set for request URL '%s'", header.Name, e.Request.URL))
 							extraHttpHeadersToSet = append(extraHttpHeadersToSet, header)
 						} else {
-							logger.Debug(fmt.Sprintf("scoped extra HTTP header '%s' (scoped) will not be set for request URL '%s'", header.Name, e.Request.URL))
+							logger.DebugContext(ctx, fmt.Sprintf("scoped extra HTTP header '%s' (scoped) will not be set for request URL '%s'", header.Name, e.Request.URL))
 						}
 					}
 				}
 
 				if len(extraHttpHeadersToSet) > 0 {
-					logger.Debug(fmt.Sprintf("setting extra HTTP headers for request URL '%s': %+v", e.Request.URL, extraHttpHeadersToSet))
+					logger.DebugContext(ctx, fmt.Sprintf("setting extra HTTP headers for request URL '%s': %+v", e.Request.URL, extraHttpHeadersToSet))
 
 					originalHeaders := e.Request.Headers
 					headers := make(map[string]string)
@@ -109,7 +109,7 @@ func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, option
 						if ok {
 							headers[key] = strValue
 						} else {
-							logger.Error(fmt.Sprintf("ignoring header '%s' for URL '%s' since it cannot be cast to a string", key, e.Request.URL))
+							logger.ErrorContext(ctx, fmt.Sprintf("ignoring header '%s' for URL '%s' since it cannot be cast to a string", key, e.Request.URL))
 						}
 					}
 
@@ -132,7 +132,7 @@ func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, option
 
 				err = req.Do(executorCtx)
 				if err != nil {
-					logger.Error(fmt.Sprintf("continue request: %s", err))
+					logger.ErrorContext(ctx, fmt.Sprintf("continue request: %s", err))
 				}
 			}()
 		}
@@ -157,7 +157,7 @@ type eventResponseReceivedOptions struct {
 // https://github.com/gotenberg/gotenberg/issues/1021.
 func listenForEventResponseReceived(
 	ctx context.Context,
-	logger *zap.Logger,
+	logger *slog.Logger,
 	options eventResponseReceivedOptions,
 ) {
 	normalizedIgnoreDomains := normalizeDomains(options.ignoreResourceHttpStatusDomains)
@@ -180,7 +180,7 @@ func listenForEventResponseReceived(
 		switch ev := ev.(type) {
 		case *network.EventResponseReceived:
 			if ev.Response.URL == options.mainPageUrl {
-				logger.Debug(fmt.Sprintf("event EventResponseReceived fired for main page: %+v", ev.Response))
+				logger.DebugContext(ctx, fmt.Sprintf("event EventResponseReceived fired for main page: %+v", ev.Response))
 
 				if slices.Contains(options.failOnHttpStatusCodes, ev.Response.Status) {
 					options.invalidHttpStatusCodeMu.Lock()
@@ -192,11 +192,11 @@ func listenForEventResponseReceived(
 				return
 			}
 
-			logger.Debug(fmt.Sprintf("event EventResponseReceived fired for a resource: %+v", ev.Response))
+			logger.DebugContext(ctx, fmt.Sprintf("event EventResponseReceived fired for a resource: %+v", ev.Response))
 
 			if slices.Contains(options.failOnResourceOnHttpStatusCode, ev.Response.Status) {
 				if !shouldCheckResourceHttpStatusCode(ev.Response.URL, normalizedIgnoreDomains) {
-					logger.Debug(fmt.Sprintf("skip resource HTTP status code check for '%s' due to domain filtering", ev.Response.URL))
+					logger.DebugContext(ctx, fmt.Sprintf("skip resource HTTP status code check for '%s' due to domain filtering", ev.Response.URL))
 					return
 				}
 
@@ -298,11 +298,11 @@ type eventLoadingFailedOptions struct {
 // https://github.com/gotenberg/gotenberg/issues/913.
 // https://github.com/gotenberg/gotenberg/issues/959.
 // https://github.com/gotenberg/gotenberg/issues/1021.
-func listenForEventLoadingFailed(ctx context.Context, logger *zap.Logger, options eventLoadingFailedOptions) {
+func listenForEventLoadingFailed(ctx context.Context, logger *slog.Logger, options eventLoadingFailedOptions) {
 	chromedp.ListenTarget(ctx, func(ev any) {
 		switch ev := ev.(type) {
 		case *network.EventLoadingFailed:
-			logger.Debug(fmt.Sprintf("event EventLoadingFailed fired: %+v", ev.ErrorText))
+			logger.DebugContext(ctx, fmt.Sprintf("event EventLoadingFailed fired: %+v", ev.ErrorText))
 
 			// We are looking for common errors.
 			// TODO: sufficient?
@@ -321,14 +321,14 @@ func listenForEventLoadingFailed(ctx context.Context, logger *zap.Logger, option
 				"net::ERR_HTTP2_PROTOCOL_ERROR",
 			}
 			if !slices.Contains(errors, ev.ErrorText) {
-				logger.Debug(fmt.Sprintf("skip EventLoadingFailed: '%s' is not part of %+v", ev.ErrorText, errors))
+				logger.DebugContext(ctx, fmt.Sprintf("skip EventLoadingFailed: '%s' is not part of %+v", ev.ErrorText, errors))
 				return
 			}
 
 			if ev.Type == network.ResourceTypeDocument {
 				// Supposition: except iframe, an event loading failed with a
 				// resource type Document is about the main page.
-				logger.Debug("event EventLoadingFailed fired for main page")
+				logger.DebugContext(ctx, "event EventLoadingFailed fired for main page")
 
 				options.loadingFailedMu.Lock()
 				defer options.loadingFailedMu.Unlock()
@@ -338,7 +338,7 @@ func listenForEventLoadingFailed(ctx context.Context, logger *zap.Logger, option
 				return
 			}
 
-			logger.Debug("event EventLoadingFailed fired for a resource")
+			logger.DebugContext(ctx, "event EventLoadingFailed fired for a resource")
 
 			options.resourceLoadingFailedMu.Lock()
 			defer options.resourceLoadingFailedMu.Unlock()
@@ -354,11 +354,11 @@ func listenForEventLoadingFailed(ctx context.Context, logger *zap.Logger, option
 // listenForEventExceptionThrown listens for exceptions in the console and
 // appends those exceptions to the given error pointer.
 // See https://github.com/gotenberg/gotenberg/issues/262.
-func listenForEventExceptionThrown(ctx context.Context, logger *zap.Logger, consoleExceptions *error, consoleExceptionsMu *sync.RWMutex) {
+func listenForEventExceptionThrown(ctx context.Context, logger *slog.Logger, consoleExceptions *error, consoleExceptionsMu *sync.RWMutex) {
 	chromedp.ListenTarget(ctx, func(ev any) {
 		switch ev := ev.(type) {
 		case *runtime.EventExceptionThrown:
-			logger.Debug(fmt.Sprintf("event EventExceptionThrown fired: %+v", ev.ExceptionDetails))
+			logger.DebugContext(ctx, fmt.Sprintf("event EventExceptionThrown fired: %+v", ev.ExceptionDetails))
 
 			consoleExceptionsMu.Lock()
 			defer consoleExceptionsMu.Unlock()
@@ -370,7 +370,7 @@ func listenForEventExceptionThrown(ctx context.Context, logger *zap.Logger, cons
 
 // waitForEventDomContentEventFired waits until the event DomContentEventFired
 // is fired or the context timeout.
-func waitForEventDomContentEventFired(ctx context.Context, logger *zap.Logger) func() error {
+func waitForEventDomContentEventFired(ctx context.Context, logger *slog.Logger) func() error {
 	return func() error {
 		ch := make(chan struct{})
 		cctx, cancel := context.WithCancel(ctx)
@@ -384,7 +384,7 @@ func waitForEventDomContentEventFired(ctx context.Context, logger *zap.Logger) f
 
 		select {
 		case <-ch:
-			logger.Debug("event DomContentEventFired fired")
+			logger.DebugContext(ctx, "event DomContentEventFired fired")
 			return nil
 		case <-ctx.Done():
 			return fmt.Errorf("wait for event DomContentEventFired: %w", ctx.Err())
@@ -394,7 +394,7 @@ func waitForEventDomContentEventFired(ctx context.Context, logger *zap.Logger) f
 
 // waitForEventLoadEventFired waits until the event LoadEventFired is fired or
 // the context timeout.
-func waitForEventLoadEventFired(ctx context.Context, logger *zap.Logger) func() error {
+func waitForEventLoadEventFired(ctx context.Context, logger *slog.Logger) func() error {
 	return func() error {
 		ch := make(chan struct{})
 		cctx, cancel := context.WithCancel(ctx)
@@ -408,7 +408,7 @@ func waitForEventLoadEventFired(ctx context.Context, logger *zap.Logger) func() 
 
 		select {
 		case <-ch:
-			logger.Debug("event LoadEventFired fired")
+			logger.DebugContext(ctx, "event LoadEventFired fired")
 			return nil
 		case <-ctx.Done():
 			return fmt.Errorf("wait for event LoadEventFired: %w", ctx.Err())
@@ -418,7 +418,7 @@ func waitForEventLoadEventFired(ctx context.Context, logger *zap.Logger) func() 
 
 // waitForEventNetworkIdle waits until the event networkIdle is fired or the
 // context timeout.
-func waitForEventNetworkIdle(ctx context.Context, logger *zap.Logger) func() error {
+func waitForEventNetworkIdle(ctx context.Context, logger *slog.Logger) func() error {
 	return func() error {
 		ch := make(chan struct{})
 		cctx, cancel := context.WithCancel(ctx)
@@ -434,7 +434,7 @@ func waitForEventNetworkIdle(ctx context.Context, logger *zap.Logger) func() err
 
 		select {
 		case <-ch:
-			logger.Debug("event networkIdle fired")
+			logger.DebugContext(ctx, "event networkIdle fired")
 			return nil
 		case <-ctx.Done():
 			return fmt.Errorf("wait for event networkIdle: %w", ctx.Err())
@@ -444,7 +444,7 @@ func waitForEventNetworkIdle(ctx context.Context, logger *zap.Logger) func() err
 
 // waitForEventLoadingFinished waits until the event LoadingFinished is fired
 // or the context timeout.
-func waitForEventLoadingFinished(ctx context.Context, logger *zap.Logger) func() error {
+func waitForEventLoadingFinished(ctx context.Context, logger *slog.Logger) func() error {
 	return func() error {
 		ch := make(chan struct{})
 		cctx, cancel := context.WithCancel(ctx)
@@ -458,7 +458,7 @@ func waitForEventLoadingFinished(ctx context.Context, logger *zap.Logger) func()
 
 		select {
 		case <-ch:
-			logger.Debug("event LoadingFinished fired")
+			logger.DebugContext(ctx, "event LoadingFinished fired")
 			return nil
 		case <-ctx.Done():
 			return fmt.Errorf("wait for event LoadingFinished: %w", ctx.Err())
