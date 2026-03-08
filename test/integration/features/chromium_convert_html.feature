@@ -988,28 +988,28 @@ Feature: /forms/chromium/convert/html
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be encrypted
 
-  @embed
-  Scenario: POST /forms/chromium/convert/html (Embeds)
+  @attachments
+  Scenario: POST /forms/chromium/convert/html (Attachments)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
       | files                     | testdata/page-1-html/index.html | file   |
-      | embeds                    | testdata/embed_1.xml            | file   |
-      | embeds                    | testdata/embed_2.xml            | file   |
+      | attachments               | testdata/attachment_1.xml       | file   |
+      | attachments               | testdata/attachment_2.xml       | file   |
       | Gotenberg-Output-Filename | foo                             | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
     Then there should be the following file(s) in the response:
       | foo.pdf |
-    Then the response PDF(s) should have the "embed_1.xml" file embedded
-    Then the response PDF(s) should have the "embed_2.xml" file embedded
+    Then the response PDF(s) should have the "attachment_1.xml" file attached
+    Then the response PDF(s) should have the "attachment_2.xml" file attached
 
   # FIXME: once decrypt is done, add encrypt and check after the content of the PDF.
   @convert
   @metadata
   @flatten
-  @embed
-  Scenario: POST /forms/chromium/convert/html (PDF/A-1b & PDF/UA-1 & Metadata & Flatten & Embeds)
+  @attachments
+  Scenario: POST /forms/chromium/convert/html (PDF/A-1b & PDF/UA-1 & Metadata & Flatten & Attachments)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
       | files                     | testdata/page-1-html/index.html                                                                                                                                                                                                                                                                           | file   |
@@ -1017,8 +1017,8 @@ Feature: /forms/chromium/convert/html
       | pdfua                     | true                                                                                                                                                                                                                                                                                                      | field  |
       | metadata                  | {"Author":"Julien Neuhart","Copyright":"Julien Neuhart","CreateDate":"2006-09-18T16:27:50-04:00","Creator":"Gotenberg","Keywords":["first","second"],"Marked":true,"ModDate":"2006-09-18T16:27:50-04:00","PDFVersion":1.7,"Producer":"Gotenberg","Subject":"Sample","Title":"Sample","Trapped":"Unknown"} | field  |
       | flatten                   | true                                                                                                                                                                                                                                                                                                      | field  |
-      | embeds                    | testdata/embed_1.xml                                                                                                                                                                                                                                                                                      | file   |
-      | embeds                    | testdata/embed_2.xml                                                                                                                                                                                                                                                                                      | file   |
+      | attachments               | testdata/attachment_1.xml                                                                                                                                                                                                                                                                                 | file   |
+      | attachments               | testdata/attachment_2.xml                                                                                                                                                                                                                                                                                 | file   |
       | Gotenberg-Output-Filename | foo                                                                                                                                                                                                                                                                                                       | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
@@ -1028,8 +1028,8 @@ Feature: /forms/chromium/convert/html
     Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 9 failed rule(s)
     Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 2 failed rule(s)
     Then the response PDF(s) should be flatten
-    Then the response PDF(s) should have the "embed_1.xml" file embedded
-    Then the response PDF(s) should have the "embed_2.xml" file embedded
+    Then the response PDF(s) should have the "attachment_1.xml" file attached
+    Then the response PDF(s) should have the "attachment_2.xml" file attached
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/read" endpoint with the following form data and header(s):
       | files | teststore/foo.pdf | file |
     Then the response status code should be 200
@@ -1061,16 +1061,19 @@ Feature: /forms/chromium/convert/html
       | files | testdata/page-1-html/index.html | file |
     Then the response status code should be 404
 
-  Scenario: POST /forms/chromium/convert/html (Gotenberg Trace)
+  @telemetry
+  Scenario: POST /forms/chromium/convert/html (Telemetry)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
-      | files           | testdata/page-1-html/index.html | file   |
-      | Gotenberg-Trace | forms_chromium_convert_html     | header |
+      | files            | testdata/page-1-html/index.html                         | file   |
+      | X-Correlation-ID | forms_chromium_convert_html                             | header |
+      | traceparent      | 00-12345678901234567890123456789012-1234567890123456-01 | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
-    Then the response header "Gotenberg-Trace" should be "forms_chromium_convert_html"
+    Then the response header "X-Correlation-ID" should be "forms_chromium_convert_html"
     Then the Gotenberg container should log the following entries:
-      | "trace":"forms_chromium_convert_html" |
+      | "correlation_id":"forms_chromium_convert_html" |
+      | "trace_id":"12345678901234567890123456789012"  |
 
   @download-from
   Scenario: POST /forms/chromium/convert/html (Download From)

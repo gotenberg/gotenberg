@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
@@ -14,7 +15,8 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/dlclark/regexp2"
 	flag "github.com/spf13/pflag"
-	"go.uber.org/zap"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
@@ -91,7 +93,7 @@ type Chromium struct {
 	maxConcurrency int64
 	args           browserArguments
 
-	logger     *zap.Logger
+	logger     *slog.Logger
 	browser    browser
 	supervisor gotenberg.ProcessSupervisor
 	engine     gotenberg.PdfEngine
@@ -268,7 +270,7 @@ type PdfOptions struct {
 	PreferCssPageSize bool
 
 	// GenerateDocumentOutline defines whether the document outline should be
-	// embedded into the PDF.
+	// attached into the PDF.
 	GenerateDocumentOutline bool
 
 	// GenerateTaggedPdf defines whether to generate tagged (accessible)
@@ -389,8 +391,8 @@ type ExtraHttpHeader struct {
 
 // Api helps to interact with Chromium for converting HTML documents to PDF.
 type Api interface {
-	Pdf(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error
-	Screenshot(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error
+	Pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error
+	Screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions) error
 }
 
 // Provider is a module interface that exposes a method for creating an [Api]
@@ -427,13 +429,6 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Bool("chromium-clear-cookies", false, "Clear Chromium cookies between each conversion")
 			fs.Bool("chromium-disable-javascript", false, "Disable JavaScript")
 			fs.Bool("chromium-disable-routes", false, "Disable the routes")
-
-			// Deprecated flags.
-			fs.Bool("chromium-incognito", false, "Start Chromium with incognito mode")
-			err := fs.MarkDeprecated("chromium-incognito", "this flag is ignored as it provides no benefits")
-			if err != nil {
-				panic(err)
-			}
 
 			return fs
 		}(),
@@ -477,15 +472,7 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 	}
 
 	// Logger.
-	loggerProvider, err := ctx.Module(new(gotenberg.LoggerProvider))
-	if err != nil {
-		return fmt.Errorf("get logger provider: %w", err)
-	}
-	logger, err := loggerProvider.(gotenberg.LoggerProvider).Logger(mod)
-	if err != nil {
-		return fmt.Errorf("get logger: %w", err)
-	}
-	mod.logger = logger.Named("browser")
+	mod.logger = gotenberg.Logger(mod).With(slog.String("logger", "browser"))
 
 	// Process.
 	mod.browser = newChromiumBrowser(mod.args)
@@ -501,6 +488,36 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 		return fmt.Errorf("get PDF engine: %w", err)
 	}
 	mod.engine = engine
+
+	// OpenTelemetry.
+	meter := gotenberg.Meter()
+	_, err = meter.Int64ObservableCounter(
+		"chromium.process.restarts.total",
+		metric.WithDescription("Current number of Chromium restarts."),
+		metric.WithUnit("{restart}"),
+		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
+			val := mod.supervisor.RestartsCount()
+			o.Observe(val)
+			return nil
+		}),
+	)
+	if err != nil {
+		return fmt.Errorf("create process restarts observable counter: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"chromium.requests.queue_size",
+		metric.WithDescription("Current number of Chromium conversion requests waiting to be treated."),
+		metric.WithUnit("{request}"),
+		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
+			val := mod.supervisor.ReqQueueSize()
+			o.Observe(val)
+			return nil
+		}),
+	)
+	if err != nil {
+		return fmt.Errorf("create requests queue size observable gauge: %w", err)
+	}
 
 	return nil
 }
@@ -552,7 +569,7 @@ func (mod *Chromium) StartupMessage() string {
 func (mod *Chromium) Stop(ctx context.Context) error {
 	// Block until the context is done so that another module may gracefully
 	// stop before we do a shutdown.
-	mod.logger.Debug("wait for the end of grace duration")
+	mod.logger.DebugContext(ctx, "wait for the end of grace duration")
 
 	<-ctx.Done()
 
@@ -579,26 +596,6 @@ func (mod *Chromium) Debug() map[string]any {
 
 	debug["version"] = strings.TrimSpace(string(output))
 	return debug
-}
-
-// Metrics returns the metrics.
-func (mod *Chromium) Metrics() ([]gotenberg.Metric, error) {
-	return []gotenberg.Metric{
-		{
-			Name:        "chromium_requests_queue_size",
-			Description: "Current number of Chromium conversion requests waiting to be treated.",
-			Read: func() float64 {
-				return float64(mod.supervisor.ReqQueueSize())
-			},
-		},
-		{
-			Name:        "chromium_restarts_count",
-			Description: "Current number of Chromium restarts.",
-			Read: func() float64 {
-				return float64(mod.supervisor.RestartsCount())
-			},
-		},
-	}, nil
 }
 
 // Checks adds a health check that verifies if Chromium is healthy.
@@ -668,32 +665,49 @@ func (mod *Chromium) Routes() ([]api.Route, error) {
 }
 
 // Pdf converts a URL to PDF.
-func (mod *Chromium) Pdf(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
+func (mod *Chromium) Pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error {
 	// Note: no error wrapping because it leaks on errors we want to display to
 	// the end user.
-	return mod.supervisor.Run(ctx, logger, func() error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "Chromium.Pdf")
+	defer span.End()
+
+	err := mod.supervisor.Run(ctx, logger, func() error {
 		return mod.browser.pdf(ctx, logger, url, outputPath, options)
 	})
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+
+	return err
 }
 
-func (mod *Chromium) Screenshot(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+func (mod *Chromium) Screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions) error {
 	// Note: no error wrapping because it leaks on errors we want to display to
 	// the end user.
-	return mod.supervisor.Run(ctx, logger, func() error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "Chromium.Screenshot")
+	defer span.End()
+
+	err := mod.supervisor.Run(ctx, logger, func() error {
 		return mod.browser.screenshot(ctx, logger, url, outputPath, options)
 	})
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+
+	return err
 }
 
 // Interface guards.
 var (
-	_ gotenberg.Module          = (*Chromium)(nil)
-	_ gotenberg.Provisioner     = (*Chromium)(nil)
-	_ gotenberg.Validator       = (*Chromium)(nil)
-	_ gotenberg.App             = (*Chromium)(nil)
-	_ gotenberg.Debuggable      = (*Chromium)(nil)
-	_ gotenberg.MetricsProvider = (*Chromium)(nil)
-	_ api.HealthChecker         = (*Chromium)(nil)
-	_ api.Router                = (*Chromium)(nil)
-	_ Api                       = (*Chromium)(nil)
-	_ Provider                  = (*Chromium)(nil)
+	_ gotenberg.Module      = (*Chromium)(nil)
+	_ gotenberg.Provisioner = (*Chromium)(nil)
+	_ gotenberg.Validator   = (*Chromium)(nil)
+	_ gotenberg.App         = (*Chromium)(nil)
+	_ gotenberg.Debuggable  = (*Chromium)(nil)
+	_ api.HealthChecker     = (*Chromium)(nil)
+	_ api.Router            = (*Chromium)(nil)
+	_ Api                   = (*Chromium)(nil)
+	_ Provider              = (*Chromium)(nil)
 )
