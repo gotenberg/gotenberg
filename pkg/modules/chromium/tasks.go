@@ -326,7 +326,7 @@ func userAgentOverride(logger *zap.Logger, userAgent string) chromedp.ActionFunc
 //	}
 //}
 
-func navigateActionFunc(logger *zap.Logger, url string, skipNetworkIdleEvent bool) chromedp.ActionFunc {
+func navigateActionFunc(logger *zap.Logger, url string, skipNetworkIdleEvent, skipNetworkAlmostIdleEvent bool) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		logger.Debug(fmt.Sprintf("navigate to '%s'", url))
 
@@ -345,6 +345,12 @@ func navigateActionFunc(logger *zap.Logger, url string, skipNetworkIdleEvent boo
 			waitFunc = append(waitFunc, waitForEventNetworkIdle(ctx, logger))
 		} else {
 			logger.Debug("skipping network idle event")
+		}
+
+		if !skipNetworkAlmostIdleEvent {
+			waitFunc = append(waitFunc, waitForEventNetworkAlmostIdle(ctx, logger))
+		} else {
+			logger.Debug("skipping network almost idle event")
 		}
 
 		err = runBatch(

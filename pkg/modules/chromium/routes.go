@@ -48,6 +48,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 
 	var (
 		skipNetworkIdleEvent            bool
+		skipNetworkAlmostIdleEvent      bool
 		failOnHttpStatusCodes           []int64
 		failOnResourceHttpStatusCodes   []int64
 		ignoreResourceHttpStatusDomains []string
@@ -67,6 +68,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 
 	form := ctx.FormData().
 		Bool("skipNetworkIdleEvent", &skipNetworkIdleEvent, defaultOptions.SkipNetworkIdleEvent).
+		Bool("skipNetworkAlmostIdleEvent", &skipNetworkAlmostIdleEvent, defaultOptions.SkipNetworkAlmostIdleEvent).
 		Custom("failOnHttpStatusCodes", func(value string) error {
 			if value == "" {
 				failOnHttpStatusCodes = defaultOptions.FailOnHttpStatusCodes
@@ -254,6 +256,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 
 	options := Options{
 		SkipNetworkIdleEvent:            skipNetworkIdleEvent,
+		SkipNetworkAlmostIdleEvent:      skipNetworkAlmostIdleEvent,
 		FailOnHttpStatusCodes:           failOnHttpStatusCodes,
 		FailOnResourceHttpStatusCodes:   failOnResourceHttpStatusCodes,
 		IgnoreResourceHttpStatusDomains: ignoreResourceHttpStatusDomains,
