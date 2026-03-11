@@ -70,6 +70,9 @@ type ProcessSupervisor interface {
 	// ReqQueueSize returns the current size of the request queue.
 	ReqQueueSize() int64
 
+	// ActiveTasksCount returns the current number of active tasks.
+	ActiveTasksCount() int64
+
 	// RestartsCount returns the current number of restart.
 	RestartsCount() int64
 }
@@ -341,6 +344,10 @@ func (s *processSupervisor) runWithDeadline(ctx context.Context, task func() err
 
 func (s *processSupervisor) ReqQueueSize() int64 {
 	return s.reqQueueSize.Load()
+}
+
+func (s *processSupervisor) ActiveTasksCount() int64 {
+	return s.activeTasks.Load()
 }
 
 func (s *processSupervisor) RestartsCount() int64 {

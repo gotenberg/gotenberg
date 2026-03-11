@@ -15,6 +15,7 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/dlclark/regexp2"
 	flag "github.com/spf13/pflag"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
 
@@ -97,6 +98,13 @@ type Chromium struct {
 	browser    browser
 	supervisor gotenberg.ProcessSupervisor
 	engine     gotenberg.PdfEngine
+
+	reqsCounter               metric.Int64Counter
+	errsCounter               metric.Int64Counter
+	conversionDurationCounter metric.Float64Histogram
+	queueWaitDurationCounter  metric.Float64Histogram
+	pdfOutputSizeCounter      metric.Int64Histogram
+	imageOutputSizeCounter    metric.Int64Histogram
 }
 
 // Options are the common options for all conversions.
@@ -519,6 +527,76 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 		return fmt.Errorf("create requests queue size observable gauge: %w", err)
 	}
 
+	_, err = meter.Int64ObservableGauge(
+		"chromium.requests.active",
+		metric.WithDescription("Current number of Chromium conversion requests actively being processed."),
+		metric.WithUnit("{request}"),
+		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
+			val := mod.supervisor.ActiveTasksCount()
+			o.Observe(val)
+			return nil
+		}),
+	)
+	if err != nil {
+		return fmt.Errorf("create requests active observable gauge: %w", err)
+	}
+
+	mod.reqsCounter, err = meter.Int64Counter(
+		"chromium.requests.total",
+		metric.WithDescription("Total number of Chromium conversion requests."),
+		metric.WithUnit("{request}"),
+	)
+	if err != nil {
+		return fmt.Errorf("create requests total counter: %w", err)
+	}
+
+	mod.errsCounter, err = meter.Int64Counter(
+		"chromium.errors.total",
+		metric.WithDescription("Total number of Chromium errors."),
+		metric.WithUnit("{error}"),
+	)
+	if err != nil {
+		return fmt.Errorf("create errors total counter: %w", err)
+	}
+
+	mod.conversionDurationCounter, err = meter.Float64Histogram(
+		"chromium.conversion.duration",
+		metric.WithDescription("Duration of each HTML-to-PDF conversion."),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(0.5, 1, 2, 5, 10, 30, 60),
+	)
+	if err != nil {
+		return fmt.Errorf("create conversion duration histogram: %w", err)
+	}
+
+	mod.queueWaitDurationCounter, err = meter.Float64Histogram(
+		"chromium.queue.wait.duration",
+		metric.WithDescription("Time a request spends waiting in the queue before processing starts."),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(0.5, 1, 2, 5, 10, 30, 60),
+	)
+	if err != nil {
+		return fmt.Errorf("create queue wait duration histogram: %w", err)
+	}
+
+	mod.pdfOutputSizeCounter, err = meter.Int64Histogram(
+		"chromium.pdf.output.size",
+		metric.WithDescription("Size of the generated PDF files."),
+		metric.WithUnit("By"),
+	)
+	if err != nil {
+		return fmt.Errorf("create pdf output size histogram: %w", err)
+	}
+
+	mod.imageOutputSizeCounter, err = meter.Int64Histogram(
+		"chromium.image.output.size",
+		metric.WithDescription("Size of the generated image files."),
+		metric.WithUnit("By"),
+	)
+	if err != nil {
+		return fmt.Errorf("create image output size histogram: %w", err)
+	}
+
 	return nil
 }
 
@@ -671,12 +749,68 @@ func (mod *Chromium) Pdf(ctx context.Context, logger *slog.Logger, url, outputPa
 	ctx, span := gotenberg.Tracer().Start(ctx, "Chromium.Pdf")
 	defer span.End()
 
+	start := time.Now()
+	var conversionStart time.Time
+
 	err := mod.supervisor.Run(ctx, logger, func() error {
+		conversionStart = time.Now()
 		return mod.browser.pdf(ctx, logger, url, outputPath, options)
 	})
+
+	end := time.Now()
+
+	status := "success"
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			status = "timeout"
+		} else {
+			status = "error"
+		}
+
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+
+		reason := "unknown"
+		if errors.Is(err, context.DeadlineExceeded) {
+			reason = "timeout"
+		} else if errors.Is(err, context.Canceled) {
+			reason = "context_cancelled"
+		} else if errors.Is(err, ErrInvalidHttpStatusCode) || errors.Is(err, ErrInvalidResourceHttpStatusCode) || errors.Is(err, ErrLoadingFailed) || errors.Is(err, ErrResourceLoadingFailed) || errors.Is(err, ErrInvalidEvaluationExpression) || errors.Is(err, ErrInvalidSelectorQuery) {
+			reason = "invalid_input"
+		} else if errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) || errors.Is(err, gotenberg.ErrProcessAlreadyRestarting) {
+			reason = "chromium_unavailable"
+		}
+
+		mod.errsCounter.Add(ctx, 1, metric.WithAttributes(
+			attribute.String("reason", reason),
+		))
+	}
+
+	if !conversionStart.IsZero() {
+		waitDuration := conversionStart.Sub(start).Seconds()
+		conversionDuration := end.Sub(conversionStart).Seconds()
+
+		mod.queueWaitDurationCounter.Record(ctx, waitDuration, metric.WithAttributes(
+			attribute.String("status", status),
+		))
+		mod.conversionDurationCounter.Record(ctx, conversionDuration, metric.WithAttributes(
+			attribute.String("status", status),
+		))
+	} else {
+		waitDuration := end.Sub(start).Seconds()
+		mod.queueWaitDurationCounter.Record(ctx, waitDuration, metric.WithAttributes(
+			attribute.String("status", status),
+		))
+	}
+
+	mod.reqsCounter.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("status", status),
+	))
+
+	if err == nil {
+		if fileInfo, statErr := os.Stat(outputPath); statErr == nil {
+			mod.pdfOutputSizeCounter.Record(ctx, fileInfo.Size())
+		}
 	}
 
 	return err
@@ -688,12 +822,70 @@ func (mod *Chromium) Screenshot(ctx context.Context, logger *slog.Logger, url, o
 	ctx, span := gotenberg.Tracer().Start(ctx, "Chromium.Screenshot")
 	defer span.End()
 
+	start := time.Now()
+	var conversionStart time.Time
+
 	err := mod.supervisor.Run(ctx, logger, func() error {
+		conversionStart = time.Now()
 		return mod.browser.screenshot(ctx, logger, url, outputPath, options)
 	})
+
+	end := time.Now()
+
+	status := "success"
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			status = "timeout"
+		} else {
+			status = "error"
+		}
+
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+
+		reason := "unknown"
+		if errors.Is(err, context.DeadlineExceeded) {
+			reason = "timeout"
+		} else if errors.Is(err, context.Canceled) {
+			reason = "context_cancelled"
+		} else if errors.Is(err, ErrInvalidHttpStatusCode) || errors.Is(err, ErrInvalidResourceHttpStatusCode) || errors.Is(err, ErrLoadingFailed) || errors.Is(err, ErrResourceLoadingFailed) || errors.Is(err, ErrInvalidEvaluationExpression) || errors.Is(err, ErrInvalidSelectorQuery) {
+			reason = "invalid_input"
+		} else if errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) {
+			reason = "chromium_maximum_queue_size_exceeded"
+		} else if errors.Is(err, gotenberg.ErrProcessAlreadyRestarting) {
+			reason = "chromium_unavailable"
+		}
+
+		mod.errsCounter.Add(ctx, 1, metric.WithAttributes(
+			attribute.String("reason", reason),
+		))
+	}
+
+	if !conversionStart.IsZero() {
+		waitDuration := conversionStart.Sub(start).Seconds()
+		conversionDuration := end.Sub(conversionStart).Seconds()
+
+		mod.queueWaitDurationCounter.Record(ctx, waitDuration, metric.WithAttributes(
+			attribute.String("status", status),
+		))
+		mod.conversionDurationCounter.Record(ctx, conversionDuration, metric.WithAttributes(
+			attribute.String("status", status),
+		))
+	} else {
+		waitDuration := end.Sub(start).Seconds()
+		mod.queueWaitDurationCounter.Record(ctx, waitDuration, metric.WithAttributes(
+			attribute.String("status", status),
+		))
+	}
+
+	mod.reqsCounter.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("status", status),
+	))
+
+	if err == nil {
+		if fileInfo, statErr := os.Stat(outputPath); statErr == nil {
+			mod.imageOutputSizeCounter.Record(ctx, fileInfo.Size())
+		}
 	}
 
 	return err
