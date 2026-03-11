@@ -156,13 +156,13 @@ func (multi *multiPdfEngines) Convert(ctx context.Context, logger *zap.Logger, f
 }
 
 type readMetadataResult struct {
-	metadata map[string]interface{}
+	metadata map[string]any
 	err      error
 }
 
 // ReadMetadata extracts metadata from a PDF file using the first available
 // engine that supports metadata reading.
-func (multi *multiPdfEngines) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+func (multi *multiPdfEngines) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
 	var err error
 	var mu sync.Mutex // to safely append errors.
 
@@ -193,7 +193,7 @@ func (multi *multiPdfEngines) ReadMetadata(ctx context.Context, logger *zap.Logg
 
 // WriteMetadata embeds metadata into a PDF file using the first available
 // engine that supports metadata writing.
-func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
 	var err error
 	errChan := make(chan error, 1)
 

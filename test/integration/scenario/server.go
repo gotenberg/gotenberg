@@ -79,12 +79,14 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 		}
 
 		dirPath := fmt.Sprintf("%s/%s", workdir, s.req.Header.Get("Gotenberg-Trace"))
+		// #nosec
 		err = os.MkdirAll(dirPath, 0o755)
 		if err != nil {
 			return webhookErr(fmt.Errorf("create working directory: %w", err))
 		}
 
 		fpath := fmt.Sprintf("%s/%s", dirPath, filename)
+		// #nosec
 		file, err := os.Create(fpath)
 		if err != nil {
 			return webhookErr(fmt.Errorf("create file %q: %w", fpath, err))

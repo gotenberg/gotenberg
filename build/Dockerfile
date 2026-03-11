@@ -1,7 +1,7 @@
 # ARG instructions do not create additional layers. Instead, next layers will
 # concatenate them. Also, we have to repeat ARG instructions in each build
 # stage that uses them.
-ARG GOLANG_VERSION=1.25.5
+ARG GOLANG_VERSION=1.26.0
 
 # ----------------------------------------------
 # pdfcpu binary build stage
@@ -78,6 +78,9 @@ RUN jlink \
 # Base image stage
 # ----------------------------------------------
 FROM debian:13-slim AS base-image-stage
+
+ARG TIMEZONE=UTC
+ENV TZ=$TIMEZONE
 
 COPY --from=custom-jre-stage /custom-jre /opt/java
 
@@ -212,7 +215,7 @@ RUN \
     apt-get update -qq &&\
     apt-get upgrade -yqq &&\
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t trixie-backports libreoffice &&\
-    curl -Ls https://raw.githubusercontent.com/gotenberg/unoconverter/v0.1.1/unoconv -o /usr/bin/unoconverter &&\
+    curl -Ls https://raw.githubusercontent.com/gotenberg/unoconverter/v0.2.0/unoconv -o /usr/bin/unoconverter &&\
     chmod +x /usr/bin/unoconverter &&\
     # unoconverter will look for the Python binary, which has to be at version 3.
     ln -s /usr/bin/python3 /usr/bin/python &&\

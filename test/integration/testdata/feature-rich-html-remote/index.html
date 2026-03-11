@@ -20,6 +20,14 @@
           display: none;
         }
       }
+      #reduced-motion {
+        display: none;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #reduced-motion {
+          display: block;
+        }
+      }
     </style>
   </head>
   <body>
@@ -29,6 +37,7 @@
     </p>
     <p id="print">Emulated media type is 'print'.</p>
     <p id="screen">Emulated media type is 'screen'.</p>
+    <p id="reduced-motion">Prefers reduced motion.</p>
     <p id="javascript" style="display: none">JavaScript is enabled.</p>
     <iframe src="file:///etc/passwd"></iframe>
 

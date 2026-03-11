@@ -4,20 +4,22 @@
     <p align="center">A containerized API for seamless PDF conversion</p>
     <p align="center">
         <a href="https://hub.docker.com/r/gotenberg/gotenberg"><img alt="Total downloads (gotenberg/gotenberg)" src="https://img.shields.io/docker/pulls/gotenberg/gotenberg"></a>
-        <a href="https://hub.docker.com/r/thecodingmachine/gotenberg"><img alt="Total downloads (thecodingmachine/gotenberg)" src="https://img.shields.io/docker/pulls/thecodingmachine/gotenberg"></a>
         <a href="https://github.com/gotenberg/gotenberg/actions/workflows/continuous-integration.yml"><img alt="Continuous Integration" src="https://github.com/gotenberg/gotenberg/actions/workflows/continuous-integration.yml/badge.svg"></a>
         <a href="https://pkg.go.dev/github.com/gotenberg/gotenberg/v8"><img alt="Go Reference" src="https://pkg.go.dev/badge/github.com/gotenberg/gotenberg.svg"></a>
     </p>
     <p align="center">
         <a href="https://trendshift.io/repositories/2996"><img src="https://trendshift.io/api/badge/repositories/2996" alt="gotenberg%2Fgotenberg | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
     </p>
-    <p align="center"><a href="https://gotenberg.dev/docs/getting-started/introduction">Documentation</a> &#183; <a href="https://gotenberg.dev/docs/getting-started/installation#live-demo-">Live Demo</a> 🔥</p>
+    <p align="center"><a href="https://gotenberg.dev/docs/getting-started/introduction">Read the Documentation</a> &#183; <a href="https://gotenberg.dev/docs/getting-started/installation#live-demo-">Try the Live Demo</a> 🔥</p>
 </p>
 
 ---
 
-**Gotenberg** provides a developer-friendly API to interact with powerful tools like Chromium and LibreOffice for converting
-numerous document formats (HTML, Markdown, Word, Excel, etc.) into PDF files, and more!
+**Gotenberg** is a containerized API that abstracts the complexity of PDF conversion.
+
+It provides a `multipart/form-data` interface for interacting with powerful engines like Chromium and LibreOffice.
+Instead of managing heavy dependencies, browser versions, or fonts in your own backend, simply send your files to
+Gotenberg and get a PDF in return.
 
 ## Onebrief Gotenberg Updates
 
@@ -44,41 +46,25 @@ $ make release
 
 Open a terminal and run the following command:
 
-```
+```bash
 docker run --rm -p 3000:3000 gotenberg/gotenberg:8
 ```
 
-Alternatively, using the historic Docker repository from our sponsor [TheCodingMachine](https://www.thecodingmachine.com):
-
-```
-docker run --rm -p 3000:3000 thecodingmachine/gotenberg:8
-```
-
-The API is now available on your host at http://localhost:3000.
-
-Head to the [documentation](https://gotenberg.dev/docs/getting-started/introduction) to learn how to interact with it 🚀
+With the API running at `http://localhost:3000`, you are now ready to head
+to the **[Full Documentation](https://gotenberg.dev/docs/getting-started/introduction)** to discover how to convert URLs,
+local files, inject custom CSS, merge PDFs, and more.
 
 ## Sponsors
 
-<p align="center">
-    <a href="https://thecodingmachine.com">
-        <img src="https://user-images.githubusercontent.com/8983173/130324668-9d6e7b35-53a3-49c7-a574-38190d2bd6b0.png" alt="TheCodingMachine Logo" width="333" height="163" />
-    </a>
-    <a href="https://pdfme.com?utm_source=gotenberg_github&utm_medium=website" target="_blank">
-        <img src="https://github.com/user-attachments/assets/2a75dd40-ca18-4d34-acd5-5dd474595168" alt="pdfme Logo" width="333" height="163" />
-    </a>
-</p>
+Open-source development takes a significant amount of time, energy, and dedication. If Gotenberg helps streamline your
+workflow or powers your business, please consider supporting its continuous improvement by [**becoming a sponsor**](https://github.com/sponsors/gulien)! ❤️
 
-Sponsorships help maintain and improve Gotenberg - [become a sponsor](https://github.com/sponsors/gulien) ❤️
+**GitHub Sponsors**
 
----
+- [TheCodingMachine](https://thecodingmachine.com/)
+- [pdfme](https://pdfme.com/)
 
-<p align="center">
-  <strong>Powered by</strong>
-</p>
+**Powered By**
 
-<p align="center">
-  <a href="https://jb.gg/OpenSource">
-    <img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg" alt="JetBrains logo" width="200"/>
-  </a>
-</p>
+- [Docker](https://docs.docker.com/docker-hub/repos/manage/trusted-content/dsos-program/)
+- [JetBrains](https://www.jetbrains.com/community/opensource/)

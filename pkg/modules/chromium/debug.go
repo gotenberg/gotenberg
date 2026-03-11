@@ -21,7 +21,7 @@ func (debug *debugLogger) Write(p []byte) (n int, err error) {
 }
 
 // Printf logs a debug message.
-func (debug *debugLogger) Printf(format string, v ...interface{}) {
+func (debug *debugLogger) Printf(format string, v ...any) {
 	debug.logger.Debug(fmt.Sprintf(format, v...))
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"sync/atomic"
 
 	"go.uber.org/zap"
@@ -79,27 +80,38 @@ type processSupervisor struct {
 	process         Process
 	maxReqLimit     int64
 	maxQueueSize    int64
-	mutexChan       chan struct{}
+	maxConcurrency  int64
+	semaphore       chan struct{}
 	firstStart      atomic.Bool
+	firstStartOnce  sync.Once
+	firstStartErr   error
 	reqCounter      atomic.Int64
 	reqQueueSize    atomic.Int64
 	restartsCounter atomic.Int64
 	isRestarting    atomic.Bool
+	activeTasks     atomic.Int64
+	restartMutex    sync.Mutex
 }
 
 // NewProcessSupervisor initializes a new [ProcessSupervisor].
-func NewProcessSupervisor(logger *zap.Logger, process Process, maxReqLimit, maxQueueSize int64) ProcessSupervisor {
+func NewProcessSupervisor(logger *zap.Logger, process Process, maxReqLimit, maxQueueSize, maxConcurrency int64) ProcessSupervisor {
+	if maxConcurrency < 1 {
+		maxConcurrency = 1
+	}
+
 	b := &processSupervisor{
-		logger:       logger,
-		process:      process,
-		mutexChan:    make(chan struct{}, 1),
-		maxReqLimit:  maxReqLimit,
-		maxQueueSize: maxQueueSize,
+		logger:         logger,
+		process:        process,
+		semaphore:      make(chan struct{}, maxConcurrency),
+		maxReqLimit:    maxReqLimit,
+		maxQueueSize:   maxQueueSize,
+		maxConcurrency: maxConcurrency,
 	}
 	b.reqCounter.Store(0)
 	b.reqQueueSize.Store(0)
 	b.restartsCounter.Store(0)
 	b.isRestarting.Store(false)
+	b.activeTasks.Store(0)
 
 	return b
 }
@@ -130,15 +142,7 @@ func (s *processSupervisor) Shutdown() error {
 }
 
 func (s *processSupervisor) restart() error {
-	if s.isRestarting.Load() {
-		s.logger.Debug("process already restarting, skip restart")
-
-		return ErrProcessAlreadyRestarting
-	}
-
 	s.logger.Debug("restart process")
-	s.isRestarting.Store(true)
-	defer s.isRestarting.Store(false)
 
 	err := s.Shutdown()
 	if err != nil {
@@ -197,33 +201,43 @@ func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task fu
 	for {
 		err := func() error {
 			select {
-			case s.mutexChan <- struct{}{}:
+			case s.semaphore <- struct{}{}:
 				logger.Debug("process lock acquired")
+
+				// If a restart drain is in progress, release the slot
+				// immediately so the drain can acquire it instead.
+				if s.isRestarting.Load() {
+					<-s.semaphore
+					return ErrProcessAlreadyRestarting
+				}
+
 				s.reqQueueSize.Add(-1)
 				s.reqCounter.Add(1)
-				releaseMutexChan := true
+				s.activeTasks.Add(1)
+				releaseSemaphore := true
 
 				defer func() {
-					if releaseMutexChan {
+					s.activeTasks.Add(-1)
+					if releaseSemaphore {
 						logger.Debug("process lock released")
-						<-s.mutexChan
+						<-s.semaphore
 					}
 				}()
 
 				if !s.firstStart.Load() {
-					err := s.runWithDeadline(ctx, func() error {
-						return s.Launch()
+					s.firstStartOnce.Do(func() {
+						s.firstStartErr = s.runWithDeadline(ctx, func() error {
+							return s.Launch()
+						})
 					})
-					if err != nil {
-						return fmt.Errorf("process first start: %w", err)
+					if s.firstStartErr != nil {
+						return fmt.Errorf("process first start: %w", s.firstStartErr)
 					}
 				}
 
 				if !s.Healthy() {
 					s.logger.Debug("process is unhealthy, cannot handle task, restarting...")
-					err := s.runWithDeadline(ctx, func() error {
-						return s.restart()
-					})
+					err := s.doRestart(ctx)
 					if err != nil {
 						return fmt.Errorf("process restart before task: %w", err)
 					}
@@ -232,19 +246,21 @@ func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task fu
 				err := s.runWithDeadline(ctx, task)
 
 				if s.maxReqLimit > 0 && s.reqCounter.Load() >= s.maxReqLimit {
-					s.logger.Debug("max request limit reached, restarting eagerly...")
-					releaseMutexChan = false
+					// Only one goroutine should trigger the restart.
+					if s.restartMutex.TryLock() {
+						s.logger.Debug("max request limit reached, restarting eagerly...")
+						releaseSemaphore = false
 
-					go func() {
-						err := s.runWithDeadline(context.Background(), func() error {
-							return s.restart()
-						})
-						if err != nil {
-							s.logger.Error(fmt.Sprintf("process restart after task: %v", err))
-						}
-						logger.Debug("process lock released")
-						<-s.mutexChan
-					}()
+						go func() {
+							restartErr := s.doRestartLocked(context.Background())
+							s.restartMutex.Unlock()
+							if restartErr != nil {
+								s.logger.Error(fmt.Sprintf("process restart after task: %v", restartErr))
+							}
+							logger.Debug("process lock released")
+							<-s.semaphore
+						}()
+					}
 				}
 
 				// Note: no error wrapping because it leaks on Chromium console exceptions output.
@@ -259,13 +275,53 @@ func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task fu
 
 		if errors.Is(err, ErrProcessAlreadyRestarting) {
 			logger.Debug("process is already restarting, trying to acquire process lock again...")
-			s.reqQueueSize.Add(1)
 			continue
 		}
 
 		// Note: no error wrapping because it leaks on Chromium console exceptions output.
 		return err
 	}
+}
+
+// doRestart coordinates a process restart, draining all active concurrent
+// tasks before stopping and restarting the process.
+func (s *processSupervisor) doRestart(ctx context.Context) error {
+	s.restartMutex.Lock()
+	defer s.restartMutex.Unlock()
+
+	return s.doRestartLocked(ctx)
+}
+
+// doRestartLocked performs the restart drain logic. The caller must hold restartMutex.
+func (s *processSupervisor) doRestartLocked(ctx context.Context) error {
+	s.isRestarting.Store(true)
+	defer s.isRestarting.Store(false)
+
+	// Drain all other active semaphore slots so no other tasks are running during the restart.
+	slotsToAcquire := s.maxConcurrency - 1
+	acquired := make([]struct{}, 0, slotsToAcquire)
+
+	for range slotsToAcquire {
+		select {
+		case s.semaphore <- struct{}{}:
+			acquired = append(acquired, struct{}{})
+		case <-ctx.Done():
+			for range acquired {
+				<-s.semaphore
+			}
+			return fmt.Errorf("drain active tasks before restart: %w", ctx.Err())
+		}
+	}
+
+	err := s.runWithDeadline(ctx, func() error {
+		return s.restart()
+	})
+
+	for range acquired {
+		<-s.semaphore
+	}
+
+	return err
 }
 
 func (s *processSupervisor) runWithDeadline(ctx context.Context, task func() error) error {

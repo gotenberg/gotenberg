@@ -32,22 +32,22 @@ func NewLeveledLogger(logger *zap.Logger) *LeveledLogger {
 }
 
 // Error logs a message at the error level using the wrapped zap.Logger.
-func (leveled LeveledLogger) Error(msg string, keysAndValues ...interface{}) {
+func (leveled LeveledLogger) Error(msg string, keysAndValues ...any) {
 	leveled.logger.Error(fmt.Sprintf("%s: %+v", msg, keysAndValues))
 }
 
 // Warn logs a message at the warning level using the wrapped zap.Logger.
-func (leveled LeveledLogger) Warn(msg string, keysAndValues ...interface{}) {
+func (leveled LeveledLogger) Warn(msg string, keysAndValues ...any) {
 	leveled.logger.Warn(fmt.Sprintf("%s: %+v", msg, keysAndValues))
 }
 
 // Info logs a message at the info level using the wrapped zap.Logger.
-func (leveled LeveledLogger) Info(msg string, keysAndValues ...interface{}) {
+func (leveled LeveledLogger) Info(msg string, keysAndValues ...any) {
 	leveled.logger.Info(fmt.Sprintf("%s: %+v", msg, keysAndValues))
 }
 
 // Debug logs a message at the debug level using the wrapped zap.Logger.
-func (leveled LeveledLogger) Debug(msg string, keysAndValues ...interface{}) {
+func (leveled LeveledLogger) Debug(msg string, keysAndValues ...any) {
 	leveled.logger.Debug(fmt.Sprintf("%s: %+v", msg, keysAndValues))
 }
 

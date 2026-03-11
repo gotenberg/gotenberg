@@ -35,10 +35,10 @@ func (mod *ValidatorMock) Validate() error {
 }
 
 type DebuggableMock struct {
-	DebugMock func() map[string]interface{}
+	DebugMock func() map[string]any
 }
 
-func (mod *DebuggableMock) Debug() map[string]interface{} {
+func (mod *DebuggableMock) Debug() map[string]any {
 	return mod.DebugMock()
 }
 
@@ -50,8 +50,8 @@ type PdfEngineMock struct {
 	SplitMock         func(ctx context.Context, logger *zap.Logger, mode SplitMode, inputPath, outputDirPath string) ([]string, error)
 	FlattenMock       func(ctx context.Context, logger *zap.Logger, inputPath string) error
 	ConvertMock       func(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error
-	ReadMetadataMock  func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error)
-	WriteMetadataMock func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error
+	ReadMetadataMock  func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error)
+	WriteMetadataMock func(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error
 	EncryptMock       func(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error
 	EmbedFilesMock    func(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error
 }
@@ -72,11 +72,11 @@ func (engine *PdfEngineMock) Convert(ctx context.Context, logger *zap.Logger, fo
 	return engine.ConvertMock(ctx, logger, formats, inputPath, outputPath)
 }
 
-func (engine *PdfEngineMock) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+func (engine *PdfEngineMock) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
 	return engine.ReadMetadataMock(ctx, logger, inputPath)
 }
 
-func (engine *PdfEngineMock) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+func (engine *PdfEngineMock) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
 	return engine.WriteMetadataMock(ctx, logger, metadata, inputPath)
 }
 

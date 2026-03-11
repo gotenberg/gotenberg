@@ -13,6 +13,8 @@ func TestBuildDebug(t *testing.T) {
 		t.Errorf("Debug() should return empty debug data")
 	}
 
+	t.Setenv("TZ", "UTC")
+
 	fs := flag.NewFlagSet("gotenberg", flag.ExitOnError)
 	fs.String("foo", "bar", "Set foo")
 	ctx := NewContext(ParsedFlags{
@@ -31,8 +33,8 @@ func TestBuildDebug(t *testing.T) {
 		mod2.DescriptorMock = func() ModuleDescriptor {
 			return ModuleDescriptor{ID: "bar", New: func() Module { return mod2 }}
 		}
-		mod2.DebugMock = func() map[string]interface{} {
-			return map[string]interface{}{
+		mod2.DebugMock = func() map[string]any {
+			return map[string]any{
 				"foo": "bar",
 			}
 		}
@@ -51,17 +53,18 @@ func TestBuildDebug(t *testing.T) {
 
 	expect := DebugInfo{
 		Version:      Version,
+		Timezone:     "UTC",
 		Architecture: runtime.GOARCH,
 		Modules: []string{
 			"bar",
 			"foo",
 		},
-		ModulesAdditionalData: map[string]map[string]interface{}{
+		ModulesAdditionalData: map[string]map[string]any{
 			"bar": {
 				"foo": "bar",
 			},
 		},
-		Flags: map[string]interface{}{
+		Flags: map[string]any{
 			"foo": "bar",
 		},
 	}

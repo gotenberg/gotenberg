@@ -59,8 +59,8 @@ func (engine *QPdf) Validate() error {
 }
 
 // Debug returns additional debug data.
-func (engine *QPdf) Debug() map[string]interface{} {
-	debug := make(map[string]interface{})
+func (engine *QPdf) Debug() map[string]any {
+	debug := make(map[string]any)
 
 	cmd := exec.Command(engine.binPath, "--version") //nolint:gosec
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -114,7 +114,7 @@ func (engine *QPdf) Split(ctx context.Context, logger *zap.Logger, mode gotenber
 
 // Merge combines multiple PDFs into a single PDF.
 func (engine *QPdf) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-	var args []string
+	args := make([]string, 0, 4+len(engine.globalArgs)+len(inputPaths))
 	args = append(args, "--empty")
 	args = append(args, engine.globalArgs...)
 	args = append(args, "--pages")
@@ -137,7 +137,7 @@ func (engine *QPdf) Merge(ctx context.Context, logger *zap.Logger, inputPaths []
 // Flatten merges annotation appearances with page content, deleting the
 // original annotations.
 func (engine *QPdf) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
-	var args []string
+	args := make([]string, 0, 4+len(engine.globalArgs))
 	args = append(args, inputPath)
 	args = append(args, "--generate-appearances")
 	args = append(args, "--flatten-annotations=all")
@@ -163,12 +163,12 @@ func (engine *QPdf) Convert(ctx context.Context, logger *zap.Logger, formats got
 }
 
 // ReadMetadata is not available in this implementation.
-func (engine *QPdf) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+func (engine *QPdf) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
 	return nil, fmt.Errorf("read PDF metadata with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // WriteMetadata is not available in this implementation.
-func (engine *QPdf) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+func (engine *QPdf) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
 	return fmt.Errorf("write PDF metadata with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
@@ -182,7 +182,7 @@ func (engine *QPdf) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, 
 		ownerPassword = userPassword
 	}
 
-	var args []string
+	args := make([]string, 0, 7+len(engine.globalArgs))
 	args = append(args, inputPath)
 	args = append(args, engine.globalArgs...)
 	args = append(args, "--replace-input")

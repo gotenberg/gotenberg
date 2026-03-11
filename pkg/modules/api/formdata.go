@@ -439,7 +439,7 @@ func (form *FormData) append(err error) {
 // mustValue binds the target interface with a form field. If the value is
 // empty or the "key" does not exist, it binds the default value. Currently,
 // only the string, bool, int, float64 and time.Duration types are bindable.
-func (form *FormData) mustValue(key string, target interface{}, defaultValue interface{}) *FormData {
+func (form *FormData) mustValue(key string, target any, defaultValue any) *FormData {
 	val, ok := form.values[key]
 
 	if !ok || val[0] == "" {
@@ -468,7 +468,7 @@ func (form *FormData) mustValue(key string, target interface{}, defaultValue int
 // populates an error if the value is empty or the "key" does not exist.
 // Currently, only the string, bool, int, float64 and time.Duration types are
 // bindable.
-func (form *FormData) mustMandatoryField(key string, target interface{}) *FormData {
+func (form *FormData) mustMandatoryField(key string, target any) *FormData {
 	val, ok := form.values[key]
 
 	if !ok || val[0] == "" {
@@ -487,7 +487,7 @@ func (form *FormData) mustMandatoryField(key string, target interface{}) *FormDa
 // mustAssign parses the string value and tries to convert it to the target
 // interface real type. Currently, only the string, bool, int, float64 and
 // time.Duration types are bindable.
-func (form *FormData) mustAssign(key, value string, target interface{}) *FormData {
+func (form *FormData) mustAssign(key, value string, target any) *FormData {
 	var err error
 
 	switch t := (target).(type) {

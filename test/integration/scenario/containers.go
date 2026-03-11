@@ -22,7 +22,7 @@ var (
 
 type noopLogger struct{}
 
-func (n *noopLogger) Printf(format string, v ...interface{}) {
+func (n *noopLogger) Printf(format string, v ...any) {
 	// NOOP
 }
 

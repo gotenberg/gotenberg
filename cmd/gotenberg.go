@@ -45,10 +45,10 @@ func Run() {
 	fs.Bool("gotenberg-build-debug-data", true, "Set if build data is needed")
 
 	descriptors := gotenberg.GetModuleDescriptors()
-	var modsInfo string
+	var modsInfo strings.Builder
 	for _, desc := range descriptors {
 		fs.AddFlagSet(desc.FlagSet)
-		modsInfo += desc.ID + " "
+		modsInfo.WriteString(desc.ID + " ")
 	}
 
 	// Parse the flags.
@@ -94,7 +94,7 @@ func Run() {
 	if !hideBanner {
 		fmt.Printf(banner, Version)
 	}
-	fmt.Printf("[SYSTEM] modules: %s\n", modsInfo)
+	fmt.Printf("[SYSTEM] modules: %s\n", modsInfo.String())
 
 	ctx := gotenberg.NewContext(parsedFlags, descriptors)
 
