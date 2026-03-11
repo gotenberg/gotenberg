@@ -10,6 +10,7 @@ build: ## Build the Gotenberg's Docker image
 	-t $(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
 	-f $(DOCKERFILE) $(DOCKER_BUILD_CONTEXT)
 
+TZ=UTC
 GOTENBERG_HIDE_BANNER=false
 GOTENBERG_GRACEFUL_SHUTDOWN_DURATION=30s
 GOTENBERG_BUILD_DEBUG_DATA=true
@@ -30,8 +31,9 @@ API-DOWNLOAD-FROM-FROM-MAX-RETRY=4
 API-DISABLE-DOWNLOAD-FROM=false
 API_DISABLE_HEALTH_CHECK_LOGGING=false
 API_ENABLE_DEBUG_ROUTE=false
-CHROMIUM_RESTART_AFTER=10
+CHROMIUM_RESTART_AFTER=100
 CHROMIUM_MAX_QUEUE_SIZE=0
+CHROMIUM_MAX_CONCURRENCY=6
 CHROMIUM_AUTO_START=false
 CHROMIUM_START_TIMEOUT=20s
 CHROMIUM_ALLOW_INSECURE_LOCALHOST=false
@@ -86,6 +88,7 @@ run: ## Start a Gotenberg container
 	-p $(API_PORT):$(API_PORT) \
 	-e GOTENBERG_API_BASIC_AUTH_USERNAME=$(GOTENBERG_API_BASIC_AUTH_USERNAME) \
 	-e GOTENBERG_API_BASIC_AUTH_PASSWORD=$(GOTENBERG_API_BASIC_AUTH_PASSWORD) \
+	-e TZ=$(TZ) \
 	$(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
 	gotenberg \
 	--gotenberg-hide-banner=$(GOTENBERG_HIDE_BANNER) \
@@ -109,6 +112,7 @@ run: ## Start a Gotenberg container
 	--chromium-restart-after=$(CHROMIUM_RESTART_AFTER) \
 	--chromium-auto-start=$(CHROMIUM_AUTO_START) \
 	--chromium-max-queue-size=$(CHROMIUM_MAX_QUEUE_SIZE) \
+	--chromium-max-concurrency=$(CHROMIUM_MAX_CONCURRENCY) \
 	--chromium-start-timeout=$(CHROMIUM_START_TIMEOUT) \
 	--chromium-allow-insecure-localhost=$(CHROMIUM_ALLOW_INSECURE_LOCALHOST) \
 	--chromium-ignore-certificate-errors=$(CHROMIUM_IGNORE_CERTIFICATE_ERRORS) \
@@ -164,6 +168,7 @@ PLATFORM=
 NO_CONCURRENCY=false
 # Available tags:
 # chromium
+# chromium-concurrent
 # chromium-convert-html
 # chromium-convert-markdown
 # chromium-convert-url
@@ -216,6 +221,7 @@ lint-todo: ## Find TODOs in Golang codebase
 
 .PHONY: fmt
 fmt: ## Format Golang codebase and "optimize" the dependencies
+	go fix ./...
 	golangci-lint fmt
 	go mod tidy
 

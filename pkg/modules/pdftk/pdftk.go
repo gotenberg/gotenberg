@@ -56,8 +56,8 @@ func (engine *PdfTk) Validate() error {
 }
 
 // Debug returns additional debug data.
-func (engine *PdfTk) Debug() map[string]interface{} {
-	debug := make(map[string]interface{})
+func (engine *PdfTk) Debug() map[string]any {
+	debug := make(map[string]any)
 
 	cmd := exec.Command(engine.binPath, "--version") //nolint:gosec
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -108,7 +108,7 @@ func (engine *PdfTk) Split(ctx context.Context, logger *zap.Logger, mode gotenbe
 
 // Merge combines multiple PDFs into a single PDF.
 func (engine *PdfTk) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-	var args []string
+	args := make([]string, 0, 3+len(inputPaths))
 	args = append(args, inputPaths...)
 	args = append(args, "cat", "output", outputPath)
 
@@ -136,12 +136,12 @@ func (engine *PdfTk) Convert(ctx context.Context, logger *zap.Logger, formats go
 }
 
 // ReadMetadata is not available in this implementation.
-func (engine *PdfTk) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+func (engine *PdfTk) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
 	return nil, fmt.Errorf("read PDF metadata with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // WriteMetadata is not available in this implementation.
-func (engine *PdfTk) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+func (engine *PdfTk) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
 	return fmt.Errorf("write PDF metadata with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
@@ -158,7 +158,7 @@ func (engine *PdfTk) Encrypt(ctx context.Context, logger *zap.Logger, inputPath,
 	// Create a temp output file in the same directory.
 	tmpPath := inputPath + ".tmp"
 
-	var args []string
+	args := make([]string, 0, 8)
 	args = append(args, inputPath)
 	args = append(args, "output", tmpPath)
 	args = append(args, "encrypt_128bit")

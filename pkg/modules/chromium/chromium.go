@@ -86,9 +86,10 @@ var (
 // Chromium is a module that provides both an [Api] and routes for converting
 // an HTML document to PDF.
 type Chromium struct {
-	autoStart     bool
-	disableRoutes bool
-	args          browserArguments
+	autoStart      bool
+	disableRoutes  bool
+	maxConcurrency int64
+	args           browserArguments
 
 	logger     *zap.Logger
 	browser    browser
@@ -164,9 +165,26 @@ type Options struct {
 	// "print".
 	EmulatedMediaType string
 
+	// EmulatedMediaFeatures are the media features to emulate, e.g.,
+	// [{"name": "prefers-color-scheme", "value": "dark"}].
+	EmulatedMediaFeatures []EmulatedMediaFeature
+
 	// OmitBackground hides the default white background and allows generating
 	// PDFs with transparency.
 	OmitBackground bool
+}
+
+// EmulatedMediaFeature gathers the available entries for emulating a media
+// feature.
+type EmulatedMediaFeature struct {
+	// Name is the media feature name (e.g., "prefers-color-scheme",
+	// "prefers-reduced-motion").
+	// Required.
+	Name string `json:"name"`
+
+	// Value is the media feature value (e.g., "dark", "reduce").
+	// Required.
+	Value string `json:"value"`
 }
 
 // DefaultOptions returns the default values for Options.
@@ -186,6 +204,7 @@ func DefaultOptions() Options {
 		UserAgent:                       "",
 		ExtraHttpHeaders:                nil,
 		EmulatedMediaType:               "",
+		EmulatedMediaFeatures:           nil,
 		OmitBackground:                  false,
 	}
 }
@@ -398,8 +417,9 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 		ID: "chromium",
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("chromium", flag.ExitOnError)
-			fs.Int64("chromium-restart-after", 10, "Number of conversions after which Chromium will automatically restart. Set to 0 to disable this feature")
+			fs.Int64("chromium-restart-after", 100, "Number of conversions after which Chromium will automatically restart. Set to 0 to disable this feature")
 			fs.Int64("chromium-max-queue-size", 0, "Maximum request queue size for Chromium. Set to 0 to disable this feature")
+			fs.Int64("chromium-max-concurrency", 6, "Maximum number of concurrent conversions. Chromium supports up to 6")
 			fs.Bool("chromium-auto-start", false, "Automatically launch Chromium upon initialization if set to true; otherwise, Chromium will start at the time of the first conversion")
 			fs.Duration("chromium-start-timeout", time.Duration(20)*time.Second, "Maximum duration to wait for Chromium to start or restart")
 			fs.Bool("chromium-allow-insecure-localhost", false, "Ignore TLS/SSL errors on localhost")
@@ -433,6 +453,7 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	mod.autoStart = flags.MustBool("chromium-auto-start")
 	mod.disableRoutes = flags.MustBool("chromium-disable-routes")
+	mod.maxConcurrency = flags.MustInt64("chromium-max-concurrency")
 
 	binPath, ok := os.LookupEnv("CHROMIUM_BIN_PATH")
 	if !ok {
@@ -475,7 +496,7 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 
 	// Process.
 	mod.browser = newChromiumBrowser(mod.args)
-	mod.supervisor = gotenberg.NewProcessSupervisor(mod.logger, mod.browser, flags.MustInt64("chromium-restart-after"), flags.MustInt64("chromium-max-queue-size"))
+	mod.supervisor = gotenberg.NewProcessSupervisor(mod.logger, mod.browser, flags.MustInt64("chromium-restart-after"), flags.MustInt64("chromium-max-queue-size"), mod.maxConcurrency)
 
 	// PDF Engine.
 	provider, err := ctx.Module(new(gotenberg.PdfEngineProvider))
@@ -493,6 +514,10 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 
 // Validate validates the module properties.
 func (mod *Chromium) Validate() error {
+	if mod.maxConcurrency < 1 || mod.maxConcurrency > 6 {
+		return fmt.Errorf("chromium-max-concurrency must be between 1 and 6, got %d", mod.maxConcurrency)
+	}
+
 	_, err := os.Stat(mod.args.binPath)
 	if os.IsNotExist(err) {
 		return fmt.Errorf("chromium binary path does not exist: %w", err)
@@ -547,8 +572,8 @@ func (mod *Chromium) Stop(ctx context.Context) error {
 }
 
 // Debug returns additional debug data.
-func (mod *Chromium) Debug() map[string]interface{} {
-	debug := make(map[string]interface{})
+func (mod *Chromium) Debug() map[string]any {
+	debug := make(map[string]any)
 
 	cmd := exec.Command(mod.args.binPath, "--version") //nolint:gosec
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}

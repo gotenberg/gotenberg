@@ -57,8 +57,8 @@ func (engine *PdfCpu) Validate() error {
 }
 
 // Debug returns additional debug data.
-func (engine *PdfCpu) Debug() map[string]interface{} {
-	debug := make(map[string]interface{})
+func (engine *PdfCpu) Debug() map[string]any {
+	debug := make(map[string]any)
 
 	cmd := exec.Command(engine.binPath, "version") //nolint:gosec
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -71,10 +71,10 @@ func (engine *PdfCpu) Debug() map[string]interface{} {
 
 	debug["version"] = "Unable to determine pdfcpu version"
 
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		if strings.HasPrefix(line, "pdfcpu:") {
-			debug["version"] = strings.TrimSpace(strings.TrimPrefix(line, "pdfcpu:"))
+	lines := strings.SplitSeq(string(output), "\n")
+	for line := range lines {
+		if after, ok := strings.CutPrefix(line, "pdfcpu:"); ok {
+			debug["version"] = strings.TrimSpace(after)
 			break
 		}
 	}
@@ -84,7 +84,7 @@ func (engine *PdfCpu) Debug() map[string]interface{} {
 
 // Merge combines multiple PDFs into a single PDF.
 func (engine *PdfCpu) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-	var args []string
+	args := make([]string, 0, 2+len(inputPaths))
 	args = append(args, "merge", outputPath)
 	args = append(args, inputPaths...)
 
@@ -162,12 +162,12 @@ func (engine *PdfCpu) Convert(ctx context.Context, logger *zap.Logger, formats g
 }
 
 // ReadMetadata is not available in this implementation.
-func (engine *PdfCpu) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+func (engine *PdfCpu) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
 	return nil, fmt.Errorf("read PDF metadata with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // WriteMetadata is not available in this implementation.
-func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
 	return fmt.Errorf("write PDF metadata with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
@@ -180,10 +180,8 @@ func (engine *PdfCpu) EmbedFiles(ctx context.Context, logger *zap.Logger, filePa
 
 	logger.Debug(fmt.Sprintf("embedding %d file(s) to %s: %v", len(filePaths), inputPath, filePaths))
 
-	args := []string{
-		"attachments", "add",
-		inputPath,
-	}
+	args := make([]string, 0, 3+len(filePaths))
+	args = append(args, "attachments", "add", inputPath)
 	args = append(args, filePaths...)
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
@@ -209,7 +207,7 @@ func (engine *PdfCpu) Encrypt(ctx context.Context, logger *zap.Logger, inputPath
 		ownerPassword = userPassword
 	}
 
-	var args []string
+	args := make([]string, 0, 11)
 	args = append(args, "encrypt")
 	args = append(args, "-mode", "aes")
 	args = append(args, "-upw", userPassword)

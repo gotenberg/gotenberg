@@ -54,7 +54,7 @@ type Api struct {
 // See: https://help.libreoffice.org/latest/en-US/text/shared/guide/pdf_params.html.
 type Options struct {
 	// Password specifies the password for opening the source file.
-	Password string
+	Password string // #nosec
 
 	// Landscape allows changing the orientation of the resulting PDF.
 	Landscape bool
@@ -253,7 +253,7 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 
 	// Process.
 	a.libreOffice = newLibreOfficeProcess(a.args)
-	a.supervisor = gotenberg.NewProcessSupervisor(a.logger, a.libreOffice, flags.MustInt64("libreoffice-restart-after"), flags.MustInt64("libreoffice-max-queue-size"))
+	a.supervisor = gotenberg.NewProcessSupervisor(a.logger, a.libreOffice, flags.MustInt64("libreoffice-restart-after"), flags.MustInt64("libreoffice-max-queue-size"), 1)
 
 	return nil
 }
@@ -316,8 +316,8 @@ func (a *Api) Stop(ctx context.Context) error {
 }
 
 // Debug returns additional debug data.
-func (a *Api) Debug() map[string]interface{} {
-	debug := make(map[string]interface{})
+func (a *Api) Debug() map[string]any {
+	debug := make(map[string]any)
 
 	cmd := exec.Command(a.args.binPath, "--version") //nolint:gosec
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}

@@ -57,8 +57,8 @@ func (engine *ExifTool) Validate() error {
 }
 
 // Debug returns additional debug data.
-func (engine *ExifTool) Debug() map[string]interface{} {
-	debug := make(map[string]interface{})
+func (engine *ExifTool) Debug() map[string]any {
+	debug := make(map[string]any)
 
 	cmd := exec.Command(engine.binPath, "-ver") //nolint:gosec
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -94,7 +94,7 @@ func (engine *ExifTool) Convert(ctx context.Context, logger *zap.Logger, formats
 }
 
 // ReadMetadata extracts the metadata of a given PDF file.
-func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
 	exifTool, err := exiftool.NewExiftool(exiftool.SetExiftoolBinaryPath(engine.binPath))
 	if err != nil {
 		return nil, fmt.Errorf("new ExifTool: %w", err)
@@ -116,7 +116,7 @@ func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *zap.Logger, in
 }
 
 // WriteMetadata writes the metadata into a given PDF file.
-func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
 	exifTool, err := exiftool.NewExiftool(exiftool.SetExiftoolBinaryPath(engine.binPath))
 	if err != nil {
 		return fmt.Errorf("new ExifTool: %w", err)
@@ -134,13 +134,40 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, m
 		return fmt.Errorf("read metadata with ExitfTool: %w", fileMetadata[0].Err)
 	}
 
+	// Define a list of derived, system, or computed tags that ExifTool
+	// extracts but should never be written back. Writing these can break PDF/A
+	// compliance (e.g., PageCount -> prism:pageCount) or cause side effects
+	// (e.g., FileModifyDate).
+	derivedTags := []string{
+		"PageCount",           // Causes prism:pageCount injection
+		"Linearized",          // Computed status; writing it may invalidate structure
+		"PDFVersion",          // Header version; should not be manually forced via metadata
+		"MIMEType",            // Read-only derived
+		"FileType",            // Read-only derived
+		"FileTypeExtension",   // Read-only derived
+		"FileSize",            // System attribute
+		"FileModifyDate",      // System attribute
+		"FileAccessDate",      // System attribute
+		"FileInodeChangeDate", // System attribute
+		"FilePermissions",     // System attribute
+		"FileName",            // Writing this triggers a file rename in ExifTool
+		"Directory",           // System attribute
+		"ExifToolVersion",     // Tool metadata
+		"Error",               // Extraction error messages
+		"Warning",             // Extraction warning messages
+	}
+
+	for _, tag := range derivedTags {
+		delete(fileMetadata[0].Fields, tag)
+	}
+
 	for key, value := range metadata {
 		switch val := value.(type) {
 		case string:
 			fileMetadata[0].SetString(key, val)
 		case []string:
 			fileMetadata[0].SetStrings(key, val)
-		case []interface{}:
+		case []any:
 			// See https://github.com/gotenberg/gotenberg/issues/1048.
 			strs := make([]string, len(val))
 			for i, entry := range val {
@@ -148,7 +175,7 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, m
 					strs[i] = str
 					continue
 				}
-				return fmt.Errorf("write PDF metadata with ExifTool: %s %+v %s %w", key, val, reflect.TypeOf(val), gotenberg.ErrPdfEngineMetadataValueNotSupported)
+				return fmt.Errorf("write PDF metadata with ExifTool: %s %+v %s %w", key, val, reflect.TypeFor[[]any](), gotenberg.ErrPdfEngineMetadataValueNotSupported)
 			}
 			fileMetadata[0].SetStrings(key, strs)
 		case bool:

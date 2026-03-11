@@ -102,8 +102,8 @@ func FormDataPdfFormats(form *api.FormData) gotenberg.PdfFormats {
 }
 
 // FormDataPdfMetadata creates metadata object from the form data.
-func FormDataPdfMetadata(form *api.FormData, mandatory bool) map[string]interface{} {
-	var metadata map[string]interface{}
+func FormDataPdfMetadata(form *api.FormData, mandatory bool) map[string]any {
+	var metadata map[string]any
 
 	metadataFunc := func(value string) error {
 		if len(value) > 0 {
@@ -239,7 +239,7 @@ func ConvertStub(ctx *api.Context, engine gotenberg.PdfEngine, formats gotenberg
 
 // WriteMetadataStub writes the metadata into PDF files. If no metadata, it
 // does nothing.
-func WriteMetadataStub(ctx *api.Context, engine gotenberg.PdfEngine, metadata map[string]interface{}, inputPaths []string) error {
+func WriteMetadataStub(ctx *api.Context, engine gotenberg.PdfEngine, metadata map[string]any, inputPaths []string) error {
 	if len(metadata) == 0 {
 		return nil
 	}
@@ -558,7 +558,7 @@ func readMetadataRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			res := make(map[string]map[string]interface{}, len(inputPaths))
+			res := make(map[string]map[string]any, len(inputPaths))
 			for _, inputPath := range inputPaths {
 				metadata, err := engine.ReadMetadata(ctx, ctx.Log(), inputPath)
 				if err != nil {

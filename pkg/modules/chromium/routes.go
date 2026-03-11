@@ -39,6 +39,7 @@ var sameSiteRegexp = regexp2.MustCompile(
 //   - ignoreResourceHttpStatusDomains: []string
 //   - cookies: []Cookie
 //   - extraHttpHeaders: map[string]string
+//   - emulatedMediaFeatures: map[string]string
 //
 // Domain filtering only applies to resource checks triggered by
 // "failOnResourceHttpStatusCodes".
@@ -60,6 +61,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		userAgent                       string
 		extraHttpHeaders                []ExtraHttpHeader
 		emulatedMediaType               string
+		emulatedMediaFeatures           []EmulatedMediaFeature
 		omitBackground                  bool
 	)
 
@@ -170,8 +172,8 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 				var valueTokens []string
 				var invalidScopeToken bool
 
-				tokens := strings.Split(v, ";")
-				for _, token := range tokens {
+				tokens := strings.SplitSeq(v, ";")
+				for token := range tokens {
 					if strings.HasPrefix(strings.ToLower(strings.TrimSpace(token)), "scope") {
 						tokenNoSpaces := strings.Join(strings.Fields(token), "")
 						parts := strings.SplitN(tokenNoSpaces, "=", 2)
@@ -227,6 +229,27 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 
 			return nil
 		}).
+		Custom("emulatedMediaFeatures", func(value string) error {
+			if value == "" {
+				emulatedMediaFeatures = defaultOptions.EmulatedMediaFeatures
+				return nil
+			}
+
+			var features map[string]string
+			err := json.Unmarshal([]byte(value), &features)
+			if err != nil {
+				return fmt.Errorf("unmarshal emulatedMediaFeatures: %w", err)
+			}
+
+			for k, v := range features {
+				emulatedMediaFeatures = append(emulatedMediaFeatures, EmulatedMediaFeature{
+					Name:  k,
+					Value: v,
+				})
+			}
+
+			return err
+		}).
 		Bool("omitBackground", &omitBackground, defaultOptions.OmitBackground)
 
 	options := Options{
@@ -244,6 +267,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		UserAgent:                       userAgent,
 		ExtraHttpHeaders:                extraHttpHeaders,
 		EmulatedMediaType:               emulatedMediaType,
+		EmulatedMediaFeatures:           emulatedMediaFeatures,
 		OmitBackground:                  omitBackground,
 	}
 
@@ -696,7 +720,7 @@ func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) 
 	return fmt.Sprintf("file://%s", inputPath), nil
 }
 
-func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, options PdfOptions, mode gotenberg.SplitMode, pdfFormats gotenberg.PdfFormats, metadata map[string]interface{}, userPassword, ownerPassword string, embedPaths []string) error {
+func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, options PdfOptions, mode gotenberg.SplitMode, pdfFormats gotenberg.PdfFormats, metadata map[string]any, userPassword, ownerPassword string, embedPaths []string) error {
 	outputPath := ctx.GeneratePath(".pdf")
 	// See https://github.com/gotenberg/gotenberg/issues/1130.
 	filename := ctx.OutputFilename(outputPath)
