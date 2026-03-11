@@ -4,10 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 	"sync/atomic"
-
-	"go.uber.org/zap"
 )
 
 // ErrProcessAlreadyRestarting happens if the [ProcessSupervisor] is trying
@@ -27,15 +26,15 @@ var ErrMaximumQueueSizeExceeded = errors.New("maximum queue size exceeded")
 type Process interface {
 	// Start initiates the process and returns an error if the process cannot
 	// be started.
-	Start(logger *zap.Logger) error
+	Start(logger *slog.Logger) error
 
 	// Stop terminates the process and returns an error if the process cannot
 	// be stopped.
-	Stop(logger *zap.Logger) error
+	Stop(logger *slog.Logger) error
 
 	// Healthy checks the health of the process. It returns true if the process
 	// is healthy; otherwise, it returns false.
-	Healthy(logger *zap.Logger) bool
+	Healthy(logger *slog.Logger) bool
 }
 
 // ProcessSupervisor provides methods to manage a [Process], including
@@ -66,17 +65,20 @@ type ProcessSupervisor interface {
 	//
 	// It returns an error if the task cannot be run or if the process state
 	// cannot be managed properly.
-	Run(ctx context.Context, logger *zap.Logger, task func() error) error
+	Run(ctx context.Context, logger *slog.Logger, task func() error) error
 
 	// ReqQueueSize returns the current size of the request queue.
 	ReqQueueSize() int64
+
+	// ActiveTasksCount returns the current number of active tasks.
+	ActiveTasksCount() int64
 
 	// RestartsCount returns the current number of restart.
 	RestartsCount() int64
 }
 
 type processSupervisor struct {
-	logger          *zap.Logger
+	logger          *slog.Logger
 	process         Process
 	maxReqLimit     int64
 	maxQueueSize    int64
@@ -94,7 +96,7 @@ type processSupervisor struct {
 }
 
 // NewProcessSupervisor initializes a new [ProcessSupervisor].
-func NewProcessSupervisor(logger *zap.Logger, process Process, maxReqLimit, maxQueueSize, maxConcurrency int64) ProcessSupervisor {
+func NewProcessSupervisor(logger *slog.Logger, process Process, maxReqLimit, maxQueueSize, maxConcurrency int64) ProcessSupervisor {
 	if maxConcurrency < 1 {
 		maxConcurrency = 1
 	}
@@ -117,37 +119,37 @@ func NewProcessSupervisor(logger *zap.Logger, process Process, maxReqLimit, maxQ
 }
 
 func (s *processSupervisor) Launch() error {
-	s.logger.Debug("start process")
+	s.logger.DebugContext(context.Background(), "start process")
 	err := s.process.Start(s.logger)
 	if err != nil {
 		return fmt.Errorf("start process: %w", err)
 	}
 
 	s.firstStart.Store(true)
-	s.logger.Debug("process successfully started")
+	s.logger.DebugContext(context.Background(), "process successfully started")
 
 	return nil
 }
 
 func (s *processSupervisor) Shutdown() error {
-	s.logger.Debug("shutdown process")
+	s.logger.DebugContext(context.Background(), "shutdown process")
 	err := s.process.Stop(s.logger)
 	if err != nil {
 		return fmt.Errorf("shutdown process: %w", err)
 	}
 
-	s.logger.Debug("process successfully shutdown")
+	s.logger.DebugContext(context.Background(), "process successfully shutdown")
 
 	return nil
 }
 
 func (s *processSupervisor) restart() error {
-	s.logger.Debug("restart process")
+	s.logger.DebugContext(context.Background(), "restart process")
 
 	err := s.Shutdown()
 	if err != nil {
 		// No big deal? Chances are it's already stopped.
-		s.logger.Debug(fmt.Sprintf("stop process before restart: %s", err))
+		s.logger.DebugContext(context.Background(), fmt.Sprintf("stop process before restart: %s", err))
 	}
 
 	err = s.Launch()
@@ -157,7 +159,7 @@ func (s *processSupervisor) restart() error {
 
 	s.reqCounter.Store(0)
 	s.restartsCounter.Add(1)
-	s.logger.Debug("process successfully restarted")
+	s.logger.DebugContext(context.Background(), "process successfully restarted")
 
 	return nil
 }
@@ -176,7 +178,7 @@ func (s *processSupervisor) Healthy() bool {
 	return s.process.Healthy(s.logger)
 }
 
-func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task func() error) error {
+func (s *processSupervisor) Run(ctx context.Context, logger *slog.Logger, task func() error) error {
 	// A user reported a potential issue:
 	//
 	// "Although the counting operation is atomic, nothing prevent 2 concurrent
@@ -202,7 +204,7 @@ func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task fu
 		err := func() error {
 			select {
 			case s.semaphore <- struct{}{}:
-				logger.Debug("process lock acquired")
+				logger.DebugContext(ctx, "process lock acquired")
 
 				// If a restart drain is in progress, release the slot
 				// immediately so the drain can acquire it instead.
@@ -219,7 +221,7 @@ func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task fu
 				defer func() {
 					s.activeTasks.Add(-1)
 					if releaseSemaphore {
-						logger.Debug("process lock released")
+						logger.DebugContext(ctx, "process lock released")
 						<-s.semaphore
 					}
 				}()
@@ -236,7 +238,7 @@ func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task fu
 				}
 
 				if !s.Healthy() {
-					s.logger.Debug("process is unhealthy, cannot handle task, restarting...")
+					s.logger.DebugContext(ctx, "process is unhealthy, cannot handle task, restarting...")
 					err := s.doRestart(ctx)
 					if err != nil {
 						return fmt.Errorf("process restart before task: %w", err)
@@ -248,16 +250,16 @@ func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task fu
 				if s.maxReqLimit > 0 && s.reqCounter.Load() >= s.maxReqLimit {
 					// Only one goroutine should trigger the restart.
 					if s.restartMutex.TryLock() {
-						s.logger.Debug("max request limit reached, restarting eagerly...")
+						s.logger.DebugContext(ctx, "max request limit reached, restarting eagerly...")
 						releaseSemaphore = false
 
 						go func() {
 							restartErr := s.doRestartLocked(context.Background())
 							s.restartMutex.Unlock()
 							if restartErr != nil {
-								s.logger.Error(fmt.Sprintf("process restart after task: %v", restartErr))
+								s.logger.ErrorContext(context.Background(), fmt.Sprintf("process restart after task: %v", restartErr))
 							}
-							logger.Debug("process lock released")
+							logger.DebugContext(context.Background(), "process lock released")
 							<-s.semaphore
 						}()
 					}
@@ -266,7 +268,7 @@ func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task fu
 				// Note: no error wrapping because it leaks on Chromium console exceptions output.
 				return err
 			case <-ctx.Done():
-				logger.Debug("failed to acquire process lock before deadline")
+				logger.DebugContext(ctx, "failed to acquire process lock before deadline")
 				s.reqQueueSize.Add(-1)
 
 				return fmt.Errorf("acquire process lock: %w", ctx.Err())
@@ -274,7 +276,7 @@ func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task fu
 		}()
 
 		if errors.Is(err, ErrProcessAlreadyRestarting) {
-			logger.Debug("process is already restarting, trying to acquire process lock again...")
+			logger.DebugContext(ctx, "process is already restarting, trying to acquire process lock again...")
 			continue
 		}
 
@@ -342,6 +344,10 @@ func (s *processSupervisor) runWithDeadline(ctx context.Context, task func() err
 
 func (s *processSupervisor) ReqQueueSize() int64 {
 	return s.reqQueueSize.Load()
+}
+
+func (s *processSupervisor) ActiveTasksCount() int64 {
+	return s.activeTasks.Load()
 }
 
 func (s *processSupervisor) RestartsCount() int64 {

@@ -35,7 +35,7 @@ type PdfEngines struct {
 	readMetadataNames  []string
 	writeMetadataNames []string
 	encryptNames       []string
-	embedNames         []string
+	attachmentsNames   []string
 	engines            []gotenberg.PdfEngine
 	disableRoutes      bool
 }
@@ -52,16 +52,9 @@ func (mod *PdfEngines) Descriptor() gotenberg.ModuleDescriptor {
 			fs.StringSlice("pdfengines-convert-engines", []string{"libreoffice-pdfengine"}, "Set the PDF engines and their order for the convert feature - empty means all")
 			fs.StringSlice("pdfengines-read-metadata-engines", []string{"exiftool"}, "Set the PDF engines and their order for the read metadata feature - empty means all")
 			fs.StringSlice("pdfengines-write-metadata-engines", []string{"exiftool"}, "Set the PDF engines and their order for the write metadata feature - empty means all")
-			fs.StringSlice("pdfengines-encrypt-engines", []string{"qpdf", "pdftk", "pdfcpu"}, "Set the PDF engines and their order for the password protection feature - empty means all")
-			fs.StringSlice("pdfengines-embed-engines", []string{"pdfcpu"}, "Set the PDF engines and their order for the file embedding feature - empty means all")
+			fs.StringSlice("pdfengines-encrypt-engines", []string{"qpdf", "pdfcpu", "pdftk"}, "Set the PDF engines and their order for the password protection feature - empty means all")
+			fs.StringSlice("pdfengines-add-attachments-engines", []string{"pdfcpu"}, "Set the PDF engines and their order for the file attaching feature - empty means all")
 			fs.Bool("pdfengines-disable-routes", false, "Disable the routes")
-
-			// Deprecated flags.
-			fs.StringSlice("pdfengines-engines", make([]string, 0), "Set the default PDF engines and their default order - all by default")
-			err := fs.MarkDeprecated("pdfengines-engines", "use other flags for a more granular selection of PDF engines per method")
-			if err != nil {
-				panic(err)
-			}
 
 			return fs
 		}(),
@@ -80,7 +73,7 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 	readMetadataNames := flags.MustStringSlice("pdfengines-read-metadata-engines")
 	writeMetadataNames := flags.MustStringSlice("pdfengines-write-metadata-engines")
 	encryptNames := flags.MustStringSlice("pdfengines-encrypt-engines")
-	embedNames := flags.MustStringSlice("pdfengines-embed-engines")
+	attachmentsNames := flags.MustStringSlice("pdfengines-add-attachments-engines")
 	mod.disableRoutes = flags.MustBool("pdfengines-disable-routes")
 
 	engines, err := ctx.Modules(new(gotenberg.PdfEngine))
@@ -102,7 +95,7 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 	// Example in the case of deprecated module name.
 	//for i, name := range defaultNames {
 	//	if name == "unoconv-pdfengine" || name == "uno-pdfengine" {
-	//		logger.Warn(fmt.Sprintf("%s is deprecated; prefer libreoffice-pdfengine instead", name))
+	//		logger.WarnContext(ctx, fmt.Sprintf("%s is deprecated; prefer libreoffice-pdfengine instead", name))
 	//		mod.defaultNames[i] = "libreoffice-pdfengine"
 	//	}
 	//}
@@ -142,9 +135,9 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 		mod.encryptNames = encryptNames
 	}
 
-	mod.embedNames = defaultNames
-	if len(embedNames) > 0 {
-		mod.embedNames = embedNames
+	mod.attachmentsNames = defaultNames
+	if len(attachmentsNames) > 0 {
+		mod.attachmentsNames = attachmentsNames
 	}
 
 	return nil
@@ -195,7 +188,7 @@ func (mod *PdfEngines) Validate() error {
 	findNonExistingEngines(mod.readMetadataNames)
 	findNonExistingEngines(mod.writeMetadataNames)
 	findNonExistingEngines(mod.encryptNames)
-	findNonExistingEngines(mod.embedNames)
+	findNonExistingEngines(mod.attachmentsNames)
 
 	if len(nonExistingEngines) == 0 {
 		return nil
@@ -242,7 +235,7 @@ func (mod *PdfEngines) PdfEngine() (gotenberg.PdfEngine, error) {
 		engines(mod.readMetadataNames),
 		engines(mod.writeMetadataNames),
 		engines(mod.encryptNames),
-		engines(mod.embedNames),
+		engines(mod.attachmentsNames),
 	), nil
 }
 
@@ -267,7 +260,7 @@ func (mod *PdfEngines) Routes() ([]api.Route, error) {
 		readMetadataRoute(engine),
 		writeMetadataRoute(engine),
 		encryptRoute(engine),
-		embedRoute(engine),
+		attachmentsRoute(engine),
 	}, nil
 }
 

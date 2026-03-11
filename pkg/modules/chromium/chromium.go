@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
@@ -14,7 +15,9 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/dlclark/regexp2"
 	flag "github.com/spf13/pflag"
-	"go.uber.org/zap"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
@@ -91,10 +94,17 @@ type Chromium struct {
 	maxConcurrency int64
 	args           browserArguments
 
-	logger     *zap.Logger
+	logger     *slog.Logger
 	browser    browser
 	supervisor gotenberg.ProcessSupervisor
 	engine     gotenberg.PdfEngine
+
+	reqsCounter               metric.Int64Counter
+	errsCounter               metric.Int64Counter
+	conversionDurationCounter metric.Float64Histogram
+	queueWaitDurationCounter  metric.Float64Histogram
+	pdfOutputSizeCounter      metric.Int64Histogram
+	imageOutputSizeCounter    metric.Int64Histogram
 }
 
 // Options are the common options for all conversions.
@@ -104,6 +114,10 @@ type Options struct {
 	// not be suitable for all HTML documents, as some may not be fully
 	// rendered until this event is fired.
 	SkipNetworkIdleEvent bool
+
+	// SkipNetworkAlmostIdleEvent set if the conversion should wait for the
+	// "networkAlmostIdle" event.
+	SkipNetworkAlmostIdleEvent bool
 
 	// FailOnHttpStatusCodes sets if the conversion should fail if the status
 	// code from the main page matches with one of its entries.
@@ -191,6 +205,7 @@ type EmulatedMediaFeature struct {
 func DefaultOptions() Options {
 	return Options{
 		SkipNetworkIdleEvent:            true,
+		SkipNetworkAlmostIdleEvent:      true,
 		FailOnHttpStatusCodes:           []int64{499, 599},
 		FailOnResourceHttpStatusCodes:   nil,
 		IgnoreResourceHttpStatusDomains: nil,
@@ -268,7 +283,7 @@ type PdfOptions struct {
 	PreferCssPageSize bool
 
 	// GenerateDocumentOutline defines whether the document outline should be
-	// embedded into the PDF.
+	// attached into the PDF.
 	GenerateDocumentOutline bool
 
 	// GenerateTaggedPdf defines whether to generate tagged (accessible)
@@ -389,8 +404,8 @@ type ExtraHttpHeader struct {
 
 // Api helps to interact with Chromium for converting HTML documents to PDF.
 type Api interface {
-	Pdf(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error
-	Screenshot(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error
+	Pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error
+	Screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions) error
 }
 
 // Provider is a module interface that exposes a method for creating an [Api]
@@ -427,13 +442,6 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Bool("chromium-clear-cookies", false, "Clear Chromium cookies between each conversion")
 			fs.Bool("chromium-disable-javascript", false, "Disable JavaScript")
 			fs.Bool("chromium-disable-routes", false, "Disable the routes")
-
-			// Deprecated flags.
-			fs.Bool("chromium-incognito", false, "Start Chromium with incognito mode")
-			err := fs.MarkDeprecated("chromium-incognito", "this flag is ignored as it provides no benefits")
-			if err != nil {
-				panic(err)
-			}
 
 			return fs
 		}(),
@@ -477,15 +485,7 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 	}
 
 	// Logger.
-	loggerProvider, err := ctx.Module(new(gotenberg.LoggerProvider))
-	if err != nil {
-		return fmt.Errorf("get logger provider: %w", err)
-	}
-	logger, err := loggerProvider.(gotenberg.LoggerProvider).Logger(mod)
-	if err != nil {
-		return fmt.Errorf("get logger: %w", err)
-	}
-	mod.logger = logger.Named("browser")
+	mod.logger = gotenberg.Logger(mod).With(slog.String("logger", "browser"))
 
 	// Process.
 	mod.browser = newChromiumBrowser(mod.args)
@@ -501,6 +501,106 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 		return fmt.Errorf("get PDF engine: %w", err)
 	}
 	mod.engine = engine
+
+	// OpenTelemetry.
+	meter := gotenberg.Meter()
+	_, err = meter.Int64ObservableCounter(
+		"chromium.process.restarts.total",
+		metric.WithDescription("Current number of Chromium restarts."),
+		metric.WithUnit("{restart}"),
+		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
+			val := mod.supervisor.RestartsCount()
+			o.Observe(val)
+			return nil
+		}),
+	)
+	if err != nil {
+		return fmt.Errorf("create process restarts observable counter: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"chromium.requests.queue_size",
+		metric.WithDescription("Current number of Chromium conversion requests waiting to be treated."),
+		metric.WithUnit("{request}"),
+		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
+			val := mod.supervisor.ReqQueueSize()
+			o.Observe(val)
+			return nil
+		}),
+	)
+	if err != nil {
+		return fmt.Errorf("create requests queue size observable gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"chromium.requests.active",
+		metric.WithDescription("Current number of Chromium conversion requests actively being processed."),
+		metric.WithUnit("{request}"),
+		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
+			val := mod.supervisor.ActiveTasksCount()
+			o.Observe(val)
+			return nil
+		}),
+	)
+	if err != nil {
+		return fmt.Errorf("create requests active observable gauge: %w", err)
+	}
+
+	mod.reqsCounter, err = meter.Int64Counter(
+		"chromium.requests.total",
+		metric.WithDescription("Total number of Chromium conversion requests."),
+		metric.WithUnit("{request}"),
+	)
+	if err != nil {
+		return fmt.Errorf("create requests total counter: %w", err)
+	}
+
+	mod.errsCounter, err = meter.Int64Counter(
+		"chromium.errors.total",
+		metric.WithDescription("Total number of Chromium errors."),
+		metric.WithUnit("{error}"),
+	)
+	if err != nil {
+		return fmt.Errorf("create errors total counter: %w", err)
+	}
+
+	mod.conversionDurationCounter, err = meter.Float64Histogram(
+		"chromium.conversion.duration",
+		metric.WithDescription("Duration of each HTML-to-PDF conversion."),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(0.5, 1, 2, 5, 10, 30, 60),
+	)
+	if err != nil {
+		return fmt.Errorf("create conversion duration histogram: %w", err)
+	}
+
+	mod.queueWaitDurationCounter, err = meter.Float64Histogram(
+		"chromium.queue.wait.duration",
+		metric.WithDescription("Time a request spends waiting in the queue before processing starts."),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(0.5, 1, 2, 5, 10, 30, 60),
+	)
+	if err != nil {
+		return fmt.Errorf("create queue wait duration histogram: %w", err)
+	}
+
+	mod.pdfOutputSizeCounter, err = meter.Int64Histogram(
+		"chromium.pdf.output.size",
+		metric.WithDescription("Size of the generated PDF files."),
+		metric.WithUnit("By"),
+	)
+	if err != nil {
+		return fmt.Errorf("create pdf output size histogram: %w", err)
+	}
+
+	mod.imageOutputSizeCounter, err = meter.Int64Histogram(
+		"chromium.image.output.size",
+		metric.WithDescription("Size of the generated image files."),
+		metric.WithUnit("By"),
+	)
+	if err != nil {
+		return fmt.Errorf("create image output size histogram: %w", err)
+	}
 
 	return nil
 }
@@ -552,7 +652,7 @@ func (mod *Chromium) StartupMessage() string {
 func (mod *Chromium) Stop(ctx context.Context) error {
 	// Block until the context is done so that another module may gracefully
 	// stop before we do a shutdown.
-	mod.logger.Debug("wait for the end of grace duration")
+	mod.logger.DebugContext(ctx, "wait for the end of grace duration")
 
 	<-ctx.Done()
 
@@ -579,26 +679,6 @@ func (mod *Chromium) Debug() map[string]any {
 
 	debug["version"] = strings.TrimSpace(string(output))
 	return debug
-}
-
-// Metrics returns the metrics.
-func (mod *Chromium) Metrics() ([]gotenberg.Metric, error) {
-	return []gotenberg.Metric{
-		{
-			Name:        "chromium_requests_queue_size",
-			Description: "Current number of Chromium conversion requests waiting to be treated.",
-			Read: func() float64 {
-				return float64(mod.supervisor.ReqQueueSize())
-			},
-		},
-		{
-			Name:        "chromium_restarts_count",
-			Description: "Current number of Chromium restarts.",
-			Read: func() float64 {
-				return float64(mod.supervisor.RestartsCount())
-			},
-		},
-	}, nil
 }
 
 // Checks adds a health check that verifies if Chromium is healthy.
@@ -668,32 +748,163 @@ func (mod *Chromium) Routes() ([]api.Route, error) {
 }
 
 // Pdf converts a URL to PDF.
-func (mod *Chromium) Pdf(ctx context.Context, logger *zap.Logger, url, outputPath string, options PdfOptions) error {
+func (mod *Chromium) Pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error {
 	// Note: no error wrapping because it leaks on errors we want to display to
 	// the end user.
-	return mod.supervisor.Run(ctx, logger, func() error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "Chromium.Pdf")
+	defer span.End()
+
+	start := time.Now()
+	var conversionStart time.Time
+
+	err := mod.supervisor.Run(ctx, logger, func() error {
+		conversionStart = time.Now()
 		return mod.browser.pdf(ctx, logger, url, outputPath, options)
 	})
+
+	end := time.Now()
+
+	status := "success"
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			status = "timeout"
+		} else {
+			status = "error"
+		}
+
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+
+		reason := "unknown"
+		if errors.Is(err, context.DeadlineExceeded) {
+			reason = "timeout"
+		} else if errors.Is(err, context.Canceled) {
+			reason = "context_cancelled"
+		} else if errors.Is(err, ErrInvalidHttpStatusCode) || errors.Is(err, ErrInvalidResourceHttpStatusCode) || errors.Is(err, ErrLoadingFailed) || errors.Is(err, ErrResourceLoadingFailed) || errors.Is(err, ErrInvalidEvaluationExpression) || errors.Is(err, ErrInvalidSelectorQuery) {
+			reason = "invalid_input"
+		} else if errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) || errors.Is(err, gotenberg.ErrProcessAlreadyRestarting) {
+			reason = "chromium_unavailable"
+		}
+
+		mod.errsCounter.Add(ctx, 1, metric.WithAttributes(
+			attribute.String("reason", reason),
+		))
+	}
+
+	if !conversionStart.IsZero() {
+		waitDuration := conversionStart.Sub(start).Seconds()
+		conversionDuration := end.Sub(conversionStart).Seconds()
+
+		mod.queueWaitDurationCounter.Record(ctx, waitDuration, metric.WithAttributes(
+			attribute.String("status", status),
+		))
+		mod.conversionDurationCounter.Record(ctx, conversionDuration, metric.WithAttributes(
+			attribute.String("status", status),
+		))
+	} else {
+		waitDuration := end.Sub(start).Seconds()
+		mod.queueWaitDurationCounter.Record(ctx, waitDuration, metric.WithAttributes(
+			attribute.String("status", status),
+		))
+	}
+
+	mod.reqsCounter.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("status", status),
+	))
+
+	if err == nil {
+		if fileInfo, statErr := os.Stat(outputPath); statErr == nil {
+			mod.pdfOutputSizeCounter.Record(ctx, fileInfo.Size())
+		}
+	}
+
+	return err
 }
 
-func (mod *Chromium) Screenshot(ctx context.Context, logger *zap.Logger, url, outputPath string, options ScreenshotOptions) error {
+func (mod *Chromium) Screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions) error {
 	// Note: no error wrapping because it leaks on errors we want to display to
 	// the end user.
-	return mod.supervisor.Run(ctx, logger, func() error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "Chromium.Screenshot")
+	defer span.End()
+
+	start := time.Now()
+	var conversionStart time.Time
+
+	err := mod.supervisor.Run(ctx, logger, func() error {
+		conversionStart = time.Now()
 		return mod.browser.screenshot(ctx, logger, url, outputPath, options)
 	})
+
+	end := time.Now()
+
+	status := "success"
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			status = "timeout"
+		} else {
+			status = "error"
+		}
+
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+
+		reason := "unknown"
+		if errors.Is(err, context.DeadlineExceeded) {
+			reason = "timeout"
+		} else if errors.Is(err, context.Canceled) {
+			reason = "context_cancelled"
+		} else if errors.Is(err, ErrInvalidHttpStatusCode) || errors.Is(err, ErrInvalidResourceHttpStatusCode) || errors.Is(err, ErrLoadingFailed) || errors.Is(err, ErrResourceLoadingFailed) || errors.Is(err, ErrInvalidEvaluationExpression) || errors.Is(err, ErrInvalidSelectorQuery) {
+			reason = "invalid_input"
+		} else if errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) {
+			reason = "chromium_maximum_queue_size_exceeded"
+		} else if errors.Is(err, gotenberg.ErrProcessAlreadyRestarting) {
+			reason = "chromium_unavailable"
+		}
+
+		mod.errsCounter.Add(ctx, 1, metric.WithAttributes(
+			attribute.String("reason", reason),
+		))
+	}
+
+	if !conversionStart.IsZero() {
+		waitDuration := conversionStart.Sub(start).Seconds()
+		conversionDuration := end.Sub(conversionStart).Seconds()
+
+		mod.queueWaitDurationCounter.Record(ctx, waitDuration, metric.WithAttributes(
+			attribute.String("status", status),
+		))
+		mod.conversionDurationCounter.Record(ctx, conversionDuration, metric.WithAttributes(
+			attribute.String("status", status),
+		))
+	} else {
+		waitDuration := end.Sub(start).Seconds()
+		mod.queueWaitDurationCounter.Record(ctx, waitDuration, metric.WithAttributes(
+			attribute.String("status", status),
+		))
+	}
+
+	mod.reqsCounter.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("status", status),
+	))
+
+	if err == nil {
+		if fileInfo, statErr := os.Stat(outputPath); statErr == nil {
+			mod.imageOutputSizeCounter.Record(ctx, fileInfo.Size())
+		}
+	}
+
+	return err
 }
 
 // Interface guards.
 var (
-	_ gotenberg.Module          = (*Chromium)(nil)
-	_ gotenberg.Provisioner     = (*Chromium)(nil)
-	_ gotenberg.Validator       = (*Chromium)(nil)
-	_ gotenberg.App             = (*Chromium)(nil)
-	_ gotenberg.Debuggable      = (*Chromium)(nil)
-	_ gotenberg.MetricsProvider = (*Chromium)(nil)
-	_ api.HealthChecker         = (*Chromium)(nil)
-	_ api.Router                = (*Chromium)(nil)
-	_ Api                       = (*Chromium)(nil)
-	_ Provider                  = (*Chromium)(nil)
+	_ gotenberg.Module      = (*Chromium)(nil)
+	_ gotenberg.Provisioner = (*Chromium)(nil)
+	_ gotenberg.Validator   = (*Chromium)(nil)
+	_ gotenberg.App         = (*Chromium)(nil)
+	_ gotenberg.Debuggable  = (*Chromium)(nil)
+	_ api.HealthChecker     = (*Chromium)(nil)
+	_ api.Router            = (*Chromium)(nil)
+	_ Api                   = (*Chromium)(nil)
+	_ Provider              = (*Chromium)(nil)
 )

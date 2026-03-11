@@ -1,9 +1,10 @@
 package api
 
 import (
+	"log/slog"
+
 	"github.com/alexliesenfeld/health"
 	"github.com/labstack/echo/v4"
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
@@ -73,8 +74,8 @@ func (ctx *ContextMock) OutputPaths() []string {
 // SetLogger sets the logger.
 //
 //	ctx := &api.ContextMock{Context: &api.Context{}}
-//	ctx.SetLogger(zap.NewNop())
-func (ctx *ContextMock) SetLogger(logger *zap.Logger) {
+//	ctx.SetLogger(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+func (ctx *ContextMock) SetLogger(logger *slog.Logger) {
 	ctx.logger = logger
 }
 

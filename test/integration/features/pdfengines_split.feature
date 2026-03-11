@@ -473,41 +473,41 @@ Feature: /forms/pdfengines/split
     Then there should be 2 PDF(s) in the response
     Then the response PDF(s) should be encrypted
 
-  @embed
-  Scenario: POST /foo/forms/pdfengines/split (Embeds)
+  @attachments
+  Scenario: POST /foo/forms/pdfengines/split (Attachments)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
-      | files     | testdata/pages_3.pdf | file  |
-      | embeds    | testdata/embed_1.xml | file  |
-      | embeds    | testdata/embed_2.xml | file  |
-      | splitMode | intervals            | field |
-      | splitSpan | 2                    | field |
+      | files       | testdata/pages_3.pdf      | file  |
+      | attachments | testdata/attachment_1.xml | file  |
+      | attachments | testdata/attachment_2.xml | file  |
+      | splitMode   | intervals                 | field |
+      | splitSpan   | 2                         | field |
     Then the response status code should be 200
     And the response header "Content-Type" should be "application/zip"
     And there should be 2 PDF(s) in the response
     And there should be the following file(s) in the response:
       | pages_3_0.pdf |
       | pages_3_1.pdf |
-    Then the response PDF(s) should have the "embed_1.xml" file embedded
-    Then the response PDF(s) should have the "embed_2.xml" file embedded
+    Then the response PDF(s) should have the "attachment_1.xml" file attached
+    Then the response PDF(s) should have the "attachment_2.xml" file attached
 
   # FIXME: once decrypt is done, add encrypt and check after the content of the PDFs.
   @convert
   @metadata
   @flatten
-  @embed
-  Scenario: POST /forms/pdfengines/split (PDF/A-1b & PDF/UA-1 & Metadata & Flatten & Embeds)
+  @attachments
+  Scenario: POST /forms/pdfengines/split (PDF/A-1b & PDF/UA-1 & Metadata & Flatten & Attachments)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
-      | files     | testdata/pages_3.pdf                                                                                                                                                                                                                                                                                      | file  |
-      | splitMode | intervals                                                                                                                                                                                                                                                                                                 | field |
-      | splitSpan | 2                                                                                                                                                                                                                                                                                                         | field |
-      | pdfa      | PDF/A-1b                                                                                                                                                                                                                                                                                                  | field |
-      | pdfua     | true                                                                                                                                                                                                                                                                                                      | field |
-      | metadata  | {"Author":"Julien Neuhart","Copyright":"Julien Neuhart","CreateDate":"2006-09-18T16:27:50-04:00","Creator":"Gotenberg","Keywords":["first","second"],"Marked":true,"ModDate":"2006-09-18T16:27:50-04:00","PDFVersion":1.7,"Producer":"Gotenberg","Subject":"Sample","Title":"Sample","Trapped":"Unknown"} | field |
-      | flatten   | true                                                                                                                                                                                                                                                                                                      | field |
-      | embeds    | testdata/embed_1.xml                                                                                                                                                                                                                                                                                      | file  |
-      | embeds    | testdata/embed_2.xml                                                                                                                                                                                                                                                                                      | file  |
+      | files       | testdata/pages_3.pdf                                                                                                                                                                                                                                                                                      | file  |
+      | splitMode   | intervals                                                                                                                                                                                                                                                                                                 | field |
+      | splitSpan   | 2                                                                                                                                                                                                                                                                                                         | field |
+      | pdfa        | PDF/A-1b                                                                                                                                                                                                                                                                                                  | field |
+      | pdfua       | true                                                                                                                                                                                                                                                                                                      | field |
+      | metadata    | {"Author":"Julien Neuhart","Copyright":"Julien Neuhart","CreateDate":"2006-09-18T16:27:50-04:00","Creator":"Gotenberg","Keywords":["first","second"],"Marked":true,"ModDate":"2006-09-18T16:27:50-04:00","PDFVersion":1.7,"Producer":"Gotenberg","Subject":"Sample","Title":"Sample","Trapped":"Unknown"} | field |
+      | flatten     | true                                                                                                                                                                                                                                                                                                      | field |
+      | attachments | testdata/attachment_1.xml                                                                                                                                                                                                                                                                                 | file  |
+      | attachments | testdata/attachment_2.xml                                                                                                                                                                                                                                                                                 | file  |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
     Then there should be 2 PDF(s) in the response
@@ -531,8 +531,8 @@ Feature: /forms/pdfengines/split
     Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 10 failed rule(s)
     Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 2 failed rule(s)
     Then the response PDF(s) should be flatten
-    Then the response PDF(s) should have the "embed_1.xml" file embedded
-    Then the response PDF(s) should have the "embed_2.xml" file embedded
+    Then the response PDF(s) should have the "attachment_1.xml" file attached
+    Then the response PDF(s) should have the "attachment_2.xml" file attached
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/read" endpoint with the following form data and header(s):
       | files | teststore/pages_3_0.pdf | file |
       | files | teststore/pages_3_1.pdf | file |
@@ -581,18 +581,21 @@ Feature: /forms/pdfengines/split
       | splitSpan | 2                    | field |
     Then the response status code should be 404
 
-  Scenario: POST /forms/pdfengines/split (Gotenberg Trace)
+  @telemetry
+  Scenario: POST /forms/pdfengines/split (Telemetry)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
-      | files           | testdata/pages_3.pdf   | file   |
-      | splitMode       | intervals              | field  |
-      | splitSpan       | 2                      | field  |
-      | Gotenberg-Trace | forms_pdfengines_split | header |
+      | files            | testdata/pages_3.pdf                                    | file   |
+      | splitMode        | intervals                                               | field  |
+      | splitSpan        | 2                                                       | field  |
+      | X-Correlation-ID | forms_pdfengines_split                                  | header |
+      | traceparent      | 00-12345678901234567890123456789012-1234567890123456-01 | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
-    Then the response header "Gotenberg-Trace" should be "forms_pdfengines_split"
+    Then the response header "X-Correlation-ID" should be "forms_pdfengines_split"
     Then the Gotenberg container should log the following entries:
-      | "trace":"forms_pdfengines_split" |
+      | "correlation_id":"forms_pdfengines_split"     |
+      | "trace_id":"12345678901234567890123456789012" |
 
   @output-filename
   Scenario: POST /forms/pdfengines/split (Output Filename - Single PDF)

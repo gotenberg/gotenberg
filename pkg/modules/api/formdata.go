@@ -17,9 +17,9 @@ import (
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
-// EmbedsFormField represents the form field name for embedding files.
+// AttachmentsFormField represents the form field name for attaching files.
 const (
-	EmbedsFormField string = "embeds"
+	AttachmentsFormField string = "attachments"
 )
 
 // FormData is a helper for validating and hydrating values from a
@@ -365,20 +365,20 @@ func (form *FormData) Paths(extensions []string, target *[]string) *FormData {
 	return form.paths(extensions, target)
 }
 
-// Embeds binds the absolute paths of form data files that should be
-// embedded in the PDF. Only files uploaded with the "embeds" field name
+// Attachments binds the absolute paths of form data files that should be
+// attached in the PDF. Only files uploaded with the "attachments" field name
 // will be included.
 //
-//	var embeds []string
+//	var attachments []string
 //
-//	ctx.FormData().Embeds(&embeds)
-func (form *FormData) Embeds(target *[]string) *FormData {
+//	ctx.FormData().Attachments(&attachments)
+func (form *FormData) Attachments(target *[]string) *FormData {
 	if form.errors != nil {
 		return form
 	}
 
-	// Get files from the "embeds" field
-	if paths, ok := form.filesByField[EmbedsFormField]; ok {
+	// Get files from the "attachments" field
+	if paths, ok := form.filesByField[AttachmentsFormField]; ok {
 		*target = append(*target, paths...)
 	}
 
@@ -408,12 +408,12 @@ func (form *FormData) MandatoryPaths(extensions []string, target *[]string) *For
 
 // paths bind the absolute paths of form data files, according to a list of
 // file extensions, to a string slice variable.
-// embeds are excluded.
+// attachments are excluded.
 func (form *FormData) paths(extensions []string, target *[]string) *FormData {
-	embeds, ok := form.filesByField[EmbedsFormField]
+	attachments, ok := form.filesByField[AttachmentsFormField]
 
 	for filename, path := range form.files {
-		if ok && slices.Contains(embeds, path) {
+		if ok && slices.Contains(attachments, path) {
 			continue
 		}
 

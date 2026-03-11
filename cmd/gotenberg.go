@@ -43,6 +43,10 @@ func Run() {
 	fs.Bool("gotenberg-hide-banner", false, "Hide the banner")
 	fs.Duration("gotenberg-graceful-shutdown-duration", time.Duration(30)*time.Second, "Set the graceful shutdown duration")
 	fs.Bool("gotenberg-build-debug-data", true, "Set if build data is needed")
+	fs.String("log-level", gotenberg.InfoLoggingLevel, fmt.Sprintf("Choose the level of logging detail. Options include %s, %s, %s, or %s", gotenberg.ErrorLoggingLevel, gotenberg.WarnLoggingLevel, gotenberg.InfoLoggingLevel, gotenberg.DebugLoggingLevel))
+	fs.String("log-fields-prefix", "", "Prepend a specified prefix to each field in the logs")
+	fs.String("log-std-format", gotenberg.AutoLoggingFormat, fmt.Sprintf("Specify the format of standard logging. Options include %s, %s, or %s", gotenberg.AutoLoggingFormat, gotenberg.JsonLoggingFormat, gotenberg.TextLoggingFormat))
+	fs.Bool("log-std-enable-gcp-fields", false, "Enable Google Cloud Platform fields for standard logging - namely: time, message, severity")
 
 	descriptors := gotenberg.GetModuleDescriptors()
 	var modsInfo strings.Builder
@@ -91,14 +95,43 @@ func Run() {
 	hideBanner := parsedFlags.MustBool("gotenberg-hide-banner")
 	gracefulShutdownDuration := parsedFlags.MustDuration("gotenberg-graceful-shutdown-duration")
 
+	serviceName := os.Getenv("OTEL_SERVICE_NAME")
+	if serviceName == "" {
+		serviceName = "gotenberg"
+	}
+
+	telemetryConfig := gotenberg.TelemetryConfig{
+		// OpenTelemetry.
+		ServiceName:    serviceName,
+		ServiceVersion: Version,
+		// Logging.
+		LogLevel:              parsedFlags.MustString("log-level"),
+		LogFieldsPrefix:       parsedFlags.MustString("log-fields-prefix"),
+		LogStdFormat:          parsedFlags.MustDeprecatedString("log-format", "log-std-format"),
+		LogStdEnableGcpFields: parsedFlags.MustDeprecatedBool("log-enable-gcp-fields", "log-std-enable-gcp-fields"),
+	}
+
 	if !hideBanner {
 		fmt.Printf(banner, Version)
 	}
-	fmt.Printf("[SYSTEM] modules: %s\n", modsInfo.String())
 
+	err = telemetryConfig.Validate()
+	if err != nil {
+		fmt.Printf("[FATAL] telemetry: %s\n", err)
+		os.Exit(1)
+	}
+
+	// Telemetry.
+	shutdownTelemetry, err := gotenberg.StartTelemetry(telemetryConfig)
+	if err != nil {
+		fmt.Printf("[FATAL] telemetry: %s\n", err)
+		os.Exit(1)
+	}
+
+	// Modules.
+	fmt.Printf("[SYSTEM] modules: %s\n", modsInfo.String())
 	ctx := gotenberg.NewContext(parsedFlags, descriptors)
 
-	// Start application modules.
 	apps, err := ctx.Modules(new(gotenberg.App))
 	if err != nil {
 		fmt.Printf("[FATAL] %s\n", err)
@@ -193,6 +226,13 @@ func Run() {
 		fmt.Printf("[FATAL] %v\n", err)
 		os.Exit(1)
 	}
+
+	err = shutdownTelemetry(gracefulShutdownCtx)
+	if err != nil {
+		fmt.Printf("[FATAL] telemetry: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("[SYSTEM] telemetry: shutdown success\n")
 
 	os.Exit(0)
 }

@@ -64,7 +64,7 @@ RUN \
 
 # Note: jdeps helps finding which modules a JAR requires.
 # Currently only for PDFtk, as we don't rely on LibreOffice UNO Java SDK.
-ENV JAVA_MODULES=java.base,java.desktop,java.naming,java.sql
+ENV JAVA_MODULES=java.base,java.desktop,java.xml
 
 RUN jlink \
     --add-modules $JAVA_MODULES \
@@ -75,14 +75,39 @@ RUN jlink \
     --output /custom-jre
 
 # ----------------------------------------------
+# Downloader stage
+# ----------------------------------------------
+FROM debian:13-slim AS downloader-stage
+
+# See https://gitlab.com/pdftk-java/pdftk/-/releases - Binary package.
+ARG PDFTK_VERSION=v3.3.3
+
+RUN apt-get update -qq && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl ca-certificates
+
+WORKDIR /downloads
+
+RUN curl -Ls https://raw.githubusercontent.com/gotenberg/unoconverter/v0.2.0/unoconv -o unoconverter &&\
+    chmod +x unoconverter
+
+RUN curl -o pdftk-all.jar "https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/$PDFTK_VERSION/pdftk-all.jar" &&\
+    chmod a+x pdftk-all.jar
+
+# ----------------------------------------------
 # Base image stage
 # ----------------------------------------------
 FROM debian:13-slim AS base-image-stage
 
 ARG TIMEZONE=UTC
 ENV TZ=$TIMEZONE
+# Set default characterset encoding to UTF-8.
+# See:
+# https://github.com/gotenberg/gotenberg/issues/104
+# https://github.com/gotenberg/gotenberg/issues/730
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
 
-COPY --from=custom-jre-stage /custom-jre /opt/java
+COPY --link --from=custom-jre-stage /custom-jre /opt/java
 
 ENV PATH="/opt/java/bin:${PATH}"
 
@@ -94,10 +119,6 @@ FROM base-image-stage
 ARG GOTENBERG_VERSION=snapshot
 ARG GOTENBERG_USER_GID=1001
 ARG GOTENBERG_USER_UID=1001
-# See https://github.com/googlefonts/noto-emoji/releases.
-ARG NOTO_COLOR_EMOJI_VERSION=v2.051
-# See https://gitlab.com/pdftk-java/pdftk/-/releases - Binary package.
-ARG PDFTK_VERSION=v3.3.3
 
 LABEL org.opencontainers.image.title="Gotenberg" \
     org.opencontainers.image.description="A containerized API for seamless PDF conversion." \
@@ -115,134 +136,55 @@ RUN \
     chown gotenberg: /home/gotenberg
 
 RUN \
-    # Install system dependencies required for the next instructions or debugging.
+    echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/sources.list &&\
+    apt-get update -qq &&\
+    apt-get upgrade -yqq &&\
     # Note: tini is a helper for reaping zombie processes.
-    apt-get update -qq &&\
-    apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl gnupg tini python3 python3-distutils-extra &&\
-    # Cleanup.
-    # Note: the Debian image does automatically a clean after each install thanks to a hook.
-    # Therefore, there is no need for apt-get clean.
-    # See https://stackoverflow.com/a/24417119/3248473.
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-RUN \
-    # Install fonts.
-    # Credits:
-    # https://github.com/arachnys/athenapdf/blob/master/cli/Dockerfile.
-    # https://help.accusoft.com/PrizmDoc/v12.1/HTML/Installing_Asian_Fonts_on_Ubuntu_and_Debian.html.
-    curl -o ./ttf-mscorefonts-installer_3.8.1_all.deb http://httpredir.debian.org/debian/pool/contrib/m/msttcorefonts/ttf-mscorefonts-installer_3.8.1_all.deb &&\
-    apt-get update -qq &&\
-    apt-get upgrade -yqq &&\
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
-    ./ttf-mscorefonts-installer_3.8.1_all.deb \
-    culmus \
-    fonts-beng \
-    fonts-hosny-amiri \
-    fonts-lklug-sinhala \
-    fonts-lohit-guru \
-    fonts-lohit-knda \
-    fonts-samyak-gujr \
-    fonts-samyak-mlym \
-    fonts-samyak-taml \
-    fonts-sarai \
-    fonts-sil-abyssinica \
-    fonts-sil-padauk \
-    fonts-telu \
-    fonts-thai-tlwg \
-    ttf-wqy-zenhei \
-    fonts-arphic-ukai \
-    fonts-arphic-uming \
-    fonts-ipafont-mincho \
-    fonts-ipafont-gothic \
-    fonts-unfonts-core \
-    # LibreOffice recommends.
-    fonts-crosextra-caladea \
-    fonts-crosextra-carlito \
-    fonts-dejavu \
-    fonts-liberation \
-    fonts-liberation2 \
-    fonts-linuxlibertine \
-    fonts-noto-cjk \
-    fonts-noto-core \
-    fonts-noto-mono \
-    fonts-noto-ui-core \
-    fonts-sil-gentium \
-    fonts-sil-gentium-basic &&\
-    rm -f ./ttf-mscorefonts-installer_3.8.1_all.deb &&\
-    # Add Color and Black-and-White Noto emoji font.
-    # Credits:
-    # https://github.com/gotenberg/gotenberg/pull/325.
-    # https://github.com/googlefonts/noto-emoji.
-    curl -Ls "https://github.com/googlefonts/noto-emoji/raw/$NOTO_COLOR_EMOJI_VERSION/fonts/NotoColorEmoji.ttf" -o /usr/local/share/fonts/NotoColorEmoji.ttf &&\
-    # Cleanup.
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-RUN \
-    # Install Hyphenation for LibreOffice.
-    # Credits: https://wiki.archlinux.org/title/LibreOffice.
-    apt-get update -qq &&\
-    apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
+        tini python3 python3-distutils-extra \
+        # Install fonts.
+        # Essential metric-compatible fonts for LibreOffice layout fidelity (replaces MS Fonts).
+        fonts-crosextra-carlito \
+        fonts-crosextra-caladea \
+        fonts-liberation \
+        fonts-liberation2 \
+        # Reliable general-purpose fallback for Chromium.
+        fonts-dejavu \
+        # Unified CJK (Chinese, Japanese, Korean) support.
+        fonts-noto-cjk \
+        # Standard Emoji support.
+        fonts-noto-color-emoji \
+        # Install Hyphenation for LibreOffice.
+        # Credits: https://wiki.archlinux.org/title/LibreOffice.
         hyphen-af hyphen-as hyphen-be hyphen-bg hyphen-bn hyphen-ca hyphen-cs hyphen-da hyphen-de hyphen-el \
         hyphen-en-gb hyphen-en-us hyphen-eo hyphen-es hyphen-fr hyphen-gl hyphen-gu hyphen-hi hyphen-hr hyphen-hu \
         hyphen-id hyphen-is hyphen-it hyphen-kn hyphen-lt hyphen-lv hyphen-ml hyphen-mn hyphen-mr hyphen-nl \
         hyphen-no hyphen-or hyphen-pa hyphen-pl hyphen-pt-br hyphen-pt-pt hyphen-ro hyphen-ru hyphen-sk hyphen-sl \
-        hyphen-sr hyphen-sv hyphen-ta hyphen-te hyphen-th hyphen-uk hyphen-zu &&\
-    # Cleanup.
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-RUN \
-    # Install Chromium.
-    apt-get update -qq &&\
-    apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium &&\
-    # Verify installation.
-    chromium --version &&\
-    # Cleanup.
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# Set default characterset encoding to UTF-8.
-# See:
-# https://github.com/gotenberg/gotenberg/issues/104
-# https://github.com/gotenberg/gotenberg/issues/730
-ENV LANG=C.UTF-8
-ENV LC_ALL=C.UTF-8
-
-RUN \
-    # Install LibreOffice & unoconverter. \
-    echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/sources.list &&\
-    apt-get update -qq &&\
-    apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t trixie-backports libreoffice &&\
-    curl -Ls https://raw.githubusercontent.com/gotenberg/unoconverter/v0.2.0/unoconv -o /usr/bin/unoconverter &&\
-    chmod +x /usr/bin/unoconverter &&\
+        hyphen-sr hyphen-sv hyphen-ta hyphen-te hyphen-th hyphen-uk hyphen-zu \
+        # Install Chromium.
+        chromium \
+        # Install QPDF & ExifTool (PDF engines).
+        qpdf exiftool &&\
+    # Install LibreOffice & unoconverter.
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t trixie-backports \
+        libreoffice-writer libreoffice-calc libreoffice-impress libreoffice-draw python3-uno &&\
     # unoconverter will look for the Python binary, which has to be at version 3.
     ln -s /usr/bin/python3 /usr/bin/python &&\
-    # Verify installations.
-    libreoffice --version &&\
-    unoconverter --version &&\
-    # Cleanup.
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-RUN \
-    # Install PDFtk, QPDF & ExifTool (PDF engines).
-    # See https://github.com/gotenberg/gotenberg/pull/273.
-    curl -o /usr/bin/pdftk-all.jar "https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/$PDFTK_VERSION/pdftk-all.jar" &&\
-    chmod a+x /usr/bin/pdftk-all.jar &&\
-    printf '#!/bin/bash\n\nexec java -jar /usr/bin/pdftk-all.jar "$@"' > /usr/bin/pdftk && \
-    chmod +x /usr/bin/pdftk &&\
-    apt-get update -qq &&\
-    apt-get upgrade -yqq &&\
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends qpdf exiftool &&\
     # See https://github.com/nextcloud/docker/issues/380.
     mkdir -p /usr/share/man/man1 &&\
-    # Verify installations.
-    pdftk --version &&\
-    qpdf --version &&\
-    exiftool --version &&\
     # Cleanup.
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    apt-get autoremove -yqq &&\
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/* /usr/share/man/* /usr/share/info/*
+
+# Copy downloaded artifacts (unoconverter & PDFtk).
+COPY --link --from=downloader-stage /downloads/unoconverter /usr/bin/unoconverter
+COPY --link --from=downloader-stage /downloads/pdftk-all.jar /usr/bin/pdftk-all.jar
+
+RUN \
+    # Install PDFtk bash wrapper.
+    # See https://github.com/gotenberg/gotenberg/pull/273.
+    printf '#!/bin/bash\n\nexec java -jar /usr/bin/pdftk-all.jar "$@"' > /usr/bin/pdftk && \
+    chmod +x /usr/bin/pdftk
 
 # Support for arbitrary user IDs (OpenShift).
 # See:
@@ -257,15 +199,15 @@ RUN \
 # Credits:
 # https://github.com/arachnys/athenapdf/issues/69.
 # https://github.com/arachnys/athenapdf/commit/ba25a8d80a25d08d58865519c4cd8756dc9a336d.
-COPY build/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
+COPY --link build/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 
 # Copy dictionnaries so that hypens work on Chromium.
 # See https://github.com/gotenberg/gotenberg/issues/1293.
-COPY --chown=gotenberg:gotenberg build/chromium-hyphen-data /opt/gotenberg/chromium-hyphen-data
+COPY --link --chown="$GOTENBERG_USER_UID:$GOTENBERG_USER_GID" build/chromium-hyphen-data /opt/gotenberg/chromium-hyphen-data
 
 # Copy the Golang binaries.
-COPY --from=pdfcpu-binary-stage /home/pdfcpu /usr/bin/
-COPY --from=gotenberg-binary-stage /home/gotenberg /usr/bin/
+COPY --link --from=pdfcpu-binary-stage /home/pdfcpu /usr/bin/
+COPY --link --from=gotenberg-binary-stage /home/gotenberg /usr/bin/
 
 # Environment variables required by modules or else.
 ENV CHROMIUM_BIN_PATH=/usr/bin/chromium

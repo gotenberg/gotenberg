@@ -1613,15 +1613,15 @@ func TestFormData_Paths(t *testing.T) {
 			expectCount: 2,
 		},
 		{
-			scenario: "files except embeds",
+			scenario: "files except attachments",
 			form: &FormData{
 				files: map[string]string{
-					"foo.pdf":     "/foo.pdf",
-					"embed_1.pdf": "/embed_1.pdf",
-					"embed_2.xml": "/embed_2.xml",
+					"foo.pdf":           "/foo.pdf",
+					"attachments_1.pdf": "/attachments_1.pdf",
+					"attachments_2.xml": "/attachments_2.xml",
 				},
 				filesByField: map[string][]string{
-					"embeds": {"/embed_1.pdf", "/embed_2.xml"},
+					"attachments": {"/attachments_1.pdf", "/attachments_2.xml"},
 				},
 			},
 			extensions: []string{".pdf"},
@@ -1759,7 +1759,7 @@ func TestFormData_mustAssign(t *testing.T) {
 	form.mustAssign("foo", "foo", &target)
 }
 
-func TestFormData_Embeds(t *testing.T) {
+func TestFormData_Attachments(t *testing.T) {
 	expected := []string{"/bar.xml", "/baz.xml"}
 
 	var actual []string
@@ -1770,13 +1770,13 @@ func TestFormData_Embeds(t *testing.T) {
 			"baz.xml": "/baz.xml",
 		},
 		filesByField: map[string][]string{
-			"embeds": {"/bar.xml", "/baz.xml"},
+			"attachments": {"/bar.xml", "/baz.xml"},
 		},
 	}
-	form.Embeds(&actual)
+	form.Attachments(&actual)
 
 	if len(actual) != len(expected) {
-		t.Errorf("expected %d embeds but got %d", len(expected), len(actual))
+		t.Errorf("expected %d attachments but got %d", len(expected), len(actual))
 	}
 
 	if !reflect.DeepEqual(actual, expected) {

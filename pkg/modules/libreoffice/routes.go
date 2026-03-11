@@ -31,7 +31,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			pdfFormats := pdfengines.FormDataPdfFormats(form)
 			metadata := pdfengines.FormDataPdfMetadata(form, false)
 			userPassword, ownerPassword := pdfengines.FormDataPdfEncrypt(form)
-			embedPaths := pdfengines.FormDataPdfEmbeds(form)
+			attachmentsPaths := pdfengines.FormDataPdfAttachments(form)
 
 			zeroValuedSplitMode := gotenberg.SplitMode{}
 
@@ -253,9 +253,9 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				}
 			}
 
-			err = pdfengines.EmbedFilesStub(ctx, engine, embedPaths, outputPaths)
+			err = pdfengines.AddAttachmentsStub(ctx, engine, attachmentsPaths, outputPaths)
 			if err != nil {
-				return fmt.Errorf("embed files into PDFs: %w", err)
+				return fmt.Errorf("add attachments into PDFs: %w", err)
 			}
 
 			err = pdfengines.WriteMetadataStub(ctx, engine, metadata, outputPaths)

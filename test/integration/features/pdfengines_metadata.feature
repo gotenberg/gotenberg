@@ -131,28 +131,34 @@ Feature: /forms/pdfengines/{write|read}
       | files | testdata/page_1.pdf | file |
     Then the response status code should be 404
 
-  Scenario: POST /forms/pdfengines/metadata/write (Gotenberg Trace)
+  @telemetry
+  Scenario: POST /forms/pdfengines/metadata/write (Telemetry)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/write" endpoint with the following form data and header(s):
-      | files           | testdata/page_1.pdf                                                                                                                                                                                                                                                                                       | file   |
-      | metadata        | {"Author":"Julien Neuhart","Copyright":"Julien Neuhart","CreateDate":"2006-09-18T16:27:50-04:00","Creator":"Gotenberg","Keywords":["first","second"],"Marked":true,"ModDate":"2006-09-18T16:27:50-04:00","PDFVersion":1.7,"Producer":"Gotenberg","Subject":"Sample","Title":"Sample","Trapped":"Unknown"} | field  |
-      | Gotenberg-Trace | forms_pdfengines_metadata_write                                                                                                                                                                                                                                                                           | header |
+      | files            | testdata/page_1.pdf                                                                                                                                                                                                                                                                                       | file   |
+      | metadata         | {"Author":"Julien Neuhart","Copyright":"Julien Neuhart","CreateDate":"2006-09-18T16:27:50-04:00","Creator":"Gotenberg","Keywords":["first","second"],"Marked":true,"ModDate":"2006-09-18T16:27:50-04:00","PDFVersion":1.7,"Producer":"Gotenberg","Subject":"Sample","Title":"Sample","Trapped":"Unknown"} | field  |
+      | X-Correlation-ID | forms_pdfengines_metadata_write                                                                                                                                                                                                                                                                           | header |
+      | traceparent      | 00-12345678901234567890123456789012-1234567890123456-01                                                                                                                                                                                                                                                   | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
-    Then the response header "Gotenberg-Trace" should be "forms_pdfengines_metadata_write"
+    Then the response header "X-Correlation-ID" should be "forms_pdfengines_metadata_write"
     Then the Gotenberg container should log the following entries:
-      | "trace":"forms_pdfengines_metadata_write" |
+      | "correlation_id":"forms_pdfengines_metadata_write" |
+      | "trace_id":"12345678901234567890123456789012"      |
 
-  Scenario: POST /forms/pdfengines/metadata/read (Gotenberg Trace)
+  @telemetry
+  Scenario: POST /forms/pdfengines/metadata/read (Telemetry)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/read" endpoint with the following form data and header(s):
-      | files           | testdata/page_1.pdf            | file   |
-      | Gotenberg-Trace | forms_pdfengines_metadata_read | header |
+      | files            | testdata/page_1.pdf                                     | file   |
+      | X-Correlation-ID | forms_pdfengines_metadata_read                          | header |
+      | traceparent      | 00-12345678901234567890123456789012-1234567890123456-01 | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/json"
-    Then the response header "Gotenberg-Trace" should be "forms_pdfengines_metadata_read"
+    Then the response header "X-Correlation-ID" should be "forms_pdfengines_metadata_read"
     Then the Gotenberg container should log the following entries:
-      | "trace":"forms_pdfengines_metadata_read" |
+      | "correlation_id":"forms_pdfengines_metadata_read" |
+      | "trace_id":"12345678901234567890123456789012"     |
 
   @output-filename
   Scenario: POST /forms/pdfengines/metadata/write (Output Filename - Single PDF)
