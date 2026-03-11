@@ -442,6 +442,32 @@ func waitForEventNetworkIdle(ctx context.Context, logger *slog.Logger) func() er
 	}
 }
 
+// waitForEventNetworkAlmostIdle waits until the event networkIdle2 is fired
+// or the context timeout.
+func waitForEventNetworkAlmostIdle(ctx context.Context, logger *slog.Logger) func() error {
+	return func() error {
+		ch := make(chan struct{})
+		cctx, cancel := context.WithCancel(ctx)
+		chromedp.ListenTarget(cctx, func(ev any) {
+			switch e := ev.(type) {
+			case *page.EventLifecycleEvent:
+				if e.Name == "networkIdle2" {
+					cancel()
+					close(ch)
+				}
+			}
+		})
+
+		select {
+		case <-ch:
+			logger.DebugContext(ctx, "event networkAlmostIdle fired")
+			return nil
+		case <-ctx.Done():
+			return fmt.Errorf("wait for event networkAlmostIdle: %w", ctx.Err())
+		}
+	}
+}
+
 // waitForEventLoadingFinished waits until the event LoadingFinished is fired
 // or the context timeout.
 func waitForEventLoadingFinished(ctx context.Context, logger *slog.Logger) func() error {

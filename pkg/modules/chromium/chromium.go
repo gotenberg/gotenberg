@@ -115,6 +115,10 @@ type Options struct {
 	// rendered until this event is fired.
 	SkipNetworkIdleEvent bool
 
+	// SkipNetworkAlmostIdleEvent set if the conversion should wait for the
+	// "networkAlmostIdle" event.
+	SkipNetworkAlmostIdleEvent bool
+
 	// FailOnHttpStatusCodes sets if the conversion should fail if the status
 	// code from the main page matches with one of its entries.
 	FailOnHttpStatusCodes []int64
@@ -201,6 +205,7 @@ type EmulatedMediaFeature struct {
 func DefaultOptions() Options {
 	return Options{
 		SkipNetworkIdleEvent:            true,
+		SkipNetworkAlmostIdleEvent:      true,
 		FailOnHttpStatusCodes:           []int64{499, 599},
 		FailOnResourceHttpStatusCodes:   nil,
 		IgnoreResourceHttpStatusDomains: nil,
