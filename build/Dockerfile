@@ -203,7 +203,7 @@ COPY --link build/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 
 # Copy dictionnaries so that hypens work on Chromium.
 # See https://github.com/gotenberg/gotenberg/issues/1293.
-COPY --link --chown=gotenberg:gotenberg build/chromium-hyphen-data /opt/gotenberg/chromium-hyphen-data
+COPY --link --chown="$GOTENBERG_USER_UID:$GOTENBERG_USER_GID" build/chromium-hyphen-data /opt/gotenberg/chromium-hyphen-data
 
 # Copy the Golang binaries.
 COPY --link --from=pdfcpu-binary-stage /home/pdfcpu /usr/bin/
