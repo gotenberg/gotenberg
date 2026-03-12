@@ -41,8 +41,12 @@ runs:
 
     - name: Merge
       shell: bash
+      env:
+        INPUT_TAGS: ${{ inputs.tags }}
+        INPUT_ALTERNATE_REGISTRY: ${{ inputs.alternate_registry }}
+        INPUT_DRY_RUN: ${{ inputs.dry_run }}
       run: |
         .github/actions/merge/merge.sh \
-          --tags "${{ inputs.tags }}" \
-          --alternate-registry "${{ inputs.alternate_registry }}" \
-          --dry-run "${{ inputs.dry_run }}"
+          --tags "$INPUT_TAGS" \
+          --alternate-registry "$INPUT_ALTERNATE_REGISTRY" \
+          --dry-run "$INPUT_DRY_RUN"

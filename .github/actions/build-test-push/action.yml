@@ -60,30 +60,43 @@ runs:
     - name: Build ${{ inputs.platform }}
       id: build
       shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_PLATFORM: ${{ inputs.platform }}
+        INPUT_ALTERNATE_REPOSITORY: ${{ inputs.alternate_repository }}
+        INPUT_DRY_RUN: ${{ inputs.dry_run }}
       run: |
         .github/actions/build-test-push/build.sh \
-          --version "${{ inputs.version }}" \
-          --platform "${{ inputs.platform }}" \
-          --alternate-repository "${{ inputs.alternate_repository }}" \
-          --dry-run "${{ inputs.dry_run }}"
+          --version "$INPUT_VERSION" \
+          --platform "$INPUT_PLATFORM" \
+          --alternate-repository "$INPUT_ALTERNATE_REPOSITORY" \
+          --dry-run "$INPUT_DRY_RUN"
 
     - name: Run integration tests
       if: inputs.skip_integrations_tests != 'true'
       shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_PLATFORM: ${{ inputs.platform }}
+        INPUT_ALTERNATE_REPOSITORY: ${{ inputs.alternate_repository }}
+        INPUT_DRY_RUN: ${{ inputs.dry_run }}
       run: |
         .github/actions/build-test-push/test.sh \
-          --version "${{ inputs.version }}" \
-          --platform "${{ inputs.platform }}" \
-          --alternate-repository "${{ inputs.alternate_repository }}" \
-          --dry-run "${{ inputs.dry_run }}"
+          --version "$INPUT_VERSION" \
+          --platform "$INPUT_PLATFORM" \
+          --alternate-repository "$INPUT_ALTERNATE_REPOSITORY" \
+          --dry-run "$INPUT_DRY_RUN"
 
     - name: Push
       if: inputs.docker_hub_username != ''
       shell: bash
+      env:
+        INPUT_TAGS: ${{ steps.build.outputs.tags }},${{ steps.build.outputs.tags_cloud_run }},${{ steps.build.outputs.tags_aws_lambda }}
+        INPUT_DRY_RUN: ${{ inputs.dry_run }}
       run: |
         .github/actions/build-test-push/push.sh \
-          --tags "${{ steps.build.outputs.tags }},${{ steps.build.outputs.tags_cloud_run }},${{ steps.build.outputs.tags_aws_lambda }}" \
-          --dry-run "${{ inputs.dry_run }}"
+          --tags "$INPUT_TAGS" \
+          --dry-run "$INPUT_DRY_RUN"
 
     - name: Outputs
       shell: bash
