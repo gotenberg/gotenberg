@@ -23,9 +23,12 @@ runs:
       env:
         DOCKERHUB_USERNAME: ${{ inputs.docker_hub_username }}
         DOCKERHUB_TOKEN: ${{ inputs.docker_hub_password }}
+        INPUT_TAGS: ${{ inputs.tags }}
+        INPUT_SNAPSHOT_VERSION: ${{ inputs.snapshot_version }}
+        INPUT_DRY_RUN: ${{ inputs.dry_run }}
       shell: bash
       run: |
         .github/actions/clean/clean.sh \
-          --tags "${{ inputs.tags }}" \
-          --snapshot-version "${{ inputs.snapshot_version }}" \
-          --dry-run "${{ inputs.dry_run }}"
+          --tags "$INPUT_TAGS" \
+          --snapshot-version "$INPUT_SNAPSHOT_VERSION" \
+          --dry-run "$INPUT_DRY_RUN"
