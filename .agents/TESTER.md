@@ -40,7 +40,7 @@ make test-integration PLATFORM=linux/arm64 # Force a specific platform
 1. Create or update a `.feature` file in `test/integration/features/`.
 2. Tag it appropriately (e.g., `@chromium @chromium-convert-html`).
 3. If the feature requires new tag(s), add them to both the `TAGS` comment block in the `Makefile` and the "Available tags" list in this file.
-4. Use existing Gherkin step definitions (see below). If you need a new step, add it to `scenario/scenario.go` and register it in `InitializeScenario`.
+4. If you create a new step definition, add it to `scenario/scenario.go`, register it in `InitializeScenario`, and update the "Available Gherkin Steps" list below.
 5. Test data goes in `test/integration/testdata/`.
 
 ### Available Gherkin Steps
