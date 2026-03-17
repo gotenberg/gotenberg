@@ -1,66 +1,31 @@
 # Operational Guidelines for Gotenberg
 
-As an AI agent working on the Gotenberg repository, you are expected to act with the diligence and architectural foresight of a Senior Go Engineer. Gotenberg is a widely used production dependency; stability and backward compatibility are paramount.
+You are working on **Gotenberg**, a Docker-based API for converting documents to PDF. It is a widely used production dependency. Stability and backward compatibility are paramount.
 
-## 1. Core Philosophy & Stability
+## Core Principles
 
-- **Backward Compatibility is Law:** This project creates a public API. Never modify existing flags, configuration environment variables, or API form fields unless explicitly instructed to perform a breaking change. If a change is breaking, it must be flagged immediately in the plan.
-- **Defensive Programming:** Assume input data is malformed. Handle errors explicitly. Do not panic.
-- **Atomic Commits:** Isolate refactoring from feature additions. A Pull Request should do one thing well.
+- **Backward compatibility is law.** Never modify existing CLI flags, environment variables, or API form fields unless explicitly instructed to perform a breaking change. Flag any breaking change immediately.
+- **Defensive programming.** Assume input is malformed. Handle errors explicitly. Never panic.
+- **Atomic commits.** One feature or fix per PR. Isolate refactoring from feature work.
+- **Idiomatic Go.** Follow "Effective Go" principles. All exported symbols must have GoDoc comments starting with their name.
 
-## 2. Development Workflow & Tooling
+## Project Layout
 
-You must rely strictly on the project's Makefile for build and verification tasks. Do not run `go` commands directly unless debugging a specific package requires it.
+```
+cmd/gotenberg/       → Entry point only (wiring/startup). No business logic.
+pkg/gotenberg/       → Core module system, interfaces, utilities, mocks.
+pkg/modules/         → Feature modules (api, chromium, libreoffice, pdfengines, etc.).
+pkg/standard/        → Wires all standard modules together via imports.
+test/integration/    → Gherkin feature files + Go test infrastructure.
+build/               → Dockerfile, fonts, Chromium config.
+```
 
-- **Formatting:** Run `make fmt` to format Go code before committing.
-- **Linting:**
-  - Run `make lint` to ensure Go code strictly adheres to the `.golangci.yml` configuration.
-  - Run `make lint-prettier` to verify formatting for non-Go files (Markdown, YAML, etc.).
-  - Zero linting errors are permitted.
-- **Building:** Run `make build` to verify compilation and Docker image construction.
+Key interfaces live in `pkg/gotenberg/` — `Module`, `Provisioner`, `Validator`, `Debuggable`. Every module implements `Descriptor()` and self-registers. When adding features, determine if they belong in an existing module or require a new one.
 
-## 3. Architecture & Code Structure
+## Personas
 
-- **Idiomatic Go:** Follow "Effective Go" principles.
-- **Directory Separation:**
-  - `cmd/`: Application entry points only. Contains wiring and startup logic. **No business logic is permitted here.**
-  - `pkg/`: Core library code and modules. All business logic resides here.
-- **Module System:** Gotenberg is modular (e.g., Chromium, LibreOffice). When adding features, determine if they belong to an existing module or require a new strict isolation.
+Depending on the task at hand, load the relevant persona for additional context:
 
-## 4. Testing Standards
-
-Gotenberg utilizes a split testing strategy. **Integration tests are the primary and preferred method for verifying features.**
-
-- **Integration Tests (`make test-integration`):**
-  - **First Priority:** Always start here when adding features or routes.
-  - Gotenberg uses **Gherkin (Godog)** for end-to-end verification.
-  - You **must** create or update the corresponding `.feature` file in `test/integration`.
-  - These tests run within the Docker context; ensure environment consistency.
-- **Unit Tests (`make test-unit`):**
-  - Use table-driven tests for pure logic within `pkg/`.
-  - Mock external dependencies (filesystem, network) where appropriate.
-
-## 5. Documentation Requirements
-
-- **No README Updates:** Do not modify the root `README.md` unless explicitly asked.
-- **GoDoc is Mandatory:**
-  - **New Packages:** If creating a new package, you must include a `doc.go` file containing the package-level documentation.
-  - **Exported Symbols:** Every exported function, type, constant, and variable must have a proper GoDoc comment starting with its name.
-  - **Quality:** Comments must be complete sentences explaining _what_ the symbol does and _how_ to use it.
-  - **Example:**
-    ```go
-    // Convert transforms the input document to PDF using the Chromium engine.
-    // It returns an error if the connection to the browser instance fails.
-    func Convert(...) error
-    ```
-
-## 6. Definition of Done
-
-A task is considered complete only when:
-
-1.  The code compiles via `make build`.
-2.  The code is formatted via `make fmt`.
-3.  All linters pass via `make lint` and `make lint-prettier`.
-4.  Integration scenarios pass via `make test-integration`.
-5.  Unit tests pass via `make test-unit`.
-6.  All exported symbols and new packages have compliant GoDoc.
+- **[DEVELOPER](.agents/DEVELOPER.md)** — Writing code: architecture, module system, Makefile workflow, coding patterns.
+- **[TESTER](.agents/TESTER.md)** — Writing tests: Gherkin/Godog integration tests, unit tests, available step definitions, selective test runs.
+- **[REVIEWER](.agents/REVIEWER.md)** — Reviewing code: linting rules, backward compatibility checks, documentation compliance, Definition of Done.
