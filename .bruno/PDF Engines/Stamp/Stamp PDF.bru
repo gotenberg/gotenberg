@@ -16,6 +16,8 @@ body:multipart-form {
   stampExpression: APPROVED
   ~stampPages: 1-2
   ~stampOptions: {"font":"Helvetica","fontSize":"48","color":"#00FF00","opacity":"0.5","rotation":"0"}
+  ~stamp: @file(../../test/integration/testdata/watermark.png)
+  ~downloadFrom: [{"url":"https://example.com/stamp.png","field":"stamp"}]
 }
 
 headers {

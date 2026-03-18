@@ -45,7 +45,7 @@ Feature: /forms/pdfengines/watermark
       | PDFENGINES_WATERMARK_ENGINES | pdfcpu |
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/watermark" endpoint with the following form data and header(s):
       | files           | testdata/page_1.pdf    | file  |
-      | watermarks      | testdata/watermark.png | file  |
+      | watermark       | testdata/watermark.png | file  |
       | watermarkSource | image                  | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
@@ -56,7 +56,7 @@ Feature: /forms/pdfengines/watermark
       | PDFENGINES_WATERMARK_ENGINES | pdfcpu |
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/watermark" endpoint with the following form data and header(s):
       | files           | testdata/page_1.pdf | file  |
-      | watermarks      | testdata/page_2.pdf | file  |
+      | watermark       | testdata/page_2.pdf | file  |
       | watermarkSource | pdf                 | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
@@ -67,7 +67,7 @@ Feature: /forms/pdfengines/watermark
       | PDFENGINES_WATERMARK_ENGINES | pdftk |
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/watermark" endpoint with the following form data and header(s):
       | files           | testdata/page_1.pdf | file  |
-      | watermarks      | testdata/page_2.pdf | file  |
+      | watermark       | testdata/page_2.pdf | file  |
       | watermarkSource | pdf                 | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
@@ -85,6 +85,32 @@ Feature: /forms/pdfengines/watermark
       """
       At least one PDF engine cannot process the requested stamp source type, while others may have failed due to different issues
       """
+
+  @download-from
+  Scenario: POST /forms/pdfengines/watermark (Image via Download From)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PDFENGINES_WATERMARK_ENGINES | pdfcpu |
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/watermark" endpoint with the following form data and header(s):
+      | files           | testdata/page_1.pdf                                                                          | file  |
+      | downloadFrom    | [{"url":"http://host.docker.internal:%d/static/testdata/watermark.png","field":"watermark"}] | field |
+      | watermarkSource | image                                                                                        | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
+  @download-from
+  Scenario: POST /forms/pdfengines/watermark (PDF via Download From)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PDFENGINES_WATERMARK_ENGINES | pdfcpu |
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/watermark" endpoint with the following form data and header(s):
+      | files           | testdata/page_1.pdf                                                                       | file  |
+      | downloadFrom    | [{"url":"http://host.docker.internal:%d/static/testdata/page_2.pdf","field":"watermark"}] | field |
+      | watermarkSource | pdf                                                                                       | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
 
   Scenario: POST /forms/pdfengines/watermark (Many PDFs)
     Given I have a default Gotenberg container

@@ -416,9 +416,9 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			userPassword, ownerPassword := pdfengines.FormDataPdfEncrypt(form)
 			embedPaths := pdfengines.FormDataPdfEmbeds(form)
 			watermark := pdfengines.FormDataPdfWatermark(form, false)
-			watermarkFiles := pdfengines.FormDataPdfWatermarkFiles(form)
+			watermarkFile := pdfengines.FormDataPdfWatermarkFile(form)
 			stamp := pdfengines.FormDataPdfStamp(form, false)
-			stampFiles := pdfengines.FormDataPdfStampFiles(form)
+			stampFile := pdfengines.FormDataPdfStampFile(form)
 			rotateAngle, rotatePages := pdfengines.FormDataPdfRotate(form, false)
 
 			var url string
@@ -429,11 +429,11 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			if (watermark.Source == gotenberg.StampSourceImage || watermark.Source == gotenberg.StampSourcePDF) && len(watermarkFiles) > 0 {
-				watermark.Expression = watermarkFiles[0]
+			if (watermark.Source == gotenberg.StampSourceImage || watermark.Source == gotenberg.StampSourcePDF) && watermarkFile != "" {
+				watermark.Expression = watermarkFile
 			}
-			if (stamp.Source == gotenberg.StampSourceImage || stamp.Source == gotenberg.StampSourcePDF) && len(stampFiles) > 0 {
-				stamp.Expression = stampFiles[0]
+			if (stamp.Source == gotenberg.StampSourceImage || stamp.Source == gotenberg.StampSourcePDF) && stampFile != "" {
+				stamp.Expression = stampFile
 			}
 
 			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword, embedPaths, watermark, stamp, rotateAngle, rotatePages)
@@ -491,9 +491,9 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			userPassword, ownerPassword := pdfengines.FormDataPdfEncrypt(form)
 			embedPaths := pdfengines.FormDataPdfEmbeds(form)
 			watermark := pdfengines.FormDataPdfWatermark(form, false)
-			watermarkFiles := pdfengines.FormDataPdfWatermarkFiles(form)
+			watermarkFile := pdfengines.FormDataPdfWatermarkFile(form)
 			stamp := pdfengines.FormDataPdfStamp(form, false)
-			stampFiles := pdfengines.FormDataPdfStampFiles(form)
+			stampFile := pdfengines.FormDataPdfStampFile(form)
 			rotateAngle, rotatePages := pdfengines.FormDataPdfRotate(form, false)
 
 			var inputPath string
@@ -504,11 +504,11 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			if (watermark.Source == gotenberg.StampSourceImage || watermark.Source == gotenberg.StampSourcePDF) && len(watermarkFiles) > 0 {
-				watermark.Expression = watermarkFiles[0]
+			if (watermark.Source == gotenberg.StampSourceImage || watermark.Source == gotenberg.StampSourcePDF) && watermarkFile != "" {
+				watermark.Expression = watermarkFile
 			}
-			if (stamp.Source == gotenberg.StampSourceImage || stamp.Source == gotenberg.StampSourcePDF) && len(stampFiles) > 0 {
-				stamp.Expression = stampFiles[0]
+			if (stamp.Source == gotenberg.StampSourceImage || stamp.Source == gotenberg.StampSourcePDF) && stampFile != "" {
+				stamp.Expression = stampFile
 			}
 
 			url := fmt.Sprintf("file://%s", inputPath)
@@ -568,9 +568,9 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			userPassword, ownerPassword := pdfengines.FormDataPdfEncrypt(form)
 			embedPaths := pdfengines.FormDataPdfEmbeds(form)
 			watermark := pdfengines.FormDataPdfWatermark(form, false)
-			watermarkFiles := pdfengines.FormDataPdfWatermarkFiles(form)
+			watermarkFile := pdfengines.FormDataPdfWatermarkFile(form)
 			stamp := pdfengines.FormDataPdfStamp(form, false)
-			stampFiles := pdfengines.FormDataPdfStampFiles(form)
+			stampFile := pdfengines.FormDataPdfStampFile(form)
 			rotateAngle, rotatePages := pdfengines.FormDataPdfRotate(form, false)
 
 			var (
@@ -586,11 +586,11 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			if (watermark.Source == gotenberg.StampSourceImage || watermark.Source == gotenberg.StampSourcePDF) && len(watermarkFiles) > 0 {
-				watermark.Expression = watermarkFiles[0]
+			if (watermark.Source == gotenberg.StampSourceImage || watermark.Source == gotenberg.StampSourcePDF) && watermarkFile != "" {
+				watermark.Expression = watermarkFile
 			}
-			if (stamp.Source == gotenberg.StampSourceImage || stamp.Source == gotenberg.StampSourcePDF) && len(stampFiles) > 0 {
-				stamp.Expression = stampFiles[0]
+			if (stamp.Source == gotenberg.StampSourceImage || stamp.Source == gotenberg.StampSourcePDF) && stampFile != "" {
+				stamp.Expression = stampFile
 			}
 
 			url, err := markdownToHtml(ctx, inputPath, markdownPaths)

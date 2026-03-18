@@ -81,8 +81,14 @@ type downloadFrom struct {
 	// ExtraHttpHeaders are the HTTP headers to send alongside.
 	ExtraHttpHeaders map[string]string `json:"extraHttpHeaders"`
 
-	// Download as embed file
+	// Embedded routes the downloaded file as an embed. Deprecated: use
+	// Field instead. Kept for backward compatibility.
 	Embedded bool `json:"embedded"`
+
+	// Field routes the downloaded file to a specific form field bucket.
+	// Supported values: "watermark", "stamp". For embeds, prefer the
+	// Embedded flag or set Field to "embedded".
+	Field string `json:"field"`
 }
 
 // newContext returns a [Context] by parsing a "multipart/form-data" request.
@@ -323,8 +329,15 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 				}
 
 				ctx.files[filename] = path
-				if dl.Embedded {
+
+				// Route the downloaded file to the appropriate field bucket.
+				switch {
+				case dl.Field == "embedded" || dl.Embedded:
 					ctx.filesByField[EmbedsFormField] = append(ctx.filesByField[EmbedsFormField], path)
+				case dl.Field == "watermark":
+					ctx.filesByField[WatermarkFormField] = append(ctx.filesByField[WatermarkFormField], path)
+				case dl.Field == "stamp":
+					ctx.filesByField[StampFormField] = append(ctx.filesByField[StampFormField], path)
 				}
 
 				return nil

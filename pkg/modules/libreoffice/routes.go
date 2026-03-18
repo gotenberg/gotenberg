@@ -33,9 +33,9 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			userPassword, ownerPassword := pdfengines.FormDataPdfEncrypt(form)
 			embedPaths := pdfengines.FormDataPdfEmbeds(form)
 			watermark := pdfengines.FormDataPdfWatermark(form, false)
-			watermarkFiles := pdfengines.FormDataPdfWatermarkFiles(form)
+			watermarkFile := pdfengines.FormDataPdfWatermarkFile(form)
 			stamp := pdfengines.FormDataPdfStamp(form, false)
-			stampFiles := pdfengines.FormDataPdfStampFiles(form)
+			stampFile := pdfengines.FormDataPdfStampFile(form)
 			angle, rotatePages := pdfengines.FormDataPdfRotate(form, false)
 
 			zeroValuedSplitMode := gotenberg.SplitMode{}
@@ -189,11 +189,11 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			if (watermark.Source == gotenberg.StampSourceImage || watermark.Source == gotenberg.StampSourcePDF) && len(watermarkFiles) > 0 {
-				watermark.Expression = watermarkFiles[0]
+			if (watermark.Source == gotenberg.StampSourceImage || watermark.Source == gotenberg.StampSourcePDF) && watermarkFile != "" {
+				watermark.Expression = watermarkFile
 			}
-			if (stamp.Source == gotenberg.StampSourceImage || stamp.Source == gotenberg.StampSourcePDF) && len(stampFiles) > 0 {
-				stamp.Expression = stampFiles[0]
+			if (stamp.Source == gotenberg.StampSourceImage || stamp.Source == gotenberg.StampSourcePDF) && stampFile != "" {
+				stamp.Expression = stampFile
 			}
 
 			err = pdfengines.ValidatePdfFormatsCompat(pdfFormats, userPassword, embedPaths)

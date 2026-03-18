@@ -560,6 +560,32 @@ Feature: /forms/pdfengines/merge
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
 
+  @download-from
+  Scenario: POST /forms/pdfengines/merge (Watermark via Download From)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PDFENGINES_WATERMARK_ENGINES | pdfcpu |
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files           | testdata/page_1.pdf                                                                          | file  |
+      | files           | testdata/page_2.pdf                                                                          | file  |
+      | downloadFrom    | [{"url":"http://host.docker.internal:%d/static/testdata/watermark.png","field":"watermark"}] | field |
+      | watermarkSource | image                                                                                        | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+
+  @download-from
+  Scenario: POST /forms/pdfengines/merge (Stamp via Download From)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PDFENGINES_STAMP_ENGINES | pdfcpu |
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files        | testdata/page_1.pdf                                                                   | file  |
+      | files        | testdata/page_2.pdf                                                                   | file  |
+      | downloadFrom | [{"url":"http://host.docker.internal:%d/static/testdata/page_2.pdf","field":"stamp"}] | field |
+      | stampSource  | pdf                                                                                   | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+
   @webhook
   Scenario: POST /forms/pdfengines/merge (Webhook)
     Given I have a default Gotenberg container

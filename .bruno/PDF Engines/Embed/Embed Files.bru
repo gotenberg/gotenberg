@@ -13,6 +13,7 @@ post {
 body:multipart-form {
   files: @file(../../test/integration/testdata/page_1.pdf)
   embeds: @file(../../test/integration/testdata/page_1.pdf)
+  ~downloadFrom: [{"url":"https://example.com/attachment.xml","embedded":true}]
 }
 
 headers {

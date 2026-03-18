@@ -21,11 +21,11 @@ const (
 	// EmbedsFormField represents the form field name for embedding files.
 	EmbedsFormField string = "embeds"
 
-	// WatermarksFormField represents the form field name for watermark files.
-	WatermarksFormField string = "watermarks"
+	// WatermarkFormField represents the form field name for the watermark file.
+	WatermarkFormField string = "watermark"
 
-	// StampsFormField represents the form field name for stamp files.
-	StampsFormField string = "stamps"
+	// StampFormField represents the form field name for the stamp file.
+	StampFormField string = "stamp"
 )
 
 // FormData is a helper for validating and hydrating values from a
@@ -412,31 +412,31 @@ func (form *FormData) MandatoryPaths(extensions []string, target *[]string) *For
 	return form
 }
 
-// Watermarks binds the absolute paths of form data files that should be
-// used as watermark sources. Only files uploaded with the "watermarks"
+// Watermark binds the absolute path of the form data file that should be
+// used as a watermark source. Only a file uploaded with the "watermark"
 // field name will be included.
-func (form *FormData) Watermarks(target *[]string) *FormData {
+func (form *FormData) Watermark(target *string) *FormData {
 	if form.errors != nil {
 		return form
 	}
 
-	if paths, ok := form.filesByField[WatermarksFormField]; ok {
-		*target = append(*target, paths...)
+	if paths, ok := form.filesByField[WatermarkFormField]; ok && len(paths) > 0 {
+		*target = paths[0]
 	}
 
 	return form
 }
 
-// Stamps binds the absolute paths of form data files that should be
-// used as stamp sources. Only files uploaded with the "stamps"
+// Stamp binds the absolute path of the form data file that should be
+// used as a stamp source. Only a file uploaded with the "stamp"
 // field name will be included.
-func (form *FormData) Stamps(target *[]string) *FormData {
+func (form *FormData) Stamp(target *string) *FormData {
 	if form.errors != nil {
 		return form
 	}
 
-	if paths, ok := form.filesByField[StampsFormField]; ok {
-		*target = append(*target, paths...)
+	if paths, ok := form.filesByField[StampFormField]; ok && len(paths) > 0 {
+		*target = paths[0]
 	}
 
 	return form
@@ -444,11 +444,11 @@ func (form *FormData) Stamps(target *[]string) *FormData {
 
 // paths bind the absolute paths of form data files, according to a list of
 // file extensions, to a string slice variable.
-// embeds, watermarks, and stamps are excluded.
+// embeds, watermark, and stamp files are excluded.
 func (form *FormData) paths(extensions []string, target *[]string) *FormData {
 	embeds, ok := form.filesByField[EmbedsFormField]
-	watermarks, wmOk := form.filesByField[WatermarksFormField]
-	stamps, stOk := form.filesByField[StampsFormField]
+	watermarks, wmOk := form.filesByField[WatermarkFormField]
+	stamps, stOk := form.filesByField[StampFormField]
 
 	for filename, path := range form.files {
 		if ok && slices.Contains(embeds, path) {

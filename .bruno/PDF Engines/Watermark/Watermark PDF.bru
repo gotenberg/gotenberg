@@ -16,6 +16,8 @@ body:multipart-form {
   watermarkExpression: CONFIDENTIAL
   ~watermarkPages: 1-2
   ~watermarkOptions: {"font":"Helvetica","fontSize":"48","color":"#FF0000","opacity":"0.3","rotation":"45"}
+  ~watermark: @file(../../test/integration/testdata/watermark.png)
+  ~downloadFrom: [{"url":"https://example.com/watermark.png","field":"watermark"}]
 }
 
 headers {
