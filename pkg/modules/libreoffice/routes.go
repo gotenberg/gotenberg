@@ -195,6 +195,14 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				stamp.Expression = stampFiles[0]
 			}
 
+			err = pdfengines.ValidatePdfFormatsCompat(pdfFormats, userPassword, embedPaths)
+			if err != nil {
+				return err
+			}
+
+			hasPostProcessing := watermark.Source != "" || stamp.Source != "" ||
+				len(embedPaths) > 0 || len(metadata) > 0 || flatten
+
 			outputPaths := make([]string, len(inputPaths))
 			for i, inputPath := range inputPaths {
 				outputPaths[i] = ctx.GeneratePath(".pdf")
@@ -230,9 +238,10 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					NativeTiledWatermarkText:        nativeTiledWatermarkText,
 				}
 
-				if nativePdfFormats && splitMode == zeroValuedSplitMode {
+				if nativePdfFormats && splitMode == zeroValuedSplitMode && !hasPostProcessing {
 					// Only natively apply given PDF formats if we're not
-					// splitting the PDF later.
+					// splitting the PDF later and no post-processing features
+					// are enabled (as they would degrade compliance).
 					options.PdfFormats = pdfFormats
 				}
 
@@ -298,7 +307,27 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				}
 			}
 
-			if !nativePdfFormats || (nativePdfFormats && splitMode != zeroValuedSplitMode) {
+			err = pdfengines.WatermarkStub(ctx, engine, watermark, outputPaths)
+			if err != nil {
+				return fmt.Errorf("watermark PDFs: %w", err)
+			}
+
+			err = pdfengines.StampStub(ctx, engine, stamp, outputPaths)
+			if err != nil {
+				return fmt.Errorf("stamp PDFs: %w", err)
+			}
+
+			if flatten {
+				err = pdfengines.FlattenStub(ctx, engine, outputPaths)
+				if err != nil {
+					return fmt.Errorf("flatten PDFs: %w", err)
+				}
+			}
+
+			needsConvertStub := !nativePdfFormats ||
+				(nativePdfFormats && splitMode != zeroValuedSplitMode) ||
+				(nativePdfFormats && hasPostProcessing)
+			if needsConvertStub {
 				convertOutputPaths, err := pdfengines.ConvertStub(ctx, engine, pdfFormats, outputPaths)
 				if err != nil {
 					return fmt.Errorf("convert PDFs: %w", err)
@@ -318,31 +347,16 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				}
 			}
 
-			err = pdfengines.WatermarkStub(ctx, engine, watermark, outputPaths)
-			if err != nil {
-				return fmt.Errorf("watermark PDFs: %w", err)
-			}
-
-			err = pdfengines.StampStub(ctx, engine, stamp, outputPaths)
-			if err != nil {
-				return fmt.Errorf("stamp PDFs: %w", err)
-			}
-
-			err = pdfengines.EmbedFilesStub(ctx, engine, embedPaths, outputPaths)
-			if err != nil {
-				return fmt.Errorf("embed files into PDFs: %w", err)
-			}
-
+			// Metadata, embeds are written after Convert, as LibreOffice
+			// strips them during PDF/A conversion.
 			err = pdfengines.WriteMetadataStub(ctx, engine, metadata, outputPaths)
 			if err != nil {
 				return fmt.Errorf("write metadata: %w", err)
 			}
 
-			if flatten {
-				err = pdfengines.FlattenStub(ctx, engine, outputPaths)
-				if err != nil {
-					return fmt.Errorf("flatten PDFs: %w", err)
-				}
+			err = pdfengines.EmbedFilesStub(ctx, engine, embedPaths, outputPaths)
+			if err != nil {
+				return fmt.Errorf("embed files into PDFs: %w", err)
 			}
 
 			err = pdfengines.EncryptPdfStub(ctx, engine, userPassword, ownerPassword, outputPaths)

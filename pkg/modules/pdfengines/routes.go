@@ -166,6 +166,41 @@ func FormDataPdfBookmarks(form *api.FormData, mandatory bool) any {
 	return bookmarks
 }
 
+// ValidatePdfFormatsCompat checks for incompatible combinations of PDF formats
+// with other features and returns an appropriate error if found.
+func ValidatePdfFormatsCompat(pdfFormats gotenberg.PdfFormats, userPassword string, embedPaths []string) error {
+	zeroValued := gotenberg.PdfFormats{}
+	if pdfFormats == zeroValued {
+		return nil
+	}
+
+	// PDF/A forbids encryption per the standard.
+	if pdfFormats.PdfA != "" && userPassword != "" {
+		return api.WrapError(
+			errors.New("PDF/A format is incompatible with encryption"),
+			api.NewSentinelHttpError(
+				http.StatusBadRequest,
+				"Invalid form data: PDF/A format is incompatible with encryption",
+			),
+		)
+	}
+
+	// Only PDF/A-3 variants allow embedded file attachments.
+	if pdfFormats.PdfA != "" && len(embedPaths) > 0 {
+		if pdfFormats.PdfA != gotenberg.PdfA3a && pdfFormats.PdfA != gotenberg.PdfA3b && pdfFormats.PdfA != gotenberg.PdfA3u {
+			return api.WrapError(
+				fmt.Errorf("PDF format '%s' does not support embedded files", pdfFormats.PdfA),
+				api.NewSentinelHttpError(
+					http.StatusBadRequest,
+					fmt.Sprintf("Invalid form data: PDF format '%s' does not support embedded files; only PDF/A-3 variants allow attachments", pdfFormats.PdfA),
+				),
+			)
+		}
+	}
+
+	return nil
+}
+
 // MergeStub merges given PDFs. If only one input PDF, it does nothing and
 // returns the corresponding input path.
 func MergeStub(ctx *api.Context, engine gotenberg.PdfEngine, inputPaths []string) (string, error) {
@@ -546,16 +581,18 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 				stamp.Expression = stampFiles[0]
 			}
 
+			err = ValidatePdfFormatsCompat(pdfFormats, userPassword, embedPaths)
+			if err != nil {
+				return err
+			}
+
 			outputPath := ctx.GeneratePath(".pdf")
 			err = engine.Merge(ctx, ctx.Log(), inputPaths, outputPath)
 			if err != nil {
 				return fmt.Errorf("merge PDFs: %w", err)
 			}
 
-			outputPaths, err := ConvertStub(ctx, engine, pdfFormats, []string{outputPath})
-			if err != nil {
-				return fmt.Errorf("convert PDF: %w", err)
-			}
+			outputPaths := []string{outputPath}
 
 			err = WatermarkStub(ctx, engine, watermark, outputPaths)
 			if err != nil {
@@ -567,10 +604,20 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("stamp PDFs: %w", err)
 			}
 
-			err = EmbedFilesStub(ctx, engine, embedPaths, outputPaths)
-			if err != nil {
-				return fmt.Errorf("embed files into PDFs: %w", err)
+			if flatten {
+				err = FlattenStub(ctx, engine, outputPaths)
+				if err != nil {
+					return fmt.Errorf("flatten PDFs: %w", err)
+				}
 			}
+
+			outputPaths, err = ConvertStub(ctx, engine, pdfFormats, outputPaths)
+			if err != nil {
+				return fmt.Errorf("convert PDF: %w", err)
+			}
+
+			// Bookmarks, metadata, and embeds are written after Convert,
+			// as LibreOffice strips them during PDF/A conversion.
 
 			var finalBookmarks []gotenberg.Bookmark
 			if b, ok := bookmarks.([]gotenberg.Bookmark); ok {
@@ -620,11 +667,9 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("write metadata: %w", err)
 			}
 
-			if flatten {
-				err = FlattenStub(ctx, engine, outputPaths)
-				if err != nil {
-					return fmt.Errorf("flatten PDFs: %w", err)
-				}
+			err = EmbedFilesStub(ctx, engine, embedPaths, outputPaths)
+			if err != nil {
+				return fmt.Errorf("embed files into PDFs: %w", err)
 			}
 
 			err = EncryptPdfStub(ctx, engine, userPassword, ownerPassword, outputPaths)
@@ -679,9 +724,31 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 				stamp.Expression = stampFiles[0]
 			}
 
+			err = ValidatePdfFormatsCompat(pdfFormats, userPassword, embedPaths)
+			if err != nil {
+				return err
+			}
+
 			outputPaths, err := SplitPdfStub(ctx, engine, mode, inputPaths)
 			if err != nil {
 				return fmt.Errorf("split PDFs: %w", err)
+			}
+
+			err = WatermarkStub(ctx, engine, watermark, outputPaths)
+			if err != nil {
+				return fmt.Errorf("watermark PDFs: %w", err)
+			}
+
+			err = StampStub(ctx, engine, stamp, outputPaths)
+			if err != nil {
+				return fmt.Errorf("stamp PDFs: %w", err)
+			}
+
+			if flatten {
+				err = FlattenStub(ctx, engine, outputPaths)
+				if err != nil {
+					return fmt.Errorf("flatten PDFs: %w", err)
+				}
 			}
 
 			convertOutputPaths, err := ConvertStub(ctx, engine, pdfFormats, outputPaths)
@@ -689,31 +756,16 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("convert PDFs: %w", err)
 			}
 
-			err = WatermarkStub(ctx, engine, watermark, convertOutputPaths)
-			if err != nil {
-				return fmt.Errorf("watermark PDFs: %w", err)
-			}
-
-			err = StampStub(ctx, engine, stamp, convertOutputPaths)
-			if err != nil {
-				return fmt.Errorf("stamp PDFs: %w", err)
-			}
-
-			err = EmbedFilesStub(ctx, engine, embedPaths, convertOutputPaths)
-			if err != nil {
-				return fmt.Errorf("embed files into PDFs: %w", err)
-			}
-
+			// Metadata, embeds are written after Convert, as LibreOffice
+			// strips them during PDF/A conversion.
 			err = WriteMetadataStub(ctx, engine, metadata, convertOutputPaths)
 			if err != nil {
 				return fmt.Errorf("write metadata: %w", err)
 			}
 
-			if flatten {
-				err = FlattenStub(ctx, engine, convertOutputPaths)
-				if err != nil {
-					return fmt.Errorf("flatten PDFs: %w", err)
-				}
+			err = EmbedFilesStub(ctx, engine, embedPaths, convertOutputPaths)
+			if err != nil {
+				return fmt.Errorf("embed files into PDFs: %w", err)
 			}
 
 			err = EncryptPdfStub(ctx, engine, userPassword, ownerPassword, convertOutputPaths)

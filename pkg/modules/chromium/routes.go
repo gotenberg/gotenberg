@@ -781,9 +781,24 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 		return fmt.Errorf("convert to PDF: %w", err)
 	}
 
+	err = pdfengines.ValidatePdfFormatsCompat(pdfFormats, userPassword, embedPaths)
+	if err != nil {
+		return err
+	}
+
 	outputPaths, err := pdfengines.SplitPdfStub(ctx, engine, mode, []string{outputPath})
 	if err != nil {
 		return fmt.Errorf("split PDF: %w", err)
+	}
+
+	err = pdfengines.WatermarkStub(ctx, engine, watermark, outputPaths)
+	if err != nil {
+		return fmt.Errorf("watermark PDFs: %w", err)
+	}
+
+	err = pdfengines.StampStub(ctx, engine, stamp, outputPaths)
+	if err != nil {
+		return fmt.Errorf("stamp PDFs: %w", err)
 	}
 
 	convertOutputPaths, err := pdfengines.ConvertStub(ctx, engine, pdfFormats, outputPaths)
@@ -791,24 +806,16 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 		return fmt.Errorf("convert PDF(s): %w", err)
 	}
 
-	err = pdfengines.WatermarkStub(ctx, engine, watermark, convertOutputPaths)
+	// Metadata, embeds are written after Convert, as LibreOffice
+	// strips them during PDF/A conversion.
+	err = pdfengines.WriteMetadataStub(ctx, engine, metadata, convertOutputPaths)
 	if err != nil {
-		return fmt.Errorf("watermark PDFs: %w", err)
-	}
-
-	err = pdfengines.StampStub(ctx, engine, stamp, convertOutputPaths)
-	if err != nil {
-		return fmt.Errorf("stamp PDFs: %w", err)
+		return fmt.Errorf("write metadata: %w", err)
 	}
 
 	err = pdfengines.EmbedFilesStub(ctx, engine, embedPaths, convertOutputPaths)
 	if err != nil {
 		return fmt.Errorf("embed files into PDFs: %w", err)
-	}
-
-	err = pdfengines.WriteMetadataStub(ctx, engine, metadata, convertOutputPaths)
-	if err != nil {
-		return fmt.Errorf("write metadata: %w", err)
 	}
 
 	err = pdfengines.EncryptPdfStub(ctx, engine, userPassword, ownerPassword, convertOutputPaths)

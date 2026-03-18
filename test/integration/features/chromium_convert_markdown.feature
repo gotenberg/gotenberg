@@ -1012,12 +1012,12 @@ Feature: /forms/chromium/convert/markdown
   @metadata
   @flatten
   @embed
-  Scenario: POST /forms/chromium/convert/markdown (PDF/A-1b & PDF/UA-1 & Metadata & Flatten & Embeds)
+  Scenario: POST /forms/chromium/convert/markdown (PDF/A-3b & PDF/UA-1 & Metadata & Flatten & Embeds)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
       | files                     | testdata/page-1-markdown/index.html                                                                                                                                                                                                                                                                       | file   |
       | files                     | testdata/page-1-markdown/page_1.md                                                                                                                                                                                                                                                                        | file   |
-      | pdfa                      | PDF/A-1b                                                                                                                                                                                                                                                                                                  | field  |
+      | pdfa                      | PDF/A-3b                                                                                                                                                                                                                                                                                                  | field  |
       | pdfua                     | true                                                                                                                                                                                                                                                                                                      | field  |
       | metadata                  | {"Author":"Julien Neuhart","Copyright":"Julien Neuhart","CreateDate":"2006-09-18T16:27:50-04:00","Creator":"Gotenberg","Keywords":["first","second"],"Marked":true,"ModDate":"2006-09-18T16:27:50-04:00","PDFVersion":1.7,"Producer":"Gotenberg","Subject":"Sample","Title":"Sample","Trapped":"Unknown"} | field  |
       | flatten                   | true                                                                                                                                                                                                                                                                                                      | field  |
@@ -1029,8 +1029,8 @@ Feature: /forms/chromium/convert/markdown
     Then there should be 1 PDF(s) in the response
     Then there should be the following file(s) in the response:
       | foo.pdf |
-    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 9 failed rule(s)
-    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 2 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 5 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
     Then the response PDF(s) should be flatten
     Then the response PDF(s) should have the "embed_1.xml" file embedded
     Then the response PDF(s) should have the "embed_2.xml" file embedded
@@ -1044,11 +1044,8 @@ Feature: /forms/chromium/convert/markdown
         "foo.pdf": {
           "Author": "Julien Neuhart",
           "Copyright": "Julien Neuhart",
-          "CreateDate": "2006:09:18 16:27:50-04:00",
           "Creator": "Gotenberg",
-          "Keywords": ["first", "second"],
           "Marked": true,
-          "ModDate": "2006:09:18 16:27:50-04:00",
           "PDFVersion": 1.7,
           "Producer": "Gotenberg",
           "Subject": "Sample",

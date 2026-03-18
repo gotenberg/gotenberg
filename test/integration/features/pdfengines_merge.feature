@@ -446,12 +446,12 @@ Feature: /forms/pdfengines/merge
   @flatten
   @embed
   @bookmarks
-  Scenario: POST /forms/pdfengines/merge (PDF/A-1b & PDF/UA-1 & Metadata & Watermark & Stamp & Flatten & Embeds & Bookmarks)
+  Scenario: POST /forms/pdfengines/merge (PDF/A-3b & PDF/UA-1 & Metadata & Watermark & Stamp & Flatten & Embeds & Bookmarks)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
       | files                     | testdata/page_1.pdf                                                                                                                                                                                                                                                                                       | file   |
       | files                     | testdata/page_2.pdf                                                                                                                                                                                                                                                                                       | file   |
-      | pdfa                      | PDF/A-1b                                                                                                                                                                                                                                                                                                  | field  |
+      | pdfa                      | PDF/A-3b                                                                                                                                                                                                                                                                                                  | field  |
       | pdfua                     | true                                                                                                                                                                                                                                                                                                      | field  |
       | metadata                  | {"Author":"Julien Neuhart","Copyright":"Julien Neuhart","CreateDate":"2006-09-18T16:27:50-04:00","Creator":"Gotenberg","Keywords":["first","second"],"Marked":true,"ModDate":"2006-09-18T16:27:50-04:00","PDFVersion":1.7,"Producer":"Gotenberg","Subject":"Sample","Title":"Sample","Trapped":"Unknown"} | field  |
       | watermarkSource           | text                                                                                                                                                                                                                                                                                                      | field  |
@@ -477,8 +477,8 @@ Feature: /forms/pdfengines/merge
       """
       Page 2
       """
-    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 12 failed rule(s)
-    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 5 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 5 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
     Then the response PDF(s) should be flatten
     Then the response PDF(s) should have the "embed_1.xml" file embedded
     Then the response PDF(s) should have the "embed_2.xml" file embedded
@@ -507,11 +507,8 @@ Feature: /forms/pdfengines/merge
         "foo.pdf": {
           "Author": "Julien Neuhart",
           "Copyright": "Julien Neuhart",
-          "CreateDate": "2006:09:18 16:27:50-04:00",
           "Creator": "Gotenberg",
-          "Keywords": ["first", "second"],
           "Marked": true,
-          "ModDate": "2006:09:18 16:27:50-04:00",
           "PDFVersion": 1.7,
           "Producer": "Gotenberg",
           "Subject": "Sample",
@@ -595,3 +592,36 @@ Feature: /forms/pdfengines/merge
       | files | testdata/page_2.pdf | file |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
+
+  @convert
+  @encrypt
+  Scenario: POST /forms/pdfengines/merge (PDF/A + Encrypt => 400)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files        | testdata/page_1.pdf | file  |
+      | files        | testdata/page_2.pdf | file  |
+      | pdfa         | PDF/A-1b            | field |
+      | userPassword | secret              | field |
+    Then the response status code should be 400
+
+  @convert
+  @embed
+  Scenario: POST /forms/pdfengines/merge (PDF/A-1b + Embeds => 400)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.pdf  | file  |
+      | files  | testdata/page_2.pdf  | file  |
+      | pdfa   | PDF/A-1b             | field |
+      | embeds | testdata/embed_1.xml | file  |
+    Then the response status code should be 400
+
+  @convert
+  @embed
+  Scenario: POST /forms/pdfengines/merge (PDF/A-3b + Embeds => 200)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.pdf  | file  |
+      | files  | testdata/page_2.pdf  | file  |
+      | pdfa   | PDF/A-3b             | field |
+      | embeds | testdata/embed_1.xml | file  |
+    Then the response status code should be 200

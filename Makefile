@@ -66,6 +66,8 @@ PDFENGINES_READ_METADATA_ENGINES=exiftool
 PDFENGINES_WRITE_METADATA_ENGINES=exiftool
 PDFENGINES_READ_BOOKMARKS_ENGINES=pdfcpu
 PDFENGINES_WRITE_BOOKMARKS_ENGINES=pdfcpu
+PDFENGINES_WATERMARK_ENGINES=pdfcpu,pdftk
+PDFENGINES_STAMP_ENGINES=pdfcpu,pdftk
 PDFENGINES_ENCRYPT_ENGINES=qpdf,pdfcpu,pdftk
 PDFENGINES_EMBED_ENGINES=pdfcpu
 PROMETHEUS_NAMESPACE=gotenberg
@@ -146,6 +148,8 @@ run: ## Start a Gotenberg container
 	--pdfengines-write-metadata-engines=$(PDFENGINES_WRITE_METADATA_ENGINES) \
 	--pdfengines-read-bookmarks-engines=$(PDFENGINES_READ_BOOKMARKS_ENGINES) \
 	--pdfengines-write-bookmarks-engines=$(PDFENGINES_WRITE_BOOKMARKS_ENGINES) \
+	--pdfengines-watermark-engines=$(PDFENGINES_WATERMARK_ENGINES) \
+	--pdfengines-stamp-engines=$(PDFENGINES_STAMP_ENGINES) \
 	--pdfengines-encrypt-engines=$(PDFENGINES_ENCRYPT_ENGINES) \
 	--pdfengines-embed-engines=$(PDFENGINES_EMBED_ENGINES) \
 	--prometheus-namespace=$(PROMETHEUS_NAMESPACE) \
