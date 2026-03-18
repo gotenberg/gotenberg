@@ -415,6 +415,10 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			metadata := pdfengines.FormDataPdfMetadata(form, false)
 			userPassword, ownerPassword := pdfengines.FormDataPdfEncrypt(form)
 			embedPaths := pdfengines.FormDataPdfEmbeds(form)
+			watermark := pdfengines.FormDataPdfWatermark(form, false)
+			watermarkFiles := pdfengines.FormDataPdfWatermarkFiles(form)
+			stamp := pdfengines.FormDataPdfStamp(form, false)
+			stampFiles := pdfengines.FormDataPdfStampFiles(form)
 
 			var url string
 			err := form.
@@ -424,7 +428,14 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword, embedPaths)
+			if (watermark.Source == gotenberg.StampSourceImage || watermark.Source == gotenberg.StampSourcePDF) && len(watermarkFiles) > 0 {
+				watermark.Expression = watermarkFiles[0]
+			}
+			if (stamp.Source == gotenberg.StampSourceImage || stamp.Source == gotenberg.StampSourcePDF) && len(stampFiles) > 0 {
+				stamp.Expression = stampFiles[0]
+			}
+
+			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword, embedPaths, watermark, stamp)
 			if err != nil {
 				return fmt.Errorf("convert URL to PDF: %w", err)
 			}
@@ -478,6 +489,10 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			metadata := pdfengines.FormDataPdfMetadata(form, false)
 			userPassword, ownerPassword := pdfengines.FormDataPdfEncrypt(form)
 			embedPaths := pdfengines.FormDataPdfEmbeds(form)
+			watermark := pdfengines.FormDataPdfWatermark(form, false)
+			watermarkFiles := pdfengines.FormDataPdfWatermarkFiles(form)
+			stamp := pdfengines.FormDataPdfStamp(form, false)
+			stampFiles := pdfengines.FormDataPdfStampFiles(form)
 
 			var inputPath string
 			err := form.
@@ -487,8 +502,15 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
+			if (watermark.Source == gotenberg.StampSourceImage || watermark.Source == gotenberg.StampSourcePDF) && len(watermarkFiles) > 0 {
+				watermark.Expression = watermarkFiles[0]
+			}
+			if (stamp.Source == gotenberg.StampSourceImage || stamp.Source == gotenberg.StampSourcePDF) && len(stampFiles) > 0 {
+				stamp.Expression = stampFiles[0]
+			}
+
 			url := fmt.Sprintf("file://%s", inputPath)
-			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword, embedPaths)
+			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword, embedPaths, watermark, stamp)
 			if err != nil {
 				return fmt.Errorf("convert HTML to PDF: %w", err)
 			}
@@ -543,6 +565,10 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			metadata := pdfengines.FormDataPdfMetadata(form, false)
 			userPassword, ownerPassword := pdfengines.FormDataPdfEncrypt(form)
 			embedPaths := pdfengines.FormDataPdfEmbeds(form)
+			watermark := pdfengines.FormDataPdfWatermark(form, false)
+			watermarkFiles := pdfengines.FormDataPdfWatermarkFiles(form)
+			stamp := pdfengines.FormDataPdfStamp(form, false)
+			stampFiles := pdfengines.FormDataPdfStampFiles(form)
 
 			var (
 				inputPath     string
@@ -557,12 +583,19 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
+			if (watermark.Source == gotenberg.StampSourceImage || watermark.Source == gotenberg.StampSourcePDF) && len(watermarkFiles) > 0 {
+				watermark.Expression = watermarkFiles[0]
+			}
+			if (stamp.Source == gotenberg.StampSourceImage || stamp.Source == gotenberg.StampSourcePDF) && len(stampFiles) > 0 {
+				stamp.Expression = stampFiles[0]
+			}
+
 			url, err := markdownToHtml(ctx, inputPath, markdownPaths)
 			if err != nil {
 				return fmt.Errorf("transform markdown file(s) to HTML: %w", err)
 			}
 
-			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword, embedPaths)
+			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword, embedPaths, watermark, stamp)
 			if err != nil {
 				return fmt.Errorf("convert markdown to PDF: %w", err)
 			}
@@ -686,7 +719,7 @@ func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) 
 	return fmt.Sprintf("file://%s", inputPath), nil
 }
 
-func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, options PdfOptions, mode gotenberg.SplitMode, pdfFormats gotenberg.PdfFormats, metadata map[string]any, userPassword, ownerPassword string, embedPaths []string) error {
+func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, options PdfOptions, mode gotenberg.SplitMode, pdfFormats gotenberg.PdfFormats, metadata map[string]any, userPassword, ownerPassword string, embedPaths []string, watermark, stamp gotenberg.Stamp) error {
 	outputPath := ctx.GeneratePath(".pdf")
 	// See https://github.com/gotenberg/gotenberg/issues/1130.
 	filename := ctx.OutputFilename(outputPath)
@@ -756,6 +789,16 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 	convertOutputPaths, err := pdfengines.ConvertStub(ctx, engine, pdfFormats, outputPaths)
 	if err != nil {
 		return fmt.Errorf("convert PDF(s): %w", err)
+	}
+
+	err = pdfengines.WatermarkStub(ctx, engine, watermark, convertOutputPaths)
+	if err != nil {
+		return fmt.Errorf("watermark PDFs: %w", err)
+	}
+
+	err = pdfengines.StampStub(ctx, engine, stamp, convertOutputPaths)
+	if err != nil {
+		return fmt.Errorf("stamp PDFs: %w", err)
 	}
 
 	err = pdfengines.EmbedFilesStub(ctx, engine, embedPaths, convertOutputPaths)

@@ -28,6 +28,10 @@ var (
 	// ErrPdfEncryptionNotSupported is returned when encryption
 	// is not supported by the PDF engine.
 	ErrPdfEncryptionNotSupported = errors.New("encryption not supported")
+
+	// ErrPdfStampSourceNotSupported is returned when a stamp source type
+	// is not supported by the PDF engine.
+	ErrPdfStampSourceNotSupported = errors.New("stamp source not supported")
 )
 
 // PdfEngineInvalidArgsError represents an error returned by a PDF engine when
@@ -47,6 +51,33 @@ func (e *PdfEngineInvalidArgsError) Error() string {
 // given engine name and message.
 func NewPdfEngineInvalidArgs(engine, msg string) error {
 	return &PdfEngineInvalidArgsError{engine, msg}
+}
+
+const (
+	// StampSourceText represents a text-based stamp source.
+	StampSourceText string = "text"
+
+	// StampSourceImage represents an image-based stamp source.
+	StampSourceImage string = "image"
+
+	// StampSourcePDF represents a PDF-based stamp source.
+	StampSourcePDF string = "pdf"
+)
+
+// Stamp gathers the data required to apply a watermark or stamp to a PDF.
+type Stamp struct {
+	// Source is one of "text", "image", or "pdf".
+	Source string
+
+	// Expression is the text content (for text source) or file path (for
+	// image/pdf source).
+	Expression string
+
+	// Pages is the optional page range to apply the stamp to.
+	Pages string
+
+	// Options holds engine-specific styling options.
+	Options map[string]string
 }
 
 const (
@@ -166,6 +197,12 @@ type PdfEngine interface {
 	// without modifying the main PDF content.
 	// TODO: attachments instead? Rename the route?
 	EmbedFiles(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error
+
+	// Watermark applies a watermark (behind page content) to a PDF file.
+	Watermark(ctx context.Context, logger *zap.Logger, inputPath string, stamp Stamp) error
+
+	// Stamp applies a stamp (on top of page content) to a PDF file.
+	Stamp(ctx context.Context, logger *zap.Logger, inputPath string, stamp Stamp) error
 }
 
 // PdfEngineProvider offers an interface to instantiate a [PdfEngine].

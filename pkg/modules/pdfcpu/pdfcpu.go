@@ -379,6 +379,57 @@ func (engine *PdfCpu) Encrypt(ctx context.Context, logger *zap.Logger, inputPath
 	return nil
 }
 
+// Watermark applies a watermark (behind page content) to a PDF file using pdfcpu.
+func (engine *PdfCpu) Watermark(ctx context.Context, logger *zap.Logger, inputPath string, stamp gotenberg.Stamp) error {
+	return engine.applyStampOrWatermark(ctx, logger, "watermark", inputPath, stamp)
+}
+
+// Stamp applies a stamp (on top of page content) to a PDF file using pdfcpu.
+func (engine *PdfCpu) Stamp(ctx context.Context, logger *zap.Logger, inputPath string, stamp gotenberg.Stamp) error {
+	return engine.applyStampOrWatermark(ctx, logger, "stamp", inputPath, stamp)
+}
+
+func (engine *PdfCpu) applyStampOrWatermark(ctx context.Context, logger *zap.Logger, command string, inputPath string, stamp gotenberg.Stamp) error {
+	var mode string
+	switch stamp.Source {
+	case gotenberg.StampSourceText:
+		mode = "text"
+	case gotenberg.StampSourceImage:
+		mode = "image"
+	case gotenberg.StampSourcePDF:
+		mode = "pdf"
+	default:
+		return fmt.Errorf("%s PDF with pdfcpu: %w", command, gotenberg.ErrPdfStampSourceNotSupported)
+	}
+
+	// Build description from Options map.
+	var descParts []string
+	for k, v := range stamp.Options {
+		descParts = append(descParts, fmt.Sprintf("%s:%s", k, v))
+	}
+	description := strings.Join(descParts, ", ")
+
+	args := []string{command, "add", "-mode", mode}
+
+	if stamp.Pages != "" {
+		args = append(args, "-pages", stamp.Pages)
+	}
+
+	args = append(args, "--", stamp.Expression, description, inputPath, inputPath)
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		return fmt.Errorf("create command: %w", err)
+	}
+
+	_, err = cmd.Exec()
+	if err != nil {
+		return fmt.Errorf("%s PDF with pdfcpu: %w", command, err)
+	}
+
+	return nil
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*PdfCpu)(nil)

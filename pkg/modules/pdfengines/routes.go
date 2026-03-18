@@ -391,6 +391,122 @@ func EmbedFilesStub(ctx *api.Context, engine gotenberg.PdfEngine, embedPaths []s
 	return nil
 }
 
+// FormDataPdfWatermark creates a [gotenberg.Stamp] for watermarking from the
+// form data.
+func FormDataPdfWatermark(form *api.FormData, mandatory bool) gotenberg.Stamp {
+	return formDataPdfStampOrWatermark(form, "watermark", mandatory)
+}
+
+// FormDataPdfStamp creates a [gotenberg.Stamp] for stamping from the form data.
+func FormDataPdfStamp(form *api.FormData, mandatory bool) gotenberg.Stamp {
+	return formDataPdfStampOrWatermark(form, "stamp", mandatory)
+}
+
+func formDataPdfStampOrWatermark(form *api.FormData, prefix string, mandatory bool) gotenberg.Stamp {
+	var (
+		source     string
+		expression string
+		pages      string
+		options    map[string]string
+	)
+
+	sourceFunc := func(value string) error {
+		if value != "" && value != gotenberg.StampSourceText && value != gotenberg.StampSourceImage && value != gotenberg.StampSourcePDF {
+			return fmt.Errorf("wrong value, expected either '%s', '%s' or '%s'", gotenberg.StampSourceText, gotenberg.StampSourceImage, gotenberg.StampSourcePDF)
+		}
+		source = value
+		return nil
+	}
+
+	optionsFunc := func(value string) error {
+		if value == "" {
+			return nil
+		}
+		err := json.Unmarshal([]byte(value), &options)
+		if err != nil {
+			return fmt.Errorf("unmarshal %s options: %w", prefix, err)
+		}
+		return nil
+	}
+
+	if mandatory {
+		form.
+			MandatoryCustom(prefix+"Source", func(value string) error {
+				return sourceFunc(value)
+			}).
+			String(prefix+"Expression", &expression, "").
+			String(prefix+"Pages", &pages, "").
+			Custom(prefix+"Options", func(value string) error {
+				return optionsFunc(value)
+			})
+	} else {
+		form.
+			Custom(prefix+"Source", func(value string) error {
+				return sourceFunc(value)
+			}).
+			String(prefix+"Expression", &expression, "").
+			String(prefix+"Pages", &pages, "").
+			Custom(prefix+"Options", func(value string) error {
+				return optionsFunc(value)
+			})
+	}
+
+	return gotenberg.Stamp{
+		Source:     source,
+		Expression: expression,
+		Pages:      pages,
+		Options:    options,
+	}
+}
+
+// FormDataPdfWatermarkFiles extracts watermark file paths from form data.
+func FormDataPdfWatermarkFiles(form *api.FormData) []string {
+	var paths []string
+	form.Watermarks(&paths)
+	return paths
+}
+
+// FormDataPdfStampFiles extracts stamp file paths from form data.
+func FormDataPdfStampFiles(form *api.FormData) []string {
+	var paths []string
+	form.Stamps(&paths)
+	return paths
+}
+
+// WatermarkStub applies a watermark to a list of PDF files. If the stamp has
+// no source, it does nothing.
+func WatermarkStub(ctx *api.Context, engine gotenberg.PdfEngine, stamp gotenberg.Stamp, inputPaths []string) error {
+	if stamp.Source == "" {
+		return nil
+	}
+
+	for _, inputPath := range inputPaths {
+		err := engine.Watermark(ctx, ctx.Log(), inputPath, stamp)
+		if err != nil {
+			return fmt.Errorf("watermark '%s': %w", inputPath, err)
+		}
+	}
+
+	return nil
+}
+
+// StampStub applies a stamp to a list of PDF files. If the stamp has
+// no source, it does nothing.
+func StampStub(ctx *api.Context, engine gotenberg.PdfEngine, stamp gotenberg.Stamp, inputPaths []string) error {
+	if stamp.Source == "" {
+		return nil
+	}
+
+	for _, inputPath := range inputPaths {
+		err := engine.Stamp(ctx, ctx.Log(), inputPath, stamp)
+		if err != nil {
+			return fmt.Errorf("stamp '%s': %w", inputPath, err)
+		}
+	}
+
+	return nil
+}
+
 // mergeRoute returns an [api.Route] which can merge PDFs.
 func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 	return api.Route{
@@ -406,6 +522,10 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			bookmarks := FormDataPdfBookmarks(form, false)
 			userPassword, ownerPassword := FormDataPdfEncrypt(form)
 			embedPaths := FormDataPdfEmbeds(form)
+			watermark := FormDataPdfWatermark(form, false)
+			watermarkFiles := FormDataPdfWatermarkFiles(form)
+			stamp := FormDataPdfStamp(form, false)
+			stampFiles := FormDataPdfStampFiles(form)
 
 			var inputPaths []string
 			var flatten bool
@@ -419,6 +539,13 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
+			if (watermark.Source == gotenberg.StampSourceImage || watermark.Source == gotenberg.StampSourcePDF) && len(watermarkFiles) > 0 {
+				watermark.Expression = watermarkFiles[0]
+			}
+			if (stamp.Source == gotenberg.StampSourceImage || stamp.Source == gotenberg.StampSourcePDF) && len(stampFiles) > 0 {
+				stamp.Expression = stampFiles[0]
+			}
+
 			outputPath := ctx.GeneratePath(".pdf")
 			err = engine.Merge(ctx, ctx.Log(), inputPaths, outputPath)
 			if err != nil {
@@ -428,6 +555,16 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			outputPaths, err := ConvertStub(ctx, engine, pdfFormats, []string{outputPath})
 			if err != nil {
 				return fmt.Errorf("convert PDF: %w", err)
+			}
+
+			err = WatermarkStub(ctx, engine, watermark, outputPaths)
+			if err != nil {
+				return fmt.Errorf("watermark PDFs: %w", err)
+			}
+
+			err = StampStub(ctx, engine, stamp, outputPaths)
+			if err != nil {
+				return fmt.Errorf("stamp PDFs: %w", err)
 			}
 
 			err = EmbedFilesStub(ctx, engine, embedPaths, outputPaths)
@@ -520,6 +657,10 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 			metadata := FormDataPdfMetadata(form, false)
 			userPassword, ownerPassword := FormDataPdfEncrypt(form)
 			embedPaths := FormDataPdfEmbeds(form)
+			watermark := FormDataPdfWatermark(form, false)
+			watermarkFiles := FormDataPdfWatermarkFiles(form)
+			stamp := FormDataPdfStamp(form, false)
+			stampFiles := FormDataPdfStampFiles(form)
 
 			var inputPaths []string
 			var flatten bool
@@ -531,6 +672,13 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
+			if (watermark.Source == gotenberg.StampSourceImage || watermark.Source == gotenberg.StampSourcePDF) && len(watermarkFiles) > 0 {
+				watermark.Expression = watermarkFiles[0]
+			}
+			if (stamp.Source == gotenberg.StampSourceImage || stamp.Source == gotenberg.StampSourcePDF) && len(stampFiles) > 0 {
+				stamp.Expression = stampFiles[0]
+			}
+
 			outputPaths, err := SplitPdfStub(ctx, engine, mode, inputPaths)
 			if err != nil {
 				return fmt.Errorf("split PDFs: %w", err)
@@ -539,6 +687,16 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 			convertOutputPaths, err := ConvertStub(ctx, engine, pdfFormats, outputPaths)
 			if err != nil {
 				return fmt.Errorf("convert PDFs: %w", err)
+			}
+
+			err = WatermarkStub(ctx, engine, watermark, convertOutputPaths)
+			if err != nil {
+				return fmt.Errorf("watermark PDFs: %w", err)
+			}
+
+			err = StampStub(ctx, engine, stamp, convertOutputPaths)
+			if err != nil {
+				return fmt.Errorf("stamp PDFs: %w", err)
 			}
 
 			err = EmbedFilesStub(ctx, engine, embedPaths, convertOutputPaths)
@@ -893,6 +1051,108 @@ func embedRoute(engine gotenberg.PdfEngine) api.Route {
 			err = EmbedFilesStub(ctx, engine, embedPaths, inputPaths)
 			if err != nil {
 				return fmt.Errorf("embed files into PDFs: %w", err)
+			}
+
+			err = ctx.AddOutputPaths(inputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
+			}
+
+			return nil
+		},
+	}
+}
+
+// watermarkRoute returns an [api.Route] which can add watermarks to PDFs.
+//
+//nolint:dupl
+func watermarkRoute(engine gotenberg.PdfEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/watermark",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			form := ctx.FormData()
+			stamp := FormDataPdfWatermark(form, true)
+			watermarkFiles := FormDataPdfWatermarkFiles(form)
+
+			var inputPaths []string
+			err := form.
+				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			if stamp.Source == gotenberg.StampSourceImage || stamp.Source == gotenberg.StampSourcePDF {
+				if len(watermarkFiles) == 0 {
+					return api.WrapError(
+						errors.New("no watermark file provided"),
+						api.NewSentinelHttpError(
+							http.StatusBadRequest,
+							"Invalid form data: a watermark file is required for image or pdf source",
+						),
+					)
+				}
+				stamp.Expression = watermarkFiles[0]
+			}
+
+			err = WatermarkStub(ctx, engine, stamp, inputPaths)
+			if err != nil {
+				return fmt.Errorf("watermark PDFs: %w", err)
+			}
+
+			err = ctx.AddOutputPaths(inputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
+			}
+
+			return nil
+		},
+	}
+}
+
+// stampRoute returns an [api.Route] which can add stamps to PDFs.
+//
+//nolint:dupl
+func stampRoute(engine gotenberg.PdfEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/stamp",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			form := ctx.FormData()
+			stamp := FormDataPdfStamp(form, true)
+			stampFiles := FormDataPdfStampFiles(form)
+
+			var inputPaths []string
+			err := form.
+				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			if stamp.Source == gotenberg.StampSourceImage || stamp.Source == gotenberg.StampSourcePDF {
+				if len(stampFiles) == 0 {
+					return api.WrapError(
+						errors.New("no stamp file provided"),
+						api.NewSentinelHttpError(
+							http.StatusBadRequest,
+							"Invalid form data: a stamp file is required for image or pdf source",
+						),
+					)
+				}
+				stamp.Expression = stampFiles[0]
+			}
+
+			err = StampStub(ctx, engine, stamp, inputPaths)
+			if err != nil {
+				return fmt.Errorf("stamp PDFs: %w", err)
 			}
 
 			err = ctx.AddOutputPaths(inputPaths...)

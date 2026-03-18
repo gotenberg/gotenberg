@@ -147,6 +147,29 @@ type Options struct {
 	// Possible values are: 75, 150, 300, 600 and 1200.
 	MaxImageResolution int
 
+	// NativeWatermarkText specifies the text for a watermark to be drawn on
+	// every page of the exported PDF file.
+	// See https://help.libreoffice.org/latest/en-US/text/shared/guide/pdf_params.html.
+	NativeWatermarkText string
+
+	// NativeWatermarkColor specifies the color for the watermark text as a
+	// decimal long value. Default is 8388223 (light green).
+	NativeWatermarkColor int
+
+	// NativeWatermarkFontHeight specifies the font size for the watermark text.
+	NativeWatermarkFontHeight int
+
+	// NativeWatermarkRotateAngle specifies the rotation angle for the watermark
+	// text in tenths of a degree (e.g., 450 = 45°).
+	NativeWatermarkRotateAngle int
+
+	// NativeWatermarkFontName specifies the font name for the watermark text.
+	// Default is "Helvetica".
+	NativeWatermarkFontName string
+
+	// NativeTiledWatermarkText specifies the tiled watermark text.
+	NativeTiledWatermarkText string
+
 	// PdfFormats allows to convert the resulting PDF to PDF/A-1b, PDF/A-2b,
 	// PDF/A-3b and PDF/UA.
 	PdfFormats gotenberg.PdfFormats
@@ -178,6 +201,12 @@ func DefaultOptions() Options {
 		Quality:                         90,
 		ReduceImageResolution:           false,
 		MaxImageResolution:              300,
+		NativeWatermarkText:             "",
+		NativeWatermarkColor:            8388223,
+		NativeWatermarkFontHeight:       0,
+		NativeWatermarkRotateAngle:      0,
+		NativeWatermarkFontName:         "Helvetica",
+		NativeTiledWatermarkText:        "",
 		PdfFormats: gotenberg.PdfFormats{
 			PdfA:  "",
 			PdfUa: false,

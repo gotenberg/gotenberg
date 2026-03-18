@@ -57,6 +57,8 @@ type PdfEngineMock struct {
 	EncryptMock        func(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error
 	EmbedFilesMock     func(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error
 	WriteBookmarksMock func(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []Bookmark) error
+	WatermarkMock      func(ctx context.Context, logger *zap.Logger, inputPath string, stamp Stamp) error
+	StampMock          func(ctx context.Context, logger *zap.Logger, inputPath string, stamp Stamp) error
 }
 
 func (engine *PdfEngineMock) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
@@ -101,6 +103,14 @@ func (engine *PdfEngineMock) EmbedFiles(ctx context.Context, logger *zap.Logger,
 
 func (engine *PdfEngineMock) WriteBookmarks(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []Bookmark) error {
 	return engine.WriteBookmarksMock(ctx, logger, inputPath, bookmarks)
+}
+
+func (engine *PdfEngineMock) Watermark(ctx context.Context, logger *zap.Logger, inputPath string, stamp Stamp) error {
+	return engine.WatermarkMock(ctx, logger, inputPath, stamp)
+}
+
+func (engine *PdfEngineMock) Stamp(ctx context.Context, logger *zap.Logger, inputPath string, stamp Stamp) error {
+	return engine.StampMock(ctx, logger, inputPath, stamp)
 }
 
 // PdfEngineProviderMock is a mock for the [PdfEngineProvider] interface.

@@ -195,6 +195,10 @@ NO_CONCURRENCY=false
 # metadata
 # pdfengines-split
 # split
+# pdfengines-watermark
+# watermark
+# pdfengines-stamp
+# stamp
 # pdfengines-bookmarks
 # bookmarks
 # prometheus-metrics

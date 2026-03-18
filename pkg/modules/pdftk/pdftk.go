@@ -203,6 +203,64 @@ func (engine *PdfTk) EmbedFiles(ctx context.Context, logger *zap.Logger, filePat
 	return fmt.Errorf("embed files with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// Watermark applies a watermark (behind page content) to a PDF file using PDFtk.
+// Only PDF source is supported.
+func (engine *PdfTk) Watermark(ctx context.Context, logger *zap.Logger, inputPath string, stamp gotenberg.Stamp) error {
+	if stamp.Source != gotenberg.StampSourcePDF {
+		return fmt.Errorf("watermark PDF with PDFtk: %w", gotenberg.ErrPdfStampSourceNotSupported)
+	}
+
+	tmpPath := inputPath + ".tmp"
+
+	args := []string{inputPath, "background", stamp.Expression, "output", tmpPath}
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		return fmt.Errorf("create command: %w", err)
+	}
+
+	_, err = cmd.Exec()
+	if err != nil {
+		return fmt.Errorf("watermark PDF with PDFtk: %w", err)
+	}
+
+	err = os.Rename(tmpPath, inputPath)
+	if err != nil {
+		return fmt.Errorf("rename temporary output file with input file: %w", err)
+	}
+
+	return nil
+}
+
+// Stamp applies a stamp (on top of page content) to a PDF file using PDFtk.
+// Only PDF source is supported.
+func (engine *PdfTk) Stamp(ctx context.Context, logger *zap.Logger, inputPath string, stamp gotenberg.Stamp) error {
+	if stamp.Source != gotenberg.StampSourcePDF {
+		return fmt.Errorf("stamp PDF with PDFtk: %w", gotenberg.ErrPdfStampSourceNotSupported)
+	}
+
+	tmpPath := inputPath + ".tmp"
+
+	args := []string{inputPath, "stamp", stamp.Expression, "output", tmpPath}
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		return fmt.Errorf("create command: %w", err)
+	}
+
+	_, err = cmd.Exec()
+	if err != nil {
+		return fmt.Errorf("stamp PDF with PDFtk: %w", err)
+	}
+
+	err = os.Rename(tmpPath, inputPath)
+	if err != nil {
+		return fmt.Errorf("rename temporary output file with input file: %w", err)
+	}
+
+	return nil
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*PdfTk)(nil)

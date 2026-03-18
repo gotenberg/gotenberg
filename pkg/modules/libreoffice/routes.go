@@ -32,6 +32,10 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			metadata := pdfengines.FormDataPdfMetadata(form, false)
 			userPassword, ownerPassword := pdfengines.FormDataPdfEncrypt(form)
 			embedPaths := pdfengines.FormDataPdfEmbeds(form)
+			watermark := pdfengines.FormDataPdfWatermark(form, false)
+			watermarkFiles := pdfengines.FormDataPdfWatermarkFiles(form)
+			stamp := pdfengines.FormDataPdfStamp(form, false)
+			stampFiles := pdfengines.FormDataPdfStampFiles(form)
 
 			zeroValuedSplitMode := gotenberg.SplitMode{}
 
@@ -60,6 +64,12 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				quality                         int
 				reduceImageResolution           bool
 				maxImageResolution              int
+				nativeWatermarkText             string
+				nativeWatermarkColor            int
+				nativeWatermarkFontHeight       int
+				nativeWatermarkRotateAngle      int
+				nativeWatermarkFontName         string
+				nativeTiledWatermarkText        string
 				nativePdfFormats                bool
 				merge                           bool
 				flatten                         bool
@@ -128,12 +138,61 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					maxImageResolution = intValue
 					return nil
 				}).
+				String("nativeWatermarkText", &nativeWatermarkText, defaultOptions.NativeWatermarkText).
+				Custom("nativeWatermarkColor", func(value string) error {
+					if value == "" {
+						nativeWatermarkColor = defaultOptions.NativeWatermarkColor
+						return nil
+					}
+					intValue, err := strconv.Atoi(value)
+					if err != nil {
+						return err
+					}
+					nativeWatermarkColor = intValue
+					return nil
+				}).
+				Custom("nativeWatermarkFontHeight", func(value string) error {
+					if value == "" {
+						nativeWatermarkFontHeight = defaultOptions.NativeWatermarkFontHeight
+						return nil
+					}
+					intValue, err := strconv.Atoi(value)
+					if err != nil {
+						return err
+					}
+					if intValue < 0 {
+						return errors.New("value is inferior to 0")
+					}
+					nativeWatermarkFontHeight = intValue
+					return nil
+				}).
+				Custom("nativeWatermarkRotateAngle", func(value string) error {
+					if value == "" {
+						nativeWatermarkRotateAngle = defaultOptions.NativeWatermarkRotateAngle
+						return nil
+					}
+					intValue, err := strconv.Atoi(value)
+					if err != nil {
+						return err
+					}
+					nativeWatermarkRotateAngle = intValue
+					return nil
+				}).
+				String("nativeWatermarkFontName", &nativeWatermarkFontName, defaultOptions.NativeWatermarkFontName).
+				String("nativeTiledWatermarkText", &nativeTiledWatermarkText, defaultOptions.NativeTiledWatermarkText).
 				Bool("nativePdfFormats", &nativePdfFormats, true).
 				Bool("merge", &merge, false).
 				Bool("flatten", &flatten, false).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			if (watermark.Source == gotenberg.StampSourceImage || watermark.Source == gotenberg.StampSourcePDF) && len(watermarkFiles) > 0 {
+				watermark.Expression = watermarkFiles[0]
+			}
+			if (stamp.Source == gotenberg.StampSourceImage || stamp.Source == gotenberg.StampSourcePDF) && len(stampFiles) > 0 {
+				stamp.Expression = stampFiles[0]
 			}
 
 			outputPaths := make([]string, len(inputPaths))
@@ -163,6 +222,12 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					Quality:                         quality,
 					ReduceImageResolution:           reduceImageResolution,
 					MaxImageResolution:              maxImageResolution,
+					NativeWatermarkText:             nativeWatermarkText,
+					NativeWatermarkColor:            nativeWatermarkColor,
+					NativeWatermarkFontHeight:       nativeWatermarkFontHeight,
+					NativeWatermarkRotateAngle:      nativeWatermarkRotateAngle,
+					NativeWatermarkFontName:         nativeWatermarkFontName,
+					NativeTiledWatermarkText:        nativeTiledWatermarkText,
 				}
 
 				if nativePdfFormats && splitMode == zeroValuedSplitMode {
@@ -251,6 +316,16 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				} else {
 					outputPaths = convertOutputPaths
 				}
+			}
+
+			err = pdfengines.WatermarkStub(ctx, engine, watermark, outputPaths)
+			if err != nil {
+				return fmt.Errorf("watermark PDFs: %w", err)
+			}
+
+			err = pdfengines.StampStub(ctx, engine, stamp, outputPaths)
+			if err != nil {
+				return fmt.Errorf("stamp PDFs: %w", err)
 			}
 
 			err = pdfengines.EmbedFilesStub(ctx, engine, embedPaths, outputPaths)

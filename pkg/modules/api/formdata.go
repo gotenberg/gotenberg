@@ -17,9 +17,15 @@ import (
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
-// EmbedsFormField represents the form field name for embedding files.
 const (
+	// EmbedsFormField represents the form field name for embedding files.
 	EmbedsFormField string = "embeds"
+
+	// WatermarksFormField represents the form field name for watermark files.
+	WatermarksFormField string = "watermarks"
+
+	// StampsFormField represents the form field name for stamp files.
+	StampsFormField string = "stamps"
 )
 
 // FormData is a helper for validating and hydrating values from a
@@ -406,14 +412,54 @@ func (form *FormData) MandatoryPaths(extensions []string, target *[]string) *For
 	return form
 }
 
+// Watermarks binds the absolute paths of form data files that should be
+// used as watermark sources. Only files uploaded with the "watermarks"
+// field name will be included.
+func (form *FormData) Watermarks(target *[]string) *FormData {
+	if form.errors != nil {
+		return form
+	}
+
+	if paths, ok := form.filesByField[WatermarksFormField]; ok {
+		*target = append(*target, paths...)
+	}
+
+	return form
+}
+
+// Stamps binds the absolute paths of form data files that should be
+// used as stamp sources. Only files uploaded with the "stamps"
+// field name will be included.
+func (form *FormData) Stamps(target *[]string) *FormData {
+	if form.errors != nil {
+		return form
+	}
+
+	if paths, ok := form.filesByField[StampsFormField]; ok {
+		*target = append(*target, paths...)
+	}
+
+	return form
+}
+
 // paths bind the absolute paths of form data files, according to a list of
 // file extensions, to a string slice variable.
-// embeds are excluded.
+// embeds, watermarks, and stamps are excluded.
 func (form *FormData) paths(extensions []string, target *[]string) *FormData {
 	embeds, ok := form.filesByField[EmbedsFormField]
+	watermarks, wmOk := form.filesByField[WatermarksFormField]
+	stamps, stOk := form.filesByField[StampsFormField]
 
 	for filename, path := range form.files {
 		if ok && slices.Contains(embeds, path) {
+			continue
+		}
+
+		if wmOk && slices.Contains(watermarks, path) {
+			continue
+		}
+
+		if stOk && slices.Contains(stamps, path) {
 			continue
 		}
 

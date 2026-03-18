@@ -988,6 +988,28 @@ Feature: /forms/chromium/convert/html
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be encrypted
 
+  @watermark
+  Scenario: POST /forms/chromium/convert/html (Watermark - Text)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files               | testdata/page-1-html/index.html | file  |
+      | watermarkSource     | text                            | field |
+      | watermarkExpression | CONFIDENTIAL                    | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
+  @stamp
+  Scenario: POST /forms/chromium/convert/html (Stamp - Text)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files           | testdata/page-1-html/index.html | file  |
+      | stampSource     | text                            | field |
+      | stampExpression | DRAFT                           | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
   @embed
   Scenario: POST /forms/chromium/convert/html (Embeds)
     Given I have a default Gotenberg container
@@ -1007,9 +1029,11 @@ Feature: /forms/chromium/convert/html
   # FIXME: once decrypt is done, add encrypt and check after the content of the PDF.
   @convert
   @metadata
+  @watermark
+  @stamp
   @flatten
   @embed
-  Scenario: POST /forms/chromium/convert/html (PDF/A-1b & PDF/UA-1 & Metadata & Flatten & Embeds)
+  Scenario: POST /forms/chromium/convert/html (PDF/A-1b & PDF/UA-1 & Metadata & Watermark & Stamp & Flatten & Embeds)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
       | files                     | testdata/page-1-html/index.html                                                                                                                                                                                                                                                                           | file   |
@@ -1025,7 +1049,7 @@ Feature: /forms/chromium/convert/html
     Then there should be 1 PDF(s) in the response
     Then there should be the following file(s) in the response:
       | foo.pdf |
-    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 9 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 11 failed rule(s)
     Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 2 failed rule(s)
     Then the response PDF(s) should be flatten
     Then the response PDF(s) should have the "embed_1.xml" file embedded

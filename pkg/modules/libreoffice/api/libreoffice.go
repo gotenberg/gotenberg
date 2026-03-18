@@ -302,6 +302,30 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 	args = append(args, "--export", fmt.Sprintf("ReduceImageResolution=%t", options.ReduceImageResolution))
 	args = append(args, "--export", fmt.Sprintf("MaxImageResolution=%d", options.MaxImageResolution))
 
+	if options.NativeWatermarkText != "" {
+		args = append(args, "--export", fmt.Sprintf("Watermark=%s", options.NativeWatermarkText))
+	}
+
+	if options.NativeWatermarkColor != 0 {
+		args = append(args, "--export", fmt.Sprintf("WatermarkColor=%d", options.NativeWatermarkColor))
+	}
+
+	if options.NativeWatermarkFontHeight > 0 {
+		args = append(args, "--export", fmt.Sprintf("WatermarkFontHeight=%d", options.NativeWatermarkFontHeight))
+	}
+
+	if options.NativeWatermarkRotateAngle != 0 {
+		args = append(args, "--export", fmt.Sprintf("WatermarkRotateAngle=%d", options.NativeWatermarkRotateAngle))
+	}
+
+	if options.NativeWatermarkFontName != "" && options.NativeWatermarkFontName != "Helvetica" {
+		args = append(args, "--export", fmt.Sprintf("WatermarkFontName=%s", options.NativeWatermarkFontName))
+	}
+
+	if options.NativeTiledWatermarkText != "" {
+		args = append(args, "--export", fmt.Sprintf("TiledWatermark=%s", options.NativeTiledWatermarkText))
+	}
+
 	switch options.PdfFormats.PdfA {
 	case "":
 	case gotenberg.PdfA1b:
