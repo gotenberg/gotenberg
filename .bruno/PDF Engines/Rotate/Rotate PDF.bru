@@ -1,0 +1,26 @@
+meta {
+  name: Rotate PDF
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/forms/pdfengines/rotate
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  files: @file(../../test/integration/testdata/page_1.pdf)
+  rotateAngle: 90
+  ~rotatePages: 1-2
+}
+
+headers {
+  ~Gotenberg-Output-Filename: rotated
+  ~Gotenberg-Webhook-Url: http://localhost:8080/webhook
+  ~Gotenberg-Webhook-Error-Url: http://localhost:8080/webhook/error
+  ~Gotenberg-Webhook-Method: POST
+  ~Gotenberg-Webhook-Error-Method: POST
+  ~Gotenberg-Webhook-Extra-Http-Headers: {"X-Custom":"value"}
+}

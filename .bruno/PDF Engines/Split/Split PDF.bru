@@ -1,0 +1,43 @@
+meta {
+  name: Split PDF
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/forms/pdfengines/split
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  files: @file(../../test/integration/testdata/pages_3.pdf)
+  splitMode: intervals
+  splitSpan: 1
+  ~splitUnify: false
+  ~flatten: false
+  ~pdfa: PDF/A-1b
+  ~pdfua: true
+  ~metadata: {"Author":"Bruno","Title":"Test"}
+  ~userPassword:
+  ~ownerPassword:
+  ~watermarkSource: text
+  ~watermarkExpression: CONFIDENTIAL
+  ~watermarkPages:
+  ~watermarkOptions: {"scale":"0.5 abs","rot":"45","fillcolor":"#FF0000"}
+  ~stampSource: text
+  ~stampExpression: DRAFT
+  ~stampPages:
+  ~stampOptions: {"scale":"0.5 abs","rot":"45"}
+  ~rotateAngle: 90
+  ~rotatePages:
+}
+
+headers {
+  ~Gotenberg-Output-Filename: split
+  ~Gotenberg-Webhook-Url: http://localhost:8080/webhook
+  ~Gotenberg-Webhook-Error-Url: http://localhost:8080/webhook/error
+  ~Gotenberg-Webhook-Method: POST
+  ~Gotenberg-Webhook-Error-Method: POST
+  ~Gotenberg-Webhook-Extra-Http-Headers: {"X-Custom":"value"}
+}

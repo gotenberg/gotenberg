@@ -1,0 +1,74 @@
+meta {
+  name: Convert to PDF
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/forms/libreoffice/convert
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  files: @file(../../test/integration/testdata/page_1.docx)
+  ~password:
+  ~landscape: false
+  ~nativePageRanges:
+  ~updateIndexes: false
+  ~exportFormFields: true
+  ~allowDuplicateFieldNames: false
+  ~exportBookmarks: true
+  ~exportBookmarksToPdfDestination: false
+  ~exportPlaceholders: false
+  ~exportNotes: false
+  ~exportNotesPages: false
+  ~exportOnlyNotesPages: false
+  ~exportNotesInMargin: false
+  ~convertOooTargetToPdfTarget: false
+  ~exportLinksRelativeFsys: false
+  ~exportHiddenSlides: false
+  ~skipEmptyPages: false
+  ~addOriginalDocumentAsStream: false
+  ~singlePageSheets: false
+  ~losslessImageCompression: false
+  ~quality: 90
+  ~reduceImageResolution: false
+  ~maxImageResolution: 300
+  ~nativeWatermarkText:
+  ~nativeWatermarkColor: 0
+  ~nativeWatermarkFontHeight: 0
+  ~nativeWatermarkRotateAngle: 0
+  ~nativeWatermarkFontName:
+  ~nativeTiledWatermarkText:
+  ~nativePdfFormats: true
+  ~merge: false
+  ~flatten: false
+  ~splitMode: intervals
+  ~splitSpan: 1
+  ~splitUnify: false
+  ~pdfa: PDF/A-1b
+  ~pdfua: true
+  ~metadata: {"Author":"Bruno","Title":"Test"}
+  ~userPassword:
+  ~ownerPassword:
+  ~watermarkSource: text
+  ~watermarkExpression: CONFIDENTIAL
+  ~watermarkPages:
+  ~watermarkOptions: {"scale":"0.5 abs","rot":"45","fillcolor":"#FF0000"}
+  ~stampSource: text
+  ~stampExpression: DRAFT
+  ~stampPages:
+  ~stampOptions: {"scale":"0.5 abs","rot":"45"}
+  ~rotateAngle: 90
+  ~rotatePages:
+}
+
+headers {
+  ~Gotenberg-Output-Filename: my-file
+  ~Gotenberg-Webhook-Url: http://localhost:8080/webhook
+  ~Gotenberg-Webhook-Error-Url: http://localhost:8080/webhook/error
+  ~Gotenberg-Webhook-Method: POST
+  ~Gotenberg-Webhook-Error-Method: POST
+  ~Gotenberg-Webhook-Extra-Http-Headers: {"X-Custom":"value"}
+}

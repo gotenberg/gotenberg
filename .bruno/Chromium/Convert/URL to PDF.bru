@@ -1,0 +1,72 @@
+meta {
+  name: URL to PDF
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/forms/chromium/convert/url
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  url: https://example.com
+  ~landscape: false
+  ~printBackground: false
+  ~scale: 1.0
+  ~singlePage: false
+  ~paperWidth: 8.5
+  ~paperHeight: 11
+  ~marginTop: 0.39
+  ~marginBottom: 0.39
+  ~marginLeft: 0.39
+  ~marginRight: 0.39
+  ~nativePageRanges: 1-2
+  ~preferCssPageSize: false
+  ~generateDocumentOutline: false
+  ~generateTaggedPdf: false
+  ~skipNetworkIdleEvent: false
+  ~failOnHttpStatusCodes: [499,599]
+  ~failOnResourceHttpStatusCodes: []
+  ~ignoreResourceHttpStatusDomains: []
+  ~failOnResourceLoadingFailed: false
+  ~failOnConsoleExceptions: false
+  ~waitDelay: 0s
+  ~waitWindowStatus:
+  ~waitForExpression:
+  ~waitForSelector:
+  ~cookies: [{"name":"my_cookie","value":"my_value","domain":"example.com"}]
+  ~userAgent:
+  ~extraHttpHeaders: {"X-Custom-Header":"value"}
+  ~emulatedMediaType: print
+  ~emulatedMediaFeatures: {"prefers-color-scheme":"dark"}
+  ~omitBackground: false
+  ~splitMode: intervals
+  ~splitSpan: 1
+  ~splitUnify: false
+  ~pdfa: PDF/A-1b
+  ~pdfua: true
+  ~metadata: {"Author":"Bruno","Title":"Test"}
+  ~userPassword:
+  ~ownerPassword:
+  ~watermarkSource: text
+  ~watermarkExpression: CONFIDENTIAL
+  ~watermarkPages:
+  ~watermarkOptions: {"scale":"0.5 abs","rot":"45","fillcolor":"#FF0000"}
+  ~stampSource: text
+  ~stampExpression: DRAFT
+  ~stampPages:
+  ~stampOptions: {"scale":"0.5 abs","rot":"45"}
+  ~rotateAngle: 90
+  ~rotatePages:
+}
+
+headers {
+  ~Gotenberg-Output-Filename: my-file
+  ~Gotenberg-Webhook-Url: http://localhost:8080/webhook
+  ~Gotenberg-Webhook-Error-Url: http://localhost:8080/webhook/error
+  ~Gotenberg-Webhook-Method: POST
+  ~Gotenberg-Webhook-Error-Method: POST
+  ~Gotenberg-Webhook-Extra-Http-Headers: {"X-Custom":"value"}
+}

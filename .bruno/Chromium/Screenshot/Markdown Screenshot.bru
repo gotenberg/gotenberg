@@ -1,0 +1,47 @@
+meta {
+  name: Markdown Screenshot
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/forms/chromium/screenshot/markdown
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  files: @file(../../test/integration/testdata/page-1-markdown/index.html)
+  files: @file(../../test/integration/testdata/page-1-markdown/page_1.md)
+  ~width: 800
+  ~height: 600
+  ~clip: false
+  ~format: png
+  ~quality: 100
+  ~optimizeForSpeed: false
+  ~skipNetworkIdleEvent: false
+  ~failOnHttpStatusCodes: [499,599]
+  ~failOnResourceHttpStatusCodes: []
+  ~ignoreResourceHttpStatusDomains: []
+  ~failOnResourceLoadingFailed: false
+  ~failOnConsoleExceptions: false
+  ~waitDelay: 0s
+  ~waitWindowStatus:
+  ~waitForExpression:
+  ~waitForSelector:
+  ~cookies: [{"name":"my_cookie","value":"my_value","domain":"example.com"}]
+  ~userAgent:
+  ~extraHttpHeaders: {"X-Custom-Header":"value"}
+  ~emulatedMediaType: screen
+  ~emulatedMediaFeatures: {"prefers-color-scheme":"dark"}
+  ~omitBackground: false
+}
+
+headers {
+  ~Gotenberg-Output-Filename: my-screenshot
+  ~Gotenberg-Webhook-Url: http://localhost:8080/webhook
+  ~Gotenberg-Webhook-Error-Url: http://localhost:8080/webhook/error
+  ~Gotenberg-Webhook-Method: POST
+  ~Gotenberg-Webhook-Error-Method: POST
+  ~Gotenberg-Webhook-Extra-Http-Headers: {"X-Custom":"value"}
+}

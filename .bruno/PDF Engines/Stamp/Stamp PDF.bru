@@ -1,0 +1,28 @@
+meta {
+  name: Stamp PDF
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/forms/pdfengines/stamp
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  files: @file(../../test/integration/testdata/page_1.pdf)
+  stampSource: text
+  stampExpression: APPROVED
+  ~stampPages: 1-2
+  ~stampOptions: {"font":"Helvetica","fontSize":"48","color":"#00FF00","opacity":"0.5","rotation":"0"}
+}
+
+headers {
+  ~Gotenberg-Output-Filename: stamped
+  ~Gotenberg-Webhook-Url: http://localhost:8080/webhook
+  ~Gotenberg-Webhook-Error-Url: http://localhost:8080/webhook/error
+  ~Gotenberg-Webhook-Method: POST
+  ~Gotenberg-Webhook-Error-Method: POST
+  ~Gotenberg-Webhook-Extra-Http-Headers: {"X-Custom":"value"}
+}
