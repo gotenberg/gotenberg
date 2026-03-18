@@ -264,6 +264,11 @@ func (engine *ExifTool) Stamp(ctx context.Context, logger *zap.Logger, inputPath
 	return fmt.Errorf("stamp PDF with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// Rotate is not available in this implementation.
+func (engine *ExifTool) Rotate(ctx context.Context, logger *zap.Logger, inputPath string, angle int, pages string) error {
+	return fmt.Errorf("rotate PDF with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*ExifTool)(nil)

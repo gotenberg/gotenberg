@@ -166,6 +166,56 @@ func FormDataPdfBookmarks(form *api.FormData, mandatory bool) any {
 	return bookmarks
 }
 
+// FormDataPdfRotate creates rotation parameters from the form data.
+func FormDataPdfRotate(form *api.FormData, mandatory bool) (int, string) {
+	var angle int
+	var pages string
+
+	angleFunc := func(value string) error {
+		if value == "" {
+			return nil
+		}
+		v, err := strconv.Atoi(value)
+		if err != nil {
+			return err
+		}
+		if v != 90 && v != 180 && v != 270 {
+			return errors.New("wrong value, expected 90, 180, or 270")
+		}
+		angle = v
+		return nil
+	}
+
+	if mandatory {
+		form.MandatoryCustom("rotateAngle", func(value string) error {
+			return angleFunc(value)
+		})
+	} else {
+		form.Custom("rotateAngle", func(value string) error {
+			return angleFunc(value)
+		})
+	}
+	form.String("rotatePages", &pages, "")
+
+	return angle, pages
+}
+
+// RotateStub rotates pages of PDF files. If angle is 0, it does nothing.
+func RotateStub(ctx *api.Context, engine gotenberg.PdfEngine, angle int, pages string, inputPaths []string) error {
+	if angle == 0 {
+		return nil
+	}
+
+	for _, inputPath := range inputPaths {
+		err := engine.Rotate(ctx, ctx.Log(), inputPath, angle, pages)
+		if err != nil {
+			return fmt.Errorf("rotate '%s': %w", inputPath, err)
+		}
+	}
+
+	return nil
+}
+
 // ValidatePdfFormatsCompat checks for incompatible combinations of PDF formats
 // with other features and returns an appropriate error if found.
 func ValidatePdfFormatsCompat(pdfFormats gotenberg.PdfFormats, userPassword string, embedPaths []string) error {
@@ -561,6 +611,7 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			watermarkFiles := FormDataPdfWatermarkFiles(form)
 			stamp := FormDataPdfStamp(form, false)
 			stampFiles := FormDataPdfStampFiles(form)
+			angle, rotatePages := FormDataPdfRotate(form, false)
 
 			var inputPaths []string
 			var flatten bool
@@ -602,6 +653,11 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			err = StampStub(ctx, engine, stamp, outputPaths)
 			if err != nil {
 				return fmt.Errorf("stamp PDFs: %w", err)
+			}
+
+			err = RotateStub(ctx, engine, angle, rotatePages, outputPaths)
+			if err != nil {
+				return fmt.Errorf("rotate PDFs: %w", err)
 			}
 
 			if flatten {
@@ -706,6 +762,7 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 			watermarkFiles := FormDataPdfWatermarkFiles(form)
 			stamp := FormDataPdfStamp(form, false)
 			stampFiles := FormDataPdfStampFiles(form)
+			angle, rotatePages := FormDataPdfRotate(form, false)
 
 			var inputPaths []string
 			var flatten bool
@@ -742,6 +799,11 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 			err = StampStub(ctx, engine, stamp, outputPaths)
 			if err != nil {
 				return fmt.Errorf("stamp PDFs: %w", err)
+			}
+
+			err = RotateStub(ctx, engine, angle, rotatePages, outputPaths)
+			if err != nil {
+				return fmt.Errorf("rotate PDFs: %w", err)
 			}
 
 			if flatten {
@@ -1205,6 +1267,41 @@ func stampRoute(engine gotenberg.PdfEngine) api.Route {
 			err = StampStub(ctx, engine, stamp, inputPaths)
 			if err != nil {
 				return fmt.Errorf("stamp PDFs: %w", err)
+			}
+
+			err = ctx.AddOutputPaths(inputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
+			}
+
+			return nil
+		},
+	}
+}
+
+// rotateRoute returns an [api.Route] which can rotate pages of PDFs.
+func rotateRoute(engine gotenberg.PdfEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/rotate",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			form := ctx.FormData()
+			angle, pages := FormDataPdfRotate(form, true)
+
+			var inputPaths []string
+			err := form.
+				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			err = RotateStub(ctx, engine, angle, pages, inputPaths)
+			if err != nil {
+				return fmt.Errorf("rotate PDFs: %w", err)
 			}
 
 			err = ctx.AddOutputPaths(inputPaths...)

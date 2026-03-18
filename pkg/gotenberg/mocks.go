@@ -59,6 +59,7 @@ type PdfEngineMock struct {
 	WriteBookmarksMock func(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []Bookmark) error
 	WatermarkMock      func(ctx context.Context, logger *zap.Logger, inputPath string, stamp Stamp) error
 	StampMock          func(ctx context.Context, logger *zap.Logger, inputPath string, stamp Stamp) error
+	RotateMock         func(ctx context.Context, logger *zap.Logger, inputPath string, angle int, pages string) error
 }
 
 func (engine *PdfEngineMock) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
@@ -111,6 +112,10 @@ func (engine *PdfEngineMock) Watermark(ctx context.Context, logger *zap.Logger, 
 
 func (engine *PdfEngineMock) Stamp(ctx context.Context, logger *zap.Logger, inputPath string, stamp Stamp) error {
 	return engine.StampMock(ctx, logger, inputPath, stamp)
+}
+
+func (engine *PdfEngineMock) Rotate(ctx context.Context, logger *zap.Logger, inputPath string, angle int, pages string) error {
+	return engine.RotateMock(ctx, logger, inputPath, angle, pages)
 }
 
 // PdfEngineProviderMock is a mock for the [PdfEngineProvider] interface.

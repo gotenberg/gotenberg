@@ -261,6 +261,47 @@ func (engine *PdfTk) Stamp(ctx context.Context, logger *zap.Logger, inputPath st
 	return nil
 }
 
+// Rotate rotates all pages of a PDF file by the given angle using PDFtk.
+// Page-specific rotation is not supported; if pages is non-empty,
+// ErrPdfEngineMethodNotSupported is returned.
+func (engine *PdfTk) Rotate(ctx context.Context, logger *zap.Logger, inputPath string, angle int, pages string) error {
+	if pages != "" {
+		return fmt.Errorf("rotate PDF with PDFtk (page-specific rotation): %w", gotenberg.ErrPdfEngineMethodNotSupported)
+	}
+
+	var direction string
+	switch angle {
+	case 90:
+		direction = "east"
+	case 180:
+		direction = "south"
+	case 270:
+		direction = "west"
+	default:
+		return fmt.Errorf("rotate PDF with PDFtk: %w", gotenberg.ErrPdfRotateAngleNotSupported)
+	}
+
+	tmpPath := inputPath + ".tmp"
+	args := []string{inputPath, "cat", "1-end" + direction, "output", tmpPath}
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		return fmt.Errorf("create command: %w", err)
+	}
+
+	_, err = cmd.Exec()
+	if err != nil {
+		return fmt.Errorf("rotate PDF with PDFtk: %w", err)
+	}
+
+	err = os.Rename(tmpPath, inputPath)
+	if err != nil {
+		return fmt.Errorf("rename temporary output file with input file: %w", err)
+	}
+
+	return nil
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*PdfTk)(nil)

@@ -32,6 +32,10 @@ var (
 	// ErrPdfStampSourceNotSupported is returned when a stamp source type
 	// is not supported by the PDF engine.
 	ErrPdfStampSourceNotSupported = errors.New("stamp source not supported")
+
+	// ErrPdfRotateAngleNotSupported is returned when the rotation angle is
+	// not supported.
+	ErrPdfRotateAngleNotSupported = errors.New("rotation angle not supported")
 )
 
 // PdfEngineInvalidArgsError represents an error returned by a PDF engine when
@@ -203,6 +207,10 @@ type PdfEngine interface {
 
 	// Stamp applies a stamp (on top of page content) to a PDF file.
 	Stamp(ctx context.Context, logger *zap.Logger, inputPath string, stamp Stamp) error
+
+	// Rotate rotates pages of a PDF file by the given angle (90, 180, 270).
+	// If pages is empty, all pages are rotated.
+	Rotate(ctx context.Context, logger *zap.Logger, inputPath string, angle int, pages string) error
 }
 
 // PdfEngineProvider offers an interface to instantiate a [PdfEngine].

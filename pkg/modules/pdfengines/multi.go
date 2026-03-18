@@ -24,6 +24,7 @@ type multiPdfEngines struct {
 	writeBookmarksEngines []gotenberg.PdfEngine
 	watermarkEngines      []gotenberg.PdfEngine
 	stampEngines          []gotenberg.PdfEngine
+	rotateEngines         []gotenberg.PdfEngine
 }
 
 func newMultiPdfEngines(
@@ -38,7 +39,8 @@ func newMultiPdfEngines(
 	readBookmarksEngines,
 	writeBookmarksEngines,
 	watermarkEngines,
-	stampEngines []gotenberg.PdfEngine,
+	stampEngines,
+	rotateEngines []gotenberg.PdfEngine,
 ) *multiPdfEngines {
 	return &multiPdfEngines{
 		mergeEngines:          mergeEngines,
@@ -53,6 +55,7 @@ func newMultiPdfEngines(
 		writeBookmarksEngines: writeBookmarksEngines,
 		watermarkEngines:      watermarkEngines,
 		stampEngines:          stampEngines,
+		rotateEngines:         rotateEngines,
 	}
 }
 
@@ -423,6 +426,31 @@ func (multi *multiPdfEngines) Stamp(ctx context.Context, logger *zap.Logger, inp
 	}
 
 	return fmt.Errorf("stamp PDF with multi PDF engines: %w", err)
+}
+
+// Rotate rotates pages of a PDF file using the first available engine that
+// supports rotation.
+func (multi *multiPdfEngines) Rotate(ctx context.Context, logger *zap.Logger, inputPath string, angle int, pages string) error {
+	var err error
+	errChan := make(chan error, 1)
+
+	for _, engine := range multi.rotateEngines {
+		go func(engine gotenberg.PdfEngine) {
+			errChan <- engine.Rotate(ctx, logger, inputPath, angle, pages)
+		}(engine)
+
+		select {
+		case rotateErr := <-errChan:
+			errored := multierr.AppendInto(&err, rotateErr)
+			if !errored {
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	return fmt.Errorf("rotate PDF with multi PDF engines: %w", err)
 }
 
 // Interface guards.

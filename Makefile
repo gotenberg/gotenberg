@@ -69,6 +69,7 @@ PDFENGINES_WRITE_BOOKMARKS_ENGINES=pdfcpu
 PDFENGINES_WATERMARK_ENGINES=pdfcpu,pdftk
 PDFENGINES_STAMP_ENGINES=pdfcpu,pdftk
 PDFENGINES_ENCRYPT_ENGINES=qpdf,pdfcpu,pdftk
+PDFENGINES_ROTATE_ENGINES=pdfcpu,pdftk
 PDFENGINES_EMBED_ENGINES=pdfcpu
 PROMETHEUS_NAMESPACE=gotenberg
 PROMETHEUS_COLLECT_INTERVAL=1s
@@ -151,6 +152,7 @@ run: ## Start a Gotenberg container
 	--pdfengines-watermark-engines=$(PDFENGINES_WATERMARK_ENGINES) \
 	--pdfengines-stamp-engines=$(PDFENGINES_STAMP_ENGINES) \
 	--pdfengines-encrypt-engines=$(PDFENGINES_ENCRYPT_ENGINES) \
+	--pdfengines-rotate-engines=$(PDFENGINES_ROTATE_ENGINES) \
 	--pdfengines-embed-engines=$(PDFENGINES_EMBED_ENGINES) \
 	--prometheus-namespace=$(PROMETHEUS_NAMESPACE) \
 	--prometheus-collect-interval=$(PROMETHEUS_COLLECT_INTERVAL) \
@@ -203,6 +205,8 @@ NO_CONCURRENCY=false
 # watermark
 # pdfengines-stamp
 # stamp
+# pdfengines-rotate
+# rotate
 # pdfengines-bookmarks
 # bookmarks
 # prometheus-metrics

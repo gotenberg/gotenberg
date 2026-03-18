@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -387,6 +388,27 @@ func (engine *PdfCpu) Watermark(ctx context.Context, logger *zap.Logger, inputPa
 // Stamp applies a stamp (on top of page content) to a PDF file using pdfcpu.
 func (engine *PdfCpu) Stamp(ctx context.Context, logger *zap.Logger, inputPath string, stamp gotenberg.Stamp) error {
 	return engine.applyStampOrWatermark(ctx, logger, "stamp", inputPath, stamp)
+}
+
+// Rotate rotates pages of a PDF file by the given angle using pdfcpu.
+func (engine *PdfCpu) Rotate(ctx context.Context, logger *zap.Logger, inputPath string, angle int, pages string) error {
+	args := []string{"rotate"}
+	if pages != "" {
+		args = append(args, "-pages", pages)
+	}
+	args = append(args, "--", inputPath, strconv.Itoa(angle), inputPath)
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		return fmt.Errorf("create command: %w", err)
+	}
+
+	_, err = cmd.Exec()
+	if err != nil {
+		return fmt.Errorf("rotate PDF with pdfcpu: %w", err)
+	}
+
+	return nil
 }
 
 func (engine *PdfCpu) applyStampOrWatermark(ctx context.Context, logger *zap.Logger, command string, inputPath string, stamp gotenberg.Stamp) error {

@@ -36,6 +36,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			watermarkFiles := pdfengines.FormDataPdfWatermarkFiles(form)
 			stamp := pdfengines.FormDataPdfStamp(form, false)
 			stampFiles := pdfengines.FormDataPdfStampFiles(form)
+			angle, rotatePages := pdfengines.FormDataPdfRotate(form, false)
 
 			zeroValuedSplitMode := gotenberg.SplitMode{}
 
@@ -200,7 +201,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				return err
 			}
 
-			hasPostProcessing := watermark.Source != "" || stamp.Source != "" ||
+			hasPostProcessing := watermark.Source != "" || stamp.Source != "" || angle != 0 ||
 				len(embedPaths) > 0 || len(metadata) > 0 || flatten
 
 			outputPaths := make([]string, len(inputPaths))
@@ -315,6 +316,11 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			err = pdfengines.StampStub(ctx, engine, stamp, outputPaths)
 			if err != nil {
 				return fmt.Errorf("stamp PDFs: %w", err)
+			}
+
+			err = pdfengines.RotateStub(ctx, engine, angle, rotatePages, outputPaths)
+			if err != nil {
+				return fmt.Errorf("rotate PDFs: %w", err)
 			}
 
 			if flatten {

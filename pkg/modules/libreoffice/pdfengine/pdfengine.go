@@ -126,6 +126,11 @@ func (engine *LibreOfficePdfEngine) Stamp(ctx context.Context, logger *zap.Logge
 	return fmt.Errorf("stamp PDF with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// Rotate is not available in this implementation.
+func (engine *LibreOfficePdfEngine) Rotate(ctx context.Context, logger *zap.Logger, inputPath string, angle int, pages string) error {
+	return fmt.Errorf("rotate PDF with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*LibreOfficePdfEngine)(nil)

@@ -419,6 +419,7 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			watermarkFiles := pdfengines.FormDataPdfWatermarkFiles(form)
 			stamp := pdfengines.FormDataPdfStamp(form, false)
 			stampFiles := pdfengines.FormDataPdfStampFiles(form)
+			rotateAngle, rotatePages := pdfengines.FormDataPdfRotate(form, false)
 
 			var url string
 			err := form.
@@ -435,7 +436,7 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 				stamp.Expression = stampFiles[0]
 			}
 
-			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword, embedPaths, watermark, stamp)
+			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword, embedPaths, watermark, stamp, rotateAngle, rotatePages)
 			if err != nil {
 				return fmt.Errorf("convert URL to PDF: %w", err)
 			}
@@ -493,6 +494,7 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			watermarkFiles := pdfengines.FormDataPdfWatermarkFiles(form)
 			stamp := pdfengines.FormDataPdfStamp(form, false)
 			stampFiles := pdfengines.FormDataPdfStampFiles(form)
+			rotateAngle, rotatePages := pdfengines.FormDataPdfRotate(form, false)
 
 			var inputPath string
 			err := form.
@@ -510,7 +512,7 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			}
 
 			url := fmt.Sprintf("file://%s", inputPath)
-			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword, embedPaths, watermark, stamp)
+			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword, embedPaths, watermark, stamp, rotateAngle, rotatePages)
 			if err != nil {
 				return fmt.Errorf("convert HTML to PDF: %w", err)
 			}
@@ -569,6 +571,7 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			watermarkFiles := pdfengines.FormDataPdfWatermarkFiles(form)
 			stamp := pdfengines.FormDataPdfStamp(form, false)
 			stampFiles := pdfengines.FormDataPdfStampFiles(form)
+			rotateAngle, rotatePages := pdfengines.FormDataPdfRotate(form, false)
 
 			var (
 				inputPath     string
@@ -595,7 +598,7 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("transform markdown file(s) to HTML: %w", err)
 			}
 
-			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword, embedPaths, watermark, stamp)
+			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword, embedPaths, watermark, stamp, rotateAngle, rotatePages)
 			if err != nil {
 				return fmt.Errorf("convert markdown to PDF: %w", err)
 			}
@@ -719,7 +722,7 @@ func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) 
 	return fmt.Sprintf("file://%s", inputPath), nil
 }
 
-func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, options PdfOptions, mode gotenberg.SplitMode, pdfFormats gotenberg.PdfFormats, metadata map[string]any, userPassword, ownerPassword string, embedPaths []string, watermark, stamp gotenberg.Stamp) error {
+func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, options PdfOptions, mode gotenberg.SplitMode, pdfFormats gotenberg.PdfFormats, metadata map[string]any, userPassword, ownerPassword string, embedPaths []string, watermark, stamp gotenberg.Stamp, rotateAngle int, rotatePages string) error {
 	outputPath := ctx.GeneratePath(".pdf")
 	// See https://github.com/gotenberg/gotenberg/issues/1130.
 	filename := ctx.OutputFilename(outputPath)
@@ -799,6 +802,11 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 	err = pdfengines.StampStub(ctx, engine, stamp, outputPaths)
 	if err != nil {
 		return fmt.Errorf("stamp PDFs: %w", err)
+	}
+
+	err = pdfengines.RotateStub(ctx, engine, rotateAngle, rotatePages, outputPaths)
+	if err != nil {
+		return fmt.Errorf("rotate PDFs: %w", err)
 	}
 
 	convertOutputPaths, err := pdfengines.ConvertStub(ctx, engine, pdfFormats, outputPaths)

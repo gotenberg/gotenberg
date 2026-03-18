@@ -425,6 +425,17 @@ Feature: /forms/pdfengines/merge
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
 
+  @rotate
+  Scenario: POST /forms/pdfengines/merge (Rotate 90)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files       | testdata/page_1.pdf | file  |
+      | files       | testdata/page_2.pdf | file  |
+      | rotateAngle | 90                  | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
   @embed
   Scenario: POST /foo/forms/pdfengines/merge (Embeds)
     Given I have a default Gotenberg container
@@ -443,10 +454,11 @@ Feature: /forms/pdfengines/merge
   @metadata
   @watermark
   @stamp
+  @rotate
   @flatten
   @embed
   @bookmarks
-  Scenario: POST /forms/pdfengines/merge (PDF/A-3b & PDF/UA-1 & Metadata & Watermark & Stamp & Flatten & Embeds & Bookmarks)
+  Scenario: POST /forms/pdfengines/merge (PDF/A-3b & PDF/UA-1 & Metadata & Watermark & Stamp & Rotate & Flatten & Embeds & Bookmarks)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
       | files                     | testdata/page_1.pdf                                                                                                                                                                                                                                                                                       | file   |
@@ -458,6 +470,7 @@ Feature: /forms/pdfengines/merge
       | watermarkExpression       | CONFIDENTIAL                                                                                                                                                                                                                                                                                              | field  |
       | stampSource               | text                                                                                                                                                                                                                                                                                                      | field  |
       | stampExpression           | DRAFT                                                                                                                                                                                                                                                                                                     | field  |
+      | rotateAngle               | 90                                                                                                                                                                                                                                                                                                        | field  |
       | bookmarks                 | [{"title":"Merged Index","page":1}]                                                                                                                                                                                                                                                                       | field  |
       | flatten                   | true                                                                                                                                                                                                                                                                                                      | field  |
       | embeds                    | testdata/embed_1.xml                                                                                                                                                                                                                                                                                      | file   |

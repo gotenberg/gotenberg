@@ -231,6 +231,11 @@ func (engine *QPdf) Stamp(ctx context.Context, logger *zap.Logger, inputPath str
 	return fmt.Errorf("stamp PDF with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// Rotate is not available in this implementation.
+func (engine *QPdf) Rotate(ctx context.Context, logger *zap.Logger, inputPath string, angle int, pages string) error {
+	return fmt.Errorf("rotate PDF with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 var (
 	_ gotenberg.Module      = (*QPdf)(nil)
 	_ gotenberg.Provisioner = (*QPdf)(nil)

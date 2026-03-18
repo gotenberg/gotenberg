@@ -499,6 +499,18 @@ Feature: /forms/pdfengines/split
     Then the response header "Content-Type" should be "application/zip"
     Then there should be 2 PDF(s) in the response
 
+  @rotate
+  Scenario: POST /forms/pdfengines/split (Rotate 90)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
+      | files       | testdata/pages_3.pdf | file  |
+      | splitMode   | intervals            | field |
+      | splitSpan   | 2                    | field |
+      | rotateAngle | 90                   | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+
   @embed
   Scenario: POST /foo/forms/pdfengines/split (Embeds)
     Given I have a default Gotenberg container
@@ -522,9 +534,10 @@ Feature: /forms/pdfengines/split
   @metadata
   @watermark
   @stamp
+  @rotate
   @flatten
   @embed
-  Scenario: POST /forms/pdfengines/split (PDF/A-3b & PDF/UA-1 & Metadata & Watermark & Stamp & Flatten & Embeds)
+  Scenario: POST /forms/pdfengines/split (PDF/A-3b & PDF/UA-1 & Metadata & Watermark & Stamp & Rotate & Flatten & Embeds)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
       | files               | testdata/pages_3.pdf                                                                                                                                                                                                                                                                                      | file  |
@@ -537,6 +550,7 @@ Feature: /forms/pdfengines/split
       | watermarkExpression | CONFIDENTIAL                                                                                                                                                                                                                                                                                              | field |
       | stampSource         | text                                                                                                                                                                                                                                                                                                      | field |
       | stampExpression     | DRAFT                                                                                                                                                                                                                                                                                                     | field |
+      | rotateAngle         | 90                                                                                                                                                                                                                                                                                                        | field |
       | flatten             | true                                                                                                                                                                                                                                                                                                      | field |
       | embeds              | testdata/embed_1.xml                                                                                                                                                                                                                                                                                      | file  |
       | embeds              | testdata/embed_2.xml                                                                                                                                                                                                                                                                                      | file  |
