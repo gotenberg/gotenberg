@@ -329,11 +329,11 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 	switch options.PdfFormats.PdfA {
 	case "":
 	case gotenberg.PdfA1b:
-		args = append(args, "--export", "SelectPdfVersion=1")
+		args = append(args, "--export", "SelectPdfVersion=1", "--export", "EmbedStandardFonts=true")
 	case gotenberg.PdfA2b:
-		args = append(args, "--export", "SelectPdfVersion=2")
+		args = append(args, "--export", "SelectPdfVersion=2", "--export", "EmbedStandardFonts=true")
 	case gotenberg.PdfA3b:
-		args = append(args, "--export", "SelectPdfVersion=3")
+		args = append(args, "--export", "SelectPdfVersion=3", "--export", "EmbedStandardFonts=true")
 	default:
 		return ErrInvalidPdfFormats
 	}
@@ -344,6 +344,7 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *zap.Logger, inputP
 			"--export", "PDFUACompliance=true",
 			"--export", "UseTaggedPDF=true",
 			"--export", "EnableTextAccessForAccessibilityTools=true",
+			"--export", "EmbedStandardFonts=true",
 		)
 	} else {
 		args = append(
