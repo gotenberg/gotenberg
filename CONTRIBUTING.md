@@ -4,13 +4,7 @@ Thank you for your interest in contributing to Gotenberg! This guide will help y
 
 ## Before You Start
 
-Please read the [AGENTS.md](AGENTS.md) file — it describes the core principles, project layout, and development standards that all contributions must follow. Even though it is written for AI agents, the same rules apply to human contributors.
-
-For deeper context on specific areas, see the personas in `.agents/`:
-
-- **[DEVELOPER](.agents/DEVELOPER.md)** — Makefile workflow, module system, coding patterns.
-- **[TESTER](.agents/TESTER.md)** — How to write integration and unit tests.
-- **[REVIEWER](.agents/REVIEWER.md)** — What reviewers look for (useful to check before submitting).
+Please read the [AGENTS.md](AGENTS.md) file — it describes the core principles, project layout, development standards, integration test reference, review checklist, and Bruno collection guidelines that all contributions must follow.
 
 ## Getting Started
 
