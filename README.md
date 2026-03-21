@@ -1,7 +1,7 @@
 <p align="center">
     <img src="https://user-images.githubusercontent.com/8983173/130322857-185831e2-f041-46eb-a17f-0a69d066c4e5.png" alt="Gotenberg Logo" width="150" height="150" />
     <h3 align="center">Gotenberg</h3>
-    <p align="center">A containerized API for seamless PDF conversion</p>
+    <p align="center">A Docker-based API for converting documents to PDF</p>
     <p align="center">
         <a href="https://hub.docker.com/r/gotenberg/gotenberg"><img alt="Total downloads (gotenberg/gotenberg)" src="https://img.shields.io/docker/pulls/gotenberg/gotenberg"></a>
         <a href="https://github.com/gotenberg/gotenberg/actions/workflows/continuous-integration.yml"><img alt="Continuous Integration" src="https://github.com/gotenberg/gotenberg/actions/workflows/continuous-integration.yml/badge.svg"></a>
@@ -10,33 +10,54 @@
     <p align="center">
         <a href="https://trendshift.io/repositories/2996"><img src="https://trendshift.io/api/badge/repositories/2996" alt="gotenberg%2Fgotenberg | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
     </p>
-    <p align="center"><a href="https://gotenberg.dev/docs/getting-started/introduction">Read the Documentation</a> &#183; <a href="https://gotenberg.dev/docs/getting-started/installation#live-demo-">Try the Live Demo</a> 🔥</p>
+    <p align="center">
+        <a href="https://gotenberg.dev/docs/getting-started/introduction"><strong>Documentation</strong></a> &#183;
+        <a href="https://gotenberg.dev/docs/getting-started/installation#live-demo"><strong>Live Demo</strong></a> &#183;
+        <a href="https://github.com/gotenberg/gotenberg/discussions"><strong>Community</strong></a>
+    </p>
 </p>
 
 ---
 
-**Gotenberg** is a containerized API that abstracts the complexity of PDF conversion.
+**Gotenberg** is a Docker-based API for converting documents to PDF. Trusted in production by thousands of companies. Also adopted by notable open-source projects.
 
-It provides a `multipart/form-data` interface for interacting with powerful engines like Chromium and LibreOffice.
-Instead of managing heavy dependencies, browser versions, or fonts in your own backend, simply send your files to
-Gotenberg and get a PDF in return.
+Send your files via `multipart/form-data`, get a PDF back. No need to manage Chromium, LibreOffice, or fonts yourself.
 
 ## Quick Start
-
-Open a terminal and run the following command:
 
 ```bash
 docker run --rm -p 3000:3000 gotenberg/gotenberg:8
 ```
 
-With the API running at `http://localhost:3000`, you are now ready to head
-to the **[Full Documentation](https://gotenberg.dev/docs/getting-started/introduction)** to discover how to convert URLs,
-local files, inject custom CSS, merge PDFs, and more.
+Convert a URL to PDF:
+
+```bash
+curl \
+  --request POST http://localhost:3000/forms/chromium/convert/url \
+  --form url=https://sparksuite.github.io/simple-html-invoice-template/ \
+  -o invoice.pdf
+```
+
+## Features
+
+- **HTML, URL, Markdown to PDF** via Headless Chromium
+- **Office documents to PDF** via LibreOffice (100+ formats)
+- **Merge, split, rotate, flatten** PDFs
+- **Watermark, stamp, encrypt** PDFs
+- **PDF/A and PDF/UA** compliance
+- **Screenshots** of URLs and HTML
+- **Read/write metadata and bookmarks**
+
+See the [full documentation](https://gotenberg.dev/docs/getting-started/introduction).
+
+## Contributing
+
+Questions and feedback: [GitHub Discussions](https://github.com/gotenberg/gotenberg/discussions).
+Bug reports: [GitHub Issues](https://github.com/gotenberg/gotenberg/issues).
 
 ## Sponsors
 
-Open-source development takes a significant amount of time, energy, and dedication. If Gotenberg helps streamline your
-workflow or powers your business, please consider supporting its continuous improvement by [**becoming a sponsor**](https://github.com/sponsors/gulien)! ❤️
+If Gotenberg powers your workflow or your business, consider [**becoming a sponsor**](https://github.com/sponsors/gulien).
 
 **Historic & GitHub Sponsors**
 
