@@ -5,8 +5,8 @@ go 1.26.0
 require (
 	github.com/alexliesenfeld/health v0.8.1
 	github.com/barasher/go-exiftool v1.10.0
-	github.com/chromedp/cdproto v0.0.0-20250803210736-d308e07a266d
-	github.com/chromedp/chromedp v0.14.2
+	github.com/chromedp/cdproto v0.0.0-20260320225252-cf654f46fc63
+	github.com/chromedp/chromedp v0.15.0
 	github.com/cucumber/godog v0.15.1
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/docker/docker v28.5.2+incompatible
