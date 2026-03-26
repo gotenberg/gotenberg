@@ -2,10 +2,6 @@
 
 Thank you for your interest in contributing to Gotenberg! This guide will help you get started.
 
-## Before You Start
-
-Please read the [AGENTS.md](AGENTS.md) file — it describes the core principles, project layout, development standards, integration test reference, review checklist, and Bruno collection guidelines that all contributions must follow.
-
 ## Getting Started
 
 ### Prerequisites
@@ -61,3 +57,14 @@ Before opening a PR, verify:
 - **Backward compatibility matters.** Do not rename or remove existing CLI flags, environment variables, or API form fields without discussion.
 - **Integration tests first.** When adding a feature or route, start by writing the Gherkin scenario in `test/integration/features/`.
 - **No business logic in `cmd/`.** All logic belongs in `pkg/`.
+
+## Detailed Guidelines
+
+The [`AGENTS.md`](AGENTS.md) files contain comprehensive guidelines used by both human contributors and AI-assisted tools:
+
+| File                                                                   | What it covers                                                                                                            |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| [`AGENTS.md`](AGENTS.md)                                               | Core principles, mandatory workflow, project layout, coding patterns, module system, Makefile reference, review checklist |
+| [`test/integration/AGENTS.md`](test/integration/AGENTS.md)             | Integration test framework (Godog/Gherkin), available tags, step reference, how to write new tests                        |
+| [`.bruno/AGENTS.md`](.bruno/AGENTS.md)                                 | Bruno API collection structure, `.bru` file format, conventions, route update checklist                                   |
+| [`pkg/modules/pdfengines/AGENTS.md`](pkg/modules/pdfengines/AGENTS.md) | How to add new PDF engine features (Makefile variable and flag)                                                           |
