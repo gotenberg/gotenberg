@@ -382,6 +382,13 @@ func (a *Api) Metrics() ([]gotenberg.Metric, error) {
 			},
 		},
 		{
+			Name:        "libreoffice_active_tasks_count",
+			Description: "Current number of LibreOffice conversions actively being processed.",
+			Read: func() float64 {
+				return float64(a.supervisor.ActiveTasks())
+			},
+		},
+		{
 			Name:        "libreoffice_restarts_count",
 			Description: "Current number of LibreOffice restarts.",
 			Read: func() float64 {
