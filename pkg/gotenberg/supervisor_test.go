@@ -170,15 +170,15 @@ func TestProcessSupervisor_Healthy(t *testing.T) {
 		expectHealthy       bool
 	}{
 		{
-			scenario:         "non-started process is always healthy",
+			scenario:         "non-started process is healthy",
 			initiallyStarted: false,
 			expectHealthy:    true,
 		},
 		{
-			scenario:            "restarting process is always healthy",
+			scenario:            "restarting process is not healthy",
 			initiallyStarted:    true,
 			initiallyRestarting: true,
-			expectHealthy:       true,
+			expectHealthy:       false,
 		},
 		{
 			scenario:         "process reports as healthy",
@@ -549,6 +549,61 @@ func TestProcessSupervisor_ReqQueueSize(t *testing.T) {
 
 	if ps.ReqQueueSize() != 0 {
 		t.Errorf("expected queue size to be 0 but got %d", ps.ReqQueueSize())
+	}
+}
+
+func TestProcessSupervisor_QueueSizeCAS(t *testing.T) {
+	logger := zap.NewNop()
+
+	process := &ProcessMock{
+		StartMock: func(logger *zap.Logger) error {
+			return nil
+		},
+		HealthyMock: func(logger *zap.Logger) bool {
+			return true
+		},
+	}
+
+	maxQueueSize := int64(50)
+	// maxConcurrency=1 so all goroutines block on the semaphore, exercising queue logic.
+	ps := NewProcessSupervisor(logger, process, 0, maxQueueSize, 1).(*processSupervisor)
+
+	// Simulating a lock so that all goroutines queue up.
+	ps.semaphore <- struct{}{}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	goroutines := 100
+	var wg sync.WaitGroup
+	var exceeded atomic.Int64
+
+	for range goroutines {
+		wg.Go(func() {
+			err := ps.Run(ctx, logger, func() error {
+				return nil
+			})
+			if err != nil {
+				if errors.Is(err, ErrMaximumQueueSizeExceeded) {
+					exceeded.Add(1)
+				}
+			}
+		})
+	}
+
+	// Wait a bit for goroutines to queue up.
+	time.Sleep(50 * time.Millisecond)
+
+	currentQueue := ps.ReqQueueSize()
+	if currentQueue > maxQueueSize {
+		t.Fatalf("queue size %d exceeded max %d", currentQueue, maxQueueSize)
+	}
+
+	cancel()
+	wg.Wait()
+
+	if exceeded.Load() < int64(goroutines)-maxQueueSize {
+		t.Errorf("expected at least %d rejections, got %d", goroutines-int(maxQueueSize), exceeded.Load())
 	}
 }
 
