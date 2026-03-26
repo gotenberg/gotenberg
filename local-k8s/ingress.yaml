@@ -1,0 +1,63 @@
+# Nginx Ingress for Gotenberg
+#
+# This replaces the "LB removes pod when busy" behavior with HTTP-layer
+# routing that never touches active TCP connections:
+#
+#   • Gotenberg returns HTTP 429 when its LibreOffice queue is full
+#   • proxy_next_upstream http_429 makes Nginx retry on the next pod
+#   • The busy pod's active conversion is never interrupted
+#
+# Prerequisites:
+#   minikube addons enable ingress
+#   # or for kind: https://kind.sigs.k8s.io/docs/user/ingress/
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gotenberg
+  namespace: gotenberg-local
+  annotations:
+    # Retry request on the next upstream when a pod returns 429 (busy)
+    # or 503 (unhealthy).
+    # non_idempotent is required to allow retrying POST requests — Nginx
+    # won't retry non-GET methods without it. This is safe here because
+    # Gotenberg returns 429 BEFORE reading the request body (via Busy()),
+    # so the file has not been processed and retrying is idempotent in effect.
+    # proxy_request_buffering (on by default in Nginx Ingress) buffers the
+    # full request body before forwarding, which is what makes the retry
+    # possible — the body can be resent to the next pod.
+    nginx.ingress.kubernetes.io/proxy-next-upstream: "http_429 http_503 non_idempotent"
+    nginx.ingress.kubernetes.io/proxy-next-upstream-tries: "5"
+    nginx.ingress.kubernetes.io/proxy-next-upstream-timeout: "10"
+
+    # Give conversions plenty of time — must be ≥ api-timeout in deployment
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "150"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "150"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "10"
+
+    # Large DOCX files — set generously above your largest test file
+    nginx.ingress.kubernetes.io/proxy-body-size: "200m"
+
+    # Keep connections to pods alive across requests.
+    # Set to a low value intentionally: high keepalive counts let Nginx
+    # reuse the same pod repeatedly (EWMA bias), causing uneven distribution.
+    # With 5 pods each holding 2 keepalive connections the balancer is forced
+    # to spread connections more evenly.
+    nginx.ingress.kubernetes.io/upstream-keepalive-connections: "2"
+    nginx.ingress.kubernetes.io/upstream-keepalive-timeout: "10"
+
+    # Round-robin across all ready pods (default, shown explicitly)
+    nginx.ingress.kubernetes.io/load-balance: "round_robin"
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gotenberg
+                port:
+                  number: 3000

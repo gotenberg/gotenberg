@@ -153,6 +153,7 @@ type ProcessSupervisorMock struct {
 	HealthyMock       func() bool
 	RunMock           func(ctx context.Context, logger *zap.Logger, task func() error) error
 	ReqQueueSizeMock  func() int64
+	ActiveTasksMock   func() int64
 	RestartsCountMock func() int64
 }
 
@@ -174,6 +175,14 @@ func (s *ProcessSupervisorMock) Run(ctx context.Context, logger *zap.Logger, tas
 
 func (s *ProcessSupervisorMock) ReqQueueSize() int64 {
 	return s.ReqQueueSizeMock()
+}
+
+// ActiveTasks returns the result of ActiveTasksMock if set, otherwise 0.
+func (s *ProcessSupervisorMock) ActiveTasks() int64 {
+	if s.ActiveTasksMock != nil {
+		return s.ActiveTasksMock()
+	}
+	return 0
 }
 
 func (s *ProcessSupervisorMock) RestartsCount() int64 {

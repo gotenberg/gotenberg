@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gotenberg-readiness-script
+  namespace: gotenberg-local
+data:
+  # Readiness probe script — checks pod health only.
+  #
+  # IMPORTANT: we deliberately do NOT check queue depth or CPU here.
+  #
+  # Why: when the CNI plugin removes a pod from the Endpoints list
+  # (readiness failure), it sends a TCP RST to every active connection on
+  # that pod.  If the probe fails because the pod is busy (queue > 0), the
+  # RST kills the very conversion that caused the failure.
+  #
+  # Queue/CPU-based routing is handled at the HTTP layer instead:
+  #   • Gotenberg --libreoffice-max-queue-size=1 returns 429 when busy
+  #   • Nginx Ingress proxy_next_upstream http_429 re-routes to the next pod
+  # This never touches the TCP connection and avoids all RST packets.
+  readiness.sh: |
+    #!/bin/sh
+    set -e
+    # Only gate on true pod health — crash or stuck LibreOffice process.
+    curl -sf http://localhost:3000/health > /dev/null || exit 1
+    exit 0

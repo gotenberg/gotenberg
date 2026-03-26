@@ -1,0 +1,591 @@
+﻿<html><head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.13/html-to-image.min.js" integrity="sha512-iZ2ORl595Wx6miw+GuadDet4WQbdSWS3JLMoNfY8cRGoEFy6oT3G9IbcrBeL6AfkgpA51ETt/faX6yLV+/gFJg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+      (function() {
+        const originalConsole = window.console;
+        window.console = {
+          log: (...args) => {
+            originalConsole.log(...args);
+            window.parent.postMessage({ type: 'console', message: args.join(' ') }, '*');
+          },
+          error: (...args) => {
+            originalConsole.error(...args);
+            window.parent.postMessage({ type: 'console', message: 'Error: ' + args.join(' ') }, '*');
+          },
+          warn: (...args) => {
+            originalConsole.warn(...args);
+            window.parent.postMessage({ type: 'console', message: 'Warning: ' + args.join(' ') }, '*');
+          }
+        };
+
+        let requestId = 0;
+        let callbacksMap = new Map();
+        let streamControllers = new Map();
+        
+        window.claude = {
+          complete: (prompt) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'claudeComplete', id, prompt }, '*');
+            });
+          }
+        };
+
+        window.storage = {
+          get: (key, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageGet', id, key, shared }, '*');
+            });
+          },
+          set: (key, value, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageSet', id, key, value, shared }, '*');
+            });
+          },
+          delete: (key, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageDelete', id, key, shared }, '*');
+            });
+          },
+          list: (prefix, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageList', id, prefix, shared }, '*');
+            });
+          }
+        };
+
+        let pendingBlobs = new Map();
+        URL.createObjectURL = (blob) => {
+          // Store the blob and create an ID and URL for it
+          const blobId = `blob-${Date.now()}-${Math.random()}`;
+          pendingBlobs.set(blobId, blob);
+          return `blob-request://${blobId}`;
+        };
+
+        URL.revokeObjectURL = (url) => {
+          // Remove the blob from our store
+          const blobId = url.replace("blob-request://", "");
+          pendingBlobs.delete(blobId);
+        };
+
+        const getBlobFromURL = (url) => {
+          const blobId = url.replace("blob-request://", "");
+          return pendingBlobs.get(blobId);
+        };
+
+        // Override global fetch with streaming support
+        window.fetch = (url, init = {}) => {
+          return new Promise((resolve, reject) => {
+            const id = requestId++;
+            const channelId = `fetch-${id}-${Date.now()}`;
+            
+            callbacksMap.set(id, { 
+              resolve: (response) => {
+                // Create a ReadableStream for the response body
+                const stream = new ReadableStream({
+                  start(controller) {
+                    streamControllers.set(channelId, controller);
+                  },
+                  cancel() {
+                    streamControllers.delete(channelId);
+                  }
+                });
+                
+                // Create and return the Response with the stream
+                resolve(new Response(stream, {
+                  status: response.status,
+                  statusText: response.statusText,
+                  headers: response.headers
+                }));
+              },
+              reject,
+              channelId
+            });
+            
+            window.parent.postMessage({
+              type: 'proxyFetch',
+              id,
+              url,
+              init,
+              channelId
+            }, '*');
+          });
+        };
+
+        window.addEventListener('message', async (event) => {
+          if (event.data.type === 'takeScreenshot') {
+            const rootElement = document.getElementById('artifacts-component-root-html');
+            if (!rootElement) {
+              window.parent.postMessage({
+                type: 'screenshotError',
+                error: new Error('Root element not found'),
+              }, '*');
+            }
+            const screenshot = await htmlToImage.toPng(rootElement, {
+              imagePlaceholder:
+                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAA1JREFUGFdjePDgwX8ACOQDoNsk0PMAAAAASUVORK5CYII=",
+            });
+            window.parent.postMessage({
+              type: 'screenshotData',
+              data: screenshot,
+            }, '*');
+          } else if (event.data.type === 'claudeComplete') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.completion);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'proxyFetchResponse') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+              callbacksMap.delete(event.data.id);
+            } else {
+              // Initial response with headers, status, etc.
+              callback.resolve({
+                status: event.data.status,
+                statusText: event.data.statusText,
+                headers: event.data.headers
+              });
+              // Don't delete the callback yet if streaming
+              if (!event.data.body) {
+                callbacksMap.delete(event.data.id);
+              }
+            }
+          } else if (event.data.type === 'proxyFetchStream') {
+            // Handle streaming data chunks
+            const controller = streamControllers.get(event.data.channelId);
+            if (controller) {
+              if (event.data.error) {
+                controller.error(new Error(event.data.error));
+                streamControllers.delete(event.data.channelId);
+              } else if (event.data.done) {
+                controller.close();
+                streamControllers.delete(event.data.channelId);
+                // Clean up the callback
+                const callback = Array.from(callbacksMap.entries()).find(
+                  ([_, value]) => value.channelId === event.data.channelId
+                );
+                if (callback) {
+                  callbacksMap.delete(callback[0]);
+                }
+              } else if (event.data.chunk) {
+                controller.enqueue(new Uint8Array(event.data.chunk));
+              }
+            }
+          } else if (event.data.type === 'storageGet') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'storageSet') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'storageDelete') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'storageList') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          }
+        });
+
+        window.addEventListener('click', (event) => {
+          const isEl = event.target instanceof HTMLElement;
+          if (!isEl) return;
+    
+          // find ancestor links
+          const linkEl = event.target.closest("a");
+          if (!linkEl || !linkEl.href) return;
+    
+          event.preventDefault();
+          event.stopImmediatePropagation();
+    
+          if (linkEl.href.startsWith("blob-request:")) {
+            const blob = getBlobFromURL(linkEl.href);
+            if (!blob) return;
+            void blob.arrayBuffer().then((data) => {
+              window.parent.postMessage({
+                type: "downloadFile",
+                filename: linkEl.download,
+                data,
+                mimeType: blob.type || "application/octet-stream",
+              });
+            });
+          } else if (linkEl.href.startsWith("data:")) {
+            const [header, base64Data] = linkEl.href.split(",");
+            const mimeMatch = header.match(/data:([^;]+)/);
+            const mimeType = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+            const binaryString = atob(base64Data);
+            const data = Uint8Array.from(binaryString, (c) =>
+              c.charCodeAt(0),
+            ).buffer;
+            window.parent.postMessage({
+              type: "downloadFile",
+              filename: linkEl.download,
+              data,
+              mimeType,
+            });
+          } else {
+            let linkUrl;
+            try {
+              linkUrl = new URL(linkEl.href);
+            } catch (error) {
+              return;
+            }
+    
+            if (linkUrl.hostname === window.location.hostname) return;
+      
+            window.parent.postMessage({
+              type: 'openExternal',
+              href: linkEl.href,
+            }, '*');
+          }
+      });
+
+        const originalOpen = window.open;
+        window.open = function (url) {
+          window.parent.postMessage({
+            type: "openExternal",
+            href: url,
+          }, "*");
+        };
+
+        window.addEventListener('error', (event) => {
+          window.parent.postMessage({ type: 'console', message: 'Uncaught Error: ' + event.message }, '*');
+        });
+      })();
+    </script>
+  
+    <meta charset="UTF-8">
+    <title>Email Style Conversion Guide</title>
+    <style>
+        body {
+            font-family: Calibri, Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+        }
+        h1 {
+            color: #2E75B6;
+            font-size: 24px;
+            border-bottom: 3px solid #2E75B6;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #2E75B6;
+            font-size: 18px;
+            margin-top: 25px;
+        }
+        h3 {
+            color: #44546A;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+        p {
+            line-height: 1.6;
+            margin: 10px 0;
+        }
+        code {
+            background: #F2F2F2;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        pre {
+            background: #F2F2F2;
+            padding: 15px;
+            border-left: 4px solid #2E75B6;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .note {
+            background: #FFF4CE;
+            border-left: 4px solid #FFD966;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .important {
+            background: #FCE4EC;
+            border-left: 4px solid #E91E63;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        ul, ol {
+            line-height: 1.8;
+        }
+        .button-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .download-btn {
+            background: #2E75B6;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .download-btn:hover {
+            background: #1F4E78;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 15px 0;
+        }
+        th, td {
+            border: 1px solid #D0D0D0;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background: #2E75B6;
+            color: white;
+        }
+        .link-box {
+            background: #E7F3FF;
+            border: 2px solid #2E75B6;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+            font-size: 16px;
+        }
+        .link-box a {
+            color: #2E75B6;
+            font-weight: bold;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body id="artifacts-component-root-html">
+    <div class="button-container">
+        <button class="download-btn" onclick="downloadAsWord()">📄 Download as Word Document</button>
+    </div>
+
+    <h1>Converting Email Styles from Header Tags to Inline Styles</h1>
+
+    <h2>Overview</h2>
+    <p>Our email processing system strips <code>&lt;style&gt;</code> tags from email headers for security reasons. To ensure your emails display correctly, you need to convert CSS styles from <code>&lt;style&gt;</code> tags in the <code>&lt;head&gt;</code> section to inline <code>style</code> attributes on individual HTML elements.</p>
+
+    <h2>What We Allow</h2>
+
+    <h3>Permitted HTML Tags</h3>
+    <pre>a, abbr, acronym, b, blockquote, br, code, div, em, i, img, h1, h2, h3, h4, h5, h6, 
+hr, li, ol, p, pre, s, span, strong, table, tbody, td, th, thead, tr, u, ul</pre>
+
+    <h3>Permitted Attributes</h3>
+    <ul>
+        <li><strong>All tags:</strong> <code>class</code>, <code>style</code></li>
+        <li><strong>&lt;a&gt; tags:</strong> <code>href</code>, <code>title</code>, <code>rel</code></li>
+        <li><strong>&lt;img&gt; tags:</strong> <code>src</code>, <code>alt</code>, <code>width</code>, <code>height</code></li>
+        <li><strong>&lt;div&gt; tags:</strong> <code>data-collab-id</code></li>
+        <li><strong>&lt;span&gt; tags:</strong> <code>data-email</code>, <code>data-sms</code>, <code>data-collaboration</code>, <code>data-mention-id</code>, <code>data-notify-via</code></li>
+    </ul>
+
+    <h3>Permitted Inline Styles</h3>
+    <pre>background, background-color, border, border-bottom, border-bottom-color, 
+border-bottom-style, border-bottom-width, border-collapse, border-color, border-left, 
+border-left-color, border-left-style, border-left-width, border-right, 
+border-right-color, border-right-style, border-right-width, border-style, border-top, 
+border-top-color, border-top-style, border-top-width, border-width, border-radius, 
+clear, clip, color, cursor, display, filter, float, font-family, font-size, 
+font-weight, height, left, letter-spacing, line-height, list-style, 
+list-style-image, list-style-position, list-style-type, margin, margin-bottom, 
+margin-left, margin-right, margin-top, overflow, padding, padding-bottom, 
+padding-left, padding-right, padding-top, page-break-after, page-break-before, 
+position, stroke-dasharray, stroke-dashoffset, text-align, text-decoration, 
+text-indent, text-transform, top, vertical-align, visibility, width, z-index</pre>
+
+    <h2>Example: Before Conversion</h2>
+    <p>Here's an email with styles in the <code>&lt;head&gt;</code> section (this will <strong>NOT</strong> work in our system):</p>
+
+    <pre>&lt;html&gt;
+&lt;head&gt;
+    &lt;style&gt;
+        h1 {
+            font-family: Calibri;
+            color: #AA005F;
+            font-size: 1.15em;
+            margin-top: 0.67em;
+            margin-bottom: 0.67em;
+            font-weight: bold;
+        }
+        p {
+            font-family: Calibri;
+            font-size: 1em;
+            margin-top: 0.67em;
+            margin-bottom: 0.67em;
+            text-align: justify;
+        }
+        table {
+            width: 80%;
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+        th {
+            background-color: #5C9A1B;
+            color: white;
+            padding: 5px;
+        }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;p&gt;11/07/2025&lt;/p&gt;
+    &lt;h1&gt;Important Notice&lt;/h1&gt;
+    &lt;p&gt;This is a sample email with header styles.&lt;/p&gt;
+    &lt;table&gt;
+        &lt;tr&gt;
+            &lt;th&gt;Column 1&lt;/th&gt;
+            &lt;th&gt;Column 2&lt;/th&gt;
+        &lt;/tr&gt;
+        &lt;tr&gt;
+            &lt;td&gt;Data 1&lt;/td&gt;
+            &lt;td&gt;Data 2&lt;/td&gt;
+        &lt;/tr&gt;
+    &lt;/table&gt;
+&lt;/body&gt;
+&lt;/html&gt;</pre>
+
+    <h2>Example: After Conversion</h2>
+    <p>Here's the same email with inline styles (this <strong>WILL</strong> work in our system):</p>
+
+    <pre>&lt;html&gt;
+&lt;body&gt;
+    &lt;p style="font-family: Calibri; font-size: 1em; margin-top: 0.67em; 
+       margin-bottom: 0.67em; text-align: justify;"&gt;11/07/2025&lt;/p&gt;
+    
+    &lt;h1 style="font-family: Calibri; color: #AA005F; font-size: 1.15em; 
+        margin-top: 0.67em; margin-bottom: 0.67em; font-weight: bold;"&gt;
+        Important Notice&lt;/h1&gt;
+    
+    &lt;p style="font-family: Calibri; font-size: 1em; margin-top: 0.67em; 
+       margin-bottom: 0.67em; text-align: justify;"&gt;
+       This is a sample email with header styles.&lt;/p&gt;
+    
+    &lt;table style="width: 80%; border: 1px solid black; border-collapse: collapse;"&gt;
+        &lt;tr&gt;
+            &lt;th style="background-color: #5C9A1B; color: white; padding: 5px;"&gt;
+                Column 1&lt;/th&gt;
+            &lt;th style="background-color: #5C9A1B; color: white; padding: 5px;"&gt;
+                Column 2&lt;/th&gt;
+        &lt;/tr&gt;
+        &lt;tr&gt;
+            &lt;td&gt;Data 1&lt;/td&gt;
+            &lt;td&gt;Data 2&lt;/td&gt;
+        &lt;/tr&gt;
+    &lt;/table&gt;
+&lt;/body&gt;
+&lt;/html&gt;</pre>
+
+    <h2>How to Convert Your Emails</h2>
+
+    <h3>Automated Conversion Tool</h3>
+    <p>The easiest way to convert your emails is to use MailChimp's free inline CSS tool:</p>
+
+    <div class="link-box">
+        🔗 <a href="https://templates.mailchimp.com/resources/inline-css/" target="_blank">https://templates.mailchimp.com/resources/inline-css/</a>
+    </div>
+
+    <h3>Steps to Convert:</h3>
+    <ol>
+        <li>Go to <a href="https://templates.mailchimp.com/resources/inline-css/" target="_blank">https://templates.mailchimp.com/resources/inline-css/</a></li>
+        <li>Paste your HTML email with <code>&lt;style&gt;</code> tags in the input box</li>
+        <li>Click the "Convert" button</li>
+        <li>Copy the converted HTML with inline styles</li>
+        <li>Test the converted email in our system</li>
+    </ol>
+
+    <h3>Important Notes:</h3>
+    <div class="important">
+        <ul>
+            <li>The tool automatically moves all CSS from <code>&lt;style&gt;</code> tags to inline <code>style</code> attributes</li>
+            <li>It preserves your HTML structure while making styles compatible with email clients</li>
+            <li>Any styles not in our permitted list will be stripped out by our system</li>
+            <li>Always test your converted email before sending to ensure proper rendering</li>
+        </ul>
+    </div>
+
+    <h2>Best Practices</h2>
+    <ol>
+        <li><strong>Use simple styles:</strong> Stick to basic CSS properties that are widely supported</li>
+        <li><strong>Test thoroughly:</strong> Always preview your email after conversion</li>
+        <li><strong>Keep it clean:</strong> Remove any unnecessary CSS before conversion</li>
+        <li><strong>Use tables for layout:</strong> Email clients handle tables better than modern CSS layouts</li>
+        <li><strong>Specify colors explicitly:</strong> Use hex codes (e.g., <code>#AA005F</code>) rather than color names when possible</li>
+    </ol>
+
+    <h2>Troubleshooting</h2>
+    <p>If your email doesn't display correctly after conversion:</p>
+    <ul>
+        <li>Verify all styles are from the permitted list above</li>
+        <li>Check that you're using only permitted HTML tags</li>
+        <li>Ensure inline styles don't contain any prohibited CSS properties</li>
+        <li>Remove any remaining <code>&lt;style&gt;</code> tags from the <code>&lt;head&gt;</code> section</li>
+        <li>Test with a simplified version to isolate the issue</li>
+    </ul>
+
+    <div class="note">
+        <strong>📧 Need Help?</strong><br>
+        For questions or assistance with email conversion, please contact the development team.
+    </div>
+
+    <hr style="margin: 40px 0;">
+    <p style="text-align: center; color: #666; font-size: 12px;">
+        Email Style Conversion Guide | Internal Documentation
+    </p>
+
+    <script>
+        function downloadAsWord() {
+            const content = document.documentElement.outerHTML;
+            const blob = new Blob(['\ufeff', content], {
+                type: 'application/msword'
+            });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'Email_Style_Conversion_Guide.doc';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+
+</body></html>

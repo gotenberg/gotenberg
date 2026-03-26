@@ -17,6 +17,10 @@
     </p>
 </p>
 
+> **Local Kubernetes testing:** see [`local-k8s/README.md`](local-k8s/README.md) for instructions on
+> running a 5-pod cluster locally with Nginx Ingress, the `--libreoffice-reject-when-busy` circuit-breaker,
+> and the Python load-test script.
+
 ---
 
 **Gotenberg** is a Docker-based API for converting documents to PDF. Trusted in production by thousands of companies. Also adopted by notable open-source projects.

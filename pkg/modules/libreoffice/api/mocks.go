@@ -13,6 +13,7 @@ import (
 type ApiMock struct {
 	PdfMock        func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
 	ExtensionsMock func() []string
+	BusyMock       func() bool
 }
 
 func (api *ApiMock) Pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error {
@@ -21,6 +22,14 @@ func (api *ApiMock) Pdf(ctx context.Context, logger *zap.Logger, inputPath, outp
 
 func (api *ApiMock) Extensions() []string {
 	return api.ExtensionsMock()
+}
+
+// Busy returns the result of BusyMock if set, otherwise false.
+func (api *ApiMock) Busy() bool {
+	if api.BusyMock != nil {
+		return api.BusyMock()
+	}
+	return false
 }
 
 // ProviderMock is a mock for the [Provider] interface.

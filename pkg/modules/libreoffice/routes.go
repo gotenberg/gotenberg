@@ -23,6 +23,19 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 		Path:        "/forms/libreoffice/convert",
 		IsMultipart: true,
 		Handler: func(c echo.Context) error {
+			// Fast-path rejection: return 429 before parsing the multipart
+			// body when --libreoffice-reject-when-busy is set and a
+			// conversion is already in progress or queued. This lets a
+			// reverse proxy (e.g. Nginx proxy_next_upstream http_429) retry
+			// immediately on an idle pod without writing uploaded files to
+			// disk on the busy one.
+			if libreOffice.Busy() {
+				return api.NewSentinelHttpError(
+					http.StatusTooManyRequests,
+					"LibreOffice is busy: a conversion is already in progress or queued on this pod",
+				)
+			}
+
 			ctx := c.Get("context").(*api.Context)
 			defaultOptions := libreofficeapi.DefaultOptions()
 

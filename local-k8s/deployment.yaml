@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gotenberg
+  namespace: gotenberg-local
+  labels:
+    app: gotenberg
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: gotenberg
+  template:
+    metadata:
+      labels:
+        app: gotenberg
+    spec:
+      # Allow graceful shutdown to finish in-flight conversions
+      terminationGracePeriodSeconds: 60
+
+      volumes:
+        - name: readiness-script
+          configMap:
+            name: gotenberg-readiness-script
+            defaultMode: 0755
+
+      containers:
+        - name: gotenberg
+          image: gotenberg/gotenberg:snapshot
+          imagePullPolicy: Never
+
+          ports:
+            - containerPort: 3000
+
+          volumeMounts:
+            - name: readiness-script
+              mountPath: /scripts
+
+          # ── Resource limits ──────────────────────────────────────────────
+          # Set a CPU limit so that CPU% inside the pod is meaningful.
+          # Adjust these to match your production pod sizes.
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+
+          # ── Liveness: restart the pod if Gotenberg is completely stuck ───
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 3
+            timeoutSeconds: 5
+
+          # ── Readiness: health only — NOT queue/CPU ───────────────────────
+          #   Checking queue > 0 here causes the CNI plugin to send TCP RST
+          #   packets to active connections when the pod is removed from
+          #   endpoints, which is exactly the "connection reset by peer" error
+          #   the app sees.  Queue/CPU routing is handled at the HTTP layer
+          #   by Nginx Ingress + proxy_next_upstream http_429 instead.
+          readinessProbe:
+            exec:
+              command: ["/bin/sh", "/scripts/readiness.sh"]
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            failureThreshold: 2
+            successThreshold: 1
+            timeoutSeconds: 5
+
+          # ── Gotenberg flags ───────────────────────────────────────────────
+          command:
+            - gotenberg
+            - --api-port=3000
+            - --api-timeout=120s
+            - --api-disable-health-check-logging=true
+
+            # LibreOffice: match production tuning
+            - --libreoffice-auto-start=true
+            - --libreoffice-restart-after=10
+            - --libreoffice-start-timeout=30s
+            - --libreoffice-max-queue-size=0
+            # Return HTTP 429 immediately (before file parsing) when a
+            # conversion is already running. Nginx proxy_next_upstream http_429
+            # then retries on an idle pod without re-uploading from the client.
+            - --libreoffice-reject-when-busy=true
+
+            # Prometheus metrics required by the readiness probe
+            - --prometheus-disable-collect=false
+            - --prometheus-collect-interval=1s
+            - --prometheus-namespace=gotenberg
+            - --prometheus-metrics-path=/prometheus/metrics
+
+            # Structured JSON logs so you can grep/correlate them
+            - --log-format=json
+            - --log-level=info

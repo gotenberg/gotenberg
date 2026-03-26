@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gotenberg
+  namespace: gotenberg-local
+spec:
+  # type: LoadBalancer exposes via the cloud/minikube LB.
+  # For minikube run `minikube tunnel` in a separate terminal to get an
+  # external IP.  For kind, switch to NodePort or use a port-forward.
+  type: LoadBalancer
+  selector:
+    app: gotenberg
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      protocol: TCP
+  # Round-robin across all ready pods (default for Kubernetes Services)
+  sessionAffinity: None

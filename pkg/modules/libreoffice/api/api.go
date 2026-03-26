@@ -42,8 +42,9 @@ var (
 
 // Api is a module that provides a [Uno] to interact with LibreOffice.
 type Api struct {
-	autoStart bool
-	args      libreOfficeArguments
+	autoStart       bool
+	rejectWhenBusy  bool
+	args            libreOfficeArguments
 
 	logger      *zap.Logger
 	libreOffice libreOffice
@@ -218,6 +219,13 @@ func DefaultOptions() Options {
 type Uno interface {
 	Pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
 	Extensions() []string
+
+	// Busy returns true when the --libreoffice-reject-when-busy flag is
+	// enabled and there is at least one active or queued conversion. Routes
+	// use this to return HTTP 429 before parsing the request body, allowing a
+	// reverse proxy (e.g. Nginx proxy_next_upstream) to retry on an idle pod
+	// without wasting disk I/O on the busy one.
+	Busy() bool
 }
 
 // Provider is a module interface that exposes a method for creating a
@@ -241,6 +249,7 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Int64("libreoffice-max-queue-size", 0, "Maximum request queue size for LibreOffice. Set to 0 to disable this feature")
 			fs.Bool("libreoffice-auto-start", false, "Automatically launch LibreOffice upon initialization if set to true; otherwise, LibreOffice will start at the time of the first conversion")
 			fs.Duration("libreoffice-start-timeout", time.Duration(20)*time.Second, "Maximum duration to wait for LibreOffice to start or restart")
+			fs.Bool("libreoffice-reject-when-busy", false, "Return HTTP 429 immediately when a LibreOffice conversion is already in progress or queued, before parsing the request body")
 
 			return fs
 		}(),
@@ -252,6 +261,7 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 func (a *Api) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	a.autoStart = flags.MustBool("libreoffice-auto-start")
+	a.rejectWhenBusy = flags.MustBool("libreoffice-reject-when-busy")
 
 	libreOfficeBinPath, ok := os.LookupEnv("LIBREOFFICE_BIN_PATH")
 	if !ok {
@@ -451,6 +461,17 @@ func (a *Api) Pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath
 
 // Extensions returns the file extensions available for conversions.
 // FIXME: don't care, take all on the route level?
+// Busy returns true when the --libreoffice-reject-when-busy flag is enabled
+// and at least one conversion is currently active or queued.
+func (a *Api) Busy() bool {
+	if !a.rejectWhenBusy {
+		return false
+	}
+	return a.supervisor.ReqQueueSize() > 0 || a.supervisor.ActiveTasks() > 0
+}
+
+// Extensions returns the file extensions supported by LibreOffice for
+// conversion.
 func (a *Api) Extensions() []string {
 	return []string{
 		".123",

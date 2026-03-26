@@ -52,6 +52,7 @@ LIBREOFFICE_RESTART_AFTER=10
 LIBREOFFICE_MAX_QUEUE_SIZE=0
 LIBREOFFICE_AUTO_START=false
 LIBREOFFICE_START_TIMEOUT=20s
+LIBREOFFICE_REJECT_WHEN_BUSY=false
 LIBREOFFICE_DISABLE_ROUTES=false
 LOG_LEVEL=info
 LOG_FORMAT=auto
@@ -135,6 +136,7 @@ run: ## Start a Gotenberg container
 	--libreoffice-max-queue-size=$(LIBREOFFICE_MAX_QUEUE_SIZE) \
 	--libreoffice-auto-start=$(LIBREOFFICE_AUTO_START) \
 	--libreoffice-start-timeout=$(LIBREOFFICE_START_TIMEOUT) \
+	--libreoffice-reject-when-busy=$(LIBREOFFICE_REJECT_WHEN_BUSY) \
 	--libreoffice-disable-routes=$(LIBREOFFICE_DISABLE_ROUTES) \
 	--log-level=$(LOG_LEVEL) \
 	--log-format=$(LOG_FORMAT) \
