@@ -76,6 +76,12 @@ type ProcessSupervisor interface {
 	// number of in-flight requests (queued + running).
 	ActiveTasks() int64
 
+	// IsRestarting returns true while the managed [Process] is in the middle
+	// of a restart (either a scheduled restart-after-N or an unhealthy restart).
+	// During this window no new tasks can be started, so callers that check
+	// busyness should treat IsRestarting as equivalent to being busy.
+	IsRestarting() bool
+
 	// RestartsCount returns the current number of restart.
 	RestartsCount() int64
 }
@@ -256,6 +262,13 @@ func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task fu
 						s.logger.Debug("max request limit reached, restarting eagerly...")
 						releaseSemaphore = false
 
+						// Mark as restarting NOW — before the defer decrements
+						// activeTasks — so Busy() returns true with no gap between
+						// the conversion finishing and the restart beginning.
+						// The PDF is already on disk at this point; the caller can
+						// stream it back while the restart proceeds concurrently.
+						s.isRestarting.Store(true)
+
 						go func() {
 							restartErr := s.doRestartLocked(context.Background())
 							s.restartMutex.Unlock()
@@ -352,6 +365,11 @@ func (s *processSupervisor) ReqQueueSize() int64 {
 // ActiveTasks returns the number of tasks currently being executed.
 func (s *processSupervisor) ActiveTasks() int64 {
 	return s.activeTasks.Load()
+}
+
+// IsRestarting returns true while a restart is in progress.
+func (s *processSupervisor) IsRestarting() bool {
+	return s.isRestarting.Load()
 }
 
 func (s *processSupervisor) RestartsCount() int64 {

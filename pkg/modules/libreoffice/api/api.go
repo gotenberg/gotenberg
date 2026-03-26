@@ -462,12 +462,21 @@ func (a *Api) Pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath
 // Extensions returns the file extensions available for conversions.
 // FIXME: don't care, take all on the route level?
 // Busy returns true when the --libreoffice-reject-when-busy flag is enabled
-// and at least one conversion is currently active or queued.
+// and the pod should not accept a new conversion. This covers three states:
+//   - A conversion is waiting for the semaphore (ReqQueueSize > 0)
+//   - A conversion is actively running (ActiveTasks > 0)
+//   - LibreOffice is restarting after completing a conversion (IsRestarting)
+//
+// Checking IsRestarting ensures the pod stays busy until LibreOffice is fully
+// restarted and ready to accept the next request, preventing a new request
+// from arriving mid-restart and waiting behind it.
 func (a *Api) Busy() bool {
 	if !a.rejectWhenBusy {
 		return false
 	}
-	return a.supervisor.ReqQueueSize() > 0 || a.supervisor.ActiveTasks() > 0
+	return a.supervisor.ReqQueueSize() > 0 ||
+		a.supervisor.ActiveTasks() > 0 ||
+		a.supervisor.IsRestarting()
 }
 
 // Extensions returns the file extensions supported by LibreOffice for

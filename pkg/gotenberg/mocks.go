@@ -154,6 +154,7 @@ type ProcessSupervisorMock struct {
 	RunMock           func(ctx context.Context, logger *zap.Logger, task func() error) error
 	ReqQueueSizeMock  func() int64
 	ActiveTasksMock   func() int64
+	IsRestartingMock  func() bool
 	RestartsCountMock func() int64
 }
 
@@ -183,6 +184,14 @@ func (s *ProcessSupervisorMock) ActiveTasks() int64 {
 		return s.ActiveTasksMock()
 	}
 	return 0
+}
+
+// IsRestarting returns the result of IsRestartingMock if set, otherwise false.
+func (s *ProcessSupervisorMock) IsRestarting() bool {
+	if s.IsRestartingMock != nil {
+		return s.IsRestartingMock()
+	}
+	return false
 }
 
 func (s *ProcessSupervisorMock) RestartsCount() int64 {
