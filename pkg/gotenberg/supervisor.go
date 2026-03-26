@@ -199,13 +199,19 @@ func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task fu
 		}
 	}
 
+	// Decrement when Run() returns, regardless of which path is taken
+	// (context timeout, task completion, error, etc.). This ensures the
+	// request is counted as "in the queue" for the entire duration of Run(),
+	// preventing new requests from entering while one is being processed.
+	// See https://github.com/gotenberg/gotenberg/issues/1502.
+	defer s.reqQueueSize.Add(-1)
+
 	for {
 		err := func() error {
 			if err := s.acquireSlot(ctx, logger); err != nil {
 				return err
 			}
 
-			s.reqQueueSize.Add(-1)
 			s.reqCounter.Add(1)
 			s.activeTasks.Add(1)
 			semaphoreOwned := true
@@ -264,7 +270,6 @@ func (s *processSupervisor) acquireSlot(ctx context.Context, logger *zap.Logger)
 		return nil
 	case <-ctx.Done():
 		logger.Debug("failed to acquire process lock before deadline")
-		s.reqQueueSize.Add(-1)
 
 		return fmt.Errorf("acquire process lock: %w", ctx.Err())
 	}

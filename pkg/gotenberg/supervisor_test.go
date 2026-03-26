@@ -607,6 +607,56 @@ func TestProcessSupervisor_QueueSizeCAS(t *testing.T) {
 	}
 }
 
+func TestProcessSupervisor_QueueSizeIncludesActiveTasks(t *testing.T) {
+	logger := zap.NewNop()
+
+	process := &ProcessMock{
+		StartMock: func(logger *zap.Logger) error {
+			return nil
+		},
+		HealthyMock: func(logger *zap.Logger) bool {
+			return true
+		},
+	}
+
+	// maxQueueSize=1, maxConcurrency=1: only one request at a time.
+	ps := NewProcessSupervisor(logger, process, 0, 1, 1)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	taskStarted := make(chan struct{})
+	taskDone := make(chan struct{})
+
+	// Start a long-running task that holds the slot.
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		err := ps.Run(ctx, logger, func() error {
+			close(taskStarted)
+			<-taskDone
+			return nil
+		})
+		if err != nil {
+			t.Errorf("first task: unexpected error: %v", err)
+		}
+	})
+
+	// Wait for the first task to be running.
+	<-taskStarted
+
+	// A second request should be rejected immediately because the queue
+	// slot is still held by the active task.
+	err := ps.Run(ctx, logger, func() error {
+		return nil
+	})
+	if !errors.Is(err, ErrMaximumQueueSizeExceeded) {
+		t.Fatalf("expected ErrMaximumQueueSizeExceeded but got: %v", err)
+	}
+
+	close(taskDone)
+	wg.Wait()
+}
+
 func TestProcessSupervisor_RestartsCount(t *testing.T) {
 	for _, tc := range []struct {
 		scenario              string
