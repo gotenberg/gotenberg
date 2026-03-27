@@ -382,6 +382,7 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 			ignoreResourceHttpStatusDomains: options.IgnoreResourceHttpStatusDomains,
 			invalidResourceHttpStatusCode:   &invalidResourceHttpStatusCode,
 			invalidResourceHttpStatusCodeMu: &invalidResourceHttpStatusCodeMu,
+			cancelOnMainPageError:           taskCancel,
 		})
 	}
 
@@ -411,11 +412,45 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 		loadingFailedMu:         &loadingFailedMu,
 		resourceLoadingFailed:   &resourceLoadingFailed,
 		resourceLoadingFailedMu: &resourceLoadingFailedMu,
+		cancelOnMainPageError:   taskCancel,
 	})
 
-	err = chromedp.Run(taskCtx, tasks...)
-	if err != nil {
-		errMessage := err.Error()
+	runErr := chromedp.Run(taskCtx, tasks...)
+
+	// Check event-driven errors first — they take priority over chromedp.Run
+	// errors because they carry the actual root cause (e.g., HTTP 500 from
+	// the main page). When we cancel taskCtx on a main page error,
+	// chromedp.Run returns a context error that is less informative.
+	// See https://github.com/gotenberg/gotenberg/issues/1492.
+
+	// See https://github.com/gotenberg/gotenberg/issues/613.
+	invalidHttpStatusCodeMu.RLock()
+	defer invalidHttpStatusCodeMu.RUnlock()
+
+	if invalidHttpStatusCode != nil {
+		return fmt.Errorf("%v: %w", invalidHttpStatusCode, ErrInvalidHttpStatusCode)
+	}
+
+	// See https://github.com/gotenberg/gotenberg/issues/1021.
+	invalidResourceHttpStatusCodeMu.RLock()
+	defer invalidResourceHttpStatusCodeMu.RUnlock()
+
+	if invalidResourceHttpStatusCode != nil {
+		return fmt.Errorf("%v: %w", invalidResourceHttpStatusCode, ErrInvalidResourceHttpStatusCode)
+	}
+
+	// See:
+	// https://github.com/gotenberg/gotenberg/issues/913.
+	// https://github.com/gotenberg/gotenberg/issues/959.
+	loadingFailedMu.RLock()
+	defer loadingFailedMu.RUnlock()
+
+	if loadingFailed != nil {
+		return fmt.Errorf("%v: %w", loadingFailed, ErrLoadingFailed)
+	}
+
+	if runErr != nil {
+		errMessage := runErr.Error()
 
 		if strings.Contains(errMessage, "Printing failed (-32000)") {
 			return ErrPrintingFailed
@@ -437,23 +472,7 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 			return ErrRpccMessageTooLarge
 		}
 
-		return fmt.Errorf("handle tasks: %w", err)
-	}
-
-	// See https://github.com/gotenberg/gotenberg/issues/613.
-	invalidHttpStatusCodeMu.RLock()
-	defer invalidHttpStatusCodeMu.RUnlock()
-
-	if invalidHttpStatusCode != nil {
-		return fmt.Errorf("%v: %w", invalidHttpStatusCode, ErrInvalidHttpStatusCode)
-	}
-
-	// See https://github.com/gotenberg/gotenberg/issues/1021.
-	invalidResourceHttpStatusCodeMu.RLock()
-	defer invalidResourceHttpStatusCodeMu.RUnlock()
-
-	if invalidResourceHttpStatusCode != nil {
-		return fmt.Errorf("%v: %w", invalidResourceHttpStatusCode, ErrInvalidResourceHttpStatusCode)
+		return fmt.Errorf("handle tasks: %w", runErr)
 	}
 
 	// See https://github.com/gotenberg/gotenberg/issues/262.
@@ -462,16 +481,6 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 
 	if consoleExceptions != nil {
 		return fmt.Errorf("%v: %w", consoleExceptions, ErrConsoleExceptions)
-	}
-
-	// See:
-	// https://github.com/gotenberg/gotenberg/issues/913.
-	// https://github.com/gotenberg/gotenberg/issues/959.
-	loadingFailedMu.RLock()
-	defer loadingFailedMu.RUnlock()
-
-	if loadingFailed != nil {
-		return fmt.Errorf("%v: %w", loadingFailed, ErrLoadingFailed)
 	}
 
 	// See https://github.com/gotenberg/gotenberg/issues/1021.

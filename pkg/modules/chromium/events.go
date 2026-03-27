@@ -168,6 +168,7 @@ type eventResponseReceivedOptions struct {
 	ignoreResourceHttpStatusDomains []string
 	invalidResourceHttpStatusCode   *error
 	invalidResourceHttpStatusCodeMu *sync.RWMutex
+	cancelOnMainPageError           context.CancelFunc
 }
 
 // listenForEventResponseReceived listens for an invalid HTTP status code
@@ -206,6 +207,14 @@ func listenForEventResponseReceived(
 					defer options.invalidHttpStatusCodeMu.Unlock()
 
 					*options.invalidHttpStatusCode = fmt.Errorf("%d: %s", ev.Response.Status, ev.Response.StatusText)
+
+					// Cancel the task context so that any in-flight wait
+					// operations (waitForSelector, waitForExpression, etc.)
+					// abort immediately instead of polling until timeout.
+					// See https://github.com/gotenberg/gotenberg/issues/1492.
+					if options.cancelOnMainPageError != nil {
+						options.cancelOnMainPageError()
+					}
 				}
 
 				return
@@ -309,6 +318,7 @@ type eventLoadingFailedOptions struct {
 	loadingFailedMu         *sync.RWMutex
 	resourceLoadingFailed   *error
 	resourceLoadingFailedMu *sync.RWMutex
+	cancelOnMainPageError   context.CancelFunc
 }
 
 // listenForEventLoadingFailed listens for an event indicating that the main
@@ -352,6 +362,13 @@ func listenForEventLoadingFailed(ctx context.Context, logger *slog.Logger, optio
 				defer options.loadingFailedMu.Unlock()
 
 				*options.loadingFailed = fmt.Errorf("%s", ev.ErrorText)
+
+				// Cancel the task context so that any in-flight wait
+				// operations abort immediately.
+				// See https://github.com/gotenberg/gotenberg/issues/1492.
+				if options.cancelOnMainPageError != nil {
+					options.cancelOnMainPageError()
+				}
 
 				return
 			}
