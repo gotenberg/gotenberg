@@ -75,6 +75,7 @@ Key interfaces live in `pkg/gotenberg/` — `Module`, `Provisioner`, `Validator`
 - Mocks for all major interfaces are in `pkg/gotenberg/mocks.go` — use them for unit tests rather than creating new ones.
 - Import ordering is enforced: standard library, third-party, then `github.com/gotenberg/gotenberg/v8` — separated by blank lines.
 - When making changes, run only the relevant integration test tag rather than the full suite (40min timeout).
+- Telemetry infrastructure lives in `pkg/gotenberg/telemetry.go` (global Logger, Tracer, Meter) and `pkg/gotenberg/internal/` (log handlers, OTEL SDK init). HTTP semantic conventions are in `pkg/gotenberg/semconv/`.
 
 ---
 
@@ -82,17 +83,19 @@ Key interfaces live in `pkg/gotenberg/` — `Module`, `Provisioner`, `Validator`
 
 All build and verification tasks go through the Makefile. Do not run `go` commands directly unless debugging a specific package.
 
-| Command                 | Purpose                                                       | When to use                                                            |
-| ----------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `make build`            | Build the Docker image                                        | Before integration tests, or to verify compilation                     |
-| `make run`              | Run a Gotenberg container locally                             | Manual testing. Flags are configured via `.env` and Makefile variables |
-| `make fmt`              | Format Go code (`go fix`, `golangci-lint fmt`, `go mod tidy`) | Before every commit                                                    |
-| `make lint`             | Lint Go code (strict `.golangci.yml` config)                  | Before every commit. Zero errors permitted                             |
-| `make lint-prettier`    | Lint non-Go files (Markdown, YAML, etc.) with Prettier        | Before every commit                                                    |
-| `make prettify`         | Format non-Go files (Markdown, YAML, etc.) with Prettier      | Before every commit                                                    |
-| `make test-unit`        | Run unit tests (`go test -race ./...`)                        | After code changes to `pkg/`                                           |
-| `make test-integration` | Run integration tests (Gherkin/Godog, 40min timeout)          | After any feature or route change                                      |
-| `make godoc`            | Serve GoDoc at `localhost:6060`                               | To verify documentation                                                |
+| Command                 | Purpose                                                       | When to use                                                                  |
+| ----------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `make build`            | Build the Docker image                                        | Before integration tests, or to verify compilation                           |
+| `make run`              | Run Gotenberg container via `docker compose`                  | Manual testing. Flags are configured via Makefile variables and compose.yaml |
+| `make telemetry`        | Start OpenTelemetry collector and OpenObserve                 | When testing telemetry locally                                               |
+| `make down`             | Stop all compose containers                                   | After manual testing                                                         |
+| `make fmt`              | Format Go code (`go fix`, `golangci-lint fmt`, `go mod tidy`) | Before every commit                                                          |
+| `make lint`             | Lint Go code (strict `.golangci.yml` config)                  | Before every commit. Zero errors permitted                                   |
+| `make lint-prettier`    | Lint non-Go files (Markdown, YAML, etc.) with Prettier        | Before every commit                                                          |
+| `make prettify`         | Format non-Go files (Markdown, YAML, etc.) with Prettier      | Before every commit                                                          |
+| `make test-unit`        | Run unit tests (`go test -race ./...`)                        | After code changes to `pkg/`                                                 |
+| `make test-integration` | Run integration tests (Gherkin/Godog, 40min timeout)          | After any feature or route change                                            |
+| `make godoc`            | Serve GoDoc at `localhost:6060`                               | To verify documentation                                                      |
 
 ## Module System
 
@@ -110,6 +113,8 @@ When adding a feature, first determine if it belongs in an existing module. Only
 - **Error handling:** Always wrap errors with context using `fmt.Errorf("description: %w", err)`. Never swallow errors silently.
 - **Import ordering:** Enforced by `gci` — standard library, then third-party, then `github.com/gotenberg/gotenberg/v8`. Three groups separated by blank lines.
 - **Mocks:** Comprehensive mock implementations for all major interfaces live in `pkg/gotenberg/mocks.go`. Use these for unit tests.
+- **Logging:** Use `gotenberg.Logger(mod)` to get the module's slog logger during `Provision()`. All log calls must be context-aware: `logger.DebugContext(ctx, msg)`, `logger.InfoContext(ctx, msg)`, `logger.ErrorContext(ctx, msg)`. This propagates trace/span IDs into structured logs when OpenTelemetry is active.
+- **Telemetry:** External tool calls (Chromium, LibreOffice, PDF engines, webhooks, downloads) must create OTEL spans with `trace.SpanKindClient` and `semconv.ServerAddress("toolname")`. Use `gotenberg.Tracer()` and `gotenberg.Meter()` for traces and metrics respectively.
 - **No business logic in `cmd/`:** The `cmd/gotenberg/` package is strictly for wiring and startup.
 
 ---
@@ -123,12 +128,13 @@ When adding a feature, first determine if it belongs in an existing module. Only
 - [ ] No existing API form fields renamed or removed
 - [ ] No existing HTTP endpoints changed or removed
 - [ ] No changes to default values that alter existing behavior
+- [ ] Deprecated flags have both old and new names registered, with `fs.MarkDeprecated()`
 
 If any of these are violated, the change **must** be flagged as a breaking change.
 
 ### Linting Standards
 
-The `.golangci.yml` enforces strict rules including: `gosec`, `govet`, `errcheck`, `staticcheck`, `dupl`, `bodyclose`, `exhaustive`, `errname`, and more. Zero linting errors are permitted.
+The `.golangci.yml` enforces strict rules including: `gosec`, `govet`, `errcheck`, `staticcheck`, `dupl`, `bodyclose`, `exhaustive`, `errname`, `sloglint`, `gocritic`, and more. Zero linting errors are permitted.
 
 Formatters enforce `gci`, `gofmt`, `gofumpt`, `goimports` with import ordering:
 

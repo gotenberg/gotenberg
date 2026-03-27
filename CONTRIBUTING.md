@@ -29,6 +29,8 @@ make lint-prettier    # Lint non-Go files
 make test-unit        # Run unit tests
 make build            # Build the Docker image (required before integration tests)
 make test-integration # Run all integration tests
+make telemetry        # Start OpenTelemetry collector and OpenObserve
+make down             # Stop all compose containers
 ```
 
 To run only the integration tests relevant to your change:
@@ -56,6 +58,8 @@ Before opening a PR, verify:
 - **One thing per PR.** Keep features, bug fixes, and refactoring in separate PRs.
 - **Backward compatibility matters.** Do not rename or remove existing CLI flags, environment variables, or API form fields without discussion.
 - **Integration tests first.** When adding a feature or route, start by writing the Gherkin scenario in `test/integration/features/`.
+- **Logging uses `gotenberg.Logger(mod)`** with context-aware calls (`*Context` variants).
+- **External operations have OTEL traces** with appropriate SpanKind and semconv attributes.
 - **No business logic in `cmd/`.** All logic belongs in `pkg/`.
 
 ## Detailed Guidelines
