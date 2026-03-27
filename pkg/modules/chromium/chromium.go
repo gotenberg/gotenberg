@@ -16,7 +16,10 @@ import (
 	"github.com/dlclark/regexp2"
 	flag "github.com/spf13/pflag"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
+	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
@@ -784,6 +787,12 @@ func (mod *Chromium) Routes() ([]api.Route, error) {
 
 // Pdf converts a URL to PDF.
 func (mod *Chromium) Pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "chromium.Pdf",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(semconv.ServerAddress("chromium")),
+	)
+	defer span.End()
+
 	start := time.Now()
 	var conversionStart time.Time
 
@@ -844,12 +853,23 @@ func (mod *Chromium) Pdf(ctx context.Context, logger *slog.Logger, url, outputPa
 		if fileInfo, statErr := os.Stat(outputPath); statErr == nil {
 			mod.pdfOutputSizeCounter.Record(ctx, fileInfo.Size())
 		}
+
+		span.SetStatus(codes.Ok, "")
+		return nil
 	}
 
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
 	return err
 }
 
 func (mod *Chromium) Screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "chromium.Screenshot",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(semconv.ServerAddress("chromium")),
+	)
+	defer span.End()
+
 	start := time.Now()
 	var conversionStart time.Time
 
@@ -912,8 +932,13 @@ func (mod *Chromium) Screenshot(ctx context.Context, logger *slog.Logger, url, o
 		if fileInfo, statErr := os.Stat(outputPath); statErr == nil {
 			mod.imageOutputSizeCounter.Record(ctx, fileInfo.Size())
 		}
+
+		span.SetStatus(codes.Ok, "")
+		return nil
 	}
 
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
 	return err
 }
 

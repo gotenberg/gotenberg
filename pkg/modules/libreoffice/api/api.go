@@ -14,7 +14,10 @@ import (
 	"github.com/alexliesenfeld/health"
 	flag "github.com/spf13/pflag"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
+	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/multierr"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
@@ -528,6 +531,12 @@ func (a *Api) LibreOffice() (Uno, error) {
 
 // Pdf converts a document to PDF.
 func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "libreoffice.Pdf",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(semconv.ServerAddress("libreoffice")),
+	)
+	defer span.End()
+
 	start := time.Now()
 	var conversionStart time.Time
 
@@ -579,6 +588,7 @@ func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPat
 			a.pdfOutputSizeCounter.Record(ctx, stat.Size(), attrs)
 		}
 
+		span.SetStatus(codes.Ok, "")
 		return nil
 	}
 
@@ -588,6 +598,8 @@ func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPat
 		return a.Pdf(ctx, logger, inputPath, outputPath, options)
 	}
 
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
 	return fmt.Errorf("supervisor run task: %w", err)
 }
 

@@ -21,7 +21,10 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/mholt/archives"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
+	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/text/unicode/norm"
 
@@ -232,10 +235,18 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 					return fmt.Errorf("filter URL: %w", err)
 				}
 
-				logger.DebugContext(ctx, fmt.Sprintf("download file from '%s'", dl.Url))
+				dlCtx, dlSpan := gotenberg.Tracer().Start(ctx, "GET Download From",
+					trace.WithSpanKind(trace.SpanKindClient),
+					trace.WithAttributes(semconv.ServerAddress(dl.Url)),
+				)
+
+				logger.DebugContext(dlCtx, fmt.Sprintf("download file from '%s'", dl.Url))
 
 				req, err := retryablehttp.NewRequest(http.MethodGet, dl.Url, nil)
 				if err != nil {
+					dlSpan.RecordError(err)
+					dlSpan.SetStatus(codes.Error, err.Error())
+					dlSpan.End()
 					return fmt.Errorf("create request to '%s': %w", dl.Url, err)
 				}
 
@@ -245,7 +256,7 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 				}
 
 				// Inject OTEL trace context into outbound request.
-				otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
+				otel.GetTextMapPropagator().Inject(dlCtx, propagation.HeaderCarrier(req.Header))
 
 				// Propagate correlation ID header.
 				if correlationIdHeader, ok := echoCtx.Get("correlationIdHeader").(string); ok {
@@ -268,6 +279,9 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 
 				resp, err := client.Do(req)
 				if err != nil {
+					dlSpan.RecordError(err)
+					dlSpan.SetStatus(codes.Error, err.Error())
+					dlSpan.End()
 					return WrapError(
 						fmt.Errorf("download file from to '%s': %w", dl.Url, err),
 						NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Unable to download file from '%s': %s", dl.Url, err)),
@@ -281,16 +295,24 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 				}()
 
 				if resp.StatusCode != http.StatusOK {
+					dlErr := fmt.Errorf("download file from to '%s': got status: '%s'", dl.Url, resp.Status)
+					dlSpan.RecordError(dlErr)
+					dlSpan.SetStatus(codes.Error, dlErr.Error())
+					dlSpan.End()
 					return WrapError(
-						fmt.Errorf("download file from to '%s': got status: '%s'", dl.Url, resp.Status),
+						dlErr,
 						NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Unable to download file from '%s': got status: '%s'", dl.Url, resp.Status)),
 					)
 				}
 
 				contentDisposition := resp.Header.Get("Content-Disposition")
 				if contentDisposition == "" {
+					dlErr := fmt.Errorf("no 'Content-Disposition' header from '%s'", dl.Url)
+					dlSpan.RecordError(dlErr)
+					dlSpan.SetStatus(codes.Error, dlErr.Error())
+					dlSpan.End()
 					return WrapError(
-						fmt.Errorf("no 'Content-Disposition' header from '%s'", dl.Url),
+						dlErr,
 						NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("No 'Content-Disposition' header from '%s'", dl.Url)),
 					)
 				}
@@ -300,16 +322,24 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 				//  See: https://github.com/golang/go/issues/69551.
 				_, params, err := mime.ParseMediaType(contentDisposition)
 				if err != nil {
+					dlErr := fmt.Errorf("parse 'Content-Disposition' header '%s' from '%s': %w", contentDisposition, dl.Url, err)
+					dlSpan.RecordError(dlErr)
+					dlSpan.SetStatus(codes.Error, dlErr.Error())
+					dlSpan.End()
 					return WrapError(
-						fmt.Errorf("parse 'Content-Disposition' header '%s' from '%s': %w", contentDisposition, dl.Url, err),
+						dlErr,
 						NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'Content-Disposition' header '%s' from '%s': %s", contentDisposition, dl.Url, err)),
 					)
 				}
 
 				filename, ok := params["filename"]
 				if !ok {
+					dlErr := fmt.Errorf("get filename from 'Content-Disposition' header '%s' from '%s'", contentDisposition, dl.Url)
+					dlSpan.RecordError(dlErr)
+					dlSpan.SetStatus(codes.Error, dlErr.Error())
+					dlSpan.End()
 					return WrapError(
-						fmt.Errorf("get filename from 'Content-Disposition' header '%s' from '%s'", contentDisposition, dl.Url),
+						dlErr,
 						NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'Content-Disposition' header '%s' from '%s': no filename", contentDisposition, dl.Url)),
 					)
 				}
@@ -322,7 +352,11 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 
 				out, err := os.Create(path)
 				if err != nil {
-					return fmt.Errorf("create local file: %w", err)
+					dlErr := fmt.Errorf("create local file: %w", err)
+					dlSpan.RecordError(dlErr)
+					dlSpan.SetStatus(codes.Error, dlErr.Error())
+					dlSpan.End()
+					return dlErr
 				}
 				defer func() {
 					err := out.Close()
@@ -336,8 +370,15 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 
 				_, err = io.Copy(out, reader)
 				if err != nil {
-					return fmt.Errorf("copy downloaded file from '%s' to local file: %w", dl.Url, err)
+					dlErr := fmt.Errorf("copy downloaded file from '%s' to local file: %w", dl.Url, err)
+					dlSpan.RecordError(dlErr)
+					dlSpan.SetStatus(codes.Error, dlErr.Error())
+					dlSpan.End()
+					return dlErr
 				}
+
+				dlSpan.SetStatus(codes.Ok, "")
+				dlSpan.End()
 
 				ctx.files[filename] = path
 
