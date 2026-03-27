@@ -67,6 +67,21 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				maxImageResolution              int
 				nativeWatermarkText             string
 				nativeWatermarkColor            int
+				initialView                     int
+				initialPage                     int
+				magnification                   int
+				zoom                            int
+				pageLayout                      int
+				firstPageOnLeft                 bool
+				resizeWindowToInitialPage       bool
+				centerWindow                    bool
+				openInFullScreenMode            bool
+				displayPDFDocumentTitle         bool
+				hideViewerMenubar               bool
+				hideViewerToolbar               bool
+				hideViewerWindowControls        bool
+				useTransitionEffects            bool
+				openBookmarkLevels              int
 				nativeWatermarkFontHeight       int
 				nativeWatermarkRotateAngle      int
 				nativeWatermarkFontName         string
@@ -97,6 +112,105 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				Bool("skipEmptyPages", &skipEmptyPages, defaultOptions.SkipEmptyPages).
 				Bool("addOriginalDocumentAsStream", &addOriginalDocumentAsStream, defaultOptions.AddOriginalDocumentAsStream).
 				Bool("singlePageSheets", &singlePageSheets, defaultOptions.SinglePageSheets).
+				Custom("initialView", func(value string) error {
+					if value == "" {
+						initialView = defaultOptions.InitialView
+						return nil
+					}
+					intValue, err := strconv.Atoi(value)
+					if err != nil {
+						return err
+					}
+					if !slices.Contains([]int{0, 1, 2}, intValue) {
+						return errors.New("value is not 0, 1 or 2")
+					}
+					initialView = intValue
+					return nil
+				}).
+				Custom("initialPage", func(value string) error {
+					if value == "" {
+						initialPage = defaultOptions.InitialPage
+						return nil
+					}
+					intValue, err := strconv.Atoi(value)
+					if err != nil {
+						return err
+					}
+					if intValue < 1 {
+						return errors.New("value is inferior to 1")
+					}
+					initialPage = intValue
+					return nil
+				}).
+				Custom("magnification", func(value string) error {
+					if value == "" {
+						magnification = defaultOptions.Magnification
+						return nil
+					}
+					intValue, err := strconv.Atoi(value)
+					if err != nil {
+						return err
+					}
+					if !slices.Contains([]int{0, 1, 2, 3, 4}, intValue) {
+						return errors.New("value is not 0, 1, 2, 3 or 4")
+					}
+					magnification = intValue
+					return nil
+				}).
+				Custom("zoom", func(value string) error {
+					if value == "" {
+						zoom = defaultOptions.Zoom
+						return nil
+					}
+					intValue, err := strconv.Atoi(value)
+					if err != nil {
+						return err
+					}
+					if intValue < 1 {
+						return errors.New("value is inferior to 1")
+					}
+					zoom = intValue
+					return nil
+				}).
+				Custom("pageLayout", func(value string) error {
+					if value == "" {
+						pageLayout = defaultOptions.PageLayout
+						return nil
+					}
+					intValue, err := strconv.Atoi(value)
+					if err != nil {
+						return err
+					}
+					if !slices.Contains([]int{0, 1, 2, 3}, intValue) {
+						return errors.New("value is not 0, 1, 2 or 3")
+					}
+					pageLayout = intValue
+					return nil
+				}).
+				Bool("firstPageOnLeft", &firstPageOnLeft, defaultOptions.FirstPageOnLeft).
+				Bool("resizeWindowToInitialPage", &resizeWindowToInitialPage, defaultOptions.ResizeWindowToInitialPage).
+				Bool("centerWindow", &centerWindow, defaultOptions.CenterWindow).
+				Bool("openInFullScreenMode", &openInFullScreenMode, defaultOptions.OpenInFullScreenMode).
+				Bool("displayPDFDocumentTitle", &displayPDFDocumentTitle, defaultOptions.DisplayPDFDocumentTitle).
+				Bool("hideViewerMenubar", &hideViewerMenubar, defaultOptions.HideViewerMenubar).
+				Bool("hideViewerToolbar", &hideViewerToolbar, defaultOptions.HideViewerToolbar).
+				Bool("hideViewerWindowControls", &hideViewerWindowControls, defaultOptions.HideViewerWindowControls).
+				Bool("useTransitionEffects", &useTransitionEffects, defaultOptions.UseTransitionEffects).
+				Custom("openBookmarkLevels", func(value string) error {
+					if value == "" {
+						openBookmarkLevels = defaultOptions.OpenBookmarkLevels
+						return nil
+					}
+					intValue, err := strconv.Atoi(value)
+					if err != nil {
+						return err
+					}
+					if intValue != -1 && (intValue < 1 || intValue > 10) {
+						return errors.New("value is not -1 or between 1 and 10")
+					}
+					openBookmarkLevels = intValue
+					return nil
+				}).
 				Bool("losslessImageCompression", &losslessImageCompression, defaultOptions.LosslessImageCompression).
 				Custom("quality", func(value string) error {
 					if value == "" {
@@ -227,6 +341,21 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					SkipEmptyPages:                  skipEmptyPages,
 					AddOriginalDocumentAsStream:     addOriginalDocumentAsStream,
 					SinglePageSheets:                singlePageSheets,
+					InitialView:                     initialView,
+					InitialPage:                     initialPage,
+					Magnification:                   magnification,
+					Zoom:                            zoom,
+					PageLayout:                      pageLayout,
+					FirstPageOnLeft:                 firstPageOnLeft,
+					ResizeWindowToInitialPage:       resizeWindowToInitialPage,
+					CenterWindow:                    centerWindow,
+					OpenInFullScreenMode:            openInFullScreenMode,
+					DisplayPDFDocumentTitle:         displayPDFDocumentTitle,
+					HideViewerMenubar:               hideViewerMenubar,
+					HideViewerToolbar:               hideViewerToolbar,
+					HideViewerWindowControls:        hideViewerWindowControls,
+					UseTransitionEffects:            useTransitionEffects,
+					OpenBookmarkLevels:              openBookmarkLevels,
 					LosslessImageCompression:        losslessImageCompression,
 					Quality:                         quality,
 					ReduceImageResolution:           reduceImageResolution,

@@ -140,6 +140,66 @@ type Options struct {
 	// one page.
 	SinglePageSheets bool
 
+	// InitialView specifies how the PDF document should be displayed when
+	// opened. 0 = neither outlines nor thumbnails, 1 = outline pane open,
+	// 2 = thumbnail pane open.
+	InitialView int
+
+	// InitialPage specifies the page on which the PDF document should be
+	// opened in the viewer.
+	InitialPage int
+
+	// Magnification specifies the action to be performed when the PDF document
+	// is opened. 0 = default, 1 = fit entire page, 2 = fit page width,
+	// 3 = fit visible, 4 = use zoom value from Zoom property.
+	Magnification int
+
+	// Zoom specifies the zoom level the PDF document is opened with. Only
+	// used if Magnification is set to 4.
+	Zoom int
+
+	// PageLayout specifies the page layout when the document is opened.
+	// 0 = default, 1 = single page, 2 = one column, 3 = two columns.
+	PageLayout int
+
+	// FirstPageOnLeft is used with PageLayout value 3. If true, the first
+	// page is displayed on the left side.
+	FirstPageOnLeft bool
+
+	// ResizeWindowToInitialPage specifies that the PDF viewer window is
+	// resized to show the whole initial page.
+	ResizeWindowToInitialPage bool
+
+	// CenterWindow specifies that the PDF viewer window is centered on the
+	// screen.
+	CenterWindow bool
+
+	// OpenInFullScreenMode specifies that the PDF viewer window is opened
+	// full screen.
+	OpenInFullScreenMode bool
+
+	// DisplayPDFDocumentTitle specifies that the document title is displayed
+	// in the PDF viewer title bar.
+	DisplayPDFDocumentTitle bool
+
+	// HideViewerMenubar specifies whether to hide the PDF viewer menubar.
+	HideViewerMenubar bool
+
+	// HideViewerToolbar specifies whether to hide the PDF viewer toolbar.
+	HideViewerToolbar bool
+
+	// HideViewerWindowControls specifies whether to hide the PDF viewer
+	// window controls.
+	HideViewerWindowControls bool
+
+	// UseTransitionEffects specifies that slide transitions are exported to
+	// PDF. Only active for Impress documents.
+	UseTransitionEffects bool
+
+	// OpenBookmarkLevels specifies how many bookmark levels should be opened
+	// in the reader. -1 = all levels, 1-10 = specific level.
+	OpenBookmarkLevels int
+
 	// LosslessImageCompression specifies if images are exported to PDF using
 	// a lossless compression format like PNG or compressed using the JPEG
 	// format.
@@ -208,6 +268,21 @@ func DefaultOptions() Options {
 		SkipEmptyPages:                  false,
 		AddOriginalDocumentAsStream:     false,
 		SinglePageSheets:                false,
+		InitialView:                     0,
+		InitialPage:                     1,
+		Magnification:                   0,
+		Zoom:                            100,
+		PageLayout:                      0,
+		FirstPageOnLeft:                 false,
+		ResizeWindowToInitialPage:       false,
+		CenterWindow:                    false,
+		OpenInFullScreenMode:            false,
+		DisplayPDFDocumentTitle:         true,
+		HideViewerMenubar:               false,
+		HideViewerToolbar:               false,
+		HideViewerWindowControls:        false,
+		UseTransitionEffects:            true,
+		OpenBookmarkLevels:              -1,
 		LosslessImageCompression:        false,
 		Quality:                         90,
 		ReduceImageResolution:           false,
