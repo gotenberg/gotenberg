@@ -197,7 +197,7 @@ Feature: /forms/pdfengines/stamp
     Then the response header "Content-Type" should be "application/pdf"
     Then the response header "Gotenberg-Trace" should be "forms_pdfengines_stamp"
     Then the Gotenberg container should log the following entries:
-      | "trace":"forms_pdfengines_stamp" |
+      | "correlation_id":"forms_pdfengines_stamp" |
 
   @webhook
   Scenario: POST /forms/pdfengines/stamp (Webhook)

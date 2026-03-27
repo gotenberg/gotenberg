@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -19,7 +20,8 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/labstack/echo/v4"
 	"github.com/mholt/archives"
-	"go.uber.org/zap"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/text/unicode/norm"
 
@@ -36,7 +38,7 @@ var (
 	ErrOutOfBoundsOutputPath = errors.New("output path is not within context's working directory")
 )
 
-// Context is the request context for a "multipart/form-data" requests.
+// Context is the request context for a "multipart/form-data" request.
 type Context struct {
 	dirPath      string
 	values       map[string][]string
@@ -45,7 +47,7 @@ type Context struct {
 	outputPaths  []string
 	cancelled    bool
 
-	logger     *zap.Logger
+	logger     *slog.Logger
 	echoCtx    echo.Context
 	mkdirAll   gotenberg.MkdirAll
 	pathRename gotenberg.PathRename
@@ -92,7 +94,7 @@ type downloadFrom struct {
 }
 
 // newContext returns a [Context] by parsing a "multipart/form-data" request.
-func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig, traceHeader, trace string) (*Context, context.CancelFunc, error) {
+func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig) (*Context, context.CancelFunc, error) {
 	processCtx, processCancel := context.WithTimeout(echoCtx.Request().Context(), timeout)
 
 	// We want to make sure the multipart/form-data does not exceed a given
@@ -137,12 +139,12 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 
 			err := os.RemoveAll(ctx.dirPath)
 			if err != nil {
-				ctx.logger.Error(fmt.Sprintf("remove context's working directory: %s", err))
+				ctx.logger.ErrorContext(context.Background(), fmt.Sprintf("remove context's working directory: %s", err))
 
 				return
 			}
 
-			ctx.logger.Debug(fmt.Sprintf("'%s' context's working directory removed", ctx.dirPath))
+			ctx.logger.DebugContext(context.Background(), fmt.Sprintf("'%s' context's working directory removed", ctx.dirPath))
 			ctx.cancelled = true
 		}
 	}()
@@ -230,7 +232,7 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 					return fmt.Errorf("filter URL: %w", err)
 				}
 
-				logger.Debug(fmt.Sprintf("download file from '%s'", dl.Url))
+				logger.DebugContext(ctx, fmt.Sprintf("download file from '%s'", dl.Url))
 
 				req, err := retryablehttp.NewRequest(http.MethodGet, dl.Url, nil)
 				if err != nil {
@@ -241,7 +243,16 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 				for key, value := range dl.ExtraHttpHeaders {
 					req.Header.Set(key, value)
 				}
-				req.Header.Set(traceHeader, trace)
+
+				// Inject OTEL trace context into outbound request.
+				otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
+
+				// Propagate correlation ID header.
+				if correlationIdHeader, ok := echoCtx.Get("correlationIdHeader").(string); ok {
+					if correlationId, ok := echoCtx.Get("correlationId").(string); ok {
+						req.Header.Set(correlationIdHeader, correlationId)
+					}
+				}
 
 				client := &retryablehttp.Client{
 					HTTPClient: &http.Client{
@@ -265,7 +276,7 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 				defer func() {
 					err := resp.Body.Close()
 					if err != nil {
-						logger.Error(fmt.Sprintf("close response body from '%s': %s", dl.Url, err))
+						logger.ErrorContext(ctx, fmt.Sprintf("close response body from '%s': %s", dl.Url, err))
 					}
 				}()
 
@@ -316,7 +327,7 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 				defer func() {
 					err := out.Close()
 					if err != nil {
-						logger.Error(fmt.Sprintf("close local file: %s", err))
+						logger.ErrorContext(ctx, fmt.Sprintf("close local file: %s", err))
 					}
 				}()
 
@@ -359,7 +370,7 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 		defer func() {
 			err := in.Close()
 			if err != nil {
-				logger.Error(fmt.Sprintf("close file header: %s", err))
+				logger.ErrorContext(context.Background(), fmt.Sprintf("close file header: %s", err))
 			}
 		}()
 
@@ -379,7 +390,7 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 		defer func() {
 			err := out.Close()
 			if err != nil {
-				logger.Error(fmt.Sprintf("close local file: %s", err))
+				logger.ErrorContext(context.Background(), fmt.Sprintf("close local file: %s", err))
 			}
 		}()
 
@@ -407,10 +418,10 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 		}
 	}
 
-	ctx.Log().Debug(fmt.Sprintf("form fields: %+v", ctx.values))
-	ctx.Log().Debug(fmt.Sprintf("form files: %+v", ctx.files))
-	ctx.Log().Debug(fmt.Sprintf("form files by field: %+v", ctx.filesByField))
-	ctx.Log().Debug(fmt.Sprintf("total bytes: %d", totalBytesRead.Load()))
+	ctx.Log().DebugContext(ctx, fmt.Sprintf("form fields: %+v", ctx.values))
+	ctx.Log().DebugContext(ctx, fmt.Sprintf("form files: %+v", ctx.files))
+	ctx.Log().DebugContext(ctx, fmt.Sprintf("form files by field: %+v", ctx.filesByField))
+	ctx.Log().DebugContext(ctx, fmt.Sprintf("total bytes: %d", totalBytesRead.Load()))
 
 	return ctx, cancel, err
 }
@@ -462,7 +473,7 @@ func (ctx *Context) CreateSubDirectory(dirName string) (string, error) {
 // Rename is just a wrapper around [os.Rename], as we need to mock this
 // behavior in our tests.
 func (ctx *Context) Rename(oldpath, newpath string) error {
-	ctx.Log().Debug(fmt.Sprintf("rename %s to %s", oldpath, newpath))
+	ctx.Log().DebugContext(ctx, fmt.Sprintf("rename %s to %s", oldpath, newpath))
 	err := ctx.pathRename.Rename(oldpath, newpath)
 	if err != nil {
 		return fmt.Errorf("rename path: %w", err)
@@ -488,8 +499,8 @@ func (ctx *Context) AddOutputPaths(paths ...string) error {
 	return nil
 }
 
-// Log returns the context [zap.Logger].
-func (ctx *Context) Log() *zap.Logger {
+// Log returns the context [slog.Logger].
+func (ctx *Context) Log() *slog.Logger {
 	return ctx.logger
 }
 
@@ -505,7 +516,7 @@ func (ctx *Context) BuildOutputFile() (string, error) {
 	}
 
 	if len(ctx.outputPaths) == 1 {
-		ctx.logger.Debug(fmt.Sprintf("only one output file '%s', skip archive creation", ctx.outputPaths[0]))
+		ctx.logger.DebugContext(ctx, fmt.Sprintf("only one output file '%s', skip archive creation", ctx.outputPaths[0]))
 		return ctx.outputPaths[0], nil
 	}
 
@@ -528,7 +539,7 @@ func (ctx *Context) BuildOutputFile() (string, error) {
 	defer func(out *os.File) {
 		err := out.Close()
 		if err != nil {
-			ctx.logger.Error(fmt.Sprintf("close zip file: %s", err))
+			ctx.logger.ErrorContext(ctx, fmt.Sprintf("close zip file: %s", err))
 		}
 	}(out)
 
@@ -537,7 +548,7 @@ func (ctx *Context) BuildOutputFile() (string, error) {
 		return "", fmt.Errorf("archive output files: %w", err)
 	}
 
-	ctx.logger.Debug(fmt.Sprintf("archive '%s' created", archivePath))
+	ctx.logger.DebugContext(ctx, fmt.Sprintf("archive '%s' created", archivePath))
 
 	return archivePath, nil
 }

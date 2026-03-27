@@ -277,6 +277,11 @@ ENV QPDF_BIN_PATH=/usr/bin/qpdf
 ENV EXIFTOOL_BIN_PATH=/usr/bin/exiftool
 ENV PDFCPU_BIN_PATH=/usr/bin/pdfcpu
 
+# OpenTelemetry defaults (noop - no telemetry overhead unless explicitly enabled).
+ENV OTEL_TRACES_EXPORTER=none
+ENV OTEL_METRICS_EXPORTER=none
+ENV OTEL_LOGS_EXPORTER=none
+
 USER gotenberg
 WORKDIR /home/gotenberg
 

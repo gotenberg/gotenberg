@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"reflect"
@@ -11,7 +12,6 @@ import (
 	"syscall"
 
 	"github.com/barasher/go-exiftool"
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
@@ -74,27 +74,27 @@ func (engine *ExifTool) Debug() map[string]any {
 }
 
 // Merge is not available in this implementation.
-func (engine *ExifTool) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+func (engine *ExifTool) Merge(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
 	return fmt.Errorf("merge PDFs with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Split is not available in this implementation.
-func (engine *ExifTool) Split(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+func (engine *ExifTool) Split(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
 	return nil, fmt.Errorf("split PDF with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Flatten is not available in this implementation.
-func (engine *ExifTool) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
+func (engine *ExifTool) Flatten(ctx context.Context, logger *slog.Logger, inputPath string) error {
 	return fmt.Errorf("flatten PDF with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Convert is not available in this implementation.
-func (engine *ExifTool) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+func (engine *ExifTool) Convert(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 	return fmt.Errorf("convert PDF to '%+v' with ExifTool: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // ReadMetadata extracts the metadata of a given PDF file.
-func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
+func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 	exifTool, err := exiftool.NewExiftool(exiftool.SetExiftoolBinaryPath(engine.binPath))
 	if err != nil {
 		return nil, fmt.Errorf("new ExifTool: %w", err)
@@ -103,7 +103,7 @@ func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *zap.Logger, in
 	defer func(exifTool *exiftool.Exiftool) {
 		err := exifTool.Close()
 		if err != nil {
-			logger.Error(fmt.Sprintf("close ExifTool: %v", err))
+			logger.ErrorContext(ctx, fmt.Sprintf("close ExifTool: %v", err))
 		}
 	}(exifTool)
 
@@ -116,7 +116,7 @@ func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *zap.Logger, in
 }
 
 // WriteMetadata writes the metadata into a given PDF file.
-func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
+func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
 	exifTool, err := exiftool.NewExiftool(exiftool.SetExiftoolBinaryPath(engine.binPath))
 	if err != nil {
 		return fmt.Errorf("new ExifTool: %w", err)
@@ -125,7 +125,7 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, m
 	defer func(exifTool *exiftool.Exiftool) {
 		err := exifTool.Close()
 		if err != nil {
-			logger.Error(fmt.Sprintf("close ExifTool: %v", err))
+			logger.ErrorContext(ctx, fmt.Sprintf("close ExifTool: %v", err))
 		}
 	}(exifTool)
 
@@ -204,7 +204,7 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *zap.Logger, m
 }
 
 // PageCount returns the number of pages in a PDF file using ExifTool.
-func (engine *ExifTool) PageCount(ctx context.Context, logger *zap.Logger, inputPath string) (int, error) {
+func (engine *ExifTool) PageCount(ctx context.Context, logger *slog.Logger, inputPath string) (int, error) {
 	metadata, err := engine.ReadMetadata(ctx, logger, inputPath)
 	if err != nil {
 		return 0, fmt.Errorf("read metadata with ExifTool: %w", err)
@@ -235,37 +235,37 @@ func (engine *ExifTool) PageCount(ctx context.Context, logger *zap.Logger, input
 }
 
 // WriteBookmarks is not available in this implementation.
-func (engine *ExifTool) WriteBookmarks(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
+func (engine *ExifTool) WriteBookmarks(ctx context.Context, logger *slog.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
 	return fmt.Errorf("write PDF bookmarks with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // ReadBookmarks is not available in this implementation.
-func (engine *ExifTool) ReadBookmarks(ctx context.Context, logger *zap.Logger, inputPath string) ([]gotenberg.Bookmark, error) {
+func (engine *ExifTool) ReadBookmarks(ctx context.Context, logger *slog.Logger, inputPath string) ([]gotenberg.Bookmark, error) {
 	return nil, fmt.Errorf("read PDF bookmarks with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Encrypt is not available in this implementation.
-func (engine *ExifTool) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
+func (engine *ExifTool) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
 	return fmt.Errorf("encrypt PDF using ExifTool: %w", gotenberg.ErrPdfEncryptionNotSupported)
 }
 
 // EmbedFiles is not available in this implementation.
-func (engine *ExifTool) EmbedFiles(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error {
+func (engine *ExifTool) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {
 	return fmt.Errorf("embed files with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Watermark is not available in this implementation.
-func (engine *ExifTool) Watermark(ctx context.Context, logger *zap.Logger, inputPath string, stamp gotenberg.Stamp) error {
+func (engine *ExifTool) Watermark(ctx context.Context, logger *slog.Logger, inputPath string, stamp gotenberg.Stamp) error {
 	return fmt.Errorf("watermark PDF with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Stamp is not available in this implementation.
-func (engine *ExifTool) Stamp(ctx context.Context, logger *zap.Logger, inputPath string, stamp gotenberg.Stamp) error {
+func (engine *ExifTool) Stamp(ctx context.Context, logger *slog.Logger, inputPath string, stamp gotenberg.Stamp) error {
 	return fmt.Errorf("stamp PDF with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Rotate is not available in this implementation.
-func (engine *ExifTool) Rotate(ctx context.Context, logger *zap.Logger, inputPath string, angle int, pages string) error {
+func (engine *ExifTool) Rotate(ctx context.Context, logger *slog.Logger, inputPath string, angle int, pages string) error {
 	return fmt.Errorf("rotate PDF with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 

@@ -21,13 +21,13 @@ import (
 )
 
 type sendOutputFileParams struct {
-	ctx              *api.Context
-	outputPath       string
-	extraHttpHeaders map[string]string
-	traceHeader      string
-	trace            string
-	client           *client
-	handleError      func(error)
+	ctx                 *api.Context
+	outputPath          string
+	extraHttpHeaders    map[string]string
+	correlationIdHeader string
+	correlationId       string
+	client              *client
+	handleError         func(error)
 }
 
 func webhookMiddleware(w *Webhook) api.Middleware {
@@ -72,16 +72,16 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 					}
 
 					headers := map[string]string{
-						echo.HeaderContentType:   http.DetectContentType(fileHeader),
-						echo.HeaderContentLength: strconv.FormatInt(fileStat.Size(), 10),
-						params.traceHeader:       params.trace,
+						echo.HeaderContentType:     http.DetectContentType(fileHeader),
+						echo.HeaderContentLength:   strconv.FormatInt(fileStat.Size(), 10),
+						params.correlationIdHeader: params.correlationId,
 					}
 					_, ok := params.extraHttpHeaders[echo.HeaderContentDisposition]
 					if !ok {
 						headers[echo.HeaderContentDisposition] = fmt.Sprintf("attachment; filename=%q", params.ctx.OutputFilename(params.outputPath))
 					}
 
-					err = params.client.send(bufio.NewReader(outputFile), headers, false)
+					err = params.client.send(params.ctx, bufio.NewReader(outputFile), headers, false)
 					if err != nil {
 						params.ctx.Log().Error(fmt.Sprintf("send output file to webhook: %s", err))
 						params.handleError(err)
@@ -179,8 +179,8 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 					// Retrieve values from echo.Context before it gets recycled.
 					// See https://github.com/gotenberg/gotenberg/issues/1000.
 					startTime := c.Get("startTime").(time.Time)
-					traceHeader := c.Get("traceHeader").(string)
-					trace := c.Get("trace").(string)
+					correlationIdHeader := c.Get("correlationIdHeader").(string)
+					correlationId := c.Get("correlationId").(string)
 
 					client := &client{
 						url:              webhookUrl,
@@ -226,10 +226,10 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 
 						headers := map[string]string{
 							echo.HeaderContentType: echo.MIMEApplicationJSON,
-							traceHeader:            trace,
+							correlationIdHeader:    correlationId,
 						}
 
-						err = client.send(bytes.NewReader(b), headers, true)
+						err = client.send(ctx, bytes.NewReader(b), headers, true)
 						if err != nil {
 							ctx.Log().Error(fmt.Sprintf("send error response to webhook: %s", err.Error()))
 						}
@@ -262,13 +262,13 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						}
 						// No error, let's send the output file to the webhook URL.
 						sendOutputFile(sendOutputFileParams{
-							ctx:              ctx,
-							outputPath:       outputPath,
-							extraHttpHeaders: extraHttpHeaders,
-							traceHeader:      traceHeader,
-							trace:            trace,
-							client:           client,
-							handleError:      handleError,
+							ctx:                 ctx,
+							outputPath:          outputPath,
+							extraHttpHeaders:    extraHttpHeaders,
+							correlationIdHeader: correlationIdHeader,
+							correlationId:       correlationId,
+							client:              client,
+							handleError:         handleError,
 						})
 						return c.NoContent(http.StatusNoContent)
 					}
@@ -332,13 +332,13 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						}
 
 						sendOutputFile(sendOutputFileParams{
-							ctx:              ctx,
-							outputPath:       outputPath,
-							extraHttpHeaders: extraHttpHeaders,
-							traceHeader:      traceHeader,
-							trace:            trace,
-							client:           client,
-							handleError:      handleError,
+							ctx:                 ctx,
+							outputPath:          outputPath,
+							extraHttpHeaders:    extraHttpHeaders,
+							correlationIdHeader: correlationIdHeader,
+							correlationId:       correlationId,
+							client:              client,
+							handleError:         handleError,
 						})
 					}()
 

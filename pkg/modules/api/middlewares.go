@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -13,9 +14,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"go.uber.org/zap"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	semconvutil "github.com/gotenberg/gotenberg/v8/pkg/gotenberg/semconv"
 )
 
 var (
@@ -69,8 +74,7 @@ func ParseError(err error) (int, string) {
 		return http.StatusBadRequest, "At least one PDF engine cannot process the requested rotation angle, while others may have failed due to different issues"
 	}
 
-	var invalidArgsError *gotenberg.PdfEngineInvalidArgsError
-	if errors.As(err, &invalidArgsError) {
+	if invalidArgsError, ok := errors.AsType[*gotenberg.PdfEngineInvalidArgsError](err); ok {
 		return http.StatusBadRequest, invalidArgsError.Error()
 	}
 
@@ -87,14 +91,14 @@ func ParseError(err error) (int, string) {
 // returns a response as "text/plain; charset=UTF-8".
 func httpErrorHandler() echo.HTTPErrorHandler {
 	return func(err error, c echo.Context) {
-		logger := c.Get("logger").(*zap.Logger)
+		logger := c.Get("logger").(*slog.Logger)
 		status, message := ParseError(err)
 
 		c.Response().Header().Add(echo.HeaderContentType, echo.MIMETextPlainCharsetUTF8)
 
 		err = c.String(status, message)
 		if err != nil {
-			logger.Error(fmt.Sprintf("send error response: %s", err.Error()))
+			logger.ErrorContext(c.Request().Context(), fmt.Sprintf("send error response: %s", err.Error()))
 		}
 	}
 }
@@ -138,32 +142,6 @@ func rootPathMiddleware(rootPath string) echo.MiddlewareFunc {
 	}
 }
 
-// traceMiddleware sets the request identifier in the [echo.Context] under
-// "trace". Its value is either retrieved from the trace header or generated if
-// the header is not present / its value is empty.
-//
-//	trace := c.Get("trace").(string)
-//	traceHeader := c.Get("traceHeader").(string).
-func traceMiddleware(header string) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			// Get or create the request identifier.
-			trace := c.Request().Header.Get(header)
-
-			if trace == "" {
-				trace = uuid.New().String()
-			}
-
-			c.Set("trace", trace)
-			c.Set("traceHeader", header)
-			c.Response().Header().Add(header, trace)
-
-			// Call the next middleware in the chain.
-			return next(c)
-		}
-	}
-}
-
 // outputFilenameMiddleware sets the output filename in the [echo.Context]
 // under "outputFilename".
 //
@@ -183,59 +161,28 @@ func outputFilenameMiddleware() echo.MiddlewareFunc {
 	}
 }
 
-// loggerMiddleware sets the logger in the [echo.Context] under "logger" and
-// logs a synchronous request result.
+// telemetryMiddleware manages telemetry. It sets the correlation ID in the
+// [echo.Context] under "correlationId".
 //
-//	logger := c.Get("logger").(*zap.Logger)
-func loggerMiddleware(logger *zap.Logger, disableLoggingForPaths []string) echo.MiddlewareFunc {
+//	correlationIdHeader := c.Get("correlationIdHeader").(string)
+//	correlationId := c.Get("correlationId").(string)
+func telemetryMiddleware(logger *slog.Logger, serverName, correlationIdHeader string, disableTelemetryForPaths []string) echo.MiddlewareFunc {
+	meter := gotenberg.Meter()
+	semconvSrv := semconvutil.NewHTTPServer(meter)
+
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			startTime := c.Get("startTime").(time.Time)
-			trace := c.Get("trace").(string)
 			rootPath := c.Get("rootPath").(string)
 
-			// Create the application logger and add it to our locals.
-			appLogger := logger.
-				With(zap.String("log_type", "application")).
-				With(zap.String("trace", trace))
+			request := c.Request()
+			savedCtx := request.Context()
+			defer func() {
+				request = request.WithContext(savedCtx)
+				c.SetRequest(request)
+			}()
 
-			c.Set("logger", appLogger.Named(func() string {
-				return strings.ReplaceAll(
-					strings.ReplaceAll(c.Request().URL.Path, rootPath, ""),
-					"/",
-					"",
-				)
-			}()))
-
-			// Call the next middleware in the chain.
-			err := next(c)
-			if err != nil {
-				c.Error(err)
-			}
-
-			// Create the access logger.
-			accessLogger := logger.
-				With(zap.String("log_type", "access")).
-				With(zap.String("trace", trace))
-
-			for _, path := range disableLoggingForPaths {
-				URI := fmt.Sprintf("%s%s", rootPath, path)
-
-				if c.Request().RequestURI == URI {
-					return nil
-				}
-			}
-
-			// Last piece for calculating the latency.
-			finishTime := time.Now()
-
-			// Now, let's log!
-			fields := make([]zap.Field, 12)
-			fields[0] = zap.String("remote_ip", c.RealIP())
-			fields[1] = zap.String("host", c.Request().Host)
-			fields[2] = zap.String("uri", c.Request().RequestURI)
-			fields[3] = zap.String("method", c.Request().Method)
-			fields[4] = zap.String("path", func() string {
+			routePath := func() string {
 				path := c.Request().URL.Path
 
 				if path == "" {
@@ -243,20 +190,126 @@ func loggerMiddleware(logger *zap.Logger, disableLoggingForPaths []string) echo.
 				}
 
 				return path
-			}())
-			fields[5] = zap.String("referer", c.Request().Referer())
-			fields[6] = zap.String("user_agent", c.Request().UserAgent())
-			fields[7] = zap.Int("status", c.Response().Status)
-			fields[8] = zap.Int64("latency", int64(finishTime.Sub(startTime)))
-			fields[9] = zap.String("latency_human", finishTime.Sub(startTime).String())
-			fields[10] = zap.Int64("bytes_in", c.Request().ContentLength)
-			fields[11] = zap.Int64("bytes_out", c.Response().Size)
+			}()
+
+			// Evaluate if we should skip telemetry for this path.
+			skipTelemetry := false
+			for _, path := range disableTelemetryForPaths {
+				URI := fmt.Sprintf("%s%s", rootPath, path)
+				if c.Request().RequestURI == URI {
+					skipTelemetry = true
+					break
+				}
+			}
+
+			if skipTelemetry {
+				c.Set("logger", slog.New(slog.DiscardHandler))
+
+				err := next(c)
+				if err != nil {
+					c.Error(err)
+				}
+				return nil
+			}
+
+			correlationId := request.Header.Get(correlationIdHeader)
+			if correlationId == "" {
+				correlationId = uuid.NewString()
+			}
+			c.Set("correlationIdHeader", correlationIdHeader)
+			c.Set("correlationId", correlationId)
+
+			ctx := otel.GetTextMapPropagator().Extract(savedCtx, propagation.HeaderCarrier(request.Header))
+
+			rAttr := semconvSrv.Route(routePath)
+			opts := []trace.SpanStartOption{
+				trace.WithAttributes(
+					semconvSrv.RequestTraceAttrs(serverName, request, semconvutil.RequestTraceAttrsOpts{})...,
+				),
+				trace.WithSpanKind(trace.SpanKindServer),
+				trace.WithAttributes(rAttr),
+			}
+			spanName := strings.ToUpper(c.Request().Method) + " " + routePath
+
+			tracer := gotenberg.Tracer()
+			ctx, span := tracer.Start(ctx, spanName, opts...)
+			defer span.End()
+
+			otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(c.Response().Header()))
+
+			c.Response().Header().Set(correlationIdHeader, correlationId)
+			c.SetRequest(c.Request().WithContext(ctx))
+
+			appLogger := logger.
+				With(slog.String("log_type", "application")).
+				With(slog.String("correlation_id", correlationId))
+
+			loggerName := strings.ReplaceAll(
+				strings.ReplaceAll(c.Request().URL.Path, rootPath, ""),
+				"/",
+				"",
+			)
+
+			c.Set("logger", appLogger.With(slog.String("logger", loggerName)))
+
+			// Call the next middleware in the chain.
+			err := next(c)
+			finishTime := time.Now()
+
+			status := c.Response().Status
+			if err != nil {
+				parsedStatus, _ := ParseError(err)
+				status = parsedStatus
+
+				span.SetAttributes(attribute.String("error", err.Error()))
+				c.Error(err)
+			}
+
+			span.SetStatus(semconvSrv.Status(status))
+			span.SetAttributes(semconvSrv.ResponseTraceAttrs(semconvutil.ResponseTelemetry{
+				StatusCode: status,
+				WriteBytes: c.Response().Size,
+			})...)
+
+			accessLogger := logger.
+				With(slog.String("log_type", "access")).
+				With(slog.String("correlation_id", correlationId)).
+				With(slog.String("remote_ip", c.RealIP())).
+				With(slog.String("host", c.Request().Host)).
+				With(slog.String("uri", c.Request().RequestURI)).
+				With(slog.String("method", c.Request().Method)).
+				With(slog.String("path", routePath)).
+				With(slog.String("referer", c.Request().Referer())).
+				With(slog.String("user_agent", c.Request().UserAgent())).
+				With(slog.Int("status", c.Response().Status)).
+				With(slog.Int64("latency", int64(finishTime.Sub(startTime)))).
+				With(slog.String("latency_human", finishTime.Sub(startTime).String())).
+				With(slog.Int64("bytes_in", c.Request().ContentLength)).
+				With(slog.Int64("bytes_out", c.Response().Size))
 
 			if err != nil {
-				accessLogger.Error(err.Error(), fields...)
+				accessLogger.ErrorContext(ctx, err.Error())
 			} else {
-				accessLogger.Info("request handled", fields...)
+				accessLogger.InfoContext(ctx, "request handled")
 			}
+
+			additionalAttributes := []attribute.KeyValue{
+				semconvSrv.Route(routePath),
+			}
+
+			semconvSrv.RecordMetrics(ctx, semconvutil.ServerMetricData{
+				ServerName:   serverName,
+				ResponseSize: c.Response().Size,
+				MetricAttributes: semconvutil.MetricAttributes{
+					Req:                  request,
+					StatusCode:           status,
+					AdditionalAttributes: additionalAttributes,
+				},
+				MetricData: semconvutil.MetricData{
+					RequestSize: request.ContentLength,
+					ElapsedTime: float64(time.Since(startTime)) / float64(time.Millisecond),
+				},
+			})
 
 			return nil
 		}
@@ -284,13 +337,11 @@ func basicAuthMiddleware(username, password string) echo.MiddlewareFunc {
 func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			logger := c.Get("logger").(*zap.Logger)
-			traceHeader := c.Get("traceHeader").(string)
-			trace := c.Get("trace").(string)
+			logger := c.Get("logger").(*slog.Logger)
 
 			// We create a context with a timeout so that underlying processes are
 			// able to stop early and correctly handle a timeout scenario.
-			ctx, cancel, err := newContext(c, logger, fs, timeout, bodyLimit, downloadFromCfg, traceHeader, trace)
+			ctx, cancel, err := newContext(c, logger, fs, timeout, bodyLimit, downloadFromCfg)
 			if err != nil {
 				cancel()
 
@@ -344,7 +395,7 @@ func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, bodyLimi
 func hardTimeoutMiddleware(hardTimeout time.Duration) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			logger := c.Get("logger").(*zap.Logger)
+			logger := c.Get("logger").(*slog.Logger)
 
 			// Define a hard timeout if the route handler fails to timeout as
 			// expected.
@@ -361,7 +412,7 @@ func hardTimeoutMiddleware(hardTimeout time.Duration) echo.MiddlewareFunc {
 				// This deferred function allows us to recover from such scenarios.
 				defer func() {
 					if r := recover(); r != nil {
-						logger.Debug(fmt.Sprintf("recovering from a panic (possible cause being a hard timeout): %s", r))
+						logger.DebugContext(hardTimeoutCtx, fmt.Sprintf("recovering from a panic (possible cause being a hard timeout): %s", r))
 					}
 				}()
 
@@ -373,7 +424,7 @@ func hardTimeoutMiddleware(hardTimeout time.Duration) echo.MiddlewareFunc {
 			case err := <-errChan:
 				return err
 			case <-hardTimeoutCtx.Done():
-				logger.Debug("hard timeout as the route handler did not timeout as expected")
+				logger.DebugContext(hardTimeoutCtx, "hard timeout as the route handler did not timeout as expected")
 
 				return fmt.Errorf("hard timeout: %w", hardTimeoutCtx.Err())
 			}

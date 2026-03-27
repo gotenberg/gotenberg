@@ -4,8 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
-	"go.uber.org/zap"
+	"log/slog"
 )
 
 var (
@@ -160,57 +159,57 @@ type Bookmark struct {
 type PdfEngine interface {
 	// Merge combines multiple PDFs into a single PDF. The resulting page order
 	// is determined by the order of files provided in inputPaths.
-	Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error
+	Merge(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error
 
 	// Split splits a given PDF file.
-	Split(ctx context.Context, logger *zap.Logger, mode SplitMode, inputPath, outputDirPath string) ([]string, error)
+	Split(ctx context.Context, logger *slog.Logger, mode SplitMode, inputPath, outputDirPath string) ([]string, error)
 
 	// Flatten merges existing annotation appearances with page content,
 	// effectively deleting the original annotations. This process can flatten
 	// forms as well as forms share a relationship with annotations. Note that
 	// this operation is irreversible.
-	Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error
+	Flatten(ctx context.Context, logger *slog.Logger, inputPath string) error
 
 	// Convert transforms a given PDF to the specified formats defined in
 	// PdfFormats. If no format, it does nothing.
-	Convert(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error
+	Convert(ctx context.Context, logger *slog.Logger, formats PdfFormats, inputPath, outputPath string) error
 
 	// ReadMetadata extracts the metadata of a given PDF file.
-	ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error)
+	ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error)
 
 	// PageCount returns the number of pages in a PDF file.
-	PageCount(ctx context.Context, logger *zap.Logger, inputPath string) (int, error)
+	PageCount(ctx context.Context, logger *slog.Logger, inputPath string) (int, error)
 
 	// WriteMetadata writes the metadata into a given PDF file.
-	WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error
+	WriteMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error
 
 	// ReadBookmarks reads the document outline (bookmarks) of a PDF file.
-	ReadBookmarks(ctx context.Context, logger *zap.Logger, inputPath string) ([]Bookmark, error)
+	ReadBookmarks(ctx context.Context, logger *slog.Logger, inputPath string) ([]Bookmark, error)
 
 	// WriteBookmarks adds a document outline (bookmarks) to a PDF file.
 	// The bookmarks parameter represents the hierarchical tree of the outline.
-	WriteBookmarks(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []Bookmark) error
+	WriteBookmarks(ctx context.Context, logger *slog.Logger, inputPath string, bookmarks []Bookmark) error
 
 	// Encrypt adds password protection to a PDF file.
 	// The userPassword is required to open the document.
 	// The ownerPassword provides full access to the document.
 	// If the ownerPassword is empty, it defaults to the userPassword.
-	Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error
+	Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error
 
 	// EmbedFiles embeds files into a PDF. All files are embedded as file attachments
 	// without modifying the main PDF content.
 	// TODO: attachments instead? Rename the route?
-	EmbedFiles(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error
+	EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error
 
 	// Watermark applies a watermark (behind page content) to a PDF file.
-	Watermark(ctx context.Context, logger *zap.Logger, inputPath string, stamp Stamp) error
+	Watermark(ctx context.Context, logger *slog.Logger, inputPath string, stamp Stamp) error
 
 	// Stamp applies a stamp (on top of page content) to a PDF file.
-	Stamp(ctx context.Context, logger *zap.Logger, inputPath string, stamp Stamp) error
+	Stamp(ctx context.Context, logger *slog.Logger, inputPath string, stamp Stamp) error
 
 	// Rotate rotates pages of a PDF file by the given angle (90, 180, 270).
 	// If pages is empty, all pages are rotated.
-	Rotate(ctx context.Context, logger *zap.Logger, inputPath string, angle int, pages string) error
+	Rotate(ctx context.Context, logger *slog.Logger, inputPath string, angle int, pages string) error
 }
 
 // PdfEngineProvider offers an interface to instantiate a [PdfEngine].

@@ -25,7 +25,6 @@ Feature: /debug
           "libreoffice",
           "libreoffice-api",
           "libreoffice-pdfengine",
-          "logging",
           "pdfcpu",
           "pdfengines",
           "pdftk",
@@ -56,8 +55,10 @@ Feature: /debug
         "flags": {
           "api-bind-ip": "",
           "api-body-limit": "",
+          "api-correlation-id-header": "Gotenberg-Trace",
           "api-disable-download-from": "false",
           "api-disable-health-check-logging": "false",
+          "api-disable-health-check-route-telemetry": "false",
           "api-download-from-allow-list": "[]",
           "api-download-from-deny-list": "[]",
           "api-download-from-max-retry": "4",
@@ -96,9 +97,12 @@ Feature: /debug
           "libreoffice-max-queue-size": "0",
           "libreoffice-restart-after": "10",
           "libreoffice-start-timeout": "20s",
+          "log-enable-gcp-fields": "false",
           "log-fields-prefix": "",
           "log-format": "auto",
           "log-level": "info",
+          "log-std-enable-gcp-fields": "false",
+          "log-std-format": "auto",
           "pdfengines-convert-engines": "[libreoffice-pdfengine]",
           "pdfengines-disable-routes": "false",
           "pdfengines-engines": "[]",
@@ -147,7 +151,6 @@ Feature: /debug
           "libreoffice",
           "libreoffice-api",
           "libreoffice-pdfengine",
-          "logging",
           "pdfcpu",
           "pdfengines",
           "pdftk",
@@ -178,8 +181,10 @@ Feature: /debug
         "flags": {
           "api-bind-ip": "",
           "api-body-limit": "",
+          "api-correlation-id-header": "Gotenberg-Trace",
           "api-disable-download-from": "false",
           "api-disable-health-check-logging": "false",
+          "api-disable-health-check-route-telemetry": "false",
           "api-download-from-allow-list": "[]",
           "api-download-from-deny-list": "[]",
           "api-download-from-max-retry": "4",
@@ -218,9 +223,12 @@ Feature: /debug
           "libreoffice-max-queue-size": "0",
           "libreoffice-restart-after": "10",
           "libreoffice-start-timeout": "20s",
+          "log-enable-gcp-fields": "false",
           "log-fields-prefix": "",
           "log-format": "auto",
           "log-level": "info",
+          "log-std-enable-gcp-fields": "false",
+          "log-std-format": "auto",
           "pdfengines-convert-engines": "[libreoffice-pdfengine]",
           "pdfengines-disable-routes": "false",
           "pdfengines-engines": "[]",
@@ -276,7 +284,7 @@ Feature: /debug
     Then the response status code should be 200
     Then the response header "Gotenberg-Trace" should be "debug"
     Then the Gotenberg container should log the following entries:
-      | "trace":"debug" |
+      | "correlation_id":"debug" |
 
   Scenario: GET /debug (Basic Auth)
     Given I have a Gotenberg container with the following environment variable(s):

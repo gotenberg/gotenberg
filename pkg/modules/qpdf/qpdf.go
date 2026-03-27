@@ -5,12 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"syscall"
-
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
@@ -82,7 +81,7 @@ func (engine *QPdf) Debug() map[string]any {
 }
 
 // Split splits a given PDF file.
-func (engine *QPdf) Split(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+func (engine *QPdf) Split(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
 	var args []string
 	outputPath := fmt.Sprintf("%s/%s", outputDirPath, filepath.Base(inputPath))
 
@@ -113,7 +112,7 @@ func (engine *QPdf) Split(ctx context.Context, logger *zap.Logger, mode gotenber
 }
 
 // Merge combines multiple PDFs into a single PDF.
-func (engine *QPdf) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+func (engine *QPdf) Merge(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
 	args := make([]string, 0, 4+len(engine.globalArgs)+len(inputPaths))
 	args = append(args, "--empty")
 	args = append(args, engine.globalArgs...)
@@ -136,7 +135,7 @@ func (engine *QPdf) Merge(ctx context.Context, logger *zap.Logger, inputPaths []
 
 // Flatten merges annotation appearances with page content, deleting the
 // original annotations.
-func (engine *QPdf) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
+func (engine *QPdf) Flatten(ctx context.Context, logger *slog.Logger, inputPath string) error {
 	args := make([]string, 0, 4+len(engine.globalArgs))
 	args = append(args, inputPath)
 	args = append(args, "--generate-appearances")
@@ -158,37 +157,37 @@ func (engine *QPdf) Flatten(ctx context.Context, logger *zap.Logger, inputPath s
 }
 
 // Convert is not available in this implementation.
-func (engine *QPdf) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+func (engine *QPdf) Convert(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 	return fmt.Errorf("convert PDF to '%+v' with QPDF: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // ReadMetadata is not available in this implementation.
-func (engine *QPdf) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
+func (engine *QPdf) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 	return nil, fmt.Errorf("read PDF metadata with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // WriteMetadata is not available in this implementation.
-func (engine *QPdf) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
+func (engine *QPdf) WriteMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
 	return fmt.Errorf("write PDF metadata with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // PageCount is not available in this implementation.
-func (engine *QPdf) PageCount(ctx context.Context, logger *zap.Logger, inputPath string) (int, error) {
+func (engine *QPdf) PageCount(ctx context.Context, logger *slog.Logger, inputPath string) (int, error) {
 	return 0, fmt.Errorf("page count with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // WriteBookmarks is not available in this implementation.
-func (engine *QPdf) WriteBookmarks(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
+func (engine *QPdf) WriteBookmarks(ctx context.Context, logger *slog.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
 	return fmt.Errorf("write PDF bookmarks with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // ReadBookmarks is not available in this implementation.
-func (engine *QPdf) ReadBookmarks(ctx context.Context, logger *zap.Logger, inputPath string) ([]gotenberg.Bookmark, error) {
+func (engine *QPdf) ReadBookmarks(ctx context.Context, logger *slog.Logger, inputPath string) ([]gotenberg.Bookmark, error) {
 	return nil, fmt.Errorf("read PDF bookmarks with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Encrypt adds password protection to a PDF file using QPDF.
-func (engine *QPdf) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
+func (engine *QPdf) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
 	if userPassword == "" {
 		return errors.New("user password cannot be empty")
 	}
@@ -217,22 +216,22 @@ func (engine *QPdf) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, 
 }
 
 // EmbedFiles is not available in this implementation.
-func (engine *QPdf) EmbedFiles(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error {
+func (engine *QPdf) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {
 	return fmt.Errorf("embed files with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Watermark is not available in this implementation.
-func (engine *QPdf) Watermark(ctx context.Context, logger *zap.Logger, inputPath string, stamp gotenberg.Stamp) error {
+func (engine *QPdf) Watermark(ctx context.Context, logger *slog.Logger, inputPath string, stamp gotenberg.Stamp) error {
 	return fmt.Errorf("watermark PDF with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Stamp is not available in this implementation.
-func (engine *QPdf) Stamp(ctx context.Context, logger *zap.Logger, inputPath string, stamp gotenberg.Stamp) error {
+func (engine *QPdf) Stamp(ctx context.Context, logger *slog.Logger, inputPath string, stamp gotenberg.Stamp) error {
 	return fmt.Errorf("stamp PDF with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Rotate is not available in this implementation.
-func (engine *QPdf) Rotate(ctx context.Context, logger *zap.Logger, inputPath string, angle int, pages string) error {
+func (engine *QPdf) Rotate(ctx context.Context, logger *slog.Logger, inputPath string, angle int, pages string) error {
 	return fmt.Errorf("rotate PDF with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 

@@ -177,9 +177,9 @@ func (mod *Prometheus) Routes() ([]api.Route, error) {
 
 	return []api.Route{
 		{
-			Method:         http.MethodGet,
-			Path:           mod.metricsPath,
-			DisableLogging: mod.disableRouteLogging,
+			Method:           http.MethodGet,
+			Path:             mod.metricsPath,
+			DisableTelemetry: mod.disableRouteLogging,
 			Handler: echo.WrapHandler(
 				promhttp.HandlerFor(mod.registry, promhttp.HandlerOpts{}),
 			),

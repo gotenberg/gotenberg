@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"sort"
@@ -15,7 +16,6 @@ import (
 	"github.com/labstack/echo/v4"
 	flag "github.com/spf13/pflag"
 	"go.uber.org/multierr"
-	"go.uber.org/zap"
 	"golang.org/x/net/http2"
 	"golang.org/x/sync/errgroup"
 
@@ -29,20 +29,20 @@ func init() {
 // Api is a module that provides an HTTP server. Other modules may add routes,
 // middlewares or health checks.
 type Api struct {
-	port                      int
-	bindIp                    string
-	tlsCertFile               string
-	tlsKeyFile                string
-	startTimeout              time.Duration
-	bodyLimit                 int64
-	timeout                   time.Duration
-	rootPath                  string
-	traceHeader               string
-	basicAuthUsername         string
-	basicAuthPassword         string
-	downloadFromCfg           downloadFromConfig
-	disableHealthCheckLogging bool
-	enableDebugRoute          bool
+	port                             int
+	bindIp                           string
+	tlsCertFile                      string
+	tlsKeyFile                       string
+	startTimeout                     time.Duration
+	bodyLimit                        int64
+	timeout                          time.Duration
+	rootPath                         string
+	correlationIdHeader              string
+	basicAuthUsername                string
+	basicAuthPassword                string
+	downloadFromCfg                  downloadFromConfig
+	disableHealthCheckRouteTelemetry bool
+	enableDebugRoute                 bool
 
 	routes              []Route
 	externalMiddlewares []Middleware
@@ -50,7 +50,7 @@ type Api struct {
 	readyFn             []func() error
 	asyncCounters       []AsynchronousCounter
 	fs                  *gotenberg.FileSystem
-	logger              *zap.Logger
+	logger              *slog.Logger
 	srv                 *echo.Echo
 }
 
@@ -80,9 +80,10 @@ type Route struct {
 	// Optional.
 	IsMultipart bool
 
-	// DisableLogging disables the logging for this route.
+	// DisableTelemetry disables telemetry (logging, tracing, metrics) for
+	// this route.
 	// Optional.
-	DisableLogging bool
+	DisableTelemetry bool
 
 	// Handler is the function that handles the request.
 	// Required.
@@ -190,14 +191,26 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Duration("api-timeout", time.Duration(30)*time.Second, "Set the time limit for requests")
 			fs.String("api-body-limit", "", "Set the body limit for multipart/form-data requests - it accepts values like 5MB, 1GB, etc")
 			fs.String("api-root-path", "/", "Set the root path of the API - for service discovery via URL paths")
-			fs.String("api-trace-header", "Gotenberg-Trace", "Set the header name to use for identifying requests")
+			fs.String("api-correlation-id-header", "Gotenberg-Trace", "Set the header name to use for identifying requests")
 			fs.Bool("api-enable-basic-auth", false, "Enable basic authentication - will look for the GOTENBERG_API_BASIC_AUTH_USERNAME and GOTENBERG_API_BASIC_AUTH_PASSWORD environment variables")
 			fs.StringSlice("api-download-from-allow-list", []string{}, "Set the allowed URLs for the download from feature using regular expressions - supports multiple values")
 			fs.StringSlice("api-download-from-deny-list", []string{}, "Set the denied URLs for the download from feature using regular expressions - supports multiple values")
 			fs.Int("api-download-from-max-retry", 4, "Set the maximum number of retries for the download from feature")
 			fs.Bool("api-disable-download-from", false, "Disable the download from feature")
-			fs.Bool("api-disable-health-check-logging", false, "Disable health check logging")
+			fs.Bool("api-disable-health-check-route-telemetry", false, "Disable telemetry for health check route")
 			fs.Bool("api-enable-debug-route", false, "Enable the debug route")
+
+			// Deprecated flags.
+			fs.String("api-trace-header", "Gotenberg-Trace", "Set the header name to use for identifying requests")
+			fs.Bool("api-disable-health-check-logging", false, "Disable health check logging")
+
+			err := errors.Join(
+				fs.MarkDeprecated("api-trace-header", "use --api-correlation-id-header instead"),
+				fs.MarkDeprecated("api-disable-health-check-logging", "use --api-disable-health-check-route-telemetry instead"),
+			)
+			if err != nil {
+				panic(err)
+			}
 			return fs
 		}(),
 		New: func() gotenberg.Module { return new(Api) },
@@ -215,14 +228,14 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 	a.timeout = flags.MustDuration("api-timeout")
 	a.bodyLimit = flags.MustHumanReadableBytes("api-body-limit")
 	a.rootPath = flags.MustString("api-root-path")
-	a.traceHeader = flags.MustString("api-trace-header")
+	a.correlationIdHeader = flags.MustDeprecatedString("api-trace-header", "api-correlation-id-header")
 	a.downloadFromCfg = downloadFromConfig{
 		allowList: flags.MustRegexpSlice("api-download-from-allow-list"),
 		denyList:  flags.MustRegexpSlice("api-download-from-deny-list"),
 		maxRetry:  flags.MustInt("api-download-from-max-retry"),
 		disable:   flags.MustBool("api-disable-download-from"),
 	}
-	a.disableHealthCheckLogging = flags.MustBool("api-disable-health-check-logging")
+	a.disableHealthCheckRouteTelemetry = flags.MustDeprecatedBool("api-disable-health-check-logging", "api-disable-health-check-route-telemetry")
 	a.enableDebugRoute = flags.MustBool("api-enable-debug-route")
 
 	// Port from env?
@@ -328,17 +341,7 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 	}
 
 	// Logger.
-	loggerProvider, err := ctx.Module(new(gotenberg.LoggerProvider))
-	if err != nil {
-		return fmt.Errorf("get logger provider: %w", err)
-	}
-
-	logger, err := loggerProvider.(gotenberg.LoggerProvider).Logger(a)
-	if err != nil {
-		return fmt.Errorf("get logger: %w", err)
-	}
-
-	a.logger = logger
+	a.logger = gotenberg.Logger(a)
 
 	// File system.
 	a.fs = gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
@@ -378,7 +381,7 @@ func (a *Api) Validate() error {
 		)
 	}
 
-	if len(strings.TrimSpace(a.traceHeader)) == 0 {
+	if len(strings.TrimSpace(a.correlationIdHeader)) == 0 {
 		err = multierr.Append(err,
 			errors.New("trace header must not be empty"),
 		)
@@ -442,28 +445,28 @@ func (a *Api) Start() error {
 	a.srv.HTTPErrorHandler = httpErrorHandler()
 
 	// Let's prepare the modules' routes.
-	var disableLoggingForPaths []string
+	var disableTelemetryForPaths []string
 	for i, route := range a.routes {
 		a.routes[i].Path = strings.TrimPrefix(route.Path, "/")
 
-		if route.DisableLogging {
-			disableLoggingForPaths = append(disableLoggingForPaths, strings.TrimPrefix(route.Path, "/"))
+		if route.DisableTelemetry {
+			disableTelemetryForPaths = append(disableTelemetryForPaths, strings.TrimPrefix(route.Path, "/"))
 		}
 	}
 
-	// Check if the user wishes to add logging entries related to the health
-	// check route.
-	if a.disableHealthCheckLogging {
-		disableLoggingForPaths = append(disableLoggingForPaths, "health")
+	// Check if the user wishes to disable telemetry for the health check route.
+	if a.disableHealthCheckRouteTelemetry {
+		disableTelemetryForPaths = append(disableTelemetryForPaths, "health")
 	}
+
+	serverName := fmt.Sprintf("%s:%d", a.bindIp, a.port)
 
 	// Add the API middlewares.
 	a.srv.Pre(
 		latencyMiddleware(),
 		rootPathMiddleware(a.rootPath),
-		traceMiddleware(a.traceHeader),
 		outputFilenameMiddleware(),
-		loggerMiddleware(a.logger, disableLoggingForPaths),
+		telemetryMiddleware(a.logger, serverName, a.correlationIdHeader, disableTelemetryForPaths),
 	)
 
 	// Add the modules' middlewares in their respective stacks.
@@ -535,7 +538,9 @@ func (a *Api) Start() error {
 	)
 
 	// Let's not forget the health check routes...
-	checks := append(a.healthChecks, health.WithTimeout(a.timeout))
+	checks := make([]health.CheckerOption, len(a.healthChecks), len(a.healthChecks)+1)
+	copy(checks, a.healthChecks)
+	checks = append(checks, health.WithTimeout(a.timeout))
 	checker := health.NewChecker(checks...)
 	healthCheckHandler := health.NewHandler(checker)
 
@@ -600,7 +605,7 @@ func (a *Api) Start() error {
 			err = a.srv.StartH2CServer(fmt.Sprintf("%s:%d", a.bindIp, a.port), server)
 		}
 		if !errors.Is(err, http.ErrServerClosed) {
-			a.logger.Fatal(err.Error())
+			a.logger.ErrorContext(context.Background(), err.Error())
 		}
 	}()
 
@@ -627,12 +632,12 @@ func (a *Api) Stop(ctx context.Context) error {
 		case <-ctx.Done():
 			return a.srv.Shutdown(ctx)
 		default:
-			a.logger.Debug(fmt.Sprintf("%d asynchronous requests", count))
+			a.logger.DebugContext(ctx, fmt.Sprintf("%d asynchronous requests", count))
 			if count > 0 {
 				time.Sleep(1 * time.Second)
 				continue
 			}
-			a.logger.Debug("no more asynchronous requests, continue with shutdown")
+			a.logger.DebugContext(ctx, "no more asynchronous requests, continue with shutdown")
 			err := a.srv.Shutdown(ctx)
 			if err != nil {
 				return fmt.Errorf("shutdown: %w", err)

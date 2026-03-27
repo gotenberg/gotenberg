@@ -525,13 +525,14 @@ func (s *scenario) theResponseStatusCodeShouldBe(expected int) error {
 
 func (s *scenario) theHeaderValueShouldBe(kind, name string, expected string) error {
 	var actual string
-	if kind == "response" {
+	switch {
+	case kind == "response":
 		actual = s.resp.Header().Get(name)
-	} else if s.server == nil {
+	case s.server == nil:
 		return errors.New("server not initialized")
-	} else if s.server.req == nil {
+	case s.server.req == nil:
 		return errors.New("no webhook request found")
-	} else {
+	default:
 		actual = s.server.req.Header.Get(name)
 	}
 
@@ -543,13 +544,14 @@ func (s *scenario) theHeaderValueShouldBe(kind, name string, expected string) er
 
 func (s *scenario) theCookieValueShouldBe(kind, name, expected string) error {
 	var cookies []*http.Cookie
-	if kind == "response" {
+	switch {
+	case kind == "response":
 		cookies = s.resp.Result().Cookies()
-	} else if s.server == nil {
+	case s.server == nil:
 		return errors.New("server not initialized")
-	} else if s.server.req == nil {
+	case s.server.req == nil:
 		return errors.New("no webhook request found")
-	} else {
+	default:
 		cookies = s.server.req.Cookies()
 	}
 
@@ -577,13 +579,14 @@ func (s *scenario) theCookieValueShouldBe(kind, name, expected string) error {
 
 func (s *scenario) theBodyShouldMatchString(kind string, expectedDoc *godog.DocString) error {
 	var actual string
-	if kind == "response" {
+	switch {
+	case kind == "response":
 		actual = s.resp.Body.String()
-	} else if s.server == nil {
+	case s.server == nil:
 		return errors.New("server not initialized")
-	} else if s.server.req == nil {
+	case s.server.req == nil:
 		return errors.New("no webhook request found")
-	} else {
+	default:
 		actual = string(s.server.bodyCopy)
 	}
 
@@ -597,13 +600,14 @@ func (s *scenario) theBodyShouldMatchString(kind string, expectedDoc *godog.DocS
 
 func (s *scenario) theBodyShouldContainString(kind string, expectedDoc *godog.DocString) error {
 	var actual string
-	if kind == "response" {
+	switch {
+	case kind == "response":
 		actual = s.resp.Body.String()
-	} else if s.server == nil {
+	case s.server == nil:
 		return errors.New("server not initialized")
-	} else if s.server.req == nil {
+	case s.server.req == nil:
 		return errors.New("no webhook request found")
-	} else {
+	default:
 		actual = string(s.server.bodyCopy)
 	}
 
@@ -617,13 +621,14 @@ func (s *scenario) theBodyShouldContainString(kind string, expectedDoc *godog.Do
 
 func (s *scenario) theBodyShouldMatchJSON(kind string, expectedDoc *godog.DocString) error {
 	var body []byte
-	if kind == "response" {
+	switch {
+	case kind == "response":
 		body = s.resp.Body.Bytes()
-	} else if s.server == nil {
+	case s.server == nil:
 		return errors.New("server not initialized")
-	} else if s.server.req == nil {
+	case s.server.req == nil:
 		return errors.New("no webhook request found")
-	} else {
+	default:
 		body = s.server.bodyCopy
 	}
 

@@ -3,12 +3,11 @@ package gotenberg
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 func TestProcessSupervisor_Launch(t *testing.T) {
@@ -38,10 +37,10 @@ func TestProcessSupervisor_Launch(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			logger := zap.NewNop()
+			logger := slog.New(slog.DiscardHandler)
 
 			process := &ProcessMock{
-				StartMock: func(logger *zap.Logger) error {
+				StartMock: func(logger *slog.Logger) error {
 					return tc.startError
 				},
 			}
@@ -86,10 +85,10 @@ func TestProcessSupervisor_Shutdown(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			logger := zap.NewNop()
+			logger := slog.New(slog.DiscardHandler)
 
 			process := &ProcessMock{
-				StopMock: func(logger *zap.Logger) error {
+				StopMock: func(logger *slog.Logger) error {
 					return tc.stopError
 				},
 			}
@@ -135,13 +134,13 @@ func TestProcessSupervisor_restart(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			logger := zap.NewNop()
+			logger := slog.New(slog.DiscardHandler)
 
 			process := &ProcessMock{
-				StartMock: func(logger *zap.Logger) error {
+				StartMock: func(logger *slog.Logger) error {
 					return tc.startError
 				},
-				StopMock: func(logger *zap.Logger) error {
+				StopMock: func(logger *slog.Logger) error {
 					return tc.stopError
 				},
 			}
@@ -194,10 +193,10 @@ func TestProcessSupervisor_Healthy(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			logger := zap.NewNop()
+			logger := slog.New(slog.DiscardHandler)
 
 			process := &ProcessMock{
-				HealthyMock: func(logger *zap.Logger) bool {
+				HealthyMock: func(logger *slog.Logger) bool {
 					return tc.processHealthy
 				},
 			}
@@ -365,7 +364,7 @@ func TestProcessSupervisor_Run(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			logger := zap.NewNop()
+			logger := slog.New(slog.DiscardHandler)
 
 			var startCalls, healthyCalls, stopCalls atomic.Int64
 			startCalls.Store(0)
@@ -373,15 +372,15 @@ func TestProcessSupervisor_Run(t *testing.T) {
 			stopCalls.Store(0)
 
 			process := &ProcessMock{
-				StartMock: func(logger *zap.Logger) error {
+				StartMock: func(logger *slog.Logger) error {
 					startCalls.Add(1)
 					return tc.startError
 				},
-				StopMock: func(logger *zap.Logger) error {
+				StopMock: func(logger *slog.Logger) error {
 					stopCalls.Add(1)
 					return nil
 				},
-				HealthyMock: func(logger *zap.Logger) bool {
+				HealthyMock: func(logger *slog.Logger) bool {
 					healthyCalls.Add(1)
 					return tc.processHealthy
 				},
@@ -471,7 +470,7 @@ func TestProcessSupervisor_runWithDeadline(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			ps := NewProcessSupervisor(zap.NewNop(), new(ProcessMock), 0, 0, 1).(*processSupervisor)
+			ps := NewProcessSupervisor(slog.New(slog.DiscardHandler), new(ProcessMock), 0, 0, 1).(*processSupervisor)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 			if tc.ctxDone {
@@ -496,12 +495,12 @@ func TestProcessSupervisor_runWithDeadline(t *testing.T) {
 }
 
 func TestProcessSupervisor_ReqQueueSize(t *testing.T) {
-	logger := zap.NewNop()
+	logger := slog.New(slog.DiscardHandler)
 	process := &ProcessMock{
-		StartMock: func(logger *zap.Logger) error {
+		StartMock: func(logger *slog.Logger) error {
 			return nil
 		},
-		HealthyMock: func(logger *zap.Logger) bool {
+		HealthyMock: func(logger *slog.Logger) bool {
 			return true
 		},
 	}
@@ -553,13 +552,13 @@ func TestProcessSupervisor_ReqQueueSize(t *testing.T) {
 }
 
 func TestProcessSupervisor_QueueSizeCAS(t *testing.T) {
-	logger := zap.NewNop()
+	logger := slog.New(slog.DiscardHandler)
 
 	process := &ProcessMock{
-		StartMock: func(logger *zap.Logger) error {
+		StartMock: func(logger *slog.Logger) error {
 			return nil
 		},
-		HealthyMock: func(logger *zap.Logger) bool {
+		HealthyMock: func(logger *slog.Logger) bool {
 			return true
 		},
 	}
@@ -608,13 +607,13 @@ func TestProcessSupervisor_QueueSizeCAS(t *testing.T) {
 }
 
 func TestProcessSupervisor_QueueSizeIncludesActiveTasks(t *testing.T) {
-	logger := zap.NewNop()
+	logger := slog.New(slog.DiscardHandler)
 
 	process := &ProcessMock{
-		StartMock: func(logger *zap.Logger) error {
+		StartMock: func(logger *slog.Logger) error {
 			return nil
 		},
-		HealthyMock: func(logger *zap.Logger) bool {
+		HealthyMock: func(logger *slog.Logger) bool {
 			return true
 		},
 	}
@@ -698,13 +697,13 @@ func TestProcessSupervisor_RestartsCount(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			logger := zap.NewNop()
+			logger := slog.New(slog.DiscardHandler)
 
 			process := &ProcessMock{
-				StartMock: func(logger *zap.Logger) error {
+				StartMock: func(logger *slog.Logger) error {
 					return tc.startError
 				},
-				StopMock: func(logger *zap.Logger) error {
+				StopMock: func(logger *slog.Logger) error {
 					return tc.stopError
 				},
 			}
@@ -725,18 +724,18 @@ func TestProcessSupervisor_RestartsCount(t *testing.T) {
 }
 
 func TestProcessSupervisor_ConcurrentRun(t *testing.T) {
-	logger := zap.NewNop()
+	logger := slog.New(slog.DiscardHandler)
 
 	var startCalls atomic.Int64
 	process := &ProcessMock{
-		StartMock: func(logger *zap.Logger) error {
+		StartMock: func(logger *slog.Logger) error {
 			startCalls.Add(1)
 			return nil
 		},
-		StopMock: func(logger *zap.Logger) error {
+		StopMock: func(logger *slog.Logger) error {
 			return nil
 		},
-		HealthyMock: func(logger *zap.Logger) bool {
+		HealthyMock: func(logger *slog.Logger) bool {
 			return true
 		},
 	}
@@ -789,16 +788,16 @@ func TestProcessSupervisor_ConcurrentRun(t *testing.T) {
 }
 
 func TestProcessSupervisor_RestartDrainsAllSlots(t *testing.T) {
-	logger := zap.NewNop()
+	logger := slog.New(slog.DiscardHandler)
 
 	process := &ProcessMock{
-		StartMock: func(logger *zap.Logger) error {
+		StartMock: func(logger *slog.Logger) error {
 			return nil
 		},
-		StopMock: func(logger *zap.Logger) error {
+		StopMock: func(logger *slog.Logger) error {
 			return nil
 		},
-		HealthyMock: func(logger *zap.Logger) bool {
+		HealthyMock: func(logger *slog.Logger) bool {
 			return true
 		},
 	}

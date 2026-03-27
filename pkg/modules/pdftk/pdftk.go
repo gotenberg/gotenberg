@@ -5,12 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"syscall"
-
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
@@ -79,7 +78,7 @@ func (engine *PdfTk) Debug() map[string]any {
 }
 
 // Split splits a given PDF file.
-func (engine *PdfTk) Split(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+func (engine *PdfTk) Split(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
 	var args []string
 	outputPath := fmt.Sprintf("%s/%s", outputDirPath, filepath.Base(inputPath))
 
@@ -107,7 +106,7 @@ func (engine *PdfTk) Split(ctx context.Context, logger *zap.Logger, mode gotenbe
 }
 
 // Merge combines multiple PDFs into a single PDF.
-func (engine *PdfTk) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+func (engine *PdfTk) Merge(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
 	args := make([]string, 0, 3+len(inputPaths))
 	args = append(args, inputPaths...)
 	args = append(args, "cat", "output", outputPath)
@@ -126,42 +125,42 @@ func (engine *PdfTk) Merge(ctx context.Context, logger *zap.Logger, inputPaths [
 }
 
 // Flatten is not available in this implementation.
-func (engine *PdfTk) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
+func (engine *PdfTk) Flatten(ctx context.Context, logger *slog.Logger, inputPath string) error {
 	return fmt.Errorf("flatten PDF with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Convert is not available in this implementation.
-func (engine *PdfTk) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+func (engine *PdfTk) Convert(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 	return fmt.Errorf("convert PDF to '%+v' with PDFtk: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // ReadMetadata is not available in this implementation.
-func (engine *PdfTk) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
+func (engine *PdfTk) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 	return nil, fmt.Errorf("read PDF metadata with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // WriteMetadata is not available in this implementation.
-func (engine *PdfTk) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
+func (engine *PdfTk) WriteMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
 	return fmt.Errorf("write PDF metadata with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // PageCount is not available in this implementation.
-func (engine *PdfTk) PageCount(ctx context.Context, logger *zap.Logger, inputPath string) (int, error) {
+func (engine *PdfTk) PageCount(ctx context.Context, logger *slog.Logger, inputPath string) (int, error) {
 	return 0, fmt.Errorf("page count with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // WriteBookmarks is not available in this implementation.
-func (engine *PdfTk) WriteBookmarks(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
+func (engine *PdfTk) WriteBookmarks(ctx context.Context, logger *slog.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
 	return fmt.Errorf("write PDF bookmarks with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // ReadBookmarks is not available in this implementation.
-func (engine *PdfTk) ReadBookmarks(ctx context.Context, logger *zap.Logger, inputPath string) ([]gotenberg.Bookmark, error) {
+func (engine *PdfTk) ReadBookmarks(ctx context.Context, logger *slog.Logger, inputPath string) ([]gotenberg.Bookmark, error) {
 	return nil, fmt.Errorf("read PDF bookmarks with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Encrypt adds password protection to a PDF file using PDFtk.
-func (engine *PdfTk) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
+func (engine *PdfTk) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
 	if userPassword == "" {
 		return errors.New("user password cannot be empty")
 	}
@@ -199,13 +198,13 @@ func (engine *PdfTk) Encrypt(ctx context.Context, logger *zap.Logger, inputPath,
 }
 
 // EmbedFiles is not available in this implementation.
-func (engine *PdfTk) EmbedFiles(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error {
+func (engine *PdfTk) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {
 	return fmt.Errorf("embed files with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Watermark applies a watermark (behind page content) to a PDF file using PDFtk.
 // Only PDF source is supported.
-func (engine *PdfTk) Watermark(ctx context.Context, logger *zap.Logger, inputPath string, stamp gotenberg.Stamp) error {
+func (engine *PdfTk) Watermark(ctx context.Context, logger *slog.Logger, inputPath string, stamp gotenberg.Stamp) error {
 	if stamp.Source != gotenberg.StampSourcePDF {
 		return fmt.Errorf("watermark PDF with PDFtk: %w", gotenberg.ErrPdfStampSourceNotSupported)
 	}
@@ -234,7 +233,7 @@ func (engine *PdfTk) Watermark(ctx context.Context, logger *zap.Logger, inputPat
 
 // Stamp applies a stamp (on top of page content) to a PDF file using PDFtk.
 // Only PDF source is supported.
-func (engine *PdfTk) Stamp(ctx context.Context, logger *zap.Logger, inputPath string, stamp gotenberg.Stamp) error {
+func (engine *PdfTk) Stamp(ctx context.Context, logger *slog.Logger, inputPath string, stamp gotenberg.Stamp) error {
 	if stamp.Source != gotenberg.StampSourcePDF {
 		return fmt.Errorf("stamp PDF with PDFtk: %w", gotenberg.ErrPdfStampSourceNotSupported)
 	}
@@ -264,7 +263,7 @@ func (engine *PdfTk) Stamp(ctx context.Context, logger *zap.Logger, inputPath st
 // Rotate rotates all pages of a PDF file by the given angle using PDFtk.
 // Page-specific rotation is not supported; if pages is non-empty,
 // ErrPdfEngineMethodNotSupported is returned.
-func (engine *PdfTk) Rotate(ctx context.Context, logger *zap.Logger, inputPath string, angle int, pages string) error {
+func (engine *PdfTk) Rotate(ctx context.Context, logger *slog.Logger, inputPath string, angle int, pages string) error {
 	if pages != "" {
 		return fmt.Errorf("rotate PDF with PDFtk (page-specific rotation): %w", gotenberg.ErrPdfEngineMethodNotSupported)
 	}

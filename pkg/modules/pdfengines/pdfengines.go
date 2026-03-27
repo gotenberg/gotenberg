@@ -115,12 +115,12 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 	}
 
 	// Example in the case of deprecated module name.
-	//for i, name := range defaultNames {
-	//	if name == "unoconv-pdfengine" || name == "uno-pdfengine" {
-	//		logger.Warn(fmt.Sprintf("%s is deprecated; prefer libreoffice-pdfengine instead", name))
-	//		mod.defaultNames[i] = "libreoffice-pdfengine"
-	//	}
-	//}
+	// for i, name := range defaultNames {
+	// 	if name == "unoconv-pdfengine" || name == "uno-pdfengine" {
+	// 		logger.Warn(fmt.Sprintf("%s is deprecated; prefer libreoffice-pdfengine instead", name))
+	// 		mod.defaultNames[i] = "libreoffice-pdfengine"
+	// 	}
+	// }
 
 	mod.mergeNames = defaultNames
 	if len(mergeNames) > 0 {
@@ -253,19 +253,19 @@ func (mod *PdfEngines) Validate() error {
 // modules.
 func (mod *PdfEngines) SystemMessages() []string {
 	return []string{
-		fmt.Sprintf("merge engines - %s", strings.Join(mod.mergeNames[:], " ")),
-		fmt.Sprintf("split engines - %s", strings.Join(mod.splitNames[:], " ")),
-		fmt.Sprintf("flatten engines - %s", strings.Join(mod.flattenNames[:], " ")),
-		fmt.Sprintf("convert engines - %s", strings.Join(mod.convertNames[:], " ")),
-		fmt.Sprintf("read metadata engines - %s", strings.Join(mod.readMetadataNames[:], " ")),
-		fmt.Sprintf("write metadata engines - %s", strings.Join(mod.writeMetadataNames[:], " ")),
-		fmt.Sprintf("encrypt engines - %s", strings.Join(mod.encryptNames[:], " ")),
-		fmt.Sprintf("embed engines - %s", strings.Join(mod.embedNames[:], " ")),
-		fmt.Sprintf("read bookmarks engines - %s", strings.Join(mod.readBookmarksNames[:], " ")),
-		fmt.Sprintf("write bookmarks engines - %s", strings.Join(mod.writeBookmarksNames[:], " ")),
-		fmt.Sprintf("watermark engines - %s", strings.Join(mod.watermarkNames[:], " ")),
-		fmt.Sprintf("stamp engines - %s", strings.Join(mod.stampNames[:], " ")),
-		fmt.Sprintf("rotate engines - %s", strings.Join(mod.rotateNames[:], " ")),
+		fmt.Sprintf("merge engines - %s", strings.Join(mod.mergeNames, " ")),
+		fmt.Sprintf("split engines - %s", strings.Join(mod.splitNames, " ")),
+		fmt.Sprintf("flatten engines - %s", strings.Join(mod.flattenNames, " ")),
+		fmt.Sprintf("convert engines - %s", strings.Join(mod.convertNames, " ")),
+		fmt.Sprintf("read metadata engines - %s", strings.Join(mod.readMetadataNames, " ")),
+		fmt.Sprintf("write metadata engines - %s", strings.Join(mod.writeMetadataNames, " ")),
+		fmt.Sprintf("encrypt engines - %s", strings.Join(mod.encryptNames, " ")),
+		fmt.Sprintf("embed engines - %s", strings.Join(mod.embedNames, " ")),
+		fmt.Sprintf("read bookmarks engines - %s", strings.Join(mod.readBookmarksNames, " ")),
+		fmt.Sprintf("write bookmarks engines - %s", strings.Join(mod.writeBookmarksNames, " ")),
+		fmt.Sprintf("watermark engines - %s", strings.Join(mod.watermarkNames, " ")),
+		fmt.Sprintf("stamp engines - %s", strings.Join(mod.stampNames, " ")),
+		fmt.Sprintf("rotate engines - %s", strings.Join(mod.rotateNames, " ")),
 	}
 }
 

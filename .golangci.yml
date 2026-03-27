@@ -24,13 +24,14 @@ linters:
     - ineffassign
     - misspell
     - prealloc
-    - promlinter
     - staticcheck
     - testableexamples
     - tparallel
     - unconvert
     - unused
+    - sloglint
     - usetesting
+    - gocritic
     - wastedassign
     - whitespace
   exclusions:
@@ -40,10 +41,6 @@ linters:
       - common-false-positives
       - legacy
       - std-error-handling
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
 formatters:
   enable:
     - gci
@@ -59,7 +56,3 @@ formatters:
       custom-order: true
   exclusions:
     generated: lax
-    paths:
-      - third_party$
-      - builtin$
-      - examples$

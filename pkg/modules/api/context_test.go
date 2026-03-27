@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -10,7 +11,6 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
@@ -35,14 +35,14 @@ func TestNewContext_Cancellation(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	logger := zap.NewNop()
+	logger := slog.New(slog.DiscardHandler)
 	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 	timeout := time.Duration(10) * time.Second
 	downloadFromCfg := downloadFromConfig{
 		disable: true,
 	}
 
-	ctx, cancel, err := newContext(c, logger, fs, timeout, 0, downloadFromCfg, "trace", "trace")
+	ctx, cancel, err := newContext(c, logger, fs, timeout, 0, downloadFromCfg)
 	if err != nil {
 		t.Fatalf("expected no error from newContext, got: %v", err)
 	}

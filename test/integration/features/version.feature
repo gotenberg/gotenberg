@@ -18,7 +18,7 @@ Feature: /version
     Then the response status code should be 200
     Then the response header "Gotenberg-Trace" should be "version"
     Then the Gotenberg container should log the following entries:
-      | "trace":"version" |
+      | "correlation_id":"version" |
 
   Scenario: GET /version (Basic Auth)
     Given I have a Gotenberg container with the following environment variable(s):

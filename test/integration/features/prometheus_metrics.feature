@@ -98,7 +98,7 @@ Feature: /prometheus/metrics
     Then the response status code should be 200
     Then the response header "Gotenberg-Trace" should be "prometheus_metrics"
     Then the Gotenberg container should log the following entries:
-      | "trace":"prometheus_metrics" |
+      | "correlation_id":"prometheus_metrics" |
 
   Scenario: GET /prometheus/metrics (Basic Auth)
     Given I have a Gotenberg container with the following environment variable(s):

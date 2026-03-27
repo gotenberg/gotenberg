@@ -187,10 +187,8 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 							invalidScopeToken = true
 							break
 						}
-					} else {
-						if token != "" {
-							valueTokens = append(valueTokens, token)
-						}
+					} else if token != "" {
+						valueTokens = append(valueTokens, token)
 					}
 				}
 

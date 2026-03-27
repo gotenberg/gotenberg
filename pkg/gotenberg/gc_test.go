@@ -1,14 +1,15 @@
 package gotenberg
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 )
 
 func TestGarbageCollect(t *testing.T) {
@@ -66,7 +67,7 @@ func TestGarbageCollect(t *testing.T) {
 				}
 			}()
 
-			err := GarbageCollect(zap.NewNop(), tc.rootPath, tc.includeSubstr, time.Now())
+			err := GarbageCollect(context.Background(), slog.New(slog.DiscardHandler), tc.rootPath, tc.includeSubstr, time.Now())
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)

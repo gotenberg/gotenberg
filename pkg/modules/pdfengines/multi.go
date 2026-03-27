@@ -3,10 +3,12 @@ package pdfengines
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/multierr"
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
@@ -61,7 +63,13 @@ func newMultiPdfEngines(
 
 // Merge combines multiple PDF files into a single document using the first
 // available engine that supports PDF merging.
-func (multi *multiPdfEngines) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+//
+//nolint:dupl
+func (multi *multiPdfEngines) Merge(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
+	tracer := gotenberg.Tracer()
+	ctx, span := tracer.Start(ctx, "pdfengines.Merge", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var err error
 	errChan := make(chan error, 1)
 
@@ -74,6 +82,7 @@ func (multi *multiPdfEngines) Merge(ctx context.Context, logger *zap.Logger, inp
 		case mergeErr := <-errChan:
 			errored := multierr.AppendInto(&err, mergeErr)
 			if !errored {
+				span.SetStatus(codes.Ok, "")
 				return nil
 			}
 		case <-ctx.Done():
@@ -81,7 +90,11 @@ func (multi *multiPdfEngines) Merge(ctx context.Context, logger *zap.Logger, inp
 		}
 	}
 
-	return fmt.Errorf("merge PDFs with multi PDF engines: %w", err)
+	err = fmt.Errorf("merge PDFs with multi PDF engines: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+
+	return err
 }
 
 type splitResult struct {
@@ -91,7 +104,11 @@ type splitResult struct {
 
 // Split divides the PDF into separate pages using the first available engine
 // that supports PDF splitting.
-func (multi *multiPdfEngines) Split(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+func (multi *multiPdfEngines) Split(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+	tracer := gotenberg.Tracer()
+	ctx, span := tracer.Start(ctx, "pdfengines.Split", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var err error
 	var mu sync.Mutex // to safely append errors.
 
@@ -110,6 +127,7 @@ func (multi *multiPdfEngines) Split(ctx context.Context, logger *zap.Logger, mod
 				err = multierr.Append(err, result.err)
 				mu.Unlock()
 			} else {
+				span.SetStatus(codes.Ok, "")
 				return result.outputPaths, nil
 			}
 		case <-ctx.Done():
@@ -117,12 +135,20 @@ func (multi *multiPdfEngines) Split(ctx context.Context, logger *zap.Logger, mod
 		}
 	}
 
-	return nil, fmt.Errorf("split PDF with multi PDF engines: %w", err)
+	err = fmt.Errorf("split PDF with multi PDF engines: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+
+	return nil, err
 }
 
 // Flatten merges existing annotation appearances with page content using the
 // first available engine that supports flattening.
-func (multi *multiPdfEngines) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
+func (multi *multiPdfEngines) Flatten(ctx context.Context, logger *slog.Logger, inputPath string) error {
+	tracer := gotenberg.Tracer()
+	ctx, span := tracer.Start(ctx, "pdfengines.Flatten", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var err error
 	errChan := make(chan error, 1)
 
@@ -135,6 +161,7 @@ func (multi *multiPdfEngines) Flatten(ctx context.Context, logger *zap.Logger, i
 		case mergeErr := <-errChan:
 			errored := multierr.AppendInto(&err, mergeErr)
 			if !errored {
+				span.SetStatus(codes.Ok, "")
 				return nil
 			}
 		case <-ctx.Done():
@@ -142,12 +169,20 @@ func (multi *multiPdfEngines) Flatten(ctx context.Context, logger *zap.Logger, i
 		}
 	}
 
-	return fmt.Errorf("flatten PDF with multi PDF engines: %w", err)
+	err = fmt.Errorf("flatten PDF with multi PDF engines: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+
+	return err
 }
 
 // Convert transforms the given PDF to a specific PDF format using the first
 // available engine that supports PDF conversion.
-func (multi *multiPdfEngines) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+func (multi *multiPdfEngines) Convert(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+	tracer := gotenberg.Tracer()
+	ctx, span := tracer.Start(ctx, "pdfengines.Convert", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var err error
 	errChan := make(chan error, 1)
 
@@ -160,6 +195,7 @@ func (multi *multiPdfEngines) Convert(ctx context.Context, logger *zap.Logger, f
 		case mergeErr := <-errChan:
 			errored := multierr.AppendInto(&err, mergeErr)
 			if !errored {
+				span.SetStatus(codes.Ok, "")
 				return nil
 			}
 		case <-ctx.Done():
@@ -167,7 +203,11 @@ func (multi *multiPdfEngines) Convert(ctx context.Context, logger *zap.Logger, f
 		}
 	}
 
-	return fmt.Errorf("convert PDF to '%+v' with multi PDF engines: %w", formats, err)
+	err = fmt.Errorf("convert PDF to '%+v' with multi PDF engines: %w", formats, err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+
+	return err
 }
 
 type readMetadataResult struct {
@@ -177,7 +217,13 @@ type readMetadataResult struct {
 
 // ReadMetadata extracts metadata from a PDF file using the first available
 // engine that supports metadata reading.
-func (multi *multiPdfEngines) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
+//
+//nolint:dupl
+func (multi *multiPdfEngines) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
+	tracer := gotenberg.Tracer()
+	ctx, span := tracer.Start(ctx, "pdfengines.ReadMetadata", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var err error
 	var mu sync.Mutex // to safely append errors.
 
@@ -196,6 +242,7 @@ func (multi *multiPdfEngines) ReadMetadata(ctx context.Context, logger *zap.Logg
 				err = multierr.Append(err, result.err)
 				mu.Unlock()
 			} else {
+				span.SetStatus(codes.Ok, "")
 				return result.metadata, nil
 			}
 		case <-ctx.Done():
@@ -203,12 +250,20 @@ func (multi *multiPdfEngines) ReadMetadata(ctx context.Context, logger *zap.Logg
 		}
 	}
 
-	return nil, fmt.Errorf("read PDF metadata with multi PDF engines: %w", err)
+	err = fmt.Errorf("read PDF metadata with multi PDF engines: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+
+	return nil, err
 }
 
 // WriteMetadata embeds metadata into a PDF file using the first available
 // engine that supports metadata writing.
-func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
+func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
+	tracer := gotenberg.Tracer()
+	ctx, span := tracer.Start(ctx, "pdfengines.WriteMetadata", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var err error
 	errChan := make(chan error, 1)
 
@@ -221,6 +276,7 @@ func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *zap.Log
 		case writeMetadataErr := <-errChan:
 			errored := multierr.AppendInto(&err, writeMetadataErr)
 			if !errored {
+				span.SetStatus(codes.Ok, "")
 				return nil
 			}
 		case <-ctx.Done():
@@ -228,7 +284,11 @@ func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *zap.Log
 		}
 	}
 
-	return fmt.Errorf("write PDF metadata with multi PDF engines: %w", err)
+	err = fmt.Errorf("write PDF metadata with multi PDF engines: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+
+	return err
 }
 
 type pageCountResult struct {
@@ -238,7 +298,11 @@ type pageCountResult struct {
 
 // PageCount returns the number of pages in a PDF file using the first available
 // engine that supports metadata reading.
-func (multi *multiPdfEngines) PageCount(ctx context.Context, logger *zap.Logger, inputPath string) (int, error) {
+func (multi *multiPdfEngines) PageCount(ctx context.Context, logger *slog.Logger, inputPath string) (int, error) {
+	tracer := gotenberg.Tracer()
+	ctx, span := tracer.Start(ctx, "pdfengines.PageCount", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var err error
 	var mu sync.Mutex // to safely append errors.
 
@@ -257,6 +321,7 @@ func (multi *multiPdfEngines) PageCount(ctx context.Context, logger *zap.Logger,
 				err = multierr.Append(err, result.err)
 				mu.Unlock()
 			} else {
+				span.SetStatus(codes.Ok, "")
 				return result.pageCount, nil
 			}
 		case <-ctx.Done():
@@ -264,7 +329,11 @@ func (multi *multiPdfEngines) PageCount(ctx context.Context, logger *zap.Logger,
 		}
 	}
 
-	return 0, fmt.Errorf("page count with multi PDF engines: %w", err)
+	err = fmt.Errorf("page count with multi PDF engines: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+
+	return 0, err
 }
 
 type readBookmarksResult struct {
@@ -274,7 +343,13 @@ type readBookmarksResult struct {
 
 // ReadBookmarks reads bookmarks from a PDF file using the first available
 // engine that supports bookmarks reading.
-func (multi *multiPdfEngines) ReadBookmarks(ctx context.Context, logger *zap.Logger, inputPath string) ([]gotenberg.Bookmark, error) {
+//
+//nolint:dupl
+func (multi *multiPdfEngines) ReadBookmarks(ctx context.Context, logger *slog.Logger, inputPath string) ([]gotenberg.Bookmark, error) {
+	tracer := gotenberg.Tracer()
+	ctx, span := tracer.Start(ctx, "pdfengines.ReadBookmarks", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var err error
 	var mu sync.Mutex // to safely append errors.
 
@@ -293,6 +368,7 @@ func (multi *multiPdfEngines) ReadBookmarks(ctx context.Context, logger *zap.Log
 				err = multierr.Append(err, result.err)
 				mu.Unlock()
 			} else {
+				span.SetStatus(codes.Ok, "")
 				return result.bookmarks, nil
 			}
 		case <-ctx.Done():
@@ -300,12 +376,20 @@ func (multi *multiPdfEngines) ReadBookmarks(ctx context.Context, logger *zap.Log
 		}
 	}
 
-	return nil, fmt.Errorf("read PDF bookmarks with multi PDF engines: %w", err)
+	err = fmt.Errorf("read PDF bookmarks with multi PDF engines: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+
+	return nil, err
 }
 
 // WriteBookmarks adds a document outline (bookmarks) to a PDF file using the
 // first available engine that supports bookmarks writing.
-func (multi *multiPdfEngines) WriteBookmarks(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
+func (multi *multiPdfEngines) WriteBookmarks(ctx context.Context, logger *slog.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
+	tracer := gotenberg.Tracer()
+	ctx, span := tracer.Start(ctx, "pdfengines.WriteBookmarks", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var err error
 	errChan := make(chan error, 1)
 
@@ -318,6 +402,7 @@ func (multi *multiPdfEngines) WriteBookmarks(ctx context.Context, logger *zap.Lo
 		case writeBookmarksErr := <-errChan:
 			errored := multierr.AppendInto(&err, writeBookmarksErr)
 			if !errored {
+				span.SetStatus(codes.Ok, "")
 				return nil
 			}
 		case <-ctx.Done():
@@ -325,12 +410,20 @@ func (multi *multiPdfEngines) WriteBookmarks(ctx context.Context, logger *zap.Lo
 		}
 	}
 
-	return fmt.Errorf("write PDF bookmarks with multi PDF engines: %w", err)
+	err = fmt.Errorf("write PDF bookmarks with multi PDF engines: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+
+	return err
 }
 
 // Encrypt adds password protection to a PDF file using the first available
 // engine that supports password protection.
-func (multi *multiPdfEngines) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
+func (multi *multiPdfEngines) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
+	tracer := gotenberg.Tracer()
+	ctx, span := tracer.Start(ctx, "pdfengines.Encrypt", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var err error
 	errChan := make(chan error, 1)
 
@@ -343,6 +436,7 @@ func (multi *multiPdfEngines) Encrypt(ctx context.Context, logger *zap.Logger, i
 		case protectErr := <-errChan:
 			errored := multierr.AppendInto(&err, protectErr)
 			if !errored {
+				span.SetStatus(codes.Ok, "")
 				return nil
 			}
 		case <-ctx.Done():
@@ -350,12 +444,22 @@ func (multi *multiPdfEngines) Encrypt(ctx context.Context, logger *zap.Logger, i
 		}
 	}
 
-	return fmt.Errorf("encrypt PDF using multi PDF engines: %w", err)
+	err = fmt.Errorf("encrypt PDF using multi PDF engines: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+
+	return err
 }
 
 // EmbedFiles embeds files into a PDF using the first available
 // engine that supports file embedding.
-func (multi *multiPdfEngines) EmbedFiles(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error {
+//
+//nolint:dupl
+func (multi *multiPdfEngines) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {
+	tracer := gotenberg.Tracer()
+	ctx, span := tracer.Start(ctx, "pdfengines.EmbedFiles", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var err error
 	errChan := make(chan error, 1)
 
@@ -368,6 +472,7 @@ func (multi *multiPdfEngines) EmbedFiles(ctx context.Context, logger *zap.Logger
 		case embedErr := <-errChan:
 			errored := multierr.AppendInto(&err, embedErr)
 			if !errored {
+				span.SetStatus(codes.Ok, "")
 				return nil
 			}
 		case <-ctx.Done():
@@ -375,12 +480,22 @@ func (multi *multiPdfEngines) EmbedFiles(ctx context.Context, logger *zap.Logger
 		}
 	}
 
-	return fmt.Errorf("embed files into PDF using multi PDF engines: %w", err)
+	err = fmt.Errorf("embed files into PDF using multi PDF engines: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+
+	return err
 }
 
 // Watermark applies a watermark (behind page content) to a PDF file using the
 // first available engine that supports watermarking.
-func (multi *multiPdfEngines) Watermark(ctx context.Context, logger *zap.Logger, inputPath string, stamp gotenberg.Stamp) error {
+//
+//nolint:dupl
+func (multi *multiPdfEngines) Watermark(ctx context.Context, logger *slog.Logger, inputPath string, stamp gotenberg.Stamp) error {
+	tracer := gotenberg.Tracer()
+	ctx, span := tracer.Start(ctx, "pdfengines.Watermark", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var err error
 	errChan := make(chan error, 1)
 
@@ -393,6 +508,7 @@ func (multi *multiPdfEngines) Watermark(ctx context.Context, logger *zap.Logger,
 		case watermarkErr := <-errChan:
 			errored := multierr.AppendInto(&err, watermarkErr)
 			if !errored {
+				span.SetStatus(codes.Ok, "")
 				return nil
 			}
 		case <-ctx.Done():
@@ -400,12 +516,22 @@ func (multi *multiPdfEngines) Watermark(ctx context.Context, logger *zap.Logger,
 		}
 	}
 
-	return fmt.Errorf("watermark PDF with multi PDF engines: %w", err)
+	err = fmt.Errorf("watermark PDF with multi PDF engines: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+
+	return err
 }
 
 // Stamp applies a stamp (on top of page content) to a PDF file using the
 // first available engine that supports stamping.
-func (multi *multiPdfEngines) Stamp(ctx context.Context, logger *zap.Logger, inputPath string, stamp gotenberg.Stamp) error {
+//
+//nolint:dupl
+func (multi *multiPdfEngines) Stamp(ctx context.Context, logger *slog.Logger, inputPath string, stamp gotenberg.Stamp) error {
+	tracer := gotenberg.Tracer()
+	ctx, span := tracer.Start(ctx, "pdfengines.Stamp", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var err error
 	errChan := make(chan error, 1)
 
@@ -418,6 +544,7 @@ func (multi *multiPdfEngines) Stamp(ctx context.Context, logger *zap.Logger, inp
 		case stampErr := <-errChan:
 			errored := multierr.AppendInto(&err, stampErr)
 			if !errored {
+				span.SetStatus(codes.Ok, "")
 				return nil
 			}
 		case <-ctx.Done():
@@ -425,12 +552,20 @@ func (multi *multiPdfEngines) Stamp(ctx context.Context, logger *zap.Logger, inp
 		}
 	}
 
-	return fmt.Errorf("stamp PDF with multi PDF engines: %w", err)
+	err = fmt.Errorf("stamp PDF with multi PDF engines: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+
+	return err
 }
 
 // Rotate rotates pages of a PDF file using the first available engine that
 // supports rotation.
-func (multi *multiPdfEngines) Rotate(ctx context.Context, logger *zap.Logger, inputPath string, angle int, pages string) error {
+func (multi *multiPdfEngines) Rotate(ctx context.Context, logger *slog.Logger, inputPath string, angle int, pages string) error {
+	tracer := gotenberg.Tracer()
+	ctx, span := tracer.Start(ctx, "pdfengines.Rotate", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	var err error
 	errChan := make(chan error, 1)
 
@@ -443,6 +578,7 @@ func (multi *multiPdfEngines) Rotate(ctx context.Context, logger *zap.Logger, in
 		case rotateErr := <-errChan:
 			errored := multierr.AppendInto(&err, rotateErr)
 			if !errored {
+				span.SetStatus(codes.Ok, "")
 				return nil
 			}
 		case <-ctx.Done():
@@ -450,7 +586,11 @@ func (multi *multiPdfEngines) Rotate(ctx context.Context, logger *zap.Logger, in
 		}
 	}
 
-	return fmt.Errorf("rotate PDF with multi PDF engines: %w", err)
+	err = fmt.Errorf("rotate PDF with multi PDF engines: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+
+	return err
 }
 
 // Interface guards.

@@ -31,7 +31,7 @@ Feature: /health
 
   Scenario: GET /health (No Logging)
     Given I have a Gotenberg container with the following environment variable(s):
-      | API_DISABLE_HEALTH_CHECK_LOGGING | true |
+      | API_DISABLE_HEALTH_CHECK_ROUTE_TELEMETRY | true |
     When I make a "GET" request to Gotenberg at the "/health" endpoint
     Then the response status code should be 200
     Then the Gotenberg container should NOT log the following entries:
@@ -44,7 +44,7 @@ Feature: /health
     Then the response status code should be 200
     Then the response header "Gotenberg-Trace" should be "get_health"
     Then the Gotenberg container should log the following entries:
-      | "trace":"get_health" |
+      | "correlation_id":"get_health" |
 
   Scenario: GET /health (Basic Auth)
     Given I have a Gotenberg container with the following environment variable(s):
@@ -78,11 +78,11 @@ Feature: /health
     Then the response status code should be 200
     Then the response header "Gotenberg-Trace" should be "head_health"
     Then the Gotenberg container should log the following entries:
-      | "trace":"head_health" |
+      | "correlation_id":"head_health" |
 
   Scenario: HEAD /health (No Logging)
     Given I have a Gotenberg container with the following environment variable(s):
-      | API_DISABLE_HEALTH_CHECK_LOGGING | true |
+      | API_DISABLE_HEALTH_CHECK_ROUTE_TELEMETRY | true |
     When I make a "HEAD" request to Gotenberg at the "/health" endpoint
     Then the response status code should be 200
     Then the Gotenberg container should NOT log the following entries:

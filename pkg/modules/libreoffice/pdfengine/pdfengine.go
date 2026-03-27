@@ -4,8 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
-	"go.uber.org/zap"
+	"log/slog"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/libreoffice/api"
@@ -47,17 +46,17 @@ func (engine *LibreOfficePdfEngine) Provision(ctx *gotenberg.Context) error {
 }
 
 // Merge is not available in this implementation.
-func (engine *LibreOfficePdfEngine) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+func (engine *LibreOfficePdfEngine) Merge(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
 	return fmt.Errorf("merge PDFs with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Split is not available in this implementation.
-func (engine *LibreOfficePdfEngine) Split(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+func (engine *LibreOfficePdfEngine) Split(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
 	return nil, fmt.Errorf("split PDF with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Flatten is not available in this implementation.
-func (engine *LibreOfficePdfEngine) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
+func (engine *LibreOfficePdfEngine) Flatten(ctx context.Context, logger *slog.Logger, inputPath string) error {
 	return fmt.Errorf("flatten PDF with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
@@ -65,7 +64,7 @@ func (engine *LibreOfficePdfEngine) Flatten(ctx context.Context, logger *zap.Log
 // PDF/A-1b, PDF/A-2b, PDF/A-3b and PDF/UA formats are available. If another
 // PDF format is requested, it returns a [gotenberg.ErrPdfFormatNotSupported]
 // error.
-func (engine *LibreOfficePdfEngine) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+func (engine *LibreOfficePdfEngine) Convert(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 	opts := api.DefaultOptions()
 	opts.PdfFormats = formats
 	err := engine.unoApi.Pdf(ctx, logger, inputPath, outputPath, opts)
@@ -82,52 +81,52 @@ func (engine *LibreOfficePdfEngine) Convert(ctx context.Context, logger *zap.Log
 }
 
 // ReadMetadata is not available in this implementation.
-func (engine *LibreOfficePdfEngine) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
+func (engine *LibreOfficePdfEngine) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 	return nil, fmt.Errorf("read PDF metadata with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // WriteMetadata is not available in this implementation.
-func (engine *LibreOfficePdfEngine) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
+func (engine *LibreOfficePdfEngine) WriteMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
 	return fmt.Errorf("write PDF metadata with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // PageCount is not available in this implementation.
-func (engine *LibreOfficePdfEngine) PageCount(ctx context.Context, logger *zap.Logger, inputPath string) (int, error) {
+func (engine *LibreOfficePdfEngine) PageCount(ctx context.Context, logger *slog.Logger, inputPath string) (int, error) {
 	return 0, fmt.Errorf("page count with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // WriteBookmarks is not available in this implementation.
-func (engine *LibreOfficePdfEngine) WriteBookmarks(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
+func (engine *LibreOfficePdfEngine) WriteBookmarks(ctx context.Context, logger *slog.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
 	return fmt.Errorf("write PDF bookmarks with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // ReadBookmarks is not available in this implementation.
-func (engine *LibreOfficePdfEngine) ReadBookmarks(ctx context.Context, logger *zap.Logger, inputPath string) ([]gotenberg.Bookmark, error) {
+func (engine *LibreOfficePdfEngine) ReadBookmarks(ctx context.Context, logger *slog.Logger, inputPath string) ([]gotenberg.Bookmark, error) {
 	return nil, fmt.Errorf("read PDF bookmarks with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Encrypt is not available in this implementation.
-func (engine *LibreOfficePdfEngine) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
+func (engine *LibreOfficePdfEngine) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
 	return fmt.Errorf("encrypt PDF using LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // EmbedFiles is not available in this implementation.
-func (engine *LibreOfficePdfEngine) EmbedFiles(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error {
+func (engine *LibreOfficePdfEngine) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {
 	return fmt.Errorf("embed files with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Watermark is not available in this implementation.
-func (engine *LibreOfficePdfEngine) Watermark(ctx context.Context, logger *zap.Logger, inputPath string, stamp gotenberg.Stamp) error {
+func (engine *LibreOfficePdfEngine) Watermark(ctx context.Context, logger *slog.Logger, inputPath string, stamp gotenberg.Stamp) error {
 	return fmt.Errorf("watermark PDF with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Stamp is not available in this implementation.
-func (engine *LibreOfficePdfEngine) Stamp(ctx context.Context, logger *zap.Logger, inputPath string, stamp gotenberg.Stamp) error {
+func (engine *LibreOfficePdfEngine) Stamp(ctx context.Context, logger *slog.Logger, inputPath string, stamp gotenberg.Stamp) error {
 	return fmt.Errorf("stamp PDF with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Rotate is not available in this implementation.
-func (engine *LibreOfficePdfEngine) Rotate(ctx context.Context, logger *zap.Logger, inputPath string, angle int, pages string) error {
+func (engine *LibreOfficePdfEngine) Rotate(ctx context.Context, logger *slog.Logger, inputPath string, angle int, pages string) error {
 	return fmt.Errorf("rotate PDF with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,8 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
@@ -96,7 +95,7 @@ func (engine *PdfCpu) Debug() map[string]any {
 }
 
 // Merge combines multiple PDFs into a single PDF.
-func (engine *PdfCpu) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+func (engine *PdfCpu) Merge(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
 	args := make([]string, 0, 2+len(inputPaths))
 	args = append(args, "merge", outputPath)
 	args = append(args, inputPaths...)
@@ -115,7 +114,7 @@ func (engine *PdfCpu) Merge(ctx context.Context, logger *zap.Logger, inputPaths 
 }
 
 // Split splits a given PDF file.
-func (engine *PdfCpu) Split(ctx context.Context, logger *zap.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+func (engine *PdfCpu) Split(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
 	var args []string
 
 	switch mode.Mode {
@@ -165,32 +164,32 @@ func (engine *PdfCpu) Split(ctx context.Context, logger *zap.Logger, mode gotenb
 }
 
 // Flatten is not available in this implementation.
-func (engine *PdfCpu) Flatten(ctx context.Context, logger *zap.Logger, inputPath string) error {
+func (engine *PdfCpu) Flatten(ctx context.Context, logger *slog.Logger, inputPath string) error {
 	return fmt.Errorf("flatten PDF with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // Convert is not available in this implementation.
-func (engine *PdfCpu) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+func (engine *PdfCpu) Convert(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 	return fmt.Errorf("convert PDF to '%+v' with pdfcpu: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // ReadMetadata is not available in this implementation.
-func (engine *PdfCpu) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]any, error) {
+func (engine *PdfCpu) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 	return nil, fmt.Errorf("read PDF metadata with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // WriteMetadata is not available in this implementation.
-func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]any, inputPath string) error {
+func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
 	return fmt.Errorf("write PDF metadata with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // PageCount is not available in this implementation.
-func (engine *PdfCpu) PageCount(ctx context.Context, logger *zap.Logger, inputPath string) (int, error) {
+func (engine *PdfCpu) PageCount(ctx context.Context, logger *slog.Logger, inputPath string) (int, error) {
 	return 0, fmt.Errorf("page count with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
 // ReadBookmarks reads the document outline (bookmarks) of a PDF file using pdfcpu.
-func (engine *PdfCpu) ReadBookmarks(ctx context.Context, logger *zap.Logger, inputPath string) ([]gotenberg.Bookmark, error) {
+func (engine *PdfCpu) ReadBookmarks(ctx context.Context, logger *slog.Logger, inputPath string) ([]gotenberg.Bookmark, error) {
 	tmpPath := fmt.Sprintf("%s.read.json", inputPath)
 	args := []string{"bookmarks", "export", inputPath, tmpPath}
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
@@ -201,7 +200,7 @@ func (engine *PdfCpu) ReadBookmarks(ctx context.Context, logger *zap.Logger, inp
 	defer func() {
 		err := os.Remove(tmpPath)
 		if err != nil && !os.IsNotExist(err) {
-			logger.Error(fmt.Sprintf("remove temporary bookmarks JSON file: %v", err))
+			logger.ErrorContext(ctx, fmt.Sprintf("remove temporary bookmarks JSON file: %v", err))
 		}
 	}()
 
@@ -269,7 +268,7 @@ func (engine *PdfCpu) ReadBookmarks(ctx context.Context, logger *zap.Logger, inp
 }
 
 // WriteBookmarks adds a document outline (bookmarks) to a PDF file using pdfcpu.
-func (engine *PdfCpu) WriteBookmarks(ctx context.Context, logger *zap.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
+func (engine *PdfCpu) WriteBookmarks(ctx context.Context, logger *slog.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
 	if len(bookmarks) == 0 {
 		return nil
 	}
@@ -305,7 +304,7 @@ func (engine *PdfCpu) WriteBookmarks(ctx context.Context, logger *zap.Logger, in
 	defer func() {
 		err := os.Remove(tmpPath)
 		if err != nil {
-			logger.Error(fmt.Sprintf("remove temporary bookmarks JSON file: %v", err))
+			logger.ErrorContext(ctx, fmt.Sprintf("remove temporary bookmarks JSON file: %v", err))
 		}
 	}()
 
@@ -325,12 +324,12 @@ func (engine *PdfCpu) WriteBookmarks(ctx context.Context, logger *zap.Logger, in
 
 // EmbedFiles embeds files into a PDF. All files are embedded as file attachments
 // without modifying the main PDF content.
-func (engine *PdfCpu) EmbedFiles(ctx context.Context, logger *zap.Logger, filePaths []string, inputPath string) error {
+func (engine *PdfCpu) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {
 	if len(filePaths) == 0 {
 		return nil
 	}
 
-	logger.Debug(fmt.Sprintf("embedding %d file(s) to %s: %v", len(filePaths), inputPath, filePaths))
+	logger.DebugContext(ctx, fmt.Sprintf("embedding %d file(s) to %s: %v", len(filePaths), inputPath, filePaths))
 
 	args := make([]string, 0, 3+len(filePaths))
 	args = append(args, "attachments", "add", inputPath)
@@ -350,7 +349,7 @@ func (engine *PdfCpu) EmbedFiles(ctx context.Context, logger *zap.Logger, filePa
 }
 
 // Encrypt adds password protection to a PDF file using pdfcpu.
-func (engine *PdfCpu) Encrypt(ctx context.Context, logger *zap.Logger, inputPath, userPassword, ownerPassword string) error {
+func (engine *PdfCpu) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
 	if userPassword == "" {
 		return errors.New("user password cannot be empty")
 	}
@@ -381,17 +380,17 @@ func (engine *PdfCpu) Encrypt(ctx context.Context, logger *zap.Logger, inputPath
 }
 
 // Watermark applies a watermark (behind page content) to a PDF file using pdfcpu.
-func (engine *PdfCpu) Watermark(ctx context.Context, logger *zap.Logger, inputPath string, stamp gotenberg.Stamp) error {
+func (engine *PdfCpu) Watermark(ctx context.Context, logger *slog.Logger, inputPath string, stamp gotenberg.Stamp) error {
 	return engine.applyStampOrWatermark(ctx, logger, "watermark", inputPath, stamp)
 }
 
 // Stamp applies a stamp (on top of page content) to a PDF file using pdfcpu.
-func (engine *PdfCpu) Stamp(ctx context.Context, logger *zap.Logger, inputPath string, stamp gotenberg.Stamp) error {
+func (engine *PdfCpu) Stamp(ctx context.Context, logger *slog.Logger, inputPath string, stamp gotenberg.Stamp) error {
 	return engine.applyStampOrWatermark(ctx, logger, "stamp", inputPath, stamp)
 }
 
 // Rotate rotates pages of a PDF file by the given angle using pdfcpu.
-func (engine *PdfCpu) Rotate(ctx context.Context, logger *zap.Logger, inputPath string, angle int, pages string) error {
+func (engine *PdfCpu) Rotate(ctx context.Context, logger *slog.Logger, inputPath string, angle int, pages string) error {
 	args := []string{"rotate"}
 	if pages != "" {
 		args = append(args, "-pages", pages)
@@ -411,7 +410,7 @@ func (engine *PdfCpu) Rotate(ctx context.Context, logger *zap.Logger, inputPath 
 	return nil
 }
 
-func (engine *PdfCpu) applyStampOrWatermark(ctx context.Context, logger *zap.Logger, command string, inputPath string, stamp gotenberg.Stamp) error {
+func (engine *PdfCpu) applyStampOrWatermark(ctx context.Context, logger *slog.Logger, command string, inputPath string, stamp gotenberg.Stamp) error {
 	var mode string
 	switch stamp.Source {
 	case gotenberg.StampSourceText:

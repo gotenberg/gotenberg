@@ -197,7 +197,7 @@ Feature: /forms/pdfengines/watermark
     Then the response header "Content-Type" should be "application/pdf"
     Then the response header "Gotenberg-Trace" should be "forms_pdfengines_watermark"
     Then the Gotenberg container should log the following entries:
-      | "trace":"forms_pdfengines_watermark" |
+      | "correlation_id":"forms_pdfengines_watermark" |
 
   @webhook
   Scenario: POST /forms/pdfengines/watermark (Webhook)
