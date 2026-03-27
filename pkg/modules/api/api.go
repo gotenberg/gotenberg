@@ -55,8 +55,8 @@ type Api struct {
 }
 
 type downloadFromConfig struct {
-	allowList *regexp2.Regexp
-	denyList  *regexp2.Regexp
+	allowList []*regexp2.Regexp
+	denyList  []*regexp2.Regexp
 	maxRetry  int
 	disable   bool
 }
@@ -192,8 +192,8 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.String("api-root-path", "/", "Set the root path of the API - for service discovery via URL paths")
 			fs.String("api-trace-header", "Gotenberg-Trace", "Set the header name to use for identifying requests")
 			fs.Bool("api-enable-basic-auth", false, "Enable basic authentication - will look for the GOTENBERG_API_BASIC_AUTH_USERNAME and GOTENBERG_API_BASIC_AUTH_PASSWORD environment variables")
-			fs.String("api-download-from-allow-list", "", "Set the allowed URLs for the download from feature using a regular expression")
-			fs.String("api-download-from-deny-list", "", "Set the denied URLs for the download from feature using a regular expression")
+			fs.StringSlice("api-download-from-allow-list", []string{}, "Set the allowed URLs for the download from feature using regular expressions - supports multiple values")
+			fs.StringSlice("api-download-from-deny-list", []string{}, "Set the denied URLs for the download from feature using regular expressions - supports multiple values")
 			fs.Int("api-download-from-max-retry", 4, "Set the maximum number of retries for the download from feature")
 			fs.Bool("api-disable-download-from", false, "Disable the download from feature")
 			fs.Bool("api-disable-health-check-logging", false, "Disable health check logging")
@@ -217,8 +217,8 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 	a.rootPath = flags.MustString("api-root-path")
 	a.traceHeader = flags.MustString("api-trace-header")
 	a.downloadFromCfg = downloadFromConfig{
-		allowList: flags.MustRegexp("api-download-from-allow-list"),
-		denyList:  flags.MustRegexp("api-download-from-deny-list"),
+		allowList: flags.MustRegexpSlice("api-download-from-allow-list"),
+		denyList:  flags.MustRegexpSlice("api-download-from-deny-list"),
 		maxRetry:  flags.MustInt("api-download-from-max-retry"),
 		disable:   flags.MustBool("api-disable-download-from"),
 	}

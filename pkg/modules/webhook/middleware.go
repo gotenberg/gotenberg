@@ -114,22 +114,12 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 
 					// Let's check if the webhook URLs are acceptable according to our
 					// allowed/denied lists.
-					err := gotenberg.FilterDeadline(
-						gotenberg.RegexpToSlice(w.allowList),
-						gotenberg.RegexpToSlice(w.denyList),
-						webhookUrl,
-						deadline,
-					)
+					err := gotenberg.FilterDeadline(w.allowList, w.denyList, webhookUrl, deadline)
 					if err != nil {
 						return fmt.Errorf("filter webhook URL: %w", err)
 					}
 
-					err = gotenberg.FilterDeadline(
-						gotenberg.RegexpToSlice(w.errorAllowList),
-						gotenberg.RegexpToSlice(w.errorDenyList),
-						webhookErrorUrl,
-						deadline,
-					)
+					err = gotenberg.FilterDeadline(w.errorAllowList, w.errorDenyList, webhookErrorUrl, deadline)
 					if err != nil {
 						return fmt.Errorf("filter webhook error URL: %w", err)
 					}

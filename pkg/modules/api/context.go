@@ -225,12 +225,7 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 					)
 				}
 
-				err := gotenberg.FilterDeadline(
-					gotenberg.RegexpToSlice(downloadFromCfg.allowList),
-					gotenberg.RegexpToSlice(downloadFromCfg.denyList),
-					dl.Url,
-					deadline,
-				)
+				err := gotenberg.FilterDeadline(downloadFromCfg.allowList, downloadFromCfg.denyList, dl.Url, deadline)
 				if err != nil {
 					return fmt.Errorf("filter URL: %w", err)
 				}

@@ -12,17 +12,6 @@ import (
 // ErrFiltered happens if a value is filtered by the [FilterDeadline] function.
 var ErrFiltered = errors.New("value filtered")
 
-// RegexpToSlice wraps a single [regexp2.Regexp] into a slice suitable for
-// [FilterDeadline]. If the regexp pattern is empty, it returns nil (meaning no
-// filtering).
-func RegexpToSlice(r *regexp2.Regexp) []*regexp2.Regexp {
-	if r == nil || r.String() == "" {
-		return nil
-	}
-
-	return []*regexp2.Regexp{r}
-}
-
 // FilterDeadline checks if the given value is allowed and not denied according
 // to regex patterns. The allowed list uses OR semantics (value must match at
 // least one pattern). The denied list uses OR semantics (value is denied if it
