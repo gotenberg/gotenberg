@@ -2,13 +2,13 @@ package pdfengines
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
 
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/multierr"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
@@ -80,8 +80,9 @@ func (multi *multiPdfEngines) Merge(ctx context.Context, logger *slog.Logger, in
 
 		select {
 		case mergeErr := <-errChan:
-			errored := multierr.AppendInto(&err, mergeErr)
-			if !errored {
+			if mergeErr != nil {
+				err = errors.Join(err, mergeErr)
+			} else {
 				span.SetStatus(codes.Ok, "")
 				return nil
 			}
@@ -124,7 +125,7 @@ func (multi *multiPdfEngines) Split(ctx context.Context, logger *slog.Logger, mo
 		case result := <-resultChan:
 			if result.err != nil {
 				mu.Lock()
-				err = multierr.Append(err, result.err)
+				err = errors.Join(err, result.err)
 				mu.Unlock()
 			} else {
 				span.SetStatus(codes.Ok, "")
@@ -159,8 +160,9 @@ func (multi *multiPdfEngines) Flatten(ctx context.Context, logger *slog.Logger, 
 
 		select {
 		case mergeErr := <-errChan:
-			errored := multierr.AppendInto(&err, mergeErr)
-			if !errored {
+			if mergeErr != nil {
+				err = errors.Join(err, mergeErr)
+			} else {
 				span.SetStatus(codes.Ok, "")
 				return nil
 			}
@@ -193,8 +195,9 @@ func (multi *multiPdfEngines) Convert(ctx context.Context, logger *slog.Logger, 
 
 		select {
 		case mergeErr := <-errChan:
-			errored := multierr.AppendInto(&err, mergeErr)
-			if !errored {
+			if mergeErr != nil {
+				err = errors.Join(err, mergeErr)
+			} else {
 				span.SetStatus(codes.Ok, "")
 				return nil
 			}
@@ -239,7 +242,7 @@ func (multi *multiPdfEngines) ReadMetadata(ctx context.Context, logger *slog.Log
 		case result := <-resultChan:
 			if result.err != nil {
 				mu.Lock()
-				err = multierr.Append(err, result.err)
+				err = errors.Join(err, result.err)
 				mu.Unlock()
 			} else {
 				span.SetStatus(codes.Ok, "")
@@ -274,8 +277,9 @@ func (multi *multiPdfEngines) WriteMetadata(ctx context.Context, logger *slog.Lo
 
 		select {
 		case writeMetadataErr := <-errChan:
-			errored := multierr.AppendInto(&err, writeMetadataErr)
-			if !errored {
+			if writeMetadataErr != nil {
+				err = errors.Join(err, writeMetadataErr)
+			} else {
 				span.SetStatus(codes.Ok, "")
 				return nil
 			}
@@ -318,7 +322,7 @@ func (multi *multiPdfEngines) PageCount(ctx context.Context, logger *slog.Logger
 		case result := <-resultChan:
 			if result.err != nil {
 				mu.Lock()
-				err = multierr.Append(err, result.err)
+				err = errors.Join(err, result.err)
 				mu.Unlock()
 			} else {
 				span.SetStatus(codes.Ok, "")
@@ -365,7 +369,7 @@ func (multi *multiPdfEngines) ReadBookmarks(ctx context.Context, logger *slog.Lo
 		case result := <-resultChan:
 			if result.err != nil {
 				mu.Lock()
-				err = multierr.Append(err, result.err)
+				err = errors.Join(err, result.err)
 				mu.Unlock()
 			} else {
 				span.SetStatus(codes.Ok, "")
@@ -400,8 +404,9 @@ func (multi *multiPdfEngines) WriteBookmarks(ctx context.Context, logger *slog.L
 
 		select {
 		case writeBookmarksErr := <-errChan:
-			errored := multierr.AppendInto(&err, writeBookmarksErr)
-			if !errored {
+			if writeBookmarksErr != nil {
+				err = errors.Join(err, writeBookmarksErr)
+			} else {
 				span.SetStatus(codes.Ok, "")
 				return nil
 			}
@@ -434,8 +439,9 @@ func (multi *multiPdfEngines) Encrypt(ctx context.Context, logger *slog.Logger, 
 
 		select {
 		case protectErr := <-errChan:
-			errored := multierr.AppendInto(&err, protectErr)
-			if !errored {
+			if protectErr != nil {
+				err = errors.Join(err, protectErr)
+			} else {
 				span.SetStatus(codes.Ok, "")
 				return nil
 			}
@@ -470,8 +476,9 @@ func (multi *multiPdfEngines) EmbedFiles(ctx context.Context, logger *slog.Logge
 
 		select {
 		case embedErr := <-errChan:
-			errored := multierr.AppendInto(&err, embedErr)
-			if !errored {
+			if embedErr != nil {
+				err = errors.Join(err, embedErr)
+			} else {
 				span.SetStatus(codes.Ok, "")
 				return nil
 			}
@@ -506,8 +513,9 @@ func (multi *multiPdfEngines) Watermark(ctx context.Context, logger *slog.Logger
 
 		select {
 		case watermarkErr := <-errChan:
-			errored := multierr.AppendInto(&err, watermarkErr)
-			if !errored {
+			if watermarkErr != nil {
+				err = errors.Join(err, watermarkErr)
+			} else {
 				span.SetStatus(codes.Ok, "")
 				return nil
 			}
@@ -542,8 +550,9 @@ func (multi *multiPdfEngines) Stamp(ctx context.Context, logger *slog.Logger, in
 
 		select {
 		case stampErr := <-errChan:
-			errored := multierr.AppendInto(&err, stampErr)
-			if !errored {
+			if stampErr != nil {
+				err = errors.Join(err, stampErr)
+			} else {
 				span.SetStatus(codes.Ok, "")
 				return nil
 			}
@@ -576,8 +585,9 @@ func (multi *multiPdfEngines) Rotate(ctx context.Context, logger *slog.Logger, i
 
 		select {
 		case rotateErr := <-errChan:
-			errored := multierr.AppendInto(&err, rotateErr)
-			if !errored {
+			if rotateErr != nil {
+				err = errors.Join(err, rotateErr)
+			} else {
 				span.SetStatus(codes.Ok, "")
 				return nil
 			}

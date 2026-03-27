@@ -17,7 +17,6 @@ import (
 	"github.com/gomarkdown/markdown"
 	"github.com/labstack/echo/v4"
 	"github.com/microcosm-cc/bluemonday"
-	"go.uber.org/multierr"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
@@ -150,7 +149,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 
 			for i, cookie := range cookies {
 				if strings.TrimSpace(cookie.Name) == "" || strings.TrimSpace(cookie.Value) == "" || strings.TrimSpace(cookie.Domain) == "" {
-					err = multierr.Append(err, fmt.Errorf("cookie %d must have its name, value and domain set", i))
+					err = errors.Join(err, fmt.Errorf("cookie %d must have its name, value and domain set", i))
 				}
 			}
 
@@ -183,7 +182,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 						if len(parts) == 2 && strings.ToLower(parts[0]) == "scope" && parts[1] != "" {
 							scope = parts[1]
 						} else {
-							err = multierr.Append(err, fmt.Errorf("invalid scope '%s' for header '%s'", scope, k))
+							err = errors.Join(err, fmt.Errorf("invalid scope '%s' for header '%s'", scope, k))
 							invalidScopeToken = true
 							break
 						}
@@ -200,7 +199,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 				if len(scope) > 0 {
 					p, errCompile := regexp2.Compile(scope, regexp2.None)
 					if errCompile != nil {
-						err = multierr.Append(err, fmt.Errorf("invalid scope regex pattern for header '%s': %w", k, errCompile))
+						err = errors.Join(err, fmt.Errorf("invalid scope regex pattern for header '%s': %w", k, errCompile))
 						continue
 					}
 					scopeRegexp = p
@@ -676,7 +675,7 @@ func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) 
 				}
 
 				if path == "" {
-					markdownFilesNotFoundErr = multierr.Append(
+					markdownFilesNotFoundErr = errors.Join(
 						markdownFilesNotFoundErr,
 						fmt.Errorf("'%s'", filename),
 					)

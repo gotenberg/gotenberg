@@ -15,7 +15,6 @@ import (
 	"github.com/dlclark/regexp2"
 	"github.com/labstack/echo/v4"
 	flag "github.com/spf13/pflag"
-	"go.uber.org/multierr"
 	"golang.org/x/net/http2"
 	"golang.org/x/sync/errgroup"
 
@@ -354,35 +353,35 @@ func (a *Api) Validate() error {
 	var err error
 
 	if a.port < 1 || a.port > 65535 {
-		err = multierr.Append(err,
+		err = errors.Join(err,
 			errors.New("port must be more than 1 and less than 65535"),
 		)
 	}
 
 	if a.bindIp != "" && net.ParseIP(a.bindIp) == nil {
-		err = multierr.Append(err, errors.New("IP must be a valid IP address"))
+		err = errors.Join(err, errors.New("IP must be a valid IP address"))
 	}
 
 	if (a.tlsCertFile != "" && a.tlsKeyFile == "") || (a.tlsCertFile == "" && a.tlsKeyFile != "") {
-		err = multierr.Append(err,
+		err = errors.Join(err,
 			errors.New("both TLS certificate and key files must be set"),
 		)
 	}
 
 	if !strings.HasPrefix(a.rootPath, "/") {
-		err = multierr.Append(err,
+		err = errors.Join(err,
 			errors.New("root path must start with /"),
 		)
 	}
 
 	if !strings.HasSuffix(a.rootPath, "/") {
-		err = multierr.Append(err,
+		err = errors.Join(err,
 			errors.New("root path must end with /"),
 		)
 	}
 
 	if len(strings.TrimSpace(a.correlationIdHeader)) == 0 {
-		err = multierr.Append(err,
+		err = errors.Join(err,
 			errors.New("trace header must not be empty"),
 		)
 	}

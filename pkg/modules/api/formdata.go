@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -11,8 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"go.uber.org/multierr"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
@@ -502,7 +501,7 @@ func (form *FormData) paths(extensions []string, target *[]string) *FormData {
 
 // append adds an error to the list of errors.
 func (form *FormData) append(err error) {
-	form.errors = multierr.Append(form.errors, err)
+	form.errors = errors.Join(form.errors, err)
 }
 
 // mustValue binds the target interface with a form field. If the value is

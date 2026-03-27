@@ -2,6 +2,7 @@ package chromium
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -17,7 +18,6 @@ import (
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 	"github.com/dlclark/regexp2"
-	"go.uber.org/multierr"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
@@ -231,7 +231,7 @@ func listenForEventResponseReceived(
 				options.invalidResourceHttpStatusCodeMu.Lock()
 				defer options.invalidResourceHttpStatusCodeMu.Unlock()
 
-				*options.invalidResourceHttpStatusCode = multierr.Append(
+				*options.invalidResourceHttpStatusCode = errors.Join(
 					*options.invalidResourceHttpStatusCode,
 					fmt.Errorf("%s - %d: %s", ev.Response.URL, ev.Response.Status, http.StatusText(int(ev.Response.Status))),
 				)
@@ -334,7 +334,7 @@ func listenForEventLoadingFailed(ctx context.Context, logger *slog.Logger, optio
 
 			// We are looking for common errors.
 			// TODO: sufficient?
-			errors := []string{
+			knownErrors := []string{
 				"net::ERR_CONNECTION_CLOSED",
 				"net::ERR_CONNECTION_RESET",
 				"net::ERR_CONNECTION_REFUSED",
@@ -348,8 +348,8 @@ func listenForEventLoadingFailed(ctx context.Context, logger *slog.Logger, optio
 				"net::ERR_FILE_NOT_FOUND",
 				"net::ERR_HTTP2_PROTOCOL_ERROR",
 			}
-			if !slices.Contains(errors, ev.ErrorText) {
-				logger.DebugContext(ctx, fmt.Sprintf("skip EventLoadingFailed: '%s' is not part of %+v", ev.ErrorText, errors))
+			if !slices.Contains(knownErrors, ev.ErrorText) {
+				logger.DebugContext(ctx, fmt.Sprintf("skip EventLoadingFailed: '%s' is not part of %+v", ev.ErrorText, knownErrors))
 				return
 			}
 
@@ -378,7 +378,7 @@ func listenForEventLoadingFailed(ctx context.Context, logger *slog.Logger, optio
 			options.resourceLoadingFailedMu.Lock()
 			defer options.resourceLoadingFailedMu.Unlock()
 
-			*options.resourceLoadingFailed = multierr.Append(
+			*options.resourceLoadingFailed = errors.Join(
 				*options.resourceLoadingFailed,
 				fmt.Errorf("resource %s: %s", ev.Type, ev.ErrorText),
 			)
@@ -397,7 +397,7 @@ func listenForEventExceptionThrown(ctx context.Context, logger *slog.Logger, con
 			consoleExceptionsMu.Lock()
 			defer consoleExceptionsMu.Unlock()
 
-			*consoleExceptions = multierr.Append(*consoleExceptions, fmt.Errorf("\n%+v", ev.ExceptionDetails))
+			*consoleExceptions = errors.Join(*consoleExceptions, fmt.Errorf("\n%+v", ev.ExceptionDetails))
 		}
 	})
 }

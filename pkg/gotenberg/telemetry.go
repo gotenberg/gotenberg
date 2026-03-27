@@ -11,7 +11,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/multierr"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg/internal/log"
 	internalotel "github.com/gotenberg/gotenberg/v8/pkg/gotenberg/internal/otel"
@@ -55,13 +54,13 @@ func (cfg TelemetryConfig) Validate() error {
 	var err error
 
 	if cfg.ServiceName == "" {
-		err = multierr.Append(err,
+		err = errors.Join(err,
 			errors.New("service name must not be empty"),
 		)
 	}
 
 	if cfg.ServiceVersion == "" {
-		err = multierr.Append(err,
+		err = errors.Join(err,
 			errors.New("service version must not be empty"),
 		)
 	}
@@ -70,7 +69,7 @@ func (cfg TelemetryConfig) Validate() error {
 	case ErrorLoggingLevel, WarnLoggingLevel, InfoLoggingLevel, DebugLoggingLevel:
 		break
 	default:
-		err = multierr.Append(
+		err = errors.Join(
 			err,
 			fmt.Errorf("log level must be either %s, %s, %s or %s", ErrorLoggingLevel, WarnLoggingLevel, InfoLoggingLevel, DebugLoggingLevel),
 		)
@@ -80,7 +79,7 @@ func (cfg TelemetryConfig) Validate() error {
 	case AutoLoggingFormat, JsonLoggingFormat, TextLoggingFormat:
 		break
 	default:
-		err = multierr.Append(
+		err = errors.Join(
 			err,
 			fmt.Errorf("standard log format must be either %s, %s or %s", AutoLoggingFormat, JsonLoggingFormat, TextLoggingFormat),
 		)

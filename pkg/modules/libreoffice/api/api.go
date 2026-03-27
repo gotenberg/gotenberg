@@ -18,7 +18,6 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/multierr"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
@@ -468,12 +467,12 @@ func (a *Api) Validate() error {
 
 	_, statErr := os.Stat(a.args.binPath)
 	if os.IsNotExist(statErr) {
-		err = multierr.Append(err, fmt.Errorf("LibreOffice binary path does not exist: %w", statErr))
+		err = errors.Join(err, fmt.Errorf("LibreOffice binary path does not exist: %w", statErr))
 	}
 
 	_, statErr = os.Stat(a.args.unoBinPath)
 	if os.IsNotExist(statErr) {
-		err = multierr.Append(err, fmt.Errorf("unoconverter binary path does not exist: %w", statErr))
+		err = errors.Join(err, fmt.Errorf("unoconverter binary path does not exist: %w", statErr))
 	}
 
 	return err
