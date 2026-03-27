@@ -45,7 +45,7 @@ func TestProcessSupervisor_Launch(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, 5, 0, 1).(*processSupervisor)
+			ps := NewProcessSupervisor(logger, process, 5, 0, 1, 0).(*processSupervisor)
 			if tc.firstStartSet {
 				ps.firstStart.Store(true)
 			}
@@ -93,7 +93,7 @@ func TestProcessSupervisor_Shutdown(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, 5, 0, 1)
+			ps := NewProcessSupervisor(logger, process, 5, 0, 1, 0)
 			err := ps.Shutdown()
 
 			if !tc.expectError && err != nil {
@@ -145,7 +145,7 @@ func TestProcessSupervisor_restart(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, 5, 0, 1).(*processSupervisor)
+			ps := NewProcessSupervisor(logger, process, 5, 0, 1, 0).(*processSupervisor)
 
 			err := ps.restart()
 
@@ -201,7 +201,7 @@ func TestProcessSupervisor_Healthy(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, 5, 0, 1).(*processSupervisor)
+			ps := NewProcessSupervisor(logger, process, 5, 0, 1, 0).(*processSupervisor)
 			if tc.initiallyStarted {
 				ps.firstStart.Store(true)
 			}
@@ -386,7 +386,7 @@ func TestProcessSupervisor_Run(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, tc.maxReqLimit, tc.maxQueueSize, 1).(*processSupervisor)
+			ps := NewProcessSupervisor(logger, process, tc.maxReqLimit, tc.maxQueueSize, 1, 0).(*processSupervisor)
 			if tc.initiallyStarted {
 				ps.firstStart.Store(true)
 			}
@@ -470,7 +470,7 @@ func TestProcessSupervisor_runWithDeadline(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			ps := NewProcessSupervisor(slog.New(slog.DiscardHandler), new(ProcessMock), 0, 0, 1).(*processSupervisor)
+			ps := NewProcessSupervisor(slog.New(slog.DiscardHandler), new(ProcessMock), 0, 0, 1, 0).(*processSupervisor)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 			if tc.ctxDone {
@@ -504,7 +504,7 @@ func TestProcessSupervisor_ReqQueueSize(t *testing.T) {
 			return true
 		},
 	}
-	ps := NewProcessSupervisor(logger, process, 0, 0, 1).(*processSupervisor)
+	ps := NewProcessSupervisor(logger, process, 0, 0, 1, 0).(*processSupervisor)
 
 	// Simulating a lock.
 	ps.semaphore <- struct{}{}
@@ -565,7 +565,7 @@ func TestProcessSupervisor_QueueSizeCAS(t *testing.T) {
 
 	maxQueueSize := int64(50)
 	// maxConcurrency=1 so all goroutines block on the semaphore, exercising queue logic.
-	ps := NewProcessSupervisor(logger, process, 0, maxQueueSize, 1).(*processSupervisor)
+	ps := NewProcessSupervisor(logger, process, 0, maxQueueSize, 1, 0).(*processSupervisor)
 
 	// Simulating a lock so that all goroutines queue up.
 	ps.semaphore <- struct{}{}
@@ -619,7 +619,7 @@ func TestProcessSupervisor_QueueSizeIncludesActiveTasks(t *testing.T) {
 	}
 
 	// maxQueueSize=1, maxConcurrency=1: only one request at a time.
-	ps := NewProcessSupervisor(logger, process, 0, 1, 1)
+	ps := NewProcessSupervisor(logger, process, 0, 1, 1, 0)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -708,7 +708,7 @@ func TestProcessSupervisor_RestartsCount(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, 0, 0, 1).(*processSupervisor)
+			ps := NewProcessSupervisor(logger, process, 0, 0, 1, 0).(*processSupervisor)
 			ps.restartsCounter.Store(tc.initialRestartsCount)
 
 			for i := 0; i < tc.restartAttempts; i++ {
@@ -741,7 +741,7 @@ func TestProcessSupervisor_ConcurrentRun(t *testing.T) {
 	}
 
 	maxConcurrency := int64(3)
-	ps := NewProcessSupervisor(logger, process, 0, 0, maxConcurrency).(*processSupervisor)
+	ps := NewProcessSupervisor(logger, process, 0, 0, maxConcurrency, 0).(*processSupervisor)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -803,7 +803,7 @@ func TestProcessSupervisor_RestartDrainsAllSlots(t *testing.T) {
 	}
 
 	maxConcurrency := int64(3)
-	ps := NewProcessSupervisor(logger, process, 3, 0, maxConcurrency).(*processSupervisor)
+	ps := NewProcessSupervisor(logger, process, 3, 0, maxConcurrency, 0).(*processSupervisor)
 	ps.firstStart.Store(true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -840,4 +840,104 @@ func TestProcessSupervisor_RestartDrainsAllSlots(t *testing.T) {
 	if ps.RestartsCount() != 1 {
 		t.Fatalf("expected 1 restart, got %d", ps.RestartsCount())
 	}
+}
+
+func TestProcessSupervisor_IdleShutdown(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	var stopCalls atomic.Int64
+	process := &ProcessMock{
+		StartMock: func(logger *slog.Logger) error {
+			return nil
+		},
+		StopMock: func(logger *slog.Logger) error {
+			stopCalls.Add(1)
+			return nil
+		},
+		HealthyMock: func(logger *slog.Logger) bool {
+			return true
+		},
+	}
+
+	idleTimeout := 50 * time.Millisecond
+	ps := NewProcessSupervisor(logger, process, 0, 0, 1, idleTimeout).(*processSupervisor)
+
+	ctx := context.Background()
+	err := ps.Run(ctx, logger, func() error {
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Wait for idle shutdown to fire.
+	deadline := time.After(2 * time.Second)
+	for ps.firstStart.Load() {
+		select {
+		case <-deadline:
+			t.Fatal("timed out waiting for idle shutdown")
+		default:
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+
+	if stopCalls.Load() < 1 {
+		t.Fatal("expected process to be stopped via idle shutdown")
+	}
+
+	// Verify re-launch on next request.
+	err = ps.Run(ctx, logger, func() error {
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("unexpected error on re-launch: %v", err)
+	}
+
+	if !ps.firstStart.Load() {
+		t.Fatal("expected process to be re-launched after idle shutdown")
+	}
+}
+
+func TestProcessSupervisor_IdleShutdownSkippedWhenActive(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	var stopCalls atomic.Int64
+	taskRunning := make(chan struct{})
+	taskDone := make(chan struct{})
+
+	process := &ProcessMock{
+		StartMock: func(logger *slog.Logger) error {
+			return nil
+		},
+		StopMock: func(logger *slog.Logger) error {
+			stopCalls.Add(1)
+			return nil
+		},
+		HealthyMock: func(logger *slog.Logger) bool {
+			return true
+		},
+	}
+
+	idleTimeout := 50 * time.Millisecond
+	ps := NewProcessSupervisor(logger, process, 0, 0, 1, idleTimeout)
+
+	ctx := context.Background()
+	go func() {
+		_ = ps.Run(ctx, logger, func() error {
+			close(taskRunning)
+			<-taskDone
+			return nil
+		})
+	}()
+
+	<-taskRunning
+
+	// Wait longer than the idle timeout while a task is active.
+	time.Sleep(idleTimeout * 3)
+
+	if stopCalls.Load() > 0 {
+		t.Fatal("idle shutdown should not fire while a task is active")
+	}
+
+	close(taskDone)
 }

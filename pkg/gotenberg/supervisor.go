@@ -91,28 +91,33 @@ type processSupervisor struct {
 	// via firstStartOnce. Subsequent callers that enter the !firstStart block
 	// need to observe this value after the Once has completed, without
 	// re-executing the closure.
-	firstStartErr   error
-	reqCounter      atomic.Int64
-	reqQueueSize    atomic.Int64
-	restartsCounter atomic.Int64
-	isRestarting    atomic.Bool
-	activeTasks     atomic.Int64
-	restartMutex    sync.Mutex
+	firstStartErr       error
+	reqCounter          atomic.Int64
+	reqQueueSize        atomic.Int64
+	restartsCounter     atomic.Int64
+	isRestarting        atomic.Bool
+	activeTasks         atomic.Int64
+	restartMutex        sync.Mutex
+	idleShutdownTimeout time.Duration
+	lastActivity        atomic.Int64  // unix nano timestamp of last completed task
+	idleMu              sync.Mutex    // protects idleStopChan
+	idleStopChan        chan struct{} // signal to stop the idle ticker goroutine
 }
 
 // NewProcessSupervisor initializes a new [ProcessSupervisor].
-func NewProcessSupervisor(logger *slog.Logger, process Process, maxReqLimit, maxQueueSize, maxConcurrency int64) ProcessSupervisor {
+func NewProcessSupervisor(logger *slog.Logger, process Process, maxReqLimit, maxQueueSize, maxConcurrency int64, idleShutdownTimeout time.Duration) ProcessSupervisor {
 	if maxConcurrency < 1 {
 		maxConcurrency = 1
 	}
 
 	b := &processSupervisor{
-		logger:         logger,
-		process:        process,
-		semaphore:      make(chan struct{}, maxConcurrency),
-		maxReqLimit:    maxReqLimit,
-		maxQueueSize:   maxQueueSize,
-		maxConcurrency: maxConcurrency,
+		logger:              logger,
+		process:             process,
+		semaphore:           make(chan struct{}, maxConcurrency),
+		maxReqLimit:         maxReqLimit,
+		maxQueueSize:        maxQueueSize,
+		maxConcurrency:      maxConcurrency,
+		idleShutdownTimeout: idleShutdownTimeout,
 	}
 	b.reqCounter.Store(0)
 	b.reqQueueSize.Store(0)
@@ -131,6 +136,12 @@ func (s *processSupervisor) Launch() error {
 	}
 
 	s.firstStart.Store(true)
+
+	if s.idleShutdownTimeout > 0 {
+		s.lastActivity.Store(time.Now().UnixNano())
+		s.startIdleTicker()
+	}
+
 	s.logger.DebugContext(context.Background(), "process successfully started")
 
 	return nil
@@ -138,6 +149,9 @@ func (s *processSupervisor) Launch() error {
 
 func (s *processSupervisor) Shutdown() error {
 	s.logger.DebugContext(context.Background(), "shutdown process")
+
+	s.stopIdleTicker()
+
 	err := s.process.Stop(s.logger)
 	if err != nil {
 		return fmt.Errorf("shutdown process: %w", err)
@@ -220,6 +234,9 @@ func (s *processSupervisor) Run(ctx context.Context, logger *slog.Logger, task f
 
 			defer func() {
 				s.activeTasks.Add(-1)
+				if s.idleShutdownTimeout > 0 {
+					s.lastActivity.Store(time.Now().UnixNano())
+				}
 				if semaphoreOwned {
 					logger.DebugContext(ctx, "process lock released")
 					<-s.semaphore
@@ -253,6 +270,87 @@ func (s *processSupervisor) Run(ctx context.Context, logger *slog.Logger, task f
 		// Note: no error wrapping because it leaks on Chromium console exceptions output.
 		return err
 	}
+}
+
+// startIdleTicker starts a background goroutine that periodically checks
+// whether the process has been idle long enough to shut down.
+func (s *processSupervisor) startIdleTicker() {
+	stopChan := make(chan struct{})
+
+	s.idleMu.Lock()
+	s.idleStopChan = stopChan
+	s.idleMu.Unlock()
+
+	go func() {
+		ticker := time.NewTicker(s.idleShutdownTimeout)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				s.maybeIdleShutdown()
+			case <-stopChan:
+				return
+			}
+		}
+	}()
+}
+
+// stopIdleTicker signals the idle ticker goroutine to exit, if one is running.
+func (s *processSupervisor) stopIdleTicker() {
+	s.idleMu.Lock()
+	defer s.idleMu.Unlock()
+
+	if s.idleStopChan != nil {
+		close(s.idleStopChan)
+		s.idleStopChan = nil
+	}
+}
+
+// maybeIdleShutdown stops the process if it has been idle for longer than
+// the configured timeout. It is safe to call concurrently with Run and
+// restart.
+func (s *processSupervisor) maybeIdleShutdown() {
+	if !s.firstStart.Load() || s.isRestarting.Load() {
+		return
+	}
+
+	if s.activeTasks.Load() > 0 || s.reqQueueSize.Load() > 0 {
+		return
+	}
+
+	lastNano := s.lastActivity.Load()
+	if lastNano == 0 || time.Since(time.Unix(0, lastNano)) < s.idleShutdownTimeout {
+		return
+	}
+
+	if !s.restartMutex.TryLock() {
+		return
+	}
+	defer s.restartMutex.Unlock()
+
+	// Double-check after acquiring the lock.
+	if s.activeTasks.Load() > 0 || s.reqQueueSize.Load() > 0 {
+		return
+	}
+
+	s.logger.InfoContext(context.Background(), "idle shutdown timeout reached, stopping process")
+
+	// Stop the ticker — it will be restarted on the next Launch().
+	s.stopIdleTicker()
+
+	err := s.process.Stop(s.logger)
+	if err != nil {
+		s.logger.WarnContext(context.Background(), fmt.Sprintf("idle shutdown: %s", err))
+		return
+	}
+
+	// Reset state so ensureStarted() re-launches on next request.
+	s.firstStart.Store(false)
+	s.firstStartOnce = sync.Once{}
+	s.firstStartErr = nil
+	s.reqCounter.Store(0)
+
+	s.logger.InfoContext(context.Background(), "process stopped due to idle timeout")
 }
 
 // acquireSlot attempts to acquire a semaphore slot, yielding it back if a

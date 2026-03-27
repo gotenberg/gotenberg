@@ -435,6 +435,7 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs := flag.NewFlagSet("chromium", flag.ExitOnError)
 			fs.Int64("chromium-restart-after", 100, "Number of conversions after which Chromium will automatically restart. Set to 0 to disable this feature")
 			fs.Int64("chromium-max-queue-size", 0, "Maximum request queue size for Chromium. Set to 0 to disable this feature")
+			fs.Duration("chromium-idle-shutdown-timeout", 0, "Shutdown Chromium after being idle for the given duration. Set to 0 to disable this feature")
 			fs.Int64("chromium-max-concurrency", 6, "Maximum number of concurrent conversions. Chromium supports up to 6")
 			fs.Bool("chromium-auto-start", false, "Automatically launch Chromium upon initialization if set to true; otherwise, Chromium will start at the time of the first conversion")
 			fs.Duration("chromium-start-timeout", time.Duration(20)*time.Second, "Maximum duration to wait for Chromium to start or restart")
@@ -504,7 +505,7 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 
 	// Process.
 	mod.browser = newChromiumBrowser(mod.args)
-	mod.supervisor = gotenberg.NewProcessSupervisor(mod.logger, mod.browser, flags.MustInt64("chromium-restart-after"), flags.MustInt64("chromium-max-queue-size"), mod.maxConcurrency)
+	mod.supervisor = gotenberg.NewProcessSupervisor(mod.logger, mod.browser, flags.MustInt64("chromium-restart-after"), flags.MustInt64("chromium-max-queue-size"), mod.maxConcurrency, flags.MustDuration("chromium-idle-shutdown-timeout"))
 
 	// PDF Engine.
 	provider, err := ctx.Module(new(gotenberg.PdfEngineProvider))
