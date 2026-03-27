@@ -31,7 +31,9 @@ func printToPdfActionFunc(logger *slog.Logger, outputPath string, options PdfOpt
 
 			// There are 96 CSS pixels per inch.
 			// See https://issues.chromium.org/issues/40267771#comment14.
-			paperHeight = cssContentSize.Height / 96
+			// We add top and bottom margins so that the content area
+			// is large enough to fit the entire content.
+			paperHeight = (cssContentSize.Height / 96) + options.MarginTop + options.MarginBottom
 			pageRanges = "1" // little dirty hack to avoid leftovers.
 		}
 
