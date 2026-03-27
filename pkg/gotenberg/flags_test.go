@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dlclark/regexp2"
 	flag "github.com/spf13/pflag"
 )
 
@@ -832,4 +833,121 @@ func TestParsedFlags_MustDeprecatedRegexp(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParsedFlags_MustRegexpSlice(t *testing.T) {
+	fs := flag.NewFlagSet("tests", flag.ContinueOnError)
+	fs.StringSlice("foo", []string{}, "")
+
+	err := fs.Parse([]string{"--foo=^file:.*", "--foo=^ftp://.*"})
+	if err != nil {
+		t.Fatalf("expected no error but got: %v", err)
+	}
+
+	parsedFlags := ParsedFlags{FlagSet: fs}
+
+	for _, tc := range []struct {
+		scenario    string
+		name        string
+		expectPanic bool
+		expectLen   int
+	}{
+		{
+			scenario:    "success with multiple patterns",
+			name:        "foo",
+			expectPanic: false,
+			expectLen:   2,
+		},
+		{
+			scenario:    "non-existing flag",
+			name:        "bar",
+			expectPanic: true,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			if tc.expectPanic {
+				defer func() {
+					if r := recover(); r == nil {
+						t.Fatal("expected panic but got none")
+					}
+				}()
+			}
+
+			if !tc.expectPanic {
+				defer func() {
+					if r := recover(); r != nil {
+						t.Fatalf("expected no panic but got: %v", r)
+					}
+				}()
+			}
+
+			result := parsedFlags.MustRegexpSlice(tc.name)
+
+			if !tc.expectPanic && len(result) != tc.expectLen {
+				t.Errorf("expected %d regexps but got %d", tc.expectLen, len(result))
+			}
+		})
+	}
+
+	// Test empty strings are skipped.
+	fs2 := flag.NewFlagSet("tests2", flag.ContinueOnError)
+	fs2.StringSlice("baz", []string{""}, "")
+
+	err = fs2.Parse([]string{})
+	if err != nil {
+		t.Fatalf("expected no error but got: %v", err)
+	}
+
+	parsedFlags2 := ParsedFlags{FlagSet: fs2}
+	result := parsedFlags2.MustRegexpSlice("baz")
+	if len(result) != 0 {
+		t.Errorf("expected 0 regexps for empty strings but got %d", len(result))
+	}
+}
+
+func TestParsedFlags_MustDeprecatedRegexpSlice(t *testing.T) {
+	for _, tc := range []struct {
+		scenario      string
+		rawFlags      []string
+		expectPattern string
+	}{
+		{
+			scenario:      "deprecated flag value",
+			rawFlags:      []string{"--foo=^file:.*"},
+			expectPattern: "^file:.*",
+		},
+		{
+			scenario:      "non-deprecated flag value",
+			rawFlags:      []string{"--bar=^ftp://.*"},
+			expectPattern: "^ftp://.*",
+		},
+		{
+			scenario:      "deprecated flag value > non-deprecated flag value",
+			rawFlags:      []string{"--foo=^file:.*", "--bar=^ftp://.*"},
+			expectPattern: "^file:.*",
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			fs := flag.NewFlagSet("tests", flag.ContinueOnError)
+			fs.StringSlice("foo", []string{}, "")
+			fs.StringSlice("bar", []string{}, "")
+
+			parsedFlags := ParsedFlags{FlagSet: fs}
+
+			err := parsedFlags.Parse(tc.rawFlags)
+			if err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+
+			actual := parsedFlags.MustDeprecatedRegexpSlice("foo", "bar")
+			if len(actual) != 1 {
+				t.Fatalf("expected 1 regexp but got %d", len(actual))
+			}
+			if actual[0].String() != tc.expectPattern {
+				t.Errorf("expected pattern '%s' but got '%s'", tc.expectPattern, actual[0].String())
+			}
+		})
+	}
+
+	_ = regexp2.None // Keep import alive.
 }

@@ -476,7 +476,7 @@ Feature: /forms/chromium/convert/url
     Then there should be 1 PDF(s) in the response
     Then the Gotenberg container should NOT log the following entries:
       # Modern browsers block file URIs from being loaded into iframes when the parent page is served over HTTP/HTTPS.
-      | 'file:///etc/passwd' does not match the expression from the allowed list |
+      | 'file:///etc/passwd' does not match any expression from the allowed list |
 
   Scenario: POST /forms/chromium/convert/url (JavaScript Enabled)
     Given I have a default Gotenberg container

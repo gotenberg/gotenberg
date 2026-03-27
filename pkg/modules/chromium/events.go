@@ -24,7 +24,8 @@ import (
 )
 
 type eventRequestPausedOptions struct {
-	allowList, denyList *regexp2.Regexp
+	allowList, denyList []*regexp2.Regexp
+	allowedFilePrefixes []string
 	extraHttpHeaders    []ExtraHttpHeader
 }
 
@@ -56,6 +57,25 @@ func listenForEventRequestPaused(ctx context.Context, logger *zap.Logger, option
 				if err != nil {
 					logger.Warn(err.Error())
 					allow = false
+				}
+
+				// Additional restriction: if the sub-resource is a file:// URL
+				// and we have allowed file prefixes, restrict access to only
+				// those directories. This prevents cross-request file access
+				// in /tmp.
+				if allow && strings.HasPrefix(e.Request.URL, "file://") && len(options.allowedFilePrefixes) > 0 {
+					prefixMatch := false
+					for _, prefix := range options.allowedFilePrefixes {
+						if strings.HasPrefix(e.Request.URL, "file://"+prefix) {
+							prefixMatch = true
+							break
+						}
+					}
+
+					if !prefixMatch {
+						logger.Warn(fmt.Sprintf("'%s' is not within any allowed file prefix", e.Request.URL))
+						allow = false
+					}
 				}
 
 				cctx := chromedp.FromContext(ctx)

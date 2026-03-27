@@ -225,7 +225,12 @@ func newContext(echoCtx echo.Context, logger *zap.Logger, fs *gotenberg.FileSyst
 					)
 				}
 
-				err := gotenberg.FilterDeadline(downloadFromCfg.allowList, downloadFromCfg.denyList, dl.Url, deadline)
+				err := gotenberg.FilterDeadline(
+					gotenberg.RegexpToSlice(downloadFromCfg.allowList),
+					gotenberg.RegexpToSlice(downloadFromCfg.denyList),
+					dl.Url,
+					deadline,
+				)
 				if err != nil {
 					return fmt.Errorf("filter URL: %w", err)
 				}
@@ -428,6 +433,11 @@ func (ctx *Context) FormData() *FormData {
 		filesByField: ctx.filesByField,
 		errors:       nil,
 	}
+}
+
+// DirPath returns the path to the request's working directory.
+func (ctx *Context) DirPath() string {
+	return ctx.dirPath
 }
 
 // GeneratePath generates a path within the context's working directory.

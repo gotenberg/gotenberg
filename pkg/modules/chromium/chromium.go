@@ -172,6 +172,12 @@ type Options struct {
 	// OmitBackground hides the default white background and allows generating
 	// PDFs with transparency.
 	OmitBackground bool
+
+	// AllowedFilePrefixes restricts file:// sub-resource access to only these
+	// directory prefixes. Applied in listenForEventRequestPaused in addition
+	// to the global allow/deny lists. Set internally by route handlers, not
+	// via form data.
+	AllowedFilePrefixes []string
 }
 
 // EmulatedMediaFeature gathers the available entries for emulating a media
@@ -421,8 +427,8 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Bool("chromium-allow-file-access-from-files", false, "Allow file:// URIs to read other file:// URIs")
 			fs.String("chromium-host-resolver-rules", "", "Set custom mappings to the host resolver")
 			fs.String("chromium-proxy-server", "", "Set the outbound proxy server; this switch only affects HTTP and HTTPS requests")
-			fs.String("chromium-allow-list", "", "Set the allowed URLs for Chromium using a regular expression")
-			fs.String("chromium-deny-list", `^file:(?!//\/tmp/).*`, "Set the denied URLs for Chromium using a regular expression")
+			fs.StringSlice("chromium-allow-list", []string{}, "Set the allowed URLs for Chromium using regular expressions - supports multiple values")
+			fs.StringSlice("chromium-deny-list", []string{`^file:(?!//\/tmp/).*`}, "Set the denied URLs for Chromium using regular expressions - supports multiple values")
 			fs.Bool("chromium-clear-cache", false, "Clear Chromium cache between each conversion")
 			fs.Bool("chromium-clear-cookies", false, "Clear Chromium cookies between each conversion")
 			fs.Bool("chromium-disable-javascript", false, "Disable JavaScript")
@@ -469,8 +475,8 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 		wsUrlReadTimeout:         flags.MustDuration("chromium-start-timeout"),
 		hyphenDataDirPath:        hyphenDataDirPath,
 
-		allowList:         flags.MustRegexp("chromium-allow-list"),
-		denyList:          flags.MustRegexp("chromium-deny-list"),
+		allowList:         flags.MustRegexpSlice("chromium-allow-list"),
+		denyList:          flags.MustRegexpSlice("chromium-deny-list"),
 		clearCache:        flags.MustBool("chromium-clear-cache"),
 		clearCookies:      flags.MustBool("chromium-clear-cookies"),
 		disableJavaScript: flags.MustBool("chromium-disable-javascript"),

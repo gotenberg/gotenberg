@@ -222,3 +222,32 @@ func (f *ParsedFlags) MustDeprecatedRegexp(deprecated string, newName string) *r
 
 	return f.MustRegexp(newName)
 }
+
+// MustRegexpSlice returns a slice of compiled regular expressions from a
+// string-slice flag given by name. Empty strings are skipped.
+// It panics if an error occurs.
+func (f *ParsedFlags) MustRegexpSlice(name string) []*regexp2.Regexp {
+	vals := f.MustStringSlice(name)
+
+	var regexps []*regexp2.Regexp
+	for _, val := range vals {
+		if val == "" {
+			continue
+		}
+
+		regexps = append(regexps, regexp2.MustCompile(val, 0))
+	}
+
+	return regexps
+}
+
+// MustDeprecatedRegexpSlice returns the slice of compiled regular expressions
+// of a deprecated flag if it was explicitly set or the slice of the new flag.
+// It panics if an error occurs.
+func (f *ParsedFlags) MustDeprecatedRegexpSlice(deprecated string, newName string) []*regexp2.Regexp {
+	if f.Changed(deprecated) {
+		return f.MustRegexpSlice(deprecated)
+	}
+
+	return f.MustRegexpSlice(newName)
+}

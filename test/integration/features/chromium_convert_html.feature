@@ -401,7 +401,7 @@ Feature: /forms/chromium/convert/html
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
     Then the Gotenberg container should log the following entries:
-      | 'file:///etc/passwd' does not match the expression from the allowed list |
+      | 'file:///etc/passwd' does not match any expression from the allowed list |
 
   Scenario: POST /forms/chromium/convert/html (JavaScript Enabled)
     Given I have a default Gotenberg container

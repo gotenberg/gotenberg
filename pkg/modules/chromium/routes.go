@@ -512,6 +512,7 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			}
 
 			url := fmt.Sprintf("file://%s", inputPath)
+			options.AllowedFilePrefixes = []string{ctx.DirPath()}
 			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword, embedPaths, watermark, stamp, rotateAngle, rotatePages)
 			if err != nil {
 				return fmt.Errorf("convert HTML to PDF: %w", err)
@@ -542,6 +543,7 @@ func screenshotHtmlRoute(chromium Api) api.Route {
 			}
 
 			url := fmt.Sprintf("file://%s", inputPath)
+			options.AllowedFilePrefixes = []string{ctx.DirPath()}
 			err = screenshotUrl(ctx, chromium, url, options)
 			if err != nil {
 				return fmt.Errorf("HTML screenshot: %w", err)
@@ -598,6 +600,7 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("transform markdown file(s) to HTML: %w", err)
 			}
 
+			options.AllowedFilePrefixes = []string{ctx.DirPath()}
 			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, userPassword, ownerPassword, embedPaths, watermark, stamp, rotateAngle, rotatePages)
 			if err != nil {
 				return fmt.Errorf("convert markdown to PDF: %w", err)
@@ -637,6 +640,7 @@ func screenshotMarkdownRoute(chromium Api) api.Route {
 				return fmt.Errorf("transform markdown file(s) to HTML: %w", err)
 			}
 
+			options.AllowedFilePrefixes = []string{ctx.DirPath()}
 			err = screenshotUrl(ctx, chromium, url, options)
 			if err != nil {
 				return fmt.Errorf("markdown screenshot: %w", err)

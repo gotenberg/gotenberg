@@ -42,8 +42,8 @@ type browserArguments struct {
 	hyphenDataDirPath        string
 
 	// Tasks specific.
-	allowList         *regexp2.Regexp
-	denyList          *regexp2.Regexp
+	allowList         []*regexp2.Regexp
+	denyList          []*regexp2.Regexp
 	clearCache        bool
 	clearCookies      bool
 	disableJavaScript bool
@@ -356,9 +356,10 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *zap.Logger, url string
 	// the extra HTTP headers, if any.
 	// See https://github.com/gotenberg/gotenberg/issues/1011.
 	listenForEventRequestPaused(taskCtx, logger, eventRequestPausedOptions{
-		allowList:        b.arguments.allowList,
-		denyList:         b.arguments.denyList,
-		extraHttpHeaders: options.ExtraHttpHeaders,
+		allowList:           b.arguments.allowList,
+		denyList:            b.arguments.denyList,
+		allowedFilePrefixes: options.AllowedFilePrefixes,
+		extraHttpHeaders:    options.ExtraHttpHeaders,
 	})
 
 	var (
