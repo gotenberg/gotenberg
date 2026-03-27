@@ -13,172 +13,19 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  id-token: write
-  contents: read
-  packages: write
-  security-events: write
+permissions: {}
 
 jobs:
-  build-docker-image:
-    name: Docker build
-    runs-on: ${{ matrix.type == 'arm' && 'ubuntu-arm-24.04-4core' || 'ubuntu-latest' }}
-    strategy:
-      matrix:
-        type:
-          - arm
-          - x86
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #v4.2.2
-
-      - name: Setup Go
-        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 #v5.5.0
-        with:
-          go-version: 1.23.3
-          cache: false
-
-      - name: Login to nexus.int.onebrief.tools
-        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 #v3.4.0
-        with:
-          registry: nexus.int.onebrief.tools
-          username: ${{ secrets.NEXUS_USER }}
-          password: ${{ secrets.NEXUS_PASSWORD }}
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@4fc4975a852c8cd99761e2de1f4ba73402e44dd9 #v4.0.3
-        with:
-          role-to-assume: arn:aws:iam::183613197217:role/GitHubAction-AssumeRoleWithAction-ECR-ReadOnly
-          role-session-name: GitHub_to_AWS_via_FederatedOIDC
-          aws-region: us-east-1
-
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 #v2.0.1
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 #v3.6.0
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 #v3.10.0
-
-      - name: Docker Metadata
-        id: meta
-        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 #v5.7.0
-        with:
-          images: |
-            nexus.int.onebrief.tools/onebrief/gotenberg
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{major}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{version}}
-            type=semver,pattern=1.{{major}}.{{minor}}
-
-      - name: Docker Build
-        id: build
-        uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 #v6.16.0
-        with:
-          context: .
-          file: ./build/Dockerfile.bc
-          build-args: |
-            BASE_IMAGE=nexus.int.onebrief.tools/cgr.dev/onebrief.com/gotenberg
-            UNOCONVERTER_BIN_PATH=/usr/bin/unoconv
-          push: true
-          labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=nexus.int.onebrief.tools/onebrief/gotenberg,push-by-digest=true,name-canonical=true,push=true
-
-      - name: Set outputs
-        id: setout
-        shell: bash
-        env:
-          reponame: onebrief/gotenberg-${{ matrix.type }}
-        run: |
-          echo "image=${{ fromJSON(steps.meta.outputs.json).tags[0] }}" >> $GITHUB_OUTPUT
-          echo "digestname=${reponame/\//-}" >> $GITHUB_OUTPUT
-
-      - name: Export digest
-        run: |
-          mkdir -p /tmp/digests
-          digest="${{ steps.build.outputs.digest }}"
-          touch "/tmp/digests/${digest#sha256:}"
-
-      - name: Upload digest
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 #v4.6.2
-        with:
-          name: digests-${{ steps.setout.outputs.digestname }}
-          path: /tmp/digests/*
-          if-no-files-found: error
-          retention-days: 1
-
-      - uses: anchore/scan-action@2c901ab7378897c01b8efaa2d0c9bf519cc64b9e #v6.2.0
-        if: ${{ matrix.type == 'x86' }}
-        id: scan
-        continue-on-error: true
-        with:
-          image: nexus.int.onebrief.tools/onebrief/gotenberg@${{ steps.build.outputs.digest }}
-          fail-build: false
-          cache-db: true
-          severity-cutoff: high
-
-      - name: upload Anchore scan SARIF report
-        if: ${{ matrix.type == 'x86' }}
-        uses: github/codeql-action/upload-sarif@7e3036b9cd87fc26dd06747b7aa4b96c27aaef3a #v3.28.17
-        with:
-          sarif_file: ${{ steps.scan.outputs.sarif }}
-
-  merge:
-    name: Merge
-    runs-on: ubuntu-latest
-    needs:
-      - build-docker-image
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #v4.2.2
-
-      - name: Set outputs
-        id: calculate
-        shell: bash
-        env:
-          reponame: onebrief/gotenberg
-        run: |
-          echo "digestname=${reponame/\//-}" >> $GITHUB_OUTPUT
-
-      - name: Download digests
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 #v4.3.0
-        with:
-          path: /tmp/digests
-          pattern: digests-${{ steps.calculate.outputs.digestname }}-*
-          merge-multiple: true
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 #v3.10.0
-
-      - name: Login to container registry
-        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 #v3.4.0
-        with:
-          registry: nexus.int.onebrief.tools
-          username: ${{ secrets.NEXUS_USER }}
-          password: ${{ secrets.NEXUS_PASSWORD }}
-
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 #v5.7.0
-        with:
-          images: nexus.int.onebrief.tools/onebrief/gotenberg
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{major}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{version}}
-            type=semver,pattern=1.{{major}}.{{minor}}.{{patch}}
-            type=semver,pattern=1.{{major}}.{{minor}}0{{patch}}
-            type=semver,pattern=1.{{major}}.{{minor}}0{{patch}}+{{build}}
-
-      - name: Create manifest list and push
-        working-directory: /tmp/digests
-        shell: bash
-        run: |
-          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf 'nexus.int.onebrief.tools/onebrief/gotenberg@sha256:%s ' *)
+  docker:
+    permissions:
+      actions: read
+      contents: read
+      checks: write
+      id-token: write
+      security-events: write
+    name: Docker
+    uses: Onebrief/actions/.github/workflows/reusable-docker-build.yml@4c86a46e69127e0d361e95a5c2dc9b17964e405e
+    secrets: inherit
+    with:
+      repository: onebrief/gotenberg
+      dockerfile: build/Dockerfile.bc
