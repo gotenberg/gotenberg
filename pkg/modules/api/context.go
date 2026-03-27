@@ -43,12 +43,13 @@ var (
 
 // Context is the request context for a "multipart/form-data" request.
 type Context struct {
-	dirPath      string
-	values       map[string][]string
-	files        map[string]string
-	filesByField map[string][]string
-	outputPaths  []string
-	cancelled    bool
+	dirPath        string
+	values         map[string][]string
+	files          map[string]string
+	filesByField   map[string][]string
+	diskToOriginal map[string]string
+	outputPaths    []string
+	cancelled      bool
 
 	logger     *slog.Logger
 	echoCtx    echo.Context
@@ -200,6 +201,7 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 	ctx.values = form.Value
 	ctx.files = make(map[string]string)
 	ctx.filesByField = make(map[string][]string)
+	ctx.diskToOriginal = make(map[string]string)
 
 	// First, try to download files listed in the "downloadFrom" form field, if
 	// any.
@@ -348,7 +350,12 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 				// normalized.
 				// See: https://github.com/gotenberg/gotenberg/issues/662.
 				filename = norm.NFC.String(filepath.Base(filename))
-				path := fmt.Sprintf("%s/%s", ctx.dirPath, filename)
+
+				// Use a UUID-based name on disk to avoid filesystem
+				// NAME_MAX limits with long filenames.
+				// See: https://github.com/gotenberg/gotenberg/issues/1500.
+				safeName := uuid.New().String() + filepath.Ext(filename)
+				path := fmt.Sprintf("%s/%s", ctx.dirPath, safeName)
 
 				out, err := os.Create(path)
 				if err != nil {
@@ -381,6 +388,7 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 				dlSpan.End()
 
 				ctx.files[filename] = path
+				ctx.diskToOriginal[path] = filename
 
 				// Route the downloaded file to the appropriate field bucket.
 				switch {
@@ -422,7 +430,12 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 		// normalized.
 		// See: https://github.com/gotenberg/gotenberg/issues/662.
 		filename := norm.NFC.String(filepath.Base(fh.Filename))
-		path := fmt.Sprintf("%s/%s", ctx.dirPath, filename)
+
+		// Use a UUID-based name on disk to avoid filesystem
+		// NAME_MAX limits with long filenames.
+		// See: https://github.com/gotenberg/gotenberg/issues/1500.
+		safeName := uuid.New().String() + filepath.Ext(filename)
+		path := fmt.Sprintf("%s/%s", ctx.dirPath, safeName)
 
 		out, err := os.Create(path)
 		if err != nil {
@@ -441,6 +454,7 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 		}
 
 		ctx.files[filename] = path
+		ctx.diskToOriginal[path] = filename
 
 		return nil
 	}
@@ -475,11 +489,27 @@ func (ctx *Context) Request() *http.Request {
 // FormData return a [FormData].
 func (ctx *Context) FormData() *FormData {
 	return &FormData{
-		values:       ctx.values,
-		files:        ctx.files,
-		filesByField: ctx.filesByField,
-		errors:       nil,
+		values:         ctx.values,
+		files:          ctx.files,
+		filesByField:   ctx.filesByField,
+		diskToOriginal: ctx.diskToOriginal,
+		errors:         nil,
 	}
+}
+
+// OriginalFilename returns the original filename associated with a disk path.
+// If no mapping exists, it falls back to [filepath.Base].
+func (ctx *Context) OriginalFilename(diskPath string) string {
+	if original, ok := ctx.diskToOriginal[diskPath]; ok {
+		return original
+	}
+	return filepath.Base(diskPath)
+}
+
+// RegisterDiskPath associates a disk path with an original filename so that
+// [Context.OriginalFilename] can resolve it later.
+func (ctx *Context) RegisterDiskPath(diskPath, originalFilename string) {
+	ctx.diskToOriginal[diskPath] = originalFilename
 }
 
 // DirPath returns the path to the request's working directory.
@@ -494,10 +524,14 @@ func (ctx *Context) GeneratePath(extension string) string {
 }
 
 // GeneratePathFromFilename generates a path within the context's working
-// directory, using the given filename (with extension). It does not create
-// a file.
+// directory. It uses a UUID-based name on disk to avoid filesystem NAME_MAX
+// limits but registers the given filename so that [Context.OriginalFilename]
+// can resolve it. It does not create a file.
 func (ctx *Context) GeneratePathFromFilename(filename string) string {
-	return fmt.Sprintf("%s/%s", ctx.dirPath, filename)
+	safeName := uuid.New().String() + filepath.Ext(filename)
+	path := fmt.Sprintf("%s/%s", ctx.dirPath, safeName)
+	ctx.diskToOriginal[path] = filename
+	return path
 }
 
 // CreateSubDirectory creates a subdirectory within the context's working
@@ -564,7 +598,7 @@ func (ctx *Context) BuildOutputFile() (string, error) {
 	filesInfo, err := archives.FilesFromDisk(ctx.Context, nil, func() map[string]string {
 		f := make(map[string]string)
 		for _, outputPath := range ctx.outputPaths {
-			f[outputPath] = ""
+			f[outputPath] = ctx.OriginalFilename(outputPath)
 		}
 		return f
 	}())
@@ -600,7 +634,7 @@ func (ctx *Context) OutputFilename(outputPath string) string {
 	filename := ctx.echoCtx.Get("outputFilename").(string)
 
 	if filename == "" {
-		return filepath.Base(outputPath)
+		return ctx.OriginalFilename(outputPath)
 	}
 
 	return fmt.Sprintf("%s%s", filename, filepath.Ext(outputPath))

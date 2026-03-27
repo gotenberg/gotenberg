@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
@@ -282,9 +284,9 @@ func SplitPdfStub(ctx *api.Context, engine gotenberg.PdfEngine, mode gotenberg.S
 
 	var outputPaths []string
 	for _, inputPath := range inputPaths {
-		inputPathNoExt := inputPath[:len(inputPath)-len(filepath.Ext(inputPath))]
-		filenameNoExt := filepath.Base(inputPathNoExt)
-		outputDirPath, err := ctx.CreateSubDirectory(strings.ReplaceAll(filepath.Base(filenameNoExt), ".", "_"))
+		originalName := ctx.OriginalFilename(inputPath)
+		originalNameNoExt := strings.TrimSuffix(originalName, filepath.Ext(originalName))
+		outputDirPath, err := ctx.CreateSubDirectory(uuid.New().String())
 		if err != nil {
 			return nil, fmt.Errorf("create subdirectory from input path: %w", err)
 		}
@@ -297,15 +299,18 @@ func SplitPdfStub(ctx *api.Context, engine gotenberg.PdfEngine, mode gotenberg.S
 		// Keep the original filename.
 		for i, path := range paths {
 			var newPath string
+			var newOriginal string
 			if mode.Unify && mode.Mode == gotenberg.SplitModePages {
+				newOriginal = fmt.Sprintf("%s.pdf", originalNameNoExt)
 				newPath = fmt.Sprintf(
-					"%s/%s.pdf",
-					outputDirPath, filenameNoExt,
+					"%s/%s",
+					outputDirPath, uuid.New().String()+".pdf",
 				)
 			} else {
+				newOriginal = fmt.Sprintf("%s_%d.pdf", originalNameNoExt, i)
 				newPath = fmt.Sprintf(
-					"%s/%s_%d.pdf",
-					outputDirPath, filenameNoExt, i,
+					"%s/%s",
+					outputDirPath, uuid.New().String()+".pdf",
 				)
 			}
 
@@ -314,6 +319,7 @@ func SplitPdfStub(ctx *api.Context, engine gotenberg.PdfEngine, mode gotenberg.S
 				return nil, fmt.Errorf("rename path: %w", err)
 			}
 
+			ctx.RegisterDiskPath(newPath, newOriginal)
 			outputPaths = append(outputPaths, newPath)
 
 			if mode.Unify && mode.Mode == gotenberg.SplitModePages {
@@ -413,7 +419,7 @@ func WriteBookmarksStub(ctx *api.Context, engine gotenberg.PdfEngine, bookmarks 
 		}
 	case map[string][]gotenberg.Bookmark:
 		for _, inputPath := range inputPaths {
-			filename := filepath.Base(inputPath)
+			filename := ctx.OriginalFilename(inputPath)
 			if specificBookmarks, ok := b[filename]; ok {
 				err := engine.WriteBookmarks(ctx, ctx.Log(), inputPath, specificBookmarks)
 				if err != nil {
@@ -466,8 +472,28 @@ func EmbedFilesStub(ctx *api.Context, engine gotenberg.PdfEngine, embedPaths []s
 		return nil
 	}
 
+	// Engines like pdfcpu use filepath.Base(path) as the attachment name
+	// inside the PDF. Since disk filenames are now UUID-based, we create
+	// symlinks with the original names so that embeds are named correctly.
+	// See: https://github.com/gotenberg/gotenberg/issues/1500.
+	embedDir, err := ctx.CreateSubDirectory(uuid.New().String())
+	if err != nil {
+		return fmt.Errorf("create embed subdirectory: %w", err)
+	}
+
+	resolvedPaths := make([]string, len(embedPaths))
+	for i, embedPath := range embedPaths {
+		originalName := ctx.OriginalFilename(embedPath)
+		resolvedPath := fmt.Sprintf("%s/%s", embedDir, originalName)
+		err := os.Symlink(embedPath, resolvedPath)
+		if err != nil {
+			return fmt.Errorf("symlink embed file '%s': %w", originalName, err)
+		}
+		resolvedPaths[i] = resolvedPath
+	}
+
 	for _, inputPath := range inputPaths {
-		err := engine.EmbedFiles(ctx, ctx.Log(), embedPaths, inputPath)
+		err := engine.EmbedFiles(ctx, ctx.Log(), resolvedPaths, inputPath)
 		if err != nil {
 			return fmt.Errorf("embed files into PDF '%s': %w", inputPath, err)
 		}
@@ -683,7 +709,7 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 				if bMap != nil || autoIndexBookmarks {
 					offset := 0
 					for _, inputPath := range inputPaths {
-						filename := filepath.Base(inputPath)
+						filename := ctx.OriginalFilename(inputPath)
 
 						var fileBookmarks []gotenberg.Bookmark
 						if bMap != nil {
@@ -973,7 +999,7 @@ func readMetadataRoute(engine gotenberg.PdfEngine) api.Route {
 					return fmt.Errorf("read metadata: %w", err)
 				}
 
-				res[filepath.Base(inputPath)] = metadata
+				res[ctx.OriginalFilename(inputPath)] = metadata
 			}
 
 			err = c.JSON(http.StatusOK, res)
@@ -1051,7 +1077,7 @@ func readBookmarksRoute(engine gotenberg.PdfEngine) api.Route {
 					return fmt.Errorf("read bookmarks: %w", err)
 				}
 
-				res[filepath.Base(inputPath)] = bookmarks
+				res[ctx.OriginalFilename(inputPath)] = bookmarks
 			}
 
 			err = c.JSON(http.StatusOK, res)

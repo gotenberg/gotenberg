@@ -33,10 +33,11 @@ const (
 //
 //	form := ctx.FormData()
 type FormData struct {
-	values       map[string][]string
-	files        map[string]string
-	filesByField map[string][]string
-	errors       error
+	values         map[string][]string
+	files          map[string]string
+	filesByField   map[string][]string
+	diskToOriginal map[string]string
+	errors         error
 }
 
 // Validate returns nil or an error related to the [FormData] values, with a
@@ -450,6 +451,15 @@ func (form *FormData) paths(extensions []string, target *[]string) *FormData {
 	watermarks, wmOk := form.filesByField[WatermarkFormField]
 	stamps, stOk := form.filesByField[StampFormField]
 
+	// Collect (originalFilename, diskPath) pairs so that we can sort by
+	// original filename rather than by UUID-based disk name.
+	// See https://github.com/gotenberg/gotenberg/issues/1500.
+	type entry struct {
+		original string
+		disk     string
+	}
+	var entries []entry
+
 	for filename, path := range form.files {
 		if ok && slices.Contains(embeds, path) {
 			continue
@@ -466,13 +476,26 @@ func (form *FormData) paths(extensions []string, target *[]string) *FormData {
 		for _, ext := range extensions {
 			// See https://github.com/gotenberg/gotenberg/issues/228.
 			if strings.ToLower(filepath.Ext(filename)) == ext {
-				*target = append(*target, path)
+				entries = append(entries, entry{original: filename, disk: path})
 			}
 		}
 	}
 
 	// See https://github.com/gotenberg/gotenberg/issues/139.
-	sort.Sort(gotenberg.AlphanumericSort(*target))
+	originals := make(gotenberg.AlphanumericSort, len(entries))
+	for i, e := range entries {
+		originals[i] = e.original
+	}
+	sort.Sort(originals)
+
+	// Build a lookup from original name to disk path.
+	lookup := make(map[string]string, len(entries))
+	for _, e := range entries {
+		lookup[e.original] = e.disk
+	}
+	for _, o := range originals {
+		*target = append(*target, lookup[o])
+	}
 
 	return form
 }

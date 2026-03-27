@@ -667,7 +667,7 @@ func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) 
 				var path string
 
 				for _, markdownPath := range markdownPaths {
-					markdownFilename := filepath.Base(markdownPath)
+					markdownFilename := ctx.OriginalFilename(markdownPath)
 
 					if filename == markdownFilename {
 						path = markdownPath

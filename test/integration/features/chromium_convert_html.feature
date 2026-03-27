@@ -1152,3 +1152,14 @@ Feature: /forms/chromium/convert/html
       | files | testdata/page-1-html/index.html | file |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
+
+  # See: https://github.com/gotenberg/gotenberg/issues/1500.
+  Scenario: POST /forms/chromium/convert/html (Long Filename)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/page-1-html/index.html | file   |
+      | Gotenberg-Output-Filename | foo                             | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF should have 1 page(s)

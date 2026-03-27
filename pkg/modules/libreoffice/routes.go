@@ -420,7 +420,8 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					// document.docx -> document.docx.pdf, so that split naming
 					// document.docx_0.pdf, etc.
 					for i, inputPath := range inputPaths {
-						outputPath := fmt.Sprintf("%s.pdf", inputPath)
+						originalName := ctx.OriginalFilename(inputPath)
+						outputPath := ctx.GeneratePathFromFilename(originalName + ".pdf")
 
 						err = ctx.Rename(outputPaths[i], outputPath)
 						if err != nil {
@@ -502,7 +503,8 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			if len(outputPaths) > 1 && splitMode == zeroValuedSplitMode {
 				// If .zip archive, document.docx -> document.docx.pdf.
 				for i, inputPath := range inputPaths {
-					outputPath := fmt.Sprintf("%s.pdf", inputPath)
+					originalName := ctx.OriginalFilename(inputPath)
+					outputPath := ctx.GeneratePathFromFilename(originalName + ".pdf")
 
 					err = ctx.Rename(outputPaths[i], outputPath)
 					if err != nil {

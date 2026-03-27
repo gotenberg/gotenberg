@@ -180,3 +180,15 @@ Feature: /forms/pdfengines/encrypt
       | userPassword | foo                 | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
+
+  # See: https://github.com/gotenberg/gotenberg/issues/1500.
+  Scenario: POST /forms/pdfengines/encrypt (Long Filename)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/encrypt" endpoint with the following form data and header(s):
+      | files                     | testdata/Longitudinell_jämförelse_mellan_laserkirurgi_och_strålbehandling_gällande_röstkvalitet_och_självskattad_kommunikation_upp_till_två_år_efter_tidig_stämbandscancer_i_ett_randomiserat_kontrollerat_försök.pdf | file   |
+      | userPassword              | foo                                                                                                                                                                                                                   | field  |
+      | ownerPassword             | bar                                                                                                                                                                                                                   | field  |
+      | Gotenberg-Output-Filename | foo                                                                                                                                                                                                                   | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
