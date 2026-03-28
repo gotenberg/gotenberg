@@ -225,6 +225,17 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *slog.Logger, 
 		delete(fileMetadata[0].Fields, tag)
 	}
 
+	// Filter user-supplied metadata to prevent ExifTool pseudo-tags from
+	// triggering dangerous side effects like file renames or moves.
+	// See https://exiftool.org/TagNames/Extra.html.
+	dangerousTags := []string{
+		"FileName",  // Writing this triggers a file rename in ExifTool
+		"Directory", // Writing this triggers a file move in ExifTool
+	}
+	for _, tag := range dangerousTags {
+		delete(metadata, tag)
+	}
+
 	for key, value := range metadata {
 		switch val := value.(type) {
 		case string:

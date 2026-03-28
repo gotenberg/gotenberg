@@ -144,7 +144,8 @@ Feature: /forms/pdfengines/bookmarks/{write|read}
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Invalid form data: form field 'bookmarks' is required; no form file found for extensions: [.pdf]
+      Invalid form data: form field 'bookmarks' is required
+      no form file found for extensions: [.pdf]
       """
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/bookmarks/write" endpoint with the following form data and header(s):

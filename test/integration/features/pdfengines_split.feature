@@ -251,7 +251,9 @@ Feature: /forms/pdfengines/split
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Invalid form data: form field 'splitMode' is required; form field 'splitSpan' is required; no form file found for extensions: [.pdf]
+      Invalid form data: form field 'splitMode' is required
+      form field 'splitSpan' is required
+      no form file found for extensions: [.pdf]
       """
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/split" endpoint with the following form data and header(s):
       | files     | testdata/pages_3.pdf | file  |
