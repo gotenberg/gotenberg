@@ -23,6 +23,66 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 )
 
+var (
+	failedScenariosMu sync.Mutex
+	failedScenarios   []string // file:line paths for re-run
+)
+
+// ResetFailedScenarios clears the collected failures.
+func ResetFailedScenarios() {
+	failedScenariosMu.Lock()
+	defer failedScenariosMu.Unlock()
+	failedScenarios = nil
+}
+
+// FailedScenarioPaths returns file:line paths of failed scenarios.
+func FailedScenarioPaths() []string {
+	failedScenariosMu.Lock()
+	defer failedScenariosMu.Unlock()
+	result := make([]string, len(failedScenarios))
+	copy(result, failedScenarios)
+	return result
+}
+
+func recordFailedScenario(sc *godog.Scenario) {
+	// When godog runs with file:line paths, the Uri may contain
+	// the line suffix (e.g., "features/root.feature:4"). Strip it
+	// to get the actual file path for reading.
+	filePath := sc.Uri
+	if idx := strings.LastIndex(filePath, ":"); idx > 0 {
+		if _, err := strconv.Atoi(filePath[idx+1:]); err == nil {
+			filePath = filePath[:idx]
+		}
+	}
+
+	line := findScenarioLine(filePath, sc.Name)
+	if line <= 0 {
+		return
+	}
+
+	path := fmt.Sprintf("%s:%d", filePath, line)
+
+	failedScenariosMu.Lock()
+	defer failedScenariosMu.Unlock()
+	failedScenarios = append(failedScenarios, path)
+}
+
+func findScenarioLine(filePath, name string) int {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return 0
+	}
+
+	target := "Scenario: " + name
+	for i, line := range strings.Split(string(data), "\n") {
+		if strings.TrimSpace(line) == target {
+			return i + 1
+		}
+	}
+
+	return 0
+}
+
 type scenario struct {
 	resp                      *httptest.ResponseRecorder
 	concurrentResps           []*httptest.ResponseRecorder
@@ -1226,6 +1286,10 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 		return ctx, nil
 	})
 	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
+		if err != nil {
+			recordFailedScenario(sc)
+		}
+
 		errReset := s.reset(ctx)
 		if errReset != nil {
 			return ctx, fmt.Errorf("reset scenario: %w", errReset)

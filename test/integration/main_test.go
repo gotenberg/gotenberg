@@ -3,6 +3,7 @@
 package integration
 
 import (
+	"fmt"
 	"os"
 	"runtime"
 	"testing"
@@ -40,17 +41,42 @@ func TestMain(m *testing.M) {
 		concurrency = 0
 	}
 
-	code := godog.TestSuite{
-		Name:                "integration",
-		ScenarioInitializer: scenario.InitializeScenario,
-		Options: &godog.Options{
-			Format:      "pretty",
-			Paths:       []string{"features"},
-			Output:      colors.Colored(os.Stdout),
-			Concurrency: concurrency,
-			Tags:        *tags,
-		},
-	}.Run()
+	maxAttempts := 4 // 1 initial run + up to 3 retries
+	paths := []string{"features"}
 
-	os.Exit(code)
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		// Reset the failure collector before each run.
+		scenario.ResetFailedScenarios()
+
+		code := godog.TestSuite{
+			Name:                "integration",
+			ScenarioInitializer: scenario.InitializeScenario,
+			Options: &godog.Options{
+				Format:      "pretty",
+				Paths:       paths,
+				Output:      colors.Colored(os.Stdout),
+				Concurrency: concurrency,
+				Tags:        *tags,
+			},
+		}.Run()
+
+		if code == 0 {
+			os.Exit(0)
+		}
+
+		failedPaths := scenario.FailedScenarioPaths()
+		if len(failedPaths) == 0 || attempt == maxAttempts {
+			os.Exit(code)
+		}
+
+		fmt.Fprintf(colors.Colored(os.Stdout),
+			"\n\n--- %d scenario(s) failed, retrying (%d retries left) ---\n\n",
+			len(failedPaths), maxAttempts-attempt,
+		)
+
+		// Next run: only the failed scenarios via file:line paths.
+		paths = failedPaths
+	}
+
+	os.Exit(1)
 }

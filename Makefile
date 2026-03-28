@@ -127,6 +127,9 @@ NO_CONCURRENCY=false
 # chromium-convert-html
 # chromium-convert-markdown
 # chromium-convert-url
+# chromium-screenshot-html
+# chromium-screenshot-markdown
+# chromium-screenshot-url
 # debug
 # health
 # libreoffice
@@ -162,7 +165,7 @@ NO_CONCURRENCY=false
 TAGS=
 
 .PHONY: test-integration
-test-integration: ## Run integration tests
+test-integration: ## Run integration tests (automatically retries failed scenarios up to 3 times)
 	go test -timeout 40m -tags=integration -v github.com/gotenberg/gotenberg/v8/test/integration -args \
 	--gotenberg-docker-repository=$(DOCKER_REPOSITORY) \
 	--gotenberg-version=$(GOTENBERG_VERSION) \
