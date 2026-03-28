@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/cucumber/godog"
 	"github.com/google/uuid"
@@ -19,10 +20,12 @@ import (
 )
 
 type server struct {
-	srv      *echo.Echo
-	req      *http.Request
-	bodyCopy []byte
-	errChan  chan error
+	srv       *echo.Echo
+	req       *http.Request
+	bodyCopy  []byte
+	errChan   chan error
+	eventBody []byte
+	eventMu   sync.Mutex
 }
 
 func newServer(ctx context.Context, workdir string) (*server, error) {
@@ -144,6 +147,18 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 	srv.POST("/webhook/error", webhookErrorHandler)
 	srv.PATCH("/webhook/error", webhookErrorHandler)
 	srv.PUT("/webhook/error", webhookErrorHandler)
+
+	webhookEventsHandler := func(c echo.Context) error {
+		body, err := io.ReadAll(c.Request().Body)
+		if err != nil {
+			return c.String(http.StatusInternalServerError, err.Error())
+		}
+		s.eventMu.Lock()
+		s.eventBody = body
+		s.eventMu.Unlock()
+		return c.String(http.StatusOK, http.StatusText(http.StatusOK))
+	}
+	srv.POST("/webhook/events", webhookEventsHandler)
 	srv.GET("/static/:path", func(c echo.Context) error {
 		s.req = c.Request()
 		path := c.Param("path")
@@ -168,6 +183,12 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 	})
 
 	return s, nil
+}
+
+func (s *server) getEventBody() []byte {
+	s.eventMu.Lock()
+	defer s.eventMu.Unlock()
+	return s.eventBody
 }
 
 func (s *server) start(ctx context.Context) (int, error) {

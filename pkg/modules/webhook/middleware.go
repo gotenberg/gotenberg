@@ -85,7 +85,14 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 					if err != nil {
 						params.ctx.Log().Error(fmt.Sprintf("send output file to webhook: %s", err))
 						params.handleError(err)
+						return
 					}
+
+					params.client.sendEvent(params.ctx, params.correlationIdHeader, params.correlationId, map[string]any{
+						"event":         "webhook.success",
+						"correlationId": params.correlationId,
+						"timestamp":     time.Now().UTC().Format(time.RFC3339Nano),
+					})
 				}
 
 				return func(c echo.Context) error {
@@ -176,6 +183,15 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						}
 					}
 
+					// What about the events URL?
+					webhookEventsUrl := c.Request().Header.Get("Gotenberg-Webhook-Events-Url")
+					if webhookEventsUrl != "" {
+						err = gotenberg.FilterDeadline(w.allowList, w.denyList, webhookEventsUrl, deadline)
+						if err != nil {
+							return fmt.Errorf("filter webhook events URL: %w", err)
+						}
+					}
+
 					// Retrieve values from echo.Context before it gets recycled.
 					// See https://github.com/gotenberg/gotenberg/issues/1000.
 					startTime := c.Get("startTime").(time.Time)
@@ -187,6 +203,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						method:           webhookMethod,
 						errorUrl:         webhookErrorUrl,
 						errorMethod:      webhookErrorMethod,
+						eventsUrl:        webhookEventsUrl,
 						extraHttpHeaders: extraHttpHeaders,
 						startTime:        startTime,
 
@@ -233,6 +250,16 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						if err != nil {
 							ctx.Log().Error(fmt.Sprintf("send error response to webhook: %s", err.Error()))
 						}
+
+						client.sendEvent(ctx, correlationIdHeader, correlationId, map[string]any{
+							"event":         "webhook.error",
+							"correlationId": correlationId,
+							"timestamp":     time.Now().UTC().Format(time.RFC3339Nano),
+							"error": map[string]any{
+								"status":  status,
+								"message": message,
+							},
+						})
 					}
 
 					if w.enableSyncMode {

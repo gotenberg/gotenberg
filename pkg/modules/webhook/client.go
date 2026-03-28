@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -26,6 +27,7 @@ type client struct {
 	method           string
 	errorUrl         string
 	errorMethod      string
+	eventsUrl        string
 	extraHttpHeaders map[string]string
 	startTime        time.Time
 
@@ -143,4 +145,67 @@ func (c client) send(ctx context.Context, body io.Reader, headers map[string]str
 	span.SetStatus(codes.Ok, "")
 
 	return nil
+}
+
+// sendEvent sends a structured JSON event to the events URL. It is
+// fire-and-forget: failures are logged but do not propagate.
+func (c client) sendEvent(ctx context.Context, correlationIdHeader, correlationId string, event map[string]any) {
+	if c.eventsUrl == "" {
+		return
+	}
+
+	b, err := json.Marshal(event)
+	if err != nil {
+		c.logger.ErrorContext(ctx, fmt.Sprintf("marshal webhook event: %s", err))
+		return
+	}
+
+	tracer := gotenberg.Tracer()
+	ctx, span := tracer.Start(ctx, "POST Webhook Event",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(semconv.ServerAddress(c.eventsUrl)),
+	)
+	defer span.End()
+
+	req, err := retryablehttp.NewRequest(http.MethodPost, c.eventsUrl, b)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		c.logger.ErrorContext(ctx, fmt.Sprintf("create webhook event request: %s", err))
+		return
+	}
+
+	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
+
+	req.Header.Set("User-Agent", "Gotenberg")
+	for key, value := range c.extraHttpHeaders {
+		req.Header.Set(key, value)
+	}
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	req.Header.Set(correlationIdHeader, correlationId)
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		c.logger.ErrorContext(ctx, fmt.Sprintf("send webhook event to '%s': %s", c.eventsUrl, err))
+		return
+	}
+
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			c.logger.ErrorContext(ctx, fmt.Sprintf("close response body from '%s': %s", c.eventsUrl, err))
+		}
+	}()
+
+	if resp.StatusCode >= http.StatusBadRequest {
+		span.RecordError(fmt.Errorf("webhook event: got status '%s'", resp.Status))
+		span.SetStatus(codes.Error, resp.Status)
+		c.logger.ErrorContext(ctx, fmt.Sprintf("send webhook event to '%s': got status '%s'", c.eventsUrl, resp.Status))
+		return
+	}
+
+	span.SetStatus(codes.Ok, "")
+	c.logger.InfoContext(ctx, fmt.Sprintf("webhook event sent to '%s'", c.eventsUrl))
 }

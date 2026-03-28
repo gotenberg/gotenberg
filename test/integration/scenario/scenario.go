@@ -181,7 +181,7 @@ func (s *scenario) iMakeARequestToGotenbergWithTheFollowingFormDataAndHeaders(ct
 			}
 			files[name] = append(files[name], value)
 		case "header":
-			if name == "Gotenberg-Webhook-Url" || name == "Gotenberg-Webhook-Error-Url" {
+			if name == "Gotenberg-Webhook-Url" || name == "Gotenberg-Webhook-Error-Url" || name == "Gotenberg-Webhook-Events-Url" {
 				headers[name] = fmt.Sprintf(value, s.hostPort)
 				continue
 			}
@@ -648,6 +648,48 @@ func (s *scenario) theBodyShouldMatchJSON(kind string, expectedDoc *godog.DocStr
 	err = compareJson(expected, actual)
 	if err != nil {
 		return fmt.Errorf("expected matching JSON: %w", err)
+	}
+
+	return nil
+}
+
+func (s *scenario) theWebhookEventShouldMatchJSON(ctx context.Context, expectedDoc *godog.DocString) error {
+	if s.server == nil {
+		return errors.New("server not initialized")
+	}
+
+	// Poll briefly — the event fires right after the main webhook.
+	var body []byte
+	deadline := time.After(5 * time.Second)
+	for {
+		body = s.server.getEventBody()
+		if body != nil {
+			break
+		}
+		select {
+		case <-deadline:
+			return errors.New("timed out waiting for webhook event")
+		default:
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+
+	var expected, actual any
+
+	content := strings.ReplaceAll(expectedDoc.Content, "{version}", GotenbergVersion)
+	err := json.Unmarshal([]byte(content), &expected)
+	if err != nil {
+		return fmt.Errorf("unmarshal expected JSON: %w", err)
+	}
+
+	err = json.Unmarshal(body, &actual)
+	if err != nil {
+		return fmt.Errorf("unmarshal actual JSON: %w", err)
+	}
+
+	err = compareJson(expected, actual)
+	if err != nil {
+		return fmt.Errorf("expected matching webhook event JSON: %w", err)
 	}
 
 	return nil
@@ -1158,6 +1200,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the (response|webhook request) body should match string:$`, s.theBodyShouldMatchString)
 	ctx.Then(`^the (response|webhook request) body should contain string:$`, s.theBodyShouldContainString)
 	ctx.Then(`^the (response|webhook request) body should match JSON:$`, s.theBodyShouldMatchJSON)
+	ctx.Then(`^the webhook event should match JSON:$`, s.theWebhookEventShouldMatchJSON)
 	ctx.Then(`^there should be (\d+) PDF\(s\) in the (response|webhook request)$`, s.thereShouldBePdfs)
 	ctx.Then(`^there should be the following file\(s\) in the (response|webhook request):$`, s.thereShouldBeTheFollowingFiles)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) should be valid "([^"]*)" with a tolerance of (\d+) failed rule\(s\)$`, s.thePdfsShouldBeValidWithAToleranceOf)

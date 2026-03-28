@@ -63,6 +63,7 @@ make test-integration PLATFORM=linux/arm64 # Force a specific platform
 - `the (response|webhook request) body should match string:` (docstring)
 - `the (response|webhook request) body should contain string:` (docstring)
 - `the (response|webhook request) body should match JSON:` (docstring — use `"ignore"` for dynamic values like timestamps)
+- `the webhook event should match JSON:` (docstring — use `"ignore"` for dynamic values; polls for up to 5s)
 - `there should be <N> PDF(s) in the (response|webhook request)`
 - `there should be the following file(s) in the (response|webhook request):` (table of filenames)
 - `the "<name>" PDF should have <N> page(s)`
