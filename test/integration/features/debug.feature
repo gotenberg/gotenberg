@@ -290,7 +290,8 @@ Feature: /debug
 
   Scenario: GET /debug (Gotenberg Trace)
     Given I have a Gotenberg container with the following environment variable(s):
-      | API_ENABLE_DEBUG_ROUTE | true |
+      | API_ENABLE_DEBUG_ROUTE            | true  |
+      | API_DISABLE_DEBUG_ROUTE_TELEMETRY | false |
     When I make a "GET" request to Gotenberg at the "/debug" endpoint with the following header(s):
       | Gotenberg-Trace | debug |
     Then the response status code should be 200

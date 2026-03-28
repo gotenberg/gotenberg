@@ -12,7 +12,8 @@ Feature: /version
       """
 
   Scenario: GET /version (Gotenberg Trace)
-    Given I have a default Gotenberg container
+    Given I have a Gotenberg container with the following environment variable(s):
+      | API_DISABLE_VERSION_ROUTE_TELEMETRY | false |
     When I make a "GET" request to Gotenberg at the "/version" endpoint with the following header(s):
       | Gotenberg-Trace | version |
     Then the response status code should be 200

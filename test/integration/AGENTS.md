@@ -22,7 +22,7 @@ make test-integration TAGS=chromium-convert-html
 make test-integration TAGS="merge,split"
 ```
 
-Available tags: `chromium`, `chromium-concurrent`, `chromium-convert-html`, `chromium-convert-markdown`, `chromium-convert-url`, `debug`, `health`, `libreoffice`, `libreoffice-convert`, `output-filename`, `pdfengines`, `pdfengines-convert`, `pdfengines-embed`, `embed`, `pdfengines-encrypt`, `encrypt`, `pdfengines-flatten`, `flatten`, `pdfengines-merge`, `merge`, `pdfengines-metadata`, `metadata`, `pdfengines-split`, `split`, `pdfengines-watermark`, `watermark`, `pdfengines-stamp`, `stamp`, `pdfengines-bookmarks`, `bookmarks`, `pdfengines-rotate`, `rotate`, `prometheus-metrics`, `root`, `version`, `webhook`, `download-from`.
+Available tags: `chromium`, `chromium-concurrent`, `chromium-convert-html`, `chromium-convert-markdown`, `chromium-convert-url`, `chromium-screenshot-html`, `chromium-screenshot-markdown`, `chromium-screenshot-url`, `debug`, `health`, `libreoffice`, `libreoffice-convert`, `output-filename`, `pdfengines`, `pdfengines-convert`, `pdfengines-embed`, `embed`, `pdfengines-encrypt`, `encrypt`, `pdfengines-flatten`, `flatten`, `pdfengines-merge`, `merge`, `pdfengines-metadata`, `metadata`, `pdfengines-split`, `split`, `pdfengines-watermark`, `watermark`, `pdfengines-stamp`, `stamp`, `pdfengines-bookmarks`, `bookmarks`, `pdfengines-rotate`, `rotate`, `prometheus-metrics`, `root`, `version`, `webhook`, `download-from`.
 
 Other useful flags:
 

@@ -459,7 +459,8 @@ Feature: /forms/chromium/convert/markdown
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Markdown file(s) not found: 'page_2.md'; 'page_3.md'
+      Markdown file(s) not found: 'page_2.md'
+      'page_3.md'
       """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
       | singlePage                    | foo | field |

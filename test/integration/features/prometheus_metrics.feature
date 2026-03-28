@@ -6,7 +6,8 @@
 Feature: /prometheus/metrics
 
   Scenario: GET /prometheus/metrics (Enabled)
-    Given I have a default Gotenberg container
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PROMETHEUS_DISABLE_ROUTE_TELEMETRY | false |
     When I make a "GET" request to Gotenberg at the "/prometheus/metrics" endpoint
     Then the response status code should be 200
     Then the response header "Content-Type" should be "text/plain; version=0.0.4; charset=utf-8; escaping=underscores"
@@ -31,7 +32,8 @@ Feature: /prometheus/metrics
 
   Scenario: GET /custom/metrics (Custom Metrics Path)
     Given I have a Gotenberg container with the following environment variable(s):
-      | PROMETHEUS_METRICS_PATH | /custom/metrics |
+      | PROMETHEUS_METRICS_PATH            | /custom/metrics |
+      | PROMETHEUS_DISABLE_ROUTE_TELEMETRY | false           |
     When I make a "GET" request to Gotenberg at the "/custom/metrics" endpoint
     Then the response status code should be 200
     Then the response header "Content-Type" should be "text/plain; version=0.0.4; charset=utf-8; escaping=underscores"
@@ -92,7 +94,8 @@ Feature: /prometheus/metrics
       | "path":"/prometheus/metrics" |
 
   Scenario: GET /prometheus/metrics (Gotenberg Trace)
-    Given I have a default Gotenberg container
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PROMETHEUS_DISABLE_ROUTE_TELEMETRY | false |
     When I make a "GET" request to Gotenberg at the "/prometheus/metrics" endpoint with the following header(s):
       | Gotenberg-Trace | prometheus_metrics |
     Then the response status code should be 200

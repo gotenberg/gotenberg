@@ -6,7 +6,8 @@
 Feature: /health
 
   Scenario: GET /health
-    Given I have a default Gotenberg container
+    Given I have a Gotenberg container with the following environment variable(s):
+      | API_DISABLE_HEALTH_CHECK_ROUTE_TELEMETRY | false |
     When I make a "GET" request to Gotenberg at the "/health" endpoint
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/json; charset=utf-8"
@@ -38,7 +39,8 @@ Feature: /health
       | "path":"/health" |
 
   Scenario: GET /health (Gotenberg Trace)
-    Given I have a default Gotenberg container
+    Given I have a Gotenberg container with the following environment variable(s):
+      | API_DISABLE_HEALTH_CHECK_ROUTE_TELEMETRY | false |
     When I make a "GET" request to Gotenberg at the "/health" endpoint with the following header(s):
       | Gotenberg-Trace | get_health |
     Then the response status code should be 200
@@ -61,7 +63,8 @@ Feature: /health
     Then the response status code should be 200
 
   Scenario: HEAD /health
-    Given I have a default Gotenberg container
+    Given I have a Gotenberg container with the following environment variable(s):
+      | API_DISABLE_HEALTH_CHECK_ROUTE_TELEMETRY | false |
     When I make a "HEAD" request to Gotenberg at the "/health" endpoint
     Then the response status code should be 200
     Then the response body should match string:
@@ -72,7 +75,8 @@ Feature: /health
       | "path":"/health" |
 
   Scenario: HEAD /health (Gotenberg Trace)
-    Given I have a default Gotenberg container
+    Given I have a Gotenberg container with the following environment variable(s):
+      | API_DISABLE_HEALTH_CHECK_ROUTE_TELEMETRY | false |
     When I make a "HEAD" request to Gotenberg at the "/health" endpoint with the following header(s):
       | Gotenberg-Trace | head_health |
     Then the response status code should be 200
