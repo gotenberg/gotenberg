@@ -41,6 +41,9 @@ type Api struct {
 	basicAuthPassword                string
 	downloadFromCfg                  downloadFromConfig
 	disableHealthCheckRouteTelemetry bool
+	disableRootRouteTelemetry        bool
+	disableDebugRouteTelemetry       bool
+	disableVersionRouteTelemetry     bool
 	enableDebugRoute                 bool
 
 	routes              []Route
@@ -197,6 +200,9 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Int("api-download-from-max-retry", 4, "Set the maximum number of retries for the download from feature")
 			fs.Bool("api-disable-download-from", false, "Disable the download from feature")
 			fs.Bool("api-disable-health-check-route-telemetry", false, "Disable telemetry for health check route")
+			fs.Bool("api-disable-root-route-telemetry", false, "Disable telemetry for the root route")
+			fs.Bool("api-disable-debug-route-telemetry", false, "Disable telemetry for the debug route")
+			fs.Bool("api-disable-version-route-telemetry", false, "Disable telemetry for the version route")
 			fs.Bool("api-enable-debug-route", false, "Enable the debug route")
 
 			// Deprecated flags.
@@ -235,6 +241,9 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 		disable:   flags.MustBool("api-disable-download-from"),
 	}
 	a.disableHealthCheckRouteTelemetry = flags.MustDeprecatedBool("api-disable-health-check-logging", "api-disable-health-check-route-telemetry")
+	a.disableRootRouteTelemetry = flags.MustBool("api-disable-root-route-telemetry")
+	a.disableDebugRouteTelemetry = flags.MustBool("api-disable-debug-route-telemetry")
+	a.disableVersionRouteTelemetry = flags.MustBool("api-disable-version-route-telemetry")
 	a.enableDebugRoute = flags.MustBool("api-enable-debug-route")
 
 	// Port from env?
@@ -453,9 +462,18 @@ func (a *Api) Start() error {
 		}
 	}
 
-	// Check if the user wishes to disable telemetry for the health check route.
+	// Check if the user wishes to disable telemetry for specific routes.
 	if a.disableHealthCheckRouteTelemetry {
 		disableTelemetryForPaths = append(disableTelemetryForPaths, "health")
+	}
+	if a.disableRootRouteTelemetry {
+		disableTelemetryForPaths = append(disableTelemetryForPaths, "")
+	}
+	if a.disableDebugRouteTelemetry {
+		disableTelemetryForPaths = append(disableTelemetryForPaths, "debug")
+	}
+	if a.disableVersionRouteTelemetry {
+		disableTelemetryForPaths = append(disableTelemetryForPaths, "version")
 	}
 
 	serverName := fmt.Sprintf("%s:%d", a.bindIp, a.port)
