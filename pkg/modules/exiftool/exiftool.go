@@ -80,7 +80,7 @@ func (engine *ExifTool) Debug() map[string]any {
 func (engine *ExifTool) Merge(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "exiftool.Merge",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("exiftool")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -94,7 +94,7 @@ func (engine *ExifTool) Merge(ctx context.Context, logger *slog.Logger, inputPat
 func (engine *ExifTool) Split(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
 	_, span := gotenberg.Tracer().Start(ctx, "exiftool.Split",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("exiftool")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -108,7 +108,7 @@ func (engine *ExifTool) Split(ctx context.Context, logger *slog.Logger, mode got
 func (engine *ExifTool) Flatten(ctx context.Context, logger *slog.Logger, inputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "exiftool.Flatten",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("exiftool")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -122,7 +122,7 @@ func (engine *ExifTool) Flatten(ctx context.Context, logger *slog.Logger, inputP
 func (engine *ExifTool) Convert(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "exiftool.Convert",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("exiftool")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -136,7 +136,7 @@ func (engine *ExifTool) Convert(ctx context.Context, logger *slog.Logger, format
 func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 	_, span := gotenberg.Tracer().Start(ctx, "exiftool.ReadMetadata",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("exiftool")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -171,7 +171,7 @@ func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *slog.Logger, i
 func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "exiftool.WriteMetadata",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("exiftool")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -281,7 +281,7 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *slog.Logger, 
 func (engine *ExifTool) PageCount(ctx context.Context, logger *slog.Logger, inputPath string) (int, error) {
 	_, span := gotenberg.Tracer().Start(ctx, "exiftool.PageCount",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("exiftool")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -334,7 +334,7 @@ func (engine *ExifTool) PageCount(ctx context.Context, logger *slog.Logger, inpu
 func (engine *ExifTool) WriteBookmarks(ctx context.Context, logger *slog.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
 	_, span := gotenberg.Tracer().Start(ctx, "exiftool.WriteBookmarks",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("exiftool")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -348,7 +348,7 @@ func (engine *ExifTool) WriteBookmarks(ctx context.Context, logger *slog.Logger,
 func (engine *ExifTool) ReadBookmarks(ctx context.Context, logger *slog.Logger, inputPath string) ([]gotenberg.Bookmark, error) {
 	_, span := gotenberg.Tracer().Start(ctx, "exiftool.ReadBookmarks",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("exiftool")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -362,7 +362,7 @@ func (engine *ExifTool) ReadBookmarks(ctx context.Context, logger *slog.Logger, 
 func (engine *ExifTool) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "exiftool.Encrypt",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("exiftool")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -376,7 +376,7 @@ func (engine *ExifTool) Encrypt(ctx context.Context, logger *slog.Logger, inputP
 func (engine *ExifTool) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "exiftool.EmbedFiles",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("exiftool")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -390,7 +390,7 @@ func (engine *ExifTool) EmbedFiles(ctx context.Context, logger *slog.Logger, fil
 func (engine *ExifTool) Watermark(ctx context.Context, logger *slog.Logger, inputPath string, stamp gotenberg.Stamp) error {
 	_, span := gotenberg.Tracer().Start(ctx, "exiftool.Watermark",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("exiftool")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -404,7 +404,7 @@ func (engine *ExifTool) Watermark(ctx context.Context, logger *slog.Logger, inpu
 func (engine *ExifTool) Stamp(ctx context.Context, logger *slog.Logger, inputPath string, stamp gotenberg.Stamp) error {
 	_, span := gotenberg.Tracer().Start(ctx, "exiftool.Stamp",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("exiftool")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -418,7 +418,7 @@ func (engine *ExifTool) Stamp(ctx context.Context, logger *slog.Logger, inputPat
 func (engine *ExifTool) Rotate(ctx context.Context, logger *slog.Logger, inputPath string, angle int, pages string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "exiftool.Rotate",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("exiftool")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 

@@ -790,7 +790,7 @@ func (mod *Chromium) Routes() ([]api.Route, error) {
 func (mod *Chromium) Pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "chromium.Pdf",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("chromium")),
+		trace.WithAttributes(semconv.ServerAddress(mod.args.binPath)),
 	)
 	defer span.End()
 
@@ -867,7 +867,7 @@ func (mod *Chromium) Pdf(ctx context.Context, logger *slog.Logger, url, outputPa
 func (mod *Chromium) Screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "chromium.Screenshot",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("chromium")),
+		trace.WithAttributes(semconv.ServerAddress(mod.args.binPath)),
 	)
 	defer span.End()
 

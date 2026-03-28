@@ -608,7 +608,7 @@ func (a *Api) LibreOffice() (Uno, error) {
 func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "libreoffice.Pdf",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("libreoffice")),
+		trace.WithAttributes(semconv.ServerAddress(a.args.binPath)),
 	)
 	defer span.End()
 

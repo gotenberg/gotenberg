@@ -102,7 +102,7 @@ func (engine *PdfCpu) Debug() map[string]any {
 func (engine *PdfCpu) Merge(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "pdfcpu.Merge",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("pdfcpu")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -134,7 +134,7 @@ func (engine *PdfCpu) Merge(ctx context.Context, logger *slog.Logger, inputPaths
 func (engine *PdfCpu) Split(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
 	ctx, span := gotenberg.Tracer().Start(ctx, "pdfcpu.Split",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("pdfcpu")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -203,7 +203,7 @@ func (engine *PdfCpu) Split(ctx context.Context, logger *slog.Logger, mode goten
 func (engine *PdfCpu) Flatten(ctx context.Context, logger *slog.Logger, inputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "pdfcpu.Flatten",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("pdfcpu")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -217,7 +217,7 @@ func (engine *PdfCpu) Flatten(ctx context.Context, logger *slog.Logger, inputPat
 func (engine *PdfCpu) Convert(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "pdfcpu.Convert",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("pdfcpu")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -231,7 +231,7 @@ func (engine *PdfCpu) Convert(ctx context.Context, logger *slog.Logger, formats 
 func (engine *PdfCpu) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 	_, span := gotenberg.Tracer().Start(ctx, "pdfcpu.ReadMetadata",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("pdfcpu")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -245,7 +245,7 @@ func (engine *PdfCpu) ReadMetadata(ctx context.Context, logger *slog.Logger, inp
 func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "pdfcpu.WriteMetadata",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("pdfcpu")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -259,7 +259,7 @@ func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *slog.Logger, me
 func (engine *PdfCpu) PageCount(ctx context.Context, logger *slog.Logger, inputPath string) (int, error) {
 	_, span := gotenberg.Tracer().Start(ctx, "pdfcpu.PageCount",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("pdfcpu")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -273,7 +273,7 @@ func (engine *PdfCpu) PageCount(ctx context.Context, logger *slog.Logger, inputP
 func (engine *PdfCpu) ReadBookmarks(ctx context.Context, logger *slog.Logger, inputPath string) ([]gotenberg.Bookmark, error) {
 	ctx, span := gotenberg.Tracer().Start(ctx, "pdfcpu.ReadBookmarks",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("pdfcpu")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -376,7 +376,7 @@ func (engine *PdfCpu) ReadBookmarks(ctx context.Context, logger *slog.Logger, in
 func (engine *PdfCpu) WriteBookmarks(ctx context.Context, logger *slog.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "pdfcpu.WriteBookmarks",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("pdfcpu")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -452,7 +452,7 @@ func (engine *PdfCpu) WriteBookmarks(ctx context.Context, logger *slog.Logger, i
 func (engine *PdfCpu) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "pdfcpu.EmbedFiles",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("pdfcpu")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -491,7 +491,7 @@ func (engine *PdfCpu) EmbedFiles(ctx context.Context, logger *slog.Logger, fileP
 func (engine *PdfCpu) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "pdfcpu.Encrypt",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("pdfcpu")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -538,7 +538,7 @@ func (engine *PdfCpu) Encrypt(ctx context.Context, logger *slog.Logger, inputPat
 func (engine *PdfCpu) Watermark(ctx context.Context, logger *slog.Logger, inputPath string, stamp gotenberg.Stamp) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "pdfcpu.Watermark",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("pdfcpu")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -557,7 +557,7 @@ func (engine *PdfCpu) Watermark(ctx context.Context, logger *slog.Logger, inputP
 func (engine *PdfCpu) Stamp(ctx context.Context, logger *slog.Logger, inputPath string, stamp gotenberg.Stamp) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "pdfcpu.Stamp",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("pdfcpu")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
@@ -576,7 +576,7 @@ func (engine *PdfCpu) Stamp(ctx context.Context, logger *slog.Logger, inputPath 
 func (engine *PdfCpu) Rotate(ctx context.Context, logger *slog.Logger, inputPath string, angle int, pages string) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "pdfcpu.Rotate",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress("pdfcpu")),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
