@@ -199,10 +199,10 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.StringSlice("api-download-from-deny-list", []string{}, "Set the denied URLs for the download from feature using regular expressions - supports multiple values")
 			fs.Int("api-download-from-max-retry", 4, "Set the maximum number of retries for the download from feature")
 			fs.Bool("api-disable-download-from", false, "Disable the download from feature")
-			fs.Bool("api-disable-health-check-route-telemetry", false, "Disable telemetry for health check route")
-			fs.Bool("api-disable-root-route-telemetry", false, "Disable telemetry for the root route")
-			fs.Bool("api-disable-debug-route-telemetry", false, "Disable telemetry for the debug route")
-			fs.Bool("api-disable-version-route-telemetry", false, "Disable telemetry for the version route")
+			fs.Bool("api-disable-health-check-route-telemetry", true, "Disable telemetry for health check route")
+			fs.Bool("api-disable-root-route-telemetry", true, "Disable telemetry for the root route")
+			fs.Bool("api-disable-debug-route-telemetry", true, "Disable telemetry for the debug route")
+			fs.Bool("api-disable-version-route-telemetry", true, "Disable telemetry for the version route")
 			fs.Bool("api-enable-debug-route", false, "Enable the debug route")
 
 			// Deprecated flags.

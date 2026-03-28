@@ -41,7 +41,7 @@ func (mod *Prometheus) Descriptor() gotenberg.ModuleDescriptor {
 			fs := flag.NewFlagSet("prometheus", flag.ExitOnError)
 			fs.String("prometheus-namespace", "gotenberg", "Set the namespace of modules' metrics")
 			fs.Duration("prometheus-collect-interval", time.Duration(1)*time.Second, "Set the interval for collecting modules' metrics")
-			fs.Bool("prometheus-disable-route-telemetry", false, "Disable telemetry for the Prometheus metrics route")
+			fs.Bool("prometheus-disable-route-telemetry", true, "Disable telemetry for the Prometheus metrics route")
 			fs.Bool("prometheus-disable-collect", false, "Disable the collect of metrics")
 			fs.String("prometheus-metrics-path", "/prometheus/metrics", "Path for Prometheus metrics endpoint")
 
