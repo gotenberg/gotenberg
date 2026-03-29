@@ -86,3 +86,43 @@ Feature: Webhook
         "timestamp": "ignore"
       }
       """
+
+  Scenario: Webhook Events URL Only (Success)
+    Given I have a default Gotenberg container
+    Given I have a webhook server
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/flatten" endpoint with the following form data and header(s):
+      | files                        | testdata/page_1.pdf                           | file   |
+      | Gotenberg-Webhook-Url        | http://host.docker.internal:%d/webhook        | header |
+      | Gotenberg-Webhook-Events-Url | http://host.docker.internal:%d/webhook/events | header |
+    Then the response status code should be 204
+    When I wait for the asynchronous request to the webhook
+    Then the webhook request header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the webhook request
+    Then the webhook event should match JSON:
+      """
+      {
+        "event": "webhook.success",
+        "correlationId": "ignore",
+        "timestamp": "ignore"
+      }
+      """
+
+  Scenario: Webhook Events URL Only (Synchronous)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | WEBHOOK_ENABLE_SYNC_MODE | true |
+    Given I have a webhook server
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/flatten" endpoint with the following form data and header(s):
+      | files                        | testdata/page_1.pdf                           | file   |
+      | Gotenberg-Webhook-Url        | http://host.docker.internal:%d/webhook        | header |
+      | Gotenberg-Webhook-Events-Url | http://host.docker.internal:%d/webhook/events | header |
+    Then the response status code should be 204
+    Then the webhook request header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the webhook request
+    Then the webhook event should match JSON:
+      """
+      {
+        "event": "webhook.success",
+        "correlationId": "ignore",
+        "timestamp": "ignore"
+      }
+      """

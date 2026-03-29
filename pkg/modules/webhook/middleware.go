@@ -105,13 +105,20 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 					ctx := c.Get("context").(*api.Context)
 					cancel := c.Get("cancel").(context.CancelFunc)
 
-					// Do we have a webhook error URL in case of... error?
+					// Do we have a webhook error URL and/or an events URL?
+					// At least one must be provided.
 					webhookErrorUrl := c.Request().Header.Get("Gotenberg-Webhook-Error-Url")
-					if webhookErrorUrl == "" {
+					webhookEventsUrl := c.Request().Header.Get("Gotenberg-Webhook-Events-Url")
+
+					if webhookErrorUrl == "" && webhookEventsUrl == "" {
 						return api.WrapError(
-							errors.New("empty webhook error URL"),
-							api.NewSentinelHttpError(http.StatusBadRequest, "Invalid 'Gotenberg-Webhook-Error-Url' header: empty value or header not provided"),
+							errors.New("empty webhook error URL and events URL"),
+							api.NewSentinelHttpError(http.StatusBadRequest, "At least one of 'Gotenberg-Webhook-Error-Url' or 'Gotenberg-Webhook-Events-Url' headers must be provided"),
 						)
+					}
+
+					if webhookErrorUrl != "" {
+						ctx.Log().Warn("'Gotenberg-Webhook-Error-Url' header is deprecated, use 'Gotenberg-Webhook-Events-Url' instead")
 					}
 
 					deadline, ok := ctx.Deadline()
@@ -126,9 +133,11 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						return fmt.Errorf("filter webhook URL: %w", err)
 					}
 
-					err = gotenberg.FilterDeadline(w.errorAllowList, w.errorDenyList, webhookErrorUrl, deadline)
-					if err != nil {
-						return fmt.Errorf("filter webhook error URL: %w", err)
+					if webhookErrorUrl != "" {
+						err = gotenberg.FilterDeadline(w.errorAllowList, w.errorDenyList, webhookErrorUrl, deadline)
+						if err != nil {
+							return fmt.Errorf("filter webhook error URL: %w", err)
+						}
 					}
 
 					// Let's check the HTTP methods for calling the webhook URLs.
@@ -164,9 +173,12 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						return fmt.Errorf("get method to use for webhook: %w", err)
 					}
 
-					webhookErrorMethod, err := methodFromHeader("Gotenberg-Webhook-Error-Method")
-					if err != nil {
-						return fmt.Errorf("get method to use for webhook error: %w", err)
+					var webhookErrorMethod string
+					if webhookErrorUrl != "" {
+						webhookErrorMethod, err = methodFromHeader("Gotenberg-Webhook-Error-Method")
+						if err != nil {
+							return fmt.Errorf("get method to use for webhook error: %w", err)
+						}
 					}
 
 					// What about extra HTTP headers?
@@ -183,8 +195,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						}
 					}
 
-					// What about the events URL?
-					webhookEventsUrl := c.Request().Header.Get("Gotenberg-Webhook-Events-Url")
+					// Filter the events URL if provided.
 					if webhookEventsUrl != "" {
 						err = gotenberg.FilterDeadline(w.allowList, w.denyList, webhookEventsUrl, deadline)
 						if err != nil {

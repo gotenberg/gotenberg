@@ -39,6 +39,11 @@ type client struct {
 func (c client) send(ctx context.Context, body io.Reader, headers map[string]string, errored bool) error {
 	url := c.url
 	if errored {
+		if c.errorUrl == "" {
+			// No error URL provided; error details will be sent
+			// via the events URL instead.
+			return nil
+		}
 		url = c.errorUrl
 	}
 
