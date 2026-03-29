@@ -345,3 +345,120 @@ EXPOSE 3000
 
 ENTRYPOINT [ "/usr/bin/tini", "--" ]
 CMD [ "gotenberg" ]
+
+# ==============================================================
+# Cloud Run variants
+# ==============================================================
+
+# ----------------------------------------------
+# Cloud Run: full (Chromium + LibreOffice)
+# ----------------------------------------------
+FROM gotenberg AS gotenberg-cloudrun
+
+USER root
+
+# For security reasons, the non-root user gotenberg does not own the Tini binary by default.
+# However, some providers like Cloud Run from Google Cloud cannot start a Docker container in that case.
+# See https://github.com/gotenberg/gotenberg/issues/90#issuecomment-543551353.
+RUN chown gotenberg: /usr/bin/tini
+
+ENV API_PORT_FROM_ENV=PORT
+ENV CHROMIUM_AUTO_START=true
+ENV LIBREOFFICE_AUTO_START=true
+ENV WEBHOOK_ENABLE_SYNC_MODE=true
+ENV GOTENBERG_BUILD_DEBUG_DATA=false
+ENV LOG_ENABLE_GCP_FIELDS=true
+
+USER gotenberg
+
+# ----------------------------------------------
+# Cloud Run: Chromium only
+# ----------------------------------------------
+FROM gotenberg-chromium AS gotenberg-cloudrun-chromium
+
+USER root
+
+RUN chown gotenberg: /usr/bin/tini
+
+ENV API_PORT_FROM_ENV=PORT
+ENV CHROMIUM_AUTO_START=true
+ENV WEBHOOK_ENABLE_SYNC_MODE=true
+ENV GOTENBERG_BUILD_DEBUG_DATA=false
+ENV LOG_ENABLE_GCP_FIELDS=true
+
+USER gotenberg
+
+# ----------------------------------------------
+# Cloud Run: LibreOffice only
+# ----------------------------------------------
+FROM gotenberg-libreoffice AS gotenberg-cloudrun-libreoffice
+
+USER root
+
+RUN chown gotenberg: /usr/bin/tini
+
+ENV API_PORT_FROM_ENV=PORT
+ENV LIBREOFFICE_AUTO_START=true
+ENV WEBHOOK_ENABLE_SYNC_MODE=true
+ENV GOTENBERG_BUILD_DEBUG_DATA=false
+ENV LOG_ENABLE_GCP_FIELDS=true
+
+USER gotenberg
+
+# ==============================================================
+# AWS Lambda variants
+# ==============================================================
+
+# ----------------------------------------------
+# AWS Lambda: full (Chromium + LibreOffice)
+# ----------------------------------------------
+FROM gotenberg AS gotenberg-aws-lambda
+
+USER root
+
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.9.1 /lambda-adapter /opt/extensions/lambda-adapter
+
+ENV AWS_LWA_PORT=3000
+ENV AWS_LWA_READINESS_CHECK_PATH=/health
+ENV AWS_LWA_INVOKE_MODE=buffered
+ENV API_PORT_FROM_ENV=AWS_LWA_PORT
+ENV WEBHOOK_ENABLE_SYNC_MODE=true
+ENV GOTENBERG_BUILD_DEBUG_DATA=false
+
+USER gotenberg
+
+# ----------------------------------------------
+# AWS Lambda: Chromium only
+# ----------------------------------------------
+FROM gotenberg-chromium AS gotenberg-aws-lambda-chromium
+
+USER root
+
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.9.1 /lambda-adapter /opt/extensions/lambda-adapter
+
+ENV AWS_LWA_PORT=3000
+ENV AWS_LWA_READINESS_CHECK_PATH=/health
+ENV AWS_LWA_INVOKE_MODE=buffered
+ENV API_PORT_FROM_ENV=AWS_LWA_PORT
+ENV WEBHOOK_ENABLE_SYNC_MODE=true
+ENV GOTENBERG_BUILD_DEBUG_DATA=false
+
+USER gotenberg
+
+# ----------------------------------------------
+# AWS Lambda: LibreOffice only
+# ----------------------------------------------
+FROM gotenberg-libreoffice AS gotenberg-aws-lambda-libreoffice
+
+USER root
+
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.9.1 /lambda-adapter /opt/extensions/lambda-adapter
+
+ENV AWS_LWA_PORT=3000
+ENV AWS_LWA_READINESS_CHECK_PATH=/health
+ENV AWS_LWA_INVOKE_MODE=buffered
+ENV API_PORT_FROM_ENV=AWS_LWA_PORT
+ENV WEBHOOK_ENABLE_SYNC_MODE=true
+ENV GOTENBERG_BUILD_DEBUG_DATA=false
+
+USER gotenberg
