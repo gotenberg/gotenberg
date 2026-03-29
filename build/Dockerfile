@@ -49,7 +49,9 @@ RUN go mod download &&\
 COPY cmd ./cmd
 COPY pkg ./pkg
 
-RUN go build -o gotenberg -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg/main.go
+RUN go build -o gotenberg -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg/main.go &&\
+    go build -o gotenberg-chromium -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg-chromium/main.go &&\
+    go build -o gotenberg-libreoffice -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg-libreoffice/main.go
 
 # ----------------------------------------------
 # Custom JRE stage
@@ -168,9 +170,8 @@ RUN \
 # https://github.com/arachnys/athenapdf/commit/ba25a8d80a25d08d58865519c4cd8756dc9a336d.
 COPY --link build/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 
-# Copy the Golang binaries.
+# Copy the pdfcpu binary (shared across all variants).
 COPY --link --from=pdfcpu-binary-stage /home/pdfcpu /usr/bin/
-COPY --link --from=gotenberg-binary-stage /home/gotenberg /usr/bin/
 
 # Set default characterset encoding to UTF-8.
 # See:
@@ -198,6 +199,9 @@ FROM common-stage AS gotenberg
 ARG GOTENBERG_VERSION=snapshot
 ARG GOTENBERG_USER_GID=1001
 ARG GOTENBERG_USER_UID=1001
+
+# Copy the Gotenberg binary (full variant with all modules).
+COPY --link --from=gotenberg-binary-stage /home/gotenberg /usr/bin/
 
 LABEL org.opencontainers.image.title="Gotenberg" \
     org.opencontainers.image.description="A containerized API for seamless PDF conversion." \
@@ -265,6 +269,9 @@ ARG GOTENBERG_VERSION=snapshot
 ARG GOTENBERG_USER_GID=1001
 ARG GOTENBERG_USER_UID=1001
 
+# Copy the Gotenberg binary (Chromium variant — no LibreOffice modules).
+COPY --link --from=gotenberg-binary-stage /home/gotenberg-chromium /usr/bin/gotenberg
+
 LABEL org.opencontainers.image.title="Gotenberg (Chromium)" \
     org.opencontainers.image.description="A containerized API for seamless PDF conversion — Chromium variant." \
     org.opencontainers.image.version="$GOTENBERG_VERSION" \
@@ -302,6 +309,9 @@ CMD [ "gotenberg" ]
 FROM common-stage AS gotenberg-libreoffice
 
 ARG GOTENBERG_VERSION=snapshot
+
+# Copy the Gotenberg binary (LibreOffice variant — no Chromium modules).
+COPY --link --from=gotenberg-binary-stage /home/gotenberg-libreoffice /usr/bin/gotenberg
 
 LABEL org.opencontainers.image.title="Gotenberg (LibreOffice)" \
     org.opencontainers.image.description="A containerized API for seamless PDF conversion — LibreOffice variant." \
