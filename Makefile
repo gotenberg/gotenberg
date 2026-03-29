@@ -5,8 +5,9 @@ help: ## Show the help
 	@grep -hE '^[A-Za-z0-9_ \-]*?:.*##.*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: build
-build: ## Build the Gotenberg's Docker image
+build: ## Build the Gotenberg's Docker image (use TARGET=gotenberg-chromium or TARGET=gotenberg-libreoffice for variants)
 	docker build \
+	--target $(TARGET) \
 	-t $(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
 	-f $(DOCKERFILE) $(DOCKER_BUILD_CONTEXT)
 
