@@ -29,14 +29,32 @@ inputs:
 
 outputs:
   tags:
-    description: Comma separated list of tag
+    description: Comma separated list of full variant tags
     value: ${{ steps.build.outputs.tags }}
+  tags_chromium:
+    description: Comma separated list of Chromium variant tags
+    value: ${{ steps.build.outputs.tags_chromium }}
+  tags_libreoffice:
+    description: Comma separated list of LibreOffice variant tags
+    value: ${{ steps.build.outputs.tags_libreoffice }}
   tags_cloud_run:
-    description: Comma separated list of Cloud Run tags (linux/amd64 only)
+    description: Comma separated list of Cloud Run full variant tags (linux/amd64 only)
     value: ${{ steps.build.outputs.tags_cloud_run }}
+  tags_cloud_run_chromium:
+    description: Comma separated list of Cloud Run Chromium variant tags (linux/amd64 only)
+    value: ${{ steps.build.outputs.tags_cloud_run_chromium }}
+  tags_cloud_run_libreoffice:
+    description: Comma separated list of Cloud Run LibreOffice variant tags (linux/amd64 only)
+    value: ${{ steps.build.outputs.tags_cloud_run_libreoffice }}
   tags_aws_lambda:
-    description: Comma separated list of AWS Lambda tags (linux/amd64 and linux/arm64 only)
+    description: Comma separated list of AWS Lambda full variant tags (linux/amd64 and linux/arm64 only)
     value: ${{ steps.build.outputs.tags_aws_lambda }}
+  tags_aws_lambda_chromium:
+    description: Comma separated list of AWS Lambda Chromium variant tags (linux/amd64 and linux/arm64 only)
+    value: ${{ steps.build.outputs.tags_aws_lambda_chromium }}
+  tags_aws_lambda_libreoffice:
+    description: Comma separated list of AWS Lambda LibreOffice variant tags (linux/amd64 and linux/arm64 only)
+    value: ${{ steps.build.outputs.tags_aws_lambda_libreoffice }}
 
 runs:
   using: composite
@@ -91,7 +109,7 @@ runs:
       if: inputs.docker_hub_username != ''
       shell: bash
       env:
-        INPUT_TAGS: ${{ steps.build.outputs.tags }},${{ steps.build.outputs.tags_cloud_run }},${{ steps.build.outputs.tags_aws_lambda }}
+        INPUT_TAGS: ${{ steps.build.outputs.tags }},${{ steps.build.outputs.tags_chromium }},${{ steps.build.outputs.tags_libreoffice }},${{ steps.build.outputs.tags_cloud_run }},${{ steps.build.outputs.tags_cloud_run_chromium }},${{ steps.build.outputs.tags_cloud_run_libreoffice }},${{ steps.build.outputs.tags_aws_lambda }},${{ steps.build.outputs.tags_aws_lambda_chromium }},${{ steps.build.outputs.tags_aws_lambda_libreoffice }}
         INPUT_DRY_RUN: ${{ inputs.dry_run }}
       run: |
         .github/actions/build-test-push/push.sh \
@@ -102,5 +120,11 @@ runs:
       shell: bash
       run: |
         echo "tags=${{ steps.build.outputs.tags }}"
+        echo "tags_chromium=${{ steps.build.outputs.tags_chromium }}"
+        echo "tags_libreoffice=${{ steps.build.outputs.tags_libreoffice }}"
         echo "tags_cloud_run=${{ steps.build.outputs.tags_cloud_run }}"
+        echo "tags_cloud_run_chromium=${{ steps.build.outputs.tags_cloud_run_chromium }}"
+        echo "tags_cloud_run_libreoffice=${{ steps.build.outputs.tags_cloud_run_libreoffice }}"
         echo "tags_aws_lambda=${{ steps.build.outputs.tags_aws_lambda }}"
+        echo "tags_aws_lambda_chromium=${{ steps.build.outputs.tags_aws_lambda_chromium }}"
+        echo "tags_aws_lambda_libreoffice=${{ steps.build.outputs.tags_aws_lambda_libreoffice }}"
