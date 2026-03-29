@@ -204,7 +204,7 @@ ARG GOTENBERG_USER_UID=1001
 COPY --link --from=gotenberg-binary-stage /home/gotenberg /usr/bin/
 
 LABEL org.opencontainers.image.title="Gotenberg" \
-    org.opencontainers.image.description="A containerized API for seamless PDF conversion." \
+    org.opencontainers.image.description="A Docker-based API for converting documents to PDF." \
     org.opencontainers.image.version="$GOTENBERG_VERSION" \
     org.opencontainers.image.authors="Julien Neuhart <neuhart.julien@gmail.com>" \
     org.opencontainers.image.documentation="https://gotenberg.dev" \
@@ -273,7 +273,7 @@ ARG GOTENBERG_USER_UID=1001
 COPY --link --from=gotenberg-binary-stage /home/gotenberg-chromium /usr/bin/gotenberg
 
 LABEL org.opencontainers.image.title="Gotenberg (Chromium)" \
-    org.opencontainers.image.description="A containerized API for seamless PDF conversion — Chromium variant." \
+    org.opencontainers.image.description="A Docker-based API for converting documents to PDF — Chromium variant." \
     org.opencontainers.image.version="$GOTENBERG_VERSION" \
     org.opencontainers.image.authors="Julien Neuhart <neuhart.julien@gmail.com>" \
     org.opencontainers.image.documentation="https://gotenberg.dev" \
@@ -314,7 +314,7 @@ ARG GOTENBERG_VERSION=snapshot
 COPY --link --from=gotenberg-binary-stage /home/gotenberg-libreoffice /usr/bin/gotenberg
 
 LABEL org.opencontainers.image.title="Gotenberg (LibreOffice)" \
-    org.opencontainers.image.description="A containerized API for seamless PDF conversion — LibreOffice variant." \
+    org.opencontainers.image.description="A Docker-based API for converting documents to PDF — LibreOffice variant." \
     org.opencontainers.image.version="$GOTENBERG_VERSION" \
     org.opencontainers.image.authors="Julien Neuhart <neuhart.julien@gmail.com>" \
     org.opencontainers.image.documentation="https://gotenberg.dev" \
