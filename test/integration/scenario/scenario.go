@@ -952,6 +952,39 @@ func (s *scenario) thePdfShouldHavePages(ctx context.Context, name string, pages
 	return nil
 }
 
+func (s *scenario) thePdfShouldHaveImages(ctx context.Context, name string, images int) error {
+	path := fmt.Sprintf("%s/%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"), name)
+
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("PDF %q does not exist", path)
+	}
+
+	cmd := []string{
+		"pdfimages",
+		"-list",
+		filepath.Base(path),
+	}
+
+	output, err := execCommandInIntegrationToolsContainer(ctx, cmd, path)
+	if err != nil {
+		return fmt.Errorf("exec %q: %w", cmd, err)
+	}
+
+	// pdfimages -list outputs a header (2 lines) then one line per image.
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	actual := 0
+	if len(lines) > 2 {
+		actual = len(lines) - 2
+	}
+
+	if actual != images {
+		return fmt.Errorf("expected %d image(s), but actual is %d", images, actual)
+	}
+
+	return nil
+}
+
 func (s *scenario) thePdfShouldBeSetToLandscapeOrientation(ctx context.Context, name string, kind string) error {
 	var path string
 	if !strings.HasPrefix(name, "*_") {
@@ -1270,6 +1303,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the "([^"]*)" PDF should have (\d+) page\(s\)$`, s.thePdfShouldHavePages)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) be set to landscape orientation$`, s.thePdfShouldBeSetToLandscapeOrientation)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have the following content at page (\d+):$`, s.thePdfShouldHaveTheFollowingContentAtPage)
+	ctx.Then(`^the "([^"]*)" PDF should have (\d+) image\(s\)$`, s.thePdfShouldHaveImages)
 	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		if s.gotenbergContainer != nil {
 			errTerminate := s.gotenbergContainer.Terminate(ctx, testcontainers.StopTimeout(0))

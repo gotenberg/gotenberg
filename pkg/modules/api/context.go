@@ -473,6 +473,23 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 		}
 	}
 
+	// Create symlinks from original filenames to UUID-based disk names
+	// so that relative asset references (e.g., <img src="image.png">)
+	// resolve correctly when Chromium navigates to a file:// URL.
+	// Symlink creation is best-effort: it may fail for filenames that
+	// exceed the filesystem NAME_MAX limit (the reason UUIDs were
+	// introduced in the first place).
+	for originalName, diskPath := range ctx.files {
+		symlinkPath := fmt.Sprintf("%s/%s", ctx.dirPath, originalName)
+		if symlinkPath == diskPath {
+			continue
+		}
+		err = os.Symlink(filepath.Base(diskPath), symlinkPath)
+		if err != nil {
+			logger.DebugContext(context.Background(), fmt.Sprintf("skip symlink for '%s': %s", originalName, err))
+		}
+	}
+
 	ctx.Log().DebugContext(ctx, fmt.Sprintf("form fields: %+v", ctx.values))
 	ctx.Log().DebugContext(ctx, fmt.Sprintf("form files: %+v", ctx.files))
 	ctx.Log().DebugContext(ctx, fmt.Sprintf("form files by field: %+v", ctx.filesByField))
