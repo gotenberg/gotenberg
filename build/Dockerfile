@@ -141,6 +141,8 @@ RUN \
         fonts-noto-cjk \
         # Standard Emoji support.
         fonts-noto-color-emoji \
+        # Tofu prevention. \
+        fonts-noto-core \
         # Install QPDF & ExifTool (PDF engines).
         qpdf exiftool &&\
     # See https://github.com/nextcloud/docker/issues/380.
