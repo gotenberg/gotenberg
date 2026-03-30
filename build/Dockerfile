@@ -141,7 +141,7 @@ RUN \
         fonts-noto-cjk \
         # Standard Emoji support.
         fonts-noto-color-emoji \
-        # Tofu prevention. \
+        # Tofu prevention.
         fonts-noto-core \
         # Install QPDF & ExifTool (PDF engines).
         qpdf exiftool &&\
