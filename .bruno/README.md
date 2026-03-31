@@ -59,7 +59,7 @@ headers {
 ## Checklist When Adding/Updating a Route
 
 1. Create or update the `.bru` file in the matching folder under `.bruno/`.
-2. Include all form fields from the route handler — check `FormData*` calls in the route function.
+2. Include all form fields from the route handler. Check `FormData*` calls in the route function.
 3. For file upload fields (`files`, `watermark`, `stamp`, `embeds`), use `@file(...)` with a suitable test file.
 4. Verify the URL path matches the route's `Path` field exactly.
 5. If you add a new module folder, keep the naming consistent (e.g., `PDF Engines/Rotate/`).

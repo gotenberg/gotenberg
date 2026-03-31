@@ -1,8 +1,8 @@
 # Integration Tests
 
 - **Framework:** Gherkin (BDD) via [Godog](https://github.com/cucumber/godog), with `testcontainers-go` for Docker orchestration.
-- **Feature files:** `test/integration/features/*.feature` — one file per endpoint or capability.
-- **Test infrastructure:** `test/integration/scenario/` — Go step definitions, container management, HTTP helpers, PDF validation.
+- **Feature files:** `test/integration/features/*.feature`, one file per endpoint or capability.
+- **Test infrastructure:** `test/integration/scenario/`, Go step definitions, container management, HTTP helpers, PDF validation.
 - **Entry point:** `test/integration/main_test.go` (build tag: `integration`).
 - **Test data:** `test/integration/testdata/`
 
@@ -51,7 +51,7 @@ make test-integration PLATFORM=linux/arm64 # Force a specific platform
 
 - `I make a "(GET|HEAD)" request to Gotenberg at the "<endpoint>" endpoint`
 - `I make a "(GET|HEAD)" request to Gotenberg at the "<endpoint>" endpoint with the following header(s):` (table: name | value)
-- `I make a "(POST)" request to Gotenberg at the "<endpoint>" endpoint with the following form data and header(s):` (table: name | value | kind — where kind is `file`, `field`, or `header`)
+- `I make a "(POST)" request to Gotenberg at the "<endpoint>" endpoint with the following form data and header(s):` (table: name | value | kind, where kind is `file`, `field`, or `header`)
 - `I make <N> concurrent "(POST)" requests to Gotenberg at the "<endpoint>" endpoint with the following form data and header(s):` (same table format)
 - `I wait for the asynchronous request to the webhook`
 
@@ -62,8 +62,8 @@ make test-integration PLATFORM=linux/arm64 # Force a specific platform
 - `the (response|webhook request) cookie "<name>" should be "<value>"`
 - `the (response|webhook request) body should match string:` (docstring)
 - `the (response|webhook request) body should contain string:` (docstring)
-- `the (response|webhook request) body should match JSON:` (docstring — use `"ignore"` for dynamic values like timestamps)
-- `the webhook event should match JSON:` (docstring — use `"ignore"` for dynamic values; polls for up to 5s)
+- `the (response|webhook request) body should match JSON:` (docstring, use `"ignore"` for dynamic values like timestamps)
+- `the webhook event should match JSON:` (docstring, use `"ignore"` for dynamic values; polls for up to 5s)
 - `there should be <N> PDF(s) in the (response|webhook request)`
 - `there should be the following file(s) in the (response|webhook request):` (table of filenames)
 - `the "<name>" PDF should have <N> page(s)`
