@@ -23,6 +23,34 @@ func init() {
 	gotenberg.MustRegisterModule(new(ExifTool))
 }
 
+// systemTags lists ExifTool tags that reflect internal filesystem state
+// rather than actual PDF metadata. These are stripped from both read and
+// write operations.
+var systemTags = []string{
+	"FileName",            // Reflects UUID-based disk name, not original filename
+	"Directory",           // Leaks internal temp path
+	"FileSize",            // System attribute
+	"FileModifyDate",      // System attribute
+	"FileAccessDate",      // System attribute
+	"FileInodeChangeDate", // System attribute
+	"FilePermissions",     // System attribute
+	"ExifToolVersion",     // Tool metadata
+	"Error",               // Extraction error messages
+	"Warning",             // Extraction warning messages
+}
+
+// writeOnlyDerivedTags lists ExifTool tags that are safe to return when
+// reading metadata but should not be written back (writing them can break
+// PDF/A compliance or cause side effects).
+var writeOnlyDerivedTags = []string{
+	"PageCount",         // Causes prism:pageCount injection
+	"Linearized",        // Computed status; writing it may invalidate structure
+	"PDFVersion",        // Header version; should not be manually forced via metadata
+	"MIMEType",          // Read-only derived
+	"FileType",          // Read-only derived
+	"FileTypeExtension", // Read-only derived
+}
+
 // ExifTool abstracts the CLI tool ExifTool and implements the
 // [gotenberg.PdfEngine] interface.
 type ExifTool struct {
@@ -163,6 +191,12 @@ func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *slog.Logger, i
 		return nil, err
 	}
 
+	// Strip system tags that reflect internal filesystem state (e.g.,
+	// UUID-based FileName, temp Directory) rather than actual PDF metadata.
+	for _, tag := range systemTags {
+		delete(fileMetadata[0].Fields, tag)
+	}
+
 	span.SetStatus(codes.Ok, "")
 	return fileMetadata[0].Fields, nil
 }
@@ -198,30 +232,13 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *slog.Logger, 
 		return err
 	}
 
-	// Define a list of derived, system, or computed tags that ExifTool
-	// extracts but should never be written back. Writing these can break PDF/A
-	// compliance (e.g., PageCount -> prism:pageCount) or cause side effects
-	// (e.g., FileModifyDate).
-	derivedTags := []string{
-		"PageCount",           // Causes prism:pageCount injection
-		"Linearized",          // Computed status; writing it may invalidate structure
-		"PDFVersion",          // Header version; should not be manually forced via metadata
-		"MIMEType",            // Read-only derived
-		"FileType",            // Read-only derived
-		"FileTypeExtension",   // Read-only derived
-		"FileSize",            // System attribute
-		"FileModifyDate",      // System attribute
-		"FileAccessDate",      // System attribute
-		"FileInodeChangeDate", // System attribute
-		"FilePermissions",     // System attribute
-		"FileName",            // Writing this triggers a file rename in ExifTool
-		"Directory",           // System attribute
-		"ExifToolVersion",     // Tool metadata
-		"Error",               // Extraction error messages
-		"Warning",             // Extraction warning messages
+	// Strip system and derived tags from the existing file metadata so
+	// they are not written back (which can break PDF/A compliance or
+	// cause side effects).
+	for _, tag := range systemTags {
+		delete(fileMetadata[0].Fields, tag)
 	}
-
-	for _, tag := range derivedTags {
+	for _, tag := range writeOnlyDerivedTags {
 		delete(fileMetadata[0].Fields, tag)
 	}
 
