@@ -333,7 +333,7 @@ func (s *processSupervisor) maybeIdleShutdown() {
 		return
 	}
 
-	s.logger.InfoContext(context.Background(), "idle shutdown timeout reached, stopping process")
+	s.logger.DebugContext(context.Background(), "idle shutdown timeout reached, stopping process")
 
 	// Stop the ticker — it will be restarted on the next Launch().
 	s.stopIdleTicker()
@@ -350,7 +350,7 @@ func (s *processSupervisor) maybeIdleShutdown() {
 	s.firstStartErr = nil
 	s.reqCounter.Store(0)
 
-	s.logger.InfoContext(context.Background(), "process stopped due to idle timeout")
+	s.logger.DebugContext(context.Background(), "process stopped due to idle timeout")
 }
 
 // acquireSlot attempts to acquire a semaphore slot, yielding it back if a
