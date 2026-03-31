@@ -147,10 +147,8 @@ RUN apt-get update -qq \
     # Cleanup.
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Copy PDFtk jar and create bash wrapper.
+# PDFtk bash wrapper.
 # See https://github.com/gotenberg/gotenberg/pull/273.
-COPY --link --from=downloader-stage /downloads/pdftk-all.jar /usr/bin/pdftk-all.jar
-
 RUN printf '#!/bin/bash\n\nexec java -jar /usr/bin/pdftk-all.jar "$@"' > /usr/bin/pdftk \
     && chmod +x /usr/bin/pdftk
 
@@ -162,11 +160,16 @@ RUN usermod -aG root gotenberg \
     && chgrp -R 0 /home/gotenberg \
     && chmod -R g=u /home/gotenberg
 
+# COPY instructions last to maximize cache reuse when only source code changes.
+
 # Improve fonts subpixel hinting and smoothing.
 # Credits:
 # https://github.com/arachnys/athenapdf/issues/69.
 # https://github.com/arachnys/athenapdf/commit/ba25a8d80a25d08d58865519c4cd8756dc9a336d.
 COPY --link build/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
+
+# Copy PDFtk jar.
+COPY --link --from=downloader-stage /downloads/pdftk-all.jar /usr/bin/pdftk-all.jar
 
 # Copy the pdfcpu binary (shared across all variants).
 COPY --link --from=pdfcpu-binary-stage /home/pdfcpu /usr/bin/
@@ -197,9 +200,6 @@ FROM common-stage AS gotenberg
 ARG GOTENBERG_VERSION=snapshot
 ARG GOTENBERG_USER_GID=1001
 ARG GOTENBERG_USER_UID=1001
-
-# Copy the Gotenberg binary (full variant with all modules).
-COPY --link --from=gotenberg-binary-stage /home/gotenberg /usr/bin/
 
 LABEL org.opencontainers.image.title="Gotenberg" \
     org.opencontainers.image.description="A Docker-based API for converting documents to PDF." \
@@ -235,6 +235,11 @@ RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/so
     # Cleanup.
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+# COPY instructions last to maximize cache reuse.
+
+# Copy the Gotenberg binary (full variant with all modules).
+COPY --link --from=gotenberg-binary-stage /home/gotenberg /usr/bin/
+
 # Copy unoconverter.
 COPY --link --from=downloader-stage /downloads/unoconverter /usr/bin/unoconverter
 
@@ -265,9 +270,6 @@ ARG GOTENBERG_VERSION=snapshot
 ARG GOTENBERG_USER_GID=1001
 ARG GOTENBERG_USER_UID=1001
 
-# Copy the Gotenberg binary (Chromium variant — no LibreOffice modules).
-COPY --link --from=gotenberg-binary-stage /home/gotenberg-chromium /usr/bin/gotenberg
-
 LABEL org.opencontainers.image.title="Gotenberg (Chromium)" \
     org.opencontainers.image.description="A Docker-based API for converting documents to PDF — Chromium variant." \
     org.opencontainers.image.version="$GOTENBERG_VERSION" \
@@ -281,6 +283,11 @@ RUN apt-get update -qq \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium \
     # Cleanup.
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# COPY instructions last to maximize cache reuse.
+
+# Copy the Gotenberg binary (Chromium variant, no LibreOffice modules).
+COPY --link --from=gotenberg-binary-stage /home/gotenberg-chromium /usr/bin/gotenberg
 
 # Copy dictionnaries so that hyphens work on Chromium.
 # See https://github.com/gotenberg/gotenberg/issues/1293.
@@ -304,9 +311,6 @@ CMD [ "gotenberg" ]
 FROM common-stage AS gotenberg-libreoffice
 
 ARG GOTENBERG_VERSION=snapshot
-
-# Copy the Gotenberg binary (LibreOffice variant — no Chromium modules).
-COPY --link --from=gotenberg-binary-stage /home/gotenberg-libreoffice /usr/bin/gotenberg
 
 LABEL org.opencontainers.image.title="Gotenberg (LibreOffice)" \
     org.opencontainers.image.description="A Docker-based API for converting documents to PDF — LibreOffice variant." \
@@ -334,6 +338,11 @@ RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/so
     && ln -s /usr/bin/python3 /usr/bin/python \
     # Cleanup.
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# COPY instructions last to maximize cache reuse.
+
+# Copy the Gotenberg binary (LibreOffice variant, no Chromium modules).
+COPY --link --from=gotenberg-binary-stage /home/gotenberg-libreoffice /usr/bin/gotenberg
 
 # Copy unoconverter.
 COPY --link --from=downloader-stage /downloads/unoconverter /usr/bin/unoconverter
