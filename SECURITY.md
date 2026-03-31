@@ -6,7 +6,7 @@ Only the latest version of Gotenberg receives security updates and patches. Keep
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability, do not publish it publicly. Send details via email to _neuhart [dot] julien [at] gmail [dot] com_ with the subject indicating a Gotenberg security vulnerability report.
+Do not publish vulnerabilities publicly. Report them through [GitHub's private vulnerability reporting](https://github.com/gotenberg/gotenberg/security/advisories/new).
 
 Include:
 
