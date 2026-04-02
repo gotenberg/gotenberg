@@ -58,8 +58,8 @@ make test-integration PLATFORM=linux/arm64 # Force a specific platform
 **Then (assertions):**
 
 - `the response status code should be <code>`
-- `the (response|webhook request) header "<name>" should be "<value>"`
-- `the (response|webhook request) cookie "<name>" should be "<value>"`
+- `the (response|webhook request|file request|server request) header "<name>" should be "<value>"`
+- `the (response|webhook request|file request|server request) cookie "<name>" should be "<value>"`
 - `the (response|webhook request) body should match string:` (docstring)
 - `the (response|webhook request) body should contain string:` (docstring)
 - `the (response|webhook request) body should match JSON:` (docstring, use `"ignore"` for dynamic values like timestamps)
@@ -73,6 +73,7 @@ make test-integration PLATFORM=linux/arm64 # Force a specific platform
 - `the (response|webhook request) PDF(s) (should|should NOT) be flatten`
 - `the (response|webhook request) PDF(s) (should|should NOT) be encrypted`
 - `the (response|webhook request) PDF(s) (should|should NOT) have the "<filename>" file embedded`
+- `the "<name>" PDF should have <N> image(s)`
 - `the Gotenberg container (should|should NOT) log the following entries:` (table of log substrings)
 - `all concurrent response status codes should be <code>`
 - `all concurrent responses should have <N> PDF(s)`
