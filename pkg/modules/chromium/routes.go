@@ -202,6 +202,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 						err = errors.Join(err, fmt.Errorf("invalid scope regex pattern for header '%s': %w", k, errCompile))
 						continue
 					}
+					p.MatchTimeout = 5 * time.Second
 					scopeRegexp = p
 				}
 
