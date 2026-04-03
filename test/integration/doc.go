@@ -1,2 +1,2 @@
-// Package integration contains everything related to integration testing.
+// Package integration contains the integration test suite.
 package integration

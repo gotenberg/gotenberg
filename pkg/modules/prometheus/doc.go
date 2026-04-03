@@ -1,5 +1,4 @@
-// Package prometheus provides a module which collects metrics and exposes them
-// via an HTTP route.
+// Package prometheus collects metrics and exposes them via an HTTP route.
 //
-// See: https://prometheus.io/.
+// See https://prometheus.io/.
 package prometheus

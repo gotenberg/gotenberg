@@ -1,6 +1,6 @@
 # Bruno API Collection
 
-A [Bruno](https://www.usebruno.com/) collection lives in `.bruno/` and mirrors every Gotenberg route. When adding or updating a route, update the collection to match.
+A [Bruno](https://www.usebruno.com/) collection in `.bruno/` mirrors every Gotenberg route. Update the collection when adding or updating a route.
 
 ## Structure
 
@@ -51,10 +51,10 @@ headers {
 
 ## Conventions
 
-- **Mandatory fields** are listed without prefix; **optional fields** are prefixed with `~` (disabled by default in Bruno).
+- **Mandatory fields** have no prefix; **optional fields** use the `~` prefix (disabled by default in Bruno).
 - **File references** use relative paths to `test/integration/testdata/`.
-- **Webhook and output filename headers** are included on every POST route as optional (`~`).
-- **One `.bru` file per request**. For routes with read/write variants (e.g., bookmarks, metadata), create separate files in the same folder.
+- **Webhook and output filename headers** appear on every POST route as optional (`~`).
+- **One `.bru` file per request.** For routes with read/write variants (e.g., bookmarks, metadata), create separate files in the same folder.
 
 ## Checklist When Adding/Updating a Route
 
@@ -62,4 +62,4 @@ headers {
 2. Include all form fields from the route handler. Check `FormData*` calls in the route function.
 3. For file upload fields (`files`, `watermark`, `stamp`, `embeds`), use `@file(...)` with a suitable test file.
 4. Verify the URL path matches the route's `Path` field exactly.
-5. If you add a new module folder, keep the naming consistent (e.g., `PDF Engines/Rotate/`).
+5. For new module folders, keep the naming consistent (e.g., `PDF Engines/Rotate/`).

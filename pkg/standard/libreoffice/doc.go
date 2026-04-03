@@ -1,3 +1,3 @@
-// Package libreoffice imports the application's modules for the
-// LibreOffice-only variant (no Chromium).
+// Package libreoffice imports modules for the LibreOffice-only variant (no
+// Chromium).
 package libreoffice

@@ -1,2 +1,2 @@
-// Package standard imports the application's default modules.
+// Package standard imports the default modules.
 package standard

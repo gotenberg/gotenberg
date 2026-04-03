@@ -84,12 +84,12 @@ Stage only the files related to the change. Do not use `git add -A` or `git add 
 
 ## Core Principles
 
-- **Backward compatibility is law.** Never modify existing CLI flags, environment variables, or API form fields unless explicitly instructed to perform a breaking change. Flag any breaking change immediately.
+- **Backward compatibility is law.** See the [Review Checklist](#review-checklist) for the full list of what must not change.
 - **Defensive programming.** Assume input is malformed. Handle errors explicitly. Never panic.
 - **Atomic commits.** One feature or fix per PR. Isolate refactoring from feature work.
 - **Idiomatic Go.** Follow "Effective Go" principles. All exported symbols must have GoDoc comments starting with their name.
 
-## Project Layout
+## Project Layout and Navigation
 
 ```
 cmd/gotenberg/       → Entry point only (wiring/startup). No business logic.
@@ -103,34 +103,21 @@ build/               → Dockerfile, fonts, Chromium config.
 
 Key interfaces live in `pkg/gotenberg/`: `Module`, `Provisioner`, `Validator`, `Debuggable`. Every module implements `Descriptor()` and self-registers. When adding features, determine if they belong in an existing module or require a new one.
 
-## Codebase Navigation
-
-- Start with `pkg/gotenberg/` for core interfaces and `pkg/modules/` for feature implementations.
 - The integration test infrastructure in `test/integration/scenario/` is well-structured. Read `scenario.go` and `containers.go` to understand the Gherkin step definitions before writing new tests.
 - Mocks for all major interfaces are in `pkg/gotenberg/mocks.go`. Use them for unit tests rather than creating new ones.
-- Import ordering is enforced: standard library, third-party, then `github.com/gotenberg/gotenberg/v8`, separated by blank lines.
 - When making changes, run only the relevant integration test tag rather than the full suite (40min timeout).
 - Telemetry infrastructure lives in `pkg/gotenberg/telemetry.go` (global Logger, Tracer, Meter) and `pkg/gotenberg/internal/` (log handlers, OTEL SDK init). HTTP semantic conventions are in `pkg/gotenberg/semconv/`.
 
----
-
 ## Makefile: the Only Build Interface
 
-All build and verification tasks go through the Makefile. Do not run `go` commands directly unless debugging a specific package.
+All build and verification tasks go through the Makefile. Do not run `go` commands directly unless debugging a specific package. The [Development Loop](#development-loop) covers the commands used during daily work. Additional commands:
 
-| Command                 | Purpose                                                       | When to use                                                                  |
-| ----------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `make build`            | Build the Docker image                                        | Before integration tests, or to verify compilation                           |
-| `make run`              | Run Gotenberg container via `docker compose`                  | Manual testing. Flags are configured via Makefile variables and compose.yaml |
-| `make telemetry`        | Start OpenTelemetry collector and OpenObserve                 | When testing telemetry locally                                               |
-| `make down`             | Stop all compose containers                                   | After manual testing                                                         |
-| `make fmt`              | Format Go code (`go fix`, `golangci-lint fmt`, `go mod tidy`) | Before every commit                                                          |
-| `make lint`             | Lint Go code (strict `.golangci.yml` config)                  | Before every commit. Zero errors permitted                                   |
-| `make lint-prettier`    | Lint non-Go files (Markdown, YAML, etc.) with Prettier        | Before every commit                                                          |
-| `make prettify`         | Format non-Go files (Markdown, YAML, etc.) with Prettier      | Before every commit                                                          |
-| `make test-unit`        | Run unit tests (`go test -race ./...`)                        | After code changes to `pkg/`                                                 |
-| `make test-integration` | Run integration tests (Gherkin/Godog, 40min timeout)          | After any feature or route change                                            |
-| `make godoc`            | Serve GoDoc at `localhost:6060`                               | To verify documentation                                                      |
+| Command          | Purpose                                       | When to use                                                                  |
+| ---------------- | --------------------------------------------- | ---------------------------------------------------------------------------- |
+| `make run`       | Run Gotenberg container via `docker compose`  | Manual testing. Flags are configured via Makefile variables and compose.yaml |
+| `make telemetry` | Start OpenTelemetry collector and OpenObserve | When testing telemetry locally                                               |
+| `make down`      | Stop all compose containers                   | After manual testing                                                         |
+| `make godoc`     | Serve GoDoc at `localhost:6060`               | To verify documentation                                                      |
 
 ## Module System
 
@@ -152,6 +139,49 @@ When adding a feature, first determine if it belongs in an existing module. Only
 - **Telemetry:** External tool calls (Chromium, LibreOffice, PDF engines, webhooks, downloads) must create OTEL spans with `trace.SpanKindClient` and `semconv.ServerAddress("toolname")`. Use `gotenberg.Tracer()` and `gotenberg.Meter()` for traces and metrics respectively.
 - **No business logic in `cmd/`:** The `cmd/gotenberg/` package is strictly for wiring and startup.
 
+## Documentation
+
+### Writing Style
+
+- **Short, declarative sentences.** Say what it does, then stop.
+- **Lead with the action.** "Validates font embedding" not "This function validates font embedding".
+- **Active voice.** "Gotenberg checks the profile" not "The profile is checked by Gotenberg".
+- **No em dashes.** Use a period, colon, or comma instead.
+- **No "we" hedging.** "Don't..." not "We do not recommend...".
+
+### Godoc
+
+All exported types and functions require Godoc comments. Start with the identifier name:
+
+```go
+// Violation records a single rule violation with context.
+type Violation struct { ... }
+
+// ValidatePDFA audits the document against a PDF/A profile.
+func ValidatePDFA(ctx context.Context, ...) ([]error, error)
+```
+
+Each package should have a `doc.go` with a `// Package foo ...` comment.
+
+Reference other identifiers with square brackets so pkg.go.dev renders them as links:
+
+```go
+// ValidatePDFA returns violations as []error where each element is a
+// [Violation] value. See [Rule] for the structured rule fields.
+// The document must be opened via [pdf.Open] with an [io.ReaderAt].
+```
+
+This works for same-package identifiers (`[Violation]`), other packages (`[io.Reader]`), and methods (`[Reader.Open]`).
+
+### Code Comments
+
+- Explain _why_, not _what_. The code shows what; the comment explains the non-obvious reasoning.
+- No numbered step comments (`// 1. Do X`, `// 2. Do Y`).
+- No section dividers with numbers (`// --- 8. Foo ---`). Plain dividers are fine for major boundaries (`// --- VeraPDF ---`).
+- No noise comments that restate the code (`// Check if err is nil`, `// Return results`).
+- Reference spec clauses where relevant (`// Per ISO 32000-2, Table 116...`).
+- Mark technical debt with `// TODO: [context]`.
+
 ---
 
 ## Review Checklist
@@ -171,13 +201,7 @@ If any of these are violated, the change **must** be flagged as a breaking chang
 
 The `.golangci.yml` enforces strict rules including: `gosec`, `govet`, `errcheck`, `staticcheck`, `dupl`, `bodyclose`, `exhaustive`, `errname`, `sloglint`, `gocritic`, and more. Zero linting errors are permitted.
 
-Formatters enforce `gci`, `gofmt`, `gofumpt`, `goimports` with import ordering:
-
-1. Standard library
-2. Third-party packages
-3. `github.com/gotenberg/gotenberg/v8`
-
-Three groups separated by blank lines.
+Formatters enforce `gci`, `gofmt`, `gofumpt`, `goimports` (see import ordering in [Coding Patterns](#coding-patterns)).
 
 ### Code Quality
 
@@ -189,16 +213,19 @@ Three groups separated by blank lines.
 
 ### Documentation
 
-- Every exported function, type, constant, and variable has a GoDoc comment starting with its name.
+- Every exported function, type, constant, and variable has a Godoc comment starting with its name (see [Godoc](#godoc)).
 - New packages include a `doc.go` file.
 - `README.md` is not modified unless explicitly requested.
+- All documentation follows the [Writing Style](#writing-style) and [Code Comments](#code-comments) guidelines.
 
 ---
 
 ## Scoped Guidelines
 
-Detailed guidelines for specific areas of the codebase:
+Some areas of the codebase have their own README with detailed instructions:
 
-- [`test/integration/README.md`](test/integration/README.md): Integration test framework, Gherkin step reference, available tags, and how to write new tests.
-- [`.bruno/README.md`](.bruno/README.md): Bruno API collection structure, `.bru` file format, conventions, and route update checklist.
-- [`pkg/modules/pdfengines/README.md`](pkg/modules/pdfengines/README.md): How to add new PDF engine features (Makefile variable and flag).
+| Area              | README                                                                 | Covers                                                    |
+| ----------------- | ---------------------------------------------------------------------- | --------------------------------------------------------- |
+| Integration tests | [`test/integration/README.md`](test/integration/README.md)             | Gherkin step reference, available tags, writing new tests |
+| Bruno collection  | [`.bruno/README.md`](.bruno/README.md)                                 | `.bru` file format, conventions, route update checklist   |
+| PDF engines       | [`pkg/modules/pdfengines/README.md`](pkg/modules/pdfengines/README.md) | Adding new engine features (Makefile variable and flag)   |

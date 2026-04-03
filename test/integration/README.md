@@ -2,15 +2,15 @@
 
 - **Framework:** Gherkin (BDD) via [Godog](https://github.com/cucumber/godog), with `testcontainers-go` for Docker orchestration.
 - **Feature files:** `test/integration/features/*.feature`, one file per endpoint or capability.
-- **Test infrastructure:** `test/integration/scenario/`, Go step definitions, container management, HTTP helpers, PDF validation.
+- **Test infrastructure:** `test/integration/scenario/` contains Go step definitions, container management, HTTP helpers, and PDF validation.
 - **Entry point:** `test/integration/main_test.go` (build tag: `integration`).
 - **Test data:** `test/integration/testdata/`
 
 ## How It Works
 
-Each scenario spins up a fresh Gotenberg Docker container via testcontainers. The step definitions in `scenario/scenario.go` map Gherkin steps to Go functions. An additional `gotenberg/integration-tools` container provides PDF validation tools (`verapdf`, `pdfinfo`, `pdftotext`).
+Each scenario spins up a fresh Gotenberg Docker container via testcontainers. Step definitions in `scenario/scenario.go` map Gherkin steps to Go functions. A separate `gotenberg/integration-tools` container provides PDF validation tools (`verapdf`, `pdfinfo`, `pdftotext`).
 
-**Important:** Integration tests require a Docker image. Run `make build` before `make test-integration`.
+**Important:** Run `make build` before `make test-integration`. Integration tests require a Docker image.
 
 ## Selective Test Runs
 
@@ -22,7 +22,14 @@ make test-integration TAGS=chromium-convert-html
 make test-integration TAGS="merge,split"
 ```
 
-Available tags: `chromium`, `chromium-concurrent`, `chromium-convert-html`, `chromium-convert-markdown`, `chromium-convert-url`, `chromium-screenshot-html`, `chromium-screenshot-markdown`, `chromium-screenshot-url`, `debug`, `health`, `libreoffice`, `libreoffice-convert`, `output-filename`, `pdfengines`, `pdfengines-convert`, `pdfengines-embed`, `embed`, `pdfengines-encrypt`, `encrypt`, `pdfengines-flatten`, `flatten`, `pdfengines-merge`, `merge`, `pdfengines-metadata`, `metadata`, `pdfengines-split`, `split`, `pdfengines-watermark`, `watermark`, `pdfengines-stamp`, `stamp`, `pdfengines-bookmarks`, `bookmarks`, `pdfengines-rotate`, `rotate`, `prometheus-metrics`, `root`, `version`, `webhook`, `download-from`.
+Available tags:
+
+| Group          | Tags                                                                                                                                                                                                                                                                                                                                                                 |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chromium       | `chromium`, `chromium-concurrent`, `chromium-convert-html`, `chromium-convert-markdown`, `chromium-convert-url`, `chromium-screenshot-html`, `chromium-screenshot-markdown`, `chromium-screenshot-url`                                                                                                                                                               |
+| LibreOffice    | `libreoffice`, `libreoffice-convert`                                                                                                                                                                                                                                                                                                                                 |
+| PDF Engines    | `pdfengines`, `pdfengines-convert`, `pdfengines-merge`, `merge`, `pdfengines-split`, `split`, `pdfengines-flatten`, `flatten`, `pdfengines-rotate`, `rotate`, `pdfengines-embed`, `embed`, `pdfengines-encrypt`, `encrypt`, `pdfengines-watermark`, `watermark`, `pdfengines-stamp`, `stamp`, `pdfengines-metadata`, `metadata`, `pdfengines-bookmarks`, `bookmarks` |
+| Infrastructure | `health`, `debug`, `root`, `version`, `output-filename`, `prometheus-metrics`, `webhook`, `download-from`                                                                                                                                                                                                                                                            |
 
 Other useful flags:
 
@@ -35,8 +42,8 @@ make test-integration PLATFORM=linux/arm64 # Force a specific platform
 
 1. Create or update a `.feature` file in `test/integration/features/`.
 2. Tag it appropriately (e.g., `@chromium @chromium-convert-html`).
-3. If the feature requires new tag(s), add them to both the `TAGS` comment block in the `Makefile` and the "Available tags" list above.
-4. If you create a new step definition, add it to `scenario/scenario.go`, register it in `InitializeScenario`, and update the "Available Gherkin Steps" list below.
+3. For new tags, add them to both the `TAGS` comment block in the `Makefile` and the "Available tags" list above.
+4. For new step definitions, add the function to `scenario/scenario.go`, register it in `InitializeScenario`, and add the step pattern to the "Available Gherkin Steps" list below (follow the existing format: backtick-quoted pattern, then parenthetical notes on arguments).
 5. Test data goes in `test/integration/testdata/`.
 
 ## Available Gherkin Steps

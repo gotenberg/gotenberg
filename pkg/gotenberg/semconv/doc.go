@@ -1,7 +1,5 @@
-// Package semconv is a copy/paste of utilities that are currently not exposed
-// in the OpenTelemery Go SDK.
+// Package semconv contains utilities not yet exposed in the OpenTelemetry Go
+// SDK. Remove this package once an official API exists.
 //
-// This package MUST be removed once an "official" API is provided.
-//
-// See: https://github.com/open-telemetry/opentelemetry-go-contrib/issues/4580.
+// See https://github.com/open-telemetry/opentelemetry-go-contrib/issues/4580.
 package semconv

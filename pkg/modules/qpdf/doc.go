@@ -1,12 +1,7 @@
-// Package qpdf provides an implementation of the gotenberg.PdfEngine
-// interface using the QPDF command-line tool. This package allows for:
+// Package qpdf implements gotenberg.PdfEngine using the QPDF command-line
+// tool. Merges, splits, and flattens PDF files.
 //
-// 1. The merging of PDF files.
-// 2. The splitting of PDF files.
-// 3. Flattening of PDF files
+// Requires the QPDF_BIN_PATH environment variable.
 //
-// The path to the QPDF binary must be specified using the QPDK_BIN_PATH
-// environment variable.
-//
-// See: https://github.com/qpdf/qpdf.
+// See https://github.com/qpdf/qpdf.
 package qpdf
