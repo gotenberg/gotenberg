@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/exec"
 	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -96,7 +97,7 @@ func execCommandInIntegrationToolsContainer(ctx context.Context, cmd []string, p
 		}
 	}(c, ctx)
 
-	_, output, err := c.Exec(ctx, cmd)
+	_, output, err := c.Exec(ctx, cmd, exec.Multiplexed())
 	if err != nil {
 		return "", fmt.Errorf("exec %q: %w", cmd, err)
 	}

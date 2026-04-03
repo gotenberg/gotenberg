@@ -443,6 +443,30 @@ func FormDataPdfEmbeds(form *api.FormData) []string {
 	return embedPaths
 }
 
+// FormDataPdfEmbedsMetadata extracts embeds metadata from form data.
+// The "embedsMetadata" field is a JSON string keyed by filename.
+func FormDataPdfEmbedsMetadata(form *api.FormData) map[string]map[string]string {
+	var metadata map[string]map[string]string
+	form.EmbedsMetadata(&metadata)
+	return metadata
+}
+
+// EmbedFilesMetadataStub sets metadata on embedded files in PDFs.
+func EmbedFilesMetadataStub(ctx *api.Context, engine gotenberg.PdfEngine, metadata map[string]map[string]string, inputPaths []string) error {
+	if len(metadata) == 0 {
+		return nil
+	}
+
+	for _, inputPath := range inputPaths {
+		err := engine.EmbedFilesMetadata(ctx, ctx.Log(), metadata, inputPath)
+		if err != nil {
+			return fmt.Errorf("set embeds metadata on PDF '%s': %w", inputPath, err)
+		}
+	}
+
+	return nil
+}
+
 // FormDataPdfEncrypt extracts encryption parameters from form data.
 func FormDataPdfEncrypt(form *api.FormData) (userPassword, ownerPassword string) {
 	form.String("userPassword", &userPassword, "")
@@ -638,6 +662,7 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			stamp := FormDataPdfStamp(form, false)
 			stampFile := FormDataPdfStampFile(form)
 			angle, rotatePages := FormDataPdfRotate(form, false)
+			embedsMetadata := FormDataPdfEmbedsMetadata(form)
 
 			var inputPaths []string
 			var flatten bool
@@ -754,6 +779,11 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("embed files into PDFs: %w", err)
 			}
 
+			err = EmbedFilesMetadataStub(ctx, engine, embedsMetadata, outputPaths)
+			if err != nil {
+				return fmt.Errorf("set embeds metadata: %w", err)
+			}
+
 			err = EncryptPdfStub(ctx, engine, userPassword, ownerPassword, outputPaths)
 			if err != nil {
 				return fmt.Errorf("encrypt PDFs: %w", err)
@@ -789,6 +819,7 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 			stamp := FormDataPdfStamp(form, false)
 			stampFile := FormDataPdfStampFile(form)
 			angle, rotatePages := FormDataPdfRotate(form, false)
+			embedsMetadata := FormDataPdfEmbedsMetadata(form)
 
 			var inputPaths []string
 			var flatten bool
@@ -854,6 +885,11 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 			err = EmbedFilesStub(ctx, engine, embedPaths, convertOutputPaths)
 			if err != nil {
 				return fmt.Errorf("embed files into PDFs: %w", err)
+			}
+
+			err = EmbedFilesMetadataStub(ctx, engine, embedsMetadata, convertOutputPaths)
+			if err != nil {
+				return fmt.Errorf("set embeds metadata: %w", err)
 			}
 
 			err = EncryptPdfStub(ctx, engine, userPassword, ownerPassword, convertOutputPaths)
@@ -1180,6 +1216,7 @@ func embedRoute(engine gotenberg.PdfEngine) api.Route {
 
 			form := ctx.FormData()
 			embedPaths := FormDataPdfEmbeds(form)
+			embedsMetadata := FormDataPdfEmbedsMetadata(form)
 
 			var inputPaths []string
 			err := form.
@@ -1191,6 +1228,11 @@ func embedRoute(engine gotenberg.PdfEngine) api.Route {
 			err = EmbedFilesStub(ctx, engine, embedPaths, inputPaths)
 			if err != nil {
 				return fmt.Errorf("embed files into PDFs: %w", err)
+			}
+
+			err = EmbedFilesMetadataStub(ctx, engine, embedsMetadata, inputPaths)
+			if err != nil {
+				return fmt.Errorf("set embeds metadata: %w", err)
 			}
 
 			err = ctx.AddOutputPaths(inputPaths...)

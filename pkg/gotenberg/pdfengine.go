@@ -201,6 +201,12 @@ type PdfEngine interface {
 	// TODO: attachments instead? Rename the route?
 	EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error
 
+	// EmbedFilesMetadata sets metadata (such as MIME type and AFRelationship)
+	// on already-embedded files in a PDF. The metadata map is keyed by
+	// filename, with each value being a map of property names to values
+	// (e.g., "mimeType" and "relationship").
+	EmbedFilesMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]map[string]string, inputPath string) error
+
 	// Watermark applies a watermark (behind page content) to a PDF file.
 	Watermark(ctx context.Context, logger *slog.Logger, inputPath string, stamp Stamp) error
 

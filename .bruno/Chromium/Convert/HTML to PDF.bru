@@ -11,7 +11,7 @@ post {
 }
 
 body:multipart-form {
-  files: @file(../../test/integration/testdata/page-1-html/index.html)
+  files: @file(../test/integration/testdata/page-1-html/index.html)
   ~landscape: false
   ~printBackground: false
   ~scale: 1.0
@@ -50,6 +50,9 @@ body:multipart-form {
   ~metadata: {"Author":"Bruno","Title":"Test"}
   ~userPassword:
   ~ownerPassword:
+  ~embeds: @file(../test/integration/testdata/embed_1.xml)
+  ~embeds: @file(../test/integration/testdata/embed_2.xml)
+  ~embedsMetadata: {"embed_1.xml":{"mimeType":"text/xml","relationship":"Data"}, "embed_2.xml":{"mimeType":"text/xml","relationship":"Data"}}
   ~watermarkSource: text
   ~watermarkExpression: CONFIDENTIAL
   ~watermarkPages:

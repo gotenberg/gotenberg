@@ -1262,6 +1262,68 @@ func (s *scenario) thePdfsShouldHaveEmbeddedFile(ctx context.Context, kind, shou
 	return nil
 }
 
+func (s *scenario) thePdfsShouldHaveEmbeddedFileWithRelationship(ctx context.Context, kind, embed, relationship string) error {
+	dirPath := s.teststoreDir
+
+	_, err := os.Stat(dirPath)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("directory %q does not exist", dirPath)
+	}
+
+	var paths []string
+	err = filepath.Walk(dirPath, func(path string, info os.FileInfo, pathErr error) error {
+		if pathErr != nil {
+			return pathErr
+		}
+		if strings.EqualFold(filepath.Ext(info.Name()), ".pdf") {
+			paths = append(paths, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("walk %q: %w", dirPath, err)
+	}
+
+	for _, path := range paths {
+		cmd := []string{
+			"verapdf",
+			"--off",
+			"--loglevel",
+			"0",
+			"--extract",
+			"embeddedFile",
+			filepath.Base(path),
+		}
+
+		output, err := execCommandInIntegrationToolsContainer(ctx, cmd, path)
+		if err != nil {
+			return fmt.Errorf("exec %q: %w", cmd, err)
+		}
+
+		fileNameTag := fmt.Sprintf("<fileName>%s</fileName>", embed)
+		relationshipTag := fmt.Sprintf("<afRelationship>%s</afRelationship>", relationship)
+
+		blocks := strings.Split(output, "</embeddedFile>")
+		found := false
+		for _, block := range blocks {
+			if !strings.Contains(block, fileNameTag) {
+				continue
+			}
+			if !strings.Contains(block, relationshipTag) {
+				return fmt.Errorf("embedded file %q missing afRelationship %q", embed, relationship)
+			}
+			found = true
+			break
+		}
+
+		if !found {
+			return fmt.Errorf("embedded file %q not found in verapdf output", embed)
+		}
+	}
+
+	return nil
+}
+
 func InitializeScenario(ctx *godog.ScenarioContext) {
 	s := &scenario{}
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
@@ -1300,6 +1362,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) be flatten$`, s.thePdfsShouldBeFlatten)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) be encrypted`, s.thePdfsShouldBeEncrypted)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) have the "([^"]*)" file embedded$`, s.thePdfsShouldHaveEmbeddedFile)
+	ctx.Then(`^the (response|webhook request) PDF\(s\) should have the "([^"]*)" file embedded with relationship "([^"]*)"$`, s.thePdfsShouldHaveEmbeddedFileWithRelationship)
 	ctx.Then(`^the "([^"]*)" PDF should have (\d+) page\(s\)$`, s.thePdfShouldHavePages)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) be set to landscape orientation$`, s.thePdfShouldBeSetToLandscapeOrientation)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have the following content at page (\d+):$`, s.thePdfShouldHaveTheFollowingContentAtPage)
