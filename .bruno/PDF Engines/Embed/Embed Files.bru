@@ -11,8 +11,10 @@ post {
 }
 
 body:multipart-form {
-  files: @file(../../test/integration/testdata/page_1.pdf)
-  embeds: @file(../../test/integration/testdata/page_1.pdf)
+  files: @file(../test/integration/testdata/page_1.pdf)
+  embeds: @file(../test/integration/testdata/embed_1.xml)
+  embeds: @file(../test/integration/testdata/embed_2.xml)
+  embedsMetadata: {"embed_1.xml":{"mimeType":"text/xml","relationship":"Data"}, "embed_2.xml":{"mimeType":"text/xml","relationship":"Data"}}
   ~downloadFrom: [{"url":"https://example.com/attachment.xml","embedded":true}]
 }
 

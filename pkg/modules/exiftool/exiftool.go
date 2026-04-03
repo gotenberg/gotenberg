@@ -531,6 +531,11 @@ func (engine *ExifTool) Rotate(ctx context.Context, logger *slog.Logger, inputPa
 	return err
 }
 
+// EmbedFilesMetadata is not available in this implementation.
+func (engine *ExifTool) EmbedFilesMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]map[string]string, inputPath string) error {
+	return fmt.Errorf("set embeds metadata with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*ExifTool)(nil)

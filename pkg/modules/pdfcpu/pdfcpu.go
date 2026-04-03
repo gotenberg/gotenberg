@@ -447,6 +447,11 @@ func (engine *PdfCpu) WriteBookmarks(ctx context.Context, logger *slog.Logger, i
 	return nil
 }
 
+// EmbedFilesMetadata is not available in this implementation.
+func (engine *PdfCpu) EmbedFilesMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]map[string]string, inputPath string) error {
+	return fmt.Errorf("set embeds metadata with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // EmbedFiles embeds files into a PDF. All files are embedded as file attachments
 // without modifying the main PDF content.
 func (engine *PdfCpu) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {

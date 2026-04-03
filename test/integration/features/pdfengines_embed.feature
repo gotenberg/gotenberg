@@ -17,6 +17,21 @@ Feature: /forms/pdfengines/embed
     Then the response PDF(s) should have the "embed_1.xml" file embedded
     Then the response PDF(s) should have the "embed_2.xml" file embedded
 
+  Scenario: POST /forms/pdfengines/embed with metadata
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/embed" endpoint with the following form data and header(s):
+      | files          | testdata/page_1.pdf                                                                                                              | file  |
+      | embeds         | testdata/embed_1.xml                                                                                                             | file  |
+      | embeds         | testdata/embed_2.xml                                                                                                             | file  |
+      | embedsMetadata | {"embed_1.xml":{"mimeType":"text/xml","relationship":"Data"},"embed_2.xml":{"mimeType":"text/xml","relationship":"Alternative"}} | field |
+    Then the response status code should be 200
+    And the response header "Content-Type" should be "application/pdf"
+    And there should be 1 PDF(s) in the response
+    And the response PDF(s) should have the "embed_1.xml" file embedded
+    And the response PDF(s) should have the "embed_1.xml" file embedded with relationship "Data"
+    And the response PDF(s) should have the "embed_2.xml" file embedded
+    And the response PDF(s) should have the "embed_2.xml" file embedded with relationship "Alternative"
+
   @download-from
   Scenario: POST /forms/pdfengines/embed with (Download From)
     Given I have a default Gotenberg container

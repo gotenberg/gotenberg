@@ -495,6 +495,11 @@ func (engine *PdfTk) Rotate(ctx context.Context, logger *slog.Logger, inputPath 
 	return nil
 }
 
+// EmbedFilesMetadata is not available in this implementation.
+func (engine *PdfTk) EmbedFilesMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]map[string]string, inputPath string) error {
+	return fmt.Errorf("set embeds metadata with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*PdfTk)(nil)

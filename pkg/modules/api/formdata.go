@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -388,6 +389,38 @@ func (form *FormData) Embeds(target *[]string) *FormData {
 		*target = append(*target, paths...)
 	}
 
+	return form
+}
+
+// EmbedsMetadata parses the "embedsMetadata" form field (a JSON string) into
+// a map keyed by filename. Each value is a map of property names to values
+// (e.g., "mimeType" and "relationship").
+//
+//	var metadata map[string]map[string]string
+//
+//	ctx.FormData().EmbedsMetadata(&metadata)
+func (form *FormData) EmbedsMetadata(target *map[string]map[string]string) *FormData {
+	if form.errors != nil {
+		return form
+	}
+
+	val, ok := form.values["embedsMetadata"]
+	if !ok || len(val) == 0 || val[0] == "" {
+		return form
+	}
+
+	raw := val[0]
+	parsed := make(map[string]map[string]string)
+
+	err := json.Unmarshal([]byte(raw), &parsed)
+	if err != nil {
+		form.append(
+			fmt.Errorf("form field 'embedsMetadata' is invalid: %w", err),
+		)
+		return form
+	}
+
+	*target = parsed
 	return form
 }
 

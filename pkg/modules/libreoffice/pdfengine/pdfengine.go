@@ -115,6 +115,11 @@ func (engine *LibreOfficePdfEngine) EmbedFiles(ctx context.Context, logger *slog
 	return fmt.Errorf("embed files with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// EmbedFilesMetadata is not available in this implementation.
+func (engine *LibreOfficePdfEngine) EmbedFilesMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]map[string]string, inputPath string) error {
+	return fmt.Errorf("set embeds metadata with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Watermark is not available in this implementation.
 func (engine *LibreOfficePdfEngine) Watermark(ctx context.Context, logger *slog.Logger, inputPath string, stamp gotenberg.Stamp) error {
 	return fmt.Errorf("watermark PDF with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)

@@ -22,6 +22,7 @@ type multiPdfEngines struct {
 	writeMetadataEngines  []gotenberg.PdfEngine
 	passwordEngines       []gotenberg.PdfEngine
 	embedEngines          []gotenberg.PdfEngine
+	embedMetadataEngines  []gotenberg.PdfEngine
 	readBookmarksEngines  []gotenberg.PdfEngine
 	writeBookmarksEngines []gotenberg.PdfEngine
 	watermarkEngines      []gotenberg.PdfEngine
@@ -38,6 +39,7 @@ func newMultiPdfEngines(
 	writeMetadataEngines,
 	passwordEngines,
 	embedEngines,
+	embedMetadataEngines,
 	readBookmarksEngines,
 	writeBookmarksEngines,
 	watermarkEngines,
@@ -53,6 +55,7 @@ func newMultiPdfEngines(
 		writeMetadataEngines:  writeMetadataEngines,
 		passwordEngines:       passwordEngines,
 		embedEngines:          embedEngines,
+		embedMetadataEngines:  embedMetadataEngines,
 		readBookmarksEngines:  readBookmarksEngines,
 		writeBookmarksEngines: writeBookmarksEngines,
 		watermarkEngines:      watermarkEngines,
@@ -597,6 +600,43 @@ func (multi *multiPdfEngines) Rotate(ctx context.Context, logger *slog.Logger, i
 	}
 
 	err = fmt.Errorf("rotate PDF with multi PDF engines: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+
+	return err
+}
+
+// EmbedFilesMetadata sets metadata on embedded files using the first available
+// engine that supports it.
+//
+//nolint:dupl
+func (multi *multiPdfEngines) EmbedFilesMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]map[string]string, inputPath string) error {
+	tracer := gotenberg.Tracer()
+	ctx, span := tracer.Start(ctx, "pdfengines.EmbedFilesMetadata", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
+	var err error
+	errChan := make(chan error, 1)
+
+	for _, engine := range multi.embedMetadataEngines {
+		go func(engine gotenberg.PdfEngine) {
+			errChan <- engine.EmbedFilesMetadata(ctx, logger, metadata, inputPath)
+		}(engine)
+
+		select {
+		case setErr := <-errChan:
+			if setErr != nil {
+				err = errors.Join(err, setErr)
+			} else {
+				span.SetStatus(codes.Ok, "")
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	err = fmt.Errorf("set embeds metadata using multi PDF engines: %w", err)
 	span.RecordError(err)
 	span.SetStatus(codes.Error, err.Error())
 
