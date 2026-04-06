@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"regexp"
 	"strings"
 	"syscall"
 
@@ -22,6 +23,12 @@ import (
 func init() {
 	gotenberg.MustRegisterModule(new(ExifTool))
 }
+
+// safeKeyPattern matches legitimate ExifTool tag names: alphanumeric,
+// hyphens, underscores, colons, and periods. Rejects control characters
+// (especially \n) that would inject stdin arguments via go-exiftool's
+// line-based protocol.
+var safeKeyPattern = regexp.MustCompile(`^[a-zA-Z0-9\-_.:]+$`)
 
 // systemTags lists ExifTool tags that reflect internal filesystem state
 // rather than actual PDF metadata. These are stripped from both read and
@@ -253,6 +260,20 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *slog.Logger, 
 		"HardLink",  // Writing this creates a hard link in ExifTool
 		"SymLink",   // Writing this creates a symbolic link in ExifTool
 	}
+	// Reject metadata keys containing characters that could inject ExifTool
+	// stdin arguments. ExifTool uses a line-based stdin protocol; a newline
+	// in a key splits into a separate argument, enabling flag injection
+	// (e.g., -if with Perl eval). Only allow alphanumeric, hyphen, colon,
+	// period, and underscore — sufficient for all legitimate tag names.
+	for key := range metadata {
+		if !safeKeyPattern.MatchString(key) {
+			err = fmt.Errorf("write PDF metadata with ExifTool: invalid metadata key %q", key)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			return err
+		}
+	}
+
 	for key := range metadata {
 		for _, tag := range dangerousTags {
 			if strings.EqualFold(key, tag) {
