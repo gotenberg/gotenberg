@@ -126,6 +126,8 @@ RUN apt-get update -qq \
     && apt-get upgrade -yqq \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
         tini \
+        # Many users rely on curl for Docker health checks.
+        curl \
         # Install fonts.
         # Essential metric-compatible fonts for LibreOffice layout fidelity (replaces MS Fonts).
         fonts-crosextra-carlito \
