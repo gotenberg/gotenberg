@@ -297,6 +297,8 @@ COPY --link --chown="$GOTENBERG_USER_UID:$GOTENBERG_USER_GID" build/chromium-hyp
 
 ENV CHROMIUM_BIN_PATH=/usr/bin/chromium
 ENV CHROMIUM_HYPHEN_DATA_DIR_PATH=/opt/gotenberg/chromium-hyphen-data
+# No LibreOffice in this variant; override the default to use all available engines.
+ENV PDFENGINES_CONVERT_ENGINES=
 
 USER gotenberg
 WORKDIR /home/gotenberg
