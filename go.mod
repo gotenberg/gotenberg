@@ -25,13 +25,13 @@ require (
 	github.com/testcontainers/testcontainers-go v0.41.0
 	go.opentelemetry.io/contrib/bridges/otelslog v0.17.0
 	go.opentelemetry.io/contrib/exporters/autoexport v0.67.0
-	go.opentelemetry.io/otel v1.42.0
-	go.opentelemetry.io/otel/log v0.18.0
-	go.opentelemetry.io/otel/metric v1.42.0
-	go.opentelemetry.io/otel/sdk v1.42.0
-	go.opentelemetry.io/otel/sdk/log v0.18.0
-	go.opentelemetry.io/otel/sdk/metric v1.42.0
-	go.opentelemetry.io/otel/trace v1.42.0
+	go.opentelemetry.io/otel v1.43.0
+	go.opentelemetry.io/otel/log v0.19.0
+	go.opentelemetry.io/otel/metric v1.43.0
+	go.opentelemetry.io/otel/sdk v1.43.0
+	go.opentelemetry.io/otel/sdk/log v0.19.0
+	go.opentelemetry.io/otel/sdk/metric v1.43.0
+	go.opentelemetry.io/otel/trace v1.43.0
 	golang.org/x/net v0.52.0
 	golang.org/x/sync v0.20.0
 	golang.org/x/term v0.41.0
