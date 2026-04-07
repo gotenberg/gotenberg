@@ -196,7 +196,7 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.String("api-correlation-id-header", "Gotenberg-Trace", "Set the header name to use for identifying requests")
 			fs.Bool("api-enable-basic-auth", false, "Enable basic authentication - will look for the GOTENBERG_API_BASIC_AUTH_USERNAME and GOTENBERG_API_BASIC_AUTH_PASSWORD environment variables")
 			fs.StringSlice("api-download-from-allow-list", []string{}, "Set the allowed URLs for the download from feature using regular expressions - supports multiple values")
-			fs.StringSlice("api-download-from-deny-list", []string{}, "Set the denied URLs for the download from feature using regular expressions - supports multiple values")
+			fs.StringSlice("api-download-from-deny-list", []string{`^https?://(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|169\.254\.|0\.0\.0\.0|127\.|localhost|\[::1\]|\[fd)`}, "Set the denied URLs for the download from feature using regular expressions - supports multiple values")
 			fs.Int("api-download-from-max-retry", 4, "Set the maximum number of retries for the download from feature")
 			fs.Bool("api-disable-download-from", false, "Disable the download from feature")
 			fs.Bool("api-disable-health-check-route-telemetry", true, "Disable telemetry for health check route")

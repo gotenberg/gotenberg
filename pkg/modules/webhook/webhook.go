@@ -39,10 +39,20 @@ func (w *Webhook) Descriptor() gotenberg.ModuleDescriptor {
 			fs := flag.NewFlagSet("webhook", flag.ExitOnError)
 			fs.Bool("webhook-enable-sync-mode", false, "Enable synchronous mode for the webhook feature")
 			fs.StringSlice("webhook-allow-list", []string{}, "Set the allowed URLs for the webhook feature using regular expressions - supports multiple values")
-			fs.StringSlice("webhook-deny-list", []string{}, "Set the denied URLs for the webhook feature using regular expressions - supports multiple values")
+			fs.StringSlice("webhook-deny-list", []string{`^https?://(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|169\.254\.|0\.0\.0\.0|127\.|localhost|\[::1\]|\[fd)`}, "Set the denied URLs for the webhook feature using regular expressions - supports multiple values")
+			fs.Int("webhook-max-retry", 4, "Set the maximum number of retries for the webhook feature")
+
+			// Deprecated flags.
 			fs.StringSlice("webhook-error-allow-list", []string{}, "Set the allowed URLs in case of an error for the webhook feature using regular expressions - supports multiple values")
 			fs.StringSlice("webhook-error-deny-list", []string{}, "Set the denied URLs in case of an error for the webhook feature using regular expressions - supports multiple values")
-			fs.Int("webhook-max-retry", 4, "Set the maximum number of retries for the webhook feature")
+			err := fs.MarkDeprecated("webhook-error-allow-list", "use --webhook-allow-list instead")
+			if err != nil {
+				panic(err)
+			}
+			err = fs.MarkDeprecated("webhook-error-deny-list", "use --webhook-deny-list instead")
+			if err != nil {
+				panic(err)
+			}
 			fs.Duration("webhook-retry-min-wait", time.Duration(1)*time.Second, "Set the minimum duration to wait before trying to call the webhook again")
 			fs.Duration("webhook-retry-max-wait", time.Duration(30)*time.Second, "Set the maximum duration to wait before trying to call the webhook again")
 			fs.Duration("webhook-client-timeout", time.Duration(30)*time.Second, "Set the time limit for requests to the webhook")
@@ -60,8 +70,8 @@ func (w *Webhook) Provision(ctx *gotenberg.Context) error {
 	w.enableSyncMode = flags.MustBool("webhook-enable-sync-mode")
 	w.allowList = flags.MustRegexpSlice("webhook-allow-list")
 	w.denyList = flags.MustRegexpSlice("webhook-deny-list")
-	w.errorAllowList = flags.MustRegexpSlice("webhook-error-allow-list")
-	w.errorDenyList = flags.MustRegexpSlice("webhook-error-deny-list")
+	w.errorAllowList = flags.MustDeprecatedRegexpSlice("webhook-error-allow-list", "webhook-allow-list")
+	w.errorDenyList = flags.MustDeprecatedRegexpSlice("webhook-error-deny-list", "webhook-deny-list")
 	w.maxRetry = flags.MustInt("webhook-max-retry")
 	w.retryMinWait = flags.MustDuration("webhook-retry-min-wait")
 	w.retryMaxWait = flags.MustDuration("webhook-retry-max-wait")

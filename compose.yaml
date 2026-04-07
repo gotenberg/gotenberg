@@ -86,8 +86,6 @@ services:
       - "--webhook-enable-sync-mode=${WEBHOOK_ENABLE_SYNC_MODE}"
       - "--webhook-allow-list=${WEBHOOK_ALLOW_LIST}"
       - "--webhook-deny-list=${WEBHOOK_DENY_LIST}"
-      - "--webhook-error-allow-list=${WEBHOOK_ERROR_ALLOW_LIST}"
-      - "--webhook-error-deny-list=${WEBHOOK_ERROR_DENY_LIST}"
       - "--webhook-max-retry=${WEBHOOK_MAX_RETRY}"
       - "--webhook-retry-min-wait=${WEBHOOK_RETRY_MIN_WAIT}"
       - "--webhook-retry-max-wait=${WEBHOOK_RETRY_MAX_WAIT}"
