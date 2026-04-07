@@ -164,7 +164,7 @@ TAGS=
 
 .PHONY: test-integration
 test-integration: ## Run integration tests (automatically retries failed scenarios up to 3 times)
-	go test -timeout 90m -tags=integration -v github.com/gotenberg/gotenberg/v8/test/integration -args \
+	go test -timeout 40m -tags=integration -v github.com/gotenberg/gotenberg/v8/test/integration -args \
 	--gotenberg-docker-repository=$(DOCKER_REPOSITORY) \
 	--gotenberg-version=$(GOTENBERG_VERSION) \
  	--gotenberg-container-platform=$(PLATFORM) \
