@@ -64,7 +64,7 @@ jobs:
 
   release_ppc64le:
     name: Release linux/ppc64le
-    runs-on: ubuntu-24.04-ppc64le
+    runs-on: ubuntu-24.04-ppc64le-p10
     outputs:
       tags: ${{ steps.build_push.outputs.tags }}
       tags_chromium: ${{ steps.build_push.outputs.tags_chromium }}

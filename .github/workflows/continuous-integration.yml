@@ -104,7 +104,7 @@ jobs:
     needs:
       - test-unit
     name: Snapshot linux/ppc64le
-    runs-on: ubuntu-24.04-ppc64le
+    runs-on: ubuntu-24.04-ppc64le-p10
     outputs:
       tags: ${{ steps.build_test_push.outputs.tags }}
       tags_chromium: ${{ steps.build_test_push.outputs.tags_chromium }}
@@ -367,7 +367,7 @@ jobs:
     needs:
       - test-unit
     name: Edge linux/ppc64le
-    runs-on: ubuntu-24.04-ppc64le
+    runs-on: ubuntu-24.04-ppc64le-p10
     outputs:
       tags: ${{ steps.build_test_push.outputs.tags }}
       tags_chromium: ${{ steps.build_test_push.outputs.tags_chromium }}
