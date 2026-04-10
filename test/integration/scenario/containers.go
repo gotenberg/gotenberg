@@ -7,8 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -109,7 +108,7 @@ func execCommandInIntegrationToolsContainer(ctx context.Context, cmd []string, p
 	return string(b), nil
 }
 
-func containerHttpEndpoint(ctx context.Context, container testcontainers.Container, port nat.Port) (string, error) {
+func containerHttpEndpoint(ctx context.Context, container testcontainers.Container, port string) (string, error) {
 	ip, err := container.Host(ctx)
 	if err != nil {
 		return "", fmt.Errorf("get container IP: %w", err)
