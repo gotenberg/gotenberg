@@ -336,8 +336,9 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 		return errors.New("context has no deadline")
 	}
 
-	// We validate the "main" URL against our allowed / deny lists.
-	err := gotenberg.FilterDeadline(b.arguments.allowList, b.arguments.denyList, url, deadline)
+	// We validate the "main" URL against our allowed / deny lists, and
+	// against the IP-based outbound URL guard. See [gotenberg.FilterOutboundURL].
+	err := gotenberg.FilterOutboundURL(ctx, url, b.arguments.allowList, b.arguments.denyList, deadline)
 	if err != nil {
 		return fmt.Errorf("filter URL: %w", err)
 	}

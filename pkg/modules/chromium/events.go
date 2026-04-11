@@ -52,7 +52,7 @@ func listenForEventRequestPaused(ctx context.Context, logger *slog.Logger, optio
 					return
 				}
 
-				err := gotenberg.FilterDeadline(options.allowList, options.denyList, e.Request.URL, deadline)
+				err := gotenberg.FilterOutboundURL(ctx, e.Request.URL, options.allowList, options.denyList, deadline)
 				if err != nil {
 					logger.WarnContext(ctx, err.Error())
 					allow = false
@@ -81,6 +81,15 @@ func listenForEventRequestPaused(ctx context.Context, logger *slog.Logger, optio
 				executorCtx := cdp.WithExecutor(ctx, cctx.Target)
 
 				if !allow {
+					// Use AccessDenied so Chromium emits net::ERR_ACCESS_DENIED,
+					// which is intentionally absent from the EventLoadingFailed
+					// known-errors list. Routing through BlockedByClient would
+					// surface the failure, but the Document-type dispatcher in
+					// listenForEventLoadingFailed cannot distinguish a blocked
+					// iframe (sub-frame Document) from a main-page Document, and
+					// would attribute the iframe failure to the main page.
+					// Filter-block observability is provided by the warn log
+					// above instead.
 					req := fetch.FailRequest(e.RequestID, network.ErrorReasonAccessDenied)
 					err = req.Do(executorCtx)
 					if err != nil {

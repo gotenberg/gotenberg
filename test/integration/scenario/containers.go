@@ -25,9 +25,52 @@ func (n *noopLogger) Printf(format string, v ...any) {
 	// NOOP
 }
 
+// integrationAllowList is the default allow-list pattern injected into
+// every Gotenberg container started by the integration tests. The outbound
+// URL guard introduced for SSRF protection rejects URLs whose host
+// resolves to a non-public IP, which would block:
+//
+//   - host.docker.internal (Docker host gateway, RFC1918)
+//   - The static helper server running inside the test network
+//   - file:// URIs created in /tmp by the API context
+//
+// Setting the allow-list to a permissive pattern flips the URL guard into
+// "allow-list match bypasses the IP check" mode for every URL the tests
+// touch. Operator-supplied deny-lists still apply, so deny-list scenarios
+// keep working. Test scenarios that exercise allow-list semantics
+// explicitly override this default in their environment table.
+//
+// Production operators wanting a similar bypass for trusted internal
+// destinations should set their own --*-allow-list with a tighter regex
+// (for example ^https?://internal\.svc(:|/|$)).
+const integrationAllowList = `.+`
+
+// applyDefaultEnv merges baseline environment variables that the
+// integration tests rely on into env, without overwriting values supplied
+// by the test scenario itself. Tests can clear a default by setting it to
+// the empty string in their scenario table.
+func applyDefaultEnv(env map[string]string) map[string]string {
+	if env == nil {
+		env = make(map[string]string)
+	}
+	defaults := map[string]string{
+		"CHROMIUM_ALLOW_LIST":          integrationAllowList,
+		"API_DOWNLOAD_FROM_ALLOW_LIST": integrationAllowList,
+		"WEBHOOK_ALLOW_LIST":           integrationAllowList,
+	}
+	for k, v := range defaults {
+		if _, ok := env[k]; !ok {
+			env[k] = v
+		}
+	}
+	return env
+}
+
 func startGotenbergContainer(ctx context.Context, env map[string]string) (*testcontainers.DockerNetwork, testcontainers.Container, error) {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
+
+	env = applyDefaultEnv(env)
 
 	n, err := network.New(ctx)
 	if err != nil {
