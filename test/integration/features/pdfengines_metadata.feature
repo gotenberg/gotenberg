@@ -106,6 +106,23 @@ Feature: /forms/pdfengines/metadata/{write|read}
       Invalid form data: form field 'metadata' is invalid (got 'foo', resulting to unmarshal metadata: invalid character 'o' in literal false (expecting 'a'))
       """
 
+  Scenario: POST /forms/pdfengines/metadata/write (Reject Newline-Injected Pseudo-Tag)
+    # Regression: a newline in a metadata value would split go-exiftool's
+    # stdin line and inject an arbitrary ExifTool pseudo-tag such as
+    # -FileName=, -SymLink=, or -HardLink=, allowing arbitrary filesystem
+    # writes as the container user. WriteMetadata now rejects values
+    # containing control characters with HTTP 400.
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/write" endpoint with the following form data and header(s):
+      | files    | testdata/page_1.pdf                            | file  |
+      | metadata | {"Title":"test\\n-FileName=/tmp/inject_proof"} | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should contain string:
+      """
+      At least one PDF engine cannot process the requested metadata
+      """
+
   Scenario: POST /forms/pdfengines/metadata/read (Bad Request)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/read" endpoint with the following form data and header(s):

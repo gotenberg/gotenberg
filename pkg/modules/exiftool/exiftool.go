@@ -30,6 +30,24 @@ func init() {
 // line-based protocol.
 var safeKeyPattern = regexp.MustCompile(`^[a-zA-Z0-9\-_.:]+$`)
 
+// validateMetadataValue rejects metadata values containing characters that
+// could inject ExifTool stdin arguments. go-exiftool writes each key/value
+// pair as a single line via fmt.Fprintln(stdin, "-"+k+"="+str), so a
+// newline in the value splits into a second stdin line that ExifTool
+// interprets as an additional argument. An attacker who controls a
+// metadata value but not the key could otherwise inject pseudo-tags like
+// -FileName=, -Directory=, -SymLink=, or -HardLink= and trigger arbitrary
+// filesystem side effects. The same applies to carriage returns and NUL.
+//
+// The returned error wraps [gotenberg.ErrPdfEngineMetadataValueNotSupported]
+// so the API layer surfaces it as HTTP 400.
+func validateMetadataValue(key, value string) error {
+	if strings.ContainsAny(value, "\n\r\x00") {
+		return fmt.Errorf("write PDF metadata with ExifTool: invalid metadata value for key %q (contains control character): %w", key, gotenberg.ErrPdfEngineMetadataValueNotSupported)
+	}
+	return nil
+}
+
 // systemTags lists ExifTool tags that reflect internal filesystem state
 // rather than actual PDF metadata. These are stripped from both read and
 // write operations.
@@ -267,7 +285,7 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *slog.Logger, 
 	// period, and underscore — sufficient for all legitimate tag names.
 	for key := range metadata {
 		if !safeKeyPattern.MatchString(key) {
-			err = fmt.Errorf("write PDF metadata with ExifTool: invalid metadata key %q", key)
+			err = fmt.Errorf("write PDF metadata with ExifTool: invalid metadata key %q: %w", key, gotenberg.ErrPdfEngineMetadataValueNotSupported)
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return err
@@ -285,21 +303,38 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *slog.Logger, 
 	for key, value := range metadata {
 		switch val := value.(type) {
 		case string:
+			if err = validateMetadataValue(key, val); err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+				return err
+			}
 			fileMetadata[0].SetString(key, val)
 		case []string:
+			for _, s := range val {
+				if err = validateMetadataValue(key, s); err != nil {
+					span.RecordError(err)
+					span.SetStatus(codes.Error, err.Error())
+					return err
+				}
+			}
 			fileMetadata[0].SetStrings(key, val)
 		case []any:
 			// See https://github.com/gotenberg/gotenberg/issues/1048.
 			strs := make([]string, len(val))
 			for i, entry := range val {
-				if str, ok := entry.(string); ok {
-					strs[i] = str
-					continue
+				str, ok := entry.(string)
+				if !ok {
+					err = fmt.Errorf("write PDF metadata with ExifTool: %s %+v %s %w", key, val, reflect.TypeFor[[]any](), gotenberg.ErrPdfEngineMetadataValueNotSupported)
+					span.RecordError(err)
+					span.SetStatus(codes.Error, err.Error())
+					return err
 				}
-				err = fmt.Errorf("write PDF metadata with ExifTool: %s %+v %s %w", key, val, reflect.TypeFor[[]any](), gotenberg.ErrPdfEngineMetadataValueNotSupported)
-				span.RecordError(err)
-				span.SetStatus(codes.Error, err.Error())
-				return err
+				if err = validateMetadataValue(key, str); err != nil {
+					span.RecordError(err)
+					span.SetStatus(codes.Error, err.Error())
+					return err
+				}
+				strs[i] = str
 			}
 			fileMetadata[0].SetStrings(key, strs)
 		case bool:
