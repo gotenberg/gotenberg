@@ -1,24 +1,24 @@
 # Bruno API Collection
 
-A [Bruno](https://www.usebruno.com/) collection in `.bruno/` mirrors every Gotenberg route. Update the collection when adding or updating a route.
+[Bruno](https://www.usebruno.com/) collection mirroring every Gotenberg route. Update the collection when adding or modifying a route.
 
 ## Structure
 
 ```
 .bruno/
-├── bruno.json                     # Collection config
-├── collection.bru                 # Collection-level defaults (Gotenberg-Trace header)
+├── bruno.json                      # Collection config
+├── collection.bru                  # Collection-level defaults (Gotenberg-Trace header)
 ├── environments/
-│   ├── Local.bru                  # baseUrl: http://localhost:3000
-│   └── Demo.bru                   # baseUrl: https://demo.gotenberg.dev
-├── Health & Info/                  # GET routes
-├── Chromium/Convert/               # POST routes grouped by module
+│   ├── Local.bru                   # baseUrl: http://localhost:3000
+│   └── Demo.bru                    # baseUrl: https://demo.gotenberg.dev
+├── Health & Info/                   # GET routes
+├── Chromium/Convert/                # POST routes grouped by module
 ├── Chromium/Screenshot/
 ├── LibreOffice/
-└── PDF Engines/<Feature>/          # One folder per feature (Merge, Split, Rotate, …)
+└── PDF Engines/<Feature>/           # One folder per feature (Merge, Split, Rotate, ...)
 ```
 
-## `.bru` File Format
+## `.bru` file format
 
 ```bru
 meta {
@@ -51,12 +51,12 @@ headers {
 
 ## Conventions
 
-- **Mandatory fields** have no prefix; **optional fields** use the `~` prefix (disabled by default in Bruno).
-- **File references** use relative paths to `test/integration/testdata/`.
-- **Webhook and output filename headers** appear on every POST route as optional (`~`).
-- **One `.bru` file per request.** For routes with read/write variants (e.g., bookmarks, metadata), create separate files in the same folder.
+- Mandatory fields have no prefix. Optional fields use `~` (disabled by default in Bruno).
+- File references use relative paths to `test/integration/testdata/`.
+- Webhook and output filename headers appear on every POST route as optional (`~`).
+- One `.bru` file per request. For routes with read/write variants (e.g., bookmarks, metadata), create separate files in the same folder.
 
-## Checklist When Adding/Updating a Route
+## Checklist
 
 1. Create or update the `.bru` file in the matching folder under `.bruno/`.
 2. Include all form fields from the route handler. Check `FormData*` calls in the route function.
