@@ -268,15 +268,18 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *slog.Logger, 
 	}
 
 	// Filter user-supplied metadata to prevent ExifTool pseudo-tags from
-	// triggering dangerous side effects like file renames, moves, or link
-	// creation. Comparison is case-insensitive because ExifTool processes
-	// tag names case-insensitively.
+	// triggering dangerous side effects like file renames, moves, link
+	// creation, or permission changes. Comparison is case-insensitive
+	// because ExifTool processes tag names case-insensitively, and group
+	// prefixes are stripped because ExifTool treats "System:FileName" the
+	// same as "FileName".
 	// See https://exiftool.org/TagNames/Extra.html.
 	dangerousTags := []string{
-		"FileName",  // Writing this triggers a file rename in ExifTool
-		"Directory", // Writing this triggers a file move in ExifTool
-		"HardLink",  // Writing this creates a hard link in ExifTool
-		"SymLink",   // Writing this creates a symbolic link in ExifTool
+		"FileName",        // Writing this triggers a file rename in ExifTool
+		"Directory",       // Writing this triggers a file move in ExifTool
+		"HardLink",        // Writing this creates a hard link in ExifTool
+		"SymLink",         // Writing this creates a symbolic link in ExifTool
+		"FilePermissions", // Writing this changes the file's permissions
 	}
 	// Reject metadata keys containing characters that could inject ExifTool
 	// stdin arguments. ExifTool uses a line-based stdin protocol; a newline
@@ -293,8 +296,16 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *slog.Logger, 
 	}
 
 	for key := range metadata {
+		// Strip ExifTool group prefixes (e.g., "System:FileName" →
+		// "FileName") before comparing. ExifTool allows leading group
+		// names separated by colons, and treats the prefixed and bare
+		// forms identically.
+		bare := key
+		if i := strings.LastIndex(key, ":"); i >= 0 {
+			bare = key[i+1:]
+		}
 		for _, tag := range dangerousTags {
-			if strings.EqualFold(key, tag) {
+			if strings.EqualFold(bare, tag) {
 				delete(metadata, key)
 			}
 		}

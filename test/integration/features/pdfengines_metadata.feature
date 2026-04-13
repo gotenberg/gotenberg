@@ -123,6 +123,26 @@ Feature: /forms/pdfengines/metadata/{write|read}
       At least one PDF engine cannot process the requested metadata
       """
 
+  Scenario: POST /forms/pdfengines/metadata/write (Reject Group-Prefixed Dangerous Tag)
+    # Regression: ExifTool treats "System:FileName" identically to "FileName".
+    # The dangerous-tag blocklist must strip group prefixes before comparing,
+    # otherwise the attacker renames/moves files with a single HTTP request.
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/write" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf                                                         | file   |
+      | metadata                  | {"System:FileName":"stolen.pdf","System:Directory":"/tmp","Author":"legit"} | field  |
+      | Gotenberg-Output-Filename | foo                                                                         | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/read" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file |
+    Then the response status code should be 200
+    Then the response body should contain string:
+      """
+      "Author":"legit"
+      """
+
   Scenario: POST /forms/pdfengines/metadata/read (Bad Request)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/read" endpoint with the following form data and header(s):
