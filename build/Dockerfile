@@ -202,6 +202,7 @@ FROM common-stage AS gotenberg
 ARG GOTENBERG_VERSION=snapshot
 ARG GOTENBERG_USER_GID=1001
 ARG GOTENBERG_USER_UID=1001
+ARG TMP_CHROMIUM_VERSION_PPC64EL="146.0.7680.80-1~deb13u1"
 
 LABEL org.opencontainers.image.title="Gotenberg" \
     org.opencontainers.image.description="A Docker-based API for converting documents to PDF." \
@@ -211,10 +212,23 @@ LABEL org.opencontainers.image.title="Gotenberg" \
     org.opencontainers.image.source="https://github.com/gotenberg/gotenberg"
 
 # Install Chromium.
-RUN apt-get update -qq \
-    && apt-get upgrade -yqq \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium \
-    # Cleanup.
+# On ppc64el, the latest Chromium is broken, so we pin a known working
+# version from snapshot.debian.org via debsnap.
+RUN /bin/bash -c \
+    'set -e &&\
+    if [[ "$(dpkg --print-architecture)" == "ppc64el" ]]; then \
+      apt-get update -qq &&\
+      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends devscripts &&\
+      debsnap chromium-common "$TMP_CHROMIUM_VERSION_PPC64EL" -v --force --binary --architecture ppc64el &&\
+      debsnap chromium "$TMP_CHROMIUM_VERSION_PPC64EL" -v --force --binary --architecture ppc64el &&\
+      DEBIAN_FRONTEND=noninteractive apt-get install --fix-broken -y -qq --no-install-recommends "./binary-chromium-common/chromium-common_${TMP_CHROMIUM_VERSION_PPC64EL}_ppc64el.deb" "./binary-chromium/chromium_${TMP_CHROMIUM_VERSION_PPC64EL}_ppc64el.deb" &&\
+      DEBIAN_FRONTEND=noninteractive apt-get purge -y -qq devscripts &&\
+      rm -rf ./binary-chromium-common/* ./binary-chromium/*; \
+    else \
+      apt-get update -qq &&\
+      apt-get upgrade -yqq &&\
+      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium; \
+    fi' \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Install LibreOffice & unoconverter.
@@ -271,6 +285,7 @@ FROM common-stage AS gotenberg-chromium
 ARG GOTENBERG_VERSION=snapshot
 ARG GOTENBERG_USER_GID=1001
 ARG GOTENBERG_USER_UID=1001
+ARG TMP_CHROMIUM_VERSION_PPC64EL="146.0.7680.80-1~deb13u1"
 
 LABEL org.opencontainers.image.title="Gotenberg (Chromium)" \
     org.opencontainers.image.description="A Docker-based API for converting documents to PDF — Chromium variant." \
@@ -280,10 +295,23 @@ LABEL org.opencontainers.image.title="Gotenberg (Chromium)" \
     org.opencontainers.image.source="https://github.com/gotenberg/gotenberg"
 
 # Install Chromium.
-RUN apt-get update -qq \
-    && apt-get upgrade -yqq \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium \
-    # Cleanup.
+# On ppc64el, the latest Chromium is broken, so we pin a known working
+# version from snapshot.debian.org via debsnap.
+RUN /bin/bash -c \
+    'set -e &&\
+    if [[ "$(dpkg --print-architecture)" == "ppc64el" ]]; then \
+      apt-get update -qq &&\
+      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends devscripts &&\
+      debsnap chromium-common "$TMP_CHROMIUM_VERSION_PPC64EL" -v --force --binary --architecture ppc64el &&\
+      debsnap chromium "$TMP_CHROMIUM_VERSION_PPC64EL" -v --force --binary --architecture ppc64el &&\
+      DEBIAN_FRONTEND=noninteractive apt-get install --fix-broken -y -qq --no-install-recommends "./binary-chromium-common/chromium-common_${TMP_CHROMIUM_VERSION_PPC64EL}_ppc64el.deb" "./binary-chromium/chromium_${TMP_CHROMIUM_VERSION_PPC64EL}_ppc64el.deb" &&\
+      DEBIAN_FRONTEND=noninteractive apt-get purge -y -qq devscripts &&\
+      rm -rf ./binary-chromium-common/* ./binary-chromium/*; \
+    else \
+      apt-get update -qq &&\
+      apt-get upgrade -yqq &&\
+      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium; \
+    fi' \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # COPY instructions last to maximize cache reuse.
