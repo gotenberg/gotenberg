@@ -468,7 +468,6 @@ jobs:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
           tags: "${{ needs.edge_amd64.outputs.tags }},${{ needs.edge_386.outputs.tags }},${{ needs.edge_ppc64le.outputs.tags }},${{ needs.edge_arm64.outputs.tags }},${{ needs.edge_arm_v7.outputs.tags }}"
-          alternate_registry: thecodingmachine
 
       - name: Merge Chromium
         uses: ./.github/actions/merge
@@ -476,7 +475,6 @@ jobs:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
           tags: "${{ needs.edge_amd64.outputs.tags_chromium }},${{ needs.edge_386.outputs.tags_chromium }},${{ needs.edge_ppc64le.outputs.tags_chromium }},${{ needs.edge_arm64.outputs.tags_chromium }},${{ needs.edge_arm_v7.outputs.tags_chromium }}"
-          alternate_registry: thecodingmachine
 
       - name: Merge LibreOffice
         uses: ./.github/actions/merge
@@ -484,7 +482,6 @@ jobs:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
           tags: "${{ needs.edge_amd64.outputs.tags_libreoffice }},${{ needs.edge_386.outputs.tags_libreoffice }},${{ needs.edge_ppc64le.outputs.tags_libreoffice }},${{ needs.edge_arm64.outputs.tags_libreoffice }},${{ needs.edge_arm_v7.outputs.tags_libreoffice }}"
-          alternate_registry: thecodingmachine
 
       - name: Merge AWS Lambda
         uses: ./.github/actions/merge
@@ -492,7 +489,6 @@ jobs:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
           tags: "${{ needs.edge_amd64.outputs.tags_aws_lambda }},${{ needs.edge_arm64.outputs.tags_aws_lambda }}"
-          alternate_registry: thecodingmachine
 
       - name: Merge AWS Lambda Chromium
         uses: ./.github/actions/merge
@@ -500,7 +496,6 @@ jobs:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
           tags: "${{ needs.edge_amd64.outputs.tags_aws_lambda_chromium }},${{ needs.edge_arm64.outputs.tags_aws_lambda_chromium }}"
-          alternate_registry: thecodingmachine
 
       - name: Merge AWS Lambda LibreOffice
         uses: ./.github/actions/merge
@@ -508,7 +503,6 @@ jobs:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
           tags: "${{ needs.edge_amd64.outputs.tags_aws_lambda_libreoffice }},${{ needs.edge_arm64.outputs.tags_aws_lambda_libreoffice }}"
-          alternate_registry: thecodingmachine
 
       - name: Clean
         uses: ./.github/actions/clean
