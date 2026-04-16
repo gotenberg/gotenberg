@@ -187,4 +187,4 @@ If any backward compatibility item is violated, the change **must** be flagged a
 
 Common types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`, `build`. The scope should match the module or area of the change (e.g., `chromium`, `pdfengines`, `api`).
 
-Stage specific files. Never `git add -A` or `git add .`. Do not push unless asked.
+Stage specific files. Never `git add -A` or `git add .`.
