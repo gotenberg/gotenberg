@@ -25,6 +25,7 @@ import (
 
 type eventRequestPausedOptions struct {
 	allowList, denyList []*regexp2.Regexp
+	allowPrivateIPs     bool
 	allowedFilePrefixes []string
 	extraHttpHeaders    []ExtraHttpHeader
 }
@@ -52,7 +53,7 @@ func listenForEventRequestPaused(ctx context.Context, logger *slog.Logger, optio
 					return
 				}
 
-				err := gotenberg.FilterOutboundURL(ctx, e.Request.URL, options.allowList, options.denyList, deadline)
+				err := gotenberg.FilterOutboundURL(ctx, e.Request.URL, options.allowList, options.denyList, deadline, gotenberg.WithAllowPrivateIPs(options.allowPrivateIPs))
 				if err != nil {
 					logger.WarnContext(ctx, err.Error())
 					allow = false

@@ -44,6 +44,17 @@ Feature: /forms/chromium/screenshot/url
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
 
+  Scenario: POST /forms/chromium/screenshot/url (file:// scheme rejected at route layer)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/screenshot/url" endpoint with the following form data and header(s):
+      | url | file:///tmp/foo/index.html | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      file:// URLs are not accepted on this route. Use the /convert/html or /convert/markdown routes to render local HTML
+      """
+
   @webhook
   Scenario: POST /forms/chromium/screenshot/url (Webhook)
     Given I have a default Gotenberg container

@@ -44,6 +44,7 @@ type browserArguments struct {
 	// Tasks specific.
 	allowList         []*regexp2.Regexp
 	denyList          []*regexp2.Regexp
+	allowPrivateIPs   bool
 	clearCache        bool
 	clearCookies      bool
 	disableJavaScript bool
@@ -57,15 +58,17 @@ type chromiumBrowser struct {
 	ctxMu              sync.RWMutex
 	isStarted          atomic.Bool
 
-	arguments browserArguments
-	fs        *gotenberg.FileSystem
+	arguments    browserArguments
+	fs           *gotenberg.FileSystem
+	pinningProxy *pinningProxy
 }
 
 func newChromiumBrowser(arguments browserArguments) browser {
 	b := &chromiumBrowser{
-		initialCtx: context.Background(),
-		arguments:  arguments,
-		fs:         gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)),
+		initialCtx:   context.Background(),
+		arguments:    arguments,
+		fs:           gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)),
+		pinningProxy: newPinningProxy(arguments.allowList, arguments.denyList, arguments.allowPrivateIPs),
 	}
 	b.isStarted.Store(false)
 
@@ -134,6 +137,25 @@ func (b *chromiumBrowser) Start(logger *slog.Logger) error {
 	if b.arguments.proxyServer != "" {
 		// See https://github.com/gotenberg/gotenberg/issues/376.
 		opts = append(opts, chromedp.ProxyServer(b.arguments.proxyServer))
+	}
+
+	// Default: route Chromium through the internal pinning proxy so that
+	// Chromium never performs its own DNS lookup for the navigation URL
+	// or any sub-resource. The proxy resolves and validates each URL
+	// once per request and dials the pinned IP, closing the DNS
+	// rebinding window between Gotenberg's validation and Chromium's
+	// connect.
+	//
+	// Skip when the operator has configured their own egress proxy or
+	// custom host-resolver mappings: those deployments take
+	// responsibility for outbound safety themselves and routing through
+	// an internal proxy would override their configuration.
+	if b.arguments.proxyServer == "" && b.arguments.hostResolverRules == "" {
+		err = b.pinningProxy.Start(logger)
+		if err != nil {
+			return fmt.Errorf("start pinning proxy: %w", err)
+		}
+		opts = append(opts, chromedp.ProxyServer(b.pinningProxy.URL()))
 	}
 
 	// See https://github.com/gotenberg/gotenberg/issues/524.
@@ -235,6 +257,15 @@ func (b *chromiumBrowser) Stop(logger *slog.Logger) error {
 	b.ctx = nil
 	b.userProfileDirPath = ""
 	b.isStarted.Store(false)
+
+	// Stop the pinning proxy after Chromium shutdown so that any
+	// in-flight requests Chromium issues during teardown complete. The
+	// Stop call is a no-op when the proxy was not started (operator
+	// configured --chromium-proxy-server or --chromium-host-resolver-rules).
+	err := b.pinningProxy.Stop(logger)
+	if err != nil {
+		logger.ErrorContext(context.Background(), fmt.Sprintf("stop pinning proxy: %s", err))
+	}
 
 	return nil
 }
@@ -338,7 +369,7 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 
 	// We validate the "main" URL against our allowed / deny lists, and
 	// against the IP-based outbound URL guard. See [gotenberg.FilterOutboundURL].
-	err := gotenberg.FilterOutboundURL(ctx, url, b.arguments.allowList, b.arguments.denyList, deadline)
+	err := gotenberg.FilterOutboundURL(ctx, url, b.arguments.allowList, b.arguments.denyList, deadline, gotenberg.WithAllowPrivateIPs(b.arguments.allowPrivateIPs))
 	if err != nil {
 		return fmt.Errorf("filter URL: %w", err)
 	}
@@ -359,6 +390,7 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 	listenForEventRequestPaused(taskCtx, logger, eventRequestPausedOptions{
 		allowList:           b.arguments.allowList,
 		denyList:            b.arguments.denyList,
+		allowPrivateIPs:     b.arguments.allowPrivateIPs,
 		allowedFilePrefixes: options.AllowedFilePrefixes,
 		extraHttpHeaders:    options.ExtraHttpHeaders,
 	})

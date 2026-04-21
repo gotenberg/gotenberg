@@ -306,3 +306,27 @@ func TestResolveAndCheckPublic_HostResolvesToPublic(t *testing.T) {
 		t.Fatalf("expected [1.1.1.1], got: %v", addrs)
 	}
 }
+
+func TestDecideOutbound_AllowPrivateIPs_DenyListStillApplies(t *testing.T) {
+	withStubResolver(t, func(host string) ([]netip.Addr, error) {
+		t.Fatalf("unexpected DNS lookup for %q", host)
+		return nil, nil
+	})
+
+	// Denial must still win over WithAllowPrivateIPs(true). Gherkin
+	// coverage exercises flag on/off against the IP check but not the
+	// interaction with the regex deny-list; keep this primitive test for
+	// that specific combination.
+	deny := []*regexp2.Regexp{regexp2.MustCompile(`^http://evil\.`, 0)}
+
+	_, err := DecideOutbound(
+		context.Background(),
+		"http://evil.local/",
+		nil, deny,
+		time.Now().Add(5*time.Second),
+		WithAllowPrivateIPs(true),
+	)
+	if !errors.Is(err, ErrFiltered) {
+		t.Fatalf("deny-list must still win with WithAllowPrivateIPs(true), got: %v", err)
+	}
+}

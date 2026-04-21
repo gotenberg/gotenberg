@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -402,6 +403,34 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 	return form, screenshotOptions
 }
 
+// rejectFileScheme returns an HTTP 400 [api] error when rawURL uses the
+// file:// scheme. /forms/chromium/convert/url and
+// /forms/chromium/screenshot/url accept user-supplied URLs and are
+// intended for navigating to remote HTTP(S) resources; allowing file://
+// lets a caller reach Chromium's working directory through the default
+// deny-list's /tmp/ allowance, which exists only to serve main-page
+// HTML/Markdown that the other routes generate. Filter the scheme at the
+// route layer where no request-scoped allowedFilePrefixes exists.
+func rejectFileScheme(rawURL string) error {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return api.WrapError(
+			fmt.Errorf("parse URL: %w", err),
+			api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid URL: %s", err)),
+		)
+	}
+	if strings.EqualFold(parsed.Scheme, "file") {
+		return api.WrapError(
+			fmt.Errorf("file:// scheme not allowed on URL route"),
+			api.NewSentinelHttpError(
+				http.StatusBadRequest,
+				"file:// URLs are not accepted on this route. Use the /convert/html or /convert/markdown routes to render local HTML",
+			),
+		)
+	}
+	return nil
+}
+
 // convertUrlRoute returns an [api.Route] which can convert a URL to PDF.
 func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 	return api.Route{
@@ -429,6 +458,11 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			err = rejectFileScheme(url)
+			if err != nil {
+				return fmt.Errorf("reject URL scheme: %w", err)
 			}
 
 			if (watermark.Source == gotenberg.StampSourceImage || watermark.Source == gotenberg.StampSourcePDF) && watermarkFile != "" {
@@ -465,6 +499,11 @@ func screenshotUrlRoute(chromium Api) api.Route {
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			err = rejectFileScheme(url)
+			if err != nil {
+				return fmt.Errorf("reject URL scheme: %w", err)
 			}
 
 			err = screenshotUrl(ctx, chromium, url, options)

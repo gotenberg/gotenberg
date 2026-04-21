@@ -478,6 +478,41 @@ Feature: /forms/chromium/convert/url
       # Modern browsers block file URIs from being loaded into iframes when the parent page is served over HTTP/HTTPS.
       | 'file:///etc/passwd' does not match any expression from the allowed list |
 
+  Scenario: POST /forms/chromium/convert/url (file:// scheme rejected at route layer)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url | file:///tmp/foo/index.html | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      file:// URLs are not accepted on this route. Use the /convert/html or /convert/markdown routes to render local HTML
+      """
+
+  Scenario: POST /forms/chromium/convert/url (Main URL resolves to a non-public IP, allow-private-ips off)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST |  |
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+    Then the response status code should be 403
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Forbidden
+      """
+
+  Scenario: POST /forms/chromium/convert/url (Main URL resolves to a non-public IP, allow-private-ips on)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST        |      |
+      | CHROMIUM_ALLOW_PRIVATE_IPS | true |
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
   Scenario: POST /forms/chromium/convert/url (JavaScript Enabled)
     Given I have a default Gotenberg container
     Given I have a static server
