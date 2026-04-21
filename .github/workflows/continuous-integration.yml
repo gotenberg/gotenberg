@@ -46,7 +46,7 @@ jobs:
           node-version-file: .node-version
 
       - name: Install Dependencies
-        run: npm i
+        run: npm ci --ignore-scripts
 
       - name: Run linters
         run: make lint-prettier
