@@ -337,7 +337,10 @@ func basicAuthMiddleware(username, password string) echo.MiddlewareFunc {
 func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			logger := c.Get("logger").(*slog.Logger)
+			logger, _ := c.Get("logger").(*slog.Logger)
+			if logger == nil {
+				return errors.New("no logger in context (possible pool reuse)")
+			}
 
 			// We create a context with a timeout so that underlying processes are
 			// able to stop early and correctly handle a timeout scenario.
@@ -395,7 +398,14 @@ func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, bodyLimi
 func hardTimeoutMiddleware(hardTimeout time.Duration) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			logger := c.Get("logger").(*slog.Logger)
+			// Guard the type assertion so a pooled [echo.Context] whose
+			// store has been recycled under us does not crash the process.
+			// See the webhook async handler for the race this protects
+			// against.
+			logger, _ := c.Get("logger").(*slog.Logger)
+			if logger == nil {
+				return errors.New("no logger in context (possible pool reuse)")
+			}
 
 			// Define a hard timeout if the route handler fails to timeout as
 			// expected.
