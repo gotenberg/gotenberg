@@ -189,10 +189,13 @@ type Options struct {
 	// PDFs with transparency.
 	OmitBackground bool
 
-	// AllowedFilePrefixes restricts file:// sub-resource access to only these
-	// directory prefixes. Applied in listenForEventRequestPaused in addition
-	// to the global allow/deny lists. Set internally by route handlers, not
-	// via form data.
+	// AllowedFilePrefixes restricts file:// sub-resource access to only
+	// these directory prefixes. Applied in listenForEventRequestPaused in
+	// addition to the global allow/deny lists. An empty slice
+	// default-denies every file:// sub-resource, so routes that legitimately
+	// render local files (HTML, Markdown) must populate this with the
+	// request working directory while routes that navigate remote URLs
+	// leave it empty. Set internally by route handlers, not via form data.
 	AllowedFilePrefixes []string
 }
 
