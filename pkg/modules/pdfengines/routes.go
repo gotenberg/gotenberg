@@ -608,6 +608,50 @@ func FormDataPdfStampFile(form *api.FormData) string {
 	return path
 }
 
+// EnsureStampFile validates that, when stamp.Source is image or pdf, an
+// uploaded stamp file was supplied, and replaces stamp.Expression with
+// uploadedFile in that case. Returning an [api] HTTP 400 error prevents
+// an anonymous caller from passing an arbitrary filesystem path via
+// stampExpression and having pdfcpu read it. Source values of text or
+// empty are passed through unchanged.
+func EnsureStampFile(stamp *gotenberg.Stamp, uploadedFile string) error {
+	if stamp.Source != gotenberg.StampSourceImage && stamp.Source != gotenberg.StampSourcePDF {
+		return nil
+	}
+	if uploadedFile == "" {
+		return api.WrapError(
+			errors.New("no stamp file provided for image or pdf source"),
+			api.NewSentinelHttpError(
+				http.StatusBadRequest,
+				"Invalid form data: a stamp file is required for image or pdf source",
+			),
+		)
+	}
+	stamp.Expression = uploadedFile
+	return nil
+}
+
+// EnsureWatermarkFile mirrors [EnsureStampFile] for a watermark. The
+// shape is identical: image or pdf sources must be accompanied by an
+// uploaded file, and the file path replaces watermark.Expression to
+// prevent pdfcpu from reading an attacker-controlled path.
+func EnsureWatermarkFile(watermark *gotenberg.Stamp, uploadedFile string) error {
+	if watermark.Source != gotenberg.StampSourceImage && watermark.Source != gotenberg.StampSourcePDF {
+		return nil
+	}
+	if uploadedFile == "" {
+		return api.WrapError(
+			errors.New("no watermark file provided for image or pdf source"),
+			api.NewSentinelHttpError(
+				http.StatusBadRequest,
+				"Invalid form data: a watermark file is required for image or pdf source",
+			),
+		)
+	}
+	watermark.Expression = uploadedFile
+	return nil
+}
+
 // WatermarkStub applies a watermark to a list of PDF files. If the stamp has
 // no source, it does nothing.
 func WatermarkStub(ctx *api.Context, engine gotenberg.PdfEngine, stamp gotenberg.Stamp, inputPaths []string) error {
@@ -676,11 +720,13 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			if (watermark.Source == gotenberg.StampSourceImage || watermark.Source == gotenberg.StampSourcePDF) && watermarkFile != "" {
-				watermark.Expression = watermarkFile
+			err = EnsureWatermarkFile(&watermark, watermarkFile)
+			if err != nil {
+				return fmt.Errorf("validate watermark: %w", err)
 			}
-			if (stamp.Source == gotenberg.StampSourceImage || stamp.Source == gotenberg.StampSourcePDF) && stampFile != "" {
-				stamp.Expression = stampFile
+			err = EnsureStampFile(&stamp, stampFile)
+			if err != nil {
+				return fmt.Errorf("validate stamp: %w", err)
 			}
 
 			err = ValidatePdfFormatsCompat(pdfFormats, userPassword, embedPaths)
@@ -831,11 +877,13 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			if (watermark.Source == gotenberg.StampSourceImage || watermark.Source == gotenberg.StampSourcePDF) && watermarkFile != "" {
-				watermark.Expression = watermarkFile
+			err = EnsureWatermarkFile(&watermark, watermarkFile)
+			if err != nil {
+				return fmt.Errorf("validate watermark: %w", err)
 			}
-			if (stamp.Source == gotenberg.StampSourceImage || stamp.Source == gotenberg.StampSourcePDF) && stampFile != "" {
-				stamp.Expression = stampFile
+			err = EnsureStampFile(&stamp, stampFile)
+			if err != nil {
+				return fmt.Errorf("validate stamp: %w", err)
 			}
 
 			err = ValidatePdfFormatsCompat(pdfFormats, userPassword, embedPaths)
@@ -1268,17 +1316,9 @@ func watermarkRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			if stamp.Source == gotenberg.StampSourceImage || stamp.Source == gotenberg.StampSourcePDF {
-				if watermarkFile == "" {
-					return api.WrapError(
-						errors.New("no watermark file provided"),
-						api.NewSentinelHttpError(
-							http.StatusBadRequest,
-							"Invalid form data: a watermark file is required for image or pdf source",
-						),
-					)
-				}
-				stamp.Expression = watermarkFile
+			err = EnsureWatermarkFile(&stamp, watermarkFile)
+			if err != nil {
+				return fmt.Errorf("validate watermark: %w", err)
 			}
 
 			err = WatermarkStub(ctx, engine, stamp, inputPaths)
@@ -1319,17 +1359,9 @@ func stampRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			if stamp.Source == gotenberg.StampSourceImage || stamp.Source == gotenberg.StampSourcePDF {
-				if stampFile == "" {
-					return api.WrapError(
-						errors.New("no stamp file provided"),
-						api.NewSentinelHttpError(
-							http.StatusBadRequest,
-							"Invalid form data: a stamp file is required for image or pdf source",
-						),
-					)
-				}
-				stamp.Expression = stampFile
+			err = EnsureStampFile(&stamp, stampFile)
+			if err != nil {
+				return fmt.Errorf("validate stamp: %w", err)
 			}
 
 			err = StampStub(ctx, engine, stamp, inputPaths)

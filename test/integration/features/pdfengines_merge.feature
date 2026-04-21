@@ -665,6 +665,32 @@ Feature: /forms/pdfengines/merge
       | embeds | testdata/embed_1.xml | file  |
     Then the response status code should be 200
 
+  Scenario: POST /forms/pdfengines/merge (stampSource=pdf without uploaded stamp file => 400)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files           | testdata/page_1.pdf | file  |
+      | files           | testdata/page_2.pdf | file  |
+      | stampSource     | pdf                 | field |
+      | stampExpression | /etc/hostname       | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: a stamp file is required for image or pdf source
+      """
+
+  Scenario: POST /forms/pdfengines/merge (watermarkSource=pdf without uploaded watermark file => 400)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files               | testdata/page_1.pdf | file  |
+      | files               | testdata/page_2.pdf | file  |
+      | watermarkSource     | pdf                 | field |
+      | watermarkExpression | /etc/hostname       | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: a watermark file is required for image or pdf source
+      """
+
   # See: https://github.com/gotenberg/gotenberg/issues/1500.
   Scenario: POST /forms/pdfengines/merge (Long Filename)
     Given I have a default Gotenberg container

@@ -1269,6 +1269,32 @@ Feature: /forms/chromium/convert/url
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
 
+  Scenario: POST /forms/chromium/convert/url (stampSource=pdf without uploaded stamp file => 400)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url             | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+      | stampSource     | pdf                                                                 | field |
+      | stampExpression | /etc/hostname                                                       | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: a stamp file is required for image or pdf source
+      """
+
+  Scenario: POST /forms/chromium/convert/url (watermarkSource=pdf without uploaded watermark file => 400)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                 | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+      | watermarkSource     | pdf                                                                 | field |
+      | watermarkExpression | /etc/hostname                                                       | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: a watermark file is required for image or pdf source
+      """
+
   # See: https://github.com/gotenberg/gotenberg/issues/1500.
   Scenario: POST /forms/chromium/convert/url (Long Filename)
     Given I have a default Gotenberg container

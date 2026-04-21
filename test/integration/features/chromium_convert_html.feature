@@ -1188,6 +1188,30 @@ Feature: /forms/chromium/convert/html
     Then the "foo.pdf" PDF should have 1 page(s)
     Then the "foo.pdf" PDF should have 1 image(s)
 
+  Scenario: POST /forms/chromium/convert/html (stampSource=pdf without uploaded stamp file => 400)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files           | testdata/page-1-html/index.html | file  |
+      | stampSource     | pdf                             | field |
+      | stampExpression | /etc/hostname                   | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: a stamp file is required for image or pdf source
+      """
+
+  Scenario: POST /forms/chromium/convert/html (watermarkSource=pdf without uploaded watermark file => 400)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files               | testdata/page-1-html/index.html | file  |
+      | watermarkSource     | pdf                             | field |
+      | watermarkExpression | /etc/hostname                   | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: a watermark file is required for image or pdf source
+      """
+
   # See: https://github.com/gotenberg/gotenberg/issues/1500.
   Scenario: POST /forms/chromium/convert/html (Long Filename)
     Given I have a default Gotenberg container
