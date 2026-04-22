@@ -454,6 +454,7 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Bool("chromium-clear-cache", false, "Clear Chromium cache between each conversion")
 			fs.Bool("chromium-clear-cookies", false, "Clear Chromium cookies between each conversion")
 			fs.Bool("chromium-disable-javascript", false, "Disable JavaScript")
+			fs.Bool("chromium-disable-private-network-access", false, "Disable Chrome's Private Network Access restrictions, allowing pages from public origins to fetch resources on private IPs")
 			fs.Bool("chromium-disable-routes", false, "Disable the routes")
 
 			// Deprecated flags.
@@ -499,10 +500,11 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 
 		allowList:         flags.MustRegexpSlice("chromium-allow-list"),
 		denyList:          flags.MustRegexpSlice("chromium-deny-list"),
-		allowPrivateIPs:   flags.MustBool("chromium-allow-private-ips"),
-		clearCache:        flags.MustBool("chromium-clear-cache"),
-		clearCookies:      flags.MustBool("chromium-clear-cookies"),
-		disableJavaScript: flags.MustBool("chromium-disable-javascript"),
+		allowPrivateIPs:             flags.MustBool("chromium-allow-private-ips"),
+		clearCache:                  flags.MustBool("chromium-clear-cache"),
+		clearCookies:                flags.MustBool("chromium-clear-cookies"),
+		disableJavaScript:           flags.MustBool("chromium-disable-javascript"),
+		disablePrivateNetworkAccess: flags.MustBool("chromium-disable-private-network-access"),
 	}
 
 	// Logger.

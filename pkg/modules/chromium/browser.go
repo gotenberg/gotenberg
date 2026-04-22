@@ -42,12 +42,13 @@ type browserArguments struct {
 	hyphenDataDirPath        string
 
 	// Tasks specific.
-	allowList         []*regexp2.Regexp
-	denyList          []*regexp2.Regexp
-	allowPrivateIPs   bool
-	clearCache        bool
-	clearCookies      bool
-	disableJavaScript bool
+	allowList                   []*regexp2.Regexp
+	denyList                    []*regexp2.Regexp
+	allowPrivateIPs             bool
+	clearCache                  bool
+	clearCookies                bool
+	disableJavaScript           bool
+	disablePrivateNetworkAccess bool
 }
 
 type chromiumBrowser struct {
@@ -110,6 +111,10 @@ func (b *chromiumBrowser) Start(logger *slog.Logger) error {
 		// See https://github.com/gotenberg/gotenberg/issues/1293.
 		chromedp.Flag("disable-component-update", false),
 	)
+
+	if b.arguments.disablePrivateNetworkAccess {
+		opts = append(opts, chromedp.Flag("disable-features", "PrivateNetworkAccessSendPreflights,BlockInsecurePrivateNetworkRequests"))
+	}
 
 	if b.arguments.allowInsecureLocalhost {
 		// See https://github.com/gotenberg/gotenberg/issues/488.
