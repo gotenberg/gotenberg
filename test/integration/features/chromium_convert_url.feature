@@ -499,13 +499,12 @@ Feature: /forms/chromium/convert/url
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
 
-  Scenario: POST /forms/chromium/convert/url (Main URL resolves to a non-public IP, deny-private-ips on)
+  Scenario: POST /forms/chromium/convert/url (Main URL is a non-public IP literal, deny-private-ips on)
     Given I have a Gotenberg container with the following environment variable(s):
       | CHROMIUM_ALLOW_LIST       |      |
       | CHROMIUM_DENY_PRIVATE_IPS | true |
-    Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+      | url | http://127.0.0.1/ | field |
     Then the response status code should be 403
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
@@ -515,7 +514,7 @@ Feature: /forms/chromium/convert/url
 
   Scenario: POST /forms/chromium/convert/url (Main URL resolves to a non-public IP, deny-private-ips on with allow-list bypass)
     Given I have a Gotenberg container with the following environment variable(s):
-      | CHROMIUM_ALLOW_LIST       | .+  |
+      | CHROMIUM_ALLOW_LIST       | .+   |
       | CHROMIUM_DENY_PRIVATE_IPS | true |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
