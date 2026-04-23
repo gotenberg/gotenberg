@@ -84,7 +84,7 @@ func TestPinningProxy_Forward_Pinned_Success(t *testing.T) {
 	upstreamURL := mustParseURL(t, upstream.URL)
 
 	var decideCalls atomic.Int32
-	p := newPinningProxy(nil, nil, false)
+	p := newPinningProxy(nil, nil, false, false)
 	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
 		decideCalls.Add(1)
 		return gotenberg.OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
@@ -123,7 +123,7 @@ func TestPinningProxy_Forward_Pinned_Success(t *testing.T) {
 }
 
 func TestPinningProxy_Forward_BlockedByDecide(t *testing.T) {
-	p := newPinningProxy(nil, nil, false)
+	p := newPinningProxy(nil, nil, false, false)
 	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
 		return gotenberg.OutboundDecision{}, fmt.Errorf("nope: %w", gotenberg.ErrFiltered)
 	}
@@ -159,7 +159,7 @@ func TestPinningProxy_Forward_Bypass(t *testing.T) {
 	upstreamURL := mustParseURL(t, upstream.URL)
 
 	var bypassCalls atomic.Int32
-	p := newPinningProxy(nil, nil, false)
+	p := newPinningProxy(nil, nil, false, false)
 	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
 		return gotenberg.OutboundDecision{Bypass: true}, nil
 	}
@@ -208,7 +208,7 @@ func TestPinningProxy_Forward_StripsHopByHopHeaders(t *testing.T) {
 	t.Cleanup(upstream.Close)
 	upstreamURL := mustParseURL(t, upstream.URL)
 
-	p := newPinningProxy(nil, nil, false)
+	p := newPinningProxy(nil, nil, false, false)
 	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
 		return gotenberg.OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
 	}
@@ -248,7 +248,7 @@ func TestPinningProxy_Forward_StripsHopByHopHeaders(t *testing.T) {
 }
 
 func TestPinningProxy_Forward_RejectsNonAbsoluteURL(t *testing.T) {
-	p := newPinningProxy(nil, nil, false)
+	p := newPinningProxy(nil, nil, false, false)
 	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
 		t.Fatal("decide must not be called for malformed proxy request")
 		return gotenberg.OutboundDecision{}, nil
@@ -288,7 +288,7 @@ func TestPinningProxy_CONNECT_Pinned_Success(t *testing.T) {
 	t.Cleanup(stop)
 
 	var decideCalls atomic.Int32
-	p := newPinningProxy(nil, nil, false)
+	p := newPinningProxy(nil, nil, false, false)
 	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
 		decideCalls.Add(1)
 		return gotenberg.OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
@@ -358,7 +358,7 @@ func TestPinningProxy_CONNECT_Pinned_Success(t *testing.T) {
 }
 
 func TestPinningProxy_CONNECT_BlockedByDecide(t *testing.T) {
-	p := newPinningProxy(nil, nil, false)
+	p := newPinningProxy(nil, nil, false, false)
 	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
 		return gotenberg.OutboundDecision{}, fmt.Errorf("nope: %w", gotenberg.ErrFiltered)
 	}
@@ -417,7 +417,7 @@ func TestPinningProxy_DNSRebind_SingleResolution(t *testing.T) {
 		return gotenberg.OutboundDecision{}, fmt.Errorf("rebind lookup: %w", gotenberg.ErrFiltered)
 	}
 
-	p := newPinningProxy(nil, nil, false)
+	p := newPinningProxy(nil, nil, false, false)
 	p.decide = stubDecide
 	p.dialPinned = func(_ context.Context, network string, addrs []netip.Addr, _ string) (net.Conn, error) {
 		if len(addrs) != 1 || addrs[0].String() != "93.184.216.34" {
@@ -453,7 +453,7 @@ func TestPinningProxy_DNSRebind_SingleResolution(t *testing.T) {
 }
 
 func TestPinningProxy_StartTwice(t *testing.T) {
-	p := newPinningProxy(nil, nil, false)
+	p := newPinningProxy(nil, nil, false, false)
 	err := p.Start(testLogger())
 	if err != nil {
 		t.Fatalf("first Start: %v", err)
@@ -467,7 +467,7 @@ func TestPinningProxy_StartTwice(t *testing.T) {
 }
 
 func TestPinningProxy_StopIdempotent(t *testing.T) {
-	p := newPinningProxy(nil, nil, false)
+	p := newPinningProxy(nil, nil, false, false)
 	// Stop on a never-started proxy is a no-op.
 	if err := p.Stop(testLogger()); err != nil {
 		t.Fatalf("Stop on never-started proxy: %v", err)

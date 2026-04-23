@@ -127,15 +127,19 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 					}
 
 					// Let's check if the webhook URLs are acceptable according to our
-					// allowed/denied lists, and against the IP-based outbound URL
-					// guard. See [gotenberg.FilterOutboundURL].
-					err := gotenberg.FilterOutboundURL(ctx, webhookUrl, w.allowList, w.denyList, deadline)
+					// allowed/denied lists, and against the IP-class options.
+					// See [gotenberg.FilterOutboundURL].
+					ipOpts := []gotenberg.DecideOption{
+						gotenberg.WithDenyPrivateIPs(w.denyPrivateIPs),
+						gotenberg.WithDenyPublicIPs(w.denyPublicIPs),
+					}
+					err := gotenberg.FilterOutboundURL(ctx, webhookUrl, w.allowList, w.denyList, deadline, ipOpts...)
 					if err != nil {
 						return fmt.Errorf("filter webhook URL: %w", err)
 					}
 
 					if webhookErrorUrl != "" {
-						err = gotenberg.FilterOutboundURL(ctx, webhookErrorUrl, w.errorAllowList, w.errorDenyList, deadline)
+						err = gotenberg.FilterOutboundURL(ctx, webhookErrorUrl, w.errorAllowList, w.errorDenyList, deadline, ipOpts...)
 						if err != nil {
 							return fmt.Errorf("filter webhook error URL: %w", err)
 						}
@@ -198,7 +202,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 
 					// Filter the events URL if provided.
 					if webhookEventsUrl != "" {
-						err = gotenberg.FilterOutboundURL(ctx, webhookEventsUrl, w.allowList, w.denyList, deadline)
+						err = gotenberg.FilterOutboundURL(ctx, webhookEventsUrl, w.allowList, w.denyList, deadline, ipOpts...)
 						if err != nil {
 							return fmt.Errorf("filter webhook events URL: %w", err)
 						}
@@ -220,7 +224,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						startTime:        startTime,
 
 						client: &retryablehttp.Client{
-							HTTPClient:   gotenberg.NewOutboundHttpClient(w.clientTimeout, w.allowList, w.denyList),
+							HTTPClient:   gotenberg.NewOutboundHttpClient(w.clientTimeout, w.allowList, w.denyList, ipOpts...),
 							RetryMax:     w.maxRetry,
 							RetryWaitMin: w.retryMinWait,
 							RetryWaitMax: w.retryMaxWait,

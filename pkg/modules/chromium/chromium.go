@@ -450,7 +450,8 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.String("chromium-proxy-server", "", "Set the outbound proxy server; this switch only affects HTTP and HTTPS requests")
 			fs.StringSlice("chromium-allow-list", []string{}, "Set the allowed URLs for Chromium using regular expressions - supports multiple values")
 			fs.StringSlice("chromium-deny-list", []string{`^file:(?!//\/tmp/).*`}, "Set the denied URLs for Chromium using regular expressions - supports multiple values")
-			fs.Bool("chromium-allow-private-ips", false, "Accept sub-resources that resolve to private, loopback, or link-local addresses. Intended for operators running Gotenberg inside a private network (Docker Compose, Kubernetes ClusterIP); the regex allow-list and deny-list still apply")
+			fs.Bool("chromium-deny-private-ips", false, "Reject URLs whose host resolves to a non-public IP address (loopback, RFC1918, link-local, unique-local). Enable on deployments that accept untrusted form input to mitigate SSRF against internal services")
+			fs.Bool("chromium-deny-public-ips", false, "Reject URLs whose host resolves to a public IP address. Enable on air-gapped or data-governed deployments to prevent outbound traffic from leaving a private network")
 			fs.Bool("chromium-clear-cache", false, "Clear Chromium cache between each conversion")
 			fs.Bool("chromium-clear-cookies", false, "Clear Chromium cookies between each conversion")
 			fs.Bool("chromium-disable-javascript", false, "Disable JavaScript")
@@ -499,7 +500,8 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 
 		allowList:         flags.MustRegexpSlice("chromium-allow-list"),
 		denyList:          flags.MustRegexpSlice("chromium-deny-list"),
-		allowPrivateIPs:   flags.MustBool("chromium-allow-private-ips"),
+		denyPrivateIPs:    flags.MustBool("chromium-deny-private-ips"),
+		denyPublicIPs:     flags.MustBool("chromium-deny-public-ips"),
 		clearCache:        flags.MustBool("chromium-clear-cache"),
 		clearCookies:      flags.MustBool("chromium-clear-cookies"),
 		disableJavaScript: flags.MustBool("chromium-disable-javascript"),

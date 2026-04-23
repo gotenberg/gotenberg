@@ -44,7 +44,8 @@ type browserArguments struct {
 	// Tasks specific.
 	allowList         []*regexp2.Regexp
 	denyList          []*regexp2.Regexp
-	allowPrivateIPs   bool
+	denyPrivateIPs    bool
+	denyPublicIPs     bool
 	clearCache        bool
 	clearCookies      bool
 	disableJavaScript bool
@@ -68,7 +69,7 @@ func newChromiumBrowser(arguments browserArguments) browser {
 		initialCtx:   context.Background(),
 		arguments:    arguments,
 		fs:           gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)),
-		pinningProxy: newPinningProxy(arguments.allowList, arguments.denyList, arguments.allowPrivateIPs),
+		pinningProxy: newPinningProxy(arguments.allowList, arguments.denyList, arguments.denyPrivateIPs, arguments.denyPublicIPs),
 	}
 	b.isStarted.Store(false)
 
@@ -369,7 +370,10 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 
 	// We validate the "main" URL against our allowed / deny lists, and
 	// against the IP-based outbound URL guard. See [gotenberg.FilterOutboundURL].
-	err := gotenberg.FilterOutboundURL(ctx, url, b.arguments.allowList, b.arguments.denyList, deadline, gotenberg.WithAllowPrivateIPs(b.arguments.allowPrivateIPs))
+	err := gotenberg.FilterOutboundURL(ctx, url, b.arguments.allowList, b.arguments.denyList, deadline,
+		gotenberg.WithDenyPrivateIPs(b.arguments.denyPrivateIPs),
+		gotenberg.WithDenyPublicIPs(b.arguments.denyPublicIPs),
+	)
 	if err != nil {
 		return fmt.Errorf("filter URL: %w", err)
 	}
@@ -390,7 +394,8 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 	listenForEventRequestPaused(taskCtx, logger, eventRequestPausedOptions{
 		allowList:           b.arguments.allowList,
 		denyList:            b.arguments.denyList,
-		allowPrivateIPs:     b.arguments.allowPrivateIPs,
+		denyPrivateIPs:      b.arguments.denyPrivateIPs,
+		denyPublicIPs:       b.arguments.denyPublicIPs,
 		allowedFilePrefixes: options.AllowedFilePrefixes,
 		extraHttpHeaders:    options.ExtraHttpHeaders,
 	})

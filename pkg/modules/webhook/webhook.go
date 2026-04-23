@@ -23,6 +23,8 @@ type Webhook struct {
 	denyList       []*regexp2.Regexp
 	errorAllowList []*regexp2.Regexp
 	errorDenyList  []*regexp2.Regexp
+	denyPrivateIPs bool
+	denyPublicIPs  bool
 	maxRetry       int
 	retryMinWait   time.Duration
 	retryMaxWait   time.Duration
@@ -39,7 +41,9 @@ func (w *Webhook) Descriptor() gotenberg.ModuleDescriptor {
 			fs := flag.NewFlagSet("webhook", flag.ExitOnError)
 			fs.Bool("webhook-enable-sync-mode", false, "Enable synchronous mode for the webhook feature")
 			fs.StringSlice("webhook-allow-list", []string{}, "Set the allowed URLs for the webhook feature using regular expressions - supports multiple values")
-			fs.StringSlice("webhook-deny-list", []string{`^https?://(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|169\.254\.|0\.0\.0\.0|127\.|localhost|\[::1\]|\[fd)`}, "Set the denied URLs for the webhook feature using regular expressions - supports multiple values")
+			fs.StringSlice("webhook-deny-list", []string{}, "Set the denied URLs for the webhook feature using regular expressions - supports multiple values")
+			fs.Bool("webhook-deny-private-ips", false, "Reject webhook URLs whose host resolves to a non-public IP address (loopback, RFC1918, link-local, unique-local). Enable on deployments that accept untrusted webhook destinations to mitigate SSRF against internal services")
+			fs.Bool("webhook-deny-public-ips", false, "Reject webhook URLs whose host resolves to a public IP address. Enable on air-gapped or data-governed deployments to prevent callbacks from leaving a private network")
 			fs.Int("webhook-max-retry", 4, "Set the maximum number of retries for the webhook feature")
 
 			// Deprecated flags.
@@ -72,6 +76,8 @@ func (w *Webhook) Provision(ctx *gotenberg.Context) error {
 	w.denyList = flags.MustRegexpSlice("webhook-deny-list")
 	w.errorAllowList = flags.MustDeprecatedRegexpSlice("webhook-error-allow-list", "webhook-allow-list")
 	w.errorDenyList = flags.MustDeprecatedRegexpSlice("webhook-error-deny-list", "webhook-deny-list")
+	w.denyPrivateIPs = flags.MustBool("webhook-deny-private-ips")
+	w.denyPublicIPs = flags.MustBool("webhook-deny-public-ips")
 	w.maxRetry = flags.MustInt("webhook-max-retry")
 	w.retryMinWait = flags.MustDuration("webhook-retry-min-wait")
 	w.retryMaxWait = flags.MustDuration("webhook-retry-max-wait")

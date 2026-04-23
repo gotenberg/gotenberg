@@ -53,15 +53,19 @@ type pinningProxy struct {
 }
 
 // newPinningProxy returns a pinning proxy configured with the given
-// allow/deny lists. When allowPrivateIPs is true, the proxy skips the
-// public-IP filter while still pinning resolved IPs to the dial. The
+// allow/deny lists and IP-class policy. The policy bools are applied via
+// [gotenberg.DecideOutbound] on every request the proxy sees, so
+// Chromium inherits whatever posture the operator selected. The
 // returned proxy is not yet listening; call Start.
-func newPinningProxy(allowList, denyList []*regexp2.Regexp, allowPrivateIPs bool) *pinningProxy {
+func newPinningProxy(allowList, denyList []*regexp2.Regexp, denyPrivateIPs, denyPublicIPs bool) *pinningProxy {
 	return &pinningProxy{
 		allowList: allowList,
 		denyList:  denyList,
 		decide: func(ctx context.Context, rawURL string, allow, deny []*regexp2.Regexp, deadline time.Time) (gotenberg.OutboundDecision, error) {
-			return gotenberg.DecideOutbound(ctx, rawURL, allow, deny, deadline, gotenberg.WithAllowPrivateIPs(allowPrivateIPs))
+			return gotenberg.DecideOutbound(ctx, rawURL, allow, deny, deadline,
+				gotenberg.WithDenyPrivateIPs(denyPrivateIPs),
+				gotenberg.WithDenyPublicIPs(denyPublicIPs),
+			)
 		},
 		dialPinned: gotenberg.DialPinned,
 		dialBypass: func(ctx context.Context, network, addr string) (net.Conn, error) {

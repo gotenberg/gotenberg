@@ -489,9 +489,20 @@ Feature: /forms/chromium/convert/url
       file:// URLs are not accepted on this route. Use the /convert/html or /convert/markdown routes to render local HTML
       """
 
-  Scenario: POST /forms/chromium/convert/url (Main URL resolves to a non-public IP, allow-private-ips off)
+  Scenario: POST /forms/chromium/convert/url (Main URL resolves to a non-public IP, permissive default)
     Given I have a Gotenberg container with the following environment variable(s):
       | CHROMIUM_ALLOW_LIST |  |
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
+  Scenario: POST /forms/chromium/convert/url (Main URL resolves to a non-public IP, deny-private-ips on)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST       |      |
+      | CHROMIUM_DENY_PRIVATE_IPS | true |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
       | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
@@ -502,10 +513,10 @@ Feature: /forms/chromium/convert/url
       Forbidden
       """
 
-  Scenario: POST /forms/chromium/convert/url (Main URL resolves to a non-public IP, allow-private-ips on)
+  Scenario: POST /forms/chromium/convert/url (Main URL resolves to a non-public IP, deny-private-ips on with allow-list bypass)
     Given I have a Gotenberg container with the following environment variable(s):
-      | CHROMIUM_ALLOW_LIST        |      |
-      | CHROMIUM_ALLOW_PRIVATE_IPS | true |
+      | CHROMIUM_ALLOW_LIST       | .+  |
+      | CHROMIUM_DENY_PRIVATE_IPS | true |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
       | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |

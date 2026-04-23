@@ -106,6 +106,7 @@ func TestFilterOutboundURL(t *testing.T) {
 		rawURL       string
 		allow        []*regexp2.Regexp
 		deny         []*regexp2.Regexp
+		opts         []DecideOption
 		stub         func(host string) ([]netip.Addr, error)
 		expectErr    bool
 		expectIs     error
@@ -135,6 +136,7 @@ func TestFilterOutboundURL(t *testing.T) {
 			scenario:  "Issue 2: IPv4-mapped IPv6 evades deny-list but blocked by IP check",
 			rawURL:    "http://[::ffff:127.0.0.1]:8080/page.pdf",
 			deny:      defaultDeny,
+			opts:      []DecideOption{WithDenyPrivateIPs(true)},
 			expectErr: true,
 			expectIs:  ErrFiltered,
 		},
@@ -142,28 +144,32 @@ func TestFilterOutboundURL(t *testing.T) {
 			scenario:  "Issue 2: IPv4-mapped IPv6 to RFC1918 blocked by IP check",
 			rawURL:    "http://[::ffff:10.0.0.1]/",
 			deny:      defaultDeny,
+			opts:      []DecideOption{WithDenyPrivateIPs(true)},
 			expectErr: true,
 			expectIs:  ErrFiltered,
 		},
 		{
-			scenario:  "hostname resolving to public IP passes",
+			scenario:  "hostname resolving to public IP passes with deny-private-ips",
 			rawURL:    "https://example.com/",
 			deny:      defaultDeny,
+			opts:      []DecideOption{WithDenyPrivateIPs(true)},
 			stub:      func(string) ([]netip.Addr, error) { return mustAddrs(t, "93.184.216.34"), nil },
 			expectErr: false,
 		},
 		{
-			scenario:  "hostname resolving to loopback blocked",
+			scenario:  "hostname resolving to loopback blocked with deny-private-ips",
 			rawURL:    "https://rebind.example/",
 			deny:      defaultDeny,
+			opts:      []DecideOption{WithDenyPrivateIPs(true)},
 			stub:      func(string) ([]netip.Addr, error) { return mustAddrs(t, "127.0.0.1"), nil },
 			expectErr: true,
 			expectIs:  ErrFiltered,
 		},
 		{
-			scenario:  "hostname resolving to mixed public+private blocked",
+			scenario:  "hostname resolving to mixed public+private blocked with deny-private-ips",
 			rawURL:    "https://mixed.example/",
 			deny:      defaultDeny,
+			opts:      []DecideOption{WithDenyPrivateIPs(true)},
 			stub:      func(string) ([]netip.Addr, error) { return mustAddrs(t, "1.1.1.1", "10.0.0.1"), nil },
 			expectErr: true,
 			expectIs:  ErrFiltered,
@@ -173,7 +179,7 @@ func TestFilterOutboundURL(t *testing.T) {
 			rawURL:    "http://internal.service/api",
 			allow:     []*regexp2.Regexp{regexp2.MustCompile(`^http://internal\.service`, 0)},
 			deny:      defaultDeny,
-			stub:      func(string) ([]netip.Addr, error) { return mustAddrs(t, "10.0.0.1"), nil },
+			opts:      []DecideOption{WithDenyPrivateIPs(true)},
 			expectErr: false,
 		},
 		{
@@ -205,23 +211,25 @@ func TestFilterOutboundURL(t *testing.T) {
 			expectIs:  ErrFiltered,
 		},
 		{
-			scenario:  "Issue 1: Chromium default does not block http to public host (regex layer)",
+			scenario:  "Chromium default permissive passes http to public host",
 			rawURL:    "https://example.com/",
 			deny:      chromiumDeny,
 			stub:      func(string) ([]netip.Addr, error) { return mustAddrs(t, "93.184.216.34"), nil },
 			expectErr: false,
 		},
 		{
-			scenario:  "Issue 1: Chromium default now blocks http to loopback via IP layer",
+			scenario:  "Chromium with deny-private-ips blocks http to loopback",
 			rawURL:    "http://127.0.0.1:3000/health",
 			deny:      chromiumDeny,
+			opts:      []DecideOption{WithDenyPrivateIPs(true)},
 			expectErr: true,
 			expectIs:  ErrFiltered,
 		},
 		{
-			scenario:  "Issue 1: Chromium default now blocks cloud metadata via IP layer",
+			scenario:  "Chromium with deny-private-ips blocks cloud metadata",
 			rawURL:    "http://169.254.169.254/latest/meta-data/",
 			deny:      chromiumDeny,
+			opts:      []DecideOption{WithDenyPrivateIPs(true)},
 			expectErr: true,
 			expectIs:  ErrFiltered,
 		},
@@ -237,9 +245,10 @@ func TestFilterOutboundURL(t *testing.T) {
 			expectIs:  ErrFiltered,
 		},
 		{
-			scenario:  "userinfo cannot mask host",
+			scenario:  "userinfo cannot mask host when deny-private-ips enabled",
 			rawURL:    "http://example.com@127.0.0.1/",
 			deny:      defaultDeny,
+			opts:      []DecideOption{WithDenyPrivateIPs(true)},
 			expectErr: true,
 			expectIs:  ErrFiltered,
 		},
@@ -255,7 +264,7 @@ func TestFilterOutboundURL(t *testing.T) {
 				})
 			}
 
-			err := FilterOutboundURL(context.Background(), tc.rawURL, tc.allow, tc.deny, time.Now().Add(5*time.Second))
+			err := FilterOutboundURL(context.Background(), tc.rawURL, tc.allow, tc.deny, time.Now().Add(5*time.Second), tc.opts...)
 
 			if tc.expectErr && err == nil {
 				t.Fatalf("expected error, got nil")
@@ -307,16 +316,111 @@ func TestResolveAndCheckPublic_HostResolvesToPublic(t *testing.T) {
 	}
 }
 
-func TestDecideOutbound_AllowPrivateIPs_DenyListStillApplies(t *testing.T) {
+func TestDecideOutbound_DenyPrivateIPs_RejectsLoopbackLiteral(t *testing.T) {
 	withStubResolver(t, func(host string) ([]netip.Addr, error) {
 		t.Fatalf("unexpected DNS lookup for %q", host)
 		return nil, nil
 	})
 
-	// Denial must still win over WithAllowPrivateIPs(true). Gherkin
-	// coverage exercises flag on/off against the IP check but not the
-	// interaction with the regex deny-list; keep this primitive test for
-	// that specific combination.
+	_, err := DecideOutbound(
+		context.Background(),
+		"http://127.0.0.1:8080/",
+		nil, nil,
+		time.Now().Add(5*time.Second),
+		WithDenyPrivateIPs(true),
+	)
+	if !errors.Is(err, ErrFiltered) {
+		t.Fatalf("WithDenyPrivateIPs(true) must reject loopback literal, got: %v", err)
+	}
+}
+
+func TestDecideOutbound_DenyPrivateIPs_AllowsPublic(t *testing.T) {
+	withStubResolver(t, func(host string) ([]netip.Addr, error) {
+		return mustAddrs(t, "93.184.216.34"), nil
+	})
+
+	decision, err := DecideOutbound(
+		context.Background(),
+		"http://example.com/",
+		nil, nil,
+		time.Now().Add(5*time.Second),
+		WithDenyPrivateIPs(true),
+	)
+	if err != nil {
+		t.Fatalf("expected no error for public host, got: %v", err)
+	}
+	if len(decision.Pinned) != 1 || decision.Pinned[0].String() != "93.184.216.34" {
+		t.Fatalf("decision.Pinned = %v, want [93.184.216.34]", decision.Pinned)
+	}
+}
+
+func TestDecideOutbound_DenyPublicIPs_RejectsPublic(t *testing.T) {
+	withStubResolver(t, func(host string) ([]netip.Addr, error) {
+		return mustAddrs(t, "1.1.1.1"), nil
+	})
+
+	_, err := DecideOutbound(
+		context.Background(),
+		"http://example.com/",
+		nil, nil,
+		time.Now().Add(5*time.Second),
+		WithDenyPublicIPs(true),
+	)
+	if !errors.Is(err, ErrFiltered) {
+		t.Fatalf("WithDenyPublicIPs(true) must reject public host, got: %v", err)
+	}
+}
+
+func TestDecideOutbound_DenyPublicIPs_AllowsPrivate(t *testing.T) {
+	withStubResolver(t, func(host string) ([]netip.Addr, error) {
+		return mustAddrs(t, "10.0.0.5"), nil
+	})
+
+	decision, err := DecideOutbound(
+		context.Background(),
+		"http://internal.svc/",
+		nil, nil,
+		time.Now().Add(5*time.Second),
+		WithDenyPublicIPs(true),
+	)
+	if err != nil {
+		t.Fatalf("expected no error for private host, got: %v", err)
+	}
+	if len(decision.Pinned) != 1 || decision.Pinned[0].String() != "10.0.0.5" {
+		t.Fatalf("decision.Pinned = %v, want [10.0.0.5]", decision.Pinned)
+	}
+}
+
+func TestDecideOutbound_DenyBoth_WhitelistOnly(t *testing.T) {
+	withStubResolver(t, func(host string) ([]netip.Addr, error) {
+		return mustAddrs(t, "1.1.1.1"), nil
+	})
+
+	// Both denies active and no allow-list match: every resolved address
+	// fails. Only an allow-list match can permit a destination under
+	// this posture.
+	_, err := DecideOutbound(
+		context.Background(),
+		"http://example.com/",
+		nil, nil,
+		time.Now().Add(5*time.Second),
+		WithDenyPrivateIPs(true),
+		WithDenyPublicIPs(true),
+	)
+	if !errors.Is(err, ErrFiltered) {
+		t.Fatalf("expected ErrFiltered with both denies enabled, got: %v", err)
+	}
+}
+
+func TestDecideOutbound_DenyLists_WinOverDenyPrivateIPs(t *testing.T) {
+	withStubResolver(t, func(host string) ([]netip.Addr, error) {
+		t.Fatalf("unexpected DNS lookup for %q", host)
+		return nil, nil
+	})
+
+	// The regex deny-list fires before any resolution; verifies that
+	// operator-supplied deny patterns remain effective regardless of
+	// IP-class options.
 	deny := []*regexp2.Regexp{regexp2.MustCompile(`^http://evil\.`, 0)}
 
 	_, err := DecideOutbound(
@@ -324,9 +428,30 @@ func TestDecideOutbound_AllowPrivateIPs_DenyListStillApplies(t *testing.T) {
 		"http://evil.local/",
 		nil, deny,
 		time.Now().Add(5*time.Second),
-		WithAllowPrivateIPs(true),
+		WithDenyPrivateIPs(true),
 	)
 	if !errors.Is(err, ErrFiltered) {
-		t.Fatalf("deny-list must still win with WithAllowPrivateIPs(true), got: %v", err)
+		t.Fatalf("deny-list must still reject, got: %v", err)
+	}
+}
+
+func TestDecideOutbound_Permissive_AllowsPrivate(t *testing.T) {
+	withStubResolver(t, func(host string) ([]netip.Addr, error) {
+		return mustAddrs(t, "10.0.0.5"), nil
+	})
+
+	// No options passed: default posture is permissive across both
+	// IP classes. The caller still gets pinned IPs for dial safety.
+	decision, err := DecideOutbound(
+		context.Background(),
+		"http://internal.svc/",
+		nil, nil,
+		time.Now().Add(5*time.Second),
+	)
+	if err != nil {
+		t.Fatalf("permissive default must allow private host, got: %v", err)
+	}
+	if len(decision.Pinned) != 1 || decision.Pinned[0].String() != "10.0.0.5" {
+		t.Fatalf("decision.Pinned = %v, want [10.0.0.5]", decision.Pinned)
 	}
 }
