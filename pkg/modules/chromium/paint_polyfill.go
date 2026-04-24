@@ -124,12 +124,11 @@ const paintCallbacksPolyfill = `
 
 // injectPaintCallbacksPolyfillActionFunc installs the
 // [paintCallbacksPolyfill] via [page.AddScriptToEvaluateOnNewDocument]
-// so that it runs before any user script on the navigated page. The
-// shim is installed unconditionally: the native rAF, ResizeObserver,
-// and IntersectionObserver APIs do not fire during Chromium's
-// headless-print render, so replacing them with timer-backed
-// implementations either restores the behavior the page expects or has
-// no effect when the page never calls them.
+// before any user script runs. Runs on every conversion: Chromium's
+// headless-print pipeline does not fire the native rAF,
+// ResizeObserver, and IntersectionObserver, so the timer-backed
+// replacements fire the user's callbacks when the page relies on them
+// and have no effect otherwise.
 func injectPaintCallbacksPolyfillActionFunc(logger *slog.Logger) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		logger.DebugContext(ctx, "inject paint-callbacks polyfill")
