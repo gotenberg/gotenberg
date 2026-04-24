@@ -10,17 +10,15 @@ import (
 )
 
 // paintCallbacksPolyfill is a JavaScript shim installed before any user
-// script runs. It replaces [requestAnimationFrame], [cancelAnimationFrame],
-// [ResizeObserver], and [IntersectionObserver] with timer-backed
-// implementations. Headless Chromium's print-emulation pipeline does not
-// tick the compositor refresh driver reliably between
-// "load" and [Page.printToPDF], which leaves the native rAF /
-// ResizeObserver / IntersectionObserver queues permanently stalled and
-// breaks charting libraries (visx, ApexCharts, and similar) that rely on
-// rAF-gated measurement. The polyfill exposes the same APIs with timer
-// semantics, so user scripts that schedule work on those callbacks
-// receive their measurements and Gotenberg's rendered output reflects
-// the page the author intended. See
+// script runs. Replaces requestAnimationFrame, cancelAnimationFrame,
+// ResizeObserver, and IntersectionObserver with timer-backed
+// implementations. Headless Chromium's print-emulation pipeline does
+// not tick the compositor refresh driver between the load event and
+// the Page.printToPDF call, which leaves the native callback queues
+// stalled and breaks charting libraries (visx, ApexCharts) that rely
+// on rAF-gated measurement. The polyfill exposes the same APIs with
+// timer semantics so user-scheduled callbacks fire in print mode and
+// the rendered output matches a live browser. See
 // https://github.com/gotenberg/gotenberg/issues/1535.
 const paintCallbacksPolyfill = `
 (function () {
@@ -126,10 +124,9 @@ const paintCallbacksPolyfill = `
 
 // injectPaintCallbacksPolyfillActionFunc installs the
 // [paintCallbacksPolyfill] via [page.AddScriptToEvaluateOnNewDocument]
-// so that it runs before any user script on the navigated page. Callers
-// set install=false to skip the shim when no readiness signal gates the
-// conversion, which preserves the native implementations for pages that
-// do not require it.
+// so that it runs before any user script on the navigated page. When
+// install is false the action is a no-op and the page keeps the native
+// rAF, ResizeObserver, and IntersectionObserver implementations.
 func injectPaintCallbacksPolyfillActionFunc(logger *slog.Logger, install bool) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		if !install {
