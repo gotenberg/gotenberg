@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Paint-driven callbacks</title>
+    <style>
+      body {
+        font-family: monospace;
+        padding: 20px;
+      }
+      #target {
+        width: 100px;
+        height: 100px;
+        background: #eee;
+      }
+    </style>
+  </head>
+  <body>
+    <p id="raf">raf-pending</p>
+    <p id="ro">ro-pending</p>
+    <p id="io">io-pending</p>
+    <div id="target">target</div>
+    <script>
+      requestAnimationFrame(function () {
+        document.getElementById("raf").textContent = "raf-fired";
+      });
+
+      var target = document.getElementById("target");
+
+      new ResizeObserver(function () {
+        document.getElementById("ro").textContent = "ro-fired";
+      }).observe(target);
+
+      new IntersectionObserver(function () {
+        document.getElementById("io").textContent = "io-fired";
+      }).observe(target);
+
+      // Signal Gotenberg to print after 2 s. Long enough for rAF / RO / IO
+      // to have fired when the polyfill is active; short enough to keep
+      // the test fast.
+      setTimeout(function () {
+        document.body.setAttribute("data-pdf-ready", "true");
+      }, 2000);
+    </script>
+  </body>
+</html>

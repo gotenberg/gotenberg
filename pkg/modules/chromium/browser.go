@@ -308,6 +308,7 @@ func (b *chromiumBrowser) Healthy(logger *slog.Logger) bool {
 func (b *chromiumBrowser) pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error {
 	// Note: no error wrapping because it leaks on errors we want to display to
 	// the end user.
+	installPaintPolyfill := options.WaitForExpression != "" || options.WaitForSelector != ""
 	return b.do(ctx, logger, url, options.Options, chromedp.Tasks{
 		network.Enable(),
 		fetch.Enable(),
@@ -317,6 +318,7 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *slog.Logger, url, out
 		disableJavaScriptActionFunc(logger, b.arguments.disableJavaScript),
 		setCookiesActionFunc(logger, options.Cookies),
 		userAgentOverride(logger, options.UserAgent),
+		injectPaintCallbacksPolyfillActionFunc(logger, installPaintPolyfill),
 		navigateActionFunc(logger, url, options.SkipNetworkIdleEvent, options.SkipNetworkAlmostIdleEvent),
 		hideDefaultWhiteBackgroundActionFunc(logger, options.OmitBackground, options.PrintBackground),
 		forceExactColorsActionFunc(logger, options.PrintBackground),
@@ -334,6 +336,7 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *slog.Logger, url, out
 func (b *chromiumBrowser) screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions) error {
 	// Note: no error wrapping because it leaks on errors we want to display to
 	// the end user.
+	installPaintPolyfill := options.WaitForExpression != "" || options.WaitForSelector != ""
 	return b.do(ctx, logger, url, options.Options, chromedp.Tasks{
 		network.Enable(),
 		fetch.Enable(),
@@ -343,6 +346,7 @@ func (b *chromiumBrowser) screenshot(ctx context.Context, logger *slog.Logger, u
 		disableJavaScriptActionFunc(logger, b.arguments.disableJavaScript),
 		setCookiesActionFunc(logger, options.Cookies),
 		userAgentOverride(logger, options.UserAgent),
+		injectPaintCallbacksPolyfillActionFunc(logger, installPaintPolyfill),
 		navigateActionFunc(logger, url, options.SkipNetworkIdleEvent, options.SkipNetworkAlmostIdleEvent),
 		hideDefaultWhiteBackgroundActionFunc(logger, options.OmitBackground, true),
 		forceExactColorsActionFunc(logger, true),
