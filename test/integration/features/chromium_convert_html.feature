@@ -198,9 +198,9 @@ Feature: /forms/chromium/convert/html
   Scenario: POST /forms/chromium/convert/html (paint-callback polyfill fires rAF / ResizeObserver / IntersectionObserver when waitForExpression is set)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
-      | files                     | testdata/paint-callbacks-html/index.html            | file   |
-      | waitForExpression         | !!document.body.getAttribute('data-pdf-ready')      | field  |
-      | Gotenberg-Output-Filename | foo                                                 | header |
+      | files                     | testdata/paint-callbacks-html/index.html       | file   |
+      | waitForExpression         | !!document.body.getAttribute('data-pdf-ready') | field  |
+      | Gotenberg-Output-Filename | foo                                            | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
