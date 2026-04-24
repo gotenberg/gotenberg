@@ -4,7 +4,6 @@ go 1.26.0
 
 require (
 	github.com/alexliesenfeld/health v0.8.1
-	github.com/barasher/go-exiftool v1.10.0
 	github.com/chromedp/cdproto v0.0.0-20260405000525-47a8ff65b46a
 	github.com/chromedp/chromedp v0.15.1
 	github.com/cucumber/godog v0.15.1
