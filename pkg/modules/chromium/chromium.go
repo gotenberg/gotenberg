@@ -160,11 +160,22 @@ type Options struct {
 	WaitWindowStatus string
 
 	// WaitForExpression is the custom JavaScript expression to wait before
-	// converting an HTML document until it returns true
+	// converting an HTML document until it returns true.
+	//
+	// When set, Gotenberg skips the browser lifecycle events
+	// (DomContentEventFired, LoadEventFired, LoadingFinished,
+	// networkIdle, networkAlmostIdle) during navigation and treats the
+	// expression as the sole readiness signal. Encode any load-event
+	// dependency into the expression itself (for example
+	// "document.readyState === 'complete' && window.myAppReady").
 	WaitForExpression string
 
 	// WaitForSelector is the element query to wait until visible before
 	// converting an HTML document.
+	//
+	// When set, Gotenberg skips the browser lifecycle events during
+	// navigation and treats the selector visibility as the sole
+	// readiness signal.
 	WaitForSelector string
 
 	// Cookies are the cookies to put in the Chromium cookies' jar.
