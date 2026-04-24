@@ -195,29 +195,6 @@ Feature: /forms/chromium/convert/html
       Wait delay > 2 seconds or expression window globalVar === 'ready' returns true.
       """
 
-  Scenario: POST /forms/chromium/convert/html (waitForExpression skips lifecycle events)
-    Given I have a Gotenberg container with the following environment variable(s):
-      | LOG_LEVEL | debug |
-    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
-      | files             | testdata/feature-rich-html/index.html | file  |
-      | waitForExpression | window.globalVar === 'ready'          | field |
-    Then the response status code should be 200
-    Then the response header "Content-Type" should be "application/pdf"
-    Then there should be 1 PDF(s) in the response
-    Then the Gotenberg container should log the following entries:
-      | skipping lifecycle events; waitForExpression or waitForSelector gates readiness |
-
-  Scenario: POST /forms/chromium/convert/html (no readiness signal keeps lifecycle waits)
-    Given I have a Gotenberg container with the following environment variable(s):
-      | LOG_LEVEL | debug |
-    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
-      | files | testdata/page-1-html/index.html | file |
-    Then the response status code should be 200
-    Then the response header "Content-Type" should be "application/pdf"
-    Then there should be 1 PDF(s) in the response
-    Then the Gotenberg container should NOT log the following entries:
-      | skipping lifecycle events; waitForExpression or waitForSelector gates readiness |
-
   Scenario: POST /forms/chromium/convert/html (Wait For Selector)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):

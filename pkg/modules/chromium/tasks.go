@@ -328,32 +328,7 @@ func userAgentOverride(logger *slog.Logger, userAgent string) chromedp.ActionFun
 // 	}
 // }
 
-// navigateOptions carries the lifecycle-gating knobs for
-// [navigateActionFunc].
-type navigateOptions struct {
-	// SkipNetworkIdleEvent, when true, skips the wait for the
-	// "networkIdle" lifecycle event.
-	SkipNetworkIdleEvent bool
-
-	// SkipNetworkAlmostIdleEvent, when true, skips the wait for the
-	// "networkAlmostIdle" lifecycle event.
-	SkipNetworkAlmostIdleEvent bool
-
-	// SkipLifecycleEvents, when true, returns as soon as the
-	// [page.Navigate] RPC ack returns. All lifecycle waits
-	// (DomContentEventFired, LoadEventFired, LoadingFinished, and
-	// both network-idle events) are bypassed. Callers set this when
-	// the operator provided an explicit readiness signal
-	// (waitForExpression or waitForSelector) that will gate the
-	// downstream print or screenshot action, so Gotenberg does not
-	// need to also impose its own lifecycle gate. Pages whose load
-	// lifecycle never fires cleanly (blocking scripts, streaming
-	// responses, misbehaving iframes) otherwise stall navigate and
-	// starve the explicit signal.
-	SkipLifecycleEvents bool
-}
-
-func navigateActionFunc(logger *slog.Logger, url string, opts navigateOptions) chromedp.ActionFunc {
+func navigateActionFunc(logger *slog.Logger, url string, skipNetworkIdleEvent, skipNetworkAlmostIdleEvent bool) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		logger.DebugContext(ctx, fmt.Sprintf("navigate to '%s'", url))
 
@@ -362,24 +337,19 @@ func navigateActionFunc(logger *slog.Logger, url string, opts navigateOptions) c
 			return fmt.Errorf("navigate to '%s': %w", url, err)
 		}
 
-		if opts.SkipLifecycleEvents {
-			logger.DebugContext(ctx, "skipping lifecycle events; waitForExpression or waitForSelector gates readiness")
-			return nil
-		}
-
 		waitFunc := []func() error{
 			waitForEventDomContentEventFired(ctx, logger),
 			waitForEventLoadEventFired(ctx, logger),
 			waitForEventLoadingFinished(ctx, logger),
 		}
 
-		if !opts.SkipNetworkIdleEvent {
+		if !skipNetworkIdleEvent {
 			waitFunc = append(waitFunc, waitForEventNetworkIdle(ctx, logger))
 		} else {
 			logger.DebugContext(ctx, "skipping network idle event")
 		}
 
-		if !opts.SkipNetworkAlmostIdleEvent {
+		if !skipNetworkAlmostIdleEvent {
 			waitFunc = append(waitFunc, waitForEventNetworkAlmostIdle(ctx, logger))
 		} else {
 			logger.DebugContext(ctx, "skipping network almost idle event")
