@@ -898,6 +898,53 @@ func TestProcessSupervisor_IdleShutdown(t *testing.T) {
 	}
 }
 
+func TestProcessSupervisor_RetryAfterFailedFirstStart(t *testing.T) {
+	// Regression test for https://github.com/gotenberg/gotenberg/issues/1538:
+	// a failed first launch must not poison the supervisor; the next request
+	// must retry Launch() instead of returning the cached error forever.
+	logger := slog.New(slog.DiscardHandler)
+
+	var startCalls atomic.Int64
+	process := &ProcessMock{
+		StartMock: func(logger *slog.Logger) error {
+			if startCalls.Add(1) == 1 {
+				return errors.New("first start failed")
+			}
+			return nil
+		},
+		StopMock: func(logger *slog.Logger) error {
+			return nil
+		},
+		HealthyMock: func(logger *slog.Logger) bool {
+			return true
+		},
+	}
+
+	ps := NewProcessSupervisor(logger, process, 0, 0, 1, 0).(*processSupervisor)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := ps.Run(ctx, logger, func() error { return nil })
+	if err == nil {
+		t.Fatal("expected first Run to fail because Launch failed")
+	}
+	if ps.firstStart.Load() {
+		t.Fatal("firstStart must remain false after a failed Launch")
+	}
+
+	err = ps.Run(ctx, logger, func() error { return nil })
+	if err != nil {
+		t.Fatalf("expected second Run to succeed after the supervisor retries Launch, got: %v", err)
+	}
+	if !ps.firstStart.Load() {
+		t.Fatal("expected firstStart to be set after the second Launch succeeds")
+	}
+	if got := startCalls.Load(); got != 2 {
+		t.Fatalf("expected exactly 2 Start calls, got %d", got)
+	}
+}
+
 func TestProcessSupervisor_IdleShutdownSkippedWhenActive(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 

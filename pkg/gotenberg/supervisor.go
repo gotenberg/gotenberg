@@ -86,12 +86,13 @@ type processSupervisor struct {
 	maxConcurrency int64
 	semaphore      chan struct{}
 	firstStart     atomic.Bool
-	firstStartOnce sync.Once
-	// firstStartErr stores the error from the first Launch attempt executed
-	// via firstStartOnce. Subsequent callers that enter the !firstStart block
-	// need to observe this value after the Once has completed, without
-	// re-executing the closure.
-	firstStartErr       error
+	// firstStartMu serializes lazy-launch attempts so concurrent callers do
+	// not all spawn Launch() simultaneously. Using a mutex (instead of
+	// sync.Once) lets a failed launch be retried by the next caller, since a
+	// transient failure (such as a cold-start timeout) must not poison the
+	// supervisor for the rest of the container's lifetime. See
+	// https://github.com/gotenberg/gotenberg/issues/1538.
+	firstStartMu        sync.Mutex
 	reqCounter          atomic.Int64
 	reqQueueSize        atomic.Int64
 	restartsCounter     atomic.Int64
@@ -346,8 +347,6 @@ func (s *processSupervisor) maybeIdleShutdown() {
 
 	// Reset state so ensureStarted() re-launches on next request.
 	s.firstStart.Store(false)
-	s.firstStartOnce = sync.Once{}
-	s.firstStartErr = nil
 	s.reqCounter.Store(0)
 
 	s.logger.DebugContext(context.Background(), "process stopped due to idle timeout")
@@ -375,21 +374,27 @@ func (s *processSupervisor) acquireSlot(ctx context.Context, logger *slog.Logger
 	}
 }
 
-// ensureStarted performs a one-time lazy launch of the process on its first
-// use. Subsequent calls are no-ops.
+// ensureStarted performs a lazy launch of the process on its first use.
+// Concurrent callers serialize on firstStartMu; once the launch succeeds,
+// subsequent calls short-circuit on the firstStart flag. A failed launch
+// leaves firstStart unset, so the next caller retries the launch.
 func (s *processSupervisor) ensureStarted(ctx context.Context) error {
 	if s.firstStart.Load() {
 		return nil
 	}
 
-	s.firstStartOnce.Do(func() {
-		s.firstStartErr = s.runWithDeadline(ctx, func() error {
-			return s.Launch()
-		})
-	})
+	s.firstStartMu.Lock()
+	defer s.firstStartMu.Unlock()
 
-	if s.firstStartErr != nil {
-		return fmt.Errorf("process first start: %w", s.firstStartErr)
+	if s.firstStart.Load() {
+		return nil
+	}
+
+	err := s.runWithDeadline(ctx, func() error {
+		return s.Launch()
+	})
+	if err != nil {
+		return fmt.Errorf("process first start: %w", err)
 	}
 
 	return nil
