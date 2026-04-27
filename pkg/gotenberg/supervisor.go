@@ -85,13 +85,14 @@ type processSupervisor struct {
 	maxQueueSize   int64
 	maxConcurrency int64
 	semaphore      chan struct{}
-	firstStart     atomic.Bool
-	firstStartOnce sync.Once
-	// firstStartErr stores the error from the first Launch attempt executed
-	// via firstStartOnce. Subsequent callers that enter the !firstStart block
-	// need to observe this value after the Once has completed, without
-	// re-executing the closure.
-	firstStartErr       error
+	firstStart atomic.Bool
+	// firstStartMu serialises Launch attempts in ensureStarted. It is held
+	// only across a single Launch call; a successful Launch flips
+	// firstStart=true so subsequent callers short-circuit before taking the
+	// lock. A *failed* Launch leaves firstStart=false so the next request
+	// gets a fresh attempt — the supervisor must not cache a transient
+	// startup error for the lifetime of the container (issue #1538).
+	firstStartMu        sync.Mutex
 	reqCounter          atomic.Int64
 	reqQueueSize        atomic.Int64
 	restartsCounter     atomic.Int64
@@ -346,8 +347,6 @@ func (s *processSupervisor) maybeIdleShutdown() {
 
 	// Reset state so ensureStarted() re-launches on next request.
 	s.firstStart.Store(false)
-	s.firstStartOnce = sync.Once{}
-	s.firstStartErr = nil
 	s.reqCounter.Store(0)
 
 	s.logger.DebugContext(context.Background(), "process stopped due to idle timeout")
@@ -375,21 +374,34 @@ func (s *processSupervisor) acquireSlot(ctx context.Context, logger *slog.Logger
 	}
 }
 
-// ensureStarted performs a one-time lazy launch of the process on its first
-// use. Subsequent calls are no-ops.
+// ensureStarted lazily launches the process on first use. A successful
+// Launch flips firstStart=true so subsequent callers short-circuit; a
+// *failed* Launch leaves firstStart=false so the next caller retries.
+//
+// Earlier versions used sync.Once + a cached firstStartErr, which meant
+// any first-attempt error (e.g. an aggressive --libreoffice-start-timeout)
+// was returned to every subsequent request for the lifetime of the
+// container until it was restarted (issue #1538). The mutex below
+// serialises concurrent first-launch attempts so we still only run one
+// Launch at a time, without caching the failure.
 func (s *processSupervisor) ensureStarted(ctx context.Context) error {
 	if s.firstStart.Load() {
 		return nil
 	}
 
-	s.firstStartOnce.Do(func() {
-		s.firstStartErr = s.runWithDeadline(ctx, func() error {
-			return s.Launch()
-		})
-	})
+	s.firstStartMu.Lock()
+	defer s.firstStartMu.Unlock()
 
-	if s.firstStartErr != nil {
-		return fmt.Errorf("process first start: %w", s.firstStartErr)
+	// Re-check after acquiring the lock: another goroutine may have
+	// completed a successful Launch while we were waiting.
+	if s.firstStart.Load() {
+		return nil
+	}
+
+	if err := s.runWithDeadline(ctx, func() error {
+		return s.Launch()
+	}); err != nil {
+		return fmt.Errorf("process first start: %w", err)
 	}
 
 	return nil

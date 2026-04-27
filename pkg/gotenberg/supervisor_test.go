@@ -941,3 +941,85 @@ func TestProcessSupervisor_IdleShutdownSkippedWhenActive(t *testing.T) {
 
 	close(taskDone)
 }
+
+// TestProcessSupervisor_FirstStart_RetriesAfterFailure pins the fix for
+// issue #1538: if Launch fails on the first request (e.g. an aggressive
+// --libreoffice-start-timeout), the supervisor must let the *next*
+// request retry the launch instead of replaying the cached error to
+// every subsequent caller until the container is restarted.
+func TestProcessSupervisor_FirstStart_RetriesAfterFailure(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	var startCalls atomic.Int32
+	process := &ProcessMock{
+		StartMock: func(logger *slog.Logger) error {
+			n := startCalls.Add(1)
+			if n == 1 {
+				return errors.New("first start: timeout")
+			}
+			return nil
+		},
+		HealthyMock: func(logger *slog.Logger) bool { return true },
+	}
+
+	ps := NewProcessSupervisor(logger, process, 0, 0, 1, 0).(*processSupervisor)
+
+	// First request: Launch fails, Run returns the error, firstStart
+	// must remain false so the cached failure does not persist.
+	if err := ps.ensureStarted(context.Background()); err == nil {
+		t.Fatal("first ensureStarted: expected error from failed launch, got nil")
+	}
+	if ps.firstStart.Load() {
+		t.Fatal("firstStart must remain false after a failed Launch")
+	}
+
+	// Second request: Launch succeeds, ensureStarted returns nil and
+	// firstStart flips to true. Without the fix, this call would have
+	// replayed the cached firstStartErr from the prior sync.Once.
+	if err := ps.ensureStarted(context.Background()); err != nil {
+		t.Fatalf("second ensureStarted (succeeding launch): unexpected error: %v", err)
+	}
+	if !ps.firstStart.Load() {
+		t.Fatal("firstStart must be true after a successful Launch")
+	}
+	if got := startCalls.Load(); got != 2 {
+		t.Fatalf("Start mock invocations = %d, want 2 (one failed, one retried)", got)
+	}
+
+	// Third request: short-circuit — no further Start calls.
+	if err := ps.ensureStarted(context.Background()); err != nil {
+		t.Fatalf("third ensureStarted (already started): unexpected error: %v", err)
+	}
+	if got := startCalls.Load(); got != 2 {
+		t.Fatalf("Start mock invocations after already-started = %d, want 2", got)
+	}
+}
+
+// TestProcessSupervisor_FirstStart_NoRetryAfterSuccess pins the
+// "happy path stays cached" half of the contract — once Launch has
+// succeeded, ensureStarted is a pure no-op for every subsequent
+// caller. Combined with the retry test above, this proves the cache
+// is keyed on success rather than on "Launch was attempted at all"
+// (the #1538 regression).
+func TestProcessSupervisor_FirstStart_NoRetryAfterSuccess(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	var startCalls atomic.Int32
+	process := &ProcessMock{
+		StartMock: func(logger *slog.Logger) error {
+			startCalls.Add(1)
+			return nil
+		},
+	}
+
+	ps := NewProcessSupervisor(logger, process, 0, 0, 1, 0).(*processSupervisor)
+
+	for i := 0; i < 5; i++ {
+		if err := ps.ensureStarted(context.Background()); err != nil {
+			t.Fatalf("ensureStarted #%d: %v", i, err)
+		}
+	}
+	if got := startCalls.Load(); got != 1 {
+		t.Fatalf("Start invocations = %d, want 1 (cached after success)", got)
+	}
+}
