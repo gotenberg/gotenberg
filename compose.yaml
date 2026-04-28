@@ -59,6 +59,8 @@ services:
       - "--libreoffice-idle-shutdown-timeout=${LIBREOFFICE_IDLE_SHUTDOWN_TIMEOUT}"
       - "--libreoffice-auto-start=${LIBREOFFICE_AUTO_START}"
       - "--libreoffice-start-timeout=${LIBREOFFICE_START_TIMEOUT}"
+      - "--libreoffice-allow-list=${LIBREOFFICE_ALLOW_LIST}"
+      - "--libreoffice-deny-list=${LIBREOFFICE_DENY_LIST}"
       - "--libreoffice-disable-routes=${LIBREOFFICE_DISABLE_ROUTES}"
       - "--log-level=${LOG_LEVEL}"
       - "--log-fields-prefix=${LOG_FIELDS_PREFIX}"

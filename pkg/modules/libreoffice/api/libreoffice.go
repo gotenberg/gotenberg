@@ -24,12 +24,14 @@ type libreOfficeArguments struct {
 	binPath      string
 	unoBinPath   string
 	startTimeout time.Duration
+	proxyOptions outboundProxyOptions
 }
 
 type libreOfficeProcess struct {
 	socketPort         int
 	userProfileDirPath string
 	cmd                *gotenberg.Cmd
+	proxy              *libreOfficeProxy
 	cfgMu              sync.RWMutex
 	isStarted          atomic.Bool
 
@@ -57,7 +59,24 @@ func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 		return fmt.Errorf("get free port: %w", err)
 	}
 
+	proxy, err := newLibreOfficeProxy(logger, p.arguments.proxyOptions)
+	if err != nil {
+		return fmt.Errorf("create LibreOffice outbound proxy: %w", err)
+	}
+	proxy.Start()
+
 	userProfileDirPath := p.fs.NewDirPath()
+
+	// LibreOffice fetches external content (OOXML images via
+	// TargetMode=External, RTF INCLUDEPICTURE, ODT linked images) inside
+	// its own libcurl. Route those fetches through the in-process proxy
+	// so the chromium/webhook SSRF filters apply.
+	if err := writeSofficeProxyConfig(userProfileDirPath, proxy.Addr()); err != nil {
+		_ = proxy.Stop(context.Background())
+		return fmt.Errorf("write soffice proxy config: %w", err)
+	}
+	sofficeEnv := sofficeProxyEnv(os.Environ(), proxy.Addr())
+
 	args := []string{
 		"--headless",
 		"--invisible",
@@ -75,13 +94,16 @@ func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, p.arguments.binPath, args...)
 	if err != nil {
+		_ = proxy.Stop(context.Background())
 		return fmt.Errorf("create LibreOffice command: %w", err)
 	}
+	cmd.SetEnv(sofficeEnv)
 
 	// For whatever reason, LibreOffice requires a first start before being
 	// able to run as a daemon.
 	exitCode, err := cmd.Exec()
 	if err != nil && exitCode != 81 {
+		_ = proxy.Stop(context.Background())
 		return fmt.Errorf("execute LibreOffice: %w", err)
 	}
 
@@ -89,6 +111,7 @@ func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 
 	// Second start (daemon).
 	cmd = gotenberg.Command(logger, p.arguments.binPath, args...)
+	cmd.SetEnv(sofficeEnv)
 
 	err = cmd.Start()
 	if err != nil {
@@ -139,9 +162,16 @@ func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 			p.socketPort = port
 			p.userProfileDirPath = userProfileDirPath
 			p.cmd = cmd
+			p.proxy = proxy
 			p.isStarted.Store(true)
 
 			return
+		}
+
+		// LibreOffice failed to start; tear the proxy down too.
+		stopErr := proxy.Stop(context.Background())
+		if stopErr != nil {
+			logger.WarnContext(context.Background(), fmt.Sprintf("stop LibreOffice outbound proxy after failed start: %s", stopErr))
 		}
 
 		// Let's make sure the process is killed.
@@ -210,6 +240,16 @@ func (p *libreOfficeProcess) Stop(logger *slog.Logger) error {
 	err := p.cmd.Kill()
 	if err != nil {
 		return fmt.Errorf("kill LibreOffice process: %w", err)
+	}
+
+	if p.proxy != nil {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		stopErr := p.proxy.Stop(shutdownCtx)
+		cancel()
+		if stopErr != nil {
+			logger.WarnContext(context.Background(), fmt.Sprintf("stop LibreOffice outbound proxy: %s", stopErr))
+		}
+		p.proxy = nil
 	}
 
 	p.socketPort = 0

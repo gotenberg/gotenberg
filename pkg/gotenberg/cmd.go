@@ -55,6 +55,13 @@ func CommandContext(ctx context.Context, logger *slog.Logger, binPath string, ar
 	}, nil
 }
 
+// SetEnv replaces the environment variables passed to the underlying
+// process. When SetEnv is not called, the process inherits the parent's
+// environment.
+func (cmd *Cmd) SetEnv(env []string) {
+	cmd.process.Env = env
+}
+
 // Start starts the command but does not wait for its completion.
 func (cmd *Cmd) Start() error {
 	err := cmd.pipeOutput()
