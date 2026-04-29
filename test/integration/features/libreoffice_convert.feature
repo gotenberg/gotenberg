@@ -817,6 +817,30 @@ Feature: /forms/libreoffice/convert
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
 
+  Scenario: POST /forms/libreoffice/convert (stampSource=pdf without uploaded stamp file => 400)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files           | testdata/page_1.docx | file  |
+      | stampSource     | pdf                  | field |
+      | stampExpression | /etc/hostname        | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: a stamp file is required for image or pdf source
+      """
+
+  Scenario: POST /forms/libreoffice/convert (watermarkSource=pdf without uploaded watermark file => 400)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files               | testdata/page_1.docx | file  |
+      | watermarkSource     | pdf                  | field |
+      | watermarkExpression | /etc/hostname        | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: a watermark file is required for image or pdf source
+      """
+
   # See: https://github.com/gotenberg/gotenberg/issues/1500.
   Scenario: POST /forms/libreoffice/convert (Long Filename)
     Given I have a default Gotenberg container

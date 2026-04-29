@@ -25,6 +25,8 @@ import (
 
 type eventRequestPausedOptions struct {
 	allowList, denyList []*regexp2.Regexp
+	denyPrivateIPs      bool
+	denyPublicIPs       bool
 	allowedFilePrefixes []string
 	extraHttpHeaders    []ExtraHttpHeader
 }
@@ -52,29 +54,27 @@ func listenForEventRequestPaused(ctx context.Context, logger *slog.Logger, optio
 					return
 				}
 
-				err := gotenberg.FilterOutboundURL(ctx, e.Request.URL, options.allowList, options.denyList, deadline)
+				err := gotenberg.FilterOutboundURL(ctx, e.Request.URL, options.allowList, options.denyList, deadline,
+					gotenberg.WithDenyPrivateIPs(options.denyPrivateIPs),
+					gotenberg.WithDenyPublicIPs(options.denyPublicIPs),
+				)
 				if err != nil {
 					logger.WarnContext(ctx, err.Error())
 					allow = false
 				}
 
-				// Additional restriction: if the sub-resource is a file:// URL
-				// and we have allowed file prefixes, restrict access to only
-				// those directories. This prevents cross-request file access
-				// in /tmp.
-				if allow && strings.HasPrefix(e.Request.URL, "file://") && len(options.allowedFilePrefixes) > 0 {
-					prefixMatch := false
-					for _, prefix := range options.allowedFilePrefixes {
-						if strings.HasPrefix(e.Request.URL, "file://"+prefix) {
-							prefixMatch = true
-							break
-						}
-					}
-
-					if !prefixMatch {
-						logger.WarnContext(ctx, fmt.Sprintf("'%s' is not within any allowed file prefix", e.Request.URL))
-						allow = false
-					}
+				// Sub-resource file:// URLs are opt-in per route. A route
+				// that renders local files (HTML, Markdown) populates
+				// allowedFilePrefixes with the request working directory
+				// so its own assets load while sibling requests' /tmp
+				// paths stay out of reach. Every other route leaves the
+				// slice empty; treat that as default-deny so a file://
+				// sub-resource that slips past the deny-list (which
+				// exempts /tmp/) still cannot read the working
+				// directories of other in-flight conversions.
+				if allow && strings.HasPrefix(e.Request.URL, "file://") && !isAllowedFileSubResource(e.Request.URL, options.allowedFilePrefixes) {
+					logger.WarnContext(ctx, fmt.Sprintf("'%s' is not within any allowed file prefix", e.Request.URL))
+					allow = false
 				}
 
 				cctx := chromedp.FromContext(ctx)
@@ -247,6 +247,23 @@ func listenForEventResponseReceived(
 			}
 		}
 	})
+}
+
+// isAllowedFileSubResource reports whether a file:// sub-resource URL is
+// within at least one prefix. An empty prefix list rejects every
+// file:// URL so routes that never populate the list (for example
+// /forms/chromium/convert/url) default-deny reads from /tmp/, blocking
+// cross-request enumeration.
+func isAllowedFileSubResource(rawURL string, allowedFilePrefixes []string) bool {
+	if len(allowedFilePrefixes) == 0 {
+		return false
+	}
+	for _, prefix := range allowedFilePrefixes {
+		if strings.HasPrefix(rawURL, "file://"+prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func shouldCheckResourceHttpStatusCode(rawURL string, ignoreDomains []string) bool {

@@ -127,15 +127,19 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 					}
 
 					// Let's check if the webhook URLs are acceptable according to our
-					// allowed/denied lists, and against the IP-based outbound URL
-					// guard. See [gotenberg.FilterOutboundURL].
-					err := gotenberg.FilterOutboundURL(ctx, webhookUrl, w.allowList, w.denyList, deadline)
+					// allowed/denied lists, and against the IP-class options.
+					// See [gotenberg.FilterOutboundURL].
+					ipOpts := []gotenberg.DecideOption{
+						gotenberg.WithDenyPrivateIPs(w.denyPrivateIPs),
+						gotenberg.WithDenyPublicIPs(w.denyPublicIPs),
+					}
+					err := gotenberg.FilterOutboundURL(ctx, webhookUrl, w.allowList, w.denyList, deadline, ipOpts...)
 					if err != nil {
 						return fmt.Errorf("filter webhook URL: %w", err)
 					}
 
 					if webhookErrorUrl != "" {
-						err = gotenberg.FilterOutboundURL(ctx, webhookErrorUrl, w.errorAllowList, w.errorDenyList, deadline)
+						err = gotenberg.FilterOutboundURL(ctx, webhookErrorUrl, w.errorAllowList, w.errorDenyList, deadline, ipOpts...)
 						if err != nil {
 							return fmt.Errorf("filter webhook error URL: %w", err)
 						}
@@ -198,7 +202,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 
 					// Filter the events URL if provided.
 					if webhookEventsUrl != "" {
-						err = gotenberg.FilterOutboundURL(ctx, webhookEventsUrl, w.allowList, w.denyList, deadline)
+						err = gotenberg.FilterOutboundURL(ctx, webhookEventsUrl, w.allowList, w.denyList, deadline, ipOpts...)
 						if err != nil {
 							return fmt.Errorf("filter webhook events URL: %w", err)
 						}
@@ -220,7 +224,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						startTime:        startTime,
 
 						client: &retryablehttp.Client{
-							HTTPClient:   gotenberg.NewOutboundHttpClient(w.clientTimeout, w.allowList, w.denyList),
+							HTTPClient:   gotenberg.NewOutboundHttpClient(w.clientTimeout, w.allowList, w.denyList, ipOpts...),
 							RetryMax:     w.maxRetry,
 							RetryWaitMin: w.retryMinWait,
 							RetryWaitMax: w.retryMaxWait,
@@ -334,13 +338,38 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 
 					// As a webhook URL has been given, we handle the request in a
 					// goroutine and return immediately.
+					//
+					// Echo returns the echo.Context back to its sync.Pool as
+					// soon as this synchronous handler returns ErrAsyncProcess.
+					// A concurrent request can then claim the recycled context
+					// and c.Reset() wipes the shared store, which would cause
+					// any c.Get("...").(T) assertion downstream of the webhook
+					// goroutine to panic on a nil value and crash the process.
+					// Snapshot the keys downstream reads onto a detached
+					// wrapper before spawning the goroutine so pool reuse
+					// cannot reach into our async work.
+					detached := newPoolSafeContext(c, "logger", "context", "correlationId", "correlationIdHeader", "startTime")
+
 					w.asyncCount.Add(1)
 					go func() {
 						defer cancel()
 						defer w.asyncCount.Add(-1)
 
+						// Defense in depth: any panic that escapes the
+						// downstream chain (including future regressions of
+						// the pool-reuse bug) routes through handleError and
+						// leaves the process running.
+						defer func() {
+							r := recover()
+							if r == nil {
+								return
+							}
+							ctx.Log().Error(fmt.Sprintf("webhook goroutine panic: %v", r))
+							handleError(fmt.Errorf("internal error: %v", r))
+						}()
+
 						// Call the next middleware in the chain.
-						err := next(c)
+						err := next(detached)
 						if err != nil {
 							if errors.Is(err, api.ErrNoOutputFile) {
 								errNoOutputFile := fmt.Errorf("%w - the webhook middleware cannot handle the result of this route", err)

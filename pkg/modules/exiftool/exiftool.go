@@ -2,17 +2,16 @@ package exiftool
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
-	"reflect"
 	"regexp"
 	"strings"
 	"syscall"
 
-	"github.com/barasher/go-exiftool"
 	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 	"go.opentelemetry.io/otel/trace"
@@ -25,22 +24,20 @@ func init() {
 }
 
 // safeKeyPattern matches legitimate ExifTool tag names: alphanumeric,
-// hyphens, underscores, colons, and periods. Rejects control characters
-// (especially \n) that would inject stdin arguments via go-exiftool's
-// line-based protocol.
-var safeKeyPattern = regexp.MustCompile(`^[a-zA-Z0-9\-_.:]+$`)
+// hyphens, underscores, colons, and periods. The first character may not
+// be a hyphen, otherwise exiftool would treat the argv entry as a flag
+// rather than a tag assignment. Control characters are implicitly
+// rejected because the class is ASCII-only.
+var safeKeyPattern = regexp.MustCompile(`^[a-zA-Z0-9_.:][a-zA-Z0-9\-_.:]*$`)
 
-// validateMetadataValue rejects metadata values containing characters that
-// could inject ExifTool stdin arguments. go-exiftool writes each key/value
-// pair as a single line via fmt.Fprintln(stdin, "-"+k+"="+str), so a
-// newline in the value splits into a second stdin line that ExifTool
-// interprets as an additional argument. An attacker who controls a
-// metadata value but not the key could otherwise inject pseudo-tags like
-// -FileName=, -Directory=, -SymLink=, or -HardLink= and trigger arbitrary
-// filesystem side effects. The same applies to carriage returns and NUL.
-//
-// The returned error wraps [gotenberg.ErrPdfEngineMetadataValueNotSupported]
-// so the API layer surfaces it as HTTP 400.
+// validateMetadataValue rejects metadata values containing NUL, newline,
+// or carriage return. NUL terminates C strings and is rejected by
+// [exec.Cmd] anyway; newlines and carriage returns are rejected as
+// defense in depth against exiftool parsing quirks, even though argv
+// invocation is not susceptible to stdin-protocol injection the way
+// the previous go-exiftool backend was. The returned error wraps
+// [gotenberg.ErrPdfEngineMetadataValueNotSupported] so the API layer
+// surfaces it as HTTP 400.
 func validateMetadataValue(key, value string) error {
 	if strings.ContainsAny(value, "\n\r\x00") {
 		return fmt.Errorf("write PDF metadata with ExifTool: invalid metadata value for key %q (contains control character): %w", key, gotenberg.ErrPdfEngineMetadataValueNotSupported)
@@ -49,9 +46,10 @@ func validateMetadataValue(key, value string) error {
 }
 
 // systemTags lists ExifTool tags that reflect internal filesystem state
-// rather than actual PDF metadata. These are stripped from both read and
-// write operations.
+// or tool identity rather than actual PDF metadata. Stripped from read
+// output before returning to the caller.
 var systemTags = []string{
+	"SourceFile",          // Full path exiftool -j always emits first
 	"FileName",            // Reflects UUID-based disk name, not original filename
 	"Directory",           // Leaks internal temp path
 	"FileSize",            // System attribute
@@ -64,16 +62,97 @@ var systemTags = []string{
 	"Warning",             // Extraction warning messages
 }
 
-// writeOnlyDerivedTags lists ExifTool tags that are safe to return when
-// reading metadata but should not be written back (writing them can break
-// PDF/A compliance or cause side effects).
-var writeOnlyDerivedTags = []string{
-	"PageCount",         // Causes prism:pageCount injection
-	"Linearized",        // Computed status; writing it may invalidate structure
-	"PDFVersion",        // Header version; should not be manually forced via metadata
-	"MIMEType",          // Read-only derived
-	"FileType",          // Read-only derived
-	"FileTypeExtension", // Read-only derived
+// dangerousTags lists ExifTool pseudo-tags that trigger filesystem side
+// effects (file rename, move, link creation, permission change). Writes
+// containing any of these keys are silently dropped before the argv is
+// handed to exiftool. The comparison strips group prefixes (e.g.
+// "System:FileName" collapses to "FileName") because exiftool treats
+// the prefixed and bare forms identically.
+//
+// See https://exiftool.org/TagNames/Extra.html.
+var dangerousTags = []string{
+	"FileName",        // Writing this triggers a file rename in ExifTool
+	"Directory",       // Writing this triggers a file move in ExifTool
+	"HardLink",        // Writing this creates a hard link in ExifTool
+	"SymLink",         // Writing this creates a symbolic link in ExifTool
+	"FilePermissions", // Writing this changes the file's permissions
+}
+
+// isDangerousTag reports whether key matches one of the [dangerousTags]
+// after case-insensitive comparison with any group prefix stripped.
+func isDangerousTag(key string) bool {
+	bare := key
+	if i := strings.LastIndex(key, ":"); i >= 0 {
+		bare = key[i+1:]
+	}
+	for _, tag := range dangerousTags {
+		if strings.EqualFold(bare, tag) {
+			return true
+		}
+	}
+	return false
+}
+
+// buildExifToolWriteArgs builds the variadic argv tail for
+//
+//	exiftool -overwrite_original <args> <path>
+//
+// from a user-supplied metadata map. Dangerous pseudo-tags are silently
+// dropped. Invalid keys (empty, leading dash, control characters) and
+// values containing NUL or newlines return an error wrapping
+// [gotenberg.ErrPdfEngineMetadataValueNotSupported] so the API layer
+// replies with HTTP 400. Supported value kinds: string, []string,
+// []any of strings, bool, int, int64, float32, float64.
+func buildExifToolWriteArgs(metadata map[string]any) ([]string, error) {
+	var args []string
+	for key, value := range metadata {
+		if isDangerousTag(key) {
+			continue
+		}
+		if !safeKeyPattern.MatchString(key) {
+			return nil, fmt.Errorf("write PDF metadata with ExifTool: invalid metadata key %q: %w", key, gotenberg.ErrPdfEngineMetadataValueNotSupported)
+		}
+
+		switch val := value.(type) {
+		case string:
+			if err := validateMetadataValue(key, val); err != nil {
+				return nil, err
+			}
+			args = append(args, fmt.Sprintf("-%s=%s", key, val))
+		case []string:
+			for _, s := range val {
+				if err := validateMetadataValue(key, s); err != nil {
+					return nil, err
+				}
+				args = append(args, fmt.Sprintf("-%s=%s", key, s))
+			}
+		case []any:
+			// See https://github.com/gotenberg/gotenberg/issues/1048.
+			for _, entry := range val {
+				s, ok := entry.(string)
+				if !ok {
+					return nil, fmt.Errorf("write PDF metadata with ExifTool: unsupported element type %T in []any for key %q: %w", entry, key, gotenberg.ErrPdfEngineMetadataValueNotSupported)
+				}
+				if err := validateMetadataValue(key, s); err != nil {
+					return nil, err
+				}
+				args = append(args, fmt.Sprintf("-%s=%s", key, s))
+			}
+		case bool:
+			args = append(args, fmt.Sprintf("-%s=%t", key, val))
+		case int:
+			args = append(args, fmt.Sprintf("-%s=%d", key, val))
+		case int64:
+			args = append(args, fmt.Sprintf("-%s=%d", key, val))
+		case float32:
+			args = append(args, fmt.Sprintf("-%s=%g", key, val))
+		case float64:
+			args = append(args, fmt.Sprintf("-%s=%g", key, val))
+		default:
+			return nil, fmt.Errorf("write PDF metadata with ExifTool: unsupported type %T for key %q: %w", value, key, gotenberg.ErrPdfEngineMetadataValueNotSupported)
+		}
+	}
+	return args, nil
 }
 
 // ExifTool abstracts the CLI tool ExifTool and implements the
@@ -185,7 +264,8 @@ func (engine *ExifTool) Convert(ctx context.Context, logger *slog.Logger, format
 	return err
 }
 
-// ReadMetadata extracts the metadata of a given PDF file.
+// ReadMetadata extracts the metadata of a given PDF file by invoking
+// the exiftool binary with "-j" (JSON output) and parsing the result.
 func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 	_, span := gotenberg.Tracer().Start(ctx, "exiftool.ReadMetadata",
 		trace.WithSpanKind(trace.SpanKindClient),
@@ -193,40 +273,56 @@ func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *slog.Logger, i
 	)
 	defer span.End()
 
-	exifTool, err := exiftool.NewExiftool(exiftool.SetExiftoolBinaryPath(engine.binPath))
+	cmd := exec.CommandContext(ctx, engine.binPath, "-j", inputPath) //nolint:gosec
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	output, err := cmd.Output()
 	if err != nil {
-		err = fmt.Errorf("new ExifTool: %w", err)
+		err = fmt.Errorf("read metadata with ExifTool: %w", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 
-	defer func(exifTool *exiftool.Exiftool) {
-		err := exifTool.Close()
-		if err != nil {
-			logger.ErrorContext(ctx, fmt.Sprintf("close ExifTool: %v", err))
-		}
-	}(exifTool)
-
-	fileMetadata := exifTool.ExtractMetadata(inputPath)
-	if fileMetadata[0].Err != nil {
-		err = fmt.Errorf("read metadata with ExitfTool: %w", fileMetadata[0].Err)
+	var files []map[string]any
+	err = json.Unmarshal(output, &files)
+	if err != nil {
+		err = fmt.Errorf("parse ExifTool JSON output: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+	if len(files) == 0 {
+		err = errors.New("ExifTool returned no file entries")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 
-	// Strip system tags that reflect internal filesystem state (e.g.,
-	// UUID-based FileName, temp Directory) rather than actual PDF metadata.
+	metadata := files[0]
+
+	// ExifTool records extraction errors as an "Error" key on the file
+	// entry rather than via a non-zero exit code. Surface that back as a
+	// Go error before stripping so callers see the real cause.
+	if msg, ok := metadata["Error"].(string); ok && msg != "" {
+		err = fmt.Errorf("read metadata with ExifTool: %s", msg)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+
 	for _, tag := range systemTags {
-		delete(fileMetadata[0].Fields, tag)
+		delete(metadata, tag)
 	}
 
 	span.SetStatus(codes.Ok, "")
-	return fileMetadata[0].Fields, nil
+	return metadata, nil
 }
 
-// WriteMetadata writes the metadata into a given PDF file.
+// WriteMetadata writes the metadata into a given PDF file by invoking
+// the exiftool binary with "-overwrite_original -TAG=VALUE ... path".
+// ExifTool preserves tags that are not mentioned in the argv, so the
+// write is a merge rather than a rewrite.
 func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "exiftool.WriteMetadata",
 		trace.WithSpanKind(trace.SpanKindClient),
@@ -234,143 +330,34 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *slog.Logger, 
 	)
 	defer span.End()
 
-	exifTool, err := exiftool.NewExiftool(exiftool.SetExiftoolBinaryPath(engine.binPath))
+	extraArgs, err := buildExifToolWriteArgs(metadata)
 	if err != nil {
-		err = fmt.Errorf("new ExifTool: %w", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
 
-	defer func(exifTool *exiftool.Exiftool) {
-		err := exifTool.Close()
-		if err != nil {
-			logger.ErrorContext(ctx, fmt.Sprintf("close ExifTool: %v", err))
-		}
-	}(exifTool)
+	if len(extraArgs) == 0 {
+		// Nothing to write after filtering. Treat as success so the
+		// caller can move on without a dedicated zero-tag branch.
+		span.SetStatus(codes.Ok, "")
+		return nil
+	}
 
-	fileMetadata := exifTool.ExtractMetadata(inputPath)
-	if fileMetadata[0].Err != nil {
-		err = fmt.Errorf("read metadata with ExitfTool: %w", fileMetadata[0].Err)
+	args := append([]string{"-overwrite_original"}, extraArgs...)
+	args = append(args, inputPath)
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		err = fmt.Errorf("create ExifTool command: %w", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
 
-	// Strip system and derived tags from the existing file metadata so
-	// they are not written back (which can break PDF/A compliance or
-	// cause side effects).
-	for _, tag := range systemTags {
-		delete(fileMetadata[0].Fields, tag)
-	}
-	for _, tag := range writeOnlyDerivedTags {
-		delete(fileMetadata[0].Fields, tag)
-	}
-
-	// Filter user-supplied metadata to prevent ExifTool pseudo-tags from
-	// triggering dangerous side effects like file renames, moves, link
-	// creation, or permission changes. Comparison is case-insensitive
-	// because ExifTool processes tag names case-insensitively, and group
-	// prefixes are stripped because ExifTool treats "System:FileName" the
-	// same as "FileName".
-	// See https://exiftool.org/TagNames/Extra.html.
-	dangerousTags := []string{
-		"FileName",        // Writing this triggers a file rename in ExifTool
-		"Directory",       // Writing this triggers a file move in ExifTool
-		"HardLink",        // Writing this creates a hard link in ExifTool
-		"SymLink",         // Writing this creates a symbolic link in ExifTool
-		"FilePermissions", // Writing this changes the file's permissions
-	}
-	// Reject metadata keys containing characters that could inject ExifTool
-	// stdin arguments. ExifTool uses a line-based stdin protocol; a newline
-	// in a key splits into a separate argument, enabling flag injection
-	// (e.g., -if with Perl eval). Only allow alphanumeric, hyphen, colon,
-	// period, and underscore — sufficient for all legitimate tag names.
-	for key := range metadata {
-		if !safeKeyPattern.MatchString(key) {
-			err = fmt.Errorf("write PDF metadata with ExifTool: invalid metadata key %q: %w", key, gotenberg.ErrPdfEngineMetadataValueNotSupported)
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			return err
-		}
-	}
-
-	for key := range metadata {
-		// Strip ExifTool group prefixes (e.g., "System:FileName" →
-		// "FileName") before comparing. ExifTool allows leading group
-		// names separated by colons, and treats the prefixed and bare
-		// forms identically.
-		bare := key
-		if i := strings.LastIndex(key, ":"); i >= 0 {
-			bare = key[i+1:]
-		}
-		for _, tag := range dangerousTags {
-			if strings.EqualFold(bare, tag) {
-				delete(metadata, key)
-			}
-		}
-	}
-
-	for key, value := range metadata {
-		switch val := value.(type) {
-		case string:
-			if err = validateMetadataValue(key, val); err != nil {
-				span.RecordError(err)
-				span.SetStatus(codes.Error, err.Error())
-				return err
-			}
-			fileMetadata[0].SetString(key, val)
-		case []string:
-			for _, s := range val {
-				if err = validateMetadataValue(key, s); err != nil {
-					span.RecordError(err)
-					span.SetStatus(codes.Error, err.Error())
-					return err
-				}
-			}
-			fileMetadata[0].SetStrings(key, val)
-		case []any:
-			// See https://github.com/gotenberg/gotenberg/issues/1048.
-			strs := make([]string, len(val))
-			for i, entry := range val {
-				str, ok := entry.(string)
-				if !ok {
-					err = fmt.Errorf("write PDF metadata with ExifTool: %s %+v %s %w", key, val, reflect.TypeFor[[]any](), gotenberg.ErrPdfEngineMetadataValueNotSupported)
-					span.RecordError(err)
-					span.SetStatus(codes.Error, err.Error())
-					return err
-				}
-				if err = validateMetadataValue(key, str); err != nil {
-					span.RecordError(err)
-					span.SetStatus(codes.Error, err.Error())
-					return err
-				}
-				strs[i] = str
-			}
-			fileMetadata[0].SetStrings(key, strs)
-		case bool:
-			fileMetadata[0].SetString(key, fmt.Sprintf("%t", val))
-		case int:
-			fileMetadata[0].SetInt(key, int64(val))
-		case int64:
-			fileMetadata[0].SetInt(key, val)
-		case float32:
-			fileMetadata[0].SetFloat(key, float64(val))
-		case float64:
-			fileMetadata[0].SetFloat(key, val)
-		// TODO: support more complex cases, e.g., arrays and nested objects
-		// 	(limitations in underlying library).
-		default:
-			err = fmt.Errorf("write PDF metadata with ExifTool: %s %+v %s %w", key, val, reflect.TypeOf(val), gotenberg.ErrPdfEngineMetadataValueNotSupported)
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			return err
-		}
-	}
-
-	exifTool.WriteMetadata(fileMetadata)
-	if fileMetadata[0].Err != nil {
-		err = fmt.Errorf("write PDF metadata with ExifTool: %w", fileMetadata[0].Err)
+	exitCode, err := cmd.Exec()
+	if err != nil {
+		err = fmt.Errorf("write PDF metadata with ExifTool (exit %d): %w", exitCode, err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return err

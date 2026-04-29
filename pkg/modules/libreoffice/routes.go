@@ -304,11 +304,13 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			if (watermark.Source == gotenberg.StampSourceImage || watermark.Source == gotenberg.StampSourcePDF) && watermarkFile != "" {
-				watermark.Expression = watermarkFile
+			err = pdfengines.EnsureWatermarkFile(&watermark, watermarkFile)
+			if err != nil {
+				return fmt.Errorf("validate watermark: %w", err)
 			}
-			if (stamp.Source == gotenberg.StampSourceImage || stamp.Source == gotenberg.StampSourcePDF) && stampFile != "" {
-				stamp.Expression = stampFile
+			err = pdfengines.EnsureStampFile(&stamp, stampFile)
+			if err != nil {
+				return fmt.Errorf("validate stamp: %w", err)
 			}
 
 			err = pdfengines.ValidatePdfFormatsCompat(pdfFormats, userPassword, embedPaths)

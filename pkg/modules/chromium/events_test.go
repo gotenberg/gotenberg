@@ -61,3 +61,49 @@ func TestShouldCheckResourceHttpStatusCode_NonHTTPURL(t *testing.T) {
 		t.Fatalf("expected data: URL to be checked (no host filtering possible)")
 	}
 }
+
+func TestIsAllowedFileSubResource(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		rawURL   string
+		prefixes []string
+		want     bool
+	}{
+		{
+			name:     "empty prefix list default denies",
+			rawURL:   "file:///tmp/work-uuid/request-uuid/index.html",
+			prefixes: nil,
+			want:     false,
+		},
+		{
+			name:     "match within the sole prefix",
+			rawURL:   "file:///tmp/work-uuid/request-uuid/index.html",
+			prefixes: []string{"/tmp/work-uuid/request-uuid"},
+			want:     true,
+		},
+		{
+			name:     "sibling request directory rejected",
+			rawURL:   "file:///tmp/work-uuid/other-request-uuid/secret.html",
+			prefixes: []string{"/tmp/work-uuid/request-uuid"},
+			want:     false,
+		},
+		{
+			name:     "parent tmp directory rejected",
+			rawURL:   "file:///tmp/",
+			prefixes: []string{"/tmp/work-uuid/request-uuid"},
+			want:     false,
+		},
+		{
+			name:     "match among several prefixes",
+			rawURL:   "file:///tmp/work-uuid/request-b/asset.css",
+			prefixes: []string{"/tmp/work-uuid/request-a", "/tmp/work-uuid/request-b"},
+			want:     true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isAllowedFileSubResource(tc.rawURL, tc.prefixes); got != tc.want {
+				t.Fatalf("isAllowedFileSubResource(%q, %v) = %v, want %v", tc.rawURL, tc.prefixes, got, tc.want)
+			}
+		})
+	}
+}

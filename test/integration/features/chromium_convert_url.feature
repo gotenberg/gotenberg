@@ -478,6 +478,51 @@ Feature: /forms/chromium/convert/url
       # Modern browsers block file URIs from being loaded into iframes when the parent page is served over HTTP/HTTPS.
       | 'file:///etc/passwd' does not match any expression from the allowed list |
 
+  Scenario: POST /forms/chromium/convert/url (file:// scheme rejected at route layer)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url | file:///tmp/foo/index.html | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      file:// URLs are not accepted on this route. Use the /convert/html or /convert/markdown routes to render local HTML
+      """
+
+  Scenario: POST /forms/chromium/convert/url (Main URL resolves to a non-public IP, permissive default)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST |  |
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
+  Scenario: POST /forms/chromium/convert/url (Main URL is a non-public IP literal, deny-private-ips on)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST       |      |
+      | CHROMIUM_DENY_PRIVATE_IPS | true |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url | http://127.0.0.1/ | field |
+    Then the response status code should be 403
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Forbidden
+      """
+
+  Scenario: POST /forms/chromium/convert/url (Main URL resolves to a non-public IP, deny-private-ips on with allow-list bypass)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST       | .+   |
+      | CHROMIUM_DENY_PRIVATE_IPS | true |
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
   Scenario: POST /forms/chromium/convert/url (JavaScript Enabled)
     Given I have a default Gotenberg container
     Given I have a static server
@@ -1233,6 +1278,32 @@ Feature: /forms/chromium/convert/url
       | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
+
+  Scenario: POST /forms/chromium/convert/url (stampSource=pdf without uploaded stamp file => 400)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url             | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+      | stampSource     | pdf                                                                 | field |
+      | stampExpression | /etc/hostname                                                       | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: a stamp file is required for image or pdf source
+      """
+
+  Scenario: POST /forms/chromium/convert/url (watermarkSource=pdf without uploaded watermark file => 400)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                 | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+      | watermarkSource     | pdf                                                                 | field |
+      | watermarkExpression | /etc/hostname                                                       | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: a watermark file is required for image or pdf source
+      """
 
   # See: https://github.com/gotenberg/gotenberg/issues/1500.
   Scenario: POST /forms/chromium/convert/url (Long Filename)

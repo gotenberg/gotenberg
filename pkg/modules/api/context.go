@@ -232,7 +232,11 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 					)
 				}
 
-				err := gotenberg.FilterOutboundURL(ctx, dl.Url, downloadFromCfg.allowList, downloadFromCfg.denyList, deadline)
+				ipOpts := []gotenberg.DecideOption{
+					gotenberg.WithDenyPrivateIPs(downloadFromCfg.denyPrivateIPs),
+					gotenberg.WithDenyPublicIPs(downloadFromCfg.denyPublicIPs),
+				}
+				err := gotenberg.FilterOutboundURL(ctx, dl.Url, downloadFromCfg.allowList, downloadFromCfg.denyList, deadline, ipOpts...)
 				if err != nil {
 					return fmt.Errorf("filter URL: %w", err)
 				}
@@ -268,7 +272,7 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 				}
 
 				client := &retryablehttp.Client{
-					HTTPClient:   gotenberg.NewOutboundHttpClient(time.Until(deadline), downloadFromCfg.allowList, downloadFromCfg.denyList),
+					HTTPClient:   gotenberg.NewOutboundHttpClient(time.Until(deadline), downloadFromCfg.allowList, downloadFromCfg.denyList, ipOpts...),
 					RetryMax:     downloadFromCfg.maxRetry,
 					RetryWaitMin: time.Duration(1) * time.Second,
 					RetryWaitMax: time.Until(deadline),
