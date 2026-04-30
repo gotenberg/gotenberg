@@ -195,7 +195,7 @@ Feature: /forms/chromium/convert/html
       Wait delay > 2 seconds or expression window globalVar === 'ready' returns true.
       """
 
-  Scenario: POST /forms/chromium/convert/html (paint-callback polyfill fires rAF / ResizeObserver / IntersectionObserver with waitForExpression)
+  Scenario: POST /forms/chromium/convert/html (rAF / ResizeObserver / IntersectionObserver fire with waitForExpression)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
       | files                     | testdata/paint-callbacks-html/index.html       | file   |
@@ -219,7 +219,7 @@ Feature: /forms/chromium/convert/html
       io-fired
       """
 
-  Scenario: POST /forms/chromium/convert/html (paint-callback polyfill fires rAF / ResizeObserver / IntersectionObserver with waitDelay and emulatedMediaType=print)
+  Scenario: POST /forms/chromium/convert/html (rAF / ResizeObserver / IntersectionObserver fire with waitDelay and emulatedMediaType=print)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
       | files                     | testdata/paint-callbacks-html/index.html | file   |
