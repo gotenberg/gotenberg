@@ -11,7 +11,7 @@ ARG GOLANG_VERSION=1.26.0
 FROM golang:$GOLANG_VERSION AS pdfcpu-binary-stage
 
 # See https://github.com/pdfcpu/pdfcpu/releases.
-ARG PDFCPU_VERSION=v0.11.1
+ARG PDFCPU_VERSION=v0.12.0
 ENV CGO_ENABLED=0
 
 # Define the working directory outside of $GOPATH (we're using go modules).
@@ -24,7 +24,7 @@ RUN curl -Ls "https://github.com/pdfcpu/pdfcpu/archive/refs/tags/$PDFCPU_VERSION
 RUN go mod download \
     && go mod verify
 
-RUN go build -o pdfcpu -ldflags "-s -w -X 'main.version=$PDFCPU_VERSION' -X 'github.com/pdfcpu/pdfcpu/pkg/pdfcpu.VersionStr=$PDFCPU_VERSION' -X main.builtBy=gotenberg" ./cmd/pdfcpu \
+RUN go build -o pdfcpu -ldflags "-s -w -X 'main.version=$PDFCPU_VERSION' -X 'github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model.VersionStr=$PDFCPU_VERSION' -X main.builtBy=gotenberg" ./cmd/pdfcpu \
     # Verify installation.
     && ./pdfcpu version
 

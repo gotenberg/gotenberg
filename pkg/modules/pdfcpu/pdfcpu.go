@@ -142,14 +142,14 @@ func (engine *PdfCpu) Split(ctx context.Context, logger *slog.Logger, mode goten
 
 	switch mode.Mode {
 	case gotenberg.SplitModeIntervals:
-		args = append(args, "split", "-mode", "span", inputPath, outputDirPath, mode.Span)
+		args = append(args, "split", "--mode", "span", inputPath, outputDirPath, mode.Span)
 	case gotenberg.SplitModePages:
 		if mode.Unify {
 			outputPath := fmt.Sprintf("%s/%s", outputDirPath, filepath.Base(inputPath))
-			args = append(args, "trim", "-pages", mode.Span, inputPath, outputPath)
+			args = append(args, "trim", "--pages", mode.Span, inputPath, outputPath)
 			break
 		}
-		args = append(args, "extract", "-mode", "page", "-pages", mode.Span, inputPath, outputDirPath)
+		args = append(args, "extract", "--mode", "page", "--pages", mode.Span, inputPath, outputDirPath)
 	default:
 		err := fmt.Errorf("split PDFs using mode '%s' with pdfcpu: %w", mode.Mode, gotenberg.ErrPdfSplitModeNotSupported)
 		span.RecordError(err)
@@ -426,7 +426,7 @@ func (engine *PdfCpu) WriteBookmarks(ctx context.Context, logger *slog.Logger, i
 		}
 	}()
 
-	args := []string{"bookmarks", "import", "-replace", inputPath, tmpPath, inputPath}
+	args := []string{"bookmarks", "import", "--replace", inputPath, tmpPath, inputPath}
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
 	if err != nil {
 		err = fmt.Errorf("create command: %w", err)
@@ -513,10 +513,10 @@ func (engine *PdfCpu) Encrypt(ctx context.Context, logger *slog.Logger, inputPat
 
 	args := make([]string, 0, 11)
 	args = append(args, "encrypt")
-	args = append(args, "-mode", "aes")
-	args = append(args, "-upw", userPassword)
-	args = append(args, "-opw", ownerPassword)
-	args = append(args, "-perm", "all")
+	args = append(args, "--mode", "aes")
+	args = append(args, "--upw", userPassword)
+	args = append(args, "--opw", ownerPassword)
+	args = append(args, "--perm", "all")
 	args = append(args, inputPath, inputPath)
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
@@ -587,7 +587,7 @@ func (engine *PdfCpu) Rotate(ctx context.Context, logger *slog.Logger, inputPath
 
 	args := []string{"rotate"}
 	if pages != "" {
-		args = append(args, "-pages", pages)
+		args = append(args, "--pages", pages)
 	}
 	args = append(args, "--", inputPath, strconv.Itoa(angle), inputPath)
 
@@ -631,10 +631,10 @@ func (engine *PdfCpu) applyStampOrWatermark(ctx context.Context, logger *slog.Lo
 	}
 	description := strings.Join(descParts, ", ")
 
-	args := []string{command, "add", "-mode", mode}
+	args := []string{command, "add", "--mode", mode}
 
 	if stamp.Pages != "" {
-		args = append(args, "-pages", stamp.Pages)
+		args = append(args, "--pages", stamp.Pages)
 	}
 
 	args = append(args, "--", stamp.Expression, description, inputPath, inputPath)
