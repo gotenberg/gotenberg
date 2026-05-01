@@ -4,8 +4,8 @@ go 1.26.2
 
 require (
 	github.com/alexliesenfeld/health v0.8.1
-	github.com/chromedp/cdproto v0.0.0-20250803210736-d308e07a266d
-	github.com/chromedp/chromedp v0.14.2
+	github.com/chromedp/cdproto v0.0.0-20260321001828-e3e3800016bc
+	github.com/chromedp/chromedp v0.15.1
 	github.com/cucumber/godog v0.15.1
 	github.com/dlclark/regexp2 v1.12.0
 	github.com/gomarkdown/markdown v0.0.0-20260412113850-134a5b2cce7f
