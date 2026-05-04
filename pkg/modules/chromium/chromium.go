@@ -350,18 +350,23 @@ type ScreenshotOptions struct {
 	// OptimizeForSpeed defines whether to optimize image encoding for speed,
 	// not for resulting size.
 	OptimizeForSpeed bool
+
+	// DeviceScaleFactor is the ratio of the resolution in physical pixels to
+	// the resolution in CSS pixels for the current display device.
+	DeviceScaleFactor float64
 }
 
 // DefaultScreenshotOptions returns the default values for ScreenshotOptions.
 func DefaultScreenshotOptions() ScreenshotOptions {
 	return ScreenshotOptions{
-		Options:          DefaultOptions(),
-		Width:            800,
-		Height:           600,
-		Clip:             false,
-		Format:           "png",
-		Quality:          100,
-		OptimizeForSpeed: false,
+		Options:           DefaultOptions(),
+		Width:             800,
+		Height:            600,
+		Clip:              false,
+		Format:            "png",
+		Quality:           100,
+		OptimizeForSpeed:  false,
+		DeviceScaleFactor: 1.0,
 	}
 }
 
