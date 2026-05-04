@@ -164,11 +164,11 @@ func captureScreenshotActionFunc(logger *slog.Logger, outputPath string, options
 	}
 }
 
-func setDeviceMetricsOverride(logger *slog.Logger, width, height int) chromedp.ActionFunc {
+func setDeviceMetricsOverride(logger *slog.Logger, width, height int, deviceScaleFactor float64) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		logger.DebugContext(ctx, "set device metrics override")
 
-		err := emulation.SetDeviceMetricsOverride(int64(width), int64(height), 1.0, false).Do(ctx)
+		err := emulation.SetDeviceMetricsOverride(int64(width), int64(height), deviceScaleFactor, false).Do(ctx)
 		if err == nil {
 			return nil
 		}

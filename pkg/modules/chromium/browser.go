@@ -351,7 +351,7 @@ func (b *chromiumBrowser) screenshot(ctx context.Context, logger *slog.Logger, u
 		waitForSelectorVisibleBeforePrintActionFunc(logger, options.WaitForSelector),
 		waitDelayBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitDelay),
 		// Screenshot specific.
-		setDeviceMetricsOverride(logger, options.Width, options.Height),
+		setDeviceMetricsOverride(logger, options.Width, options.Height, options.DeviceScaleFactor),
 		captureScreenshotActionFunc(logger, outputPath, options),
 		// Teardown.
 		page.Close(),

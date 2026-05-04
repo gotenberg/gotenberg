@@ -341,11 +341,12 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 	defaultScreenshotOptions := DefaultScreenshotOptions()
 
 	var (
-		width, height    int
-		clip             bool
-		format           string
-		quality          int
-		optimizeForSpeed bool
+		width, height     int
+		clip              bool
+		format            string
+		quality           int
+		optimizeForSpeed  bool
+		deviceScaleFactor float64
 	)
 
 	form.
@@ -388,16 +389,18 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 			quality = intValue
 			return nil
 		}).
-		Bool("optimizeForSpeed", &optimizeForSpeed, defaultScreenshotOptions.OptimizeForSpeed)
+		Bool("optimizeForSpeed", &optimizeForSpeed, defaultScreenshotOptions.OptimizeForSpeed).
+		Float64("deviceScaleFactor", &deviceScaleFactor, defaultScreenshotOptions.DeviceScaleFactor)
 
 	screenshotOptions := ScreenshotOptions{
-		Options:          options,
-		Width:            width,
-		Height:           height,
-		Clip:             clip,
-		Format:           format,
-		Quality:          quality,
-		OptimizeForSpeed: optimizeForSpeed,
+		Options:           options,
+		Width:             width,
+		Height:            height,
+		Clip:              clip,
+		Format:            format,
+		Quality:           quality,
+		OptimizeForSpeed:  optimizeForSpeed,
+		DeviceScaleFactor: deviceScaleFactor,
 	}
 
 	return form, screenshotOptions
