@@ -348,10 +348,13 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 					)
 				}
 
-				// Avoid directory traversal and make sure filename characters are
-				// normalized.
+				// Strip path separators (including backslashes) and control
+				// characters, then NFC-normalize. Defends against directory
+				// traversal in the on-disk name and Windows-side Zip Slip
+				// when the original filename is later embedded in an output
+				// zip entry.
 				// See: https://github.com/gotenberg/gotenberg/issues/662.
-				filename = norm.NFC.String(filepath.Base(filename))
+				filename = sanitizeFilename(filename)
 
 				// Use a UUID-based name on disk to avoid filesystem
 				// NAME_MAX limits with long filenames.
@@ -428,10 +431,12 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 		// This will ensure we do not exceed the body limit.
 		reader := &trackingReader{R: in, AddReadBytes: addReadBytes}
 
-		// Avoid directory traversal and make sure filename characters are
-		// normalized.
+		// Strip path separators (including backslashes) and control
+		// characters, then NFC-normalize. Defends against directory
+		// traversal in the on-disk name and Windows-side Zip Slip when the
+		// original filename is later embedded in an output zip entry.
 		// See: https://github.com/gotenberg/gotenberg/issues/662.
-		filename := norm.NFC.String(filepath.Base(fh.Filename))
+		filename := sanitizeFilename(fh.Filename)
 
 		// Use a UUID-based name on disk to avoid filesystem
 		// NAME_MAX limits with long filenames.
@@ -469,7 +474,7 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 				return ctx, cancel, fmt.Errorf("copy to disk: %w", err)
 			}
 			// Track files by field name
-			filename := norm.NFC.String(filepath.Base(fh.Filename))
+			filename := sanitizeFilename(fh.Filename)
 			filePath := ctx.files[filename]
 			ctx.filesByField[fieldName] = append(ctx.filesByField[fieldName], filePath)
 		}
@@ -657,4 +662,22 @@ func (ctx *Context) OutputFilename(outputPath string) string {
 	}
 
 	return fmt.Sprintf("%s%s", filename, filepath.Ext(outputPath))
+}
+
+// sanitizeFilename strips path separators (including backslashes, which
+// [filepath.Base] ignores on Linux) and control characters from a
+// caller-supplied filename, then NFC-normalizes the result. This prevents a
+// Windows-side Zip Slip when an output zip is extracted by a permissive
+// extractor that interprets '\' as a path separator.
+func sanitizeFilename(name string) string {
+	if i := strings.LastIndexAny(name, `/\`); i >= 0 {
+		name = name[i+1:]
+	}
+	name = strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return -1
+		}
+		return r
+	}, name)
+	return norm.NFC.String(name)
 }

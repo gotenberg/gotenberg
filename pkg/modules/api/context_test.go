@@ -69,3 +69,60 @@ func TestNewContext_Cancellation(t *testing.T) {
 		t.Fatal("expected context to be cancelled after request context cancellation, but it timed out")
 	}
 }
+
+func TestSanitizeFilename(t *testing.T) {
+	for _, tc := range []struct {
+		scenario string
+		input    string
+		expect   string
+	}{
+		{
+			scenario: "plain filename is unchanged",
+			input:    "report.pdf",
+			expect:   "report.pdf",
+		},
+		{
+			scenario: "POSIX traversal is stripped",
+			input:    "../../etc/passwd",
+			expect:   "passwd",
+		},
+		{
+			scenario: "Windows traversal with backslashes is stripped",
+			input:    `..\..\..\..\Windows\System32\evil.pdf`,
+			expect:   "evil.pdf",
+		},
+		{
+			scenario: "mixed separators take the last segment",
+			input:    `foo/bar\baz.pdf`,
+			expect:   "baz.pdf",
+		},
+		{
+			scenario: "control characters are dropped",
+			input:    "evil\x00\x07\x1f\x7f.pdf",
+			expect:   "evil.pdf",
+		},
+		{
+			scenario: "NFC normalization collapses decomposed sequences",
+			// "e" + combining acute accent -> precomposed "é".
+			input:  "café.pdf",
+			expect: "café.pdf",
+		},
+		{
+			scenario: "trailing backslash yields empty name",
+			input:    `foo\`,
+			expect:   "",
+		},
+		{
+			scenario: "empty input yields empty name",
+			input:    "",
+			expect:   "",
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			got := sanitizeFilename(tc.input)
+			if got != tc.expect {
+				t.Errorf("sanitizeFilename(%q) = %q, want %q", tc.input, got, tc.expect)
+			}
+		})
+	}
+}
