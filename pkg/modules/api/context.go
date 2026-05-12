@@ -216,6 +216,15 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 			)
 		}
 
+		// Each goroutine writes to its own results slot. The main
+		// goroutine merges into ctx.files, ctx.diskToOriginal, and
+		// ctx.filesByField after eg.Wait() to avoid concurrent map
+		// writes.
+		type downloadFromResult struct {
+			filename, path, formField string
+		}
+		results := make([]downloadFromResult, len(dls))
+
 		eg, _ := errgroup.WithContext(ctx)
 		for i, dl := range dls {
 			eg.Go(func() error {
@@ -392,18 +401,16 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 				dlSpan.SetStatus(codes.Ok, "")
 				dlSpan.End()
 
-				ctx.files[filename] = path
-				ctx.diskToOriginal[path] = filename
-
-				// Route the downloaded file to the appropriate field bucket.
+				var formField string
 				switch {
 				case dl.Field == "embedded" || dl.Embedded:
-					ctx.filesByField[EmbedsFormField] = append(ctx.filesByField[EmbedsFormField], path)
+					formField = EmbedsFormField
 				case dl.Field == "watermark":
-					ctx.filesByField[WatermarkFormField] = append(ctx.filesByField[WatermarkFormField], path)
+					formField = WatermarkFormField
 				case dl.Field == "stamp":
-					ctx.filesByField[StampFormField] = append(ctx.filesByField[StampFormField], path)
+					formField = StampFormField
 				}
+				results[i] = downloadFromResult{filename: filename, path: path, formField: formField}
 
 				return nil
 			})
@@ -412,6 +419,14 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 		err = eg.Wait()
 		if err != nil {
 			return ctx, cancel, err
+		}
+
+		for _, r := range results {
+			ctx.files[r.filename] = r.path
+			ctx.diskToOriginal[r.path] = r.filename
+			if r.formField != "" {
+				ctx.filesByField[r.formField] = append(ctx.filesByField[r.formField], r.path)
+			}
 		}
 	}
 

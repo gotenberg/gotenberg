@@ -3,10 +3,13 @@ package api
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -67,6 +70,83 @@ func TestNewContext_Cancellation(t *testing.T) {
 		}
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("expected context to be cancelled after request context cancellation, but it timed out")
+	}
+}
+
+// Concurrent downloadFrom entries must not race on the shared maps
+// (ctx.files, ctx.diskToOriginal, ctx.filesByField). Run under -race
+// to catch the data race; without -race a sufficient number of entries
+// still surfaces "fatal error: concurrent map writes".
+func TestNewContext_DownloadFromConcurrentMapWrites(t *testing.T) {
+	const downloads = 64
+
+	var ready sync.WaitGroup
+	ready.Add(downloads)
+	release := make(chan struct{})
+	var releaseOnce sync.Once
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ready.Done()
+		go func() {
+			ready.Wait()
+			releaseOnce.Do(func() { close(release) })
+		}()
+		<-release
+
+		filename := fmt.Sprintf("download-%s.txt", r.URL.Query().Get("i"))
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+		_, _ = w.Write([]byte("downloaded"))
+	}))
+	defer server.Close()
+
+	dls := make([]downloadFrom, downloads)
+	for i := range dls {
+		dls[i] = downloadFrom{
+			Url:   fmt.Sprintf("%s/file?i=%d", server.URL, i),
+			Field: "embedded",
+		}
+	}
+
+	payload, err := json.Marshal(dls)
+	if err != nil {
+		t.Fatalf("marshal downloadFrom payload: %v", err)
+	}
+
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	err = writer.WriteField("downloadFrom", string(payload))
+	if err != nil {
+		t.Fatalf("write downloadFrom field: %v", err)
+	}
+	err = writer.Close()
+	if err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	echoCtx := echo.New().NewContext(req, httptest.NewRecorder())
+	logger := slog.New(slog.DiscardHandler)
+	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+	downloadFromCfg := downloadFromConfig{
+		maxRetry: 0,
+	}
+
+	ctx, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromCfg)
+	if err != nil {
+		t.Fatalf("newContext returned error: %v", err)
+	}
+	defer cancel()
+
+	if got := len(ctx.files); got != downloads {
+		t.Fatalf("downloaded files = %d, want %d", got, downloads)
+	}
+	if got := len(ctx.diskToOriginal); got != downloads {
+		t.Fatalf("diskToOriginal entries = %d, want %d", got, downloads)
+	}
+	if got := len(ctx.filesByField[EmbedsFormField]); got != downloads {
+		t.Fatalf("filesByField[%q] entries = %d, want %d", EmbedsFormField, got, downloads)
 	}
 }
 
