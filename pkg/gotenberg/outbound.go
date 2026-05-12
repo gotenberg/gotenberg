@@ -45,11 +45,45 @@ var outboundDialer = &net.Dialer{
 	KeepAlive: 30 * time.Second,
 }
 
+// nonPublicIPv6Prefixes lists IPv6 ranges that the standard library does
+// not classify via [netip.Addr] helpers but that must not be considered
+// public:
+//
+//   - 2002::/16    6to4 (RFC 3056, deprecated by RFC 7526). Bits 16-47
+//     embed an IPv4 destination, including private ones.
+//   - 2001::/32    Teredo (RFC 4380). Bits 96-127 embed an IPv4
+//     destination, including private ones.
+//   - 64:ff9b::/96 NAT64 well-known prefix (RFC 6052). Low 32 bits
+//     embed an IPv4 destination translated by a NAT64 gateway.
+//   - 64:ff9b:1::/48 NAT64 local-use prefix (RFC 8215). Same risk.
+//   - fec0::/10    Deprecated site-local (RFC 3879). Not covered by
+//     [netip.Addr.IsPrivate] which only handles fc00::/7.
+//   - ::/96        IPv4-compatible IPv6 (deprecated). Embeds an IPv4
+//     destination and is not handled by [netip.Addr.Unmap].
+//   - 2001:db8::/32 Documentation range (RFC 3849). Never routable.
+//   - 100::/64     Discard prefix (RFC 6666).
+var nonPublicIPv6Prefixes = []netip.Prefix{
+	netip.MustParsePrefix("2002::/16"),
+	netip.MustParsePrefix("2001::/32"),
+	netip.MustParsePrefix("64:ff9b::/96"),
+	netip.MustParsePrefix("64:ff9b:1::/48"),
+	netip.MustParsePrefix("fec0::/10"),
+	netip.MustParsePrefix("::/96"),
+	netip.MustParsePrefix("2001:db8::/32"),
+	netip.MustParsePrefix("100::/64"),
+}
+
 // IsPublicIP reports whether addr is reachable on the public internet. It
 // returns false for loopback, private (RFC1918), link-local, unspecified,
 // multicast, and unique-local addresses. IPv4-mapped IPv6 addresses are
 // unmapped before evaluation so that [::ffff:127.0.0.1] is correctly
 // identified as loopback.
+//
+// IPv6 prefixes that tunnel or translate to an embedded IPv4 destination
+// (6to4, Teredo, NAT64) are rejected wholesale rather than recursed into,
+// because a host that routes them implicitly trusts the IPv4 mapping and
+// the prefixes themselves are deprecated or translation-only. See
+// [nonPublicIPv6Prefixes] for the full list and rationale.
 func IsPublicIP(addr netip.Addr) bool {
 	if !addr.IsValid() {
 		return false
@@ -64,6 +98,13 @@ func IsPublicIP(addr netip.Addr) bool {
 		addr.IsUnspecified(),
 		addr.IsInterfaceLocalMulticast():
 		return false
+	}
+	if addr.Is6() {
+		for _, p := range nonPublicIPv6Prefixes {
+			if p.Contains(addr) {
+				return false
+			}
+		}
 	}
 	return true
 }

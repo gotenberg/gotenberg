@@ -51,6 +51,38 @@ func TestIsPublicIP(t *testing.T) {
 		// Multicast.
 		{"224.0.0.1", false},
 		{"ff02::1", false},
+
+		// 6to4 wrapping internal/private IPv4 (RFC 3056, deprecated by
+		// RFC 7526). a9fe:a9fe = 169.254.169.254 (cloud metadata).
+		{"2002:a9fe:a9fe::", false},
+		{"2002:0a00:0001::", false},
+		{"2002:c0a8:0101::", false},
+
+		// 6to4 wrapping a public IPv4 (8.8.8.8) is rejected wholesale.
+		{"2002:0808:0808::", false},
+
+		// NAT64 well-known prefix (RFC 6052).
+		{"64:ff9b::a9fe:a9fe", false},
+		{"64:ff9b::0808:0808", false},
+
+		// NAT64 local-use prefix (RFC 8215).
+		{"64:ff9b:1::a9fe:a9fe", false},
+
+		// Teredo (RFC 4380).
+		{"2001:0:abcd:ef12:3456:7890:a9fe:a9fe", false},
+
+		// Deprecated site-local (RFC 3879).
+		{"fec0::1", false},
+		{"feff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", false},
+
+		// IPv4-compatible IPv6 (deprecated, not handled by Unmap).
+		{"::a9fe:a9fe", false},
+
+		// Documentation prefix (RFC 3849).
+		{"2001:db8::1", false},
+
+		// Discard prefix (RFC 6666).
+		{"100::1", false},
 	} {
 		t.Run(tc.addr, func(t *testing.T) {
 			addr, err := netip.ParseAddr(tc.addr)
