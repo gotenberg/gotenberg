@@ -1,0 +1,94 @@
+version: 0.2
+
+env:
+  variables:
+    DOCKER_PLATFORM: linux/amd64
+    DOCKER_TARGET: gotenberg
+    ECR_REGIONS: "ca-central-1 us-east-1"
+    ECR_REPOSITORY: tower/gotenberg-patched
+    GOTENBERG_VERSION: "8.32.0"
+    LATEST_TAG: "8.32.0-tower-latest"
+
+phases:
+  pre_build:
+    commands:
+      - |
+        set -euo pipefail
+
+        AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+        BUILD_DATE="$(date -u +%Y%m%d%H%M%S)"
+        SOURCE_SHA="${CODEBUILD_RESOLVED_SOURCE_VERSION:-manual}"
+        SHORT_SHA="$(printf "%s" "$SOURCE_SHA" | cut -c1-12)"
+        RELEASE_TAG="${IMAGE_TAG:-${GOTENBERG_VERSION}-tower-${BUILD_DATE}-${SHORT_SHA}}"
+        LOCAL_IMAGE="gotenberg:${RELEASE_TAG}"
+
+        {
+          echo "export AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID}"
+          echo "export RELEASE_TAG=${RELEASE_TAG}"
+          echo "export LOCAL_IMAGE=${LOCAL_IMAGE}"
+        } > /tmp/gotenberg-build.env
+
+        for region in $ECR_REGIONS; do
+          aws ecr describe-repositories \
+            --region "$region" \
+            --repository-names "$ECR_REPOSITORY" >/dev/null 2>&1 \
+            || aws ecr create-repository \
+              --region "$region" \
+              --repository-name "$ECR_REPOSITORY" \
+              --image-scanning-configuration scanOnPush=true >/dev/null
+
+          aws ecr get-login-password --region "$region" \
+            | docker login \
+              --username AWS \
+              --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${region}.amazonaws.com"
+        done
+
+  build:
+    commands:
+      - |
+        set -euo pipefail
+        . /tmp/gotenberg-build.env
+
+        docker build \
+          -f build/Dockerfile \
+          --pull \
+          --no-cache \
+          --platform "$DOCKER_PLATFORM" \
+          --target "$DOCKER_TARGET" \
+          --build-arg "GOTENBERG_VERSION=${GOTENBERG_VERSION}" \
+          --tag "$LOCAL_IMAGE" \
+          .
+
+  post_build:
+    commands:
+      - |
+        set -euo pipefail
+        . /tmp/gotenberg-build.env
+
+        first_image_uri=""
+        printf '{"images":[' > imageDetail.json
+
+        for region in $ECR_REGIONS; do
+          repository_uri="${AWS_ACCOUNT_ID}.dkr.ecr.${region}.amazonaws.com/${ECR_REPOSITORY}"
+
+          docker tag "$LOCAL_IMAGE" "${repository_uri}:${RELEASE_TAG}"
+          docker tag "$LOCAL_IMAGE" "${repository_uri}:${LATEST_TAG}"
+          docker push "${repository_uri}:${RELEASE_TAG}"
+          docker push "${repository_uri}:${LATEST_TAG}"
+
+          image_uri="${repository_uri}:${RELEASE_TAG}"
+          if [ -z "$first_image_uri" ]; then
+            first_image_uri="$image_uri"
+            printf '{"region":"%s","imageUri":"%s"}' "$region" "$image_uri" >> imageDetail.json
+          else
+            printf ',{"region":"%s","imageUri":"%s"}' "$region" "$image_uri" >> imageDetail.json
+          fi
+        done
+
+        printf ']}\n' >> imageDetail.json
+        printf '[{"name":"GotenbergContainer","imageUri":"%s"}]\n' "$first_image_uri" > imagedefinitions.json
+
+artifacts:
+  files:
+    - imageDetail.json
+    - imagedefinitions.json

@@ -1,7 +1,7 @@
 # ARG instructions do not create additional layers. Instead, next layers will
 # concatenate them. Also, we have to repeat ARG instructions in each build
 # stage that uses them.
-ARG GOLANG_VERSION=1.26.2
+ARG GOLANG_VERSION=1.26.3
 
 # ----------------------------------------------
 # pdfcpu binary build stage
@@ -82,9 +82,12 @@ FROM debian:13-slim AS downloader-stage
 
 # See https://gitlab.com/pdftk-java/pdftk/-/releases - Binary package.
 ARG PDFTK_VERSION=v3.3.3
+# See https://commons.apache.org/proper/commons-lang/changes-report.html.
+ARG COMMONS_LANG3_VERSION=3.18.0
 
 RUN apt-get update -qq \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl ca-certificates
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl ca-certificates unzip zip \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /downloads
 
@@ -92,6 +95,14 @@ RUN curl -Ls https://raw.githubusercontent.com/gotenberg/unoconverter/v0.2.0/uno
     && chmod +x unoconverter
 
 RUN curl -o pdftk-all.jar "https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/$PDFTK_VERSION/pdftk-all.jar" \
+    && curl -Ls -o commons-lang3.jar "https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/$COMMONS_LANG3_VERSION/commons-lang3-$COMMONS_LANG3_VERSION.jar" \
+    && zip -q -d pdftk-all.jar "org/apache/commons/lang3/*" "META-INF/maven/org.apache.commons/commons-lang3/*" \
+    && mkdir commons-lang3 \
+    && unzip -q commons-lang3.jar -d commons-lang3 \
+    && cd commons-lang3 \
+    && zip -qr ../pdftk-all.jar org/apache/commons/lang3 META-INF/maven/org.apache.commons/commons-lang3 \
+    && cd .. \
+    && rm -rf commons-lang3 commons-lang3.jar \
     && chmod a+x pdftk-all.jar
 
 # ----------------------------------------------
