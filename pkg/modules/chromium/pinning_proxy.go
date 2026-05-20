@@ -179,7 +179,11 @@ func (p *pinningProxy) handleConnect(w http.ResponseWriter, req *http.Request) {
 	// the CONNECT handling beyond filtering.
 	decision, err := p.decide(req.Context(), "https://"+req.Host, p.allowList, p.denyList, deadline)
 	if err != nil {
-		p.logger.WarnContext(req.Context(), fmt.Sprintf("CONNECT blocked for '%s': %s", req.Host, err))
+		if isClientCancellation(req.Context(), err) {
+			p.logger.DebugContext(req.Context(), fmt.Sprintf("CONNECT abandoned by client for '%s': %s", req.Host, err))
+		} else {
+			p.logger.WarnContext(req.Context(), fmt.Sprintf("CONNECT blocked for '%s': %s", req.Host, err))
+		}
 		http.Error(w, "CONNECT blocked", http.StatusForbidden)
 		return
 	}
@@ -254,7 +258,11 @@ func (p *pinningProxy) handleForward(w http.ResponseWriter, req *http.Request) {
 
 	decision, err := p.decide(req.Context(), req.URL.String(), p.allowList, p.denyList, deadline)
 	if err != nil {
-		p.logger.WarnContext(req.Context(), fmt.Sprintf("forward blocked for '%s': %s", req.URL, err))
+		if isClientCancellation(req.Context(), err) {
+			p.logger.DebugContext(req.Context(), fmt.Sprintf("forward abandoned by client for '%s': %s", req.URL, err))
+		} else {
+			p.logger.WarnContext(req.Context(), fmt.Sprintf("forward blocked for '%s': %s", req.URL, err))
+		}
 		http.Error(w, "request blocked", http.StatusForbidden)
 		return
 	}
@@ -325,4 +333,22 @@ func copyHeaders(dst, src http.Header) {
 			dst.Add(k, v)
 		}
 	}
+}
+
+// isClientCancellation reports whether err originates from the client (for
+// example Chromium) closing the connection or letting the request deadline
+// pass before the proxy could finish validating the destination. Such
+// errors are not policy refusals: the proxy never reached an allow/deny
+// rule decision. Callers downgrade these to debug to avoid alarming
+// operators with noise from speculative or aborted browser requests. The
+// canonical case is a Chromium DNS prefetch that the browser drops before
+// the proxy's [outbound.resolveHost] call returns. The [net.DNSError]
+// returned by [net.Resolver.LookupNetIP] unwraps to [context.Canceled] or
+// [context.DeadlineExceeded] in that case, so an [errors.Is] walk catches
+// it.
+func isClientCancellation(ctx context.Context, err error) bool {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	return ctx.Err() != nil
 }
