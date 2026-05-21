@@ -13,6 +13,7 @@ import (
 	"net/netip"
 	"net/url"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -21,6 +22,33 @@ import (
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
+
+// recordingHandler is a slog.Handler that captures every record emitted
+// through it so tests can assert on the level and message of proxy logs.
+type recordingHandler struct {
+	mu      sync.Mutex
+	records []slog.Record
+}
+
+func (h *recordingHandler) Enabled(_ context.Context, _ slog.Level) bool { return true }
+
+func (h *recordingHandler) Handle(_ context.Context, r slog.Record) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.records = append(h.records, r.Clone())
+	return nil
+}
+
+func (h *recordingHandler) WithAttrs(_ []slog.Attr) slog.Handler { return h }
+func (h *recordingHandler) WithGroup(_ string) slog.Handler      { return h }
+
+func (h *recordingHandler) snapshot() []slog.Record {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	out := make([]slog.Record, len(h.records))
+	copy(out, h.records)
+	return out
+}
 
 func testLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -449,6 +477,220 @@ func TestPinningProxy_DNSRebind_SingleResolution(t *testing.T) {
 	}
 	if got := lookupCount.Load(); got != 1 {
 		t.Fatalf("decide called %d times, want exactly 1 (rebind protection)", got)
+	}
+}
+
+// TestPinningProxy_CONNECT_ClientCancellation_LoggedAtDebug verifies that
+// when decide fails because the request context was canceled or its
+// deadline expired (the canonical case is Chromium dropping a speculative
+// CONNECT before the proxy finishes resolving the host), the proxy logs
+// at debug and not at warn. Policy refusals must still warn; see
+// [TestPinningProxy_CONNECT_BlockedByDecide].
+func TestPinningProxy_CONNECT_ClientCancellation_LoggedAtDebug(t *testing.T) {
+	rec := &recordingHandler{}
+	p := newPinningProxy(nil, nil, false, false)
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
+		// Mimic the wrap chain produced by outbound.resolveHost when the
+		// DNS lookup is canceled mid-flight by Chromium hanging up.
+		return gotenberg.OutboundDecision{}, fmt.Errorf("validate '%s' host: resolve %q: lookup %s: %w", "https://www.google.com:443", "www.google.com", "www.google.com", context.Canceled)
+	}
+
+	err := p.Start(slog.New(rec))
+	if err != nil {
+		t.Fatalf("start pinning proxy: %v", err)
+	}
+	t.Cleanup(func() { _ = p.Stop(slog.New(rec)) })
+	proxyURL := p.URL()
+
+	conn, err := net.Dial("tcp", strings.TrimPrefix(proxyURL, "http://"))
+	if err != nil {
+		t.Fatalf("dial proxy: %v", err)
+	}
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
+
+	_, err = fmt.Fprintf(conn, "CONNECT www.google.com:443 HTTP/1.1\r\nHost: www.google.com:443\r\n\r\n")
+	if err != nil {
+		t.Fatalf("write CONNECT: %v", err)
+	}
+	resp, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil {
+		t.Fatalf("read response: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403", resp.StatusCode)
+	}
+
+	records := rec.snapshot()
+	var found bool
+	for _, r := range records {
+		if !strings.Contains(r.Message, "www.google.com:443") {
+			continue
+		}
+		found = true
+		if r.Level != slog.LevelDebug {
+			t.Fatalf("record level = %v, want Debug; message: %s", r.Level, r.Message)
+		}
+		if !strings.Contains(r.Message, "abandoned") {
+			t.Fatalf("message = %q, want it to mention abandoned", r.Message)
+		}
+	}
+	if !found {
+		t.Fatal("expected a log record mentioning www.google.com:443, found none")
+	}
+}
+
+// TestPinningProxy_Forward_ClientCancellation_LoggedAtDebug is the
+// handleForward equivalent of
+// [TestPinningProxy_CONNECT_ClientCancellation_LoggedAtDebug]. Plain
+// HTTP forward requests aborted by the client must also log at debug.
+func TestPinningProxy_Forward_ClientCancellation_LoggedAtDebug(t *testing.T) {
+	rec := &recordingHandler{}
+	p := newPinningProxy(nil, nil, false, false)
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
+		return gotenberg.OutboundDecision{}, fmt.Errorf("validate host: %w", context.DeadlineExceeded)
+	}
+
+	err := p.Start(slog.New(rec))
+	if err != nil {
+		t.Fatalf("start pinning proxy: %v", err)
+	}
+	t.Cleanup(func() { _ = p.Stop(slog.New(rec)) })
+	proxyURL := p.URL()
+
+	client := &http.Client{
+		Transport: &http.Transport{Proxy: http.ProxyURL(mustParseURL(t, proxyURL))},
+		Timeout:   5 * time.Second,
+	}
+	resp, err := client.Get("http://www.google.com/")
+	if err != nil {
+		t.Fatalf("GET via proxy: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403", resp.StatusCode)
+	}
+
+	records := rec.snapshot()
+	var found bool
+	for _, r := range records {
+		if !strings.Contains(r.Message, "www.google.com") {
+			continue
+		}
+		found = true
+		if r.Level != slog.LevelDebug {
+			t.Fatalf("record level = %v, want Debug; message: %s", r.Level, r.Message)
+		}
+		if !strings.Contains(r.Message, "abandoned") {
+			t.Fatalf("message = %q, want it to mention abandoned", r.Message)
+		}
+	}
+	if !found {
+		t.Fatal("expected a log record mentioning www.google.com, found none")
+	}
+}
+
+// TestPinningProxy_PolicyDenial_LoggedAtWarn protects the existing
+// behavior: a deny-list match (or any non-cancellation decide error) must
+// still surface at warn level so operators see real refusals.
+func TestPinningProxy_PolicyDenial_LoggedAtWarn(t *testing.T) {
+	rec := &recordingHandler{}
+	p := newPinningProxy(nil, nil, false, false)
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
+		return gotenberg.OutboundDecision{}, fmt.Errorf("denied: %w", gotenberg.ErrFiltered)
+	}
+
+	err := p.Start(slog.New(rec))
+	if err != nil {
+		t.Fatalf("start pinning proxy: %v", err)
+	}
+	t.Cleanup(func() { _ = p.Stop(slog.New(rec)) })
+	proxyURL := p.URL()
+
+	conn, err := net.Dial("tcp", strings.TrimPrefix(proxyURL, "http://"))
+	if err != nil {
+		t.Fatalf("dial proxy: %v", err)
+	}
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
+
+	_, err = fmt.Fprintf(conn, "CONNECT denied.example:443 HTTP/1.1\r\nHost: denied.example:443\r\n\r\n")
+	if err != nil {
+		t.Fatalf("write CONNECT: %v", err)
+	}
+	resp, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil {
+		t.Fatalf("read response: %v", err)
+	}
+	defer resp.Body.Close()
+
+	records := rec.snapshot()
+	var found bool
+	for _, r := range records {
+		if !strings.Contains(r.Message, "denied.example") {
+			continue
+		}
+		found = true
+		if r.Level != slog.LevelWarn {
+			t.Fatalf("record level = %v, want Warn; message: %s", r.Level, r.Message)
+		}
+		if !strings.Contains(r.Message, "blocked") {
+			t.Fatalf("message = %q, want it to mention blocked", r.Message)
+		}
+	}
+	if !found {
+		t.Fatal("expected a log record mentioning denied.example, found none")
+	}
+}
+
+func TestIsClientCancellation(t *testing.T) {
+	canceledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	for _, tc := range []struct {
+		name string
+		ctx  context.Context
+		err  error
+		want bool
+	}{
+		{
+			name: "wrapped context.Canceled",
+			ctx:  context.Background(),
+			err:  fmt.Errorf("validate host: %w", context.Canceled),
+			want: true,
+		},
+		{
+			name: "wrapped context.DeadlineExceeded",
+			ctx:  context.Background(),
+			err:  fmt.Errorf("validate host: %w", context.DeadlineExceeded),
+			want: true,
+		},
+		{
+			name: "request context already done",
+			ctx:  canceledCtx,
+			err:  errors.New("some unrelated error"),
+			want: true,
+		},
+		{
+			name: "policy denial",
+			ctx:  context.Background(),
+			err:  fmt.Errorf("denied: %w", gotenberg.ErrFiltered),
+			want: false,
+		},
+		{
+			name: "plain dial failure",
+			ctx:  context.Background(),
+			err:  errors.New("connection refused"),
+			want: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := isClientCancellation(tc.ctx, tc.err)
+			if got != tc.want {
+				t.Fatalf("isClientCancellation = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }
 
