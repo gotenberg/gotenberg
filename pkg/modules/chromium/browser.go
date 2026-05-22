@@ -169,6 +169,15 @@ func (b *chromiumBrowser) Start(logger *slog.Logger) error {
 	if err != nil {
 		cancel()
 		allocatorCancel()
+		// The pinning proxy started before chromedp; tear it down so a
+		// supervisor retry can re-bind. Stop is a no-op when the proxy
+		// was never started (operator-configured --chromium-proxy-server
+		// or --chromium-host-resolver-rules).
+		// See https://github.com/gotenberg/gotenberg/issues/1559.
+		stopErr := b.pinningProxy.Stop(logger)
+		if stopErr != nil {
+			logger.ErrorContext(context.Background(), fmt.Sprintf("stop pinning proxy after failed start: %s", stopErr))
+		}
 		return fmt.Errorf("run exec allocator: %w", err)
 	}
 
