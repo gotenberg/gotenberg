@@ -332,11 +332,13 @@ func navigateActionFunc(logger *slog.Logger, url string, skipNetworkIdleEvent, s
 	return func(ctx context.Context) error {
 		logger.DebugContext(ctx, fmt.Sprintf("navigate to '%s'", url))
 
-		_, _, _, _, err := page.Navigate(url).Do(ctx)
-		if err != nil {
-			return fmt.Errorf("navigate to '%s': %w", url, err)
-		}
-
+		// Register lifecycle listeners before issuing Page.navigate. For
+		// fast loads (typically file:// pages with no external
+		// sub-resources), DomContentEventFired / LoadEventFired /
+		// LoadingFinished can fire between Navigate.Do returning and
+		// runBatch spawning the waiter goroutines. Registering ahead of
+		// the navigate command closes that race.
+		// See https://github.com/gotenberg/gotenberg/issues/1561.
 		waitFunc := []func() error{
 			waitForEventDomContentEventFired(ctx, logger),
 			waitForEventLoadEventFired(ctx, logger),
@@ -353,6 +355,11 @@ func navigateActionFunc(logger *slog.Logger, url string, skipNetworkIdleEvent, s
 			waitFunc = append(waitFunc, waitForEventNetworkAlmostIdle(ctx, logger))
 		} else {
 			logger.DebugContext(ctx, "skipping network almost idle event")
+		}
+
+		_, _, _, _, err := page.Navigate(url).Do(ctx)
+		if err != nil {
+			return fmt.Errorf("navigate to '%s': %w", url, err)
 		}
 
 		err = runBatch(

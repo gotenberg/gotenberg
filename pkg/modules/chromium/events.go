@@ -428,19 +428,24 @@ func listenForEventExceptionThrown(ctx context.Context, logger *slog.Logger, con
 	})
 }
 
-// waitForEventDomContentEventFired waits until the event DomContentEventFired
-// is fired or the context timeout.
+// waitForEventDomContentEventFired registers a listener for the
+// DomContentEventFired event and returns a waiter that blocks until the
+// event fires or ctx is done. The listener registers at call time, not
+// inside the waiter, so callers must invoke this before triggering the
+// action that may emit the event. Registering inside the waiter would
+// open a race: for fast loads (typically file:// pages with no external
+// sub-resources), the event can fire before the waiter goroutine starts
+// and the listener never sees a record.
 func waitForEventDomContentEventFired(ctx context.Context, logger *slog.Logger) func() error {
+	ch := make(chan struct{})
+	cctx, cancel := context.WithCancel(ctx)
+	chromedp.ListenTarget(cctx, func(ev any) {
+		if _, ok := ev.(*page.EventDomContentEventFired); ok {
+			cancel()
+			close(ch)
+		}
+	})
 	return func() error {
-		ch := make(chan struct{})
-		cctx, cancel := context.WithCancel(ctx)
-		chromedp.ListenTarget(cctx, func(ev any) {
-			if _, ok := ev.(*page.EventDomContentEventFired); ok {
-				cancel()
-				close(ch)
-			}
-		})
-
 		select {
 		case <-ch:
 			logger.DebugContext(ctx, "event DomContentEventFired fired")
@@ -451,19 +456,20 @@ func waitForEventDomContentEventFired(ctx context.Context, logger *slog.Logger) 
 	}
 }
 
-// waitForEventLoadEventFired waits until the event LoadEventFired is fired or
-// the context timeout.
+// waitForEventLoadEventFired registers a listener for the LoadEventFired
+// event and returns a waiter that blocks until the event fires or ctx is
+// done. See [waitForEventDomContentEventFired] for the rationale on
+// registering at call time rather than inside the waiter.
 func waitForEventLoadEventFired(ctx context.Context, logger *slog.Logger) func() error {
+	ch := make(chan struct{})
+	cctx, cancel := context.WithCancel(ctx)
+	chromedp.ListenTarget(cctx, func(ev any) {
+		if _, ok := ev.(*page.EventLoadEventFired); ok {
+			cancel()
+			close(ch)
+		}
+	})
 	return func() error {
-		ch := make(chan struct{})
-		cctx, cancel := context.WithCancel(ctx)
-		chromedp.ListenTarget(cctx, func(ev any) {
-			if _, ok := ev.(*page.EventLoadEventFired); ok {
-				cancel()
-				close(ch)
-			}
-		})
-
 		select {
 		case <-ch:
 			logger.DebugContext(ctx, "event LoadEventFired fired")
@@ -474,19 +480,20 @@ func waitForEventLoadEventFired(ctx context.Context, logger *slog.Logger) func()
 	}
 }
 
-// waitForEventNetworkIdle waits until the event networkIdle is fired or the
-// context timeout.
+// waitForEventNetworkIdle registers a listener for the networkIdle
+// lifecycle event and returns a waiter that blocks until the event fires
+// or ctx is done. See [waitForEventDomContentEventFired] for the
+// rationale on registering at call time rather than inside the waiter.
 func waitForEventNetworkIdle(ctx context.Context, logger *slog.Logger) func() error {
+	ch := make(chan struct{})
+	cctx, cancel := context.WithCancel(ctx)
+	chromedp.ListenTarget(cctx, func(ev any) {
+		if e, ok := ev.(*page.EventLifecycleEvent); ok && e.Name == "networkIdle" {
+			cancel()
+			close(ch)
+		}
+	})
 	return func() error {
-		ch := make(chan struct{})
-		cctx, cancel := context.WithCancel(ctx)
-		chromedp.ListenTarget(cctx, func(ev any) {
-			if e, ok := ev.(*page.EventLifecycleEvent); ok && e.Name == "networkIdle" {
-				cancel()
-				close(ch)
-			}
-		})
-
 		select {
 		case <-ch:
 			logger.DebugContext(ctx, "event networkIdle fired")
@@ -497,19 +504,20 @@ func waitForEventNetworkIdle(ctx context.Context, logger *slog.Logger) func() er
 	}
 }
 
-// waitForEventNetworkAlmostIdle waits until the event networkIdle2 is fired
-// or the context timeout.
+// waitForEventNetworkAlmostIdle registers a listener for the networkIdle2
+// lifecycle event and returns a waiter that blocks until the event fires
+// or ctx is done. See [waitForEventDomContentEventFired] for the
+// rationale on registering at call time rather than inside the waiter.
 func waitForEventNetworkAlmostIdle(ctx context.Context, logger *slog.Logger) func() error {
+	ch := make(chan struct{})
+	cctx, cancel := context.WithCancel(ctx)
+	chromedp.ListenTarget(cctx, func(ev any) {
+		if e, ok := ev.(*page.EventLifecycleEvent); ok && e.Name == "networkIdle2" {
+			cancel()
+			close(ch)
+		}
+	})
 	return func() error {
-		ch := make(chan struct{})
-		cctx, cancel := context.WithCancel(ctx)
-		chromedp.ListenTarget(cctx, func(ev any) {
-			if e, ok := ev.(*page.EventLifecycleEvent); ok && e.Name == "networkIdle2" {
-				cancel()
-				close(ch)
-			}
-		})
-
 		select {
 		case <-ch:
 			logger.DebugContext(ctx, "event networkAlmostIdle fired")
@@ -520,19 +528,20 @@ func waitForEventNetworkAlmostIdle(ctx context.Context, logger *slog.Logger) fun
 	}
 }
 
-// waitForEventLoadingFinished waits until the event LoadingFinished is fired
-// or the context timeout.
+// waitForEventLoadingFinished registers a listener for the
+// LoadingFinished event and returns a waiter that blocks until the event
+// fires or ctx is done. See [waitForEventDomContentEventFired] for the
+// rationale on registering at call time rather than inside the waiter.
 func waitForEventLoadingFinished(ctx context.Context, logger *slog.Logger) func() error {
+	ch := make(chan struct{})
+	cctx, cancel := context.WithCancel(ctx)
+	chromedp.ListenTarget(cctx, func(ev any) {
+		if _, ok := ev.(*network.EventLoadingFinished); ok {
+			cancel()
+			close(ch)
+		}
+	})
 	return func() error {
-		ch := make(chan struct{})
-		cctx, cancel := context.WithCancel(ctx)
-		chromedp.ListenTarget(cctx, func(ev any) {
-			if _, ok := ev.(*network.EventLoadingFinished); ok {
-				cancel()
-				close(ch)
-			}
-		})
-
 		select {
 		case <-ch:
 			logger.DebugContext(ctx, "event LoadingFinished fired")
