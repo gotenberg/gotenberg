@@ -186,10 +186,10 @@ func TestProcessSupervisor_Healthy(t *testing.T) {
 			expectHealthy:    true,
 		},
 		{
-			scenario:         "process reports as unhealthy",
+			scenario:         "single probe failure is tolerated",
 			initiallyStarted: true,
 			processHealthy:   false,
-			expectHealthy:    false,
+			expectHealthy:    true,
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
@@ -215,6 +215,109 @@ func TestProcessSupervisor_Healthy(t *testing.T) {
 				t.Fatalf("expected healthy to be %v but got %v", tc.expectHealthy, healthy)
 			}
 		})
+	}
+}
+
+// TestProcessSupervisor_Healthy_ConsecutiveFailures verifies that only
+// the second consecutive process-level failure flips the supervisor to
+// unhealthy, and that a single success in between resets the counter.
+func TestProcessSupervisor_Healthy_ConsecutiveFailures(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	var processHealthy atomic.Bool
+	process := &ProcessMock{
+		HealthyMock: func(_ *slog.Logger) bool { return processHealthy.Load() },
+	}
+
+	ps := NewProcessSupervisor(logger, process, 5, 0, 1, 0).(*processSupervisor)
+	ps.firstStart.Store(true)
+
+	processHealthy.Store(false)
+	if !ps.Healthy() {
+		t.Fatal("first failure should be tolerated and report healthy")
+	}
+	if ps.Healthy() {
+		t.Fatal("second consecutive failure should report unhealthy")
+	}
+
+	processHealthy.Store(true)
+	if !ps.Healthy() {
+		t.Fatal("recovery should report healthy immediately")
+	}
+
+	processHealthy.Store(false)
+	// Cache hit from the previous success absorbs the first new failure;
+	// invalidate it so we exercise the counter again.
+	ps.lastHealthyAt.Store(0)
+	if !ps.Healthy() {
+		t.Fatal("post-recovery first failure should be tolerated again")
+	}
+	if ps.Healthy() {
+		t.Fatal("post-recovery second consecutive failure should report unhealthy")
+	}
+}
+
+// TestProcessSupervisor_Healthy_CachesPositiveResult verifies that a
+// successful probe is cached for [healthCheckCacheTTL] so subsequent
+// supervisor.Healthy() calls do not re-issue the underlying process
+// check.
+func TestProcessSupervisor_Healthy_CachesPositiveResult(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	var calls atomic.Int64
+	process := &ProcessMock{
+		HealthyMock: func(_ *slog.Logger) bool {
+			calls.Add(1)
+			return true
+		},
+	}
+
+	ps := NewProcessSupervisor(logger, process, 5, 0, 1, 0).(*processSupervisor)
+	ps.firstStart.Store(true)
+
+	for range 5 {
+		if !ps.Healthy() {
+			t.Fatal("expected healthy")
+		}
+	}
+
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("process.Healthy called %d times, want exactly 1 (cache should absorb the other 4)", got)
+	}
+}
+
+// TestProcessSupervisor_Healthy_DoesNotCacheNegativeResult verifies that
+// a probe failure is not cached: the next Healthy() call must re-issue
+// the underlying process check so a recovered process surfaces on the
+// very next probe.
+func TestProcessSupervisor_Healthy_DoesNotCacheNegativeResult(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	var calls atomic.Int64
+	var processHealthy atomic.Bool
+	process := &ProcessMock{
+		HealthyMock: func(_ *slog.Logger) bool {
+			calls.Add(1)
+			return processHealthy.Load()
+		},
+	}
+
+	ps := NewProcessSupervisor(logger, process, 5, 0, 1, 0).(*processSupervisor)
+	ps.firstStart.Store(true)
+
+	processHealthy.Store(false)
+	_ = ps.Healthy()
+	_ = ps.Healthy()
+	if got := calls.Load(); got != 2 {
+		t.Fatalf("after two failing probes, process.Healthy called %d times, want 2 (negative results must not be cached)", got)
+	}
+
+	processHealthy.Store(true)
+	if !ps.Healthy() {
+		t.Fatal("expected healthy on recovery")
+	}
+	if got := calls.Load(); got != 3 {
+		t.Fatalf("after recovery, process.Healthy called %d times, want 3", got)
 	}
 }
 
