@@ -198,7 +198,11 @@ func (p *pinningProxy) handleConnect(w http.ResponseWriter, req *http.Request) {
 		err = errors.New("no pinned addresses and not bypassed")
 	}
 	if err != nil {
-		p.logger.WarnContext(req.Context(), fmt.Sprintf("CONNECT dial failed for '%s': %s", req.Host, err))
+		if isClientCancellation(req.Context(), err) {
+			p.logger.DebugContext(req.Context(), fmt.Sprintf("CONNECT dial abandoned by client for '%s': %s", req.Host, err))
+		} else {
+			p.logger.WarnContext(req.Context(), fmt.Sprintf("CONNECT dial failed for '%s': %s", req.Host, err))
+		}
 		http.Error(w, "upstream dial failed", http.StatusBadGateway)
 		return
 	}
@@ -218,7 +222,11 @@ func (p *pinningProxy) handleConnect(w http.ResponseWriter, req *http.Request) {
 
 	_, err = client.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
 	if err != nil {
-		p.logger.WarnContext(req.Context(), fmt.Sprintf("write CONNECT ack: %s", err))
+		if isClientCancellation(req.Context(), err) {
+			p.logger.DebugContext(req.Context(), fmt.Sprintf("write CONNECT ack abandoned by client: %s", err))
+		} else {
+			p.logger.WarnContext(req.Context(), fmt.Sprintf("write CONNECT ack: %s", err))
+		}
 		return
 	}
 
@@ -296,7 +304,11 @@ func (p *pinningProxy) handleForward(w http.ResponseWriter, req *http.Request) {
 
 	resp, err := transport.RoundTrip(outReq)
 	if err != nil {
-		p.logger.WarnContext(req.Context(), fmt.Sprintf("forward RoundTrip failed for '%s': %s", req.URL, err))
+		if isClientCancellation(req.Context(), err) {
+			p.logger.DebugContext(req.Context(), fmt.Sprintf("forward RoundTrip abandoned by client for '%s': %s", req.URL, err))
+		} else {
+			p.logger.WarnContext(req.Context(), fmt.Sprintf("forward RoundTrip failed for '%s': %s", req.URL, err))
+		}
 		http.Error(w, "upstream error", http.StatusBadGateway)
 		return
 	}

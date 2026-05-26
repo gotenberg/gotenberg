@@ -644,6 +644,179 @@ func TestPinningProxy_PolicyDenial_LoggedAtWarn(t *testing.T) {
 	}
 }
 
+// TestPinningProxy_CONNECT_DialCancellation_LoggedAtDebug verifies that
+// when the upstream dial fails because the request context was canceled
+// (typically Chromium dropping a speculative CONNECT before a slow IPv6
+// dial completes), the proxy logs at debug rather than warn. Genuine
+// dial failures must still warn; see
+// [TestPinningProxy_CONNECT_DialFailure_LoggedAtWarn].
+func TestPinningProxy_CONNECT_DialCancellation_LoggedAtDebug(t *testing.T) {
+	rec := &recordingHandler{}
+	p := newPinningProxy(nil, nil, false, false)
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
+		return gotenberg.OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
+	}
+	p.dialPinned = func(_ context.Context, _ string, _ []netip.Addr, _ string) (net.Conn, error) {
+		// Mimic a dial canceled mid-flight by the client hanging up,
+		// which is what net.Dialer returns when ctx.Err() is Canceled.
+		return nil, fmt.Errorf("dial tcp [2001:4860:482b:7700::]:443: %w", context.Canceled)
+	}
+
+	err := p.Start(slog.New(rec))
+	if err != nil {
+		t.Fatalf("start pinning proxy: %v", err)
+	}
+	t.Cleanup(func() { _ = p.Stop(slog.New(rec)) })
+	proxyURL := p.URL()
+
+	conn, err := net.Dial("tcp", strings.TrimPrefix(proxyURL, "http://"))
+	if err != nil {
+		t.Fatalf("dial proxy: %v", err)
+	}
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
+
+	_, err = fmt.Fprintf(conn, "CONNECT www.google.com:443 HTTP/1.1\r\nHost: www.google.com:443\r\n\r\n")
+	if err != nil {
+		t.Fatalf("write CONNECT: %v", err)
+	}
+	resp, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil {
+		t.Fatalf("read response: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadGateway {
+		t.Fatalf("status = %d, want 502", resp.StatusCode)
+	}
+
+	records := rec.snapshot()
+	var found bool
+	for _, r := range records {
+		if !strings.Contains(r.Message, "CONNECT dial") || !strings.Contains(r.Message, "www.google.com:443") {
+			continue
+		}
+		found = true
+		if r.Level != slog.LevelDebug {
+			t.Fatalf("record level = %v, want Debug; message: %s", r.Level, r.Message)
+		}
+		if !strings.Contains(r.Message, "abandoned") {
+			t.Fatalf("message = %q, want it to mention abandoned", r.Message)
+		}
+	}
+	if !found {
+		t.Fatal("expected a log record mentioning CONNECT dial for www.google.com:443, found none")
+	}
+}
+
+// TestPinningProxy_CONNECT_DialFailure_LoggedAtWarn guards the existing
+// behavior: a genuine dial failure (host unreachable, refused, etc.)
+// must still warn so operators see real problems.
+func TestPinningProxy_CONNECT_DialFailure_LoggedAtWarn(t *testing.T) {
+	rec := &recordingHandler{}
+	p := newPinningProxy(nil, nil, false, false)
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
+		return gotenberg.OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
+	}
+	p.dialPinned = func(_ context.Context, _ string, _ []netip.Addr, _ string) (net.Conn, error) {
+		return nil, errors.New("connection refused")
+	}
+
+	err := p.Start(slog.New(rec))
+	if err != nil {
+		t.Fatalf("start pinning proxy: %v", err)
+	}
+	t.Cleanup(func() { _ = p.Stop(slog.New(rec)) })
+	proxyURL := p.URL()
+
+	conn, err := net.Dial("tcp", strings.TrimPrefix(proxyURL, "http://"))
+	if err != nil {
+		t.Fatalf("dial proxy: %v", err)
+	}
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
+
+	_, err = fmt.Fprintf(conn, "CONNECT real.example:443 HTTP/1.1\r\nHost: real.example:443\r\n\r\n")
+	if err != nil {
+		t.Fatalf("write CONNECT: %v", err)
+	}
+	resp, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil {
+		t.Fatalf("read response: %v", err)
+	}
+	defer resp.Body.Close()
+
+	records := rec.snapshot()
+	var found bool
+	for _, r := range records {
+		if !strings.Contains(r.Message, "CONNECT dial") || !strings.Contains(r.Message, "real.example") {
+			continue
+		}
+		found = true
+		if r.Level != slog.LevelWarn {
+			t.Fatalf("record level = %v, want Warn; message: %s", r.Level, r.Message)
+		}
+		if !strings.Contains(r.Message, "failed") {
+			t.Fatalf("message = %q, want it to mention failed", r.Message)
+		}
+	}
+	if !found {
+		t.Fatal("expected a log record mentioning CONNECT dial for real.example, found none")
+	}
+}
+
+// TestPinningProxy_Forward_RoundTripCancellation_LoggedAtDebug verifies
+// the handleForward dial-cancellation path: when the inner Transport's
+// dial returns a canceled error (client hung up mid-dial), the proxy
+// logs at debug, not warn. Genuine RoundTrip failures still warn.
+func TestPinningProxy_Forward_RoundTripCancellation_LoggedAtDebug(t *testing.T) {
+	rec := &recordingHandler{}
+	p := newPinningProxy(nil, nil, false, false)
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
+		return gotenberg.OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
+	}
+	p.dialPinned = func(_ context.Context, _ string, _ []netip.Addr, _ string) (net.Conn, error) {
+		return nil, fmt.Errorf("dial tcp [2001:4860::]:80: %w", context.Canceled)
+	}
+
+	err := p.Start(slog.New(rec))
+	if err != nil {
+		t.Fatalf("start pinning proxy: %v", err)
+	}
+	t.Cleanup(func() { _ = p.Stop(slog.New(rec)) })
+	proxyURL := p.URL()
+
+	client := &http.Client{
+		Transport: &http.Transport{Proxy: http.ProxyURL(mustParseURL(t, proxyURL))},
+		Timeout:   5 * time.Second,
+	}
+	resp, err := client.Get("http://www.google.com/")
+	if err != nil {
+		t.Fatalf("GET via proxy: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadGateway {
+		t.Fatalf("status = %d, want 502", resp.StatusCode)
+	}
+
+	records := rec.snapshot()
+	var found bool
+	for _, r := range records {
+		if !strings.Contains(r.Message, "forward RoundTrip") || !strings.Contains(r.Message, "www.google.com") {
+			continue
+		}
+		found = true
+		if r.Level != slog.LevelDebug {
+			t.Fatalf("record level = %v, want Debug; message: %s", r.Level, r.Message)
+		}
+		if !strings.Contains(r.Message, "abandoned") {
+			t.Fatalf("message = %q, want it to mention abandoned", r.Message)
+		}
+	}
+	if !found {
+		t.Fatal("expected a log record mentioning forward RoundTrip for www.google.com, found none")
+	}
+}
+
 func TestIsClientCancellation(t *testing.T) {
 	canceledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
