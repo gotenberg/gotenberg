@@ -133,16 +133,30 @@ func startGotenbergContainer(ctx context.Context, env map[string]string) (*testc
 		Logger:           &noopLogger{},
 	})
 	if err != nil {
+		err = fmt.Errorf("start new Gotenberg container: %w", err)
+
+		// A failed start (for example the process exiting before the health
+		// check passes) only reports an opaque exit code. testcontainers
+		// still returns the container on this path, so attach its logs to
+		// surface the actual crash reason in CI.
+		if c != nil {
+			if logs, errLogs := containerLogEntries(ctx, c); errLogs == nil && logs != "" {
+				err = fmt.Errorf("%w\ncontainer logs:\n%s", err, logs)
+			}
+			if errTerminate := c.Terminate(ctx, testcontainers.StopTimeout(0)); errTerminate != nil {
+				err = fmt.Errorf("%w (also failed to terminate container: %v)", err, errTerminate)
+			}
+		}
+
 		// The network is already created. The scenario teardown only
 		// removes networks it knows about, and the caller discards n on
 		// error, so remove it here to avoid leaking a subnet on every
 		// failed start. Leaked networks accumulate until Docker's address
 		// pools are fully subnetted and all later scenarios fail.
 		if errRemove := n.Remove(ctx); errRemove != nil {
-			err = fmt.Errorf("start new Gotenberg container: %w (also failed to remove network: %v)", err, errRemove)
-		} else {
-			err = fmt.Errorf("start new Gotenberg container: %w", err)
+			err = fmt.Errorf("%w (also failed to remove network: %v)", err, errRemove)
 		}
+
 		return nil, nil, err
 	}
 
