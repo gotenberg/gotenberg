@@ -8,11 +8,43 @@ import (
 	"time"
 
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/exec"
 	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
+
+// testcontainersLabel is the label testcontainers-go stamps on every
+// container and network it creates. Pruning on this label only ever touches
+// resources owned by the test suite.
+const testcontainersLabel = "org.testcontainers"
+
+// PruneOrphanedNetworks removes dangling networks created by the test suite.
+// Each scenario spins a dedicated network, and a failed container start can
+// leak one before teardown records it. Leaked networks consume Docker's
+// predefined address pools until none remain and every later scenario fails
+// with "all predefined address pools have been fully subnetted". Call this
+// before a run and between retries to reclaim the subnets.
+//
+// Only unused networks bearing the testcontainers label are removed, so
+// running containers and operator networks are never affected.
+func PruneOrphanedNetworks(ctx context.Context) (int, error) {
+	cli, err := client.New(client.FromEnv)
+	if err != nil {
+		return 0, fmt.Errorf("create Docker client: %w", err)
+	}
+	defer cli.Close()
+
+	filters := client.Filters{}.Add("label", testcontainersLabel+"=true")
+
+	report, err := cli.NetworkPrune(ctx, client.NetworkPruneOptions{Filters: filters})
+	if err != nil {
+		return 0, fmt.Errorf("prune networks: %w", err)
+	}
+
+	return len(report.Report.NetworksDeleted), nil
+}
 
 var (
 	GotenbergDockerRepository  string
@@ -101,10 +133,20 @@ func startGotenbergContainer(ctx context.Context, env map[string]string) (*testc
 		Logger:           &noopLogger{},
 	})
 	if err != nil {
-		err = fmt.Errorf("start new Gotenberg container: %w", err)
+		// The network is already created. The scenario teardown only
+		// removes networks it knows about, and the caller discards n on
+		// error, so remove it here to avoid leaking a subnet on every
+		// failed start. Leaked networks accumulate until Docker's address
+		// pools are fully subnetted and all later scenarios fail.
+		if errRemove := n.Remove(ctx); errRemove != nil {
+			err = fmt.Errorf("start new Gotenberg container: %w (also failed to remove network: %v)", err, errRemove)
+		} else {
+			err = fmt.Errorf("start new Gotenberg container: %w", err)
+		}
+		return nil, nil, err
 	}
 
-	return n, c, err
+	return n, c, nil
 }
 
 func execCommandInIntegrationToolsContainer(ctx context.Context, cmd []string, path string) (string, error) {

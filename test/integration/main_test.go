@@ -3,6 +3,7 @@
 package integration
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"runtime"
@@ -47,6 +48,14 @@ func TestMain(m *testing.M) {
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		// Reset the failure collector before each run.
 		scenario.ResetFailedScenarios()
+
+		// Reclaim subnets leaked by prior runs or failed container starts
+		// before they exhaust Docker's predefined address pools.
+		if deleted, err := scenario.PruneOrphanedNetworks(context.Background()); err != nil {
+			fmt.Fprintf(colors.Colored(os.Stdout), "warning: prune orphaned networks: %v\n", err)
+		} else if deleted > 0 {
+			fmt.Fprintf(colors.Colored(os.Stdout), "pruned %d orphaned network(s)\n", deleted)
+		}
 
 		code := godog.TestSuite{
 			Name:                "integration",
