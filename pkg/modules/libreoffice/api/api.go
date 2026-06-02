@@ -626,6 +626,7 @@ func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPat
 		attribute.Int64("gotenberg.queue.depth_at_arrival", a.supervisor.ReqQueueSize()),
 		attribute.Int64("gotenberg.conversions_since_last_restart", a.supervisor.ConversionsSinceRestart()),
 	)
+	span.SetAttributes(conversionRequestAttributes(inputPath, options)...)
 
 	start := time.Now()
 	var conversionStart time.Time
@@ -668,6 +669,7 @@ func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPat
 		stat, statErr := os.Stat(outputPath)
 		if statErr == nil {
 			a.pdfOutputSizeCounter.Record(ctx, stat.Size(), attrs)
+			span.SetAttributes(attribute.Int64("gotenberg.conversion.output.bytes", stat.Size()))
 		}
 
 		span.SetStatus(codes.Ok, "")
@@ -683,6 +685,24 @@ func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPat
 	span.RecordError(err)
 	span.SetStatus(codes.Error, err.Error())
 	return fmt.Errorf("supervisor run task: %w", err)
+}
+
+// conversionRequestAttributes derives low-cardinality attributes describing the
+// requested conversion: the input document size and the requested PDF format
+// options.
+func conversionRequestAttributes(inputPath string, options Options) []attribute.KeyValue {
+	attrs := []attribute.KeyValue{
+		attribute.String("gotenberg.libreoffice.pdf_a", options.PdfFormats.PdfA),
+		attribute.Bool("gotenberg.libreoffice.pdf_ua", options.PdfFormats.PdfUa),
+		attribute.Bool("gotenberg.conversion.landscape", options.Landscape),
+		attribute.Bool("gotenberg.conversion.has_page_ranges", options.PageRanges != ""),
+	}
+
+	if info, err := os.Stat(inputPath); err == nil {
+		attrs = append(attrs, attribute.Int64("gotenberg.conversion.input.bytes", info.Size()))
+	}
+
+	return attrs
 }
 
 // libreofficeErrorType maps a conversion error to LibreOffice's bounded reason
