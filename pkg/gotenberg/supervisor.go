@@ -76,6 +76,10 @@ type ProcessSupervisor interface {
 
 	// ActiveTasksCount returns the current number of active tasks.
 	ActiveTasksCount() int64
+
+	// ConversionsSinceRestart returns the number of tasks handled since the
+	// last process (re)start.
+	ConversionsSinceRestart() int64
 }
 
 // healthCheckCacheTTL caches successful health probe results so kubelet-
@@ -575,6 +579,13 @@ func (s *processSupervisor) RestartsCount() int64 {
 
 func (s *processSupervisor) ActiveTasksCount() int64 {
 	return s.activeTasks.Load()
+}
+
+// ConversionsSinceRestart returns the number of tasks handled since the last
+// process (re)start. reqCounter is reset to zero on every restart and idle
+// shutdown.
+func (s *processSupervisor) ConversionsSinceRestart() int64 {
+	return s.reqCounter.Load()
 }
 
 // Interface guards.

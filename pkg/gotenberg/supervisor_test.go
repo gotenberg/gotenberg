@@ -1091,3 +1091,28 @@ func TestProcessSupervisor_IdleShutdownSkippedWhenActive(t *testing.T) {
 
 	close(taskDone)
 }
+
+func TestProcessSupervisor_ConversionsSinceRestart(t *testing.T) {
+	process := &ProcessMock{
+		StartMock:   func(*slog.Logger) error { return nil },
+		StopMock:    func(*slog.Logger) error { return nil },
+		HealthyMock: func(*slog.Logger) bool { return true },
+	}
+	s := NewProcessSupervisor(slog.New(slog.DiscardHandler), process, 0, 0, 1, 0).(*processSupervisor)
+
+	if got := s.ConversionsSinceRestart(); got != 0 {
+		t.Errorf("expected 0 conversions initially, got %d", got)
+	}
+
+	s.reqCounter.Store(7)
+	if got := s.ConversionsSinceRestart(); got != 7 {
+		t.Errorf("expected 7 conversions, got %d", got)
+	}
+
+	if err := s.restart(); err != nil {
+		t.Fatalf("restart: %v", err)
+	}
+	if got := s.ConversionsSinceRestart(); got != 0 {
+		t.Errorf("expected 0 conversions after restart, got %d", got)
+	}
+}

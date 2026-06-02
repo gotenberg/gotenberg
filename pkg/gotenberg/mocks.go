@@ -152,13 +152,14 @@ func (p *ProcessMock) Healthy(logger *slog.Logger) bool {
 
 // ProcessSupervisorMock is a mock for the [ProcessSupervisor] interface.
 type ProcessSupervisorMock struct {
-	LaunchMock           func() error
-	ShutdownMock         func() error
-	HealthyMock          func() bool
-	RunMock              func(ctx context.Context, logger *slog.Logger, task func() error) error
-	ReqQueueSizeMock     func() int64
-	RestartsCountMock    func() int64
-	ActiveTasksCountMock func() int64
+	LaunchMock                  func() error
+	ShutdownMock                func() error
+	HealthyMock                 func() bool
+	RunMock                     func(ctx context.Context, logger *slog.Logger, task func() error) error
+	ReqQueueSizeMock            func() int64
+	RestartsCountMock           func() int64
+	ActiveTasksCountMock        func() int64
+	ConversionsSinceRestartMock func() int64
 }
 
 func (s *ProcessSupervisorMock) Launch() error {
@@ -187,6 +188,10 @@ func (s *ProcessSupervisorMock) RestartsCount() int64 {
 
 func (s *ProcessSupervisorMock) ActiveTasksCount() int64 {
 	return s.ActiveTasksCountMock()
+}
+
+func (s *ProcessSupervisorMock) ConversionsSinceRestart() int64 {
+	return s.ConversionsSinceRestartMock()
 }
 
 // MetricsProviderMock is a mock for the [MetricsProvider] interface.
