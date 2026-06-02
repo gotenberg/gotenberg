@@ -1116,3 +1116,45 @@ func TestProcessSupervisor_ConversionsSinceRestart(t *testing.T) {
 		t.Errorf("expected 0 conversions after restart, got %d", got)
 	}
 }
+
+func TestProcessSupervisor_RunEmitsSubSpans(t *testing.T) {
+	recorder := newTestSpanRecorder(t)
+
+	process := &ProcessMock{
+		StartMock:   func(*slog.Logger) error { return nil },
+		StopMock:    func(*slog.Logger) error { return nil },
+		HealthyMock: func(*slog.Logger) bool { return true },
+	}
+	s := NewProcessSupervisor(slog.New(slog.DiscardHandler), "chromium", process, 0, 0, 1, 0)
+
+	err := s.Run(context.Background(), slog.New(slog.DiscardHandler), func() error { return nil })
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+
+	var queueWaits, processStarts int
+	var startReason string
+	for _, span := range recorder.Ended() {
+		switch span.Name() {
+		case "chromium.queue.wait":
+			queueWaits++
+		case "chromium.process.start":
+			processStarts++
+			for _, kv := range span.Attributes() {
+				if string(kv.Key) == "gotenberg.process.start.reason" {
+					startReason = kv.Value.AsString()
+				}
+			}
+		}
+	}
+
+	if queueWaits != 1 {
+		t.Errorf("expected 1 chromium.queue.wait span, got %d", queueWaits)
+	}
+	if processStarts != 1 {
+		t.Errorf("expected 1 chromium.process.start span (first start), got %d", processStarts)
+	}
+	if startReason != "first_start" {
+		t.Errorf("expected process start reason first_start, got %q", startReason)
+	}
+}
