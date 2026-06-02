@@ -192,6 +192,9 @@ func Run() {
 	if parsedFlags.MustBool("gotenberg-build-debug-data") {
 		// Build the debug data.
 		gotenberg.BuildDebug(ctx)
+
+		// Surface engine versions per trace once modules have reported them.
+		gotenberg.EmitStartupSpan(context.Background())
 	}
 
 	quit := make(chan os.Signal, 1)
