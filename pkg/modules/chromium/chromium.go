@@ -808,6 +808,11 @@ func (mod *Chromium) Pdf(ctx context.Context, logger *slog.Logger, url, outputPa
 	)
 	defer span.End()
 
+	span.SetAttributes(
+		attribute.Int64("gotenberg.queue.depth_at_arrival", mod.supervisor.ReqQueueSize()),
+		attribute.Int64("gotenberg.conversions_since_last_restart", mod.supervisor.ConversionsSinceRestart()),
+	)
+
 	start := time.Now()
 	var conversionStart time.Time
 
@@ -878,6 +883,11 @@ func (mod *Chromium) Screenshot(ctx context.Context, logger *slog.Logger, url, o
 		trace.WithAttributes(semconv.ServerAddress(mod.args.binPath)),
 	)
 	defer span.End()
+
+	span.SetAttributes(
+		attribute.Int64("gotenberg.queue.depth_at_arrival", mod.supervisor.ReqQueueSize()),
+		attribute.Int64("gotenberg.conversions_since_last_restart", mod.supervisor.ConversionsSinceRestart()),
+	)
 
 	start := time.Now()
 	var conversionStart time.Time
