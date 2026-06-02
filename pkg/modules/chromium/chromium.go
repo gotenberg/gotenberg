@@ -802,12 +802,17 @@ func (mod *Chromium) Routes() ([]api.Route, error) {
 //
 //nolint:dupl
 func (mod *Chromium) Pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error {
+	// Read input attributes before Start rebinds ctx to the span context, which
+	// would shadow the underlying [api.Context].
+	inputAttrs := conversionInputAttrs(ctx, url)
+
 	ctx, span := gotenberg.Tracer().Start(ctx, "chromium.Pdf",
 		trace.WithSpanKind(trace.SpanKindClient),
 		trace.WithAttributes(semconv.ServerAddress(mod.args.binPath)),
 	)
 	defer span.End()
 
+	span.SetAttributes(inputAttrs...)
 	span.SetAttributes(
 		attribute.Int64("gotenberg.queue.depth_at_arrival", mod.supervisor.ReqQueueSize()),
 		attribute.Int64("gotenberg.conversions_since_last_restart", mod.supervisor.ConversionsSinceRestart()),
@@ -863,6 +868,7 @@ func (mod *Chromium) Pdf(ctx context.Context, logger *slog.Logger, url, outputPa
 	if err == nil {
 		if fileInfo, statErr := os.Stat(outputPath); statErr == nil {
 			mod.pdfOutputSizeCounter.Record(ctx, fileInfo.Size())
+			span.SetAttributes(attribute.Int64("gotenberg.conversion.output.bytes", fileInfo.Size()))
 		}
 
 		span.SetStatus(codes.Ok, "")
@@ -948,6 +954,26 @@ func (mod *Chromium) Screenshot(ctx context.Context, logger *slog.Logger, url, o
 	span.RecordError(err)
 	span.SetStatus(codes.Error, err.Error())
 	return err
+}
+
+// conversionInputAttrs derives low-cardinality input attributes for a
+// conversion span: the number of received files (when ctx is an [api.Context])
+// and the size of the local HTML input (when url is a file:// URL). Remote URL
+// conversions yield no html.bytes.
+func conversionInputAttrs(ctx context.Context, url string) []attribute.KeyValue {
+	var attrs []attribute.KeyValue
+
+	if apiCtx, ok := ctx.(*api.Context); ok {
+		attrs = append(attrs, attribute.Int("gotenberg.conversion.input.files.count", apiCtx.FileCount()))
+	}
+
+	if strings.HasPrefix(url, "file://") {
+		if info, err := os.Stat(strings.TrimPrefix(url, "file://")); err == nil {
+			attrs = append(attrs, attribute.Int64("gotenberg.conversion.input.html.bytes", info.Size()))
+		}
+	}
+
+	return attrs
 }
 
 // chromiumErrorType maps a conversion error to chromium's bounded reason value,
