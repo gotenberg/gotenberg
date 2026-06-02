@@ -334,7 +334,7 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *slog.Logger, url, out
 		waitForSelectorVisibleBeforePrintActionFunc(logger, options.WaitForSelector),
 		waitDelayBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitDelay),
 		// PDF specific.
-		printToPdfActionFunc(logger, outputPath, options),
+		printToPdfActionFunc(ctx, logger, outputPath, options),
 		// Teardown.
 		page.Close(),
 	})

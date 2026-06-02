@@ -4,10 +4,42 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
 )
+
+func TestPrintToPdfAttrs(t *testing.T) {
+	options := DefaultPdfOptions()
+	options.Landscape = true
+	options.PageRanges = "1-5"
+	options.HeaderTemplate = "<div>secret header</div>"
+	// FooterTemplate left at default, so has_footer must be false.
+
+	got := map[string]attribute.Value{}
+	for _, kv := range printToPdfAttrs(options) {
+		got[string(kv.Key)] = kv.Value
+		if s := kv.Value.AsString(); strings.Contains(s, "secret") || s == "1-5" {
+			t.Errorf("attribute %s leaked a raw value: %q", kv.Key, s)
+		}
+	}
+
+	if !got["gotenberg.chromium.print.landscape"].AsBool() {
+		t.Error("expected landscape=true")
+	}
+	if !got["gotenberg.chromium.print.has_page_ranges"].AsBool() {
+		t.Error("expected has_page_ranges=true")
+	}
+	if !got["gotenberg.chromium.print.has_header"].AsBool() {
+		t.Error("expected has_header=true")
+	}
+	if got["gotenberg.chromium.print.has_footer"].AsBool() {
+		t.Error("expected has_footer=false")
+	}
+}
 
 func TestConversionInputAttrs(t *testing.T) {
 	tmp := filepath.Join(t.TempDir(), "index.html")

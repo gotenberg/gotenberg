@@ -14,104 +14,148 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
-func printToPdfActionFunc(logger *slog.Logger, outputPath string, options PdfOptions) chromedp.ActionFunc {
+func printToPdfActionFunc(reqCtx context.Context, logger *slog.Logger, outputPath string, options PdfOptions) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
-		paperHeight := options.PaperHeight
-		pageRanges := options.PageRanges
+		// ctx is the chromedp task context, derived from context.Background(),
+		// so the span is started under reqCtx to keep print_to_pdf in the
+		// conversion trace instead of orphaning it into a new one.
+		_, span := gotenberg.Tracer().Start(reqCtx, "chromium.print_to_pdf",
+			trace.WithSpanKind(trace.SpanKindClient),
+			trace.WithAttributes(printToPdfAttrs(options)...),
+		)
+		defer span.End()
 
-		if options.SinglePage {
-			logger.DebugContext(ctx, "single page PDF")
+		err := func() error {
+			paperHeight := options.PaperHeight
+			pageRanges := options.PageRanges
 
-			_, _, _, _, _, cssContentSize, err := page.GetLayoutMetrics().Do(ctx)
-			if err != nil {
-				return fmt.Errorf("get layout metrics: %w", err)
+			if options.SinglePage {
+				logger.DebugContext(ctx, "single page PDF")
+
+				_, _, _, _, _, cssContentSize, err := page.GetLayoutMetrics().Do(ctx)
+				if err != nil {
+					return fmt.Errorf("get layout metrics: %w", err)
+				}
+
+				// There are 96 CSS pixels per inch.
+				// See https://issues.chromium.org/issues/40267771#comment14.
+				// We add top and bottom margins so that the content area
+				// is large enough to fit the entire content.
+				paperHeight = (cssContentSize.Height / 96) + options.MarginTop + options.MarginBottom
+				pageRanges = "1" // little dirty hack to avoid leftovers.
 			}
 
-			// There are 96 CSS pixels per inch.
-			// See https://issues.chromium.org/issues/40267771#comment14.
-			// We add top and bottom margins so that the content area
-			// is large enough to fit the entire content.
-			paperHeight = (cssContentSize.Height / 96) + options.MarginTop + options.MarginBottom
-			pageRanges = "1" // little dirty hack to avoid leftovers.
-		}
+			printToPdf := page.PrintToPDF().
+				WithTransferMode(page.PrintToPDFTransferModeReturnAsStream).
+				WithLandscape(options.Landscape).
+				WithPrintBackground(options.PrintBackground).
+				WithScale(options.Scale).
+				WithPaperWidth(options.PaperWidth).
+				WithPaperHeight(paperHeight).
+				WithMarginTop(options.MarginTop).
+				WithMarginBottom(options.MarginBottom).
+				WithMarginLeft(options.MarginLeft).
+				WithMarginRight(options.MarginRight).
+				WithPageRanges(pageRanges).
+				WithPreferCSSPageSize(options.PreferCssPageSize).
+				WithGenerateDocumentOutline(options.GenerateDocumentOutline).
+				// See https://github.com/gotenberg/gotenberg/issues/1210.
+				WithGenerateTaggedPDF(options.GenerateTaggedPdf)
 
-		printToPdf := page.PrintToPDF().
-			WithTransferMode(page.PrintToPDFTransferModeReturnAsStream).
-			WithLandscape(options.Landscape).
-			WithPrintBackground(options.PrintBackground).
-			WithScale(options.Scale).
-			WithPaperWidth(options.PaperWidth).
-			WithPaperHeight(paperHeight).
-			WithMarginTop(options.MarginTop).
-			WithMarginBottom(options.MarginBottom).
-			WithMarginLeft(options.MarginLeft).
-			WithMarginRight(options.MarginRight).
-			WithPageRanges(pageRanges).
-			WithPreferCSSPageSize(options.PreferCssPageSize).
-			WithGenerateDocumentOutline(options.GenerateDocumentOutline).
-			// See https://github.com/gotenberg/gotenberg/issues/1210.
-			WithGenerateTaggedPDF(options.GenerateTaggedPdf)
+			hasCustomHeaderFooter := options.HeaderTemplate != DefaultPdfOptions().HeaderTemplate ||
+				options.FooterTemplate != DefaultPdfOptions().FooterTemplate
 
-		hasCustomHeaderFooter := options.HeaderTemplate != DefaultPdfOptions().HeaderTemplate ||
-			options.FooterTemplate != DefaultPdfOptions().FooterTemplate
+			if !hasCustomHeaderFooter {
+				logger.DebugContext(ctx, "no custom header nor footer")
 
-		if !hasCustomHeaderFooter {
-			logger.DebugContext(ctx, "no custom header nor footer")
+				printToPdf = printToPdf.WithDisplayHeaderFooter(false)
+			} else {
+				logger.DebugContext(ctx, "with custom header and/or footer")
 
-			printToPdf = printToPdf.WithDisplayHeaderFooter(false)
+				printToPdf = printToPdf.
+					WithDisplayHeaderFooter(true).
+					WithHeaderTemplate(options.HeaderTemplate).
+					WithFooterTemplate(options.FooterTemplate)
+			}
+
+			logger.DebugContext(ctx, fmt.Sprintf("print to PDF with: %+v", printToPdf))
+
+			_, stream, err := printToPdf.Do(ctx)
+			if err != nil {
+				return fmt.Errorf("print to PDF: %w", err)
+			}
+
+			reader := &streamReader{
+				ctx:    ctx,
+				handle: stream,
+				r:      nil,
+				pos:    0,
+				eof:    false,
+			}
+
+			defer func() {
+				err = reader.Close()
+				if err != nil {
+					logger.ErrorContext(ctx, fmt.Sprintf("close reader: %s", err))
+				}
+			}()
+
+			file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY, 0o600)
+			if err != nil {
+				return fmt.Errorf("open output path: %w", err)
+			}
+
+			defer func() {
+				err = file.Close()
+				if err != nil {
+					logger.ErrorContext(ctx, fmt.Sprintf("close output path: %s", err))
+				}
+			}()
+
+			buffer := bufio.NewReader(reader)
+
+			_, err = buffer.WriteTo(file)
+			if err != nil {
+				return fmt.Errorf("write result to output path: %w", err)
+			}
+
+			return nil
+		}()
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 		} else {
-			logger.DebugContext(ctx, "with custom header and/or footer")
-
-			printToPdf = printToPdf.
-				WithDisplayHeaderFooter(true).
-				WithHeaderTemplate(options.HeaderTemplate).
-				WithFooterTemplate(options.FooterTemplate)
+			span.SetStatus(codes.Ok, "")
 		}
 
-		logger.DebugContext(ctx, fmt.Sprintf("print to PDF with: %+v", printToPdf))
+		return err
+	}
+}
 
-		_, stream, err := printToPdf.Do(ctx)
-		if err != nil {
-			return fmt.Errorf("print to PDF: %w", err)
-		}
-
-		reader := &streamReader{
-			ctx:    ctx,
-			handle: stream,
-			r:      nil,
-			pos:    0,
-			eof:    false,
-		}
-
-		defer func() {
-			err = reader.Close()
-			if err != nil {
-				logger.ErrorContext(ctx, fmt.Sprintf("close reader: %s", err))
-			}
-		}()
-
-		file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY, 0o600)
-		if err != nil {
-			return fmt.Errorf("open output path: %w", err)
-		}
-
-		defer func() {
-			err = file.Close()
-			if err != nil {
-				logger.ErrorContext(ctx, fmt.Sprintf("close output path: %s", err))
-			}
-		}()
-
-		buffer := bufio.NewReader(reader)
-
-		_, err = buffer.WriteTo(file)
-		if err != nil {
-			return fmt.Errorf("write result to output path: %w", err)
-		}
-
-		return nil
+// printToPdfAttrs derives bounded, low-cardinality attributes from the print
+// options. Raw header/footer templates and page ranges are reduced to booleans
+// to avoid leaking document content and exploding cardinality.
+func printToPdfAttrs(options PdfOptions) []attribute.KeyValue {
+	return []attribute.KeyValue{
+		attribute.Bool("gotenberg.chromium.print.landscape", options.Landscape),
+		attribute.Bool("gotenberg.chromium.print.print_background", options.PrintBackground),
+		attribute.Float64("gotenberg.chromium.print.scale", options.Scale),
+		attribute.Float64("gotenberg.chromium.print.paper_width", options.PaperWidth),
+		attribute.Float64("gotenberg.chromium.print.paper_height", options.PaperHeight),
+		attribute.Bool("gotenberg.chromium.print.single_page", options.SinglePage),
+		attribute.Bool("gotenberg.chromium.print.prefer_css_page_size", options.PreferCssPageSize),
+		attribute.Bool("gotenberg.chromium.print.generate_tagged_pdf", options.GenerateTaggedPdf),
+		attribute.Bool("gotenberg.chromium.print.has_page_ranges", options.PageRanges != ""),
+		attribute.Bool("gotenberg.chromium.print.has_header", options.HeaderTemplate != DefaultPdfOptions().HeaderTemplate),
+		attribute.Bool("gotenberg.chromium.print.has_footer", options.FooterTemplate != DefaultPdfOptions().FooterTemplate),
 	}
 }
 
