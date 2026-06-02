@@ -21,27 +21,47 @@ import (
 )
 
 // buildResource assembles the OpenTelemetry resource shared by the tracer,
-// meter, and logger providers.
-func buildResource(serviceName, serviceVersion string) (*resource.Resource, error) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return nil, fmt.Errorf("get hostname: %w", err)
-	}
+// meter, and logger providers. Detection is best-effort: a detector or merge
+// failure is logged and the build proceeds with whatever was gathered, so a
+// flaky environment never prevents telemetry from starting.
+func buildResource(ctx context.Context, logger *slog.Logger, serviceName, serviceVersion string) *resource.Resource {
+	base := resource.NewWithAttributes(
+		semconv.SchemaURL,
+		semconv.ServiceName(serviceName),
+		semconv.ServiceVersion(serviceVersion),
+	)
 
-	res, err := resource.Merge(
-		resource.Default(),
-		resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceName(serviceName),
-			semconv.ServiceVersion(serviceVersion),
-			semconv.HostName(hostname),
-		),
+	// Granular detectors only. The WithProcess() bundle is deliberately omitted
+	// because it adds process.command_args/process.command_line, which can carry
+	// proxy credentials and host-resolver rules passed on the command line.
+	detected, err := resource.New(ctx,
+		resource.WithFromEnv(),
+		resource.WithTelemetrySDK(),
+		resource.WithHost(),
+		resource.WithHostID(),
+		resource.WithOS(),
+		resource.WithContainer(),
+		resource.WithProcessPID(),
+		resource.WithProcessExecutableName(),
+		resource.WithProcessExecutablePath(),
+		resource.WithProcessRuntimeName(),
+		resource.WithProcessRuntimeVersion(),
+		resource.WithProcessRuntimeDescription(),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("merge resource: %w", err)
+		logger.WarnContext(ctx, fmt.Sprintf("partially detect OpenTelemetry resource: %s", err))
+	}
+	if detected == nil {
+		return base
 	}
 
-	return res, nil
+	merged, err := resource.Merge(detected, base)
+	if err != nil {
+		logger.WarnContext(ctx, fmt.Sprintf("merge OpenTelemetry resource: %s", err))
+		return base
+	}
+
+	return merged
 }
 
 // InitTracerProvider initializes the OpenTelemetry tracer provider.
@@ -50,10 +70,7 @@ func InitTracerProvider(logger *slog.Logger, serviceName, serviceVersion string)
 
 	ctx := context.Background()
 
-	res, err := buildResource(serviceName, serviceVersion)
-	if err != nil {
-		return nil, fmt.Errorf("build resource: %w", err)
-	}
+	res := buildResource(ctx, logger, serviceName, serviceVersion)
 
 	traceOpts := []trace.TracerProviderOption{
 		trace.WithResource(res),
@@ -85,10 +102,7 @@ func InitMeterProvider(logger *slog.Logger, serviceName, serviceVersion string) 
 
 	ctx := context.Background()
 
-	res, err := buildResource(serviceName, serviceVersion)
-	if err != nil {
-		return nil, fmt.Errorf("build resource: %w", err)
-	}
+	res := buildResource(ctx, logger, serviceName, serviceVersion)
 
 	metricOpts := []metric.Option{
 		metric.WithResource(res),
@@ -127,10 +141,7 @@ func InitLoggerProvider(logger *slog.Logger, serviceName, serviceVersion string)
 
 	ctx := context.Background()
 
-	res, err := buildResource(serviceName, serviceVersion)
-	if err != nil {
-		return nil, nil, fmt.Errorf("build resource: %w", err)
-	}
+	res := buildResource(ctx, logger, serviceName, serviceVersion)
 
 	logOpts := []log.LoggerProviderOption{
 		log.WithResource(res),

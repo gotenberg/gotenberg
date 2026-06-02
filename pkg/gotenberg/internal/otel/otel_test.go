@@ -15,24 +15,37 @@ import (
 )
 
 func TestBuildResource(t *testing.T) {
-	res, err := buildResource("gotenberg", "v8.0.0")
-	if err != nil {
-		t.Fatalf("build resource: %v", err)
-	}
+	res := buildResource(context.Background(), slog.New(slog.DiscardHandler), "gotenberg", "v8.0.0")
 
-	got := map[string]string{}
+	got := map[string]struct{}{}
+	values := map[string]string{}
 	for _, kv := range res.Attributes() {
-		got[string(kv.Key)] = kv.Value.AsString()
+		got[string(kv.Key)] = struct{}{}
+		values[string(kv.Key)] = kv.Value.AsString()
 	}
 
-	if got[string(semconv.ServiceNameKey)] != "gotenberg" {
-		t.Errorf("service.name = %q, want %q", got[string(semconv.ServiceNameKey)], "gotenberg")
+	if values[string(semconv.ServiceNameKey)] != "gotenberg" {
+		t.Errorf("service.name = %q, want %q", values[string(semconv.ServiceNameKey)], "gotenberg")
 	}
-	if got[string(semconv.ServiceVersionKey)] != "v8.0.0" {
-		t.Errorf("service.version = %q, want %q", got[string(semconv.ServiceVersionKey)], "v8.0.0")
+	if values[string(semconv.ServiceVersionKey)] != "v8.0.0" {
+		t.Errorf("service.version = %q, want %q", values[string(semconv.ServiceVersionKey)], "v8.0.0")
 	}
-	if _, ok := got[string(semconv.HostNameKey)]; !ok {
-		t.Error("expected host.name attribute to be present")
+
+	for _, key := range []string{
+		string(semconv.HostNameKey),
+		string(semconv.OSTypeKey),
+		string(semconv.ProcessRuntimeNameKey),
+	} {
+		if _, ok := got[key]; !ok {
+			t.Errorf("expected resource attribute %q to be present", key)
+		}
+	}
+
+	// The command-line bundle must never be detected (it can leak credentials).
+	for _, key := range []string{"process.command_args", "process.command_line"} {
+		if _, ok := got[key]; ok {
+			t.Errorf("did not expect sensitive resource attribute %q", key)
+		}
 	}
 }
 
