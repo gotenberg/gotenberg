@@ -11,22 +11,30 @@ import (
 // conversion deadline.
 //
 // Echo cancels the request context as soon as the synchronous handler returns
-// [api.ErrAsyncProcess], which would abort the asynchronous work. Replacing the
-// embedded context severs that cancellation. The returned cancel function
-// cleans up both the detached context and the original working directory.
+// [api.ErrAsyncProcess], which would abort the asynchronous work. Detaching via
+// [context.WithoutCancel] severs that cancellation while keeping the context
+// values, most importantly the active trace span, so downstream conversion and
+// webhook spans stay in the caller's trace instead of starting a new one.
+// [context.WithoutCancel] also drops the deadline, so it is re-layered. The
+// returned cancel function cleans up both the detached context and the original
+// working directory.
 func detachAsyncContext(ctx *api.Context, cancel context.CancelFunc) context.CancelFunc {
-	if deadline, ok := ctx.Deadline(); ok {
-		detachedCtx, detachedCancel := context.WithDeadline(context.Background(), deadline)
-		ctx.Context = detachedCtx
+	deadline, hasDeadline := ctx.Deadline()
+	base := context.WithoutCancel(ctx.Context)
 
-		originalCancel := cancel
-		return func() {
-			detachedCancel()
-			originalCancel()
-		}
+	var detachedCtx context.Context
+	var detachedCancel context.CancelFunc
+	if hasDeadline {
+		detachedCtx, detachedCancel = context.WithDeadline(base, deadline)
+	} else {
+		// Fallback if no deadline was set (rare, as newContext enforces it).
+		detachedCtx, detachedCancel = context.WithCancel(base)
 	}
+	ctx.Context = detachedCtx
 
-	// Fallback if no deadline was set (rare, as newContext enforces it).
-	ctx.Context = context.Background()
-	return cancel
+	originalCancel := cancel
+	return func() {
+		detachedCancel()
+		originalCancel()
+	}
 }
