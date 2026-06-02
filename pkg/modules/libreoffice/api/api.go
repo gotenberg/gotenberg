@@ -635,20 +635,11 @@ func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPat
 	reason := ""
 
 	if err != nil {
-		switch {
-		case errors.Is(err, context.DeadlineExceeded):
+		status = "error"
+		if errors.Is(err, context.DeadlineExceeded) {
 			status = "timeout"
-			reason = "timeout"
-		case errors.Is(err, context.Canceled):
-			status = "error"
-			reason = "context_cancelled"
-		case errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) || errors.Is(err, gotenberg.ErrProcessAlreadyRestarting):
-			status = "error"
-			reason = "libreoffice_unavailable"
-		default:
-			status = "error"
-			reason = "unknown"
 		}
+		reason = libreofficeErrorType(err)
 	}
 
 	// Record metrics.
@@ -657,6 +648,7 @@ func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPat
 
 	if reason != "" {
 		a.errsCounter.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", reason)))
+		gotenberg.SpanErrorType(span, reason)
 	}
 
 	if !conversionStart.IsZero() {
@@ -686,6 +678,22 @@ func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPat
 	span.RecordError(err)
 	span.SetStatus(codes.Error, err.Error())
 	return fmt.Errorf("supervisor run task: %w", err)
+}
+
+// libreofficeErrorType maps a conversion error to LibreOffice's bounded reason
+// value, reused as the span error.type. Generic failures fall back to
+// [gotenberg.ClassifyError].
+func libreofficeErrorType(err error) string {
+	switch {
+	case errors.Is(err, ErrInvalidPdfFormats):
+		return gotenberg.ErrorTypeInvalidInput
+	case errors.Is(err, ErrUnoException), errors.Is(err, ErrRuntimeException):
+		return "libreoffice_exception"
+	case errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded), errors.Is(err, gotenberg.ErrProcessAlreadyRestarting):
+		return "libreoffice_unavailable"
+	default:
+		return gotenberg.ClassifyError(err)
+	}
 }
 
 // Extensions returns the file extensions available for conversions.
