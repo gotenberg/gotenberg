@@ -206,3 +206,19 @@ func TestSanitizeFilename(t *testing.T) {
 		})
 	}
 }
+
+func TestContext_FileCount(t *testing.T) {
+	ctx := &Context{}
+	if got := ctx.FileCount(); got != 0 {
+		t.Errorf("expected 0 files, got %d", got)
+	}
+
+	ctx.files = map[string]string{
+		"index.html":  "/work/index.html",
+		"header.html": "/work/header.html",
+		"styles.css":  "/work/styles.css",
+	}
+	if got := ctx.FileCount(); got != 3 {
+		t.Errorf("expected 3 files, got %d", got)
+	}
+}

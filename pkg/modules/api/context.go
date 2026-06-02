@@ -536,6 +536,11 @@ func (ctx *Context) FormData() *FormData {
 	}
 }
 
+// FileCount returns the number of files received in the request.
+func (ctx *Context) FileCount() int {
+	return len(ctx.files)
+}
+
 // OriginalFilename returns the original filename associated with a disk path.
 // If no mapping exists, it falls back to [filepath.Base].
 func (ctx *Context) OriginalFilename(diskPath string) string {
