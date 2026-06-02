@@ -25,8 +25,8 @@ import (
 
 type browser interface {
 	gotenberg.Process
-	pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error
-	screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions) error
+	pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions, aggregate *networkAggregate) error
+	screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions, aggregate *networkAggregate) error
 }
 
 type browserArguments struct {
@@ -314,10 +314,10 @@ func (b *chromiumBrowser) Healthy(logger *slog.Logger) bool {
 	return true
 }
 
-func (b *chromiumBrowser) pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error {
+func (b *chromiumBrowser) pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions, aggregate *networkAggregate) error {
 	// Note: no error wrapping because it leaks on errors we want to display to
 	// the end user.
-	return b.do(ctx, logger, url, options.Options, chromedp.Tasks{
+	return b.do(ctx, logger, url, options.Options, aggregate, chromedp.Tasks{
 		network.Enable(),
 		fetch.Enable(),
 		runtime.Enable(),
@@ -340,10 +340,10 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *slog.Logger, url, out
 	})
 }
 
-func (b *chromiumBrowser) screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions) error {
+func (b *chromiumBrowser) screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions, aggregate *networkAggregate) error {
 	// Note: no error wrapping because it leaks on errors we want to display to
 	// the end user.
-	return b.do(ctx, logger, url, options.Options, chromedp.Tasks{
+	return b.do(ctx, logger, url, options.Options, aggregate, chromedp.Tasks{
 		network.Enable(),
 		fetch.Enable(),
 		runtime.Enable(),
@@ -367,7 +367,7 @@ func (b *chromiumBrowser) screenshot(ctx context.Context, logger *slog.Logger, u
 	})
 }
 
-func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url string, options Options, tasks chromedp.Tasks) error {
+func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url string, options Options, aggregate *networkAggregate, tasks chromedp.Tasks) error {
 	if !b.isStarted.Load() {
 		return errors.New("browser not started, cannot handle tasks")
 	}
@@ -395,6 +395,9 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 
 	taskCtx, taskCancel := chromedp.NewContext(timeoutCtx)
 	defer taskCancel()
+
+	// Accumulate per-conversion network activity for telemetry.
+	listenForNetworkActivity(taskCtx, aggregate)
 
 	// We validate all other requests against our allowed / deny lists.
 	// If a request does not pass the validation, we make it fail. It also set

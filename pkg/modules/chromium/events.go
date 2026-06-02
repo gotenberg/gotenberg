@@ -23,6 +23,26 @@ import (
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
+// listenForNetworkActivity accumulates per-conversion network activity into
+// aggregate from the always-on Network domain events. It is a no-op when
+// aggregate is nil.
+func listenForNetworkActivity(ctx context.Context, aggregate *networkAggregate) {
+	if aggregate == nil {
+		return
+	}
+
+	chromedp.ListenTarget(ctx, func(ev any) {
+		switch e := ev.(type) {
+		case *network.EventResponseReceived:
+			aggregate.onResponseReceived(e)
+		case *network.EventLoadingFinished:
+			aggregate.onLoadingFinished(e)
+		case *network.EventLoadingFailed:
+			aggregate.onLoadingFailed(e)
+		}
+	})
+}
+
 type eventRequestPausedOptions struct {
 	allowList, denyList []*regexp2.Regexp
 	denyPrivateIPs      bool

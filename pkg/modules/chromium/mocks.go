@@ -24,16 +24,16 @@ func (api *ApiMock) Screenshot(ctx context.Context, logger *slog.Logger, url, ou
 // browserMock is a mock for the [browser] interface.
 type browserMock struct {
 	gotenberg.ProcessMock
-	pdfMock        func(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error
-	screenshotMock func(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions) error
+	pdfMock        func(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions, aggregate *networkAggregate) error
+	screenshotMock func(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions, aggregate *networkAggregate) error
 }
 
-func (b *browserMock) pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error {
-	return b.pdfMock(ctx, logger, url, outputPath, options)
+func (b *browserMock) pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions, aggregate *networkAggregate) error {
+	return b.pdfMock(ctx, logger, url, outputPath, options, aggregate)
 }
 
-func (b *browserMock) screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions) error {
-	return b.screenshotMock(ctx, logger, url, outputPath, options)
+func (b *browserMock) screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions, aggregate *networkAggregate) error {
+	return b.screenshotMock(ctx, logger, url, outputPath, options, aggregate)
 }
 
 // Interface guards.

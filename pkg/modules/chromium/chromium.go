@@ -107,6 +107,8 @@ type Chromium struct {
 	queueWaitDurationCounter  metric.Float64Histogram
 	pdfOutputSizeCounter      metric.Int64Histogram
 	imageOutputSizeCounter    metric.Int64Histogram
+	networkRequestsCounter    metric.Int64Counter
+	networkBytesCounter       metric.Int64Histogram
 }
 
 // Options are the common options for all conversions.
@@ -633,6 +635,24 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 		return fmt.Errorf("create chromium.image.output.size histogram: %w", err)
 	}
 
+	mod.networkRequestsCounter, err = meter.Int64Counter(
+		"chromium.network.requests.total",
+		metric.WithDescription("Total number of network requests made during Chromium conversions"),
+		metric.WithUnit("{request}"),
+	)
+	if err != nil {
+		return fmt.Errorf("create chromium.network.requests.total counter: %w", err)
+	}
+
+	mod.networkBytesCounter, err = meter.Int64Histogram(
+		"chromium.network.bytes",
+		metric.WithDescription("Bytes fetched over the network during a Chromium conversion"),
+		metric.WithUnit("By"),
+	)
+	if err != nil {
+		return fmt.Errorf("create chromium.network.bytes histogram: %w", err)
+	}
+
 	return nil
 }
 
@@ -821,9 +841,10 @@ func (mod *Chromium) Pdf(ctx context.Context, logger *slog.Logger, url, outputPa
 	start := time.Now()
 	var conversionStart time.Time
 
+	aggregate := newNetworkAggregate()
 	err := mod.supervisor.Run(ctx, logger, func() error {
 		conversionStart = time.Now()
-		return mod.browser.pdf(ctx, logger, url, outputPath, options)
+		return mod.browser.pdf(ctx, logger, url, outputPath, options, aggregate)
 	})
 
 	end := time.Now()
@@ -865,6 +886,8 @@ func (mod *Chromium) Pdf(ctx context.Context, logger *slog.Logger, url, outputPa
 		attribute.String("status", status),
 	))
 
+	mod.recordNetwork(ctx, span, aggregate)
+
 	if err == nil {
 		if fileInfo, statErr := os.Stat(outputPath); statErr == nil {
 			mod.pdfOutputSizeCounter.Record(ctx, fileInfo.Size())
@@ -898,9 +921,10 @@ func (mod *Chromium) Screenshot(ctx context.Context, logger *slog.Logger, url, o
 	start := time.Now()
 	var conversionStart time.Time
 
+	aggregate := newNetworkAggregate()
 	err := mod.supervisor.Run(ctx, logger, func() error {
 		conversionStart = time.Now()
-		return mod.browser.screenshot(ctx, logger, url, outputPath, options)
+		return mod.browser.screenshot(ctx, logger, url, outputPath, options, aggregate)
 	})
 
 	end := time.Now()
@@ -942,6 +966,8 @@ func (mod *Chromium) Screenshot(ctx context.Context, logger *slog.Logger, url, o
 		attribute.String("status", status),
 	))
 
+	mod.recordNetwork(ctx, span, aggregate)
+
 	if err == nil {
 		if fileInfo, statErr := os.Stat(outputPath); statErr == nil {
 			mod.imageOutputSizeCounter.Record(ctx, fileInfo.Size())
@@ -954,6 +980,42 @@ func (mod *Chromium) Screenshot(ctx context.Context, logger *slog.Logger, url, o
 	span.RecordError(err)
 	span.SetStatus(codes.Error, err.Error())
 	return err
+}
+
+// recordNetwork lifts per-conversion network aggregates onto the span and the
+// network metrics. Counts are dimensioned by outcome and bytes feed a
+// histogram; both are recorded with the conversion context so the SDK attaches
+// trace exemplars. The heaviest resource URL is redacted before it lands on the
+// span event.
+func (mod *Chromium) recordNetwork(ctx context.Context, span trace.Span, aggregate *networkAggregate) {
+	if aggregate == nil {
+		return
+	}
+
+	stats := aggregate.snapshot()
+
+	span.SetAttributes(
+		attribute.Int64("gotenberg.chromium.resources.count", stats.requestCount),
+		attribute.Int64("gotenberg.chromium.resources.bytes_total", stats.bytesTotal),
+		attribute.Int64("gotenberg.chromium.resources.failed_count", stats.failedCount),
+		attribute.Int64("gotenberg.chromium.resources.unique_origins", stats.uniqueOrigins),
+	)
+
+	if stats.heaviestURL != "" {
+		span.AddEvent("chromium.heaviest_resource", trace.WithAttributes(
+			attribute.String("url", gotenberg.RedactURL(stats.heaviestURL)),
+			attribute.Int64("bytes", stats.heaviestBytes),
+		))
+	}
+
+	if ok := stats.requestCount - stats.failedCount; ok > 0 {
+		mod.networkRequestsCounter.Add(ctx, ok, metric.WithAttributes(attribute.String("outcome", "ok")))
+	}
+	if stats.failedCount > 0 {
+		mod.networkRequestsCounter.Add(ctx, stats.failedCount, metric.WithAttributes(attribute.String("outcome", "failed")))
+	}
+
+	mod.networkBytesCounter.Record(ctx, stats.bytesTotal)
 }
 
 // conversionInputAttrs derives low-cardinality input attributes for a
