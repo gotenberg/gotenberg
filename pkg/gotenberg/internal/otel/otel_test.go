@@ -3,9 +3,14 @@ package otel
 import (
 	"context"
 	"log/slog"
+	"os"
 	"testing"
 
 	"go.opentelemetry.io/otel"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/exemplar"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 // TestInitTracerProvider_HonorsSamplerEnv guards the contract that the tracer
@@ -38,5 +43,73 @@ func TestInitTracerProvider_HonorsSamplerEnv(t *testing.T) {
 				t.Errorf("OTEL_TRACES_SAMPLER=%q: IsSampled() = %v, want %v", tc.sampler, got, tc.wantSampled)
 			}
 		})
+	}
+}
+
+func TestExemplarFilterOptions(t *testing.T) {
+	t.Run("default pins trace-based", func(t *testing.T) {
+		if v, ok := os.LookupEnv("OTEL_METRICS_EXEMPLAR_FILTER"); ok {
+			os.Unsetenv("OTEL_METRICS_EXEMPLAR_FILTER")
+			t.Cleanup(func() { os.Setenv("OTEL_METRICS_EXEMPLAR_FILTER", v) })
+		}
+		if got := exemplarFilterOptions(); len(got) != 1 {
+			t.Errorf("expected 1 option when env unset, got %d", len(got))
+		}
+	})
+
+	t.Run("env override yields no option", func(t *testing.T) {
+		t.Setenv("OTEL_METRICS_EXEMPLAR_FILTER", "always_off")
+		if got := exemplarFilterOptions(); len(got) != 0 {
+			t.Errorf("expected 0 options when env set, got %d", len(got))
+		}
+	})
+}
+
+// TestMeterProvider_TraceBasedExemplar guards that the trace-based filter we pin
+// actually attaches a trace id to a histogram measurement recorded inside a
+// sampled span.
+func TestMeterProvider_TraceBasedExemplar(t *testing.T) {
+	reader := sdkmetric.NewManualReader()
+	provider := sdkmetric.NewMeterProvider(
+		sdkmetric.WithReader(reader),
+		sdkmetric.WithExemplarFilter(exemplar.TraceBasedFilter),
+	)
+	t.Cleanup(func() { _ = provider.Shutdown(context.Background()) })
+
+	hist, err := provider.Meter("test").Float64Histogram("conversion.duration")
+	if err != nil {
+		t.Fatalf("create histogram: %v", err)
+	}
+
+	tracer := sdktrace.NewTracerProvider(sdktrace.WithSampler(sdktrace.AlwaysSample())).Tracer("test")
+	ctx, span := tracer.Start(context.Background(), "conversion")
+	hist.Record(ctx, 1.0)
+	traceID := span.SpanContext().TraceID()
+	span.End()
+
+	var rm metricdata.ResourceMetrics
+	if err := reader.Collect(context.Background(), &rm); err != nil {
+		t.Fatalf("collect: %v", err)
+	}
+
+	var found bool
+	for _, sm := range rm.ScopeMetrics {
+		for _, m := range sm.Metrics {
+			hd, ok := m.Data.(metricdata.Histogram[float64])
+			if !ok {
+				continue
+			}
+			for _, dp := range hd.DataPoints {
+				for _, ex := range dp.Exemplars {
+					if string(ex.TraceID) == string(traceID[:]) {
+						found = true
+					}
+				}
+			}
+		}
+	}
+
+	if !found {
+		t.Error("expected a trace-based exemplar carrying the span trace id")
 	}
 }

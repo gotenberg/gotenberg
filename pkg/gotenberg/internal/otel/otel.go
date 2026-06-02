@@ -14,6 +14,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/exemplar"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
@@ -92,6 +93,7 @@ func InitMeterProvider(logger *slog.Logger, serviceName, serviceVersion string) 
 	metricOpts := []metric.Option{
 		metric.WithResource(res),
 	}
+	metricOpts = append(metricOpts, exemplarFilterOptions()...)
 
 	metricReader, err := autoexport.NewMetricReader(ctx)
 	if err != nil {
@@ -106,6 +108,17 @@ func InitMeterProvider(logger *slog.Logger, serviceName, serviceVersion string) 
 	otel.SetMeterProvider(meterProvider)
 
 	return meterProvider.Shutdown, nil
+}
+
+// exemplarFilterOptions returns the meter provider options that pin trace-based
+// exemplars, so the histograms expose the trace id of a representative
+// measurement. It yields no option when the operator selects a filter via
+// OTEL_METRICS_EXEMPLAR_FILTER, letting the SDK's own env handling win.
+func exemplarFilterOptions() []metric.Option {
+	if _, ok := os.LookupEnv("OTEL_METRICS_EXEMPLAR_FILTER"); ok {
+		return nil
+	}
+	return []metric.Option{metric.WithExemplarFilter(exemplar.TraceBasedFilter)}
 }
 
 // InitLoggerProvider initializes the OpenTelemetry logger provider.
