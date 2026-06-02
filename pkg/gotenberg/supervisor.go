@@ -101,6 +101,7 @@ const healthFailureThreshold = 2
 
 type processSupervisor struct {
 	logger         *slog.Logger
+	engine         string
 	process        Process
 	maxReqLimit    int64
 	maxQueueSize   int64
@@ -132,14 +133,21 @@ type processSupervisor struct {
 	idleStopChan              chan struct{} // signal to stop the idle ticker goroutine
 }
 
-// NewProcessSupervisor initializes a new [ProcessSupervisor].
-func NewProcessSupervisor(logger *slog.Logger, process Process, maxReqLimit, maxQueueSize, maxConcurrency int64, idleShutdownTimeout time.Duration) ProcessSupervisor {
+// NewProcessSupervisor initializes a new [ProcessSupervisor]. engine names the
+// managed process (for example "chromium" or "libreoffice") and prefixes the
+// telemetry sub-spans; an empty engine falls back to "process".
+func NewProcessSupervisor(logger *slog.Logger, engine string, process Process, maxReqLimit, maxQueueSize, maxConcurrency int64, idleShutdownTimeout time.Duration) ProcessSupervisor {
 	if maxConcurrency < 1 {
 		maxConcurrency = 1
 	}
 
+	if engine == "" {
+		engine = "process"
+	}
+
 	b := &processSupervisor{
 		logger:              logger,
+		engine:              engine,
 		process:             process,
 		semaphore:           make(chan struct{}, maxConcurrency),
 		maxReqLimit:         maxReqLimit,

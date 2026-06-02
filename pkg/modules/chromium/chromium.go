@@ -517,7 +517,7 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 
 	// Process.
 	mod.browser = newChromiumBrowser(mod.args)
-	mod.supervisor = gotenberg.NewProcessSupervisor(mod.logger, mod.browser, flags.MustInt64("chromium-restart-after"), flags.MustInt64("chromium-max-queue-size"), mod.maxConcurrency, flags.MustDuration("chromium-idle-shutdown-timeout"))
+	mod.supervisor = gotenberg.NewProcessSupervisor(mod.logger, "chromium", mod.browser, flags.MustInt64("chromium-restart-after"), flags.MustInt64("chromium-max-queue-size"), mod.maxConcurrency, flags.MustDuration("chromium-idle-shutdown-timeout"))
 
 	// PDF Engine.
 	provider, err := ctx.Module(new(gotenberg.PdfEngineProvider))

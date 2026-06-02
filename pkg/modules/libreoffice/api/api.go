@@ -370,7 +370,7 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 
 	// Process.
 	a.libreOffice = newLibreOfficeProcess(a.args)
-	a.supervisor = gotenberg.NewProcessSupervisor(a.logger, a.libreOffice, flags.MustInt64("libreoffice-restart-after"), flags.MustInt64("libreoffice-max-queue-size"), 1, flags.MustDuration("libreoffice-idle-shutdown-timeout"))
+	a.supervisor = gotenberg.NewProcessSupervisor(a.logger, "libreoffice", a.libreOffice, flags.MustInt64("libreoffice-restart-after"), flags.MustInt64("libreoffice-max-queue-size"), 1, flags.MustDuration("libreoffice-idle-shutdown-timeout"))
 
 	// Metrics.
 	meter := gotenberg.Meter()

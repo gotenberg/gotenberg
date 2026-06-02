@@ -45,7 +45,7 @@ func TestProcessSupervisor_Launch(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, 5, 0, 1, 0).(*processSupervisor)
+			ps := NewProcessSupervisor(logger, "test", process, 5, 0, 1, 0).(*processSupervisor)
 			if tc.firstStartSet {
 				ps.firstStart.Store(true)
 			}
@@ -93,7 +93,7 @@ func TestProcessSupervisor_Shutdown(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, 5, 0, 1, 0)
+			ps := NewProcessSupervisor(logger, "test", process, 5, 0, 1, 0)
 			err := ps.Shutdown()
 
 			if !tc.expectError && err != nil {
@@ -145,7 +145,7 @@ func TestProcessSupervisor_restart(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, 5, 0, 1, 0).(*processSupervisor)
+			ps := NewProcessSupervisor(logger, "test", process, 5, 0, 1, 0).(*processSupervisor)
 
 			err := ps.restart()
 
@@ -201,7 +201,7 @@ func TestProcessSupervisor_Healthy(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, 5, 0, 1, 0).(*processSupervisor)
+			ps := NewProcessSupervisor(logger, "test", process, 5, 0, 1, 0).(*processSupervisor)
 			if tc.initiallyStarted {
 				ps.firstStart.Store(true)
 			}
@@ -229,7 +229,7 @@ func TestProcessSupervisor_Healthy_ConsecutiveFailures(t *testing.T) {
 		HealthyMock: func(_ *slog.Logger) bool { return processHealthy.Load() },
 	}
 
-	ps := NewProcessSupervisor(logger, process, 5, 0, 1, 0).(*processSupervisor)
+	ps := NewProcessSupervisor(logger, "test", process, 5, 0, 1, 0).(*processSupervisor)
 	ps.firstStart.Store(true)
 
 	processHealthy.Store(false)
@@ -272,7 +272,7 @@ func TestProcessSupervisor_Healthy_CachesPositiveResult(t *testing.T) {
 		},
 	}
 
-	ps := NewProcessSupervisor(logger, process, 5, 0, 1, 0).(*processSupervisor)
+	ps := NewProcessSupervisor(logger, "test", process, 5, 0, 1, 0).(*processSupervisor)
 	ps.firstStart.Store(true)
 
 	for range 5 {
@@ -302,7 +302,7 @@ func TestProcessSupervisor_Healthy_DoesNotCacheNegativeResult(t *testing.T) {
 		},
 	}
 
-	ps := NewProcessSupervisor(logger, process, 5, 0, 1, 0).(*processSupervisor)
+	ps := NewProcessSupervisor(logger, "test", process, 5, 0, 1, 0).(*processSupervisor)
 	ps.firstStart.Store(true)
 
 	processHealthy.Store(false)
@@ -489,7 +489,7 @@ func TestProcessSupervisor_Run(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, tc.maxReqLimit, tc.maxQueueSize, 1, 0).(*processSupervisor)
+			ps := NewProcessSupervisor(logger, "test", process, tc.maxReqLimit, tc.maxQueueSize, 1, 0).(*processSupervisor)
 			if tc.initiallyStarted {
 				ps.firstStart.Store(true)
 			}
@@ -573,7 +573,7 @@ func TestProcessSupervisor_runWithDeadline(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			ps := NewProcessSupervisor(slog.New(slog.DiscardHandler), new(ProcessMock), 0, 0, 1, 0).(*processSupervisor)
+			ps := NewProcessSupervisor(slog.New(slog.DiscardHandler), "test", new(ProcessMock), 0, 0, 1, 0).(*processSupervisor)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 			if tc.ctxDone {
@@ -607,7 +607,7 @@ func TestProcessSupervisor_ReqQueueSize(t *testing.T) {
 			return true
 		},
 	}
-	ps := NewProcessSupervisor(logger, process, 0, 0, 1, 0).(*processSupervisor)
+	ps := NewProcessSupervisor(logger, "test", process, 0, 0, 1, 0).(*processSupervisor)
 
 	// Simulating a lock.
 	ps.semaphore <- struct{}{}
@@ -668,7 +668,7 @@ func TestProcessSupervisor_QueueSizeCAS(t *testing.T) {
 
 	maxQueueSize := int64(50)
 	// maxConcurrency=1 so all goroutines block on the semaphore, exercising queue logic.
-	ps := NewProcessSupervisor(logger, process, 0, maxQueueSize, 1, 0).(*processSupervisor)
+	ps := NewProcessSupervisor(logger, "test", process, 0, maxQueueSize, 1, 0).(*processSupervisor)
 
 	// Simulating a lock so that all goroutines queue up.
 	ps.semaphore <- struct{}{}
@@ -722,7 +722,7 @@ func TestProcessSupervisor_QueueSizeIncludesActiveTasks(t *testing.T) {
 	}
 
 	// maxQueueSize=1, maxConcurrency=1: only one request at a time.
-	ps := NewProcessSupervisor(logger, process, 0, 1, 1, 0)
+	ps := NewProcessSupervisor(logger, "test", process, 0, 1, 1, 0)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -811,7 +811,7 @@ func TestProcessSupervisor_RestartsCount(t *testing.T) {
 				},
 			}
 
-			ps := NewProcessSupervisor(logger, process, 0, 0, 1, 0).(*processSupervisor)
+			ps := NewProcessSupervisor(logger, "test", process, 0, 0, 1, 0).(*processSupervisor)
 			ps.restartsCounter.Store(tc.initialRestartsCount)
 
 			for i := 0; i < tc.restartAttempts; i++ {
@@ -844,7 +844,7 @@ func TestProcessSupervisor_ConcurrentRun(t *testing.T) {
 	}
 
 	maxConcurrency := int64(3)
-	ps := NewProcessSupervisor(logger, process, 0, 0, maxConcurrency, 0).(*processSupervisor)
+	ps := NewProcessSupervisor(logger, "test", process, 0, 0, maxConcurrency, 0).(*processSupervisor)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -906,7 +906,7 @@ func TestProcessSupervisor_RestartDrainsAllSlots(t *testing.T) {
 	}
 
 	maxConcurrency := int64(3)
-	ps := NewProcessSupervisor(logger, process, 3, 0, maxConcurrency, 0).(*processSupervisor)
+	ps := NewProcessSupervisor(logger, "test", process, 3, 0, maxConcurrency, 0).(*processSupervisor)
 	ps.firstStart.Store(true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -963,7 +963,7 @@ func TestProcessSupervisor_IdleShutdown(t *testing.T) {
 	}
 
 	idleTimeout := 50 * time.Millisecond
-	ps := NewProcessSupervisor(logger, process, 0, 0, 1, idleTimeout).(*processSupervisor)
+	ps := NewProcessSupervisor(logger, "test", process, 0, 0, 1, idleTimeout).(*processSupervisor)
 
 	ctx := context.Background()
 	err := ps.Run(ctx, logger, func() error {
@@ -1023,7 +1023,7 @@ func TestProcessSupervisor_RetryAfterFailedFirstStart(t *testing.T) {
 		},
 	}
 
-	ps := NewProcessSupervisor(logger, process, 0, 0, 1, 0).(*processSupervisor)
+	ps := NewProcessSupervisor(logger, "test", process, 0, 0, 1, 0).(*processSupervisor)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -1069,7 +1069,7 @@ func TestProcessSupervisor_IdleShutdownSkippedWhenActive(t *testing.T) {
 	}
 
 	idleTimeout := 50 * time.Millisecond
-	ps := NewProcessSupervisor(logger, process, 0, 0, 1, idleTimeout)
+	ps := NewProcessSupervisor(logger, "test", process, 0, 0, 1, idleTimeout)
 
 	ctx := context.Background()
 	go func() {
@@ -1098,7 +1098,7 @@ func TestProcessSupervisor_ConversionsSinceRestart(t *testing.T) {
 		StopMock:    func(*slog.Logger) error { return nil },
 		HealthyMock: func(*slog.Logger) bool { return true },
 	}
-	s := NewProcessSupervisor(slog.New(slog.DiscardHandler), process, 0, 0, 1, 0).(*processSupervisor)
+	s := NewProcessSupervisor(slog.New(slog.DiscardHandler), "test", process, 0, 0, 1, 0).(*processSupervisor)
 
 	if got := s.ConversionsSinceRestart(); got != 0 {
 		t.Errorf("expected 0 conversions initially, got %d", got)
