@@ -58,6 +58,7 @@ type Api struct {
 	conversionDurationCounter metric.Float64Histogram
 	queueWaitDurationCounter  metric.Float64Histogram
 	pdfOutputSizeCounter      metric.Int64Histogram
+	coreDumpedRetriesCounter  metric.Int64Counter
 }
 
 // Options gathers available options when converting a document to PDF.
@@ -468,6 +469,15 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 		return fmt.Errorf("create libreoffice.pdf.output.size histogram: %w", err)
 	}
 
+	a.coreDumpedRetriesCounter, err = meter.Int64Counter(
+		"libreoffice.conversion.retries.total",
+		metric.WithDescription("Total number of LibreOffice conversion retries after a core dump"),
+		metric.WithUnit("{retry}"),
+	)
+	if err != nil {
+		return fmt.Errorf("create libreoffice.conversion.retries.total counter: %w", err)
+	}
+
 	return nil
 }
 
@@ -628,60 +638,74 @@ func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPat
 	)
 	span.SetAttributes(conversionRequestAttributes(inputPath, options)...)
 
-	start := time.Now()
-	var conversionStart time.Time
+	// ErrCoreDumped happens randomly (https://github.com/gotenberg/gotenberg/issues/639);
+	// retry the conversion, but cap the retries so a permanently failing
+	// document cannot loop forever. Each attempt records its own metrics.
+	const maxCoreDumpedRetries = 10
 
-	err := a.supervisor.Run(ctx, logger, func() error {
-		conversionStart = time.Now()
-		return a.libreOffice.pdf(ctx, logger, inputPath, outputPath, options)
-	})
+	var err error
+	var reason string
+	for attempt := 0; ; attempt++ {
+		start := time.Now()
+		var conversionStart time.Time
 
-	// Determine status and error reason.
-	status := "success"
-	reason := ""
+		err = a.supervisor.Run(ctx, logger, func() error {
+			conversionStart = time.Now()
+			return a.libreOffice.pdf(ctx, logger, inputPath, outputPath, options)
+		})
 
-	if err != nil {
-		status = "error"
-		if errors.Is(err, context.DeadlineExceeded) {
-			status = "timeout"
-		}
-		reason = libreofficeErrorType(err)
-	}
+		// Determine status and error reason.
+		status := "success"
+		reason = ""
 
-	// Record metrics.
-	attrs := metric.WithAttributes(attribute.String("status", status))
-	a.reqsCounter.Add(ctx, 1, attrs)
-
-	if reason != "" {
-		a.errsCounter.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", reason)))
-		gotenberg.SpanErrorType(span, reason)
-	}
-
-	if !conversionStart.IsZero() {
-		queueWait := conversionStart.Sub(start).Seconds()
-		a.queueWaitDurationCounter.Record(ctx, queueWait, attrs)
-
-		conversionDuration := time.Since(conversionStart).Seconds()
-		a.conversionDurationCounter.Record(ctx, conversionDuration, attrs)
-	}
-
-	if err == nil {
-		stat, statErr := os.Stat(outputPath)
-		if statErr == nil {
-			a.pdfOutputSizeCounter.Record(ctx, stat.Size(), attrs)
-			span.SetAttributes(attribute.Int64("gotenberg.conversion.output.bytes", stat.Size()))
+		if err != nil {
+			status = "error"
+			if errors.Is(err, context.DeadlineExceeded) {
+				status = "timeout"
+			}
+			reason = libreofficeErrorType(err)
 		}
 
-		span.SetStatus(codes.Ok, "")
-		return nil
+		// Record metrics for this attempt.
+		attrs := metric.WithAttributes(attribute.String("status", status))
+		a.reqsCounter.Add(ctx, 1, attrs)
+
+		if reason != "" {
+			a.errsCounter.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", reason)))
+		}
+
+		if !conversionStart.IsZero() {
+			queueWait := conversionStart.Sub(start).Seconds()
+			a.queueWaitDurationCounter.Record(ctx, queueWait, attrs)
+
+			conversionDuration := time.Since(conversionStart).Seconds()
+			a.conversionDurationCounter.Record(ctx, conversionDuration, attrs)
+		}
+
+		if err == nil {
+			stat, statErr := os.Stat(outputPath)
+			if statErr == nil {
+				a.pdfOutputSizeCounter.Record(ctx, stat.Size(), attrs)
+				span.SetAttributes(attribute.Int64("gotenberg.conversion.output.bytes", stat.Size()))
+			}
+
+			span.SetStatus(codes.Ok, "")
+			return nil
+		}
+
+		if errors.Is(err, ErrCoreDumped) && attempt < maxCoreDumpedRetries {
+			logger.DebugContext(ctx, fmt.Sprintf("got a '%s' error, retry conversion (attempt %d)", err, attempt+1))
+			span.AddEvent("conversion.retry", trace.WithAttributes(
+				attribute.Int("attempt", attempt+1),
+			))
+			a.coreDumpedRetriesCounter.Add(ctx, 1)
+			continue
+		}
+
+		break
 	}
 
-	// See https://github.com/gotenberg/gotenberg/issues/639.
-	if errors.Is(err, ErrCoreDumped) {
-		logger.DebugContext(ctx, fmt.Sprintf("got a '%s' error, retry conversion", err))
-		return a.Pdf(ctx, logger, inputPath, outputPath, options)
-	}
-
+	gotenberg.SpanErrorType(span, reason)
 	span.RecordError(err)
 	span.SetStatus(codes.Error, err.Error())
 	return fmt.Errorf("supervisor run task: %w", err)
