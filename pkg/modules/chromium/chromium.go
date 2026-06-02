@@ -799,6 +799,8 @@ func (mod *Chromium) Routes() ([]api.Route, error) {
 }
 
 // Pdf converts a URL to PDF.
+//
+//nolint:dupl
 func (mod *Chromium) Pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "chromium.Pdf",
 		trace.WithSpanKind(trace.SpanKindClient),
@@ -824,21 +826,12 @@ func (mod *Chromium) Pdf(ctx context.Context, logger *slog.Logger, url, outputPa
 			status = "error"
 		}
 
-		reason := "unknown"
-		switch {
-		case errors.Is(err, context.DeadlineExceeded):
-			reason = "timeout"
-		case errors.Is(err, context.Canceled):
-			reason = "context_cancelled"
-		case errors.Is(err, ErrInvalidHttpStatusCode) || errors.Is(err, ErrInvalidResourceHttpStatusCode) || errors.Is(err, ErrLoadingFailed) || errors.Is(err, ErrResourceLoadingFailed) || errors.Is(err, ErrInvalidEvaluationExpression) || errors.Is(err, ErrInvalidSelectorQuery):
-			reason = "invalid_input"
-		case errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) || errors.Is(err, gotenberg.ErrProcessAlreadyRestarting):
-			reason = "chromium_unavailable"
-		}
+		reason := chromiumErrorType(err, "chromium_unavailable")
 
 		mod.errsCounter.Add(ctx, 1, metric.WithAttributes(
 			attribute.String("reason", reason),
 		))
+		gotenberg.SpanErrorType(span, reason)
 	}
 
 	if !conversionStart.IsZero() {
@@ -876,6 +869,9 @@ func (mod *Chromium) Pdf(ctx context.Context, logger *slog.Logger, url, outputPa
 	return err
 }
 
+// Screenshot captures a screenshot from a URL.
+//
+//nolint:dupl
 func (mod *Chromium) Screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "chromium.Screenshot",
 		trace.WithSpanKind(trace.SpanKindClient),
@@ -901,23 +897,12 @@ func (mod *Chromium) Screenshot(ctx context.Context, logger *slog.Logger, url, o
 			status = "error"
 		}
 
-		reason := "unknown"
-		switch {
-		case errors.Is(err, context.DeadlineExceeded):
-			reason = "timeout"
-		case errors.Is(err, context.Canceled):
-			reason = "context_cancelled"
-		case errors.Is(err, ErrInvalidHttpStatusCode) || errors.Is(err, ErrInvalidResourceHttpStatusCode) || errors.Is(err, ErrLoadingFailed) || errors.Is(err, ErrResourceLoadingFailed) || errors.Is(err, ErrInvalidEvaluationExpression) || errors.Is(err, ErrInvalidSelectorQuery):
-			reason = "invalid_input"
-		case errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded):
-			reason = "chromium_maximum_queue_size_exceeded"
-		case errors.Is(err, gotenberg.ErrProcessAlreadyRestarting):
-			reason = "chromium_unavailable"
-		}
+		reason := chromiumErrorType(err, "chromium_maximum_queue_size_exceeded")
 
 		mod.errsCounter.Add(ctx, 1, metric.WithAttributes(
 			attribute.String("reason", reason),
 		))
+		gotenberg.SpanErrorType(span, reason)
 	}
 
 	if !conversionStart.IsZero() {
@@ -953,6 +938,30 @@ func (mod *Chromium) Screenshot(ctx context.Context, logger *slog.Logger, url, o
 	span.RecordError(err)
 	span.SetStatus(codes.Error, err.Error())
 	return err
+}
+
+// chromiumErrorType maps a conversion error to chromium's bounded reason value,
+// reused as the span error.type. queueReason preserves the historical,
+// route-specific label for a saturated queue: Pdf collapses it into
+// "chromium_unavailable", whereas Screenshot keeps
+// "chromium_maximum_queue_size_exceeded". Generic failures fall back to
+// [gotenberg.ClassifyError].
+func chromiumErrorType(err error, queueReason string) string {
+	switch {
+	case errors.Is(err, ErrInvalidHttpStatusCode),
+		errors.Is(err, ErrInvalidResourceHttpStatusCode),
+		errors.Is(err, ErrLoadingFailed),
+		errors.Is(err, ErrResourceLoadingFailed),
+		errors.Is(err, ErrInvalidEvaluationExpression),
+		errors.Is(err, ErrInvalidSelectorQuery):
+		return gotenberg.ErrorTypeInvalidInput
+	case errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded):
+		return queueReason
+	case errors.Is(err, gotenberg.ErrProcessAlreadyRestarting):
+		return "chromium_unavailable"
+	default:
+		return gotenberg.ClassifyError(err)
+	}
 }
 
 // Interface guards.
