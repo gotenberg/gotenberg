@@ -45,7 +45,6 @@ func TestRunWithFallback_FirstSucceeds(t *testing.T) {
 			calls++
 			return "ok", nil
 		}, wrapTest)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -85,7 +84,6 @@ func TestRunWithFallback_SecondSucceeds(t *testing.T) {
 			}
 			return "ok", nil
 		}, wrapTest)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

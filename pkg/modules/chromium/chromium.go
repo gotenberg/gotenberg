@@ -1029,8 +1029,8 @@ func conversionInputAttrs(ctx context.Context, url string) []attribute.KeyValue 
 		attrs = append(attrs, attribute.Int("gotenberg.conversion.input.files.count", apiCtx.FileCount()))
 	}
 
-	if strings.HasPrefix(url, "file://") {
-		if info, err := os.Stat(strings.TrimPrefix(url, "file://")); err == nil {
+	if after, ok := strings.CutPrefix(url, "file://"); ok {
+		if info, err := os.Stat(after); err == nil {
 			attrs = append(attrs, attribute.Int64("gotenberg.conversion.input.html.bytes", info.Size()))
 		}
 	}

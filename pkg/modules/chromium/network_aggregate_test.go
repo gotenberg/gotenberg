@@ -66,7 +66,7 @@ func TestNetworkAggregate_Snapshot(t *testing.T) {
 
 func TestNetworkAggregate_OriginCap(t *testing.T) {
 	a := newNetworkAggregate()
-	for i := 0; i < maxTrackedOrigins+50; i++ {
+	for i := range maxTrackedOrigins + 50 {
 		a.onResponseReceived(&network.EventResponseReceived{
 			RequestID: network.RequestID(fmt.Sprintf("r%d", i)),
 			Response:  &network.Response{URL: fmt.Sprintf("https://host%d.example.com/x", i)},
@@ -80,7 +80,7 @@ func TestNetworkAggregate_OriginCap(t *testing.T) {
 func TestNetworkAggregate_ConcurrentSafe(t *testing.T) {
 	a := newNetworkAggregate()
 	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()

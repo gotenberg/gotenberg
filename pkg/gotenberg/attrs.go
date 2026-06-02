@@ -2,6 +2,7 @@ package gotenberg
 
 import (
 	"net/url"
+	"slices"
 )
 
 // maxAttrRunes bounds the length of a string span attribute to keep payload
@@ -45,10 +46,8 @@ func RedactURL(raw string) string {
 // a span attribute or metric dimension bounded even when an upstream tool
 // introduces a new enum value.
 func MapEnum(value string, allowed ...string) string {
-	for _, candidate := range allowed {
-		if value == candidate {
-			return value
-		}
+	if slices.Contains(allowed, value) {
+		return value
 	}
 	return "other"
 }
