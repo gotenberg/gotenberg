@@ -8,8 +8,14 @@ import (
 	"io"
 	"log/slog"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Cmd wraps an [exec.Cmd].
@@ -92,11 +98,44 @@ func (cmd *Cmd) Wait() error {
 
 // Exec executes the command and waits for its completion or until the context
 // is done. In any case, it kills the unix process and all its children.
+//
+// When the context carries an active trace span, Exec records a
+// "process.exec" client span around the execution. It is the single
+// instrumentation point for every short-lived external binary (soffice, pdftk,
+// qpdf, exiftool, pdfcpu). The span is skipped when there is no active parent,
+// so process starts performed off the request path do not emit orphan roots.
 func (cmd *Cmd) Exec() (int, error) {
 	if cmd.ctx == nil {
 		return 10, errors.New("nil context")
 	}
 
+	var span trace.Span
+	if trace.SpanContextFromContext(cmd.ctx).IsValid() {
+		_, span = Tracer().Start(cmd.ctx, "process.exec",
+			trace.WithSpanKind(trace.SpanKindClient),
+			trace.WithAttributes(semconv.ProcessExecutableName(filepath.Base(cmd.process.Path))),
+		)
+		defer span.End()
+	}
+
+	code, err := cmd.exec()
+
+	if span != nil {
+		span.SetAttributes(attribute.Int("process.exit.code", code))
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			span.SetAttributes(semconv.ErrorTypeKey.String(execErrorType(cmd.ctx)))
+		} else {
+			span.SetStatus(codes.Ok, "")
+		}
+	}
+
+	return code, err
+}
+
+// exec runs the command and returns its exit code and error.
+func (cmd *Cmd) exec() (int, error) {
 	err := cmd.Start()
 	if err != nil {
 		if cmd.process.ProcessState == nil {
@@ -135,6 +174,19 @@ func (cmd *Cmd) Exec() (int, error) {
 		}
 
 		return 62, fmt.Errorf("context done: %w", cmd.ctx.Err())
+	}
+}
+
+// execErrorType maps an execution failure to a bounded semconv error.type
+// value.
+func execErrorType(ctx context.Context) string {
+	switch {
+	case errors.Is(ctx.Err(), context.DeadlineExceeded):
+		return "context_deadline_exceeded"
+	case errors.Is(ctx.Err(), context.Canceled):
+		return "context_canceled"
+	default:
+		return "process_error"
 	}
 }
 
