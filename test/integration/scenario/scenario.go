@@ -602,6 +602,31 @@ func (s *scenario) theHeaderValueShouldBe(kind, name string, expected string) er
 	return nil
 }
 
+func (s *scenario) theWebhookRequestHeaderShouldCarryTraceID(name, expected string) error {
+	if s.server == nil {
+		return errors.New("server not initialized")
+	}
+	if s.server.req == nil {
+		return errors.New("no webhook request found")
+	}
+
+	value := s.server.req.Header.Get(name)
+	if value == "" {
+		return fmt.Errorf("expected webhook request header %q to be set, but it is empty", name)
+	}
+
+	// W3C traceparent format: version "-" trace-id "-" parent-id "-" trace-flags.
+	parts := strings.Split(value, "-")
+	if len(parts) != 4 {
+		return fmt.Errorf("expected webhook request header %q to be a valid traceparent, but got %q", name, value)
+	}
+
+	if parts[1] != expected {
+		return fmt.Errorf("expected webhook request header %q to carry trace id %q, but actual is %q", name, expected, parts[1])
+	}
+	return nil
+}
+
 func (s *scenario) theCookieValueShouldBe(kind, name, expected string) error {
 	var cookies []*http.Cookie
 	switch {
@@ -1351,6 +1376,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^all concurrent response status codes should be (\d+)$`, s.allConcurrentResponseStatusCodesShouldBe)
 	ctx.Then(`^all concurrent responses should have (\d+) PDF\(s\)$`, s.allConcurrentResponsesShouldHavePdfs)
 	ctx.Then(`^the (response|webhook request|file request|server request) header "([^"]*)" should be "([^"]*)"$`, s.theHeaderValueShouldBe)
+	ctx.Then(`^the webhook request header "([^"]*)" should carry trace id "([^"]*)"$`, s.theWebhookRequestHeaderShouldCarryTraceID)
 	ctx.Then(`^the (response|webhook request|file request|server request) cookie "([^"]*)" should be "([^"]*)"$`, s.theCookieValueShouldBe)
 	ctx.Then(`^the (response|webhook request) body should match string:$`, s.theBodyShouldMatchString)
 	ctx.Then(`^the (response|webhook request) body should contain string:$`, s.theBodyShouldContainString)
