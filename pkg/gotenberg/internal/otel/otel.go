@@ -20,11 +20,9 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
 )
 
-// InitTracerProvider initializes the OpenTelemetry tracer provider.
-func InitTracerProvider(logger *slog.Logger, serviceName, serviceVersion string) (shutdown func(context.Context) error, err error) {
-	initOtelLogger(logger)
-
-	ctx := context.Background()
+// buildResource assembles the OpenTelemetry resource shared by the tracer,
+// meter, and logger providers.
+func buildResource(serviceName, serviceVersion string) (*resource.Resource, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, fmt.Errorf("get hostname: %w", err)
@@ -41,6 +39,20 @@ func InitTracerProvider(logger *slog.Logger, serviceName, serviceVersion string)
 	)
 	if err != nil {
 		return nil, fmt.Errorf("merge resource: %w", err)
+	}
+
+	return res, nil
+}
+
+// InitTracerProvider initializes the OpenTelemetry tracer provider.
+func InitTracerProvider(logger *slog.Logger, serviceName, serviceVersion string) (shutdown func(context.Context) error, err error) {
+	initOtelLogger(logger)
+
+	ctx := context.Background()
+
+	res, err := buildResource(serviceName, serviceVersion)
+	if err != nil {
+		return nil, fmt.Errorf("build resource: %w", err)
 	}
 
 	traceOpts := []trace.TracerProviderOption{
@@ -72,22 +84,10 @@ func InitMeterProvider(logger *slog.Logger, serviceName, serviceVersion string) 
 	initOtelLogger(logger)
 
 	ctx := context.Background()
-	hostname, err := os.Hostname()
-	if err != nil {
-		return nil, fmt.Errorf("get hostname: %w", err)
-	}
 
-	res, err := resource.Merge(
-		resource.Default(),
-		resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceName(serviceName),
-			semconv.ServiceVersion(serviceVersion),
-			semconv.HostName(hostname),
-		),
-	)
+	res, err := buildResource(serviceName, serviceVersion)
 	if err != nil {
-		return nil, fmt.Errorf("merge resource: %w", err)
+		return nil, fmt.Errorf("build resource: %w", err)
 	}
 
 	metricOpts := []metric.Option{
@@ -126,22 +126,10 @@ func InitLoggerProvider(logger *slog.Logger, serviceName, serviceVersion string)
 	initOtelLogger(logger)
 
 	ctx := context.Background()
-	hostname, err := os.Hostname()
-	if err != nil {
-		return nil, nil, fmt.Errorf("get hostname: %w", err)
-	}
 
-	res, err := resource.Merge(
-		resource.Default(),
-		resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceName(serviceName),
-			semconv.ServiceVersion(serviceVersion),
-			semconv.HostName(hostname),
-		),
-	)
+	res, err := buildResource(serviceName, serviceVersion)
 	if err != nil {
-		return nil, nil, fmt.Errorf("merge resource: %w", err)
+		return nil, nil, fmt.Errorf("build resource: %w", err)
 	}
 
 	logOpts := []log.LoggerProviderOption{

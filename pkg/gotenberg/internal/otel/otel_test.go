@@ -11,7 +11,30 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/exemplar"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
 )
+
+func TestBuildResource(t *testing.T) {
+	res, err := buildResource("gotenberg", "v8.0.0")
+	if err != nil {
+		t.Fatalf("build resource: %v", err)
+	}
+
+	got := map[string]string{}
+	for _, kv := range res.Attributes() {
+		got[string(kv.Key)] = kv.Value.AsString()
+	}
+
+	if got[string(semconv.ServiceNameKey)] != "gotenberg" {
+		t.Errorf("service.name = %q, want %q", got[string(semconv.ServiceNameKey)], "gotenberg")
+	}
+	if got[string(semconv.ServiceVersionKey)] != "v8.0.0" {
+		t.Errorf("service.version = %q, want %q", got[string(semconv.ServiceVersionKey)], "v8.0.0")
+	}
+	if _, ok := got[string(semconv.HostNameKey)]; !ok {
+		t.Error("expected host.name attribute to be present")
+	}
+}
 
 // TestInitTracerProvider_HonorsSamplerEnv guards the contract that the tracer
 // provider keeps honoring OTEL_TRACES_SAMPLER. The SDK reads it only when no
