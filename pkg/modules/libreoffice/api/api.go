@@ -622,6 +622,11 @@ func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPat
 	)
 	defer span.End()
 
+	span.SetAttributes(
+		attribute.Int64("gotenberg.queue.depth_at_arrival", a.supervisor.ReqQueueSize()),
+		attribute.Int64("gotenberg.conversions_since_last_restart", a.supervisor.ConversionsSinceRestart()),
+	)
+
 	start := time.Now()
 	var conversionStart time.Time
 
