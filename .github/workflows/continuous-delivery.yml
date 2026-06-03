@@ -152,6 +152,9 @@ jobs:
       - release_arm_v7
     name: Merge and clean release tags
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout source code
         uses: actions/checkout@v6
@@ -161,6 +164,7 @@ jobs:
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          alternate_registry: ghcr.io/${{ github.repository_owner }}
           tags: "${{ needs.release_amd64.outputs.tags }},${{ needs.release_386.outputs.tags }},${{ needs.release_ppc64le.outputs.tags }},${{ needs.release_arm64.outputs.tags }},${{ needs.release_arm_v7.outputs.tags }}"
 
       - name: Merge Chromium
@@ -168,6 +172,7 @@ jobs:
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          alternate_registry: ghcr.io/${{ github.repository_owner }}
           tags: "${{ needs.release_amd64.outputs.tags_chromium }},${{ needs.release_386.outputs.tags_chromium }},${{ needs.release_ppc64le.outputs.tags_chromium }},${{ needs.release_arm64.outputs.tags_chromium }},${{ needs.release_arm_v7.outputs.tags_chromium }}"
 
       - name: Merge LibreOffice
@@ -175,6 +180,7 @@ jobs:
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          alternate_registry: ghcr.io/${{ github.repository_owner }}
           tags: "${{ needs.release_amd64.outputs.tags_libreoffice }},${{ needs.release_386.outputs.tags_libreoffice }},${{ needs.release_ppc64le.outputs.tags_libreoffice }},${{ needs.release_arm64.outputs.tags_libreoffice }},${{ needs.release_arm_v7.outputs.tags_libreoffice }}"
 
       - name: Merge AWS Lambda
@@ -182,6 +188,7 @@ jobs:
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          alternate_registry: ghcr.io/${{ github.repository_owner }}
           tags: "${{ needs.release_amd64.outputs.tags_aws_lambda }},${{ needs.release_arm64.outputs.tags_aws_lambda }}"
 
       - name: Merge AWS Lambda Chromium
@@ -189,6 +196,7 @@ jobs:
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          alternate_registry: ghcr.io/${{ github.repository_owner }}
           tags: "${{ needs.release_amd64.outputs.tags_aws_lambda_chromium }},${{ needs.release_arm64.outputs.tags_aws_lambda_chromium }}"
 
       - name: Merge AWS Lambda LibreOffice
@@ -196,6 +204,7 @@ jobs:
         with:
           docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          alternate_registry: ghcr.io/${{ github.repository_owner }}
           tags: "${{ needs.release_amd64.outputs.tags_aws_lambda_libreoffice }},${{ needs.release_arm64.outputs.tags_aws_lambda_libreoffice }}"
 
       - name: Clean
