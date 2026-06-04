@@ -132,8 +132,8 @@ Feature: Webhook
     Given I have a webhook server
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/flatten" endpoint with the following form data and header(s):
       | files                       | testdata/page_1.pdf                                     | file   |
-      | Gotenberg-Webhook-Url       | http://host.docker.internal:%d/webhook                 | header |
-      | Gotenberg-Webhook-Error-Url | http://host.docker.internal:%d/webhook/error           | header |
+      | Gotenberg-Webhook-Url       | http://host.docker.internal:%d/webhook                  | header |
+      | Gotenberg-Webhook-Error-Url | http://host.docker.internal:%d/webhook/error            | header |
       | traceparent                 | 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01 | header |
     Then the response status code should be 204
     When I wait for the asynchronous request to the webhook
