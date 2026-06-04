@@ -66,6 +66,7 @@ services:
       - "--log-fields-prefix=${LOG_FIELDS_PREFIX}"
       - "--log-std-format=${LOG_STD_FORMAT}"
       - "--log-std-enable-gcp-fields=${LOG_STD_ENABLE_GCP_FIELDS}"
+      - "--log-std-level-case=${LOG_STD_LEVEL_CASE}"
       - "--pdfengines-merge-engines=${PDFENGINES_MERGE_ENGINES}"
       - "--pdfengines-split-engines=${PDFENGINES_SPLIT_ENGINES}"
       - "--pdfengines-flatten-engines=${PDFENGINES_FLATTEN_ENGINES}"
