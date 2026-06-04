@@ -50,7 +50,12 @@ func (h traceContextHandler) WithGroup(name string) slog.Handler {
 }
 
 // NewStdHandler returns a [slog.Handler] instance for the standard output.
-func NewStdHandler(level slog.Level, format string, fieldsPrefix string, enableGcpFields bool) (slog.Handler, error) {
+// upperLevelCase is the value of the level-case setting that keeps the level
+// field uppercase in the standard output. It mirrors gotenberg.UpperLevelCase,
+// duplicated here because the internal log package cannot import gotenberg.
+const upperLevelCase = "upper"
+
+func NewStdHandler(level slog.Level, format string, fieldsPrefix string, enableGcpFields bool, levelCase string) (slog.Handler, error) {
 	// #nosec: G115
 	isTerminal := term.IsTerminal(int(os.Stdout.Fd()))
 
@@ -82,7 +87,11 @@ func NewStdHandler(level slog.Level, format string, fieldsPrefix string, enableG
 				a.Key = "severity"
 				a.Value = slog.StringValue(gcpSeverity(l))
 			default:
-				a.Value = slog.StringValue(strings.ToLower(l.String()))
+				if levelCase == upperLevelCase {
+					a.Value = slog.StringValue(l.String())
+				} else {
+					a.Value = slog.StringValue(strings.ToLower(l.String()))
+				}
 			}
 		}
 

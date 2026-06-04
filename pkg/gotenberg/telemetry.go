@@ -30,6 +30,11 @@ const (
 	DebugLoggingLevel = "debug"
 )
 
+const (
+	LowerLevelCase = "lower"
+	UpperLevelCase = "upper"
+)
+
 // TelemetryConfig gathers the configuration data for Gotenberg's telemetry.
 type TelemetryConfig struct {
 	ServiceName    string
@@ -39,6 +44,7 @@ type TelemetryConfig struct {
 	LogFieldsPrefix       string
 	LogStdFormat          string
 	LogStdEnableGcpFields bool
+	LogStdLevelCase       string
 }
 
 func (cfg TelemetryConfig) slogLevel() slog.Level {
@@ -86,6 +92,16 @@ func (cfg TelemetryConfig) Validate() error {
 		)
 	}
 
+	switch cfg.LogStdLevelCase {
+	case LowerLevelCase, UpperLevelCase:
+		break
+	default:
+		err = errors.Join(
+			err,
+			fmt.Errorf("standard log level case must be either %s or %s", LowerLevelCase, UpperLevelCase),
+		)
+	}
+
 	return err
 }
 
@@ -93,7 +109,7 @@ func (cfg TelemetryConfig) Validate() error {
 func StartTelemetry(cfg TelemetryConfig) (shutdown func(context.Context) error, err error) {
 	var handlers []slog.Handler
 
-	stdHandler, err := log.NewStdHandler(cfg.slogLevel(), cfg.LogStdFormat, cfg.LogFieldsPrefix, cfg.LogStdEnableGcpFields)
+	stdHandler, err := log.NewStdHandler(cfg.slogLevel(), cfg.LogStdFormat, cfg.LogFieldsPrefix, cfg.LogStdEnableGcpFields, cfg.LogStdLevelCase)
 	if err != nil {
 		return nil, fmt.Errorf("get standard logger handler: %w", err)
 	}

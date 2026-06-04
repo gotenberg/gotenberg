@@ -49,6 +49,7 @@ func Run() {
 	fs.String("log-fields-prefix", "", "Prepend a specified prefix to each log field key")
 	fs.String("log-std-format", gotenberg.AutoLoggingFormat, "Set the log format for standard output")
 	fs.Bool("log-std-enable-gcp-fields", false, "Use GCP-compatible field names in log output")
+	fs.String("log-std-level-case", gotenberg.LowerLevelCase, "Set the case of the level field in the standard output, either lower or upper")
 
 	// Deprecated logging flags.
 	fs.String("log-format", gotenberg.AutoLoggingFormat, "Set the log format")
@@ -123,6 +124,7 @@ func Run() {
 		LogFieldsPrefix:       parsedFlags.MustString("log-fields-prefix"),
 		LogStdFormat:          parsedFlags.MustDeprecatedString("log-format", "log-std-format"),
 		LogStdEnableGcpFields: parsedFlags.MustDeprecatedBool("log-enable-gcp-fields", "log-std-enable-gcp-fields"),
+		LogStdLevelCase:       parsedFlags.MustString("log-std-level-case"),
 	}
 	// LogLevel uses its own flag, not the format flag.
 	telemetryCfg.LogLevel = parsedFlags.MustString("log-level")
