@@ -36,7 +36,7 @@ var (
 	ErrUnoException = errors.New("uno exception")
 
 	// ErrRuntimeException happens when unoconverter returns exit code 6.
-	ErrRuntimeException = errors.New("uno exception")
+	ErrRuntimeException = errors.New("runtime exception")
 
 	// ErrCoreDumped happens randomly; sometimes a conversion will work as
 	// expected, and some other time the same conversion will fail.
