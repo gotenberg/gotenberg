@@ -125,6 +125,7 @@ RUN groupadd --gid "$GOTENBERG_USER_GID" gotenberg \
 RUN apt-get update -qq \
     && apt-get upgrade -yqq \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
+        ca-certificates \
         tini \
         # Many users rely on curl for Docker health checks.
         curl \
