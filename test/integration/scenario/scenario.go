@@ -1077,14 +1077,17 @@ func (s *scenario) thePdfShouldBeSetToLandscapeOrientation(ctx context.Context, 
 	return nil
 }
 
-func (s *scenario) thePdfShouldHaveTheFollowingContentAtPage(ctx context.Context, name, kind string, page int, expected *godog.DocString) error {
+// pdfPageText extracts the text of a single page from a produced PDF using
+// pdftotext. name is either a literal filename or a "*_" glob resolved against
+// the test store.
+func (s *scenario) pdfPageText(ctx context.Context, name string, page int) (string, error) {
 	var path string
 	if !strings.HasPrefix(name, "*_") {
 		path = fmt.Sprintf("%s/%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"), name)
 
 		_, err := os.Stat(path)
 		if os.IsNotExist(err) {
-			return fmt.Errorf("PDF %q does not exist", path)
+			return "", fmt.Errorf("PDF %q does not exist", path)
 		}
 	} else {
 		substr := strings.ReplaceAll(name, "*_", "")
@@ -1099,7 +1102,7 @@ func (s *scenario) thePdfShouldHaveTheFollowingContentAtPage(ctx context.Context
 			return nil
 		})
 		if err != nil {
-			return fmt.Errorf("walk %q: %w", s.workdir, err)
+			return "", fmt.Errorf("walk %q: %w", s.workdir, err)
 		}
 	}
 
@@ -1115,7 +1118,16 @@ func (s *scenario) thePdfShouldHaveTheFollowingContentAtPage(ctx context.Context
 
 	output, err := execCommandInIntegrationToolsContainer(ctx, cmd, path)
 	if err != nil {
-		return fmt.Errorf("exec %q: %w", cmd, err)
+		return "", fmt.Errorf("exec %q: %w", cmd, err)
+	}
+
+	return output, nil
+}
+
+func (s *scenario) thePdfShouldHaveTheFollowingContentAtPage(ctx context.Context, name, kind string, page int, expected *godog.DocString) error {
+	output, err := s.pdfPageText(ctx, name, page)
+	if err != nil {
+		return err
 	}
 
 	invert := kind == "should NOT"
@@ -1126,6 +1138,30 @@ func (s *scenario) thePdfShouldHaveTheFollowingContentAtPage(ctx context.Context
 
 	if invert && strings.Contains(output, expected.Content) {
 		return fmt.Errorf("%q found in %q", expected.Content, output)
+	}
+
+	return nil
+}
+
+func (s *scenario) thePdfShouldHaveContentMatchingAtPage(ctx context.Context, name, kind, pattern string, page int) error {
+	output, err := s.pdfPageText(ctx, name, page)
+	if err != nil {
+		return err
+	}
+
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return fmt.Errorf("compile pattern %q: %w", pattern, err)
+	}
+
+	invert := kind == "should NOT"
+
+	if !invert && !re.MatchString(output) {
+		return fmt.Errorf("pattern %q not found in %q", pattern, output)
+	}
+
+	if invert && re.MatchString(output) {
+		return fmt.Errorf("pattern %q found in %q", pattern, output)
 	}
 
 	return nil
@@ -1444,6 +1480,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the "([^"]*)" PDF should have (\d+) page\(s\)$`, s.thePdfShouldHavePages)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) be set to landscape orientation$`, s.thePdfShouldBeSetToLandscapeOrientation)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have the following content at page (\d+):$`, s.thePdfShouldHaveTheFollowingContentAtPage)
+	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have content matching "([^"]*)" at page (\d+)$`, s.thePdfShouldHaveContentMatchingAtPage)
 	ctx.Then(`^the "([^"]*)" PDF should have (\d+) image\(s\)$`, s.thePdfShouldHaveImages)
 	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		if s.gotenbergContainer != nil {

@@ -18,6 +18,25 @@ Feature: /forms/libreoffice/convert
       Page 1
       """
 
+  # A CSV becomes a single Calc sheet named after the input file, and Calc's
+  # default page style prints that sheet name as a centered header. Uploads are
+  # stored under a UUID-based filename, so the UUID must not leak into the PDF.
+  # See https://github.com/gotenberg/gotenberg/issues/1568.
+  Scenario: POST /forms/libreoffice/convert (CSV Without Sheet Name Header)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/sheet.csv | file   |
+      | Gotenberg-Output-Filename | foo                | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Alice
+      """
+    Then the "foo.pdf" PDF should NOT have content matching "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}" at page 1
+
   Scenario: POST /forms/libreoffice/convert (Many Documents)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):

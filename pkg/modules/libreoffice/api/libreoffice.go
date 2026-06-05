@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -317,6 +318,16 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *slog.Logger, input
 
 	if !options.UpdateIndexes {
 		args = append(args, "--disable-update-indexes")
+	}
+
+	// A CSV becomes a single Calc sheet named after the input file, and Calc's
+	// default page style prints that sheet name as a centered header. Uploads
+	// are stored under a UUID-based filename, so the UUID would otherwise leak
+	// into the rendered PDF. Suppress the header for CSV inputs; spreadsheets
+	// that carry their own page styles (XLSX, ODS) are left untouched.
+	// See https://github.com/gotenberg/gotenberg/issues/1568.
+	if strings.EqualFold(filepath.Ext(inputPath), ".csv") {
+		args = append(args, "--disable-calc-header")
 	}
 
 	args = append(args, "--export", fmt.Sprintf("ExportFormFields=%t", options.ExportFormFields))

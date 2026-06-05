@@ -88,7 +88,7 @@ RUN apt-get update -qq \
 
 WORKDIR /downloads
 
-RUN curl -Ls https://raw.githubusercontent.com/gotenberg/unoconverter/v0.2.0/unoconv -o unoconverter \
+RUN curl -Ls https://raw.githubusercontent.com/gotenberg/unoconverter/v0.3.0/unoconv -o unoconverter \
     && chmod +x unoconverter
 
 RUN curl -o pdftk-all.jar "https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/$PDFTK_VERSION/pdftk-all.jar" \
