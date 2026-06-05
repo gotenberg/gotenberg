@@ -695,6 +695,43 @@ Feature: /forms/libreoffice/convert
     Then the response PDF(s) should have the "embed_1.xml" file embedded
     Then the response PDF(s) should have the "embed_2.xml" file embedded
 
+  @convert
+  @embed
+  @factur-x
+  Scenario: POST /forms/libreoffice/convert (Factur-X / ZUGFeRD)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.docx                                                 | file   |
+      | pdfa                      | PDF/A-3b                                                             | field  |
+      | embeds                    | testdata/embed_1.xml                                                 | file   |
+      | embedsMetadata            | {"embed_1.xml":{"mimeType":"text/xml","relationship":"Alternative"}} | field  |
+      | facturx                   | {"conformanceLevel":"EN 16931"}                                      | field  |
+      | Gotenberg-Output-Filename | foo                                                                  | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 0 failed rule(s)
+    Then the response PDF(s) should have the "embed_1.xml" file embedded with relationship "Alternative"
+    Then the response PDF(s) should declare Factur-X XMP with conformance level "EN 16931"
+
+  @factur-x
+  Scenario: POST /forms/pdfengines/factur-x (Standalone)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.docx | file   |
+      | pdfa                      | PDF/A-3b             | field  |
+      | Gotenberg-Output-Filename | base                 | header |
+    Then the response status code should be 200
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/factur-x" endpoint with the following form data and header(s):
+      | files                     | teststore/base.pdf                                  | file   |
+      | facturx                   | {"conformanceLevel":"BASIC","documentType":"ORDER"} | field  |
+      | Gotenberg-Output-Filename | foo                                                 | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 0 failed rule(s)
+    Then the response PDF(s) should declare Factur-X XMP with conformance level "BASIC"
+
   # FIXME: once decrypt is done, add encrypt and check after the content of the PDF.
   @convert
   @metadata

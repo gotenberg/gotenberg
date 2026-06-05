@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 func TestFormData_Validate(t *testing.T) {
@@ -1781,5 +1783,113 @@ func TestFormData_Embeds(t *testing.T) {
 
 	if !reflect.DeepEqual(actual, expected) {
 		t.Errorf("expected %v but got %v", expected, actual)
+	}
+}
+
+func TestFormData_FacturX(t *testing.T) {
+	for _, tc := range []struct {
+		scenario  string
+		form      *FormData
+		mandatory bool
+		expect    gotenberg.FacturX
+		expectErr bool
+	}{
+		{
+			scenario:  "key does not exist, not mandatory",
+			form:      &FormData{},
+			mandatory: false,
+			expect:    gotenberg.FacturX{},
+		},
+		{
+			scenario:  "key does not exist, mandatory",
+			form:      &FormData{},
+			mandatory: true,
+			expectErr: true,
+		},
+		{
+			scenario: "all fields provided",
+			form: &FormData{
+				values: map[string][]string{
+					"facturx": {`{"conformanceLevel":"EXTENDED","documentType":"ORDER","documentFileName":"order.xml","version":"2.0"}`},
+				},
+			},
+			expect: gotenberg.FacturX{
+				ConformanceLevel: gotenberg.FacturXConformanceExtended,
+				DocumentType:     gotenberg.FacturXDocumentTypeOrder,
+				DocumentFileName: "order.xml",
+				Version:          "2.0",
+			},
+		},
+		{
+			scenario: "only conformance level, defaults applied",
+			form: &FormData{
+				values: map[string][]string{
+					"facturx": {`{"conformanceLevel":"EN 16931"}`},
+				},
+			},
+			expect: gotenberg.FacturX{
+				ConformanceLevel: gotenberg.FacturXConformanceEN16931,
+				DocumentType:     gotenberg.FacturXDocumentTypeInvoice,
+				DocumentFileName: "factur-x.xml",
+				Version:          "1.0",
+			},
+		},
+		{
+			scenario: "invalid JSON",
+			form: &FormData{
+				values: map[string][]string{
+					"facturx": {`{not json`},
+				},
+			},
+			expectErr: true,
+		},
+		{
+			scenario: "missing conformance level",
+			form: &FormData{
+				values: map[string][]string{
+					"facturx": {`{"documentType":"INVOICE"}`},
+				},
+			},
+			expectErr: true,
+		},
+		{
+			scenario: "unsupported conformance level",
+			form: &FormData{
+				values: map[string][]string{
+					"facturx": {`{"conformanceLevel":"FOO"}`},
+				},
+			},
+			expectErr: true,
+		},
+		{
+			scenario: "unsupported document type",
+			form: &FormData{
+				values: map[string][]string{
+					"facturx": {`{"conformanceLevel":"BASIC","documentType":"RECEIPT"}`},
+				},
+			},
+			expectErr: true,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			var actual gotenberg.FacturX
+
+			tc.form.FacturX(&actual, tc.mandatory)
+
+			if tc.expectErr {
+				if tc.form.errors == nil {
+					t.Error("expected an error but got none")
+				}
+				return
+			}
+
+			if tc.form.errors != nil {
+				t.Errorf("expected no error but got: %v", tc.form.errors)
+			}
+
+			if !reflect.DeepEqual(actual, tc.expect) {
+				t.Errorf("expected %+v but got %+v", tc.expect, actual)
+			}
+		})
 	}
 }

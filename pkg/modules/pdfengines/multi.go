@@ -28,6 +28,7 @@ type multiPdfEngines struct {
 	watermarkEngines      []gotenberg.PdfEngine
 	stampEngines          []gotenberg.PdfEngine
 	rotateEngines         []gotenberg.PdfEngine
+	facturXEngines        []gotenberg.PdfEngine
 }
 
 func newMultiPdfEngines(
@@ -44,7 +45,8 @@ func newMultiPdfEngines(
 	writeBookmarksEngines,
 	watermarkEngines,
 	stampEngines,
-	rotateEngines []gotenberg.PdfEngine,
+	rotateEngines,
+	facturXEngines []gotenberg.PdfEngine,
 ) *multiPdfEngines {
 	return &multiPdfEngines{
 		mergeEngines:          mergeEngines,
@@ -61,6 +63,7 @@ func newMultiPdfEngines(
 		watermarkEngines:      watermarkEngines,
 		stampEngines:          stampEngines,
 		rotateEngines:         rotateEngines,
+		facturXEngines:        facturXEngines,
 	}
 }
 
@@ -317,6 +320,17 @@ func (multi *multiPdfEngines) EmbedFilesMetadata(ctx context.Context, logger *sl
 			return engine.EmbedFilesMetadata(ctx, logger, metadata, inputPath)
 		},
 		func(err error) error { return fmt.Errorf("set embeds metadata using multi PDF engines: %w", err) },
+	)
+}
+
+// InjectFacturXXMP injects Factur-X/ZUGFeRD XMP metadata using the first
+// available engine that supports it.
+func (multi *multiPdfEngines) InjectFacturXXMP(ctx context.Context, logger *slog.Logger, facturX gotenberg.FacturX, inputPath string) error {
+	return runWithFallbackVoid(ctx, "pdfengines.InjectFacturXXMP", multi.facturXEngines,
+		func(ctx context.Context, engine gotenberg.PdfEngine) error {
+			return engine.InjectFacturXXMP(ctx, logger, facturX, inputPath)
+		},
+		func(err error) error { return fmt.Errorf("inject Factur-X XMP with multi PDF engines: %w", err) },
 	)
 }
 

@@ -467,6 +467,31 @@ func EmbedFilesMetadataStub(ctx *api.Context, engine gotenberg.PdfEngine, metada
 	return nil
 }
 
+// FormDataPdfFacturX extracts Factur-X parameters from form data.
+// The "facturx" field is a JSON string with the four fx properties.
+func FormDataPdfFacturX(form *api.FormData, mandatory bool) gotenberg.FacturX {
+	var facturX gotenberg.FacturX
+	form.FacturX(&facturX, mandatory)
+	return facturX
+}
+
+// InjectFacturXXMPStub injects Factur-X XMP metadata into PDF files. If the
+// Factur-X data is not set, it does nothing.
+func InjectFacturXXMPStub(ctx *api.Context, engine gotenberg.PdfEngine, facturX gotenberg.FacturX, inputPaths []string) error {
+	if facturX.ConformanceLevel == "" {
+		return nil
+	}
+
+	for _, inputPath := range inputPaths {
+		err := engine.InjectFacturXXMP(ctx, ctx.Log(), facturX, inputPath)
+		if err != nil {
+			return fmt.Errorf("inject Factur-X XMP into PDF '%s': %w", inputPath, err)
+		}
+	}
+
+	return nil
+}
+
 // FormDataPdfEncrypt extracts encryption parameters from form data.
 func FormDataPdfEncrypt(form *api.FormData) (userPassword, ownerPassword string) {
 	form.String("userPassword", &userPassword, "")
@@ -707,6 +732,7 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			stampFile := FormDataPdfStampFile(form)
 			angle, rotatePages := FormDataPdfRotate(form, false)
 			embedsMetadata := FormDataPdfEmbedsMetadata(form)
+			facturX := FormDataPdfFacturX(form, false)
 
 			var inputPaths []string
 			var flatten bool
@@ -830,6 +856,11 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("set embeds metadata: %w", err)
 			}
 
+			err = InjectFacturXXMPStub(ctx, engine, facturX, outputPaths)
+			if err != nil {
+				return fmt.Errorf("inject Factur-X XMP: %w", err)
+			}
+
 			err = EncryptPdfStub(ctx, engine, userPassword, ownerPassword, outputPaths)
 			if err != nil {
 				return fmt.Errorf("encrypt PDFs: %w", err)
@@ -866,6 +897,7 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 			stampFile := FormDataPdfStampFile(form)
 			angle, rotatePages := FormDataPdfRotate(form, false)
 			embedsMetadata := FormDataPdfEmbedsMetadata(form)
+			facturX := FormDataPdfFacturX(form, false)
 
 			var inputPaths []string
 			var flatten bool
@@ -938,6 +970,11 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 			err = EmbedFilesMetadataStub(ctx, engine, embedsMetadata, convertOutputPaths)
 			if err != nil {
 				return fmt.Errorf("set embeds metadata: %w", err)
+			}
+
+			err = InjectFacturXXMPStub(ctx, engine, facturX, convertOutputPaths)
+			if err != nil {
+				return fmt.Errorf("inject Factur-X XMP: %w", err)
 			}
 
 			err = EncryptPdfStub(ctx, engine, userPassword, ownerPassword, convertOutputPaths)
@@ -1265,6 +1302,7 @@ func embedRoute(engine gotenberg.PdfEngine) api.Route {
 			form := ctx.FormData()
 			embedPaths := FormDataPdfEmbeds(form)
 			embedsMetadata := FormDataPdfEmbedsMetadata(form)
+			facturX := FormDataPdfFacturX(form, false)
 
 			var inputPaths []string
 			err := form.
@@ -1281,6 +1319,11 @@ func embedRoute(engine gotenberg.PdfEngine) api.Route {
 			err = EmbedFilesMetadataStub(ctx, engine, embedsMetadata, inputPaths)
 			if err != nil {
 				return fmt.Errorf("set embeds metadata: %w", err)
+			}
+
+			err = InjectFacturXXMPStub(ctx, engine, facturX, inputPaths)
+			if err != nil {
+				return fmt.Errorf("inject Factur-X XMP: %w", err)
 			}
 
 			err = ctx.AddOutputPaths(inputPaths...)
@@ -1402,6 +1445,42 @@ func rotateRoute(engine gotenberg.PdfEngine) api.Route {
 			err = RotateStub(ctx, engine, angle, pages, inputPaths)
 			if err != nil {
 				return fmt.Errorf("rotate PDFs: %w", err)
+			}
+
+			err = ctx.AddOutputPaths(inputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
+			}
+
+			return nil
+		},
+	}
+}
+
+// facturXRoute returns an [api.Route] which injects Factur-X/ZUGFeRD XMP
+// metadata into PDF/A-3 files.
+func facturXRoute(engine gotenberg.PdfEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/factur-x",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			form := ctx.FormData()
+			facturX := FormDataPdfFacturX(form, true)
+
+			var inputPaths []string
+			err := form.
+				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			err = InjectFacturXXMPStub(ctx, engine, facturX, inputPaths)
+			if err != nil {
+				return fmt.Errorf("inject Factur-X XMP into PDFs: %w", err)
 			}
 
 			err = ctx.AddOutputPaths(inputPaths...)

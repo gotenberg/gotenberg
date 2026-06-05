@@ -3,7 +3,9 @@ package qpdf
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -527,8 +529,10 @@ func patchCatalogAF(catalogRef string, catalogValue map[string]any, filespecRefs
 }
 
 // writeAndApplyUpdate marshals the update objects as QPDF JSON v2, writes
-// them to a temp file, and applies the update via --update-from-json.
-func (engine *QPdf) writeAndApplyUpdate(ctx context.Context, logger *slog.Logger, inputPath string, updateObjects map[string]any) error {
+// them to a temp file, and applies the update via --update-from-json. extraArgs
+// are appended to the QPDF command (e.g., --json-stream-data=inline when the
+// update replaces stream data).
+func (engine *QPdf) writeAndApplyUpdate(ctx context.Context, logger *slog.Logger, inputPath string, updateObjects map[string]any, extraArgs ...string) error {
 	updateJSON := map[string]any{
 		"qpdf": []any{
 			map[string]any{
@@ -560,9 +564,10 @@ func (engine *QPdf) writeAndApplyUpdate(ctx context.Context, logger *slog.Logger
 		return fmt.Errorf("close temp file: %w", err)
 	}
 
-	updateArgs := make([]string, 0, 5+len(engine.globalArgs))
+	updateArgs := make([]string, 0, 5+len(engine.globalArgs)+len(extraArgs))
 	updateArgs = append(updateArgs, inputPath)
 	updateArgs = append(updateArgs, engine.globalArgs...)
+	updateArgs = append(updateArgs, extraArgs...)
 	updateArgs = append(updateArgs, "--newline-before-endstream")
 	updateArgs = append(updateArgs, "--update-from-json="+tmpFile.Name())
 	updateArgs = append(updateArgs, "--replace-input")
@@ -633,6 +638,322 @@ func stripQpdfStringPrefix(s string) string {
 		}
 	}
 	return s
+}
+
+// facturXNamespaceURI is the Factur-X/ZUGFeRD XMP namespace required by strict
+// validators.
+const facturXNamespaceURI = "urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#"
+
+// InjectFacturXXMP injects Factur-X/ZUGFeRD XMP metadata into the document-level
+// XMP packet (Catalog /Metadata stream) of a PDF/A-3 using QPDF's JSON
+// manipulation. It reads the existing XMP packet, splices in the fx
+// rdf:Description plus the PDF/A extension-schema declaration, and writes the
+// stream back uncompressed so the document stays PDF/A-valid.
+//
+// It assumes the input already carries a Catalog /Metadata stream (always true
+// for a LibreOffice PDF/A export). The injection is idempotent: a packet that
+// already declares the fx namespace is left untouched.
+func (engine *QPdf) InjectFacturXXMP(ctx context.Context, logger *slog.Logger, facturX gotenberg.FacturX, inputPath string) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "qpdf.InjectFacturXXMP",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
+	)
+	defer span.End()
+
+	err := validateFacturX(facturX)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	logger.DebugContext(ctx, fmt.Sprintf("injecting Factur-X XMP into %s with QPDF", inputPath))
+
+	args := append([]string{inputPath}, engine.globalArgs...)
+	args = append(args, "--newline-before-endstream", "--json-output", "--json-stream-data=inline")
+
+	output, err := engine.execCaptureOutput(ctx, args...)
+	if err != nil {
+		err = fmt.Errorf("get PDF JSON with QPDF: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	objects, err := parsePdfObjects(output)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	metaKey, metaDict, xmp, err := findMetadataStream(objects)
+	if err != nil {
+		err = fmt.Errorf("locate XMP metadata stream: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	newXmp, changed := injectFacturXIntoXMP(xmp, facturX)
+	if !changed {
+		logger.DebugContext(ctx, "Factur-X XMP already present, skipping injection")
+		span.SetStatus(codes.Ok, "")
+		return nil
+	}
+
+	// PDF/A requires the metadata stream to be uncompressed and unfiltered. We
+	// provide the decoded XMP as the new stream data, so any existing filter
+	// must be dropped and the length left for QPDF to recompute.
+	delete(metaDict, "/Filter")
+	delete(metaDict, "/DecodeParms")
+	delete(metaDict, "/Length")
+
+	updateObjects := map[string]any{
+		metaKey: map[string]any{
+			"stream": map[string]any{
+				"dict": metaDict,
+				"data": base64.StdEncoding.EncodeToString([]byte(newXmp)),
+			},
+		},
+	}
+
+	err = engine.writeAndApplyUpdate(ctx, logger, inputPath, updateObjects, "--json-stream-data=inline")
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+// validateFacturX checks the Factur-X fields against the supported values.
+func validateFacturX(facturX gotenberg.FacturX) error {
+	switch facturX.ConformanceLevel {
+	case gotenberg.FacturXConformanceMinimum,
+		gotenberg.FacturXConformanceBasicWL,
+		gotenberg.FacturXConformanceBasic,
+		gotenberg.FacturXConformanceEN16931,
+		gotenberg.FacturXConformanceExtended,
+		gotenberg.FacturXConformanceXRechnung:
+	default:
+		return fmt.Errorf("conformance level '%s': %w", facturX.ConformanceLevel, gotenberg.ErrPdfFacturXValueNotSupported)
+	}
+
+	switch facturX.DocumentType {
+	case gotenberg.FacturXDocumentTypeInvoice,
+		gotenberg.FacturXDocumentTypeOrder,
+		gotenberg.FacturXDocumentTypeOrderResponse,
+		gotenberg.FacturXDocumentTypeOrderChange:
+	default:
+		return fmt.Errorf("document type '%s': %w", facturX.DocumentType, gotenberg.ErrPdfFacturXValueNotSupported)
+	}
+
+	if facturX.DocumentFileName == "" {
+		return fmt.Errorf("document file name is empty: %w", gotenberg.ErrPdfFacturXValueNotSupported)
+	}
+
+	if facturX.Version == "" {
+		return fmt.Errorf("version is empty: %w", gotenberg.ErrPdfFacturXValueNotSupported)
+	}
+
+	return nil
+}
+
+// findMetadataStream locates the document-level XMP metadata stream referenced
+// by the Catalog /Metadata entry. It returns the object key (e.g. "obj:4 0 R"),
+// the stream dict, and the decoded XMP packet.
+func findMetadataStream(objects map[string]json.RawMessage) (string, map[string]any, string, error) {
+	var metadataRef string
+	for _, raw := range objects {
+		var obj map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &obj); err != nil {
+			continue
+		}
+
+		valueRaw, ok := obj["value"]
+		if !ok {
+			continue
+		}
+
+		var value map[string]any
+		if err := json.Unmarshal(valueRaw, &value); err != nil {
+			continue
+		}
+
+		if typeVal, _ := value["/Type"].(string); typeVal == "/Catalog" {
+			metadataRef, _ = value["/Metadata"].(string)
+			break
+		}
+	}
+
+	if metadataRef == "" {
+		return "", nil, "", errors.New("no /Metadata reference in the catalog")
+	}
+
+	// References in values use the "4 0 R" form; object keys use "obj:4 0 R".
+	objKey := "obj:" + metadataRef
+	raw, ok := objects[objKey]
+	if !ok {
+		return "", nil, "", fmt.Errorf("metadata object '%s' not found", objKey)
+	}
+
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		return "", nil, "", fmt.Errorf("unmarshal metadata object: %w", err)
+	}
+
+	streamRaw, ok := obj["stream"]
+	if !ok {
+		return "", nil, "", errors.New("metadata object is not a stream")
+	}
+
+	var stream struct {
+		Dict map[string]any `json:"dict"`
+		Data string         `json:"data"`
+	}
+	if err := json.Unmarshal(streamRaw, &stream); err != nil {
+		return "", nil, "", fmt.Errorf("unmarshal metadata stream: %w", err)
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(stream.Data)
+	if err != nil {
+		return "", nil, "", fmt.Errorf("decode metadata stream data: %w", err)
+	}
+
+	dict := stream.Dict
+	if dict == nil {
+		dict = make(map[string]any)
+	}
+
+	return objKey, dict, string(decoded), nil
+}
+
+// injectFacturXIntoXMP splices the fx rdf:Description and the PDF/A
+// extension-schema declaration into an XMP packet. It returns the new packet and
+// whether a change was made (false when the fx namespace is already present).
+func injectFacturXIntoXMP(xmp string, facturX gotenberg.FacturX) (string, bool) {
+	if strings.Contains(xmp, facturXNamespaceURI) {
+		return xmp, false
+	}
+
+	anchor := strings.LastIndex(xmp, "</rdf:RDF>")
+	if anchor == -1 {
+		return xmp, false
+	}
+
+	insert := facturXDescription(facturX)
+
+	if strings.Contains(xmp, "pdfaExtension:schemas") {
+		// An extension-schema bag already exists (e.g. emitted by another tool):
+		// splice the fx Description, then append the fx schema entry into the bag.
+		spliced := xmp[:anchor] + insert + xmp[anchor:]
+		return injectSchemaIntoExistingBag(spliced), true
+	}
+
+	// No extension-schema bag yet (the LibreOffice PDF/A case): create the whole
+	// container alongside the fx Description.
+	insert += facturXExtensionSchema()
+	return xmp[:anchor] + insert + xmp[anchor:], true
+}
+
+// injectSchemaIntoExistingBag appends the fx schema entry into an existing
+// pdfaExtension:schemas bag.
+func injectSchemaIntoExistingBag(xmp string) string {
+	mi := strings.Index(xmp, "pdfaExtension:schemas")
+	if mi == -1 {
+		return xmp
+	}
+
+	bag := strings.Index(xmp[mi:], "<rdf:Bag")
+	if bag == -1 {
+		return xmp
+	}
+
+	gt := strings.Index(xmp[mi+bag:], ">")
+	if gt == -1 {
+		return xmp
+	}
+
+	pos := mi + bag + gt + 1
+	return xmp[:pos] + "\n" + facturXSchemaLi() + xmp[pos:]
+}
+
+// facturXDescription builds the fx rdf:Description carrying the runtime values.
+func facturXDescription(facturX gotenberg.FacturX) string {
+	return fmt.Sprintf(`  <rdf:Description rdf:about="" xmlns:fx="%s">
+   <fx:DocumentType>%s</fx:DocumentType>
+   <fx:DocumentFileName>%s</fx:DocumentFileName>
+   <fx:Version>%s</fx:Version>
+   <fx:ConformanceLevel>%s</fx:ConformanceLevel>
+  </rdf:Description>
+`,
+		facturXNamespaceURI,
+		xmlEscape(facturX.DocumentType),
+		xmlEscape(facturX.DocumentFileName),
+		xmlEscape(facturX.Version),
+		xmlEscape(facturX.ConformanceLevel),
+	)
+}
+
+// facturXExtensionSchema builds the rdf:Description that declares the PDF/A
+// extension schema for the fx namespace, including the namespace declarations.
+func facturXExtensionSchema() string {
+	return fmt.Sprintf(`  <rdf:Description rdf:about="" xmlns:pdfaExtension="http://www.aiim.org/pdfa/ns/extension/" xmlns:pdfaSchema="http://www.aiim.org/pdfa/ns/schema#" xmlns:pdfaProperty="http://www.aiim.org/pdfa/ns/property#">
+   <pdfaExtension:schemas>
+    <rdf:Bag>
+%s
+    </rdf:Bag>
+   </pdfaExtension:schemas>
+  </rdf:Description>
+`, facturXSchemaLi())
+}
+
+// facturXSchemaLi builds the rdf:li describing the fx schema and its four
+// properties. These are fixed schema definitions, not runtime invoice values.
+func facturXSchemaLi() string {
+	return fmt.Sprintf(`     <rdf:li rdf:parseType="Resource">
+      <pdfaSchema:schema>Factur-X PDFA Extension Schema</pdfaSchema:schema>
+      <pdfaSchema:namespaceURI>%s</pdfaSchema:namespaceURI>
+      <pdfaSchema:prefix>fx</pdfaSchema:prefix>
+      <pdfaSchema:property>
+       <rdf:Seq>
+        <rdf:li rdf:parseType="Resource">
+         <pdfaProperty:name>DocumentFileName</pdfaProperty:name>
+         <pdfaProperty:valueType>Text</pdfaProperty:valueType>
+         <pdfaProperty:category>external</pdfaProperty:category>
+         <pdfaProperty:description>name of the embedded XML invoice file</pdfaProperty:description>
+        </rdf:li>
+        <rdf:li rdf:parseType="Resource">
+         <pdfaProperty:name>DocumentType</pdfaProperty:name>
+         <pdfaProperty:valueType>Text</pdfaProperty:valueType>
+         <pdfaProperty:category>external</pdfaProperty:category>
+         <pdfaProperty:description>INVOICE</pdfaProperty:description>
+        </rdf:li>
+        <rdf:li rdf:parseType="Resource">
+         <pdfaProperty:name>Version</pdfaProperty:name>
+         <pdfaProperty:valueType>Text</pdfaProperty:valueType>
+         <pdfaProperty:category>external</pdfaProperty:category>
+         <pdfaProperty:description>The actual version of the Factur-X XML schema</pdfaProperty:description>
+        </rdf:li>
+        <rdf:li rdf:parseType="Resource">
+         <pdfaProperty:name>ConformanceLevel</pdfaProperty:name>
+         <pdfaProperty:valueType>Text</pdfaProperty:valueType>
+         <pdfaProperty:category>external</pdfaProperty:category>
+         <pdfaProperty:description>The conformance level of the embedded Factur-X data</pdfaProperty:description>
+        </rdf:li>
+       </rdf:Seq>
+      </pdfaSchema:property>
+     </rdf:li>`, facturXNamespaceURI)
+}
+
+// xmlEscape escapes a string for safe inclusion in XML character data.
+func xmlEscape(s string) string {
+	var buf bytes.Buffer
+	_ = xml.EscapeText(&buf, []byte(s))
+	return buf.String()
 }
 
 // Watermark is not available in this implementation.

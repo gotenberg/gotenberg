@@ -500,6 +500,11 @@ func (engine *PdfTk) EmbedFilesMetadata(ctx context.Context, logger *slog.Logger
 	return fmt.Errorf("set embeds metadata with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// InjectFacturXXMP is not available in this implementation.
+func (engine *PdfTk) InjectFacturXXMP(ctx context.Context, logger *slog.Logger, facturX gotenberg.FacturX, inputPath string) error {
+	return fmt.Errorf("inject Factur-X XMP with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*PdfTk)(nil)

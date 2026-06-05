@@ -1349,6 +1349,57 @@ func (s *scenario) thePdfsShouldHaveEmbeddedFileWithRelationship(ctx context.Con
 	return nil
 }
 
+func (s *scenario) thePdfsShouldDeclareFacturXConformanceLevel(ctx context.Context, kind, conformanceLevel string) error {
+	dirPath := s.teststoreDir
+
+	_, err := os.Stat(dirPath)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("directory %q does not exist", dirPath)
+	}
+
+	var paths []string
+	err = filepath.Walk(dirPath, func(path string, info os.FileInfo, pathErr error) error {
+		if pathErr != nil {
+			return pathErr
+		}
+		if strings.EqualFold(filepath.Ext(info.Name()), ".pdf") {
+			paths = append(paths, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("walk %q: %w", dirPath, err)
+	}
+
+	for _, path := range paths {
+		cmd := []string{
+			"pdfinfo",
+			"-meta",
+			filepath.Base(path),
+		}
+
+		output, err := execCommandInIntegrationToolsContainer(ctx, cmd, path)
+		if err != nil {
+			return fmt.Errorf("exec %q: %w", cmd, err)
+		}
+
+		if !strings.Contains(output, "urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#") {
+			return errors.New("missing Factur-X namespace in XMP")
+		}
+
+		if !strings.Contains(output, "pdfaExtension:schemas") {
+			return errors.New("missing PDF/A extension schema in XMP")
+		}
+
+		conformanceTag := fmt.Sprintf("<fx:ConformanceLevel>%s</fx:ConformanceLevel>", conformanceLevel)
+		if !strings.Contains(output, conformanceTag) {
+			return fmt.Errorf("missing fx:ConformanceLevel %q in XMP", conformanceLevel)
+		}
+	}
+
+	return nil
+}
+
 func InitializeScenario(ctx *godog.ScenarioContext) {
 	s := &scenario{}
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
@@ -1389,6 +1440,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) be encrypted`, s.thePdfsShouldBeEncrypted)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) have the "([^"]*)" file embedded$`, s.thePdfsShouldHaveEmbeddedFile)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) should have the "([^"]*)" file embedded with relationship "([^"]*)"$`, s.thePdfsShouldHaveEmbeddedFileWithRelationship)
+	ctx.Then(`^the (response|webhook request) PDF\(s\) should declare Factur-X XMP with conformance level "([^"]*)"$`, s.thePdfsShouldDeclareFacturXConformanceLevel)
 	ctx.Then(`^the "([^"]*)" PDF should have (\d+) page\(s\)$`, s.thePdfShouldHavePages)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) be set to landscape orientation$`, s.thePdfShouldBeSetToLandscapeOrientation)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have the following content at page (\d+):$`, s.thePdfShouldHaveTheFollowingContentAtPage)

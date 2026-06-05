@@ -523,6 +523,11 @@ func (engine *ExifTool) EmbedFilesMetadata(ctx context.Context, logger *slog.Log
 	return fmt.Errorf("set embeds metadata with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// InjectFacturXXMP is not available in this implementation.
+func (engine *ExifTool) InjectFacturXXMP(ctx context.Context, logger *slog.Logger, facturX gotenberg.FacturX, inputPath string) error {
+	return fmt.Errorf("inject Factur-X XMP with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*ExifTool)(nil)

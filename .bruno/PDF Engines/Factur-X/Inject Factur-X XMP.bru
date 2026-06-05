@@ -1,0 +1,26 @@
+meta {
+  name: Inject Factur-X XMP
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/forms/pdfengines/factur-x
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  files: @file(../../test/integration/testdata/page_1.pdf)
+  facturx: {"conformanceLevel":"EN 16931","documentType":"INVOICE","documentFileName":"factur-x.xml","version":"1.0"}
+}
+
+headers {
+  ~Gotenberg-Output-Filename: factur-x
+  ~Gotenberg-Webhook-Url: http://localhost:8080/webhook
+  ~Gotenberg-Webhook-Error-Url: http://localhost:8080/webhook/error
+  ~Gotenberg-Webhook-Events-Url: http://localhost:8080/webhook/events
+  ~Gotenberg-Webhook-Method: POST
+  ~Gotenberg-Webhook-Error-Method: POST
+  ~Gotenberg-Webhook-Extra-Http-Headers: {"X-Custom":"value"}
+}

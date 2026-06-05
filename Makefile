@@ -81,6 +81,7 @@ PDFENGINES_ENCRYPT_ENGINES=qpdf,pdfcpu,pdftk
 PDFENGINES_ROTATE_ENGINES=pdfcpu,pdftk
 PDFENGINES_EMBED_ENGINES=qpdf,pdfcpu
 PDFENGINES_EMBED_METADATA_ENGINES=qpdf
+PDFENGINES_FACTUR_X_ENGINES=qpdf
 PROMETHEUS_NAMESPACE=gotenberg
 PROMETHEUS_COLLECT_INTERVAL=1s
 PROMETHEUS_DISABLE_ROUTE_TELEMETRY=true
@@ -157,6 +158,7 @@ NO_CONCURRENCY=false
 # stamp
 # pdfengines-rotate
 # rotate
+# factur-x
 # pdfengines-bookmarks
 # bookmarks
 # prometheus-metrics

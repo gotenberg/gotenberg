@@ -42,6 +42,7 @@ type PdfEngines struct {
 	watermarkNames      []string
 	stampNames          []string
 	rotateNames         []string
+	facturXNames        []string
 	engines             []gotenberg.PdfEngine
 	disableRoutes       bool
 }
@@ -66,6 +67,7 @@ func (mod *PdfEngines) Descriptor() gotenberg.ModuleDescriptor {
 			fs.StringSlice("pdfengines-watermark-engines", []string{"pdfcpu", "pdftk"}, "Set the PDF engines and their order for the watermark feature - empty means all")
 			fs.StringSlice("pdfengines-stamp-engines", []string{"pdfcpu", "pdftk"}, "Set the PDF engines and their order for the stamp feature - empty means all")
 			fs.StringSlice("pdfengines-rotate-engines", []string{"pdfcpu", "pdftk"}, "Set the PDF engines and their order for the rotate feature - empty means all")
+			fs.StringSlice("pdfengines-factur-x-engines", []string{"qpdf"}, "Set the PDF engines and their order for the Factur-X XMP feature - empty means all")
 			fs.Bool("pdfengines-disable-routes", false, "Disable the routes")
 
 			// Deprecated flags.
@@ -99,6 +101,7 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 	watermarkNames := flags.MustStringSlice("pdfengines-watermark-engines")
 	stampNames := flags.MustStringSlice("pdfengines-stamp-engines")
 	rotateNames := flags.MustStringSlice("pdfengines-rotate-engines")
+	facturXNames := flags.MustStringSlice("pdfengines-factur-x-engines")
 	mod.disableRoutes = flags.MustBool("pdfengines-disable-routes")
 
 	engines, err := ctx.Modules(new(gotenberg.PdfEngine))
@@ -195,6 +198,11 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 		mod.rotateNames = rotateNames
 	}
 
+	mod.facturXNames = defaultNames
+	if len(facturXNames) > 0 {
+		mod.facturXNames = facturXNames
+	}
+
 	return nil
 }
 
@@ -250,6 +258,7 @@ func (mod *PdfEngines) Validate() error {
 	findNonExistingEngines(mod.watermarkNames)
 	findNonExistingEngines(mod.stampNames)
 	findNonExistingEngines(mod.rotateNames)
+	findNonExistingEngines(mod.facturXNames)
 
 	if len(nonExistingEngines) == 0 {
 		return nil
@@ -276,6 +285,7 @@ func (mod *PdfEngines) SystemMessages() []string {
 		fmt.Sprintf("watermark engines - %s", strings.Join(mod.watermarkNames, " ")),
 		fmt.Sprintf("stamp engines - %s", strings.Join(mod.stampNames, " ")),
 		fmt.Sprintf("rotate engines - %s", strings.Join(mod.rotateNames, " ")),
+		fmt.Sprintf("Factur-X engines - %s", strings.Join(mod.facturXNames, " ")),
 	}
 }
 
@@ -310,6 +320,7 @@ func (mod *PdfEngines) PdfEngine() (gotenberg.PdfEngine, error) {
 		engines(mod.watermarkNames),
 		engines(mod.stampNames),
 		engines(mod.rotateNames),
+		engines(mod.facturXNames),
 	), nil
 }
 
@@ -340,6 +351,7 @@ func (mod *PdfEngines) Routes() ([]api.Route, error) {
 		watermarkRoute(engine),
 		stampRoute(engine),
 		rotateRoute(engine),
+		facturXRoute(engine),
 	}, nil
 }
 

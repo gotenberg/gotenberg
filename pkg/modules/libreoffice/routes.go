@@ -38,6 +38,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			stampFile := pdfengines.FormDataPdfStampFile(form)
 			angle, rotatePages := pdfengines.FormDataPdfRotate(form, false)
 			embedsMetadata := pdfengines.FormDataPdfEmbedsMetadata(form)
+			facturX := pdfengines.FormDataPdfFacturX(form, false)
 
 			zeroValuedSplitMode := gotenberg.SplitMode{}
 
@@ -501,6 +502,11 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			err = pdfengines.EmbedFilesMetadataStub(ctx, engine, embedsMetadata, outputPaths)
 			if err != nil {
 				return fmt.Errorf("set embeds metadata: %w", err)
+			}
+
+			err = pdfengines.InjectFacturXXMPStub(ctx, engine, facturX, outputPaths)
+			if err != nil {
+				return fmt.Errorf("inject Factur-X XMP: %w", err)
 			}
 
 			err = pdfengines.EncryptPdfStub(ctx, engine, userPassword, ownerPassword, outputPaths)

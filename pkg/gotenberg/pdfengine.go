@@ -35,6 +35,10 @@ var (
 	// ErrPdfRotateAngleNotSupported is returned when the rotation angle is
 	// not supported.
 	ErrPdfRotateAngleNotSupported = errors.New("rotation angle not supported")
+
+	// ErrPdfFacturXValueNotSupported is returned when a Factur-X field value
+	// (e.g., an unknown conformance level or document type) is not supported.
+	ErrPdfFacturXValueNotSupported = errors.New("Factur-X value not supported")
 )
 
 // PdfEngineInvalidArgsError represents an error returned by a PDF engine when
@@ -151,6 +155,55 @@ type Bookmark struct {
 	Children []Bookmark `json:"children,omitempty"`
 }
 
+const (
+	// FacturXConformanceMinimum represents the MINIMUM Factur-X conformance level.
+	FacturXConformanceMinimum string = "MINIMUM"
+
+	// FacturXConformanceBasicWL represents the BASIC WL Factur-X conformance level.
+	FacturXConformanceBasicWL string = "BASIC WL"
+
+	// FacturXConformanceBasic represents the BASIC Factur-X conformance level.
+	FacturXConformanceBasic string = "BASIC"
+
+	// FacturXConformanceEN16931 represents the EN 16931 Factur-X conformance level.
+	FacturXConformanceEN16931 string = "EN 16931"
+
+	// FacturXConformanceExtended represents the EXTENDED Factur-X conformance level.
+	FacturXConformanceExtended string = "EXTENDED"
+
+	// FacturXConformanceXRechnung represents the XRECHNUNG Factur-X conformance level.
+	FacturXConformanceXRechnung string = "XRECHNUNG"
+
+	// FacturXDocumentTypeInvoice represents the INVOICE Factur-X document type.
+	FacturXDocumentTypeInvoice string = "INVOICE"
+
+	// FacturXDocumentTypeOrder represents the ORDER Factur-X document type.
+	FacturXDocumentTypeOrder string = "ORDER"
+
+	// FacturXDocumentTypeOrderResponse represents the ORDER_RESPONSE Factur-X document type.
+	FacturXDocumentTypeOrderResponse string = "ORDER_RESPONSE"
+
+	// FacturXDocumentTypeOrderChange represents the ORDER_CHANGE Factur-X document type.
+	FacturXDocumentTypeOrderChange string = "ORDER_CHANGE"
+)
+
+// FacturX gathers the properties required by the Factur-X/ZUGFeRD standard for
+// the document-level XMP metadata packet of a PDF/A-3.
+type FacturX struct {
+	// ConformanceLevel is one of the FacturXConformance* values.
+	ConformanceLevel string
+
+	// DocumentType is one of the FacturXDocumentType* values.
+	DocumentType string
+
+	// DocumentFileName is the name of the embedded XML invoice (e.g.,
+	// "factur-x.xml").
+	DocumentFileName string
+
+	// Version is the Factur-X version (e.g., "1.0").
+	Version string
+}
+
 // PdfEngine provides an interface for operations on PDFs. Implementations
 // can use various tools like PDFtk, or implement functionality directly in
 // Go.
@@ -216,6 +269,12 @@ type PdfEngine interface {
 	// Rotate rotates pages of a PDF file by the given angle (90, 180, 270).
 	// If pages is empty, all pages are rotated.
 	Rotate(ctx context.Context, logger *slog.Logger, inputPath string, angle int, pages string) error
+
+	// InjectFacturXXMP injects Factur-X/ZUGFeRD XMP metadata into the
+	// document-level XMP packet (Catalog /Metadata stream) of a PDF/A-3. It
+	// registers the fx namespace, the four fx properties, and the matching
+	// PDF/A extension schema so the result stays PDF/A-valid.
+	InjectFacturXXMP(ctx context.Context, logger *slog.Logger, facturX FacturX, inputPath string) error
 }
 
 // PdfEngineProvider offers an interface to instantiate a [PdfEngine].

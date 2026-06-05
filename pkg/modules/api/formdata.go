@@ -424,6 +424,89 @@ func (form *FormData) EmbedsMetadata(target *map[string]map[string]string) *Form
 	return form
 }
 
+// FacturX parses the "facturx" form field (a JSON string) into a
+// [gotenberg.FacturX]. The "conformanceLevel" property is mandatory; the
+// "documentType", "version", and "documentFileName" properties default to
+// "INVOICE", "1.0", and "factur-x.xml" respectively. It leaves the target
+// untouched when the field is absent.
+//
+//	var facturX gotenberg.FacturX
+//
+//	ctx.FormData().FacturX(&facturX, false)
+func (form *FormData) FacturX(target *gotenberg.FacturX, mandatory bool) *FormData {
+	if form.errors != nil {
+		return form
+	}
+
+	val, ok := form.values["facturx"]
+	if !ok || len(val) == 0 || val[0] == "" {
+		if mandatory {
+			form.append(fmt.Errorf("form field '%s' is required", "facturx"))
+		}
+		return form
+	}
+
+	var parsed struct {
+		ConformanceLevel string `json:"conformanceLevel"`
+		DocumentType     string `json:"documentType"`
+		DocumentFileName string `json:"documentFileName"`
+		Version          string `json:"version"`
+	}
+
+	err := json.Unmarshal([]byte(val[0]), &parsed)
+	if err != nil {
+		form.append(fmt.Errorf("form field 'facturx' is invalid: %w", err))
+		return form
+	}
+
+	facturX := gotenberg.FacturX{
+		ConformanceLevel: parsed.ConformanceLevel,
+		DocumentType:     parsed.DocumentType,
+		DocumentFileName: parsed.DocumentFileName,
+		Version:          parsed.Version,
+	}
+
+	if facturX.DocumentType == "" {
+		facturX.DocumentType = gotenberg.FacturXDocumentTypeInvoice
+	}
+
+	if facturX.Version == "" {
+		facturX.Version = "1.0"
+	}
+
+	if facturX.DocumentFileName == "" {
+		facturX.DocumentFileName = "factur-x.xml"
+	}
+
+	switch facturX.ConformanceLevel {
+	case gotenberg.FacturXConformanceMinimum,
+		gotenberg.FacturXConformanceBasicWL,
+		gotenberg.FacturXConformanceBasic,
+		gotenberg.FacturXConformanceEN16931,
+		gotenberg.FacturXConformanceExtended,
+		gotenberg.FacturXConformanceXRechnung:
+	case "":
+		form.append(errors.New("form field 'facturx' is invalid: 'conformanceLevel' is required"))
+		return form
+	default:
+		form.append(fmt.Errorf("form field 'facturx' is invalid: unsupported 'conformanceLevel' '%s'", facturX.ConformanceLevel))
+		return form
+	}
+
+	switch facturX.DocumentType {
+	case gotenberg.FacturXDocumentTypeInvoice,
+		gotenberg.FacturXDocumentTypeOrder,
+		gotenberg.FacturXDocumentTypeOrderResponse,
+		gotenberg.FacturXDocumentTypeOrderChange:
+	default:
+		form.append(fmt.Errorf("form field 'facturx' is invalid: unsupported 'documentType' '%s'", facturX.DocumentType))
+		return form
+	}
+
+	*target = facturX
+	return form
+}
+
 // MandatoryPaths binds the absolute paths of form data files, according to a
 // list of file extensions, to a string slice variable. It populates an error
 // if there is no file for given file extensions.

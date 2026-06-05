@@ -135,6 +135,11 @@ func (engine *LibreOfficePdfEngine) Rotate(ctx context.Context, logger *slog.Log
 	return fmt.Errorf("rotate PDF with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// InjectFacturXXMP is not available in this implementation.
+func (engine *LibreOfficePdfEngine) InjectFacturXXMP(ctx context.Context, logger *slog.Logger, facturX gotenberg.FacturX, inputPath string) error {
+	return fmt.Errorf("inject Factur-X XMP with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*LibreOfficePdfEngine)(nil)

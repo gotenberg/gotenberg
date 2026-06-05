@@ -81,6 +81,7 @@ services:
       - "--pdfengines-rotate-engines=${PDFENGINES_ROTATE_ENGINES}"
       - "--pdfengines-embed-engines=${PDFENGINES_EMBED_ENGINES}"
       - "--pdfengines-embed-metadata-engines=${PDFENGINES_EMBED_METADATA_ENGINES}"
+      - "--pdfengines-factur-x-engines=${PDFENGINES_FACTUR_X_ENGINES}"
       - "--pdfengines-disable-routes=${PDFENGINES_DISABLE_ROUTES}"
       - "--prometheus-namespace=${PROMETHEUS_NAMESPACE}"
       - "--prometheus-collect-interval=${PROMETHEUS_COLLECT_INTERVAL}"
