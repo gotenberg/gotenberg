@@ -16,6 +16,7 @@ import (
 	"strings"
 	"syscall"
 
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 	"go.opentelemetry.io/otel/trace"
@@ -691,7 +692,11 @@ const facturXNamespaceURI = "urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0
 func (engine *QPdf) InjectFacturXXMP(ctx context.Context, logger *slog.Logger, facturX gotenberg.FacturX, inputPath string) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "qpdf.InjectFacturXXMP",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
+		trace.WithAttributes(
+			semconv.ServerAddress(engine.binPath),
+			attribute.String("gotenberg.facturx.conformance_level", facturX.ConformanceLevel),
+			attribute.String("gotenberg.facturx.document_type", facturX.DocumentType),
+		),
 	)
 	defer span.End()
 
@@ -804,6 +809,10 @@ func (engine *QPdf) ReadPdfAConformance(ctx context.Context, logger *slog.Logger
 	}
 
 	part, conformance := parsePdfAId(xmp)
+	span.SetAttributes(
+		attribute.String("gotenberg.pdfa.part", part),
+		attribute.String("gotenberg.pdfa.conformance", conformance),
+	)
 	span.SetStatus(codes.Ok, "")
 	return part, conformance, nil
 }
