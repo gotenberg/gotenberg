@@ -83,7 +83,7 @@ Feature: /forms/pdfengines/stamp
     Then the response status code should be 400
     Then the response body should match string:
       """
-      At least one PDF engine cannot process the requested stamp source type, while others may have failed due to different issues
+      The requested stamp source is not supported, or no PDF engine could process it. Valid sources: 'text', 'image', 'pdf'.
       """
 
   @download-from

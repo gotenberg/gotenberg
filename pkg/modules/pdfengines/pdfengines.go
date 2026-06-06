@@ -211,7 +211,7 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 // actually exist.
 func (mod *PdfEngines) Validate() error {
 	if len(mod.engines) == 0 {
-		return errors.New("no PDF engine")
+		return errors.New("no PDF engine is available; enable at least one engine module (e.g. qpdf, pdfcpu, pdftk, libreoffice-pdfengine, exiftool)")
 	}
 
 	availableEngines := make([]string, len(mod.engines))

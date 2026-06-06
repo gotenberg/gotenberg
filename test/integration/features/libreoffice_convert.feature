@@ -313,7 +313,7 @@ Feature: /forms/libreoffice/convert
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      At least one PDF engine cannot process the requested PDF split mode, while others may have failed to split due to different issues
+      The requested split mode is not supported, or no PDF engine could process it. Valid modes: 'intervals', 'pages'.
       """
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
       | files | testdata/pages_3.docx | file  |
@@ -322,7 +322,7 @@ Feature: /forms/libreoffice/convert
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      A PDF format in '{PdfA:foo PdfUa:false}' is not supported
+      The PDF format 'foo' is not supported. Valid formats include PDF/A-1b, PDF/A-2b, PDF/A-3b, and PDF/UA.
       """
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
       | files | testdata/page_1.docx | file  |

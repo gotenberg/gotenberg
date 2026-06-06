@@ -486,12 +486,12 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 
 	binPath, ok := os.LookupEnv("CHROMIUM_BIN_PATH")
 	if !ok {
-		return errors.New("CHROMIUM_BIN_PATH environment variable is not set")
+		return errors.New("CHROMIUM_BIN_PATH environment variable is not set; set it to the absolute path of the Chromium or Chrome binary")
 	}
 
 	hyphenDataDirPath, ok := os.LookupEnv("CHROMIUM_HYPHEN_DATA_DIR_PATH")
 	if !ok {
-		return errors.New("CHROMIUM_HYPHEN_DATA_DIR_PATH environment variable is not set")
+		return errors.New("CHROMIUM_HYPHEN_DATA_DIR_PATH environment variable is not set; set it to the absolute path of the Chromium hyphenation data directory (it ships in the Gotenberg image)")
 	}
 
 	mod.args = browserArguments{
@@ -664,12 +664,12 @@ func (mod *Chromium) Validate() error {
 
 	_, err := os.Stat(mod.args.binPath)
 	if os.IsNotExist(err) {
-		return fmt.Errorf("chromium binary path does not exist: %w", err)
+		return fmt.Errorf("Chromium binary does not exist at %q; check the CHROMIUM_BIN_PATH environment variable: %w", mod.args.binPath, err)
 	}
 
 	_, err = os.Stat(mod.args.hyphenDataDirPath)
 	if os.IsNotExist(err) {
-		return fmt.Errorf("chromium hyphen-data directory path does not exist: %w", err)
+		return fmt.Errorf("Chromium hyphenation data directory does not exist at %q; check the CHROMIUM_HYPHEN_DATA_DIR_PATH environment variable (it ships in the Gotenberg image): %w", mod.args.hyphenDataDirPath, err)
 	}
 
 	return nil

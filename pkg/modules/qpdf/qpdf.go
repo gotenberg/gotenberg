@@ -46,7 +46,7 @@ func (engine *QPdf) Descriptor() gotenberg.ModuleDescriptor {
 func (engine *QPdf) Provision(ctx *gotenberg.Context) error {
 	binPath, ok := os.LookupEnv("QPDF_BIN_PATH")
 	if !ok {
-		return errors.New("QPDF_BIN_PATH environment variable is not set")
+		return errors.New("QPDF_BIN_PATH environment variable is not set; set it to the absolute path of the qpdf binary")
 	}
 
 	engine.binPath = binPath

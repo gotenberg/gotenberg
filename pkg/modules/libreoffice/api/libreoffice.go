@@ -196,7 +196,7 @@ func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 		select {
 		case err = <-connChan:
 			if err != nil {
-				return fmt.Errorf("LibreOffice socket not available: %w", err)
+				return fmt.Errorf("LibreOffice did not become available within the start timeout; increase --libreoffice-start-timeout or check system resources: %w", err)
 			}
 
 			logger.DebugContext(context.Background(), "LibreOffice socket available")
@@ -204,7 +204,7 @@ func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 
 			return nil
 		case err = <-waitChan:
-			return fmt.Errorf("LibreOffice process exited: %w", err)
+			return fmt.Errorf("LibreOffice exited unexpectedly during startup; check system resources such as memory, disk, and permissions: %w", err)
 		}
 	}
 }

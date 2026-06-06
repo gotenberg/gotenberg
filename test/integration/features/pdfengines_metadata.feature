@@ -120,7 +120,7 @@ Feature: /forms/pdfengines/metadata/{write|read}
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should contain string:
       """
-      At least one PDF engine cannot process the requested metadata
+      The requested metadata could not be written
       """
 
   Scenario: POST /forms/pdfengines/metadata/write (Reject Group-Prefixed Dangerous Tag)

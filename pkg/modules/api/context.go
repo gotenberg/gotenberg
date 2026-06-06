@@ -111,7 +111,7 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 		if bodyLimit != 0 && newTotal > bodyLimit {
 			return WrapError(
 				fmt.Errorf("body limit reached (> %d)", bodyLimit),
-				NewSentinelHttpError(http.StatusRequestEntityTooLarge, http.StatusText(http.StatusRequestEntityTooLarge)),
+				NewSentinelHttpError(http.StatusRequestEntityTooLarge, "The request body exceeds the configured size limit. Increase it with --api-body-limit, or send a smaller request."),
 			)
 		}
 		return nil

@@ -85,6 +85,15 @@ If a change violates backward compatibility, flag it as a breaking change in the
 - No panics in production code paths.
 - Validate input defensively.
 
+### Error messages
+
+Client- and operator-facing error messages state what failed, why when non-obvious, and how to fix it when a fix exists. Internal errors (the wrapped `fmt.Errorf` chains that only reach logs) are exempt; keep them precise and technical.
+
+- Client (HTTP response body): name the offending form field and its valid values. Never return a bare `http.StatusText()`.
+- Operator (startup, `Provision`, `Validate`): name the environment variable or flag to set, plus the path or value checked.
+- Security and filtering errors stay generic for clients. Don't reveal allow/deny lists or private-IP policy. Log the specific reason for operators.
+- No hedging ("while others may have failed"). No raw `os.Stat` or exec output in the human-facing remedy.
+
 ### Logging
 
 Use `gotenberg.Logger(mod)` to get the module's slog logger during `Provision()`. All log calls must be context-aware: `logger.DebugContext(ctx, msg)`, `logger.InfoContext(ctx, msg)`, `logger.ErrorContext(ctx, msg)`. This propagates trace/span IDs into structured logs when OpenTelemetry is active.

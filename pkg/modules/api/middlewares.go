@@ -43,7 +43,7 @@ func ParseError(err error) (int, string) {
 	}
 
 	if errors.Is(err, context.DeadlineExceeded) {
-		return http.StatusServiceUnavailable, http.StatusText(http.StatusServiceUnavailable)
+		return http.StatusServiceUnavailable, "The request exceeded the time limit. Increase it with --api-timeout, or reduce the workload."
 	}
 
 	if errors.Is(err, gotenberg.ErrFiltered) {
@@ -51,27 +51,27 @@ func ParseError(err error) (int, string) {
 	}
 
 	if errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded) {
-		return http.StatusTooManyRequests, http.StatusText(http.StatusTooManyRequests)
+		return http.StatusTooManyRequests, "The request queue is full. Retry shortly, or raise the limit with --chromium-max-queue-size or --libreoffice-max-queue-size."
 	}
 
 	if errors.Is(err, gotenberg.ErrPdfSplitModeNotSupported) {
-		return http.StatusBadRequest, "At least one PDF engine cannot process the requested PDF split mode, while others may have failed to split due to different issues"
+		return http.StatusBadRequest, "The requested split mode is not supported, or no PDF engine could process it. Valid modes: 'intervals', 'pages'."
 	}
 
 	if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
-		return http.StatusBadRequest, "At least one PDF engine cannot process the requested PDF format, while others may have failed to convert due to different issues"
+		return http.StatusBadRequest, "The requested PDF format is not supported, or no PDF engine could apply it. Valid formats include PDF/A-1b, PDF/A-2b, PDF/A-3b, and PDF/UA."
 	}
 
 	if errors.Is(err, gotenberg.ErrPdfEngineMetadataValueNotSupported) {
-		return http.StatusBadRequest, "At least one PDF engine cannot process the requested metadata, while others may have failed to convert due to different issues"
+		return http.StatusBadRequest, "The requested metadata could not be written; ensure values are valid and free of control characters."
 	}
 
 	if errors.Is(err, gotenberg.ErrPdfStampSourceNotSupported) {
-		return http.StatusBadRequest, "At least one PDF engine cannot process the requested stamp source type, while others may have failed due to different issues"
+		return http.StatusBadRequest, "The requested stamp source is not supported, or no PDF engine could process it. Valid sources: 'text', 'image', 'pdf'."
 	}
 
 	if errors.Is(err, gotenberg.ErrPdfRotateAngleNotSupported) {
-		return http.StatusBadRequest, "At least one PDF engine cannot process the requested rotation angle, while others may have failed due to different issues"
+		return http.StatusBadRequest, "The requested rotation angle is not supported. Valid angles: 90, 180, 270."
 	}
 
 	if invalidArgsError, ok := errors.AsType[*gotenberg.PdfEngineInvalidArgsError](err); ok {

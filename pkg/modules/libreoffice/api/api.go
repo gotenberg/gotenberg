@@ -487,12 +487,12 @@ func (a *Api) Validate() error {
 
 	_, statErr := os.Stat(a.args.binPath)
 	if os.IsNotExist(statErr) {
-		err = errors.Join(err, fmt.Errorf("LibreOffice binary path does not exist: %w", statErr))
+		err = errors.Join(err, fmt.Errorf("LibreOffice binary does not exist at %q; check the LIBREOFFICE_BIN_PATH environment variable: %w", a.args.binPath, statErr))
 	}
 
 	_, statErr = os.Stat(a.args.unoBinPath)
 	if os.IsNotExist(statErr) {
-		err = errors.Join(err, fmt.Errorf("unoconverter binary path does not exist: %w", statErr))
+		err = errors.Join(err, fmt.Errorf("unoconverter binary does not exist at %q; check the UNOCONVERTER_BIN_PATH environment variable: %w", a.args.unoBinPath, statErr))
 	}
 
 	return err
