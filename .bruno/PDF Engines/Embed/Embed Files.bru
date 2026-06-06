@@ -15,7 +15,10 @@ body:multipart-form {
   embeds: @file(../test/integration/testdata/embed_1.xml)
   embeds: @file(../test/integration/testdata/embed_2.xml)
   embedsMetadata: {"embed_1.xml":{"mimeType":"text/xml","relationship":"Data"}, "embed_2.xml":{"mimeType":"text/xml","relationship":"Data"}}
-  ~facturx: {"conformanceLevel":"EN 16931","documentType":"INVOICE","documentFileName":"factur-x.xml","version":"1.0"}
+  ~facturxXml: @file(../test/integration/testdata/embed_1.xml)
+  ~facturxConformanceLevel: EN 16931
+  ~facturxDocumentType: INVOICE
+  ~facturxVersion: 1.0
   ~downloadFrom: [{"url":"https://example.com/attachment.xml","embedded":true}]
 }
 

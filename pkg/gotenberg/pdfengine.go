@@ -185,6 +185,10 @@ const (
 
 	// FacturXDocumentTypeOrderChange represents the ORDER_CHANGE Factur-X document type.
 	FacturXDocumentTypeOrderChange string = "ORDER_CHANGE"
+
+	// FacturXDocumentFileName is the canonical name of the embedded XML invoice
+	// mandated by the Factur-X standard. Validators expect this exact name.
+	FacturXDocumentFileName string = "factur-x.xml"
 )
 
 // FacturX gathers the properties required by the Factur-X/ZUGFeRD standard for
@@ -196,8 +200,8 @@ type FacturX struct {
 	// DocumentType is one of the FacturXDocumentType* values.
 	DocumentType string
 
-	// DocumentFileName is the name of the embedded XML invoice (e.g.,
-	// "factur-x.xml").
+	// DocumentFileName is the name of the embedded XML invoice. It is set
+	// internally to the canonical [FacturXDocumentFileName], not by the caller.
 	DocumentFileName string
 
 	// Version is the Factur-X version (e.g., "1.0").
@@ -275,6 +279,12 @@ type PdfEngine interface {
 	// registers the fx namespace, the four fx properties, and the matching
 	// PDF/A extension schema so the result stays PDF/A-valid.
 	InjectFacturXXMP(ctx context.Context, logger *slog.Logger, facturX FacturX, inputPath string) error
+
+	// ReadPdfAConformance reads the PDF/A part and conformance (e.g., "3" and
+	// "B") from the document-level XMP packet (Catalog /Metadata stream,
+	// pdfaid:part and pdfaid:conformance). It returns empty strings when the
+	// document carries no PDF/A identification.
+	ReadPdfAConformance(ctx context.Context, logger *slog.Logger, inputPath string) (part string, conformance string, err error)
 }
 
 // PdfEngineProvider offers an interface to instantiate a [PdfEngine].

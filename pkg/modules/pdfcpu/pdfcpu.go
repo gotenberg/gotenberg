@@ -457,6 +457,11 @@ func (engine *PdfCpu) InjectFacturXXMP(ctx context.Context, logger *slog.Logger,
 	return fmt.Errorf("inject Factur-X XMP with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// ReadPdfAConformance is not available in this implementation.
+func (engine *PdfCpu) ReadPdfAConformance(ctx context.Context, logger *slog.Logger, inputPath string) (string, string, error) {
+	return "", "", fmt.Errorf("read PDF/A conformance with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // EmbedFiles embeds files into a PDF. All files are embedded as file attachments
 // without modifying the main PDF content.
 func (engine *PdfCpu) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {

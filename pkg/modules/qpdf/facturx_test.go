@@ -247,3 +247,53 @@ func assertContains(t *testing.T, haystack, needle string) {
 		t.Errorf("expected output to contain %q", needle)
 	}
 }
+
+func TestParsePdfAId(t *testing.T) {
+	for _, tc := range []struct {
+		scenario      string
+		xmp           string
+		expectPart    string
+		expectConform string
+	}{
+		{
+			scenario:      "element form",
+			xmp:           `<rdf:Description><pdfaid:part>3</pdfaid:part><pdfaid:conformance>B</pdfaid:conformance></rdf:Description>`,
+			expectPart:    "3",
+			expectConform: "B",
+		},
+		{
+			scenario:      "attribute form",
+			xmp:           `<rdf:Description pdfaid:part="3" pdfaid:conformance="U"></rdf:Description>`,
+			expectPart:    "3",
+			expectConform: "U",
+		},
+		{
+			scenario:      "part 2",
+			xmp:           `<pdfaid:part>2</pdfaid:part><pdfaid:conformance>B</pdfaid:conformance>`,
+			expectPart:    "2",
+			expectConform: "B",
+		},
+		{
+			scenario:      "no pdfa identification",
+			xmp:           `<rdf:Description><dc:title>foo</dc:title></rdf:Description>`,
+			expectPart:    "",
+			expectConform: "",
+		},
+		{
+			scenario:      "empty packet",
+			xmp:           "",
+			expectPart:    "",
+			expectConform: "",
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			part, conformance := parsePdfAId(tc.xmp)
+			if part != tc.expectPart {
+				t.Errorf("expected part %q but got %q", tc.expectPart, part)
+			}
+			if conformance != tc.expectConform {
+				t.Errorf("expected conformance %q but got %q", tc.expectConform, conformance)
+			}
+		})
+	}
+}

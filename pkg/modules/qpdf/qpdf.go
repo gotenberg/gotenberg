@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"syscall"
 
@@ -729,6 +730,68 @@ func (engine *QPdf) InjectFacturXXMP(ctx context.Context, logger *slog.Logger, f
 	return nil
 }
 
+// ReadPdfAConformance reads the PDF/A part and conformance from the
+// document-level XMP packet (pdfaid:part and pdfaid:conformance) using QPDF's
+// JSON output. It returns empty strings when the document carries no XMP
+// metadata stream or no PDF/A identification.
+func (engine *QPdf) ReadPdfAConformance(ctx context.Context, logger *slog.Logger, inputPath string) (string, string, error) {
+	ctx, span := gotenberg.Tracer().Start(ctx, "qpdf.ReadPdfAConformance",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
+	)
+	defer span.End()
+
+	logger.DebugContext(ctx, fmt.Sprintf("reading PDF/A conformance from %s with QPDF", inputPath))
+
+	args := append([]string{inputPath}, engine.globalArgs...)
+	args = append(args, "--json-output", "--json-stream-data=inline")
+
+	output, err := engine.execCaptureOutput(ctx, args...)
+	if err != nil {
+		err = fmt.Errorf("get PDF JSON with QPDF: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return "", "", err
+	}
+
+	objects, err := parsePdfObjects(output)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return "", "", err
+	}
+
+	_, _, xmp, err := findMetadataStream(objects)
+	if err != nil {
+		// No XMP metadata stream means no PDF/A identification.
+		logger.DebugContext(ctx, fmt.Sprintf("no XMP metadata stream in %s: %s", inputPath, err))
+		span.SetStatus(codes.Ok, "")
+		return "", "", nil
+	}
+
+	part, conformance := parsePdfAId(xmp)
+	span.SetStatus(codes.Ok, "")
+	return part, conformance, nil
+}
+
+var (
+	pdfaIdPartRe        = regexp.MustCompile(`pdfaid:part[\s>="']*([0-9]+)`)
+	pdfaIdConformanceRe = regexp.MustCompile(`pdfaid:conformance[\s>="']*([A-Za-z]+)`)
+)
+
+// parsePdfAId extracts the PDF/A part and conformance from an XMP packet. It
+// handles both the element (<pdfaid:part>3</pdfaid:part>) and attribute
+// (pdfaid:part="3") serializations.
+func parsePdfAId(xmp string) (part string, conformance string) {
+	if m := pdfaIdPartRe.FindStringSubmatch(xmp); m != nil {
+		part = m[1]
+	}
+	if m := pdfaIdConformanceRe.FindStringSubmatch(xmp); m != nil {
+		conformance = m[1]
+	}
+	return part, conformance
+}
+
 // validateFacturX checks the Factur-X fields against the supported values.
 func validateFacturX(facturX gotenberg.FacturX) error {
 	switch facturX.ConformanceLevel {
@@ -930,7 +993,7 @@ func facturXSchemaLi() string {
          <pdfaProperty:name>DocumentType</pdfaProperty:name>
          <pdfaProperty:valueType>Text</pdfaProperty:valueType>
          <pdfaProperty:category>external</pdfaProperty:category>
-         <pdfaProperty:description>INVOICE</pdfaProperty:description>
+         <pdfaProperty:description>The type of the embedded Factur-X document</pdfaProperty:description>
         </rdf:li>
         <rdf:li rdf:parseType="Resource">
          <pdfaProperty:name>Version</pdfaProperty:name>

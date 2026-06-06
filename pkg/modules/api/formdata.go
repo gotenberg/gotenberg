@@ -26,6 +26,10 @@ const (
 
 	// StampFormField represents the form field name for the stamp file.
 	StampFormField string = "stamp"
+
+	// FacturXXmlFormField represents the form field name for the Factur-X CII
+	// invoice XML file.
+	FacturXXmlFormField string = "facturxXml"
 )
 
 // FormData is a helper for validating and hydrating values from a
@@ -424,89 +428,6 @@ func (form *FormData) EmbedsMetadata(target *map[string]map[string]string) *Form
 	return form
 }
 
-// FacturX parses the "facturx" form field (a JSON string) into a
-// [gotenberg.FacturX]. The "conformanceLevel" property is mandatory; the
-// "documentType", "version", and "documentFileName" properties default to
-// "INVOICE", "1.0", and "factur-x.xml" respectively. It leaves the target
-// untouched when the field is absent.
-//
-//	var facturX gotenberg.FacturX
-//
-//	ctx.FormData().FacturX(&facturX, false)
-func (form *FormData) FacturX(target *gotenberg.FacturX, mandatory bool) *FormData {
-	if form.errors != nil {
-		return form
-	}
-
-	val, ok := form.values["facturx"]
-	if !ok || len(val) == 0 || val[0] == "" {
-		if mandatory {
-			form.append(fmt.Errorf("form field '%s' is required", "facturx"))
-		}
-		return form
-	}
-
-	var parsed struct {
-		ConformanceLevel string `json:"conformanceLevel"`
-		DocumentType     string `json:"documentType"`
-		DocumentFileName string `json:"documentFileName"`
-		Version          string `json:"version"`
-	}
-
-	err := json.Unmarshal([]byte(val[0]), &parsed)
-	if err != nil {
-		form.append(fmt.Errorf("form field 'facturx' is invalid: %w", err))
-		return form
-	}
-
-	facturX := gotenberg.FacturX{
-		ConformanceLevel: parsed.ConformanceLevel,
-		DocumentType:     parsed.DocumentType,
-		DocumentFileName: parsed.DocumentFileName,
-		Version:          parsed.Version,
-	}
-
-	if facturX.DocumentType == "" {
-		facturX.DocumentType = gotenberg.FacturXDocumentTypeInvoice
-	}
-
-	if facturX.Version == "" {
-		facturX.Version = "1.0"
-	}
-
-	if facturX.DocumentFileName == "" {
-		facturX.DocumentFileName = "factur-x.xml"
-	}
-
-	switch facturX.ConformanceLevel {
-	case gotenberg.FacturXConformanceMinimum,
-		gotenberg.FacturXConformanceBasicWL,
-		gotenberg.FacturXConformanceBasic,
-		gotenberg.FacturXConformanceEN16931,
-		gotenberg.FacturXConformanceExtended,
-		gotenberg.FacturXConformanceXRechnung:
-	case "":
-		form.append(errors.New("form field 'facturx' is invalid: 'conformanceLevel' is required"))
-		return form
-	default:
-		form.append(fmt.Errorf("form field 'facturx' is invalid: unsupported 'conformanceLevel' '%s'", facturX.ConformanceLevel))
-		return form
-	}
-
-	switch facturX.DocumentType {
-	case gotenberg.FacturXDocumentTypeInvoice,
-		gotenberg.FacturXDocumentTypeOrder,
-		gotenberg.FacturXDocumentTypeOrderResponse,
-		gotenberg.FacturXDocumentTypeOrderChange:
-	default:
-		form.append(fmt.Errorf("form field 'facturx' is invalid: unsupported 'documentType' '%s'", facturX.DocumentType))
-		return form
-	}
-
-	*target = facturX
-	return form
-}
-
 // MandatoryPaths binds the absolute paths of form data files, according to a
 // list of file extensions, to a string slice variable. It populates an error
 // if there is no file for given file extensions.
@@ -558,13 +479,28 @@ func (form *FormData) Stamp(target *string) *FormData {
 	return form
 }
 
+// FacturXXml binds the absolute path of the uploaded Factur-X CII invoice
+// XML. Only a file uploaded with the "facturxXml" field name is included.
+func (form *FormData) FacturXXml(target *string) *FormData {
+	if form.errors != nil {
+		return form
+	}
+
+	if paths, ok := form.filesByField[FacturXXmlFormField]; ok && len(paths) > 0 {
+		*target = paths[0]
+	}
+
+	return form
+}
+
 // paths bind the absolute paths of form data files, according to a list of
 // file extensions, to a string slice variable.
-// embeds, watermark, and stamp files are excluded.
+// embeds, watermark, stamp, and facturxXml files are excluded.
 func (form *FormData) paths(extensions []string, target *[]string) *FormData {
 	embeds, ok := form.filesByField[EmbedsFormField]
 	watermarks, wmOk := form.filesByField[WatermarkFormField]
 	stamps, stOk := form.filesByField[StampFormField]
+	facturxXmls, fxOk := form.filesByField[FacturXXmlFormField]
 
 	// Collect (originalFilename, diskPath) pairs so that we can sort by
 	// original filename rather than by UUID-based disk name.
@@ -585,6 +521,10 @@ func (form *FormData) paths(extensions []string, target *[]string) *FormData {
 		}
 
 		if stOk && slices.Contains(stamps, path) {
+			continue
+		}
+
+		if fxOk && slices.Contains(facturxXmls, path) {
 			continue
 		}
 

@@ -467,12 +467,187 @@ func EmbedFilesMetadataStub(ctx *api.Context, engine gotenberg.PdfEngine, metada
 	return nil
 }
 
-// FormDataPdfFacturX extracts Factur-X parameters from form data.
-// The "facturx" field is a JSON string with the four fx properties.
-func FormDataPdfFacturX(form *api.FormData, mandatory bool) gotenberg.FacturX {
-	var facturX gotenberg.FacturX
-	form.FacturX(&facturX, mandatory)
-	return facturX
+// FormDataPdfFacturX extracts the Factur-X parameters and the invoice XML path
+// from form data. Factur-X is requested when both facturxConformanceLevel and
+// facturxXml are provided. The embedded XML always takes the canonical
+// [gotenberg.FacturXDocumentFileName] name.
+func FormDataPdfFacturX(form *api.FormData) (gotenberg.FacturX, string) {
+	var (
+		facturxXmlPath   string
+		conformanceLevel string
+		documentType     string
+		version          string
+	)
+
+	form.
+		FacturXXml(&facturxXmlPath).
+		Custom("facturxConformanceLevel", func(value string) error {
+			conformanceLevel = value
+			switch value {
+			case "",
+				gotenberg.FacturXConformanceMinimum,
+				gotenberg.FacturXConformanceBasicWL,
+				gotenberg.FacturXConformanceBasic,
+				gotenberg.FacturXConformanceEN16931,
+				gotenberg.FacturXConformanceExtended,
+				gotenberg.FacturXConformanceXRechnung:
+				return nil
+			default:
+				return fmt.Errorf("unsupported conformance level '%s'", value)
+			}
+		}).
+		Custom("facturxDocumentType", func(value string) error {
+			if value == "" {
+				documentType = gotenberg.FacturXDocumentTypeInvoice
+				return nil
+			}
+			documentType = value
+			switch value {
+			case gotenberg.FacturXDocumentTypeInvoice,
+				gotenberg.FacturXDocumentTypeOrder,
+				gotenberg.FacturXDocumentTypeOrderResponse,
+				gotenberg.FacturXDocumentTypeOrderChange:
+				return nil
+			default:
+				return fmt.Errorf("unsupported document type '%s'", value)
+			}
+		}).
+		String("facturxVersion", &version, "1.0")
+
+	return gotenberg.FacturX{
+		ConformanceLevel: conformanceLevel,
+		DocumentType:     documentType,
+		DocumentFileName: gotenberg.FacturXDocumentFileName,
+		Version:          version,
+	}, facturxXmlPath
+}
+
+// isPdfA3 reports whether the format is a PDF/A-3 variant, the only family that
+// allows the embedded files Factur-X requires.
+func isPdfA3(pdfA string) bool {
+	return pdfA == gotenberg.PdfA3a || pdfA == gotenberg.PdfA3b || pdfA == gotenberg.PdfA3u
+}
+
+// ValidateFacturXCompat enforces the Factur-X pairing and PDF/A-3 rules. It
+// returns a 400 error when the request is half-specified, or when an explicit
+// PDF/A format is not a PDF/A-3 variant.
+func ValidateFacturXCompat(facturX gotenberg.FacturX, facturxXmlPath string, pdfFormats gotenberg.PdfFormats) error {
+	if facturX.ConformanceLevel == "" && facturxXmlPath == "" {
+		return nil
+	}
+
+	if facturX.ConformanceLevel == "" {
+		return api.WrapError(
+			errors.New("facturxConformanceLevel is required when facturxXml is provided"),
+			api.NewSentinelHttpError(http.StatusBadRequest, "Invalid form data: 'facturxConformanceLevel' is required when 'facturxXml' is provided"),
+		)
+	}
+
+	if facturxXmlPath == "" {
+		return api.WrapError(
+			errors.New("facturxXml is required when facturxConformanceLevel is set"),
+			api.NewSentinelHttpError(http.StatusBadRequest, "Invalid form data: 'facturxXml' file is required when 'facturxConformanceLevel' is set"),
+		)
+	}
+
+	if pdfFormats.PdfA != "" && !isPdfA3(pdfFormats.PdfA) {
+		return api.WrapError(
+			fmt.Errorf("Factur-X requires PDF/A-3, got '%s'", pdfFormats.PdfA),
+			api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid form data: Factur-X requires a PDF/A-3 variant (PDF/A-3a, PDF/A-3b, or PDF/A-3u), got '%s'", pdfFormats.PdfA)),
+		)
+	}
+
+	return nil
+}
+
+// FacturXPdfFormats returns the PDF/A formats to convert to so the output meets
+// Factur-X's PDF/A-3 requirement. It returns pdfFormats unchanged when Factur-X
+// is not requested or the caller already asked for a PDF/A-3 variant. Otherwise
+// it defaults to PDF/A-3b, except for pre-existing PDFs (sourceDoc false) that
+// already carry PDF/A-3, which are left untouched.
+func FacturXPdfFormats(ctx *api.Context, engine gotenberg.PdfEngine, facturX gotenberg.FacturX, pdfFormats gotenberg.PdfFormats, sourceDoc bool, inputPaths []string) gotenberg.PdfFormats {
+	if facturX.ConformanceLevel == "" || isPdfA3(pdfFormats.PdfA) {
+		return pdfFormats
+	}
+
+	if sourceDoc {
+		pdfFormats.PdfA = gotenberg.PdfA3b
+		return pdfFormats
+	}
+
+	// Pre-existing PDFs: keep an already-PDF/A-3 input as-is, otherwise default
+	// to PDF/A-3b.
+	for _, inputPath := range inputPaths {
+		part, _, err := engine.ReadPdfAConformance(ctx, ctx.Log(), inputPath)
+		if err != nil {
+			ctx.Log().DebugContext(ctx, fmt.Sprintf("read PDF/A conformance of '%s', assuming not PDF/A-3: %s", inputPath, err))
+			part = ""
+		}
+		if part != "3" {
+			pdfFormats.PdfA = gotenberg.PdfA3b
+			return pdfFormats
+		}
+	}
+
+	return pdfFormats
+}
+
+// ApplyFacturXStub turns each input PDF into a Factur-X document: it embeds the
+// CII invoice XML under the canonical name with AFRelationship "Alternative",
+// then injects the fx XMP metadata. The inputs must already be PDF/A-3 (see
+// [FacturXPdfFormats]). It is a no-op when Factur-X is not requested.
+func ApplyFacturXStub(ctx *api.Context, engine gotenberg.PdfEngine, facturX gotenberg.FacturX, facturxXmlPath string, inputPaths []string) error {
+	if facturX.ConformanceLevel == "" {
+		return nil
+	}
+
+	err := embedFacturXXml(ctx, engine, facturxXmlPath, inputPaths)
+	if err != nil {
+		return err
+	}
+
+	metadata := map[string]map[string]string{
+		facturX.DocumentFileName: {
+			"mimeType":     "text/xml",
+			"relationship": "Alternative",
+		},
+	}
+	err = EmbedFilesMetadataStub(ctx, engine, metadata, inputPaths)
+	if err != nil {
+		return fmt.Errorf("set Factur-X embed metadata: %w", err)
+	}
+
+	err = InjectFacturXXMPStub(ctx, engine, facturX, inputPaths)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// embedFacturXXml embeds the Factur-X invoice XML into each PDF under the
+// canonical [gotenberg.FacturXDocumentFileName] name, regardless of the
+// uploaded file name.
+func embedFacturXXml(ctx *api.Context, engine gotenberg.PdfEngine, facturxXmlPath string, inputPaths []string) error {
+	embedDir, err := ctx.CreateSubDirectory(uuid.New().String())
+	if err != nil {
+		return fmt.Errorf("create Factur-X embed subdirectory: %w", err)
+	}
+
+	canonicalPath := fmt.Sprintf("%s/%s", embedDir, gotenberg.FacturXDocumentFileName)
+	err = os.Symlink(facturxXmlPath, canonicalPath)
+	if err != nil {
+		return fmt.Errorf("symlink Factur-X invoice XML: %w", err)
+	}
+
+	for _, inputPath := range inputPaths {
+		err = engine.EmbedFiles(ctx, ctx.Log(), []string{canonicalPath}, inputPath)
+		if err != nil {
+			return fmt.Errorf("embed Factur-X invoice XML into PDF '%s': %w", inputPath, err)
+		}
+	}
+
+	return nil
 }
 
 // InjectFacturXXMPStub injects Factur-X XMP metadata into PDF files. If the
@@ -732,7 +907,7 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			stampFile := FormDataPdfStampFile(form)
 			angle, rotatePages := FormDataPdfRotate(form, false)
 			embedsMetadata := FormDataPdfEmbedsMetadata(form)
-			facturX := FormDataPdfFacturX(form, false)
+			facturX, facturxXmlPath := FormDataPdfFacturX(form)
 
 			var inputPaths []string
 			var flatten bool
@@ -756,6 +931,11 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			}
 
 			err = ValidatePdfFormatsCompat(pdfFormats, userPassword, embedPaths)
+			if err != nil {
+				return err
+			}
+
+			err = ValidateFacturXCompat(facturX, facturxXmlPath, pdfFormats)
 			if err != nil {
 				return err
 			}
@@ -789,6 +969,8 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 					return fmt.Errorf("flatten PDFs: %w", err)
 				}
 			}
+
+			pdfFormats = FacturXPdfFormats(ctx, engine, facturX, pdfFormats, false, outputPaths)
 
 			outputPaths, err = ConvertStub(ctx, engine, pdfFormats, outputPaths)
 			if err != nil {
@@ -856,9 +1038,9 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("set embeds metadata: %w", err)
 			}
 
-			err = InjectFacturXXMPStub(ctx, engine, facturX, outputPaths)
+			err = ApplyFacturXStub(ctx, engine, facturX, facturxXmlPath, outputPaths)
 			if err != nil {
-				return fmt.Errorf("inject Factur-X XMP: %w", err)
+				return fmt.Errorf("apply Factur-X: %w", err)
 			}
 
 			err = EncryptPdfStub(ctx, engine, userPassword, ownerPassword, outputPaths)
@@ -897,7 +1079,7 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 			stampFile := FormDataPdfStampFile(form)
 			angle, rotatePages := FormDataPdfRotate(form, false)
 			embedsMetadata := FormDataPdfEmbedsMetadata(form)
-			facturX := FormDataPdfFacturX(form, false)
+			facturX, facturxXmlPath := FormDataPdfFacturX(form)
 
 			var inputPaths []string
 			var flatten bool
@@ -919,6 +1101,11 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 			}
 
 			err = ValidatePdfFormatsCompat(pdfFormats, userPassword, embedPaths)
+			if err != nil {
+				return err
+			}
+
+			err = ValidateFacturXCompat(facturX, facturxXmlPath, pdfFormats)
 			if err != nil {
 				return err
 			}
@@ -950,6 +1137,8 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 				}
 			}
 
+			pdfFormats = FacturXPdfFormats(ctx, engine, facturX, pdfFormats, false, outputPaths)
+
 			convertOutputPaths, err := ConvertStub(ctx, engine, pdfFormats, outputPaths)
 			if err != nil {
 				return fmt.Errorf("convert PDFs: %w", err)
@@ -972,9 +1161,9 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("set embeds metadata: %w", err)
 			}
 
-			err = InjectFacturXXMPStub(ctx, engine, facturX, convertOutputPaths)
+			err = ApplyFacturXStub(ctx, engine, facturX, facturxXmlPath, convertOutputPaths)
 			if err != nil {
-				return fmt.Errorf("inject Factur-X XMP: %w", err)
+				return fmt.Errorf("apply Factur-X: %w", err)
 			}
 
 			err = EncryptPdfStub(ctx, engine, userPassword, ownerPassword, convertOutputPaths)
@@ -1302,7 +1491,7 @@ func embedRoute(engine gotenberg.PdfEngine) api.Route {
 			form := ctx.FormData()
 			embedPaths := FormDataPdfEmbeds(form)
 			embedsMetadata := FormDataPdfEmbedsMetadata(form)
-			facturX := FormDataPdfFacturX(form, false)
+			facturX, facturxXmlPath := FormDataPdfFacturX(form)
 
 			var inputPaths []string
 			err := form.
@@ -1311,22 +1500,36 @@ func embedRoute(engine gotenberg.PdfEngine) api.Route {
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
-			err = EmbedFilesStub(ctx, engine, embedPaths, inputPaths)
+
+			err = ValidateFacturXCompat(facturX, facturxXmlPath, gotenberg.PdfFormats{})
+			if err != nil {
+				return err
+			}
+
+			// Factur-X requires PDF/A-3. Convert when needed; a no-op otherwise,
+			// so a plain embed request keeps its inputs untouched.
+			pdfFormats := FacturXPdfFormats(ctx, engine, facturX, gotenberg.PdfFormats{}, false, inputPaths)
+			outputPaths, err := ConvertStub(ctx, engine, pdfFormats, inputPaths)
+			if err != nil {
+				return fmt.Errorf("convert PDFs: %w", err)
+			}
+
+			err = EmbedFilesStub(ctx, engine, embedPaths, outputPaths)
 			if err != nil {
 				return fmt.Errorf("embed files into PDFs: %w", err)
 			}
 
-			err = EmbedFilesMetadataStub(ctx, engine, embedsMetadata, inputPaths)
+			err = EmbedFilesMetadataStub(ctx, engine, embedsMetadata, outputPaths)
 			if err != nil {
 				return fmt.Errorf("set embeds metadata: %w", err)
 			}
 
-			err = InjectFacturXXMPStub(ctx, engine, facturX, inputPaths)
+			err = ApplyFacturXStub(ctx, engine, facturX, facturxXmlPath, outputPaths)
 			if err != nil {
-				return fmt.Errorf("inject Factur-X XMP: %w", err)
+				return fmt.Errorf("apply Factur-X: %w", err)
 			}
 
-			err = ctx.AddOutputPaths(inputPaths...)
+			err = ctx.AddOutputPaths(outputPaths...)
 			if err != nil {
 				return fmt.Errorf("add output paths: %w", err)
 			}
@@ -1457,8 +1660,9 @@ func rotateRoute(engine gotenberg.PdfEngine) api.Route {
 	}
 }
 
-// facturXRoute returns an [api.Route] which injects Factur-X/ZUGFeRD XMP
-// metadata into PDF/A-3 files.
+// facturXRoute returns an [api.Route] which turns existing PDFs into Factur-X
+// documents: it ensures PDF/A-3, embeds the CII invoice XML, and injects the fx
+// XMP metadata.
 func facturXRoute(engine gotenberg.PdfEngine) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
@@ -1468,7 +1672,8 @@ func facturXRoute(engine gotenberg.PdfEngine) api.Route {
 			ctx := c.Get("context").(*api.Context)
 
 			form := ctx.FormData()
-			facturX := FormDataPdfFacturX(form, true)
+			pdfFormats := FormDataPdfFormats(form)
+			facturX, facturxXmlPath := FormDataPdfFacturX(form)
 
 			var inputPaths []string
 			err := form.
@@ -1478,12 +1683,32 @@ func facturXRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			err = InjectFacturXXMPStub(ctx, engine, facturX, inputPaths)
-			if err != nil {
-				return fmt.Errorf("inject Factur-X XMP into PDFs: %w", err)
+			// Factur-X is the whole point of this route, so both fields are
+			// mandatory here.
+			if facturX.ConformanceLevel == "" || facturxXmlPath == "" {
+				return api.WrapError(
+					errors.New("facturxConformanceLevel and facturxXml are required"),
+					api.NewSentinelHttpError(http.StatusBadRequest, "Invalid form data: 'facturxConformanceLevel' and 'facturxXml' are both required"),
+				)
 			}
 
-			err = ctx.AddOutputPaths(inputPaths...)
+			err = ValidateFacturXCompat(facturX, facturxXmlPath, pdfFormats)
+			if err != nil {
+				return err
+			}
+
+			pdfFormats = FacturXPdfFormats(ctx, engine, facturX, pdfFormats, false, inputPaths)
+			outputPaths, err := ConvertStub(ctx, engine, pdfFormats, inputPaths)
+			if err != nil {
+				return fmt.Errorf("convert PDFs: %w", err)
+			}
+
+			err = ApplyFacturXStub(ctx, engine, facturX, facturxXmlPath, outputPaths)
+			if err != nil {
+				return fmt.Errorf("apply Factur-X: %w", err)
+			}
+
+			err = ctx.AddOutputPaths(outputPaths...)
 			if err != nil {
 				return fmt.Errorf("add output paths: %w", err)
 			}

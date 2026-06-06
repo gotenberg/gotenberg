@@ -714,27 +714,29 @@ Feature: /forms/libreoffice/convert
     Then the response PDF(s) should have the "embed_1.xml" file embedded
     Then the response PDF(s) should have the "embed_2.xml" file embedded
 
+  # A Factur-X request supplies the invoice XML via facturxXml plus the
+  # facturxConformanceLevel; Gotenberg owns the PDF/A-3, the Alternative
+  # relationship, and the canonical factur-x.xml name. No explicit pdfa here
+  # exercises the automatic PDF/A-3b default for a source document.
   @convert
-  @embed
   @factur-x
   Scenario: POST /forms/libreoffice/convert (Factur-X / ZUGFeRD)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
-      | files                     | testdata/page_1.docx                                                 | file   |
-      | pdfa                      | PDF/A-3b                                                             | field  |
-      | embeds                    | testdata/embed_1.xml                                                 | file   |
-      | embedsMetadata            | {"embed_1.xml":{"mimeType":"text/xml","relationship":"Alternative"}} | field  |
-      | facturx                   | {"conformanceLevel":"EN 16931"}                                      | field  |
-      | Gotenberg-Output-Filename | foo                                                                  | header |
+      | files                     | testdata/page_1.docx | file   |
+      | facturxXml                | testdata/embed_1.xml | file   |
+      | facturxConformanceLevel   | EN 16931             | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 0 failed rule(s)
-    Then the response PDF(s) should have the "embed_1.xml" file embedded with relationship "Alternative"
+    Then the response PDF(s) should have the "factur-x.xml" file embedded with relationship "Alternative"
     Then the response PDF(s) should declare Factur-X XMP with conformance level "EN 16931"
 
+  # The base PDF is already PDF/A-3b: detection keeps it as-is, no reconversion.
   @factur-x
-  Scenario: POST /forms/pdfengines/factur-x (Standalone)
+  Scenario: POST /forms/pdfengines/factur-x (Standalone, already PDF/A-3)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
       | files                     | testdata/page_1.docx | file   |
@@ -742,14 +744,44 @@ Feature: /forms/libreoffice/convert
       | Gotenberg-Output-Filename | base                 | header |
     Then the response status code should be 200
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/factur-x" endpoint with the following form data and header(s):
-      | files                     | teststore/base.pdf                                  | file   |
-      | facturx                   | {"conformanceLevel":"BASIC","documentType":"ORDER"} | field  |
-      | Gotenberg-Output-Filename | foo                                                 | header |
+      | files                     | teststore/base.pdf   | file   |
+      | facturxXml                | testdata/embed_1.xml | file   |
+      | facturxConformanceLevel   | BASIC                | field  |
+      | facturxDocumentType       | ORDER                | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 0 failed rule(s)
+    Then the response PDF(s) should have the "factur-x.xml" file embedded with relationship "Alternative"
     Then the response PDF(s) should declare Factur-X XMP with conformance level "BASIC"
+
+  # The base PDF is not PDF/A: detection converts it to PDF/A-3b automatically.
+  @factur-x
+  Scenario: POST /forms/pdfengines/factur-x (Standalone, converts non-PDF/A input)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.docx | file   |
+      | Gotenberg-Output-Filename | plain                | header |
+    Then the response status code should be 200
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/factur-x" endpoint with the following form data and header(s):
+      | files                     | teststore/plain.pdf  | file   |
+      | facturxXml                | testdata/embed_1.xml | file   |
+      | facturxConformanceLevel   | EN 16931             | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 0 failed rule(s)
+    Then the response PDF(s) should have the "factur-x.xml" file embedded with relationship "Alternative"
+    Then the response PDF(s) should declare Factur-X XMP with conformance level "EN 16931"
+
+  # facturxConformanceLevel without facturxXml is a half-specified request.
+  @factur-x
+  Scenario: POST /forms/pdfengines/factur-x (Bad Request)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/factur-x" endpoint with the following form data and header(s):
+      | files                   | testdata/page_1.pdf | file  |
+      | facturxConformanceLevel | EN 16931            | field |
+    Then the response status code should be 400
 
   # FIXME: once decrypt is done, add encrypt and check after the content of the PDF.
   @convert

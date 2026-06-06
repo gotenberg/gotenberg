@@ -140,6 +140,11 @@ func (engine *LibreOfficePdfEngine) InjectFacturXXMP(ctx context.Context, logger
 	return fmt.Errorf("inject Factur-X XMP with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// ReadPdfAConformance is not available in this implementation.
+func (engine *LibreOfficePdfEngine) ReadPdfAConformance(ctx context.Context, logger *slog.Logger, inputPath string) (string, string, error) {
+	return "", "", fmt.Errorf("read PDF/A conformance with LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*LibreOfficePdfEngine)(nil)

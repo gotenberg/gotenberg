@@ -505,6 +505,11 @@ func (engine *PdfTk) InjectFacturXXMP(ctx context.Context, logger *slog.Logger, 
 	return fmt.Errorf("inject Factur-X XMP with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// ReadPdfAConformance is not available in this implementation.
+func (engine *PdfTk) ReadPdfAConformance(ctx context.Context, logger *slog.Logger, inputPath string) (string, string, error) {
+	return "", "", fmt.Errorf("read PDF/A conformance with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*PdfTk)(nil)

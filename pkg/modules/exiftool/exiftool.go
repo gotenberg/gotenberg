@@ -528,6 +528,11 @@ func (engine *ExifTool) InjectFacturXXMP(ctx context.Context, logger *slog.Logge
 	return fmt.Errorf("inject Factur-X XMP with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 
+// ReadPdfAConformance is not available in this implementation.
+func (engine *ExifTool) ReadPdfAConformance(ctx context.Context, logger *slog.Logger, inputPath string) (string, string, error) {
+	return "", "", fmt.Errorf("read PDF/A conformance with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module      = (*ExifTool)(nil)

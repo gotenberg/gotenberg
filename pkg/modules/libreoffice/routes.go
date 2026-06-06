@@ -38,7 +38,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			stampFile := pdfengines.FormDataPdfStampFile(form)
 			angle, rotatePages := pdfengines.FormDataPdfRotate(form, false)
 			embedsMetadata := pdfengines.FormDataPdfEmbedsMetadata(form)
-			facturX := pdfengines.FormDataPdfFacturX(form, false)
+			facturX, facturxXmlPath := pdfengines.FormDataPdfFacturX(form)
 
 			zeroValuedSplitMode := gotenberg.SplitMode{}
 
@@ -319,8 +319,17 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				return err
 			}
 
+			err = pdfengines.ValidateFacturXCompat(facturX, facturxXmlPath, pdfFormats)
+			if err != nil {
+				return err
+			}
+
+			// Factur-X requires PDF/A-3; default to PDF/A-3b when no format was
+			// requested. The conversion runs as a post-processing step below.
+			pdfFormats = pdfengines.FacturXPdfFormats(ctx, engine, facturX, pdfFormats, true, nil)
+
 			hasPostProcessing := watermark.Source != "" || stamp.Source != "" || angle != 0 ||
-				len(embedPaths) > 0 || len(metadata) > 0 || flatten
+				len(embedPaths) > 0 || len(metadata) > 0 || flatten || facturX.ConformanceLevel != ""
 
 			outputPaths := make([]string, len(inputPaths))
 			for i, inputPath := range inputPaths {
@@ -504,9 +513,9 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				return fmt.Errorf("set embeds metadata: %w", err)
 			}
 
-			err = pdfengines.InjectFacturXXMPStub(ctx, engine, facturX, outputPaths)
+			err = pdfengines.ApplyFacturXStub(ctx, engine, facturX, facturxXmlPath, outputPaths)
 			if err != nil {
-				return fmt.Errorf("inject Factur-X XMP: %w", err)
+				return fmt.Errorf("apply Factur-X: %w", err)
 			}
 
 			err = pdfengines.EncryptPdfStub(ctx, engine, userPassword, ownerPassword, outputPaths)

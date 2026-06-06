@@ -45,22 +45,23 @@ func (mod *DebuggableMock) Debug() map[string]any {
 //
 //nolint:dupl
 type PdfEngineMock struct {
-	MergeMock              func(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error
-	SplitMock              func(ctx context.Context, logger *slog.Logger, mode SplitMode, inputPath, outputDirPath string) ([]string, error)
-	FlattenMock            func(ctx context.Context, logger *slog.Logger, inputPath string) error
-	ConvertMock            func(ctx context.Context, logger *slog.Logger, formats PdfFormats, inputPath, outputPath string) error
-	ReadMetadataMock       func(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error)
-	PageCountMock          func(ctx context.Context, logger *slog.Logger, inputPath string) (int, error)
-	WriteMetadataMock      func(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error
-	ReadBookmarksMock      func(ctx context.Context, logger *slog.Logger, inputPath string) ([]Bookmark, error)
-	EncryptMock            func(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error
-	EmbedFilesMock         func(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error
-	EmbedFilesMetadataMock func(ctx context.Context, logger *slog.Logger, metadata map[string]map[string]string, inputPath string) error
-	WriteBookmarksMock     func(ctx context.Context, logger *slog.Logger, inputPath string, bookmarks []Bookmark) error
-	WatermarkMock          func(ctx context.Context, logger *slog.Logger, inputPath string, stamp Stamp) error
-	StampMock              func(ctx context.Context, logger *slog.Logger, inputPath string, stamp Stamp) error
-	RotateMock             func(ctx context.Context, logger *slog.Logger, inputPath string, angle int, pages string) error
-	InjectFacturXXMPMock   func(ctx context.Context, logger *slog.Logger, facturX FacturX, inputPath string) error
+	MergeMock               func(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error
+	SplitMock               func(ctx context.Context, logger *slog.Logger, mode SplitMode, inputPath, outputDirPath string) ([]string, error)
+	FlattenMock             func(ctx context.Context, logger *slog.Logger, inputPath string) error
+	ConvertMock             func(ctx context.Context, logger *slog.Logger, formats PdfFormats, inputPath, outputPath string) error
+	ReadMetadataMock        func(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error)
+	PageCountMock           func(ctx context.Context, logger *slog.Logger, inputPath string) (int, error)
+	WriteMetadataMock       func(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error
+	ReadBookmarksMock       func(ctx context.Context, logger *slog.Logger, inputPath string) ([]Bookmark, error)
+	EncryptMock             func(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error
+	EmbedFilesMock          func(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error
+	EmbedFilesMetadataMock  func(ctx context.Context, logger *slog.Logger, metadata map[string]map[string]string, inputPath string) error
+	WriteBookmarksMock      func(ctx context.Context, logger *slog.Logger, inputPath string, bookmarks []Bookmark) error
+	WatermarkMock           func(ctx context.Context, logger *slog.Logger, inputPath string, stamp Stamp) error
+	StampMock               func(ctx context.Context, logger *slog.Logger, inputPath string, stamp Stamp) error
+	RotateMock              func(ctx context.Context, logger *slog.Logger, inputPath string, angle int, pages string) error
+	InjectFacturXXMPMock    func(ctx context.Context, logger *slog.Logger, facturX FacturX, inputPath string) error
+	ReadPdfAConformanceMock func(ctx context.Context, logger *slog.Logger, inputPath string) (string, string, error)
 }
 
 func (engine *PdfEngineMock) Merge(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
@@ -125,6 +126,10 @@ func (engine *PdfEngineMock) Rotate(ctx context.Context, logger *slog.Logger, in
 
 func (engine *PdfEngineMock) InjectFacturXXMP(ctx context.Context, logger *slog.Logger, facturX FacturX, inputPath string) error {
 	return engine.InjectFacturXXMPMock(ctx, logger, facturX, inputPath)
+}
+
+func (engine *PdfEngineMock) ReadPdfAConformance(ctx context.Context, logger *slog.Logger, inputPath string) (string, string, error) {
+	return engine.ReadPdfAConformanceMock(ctx, logger, inputPath)
 }
 
 // PdfEngineProviderMock is a mock for the [PdfEngineProvider] interface.

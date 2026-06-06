@@ -334,6 +334,23 @@ func (multi *multiPdfEngines) InjectFacturXXMP(ctx context.Context, logger *slog
 	)
 }
 
+// ReadPdfAConformance reads the PDF/A part and conformance using the first
+// available engine that supports it.
+func (multi *multiPdfEngines) ReadPdfAConformance(ctx context.Context, logger *slog.Logger, inputPath string) (string, string, error) {
+	type pdfaConf struct {
+		part        string
+		conformance string
+	}
+	result, err := runWithFallback(ctx, "pdfengines.ReadPdfAConformance", multi.facturXEngines,
+		func(ctx context.Context, engine gotenberg.PdfEngine) (pdfaConf, error) {
+			part, conformance, err := engine.ReadPdfAConformance(ctx, logger, inputPath)
+			return pdfaConf{part: part, conformance: conformance}, err
+		},
+		func(err error) error { return fmt.Errorf("read PDF/A conformance with multi PDF engines: %w", err) },
+	)
+	return result.part, result.conformance, err
+}
+
 // Interface guards.
 var (
 	_ gotenberg.PdfEngine = (*multiPdfEngines)(nil)
