@@ -106,7 +106,7 @@ func (engine *LibreOfficePdfEngine) ReadBookmarks(ctx context.Context, logger *s
 }
 
 // Encrypt is not available in this implementation.
-func (engine *LibreOfficePdfEngine) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
+func (engine *LibreOfficePdfEngine) Encrypt(ctx context.Context, logger *slog.Logger, inputPath string, opts gotenberg.EncryptOptions) error {
 	return fmt.Errorf("encrypt PDF using LibreOffice: %w", gotenberg.ErrPdfEngineMethodNotSupported)
 }
 

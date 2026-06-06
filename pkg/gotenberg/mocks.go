@@ -53,7 +53,7 @@ type PdfEngineMock struct {
 	PageCountMock           func(ctx context.Context, logger *slog.Logger, inputPath string) (int, error)
 	WriteMetadataMock       func(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error
 	ReadBookmarksMock       func(ctx context.Context, logger *slog.Logger, inputPath string) ([]Bookmark, error)
-	EncryptMock             func(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error
+	EncryptMock             func(ctx context.Context, logger *slog.Logger, inputPath string, opts EncryptOptions) error
 	EmbedFilesMock          func(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error
 	EmbedFilesMetadataMock  func(ctx context.Context, logger *slog.Logger, metadata map[string]map[string]string, inputPath string) error
 	WriteBookmarksMock      func(ctx context.Context, logger *slog.Logger, inputPath string, bookmarks []Bookmark) error
@@ -96,8 +96,8 @@ func (engine *PdfEngineMock) ReadBookmarks(ctx context.Context, logger *slog.Log
 	return engine.ReadBookmarksMock(ctx, logger, inputPath)
 }
 
-func (engine *PdfEngineMock) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
-	return engine.EncryptMock(ctx, logger, inputPath, userPassword, ownerPassword)
+func (engine *PdfEngineMock) Encrypt(ctx context.Context, logger *slog.Logger, inputPath string, opts EncryptOptions) error {
+	return engine.EncryptMock(ctx, logger, inputPath, opts)
 }
 
 func (engine *PdfEngineMock) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {

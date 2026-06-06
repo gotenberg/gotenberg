@@ -72,6 +72,7 @@ Available tags:
 - `the (response|webhook request) PDF(s) should be valid "<standard>" with a tolerance of <N> failed rule(s)` (standards: `PDF/A-1b`, `PDF/A-2b`, `PDF/A-3b`, `PDF/UA-1`, `PDF/UA-2`)
 - `the (response|webhook request) PDF(s) (should|should NOT) be flatten`
 - `the (response|webhook request) PDF(s) (should|should NOT) be encrypted`
+- `the (response|webhook request) PDF(s) (should|should NOT) allow "<action>"` (actions: `printing`, `copying`, `modifying`, `annotating`)
 - `the (response|webhook request) PDF(s) (should|should NOT) have the "<filename>" file embedded`
 - `the "<name>" PDF should have <N> image(s)`
 - `the Gotenberg container (should|should NOT) log the following entries:` (table of log substrings)

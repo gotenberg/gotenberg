@@ -449,7 +449,7 @@ func (engine *ExifTool) ReadBookmarks(ctx context.Context, logger *slog.Logger, 
 }
 
 // Encrypt is not available in this implementation.
-func (engine *ExifTool) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
+func (engine *ExifTool) Encrypt(ctx context.Context, logger *slog.Logger, inputPath string, opts gotenberg.EncryptOptions) error {
 	_, span := gotenberg.Tracer().Start(ctx, "exiftool.Encrypt",
 		trace.WithSpanKind(trace.SpanKindClient),
 		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),

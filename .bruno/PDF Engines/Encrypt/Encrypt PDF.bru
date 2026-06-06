@@ -14,6 +14,12 @@ body:multipart-form {
   files: @file(../../test/integration/testdata/page_1.pdf)
   userPassword: secret123
   ~ownerPassword: owner456
+  ~allowPrinting: false
+  ~allowCopying: false
+  ~allowModifying: false
+  ~allowAnnotating: false
+  ~allowFillingForms: false
+  ~allowAssembling: false
 }
 
 headers {

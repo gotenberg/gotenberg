@@ -67,6 +67,12 @@ body:multipart-form {
   ~metadata: {"Author":"Bruno","Title":"Test"}
   ~userPassword:
   ~ownerPassword:
+  ~allowPrinting: false
+  ~allowCopying: false
+  ~allowModifying: false
+  ~allowAnnotating: false
+  ~allowFillingForms: false
+  ~allowAssembling: false
   ~embeds: @file(../test/integration/testdata/embed_1.xml)
   ~embeds: @file(../test/integration/testdata/embed_2.xml)
   ~embedsMetadata: {"embed_1.xml":{"mimeType":"text/xml","relationship":"Data"}, "embed_2.xml":{"mimeType":"text/xml","relationship":"Data"}}

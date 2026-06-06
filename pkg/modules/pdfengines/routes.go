@@ -667,21 +667,44 @@ func InjectFacturXXMPStub(ctx *api.Context, engine gotenberg.PdfEngine, facturX 
 	return nil
 }
 
-// FormDataPdfEncrypt extracts encryption parameters from form data.
-func FormDataPdfEncrypt(form *api.FormData) (userPassword, ownerPassword string) {
-	form.String("userPassword", &userPassword, "")
-	form.String("ownerPassword", &ownerPassword, "")
-	return userPassword, ownerPassword
+// FormDataPdfEncrypt extracts the encryption parameters and permissions from
+// form data. Permissions default to allowed.
+func FormDataPdfEncrypt(form *api.FormData) gotenberg.EncryptOptions {
+	var opts gotenberg.EncryptOptions
+	form.
+		String("userPassword", &opts.UserPassword, "").
+		String("ownerPassword", &opts.OwnerPassword, "").
+		Bool("allowPrinting", &opts.Permissions.AllowPrinting, true).
+		Bool("allowCopying", &opts.Permissions.AllowCopying, true).
+		Bool("allowModifying", &opts.Permissions.AllowModifying, true).
+		Bool("allowAnnotating", &opts.Permissions.AllowAnnotating, true).
+		Bool("allowFillingForms", &opts.Permissions.AllowFillingForms, true).
+		Bool("allowAssembling", &opts.Permissions.AllowAssembling, true)
+	return opts
 }
 
-// EncryptPdfStub adds password protection to PDF files.
-func EncryptPdfStub(ctx *api.Context, engine gotenberg.PdfEngine, userPassword, ownerPassword string, inputPaths []string) error {
-	if userPassword == "" {
+// ValidatePdfEncryptCompat returns a 400 error when permission restrictions are
+// requested without a password to anchor them.
+func ValidatePdfEncryptCompat(opts gotenberg.EncryptOptions) error {
+	if opts.Permissions.Restricted() && opts.UserPassword == "" && opts.OwnerPassword == "" {
+		return api.WrapError(
+			errors.New("permission restrictions require a password"),
+			api.NewSentinelHttpError(http.StatusBadRequest, "Invalid form data: permission restrictions require a 'userPassword' or 'ownerPassword'"),
+		)
+	}
+
+	return nil
+}
+
+// EncryptPdfStub adds password protection and permission restrictions to PDF
+// files. It does nothing when no password is provided.
+func EncryptPdfStub(ctx *api.Context, engine gotenberg.PdfEngine, opts gotenberg.EncryptOptions, inputPaths []string) error {
+	if opts.UserPassword == "" && opts.OwnerPassword == "" {
 		return nil
 	}
 
 	for _, inputPath := range inputPaths {
-		err := engine.Encrypt(ctx, ctx.Log(), inputPath, userPassword, ownerPassword)
+		err := engine.Encrypt(ctx, ctx.Log(), inputPath, opts)
 		if err != nil {
 			return fmt.Errorf("encrypt PDF '%s': %w", inputPath, err)
 		}
@@ -899,7 +922,7 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			pdfFormats := FormDataPdfFormats(form)
 			metadata := FormDataPdfMetadata(form, false)
 			bookmarks := FormDataPdfBookmarks(form, false)
-			userPassword, ownerPassword := FormDataPdfEncrypt(form)
+			encrypt := FormDataPdfEncrypt(form)
 			embedPaths := FormDataPdfEmbeds(form)
 			watermark := FormDataPdfWatermark(form, false)
 			watermarkFile := FormDataPdfWatermarkFile(form)
@@ -930,7 +953,12 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate stamp: %w", err)
 			}
 
-			err = ValidatePdfFormatsCompat(pdfFormats, userPassword, embedPaths)
+			err = ValidatePdfFormatsCompat(pdfFormats, encrypt.UserPassword, embedPaths)
+			if err != nil {
+				return err
+			}
+
+			err = ValidatePdfEncryptCompat(encrypt)
 			if err != nil {
 				return err
 			}
@@ -1043,7 +1071,7 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("apply Factur-X: %w", err)
 			}
 
-			err = EncryptPdfStub(ctx, engine, userPassword, ownerPassword, outputPaths)
+			err = EncryptPdfStub(ctx, engine, encrypt, outputPaths)
 			if err != nil {
 				return fmt.Errorf("encrypt PDFs: %w", err)
 			}
@@ -1071,7 +1099,7 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 			mode := FormDataPdfSplitMode(form, true)
 			pdfFormats := FormDataPdfFormats(form)
 			metadata := FormDataPdfMetadata(form, false)
-			userPassword, ownerPassword := FormDataPdfEncrypt(form)
+			encrypt := FormDataPdfEncrypt(form)
 			embedPaths := FormDataPdfEmbeds(form)
 			watermark := FormDataPdfWatermark(form, false)
 			watermarkFile := FormDataPdfWatermarkFile(form)
@@ -1100,7 +1128,12 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate stamp: %w", err)
 			}
 
-			err = ValidatePdfFormatsCompat(pdfFormats, userPassword, embedPaths)
+			err = ValidatePdfFormatsCompat(pdfFormats, encrypt.UserPassword, embedPaths)
+			if err != nil {
+				return err
+			}
+
+			err = ValidatePdfEncryptCompat(encrypt)
 			if err != nil {
 				return err
 			}
@@ -1166,7 +1199,7 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("apply Factur-X: %w", err)
 			}
 
-			err = EncryptPdfStub(ctx, engine, userPassword, ownerPassword, convertOutputPaths)
+			err = EncryptPdfStub(ctx, engine, encrypt, convertOutputPaths)
 			if err != nil {
 				return fmt.Errorf("encrypt PDFs: %w", err)
 			}
@@ -1450,20 +1483,26 @@ func encryptRoute(engine gotenberg.PdfEngine) api.Route {
 			ctx := c.Get("context").(*api.Context)
 
 			form := ctx.FormData()
+			encrypt := FormDataPdfEncrypt(form)
 
 			var inputPaths []string
-			var userPassword string
-			var ownerPassword string
 			err := form.
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
-				MandatoryString("userPassword", &userPassword).
-				String("ownerPassword", &ownerPassword, "").
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			err = EncryptPdfStub(ctx, engine, userPassword, ownerPassword, inputPaths)
+			// At least one password is required; an empty user password with an
+			// owner password yields an owner-only document.
+			if encrypt.UserPassword == "" && encrypt.OwnerPassword == "" {
+				return api.WrapError(
+					errors.New("no password provided"),
+					api.NewSentinelHttpError(http.StatusBadRequest, "Invalid form data: a 'userPassword' or 'ownerPassword' is required"),
+				)
+			}
+
+			err = EncryptPdfStub(ctx, engine, encrypt, inputPaths)
 			if err != nil {
 				return fmt.Errorf("encrypt PDFs: %w", err)
 			}

@@ -1217,6 +1217,67 @@ func (s *scenario) thePdfsShouldBeFlatten(ctx context.Context, kind, should stri
 	return nil
 }
 
+// permissionFlags maps a human action to the permission key reported in a PDF's
+// encryption dictionary.
+var permissionFlags = map[string]string{
+	"printing":   "print",
+	"copying":    "copy",
+	"modifying":  "change",
+	"annotating": "addNotes",
+}
+
+// thePdfsShouldAllowAction asserts whether every response PDF permits a given
+// action (printing, copying, modifying, annotating). It reads the document's
+// permission flags; an unencrypted document has no restrictions.
+func (s *scenario) thePdfsShouldAllowAction(ctx context.Context, kind, should, action string) error {
+	flag, ok := permissionFlags[action]
+	if !ok {
+		return fmt.Errorf("unsupported permission action %q", action)
+	}
+
+	dirPath := s.teststoreDir
+
+	_, err := os.Stat(dirPath)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("directory %q does not exist", dirPath)
+	}
+
+	var paths []string
+	err = filepath.Walk(dirPath, func(path string, info os.FileInfo, pathErr error) error {
+		if pathErr != nil {
+			return pathErr
+		}
+		if strings.EqualFold(filepath.Ext(info.Name()), ".pdf") {
+			paths = append(paths, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("walk %q: %w", dirPath, err)
+	}
+
+	invert := should == "should NOT"
+	for _, path := range paths {
+		output, err := execCommandInIntegrationToolsContainer(ctx, []string{"pdfinfo", filepath.Base(path)}, path)
+		if err != nil {
+			return fmt.Errorf("read permissions of %q: %w", path, err)
+		}
+
+		stripped := strings.ReplaceAll(strings.ReplaceAll(output, " ", ""), "\n", "")
+		denied := strings.Contains(stripped, flag+":no")
+		allowed := strings.Contains(stripped, flag+":yes")
+
+		if invert && !denied {
+			return fmt.Errorf("expected PDF %q to deny %q, got: %q", path, action, output)
+		}
+		if !invert && !allowed {
+			return fmt.Errorf("expected PDF %q to allow %q, got: %q", path, action, output)
+		}
+	}
+
+	return nil
+}
+
 func (s *scenario) thePdfsShouldBeEncrypted(ctx context.Context, kind string, should string) error {
 	dirPath := s.teststoreDir
 
@@ -1474,6 +1535,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the (response|webhook request) PDF\(s\) should be valid "([^"]*)" with a tolerance of (\d+) failed rule\(s\)$`, s.thePdfsShouldBeValidWithAToleranceOf)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) be flatten$`, s.thePdfsShouldBeFlatten)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) be encrypted`, s.thePdfsShouldBeEncrypted)
+	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) allow "([^"]*)"$`, s.thePdfsShouldAllowAction)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) have the "([^"]*)" file embedded$`, s.thePdfsShouldHaveEmbeddedFile)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) should have the "([^"]*)" file embedded with relationship "([^"]*)"$`, s.thePdfsShouldHaveEmbeddedFileWithRelationship)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) should declare Factur-X XMP with conformance level "([^"]*)"$`, s.thePdfsShouldDeclareFacturXConformanceLevel)

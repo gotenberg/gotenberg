@@ -259,10 +259,10 @@ func (multi *multiPdfEngines) WriteBookmarks(ctx context.Context, logger *slog.L
 
 // Encrypt adds password protection to a PDF file using the first available
 // engine that supports password protection.
-func (multi *multiPdfEngines) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
+func (multi *multiPdfEngines) Encrypt(ctx context.Context, logger *slog.Logger, inputPath string, opts gotenberg.EncryptOptions) error {
 	return runWithFallbackVoid(ctx, "pdfengines.Encrypt", multi.passwordEngines,
 		func(ctx context.Context, engine gotenberg.PdfEngine) error {
-			return engine.Encrypt(ctx, logger, inputPath, userPassword, ownerPassword)
+			return engine.Encrypt(ctx, logger, inputPath, opts)
 		},
 		func(err error) error { return fmt.Errorf("encrypt PDF using multi PDF engines: %w", err) },
 	)

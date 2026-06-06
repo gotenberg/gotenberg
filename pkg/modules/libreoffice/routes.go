@@ -30,7 +30,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			splitMode := pdfengines.FormDataPdfSplitMode(form, false)
 			pdfFormats := pdfengines.FormDataPdfFormats(form)
 			metadata := pdfengines.FormDataPdfMetadata(form, false)
-			userPassword, ownerPassword := pdfengines.FormDataPdfEncrypt(form)
+			encrypt := pdfengines.FormDataPdfEncrypt(form)
 			embedPaths := pdfengines.FormDataPdfEmbeds(form)
 			watermark := pdfengines.FormDataPdfWatermark(form, false)
 			watermarkFile := pdfengines.FormDataPdfWatermarkFile(form)
@@ -314,7 +314,12 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				return fmt.Errorf("validate stamp: %w", err)
 			}
 
-			err = pdfengines.ValidatePdfFormatsCompat(pdfFormats, userPassword, embedPaths)
+			err = pdfengines.ValidatePdfFormatsCompat(pdfFormats, encrypt.UserPassword, embedPaths)
+			if err != nil {
+				return err
+			}
+
+			err = pdfengines.ValidatePdfEncryptCompat(encrypt)
 			if err != nil {
 				return err
 			}
@@ -518,7 +523,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				return fmt.Errorf("apply Factur-X: %w", err)
 			}
 
-			err = pdfengines.EncryptPdfStub(ctx, engine, userPassword, ownerPassword, outputPaths)
+			err = pdfengines.EncryptPdfStub(ctx, engine, encrypt, outputPaths)
 			if err != nil {
 				return fmt.Errorf("encrypt PDFs: %w", err)
 			}

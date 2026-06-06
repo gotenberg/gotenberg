@@ -295,29 +295,63 @@ func (engine *QPdf) ReadBookmarks(ctx context.Context, logger *slog.Logger, inpu
 }
 
 // Encrypt adds password protection to a PDF file using QPDF.
-func (engine *QPdf) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
+// qpdfPermissionArgs maps PDF permissions to QPDF --encrypt restriction flags.
+// It returns nil when every permission is allowed, matching QPDF's default
+// (all actions permitted).
+func qpdfPermissionArgs(p gotenberg.PdfPermissions) []string {
+	if !p.Restricted() {
+		return nil
+	}
+
+	yn := func(allowed bool) string {
+		if allowed {
+			return "y"
+		}
+		return "n"
+	}
+
+	print := "full"
+	if !p.AllowPrinting {
+		print = "none"
+	}
+
+	return []string{
+		"--print=" + print,
+		"--extract=" + yn(p.AllowCopying),
+		"--modify-other=" + yn(p.AllowModifying),
+		"--annotate=" + yn(p.AllowAnnotating),
+		"--form=" + yn(p.AllowFillingForms),
+		"--assemble=" + yn(p.AllowAssembling),
+	}
+}
+
+func (engine *QPdf) Encrypt(ctx context.Context, logger *slog.Logger, inputPath string, opts gotenberg.EncryptOptions) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "qpdf.Encrypt",
 		trace.WithSpanKind(trace.SpanKindClient),
 		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
-	if userPassword == "" {
-		err := errors.New("user password cannot be empty")
+	ownerPassword := opts.OwnerPassword
+	if ownerPassword == "" {
+		ownerPassword = opts.UserPassword
+	}
+
+	// An empty user password is allowed: it produces an owner-only document.
+	if opts.UserPassword == "" && ownerPassword == "" {
+		err := errors.New("at least a user or owner password is required")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
 
-	if ownerPassword == "" {
-		ownerPassword = userPassword
-	}
-
-	args := make([]string, 0, 7+len(engine.globalArgs))
+	args := make([]string, 0, 14+len(engine.globalArgs))
 	args = append(args, inputPath)
 	args = append(args, engine.globalArgs...)
 	args = append(args, "--replace-input")
-	args = append(args, "--encrypt", userPassword, ownerPassword, "256", "--")
+	args = append(args, "--encrypt", opts.UserPassword, ownerPassword, "256")
+	args = append(args, qpdfPermissionArgs(opts.Permissions)...)
+	args = append(args, "--")
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
 	if err != nil {

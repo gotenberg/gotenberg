@@ -113,8 +113,30 @@ Feature: /forms/pdfengines/encrypt
     Then the response status code should be 400
     Then the response body should match string:
       """
-      Invalid form data: form field 'userPassword' is required
+      Invalid form data: a 'userPassword' or 'ownerPassword' is required
       """
+
+  # https://github.com/gotenberg/gotenberg/discussions/1571
+  # Owner-only: opens without a password but restricts printing.
+  Scenario: POST /forms/pdfengines/encrypt (Owner-only, restrict printing)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/encrypt" endpoint with the following form data and header(s):
+      | files         | testdata/page_1.pdf | file  |
+      | ownerPassword | owner-secret        | field |
+      | allowPrinting | false               | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should NOT be encrypted
+    Then the response PDF(s) should NOT allow "printing"
+
+  # Permission restrictions need a password to anchor them.
+  Scenario: POST /forms/pdfengines/encrypt (Permissions without password)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/encrypt" endpoint with the following form data and header(s):
+      | files         | testdata/page_1.pdf | file  |
+      | allowPrinting | false               | field |
+    Then the response status code should be 400
 
   Scenario: POST /forms/pdfengines/encrypt (Routes Disabled)
     Given I have a Gotenberg container with the following environment variable(s):

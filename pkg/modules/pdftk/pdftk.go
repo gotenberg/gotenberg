@@ -259,21 +259,21 @@ func (engine *PdfTk) ReadBookmarks(ctx context.Context, logger *slog.Logger, inp
 }
 
 // Encrypt adds password protection to a PDF file using PDFtk.
-func (engine *PdfTk) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
+func (engine *PdfTk) Encrypt(ctx context.Context, logger *slog.Logger, inputPath string, opts gotenberg.EncryptOptions) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "pdftk.Encrypt",
 		trace.WithSpanKind(trace.SpanKindClient),
 		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
-	if userPassword == "" {
-		err := errors.New("user password cannot be empty")
+	if opts.UserPassword == "" || opts.Permissions.Restricted() {
+		err := gotenberg.NewPdfEngineInvalidArgs("pdftk", "owner-only encryption and permission restrictions are not supported; consider switching to another PDF engine (e.g. qpdf)")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
 
-	if ownerPassword == userPassword || ownerPassword == "" {
+	if opts.OwnerPassword == opts.UserPassword || opts.OwnerPassword == "" {
 		err := gotenberg.NewPdfEngineInvalidArgs("pdftk", "both 'userPassword' and 'ownerPassword' must be provided and different. Consider switching to another PDF engine if this behavior does not work with your workflow")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
@@ -287,8 +287,8 @@ func (engine *PdfTk) Encrypt(ctx context.Context, logger *slog.Logger, inputPath
 	args = append(args, inputPath)
 	args = append(args, "output", tmpPath)
 	args = append(args, "encrypt_128bit")
-	args = append(args, "user_pw", userPassword)
-	args = append(args, "owner_pw", ownerPassword)
+	args = append(args, "user_pw", opts.UserPassword)
+	args = append(args, "owner_pw", opts.OwnerPassword)
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
 	if err != nil {

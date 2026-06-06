@@ -147,6 +147,56 @@ type PdfFormats struct {
 	PdfUa bool
 }
 
+// PdfPermissions gathers the document permissions enforced when a PDF is
+// encrypted. Each field defaults to true (the action is allowed); set a field
+// to false to restrict it. Restrictions are advisory: viewers honor them, but
+// they are not cryptographically enforced once the document opens.
+type PdfPermissions struct {
+	// AllowPrinting permits printing the document.
+	AllowPrinting bool
+
+	// AllowCopying permits extracting text and graphics.
+	AllowCopying bool
+
+	// AllowModifying permits changing the document content.
+	AllowModifying bool
+
+	// AllowAnnotating permits adding or modifying annotations.
+	AllowAnnotating bool
+
+	// AllowFillingForms permits filling in form fields.
+	AllowFillingForms bool
+
+	// AllowAssembling permits inserting, deleting, and rotating pages.
+	AllowAssembling bool
+}
+
+// Restricted reports whether at least one permission is denied.
+func (p PdfPermissions) Restricted() bool {
+	return !p.AllowPrinting ||
+		!p.AllowCopying ||
+		!p.AllowModifying ||
+		!p.AllowAnnotating ||
+		!p.AllowFillingForms ||
+		!p.AllowAssembling
+}
+
+// EncryptOptions gathers the parameters for encrypting a PDF. An empty
+// UserPassword with a set OwnerPassword produces an owner-only document: it
+// opens without a password but enforces the [PdfPermissions].
+type EncryptOptions struct {
+	// UserPassword is required to open the document. Empty means no open
+	// password.
+	UserPassword string
+
+	// OwnerPassword grants full access (lifts the permission restrictions).
+	// When empty, it defaults to UserPassword.
+	OwnerPassword string
+
+	// Permissions are the actions allowed when opened with the user password.
+	Permissions PdfPermissions
+}
+
 // Bookmark represents a node in the PDF document's outline
 // (table of contents).
 type Bookmark struct {
@@ -247,11 +297,11 @@ type PdfEngine interface {
 	// The bookmarks parameter represents the hierarchical tree of the outline.
 	WriteBookmarks(ctx context.Context, logger *slog.Logger, inputPath string, bookmarks []Bookmark) error
 
-	// Encrypt adds password protection to a PDF file.
-	// The userPassword is required to open the document.
-	// The ownerPassword provides full access to the document.
-	// If the ownerPassword is empty, it defaults to the userPassword.
-	Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error
+	// Encrypt adds password protection and permission restrictions to a PDF
+	// file, as described by [EncryptOptions]. An empty user password with a set
+	// owner password yields an owner-only document (opens without a password,
+	// permissions enforced).
+	Encrypt(ctx context.Context, logger *slog.Logger, inputPath string, opts EncryptOptions) error
 
 	// EmbedFiles embeds files into a PDF. All files are embedded as file attachments
 	// without modifying the main PDF content.

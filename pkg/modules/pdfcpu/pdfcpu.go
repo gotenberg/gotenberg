@@ -503,30 +503,38 @@ func (engine *PdfCpu) EmbedFiles(ctx context.Context, logger *slog.Logger, fileP
 }
 
 // Encrypt adds password protection to a PDF file using pdfcpu.
-func (engine *PdfCpu) Encrypt(ctx context.Context, logger *slog.Logger, inputPath, userPassword, ownerPassword string) error {
+func (engine *PdfCpu) Encrypt(ctx context.Context, logger *slog.Logger, inputPath string, opts gotenberg.EncryptOptions) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "pdfcpu.Encrypt",
 		trace.WithSpanKind(trace.SpanKindClient),
 		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
 	)
 	defer span.End()
 
-	if userPassword == "" {
-		err := errors.New("user password cannot be empty")
+	ownerPassword := opts.OwnerPassword
+	if ownerPassword == "" {
+		ownerPassword = opts.UserPassword
+	}
+
+	// An empty user password is allowed: it produces an owner-only document.
+	if opts.UserPassword == "" && ownerPassword == "" {
+		err := errors.New("at least a user or owner password is required")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
 
-	if ownerPassword == "" {
-		ownerPassword = userPassword
+	// pdfcpu only supports coarse permissions: all actions or none.
+	perm := "all"
+	if opts.Permissions.Restricted() {
+		perm = "none"
 	}
 
 	args := make([]string, 0, 11)
 	args = append(args, "encrypt")
 	args = append(args, "--mode", "aes")
-	args = append(args, "--upw", userPassword)
+	args = append(args, "--upw", opts.UserPassword)
 	args = append(args, "--opw", ownerPassword)
-	args = append(args, "--perm", "all")
+	args = append(args, "--perm", perm)
 	args = append(args, inputPath, inputPath)
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
