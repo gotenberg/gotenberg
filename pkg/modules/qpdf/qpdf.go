@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"syscall"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -33,6 +34,9 @@ func init() {
 type QPdf struct {
 	binPath    string
 	globalArgs []string
+
+	version     string
+	versionOnce sync.Once
 }
 
 // Descriptor returns a [QPdf]'s module descriptor.
@@ -69,32 +73,58 @@ func (engine *QPdf) Validate() error {
 
 // Debug returns additional debug data.
 func (engine *QPdf) Debug() map[string]any {
-	debug := make(map[string]any)
+	return map[string]any{"version": engine.detectVersion()}
+}
 
-	cmd := exec.Command(engine.binPath, "--version") //nolint:gosec
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+// detectVersion resolves the qpdf version once, preferring the value captured
+// at image build time so it never spawns qpdf at runtime. It falls back to
+// running qpdf --version for local or non-Docker builds.
+func (engine *QPdf) detectVersion() string {
+	engine.versionOnce.Do(func() {
+		if v, ok := gotenberg.BuildVersion("qpdf"); ok {
+			engine.version = v
+			return
+		}
 
-	output, err := cmd.Output()
-	if err != nil {
-		debug["version"] = err.Error()
-		return debug
+		cmd := exec.Command(engine.binPath, "--version") //nolint:gosec
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+		output, err := cmd.Output()
+		if err != nil {
+			engine.version = err.Error()
+			return
+		}
+
+		lines := bytes.SplitN(output, []byte("\n"), 2)
+		if len(lines) > 0 {
+			engine.version = string(lines[0])
+			return
+		}
+
+		engine.version = "Unable to determine QPDF version"
+	})
+
+	return engine.version
+}
+
+// spanAttrs returns the client-span attributes for a qpdf invocation: the
+// server address and the qpdf version, plus any extra attributes. The version
+// rides on every span so a trace records which qpdf ran the operation.
+func (engine *QPdf) spanAttrs(extra ...attribute.KeyValue) []attribute.KeyValue {
+	attrs := make([]attribute.KeyValue, 0, 2+len(extra))
+	attrs = append(attrs, semconv.ServerAddress(engine.binPath))
+	if v := engine.detectVersion(); v != "" {
+		attrs = append(attrs, attribute.String("gotenberg.qpdf.version", v))
 	}
 
-	lines := bytes.SplitN(output, []byte("\n"), 2)
-	if len(lines) > 0 {
-		debug["version"] = string(lines[0])
-	} else {
-		debug["version"] = "Unable to determine QPDF version"
-	}
-
-	return debug
+	return append(attrs, extra...)
 }
 
 // Split splits a given PDF file.
 func (engine *QPdf) Split(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
 	ctx, span := gotenberg.Tracer().Start(ctx, "qpdf.Split",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
+		trace.WithAttributes(engine.spanAttrs()...),
 	)
 	defer span.End()
 
@@ -144,7 +174,7 @@ func (engine *QPdf) Split(ctx context.Context, logger *slog.Logger, mode gotenbe
 func (engine *QPdf) Merge(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "qpdf.Merge",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
+		trace.WithAttributes(engine.spanAttrs()...),
 	)
 	defer span.End()
 
@@ -180,7 +210,7 @@ func (engine *QPdf) Merge(ctx context.Context, logger *slog.Logger, inputPaths [
 func (engine *QPdf) Flatten(ctx context.Context, logger *slog.Logger, inputPath string) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "qpdf.Flatten",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
+		trace.WithAttributes(engine.spanAttrs()...),
 	)
 	defer span.End()
 
@@ -215,7 +245,7 @@ func (engine *QPdf) Flatten(ctx context.Context, logger *slog.Logger, inputPath 
 func (engine *QPdf) Convert(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "qpdf.Convert",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
+		trace.WithAttributes(engine.spanAttrs()...),
 	)
 	defer span.End()
 
@@ -229,7 +259,7 @@ func (engine *QPdf) Convert(ctx context.Context, logger *slog.Logger, formats go
 func (engine *QPdf) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 	_, span := gotenberg.Tracer().Start(ctx, "qpdf.ReadMetadata",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
+		trace.WithAttributes(engine.spanAttrs()...),
 	)
 	defer span.End()
 
@@ -243,7 +273,7 @@ func (engine *QPdf) ReadMetadata(ctx context.Context, logger *slog.Logger, input
 func (engine *QPdf) WriteMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "qpdf.WriteMetadata",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
+		trace.WithAttributes(engine.spanAttrs()...),
 	)
 	defer span.End()
 
@@ -257,7 +287,7 @@ func (engine *QPdf) WriteMetadata(ctx context.Context, logger *slog.Logger, meta
 func (engine *QPdf) PageCount(ctx context.Context, logger *slog.Logger, inputPath string) (int, error) {
 	_, span := gotenberg.Tracer().Start(ctx, "qpdf.PageCount",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
+		trace.WithAttributes(engine.spanAttrs()...),
 	)
 	defer span.End()
 
@@ -271,7 +301,7 @@ func (engine *QPdf) PageCount(ctx context.Context, logger *slog.Logger, inputPat
 func (engine *QPdf) WriteBookmarks(ctx context.Context, logger *slog.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
 	_, span := gotenberg.Tracer().Start(ctx, "qpdf.WriteBookmarks",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
+		trace.WithAttributes(engine.spanAttrs()...),
 	)
 	defer span.End()
 
@@ -285,7 +315,7 @@ func (engine *QPdf) WriteBookmarks(ctx context.Context, logger *slog.Logger, inp
 func (engine *QPdf) ReadBookmarks(ctx context.Context, logger *slog.Logger, inputPath string) ([]gotenberg.Bookmark, error) {
 	_, span := gotenberg.Tracer().Start(ctx, "qpdf.ReadBookmarks",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
+		trace.WithAttributes(engine.spanAttrs()...),
 	)
 	defer span.End()
 
@@ -329,7 +359,7 @@ func qpdfPermissionArgs(p gotenberg.PdfPermissions) []string {
 func (engine *QPdf) Encrypt(ctx context.Context, logger *slog.Logger, inputPath string, opts gotenberg.EncryptOptions) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "qpdf.Encrypt",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
+		trace.WithAttributes(engine.spanAttrs()...),
 	)
 	defer span.End()
 
@@ -378,7 +408,7 @@ func (engine *QPdf) Encrypt(ctx context.Context, logger *slog.Logger, inputPath 
 func (engine *QPdf) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "qpdf.EmbedFiles",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
+		trace.WithAttributes(engine.spanAttrs()...),
 	)
 	defer span.End()
 
@@ -395,7 +425,7 @@ func (engine *QPdf) EmbedFiles(ctx context.Context, logger *slog.Logger, filePat
 func (engine *QPdf) EmbedFilesMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]map[string]string, inputPath string) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "qpdf.EmbedFilesMetadata",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
+		trace.WithAttributes(engine.spanAttrs()...),
 	)
 	defer span.End()
 
@@ -692,11 +722,10 @@ const facturXNamespaceURI = "urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0
 func (engine *QPdf) InjectFacturXXMP(ctx context.Context, logger *slog.Logger, facturX gotenberg.FacturX, inputPath string) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "qpdf.InjectFacturXXMP",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(
-			semconv.ServerAddress(engine.binPath),
+		trace.WithAttributes(engine.spanAttrs(
 			attribute.String("gotenberg.facturx.conformance_level", facturX.ConformanceLevel),
 			attribute.String("gotenberg.facturx.document_type", facturX.DocumentType),
-		),
+		)...),
 	)
 	defer span.End()
 
@@ -776,7 +805,7 @@ func (engine *QPdf) InjectFacturXXMP(ctx context.Context, logger *slog.Logger, f
 func (engine *QPdf) ReadPdfAConformance(ctx context.Context, logger *slog.Logger, inputPath string) (string, string, error) {
 	ctx, span := gotenberg.Tracer().Start(ctx, "qpdf.ReadPdfAConformance",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
+		trace.WithAttributes(engine.spanAttrs()...),
 	)
 	defer span.End()
 
@@ -1066,7 +1095,7 @@ func xmlEscape(s string) string {
 func (engine *QPdf) Watermark(ctx context.Context, logger *slog.Logger, inputPath string, stamp gotenberg.Stamp) error {
 	_, span := gotenberg.Tracer().Start(ctx, "qpdf.Watermark",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
+		trace.WithAttributes(engine.spanAttrs()...),
 	)
 	defer span.End()
 
@@ -1080,7 +1109,7 @@ func (engine *QPdf) Watermark(ctx context.Context, logger *slog.Logger, inputPat
 func (engine *QPdf) Stamp(ctx context.Context, logger *slog.Logger, inputPath string, stamp gotenberg.Stamp) error {
 	_, span := gotenberg.Tracer().Start(ctx, "qpdf.Stamp",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
+		trace.WithAttributes(engine.spanAttrs()...),
 	)
 	defer span.End()
 
@@ -1094,7 +1123,7 @@ func (engine *QPdf) Stamp(ctx context.Context, logger *slog.Logger, inputPath st
 func (engine *QPdf) Rotate(ctx context.Context, logger *slog.Logger, inputPath string, angle int, pages string) error {
 	_, span := gotenberg.Tracer().Start(ctx, "qpdf.Rotate",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(engine.binPath)),
+		trace.WithAttributes(engine.spanAttrs()...),
 	)
 	defer span.End()
 

@@ -9,7 +9,6 @@ import (
 
 	"github.com/hashicorp/go-retryablehttp"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 
@@ -203,46 +202,6 @@ func Meter() metric.Meter {
 		instrumentationName,
 		metric.WithInstrumentationVersion(Version),
 	)
-}
-
-// EmitStartupSpan records a single gotenberg.startup span carrying static,
-// process-wide attributes that are only known once modules are provisioned,
-// such as the chromium and libreoffice binary versions gathered by
-// [BuildDebug]. It surfaces version data per trace without re-detecting it on
-// every conversion. The engine versions live here, on a span, rather than on
-// the resource because the resource is built before modules report them.
-func EmitStartupSpan(ctx context.Context) {
-	info := Debug()
-
-	var attrs []attribute.KeyValue
-	if v := debugModuleVersion(info, "chromium"); v != "" {
-		attrs = append(attrs, attribute.String("gotenberg.chromium.version", v))
-	}
-	if v := debugModuleVersion(info, "libreoffice-api"); v != "" {
-		attrs = append(attrs, attribute.String("gotenberg.libreoffice.version", v))
-	}
-
-	_, span := Tracer().Start(ctx, "gotenberg.startup",
-		trace.WithSpanKind(trace.SpanKindInternal),
-		trace.WithAttributes(attrs...),
-	)
-	span.End()
-}
-
-// debugModuleVersion returns the "version" entry reported by the module with
-// the given ID, or an empty string when it is missing.
-func debugModuleVersion(info DebugInfo, moduleID string) string {
-	data, ok := info.ModulesAdditionalData[moduleID]
-	if !ok {
-		return ""
-	}
-
-	version, ok := data["version"].(string)
-	if !ok {
-		return ""
-	}
-
-	return version
 }
 
 // LeveledLogger is a wrapper around a [slog.Logger] so that it may be used by a

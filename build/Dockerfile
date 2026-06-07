@@ -190,6 +190,19 @@ ENV QPDF_BIN_PATH=/usr/bin/qpdf
 ENV EXIFTOOL_BIN_PATH=/usr/bin/exiftool
 ENV PDFCPU_BIN_PATH=/usr/bin/pdfcpu
 
+# Capture backing-binary versions at build time so the running process reports
+# them on traces without spawning the binaries at startup or per request.
+# See pkg/gotenberg/buildversions.go. Chromium and LibreOffice are captured in
+# the variant stages below, where they are installed.
+ENV GOTENBERG_VERSIONS_DIR_PATH=/opt/gotenberg/versions
+
+COPY --link build/capture-version.sh /opt/gotenberg/capture-version.sh
+
+RUN bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" qpdf "$QPDF_BIN_PATH" --version \
+    && bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" exiftool "$EXIFTOOL_BIN_PATH" -ver \
+    && bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" pdftk "$PDFTK_BIN_PATH" --version \
+    && bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" pdfcpu "$PDFCPU_BIN_PATH" version
+
 # OpenTelemetry defaults (noop - no telemetry overhead unless explicitly enabled).
 ENV OTEL_TRACES_EXPORTER=none
 ENV OTEL_METRICS_EXPORTER=none
@@ -269,6 +282,10 @@ ENV CHROMIUM_HYPHEN_DATA_DIR_PATH=/opt/gotenberg/chromium-hyphen-data
 ENV LIBREOFFICE_BIN_PATH=/usr/lib/libreoffice/program/soffice.bin
 ENV UNOCONVERTER_BIN_PATH=/usr/bin/unoconverter
 
+# Capture Chromium and LibreOffice versions now that both are installed.
+RUN bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" chromium "$CHROMIUM_BIN_PATH" --version \
+    && bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" libreoffice-api "$LIBREOFFICE_BIN_PATH" --version
+
 USER gotenberg
 WORKDIR /home/gotenberg
 
@@ -329,6 +346,9 @@ ENV CHROMIUM_HYPHEN_DATA_DIR_PATH=/opt/gotenberg/chromium-hyphen-data
 # No LibreOffice in this variant; override the default to use all available engines.
 ENV PDFENGINES_CONVERT_ENGINES=
 
+# Capture the Chromium version now that it is installed.
+RUN bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" chromium "$CHROMIUM_BIN_PATH" --version
+
 USER gotenberg
 WORKDIR /home/gotenberg
 
@@ -382,6 +402,9 @@ COPY --link --from=downloader-stage /downloads/unoconverter /usr/bin/unoconverte
 
 ENV LIBREOFFICE_BIN_PATH=/usr/lib/libreoffice/program/soffice.bin
 ENV UNOCONVERTER_BIN_PATH=/usr/bin/unoconverter
+
+# Capture the LibreOffice version now that it is installed.
+RUN bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" libreoffice-api "$LIBREOFFICE_BIN_PATH" --version
 
 USER gotenberg
 WORKDIR /home/gotenberg

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -52,6 +53,9 @@ type Api struct {
 	logger      *slog.Logger
 	libreOffice libreOffice
 	supervisor  gotenberg.ProcessSupervisor
+
+	version     string
+	versionOnce sync.Once
 
 	reqsCounter               metric.Int64Counter
 	errsCounter               metric.Int64Counter
@@ -540,19 +544,46 @@ func (a *Api) Stop(ctx context.Context) error {
 
 // Debug returns additional debug data.
 func (a *Api) Debug() map[string]any {
-	debug := make(map[string]any)
+	return map[string]any{"version": a.detectVersion()}
+}
 
-	cmd := exec.Command(a.args.binPath, "--version") //nolint:gosec
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+// detectVersion resolves the LibreOffice version once, preferring the value
+// captured at image build time so it never spawns LibreOffice at runtime. It
+// falls back to running soffice --version for local or non-Docker builds.
+func (a *Api) detectVersion() string {
+	a.versionOnce.Do(func() {
+		if v, ok := gotenberg.BuildVersion("libreoffice-api"); ok {
+			a.version = v
+			return
+		}
 
-	output, err := cmd.Output()
-	if err != nil {
-		debug["version"] = err.Error()
-		return debug
+		cmd := exec.Command(a.args.binPath, "--version") //nolint:gosec
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+		output, err := cmd.Output()
+		if err != nil {
+			a.version = err.Error()
+			return
+		}
+
+		a.version = strings.TrimSpace(string(output))
+	})
+
+	return a.version
+}
+
+// spanAttrs returns the client-span attributes for a LibreOffice invocation:
+// the server address and the LibreOffice version, plus any extra attributes.
+// The version rides on every conversion span so a trace records which
+// LibreOffice rendered the document.
+func (a *Api) spanAttrs(extra ...attribute.KeyValue) []attribute.KeyValue {
+	attrs := make([]attribute.KeyValue, 0, 2+len(extra))
+	attrs = append(attrs, semconv.ServerAddress(a.args.binPath))
+	if v := a.detectVersion(); v != "" {
+		attrs = append(attrs, attribute.String("gotenberg.libreoffice.version", v))
 	}
 
-	debug["version"] = strings.TrimSpace(string(output))
-	return debug
+	return append(attrs, extra...)
 }
 
 // Metrics returns the metrics.
@@ -628,7 +659,7 @@ func (a *Api) LibreOffice() (Uno, error) {
 func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "libreoffice.Pdf",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(a.args.binPath)),
+		trace.WithAttributes(a.spanAttrs()...),
 	)
 	defer span.End()
 

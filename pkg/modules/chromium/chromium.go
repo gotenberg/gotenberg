@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -100,6 +101,9 @@ type Chromium struct {
 	browser    browser
 	supervisor gotenberg.ProcessSupervisor
 	engine     gotenberg.PdfEngine
+
+	version     string
+	versionOnce sync.Once
 
 	reqsCounter               metric.Int64Counter
 	errsCounter               metric.Int64Counter
@@ -717,19 +721,46 @@ func (mod *Chromium) Stop(ctx context.Context) error {
 
 // Debug returns additional debug data.
 func (mod *Chromium) Debug() map[string]any {
-	debug := make(map[string]any)
+	return map[string]any{"version": mod.detectVersion()}
+}
 
-	cmd := exec.Command(mod.args.binPath, "--version") //nolint:gosec
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+// detectVersion resolves the Chromium version once, preferring the value
+// captured at image build time so it never spawns Chromium at runtime. It falls
+// back to running chromium --version for local or non-Docker builds.
+func (mod *Chromium) detectVersion() string {
+	mod.versionOnce.Do(func() {
+		if v, ok := gotenberg.BuildVersion("chromium"); ok {
+			mod.version = v
+			return
+		}
 
-	output, err := cmd.Output()
-	if err != nil {
-		debug["version"] = err.Error()
-		return debug
+		cmd := exec.Command(mod.args.binPath, "--version") //nolint:gosec
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+		output, err := cmd.Output()
+		if err != nil {
+			mod.version = err.Error()
+			return
+		}
+
+		mod.version = strings.TrimSpace(string(output))
+	})
+
+	return mod.version
+}
+
+// spanAttrs returns the client-span attributes for a Chromium invocation: the
+// server address and the Chromium version, plus any extra attributes. The
+// version rides on every conversion span so a trace records which Chromium
+// rendered the document.
+func (mod *Chromium) spanAttrs(extra ...attribute.KeyValue) []attribute.KeyValue {
+	attrs := make([]attribute.KeyValue, 0, 2+len(extra))
+	attrs = append(attrs, semconv.ServerAddress(mod.args.binPath))
+	if v := mod.detectVersion(); v != "" {
+		attrs = append(attrs, attribute.String("gotenberg.chromium.version", v))
 	}
 
-	debug["version"] = strings.TrimSpace(string(output))
-	return debug
+	return append(attrs, extra...)
 }
 
 // Metrics returns the metrics.
@@ -828,7 +859,7 @@ func (mod *Chromium) Pdf(ctx context.Context, logger *slog.Logger, url, outputPa
 
 	ctx, span := gotenberg.Tracer().Start(ctx, "chromium.Pdf",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(mod.args.binPath)),
+		trace.WithAttributes(mod.spanAttrs()...),
 	)
 	defer span.End()
 
@@ -909,7 +940,7 @@ func (mod *Chromium) Pdf(ctx context.Context, logger *slog.Logger, url, outputPa
 func (mod *Chromium) Screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "chromium.Screenshot",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(mod.args.binPath)),
+		trace.WithAttributes(mod.spanAttrs()...),
 	)
 	defer span.End()
 
