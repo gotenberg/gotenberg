@@ -285,7 +285,7 @@ func (mod *PdfEngines) SystemMessages() []string {
 		fmt.Sprintf("watermark engines - %s", strings.Join(mod.watermarkNames, " ")),
 		fmt.Sprintf("stamp engines - %s", strings.Join(mod.stampNames, " ")),
 		fmt.Sprintf("rotate engines - %s", strings.Join(mod.rotateNames, " ")),
-		fmt.Sprintf("Factur-X engines - %s", strings.Join(mod.facturXNames, " ")),
+		fmt.Sprintf("factur-x engines - %s", strings.Join(mod.facturXNames, " ")),
 	}
 }
 
