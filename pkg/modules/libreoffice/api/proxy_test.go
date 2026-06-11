@@ -280,11 +280,11 @@ func TestLibreOfficeProxy_StopIsIdempotent(t *testing.T) {
 	}
 }
 
-func TestWriteSofficeProxyConfig(t *testing.T) {
+func TestWriteSofficeProfileConfig(t *testing.T) {
 	dir := t.TempDir()
 
-	if err := writeSofficeProxyConfig(dir, "127.0.0.1:9876"); err != nil {
-		t.Fatalf("writeSofficeProxyConfig: %v", err)
+	if err := writeSofficeProfileConfig(dir, "127.0.0.1:9876"); err != nil {
+		t.Fatalf("writeSofficeProfileConfig: %v", err)
 	}
 
 	body, err := os.ReadFile(filepath.Join(dir, "user", "registrymodifications.xcu"))
@@ -297,6 +297,9 @@ func TestWriteSofficeProxyConfig(t *testing.T) {
 		`ooInetHTTPProxyName`, `<value>127.0.0.1</value>`,
 		`ooInetHTTPProxyPort`, `<value>9876</value>`,
 		`ooInetHTTPSProxyName`, `ooInetHTTPSProxyPort`,
+		// Blocks linked content from untrusted locations, closing the
+		// file:// local-read and direct-fetch vectors the proxy cannot see.
+		`BlockUntrustedRefererLinks`, `<value>true</value>`,
 	} {
 		if !strings.Contains(string(body), want) {
 			t.Errorf("xcu missing %q\nfull body:\n%s", want, body)
@@ -304,8 +307,8 @@ func TestWriteSofficeProxyConfig(t *testing.T) {
 	}
 }
 
-func TestWriteSofficeProxyConfig_InvalidAddr(t *testing.T) {
-	err := writeSofficeProxyConfig(t.TempDir(), "not-a-host-port")
+func TestWriteSofficeProfileConfig_InvalidAddr(t *testing.T) {
+	err := writeSofficeProfileConfig(t.TempDir(), "not-a-host-port")
 	if err == nil {
 		t.Fatal("expected error for malformed proxy address")
 	}

@@ -939,3 +939,28 @@ Feature: /forms/libreoffice/convert
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
     Then the "foo.pdf" PDF should have 1 page(s)
+
+  # An embedded image is stored inside the document, not linked, so blocking
+  # untrusted linked content leaves it untouched. Guards against over-blocking.
+  @libreoffice-linked-content
+  Scenario: POST /forms/libreoffice/convert (Embedded Image Survives)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/libreoffice-embedded-image.fodt | file   |
+      | Gotenberg-Output-Filename | foo                                      | header |
+    Then the response status code should be 200
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF should have 1 image(s)
+
+  # An uploaded document always loads from an untrusted location, so soffice
+  # refuses to resolve any content it links (absolute file:// path or external
+  # URL). Closes the SSRF and local-file-read vector.
+  @libreoffice-linked-content
+  Scenario: POST /forms/libreoffice/convert (Linked External Resource Blocked)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/libreoffice-linked-external.fodt | file   |
+      | Gotenberg-Output-Filename | foo                                       | header |
+    Then the response status code should be 200
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF should have 0 image(s)

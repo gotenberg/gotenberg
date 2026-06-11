@@ -245,13 +245,26 @@ var hopByHopHeaders = []string{
 	"Upgrade",
 }
 
-// sofficeProxyConfigTmpl is the registrymodifications.xcu fragment that
-// tells soffice's UCB layer to route every HTTP and HTTPS fetch through
-// proxyHost:proxyPort. The %s placeholders accept the proxy host and
-// port respectively (host first, port second, repeated for HTTP and
-// HTTPS).
-const sofficeProxyConfigTmpl = `<?xml version="1.0" encoding="UTF-8"?>
+// sofficeProfileConfigTmpl is the registrymodifications.xcu the soffice
+// daemon loads at startup. It does two things:
+//
+//  1. Routes every HTTP and HTTPS fetch through proxyHost:proxyPort so
+//     soffice's own libcurl fetches hit the in-process SSRF proxy.
+//  2. Sets BlockUntrustedRefererLinks so soffice refuses to load content
+//     linked from a document that sits in an untrusted location.
+//
+// The second setting closes the local-read and direct-fetch vectors the
+// proxy cannot see. A document that links an absolute path
+// (file:///etc/...) or any URL is loaded from the per-request temp dir,
+// which is never a trusted location, so soffice drops the linked content
+// instead of resolving it. Embedded content (stored inside the document)
+// is unaffected.
+//
+// The %s placeholders accept the proxy host and port respectively (host
+// first, port second, repeated for HTTP and HTTPS).
+const sofficeProfileConfigTmpl = `<?xml version="1.0" encoding="UTF-8"?>
 <oor:items xmlns:oor="http://openoffice.org/2001/registry" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <item oor:path="/org.openoffice.Office.Common/Security/Scripting"><prop oor:name="BlockUntrustedRefererLinks" oor:op="fuse"><value>true</value></prop></item>
   <item oor:path="/org.openoffice.Inet/Settings"><prop oor:name="ooInetProxyType" oor:op="fuse"><value>1</value></prop></item>
   <item oor:path="/org.openoffice.Inet/Settings"><prop oor:name="ooInetHTTPProxyName" oor:op="fuse"><value>%s</value></prop></item>
   <item oor:path="/org.openoffice.Inet/Settings"><prop oor:name="ooInetHTTPProxyPort" oor:op="fuse"><value>%s</value></prop></item>
@@ -261,10 +274,11 @@ const sofficeProxyConfigTmpl = `<?xml version="1.0" encoding="UTF-8"?>
 </oor:items>
 `
 
-// writeSofficeProxyConfig drops a registrymodifications.xcu file into
+// writeSofficeProfileConfig drops a registrymodifications.xcu file into
 // userProfileDirPath/user/ that points soffice's UCB layer at proxyAddr
-// for both HTTP and HTTPS. proxyAddr must be a host:port pair.
-func writeSofficeProxyConfig(userProfileDirPath, proxyAddr string) error {
+// for both HTTP and HTTPS and blocks linked content from untrusted
+// locations. proxyAddr must be a host:port pair.
+func writeSofficeProfileConfig(userProfileDirPath, proxyAddr string) error {
 	host, port, err := net.SplitHostPort(proxyAddr)
 	if err != nil {
 		return fmt.Errorf("split proxy address %q: %w", proxyAddr, err)
@@ -276,7 +290,7 @@ func writeSofficeProxyConfig(userProfileDirPath, proxyAddr string) error {
 		return fmt.Errorf("create soffice user profile directory: %w", err)
 	}
 
-	body := fmt.Sprintf(sofficeProxyConfigTmpl, host, port, host, port)
+	body := fmt.Sprintf(sofficeProfileConfigTmpl, host, port, host, port)
 	err = os.WriteFile(userDir+"/registrymodifications.xcu", []byte(body), 0o600)
 	if err != nil {
 		return fmt.Errorf("write registrymodifications.xcu: %w", err)

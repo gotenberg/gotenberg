@@ -70,11 +70,13 @@ func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 
 	// LibreOffice fetches external content (OOXML images via
 	// TargetMode=External, RTF INCLUDEPICTURE, ODT linked images) inside
-	// its own libcurl. Route those fetches through the in-process proxy
-	// so the chromium/webhook SSRF filters apply.
-	if err := writeSofficeProxyConfig(userProfileDirPath, proxy.Addr()); err != nil {
+	// its own libcurl. The profile config routes those fetches through the
+	// in-process proxy so the chromium/webhook SSRF filters apply, and
+	// blocks content linked from untrusted locations so absolute-path
+	// (file://) and direct fetches are dropped at the source.
+	if err := writeSofficeProfileConfig(userProfileDirPath, proxy.Addr()); err != nil {
 		_ = proxy.Stop(context.Background())
-		return fmt.Errorf("write soffice proxy config: %w", err)
+		return fmt.Errorf("write soffice profile config: %w", err)
 	}
 	sofficeEnv := sofficeProxyEnv(os.Environ(), proxy.Addr())
 
