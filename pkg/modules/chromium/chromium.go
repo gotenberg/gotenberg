@@ -300,7 +300,8 @@ type PdfOptions struct {
 	PreferCssPageSize bool
 
 	// GenerateDocumentOutline defines whether the document outline should be
-	// embedded into the PDF.
+	// embedded into the PDF. Chromium derives the outline from the tagged-PDF
+	// structure tree, so enabling this implies GenerateTaggedPdf.
 	GenerateDocumentOutline bool
 
 	// GenerateTaggedPdf defines whether to generate tagged (accessible)

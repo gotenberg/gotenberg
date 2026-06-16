@@ -548,6 +548,25 @@ Feature: /forms/chromium/convert/html
       Error: Exception 2
       """
 
+  Scenario: POST /forms/chromium/convert/html (Document Outline)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/page-outline-html/index.html | file   |
+      | generateDocumentOutline   | true                                  | field  |
+      | Gotenberg-Output-Filename | foo                                   | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    # generateTaggedPdf is left unset, yet the outline must still be embedded:
+    # Gotenberg enables tagged PDF automatically because Chromium derives the
+    # outline from the structure tree. See issue #1579.
+    Then the "foo.pdf" PDF should have a document outline
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/page-outline-html/index.html | file   |
+      | Gotenberg-Output-Filename | bar                                   | header |
+    Then the response status code should be 200
+    Then the "bar.pdf" PDF should NOT have a document outline
+
   Scenario: POST /forms/chromium/convert/html (Bad Request)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):

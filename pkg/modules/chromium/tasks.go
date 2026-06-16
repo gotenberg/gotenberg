@@ -21,8 +21,29 @@ import (
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
+// resolvePdfOptions applies the cross-option constraints Chromium imposes
+// before printing.
+//
+// Chromium derives the PDF document outline from the tagged-PDF structure
+// tree, so [PdfOptions.GenerateDocumentOutline] produces no outline unless
+// tagged PDF is also generated. Requesting an outline therefore implies
+// tagged PDF. See https://github.com/gotenberg/gotenberg/issues/1579.
+func resolvePdfOptions(options PdfOptions) PdfOptions {
+	if options.GenerateDocumentOutline {
+		options.GenerateTaggedPdf = true
+	}
+
+	return options
+}
+
 func printToPdfActionFunc(reqCtx context.Context, logger *slog.Logger, outputPath string, options PdfOptions) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
+		if options.GenerateDocumentOutline && !options.GenerateTaggedPdf {
+			logger.DebugContext(ctx, "document outline requested, enabling tagged PDF because Chromium derives the outline from the structure tree")
+		}
+
+		options = resolvePdfOptions(options)
+
 		// ctx is the chromedp task context, derived from context.Background(),
 		// so the span is started under reqCtx to keep print_to_pdf in the
 		// conversion trace instead of orphaning it into a new one.

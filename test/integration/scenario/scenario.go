@@ -1077,6 +1077,60 @@ func (s *scenario) thePdfShouldBeSetToLandscapeOrientation(ctx context.Context, 
 	return nil
 }
 
+func (s *scenario) thePdfShouldHaveADocumentOutline(ctx context.Context, name, kind string) error {
+	var path string
+	if !strings.HasPrefix(name, "*_") {
+		path = fmt.Sprintf("%s/%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"), name)
+
+		_, err := os.Stat(path)
+		if os.IsNotExist(err) {
+			return fmt.Errorf("PDF %q does not exist", path)
+		}
+	} else {
+		substr := strings.ReplaceAll(name, "*_", "")
+		err := filepath.Walk(s.teststoreDir, func(currentPath string, info os.FileInfo, pathErr error) error {
+			if pathErr != nil {
+				return pathErr
+			}
+			if strings.Contains(info.Name(), substr) {
+				path = currentPath
+				return filepath.SkipDir
+			}
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("walk %q: %w", s.workdir, err)
+		}
+	}
+
+	cmd := []string{
+		"verapdf",
+		"-off",
+		"--extract",
+		"outlines",
+		filepath.Base(path),
+	}
+
+	output, err := execCommandInIntegrationToolsContainer(ctx, cmd, path)
+	if err != nil {
+		return fmt.Errorf("exec %q: %w", cmd, err)
+	}
+
+	// veraPDF emits an empty features report when the catalog holds no outline.
+	hasOutline := !strings.Contains(output, "<featuresReport></featuresReport>")
+	invert := kind == "should NOT"
+
+	if !invert && !hasOutline {
+		return fmt.Errorf("PDF %q has no document outline", path)
+	}
+
+	if invert && hasOutline {
+		return fmt.Errorf("PDF %q has a document outline", path)
+	}
+
+	return nil
+}
+
 // pdfPageText extracts the text of a single page from a produced PDF using
 // pdftotext. name is either a literal filename or a "*_" glob resolved against
 // the test store.
@@ -1541,6 +1595,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the (response|webhook request) PDF\(s\) should declare Factur-X XMP with conformance level "([^"]*)"$`, s.thePdfsShouldDeclareFacturXConformanceLevel)
 	ctx.Then(`^the "([^"]*)" PDF should have (\d+) page\(s\)$`, s.thePdfShouldHavePages)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) be set to landscape orientation$`, s.thePdfShouldBeSetToLandscapeOrientation)
+	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have a document outline$`, s.thePdfShouldHaveADocumentOutline)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have the following content at page (\d+):$`, s.thePdfShouldHaveTheFollowingContentAtPage)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have content matching "([^"]*)" at page (\d+)$`, s.thePdfShouldHaveContentMatchingAtPage)
 	ctx.Then(`^the "([^"]*)" PDF should have (\d+) image\(s\)$`, s.thePdfShouldHaveImages)
