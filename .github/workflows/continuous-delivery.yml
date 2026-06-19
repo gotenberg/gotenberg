@@ -23,7 +23,7 @@ jobs:
       tags_aws_lambda_libreoffice: ${{ steps.build_push.outputs.tags_aws_lambda_libreoffice }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Build and push
         id: build_push
@@ -50,7 +50,7 @@ jobs:
       tags_aws_lambda_libreoffice: ${{ steps.build_push.outputs.tags_aws_lambda_libreoffice }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Build and push
         id: build_push
@@ -77,7 +77,7 @@ jobs:
       tags_aws_lambda_libreoffice: ${{ steps.build_push.outputs.tags_aws_lambda_libreoffice }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Build and push
         id: build_push
@@ -104,7 +104,7 @@ jobs:
       tags_aws_lambda_libreoffice: ${{ steps.build_push.outputs.tags_aws_lambda_libreoffice }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Build and push
         id: build_push
@@ -131,7 +131,7 @@ jobs:
       tags_aws_lambda_libreoffice: ${{ steps.build_push.outputs.tags_aws_lambda_libreoffice }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Build and push
         id: build_push
@@ -154,7 +154,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Merge
         uses: ./.github/actions/merge
