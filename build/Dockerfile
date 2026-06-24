@@ -145,6 +145,8 @@ RUN apt-get update -qq \
         fonts-noto-core \
         # Install QPDF & ExifTool (PDF engines).
         qpdf exiftool \
+        # PDF rasterization (pdftoppm).
+        poppler-utils \
     # See https://github.com/nextcloud/docker/issues/380.
     && mkdir -p /usr/share/man/man1 \
     # Cleanup.
@@ -189,6 +191,7 @@ ENV PDFTK_BIN_PATH=/usr/bin/pdftk
 ENV QPDF_BIN_PATH=/usr/bin/qpdf
 ENV EXIFTOOL_BIN_PATH=/usr/bin/exiftool
 ENV PDFCPU_BIN_PATH=/usr/bin/pdfcpu
+ENV PDFTOPPM_BIN_PATH=/usr/bin/pdftoppm
 
 # Capture backing-binary versions at build time so the running process reports
 # them on traces without spawning the binaries at startup or per request.
@@ -201,7 +204,8 @@ COPY --link build/capture-version.sh /opt/gotenberg/capture-version.sh
 RUN bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" qpdf "$QPDF_BIN_PATH" --version \
     && bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" exiftool "$EXIFTOOL_BIN_PATH" -ver \
     && bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" pdftk "$PDFTK_BIN_PATH" --version \
-    && bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" pdfcpu "$PDFCPU_BIN_PATH" version
+    && bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" pdfcpu "$PDFCPU_BIN_PATH" version \
+    && bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" pdftoppm bash -c "$PDFTOPPM_BIN_PATH -v 2>&1"
 
 # OpenTelemetry defaults (noop - no telemetry overhead unless explicitly enabled).
 ENV OTEL_TRACES_EXPORTER=none
