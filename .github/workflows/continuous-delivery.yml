@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       # action modified to onlu build
       - name: Build and push

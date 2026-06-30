@@ -49,6 +49,8 @@ runs:
 
     - name: Check out code
       uses: actions/checkout@v5
+      with:
+        persist-credentials: false
 
     # - name: Log in to Docker Hub
     #   if: inputs.docker_hub_username != ''
