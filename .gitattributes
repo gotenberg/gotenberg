@@ -1,0 +1,13 @@
+# Force LF line endings for shell scripts and other Unix files,
+# even on Windows (prevents CRLF-breaking bash scripts in Docker containers).
+*.sh        text eol=lf
+*.bash      text eol=lf
+Makefile    text eol=lf
+Dockerfile  text eol=lf
+*.tf        text eol=lf
+*.tfvars    text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.json      text eol=lf
+*.md        text eol=lf
+*.go        text eol=lf
