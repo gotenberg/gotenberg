@@ -1,6 +1,7 @@
 services:
   gotenberg:
     image: ${DOCKER_REGISTRY}/${DOCKER_REPOSITORY}:${GOTENBERG_VERSION}
+    restart: unless-stopped
     ports:
       - "${API_PORT}:${API_PORT}"
     environment:
