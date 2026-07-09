@@ -286,6 +286,17 @@ ENV UNOCONVERTER_BIN_PATH=/usr/bin/unoconverter
 RUN bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" chromium "$CHROMIUM_BIN_PATH" --version \
     && bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" libreoffice-api "$LIBREOFFICE_BIN_PATH" --version
 
+USER root
+
+# Install Microsoft core fonts (Calibri, Arial, Times New Roman, etc.) for
+# higher-fidelity DOCX -> PDF conversion. ttf-mscorefonts-installer lives in
+# Debian's "contrib" component, which is not enabled by default.
+RUN echo "deb http://deb.debian.org/debian trixie contrib" >> /etc/apt/sources.list
+RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ttf-mscorefonts-installer \
+    && rm -rf /var/lib/apt/lists/* \
+    && fc-cache -fv
 USER gotenberg
 WORKDIR /home/gotenberg
 
