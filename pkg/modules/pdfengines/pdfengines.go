@@ -350,6 +350,7 @@ func (mod *PdfEngines) Routes() ([]api.Route, error) {
 		embedRoute(engine),
 		watermarkRoute(engine),
 		stampRoute(engine),
+		bulkStampRoute(engine),
 		rotateRoute(engine),
 		facturXRoute(engine),
 	}, nil
