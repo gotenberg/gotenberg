@@ -57,12 +57,13 @@ type Api struct {
 }
 
 type downloadFromConfig struct {
-	allowList      []*regexp2.Regexp
-	denyList       []*regexp2.Regexp
-	denyPrivateIPs bool
-	denyPublicIPs  bool
-	maxRetry       int
-	disable        bool
+	allowList              []*regexp2.Regexp
+	denyList               []*regexp2.Regexp
+	denyPrivateIPs         bool
+	denyPublicIPs          bool
+	enableEnvironmentProxy bool
+	maxRetry               int
+	disable                bool
 }
 
 // Router is a module interface that adds routes to the [Api].
@@ -201,6 +202,7 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.StringSlice("api-download-from-deny-list", []string{}, "Set the denied URLs for the download from feature using regular expressions - supports multiple values")
 			fs.Bool("api-download-from-deny-private-ips", false, "Reject downloadFrom URLs whose host resolves to a non-public IP address (loopback, RFC1918, link-local, unique-local). Enable on deployments that accept untrusted downloadFrom sources to mitigate SSRF against internal services")
 			fs.Bool("api-download-from-deny-public-ips", false, "Reject downloadFrom URLs whose host resolves to a public IP address. Enable on air-gapped or data-governed deployments to prevent downloads from reaching the public internet")
+			fs.Bool("api-download-from-enable-environment-proxy", false, "Route downloadFrom fetches through the proxy defined by the standard HTTP_PROXY, HTTPS_PROXY, and NO_PROXY variables, including credentials")
 			fs.Int("api-download-from-max-retry", 4, "Set the maximum number of retries for the download from feature")
 			fs.Bool("api-disable-download-from", false, "Disable the download from feature")
 			fs.Bool("api-disable-health-check-route-telemetry", true, "Disable telemetry for health check route")
@@ -239,12 +241,13 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 	a.rootPath = flags.MustString("api-root-path")
 	a.correlationIdHeader = flags.MustDeprecatedString("api-trace-header", "api-correlation-id-header")
 	a.downloadFromCfg = downloadFromConfig{
-		allowList:      flags.MustRegexpSlice("api-download-from-allow-list"),
-		denyList:       flags.MustRegexpSlice("api-download-from-deny-list"),
-		denyPrivateIPs: flags.MustBool("api-download-from-deny-private-ips"),
-		denyPublicIPs:  flags.MustBool("api-download-from-deny-public-ips"),
-		maxRetry:       flags.MustInt("api-download-from-max-retry"),
-		disable:        flags.MustBool("api-disable-download-from"),
+		allowList:              flags.MustRegexpSlice("api-download-from-allow-list"),
+		denyList:               flags.MustRegexpSlice("api-download-from-deny-list"),
+		denyPrivateIPs:         flags.MustBool("api-download-from-deny-private-ips"),
+		denyPublicIPs:          flags.MustBool("api-download-from-deny-public-ips"),
+		enableEnvironmentProxy: flags.MustBool("api-download-from-enable-environment-proxy"),
+		maxRetry:               flags.MustInt("api-download-from-max-retry"),
+		disable:                flags.MustBool("api-disable-download-from"),
 	}
 	a.disableHealthCheckRouteTelemetry = flags.MustDeprecatedBool("api-disable-health-check-logging", "api-disable-health-check-route-telemetry")
 	a.disableRootRouteTelemetry = flags.MustBool("api-disable-root-route-telemetry")

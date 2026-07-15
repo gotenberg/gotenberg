@@ -336,6 +336,7 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.StringSlice("libreoffice-deny-list", []string{}, "Set the denied URLs for LibreOffice outbound fetches using regular expressions - supports multiple values")
 			fs.Bool("libreoffice-deny-private-ips", false, "Reject LibreOffice outbound URLs whose host resolves to a non-public IP address (loopback, RFC1918, link-local, unique-local). Enable on deployments that accept untrusted documents to mitigate SSRF against internal services")
 			fs.Bool("libreoffice-deny-public-ips", false, "Reject LibreOffice outbound URLs whose host resolves to a public IP address. Enable on air-gapped or data-governed deployments to prevent outbound traffic from leaving a private network")
+			fs.Bool("libreoffice-enable-environment-proxy", false, "Route LibreOffice outbound fetches through the proxy defined by the standard HTTP_PROXY, HTTPS_PROXY, and NO_PROXY variables, including credentials")
 
 			return fs
 		}(),
@@ -363,10 +364,11 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 		unoBinPath:   unoBinPath,
 		startTimeout: flags.MustDuration("libreoffice-start-timeout"),
 		proxyOptions: outboundProxyOptions{
-			allowList:      flags.MustRegexpSlice("libreoffice-allow-list"),
-			denyList:       flags.MustRegexpSlice("libreoffice-deny-list"),
-			denyPrivateIPs: flags.MustBool("libreoffice-deny-private-ips"),
-			denyPublicIPs:  flags.MustBool("libreoffice-deny-public-ips"),
+			allowList:              flags.MustRegexpSlice("libreoffice-allow-list"),
+			denyList:               flags.MustRegexpSlice("libreoffice-deny-list"),
+			denyPrivateIPs:         flags.MustBool("libreoffice-deny-private-ips"),
+			denyPublicIPs:          flags.MustBool("libreoffice-deny-public-ips"),
+			enableEnvironmentProxy: flags.MustBool("libreoffice-enable-environment-proxy"),
 		},
 	}
 

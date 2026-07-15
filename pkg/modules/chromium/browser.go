@@ -38,6 +38,7 @@ type browserArguments struct {
 	allowFileAccessFromFiles bool
 	hostResolverRules        string
 	proxyServer              string
+	enableEnvironmentProxy   bool
 	wsUrlReadTimeout         time.Duration
 	hyphenDataDirPath        string
 
@@ -77,7 +78,7 @@ func newChromiumBrowser(arguments browserArguments) browser {
 		initialCtx:   context.Background(),
 		arguments:    arguments,
 		fs:           gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)),
-		pinningProxy: newPinningProxy(arguments.allowList, arguments.denyList, arguments.denyPrivateIPs, arguments.denyPublicIPs),
+		pinningProxy: newPinningProxy(arguments.allowList, arguments.denyList, arguments.denyPrivateIPs, arguments.denyPublicIPs, arguments.enableEnvironmentProxy),
 	}
 	b.isStarted.Store(false)
 

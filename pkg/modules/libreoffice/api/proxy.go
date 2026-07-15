@@ -15,16 +15,18 @@ import (
 	"time"
 
 	"github.com/dlclark/regexp2"
+	"golang.org/x/net/http/httpproxy"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 // outboundProxyOptions configures a [libreOfficeProxy].
 type outboundProxyOptions struct {
-	allowList      []*regexp2.Regexp
-	denyList       []*regexp2.Regexp
-	denyPrivateIPs bool
-	denyPublicIPs  bool
+	allowList              []*regexp2.Regexp
+	denyList               []*regexp2.Regexp
+	denyPrivateIPs         bool
+	denyPublicIPs          bool
+	enableEnvironmentProxy bool
 }
 
 // libreOfficeProxy is an HTTP/HTTPS forward proxy that LibreOffice routes
@@ -45,6 +47,12 @@ type libreOfficeProxy struct {
 	opts     outboundProxyOptions
 	logger   *slog.Logger
 
+	// upstreamProxy resolves the upstream (corporate) proxy for a destination
+	// URL from the standard proxy environment variables, or returns a nil URL
+	// to connect directly. Nil unless the operator opted into proxy-
+	// environment honoring. See https://github.com/gotenberg/gotenberg/issues/1592.
+	upstreamProxy func(*url.URL) (*url.URL, error)
+
 	stopOnce sync.Once
 }
 
@@ -64,9 +72,14 @@ func newLibreOfficeProxy(logger *slog.Logger, opts outboundProxyOptions) (*libre
 
 	p := &libreOfficeProxy{
 		listener: listener,
-		client:   gotenberg.NewOutboundHttpClient(0, opts.allowList, opts.denyList, decideOpts...),
+		client:   gotenberg.NewOutboundHttpClient(0, opts.allowList, opts.denyList, opts.enableEnvironmentProxy, decideOpts...),
 		opts:     opts,
 		logger:   logger.With(slog.String("logger", "libreoffice-proxy")),
+	}
+	if opts.enableEnvironmentProxy {
+		// Honor the standard proxy environment variables, credentials
+		// included. httpproxy reads the environment now and applies NO_PROXY.
+		p.upstreamProxy = httpproxy.FromEnvironment().ProxyFunc()
 	}
 	p.server = &http.Server{
 		Handler:           p,
@@ -182,8 +195,25 @@ func (p *libreOfficeProxy) handleConnect(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// When the operator routes egress through an authenticated proxy, soffice
+	// cannot supply the credentials, so the proxy performs the CONNECT (and
+	// authentication) upstream. The decision above still gated the destination.
+	var proxyURL *url.URL
+	if p.upstreamProxy != nil {
+		proxyURL, err = p.upstreamProxy(&url.URL{Scheme: "https", Host: net.JoinHostPort(host, port)})
+		if err != nil {
+			p.logger.WarnContext(r.Context(), fmt.Sprintf("LibreOffice proxy resolve upstream proxy for '%s': %s", rawURL, err))
+			http.Error(w, "proxy: upstream proxy error", http.StatusBadGateway)
+			return
+		}
+	}
+
 	var dest net.Conn
 	switch {
+	case proxyURL != nil:
+		dest, err = gotenberg.DialThroughProxy(r.Context(), proxyURL, r.Host, func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return net.DialTimeout(network, addr, 10*time.Second)
+		})
 	case len(decision.Pinned) > 0:
 		dest, err = gotenberg.DialPinned(r.Context(), "tcp", decision.Pinned, port)
 	default:

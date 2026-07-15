@@ -18,19 +18,20 @@ func init() {
 // Webhook is a module that provides a middleware for uploading output files
 // to any destinations in an asynchronous fashion.
 type Webhook struct {
-	enableSyncMode bool
-	allowList      []*regexp2.Regexp
-	denyList       []*regexp2.Regexp
-	errorAllowList []*regexp2.Regexp
-	errorDenyList  []*regexp2.Regexp
-	denyPrivateIPs bool
-	denyPublicIPs  bool
-	maxRetry       int
-	retryMinWait   time.Duration
-	retryMaxWait   time.Duration
-	clientTimeout  time.Duration
-	asyncCount     atomic.Int64
-	disable        bool
+	enableSyncMode         bool
+	allowList              []*regexp2.Regexp
+	denyList               []*regexp2.Regexp
+	errorAllowList         []*regexp2.Regexp
+	errorDenyList          []*regexp2.Regexp
+	denyPrivateIPs         bool
+	denyPublicIPs          bool
+	enableEnvironmentProxy bool
+	maxRetry               int
+	retryMinWait           time.Duration
+	retryMaxWait           time.Duration
+	clientTimeout          time.Duration
+	asyncCount             atomic.Int64
+	disable                bool
 }
 
 // Descriptor returns an [Webhook]'s module descriptor.
@@ -44,6 +45,7 @@ func (w *Webhook) Descriptor() gotenberg.ModuleDescriptor {
 			fs.StringSlice("webhook-deny-list", []string{}, "Set the denied URLs for the webhook feature using regular expressions - supports multiple values")
 			fs.Bool("webhook-deny-private-ips", false, "Reject webhook URLs whose host resolves to a non-public IP address (loopback, RFC1918, link-local, unique-local). Enable on deployments that accept untrusted webhook destinations to mitigate SSRF against internal services")
 			fs.Bool("webhook-deny-public-ips", false, "Reject webhook URLs whose host resolves to a public IP address. Enable on air-gapped or data-governed deployments to prevent callbacks from leaving a private network")
+			fs.Bool("webhook-enable-environment-proxy", false, "Route webhook callbacks through the proxy defined by the standard HTTP_PROXY, HTTPS_PROXY, and NO_PROXY variables, including credentials")
 			fs.Int("webhook-max-retry", 4, "Set the maximum number of retries for the webhook feature")
 
 			// Deprecated flags.
@@ -78,6 +80,7 @@ func (w *Webhook) Provision(ctx *gotenberg.Context) error {
 	w.errorDenyList = flags.MustDeprecatedRegexpSlice("webhook-error-deny-list", "webhook-deny-list")
 	w.denyPrivateIPs = flags.MustBool("webhook-deny-private-ips")
 	w.denyPublicIPs = flags.MustBool("webhook-deny-public-ips")
+	w.enableEnvironmentProxy = flags.MustBool("webhook-enable-environment-proxy")
 	w.maxRetry = flags.MustInt("webhook-max-retry")
 	w.retryMinWait = flags.MustDuration("webhook-retry-min-wait")
 	w.retryMaxWait = flags.MustDuration("webhook-retry-max-wait")

@@ -224,7 +224,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						startTime:        startTime,
 
 						client: &retryablehttp.Client{
-							HTTPClient:   gotenberg.NewOutboundHttpClient(w.clientTimeout, w.allowList, w.denyList, ipOpts...),
+							HTTPClient:   gotenberg.NewOutboundHttpClient(w.clientTimeout, w.allowList, w.denyList, w.enableEnvironmentProxy, ipOpts...),
 							RetryMax:     w.maxRetry,
 							RetryWaitMin: w.retryMinWait,
 							RetryWaitMax: w.retryMaxWait,

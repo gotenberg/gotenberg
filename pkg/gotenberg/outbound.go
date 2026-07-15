@@ -1,7 +1,10 @@
 package gotenberg
 
 import (
+	"bufio"
 	"context"
+	"crypto/tls"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net"
@@ -12,6 +15,7 @@ import (
 	"time"
 
 	"github.com/dlclark/regexp2"
+	"golang.org/x/net/http/httpproxy"
 )
 
 // ErrNonPublicIP indicates that an outbound URL targets an IP address that
@@ -389,9 +393,37 @@ func (rt *outboundRoundTripper) RoundTrip(req *http.Request) (*http.Response, er
 //
 // The default posture is permissive; callers pass [WithDenyPrivateIPs]
 // or [WithDenyPublicIPs] to opt into IP-class rejection.
-func NewOutboundHttpClient(timeout time.Duration, allowList, denyList []*regexp2.Regexp, opts ...DecideOption) *http.Client {
+//
+// When enableEnvironmentProxy is true, the client routes through the proxy
+// defined by the standard HTTP_PROXY, HTTPS_PROXY, and NO_PROXY variables,
+// including any credentials embedded in those URLs. In that mode the proxy
+// owns DNS and egress, so destination dial pinning does not apply; the URL
+// allow/deny and IP-class validation still runs. Callers gate this behind
+// their module's opt-in flag. See
+// https://github.com/gotenberg/gotenberg/issues/1592.
+func NewOutboundHttpClient(timeout time.Duration, allowList, denyList []*regexp2.Regexp, enableEnvironmentProxy bool, opts ...DecideOption) *http.Client {
 	base := http.DefaultTransport.(*http.Transport).Clone()
-	base.DialContext = secureDialContext
+
+	if enableEnvironmentProxy {
+		// Route through the operator's proxy (standard env vars, credentials
+		// included). NO_PROXY hosts get a direct, unpinned dial.
+		// httpproxy.FromEnvironment reads the environment now rather than
+		// caching it process-wide like http.ProxyFromEnvironment.
+		proxyFunc := httpproxy.FromEnvironment().ProxyFunc()
+		base.Proxy = func(req *http.Request) (*url.URL, error) {
+			return proxyFunc(req.URL)
+		}
+		base.DialContext = outboundDialer.DialContext
+	} else {
+		// Default: ignore any proxy environment variables and pin the dial to
+		// the IPs resolved during validation, closing the DNS-rebinding
+		// window. Clearing Proxy is deliberate: the cloned default transport
+		// carries http.ProxyFromEnvironment, which combined with the pinned
+		// dialer would connect to the destination IP on the proxy's port.
+		base.Proxy = nil
+		base.DialContext = secureDialContext
+	}
+
 	return &http.Client{
 		Timeout: timeout,
 		Transport: &outboundRoundTripper{
@@ -451,4 +483,100 @@ func DialPinned(ctx context.Context, network string, addrs []netip.Addr, port st
 		return nil, errors.New("no addresses to dial")
 	}
 	return nil, lastErr
+}
+
+// DialThroughProxy opens a TCP tunnel to target (a host:port) through the
+// HTTP CONNECT proxy at proxyURL, authenticating with any credentials
+// embedded in proxyURL. dialProxy dials the proxy's own address; callers pass
+// a plain dialer. Chromium and soffice cannot authenticate to a proxy
+// themselves, so Gotenberg performs the CONNECT handshake on their behalf.
+// The returned connection carries the raw tunnel for the caller to splice
+// with the client. See https://github.com/gotenberg/gotenberg/issues/1592.
+func DialThroughProxy(ctx context.Context, proxyURL *url.URL, target string, dialProxy func(ctx context.Context, network, addr string) (net.Conn, error)) (net.Conn, error) {
+	conn, err := dialProxy(ctx, "tcp", proxyHostPort(proxyURL))
+	if err != nil {
+		return nil, fmt.Errorf("dial proxy: %w", err)
+	}
+
+	if proxyURL.Scheme == "https" {
+		tlsConn := tls.Client(conn, &tls.Config{ServerName: proxyURL.Hostname()})
+		err = tlsConn.HandshakeContext(ctx)
+		if err != nil {
+			_ = conn.Close()
+			return nil, fmt.Errorf("TLS handshake with proxy: %w", err)
+		}
+		conn = tlsConn
+	}
+
+	// Bound the CONNECT handshake by the request deadline; cleared once the
+	// tunnel is established so splicing manages its own lifetime.
+	if deadline, ok := ctx.Deadline(); ok {
+		_ = conn.SetDeadline(deadline)
+	}
+
+	connectReq := &http.Request{
+		Method: http.MethodConnect,
+		URL:    &url.URL{Opaque: target},
+		Host:   target,
+		Header: make(http.Header),
+	}
+	if user := proxyURL.User; user != nil {
+		password, _ := user.Password()
+		connectReq.Header.Set("Proxy-Authorization", proxyAuthHeader(user.Username(), password))
+	}
+
+	err = connectReq.Write(conn)
+	if err != nil {
+		_ = conn.Close()
+		return nil, fmt.Errorf("write CONNECT to proxy: %w", err)
+	}
+
+	br := bufio.NewReader(conn)
+	resp, err := http.ReadResponse(br, connectReq)
+	if err != nil {
+		_ = conn.Close()
+		return nil, fmt.Errorf("read CONNECT response from proxy: %w", err)
+	}
+	// A CONNECT response carries no body; discard defensively.
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		_ = conn.Close()
+		return nil, fmt.Errorf("proxy refused CONNECT to %q with status %d", target, resp.StatusCode)
+	}
+
+	_ = conn.SetDeadline(time.Time{})
+
+	// The reader may hold bytes the proxy sent right after the response;
+	// overlay it so those tunnel bytes are not lost when splicing.
+	return &bufferedConn{Conn: conn, r: br}, nil
+}
+
+// proxyHostPort returns proxyURL's host:port, defaulting the port from the
+// scheme when the URL omits it.
+func proxyHostPort(proxyURL *url.URL) string {
+	port := proxyURL.Port()
+	if port == "" {
+		port = "80"
+		if proxyURL.Scheme == "https" {
+			port = "443"
+		}
+	}
+	return net.JoinHostPort(proxyURL.Hostname(), port)
+}
+
+// proxyAuthHeader builds a Basic Proxy-Authorization header value.
+func proxyAuthHeader(username, password string) string {
+	return "Basic " + base64.StdEncoding.EncodeToString([]byte(username+":"+password))
+}
+
+// bufferedConn overlays a [bufio.Reader] on a [net.Conn] so that bytes
+// buffered while reading a proxy's CONNECT response are not lost when the
+// tunnel is spliced.
+type bufferedConn struct {
+	net.Conn
+	r *bufio.Reader
+}
+
+func (c *bufferedConn) Read(b []byte) (int, error) {
+	return c.r.Read(b)
 }

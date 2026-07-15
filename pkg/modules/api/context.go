@@ -281,7 +281,7 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 				}
 
 				client := &retryablehttp.Client{
-					HTTPClient:   gotenberg.NewOutboundHttpClient(time.Until(deadline), downloadFromCfg.allowList, downloadFromCfg.denyList, ipOpts...),
+					HTTPClient:   gotenberg.NewOutboundHttpClient(time.Until(deadline), downloadFromCfg.allowList, downloadFromCfg.denyList, downloadFromCfg.enableEnvironmentProxy, ipOpts...),
 					RetryMax:     downloadFromCfg.maxRetry,
 					RetryWaitMin: time.Duration(1) * time.Second,
 					RetryWaitMax: time.Until(deadline),

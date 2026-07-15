@@ -460,6 +460,7 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Bool("chromium-allow-file-access-from-files", false, "Allow file:// URIs to read other file:// URIs")
 			fs.String("chromium-host-resolver-rules", "", "Set custom mappings to the host resolver")
 			fs.String("chromium-proxy-server", "", "Set the outbound proxy server; this switch only affects HTTP and HTTPS requests")
+			fs.Bool("chromium-enable-environment-proxy", false, "Route Chromium's outbound requests through the proxy defined by the standard HTTP_PROXY, HTTPS_PROXY, and NO_PROXY variables, including credentials. Use this instead of --chromium-proxy-server for authenticated proxies, and leave --chromium-proxy-server and --chromium-host-resolver-rules unset")
 			fs.StringSlice("chromium-allow-list", []string{}, "Set the allowed URLs for Chromium using regular expressions - supports multiple values")
 			fs.StringSlice("chromium-deny-list", []string{`^file:(?!//\/tmp/).*`}, "Set the denied URLs for Chromium using regular expressions - supports multiple values")
 			fs.Bool("chromium-deny-private-ips", false, "Reject URLs whose host resolves to a non-public IP address (loopback, RFC1918, link-local, unique-local). Enable on deployments that accept untrusted form input to mitigate SSRF against internal services")
@@ -507,6 +508,7 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 		allowFileAccessFromFiles: flags.MustBool("chromium-allow-file-access-from-files"),
 		hostResolverRules:        flags.MustString("chromium-host-resolver-rules"),
 		proxyServer:              flags.MustString("chromium-proxy-server"),
+		enableEnvironmentProxy:   flags.MustBool("chromium-enable-environment-proxy"),
 		wsUrlReadTimeout:         flags.MustDuration("chromium-start-timeout"),
 		hyphenDataDirPath:        hyphenDataDirPath,
 

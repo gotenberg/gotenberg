@@ -9,10 +9,12 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"net/url"
 	"sync"
 	"time"
 
 	"github.com/dlclark/regexp2"
+	"golang.org/x/net/http/httpproxy"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
@@ -43,6 +45,14 @@ type pinningProxy struct {
 	// allow-list opt-in). Tests may override it.
 	dialBypass func(ctx context.Context, network, addr string) (net.Conn, error)
 
+	// upstreamProxy resolves the upstream (corporate) proxy for a
+	// destination URL from the standard proxy environment variables, or
+	// returns a nil URL to connect directly. It is nil unless the operator
+	// opted into proxy-environment honoring. When set, the pinning proxy
+	// performs the authenticated proxy handshake that Chromium cannot. See
+	// https://github.com/gotenberg/gotenberg/issues/1592.
+	upstreamProxy func(*url.URL) (*url.URL, error)
+
 	listener net.Listener
 	server   *http.Server
 	wg       sync.WaitGroup
@@ -57,8 +67,8 @@ type pinningProxy struct {
 // [gotenberg.DecideOutbound] on every request the proxy sees, so
 // Chromium inherits whatever posture the operator selected. The
 // returned proxy is not yet listening; call Start.
-func newPinningProxy(allowList, denyList []*regexp2.Regexp, denyPrivateIPs, denyPublicIPs bool) *pinningProxy {
-	return &pinningProxy{
+func newPinningProxy(allowList, denyList []*regexp2.Regexp, denyPrivateIPs, denyPublicIPs, enableEnvironmentProxy bool) *pinningProxy {
+	p := &pinningProxy{
 		allowList: allowList,
 		denyList:  denyList,
 		decide: func(ctx context.Context, rawURL string, allow, deny []*regexp2.Regexp, deadline time.Time) (gotenberg.OutboundDecision, error) {
@@ -73,6 +83,14 @@ func newPinningProxy(allowList, denyList []*regexp2.Regexp, denyPrivateIPs, deny
 			return dialer.DialContext(ctx, network, addr)
 		},
 	}
+
+	if enableEnvironmentProxy {
+		// Honor the standard proxy environment variables, credentials
+		// included. httpproxy reads the environment now and applies NO_PROXY.
+		p.upstreamProxy = httpproxy.FromEnvironment().ProxyFunc()
+	}
+
+	return p
 }
 
 // Start binds the proxy to 127.0.0.1 on an ephemeral port and serves in a
@@ -188,8 +206,24 @@ func (p *pinningProxy) handleConnect(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// When the operator routes egress through an authenticated proxy,
+	// Chromium cannot supply the credentials itself, so the pinning proxy
+	// performs the CONNECT (and authentication) upstream. The decision above
+	// still gated the destination through the allow/deny and IP-class rules.
+	var proxyURL *url.URL
+	if p.upstreamProxy != nil {
+		proxyURL, err = p.upstreamProxy(&url.URL{Scheme: "https", Host: req.Host})
+		if err != nil {
+			p.logger.WarnContext(req.Context(), fmt.Sprintf("resolve upstream proxy for '%s': %s", req.Host, err))
+			http.Error(w, "upstream proxy error", http.StatusBadGateway)
+			return
+		}
+	}
+
 	var upstream net.Conn
 	switch {
+	case proxyURL != nil:
+		upstream, err = p.dialThroughUpstreamProxy(req.Context(), proxyURL, req.Host)
 	case decision.Bypass:
 		upstream, err = p.dialBypass(req.Context(), "tcp", req.Host)
 	case len(decision.Pinned) > 0:
@@ -275,17 +309,35 @@ func (p *pinningProxy) handleForward(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	var proxyURL *url.URL
+	if p.upstreamProxy != nil {
+		proxyURL, err = p.upstreamProxy(req.URL)
+		if err != nil {
+			p.logger.WarnContext(req.Context(), fmt.Sprintf("resolve upstream proxy for '%s': %s", req.URL.Redacted(), err))
+			http.Error(w, "upstream proxy error", http.StatusBadGateway)
+			return
+		}
+	}
+
 	outReq := req.Clone(req.Context())
 	outReq.RequestURI = ""
 	stripHopByHopHeaders(outReq.Header)
 
+	// Build a fresh transport per request. The decision contains the pinned
+	// IPs to dial; reusing a transport across requests would leak the
+	// decision's closure across unrelated targets.
 	transport := &http.Transport{
-		// Build a fresh transport per request. The decision contains the
-		// pinned IPs to dial; reusing a transport across requests would
-		// leak the decision's closure across unrelated targets.
 		DisableKeepAlives: true,
-		Proxy:             nil,
-		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+	}
+	if proxyURL != nil {
+		// The upstream proxy owns DNS and egress; Go adds Proxy-Authorization
+		// from the URL's credentials. The decision above already gated the
+		// destination, and dialBypass dials the proxy host directly.
+		transport.Proxy = http.ProxyURL(proxyURL)
+		transport.DialContext = p.dialBypass
+	} else {
+		transport.Proxy = nil
+		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 			_, port, splitErr := net.SplitHostPort(addr)
 			if splitErr != nil {
 				return nil, fmt.Errorf("split forward addr %q: %w", addr, splitErr)
@@ -298,7 +350,7 @@ func (p *pinningProxy) handleForward(w http.ResponseWriter, req *http.Request) {
 			default:
 				return nil, errors.New("no pinned addresses and not bypassed")
 			}
-		},
+		}
 	}
 	defer transport.CloseIdleConnections()
 
@@ -363,4 +415,12 @@ func isClientCancellation(ctx context.Context, err error) bool {
 		return true
 	}
 	return ctx.Err() != nil
+}
+
+// dialThroughUpstreamProxy tunnels to target through the upstream proxy,
+// letting [gotenberg.DialThroughProxy] perform the authenticated CONNECT that
+// Chromium cannot. dialBypass dials the proxy itself and is overridable in
+// tests. See https://github.com/gotenberg/gotenberg/issues/1592.
+func (p *pinningProxy) dialThroughUpstreamProxy(ctx context.Context, proxyURL *url.URL, target string) (net.Conn, error) {
+	return gotenberg.DialThroughProxy(ctx, proxyURL, target, p.dialBypass)
 }
