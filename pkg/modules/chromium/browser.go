@@ -58,6 +58,14 @@ type chromiumBrowser struct {
 	userProfileDirPath string
 	ctxMu              sync.RWMutex
 	isStarted          atomic.Bool
+	// startMu serializes Start calls. The supervisor's runWithDeadline
+	// abandons a Start goroutine when the request deadline expires while
+	// Chromium's startup handshake is still hanging; the abandoned goroutine
+	// keeps running, holding the resources it acquired (the pinning proxy).
+	// Serializing here prevents a second, overlapping Start from colliding
+	// with the in-flight one on the shared pinning proxy.
+	// See https://github.com/gotenberg/gotenberg/issues/1599.
+	startMu sync.Mutex
 
 	arguments    browserArguments
 	fs           *gotenberg.FileSystem
@@ -77,6 +85,19 @@ func newChromiumBrowser(arguments browserArguments) browser {
 }
 
 func (b *chromiumBrowser) Start(logger *slog.Logger) error {
+	// Refuse to run while a previous Start is still in flight. That previous
+	// Start may be a goroutine the supervisor abandoned after the request
+	// deadline expired while the Chromium startup handshake was hanging; it
+	// still holds the pinning proxy it started. An abandoned goroutine keeps
+	// holding startMu until it unwinds (bounded by --chromium-start-timeout),
+	// so no overlapping Start can collide with it on the shared pinning proxy
+	// and latch Chromium into a permanent "pinning proxy already started"
+	// state. See https://github.com/gotenberg/gotenberg/issues/1599.
+	if !b.startMu.TryLock() {
+		return errors.New("browser start already in progress")
+	}
+	defer b.startMu.Unlock()
+
 	if b.isStarted.Load() {
 		return errors.New("browser is already started")
 	}
