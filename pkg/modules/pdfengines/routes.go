@@ -17,6 +17,31 @@ import (
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
 )
 
+type bulkStampSpec struct {
+	Source     string            `json:"source"`
+	Expression string            `json:"expression,omitempty"`
+	Pages      string            `json:"pages,omitempty"`
+	Options    map[string]string `json:"options,omitempty"`
+	File       string            `json:"file,omitempty"`
+}
+
+func validateBulkStampSpec(stamp bulkStampSpec, idx int) error {
+	switch stamp.Source {
+	case gotenberg.StampSourceText:
+		if stamp.Expression == "" {
+			return fmt.Errorf("entry %d requires a non-empty expression for text source", idx)
+		}
+	case gotenberg.StampSourceImage, gotenberg.StampSourcePDF:
+		if stamp.File == "" {
+			return fmt.Errorf("entry %d requires a non-empty file for image or pdf source", idx)
+		}
+	default:
+		return fmt.Errorf("entry %d has invalid source '%s'", idx, stamp.Source)
+	}
+
+	return nil
+}
+
 // FormDataPdfSplitMode creates a [gotenberg.SplitMode] from the form data.
 func FormDataPdfSplitMode(form *api.FormData, mandatory bool) gotenberg.SplitMode {
 	var (
@@ -760,6 +785,41 @@ func FormDataPdfStamp(form *api.FormData, mandatory bool) gotenberg.Stamp {
 	return formDataPdfStampOrWatermark(form, "stamp", mandatory)
 }
 
+func formDataPdfBulkStamps(form *api.FormData, mandatory bool) []bulkStampSpec {
+	var stamps []bulkStampSpec
+
+	assign := func(value string) error {
+		if value == "" {
+			return nil
+		}
+
+		err := json.Unmarshal([]byte(value), &stamps)
+		if err != nil {
+			return fmt.Errorf("unmarshal stamps: %w", err)
+		}
+		if len(stamps) == 0 {
+			return errors.New("must contain at least one entry")
+		}
+
+		for i, stamp := range stamps {
+			err := validateBulkStampSpec(stamp, i)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	if mandatory {
+		form.MandatoryCustom("stamps", assign)
+	} else {
+		form.Custom("stamps", assign)
+	}
+
+	return stamps
+}
+
 func formDataPdfStampOrWatermark(form *api.FormData, prefix string, mandatory bool) gotenberg.Stamp {
 	var (
 		source     string
@@ -831,6 +891,12 @@ func FormDataPdfStampFile(form *api.FormData) string {
 	return path
 }
 
+func formDataPdfStampFiles(form *api.FormData) []string {
+	var paths []string
+	form.Stamps(&paths)
+	return paths
+}
+
 // EnsureStampFile validates that, when stamp.Source is image or pdf, an
 // uploaded stamp file was supplied, and replaces stamp.Expression with
 // uploadedFile in that case. Returning an [api] HTTP 400 error prevents
@@ -875,6 +941,73 @@ func EnsureWatermarkFile(watermark *gotenberg.Stamp, uploadedFile string) error 
 	return nil
 }
 
+func resolveBulkStamps(ctx *api.Context, bulkStamps []bulkStampSpec, uploadedPaths []string) ([]gotenberg.Stamp, error) {
+	stampPathsByName := make(map[string]string, len(uploadedPaths))
+	for _, path := range uploadedPaths {
+		filename := ctx.OriginalFilename(path)
+		if existing, ok := stampPathsByName[filename]; ok && existing != path {
+			return nil, api.WrapError(
+				fmt.Errorf("duplicate uploaded stamp filename '%s'", filename),
+				api.NewSentinelHttpError(
+					http.StatusBadRequest,
+					fmt.Sprintf("Invalid form data: duplicate stamp filename '%s'; use unique filenames for bulk stamps", filename),
+				),
+			)
+		}
+		stampPathsByName[filename] = path
+	}
+
+	resolved := make([]gotenberg.Stamp, len(bulkStamps))
+	for i, bulkStamp := range bulkStamps {
+		stamp := gotenberg.Stamp{
+			Source:     bulkStamp.Source,
+			Expression: bulkStamp.Expression,
+			Pages:      bulkStamp.Pages,
+			Options:    bulkStamp.Options,
+		}
+
+		switch bulkStamp.Source {
+		case gotenberg.StampSourceText:
+			if bulkStamp.Expression == "" {
+				return nil, api.WrapError(
+					errors.New("no stamp expression provided for text source"),
+					api.NewSentinelHttpError(
+						http.StatusBadRequest,
+						fmt.Sprintf("Invalid form data: bulk stamp entry %d requires a stamp expression for text source", i),
+					),
+				)
+			}
+		case gotenberg.StampSourceImage, gotenberg.StampSourcePDF:
+			if bulkStamp.File == "" {
+				return nil, api.WrapError(
+					errors.New("no stamp file provided for image or pdf source"),
+					api.NewSentinelHttpError(
+						http.StatusBadRequest,
+						fmt.Sprintf("Invalid form data: bulk stamp entry %d requires an uploaded stamp file for image or pdf source", i),
+					),
+				)
+			}
+
+			path, ok := stampPathsByName[bulkStamp.File]
+			if !ok {
+				return nil, api.WrapError(
+					fmt.Errorf("bulk stamp entry %d references unknown stamp file '%s'", i, bulkStamp.File),
+					api.NewSentinelHttpError(
+						http.StatusBadRequest,
+						fmt.Sprintf("Invalid form data: bulk stamp entry %d references unknown uploaded stamp file '%s'", i, bulkStamp.File),
+					),
+				)
+			}
+
+			stamp.Expression = path
+		}
+
+		resolved[i] = stamp
+	}
+
+	return resolved, nil
+}
+
 // WatermarkStub applies a watermark to a list of PDF files. If the stamp has
 // no source, it does nothing.
 func WatermarkStub(ctx *api.Context, engine gotenberg.PdfEngine, stamp gotenberg.Stamp, inputPaths []string) error {
@@ -886,6 +1019,24 @@ func WatermarkStub(ctx *api.Context, engine gotenberg.PdfEngine, stamp gotenberg
 		err := engine.Watermark(ctx, ctx.Log(), inputPath, stamp)
 		if err != nil {
 			return fmt.Errorf("watermark '%s': %w", inputPath, err)
+		}
+	}
+
+	return nil
+}
+
+// BulkStampStub applies a list of stamps to PDFs in the provided order.
+func BulkStampStub(ctx *api.Context, engine gotenberg.PdfEngine, stamps []gotenberg.Stamp, inputPaths []string) error {
+	if len(stamps) == 0 {
+		return nil
+	}
+
+	for _, inputPath := range inputPaths {
+		for i, stamp := range stamps {
+			err := engine.Stamp(ctx, ctx.Log(), inputPath, stamp)
+			if err != nil {
+				return fmt.Errorf("stamp '%s' entry %d: %w", inputPath, i, err)
+			}
 		}
 	}
 
@@ -1650,6 +1801,48 @@ func stampRoute(engine gotenberg.PdfEngine) api.Route {
 			}
 
 			err = StampStub(ctx, engine, stamp, inputPaths)
+			if err != nil {
+				return fmt.Errorf("stamp PDFs: %w", err)
+			}
+
+			err = ctx.AddOutputPaths(inputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
+			}
+
+			return nil
+		},
+	}
+}
+
+// bulkStampRoute returns an [api.Route] which can add multiple ordered stamps
+// to PDFs.
+func bulkStampRoute(engine gotenberg.PdfEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/stamp/bulk",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			form := ctx.FormData()
+			bulkStamps := formDataPdfBulkStamps(form, true)
+			stampFiles := formDataPdfStampFiles(form)
+
+			var inputPaths []string
+			err := form.
+				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			stamps, err := resolveBulkStamps(ctx, bulkStamps, stampFiles)
+			if err != nil {
+				return fmt.Errorf("validate bulk stamps: %w", err)
+			}
+
+			err = BulkStampStub(ctx, engine, stamps, inputPaths)
 			if err != nil {
 				return fmt.Errorf("stamp PDFs: %w", err)
 			}

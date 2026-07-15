@@ -479,6 +479,21 @@ func (form *FormData) Stamp(target *string) *FormData {
 	return form
 }
 
+// Stamps binds the absolute paths of the form data files that should be
+// used as stamp sources. Only files uploaded with the "stamp" field name
+// will be included.
+func (form *FormData) Stamps(target *[]string) *FormData {
+	if form.errors != nil {
+		return form
+	}
+
+	if paths, ok := form.filesByField[StampFormField]; ok {
+		*target = append(*target, paths...)
+	}
+
+	return form
+}
+
 // FacturXXml binds the absolute path of the uploaded Factur-X CII invoice
 // XML. Only a file uploaded with the "facturxXml" field name is included.
 func (form *FormData) FacturXXml(target *string) *FormData {
