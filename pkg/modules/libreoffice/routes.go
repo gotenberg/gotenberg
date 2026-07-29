@@ -15,6 +15,22 @@ import (
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/pdfengines"
 )
 
+func wrapUnoException(err error, options libreofficeapi.Options) error {
+	wrapped := fmt.Errorf("convert to PDF: %w", err)
+
+	if options.PageRanges == "" && options.Password == "" {
+		return wrapped
+	}
+
+	return api.WrapError(
+		wrapped,
+		api.NewSentinelHttpError(
+			http.StatusBadRequest,
+			fmt.Sprintf("LibreOffice failed to process a document: possible causes include malformed page ranges '%s' (nativePageRanges), or, if a password has been provided, it may not be required. In any case, the exact cause is uncertain.", options.PageRanges),
+		),
+	)
+}
+
 // convertRoute returns an [api.Route] which can convert LibreOffice documents
 // to PDF.
 func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) api.Route {
@@ -406,10 +422,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					}
 
 					if errors.Is(err, libreofficeapi.ErrUnoException) {
-						return api.WrapError(
-							fmt.Errorf("convert to PDF: %w", err),
-							api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("LibreOffice failed to process a document: possible causes include malformed page ranges '%s' (nativePageRanges), or, if a password has been provided, it may not be required. In any case, the exact cause is uncertain.", options.PageRanges)),
-						)
+						return wrapUnoException(err, options)
 					}
 
 					if errors.Is(err, libreofficeapi.ErrRuntimeException) {
