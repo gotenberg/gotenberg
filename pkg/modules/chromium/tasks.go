@@ -593,7 +593,15 @@ func waitForExpressionBeforePrintActionFunc(logger *slog.Logger, disableJavaScri
 				return fmt.Errorf("context done while evaluating '%s': %w", expression, ctx.Err())
 			case <-ticker.C:
 				var ok bool
-				evaluate := chromedp.Evaluate(expression, &ok)
+				// If the provided expression is a async function (thenable) it will be awaited
+				//   (async () => {
+				//		document.querySelector('#accept').click();
+				//		await new Promise(r => setTimeout(r, 2000));
+				//		return true;
+				//	})()
+				evaluate := chromedp.Evaluate(expression, &ok, func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
+					return p.WithAwaitPromise(true)
+				})
 
 				err := evaluate.Do(ctx)
 				if err != nil {
