@@ -1,6 +1,7 @@
 package webhook
 
 import (
+	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -107,10 +108,25 @@ func (w *Webhook) AsyncCount() int64 {
 	return w.asyncCount.Load()
 }
 
+// Validate checks the module's configuration.
+func (w *Webhook) Validate() error {
+	if !w.enableEnvironmentProxy {
+		return nil
+	}
+
+	err := gotenberg.ValidateEnvironmentProxyVariables()
+	if err != nil {
+		return fmt.Errorf("--webhook-enable-environment-proxy is set: %w", err)
+	}
+
+	return nil
+}
+
 // Interface guards.
 var (
 	_ gotenberg.Module        = (*Webhook)(nil)
 	_ gotenberg.Provisioner   = (*Webhook)(nil)
+	_ gotenberg.Validator     = (*Webhook)(nil)
 	_ api.MiddlewareProvider  = (*Webhook)(nil)
 	_ api.AsynchronousCounter = (*Webhook)(nil)
 )

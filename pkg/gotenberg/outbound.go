@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -186,6 +187,12 @@ type OutboundDecision struct {
 // outboundDecisionKey is the context key under which an [OutboundDecision]
 // is stored.
 type outboundDecisionKey struct{}
+
+// outboundProxiedKey is the context key under which [outboundRoundTripper]
+// records that the environment proxy will carry this request, so that the
+// dialer knows the address it receives is the proxy's rather than the
+// destination's.
+type outboundProxiedKey struct{}
 
 // decideConfig carries optional settings for [DecideOutbound] and
 // [FilterOutboundURL]. See [DecideOption] for how callers configure it.
@@ -364,6 +371,10 @@ type outboundRoundTripper struct {
 	allowList []*regexp2.Regexp
 	denyList  []*regexp2.Regexp
 	opts      []DecideOption
+
+	// proxyFunc mirrors the transport's own proxy resolution. It is nil unless
+	// the environment proxy is enabled.
+	proxyFunc func(*url.URL) (*url.URL, error)
 }
 
 // RoundTrip validates req.URL and delegates to the base transport.
@@ -379,6 +390,18 @@ func (rt *outboundRoundTripper) RoundTrip(req *http.Request) (*http.Response, er
 	}
 
 	ctx := context.WithValue(req.Context(), outboundDecisionKey{}, decision)
+
+	// A request the proxy will not carry is dialed directly, so it still gets
+	// pinned. Without this, enabling the environment proxy would silently drop
+	// DNS-rebinding protection for every NO_PROXY host, and for all traffic
+	// when no proxy variable is set at all.
+	if rt.proxyFunc != nil {
+		proxyURL, proxyErr := rt.proxyFunc(req.URL)
+		if proxyErr == nil && proxyURL != nil {
+			ctx = context.WithValue(ctx, outboundProxiedKey{}, true)
+		}
+	}
+
 	return rt.base.RoundTrip(req.WithContext(ctx))
 }
 
@@ -396,24 +419,34 @@ func (rt *outboundRoundTripper) RoundTrip(req *http.Request) (*http.Response, er
 //
 // When enableEnvironmentProxy is true, the client routes through the proxy
 // defined by the standard HTTP_PROXY, HTTPS_PROXY, and NO_PROXY variables,
-// including any credentials embedded in those URLs. In that mode the proxy
-// owns DNS and egress, so destination dial pinning does not apply; the URL
-// allow/deny and IP-class validation still runs. Callers gate this behind
-// their module's opt-in flag. See
+// including any credentials embedded in those URLs. Dial pinning does not apply
+// to a hop the proxy carries, since the proxy owns DNS and egress there; a hop
+// the proxy declines, such as a NO_PROXY host, is dialed directly and stays
+// pinned. The URL allow/deny and IP-class validation runs either way. Callers
+// gate this behind their module's opt-in flag. See
 // https://github.com/gotenberg/gotenberg/issues/1592.
 func NewOutboundHttpClient(timeout time.Duration, allowList, denyList []*regexp2.Regexp, enableEnvironmentProxy bool, opts ...DecideOption) *http.Client {
 	base := http.DefaultTransport.(*http.Transport).Clone()
 
+	var proxyFunc func(*url.URL) (*url.URL, error)
+
 	if enableEnvironmentProxy {
 		// Route through the operator's proxy (standard env vars, credentials
-		// included). NO_PROXY hosts get a direct, unpinned dial.
-		// httpproxy.FromEnvironment reads the environment now rather than
-		// caching it process-wide like http.ProxyFromEnvironment.
-		proxyFunc := httpproxy.FromEnvironment().ProxyFunc()
+		// included). httpproxy.FromEnvironment reads the environment now rather
+		// than caching it process-wide like http.ProxyFromEnvironment.
+		proxyFunc = httpproxy.FromEnvironment().ProxyFunc()
 		base.Proxy = func(req *http.Request) (*url.URL, error) {
 			return proxyFunc(req.URL)
 		}
-		base.DialContext = outboundDialer.DialContext
+		// Only a hop the proxy actually carries skips pinning: there the dial
+		// targets the proxy, not the destination, and the proxy owns DNS. A hop
+		// the proxy declines is dialed directly and stays pinned.
+		base.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			if proxied, _ := ctx.Value(outboundProxiedKey{}).(bool); proxied {
+				return outboundDialer.DialContext(ctx, network, addr)
+			}
+			return secureDialContext(ctx, network, addr)
+		}
 	} else {
 		// Default: ignore any proxy environment variables and pin the dial to
 		// the IPs resolved during validation, closing the DNS-rebinding
@@ -431,8 +464,58 @@ func NewOutboundHttpClient(timeout time.Duration, allowList, denyList []*regexp2
 			allowList: allowList,
 			denyList:  denyList,
 			opts:      opts,
+			proxyFunc: proxyFunc,
 		},
 	}
+}
+
+// environmentProxyVariables are the variables golang.org/x/net/http/httpproxy
+// reads, in the casing precedence it applies.
+var environmentProxyVariables = []string{
+	"HTTP_PROXY", "http_proxy",
+	"HTTPS_PROXY", "https_proxy",
+	"ALL_PROXY", "all_proxy",
+}
+
+// ValidateEnvironmentProxyVariables checks that every proxy variable currently
+// set can be parsed as a proxy URL.
+//
+// httpproxy discards a parse error and falls back to a direct connection, so an
+// operator who mistypes a proxy URL would silently lose the egress path they
+// meant to enforce. Modules exposing an environment proxy flag call this from
+// their Validate so that startup fails loudly instead.
+//
+// Values are never included in the error: a proxy URL may carry credentials.
+func ValidateEnvironmentProxyVariables() error {
+	var err error
+
+	for _, name := range environmentProxyVariables {
+		if os.Getenv(name) == "" {
+			continue
+		}
+
+		if !isUsableProxyURL(os.Getenv(name)) {
+			err = errors.Join(err, fmt.Errorf("environment variable %s is not a usable proxy URL; unset it, or set it to a value like 'http://user:password@host:3128'", name))
+		}
+	}
+
+	return err
+}
+
+// isUsableProxyURL mirrors httpproxy's own parsing: a URL with a proxy scheme,
+// or anything that becomes one once a scheme is prefixed.
+func isUsableProxyURL(value string) bool {
+	proxyURL, err := url.Parse(value)
+	if err == nil {
+		switch proxyURL.Scheme {
+		case "http", "https", "socks5", "socks5h":
+			return true
+		}
+	}
+
+	// httpproxy retries bare values such as "host:3128" with a scheme.
+	_, err = url.Parse("http://" + value)
+	return err == nil
 }
 
 // secureDialContext consumes the [OutboundDecision] stashed in ctx by
@@ -579,4 +662,15 @@ type bufferedConn struct {
 
 func (c *bufferedConn) Read(b []byte) (int, error) {
 	return c.r.Read(b)
+}
+
+// CloseWrite half-closes the underlying connection. Embedding [net.Conn] hides
+// the method, so a CONNECT splice over this connection could never signal EOF
+// to the upstream and both sides waited for the other until a timeout.
+func (c *bufferedConn) CloseWrite() error {
+	cw, ok := c.Conn.(interface{ CloseWrite() error })
+	if !ok {
+		return fmt.Errorf("underlying %T does not support half-close", c.Conn)
+	}
+	return cw.CloseWrite()
 }

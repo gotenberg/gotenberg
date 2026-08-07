@@ -380,6 +380,13 @@ func (a *Api) Validate() error {
 		err = errors.Join(err, errors.New("IP must be a valid IP address"))
 	}
 
+	if a.downloadFromCfg.enableEnvironmentProxy {
+		proxyErr := gotenberg.ValidateEnvironmentProxyVariables()
+		if proxyErr != nil {
+			err = errors.Join(err, fmt.Errorf("--api-download-from-enable-environment-proxy is set: %w", proxyErr))
+		}
+	}
+
 	if (a.tlsCertFile != "" && a.tlsKeyFile == "") || (a.tlsCertFile == "" && a.tlsKeyFile != "") {
 		err = errors.Join(err,
 			errors.New("both TLS certificate and key files must be set"),

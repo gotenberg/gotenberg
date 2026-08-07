@@ -669,6 +669,13 @@ func (mod *Chromium) Validate() error {
 		return fmt.Errorf("chromium-max-concurrency must be between 1 and 6, got %d", mod.maxConcurrency)
 	}
 
+	if mod.args.enableEnvironmentProxy {
+		proxyErr := gotenberg.ValidateEnvironmentProxyVariables()
+		if proxyErr != nil {
+			return fmt.Errorf("--chromium-enable-environment-proxy is set: %w", proxyErr)
+		}
+	}
+
 	_, err := os.Stat(mod.args.binPath)
 	if os.IsNotExist(err) {
 		return fmt.Errorf("Chromium binary does not exist at %q; check the CHROMIUM_BIN_PATH environment variable: %w", mod.args.binPath, err)

@@ -522,6 +522,13 @@ func (a *Api) Validate() error {
 		err = errors.Join(err, fmt.Errorf("unoconverter binary does not exist at %q; check the UNOCONVERTER_BIN_PATH environment variable: %w", a.args.unoBinPath, statErr))
 	}
 
+	if a.args.proxyOptions.enableEnvironmentProxy {
+		proxyErr := gotenberg.ValidateEnvironmentProxyVariables()
+		if proxyErr != nil {
+			err = errors.Join(err, fmt.Errorf("--libreoffice-enable-environment-proxy is set: %w", proxyErr))
+		}
+	}
+
 	return err
 }
 
