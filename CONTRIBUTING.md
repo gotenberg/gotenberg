@@ -121,20 +121,28 @@ Enforced by `gci`: standard library, then third-party, then `github.com/gotenber
 Every exported type and function has a Godoc comment starting with its identifier name:
 
 ```go
-// Violation records a single rule violation with context.
-type Violation struct { ... }
+// OutboundDecision is the result of validating an outbound URL via
+// [DecideOutbound]. ...
+type OutboundDecision struct { ... }
 
-// ValidatePDFA audits the document against a PDF/A profile.
-func ValidatePDFA(ctx context.Context, ...) ([]error, error)
+// DialPinned dials each addr in turn until one connects, returning the
+// first successful connection or the last error. ...
+func DialPinned(ctx context.Context, network string, addrs []netip.Addr, port string) (net.Conn, error)
 ```
 
-Each package should have a `doc.go` with a `// Package foo ...` comment.
+Each package should have a `doc.go` with a `// Package foo ...` comment:
+
+```go
+// Package api manages a LibreOffice instance via the UNO API.
+package api
+```
 
 Reference identifiers with `[Name]` brackets for pkg.go.dev linking:
 
 ```go
-// ValidatePDFA returns violations as []error where each element
-// is a [Violation] value. See [Rule] for the structured fields.
+// Callers pass the Pinned slice from [OutboundDecision] so that the dial
+// targets exactly the IPs that [DecideOutbound] resolved, preventing DNS
+// rebinding between validation and connect.
 ```
 
 ### Code comments
