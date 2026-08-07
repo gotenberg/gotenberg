@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -150,9 +149,16 @@ func outputFilenameMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			filename := c.Request().Header.Get("Gotenberg-Output-Filename")
+			// Keep only the last path segment, so that a caller cannot name an
+			// output file after a path.
 			// See https://github.com/gotenberg/gotenberg/issues/1227.
+			//
+			// [filepath.Base] alone is not enough: on Linux it does not treat a
+			// backslash as a separator, and this value reaches archive entry
+			// names. Use the same sanitizer as the other caller-supplied
+			// filenames.
 			if filename != "" {
-				filename = filepath.Base(filename)
+				filename = sanitizeFilename(filename)
 			}
 			c.Set("outputFilename", filename)
 			// Call the next middleware in the chain.

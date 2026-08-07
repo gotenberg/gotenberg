@@ -22,6 +22,17 @@ Feature: Output Filename
     Then there should be the following file(s) in the response:
       | foo.zip |
 
+  # See GHSA-hwc4-gmrw-5222.
+  Scenario: Windows Path As Filename
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/flatten" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf    | file   |
+      | Gotenberg-Output-Filename | C:\\Windows\\Temp\\foo | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+
   # See https://github.com/gotenberg/gotenberg/issues/1227.
   Scenario: Path As Filename
     Given I have a default Gotenberg container

@@ -813,8 +813,40 @@ Feature: /forms/chromium/convert/html
       """
 
   # See https://github.com/gotenberg/gotenberg/issues/1130.
+  # A backslash is not a path separator on Linux, so filepath.Base leaves it in
+  # place and it reaches the archive entry names. See GHSA-hwc4-gmrw-5222.
   @split
   @output-filename
+  Scenario: POST /forms/chromium/convert/html (Split Windows Path As Output Filename)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/pages-3-html/index.html   | file   |
+      | splitMode                 | intervals                          | field  |
+      | splitSpan                 | 2                                  | field  |
+      | Gotenberg-Output-Filename | ..\\..\\..\\Windows\\System32\\foo | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.zip   |
+      | foo_0.pdf |
+      | foo_1.pdf |
+
+  Scenario: POST /forms/chromium/convert/html (Split Rooted Windows Path As Output Filename)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/pages-3-html/index.html | file   |
+      | splitMode                 | intervals                        | field  |
+      | splitSpan                 | 2                                | field  |
+      | Gotenberg-Output-Filename | C:\\Windows\\Temp\\foo           | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.zip   |
+      | foo_0.pdf |
+      | foo_1.pdf |
+
   Scenario: POST /forms/chromium/convert/html (Split Output Filename)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
