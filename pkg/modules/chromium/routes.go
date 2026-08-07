@@ -24,6 +24,20 @@ import (
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/pdfengines"
 )
 
+// Bounds on the scoped extra HTTP headers feature. Chromium matches every
+// scoped header against every paused sub-resource request, so the total
+// matching work is the product of the header count and the sub-resource count.
+// These caps bound the factors the client controls; [scopeMatchBudget] bounds
+// the product. See https://github.com/gotenberg/gotenberg/issues/1588.
+const (
+	maxExtraHttpHeaders           = 64
+	maxExtraHttpHeaderScopeLength = 1024
+
+	// A scope pattern matches against a URL, which takes microseconds for any
+	// reasonable pattern.
+	extraHttpHeaderScopeMatchTimeout = 250 * time.Millisecond
+)
+
 var sameSiteRegexp = regexp2.MustCompile(
 	`("sameSite"\s*:\s*")(?i:(lax|strict|none))(")`,
 	regexp2.None,
@@ -169,6 +183,10 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 				return fmt.Errorf("unmarshal extraHttpHeaders: %w", err)
 			}
 
+			if len(headers) > maxExtraHttpHeaders {
+				return fmt.Errorf("too many headers, got %d, expected at most %d", len(headers), maxExtraHttpHeaders)
+			}
+
 			for k, v := range headers {
 				var scope string
 				var valueTokens []string
@@ -198,12 +216,17 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 
 				var scopeRegexp *regexp2.Regexp
 				if len(scope) > 0 {
+					if len(scope) > maxExtraHttpHeaderScopeLength {
+						err = errors.Join(err, fmt.Errorf("scope regex pattern for header '%s' is too long, got %d characters, expected at most %d", k, len(scope), maxExtraHttpHeaderScopeLength))
+						continue
+					}
+
 					p, errCompile := regexp2.Compile(scope, regexp2.None)
 					if errCompile != nil {
 						err = errors.Join(err, fmt.Errorf("invalid scope regex pattern for header '%s': %w", k, errCompile))
 						continue
 					}
-					p.MatchTimeout = 5 * time.Second
+					p.MatchTimeout = extraHttpHeaderScopeMatchTimeout
 					scopeRegexp = p
 				}
 

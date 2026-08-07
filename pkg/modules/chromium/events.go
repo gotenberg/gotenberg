@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/fetch"
@@ -61,6 +62,11 @@ func listenForEventRequestPaused(ctx context.Context, logger *slog.Logger, optio
 	} else {
 		logger.DebugContext(ctx, fmt.Sprintf("extra HTTP headers: %+v", options.extraHttpHeaders))
 	}
+
+	// Shared by every scope match of this conversion, across all paused
+	// requests. Its lifetime is the conversion, as this function is called once
+	// per conversion with that conversion's context.
+	budget := newScopeMatchBudget(scopeMatchBudgetPerConversion)
 
 	chromedp.ListenTarget(ctx, func(ev any) {
 		if e, ok := ev.(*fetch.EventRequestPaused); ok {
@@ -127,6 +133,14 @@ func listenForEventRequestPaused(ctx context.Context, logger *slog.Logger, optio
 					// First, we have to check if at least one header has to be
 					// set for the current request.
 					for _, header := range options.extraHttpHeaders {
+						// This goroutine outlives the response: nothing cancels an
+						// in-flight match, so stop as soon as the conversion is over.
+						select {
+						case <-ctx.Done():
+							return
+						default:
+						}
+
 						if header.Scope == nil {
 							// Non-scoped header.
 							logger.DebugContext(ctx, fmt.Sprintf("extra HTTP header '%s' will be set for request URL '%s'", header.Name, e.Request.URL))
@@ -134,7 +148,18 @@ func listenForEventRequestPaused(ctx context.Context, logger *slog.Logger, optio
 							continue
 						}
 
+						if !budget.tryAcquire() {
+							// Treat the remaining scoped headers as non-matching rather
+							// than spending more CPU on a request the client may already
+							// have given up on.
+							logger.WarnContext(ctx, fmt.Sprintf("scope matching budget of %s exhausted, extra HTTP header '%s' and any subsequent scoped header will not be set; simplify the 'scope' patterns or reduce the number of scoped headers", scopeMatchBudgetPerConversion, header.Name))
+							break
+						}
+
+						matchStart := time.Now()
 						ok, err := header.Scope.MatchString(e.Request.URL)
+						budget.consume(time.Since(matchStart))
+
 						switch {
 						case err != nil:
 							logger.ErrorContext(ctx, fmt.Sprintf("fail to match extra HTTP header '%s' scope with URL '%s': %s", header.Name, e.Request.URL, err))
