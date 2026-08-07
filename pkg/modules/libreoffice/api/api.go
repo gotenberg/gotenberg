@@ -33,11 +33,32 @@ var (
 	// formats option.
 	ErrInvalidPdfFormats = errors.New("invalid PDF formats")
 
-	// ErrUnoException happens when unoconverter returns exit code 5.
+	// ErrUnoException happens when unoconverter returns exit code 5. That code
+	// is the residual bucket of unoconverter's catch-all UNO exception handler:
+	// it covers a malformed page range, a password supplied to a document that
+	// does not need one, a failure to open the document and a failure to write
+	// the output alike. It names the exception class that was caught, not a
+	// cause. See https://github.com/gotenberg/gotenberg/issues/1588.
 	ErrUnoException = errors.New("uno exception")
 
 	// ErrRuntimeException happens when unoconverter returns exit code 6.
+	// unoconverter's own message for it reads "Office probably died", yet a
+	// wrong or missing password also surfaces there. Like [ErrUnoException], it
+	// does not establish who is at fault.
 	ErrRuntimeException = errors.New("runtime exception")
+
+	// ErrIoException happens when unoconverter returns exit code 3. LibreOffice
+	// could not read the source document.
+	ErrIoException = errors.New("io exception")
+
+	// ErrCannotConvertException happens when unoconverter returns exit code 4.
+	// LibreOffice read the document but could not convert it to PDF.
+	ErrCannotConvertException = errors.New("cannot convert exception")
+
+	// ErrIllegalArgumentException happens when unoconverter returns exit code
+	// 8. LibreOffice rejected the source document, usually because its contents
+	// do not match its extension.
+	ErrIllegalArgumentException = errors.New("illegal argument exception")
 
 	// ErrCoreDumped happens randomly; sometimes a conversion will work as
 	// expected, and some other time the same conversion will fail.
@@ -767,7 +788,10 @@ func conversionRequestAttributes(inputPath string, options Options) []attribute.
 // [gotenberg.ClassifyError].
 func libreofficeErrorType(err error) string {
 	switch {
-	case errors.Is(err, ErrInvalidPdfFormats):
+	case errors.Is(err, ErrInvalidPdfFormats),
+		errors.Is(err, ErrIoException),
+		errors.Is(err, ErrCannotConvertException),
+		errors.Is(err, ErrIllegalArgumentException):
 		return gotenberg.ErrorTypeInvalidInput
 	case errors.Is(err, ErrUnoException), errors.Is(err, ErrRuntimeException):
 		return "libreoffice_exception"

@@ -435,9 +435,11 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *slog.Logger, input
 		return nil
 	}
 
-	// LibreOffice's errors are not explicit.
-	// For instance, exit code 5 may be explained by a malformed page range
-	// but also by a not required password.
+	// LibreOffice's errors are not explicit: unoconverter derives its exit code
+	// from the UNO exception class it caught, not from a diagnosis. Exit codes
+	// 5 and 6 are ambiguous in particular, so the route decides the HTTP status
+	// from the request and the document rather than from the code alone.
+	// See https://github.com/gotenberg/gotenberg/issues/1588.
 
 	// We may want to retry in case of a core-dumped event.
 	// See https://github.com/gotenberg/gotenberg/issues/639.
@@ -445,13 +447,17 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *slog.Logger, input
 		return ErrCoreDumped
 	}
 
-	if exitCode == 5 {
-		// Potentially malformed page ranges or password not required.
+	switch exitCode {
+	case 3:
+		return ErrIoException
+	case 4:
+		return ErrCannotConvertException
+	case 5:
 		return ErrUnoException
-	}
-	if exitCode == 6 {
-		// Password potentially required or invalid.
+	case 6:
 		return ErrRuntimeException
+	case 8:
+		return ErrIllegalArgumentException
 	}
 
 	return fmt.Errorf("convert to PDF: %w", err)

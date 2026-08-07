@@ -15,6 +15,11 @@ import (
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/pdfengines"
 )
 
+// unattributableFailureMessage is returned when LibreOffice fails and no
+// client-supplied input is implicated. Its only format verb is the original
+// filename.
+const unattributableFailureMessage = "LibreOffice failed to convert the document '%s'. This is usually a resource issue: increase the container's memory and CPU, or reduce the document's size. The request is valid and may be retried."
+
 // convertRoute returns an [api.Route] which can convert LibreOffice documents
 // to PDF.
 func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) api.Route {
@@ -405,18 +410,50 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 						)
 					}
 
-					if errors.Is(err, libreofficeapi.ErrUnoException) {
+					filename := ctx.OriginalFilename(inputPath)
+
+					if errors.Is(err, libreofficeapi.ErrIoException) || errors.Is(err, libreofficeapi.ErrIllegalArgumentException) {
 						return api.WrapError(
 							fmt.Errorf("convert to PDF: %w", err),
-							api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("LibreOffice failed to process a document: possible causes include malformed page ranges '%s' (nativePageRanges), or, if a password has been provided, it may not be required. In any case, the exact cause is uncertain.", options.PageRanges)),
+							api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("LibreOffice could not read the document '%s'. Ensure the file is not corrupted and that its extension matches its actual format.", filename)),
 						)
 					}
 
-					if errors.Is(err, libreofficeapi.ErrRuntimeException) {
+					if errors.Is(err, libreofficeapi.ErrCannotConvertException) {
 						return api.WrapError(
 							fmt.Errorf("convert to PDF: %w", err),
-							api.NewSentinelHttpError(http.StatusBadRequest, "LibreOffice failed to process a document: a password may be required, or, if one has been given, it is invalid. In any case, the exact cause is uncertain."),
+							api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("LibreOffice read the document '%s' but could not convert it to PDF. The document may be corrupted or rely on an unsupported feature.", filename)),
 						)
+					}
+
+					// Exit codes 5 and 6 name the UNO exception class that was
+					// caught, not a cause: both cover a client mistake and a
+					// LibreOffice crash. Blame the client only when one of its
+					// inputs is actually implicated, since the server is the
+					// only remaining explanation otherwise. Password evidence
+					// outranks page ranges: a password failure aborts on import,
+					// before the export filter applies any page range.
+					// See https://github.com/gotenberg/gotenberg/issues/1588.
+					if errors.Is(err, libreofficeapi.ErrUnoException) || errors.Is(err, libreofficeapi.ErrRuntimeException) {
+						protection := libreofficeapi.DetectPasswordProtection(inputPath)
+
+						var sentinel api.SentinelHttpError
+						switch {
+						case protection == libreofficeapi.PasswordProtectionRequired && options.Password == "":
+							sentinel = api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("The document '%s' is password-protected. Provide its password in the 'password' form field.", filename))
+						case protection == libreofficeapi.PasswordProtectionRequired:
+							sentinel = api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("The password for the document '%s' is incorrect. Check the 'password' form field.", filename))
+						case protection == libreofficeapi.PasswordProtectionNone && options.Password != "":
+							sentinel = api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("The document '%s' is not password-protected. Remove the 'password' form field.", filename))
+						case options.Password != "":
+							sentinel = api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("LibreOffice could not open the document '%s' with the given password. Check the 'password' form field, and omit it if the document is not password-protected.", filename))
+						case errors.Is(err, libreofficeapi.ErrUnoException) && options.PageRanges != "":
+							sentinel = api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("LibreOffice could not apply the page ranges '%s' to the document '%s'. Check the 'nativePageRanges' form field; valid values look like '1-4', '2' or '1,3,5-7'.", options.PageRanges, filename))
+						default:
+							sentinel = api.NewSentinelHttpError(http.StatusInternalServerError, fmt.Sprintf(unattributableFailureMessage, filename))
+						}
+
+						return api.WrapError(fmt.Errorf("convert to PDF: %w", err), sentinel)
 					}
 
 					return fmt.Errorf("convert to PDF: %w", err)

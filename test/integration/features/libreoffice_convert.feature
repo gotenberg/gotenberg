@@ -88,7 +88,7 @@ Feature: /forms/libreoffice/convert
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      LibreOffice failed to process a document: a password may be required, or, if one has been given, it is invalid. In any case, the exact cause is uncertain.
+      The document 'protected_page_1.docx' is password-protected. Provide its password in the 'password' form field.
       """
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
       | files    | testdata/protected_page_1.docx | file  |
@@ -255,7 +255,7 @@ Feature: /forms/libreoffice/convert
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      LibreOffice failed to process a document: possible causes include malformed page ranges 'foo' (nativePageRanges), or, if a password has been provided, it may not be required. In any case, the exact cause is uncertain.
+      LibreOffice could not apply the page ranges 'foo' to the document 'page_1.docx'. Check the 'nativePageRanges' form field; valid values look like '1-4', '2' or '1,3,5-7'.
       """
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
       | files    | testdata/page_1.docx | file  |
@@ -264,7 +264,7 @@ Feature: /forms/libreoffice/convert
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      LibreOffice failed to process a document: possible causes include malformed page ranges '' (nativePageRanges), or, if a password has been provided, it may not be required. In any case, the exact cause is uncertain.
+      The document 'page_1.docx' is not password-protected. Remove the 'password' form field.
       """
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
       | files    | testdata/protected_page_1.docx | file  |
@@ -273,7 +273,7 @@ Feature: /forms/libreoffice/convert
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      LibreOffice failed to process a document: a password may be required, or, if one has been given, it is invalid. In any case, the exact cause is uncertain.
+      The password for the document 'protected_page_1.docx' is incorrect. Check the 'password' form field.
       """
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
       | files | testdata/page_1.docx | file  |
