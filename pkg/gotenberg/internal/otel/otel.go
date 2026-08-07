@@ -17,13 +17,18 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/exemplar"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 )
 
 // buildResource assembles the OpenTelemetry resource shared by the tracer,
 // meter, and logger providers. Detection is best-effort: a detector or merge
 // failure is logged and the build proceeds with whatever was gathered, so a
 // flaky environment never prevents telemetry from starting.
+//
+// The semconv version imported here must match the one the SDK resource
+// detectors use (go.opentelemetry.io/otel/sdk/resource). Drift makes
+// [resource.Merge] fail with [resource.ErrSchemaURLConflict] and strips the
+// schema URL off every exported signal.
 func buildResource(ctx context.Context, logger *slog.Logger, serviceName, serviceVersion string) *resource.Resource {
 	base := resource.NewWithAttributes(
 		semconv.SchemaURL,
@@ -55,9 +60,14 @@ func buildResource(ctx context.Context, logger *slog.Logger, serviceName, servic
 		return base
 	}
 
+	// A schema URL conflict still yields a resource holding every attribute, only
+	// without a schema URL. Keep it: falling back to base would drop the host,
+	// OS, container, process, and OTEL_RESOURCE_ATTRIBUTES data.
 	merged, err := resource.Merge(detected, base)
 	if err != nil {
 		logger.WarnContext(ctx, fmt.Sprintf("merge OpenTelemetry resource: %s", err))
+	}
+	if merged == nil {
 		return base
 	}
 

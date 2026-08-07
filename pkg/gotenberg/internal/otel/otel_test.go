@@ -11,7 +11,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/exemplar"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 )
 
 func TestBuildResource(t *testing.T) {
@@ -22,6 +22,13 @@ func TestBuildResource(t *testing.T) {
 	for _, kv := range res.Attributes() {
 		got[string(kv.Key)] = struct{}{}
 		values[string(kv.Key)] = kv.Value.AsString()
+	}
+
+	// Guards the semconv version pinned in buildResource against the one the SDK
+	// resource detectors use. Drift makes resource.Merge conflict and drops the
+	// schema URL from every exported signal.
+	if res.SchemaURL() != semconv.SchemaURL {
+		t.Errorf("resource schema URL = %q, want %q", res.SchemaURL(), semconv.SchemaURL)
 	}
 
 	if values[string(semconv.ServiceNameKey)] != "gotenberg" {
