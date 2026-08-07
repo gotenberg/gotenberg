@@ -308,7 +308,10 @@ func (engine *PdfCpu) ReadBookmarks(ctx context.Context, logger *slog.Logger, in
 	defer span.End()
 
 	tmpPath := fmt.Sprintf("%s.read.json", inputPath)
-	args := []string{"bookmarks", "export", inputPath, tmpPath}
+	// --force: without it, a leftover file from an interrupted run makes pdfcpu
+	// refuse, and the stale contents would then be read as this document's
+	// bookmarks.
+	args := []string{"bookmarks", "export", "--force", inputPath, tmpPath}
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
 	if err != nil {
 		err = fmt.Errorf("create command: %w", err)
@@ -456,7 +459,9 @@ func (engine *PdfCpu) WriteBookmarks(ctx context.Context, logger *slog.Logger, i
 		}
 	}()
 
-	args := []string{"bookmarks", "import", "--replace", inputPath, tmpPath, inputPath}
+	// --force: the output path is the input path, and pdfcpu refuses to
+	// overwrite an existing file without it.
+	args := []string{"bookmarks", "import", "--replace", "--force", inputPath, tmpPath, inputPath}
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
 	if err != nil {
 		err = fmt.Errorf("create command: %w", err)
@@ -559,8 +564,11 @@ func (engine *PdfCpu) Encrypt(ctx context.Context, logger *slog.Logger, inputPat
 		perm = "none"
 	}
 
-	args := make([]string, 0, 11)
+	args := make([]string, 0, 12)
 	args = append(args, "encrypt")
+	// --force: the output path is the input path, and pdfcpu refuses to
+	// overwrite an existing file without it.
+	args = append(args, "--force")
 	args = append(args, "--mode", "aes")
 	args = append(args, "--upw", opts.UserPassword)
 	args = append(args, "--opw", ownerPassword)
@@ -633,7 +641,9 @@ func (engine *PdfCpu) Rotate(ctx context.Context, logger *slog.Logger, inputPath
 	)
 	defer span.End()
 
-	args := []string{"rotate"}
+	// --force: the output path is the input path, and pdfcpu refuses to
+	// overwrite an existing file without it.
+	args := []string{"rotate", "--force"}
 	if pages != "" {
 		args = append(args, "--pages", pages)
 	}
@@ -679,7 +689,9 @@ func (engine *PdfCpu) applyStampOrWatermark(ctx context.Context, logger *slog.Lo
 	}
 	description := strings.Join(descParts, ", ")
 
-	args := []string{command, "add", "--mode", mode}
+	// --force: the output path is the input path, and pdfcpu refuses to
+	// overwrite an existing file without it.
+	args := []string{command, "add", "--mode", mode, "--force"}
 
 	if stamp.Pages != "" {
 		args = append(args, "--pages", stamp.Pages)
