@@ -454,7 +454,7 @@ func (engine *QPdf) EmbedFilesMetadata(ctx context.Context, logger *slog.Logger,
 		return err
 	}
 
-	catalogRef, catalogValue, filespecRefs, updateObjects := patchFilespecMetadata(logger, objects, metadata)
+	catalogRef, catalogValue, filespecRefs, updateObjects := patchFilespecMetadata(ctx, logger, objects, metadata)
 	if len(filespecRefs) == 0 {
 		span.SetStatus(codes.Ok, "")
 		return nil
@@ -506,7 +506,7 @@ func parsePdfObjects(output []byte) (map[string]json.RawMessage, error) {
 // metadata keys. It sets /AFRelationship and /Subtype on matching objects
 // and returns the catalog reference, catalog value, filespec references,
 // and the update objects map.
-func patchFilespecMetadata(logger *slog.Logger, objects map[string]json.RawMessage, metadata map[string]map[string]string) (string, map[string]any, []string, map[string]any) {
+func patchFilespecMetadata(ctx context.Context, logger *slog.Logger, objects map[string]json.RawMessage, metadata map[string]map[string]string) (string, map[string]any, []string, map[string]any) {
 	updateObjects := make(map[string]any)
 	var catalogRef string
 	var catalogValue map[string]any
@@ -556,7 +556,7 @@ func patchFilespecMetadata(logger *slog.Logger, objects map[string]json.RawMessa
 				if ef, ok := value["/EF"].(map[string]any); ok {
 					efRef, _ := ef["/F"].(string)
 					if efRef != "" {
-						setStreamSubtype(logger, objects, updateObjects, efRef, mimeType)
+						setStreamSubtype(ctx, logger, objects, updateObjects, efRef, mimeType)
 					}
 				}
 			}
@@ -653,38 +653,38 @@ func (engine *QPdf) writeAndApplyUpdate(ctx context.Context, logger *slog.Logger
 
 // setStreamSubtype finds a stream object by reference and sets the /Subtype
 // key in its dict.
-func setStreamSubtype(logger *slog.Logger, objects map[string]json.RawMessage, updateObjects map[string]any, ref, mimeType string) {
+func setStreamSubtype(ctx context.Context, logger *slog.Logger, objects map[string]json.RawMessage, updateObjects map[string]any, ref, mimeType string) {
 	objKey := ref
 	if !strings.HasPrefix(objKey, "obj:") {
 		objKey = "obj:" + objKey
 	}
 	raw, ok := objects[objKey]
 	if !ok {
-		logger.Warn(fmt.Sprintf("set stream subtype on %s: object not found", ref))
+		logger.WarnContext(ctx, fmt.Sprintf("set stream subtype on %s: object not found", ref))
 		return
 	}
 
 	var obj map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &obj); err != nil {
-		logger.Warn(fmt.Sprintf("set stream subtype on %s: unmarshal object: %s", ref, err))
+		logger.WarnContext(ctx, fmt.Sprintf("set stream subtype on %s: unmarshal object: %s", ref, err))
 		return
 	}
 
 	streamRaw, ok := obj["stream"]
 	if !ok {
-		logger.Warn(fmt.Sprintf("set stream subtype on %s: no stream key", ref))
+		logger.WarnContext(ctx, fmt.Sprintf("set stream subtype on %s: no stream key", ref))
 		return
 	}
 
 	var stream map[string]any
 	if err := json.Unmarshal(streamRaw, &stream); err != nil {
-		logger.Warn(fmt.Sprintf("set stream subtype on %s: unmarshal stream: %s", ref, err))
+		logger.WarnContext(ctx, fmt.Sprintf("set stream subtype on %s: unmarshal stream: %s", ref, err))
 		return
 	}
 
 	dict, ok := stream["dict"].(map[string]any)
 	if !ok {
-		logger.Warn(fmt.Sprintf("set stream subtype on %s: stream dict is not a map", ref))
+		logger.WarnContext(ctx, fmt.Sprintf("set stream subtype on %s: stream dict is not a map", ref))
 		return
 	}
 

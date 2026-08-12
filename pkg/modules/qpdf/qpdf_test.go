@@ -1,6 +1,7 @@
 package qpdf
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"os"
@@ -99,7 +100,7 @@ func TestPatchFilespecMetadata(t *testing.T) {
 			"factur-x.xml": {"relationship": "Data"},
 		}
 
-		catalogRef, _, filespecRefs, updateObjects := patchFilespecMetadata(logger, objects, metadata)
+		catalogRef, _, filespecRefs, updateObjects := patchFilespecMetadata(context.Background(), logger, objects, metadata)
 
 		if catalogRef != "obj:1 0 R" {
 			t.Errorf("catalogRef = %q, want %q", catalogRef, "obj:1 0 R")
@@ -125,7 +126,7 @@ func TestPatchFilespecMetadata(t *testing.T) {
 			"factur-x.xml": {"relationship": "Data"},
 		}
 
-		_, _, filespecRefs, _ := patchFilespecMetadata(logger, objects, metadata)
+		_, _, filespecRefs, _ := patchFilespecMetadata(context.Background(), logger, objects, metadata)
 		if len(filespecRefs) != 0 {
 			t.Errorf("filespecRefs = %v, want empty", filespecRefs)
 		}
@@ -139,7 +140,7 @@ func TestPatchFilespecMetadata(t *testing.T) {
 			"factur-x.xml": {"relationship": "Alternative"},
 		}
 
-		_, _, filespecRefs, updateObjects := patchFilespecMetadata(logger, objects, metadata)
+		_, _, filespecRefs, updateObjects := patchFilespecMetadata(context.Background(), logger, objects, metadata)
 		if len(filespecRefs) != 1 {
 			t.Fatalf("filespecRefs = %v, want 1 entry", filespecRefs)
 		}
@@ -158,7 +159,7 @@ func TestPatchFilespecMetadata(t *testing.T) {
 			"factur-x.xml": {"mimeType": "text/xml"},
 		}
 
-		_, _, _, updateObjects := patchFilespecMetadata(logger, objects, metadata)
+		_, _, _, updateObjects := patchFilespecMetadata(context.Background(), logger, objects, metadata)
 		streamObj, ok := updateObjects["obj:3 0 R"]
 		if !ok {
 			t.Fatal("expected obj:3 0 R in updateObjects")
@@ -223,7 +224,7 @@ func TestSetStreamSubtype(t *testing.T) {
 		}
 		updateObjects := make(map[string]any)
 
-		setStreamSubtype(logger, objects, updateObjects, "obj:3 0 R", "text/xml")
+		setStreamSubtype(context.Background(), logger, objects, updateObjects, "obj:3 0 R", "text/xml")
 
 		streamObj := updateObjects["obj:3 0 R"].(map[string]any)["stream"].(map[string]any)
 		dict := streamObj["dict"].(map[string]any)
@@ -238,7 +239,7 @@ func TestSetStreamSubtype(t *testing.T) {
 		}
 		updateObjects := make(map[string]any)
 
-		setStreamSubtype(logger, objects, updateObjects, "5 0 R", "application/pdf")
+		setStreamSubtype(context.Background(), logger, objects, updateObjects, "5 0 R", "application/pdf")
 
 		if _, ok := updateObjects["obj:5 0 R"]; !ok {
 			t.Error("expected obj:5 0 R in updateObjects")
@@ -249,7 +250,7 @@ func TestSetStreamSubtype(t *testing.T) {
 		objects := map[string]json.RawMessage{}
 		updateObjects := make(map[string]any)
 
-		setStreamSubtype(logger, objects, updateObjects, "obj:99 0 R", "text/xml")
+		setStreamSubtype(context.Background(), logger, objects, updateObjects, "obj:99 0 R", "text/xml")
 
 		if len(updateObjects) != 0 {
 			t.Error("expected no updates for missing object")
@@ -262,7 +263,7 @@ func TestSetStreamSubtype(t *testing.T) {
 		}
 		updateObjects := make(map[string]any)
 
-		setStreamSubtype(logger, objects, updateObjects, "obj:3 0 R", "text/xml")
+		setStreamSubtype(context.Background(), logger, objects, updateObjects, "obj:3 0 R", "text/xml")
 
 		if len(updateObjects) != 0 {
 			t.Error("expected no updates for non-stream object")
