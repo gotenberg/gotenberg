@@ -2,6 +2,22 @@
 @chromium-screenshot-html
 Feature: /forms/chromium/screenshot/html
 
+  # Route parity: the WebSocket outbound filter lives in the shared browser
+  # code path, so the screenshot route enforces it exactly like conversion.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/screenshot/html (WebSocket to a non-public address is filtered)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST       |      |
+      | CHROMIUM_DENY_PRIVATE_IPS | true |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/screenshot/html" endpoint with the following form data and header(s):
+      | files     | testdata/ssrf-websocket-html/index.html | file  |
+      | waitDelay | 1s                                      | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "image/png"
+    Then the Gotenberg container should log the following entries:
+      | 'ws://127.0.0.1:9999/ssrf-websocket' targets a non-public address |
+      | CONNECT blocked for '127.0.0.1:9999'                              |
+
   Scenario: POST /forms/chromium/screenshot/html (Default)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/screenshot/html" endpoint with the following form data and header(s):

@@ -181,6 +181,12 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 		}
 		return c.HTML(http.StatusOK, string(b))
 	})
+	srv.GET("/redirect-to-private", func(c echo.Context) error {
+		s.req = c.Request()
+		// Redirect the browser to a non-public address so the outbound filter
+		// is exercised on the redirected request rather than on this URL.
+		return c.Redirect(http.StatusFound, "http://127.0.0.1:9999/redirected")
+	})
 
 	return s, nil
 }

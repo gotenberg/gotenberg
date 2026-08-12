@@ -44,6 +44,54 @@ func listenForNetworkActivity(ctx context.Context, aggregate *networkAggregate) 
 	})
 }
 
+type eventWebSocketCreatedOptions struct {
+	allowList, denyList []*regexp2.Regexp
+	denyPrivateIPs      bool
+	denyPublicIPs       bool
+}
+
+// listenForEventWebSocketCreated validates the target of every WebSocket
+// handshake against the same allow / deny lists and IP-class policy as
+// [listenForEventRequestPaused]. Chromium never surfaces a WebSocket
+// handshake as a fetch.EventRequestPaused, so without this listener a page
+// could open a WebSocket to an address the outbound filter would otherwise
+// block. See https://github.com/gotenberg/gotenberg/issues/1011.
+//
+// This listener records an operator-visible warning with the full ws:// URL.
+// The connection itself is severed by the pinning proxy, which every
+// WebSocket handshake traverses once the implicit loopback / link-local proxy
+// bypass is removed (see the "<-loopback>" flag in browser.go). When the
+// operator configures a custom proxy or host-resolver mappings, the pinning
+// proxy is not started; the WebSocket then follows the operator's egress path
+// and this warning is the remaining safeguard, since a WebSocket handshake
+// cannot be aborted through the CDP Network domain.
+func listenForEventWebSocketCreated(ctx context.Context, logger *slog.Logger, options eventWebSocketCreatedOptions) {
+	chromedp.ListenTarget(ctx, func(ev any) {
+		e, ok := ev.(*network.EventWebSocketCreated)
+		if !ok {
+			return
+		}
+
+		go func() {
+			logger.DebugContext(ctx, fmt.Sprintf("event EventWebSocketCreated fired for '%s'", e.URL))
+
+			deadline, ok := ctx.Deadline()
+			if !ok {
+				logger.ErrorContext(ctx, "context has no deadline, cannot filter WebSocket URL")
+				return
+			}
+
+			err := gotenberg.FilterOutboundURL(ctx, e.URL, options.allowList, options.denyList, deadline,
+				gotenberg.WithDenyPrivateIPs(options.denyPrivateIPs),
+				gotenberg.WithDenyPublicIPs(options.denyPublicIPs),
+			)
+			if err != nil {
+				logger.WarnContext(ctx, err.Error())
+			}
+		}()
+	})
+}
+
 type eventRequestPausedOptions struct {
 	allowList, denyList []*regexp2.Regexp
 	denyPrivateIPs      bool

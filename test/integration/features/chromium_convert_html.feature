@@ -416,6 +416,87 @@ Feature: /forms/chromium/convert/html
     Then the Gotenberg container should log the following entries:
       | 'file:///etc/passwd' matches the expression from the denied list |
 
+  # Control for the WebSocket scenario below. An ordinary fetch to a loopback
+  # address is surfaced as a Fetch.requestPaused event, so it is blocked by
+  # CHROMIUM_DENY_PRIVATE_IPS and the block is logged. The allow-list is
+  # cleared because a matching allow-list entry bypasses the IP-based check.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/html (Fetch to a non-public address is filtered)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST       |      |
+      | CHROMIUM_DENY_PRIVATE_IPS | true |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/ssrf-fetch-html/index.html | file  |
+      | waitDelay | 1s                                  | field |
+    Then the response status code should be 200
+    Then the Gotenberg container should log the following entries:
+      | 'http://127.0.0.1:9999/ssrf-fetch' targets a non-public address |
+
+  # A WebSocket handshake is never surfaced as a Fetch.requestPaused event, so
+  # it escapes the filter in listenForEventRequestPaused. The page opens
+  # WebSockets to two non-public addresses (loopback and the link-local cloud
+  # metadata IP). listenForEventWebSocketCreated logs each disallowed handshake
+  # with its full ws:// URL (detection), and the pinning proxy severs the
+  # connection now that the implicit loopback bypass is removed (enforcement).
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/html (WebSocket to a non-public address is filtered)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST       |      |
+      | CHROMIUM_DENY_PRIVATE_IPS | true |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/ssrf-websocket-html/index.html | file  |
+      | waitDelay | 1s                                      | field |
+    Then the response status code should be 200
+    Then the Gotenberg container should log the following entries:
+      | 'ws://127.0.0.1:9999/ssrf-websocket' targets a non-public address |
+      | CONNECT blocked for '127.0.0.1:9999'                              |
+
+  # A Web Worker is a separate CDP target, so its WebSocket handshake is not
+  # observed by listenForEventWebSocketCreated. Enforcement must not depend on
+  # that listener: the pinning proxy sees the handshake and severs it whatever
+  # the originating context. Only the proxy's block is asserted, since no
+  # detection log is produced for the worker target.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/html (WebSocket from a Web Worker is filtered)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST       |      |
+      | CHROMIUM_DENY_PRIVATE_IPS | true |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/ssrf-websocket-worker-html/index.html | file  |
+      | waitDelay | 1s                                             | field |
+    Then the response status code should be 200
+    Then the Gotenberg container should log the following entries:
+      | CONNECT blocked for '127.0.0.1:9999' |
+
+  # wss:// (TLS) handshakes tunnel through the proxy via CONNECT, the same path
+  # as ws://, and must be filtered identically.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/html (Secure WebSocket to a non-public address is filtered)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST       |      |
+      | CHROMIUM_DENY_PRIVATE_IPS | true |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/ssrf-websocket-tls-html/index.html | file  |
+      | waitDelay | 1s                                          | field |
+    Then the response status code should be 200
+    Then the Gotenberg container should log the following entries:
+      | 'wss://127.0.0.1:9999/wss-test' targets a non-public address |
+      | CONNECT blocked for '127.0.0.1:9999'                         |
+
+  # EventSource issues an ordinary HTTP GET, so unlike a WebSocket it IS surfaced
+  # as a fetch.EventRequestPaused and blocked by listenForEventRequestPaused.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/html (EventSource to a non-public address is filtered)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST       |      |
+      | CHROMIUM_DENY_PRIVATE_IPS | true |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/ssrf-eventsource-html/index.html | file  |
+      | waitDelay | 1s                                        | field |
+    Then the response status code should be 200
+    Then the Gotenberg container should log the following entries:
+      | 'http://127.0.0.1:9999/sse' targets a non-public address |
+
   Scenario: POST /forms/chromium/convert/html (Main URL does NOT match allowed list)
     Given I have a Gotenberg container with the following environment variable(s):
       | CHROMIUM_ALLOW_LIST | ^file:(?!//\\/tmp/).* |

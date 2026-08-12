@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>WebSocket SSRF</title>
+  </head>
+  <body>
+    <h1>WebSocket SSRF</h1>
+    <script type="application/javascript">
+      // Both targets resolve to non-public addresses, so CHROMIUM_DENY_PRIVATE_IPS
+      // must block them. Unlike fetch/XHR/sub-resources, a WebSocket handshake is
+      // never surfaced as a Fetch.requestPaused event, so it currently escapes the
+      // outbound filter entirely.
+      //   127.0.0.1       -> loopback
+      //   169.254.169.254 -> link-local (cloud metadata)
+      new WebSocket("ws://127.0.0.1:9999/ssrf-websocket");
+      new WebSocket("ws://169.254.169.254:80/ssrf-websocket");
+    </script>
+  </body>
+</html>

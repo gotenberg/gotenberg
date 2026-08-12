@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Worker WebSocket SSRF</title>
+  </head>
+  <body>
+    <h1>Worker WebSocket SSRF</h1>
+    <script type="application/javascript">
+      // A Web Worker is a separate CDP target, so its WebSocket handshake is
+      // not observed by listenForEventWebSocketCreated (which listens on the
+      // page target). Enforcement must therefore not rely on that listener:
+      // the pinning proxy sees every handshake regardless of the originating
+      // context and severs the connection.
+      const source =
+        'new WebSocket("ws://127.0.0.1:9999/ws-from-worker");' +
+        'new WebSocket("ws://169.254.169.254:80/ws-from-worker-metadata");';
+      const blob = new Blob([source], { type: "application/javascript" });
+      new Worker(URL.createObjectURL(blob));
+    </script>
+  </body>
+</html>

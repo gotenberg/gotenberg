@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>WSS SSRF</title>
+  </head>
+  <body>
+    <h1>WSS SSRF</h1>
+    <script type="application/javascript">
+      // wss:// (TLS) handshakes tunnel through the proxy via CONNECT, the same
+      // path as ws://, and must be filtered identically.
+      new WebSocket("wss://127.0.0.1:9999/wss-test");
+    </script>
+  </body>
+</html>

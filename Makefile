@@ -147,6 +147,7 @@ NO_CONCURRENCY=false
 # chromium-screenshot-html
 # chromium-screenshot-markdown
 # chromium-screenshot-url
+# chromium-ssrf
 # debug
 # health
 # libreoffice

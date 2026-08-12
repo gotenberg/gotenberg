@@ -179,6 +179,28 @@ func (b *chromiumBrowser) Start(logger *slog.Logger) error {
 			return fmt.Errorf("start pinning proxy: %w", err)
 		}
 		opts = append(opts, chromedp.ProxyServer(b.pinningProxy.URL()))
+
+		if b.arguments.denyPrivateIPs || b.arguments.denyPublicIPs {
+			// Chromium implicitly bypasses the proxy for loopback and
+			// link-local destinations. A WebSocket handshake is never surfaced
+			// as a fetch.EventRequestPaused, so listenForEventRequestPaused
+			// cannot filter it; the pinning proxy is the only layer that sees
+			// it. Left alone, a page could open a WebSocket to 127.0.0.1, ::1,
+			// localhost, or the link-local cloud metadata endpoint
+			// (169.254.169.254) and reach it unfiltered. "<-loopback>" removes
+			// the implicit bypass so those handshakes also traverse the pinning
+			// proxy and go through [gotenberg.DecideOutbound] like every other
+			// request.
+			//
+			// Gated on the IP-class policy: it is the control this closes, and
+			// under it loopback and link-local HTTP sub-resources are already
+			// blocked by listenForEventRequestPaused before they would reach
+			// the proxy, so this adds only the missing WebSocket coverage. When
+			// the policy is off, loopback is not restricted, and routing it
+			// through the proxy would merely change how an unreachable loopback
+			// sub-resource reports its failure.
+			opts = append(opts, chromedp.Flag("proxy-bypass-list", "<-loopback>"))
+		}
 	}
 
 	// See https://github.com/gotenberg/gotenberg/issues/524.
@@ -432,6 +454,17 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 		denyPublicIPs:       b.arguments.denyPublicIPs,
 		allowedFilePrefixes: options.AllowedFilePrefixes,
 		extraHttpHeaders:    options.ExtraHttpHeaders,
+	})
+
+	// WebSocket handshakes never surface as fetch.EventRequestPaused, so
+	// listenForEventRequestPaused above cannot filter them. Validate them
+	// against the same allow / deny lists and IP-class policy.
+	// See https://github.com/gotenberg/gotenberg/issues/1011.
+	listenForEventWebSocketCreated(taskCtx, logger, eventWebSocketCreatedOptions{
+		allowList:      b.arguments.allowList,
+		denyList:       b.arguments.denyList,
+		denyPrivateIPs: b.arguments.denyPrivateIPs,
+		denyPublicIPs:  b.arguments.denyPublicIPs,
 	})
 
 	var (

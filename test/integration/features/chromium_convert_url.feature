@@ -499,6 +499,7 @@ Feature: /forms/chromium/convert/url
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
 
+  @chromium-ssrf
   Scenario: POST /forms/chromium/convert/url (Main URL is a non-public IP literal, deny-private-ips on)
     Given I have a Gotenberg container with the following environment variable(s):
       | CHROMIUM_ALLOW_LIST       |      |
@@ -511,6 +512,55 @@ Feature: /forms/chromium/convert/url
       """
       Forbidden
       """
+
+  # IPv6 loopback literal is parsed as an IP and rejected by the IP-class check,
+  # like the IPv4 loopback literal above.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/url (Main URL is an IPv6 loopback literal, deny-private-ips on)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST       |      |
+      | CHROMIUM_DENY_PRIVATE_IPS | true |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url | http://[::1]/ | field |
+    Then the response status code should be 403
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Forbidden
+      """
+
+  # An alternate IP encoding (decimal for 127.0.0.1) that Chromium would read
+  # as loopback but the resolver rejects as a hostname. It must fail closed as
+  # filtered (a generic 403), not surface as a 500.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/url (Main URL is a decimal-encoded loopback IP, deny-private-ips on)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST       |      |
+      | CHROMIUM_DENY_PRIVATE_IPS | true |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url | http://2130706433/ | field |
+    Then the response status code should be 403
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Forbidden
+      """
+
+  # A classic SSRF vector: an allow-listed URL that redirects to an internal
+  # address. The redirected request must not inherit the initial URL's
+  # allow-list pass. listenForEventRequestPaused re-validates it; it does not
+  # match the allow-list, so it is blocked (Chromium reports ERR_ACCESS_DENIED
+  # and the conversion renders the resulting error page).
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/url (Redirect to a non-allow-listed address is re-filtered)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST | ^https?://host.docker.internal.* |
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url | http://host.docker.internal:%d/redirect-to-private | field |
+    Then the response status code should be 200
+    Then the Gotenberg container should log the following entries:
+      | 'http://127.0.0.1:9999/redirected' does not match any expression from the allowed list |
 
   Scenario: POST /forms/chromium/convert/url (Main URL resolves to a non-public IP, deny-private-ips on with allow-list bypass)
     Given I have a Gotenberg container with the following environment variable(s):
