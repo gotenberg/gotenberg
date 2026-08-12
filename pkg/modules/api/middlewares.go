@@ -86,13 +86,37 @@ func ParseError(err error) (int, string) {
 	return http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError)
 }
 
+// statusClientClosedRequest is the non-standard 499 status (nginx convention)
+// recorded when the client aborts the request before it completes. It keeps
+// such outcomes out of the 5xx range in the access log and Prometheus metrics.
+const statusClientClosedRequest = 499
+
+// requestCanceled reports whether err is the result of the client aborting the
+// request rather than a server-side failure. It requires both that err wraps
+// [context.Canceled] and that the request context itself was canceled, so a
+// context.Canceled originating elsewhere still surfaces as an internal error.
+// A server-side timeout is [context.DeadlineExceeded], mapped to 503 by
+// [ParseError], and is deliberately not treated as a client abort.
+// See https://github.com/gotenberg/gotenberg/issues/1627.
+func requestCanceled(c echo.Context, err error) bool {
+	return errors.Is(err, context.Canceled) && errors.Is(c.Request().Context().Err(), context.Canceled)
+}
+
 // httpErrorHandler is the centralized HTTP error handler. It parses the error,
 // returns a response as "text/plain; charset=UTF-8".
 func httpErrorHandler() echo.HTTPErrorHandler {
 	return func(err error, c echo.Context) {
 		logger := c.Get("logger").(*slog.Logger)
-		status, message := ParseError(err)
 
+		if requestCanceled(c, err) {
+			// The client is gone, so writing a body would only fail and add
+			// noise. Record the status so the access log and metrics classify
+			// it as a client abort rather than an internal error.
+			c.Response().WriteHeader(statusClientClosedRequest)
+			return
+		}
+
+		status, message := ParseError(err)
 		c.Response().Header().Add(echo.HeaderContentType, echo.MIMETextPlainCharsetUTF8)
 
 		err = c.String(status, message)
@@ -263,9 +287,15 @@ func telemetryMiddleware(logger *slog.Logger, serverName, correlationIdHeader st
 			finishTime := time.Now()
 
 			status := c.Response().Status
+			canceled := false
 			if err != nil {
-				parsedStatus, _ := ParseError(err)
-				status = parsedStatus
+				canceled = requestCanceled(c, err)
+				if canceled {
+					status = statusClientClosedRequest
+				} else {
+					parsedStatus, _ := ParseError(err)
+					status = parsedStatus
+				}
 
 				span.SetAttributes(attribute.String("error", err.Error()))
 				c.Error(err)
@@ -293,10 +323,15 @@ func telemetryMiddleware(logger *slog.Logger, serverName, correlationIdHeader st
 				With(slog.Int64("bytes_in", c.Request().ContentLength)).
 				With(slog.Int64("bytes_out", c.Response().Size))
 
-			if err != nil {
-				accessLogger.ErrorContext(ctx, err.Error())
-			} else {
+			switch {
+			case err == nil:
 				accessLogger.InfoContext(ctx, "request handled")
+			case canceled:
+				// A client abort is expected, not a server failure; keep it
+				// visible but out of the error stream.
+				accessLogger.InfoContext(ctx, err.Error())
+			default:
+				accessLogger.ErrorContext(ctx, err.Error())
 			}
 
 			additionalAttributes := []attribute.KeyValue{

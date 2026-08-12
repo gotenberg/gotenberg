@@ -1,6 +1,10 @@
 package api
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -9,6 +13,70 @@ import (
 
 	"github.com/labstack/echo/v4"
 )
+
+// TestRequestCanceled pins the client-abort discriminator: only a
+// context.Canceled that stems from the request context counts, so a server
+// timeout or an unrelated cancellation still surfaces as an internal failure.
+// See https://github.com/gotenberg/gotenberg/issues/1627.
+func TestRequestCanceled(t *testing.T) {
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	timedOut, cancelTimeout := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancelTimeout()
+
+	for _, tc := range []struct {
+		name   string
+		reqCtx context.Context
+		err    error
+		want   bool
+	}{
+		{"client abort", canceled, context.Canceled, true},
+		{"wrapped client abort", canceled, fmt.Errorf("convert to PDF: %w", context.Canceled), true},
+		{"canceled error but live request", context.Background(), context.Canceled, false},
+		{"canceled request but unrelated error", canceled, errors.New("boom"), false},
+		{"server timeout is not a client abort", timedOut, context.DeadlineExceeded, false},
+		{"no error", canceled, nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/", nil).WithContext(tc.reqCtx)
+			c := echo.New().NewContext(req, httptest.NewRecorder())
+			if got := requestCanceled(c, tc.err); got != tc.want {
+				t.Fatalf("requestCanceled = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestHttpErrorHandler_ClientClosedRequest ensures a client abort is recorded
+// as 499 rather than 500, and that a genuine failure keeps its status.
+func TestHttpErrorHandler_ClientClosedRequest(t *testing.T) {
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	for _, tc := range []struct {
+		name       string
+		reqCtx     context.Context
+		err        error
+		wantStatus int
+	}{
+		{"client abort", canceled, fmt.Errorf("convert to PDF: %w", context.Canceled), statusClientClosedRequest},
+		{"internal failure", context.Background(), errors.New("boom"), http.StatusInternalServerError},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/", nil).WithContext(tc.reqCtx)
+			rec := httptest.NewRecorder()
+			c := echo.New().NewContext(req, rec)
+			c.Set("logger", slog.New(slog.DiscardHandler))
+
+			httpErrorHandler()(tc.err, c)
+
+			if rec.Code != tc.wantStatus {
+				t.Fatalf("status = %d, want %d", rec.Code, tc.wantStatus)
+			}
+		})
+	}
+}
 
 // TestOutputFilenameMiddleware pins the sanitizing of the
 // "Gotenberg-Output-Filename" header. The value reaches archive entry names and
