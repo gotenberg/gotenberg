@@ -293,6 +293,14 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *slog.Logger, input
 		return errors.New("LibreOffice not started, cannot handle PDF conversion")
 	}
 
+	// SinglePageSheets starts each sheet's single page at the workbook's saved
+	// scroll position, truncating everything above and to the left of it.
+	// Render a copy with that position reset to the top-left cell instead.
+	// See https://github.com/gotenberg/gotenberg/issues/1222.
+	if options.SinglePageSheets {
+		inputPath = resetCalcScrollPosition(ctx, logger, inputPath)
+	}
+
 	args := []string{
 		"--no-launch",
 		"--format",

@@ -964,3 +964,17 @@ Feature: /forms/libreoffice/convert
     Then the response status code should be 200
     Then there should be 1 PDF(s) in the response
     Then the "foo.pdf" PDF should have 0 image(s)
+
+  # The workbook was saved scrolled down to row 37. Without the topLeftCell
+  # reset, SinglePageSheets would start the page there and drop the header rows,
+  # so the "Meteor" column header only appears when the whole sheet is rendered.
+  # See https://github.com/gotenberg/gotenberg/issues/1222.
+  Scenario: POST /forms/libreoffice/convert (SinglePageSheets renders a scrolled workbook in full)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/singlepagesheets-scrolled.xlsx | file   |
+      | singlePageSheets          | true                                    | field  |
+      | Gotenberg-Output-Filename | foo                                     | header |
+    Then the response status code should be 200
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF should have content matching "Meteor" at page 1
