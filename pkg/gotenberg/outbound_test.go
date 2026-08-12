@@ -311,6 +311,39 @@ func TestFilterOutboundURL(t *testing.T) {
 	}
 }
 
+func TestDecideOutbound_UnresolvableHostFailsClosed(t *testing.T) {
+	withStubResolver(t, func(string) ([]netip.Addr, error) {
+		return nil, errors.New("no such host")
+	})
+
+	// An alternate IP encoding (decimal for 127.0.0.1) that the resolver
+	// rejects as a hostname must fail closed as filtered, not surface as a
+	// server error, so clients receive a generic 403.
+	_, err := DecideOutbound(context.Background(), "http://2130706433/", nil, nil, time.Now().Add(5*time.Second), WithDenyPrivateIPs(true))
+	if !errors.Is(err, ErrFiltered) {
+		t.Fatalf("expected ErrFiltered, got: %v", err)
+	}
+}
+
+func TestDecideOutbound_ResolverCancellationNotFiltered(t *testing.T) {
+	withStubResolver(t, func(string) ([]netip.Addr, error) {
+		return nil, context.Canceled
+	})
+
+	// A cancellation or timeout is not a policy decision and must not be
+	// reported as a filtered request.
+	_, err := DecideOutbound(context.Background(), "http://example.com/", nil, nil, time.Now().Add(5*time.Second), WithDenyPrivateIPs(true))
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if errors.Is(err, ErrFiltered) {
+		t.Fatalf("cancellation must not be filtered, got: %v", err)
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got: %v", err)
+	}
+}
+
 func TestResolveAndCheckPublic_IPLiteralLoopback(t *testing.T) {
 	withStubResolver(t, func(host string) ([]netip.Addr, error) {
 		t.Fatalf("unexpected DNS lookup for %q", host)

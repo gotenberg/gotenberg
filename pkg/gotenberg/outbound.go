@@ -338,8 +338,18 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 			return OutboundDecision{}, fmt.Errorf("'%s' targets a non-public address: %w", normalized, ErrFiltered)
 		case errors.Is(err, ErrPublicIP):
 			return OutboundDecision{}, fmt.Errorf("'%s' targets a public address: %w", normalized, ErrFiltered)
-		default:
+		case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+			// A cancellation or timeout is not a policy decision; surface it
+			// as-is so callers do not report it as a filtered request.
 			return OutboundDecision{}, fmt.Errorf("validate '%s' host: %w", normalized, err)
+		default:
+			// The host could not be resolved, so its address class cannot be
+			// verified. Fail closed and treat it as filtered, the same as a
+			// host that resolves to a blocked address, so clients get a
+			// generic 403 rather than a 500. This also denies alternate IP
+			// encodings such as http://2130706433/ that the resolver rejects
+			// as a hostname but Chromium would read as a private IP.
+			return OutboundDecision{}, fmt.Errorf("validate '%s' host: %v: %w", normalized, err, ErrFiltered)
 		}
 	}
 
