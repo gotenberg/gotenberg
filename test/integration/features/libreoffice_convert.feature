@@ -942,7 +942,7 @@ Feature: /forms/libreoffice/convert
 
   # An embedded image is stored inside the document, not linked, so blocking
   # untrusted linked content leaves it untouched. Guards against over-blocking.
-  @libreoffice-linked-content
+  @libreoffice-ssrf
   Scenario: POST /forms/libreoffice/convert (Embedded Image Survives)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
@@ -955,7 +955,7 @@ Feature: /forms/libreoffice/convert
   # An uploaded document always loads from an untrusted location, so soffice
   # refuses to resolve any content it links (absolute file:// path or external
   # URL). Closes the SSRF and local-file-read vector.
-  @libreoffice-linked-content
+  @libreoffice-ssrf
   Scenario: POST /forms/libreoffice/convert (Linked External Resource Blocked)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):

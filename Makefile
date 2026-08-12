@@ -152,6 +152,7 @@ NO_CONCURRENCY=false
 # health
 # libreoffice
 # libreoffice-convert
+# libreoffice-ssrf
 # output-filename
 # pdfengines
 # pdfengines-convert
