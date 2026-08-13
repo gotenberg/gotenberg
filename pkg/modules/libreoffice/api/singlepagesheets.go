@@ -85,7 +85,7 @@ func resetCalcScrollPosition(ctx context.Context, logger *slog.Logger, inputPath
 
 	_, err = dst.Write(out)
 	if err != nil {
-		_ = os.Remove(dst.Name()) //nolint:gosec // G703: dst is from os.CreateTemp in the working directory, not a caller-controlled path
+		_ = os.Remove(dst.Name())
 		logger.WarnContext(ctx, fmt.Sprintf("reset calc scroll position: write sanitized file: %s; using the original file", err))
 		return inputPath
 	}
