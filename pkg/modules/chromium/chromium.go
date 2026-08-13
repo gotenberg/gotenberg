@@ -43,6 +43,10 @@ var (
 	// or undefined.
 	ErrInvalidSelectorQuery = errors.New("invalid selector query")
 
+	// ErrScreenshotSelectorNotFound happens when the CSS selector of a
+	// screenshot matches no element with a rendered box.
+	ErrScreenshotSelectorNotFound = errors.New("screenshot selector not found")
+
 	// ErrRpccMessageTooLarge happens when the messages received by
 	// ChromeDevTools are larger than 100 MB.
 	ErrRpccMessageTooLarge = errors.New("rpcc message too large")
@@ -347,6 +351,11 @@ type ScreenshotOptions struct {
 	// dimensions.
 	Clip bool
 
+	// Selector clips the screenshot to the bounding box of the first element
+	// matching this CSS selector. Empty captures the whole page. Takes
+	// precedence over Clip.
+	Selector string
+
 	// Format is the image compression format, either "png" or "jpeg" or
 	// "webp".
 	Format string
@@ -370,6 +379,7 @@ func DefaultScreenshotOptions() ScreenshotOptions {
 		Width:             800,
 		Height:            600,
 		Clip:              false,
+		Selector:          "",
 		Format:            "png",
 		Quality:           100,
 		OptimizeForSpeed:  false,

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
+	_ "image/png" // Register the PNG decoder for image.DecodeConfig.
 	"io"
 	"mime"
 	"net/http"
@@ -1010,6 +1012,51 @@ func (s *scenario) thePdfShouldHaveImages(ctx context.Context, name string, imag
 	return nil
 }
 
+func (s *scenario) theImageShouldBePixels(_ context.Context, name string, width, height int) error {
+	path := fmt.Sprintf("%s/%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"), name)
+
+	file, err := os.Open(path) //nolint:gosec // path is built from test-controlled values.
+	if err != nil {
+		return fmt.Errorf("open image %q: %w", path, err)
+	}
+	defer file.Close()
+
+	config, format, err := image.DecodeConfig(file)
+	if err != nil {
+		return fmt.Errorf("decode image %q: %w", path, err)
+	}
+
+	if config.Width != width || config.Height != height {
+		return fmt.Errorf("expected %s image %dx%d, but actual is %dx%d", format, width, height, config.Width, config.Height)
+	}
+
+	return nil
+}
+
+func (s *scenario) theImagePixelShouldBe(_ context.Context, name string, x, y int, want string) error {
+	path := fmt.Sprintf("%s/%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"), name)
+
+	file, err := os.Open(path) //nolint:gosec // path is built from test-controlled values.
+	if err != nil {
+		return fmt.Errorf("open image %q: %w", path, err)
+	}
+	defer file.Close()
+
+	img, format, err := image.Decode(file)
+	if err != nil {
+		return fmt.Errorf("decode image %q: %w", path, err)
+	}
+
+	r, g, b, _ := img.At(x, y).RGBA()
+	// RGBA returns 16-bit channels; shift down to the 8-bit hex form.
+	got := fmt.Sprintf("#%02x%02x%02x", r>>8, g>>8, b>>8)
+	if !strings.EqualFold(got, want) {
+		return fmt.Errorf("expected %s pixel at %d,%d to be %s, but actual is %s", format, x, y, want, got)
+	}
+
+	return nil
+}
+
 func (s *scenario) thePdfShouldBeSetToLandscapeOrientation(ctx context.Context, name string, kind string) error {
 	var path string
 	if !strings.HasPrefix(name, "*_") {
@@ -1599,6 +1646,8 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have the following content at page (\d+):$`, s.thePdfShouldHaveTheFollowingContentAtPage)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have content matching "([^"]*)" at page (\d+)$`, s.thePdfShouldHaveContentMatchingAtPage)
 	ctx.Then(`^the "([^"]*)" PDF should have (\d+) image\(s\)$`, s.thePdfShouldHaveImages)
+	ctx.Then(`^the "([^"]*)" image should be (\d+)x(\d+) pixels$`, s.theImageShouldBePixels)
+	ctx.Then(`^the "([^"]*)" image pixel at (\d+),(\d+) should be "([^"]*)"$`, s.theImagePixelShouldBe)
 	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		if s.gotenbergContainer != nil {
 			errTerminate := s.gotenbergContainer.Terminate(ctx, testcontainers.StopTimeout(0))

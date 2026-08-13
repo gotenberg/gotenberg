@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/chromedp/cdproto/cdp"
@@ -188,7 +189,16 @@ func captureScreenshotActionFunc(logger *slog.Logger, outputPath string, options
 			WithOptimizeForSpeed(options.OptimizeForSpeed).
 			WithFormat(page.CaptureScreenshotFormat(options.Format))
 
-		if options.Clip {
+		switch {
+		case options.Selector != "":
+			clip, err := elementClip(ctx, options.Selector)
+			if err != nil {
+				return err
+			}
+
+			logger.DebugContext(ctx, fmt.Sprintf("clip screenshot to selector '%s'", options.Selector))
+			captureScreenshot = captureScreenshot.WithClip(clip)
+		case options.Clip:
 			captureScreenshot = captureScreenshot.WithClip(&page.Viewport{
 				Width:  float64(options.Width),
 				Height: float64(options.Height),
@@ -227,6 +237,49 @@ func captureScreenshotActionFunc(logger *slog.Logger, outputPath string, options
 
 		return nil
 	}
+}
+
+// elementClip resolves the first element matching selector to a page-space clip
+// rectangle for Page.captureScreenshot.
+//
+// getBoundingClientRect reports viewport-relative CSS pixels; adding the scroll
+// offset puts the rectangle in the document coordinate space that
+// WithCaptureBeyondViewport expects. It fails with
+// [ErrScreenshotSelectorNotFound] when nothing matches or the match has no
+// rendered box (display:none or a zero area), so the caller can answer 400.
+func elementClip(ctx context.Context, selector string) (*page.Viewport, error) {
+	var rect struct {
+		Found  bool    `json:"found"`
+		X      float64 `json:"x"`
+		Y      float64 `json:"y"`
+		Width  float64 `json:"width"`
+		Height float64 `json:"height"`
+	}
+
+	expr := fmt.Sprintf(`(() => {
+	const el = document.querySelector(%s);
+	if (!el) {
+		return { found: false };
+	}
+	const r = el.getBoundingClientRect();
+	return { found: true, x: r.left + window.scrollX, y: r.top + window.scrollY, width: r.width, height: r.height };
+})()`, strconv.Quote(selector))
+
+	err := chromedp.Evaluate(expr, &rect).Do(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("evaluate selector box: %v: %w", err, ErrScreenshotSelectorNotFound)
+	}
+	if !rect.Found || rect.Width <= 0 || rect.Height <= 0 {
+		return nil, fmt.Errorf("selector %q matched no element with a visible box: %w", selector, ErrScreenshotSelectorNotFound)
+	}
+
+	return &page.Viewport{
+		X:      rect.X,
+		Y:      rect.Y,
+		Width:  rect.Width,
+		Height: rect.Height,
+		Scale:  1,
+	}, nil
 }
 
 func setDeviceMetricsOverride(logger *slog.Logger, width, height int, deviceScaleFactor float64) chromedp.ActionFunc {

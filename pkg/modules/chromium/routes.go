@@ -366,6 +366,7 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 	var (
 		width, height     int
 		clip              bool
+		selector          string
 		format            string
 		quality           int
 		optimizeForSpeed  bool
@@ -376,6 +377,7 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 		Int("width", &width, defaultScreenshotOptions.Width).
 		Int("height", &height, defaultScreenshotOptions.Height).
 		Bool("clip", &clip, defaultScreenshotOptions.Clip).
+		String("selector", &selector, defaultScreenshotOptions.Selector).
 		Custom("format", func(value string) error {
 			if value == "" {
 				format = defaultScreenshotOptions.Format
@@ -420,6 +422,7 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 		Width:             width,
 		Height:            height,
 		Clip:              clip,
+		Selector:          selector,
 		Format:            format,
 		Quality:           quality,
 		OptimizeForSpeed:  optimizeForSpeed,
@@ -963,7 +966,17 @@ func screenshotUrl(ctx *api.Context, chromium Api, url string, options Screensho
 	outputPath := ctx.GeneratePath(ext)
 
 	err := chromium.Screenshot(ctx, ctx.Log(), url, outputPath, options)
-	err = handleChromiumError(err, options.Options)
+	if errors.Is(err, ErrScreenshotSelectorNotFound) {
+		err = api.WrapError(
+			err,
+			api.NewSentinelHttpError(
+				http.StatusBadRequest,
+				fmt.Sprintf("The selector '%s' (selector) matched no element with a visible box", options.Selector),
+			),
+		)
+	} else {
+		err = handleChromiumError(err, options.Options)
+	}
 	if err != nil {
 		return fmt.Errorf("screenshot: %w", err)
 	}

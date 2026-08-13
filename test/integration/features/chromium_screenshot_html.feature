@@ -69,6 +69,32 @@ Feature: /forms/chromium/screenshot/html
     Then the response status code should be 200
     Then the response header "Content-Type" should be "image/png"
 
+  # The target element is 300x200 and sits below a spacer, so a correct clip
+  # proves both the element size and its page offset. See issue #947.
+  Scenario: POST /forms/chromium/screenshot/html (Selector)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/screenshot/html" endpoint with the following form data and header(s):
+      | files                     | testdata/screenshot-selector-html/index.html | file   |
+      | selector                  | #target                                      | field  |
+      | Gotenberg-Output-Filename | foo                                          | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "image/png"
+    Then the "foo.png" image should be 300x200 pixels
+    # A centered red pixel proves the clip landed on the element, not on the
+    # white spacer above it, i.e. the page offset was applied.
+    Then the "foo.png" image pixel at 150,100 should be "#ff0000"
+
+  Scenario: POST /forms/chromium/screenshot/html (Selector Not Found)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/screenshot/html" endpoint with the following form data and header(s):
+      | files    | testdata/screenshot-selector-html/index.html | file  |
+      | selector | #does-not-exist                              | field |
+    Then the response status code should be 400
+    Then the response body should contain string:
+      """
+      The selector '#does-not-exist' (selector) matched no element with a visible box
+      """
+
   Scenario: POST /forms/chromium/screenshot/html (Quality)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/screenshot/html" endpoint with the following form data and header(s):
