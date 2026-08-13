@@ -115,18 +115,29 @@ func buildExifToolWriteArgs(metadata map[string]any) ([]string, error) {
 			return nil, fmt.Errorf("write PDF metadata with ExifTool: invalid metadata key %q: %w", key, gotenberg.ErrPdfEngineMetadataValueNotSupported)
 		}
 
+		tag := key
+		if key == "Trapped" {
+			// ExifTool writes the document info /Trapped entry as a malformed
+			// name-in-a-string, e.g. "(/Unknown)". pdfcpu's stricter validation
+			// (as of v0.15) rejects it, which breaks later pdfcpu operations on
+			// the file such as embedding. Writing Trapped to XMP keeps the value
+			// readable without the invalid document info entry.
+			// See https://github.com/gotenberg/gotenberg/issues/1628.
+			tag = "XMP-pdf:Trapped"
+		}
+
 		switch val := value.(type) {
 		case string:
 			if err := validateMetadataValue(key, val); err != nil {
 				return nil, err
 			}
-			args = append(args, fmt.Sprintf("-%s=%s", key, val))
+			args = append(args, fmt.Sprintf("-%s=%s", tag, val))
 		case []string:
 			for _, s := range val {
 				if err := validateMetadataValue(key, s); err != nil {
 					return nil, err
 				}
-				args = append(args, fmt.Sprintf("-%s=%s", key, s))
+				args = append(args, fmt.Sprintf("-%s=%s", tag, s))
 			}
 		case []any:
 			// See https://github.com/gotenberg/gotenberg/issues/1048.
@@ -138,18 +149,18 @@ func buildExifToolWriteArgs(metadata map[string]any) ([]string, error) {
 				if err := validateMetadataValue(key, s); err != nil {
 					return nil, err
 				}
-				args = append(args, fmt.Sprintf("-%s=%s", key, s))
+				args = append(args, fmt.Sprintf("-%s=%s", tag, s))
 			}
 		case bool:
-			args = append(args, fmt.Sprintf("-%s=%t", key, val))
+			args = append(args, fmt.Sprintf("-%s=%t", tag, val))
 		case int:
-			args = append(args, fmt.Sprintf("-%s=%d", key, val))
+			args = append(args, fmt.Sprintf("-%s=%d", tag, val))
 		case int64:
-			args = append(args, fmt.Sprintf("-%s=%d", key, val))
+			args = append(args, fmt.Sprintf("-%s=%d", tag, val))
 		case float32:
-			args = append(args, fmt.Sprintf("-%s=%g", key, val))
+			args = append(args, fmt.Sprintf("-%s=%g", tag, val))
 		case float64:
-			args = append(args, fmt.Sprintf("-%s=%g", key, val))
+			args = append(args, fmt.Sprintf("-%s=%g", tag, val))
 		default:
 			return nil, fmt.Errorf("write PDF metadata with ExifTool: unsupported type %T for key %q: %w", value, key, gotenberg.ErrPdfEngineMetadataValueNotSupported)
 		}

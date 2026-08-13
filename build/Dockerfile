@@ -11,7 +11,7 @@ ARG GOLANG_VERSION=1.26.5
 FROM golang:$GOLANG_VERSION AS pdfcpu-binary-stage
 
 # See https://github.com/pdfcpu/pdfcpu/releases.
-ARG PDFCPU_VERSION=v0.13.0
+ARG PDFCPU_VERSION=v0.15.0
 ENV CGO_ENABLED=0
 
 # Define the working directory outside of $GOPATH (we're using go modules).
