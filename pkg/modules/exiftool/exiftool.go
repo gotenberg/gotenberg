@@ -296,6 +296,20 @@ func (engine *ExifTool) Convert(ctx context.Context, logger *slog.Logger, format
 	return err
 }
 
+// OptimizeImages is not available in this implementation.
+func (engine *ExifTool) OptimizeImages(ctx context.Context, logger *slog.Logger, imageQuality int, inputPath string) error {
+	_, span := gotenberg.Tracer().Start(ctx, "exiftool.OptimizeImages",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(engine.spanAttrs()...),
+	)
+	defer span.End()
+
+	err := fmt.Errorf("optimize PDF images with ExifTool: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return err
+}
+
 // ReadMetadata extracts the metadata of a given PDF file by invoking
 // the exiftool binary with "-j" (JSON output) and parsing the result.
 func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {

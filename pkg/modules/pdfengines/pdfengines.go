@@ -32,6 +32,7 @@ type PdfEngines struct {
 	splitNames          []string
 	flattenNames        []string
 	convertNames        []string
+	optimizeImagesNames []string
 	readMetadataNames   []string
 	writeMetadataNames  []string
 	encryptNames        []string
@@ -57,6 +58,7 @@ func (mod *PdfEngines) Descriptor() gotenberg.ModuleDescriptor {
 			fs.StringSlice("pdfengines-split-engines", []string{"pdfcpu", "qpdf", "pdftk"}, "Set the PDF engines and their order for the split feature - empty means all")
 			fs.StringSlice("pdfengines-flatten-engines", []string{"qpdf"}, "Set the PDF engines and their order for the flatten feature - empty means all")
 			fs.StringSlice("pdfengines-convert-engines", []string{"libreoffice-pdfengine"}, "Set the PDF engines and their order for the convert feature - empty means all")
+			fs.StringSlice("pdfengines-optimize-images-engines", []string{"pdfcpu"}, "Set the PDF engines and their order for the image optimization feature - empty means all")
 			fs.StringSlice("pdfengines-read-metadata-engines", []string{"exiftool"}, "Set the PDF engines and their order for the read metadata feature - empty means all")
 			fs.StringSlice("pdfengines-write-metadata-engines", []string{"exiftool"}, "Set the PDF engines and their order for the write metadata feature - empty means all")
 			fs.StringSlice("pdfengines-encrypt-engines", []string{"qpdf", "pdftk", "pdfcpu"}, "Set the PDF engines and their order for the password protection feature - empty means all")
@@ -91,6 +93,7 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 	splitNames := flags.MustStringSlice("pdfengines-split-engines")
 	flattenNames := flags.MustStringSlice("pdfengines-flatten-engines")
 	convertNames := flags.MustStringSlice("pdfengines-convert-engines")
+	optimizeImagesNames := flags.MustStringSlice("pdfengines-optimize-images-engines")
 	readMetadataNames := flags.MustStringSlice("pdfengines-read-metadata-engines")
 	writeMetadataNames := flags.MustStringSlice("pdfengines-write-metadata-engines")
 	encryptNames := flags.MustStringSlice("pdfengines-encrypt-engines")
@@ -146,6 +149,11 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 	mod.convertNames = defaultNames
 	if len(convertNames) > 0 {
 		mod.convertNames = convertNames
+	}
+
+	mod.optimizeImagesNames = defaultNames
+	if len(optimizeImagesNames) > 0 {
+		mod.optimizeImagesNames = optimizeImagesNames
 	}
 
 	mod.readMetadataNames = defaultNames
@@ -247,6 +255,7 @@ func (mod *PdfEngines) Validate() error {
 	findNonExistingEngines(mod.mergeNames)
 	findNonExistingEngines(mod.splitNames)
 	findNonExistingEngines(mod.flattenNames)
+	findNonExistingEngines(mod.optimizeImagesNames)
 	findNonExistingEngines(mod.convertNames)
 	findNonExistingEngines(mod.readMetadataNames)
 	findNonExistingEngines(mod.writeMetadataNames)
@@ -275,6 +284,7 @@ func (mod *PdfEngines) SystemMessages() []string {
 		fmt.Sprintf("split engines - %s", strings.Join(mod.splitNames, " ")),
 		fmt.Sprintf("flatten engines - %s", strings.Join(mod.flattenNames, " ")),
 		fmt.Sprintf("convert engines - %s", strings.Join(mod.convertNames, " ")),
+		fmt.Sprintf("optimize images engines - %s", strings.Join(mod.optimizeImagesNames, " ")),
 		fmt.Sprintf("read metadata engines - %s", strings.Join(mod.readMetadataNames, " ")),
 		fmt.Sprintf("write metadata engines - %s", strings.Join(mod.writeMetadataNames, " ")),
 		fmt.Sprintf("encrypt engines - %s", strings.Join(mod.encryptNames, " ")),
@@ -310,6 +320,7 @@ func (mod *PdfEngines) PdfEngine() (gotenberg.PdfEngine, error) {
 		engines(mod.splitNames),
 		engines(mod.flattenNames),
 		engines(mod.convertNames),
+		engines(mod.optimizeImagesNames),
 		engines(mod.readMetadataNames),
 		engines(mod.writeMetadataNames),
 		engines(mod.encryptNames),
@@ -341,6 +352,7 @@ func (mod *PdfEngines) Routes() ([]api.Route, error) {
 		mergeRoute(engine),
 		splitRoute(engine),
 		flattenRoute(engine),
+		optimizeRoute(engine),
 		convertRoute(engine),
 		readMetadataRoute(engine),
 		writeMetadataRoute(engine),

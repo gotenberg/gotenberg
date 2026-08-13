@@ -18,6 +18,7 @@ type multiPdfEngines struct {
 	splitEngines          []gotenberg.PdfEngine
 	flattenEngines        []gotenberg.PdfEngine
 	convertEngines        []gotenberg.PdfEngine
+	optimizeImagesEngines []gotenberg.PdfEngine
 	readMetadataEngines   []gotenberg.PdfEngine
 	writeMetadataEngines  []gotenberg.PdfEngine
 	passwordEngines       []gotenberg.PdfEngine
@@ -36,6 +37,7 @@ func newMultiPdfEngines(
 	splitEngines,
 	flattenEngines,
 	convertEngines,
+	optimizeImagesEngines,
 	readMetadataEngines,
 	writeMetadataEngines,
 	passwordEngines,
@@ -53,6 +55,7 @@ func newMultiPdfEngines(
 		splitEngines:          splitEngines,
 		flattenEngines:        flattenEngines,
 		convertEngines:        convertEngines,
+		optimizeImagesEngines: optimizeImagesEngines,
 		readMetadataEngines:   readMetadataEngines,
 		writeMetadataEngines:  writeMetadataEngines,
 		passwordEngines:       passwordEngines,
@@ -186,6 +189,17 @@ func (multi *multiPdfEngines) Flatten(ctx context.Context, logger *slog.Logger, 
 			return engine.Flatten(ctx, logger, inputPath)
 		},
 		func(err error) error { return fmt.Errorf("flatten PDF with multi PDF engines: %w", err) },
+	)
+}
+
+// OptimizeImages re-encodes the images of a PDF using the first available
+// engine that supports image optimization.
+func (multi *multiPdfEngines) OptimizeImages(ctx context.Context, logger *slog.Logger, imageQuality int, inputPath string) error {
+	return runWithFallbackVoid(ctx, "pdfengines.OptimizeImages", multi.optimizeImagesEngines,
+		func(ctx context.Context, engine gotenberg.PdfEngine) error {
+			return engine.OptimizeImages(ctx, logger, imageQuality, inputPath)
+		},
+		func(err error) error { return fmt.Errorf("optimize PDF images with multi PDF engines: %w", err) },
 	)
 }
 

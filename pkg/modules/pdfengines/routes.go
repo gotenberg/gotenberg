@@ -344,6 +344,65 @@ func FlattenStub(ctx *api.Context, engine gotenberg.PdfEngine, inputPaths []stri
 	return nil
 }
 
+// defaultImageQuality is the JPEG quality applied by the image optimization
+// feature when the imageQuality form field is not set.
+const defaultImageQuality = 80
+
+// FormDataPdfOptimize extracts the image-optimization options from the form
+// data: whether to optimize the images, and the JPEG quality (1 to 100) to
+// apply to each re-encoded image.
+func FormDataPdfOptimize(form *api.FormData) (bool, int) {
+	var (
+		optimizeImages bool
+		imageQuality   int
+	)
+
+	form.
+		Bool("optimizeImages", &optimizeImages, false).
+		Custom("imageQuality", func(value string) error {
+			if value == "" {
+				imageQuality = defaultImageQuality
+				return nil
+			}
+
+			intValue, err := strconv.Atoi(value)
+			if err != nil {
+				return err
+			}
+
+			if intValue < 1 {
+				return errors.New("value is inferior to 1")
+			}
+
+			if intValue > 100 {
+				return errors.New("value is superior to 100")
+			}
+
+			imageQuality = intValue
+			return nil
+		})
+
+	return optimizeImages, imageQuality
+}
+
+// OptimizeStub re-encodes the images of each given PDF to shrink the file when
+// optimizeImages is set, leaving text, vectors and structure untouched. It does
+// nothing when optimizeImages is false.
+func OptimizeStub(ctx *api.Context, engine gotenberg.PdfEngine, optimizeImages bool, imageQuality int, inputPaths []string) error {
+	if !optimizeImages {
+		return nil
+	}
+
+	for _, inputPath := range inputPaths {
+		err := engine.OptimizeImages(ctx, ctx.Log(), imageQuality, inputPath)
+		if err != nil {
+			return fmt.Errorf("optimize images of '%s': %w", inputPath, err)
+		}
+	}
+
+	return nil
+}
+
 // ConvertStub transforms a given PDF to the specified formats defined in
 // [gotenberg.PdfFormats]. If no format, it does nothing and returns the input
 // paths.
@@ -931,6 +990,7 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			angle, rotatePages := FormDataPdfRotate(form, false)
 			embedsMetadata := FormDataPdfEmbedsMetadata(form)
 			facturX, facturxXmlPath := FormDataPdfFacturX(form)
+			optimizeImages, imageQuality := FormDataPdfOptimize(form)
 
 			var inputPaths []string
 			var flatten bool
@@ -996,6 +1056,11 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 				if err != nil {
 					return fmt.Errorf("flatten PDFs: %w", err)
 				}
+			}
+
+			err = OptimizeStub(ctx, engine, optimizeImages, imageQuality, outputPaths)
+			if err != nil {
+				return fmt.Errorf("optimize PDF images: %w", err)
 			}
 
 			pdfFormats = FacturXPdfFormats(ctx, engine, facturX, pdfFormats, false, outputPaths)
@@ -1108,6 +1173,7 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 			angle, rotatePages := FormDataPdfRotate(form, false)
 			embedsMetadata := FormDataPdfEmbedsMetadata(form)
 			facturX, facturxXmlPath := FormDataPdfFacturX(form)
+			optimizeImages, imageQuality := FormDataPdfOptimize(form)
 
 			var inputPaths []string
 			var flatten bool
@@ -1168,6 +1234,11 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 				if err != nil {
 					return fmt.Errorf("flatten PDFs: %w", err)
 				}
+			}
+
+			err = OptimizeStub(ctx, engine, optimizeImages, imageQuality, outputPaths)
+			if err != nil {
+				return fmt.Errorf("optimize PDF images: %w", err)
 			}
 
 			pdfFormats = FacturXPdfFormats(ctx, engine, facturX, pdfFormats, false, outputPaths)
@@ -1262,6 +1333,42 @@ func flattenRoute(engine gotenberg.PdfEngine) api.Route {
 
 // convertRoute returns an [api.Route] which can convert PDFs to a specific ODF
 // format.
+func optimizeRoute(engine gotenberg.PdfEngine) api.Route {
+	return api.Route{
+		Method:      http.MethodPost,
+		Path:        "/forms/pdfengines/optimize",
+		IsMultipart: true,
+		Handler: func(c echo.Context) error {
+			ctx := c.Get("context").(*api.Context)
+
+			form := ctx.FormData()
+			// This route optimizes unconditionally, so the optimizeImages toggle
+			// is ignored; only the image quality is read.
+			_, imageQuality := FormDataPdfOptimize(form)
+
+			var inputPaths []string
+			err := form.
+				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				Validate()
+			if err != nil {
+				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			err = OptimizeStub(ctx, engine, true, imageQuality, inputPaths)
+			if err != nil {
+				return fmt.Errorf("optimize PDF images: %w", err)
+			}
+
+			err = ctx.AddOutputPaths(inputPaths...)
+			if err != nil {
+				return fmt.Errorf("add output paths: %w", err)
+			}
+
+			return nil
+		},
+	}
+}
+
 func convertRoute(engine gotenberg.PdfEngine) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,

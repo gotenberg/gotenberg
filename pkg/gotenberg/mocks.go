@@ -49,6 +49,7 @@ type PdfEngineMock struct {
 	SplitMock               func(ctx context.Context, logger *slog.Logger, mode SplitMode, inputPath, outputDirPath string) ([]string, error)
 	FlattenMock             func(ctx context.Context, logger *slog.Logger, inputPath string) error
 	ConvertMock             func(ctx context.Context, logger *slog.Logger, formats PdfFormats, inputPath, outputPath string) error
+	OptimizeImagesMock      func(ctx context.Context, logger *slog.Logger, imageQuality int, inputPath string) error
 	ReadMetadataMock        func(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error)
 	PageCountMock           func(ctx context.Context, logger *slog.Logger, inputPath string) (int, error)
 	WriteMetadataMock       func(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error
@@ -78,6 +79,10 @@ func (engine *PdfEngineMock) Flatten(ctx context.Context, logger *slog.Logger, i
 
 func (engine *PdfEngineMock) Convert(ctx context.Context, logger *slog.Logger, formats PdfFormats, inputPath, outputPath string) error {
 	return engine.ConvertMock(ctx, logger, formats, inputPath, outputPath)
+}
+
+func (engine *PdfEngineMock) OptimizeImages(ctx context.Context, logger *slog.Logger, imageQuality int, inputPath string) error {
+	return engine.OptimizeImagesMock(ctx, logger, imageQuality, inputPath)
 }
 
 func (engine *PdfEngineMock) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {

@@ -479,6 +479,7 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			stamp := pdfengines.FormDataPdfStamp(form, false)
 			stampFile := pdfengines.FormDataPdfStampFile(form)
 			rotateAngle, rotatePages := pdfengines.FormDataPdfRotate(form, false)
+			optimizeImages, imageQuality := pdfengines.FormDataPdfOptimize(form)
 			embedsMetadata := pdfengines.FormDataPdfEmbedsMetadata(form)
 			facturX, facturxXmlPath := pdfengines.FormDataPdfFacturX(form)
 
@@ -504,7 +505,7 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate stamp: %w", err)
 			}
 
-			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, encrypt, embedPaths, embedsMetadata, facturX, facturxXmlPath, watermark, stamp, rotateAngle, rotatePages)
+			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, encrypt, embedPaths, embedsMetadata, facturX, facturxXmlPath, watermark, stamp, rotateAngle, rotatePages, optimizeImages, imageQuality)
 			if err != nil {
 				return fmt.Errorf("convert URL to PDF: %w", err)
 			}
@@ -568,6 +569,7 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			stamp := pdfengines.FormDataPdfStamp(form, false)
 			stampFile := pdfengines.FormDataPdfStampFile(form)
 			rotateAngle, rotatePages := pdfengines.FormDataPdfRotate(form, false)
+			optimizeImages, imageQuality := pdfengines.FormDataPdfOptimize(form)
 			embedsMetadata := pdfengines.FormDataPdfEmbedsMetadata(form)
 			facturX, facturxXmlPath := pdfengines.FormDataPdfFacturX(form)
 
@@ -590,7 +592,7 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 
 			url := fmt.Sprintf("file://%s", inputPath)
 			options.AllowedFilePrefixes = []string{ctx.DirPath()}
-			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, encrypt, embedPaths, embedsMetadata, facturX, facturxXmlPath, watermark, stamp, rotateAngle, rotatePages)
+			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, encrypt, embedPaths, embedsMetadata, facturX, facturxXmlPath, watermark, stamp, rotateAngle, rotatePages, optimizeImages, imageQuality)
 			if err != nil {
 				return fmt.Errorf("convert HTML to PDF: %w", err)
 			}
@@ -651,6 +653,7 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			stamp := pdfengines.FormDataPdfStamp(form, false)
 			stampFile := pdfengines.FormDataPdfStampFile(form)
 			rotateAngle, rotatePages := pdfengines.FormDataPdfRotate(form, false)
+			optimizeImages, imageQuality := pdfengines.FormDataPdfOptimize(form)
 			embedsMetadata := pdfengines.FormDataPdfEmbedsMetadata(form)
 			facturX, facturxXmlPath := pdfengines.FormDataPdfFacturX(form)
 
@@ -682,7 +685,7 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			}
 
 			options.AllowedFilePrefixes = []string{ctx.DirPath()}
-			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, encrypt, embedPaths, embedsMetadata, facturX, facturxXmlPath, watermark, stamp, rotateAngle, rotatePages)
+			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, encrypt, embedPaths, embedsMetadata, facturX, facturxXmlPath, watermark, stamp, rotateAngle, rotatePages, optimizeImages, imageQuality)
 			if err != nil {
 				return fmt.Errorf("convert markdown to PDF: %w", err)
 			}
@@ -807,7 +810,7 @@ func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) 
 	return fmt.Sprintf("file://%s", inputPath), nil
 }
 
-func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, options PdfOptions, mode gotenberg.SplitMode, pdfFormats gotenberg.PdfFormats, metadata map[string]any, encrypt gotenberg.EncryptOptions, embedPaths []string, embedsMetadata map[string]map[string]string, facturX gotenberg.FacturX, facturxXmlPath string, watermark, stamp gotenberg.Stamp, rotateAngle int, rotatePages string) error {
+func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, options PdfOptions, mode gotenberg.SplitMode, pdfFormats gotenberg.PdfFormats, metadata map[string]any, encrypt gotenberg.EncryptOptions, embedPaths []string, embedsMetadata map[string]map[string]string, facturX gotenberg.FacturX, facturxXmlPath string, watermark, stamp gotenberg.Stamp, rotateAngle int, rotatePages string, optimizeImages bool, imageQuality int) error {
 	outputPath := ctx.GeneratePath(".pdf")
 	// See https://github.com/gotenberg/gotenberg/issues/1130.
 	filename := ctx.OutputFilename(outputPath)
@@ -902,6 +905,11 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 	err = pdfengines.RotateStub(ctx, engine, rotateAngle, rotatePages, outputPaths)
 	if err != nil {
 		return fmt.Errorf("rotate PDFs: %w", err)
+	}
+
+	err = pdfengines.OptimizeStub(ctx, engine, optimizeImages, imageQuality, outputPaths)
+	if err != nil {
+		return fmt.Errorf("optimize PDF images: %w", err)
 	}
 
 	pdfFormats = pdfengines.FacturXPdfFormats(ctx, engine, facturX, pdfFormats, true, nil)

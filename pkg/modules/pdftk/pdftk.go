@@ -219,6 +219,20 @@ func (engine *PdfTk) Convert(ctx context.Context, logger *slog.Logger, formats g
 	return err
 }
 
+// OptimizeImages is not available in this implementation.
+func (engine *PdfTk) OptimizeImages(ctx context.Context, logger *slog.Logger, imageQuality int, inputPath string) error {
+	_, span := gotenberg.Tracer().Start(ctx, "pdftk.OptimizeImages",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(engine.spanAttrs()...),
+	)
+	defer span.End()
+
+	err := fmt.Errorf("optimize PDF images with PDFtk: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return err
+}
+
 // ReadMetadata is not available in this implementation.
 func (engine *PdfTk) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 	_, span := gotenberg.Tracer().Start(ctx, "pdftk.ReadMetadata",

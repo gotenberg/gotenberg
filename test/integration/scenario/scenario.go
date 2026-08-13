@@ -1057,6 +1057,29 @@ func (s *scenario) theImagePixelShouldBe(_ context.Context, name string, x, y in
 	return nil
 }
 
+func (s *scenario) theFileSizeShouldBe(_ context.Context, name, comparator string, sizeKB int) error {
+	path := fmt.Sprintf("%s/%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"), name)
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("stat %q: %w", path, err)
+	}
+
+	limit := int64(sizeKB) * 1024
+	switch comparator {
+	case "less":
+		if info.Size() >= limit {
+			return fmt.Errorf("expected %s (%d bytes) to be smaller than %d KB", name, info.Size(), sizeKB)
+		}
+	case "greater":
+		if info.Size() <= limit {
+			return fmt.Errorf("expected %s (%d bytes) to be larger than %d KB", name, info.Size(), sizeKB)
+		}
+	}
+
+	return nil
+}
+
 func (s *scenario) thePdfShouldBeSetToLandscapeOrientation(ctx context.Context, name string, kind string) error {
 	var path string
 	if !strings.HasPrefix(name, "*_") {
@@ -1650,6 +1673,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the "([^"]*)" PDF should have (\d+) image\(s\)$`, s.thePdfShouldHaveImages)
 	ctx.Then(`^the "([^"]*)" image should be (\d+)x(\d+) pixels$`, s.theImageShouldBePixels)
 	ctx.Then(`^the "([^"]*)" image pixel at (\d+),(\d+) should be "([^"]*)"$`, s.theImagePixelShouldBe)
+	ctx.Then(`^the "([^"]*)" file size should be (less|greater) than (\d+) KB$`, s.theFileSizeShouldBe)
 	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		if s.gotenbergContainer != nil {
 			errTerminate := s.gotenbergContainer.Terminate(ctx, testcontainers.StopTimeout(0))

@@ -281,6 +281,12 @@ type PdfEngine interface {
 	// PdfFormats. If no format, it does nothing.
 	Convert(ctx context.Context, logger *slog.Logger, formats PdfFormats, inputPath, outputPath string) error
 
+	// OptimizeImages re-encodes the raster images of a PDF in place to shrink
+	// the file, leaving text, vectors, fonts and structure untouched.
+	// imageQuality is the JPEG quality (1 to 100) applied to each re-encoded
+	// image.
+	OptimizeImages(ctx context.Context, logger *slog.Logger, imageQuality int, inputPath string) error
+
 	// ReadMetadata extracts the metadata of a given PDF file.
 	ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error)
 

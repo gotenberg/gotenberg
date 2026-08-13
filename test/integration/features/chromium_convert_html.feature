@@ -1187,6 +1187,26 @@ Feature: /forms/chromium/convert/html
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be flatten
 
+  # Post-processing image optimization re-encodes the embedded lossless image to
+  # JPEG. The same page is ~700 KB without it and well under 300 KB with it.
+  # See https://github.com/gotenberg/gotenberg/issues/359.
+  Scenario: POST /forms/chromium/convert/html (Optimize Images)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/optimize-image-html/index.html | file   |
+      | files                     | testdata/optimize-image-html/image.png  | file   |
+      | Gotenberg-Output-Filename | foo                                     | header |
+    Then the response status code should be 200
+    Then the "foo.pdf" file size should be greater than 300 KB
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/optimize-image-html/index.html | file   |
+      | files                     | testdata/optimize-image-html/image.png  | file   |
+      | optimizeImages            | true                                    | field  |
+      | Gotenberg-Output-Filename | foo                                     | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then the "foo.pdf" file size should be less than 300 KB
+
   @encrypt
   Scenario: POST /forms/chromium/convert/html (Encrypt - user password only)
     Given I have a default Gotenberg container

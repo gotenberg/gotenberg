@@ -255,6 +255,20 @@ func (engine *QPdf) Convert(ctx context.Context, logger *slog.Logger, formats go
 	return err
 }
 
+// OptimizeImages is not available in this implementation.
+func (engine *QPdf) OptimizeImages(ctx context.Context, logger *slog.Logger, imageQuality int, inputPath string) error {
+	_, span := gotenberg.Tracer().Start(ctx, "qpdf.OptimizeImages",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(engine.spanAttrs()...),
+	)
+	defer span.End()
+
+	err := fmt.Errorf("optimize PDF images with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return err
+}
+
 // ReadMetadata is not available in this implementation.
 func (engine *QPdf) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 	_, span := gotenberg.Tracer().Start(ctx, "qpdf.ReadMetadata",

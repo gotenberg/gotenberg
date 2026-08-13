@@ -44,6 +44,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			angle, rotatePages := pdfengines.FormDataPdfRotate(form, false)
 			embedsMetadata := pdfengines.FormDataPdfEmbedsMetadata(form)
 			facturX, facturxXmlPath := pdfengines.FormDataPdfFacturX(form)
+			optimizeImages, imageQuality := pdfengines.FormDataPdfOptimize(form)
 
 			zeroValuedSplitMode := gotenberg.SplitMode{}
 
@@ -513,6 +514,11 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				if err != nil {
 					return fmt.Errorf("flatten PDFs: %w", err)
 				}
+			}
+
+			err = pdfengines.OptimizeStub(ctx, engine, optimizeImages, imageQuality, outputPaths)
+			if err != nil {
+				return fmt.Errorf("optimize PDF images: %w", err)
 			}
 
 			needsConvertStub := !nativePdfFormats ||

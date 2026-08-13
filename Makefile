@@ -82,6 +82,7 @@ PDFENGINES_MERGE_ENGINES=qpdf,pdfcpu,pdftk
 PDFENGINES_SPLIT_ENGINES=pdfcpu,qpdf,pdftk
 PDFENGINES_FLATTEN_ENGINES=qpdf
 PDFENGINES_CONVERT_ENGINES=libreoffice-pdfengine
+PDFENGINES_OPTIMIZE_IMAGES_ENGINES=pdfcpu
 PDFENGINES_READ_METADATA_ENGINES=exiftool
 PDFENGINES_WRITE_METADATA_ENGINES=exiftool
 PDFENGINES_READ_BOOKMARKS_ENGINES=pdfcpu
@@ -162,6 +163,8 @@ NO_CONCURRENCY=false
 # encrypt
 # pdfengines-flatten
 # flatten
+# pdfengines-optimize
+# optimize
 # pdfengines-merge
 # merge
 # pdfengines-metadata
