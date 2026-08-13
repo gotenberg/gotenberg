@@ -477,6 +477,7 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Bool("chromium-deny-public-ips", false, "Reject URLs whose host resolves to a public IP address. Enable on air-gapped or data-governed deployments to prevent outbound traffic from leaving a private network")
 			fs.Bool("chromium-clear-cache", false, "Clear Chromium cache between each conversion")
 			fs.Bool("chromium-clear-cookies", false, "Clear Chromium cookies between each conversion")
+			fs.Bool("chromium-clear-storage", false, "Clear Chromium local storage between each conversion (session storage is already isolated per conversion)")
 			fs.Bool("chromium-disable-javascript", false, "Disable JavaScript")
 			fs.Bool("chromium-disable-routes", false, "Disable the routes")
 
@@ -528,6 +529,7 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 		denyPublicIPs:     flags.MustBool("chromium-deny-public-ips"),
 		clearCache:        flags.MustBool("chromium-clear-cache"),
 		clearCookies:      flags.MustBool("chromium-clear-cookies"),
+		clearStorage:      flags.MustBool("chromium-clear-storage"),
 		disableJavaScript: flags.MustBool("chromium-disable-javascript"),
 	}
 

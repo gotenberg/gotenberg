@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/cdproto/storage"
 	"github.com/chromedp/chromedp"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -343,6 +345,54 @@ func clearCookiesActionFunc(logger *slog.Logger, clear bool) chromedp.ActionFunc
 
 		return fmt.Errorf("clear cookies: %w", err)
 	}
+}
+
+// clearStorageActionFunc clears the converted origin's local storage before the
+// page loads, so state written by a previous conversion of the same origin does
+// not leak into this one. See https://github.com/gotenberg/gotenberg/issues/919.
+//
+// Session storage is not touched: each conversion runs in its own browsing
+// context (a fresh tab), so it is already isolated and cannot leak. Local
+// storage is per-origin and shared across tabs of the long-lived browser, so it
+// is the only web storage that carries over.
+func clearStorageActionFunc(logger *slog.Logger, clear bool, rawURL string) chromedp.ActionFunc {
+	return func(ctx context.Context) error {
+		if !clear {
+			logger.DebugContext(ctx, "local storage not cleared")
+			return nil
+		}
+
+		origin, ok := httpOrigin(rawURL)
+		if !ok {
+			// A file:// upload gets an opaque, per-request origin that is not
+			// shared between conversions, so there is nothing to clear.
+			logger.DebugContext(ctx, "local storage not cleared: non-http(s) origin is already isolated")
+			return nil
+		}
+
+		logger.DebugContext(ctx, fmt.Sprintf("clear local storage for %s", origin))
+
+		err := storage.ClearDataForOrigin(origin, string(storage.TypeLocalStorage)).Do(ctx)
+		if err == nil {
+			return nil
+		}
+
+		return fmt.Errorf("clear local storage: %w", err)
+	}
+}
+
+// httpOrigin returns the http(s) security origin (scheme://host[:port]) of
+// rawURL, and false when rawURL is not http(s). A non-http(s) URL such as a
+// file:// upload has an opaque origin that no other conversion shares.
+func httpOrigin(rawURL string) (string, bool) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return "", false
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return "", false
+	}
+	return fmt.Sprintf("%s://%s", parsed.Scheme, parsed.Host), true
 }
 
 func disableJavaScriptActionFunc(logger *slog.Logger, disable bool) chromedp.ActionFunc {

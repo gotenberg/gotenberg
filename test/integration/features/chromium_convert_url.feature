@@ -22,6 +22,41 @@ Feature: /forms/chromium/convert/url
       Page 1
       """
 
+  # localStorage is per-origin and shared by the long-lived browser, so without
+  # clearing it accumulates across same-origin conversions.
+  # See https://github.com/gotenberg/gotenberg/issues/919.
+  Scenario: POST /forms/chromium/convert/url (localStorage leaks without clearing)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                       | http://host.docker.internal:%d/html/testdata/local-storage-html/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                                        | header |
+    Then the response status code should be 200
+    Then the "foo.pdf" PDF should have content matching "localStorageCount=1" at page 1
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                       | http://host.docker.internal:%d/html/testdata/local-storage-html/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                                        | header |
+    Then the response status code should be 200
+    Then the "foo.pdf" PDF should have content matching "localStorageCount=2" at page 1
+
+  # With --chromium-clear-storage every conversion clears the origin's
+  # localStorage first, so the counter never carries over.
+  # See https://github.com/gotenberg/gotenberg/issues/919.
+  Scenario: POST /forms/chromium/convert/url (Clear Storage)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_CLEAR_STORAGE | true |
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                       | http://host.docker.internal:%d/html/testdata/local-storage-html/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                                        | header |
+    Then the response status code should be 200
+    Then the "foo.pdf" PDF should have content matching "localStorageCount=1" at page 1
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                       | http://host.docker.internal:%d/html/testdata/local-storage-html/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                                        | header |
+    Then the response status code should be 200
+    Then the "foo.pdf" PDF should have content matching "localStorageCount=1" at page 1
+
   Scenario: POST /forms/chromium/convert/url (Single Page)
     Given I have a default Gotenberg container
     Given I have a static server

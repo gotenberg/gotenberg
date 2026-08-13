@@ -49,6 +49,7 @@ type browserArguments struct {
 	denyPublicIPs     bool
 	clearCache        bool
 	clearCookies      bool
+	clearStorage      bool
 	disableJavaScript bool
 }
 
@@ -367,6 +368,7 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *slog.Logger, url, out
 		runtime.Enable(),
 		clearCacheActionFunc(logger, b.arguments.clearCache),
 		clearCookiesActionFunc(logger, b.arguments.clearCookies),
+		clearStorageActionFunc(logger, b.arguments.clearStorage, url),
 		disableJavaScriptActionFunc(logger, b.arguments.disableJavaScript),
 		setCookiesActionFunc(logger, options.Cookies),
 		userAgentOverride(logger, options.UserAgent),
@@ -393,6 +395,7 @@ func (b *chromiumBrowser) screenshot(ctx context.Context, logger *slog.Logger, u
 		runtime.Enable(),
 		clearCacheActionFunc(logger, b.arguments.clearCache),
 		clearCookiesActionFunc(logger, b.arguments.clearCookies),
+		clearStorageActionFunc(logger, b.arguments.clearStorage, url),
 		disableJavaScriptActionFunc(logger, b.arguments.disableJavaScript),
 		setCookiesActionFunc(logger, options.Cookies),
 		userAgentOverride(logger, options.UserAgent),
