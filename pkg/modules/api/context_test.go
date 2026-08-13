@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -70,6 +71,64 @@ func TestNewContext_Cancellation(t *testing.T) {
 		}
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("expected context to be cancelled after request context cancellation, but it timed out")
+	}
+}
+
+func TestNewContext_RemovesMultipartTemporaryFiles(t *testing.T) {
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile("files", "input.odt")
+	if err != nil {
+		t.Fatalf("create multipart file: %v", err)
+	}
+	_, err = part.Write(bytes.Repeat([]byte("x"), 1024))
+	if err != nil {
+		t.Fatalf("write multipart file: %v", err)
+	}
+	err = writer.Close()
+	if err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	err = req.ParseMultipartForm(1)
+	if err != nil {
+		t.Fatalf("parse multipart form: %v", err)
+	}
+	defer func() {
+		_ = req.MultipartForm.RemoveAll()
+	}()
+
+	upload, err := req.MultipartForm.File["files"][0].Open()
+	if err != nil {
+		t.Fatalf("open disk-backed multipart file: %v", err)
+	}
+	temporaryFile, ok := upload.(*os.File)
+	if !ok {
+		_ = upload.Close()
+		t.Fatal("multipart upload is not disk-backed")
+	}
+	temporaryPath := temporaryFile.Name()
+	err = temporaryFile.Close()
+	if err != nil {
+		t.Fatalf("close disk-backed multipart file: %v", err)
+	}
+
+	echoCtx := echo.New().NewContext(req, httptest.NewRecorder())
+	logger := slog.New(slog.DiscardHandler)
+	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+	downloadFromCfg := downloadFromConfig{disable: true}
+
+	_, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromCfg)
+	if err != nil {
+		t.Fatalf("newContext returned error: %v", err)
+	}
+	defer cancel()
+
+	_, err = os.Stat(temporaryPath)
+	if !os.IsNotExist(err) {
+		t.Fatalf("multipart temporary file still exists: %s", temporaryPath)
 	}
 }
 

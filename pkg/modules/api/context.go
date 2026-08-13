@@ -178,6 +178,12 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 
 		return nil, cancel, fmt.Errorf("get multipart form: %w", err)
 	}
+	defer func() {
+		err := form.RemoveAll()
+		if err != nil {
+			logger.ErrorContext(context.Background(), fmt.Sprintf("remove multipart temporary files: %s", err))
+		}
+	}()
 
 	// This will ensure we do not exceed the body limit.
 	var formValuesSize int64
