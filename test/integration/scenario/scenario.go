@@ -1094,7 +1094,9 @@ func (s *scenario) thePdfShouldBeSetToLandscapeOrientation(ctx context.Context, 
 	}
 
 	output = strings.ReplaceAll(output, " ", "")
-	re := regexp.MustCompile(`Pagesize:(\d+)x(\d+).*`)
+	// The dimensions can be fractional (e.g. a content-sized single page),
+	// so match floats, not just integers.
+	re := regexp.MustCompile(`Pagesize:([\d.]+)x([\d.]+)`)
 	matches := re.FindStringSubmatch(output)
 
 	if len(matches) < 3 {
@@ -1103,22 +1105,22 @@ func (s *scenario) thePdfShouldBeSetToLandscapeOrientation(ctx context.Context, 
 
 	invert := kind == "should NOT"
 
-	width, err := strconv.Atoi(matches[1])
+	width, err := strconv.ParseFloat(matches[1], 64)
 	if err != nil {
-		return fmt.Errorf("convert width value %q to integer: %w", matches[1], err)
+		return fmt.Errorf("convert width value %q to float: %w", matches[1], err)
 	}
 
-	height, err := strconv.Atoi(matches[2])
+	height, err := strconv.ParseFloat(matches[2], 64)
 	if err != nil {
-		return fmt.Errorf("convert height value %q to integer: %w", matches[2], err)
+		return fmt.Errorf("convert height value %q to float: %w", matches[2], err)
 	}
 
 	if invert && height < width {
-		return fmt.Errorf("expected height %d to be greater than width %d", height, width)
+		return fmt.Errorf("expected height %g to be greater than width %g", height, width)
 	}
 
 	if !invert && width < height {
-		return fmt.Errorf("expected width %d to be greater than height %d", width, height)
+		return fmt.Errorf("expected width %g to be greater than height %g", width, height)
 	}
 
 	return nil

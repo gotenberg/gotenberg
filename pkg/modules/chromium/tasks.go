@@ -55,6 +55,7 @@ func printToPdfActionFunc(reqCtx context.Context, logger *slog.Logger, outputPat
 		defer span.End()
 
 		err := func() error {
+			paperWidth := options.PaperWidth
 			paperHeight := options.PaperHeight
 			pageRanges := options.PageRanges
 
@@ -68,9 +69,20 @@ func printToPdfActionFunc(reqCtx context.Context, logger *slog.Logger, outputPat
 
 				// There are 96 CSS pixels per inch.
 				// See https://issues.chromium.org/issues/40267771#comment14.
-				// We add top and bottom margins so that the content area
-				// is large enough to fit the entire content.
-				paperHeight = (cssContentSize.Height / 96) + options.MarginTop + options.MarginBottom
+				if options.Landscape {
+					// Landscape swaps the paper dimensions, so the page is
+					// WithPaperHeight wide by WithPaperWidth tall. Size both to
+					// the content so the width expands to fit a wide document
+					// (e.g. a table) instead of the height-only expansion
+					// landing on the width axis and truncating it.
+					// See https://github.com/gotenberg/gotenberg/issues/1390.
+					paperWidth = (cssContentSize.Height / 96) + options.MarginTop + options.MarginBottom
+					paperHeight = (cssContentSize.Width / 96) + options.MarginLeft + options.MarginRight
+				} else {
+					// We add top and bottom margins so that the content area
+					// is large enough to fit the entire content.
+					paperHeight = (cssContentSize.Height / 96) + options.MarginTop + options.MarginBottom
+				}
 				pageRanges = "1" // little dirty hack to avoid leftovers.
 			}
 
@@ -79,7 +91,7 @@ func printToPdfActionFunc(reqCtx context.Context, logger *slog.Logger, outputPat
 				WithLandscape(options.Landscape).
 				WithPrintBackground(options.PrintBackground).
 				WithScale(options.Scale).
-				WithPaperWidth(options.PaperWidth).
+				WithPaperWidth(paperWidth).
 				WithPaperHeight(paperHeight).
 				WithMarginTop(options.MarginTop).
 				WithMarginBottom(options.MarginBottom).

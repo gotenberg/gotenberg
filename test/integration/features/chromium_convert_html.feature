@@ -62,6 +62,24 @@ Feature: /forms/chromium/convert/html
       Page 12
       """
 
+  # A wide table on one landscape page: the page must expand its width to the
+  # content, so the rightmost column is not truncated and the page comes out
+  # landscape instead of the narrow-tall strip the height-only expansion used
+  # to produce. See https://github.com/gotenberg/gotenberg/issues/1390.
+  Scenario: POST /forms/chromium/convert/html (Single Page Landscape)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/wide-table-html/index.html | file   |
+      | singlePage                | true                                | field  |
+      | landscape                 | true                                | field  |
+      | Gotenberg-Output-Filename | foo                                 | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should be set to landscape orientation
+    Then the "foo.pdf" PDF should have content matching "Column 12" at page 1
+
   Scenario: POST /forms/chromium/convert/html (Landscape)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):

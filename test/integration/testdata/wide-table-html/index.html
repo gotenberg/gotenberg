@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Wide table</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      table {
+        border-collapse: collapse;
+        white-space: nowrap;
+      }
+      td {
+        border: 1px solid #000;
+        padding: 8px 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- A single wide row: much wider than tall, so a correct single page is
+         landscape, and the rightmost column only survives if the width was
+         expanded to the content instead of truncated. -->
+    <table>
+      <tr>
+        <td>Column 1</td>
+        <td>Column 2</td>
+        <td>Column 3</td>
+        <td>Column 4</td>
+        <td>Column 5</td>
+        <td>Column 6</td>
+        <td>Column 7</td>
+        <td>Column 8</td>
+        <td>Column 9</td>
+        <td>Column 10</td>
+        <td>Column 11</td>
+        <td>Column 12</td>
+      </tr>
+    </table>
+  </body>
+</html>
