@@ -222,7 +222,7 @@ func (b *chromiumBrowser) Start(logger *slog.Logger) error {
 		if stopErr != nil {
 			logger.ErrorContext(context.Background(), fmt.Sprintf("stop pinning proxy after failed start: %s", stopErr))
 		}
-		return fmt.Errorf("run exec allocator: %w", err)
+		return fmt.Errorf("run exec allocator: %w; if Chromium is slow to start, raise --chromium-start-timeout (currently %s)", err, b.arguments.wsUrlReadTimeout)
 	}
 
 	b.ctxMu.Lock()
