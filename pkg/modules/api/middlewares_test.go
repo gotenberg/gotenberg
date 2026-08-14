@@ -2,6 +2,8 @@ package api
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -11,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/coreos/go-oidc/v3/oidc/oidctest"
 	"github.com/labstack/echo/v4"
 )
 
@@ -150,5 +154,92 @@ func TestHardTimeoutMiddleware_MissingLoggerReturnsErrorInsteadOfPanicking(t *te
 	}
 	if !strings.Contains(err.Error(), "logger") {
 		t.Fatalf("error = %q, want a message mentioning logger", err)
+	}
+}
+
+func TestOidcAuthMiddleware(t *testing.T) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+
+	const (
+		keyID    = "test-key"
+		audience = "gotenberg"
+	)
+
+	oidcServer := &oidctest.Server{
+		PublicKeys: []oidctest.PublicKey{
+			{PublicKey: privateKey.Public(), KeyID: keyID, Algorithm: oidc.RS256},
+		},
+	}
+	srv := httptest.NewServer(oidcServer)
+	defer srv.Close()
+	oidcServer.SetIssuer(srv.URL)
+
+	// Building through the module's own helper exercises the discovery path too.
+	a := &Api{oidcIssuer: srv.URL, oidcAudience: audience}
+	verifier, err := a.buildOidcVerifier()
+	if err != nil {
+		t.Fatalf("build verifier: %v", err)
+	}
+
+	claims := func(issuer, aud string, expiresIn time.Duration) string {
+		now := time.Now()
+		return fmt.Sprintf(`{"iss":%q,"aud":%q,"sub":"user","exp":%d,"iat":%d}`,
+			issuer, aud, now.Add(expiresIn).Unix(), now.Unix())
+	}
+	sign := func(claims string) string {
+		return oidctest.SignIDToken(privateKey, keyID, oidc.RS256, claims)
+	}
+
+	otherKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate other key: %v", err)
+	}
+
+	for _, tc := range []struct {
+		scenario   string
+		authHeader string
+		wantStatus int
+	}{
+		{"valid token", "Bearer " + sign(claims(srv.URL, audience, time.Hour)), http.StatusOK},
+		{"missing header", "", http.StatusUnauthorized},
+		{"wrong scheme", "Basic Zm9vOmJhcg==", http.StatusUnauthorized},
+		{"empty bearer", "Bearer ", http.StatusUnauthorized},
+		{"malformed token", "Bearer not-a-jwt", http.StatusUnauthorized},
+		{"wrong issuer", "Bearer " + sign(claims("https://evil.example/", audience, time.Hour)), http.StatusUnauthorized},
+		{"wrong audience", "Bearer " + sign(claims(srv.URL, "someone-else", time.Hour)), http.StatusUnauthorized},
+		{"expired token", "Bearer " + sign(claims(srv.URL, audience, -time.Hour)), http.StatusUnauthorized},
+		{"unknown signing key", "Bearer " + oidctest.SignIDToken(otherKey, "unknown", oidc.RS256, claims(srv.URL, audience, time.Hour)), http.StatusUnauthorized},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tc.authHeader != "" {
+				req.Header.Set("Authorization", tc.authHeader)
+			}
+			c := echo.New().NewContext(req, httptest.NewRecorder())
+
+			handler := oidcAuthMiddleware(verifier)(func(c echo.Context) error {
+				return c.NoContent(http.StatusOK)
+			})
+
+			err := handler(c)
+
+			if tc.wantStatus == http.StatusOK {
+				if err != nil {
+					t.Fatalf("expected the request to pass, got error: %v", err)
+				}
+				return
+			}
+
+			var httpErr *echo.HTTPError
+			if !errors.As(err, &httpErr) {
+				t.Fatalf("expected an *echo.HTTPError, got %T (%v)", err, err)
+			}
+			if httpErr.Code != tc.wantStatus {
+				t.Fatalf("status = %d, want %d", httpErr.Code, tc.wantStatus)
+			}
+		})
 	}
 }

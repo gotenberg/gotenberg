@@ -39,6 +39,10 @@ type Api struct {
 	correlationIdHeader              string
 	basicAuthUsername                string
 	basicAuthPassword                string
+	oidcEnabled                      bool
+	oidcIssuer                       string
+	oidcAudience                     string
+	oidcJwksUrl                      string
 	downloadFromCfg                  downloadFromConfig
 	disableHealthCheckRouteTelemetry bool
 	disableRootRouteTelemetry        bool
@@ -198,6 +202,10 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.String("api-root-path", "/", "Set the root path of the API - for service discovery via URL paths")
 			fs.String("api-correlation-id-header", "Gotenberg-Trace", "Set the header name to use for identifying requests")
 			fs.Bool("api-enable-basic-auth", false, "Enable basic authentication - will look for the GOTENBERG_API_BASIC_AUTH_USERNAME and GOTENBERG_API_BASIC_AUTH_PASSWORD environment variables")
+			fs.Bool("api-enable-oidc-auth", false, "Enable OIDC bearer token authentication - mutually exclusive with basic authentication")
+			fs.String("api-oidc-issuer", "", "Set the OIDC issuer URL, e.g. https://tenant.example.com/ - the token 'iss' claim must match")
+			fs.String("api-oidc-audience", "", "Set the expected OIDC audience - the token 'aud' claim must contain it")
+			fs.String("api-oidc-jwks-url", "", "Set the OIDC JWKS URL - discovered from the issuer's well-known configuration when empty")
 			fs.StringSlice("api-download-from-allow-list", []string{}, "Set the allowed URLs for the download from feature using regular expressions - supports multiple values")
 			fs.StringSlice("api-download-from-deny-list", []string{}, "Set the denied URLs for the download from feature using regular expressions - supports multiple values")
 			fs.Bool("api-download-from-deny-private-ips", false, "Reject downloadFrom URLs whose host resolves to a non-public IP address (loopback, RFC1918, link-local, unique-local). Enable on deployments that accept untrusted downloadFrom sources to mitigate SSRF against internal services")
@@ -278,6 +286,15 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 		}
 		a.basicAuthUsername = basicAuthUsername
 		a.basicAuthPassword = basicAuthPassword
+	}
+
+	// Enable OIDC auth? The flags are populated from their API_OIDC_* env vars
+	// by the CLI, so no manual environment lookup is needed here.
+	a.oidcEnabled = flags.MustBool("api-enable-oidc-auth")
+	if a.oidcEnabled {
+		a.oidcIssuer = flags.MustString("api-oidc-issuer")
+		a.oidcAudience = flags.MustString("api-oidc-audience")
+		a.oidcJwksUrl = flags.MustString("api-oidc-jwks-url")
 	}
 
 	// Get routes from modules.
@@ -411,6 +428,25 @@ func (a *Api) Validate() error {
 		)
 	}
 
+	if a.basicAuthUsername != "" && a.oidcEnabled {
+		err = errors.Join(err,
+			errors.New("basic authentication and OIDC authentication cannot both be enabled"),
+		)
+	}
+
+	if a.oidcEnabled {
+		if a.oidcIssuer == "" {
+			err = errors.Join(err,
+				errors.New("OIDC issuer must not be empty when OIDC auth is enabled; set --api-oidc-issuer"),
+			)
+		}
+		if a.oidcAudience == "" {
+			err = errors.Join(err,
+				errors.New("OIDC audience must not be empty when OIDC auth is enabled; set --api-oidc-audience"),
+			)
+		}
+	}
+
 	if err != nil {
 		return err
 	}
@@ -517,11 +553,18 @@ func (a *Api) Start() error {
 
 	hardTimeout := a.timeout + (time.Duration(5) * time.Second)
 
-	// Basic auth?
+	// Authentication?
 	var securityMiddleware echo.MiddlewareFunc
-	if a.basicAuthUsername != "" {
+	switch {
+	case a.basicAuthUsername != "":
 		securityMiddleware = basicAuthMiddleware(a.basicAuthUsername, a.basicAuthPassword)
-	} else {
+	case a.oidcEnabled:
+		verifier, err := a.buildOidcVerifier()
+		if err != nil {
+			return fmt.Errorf("build OIDC verifier: %w", err)
+		}
+		securityMiddleware = oidcAuthMiddleware(verifier)
+	default:
 		securityMiddleware = func(next echo.HandlerFunc) echo.HandlerFunc {
 			return func(c echo.Context) error {
 				return next(c)

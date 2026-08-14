@@ -10,9 +10,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
@@ -366,6 +368,63 @@ func basicAuthMiddleware(username, password string) echo.MiddlewareFunc {
 		}
 		return false, nil
 	})
+}
+
+// buildOidcVerifier constructs an OIDC ID token verifier. When oidcJwksUrl is
+// set, the keys are fetched from that URL lazily, so there is no network call at
+// startup; otherwise the provider is discovered from its issuer, which does one.
+// Both paths use an OTEL-instrumented HTTP client, so the JWKS and discovery
+// fetches produce client spans.
+func (a *Api) buildOidcVerifier() (*oidc.IDTokenVerifier, error) {
+	httpClient := &http.Client{
+		Timeout:   10 * time.Second,
+		Transport: otelhttp.NewTransport(http.DefaultTransport),
+	}
+	ctx := oidc.ClientContext(context.Background(), httpClient)
+
+	cfg := &oidc.Config{
+		ClientID:             a.oidcAudience,
+		SupportedSigningAlgs: []string{oidc.RS256, oidc.ES256},
+	}
+
+	if a.oidcJwksUrl != "" {
+		keySet := oidc.NewRemoteKeySet(ctx, a.oidcJwksUrl)
+		return oidc.NewVerifier(a.oidcIssuer, keySet, cfg), nil
+	}
+
+	provider, err := oidc.NewProvider(ctx, a.oidcIssuer)
+	if err != nil {
+		return nil, fmt.Errorf("discover OIDC provider '%s': %w", a.oidcIssuer, err)
+	}
+
+	return provider.Verifier(cfg), nil
+}
+
+// oidcAuthMiddleware validates the Bearer token in the Authorization header with
+// the OIDC verifier, which checks the signature against the provider's rotating
+// JWKS and the issuer, audience and expiry claims. It answers 401 for a missing
+// or invalid token, logging the underlying reason at debug level without leaking
+// it to the client.
+func oidcAuthMiddleware(verifier *oidc.IDTokenVerifier) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			rawToken, ok := strings.CutPrefix(c.Request().Header.Get("Authorization"), "Bearer ")
+			if !ok || rawToken == "" {
+				return echo.NewHTTPError(http.StatusUnauthorized, "a Bearer token is required in the Authorization header")
+			}
+
+			_, err := verifier.Verify(c.Request().Context(), rawToken)
+			if err != nil {
+				if logger, ok := c.Get("logger").(*slog.Logger); ok && logger != nil {
+					logger.DebugContext(c.Request().Context(), "OIDC token verification failed", slog.Any("error", err))
+				}
+
+				return echo.NewHTTPError(http.StatusUnauthorized, "the Bearer token is invalid")
+			}
+
+			return next(c)
+		}
+	}
 }
 
 // contextMiddleware, middleware for "multipart/form-data" requests, sets the

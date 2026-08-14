@@ -29,6 +29,17 @@ Feature: /
     When I make a "GET" request to Gotenberg at the "/" endpoint
     Then the response status code should be 401
 
+  # A request without a Bearer token is rejected. The JWKS URL is never fetched
+  # here, so no OIDC provider needs to be reachable.
+  Scenario: GET / (OIDC Auth)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | API_ENABLE_OIDC_AUTH | true                             |
+      | API_OIDC_ISSUER      | https://gotenberg.test/          |
+      | API_OIDC_AUDIENCE    | gotenberg                        |
+      | API_OIDC_JWKS_URL    | https://gotenberg.test/jwks.json |
+    When I make a "GET" request to Gotenberg at the "/" endpoint
+    Then the response status code should be 401
+
   Scenario: GET /foo/ (Root Path)
     Given I have a Gotenberg container with the following environment variable(s):
       | API_ROOT_PATH | /foo/ |
