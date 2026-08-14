@@ -15,6 +15,7 @@ import (
 	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/cdproto/storage"
 	"github.com/chromedp/chromedp"
 	"go.opentelemetry.io/otel/attribute"
@@ -708,12 +709,10 @@ func waitForExpressionBeforePrintActionFunc(logger *slog.Logger, disableJavaScri
 				return fmt.Errorf("context done while evaluating '%s': %w", expression, ctx.Err())
 			case <-ticker.C:
 				var ok bool
-				// If the provided expression is a async function (thenable) it will be awaited
-				//   (async () => {
-				//		document.querySelector('#accept').click();
-				//		await new Promise(r => setTimeout(r, 2000));
-				//		return true;
-				//	})()
+				// Await the result so a thenable expression (an async function
+				// returning a Promise) resolves before its value is read. A
+				// non-promise result is unaffected.
+				// See https://github.com/gotenberg/gotenberg/pull/1617.
 				evaluate := chromedp.Evaluate(expression, &ok, func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
 					return p.WithAwaitPromise(true)
 				})
