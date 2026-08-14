@@ -934,6 +934,92 @@ func EnsureStampFile(stamp *gotenberg.Stamp, uploadedFile string) error {
 	return nil
 }
 
+// FormDataPdfStamps builds the ordered list of stamps from the repeated stamp
+// fields: stampSource, stampExpression, stampPages and stampOptions. The number
+// of stamps equals the number of stampSource values, so a single occurrence of
+// each field yields one stamp, preserving the single-stamp behavior. Fields are
+// aligned by position; a missing expression, pages or options entry defaults to
+// empty. Image and pdf stamps take their file from the uploaded stamp files, in
+// order (see [BindStampFiles]).
+func FormDataPdfStamps(form *api.FormData) ([]gotenberg.Stamp, error) {
+	var sources, expressions, pages, options []string
+	form.
+		Strings("stampSource", &sources).
+		Strings("stampExpression", &expressions).
+		Strings("stampPages", &pages).
+		Strings("stampOptions", &options)
+
+	at := func(values []string, i int) string {
+		if i < len(values) {
+			return values[i]
+		}
+		return ""
+	}
+
+	stamps := make([]gotenberg.Stamp, 0, len(sources))
+	for i, source := range sources {
+		if source != gotenberg.StampSourceText && source != gotenberg.StampSourceImage && source != gotenberg.StampSourcePDF {
+			return nil, api.WrapError(
+				fmt.Errorf("wrong stampSource value '%s'", source),
+				api.NewSentinelHttpError(
+					http.StatusBadRequest,
+					fmt.Sprintf("Invalid form data: form field 'stampSource' is invalid (got '%s', resulting to wrong value, expected either '%s', '%s' or '%s')", source, gotenberg.StampSourceText, gotenberg.StampSourceImage, gotenberg.StampSourcePDF),
+				),
+			)
+		}
+
+		var opts map[string]string
+		if raw := at(options, i); raw != "" {
+			err := json.Unmarshal([]byte(raw), &opts)
+			if err != nil {
+				return nil, api.WrapError(
+					fmt.Errorf("unmarshal stampOptions: %w", err),
+					api.NewSentinelHttpError(
+						http.StatusBadRequest,
+						"Invalid form data: form field 'stampOptions' is invalid",
+					),
+				)
+			}
+		}
+
+		stamps = append(stamps, gotenberg.Stamp{
+			Source:     source,
+			Expression: at(expressions, i),
+			Pages:      at(pages, i),
+			Options:    opts,
+		})
+	}
+
+	return stamps, nil
+}
+
+// BindStampFiles assigns each image or pdf stamp its uploaded file, consuming
+// stampFiles in order. Text stamps take no file. It returns an [api] HTTP 400
+// error when an image or pdf stamp has no file left to consume, which also
+// prevents an anonymous caller from passing an arbitrary filesystem path via
+// stampExpression.
+func BindStampFiles(stamps []gotenberg.Stamp, stampFiles []string) error {
+	fileIndex := 0
+	for i := range stamps {
+		if stamps[i].Source != gotenberg.StampSourceImage && stamps[i].Source != gotenberg.StampSourcePDF {
+			continue
+		}
+		if fileIndex >= len(stampFiles) {
+			return api.WrapError(
+				errors.New("not enough stamp files for the image or pdf stamps"),
+				api.NewSentinelHttpError(
+					http.StatusBadRequest,
+					"Invalid form data: a stamp file is required for image or pdf source",
+				),
+			)
+		}
+		stamps[i].Expression = stampFiles[fileIndex]
+		fileIndex++
+	}
+
+	return nil
+}
+
 // EnsureWatermarkFile mirrors [EnsureStampFile] for a watermark. The
 // shape is identical: image or pdf sources must be accompanied by an
 // uploaded file, and the file path replaces watermark.Expression to
@@ -1773,25 +1859,45 @@ func stampRoute(engine gotenberg.PdfEngine) api.Route {
 			ctx := c.Get("context").(*api.Context)
 
 			form := ctx.FormData()
-			stamp := FormDataPdfStamp(form, true)
-			stampFile := FormDataPdfStampFile(form)
+
+			// Reading the stamp fields as parallel arrays applies several
+			// stamps in one request. A single occurrence of each field is the
+			// existing single-stamp behavior.
+			stamps, err := FormDataPdfStamps(form)
+			if err != nil {
+				return fmt.Errorf("form data stamps: %w", err)
+			}
 
 			var inputPaths []string
-			err := form.
+			var stampFiles []string
+			err = form.
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
+				Stamps(&stampFiles).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			err = EnsureStampFile(&stamp, stampFile)
-			if err != nil {
-				return fmt.Errorf("validate stamp: %w", err)
+			if len(stamps) == 0 {
+				return api.WrapError(
+					errors.New("no stamp provided"),
+					api.NewSentinelHttpError(
+						http.StatusBadRequest,
+						"Invalid form data: form field 'stampSource' is required",
+					),
+				)
 			}
 
-			err = StampStub(ctx, engine, stamp, inputPaths)
+			err = BindStampFiles(stamps, stampFiles)
 			if err != nil {
-				return fmt.Errorf("stamp PDFs: %w", err)
+				return fmt.Errorf("bind stamp files: %w", err)
+			}
+
+			for _, stamp := range stamps {
+				err = StampStub(ctx, engine, stamp, inputPaths)
+				if err != nil {
+					return fmt.Errorf("stamp PDFs: %w", err)
+				}
 			}
 
 			err = ctx.AddOutputPaths(inputPaths...)

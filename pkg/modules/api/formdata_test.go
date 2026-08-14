@@ -1837,3 +1837,46 @@ func TestFormData_paths_excludesFacturXXml(t *testing.T) {
 		t.Errorf("expected only the non-Factur-X .xml document, got %+v", paths)
 	}
 }
+
+func TestFormData_Strings(t *testing.T) {
+	form := &FormData{
+		values: map[string][]string{
+			"foo": {"a", "b", "c"},
+		},
+	}
+
+	var got []string
+	form.Strings("foo", &got)
+
+	if want := []string{"a", "b", "c"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("expected %+v, got %+v", want, got)
+	}
+
+	var missing []string
+	form.Strings("bar", &missing)
+	if missing != nil {
+		t.Errorf("expected nil for a missing key, got %+v", missing)
+	}
+}
+
+func TestFormData_Stamps(t *testing.T) {
+	form := &FormData{
+		filesByField: map[string][]string{
+			StampFormField: {"/tmp/abc/a.png", "/tmp/abc/b.pdf"},
+		},
+	}
+
+	var got []string
+	form.Stamps(&got)
+
+	if want := []string{"/tmp/abc/a.png", "/tmp/abc/b.pdf"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("expected %+v, got %+v", want, got)
+	}
+
+	empty := &FormData{}
+	var none []string
+	empty.Stamps(&none)
+	if none != nil {
+		t.Errorf("expected nil when no stamp file was uploaded, got %+v", none)
+	}
+}

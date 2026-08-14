@@ -479,6 +479,36 @@ func (form *FormData) Stamp(target *string) *FormData {
 	return form
 }
 
+// Stamps binds the absolute paths of every file uploaded with the "stamp"
+// field name, in submission order. Unlike [FormData.Stamp], it keeps all of
+// them so a route can apply several stamps in a single request.
+func (form *FormData) Stamps(target *[]string) *FormData {
+	if form.errors != nil {
+		return form
+	}
+
+	if paths, ok := form.filesByField[StampFormField]; ok {
+		*target = paths
+	}
+
+	return form
+}
+
+// Strings binds every value submitted for key, in submission order. A field
+// repeated in the multipart body (e.g. multiple "stampSource") contributes one
+// entry per occurrence, which lets a route read parallel field arrays.
+func (form *FormData) Strings(key string, target *[]string) *FormData {
+	if form.errors != nil {
+		return form
+	}
+
+	if values, ok := form.values[key]; ok {
+		*target = values
+	}
+
+	return form
+}
+
 // FacturXXml binds the absolute path of the uploaded Factur-X CII invoice
 // XML. Only a file uploaded with the "facturxXml" field name is included.
 func (form *FormData) FacturXXml(target *string) *FormData {
