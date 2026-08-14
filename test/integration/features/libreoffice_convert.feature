@@ -18,6 +18,33 @@ Feature: /forms/libreoffice/convert
       Page 1
       """
 
+  # LibreOffice detects OOXML PowerPoint shows from content and converts them
+  # like .pptx; only Gotenberg's extension allow list gated them out.
+  # See https://github.com/gotenberg/gotenberg/pull/1626.
+  Scenario: POST /forms/libreoffice/convert (PowerPoint Show .ppsx)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/slideshow.ppsx | file   |
+      | Gotenberg-Output-Filename | foo                     | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+
+  Scenario: POST /forms/libreoffice/convert (PowerPoint Show .ppsm)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/slideshow.ppsm | file   |
+      | Gotenberg-Output-Filename | foo                     | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+
   # A CSV becomes a single Calc sheet named after the input file, and Calc's
   # default page style prints that sheet name as a centered header. Uploads are
   # stored under a UUID-based filename, so the UUID must not leak into the PDF.
