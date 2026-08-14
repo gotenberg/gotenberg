@@ -51,6 +51,39 @@ Feature: /forms/pdfengines/watermark
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
 
+  # Repeating the watermark fields applies several watermarks in one request, in
+  # order. Image and pdf watermarks consume the uploaded watermark files in
+  # order; text watermarks take none. Both text watermarks must land, so their
+  # content is asserted (the options keep them unrotated and apart so pdftotext
+  # reads them cleanly).
+  Scenario: POST /forms/pdfengines/watermark (Multiple Watermarks - pdfcpu)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PDFENGINES_WATERMARK_ENGINES | pdfcpu |
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/watermark" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf                                | file   |
+      | watermarkSource           | text                                               | field  |
+      | watermarkExpression       | MARKONE                                            | field  |
+      | watermarkOptions          | {"rotation":"0","position":"tl","scale":"0.2 abs"} | field  |
+      | watermarkSource           | text                                               | field  |
+      | watermarkExpression       | MARKTWO                                            | field  |
+      | watermarkOptions          | {"rotation":"0","position":"br","scale":"0.2 abs"} | field  |
+      | watermarkSource           | image                                              | field  |
+      | watermark                 | testdata/watermark.png                             | file   |
+      | Gotenberg-Output-Filename | foo                                                | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      MARKONE
+      """
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      MARKTWO
+      """
+
   Scenario: POST /forms/pdfengines/watermark (PDF - pdfcpu)
     Given I have a Gotenberg container with the following environment variable(s):
       | PDFENGINES_WATERMARK_ENGINES | pdfcpu |

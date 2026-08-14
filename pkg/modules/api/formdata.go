@@ -494,6 +494,21 @@ func (form *FormData) Stamps(target *[]string) *FormData {
 	return form
 }
 
+// Watermarks binds the absolute paths of every file uploaded with the
+// "watermark" field name, in submission order. Unlike [FormData.Watermark], it
+// keeps all of them so a route can apply several watermarks in a single request.
+func (form *FormData) Watermarks(target *[]string) *FormData {
+	if form.errors != nil {
+		return form
+	}
+
+	if paths, ok := form.filesByField[WatermarkFormField]; ok {
+		*target = paths
+	}
+
+	return form
+}
+
 // Strings binds every value submitted for key, in submission order. A field
 // repeated in the multipart body (e.g. multiple "stampSource") contributes one
 // entry per occurrence, which lets a route read parallel field arrays.

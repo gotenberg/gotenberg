@@ -156,3 +156,26 @@ func TestBindStampFiles(t *testing.T) {
 		})
 	}
 }
+
+func TestFormDataPdfWatermarks(t *testing.T) {
+	ctx := &api.ContextMock{Context: &api.Context{}}
+	ctx.SetValues(map[string][]string{
+		"watermarkSource":     {"text", "image"},
+		"watermarkExpression": {"DRAFT"},
+		"watermarkOptions":    {`{"opacity":"0.5"}`, ""},
+	})
+	form := ctx.FormData()
+
+	got, err := FormDataPdfWatermarks(form)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	want := []gotenberg.Stamp{
+		{Source: "text", Expression: "DRAFT", Options: map[string]string{"opacity": "0.5"}},
+		{Source: "image"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("watermarks = %#v, want %#v", got, want)
+	}
+}

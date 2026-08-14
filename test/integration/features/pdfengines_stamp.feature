@@ -53,19 +53,36 @@ Feature: /forms/pdfengines/stamp
 
   # Repeating the stamp fields applies several stamps in one request, in order.
   # Image and pdf stamps consume the uploaded stamp files in order; text stamps
-  # take none. See https://github.com/gotenberg/gotenberg/pull/1601.
+  # take none. Both text stamps must land, so their content is asserted (the
+  # options keep them unrotated and apart so pdftotext reads them cleanly).
+  # See https://github.com/gotenberg/gotenberg/pull/1601.
   Scenario: POST /forms/pdfengines/stamp (Multiple Stamps - pdfcpu)
     Given I have a Gotenberg container with the following environment variable(s):
       | PDFENGINES_STAMP_ENGINES | pdfcpu |
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/stamp" endpoint with the following form data and header(s):
-      | files           | testdata/page_1.pdf    | file  |
-      | stampSource     | text                   | field |
-      | stampExpression | CONFIDENTIAL           | field |
-      | stampSource     | image                  | field |
-      | stamp           | testdata/watermark.png | file  |
+      | files                     | testdata/page_1.pdf                                | file   |
+      | stampSource               | text                                               | field  |
+      | stampExpression           | STAMPONE                                           | field  |
+      | stampOptions              | {"rotation":"0","position":"tl","scale":"0.2 abs"} | field  |
+      | stampSource               | text                                               | field  |
+      | stampExpression           | STAMPTWO                                           | field  |
+      | stampOptions              | {"rotation":"0","position":"br","scale":"0.2 abs"} | field  |
+      | stampSource               | image                                              | field  |
+      | stamp                     | testdata/watermark.png                             | file   |
+      | Gotenberg-Output-Filename | foo                                                | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      STAMPONE
+      """
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      STAMPTWO
+      """
 
   Scenario: POST /forms/pdfengines/stamp (PDF - pdfcpu)
     Given I have a Gotenberg container with the following environment variable(s):

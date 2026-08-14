@@ -37,10 +37,16 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			metadata := pdfengines.FormDataPdfMetadata(form, false)
 			encrypt := pdfengines.FormDataPdfEncrypt(form)
 			embedPaths := pdfengines.FormDataPdfEmbeds(form)
-			watermark := pdfengines.FormDataPdfWatermark(form, false)
-			watermarkFile := pdfengines.FormDataPdfWatermarkFile(form)
-			stamp := pdfengines.FormDataPdfStamp(form, false)
-			stampFile := pdfengines.FormDataPdfStampFile(form)
+			watermarks, wErr := pdfengines.FormDataPdfWatermarks(form)
+			if wErr != nil {
+				return fmt.Errorf("form data watermarks: %w", wErr)
+			}
+			stamps, sErr := pdfengines.FormDataPdfStamps(form)
+			if sErr != nil {
+				return fmt.Errorf("form data stamps: %w", sErr)
+			}
+			var watermarkFiles, stampFiles []string
+			form.Watermarks(&watermarkFiles).Stamps(&stampFiles)
 			angle, rotatePages := pdfengines.FormDataPdfRotate(form, false)
 			embedsMetadata := pdfengines.FormDataPdfEmbedsMetadata(form)
 			facturX, facturxXmlPath := pdfengines.FormDataPdfFacturX(form)
@@ -311,13 +317,13 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			err = pdfengines.EnsureWatermarkFile(&watermark, watermarkFile)
+			err = pdfengines.BindWatermarkFiles(watermarks, watermarkFiles)
 			if err != nil {
-				return fmt.Errorf("validate watermark: %w", err)
+				return fmt.Errorf("bind watermark files: %w", err)
 			}
-			err = pdfengines.EnsureStampFile(&stamp, stampFile)
+			err = pdfengines.BindStampFiles(stamps, stampFiles)
 			if err != nil {
-				return fmt.Errorf("validate stamp: %w", err)
+				return fmt.Errorf("bind stamp files: %w", err)
 			}
 
 			err = pdfengines.ValidatePdfFormatsCompat(pdfFormats, encrypt.UserPassword, embedPaths)
@@ -339,7 +345,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			// requested. The conversion runs as a post-processing step below.
 			pdfFormats = pdfengines.FacturXPdfFormats(ctx, engine, facturX, pdfFormats, true, nil)
 
-			hasPostProcessing := watermark.Source != "" || stamp.Source != "" || angle != 0 ||
+			hasPostProcessing := len(watermarks) > 0 || len(stamps) > 0 || angle != 0 ||
 				len(embedPaths) > 0 || len(metadata) > 0 || flatten || facturX.ConformanceLevel != ""
 
 			outputPaths := make([]string, len(inputPaths))
@@ -494,12 +500,12 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				}
 			}
 
-			err = pdfengines.WatermarkStub(ctx, engine, watermark, outputPaths)
+			err = pdfengines.WatermarkStub(ctx, engine, watermarks, outputPaths)
 			if err != nil {
 				return fmt.Errorf("watermark PDFs: %w", err)
 			}
 
-			err = pdfengines.StampStub(ctx, engine, stamp, outputPaths)
+			err = pdfengines.StampStub(ctx, engine, stamps, outputPaths)
 			if err != nil {
 				return fmt.Errorf("stamp PDFs: %w", err)
 			}

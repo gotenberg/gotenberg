@@ -1880,3 +1880,18 @@ func TestFormData_Stamps(t *testing.T) {
 		t.Errorf("expected nil when no stamp file was uploaded, got %+v", none)
 	}
 }
+
+func TestFormData_Watermarks(t *testing.T) {
+	form := &FormData{
+		filesByField: map[string][]string{
+			WatermarkFormField: {"/tmp/abc/a.png"},
+		},
+	}
+
+	var got []string
+	form.Watermarks(&got)
+
+	if want := []string{"/tmp/abc/a.png"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("expected %+v, got %+v", want, got)
+	}
+}
