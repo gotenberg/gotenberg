@@ -879,6 +879,8 @@ func (a *Api) Extensions() []string {
 		".potx",
 		".ppm",
 		".pps",
+		".ppsm",
+		".ppsx",
 		".ppt",
 		".pptm",
 		".pptx",
