@@ -419,57 +419,17 @@ func (engine *QPdf) Encrypt(ctx context.Context, logger *slog.Logger, inputPath 
 }
 
 // EmbedFiles is not available in this implementation.
-// EmbedFiles embeds the given files into a PDF as attachments using qpdf's
-// --add-attachment. It is a fallback for pdfcpu: qpdf reads PDFs whose document
-// info pdfcpu's stricter validation rejects (for example a non-conformant
-// /Trapped value written by ExifTool). See
-// https://github.com/gotenberg/gotenberg/issues/1628.
 func (engine *QPdf) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {
-	ctx, span := gotenberg.Tracer().Start(ctx, "qpdf.EmbedFiles",
+	_, span := gotenberg.Tracer().Start(ctx, "qpdf.EmbedFiles",
 		trace.WithSpanKind(trace.SpanKindClient),
 		trace.WithAttributes(engine.spanAttrs()...),
 	)
 	defer span.End()
 
-	if len(filePaths) == 0 {
-		span.SetStatus(codes.Ok, "")
-		return nil
-	}
-
-	fail := func(err error) error {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return err
-	}
-
-	// Each --add-attachment group must be terminated by "--", so qpdf attaches
-	// one file per invocation. Chain them, writing to a temporary file and
-	// moving it back over the input each time.
-	outputPath := inputPath + "~embed"
-	for _, filePath := range filePaths {
-		args := make([]string, 0, 6+len(engine.globalArgs))
-		args = append(args, engine.globalArgs...)
-		args = append(args, "--add-attachment", filePath, "--key="+filepath.Base(filePath))
-		args = append(args, "--", inputPath, outputPath)
-
-		cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
-		if err != nil {
-			return fail(fmt.Errorf("create command: %w", err))
-		}
-
-		_, err = cmd.Exec()
-		if err != nil {
-			return fail(fmt.Errorf("embed files with QPDF: %w", err))
-		}
-
-		err = os.Rename(outputPath, inputPath)
-		if err != nil {
-			return fail(fmt.Errorf("embed files with QPDF: replace input: %w", err))
-		}
-	}
-
-	span.SetStatus(codes.Ok, "")
-	return nil
+	err := fmt.Errorf("embed files with QPDF: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return err
 }
 
 // EmbedFilesMetadata sets metadata on already-embedded files in a PDF using
