@@ -208,7 +208,7 @@ func (s *scenario) iMakeARequestToGotenbergWithTheFollowingFormDataAndHeaders(ct
 		return errors.New("no Gotenberg container")
 	}
 
-	fields := make(map[string]string)
+	fields := make(map[string][]string)
 	files := make(map[string][]string)
 	headers := make(map[string]string)
 
@@ -220,10 +220,10 @@ func (s *scenario) iMakeARequestToGotenbergWithTheFollowingFormDataAndHeaders(ct
 		switch kind {
 		case "field":
 			if name == "downloadFrom" || name == "url" || name == "cookies" {
-				fields[name] = strings.ReplaceAll(value, "%d", fmt.Sprintf("%d", s.hostPort))
+				fields[name] = append(fields[name], strings.ReplaceAll(value, "%d", fmt.Sprintf("%d", s.hostPort)))
 				continue
 			}
-			fields[name] = value
+			fields[name] = append(fields[name], value)
 		case "file":
 			if strings.Contains(value, "teststore") {
 				if s.teststoreDir == "" {
@@ -363,7 +363,7 @@ func (s *scenario) iMakeConcurrentRequestsToGotenberg(ctx context.Context, count
 		return errors.New("no Gotenberg container")
 	}
 
-	fields := make(map[string]string)
+	fields := make(map[string][]string)
 	files := make(map[string][]string)
 	headers := make(map[string]string)
 
@@ -374,7 +374,7 @@ func (s *scenario) iMakeConcurrentRequestsToGotenberg(ctx context.Context, count
 
 		switch kind {
 		case "field":
-			fields[name] = value
+			fields[name] = append(fields[name], value)
 		case "file":
 			wd, err := os.Getwd()
 			if err != nil {
