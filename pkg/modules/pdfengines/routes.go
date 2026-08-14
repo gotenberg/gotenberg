@@ -442,6 +442,27 @@ func WriteMetadataStub(ctx *api.Context, engine gotenberg.PdfEngine, metadata ma
 	return nil
 }
 
+// documentTitle returns the input PDF's Title metadata entry, falling back to
+// the original filename without its extension when the entry is absent, blank,
+// or cannot be read. It labels the per-document entries the merge route's
+// titleBookmarks feature generates.
+func documentTitle(ctx *api.Context, engine gotenberg.PdfEngine, inputPath, filename string) string {
+	fallback := strings.TrimSuffix(filename, filepath.Ext(filename))
+
+	metadata, err := engine.ReadMetadata(ctx, ctx.Log(), inputPath)
+	if err != nil {
+		ctx.Log().WarnContext(ctx, fmt.Sprintf("read metadata of '%s' for title bookmark, using filename: %s", filename, err))
+		return fallback
+	}
+
+	title, ok := metadata["Title"].(string)
+	if !ok || strings.TrimSpace(title) == "" {
+		return fallback
+	}
+
+	return title
+}
+
 func shiftBookmarks(bookmarks []gotenberg.Bookmark, offset int) []gotenberg.Bookmark {
 	if offset == 0 {
 		return bookmarks
@@ -995,10 +1016,12 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 			var inputPaths []string
 			var flatten bool
 			var autoIndexBookmarks bool
+			var titleBookmarks bool
 			err := form.
 				MandatoryPaths([]string{".pdf"}, &inputPaths).
 				Bool("flatten", &flatten, false).
 				Bool("autoIndexBookmarks", &autoIndexBookmarks, false).
+				Bool("titleBookmarks", &titleBookmarks, false).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -1078,7 +1101,7 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 				finalBookmarks = b
 			} else {
 				bMap, _ := bookmarks.(map[string][]gotenberg.Bookmark)
-				if bMap != nil || autoIndexBookmarks {
+				if bMap != nil || autoIndexBookmarks || titleBookmarks {
 					offset := 0
 					for _, inputPath := range inputPaths {
 						filename := ctx.OriginalFilename(inputPath)
@@ -1088,7 +1111,9 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 							fileBookmarks = bMap[filename]
 						}
 
-						if len(fileBookmarks) == 0 && autoIndexBookmarks {
+						// titleBookmarks nests each input's own outline under
+						// its title entry, so its outline is read here too.
+						if len(fileBookmarks) == 0 && (autoIndexBookmarks || titleBookmarks) {
 							fb, err := engine.ReadBookmarks(ctx, ctx.Log(), inputPath)
 							if err != nil {
 								return fmt.Errorf("read bookmarks of '%s': %w", filename, err)
@@ -1096,8 +1121,16 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 							fileBookmarks = fb
 						}
 
-						if len(fileBookmarks) > 0 {
-							finalBookmarks = append(finalBookmarks, shiftBookmarks(fileBookmarks, offset)...)
+						fileBookmarks = shiftBookmarks(fileBookmarks, offset)
+
+						if titleBookmarks {
+							finalBookmarks = append(finalBookmarks, gotenberg.Bookmark{
+								Title:    documentTitle(ctx, engine, inputPath, filename),
+								Page:     offset + 1,
+								Children: fileBookmarks,
+							})
+						} else if len(fileBookmarks) > 0 {
+							finalBookmarks = append(finalBookmarks, fileBookmarks...)
 						}
 
 						pageCount, err := engine.PageCount(ctx, ctx.Log(), inputPath)

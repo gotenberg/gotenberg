@@ -291,6 +291,49 @@ Feature: /forms/pdfengines/merge
       }
       """
 
+  # titleBookmarks adds a top-level bookmark per merged document, labeled by its
+  # Title metadata (falling back to the filename) and pointing to its first page,
+  # with the document's own outline nested underneath.
+  # See https://github.com/gotenberg/gotenberg/issues/867.
+  @bookmarks
+  Scenario: POST /forms/pdfengines/merge (Title Bookmarks)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/titled_alpha.pdf   | file   |
+      | files                     | testdata/titled_bravo.pdf   | file   |
+      | files                     | testdata/untitled_gamma.pdf | file   |
+      | titleBookmarks            | true                        | field  |
+      | Gotenberg-Output-Filename | foo                         | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/bookmarks/read" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/json"
+    Then the response body should match JSON:
+      """
+      {
+        "foo.pdf": [
+          {
+            "title": "Alpha",
+            "page": 1,
+            "children": [
+              { "title": "A1", "page": 1 },
+              { "title": "A2", "page": 2 }
+            ]
+          },
+          {
+            "title": "Bravo",
+            "page": 3
+          },
+          {
+            "title": "untitled_gamma",
+            "page": 4
+          }
+        ]
+      }
+      """
+
   @bookmarks
   Scenario: POST /forms/pdfengines/merge (Auto-index Bookmarks)
     Given I have a default Gotenberg container
