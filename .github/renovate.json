@@ -1,0 +1,29 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "enabledManagers": ["dockerfile", "gomod"],
+  "semanticCommits": "enabled",
+  "schedule": ["before 6am on monday"],
+  "packageRules": [
+    {
+      "description": "Dependabot owns Go module dependencies. Renovate only handles the toolchain.",
+      "matchManagers": ["gomod"],
+      "enabled": false
+    },
+    {
+      "description": "Bump the go directive in go.mod. Renovate skips it by default.",
+      "matchManagers": ["gomod"],
+      "matchDepTypes": ["golang"],
+      "matchDepNames": ["go"],
+      "enabled": true,
+      "rangeStrategy": "bump",
+      "groupName": "Go toolchain"
+    },
+    {
+      "description": "Keep ARG GOLANG_VERSION in step with the go directive, in a single PR.",
+      "matchManagers": ["dockerfile"],
+      "matchDepNames": ["golang"],
+      "groupName": "Go toolchain"
+    }
+  ]
+}
