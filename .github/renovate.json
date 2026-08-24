@@ -1,0 +1,47 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "enabledManagers": ["dockerfile", "gomod", "custom.regex"],
+  "semanticCommits": "enabled",
+  "schedule": ["before 6am on monday"],
+  "packageRules": [
+    {
+      "description": "Dependabot owns Go module dependencies. Renovate only handles the toolchain.",
+      "matchManagers": ["gomod"],
+      "enabled": false
+    },
+    {
+      "description": "Bump the go directive in go.mod. Renovate skips it by default.",
+      "matchManagers": ["gomod"],
+      "matchDepTypes": ["golang"],
+      "matchDepNames": ["go"],
+      "enabled": true,
+      "rangeStrategy": "bump",
+      "groupName": "Go toolchain"
+    },
+    {
+      "description": "Keep ARG GOLANG_VERSION in step with the go directive, in a single PR.",
+      "matchManagers": ["dockerfile"],
+      "matchDepNames": ["golang"],
+      "groupName": "Go toolchain"
+    },
+    {
+      "description": "golangci-lint refuses to run when built against an older Go than go.mod targets, so it must move with the toolchain.",
+      "matchManagers": ["custom.regex"],
+      "matchDepNames": ["golangci/golangci-lint"],
+      "groupName": "Go toolchain"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Track the golangci-lint version pinned as an input to golangci-lint-action.",
+      "managerFilePatterns": ["/^\\.github/workflows/.+\\.ya?ml$/"],
+      "matchStrings": [
+        "uses: golangci/golangci-lint-action@\\S+\\s+with:\\s+version: (?<currentValue>v\\S+)"
+      ],
+      "depNameTemplate": "golangci/golangci-lint",
+      "datasourceTemplate": "github-releases"
+    }
+  ]
+}
