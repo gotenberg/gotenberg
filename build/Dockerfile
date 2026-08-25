@@ -56,10 +56,10 @@ RUN go build -o gotenberg -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/
 # Custom JRE stage
 # Credits: https://github.com/jodconverter/docker-image-jodconverter-runtime
 # ----------------------------------------------
-FROM debian:13-slim@sha256:3a39a0592364683e6bab97937b72cad5a8fa6dcbbee90edb3bb48c7f8e94f258 AS custom-jre-stage
+FROM debian:13-slim@sha256:d7e12182ce18b85b93007c1dedf31f2d29e01ccf3182cc4017c709b6259bc132 AS custom-jre-stage
 
 # Setting DOCKERFILE_DATE forces a build cache refresh for the package upgrades
-ENV DOCKERFILE_DATE=2026-08-24
+ENV DOCKERFILE_DATE=2026-08-25
 
 RUN \
     apt-get update -qq &&\
@@ -81,13 +81,13 @@ RUN jlink \
 # ----------------------------------------------
 # Base image stage
 # ----------------------------------------------
-FROM debian:13-slim@sha256:3a39a0592364683e6bab97937b72cad5a8fa6dcbbee90edb3bb48c7f8e94f258 AS base-image-stage
+FROM debian:13-slim@sha256:d7e12182ce18b85b93007c1dedf31f2d29e01ccf3182cc4017c709b6259bc132 AS base-image-stage
 
 ARG TIMEZONE=UTC
 ENV TZ=$TIMEZONE
 
 # Setting DOCKERFILE_DATE forces a build cache refresh for the package upgrades
-ENV DOCKERFILE_DATE=2026-08-24
+ENV DOCKERFILE_DATE=2026-08-25
 
 COPY --from=custom-jre-stage /custom-jre /opt/java
 
@@ -219,7 +219,7 @@ RUN \
         curl -fsSL --output /tmp/chrome.deb "https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_${CHROME_VERSION}_amd64.deb" &&\
         DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends /tmp/chrome.deb &&\
         mv /usr/bin/google-chrome-stable /usr/bin/chromium &&\
-        rm -rf /tmp/chrome.deb; \  
+        rm -rf /tmp/chrome.deb; \
       fi \
     elif [[ "$(dpkg --print-architecture)" == "armhf" ]]; then \
       apt-get update -qq &&\
