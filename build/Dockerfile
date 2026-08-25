@@ -1,7 +1,7 @@
 # ARG instructions do not create additional layers. Instead, next layers will
 # concatenate them. Also, we have to repeat ARG instructions in each build
 # stage that uses them.
-ARG GOLANG_VERSION=1.26.1
+ARG GOLANG_VERSION=1.26.6
 ARG CHROME_VERSION=146.0.7680.164-1
 
 # ----------------------------------------------
