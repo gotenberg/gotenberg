@@ -86,6 +86,9 @@ FROM debian:13-slim@sha256:3a39a0592364683e6bab97937b72cad5a8fa6dcbbee90edb3bb48
 ARG TIMEZONE=UTC
 ENV TZ=$TIMEZONE
 
+# Setting DOCKERFILE_DATE forces a build cache refresh for the package upgrades
+ENV DOCKERFILE_DATE=2026-08-24
+
 COPY --from=custom-jre-stage /custom-jre /opt/java
 
 ENV PATH="/opt/java/bin:${PATH}"
@@ -110,9 +113,6 @@ LABEL org.opencontainers.image.title="Gotenberg" \
     org.opencontainers.image.authors="Julien Neuhart <neuhart.julien@gmail.com>" \
     org.opencontainers.image.documentation="https://gotenberg.dev" \
     org.opencontainers.image.source="https://github.com/gotenberg/gotenberg"
-
-# Setting DOCKERFILE_DATE forces a build cache refresh for the package upgrades
-ENV DOCKERFILE_DATE=2026-08-24
 
 RUN \
     # Create a non-root user.
