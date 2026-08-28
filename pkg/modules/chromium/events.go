@@ -14,6 +14,7 @@ import (
 
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/fetch"
+	"github.com/chromedp/cdproto/inspector"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
@@ -517,6 +518,38 @@ func listenForEventExceptionThrown(ctx context.Context, logger *slog.Logger, con
 			defer consoleExceptionsMu.Unlock()
 
 			*consoleExceptions = errors.Join(*consoleExceptions, fmt.Errorf("\n%+v", ev.ExceptionDetails))
+		}
+	})
+}
+
+type eventTargetCrashedOptions struct {
+	crashed   *error
+	crashedMu *sync.RWMutex
+	cancel    context.CancelFunc
+}
+
+// listenForEventTargetCrashed listens for the Inspector.targetCrashed event,
+// which Chromium sends when the renderer serving the conversion's tab
+// crashes. chromedp enables the Inspector domain on every target but does
+// not handle this event: left alone, the in-flight CDP command never
+// receives a response and the conversion blocks until the request deadline.
+// Record the crash and cancel the task context so the conversion fails fast
+// instead.
+// See https://github.com/gotenberg/gotenberg/issues/1640.
+func listenForEventTargetCrashed(ctx context.Context, logger *slog.Logger, options eventTargetCrashedOptions) {
+	chromedp.ListenTarget(ctx, func(ev any) {
+		if _, ok := ev.(*inspector.EventTargetCrashed); ok {
+			logger.DebugContext(ctx, "event EventTargetCrashed fired")
+
+			options.crashedMu.Lock()
+			defer options.crashedMu.Unlock()
+
+			*options.crashed = ErrChromiumCrashed
+
+			// Cancel the task context so the in-flight CDP command aborts
+			// immediately instead of waiting for a response the crashed
+			// renderer can never send.
+			options.cancel()
 		}
 	})
 }

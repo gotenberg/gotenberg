@@ -1401,3 +1401,19 @@ Feature: /forms/chromium/convert/url
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
     Then the "foo.pdf" PDF should have 1 page(s)
+
+  # chrome://crash makes the renderer crash deterministically, the same
+  # failure class as a renderer crash triggered by the page content. The
+  # request must fail fast with a 503 instead of hanging until the API
+  # timeout.
+  # See https://github.com/gotenberg/gotenberg/issues/1640.
+  Scenario: POST /forms/chromium/convert/url (Chromium crash fails fast with 503)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url | chrome://crash | field |
+    Then the response status code should be 503
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should contain string:
+      """
+      Chromium crashed while processing the request
+      """

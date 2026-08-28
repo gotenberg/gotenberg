@@ -21,6 +21,7 @@ func TestChromiumErrorType(t *testing.T) {
 		{"invalid resource http status", ErrInvalidResourceHttpStatusCode, "chromium_unavailable", "invalid_input"},
 		{"loading failed", ErrLoadingFailed, "chromium_unavailable", "invalid_input"},
 		{"resource loading failed", ErrResourceLoadingFailed, "chromium_unavailable", "invalid_input"},
+		{"crashed", ErrChromiumCrashed, "chromium_unavailable", "chromium_unavailable"},
 		{"invalid evaluation expression", ErrInvalidEvaluationExpression, "chromium_unavailable", "invalid_input"},
 		{"invalid selector query", ErrInvalidSelectorQuery, "chromium_unavailable", "invalid_input"},
 		{"pdf queue", gotenberg.ErrMaximumQueueSizeExceeded, "chromium_unavailable", "chromium_unavailable"},
