@@ -1,11 +1,12 @@
 module github.com/gotenberg/gotenberg/v8
 
-go 1.26.5
+go 1.27.0
 
 require (
 	github.com/alexliesenfeld/health v0.8.1
 	github.com/chromedp/cdproto v0.0.0-20250803210736-d308e07a266d // pinned with chromedp v0.14.2, see below
 	github.com/chromedp/chromedp v0.14.2 // pinned: v0.15.x breaks the headless print-mode paint pipeline (rAF / ResizeObserver / IntersectionObserver stop firing, blank charts). See https://github.com/gotenberg/gotenberg/issues/1535.
+	github.com/coreos/go-oidc/v3 v3.20.0
 	github.com/cucumber/godog v0.16.0
 	github.com/dlclark/regexp2 v1.12.0
 	github.com/gomarkdown/markdown v0.0.0-20260725000948-8435af3f5984
@@ -24,6 +25,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.44.0
 	go.opentelemetry.io/contrib/bridges/otelslog v0.20.0
 	go.opentelemetry.io/contrib/exporters/autoexport v0.70.0
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.70.0
 	go.opentelemetry.io/otel v1.45.0
 	go.opentelemetry.io/otel/log v0.21.0
 	go.opentelemetry.io/otel/metric v1.45.0
@@ -35,11 +37,6 @@ require (
 	golang.org/x/sync v0.22.0
 	golang.org/x/term v0.45.0
 	golang.org/x/text v0.41.0
-)
-
-require (
-	github.com/coreos/go-oidc/v3 v3.20.0
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.70.0
 )
 
 require (
