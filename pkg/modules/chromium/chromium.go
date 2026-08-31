@@ -71,6 +71,10 @@ var (
 	// ErrResourceLoadingFailed happens when one or more resources failed to load.
 	ErrResourceLoadingFailed = errors.New("resource loading failed")
 
+	// ErrChromiumCrashed happens when the Chromium renderer crashes during a
+	// conversion.
+	ErrChromiumCrashed = errors.New("chromium crashed")
+
 	// PDF specific.
 
 	// ErrOmitBackgroundWithoutPrintBackground happens if
@@ -1106,6 +1110,8 @@ func chromiumErrorType(err error, queueReason string) string {
 		errors.Is(err, ErrInvalidEvaluationExpression),
 		errors.Is(err, ErrInvalidSelectorQuery):
 		return gotenberg.ErrorTypeInvalidInput
+	case errors.Is(err, ErrChromiumCrashed):
+		return "chromium_unavailable"
 	case errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded):
 		return queueReason
 	case errors.Is(err, gotenberg.ErrProcessAlreadyRestarting):

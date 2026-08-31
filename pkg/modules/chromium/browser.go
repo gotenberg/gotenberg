@@ -523,7 +523,44 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 		cancelOnMainPageError:   taskCancel,
 	})
 
+	var (
+		crashed   error
+		crashedMu sync.RWMutex
+	)
+
+	// See https://github.com/gotenberg/gotenberg/issues/1640.
+	listenForEventTargetCrashed(taskCtx, logger, eventTargetCrashedOptions{
+		crashed:   &crashed,
+		crashedMu: &crashedMu,
+		cancel:    taskCancel,
+	})
+
 	runErr := chromedp.Run(taskCtx, tasks...)
+
+	// A crashed renderer is the root cause of every other failure this
+	// conversion may have recorded, so check it first.
+	// See https://github.com/gotenberg/gotenberg/issues/1640.
+	crashedMu.RLock()
+	defer crashedMu.RUnlock()
+
+	if crashed != nil {
+		return fmt.Errorf("handle tasks: %w", crashed)
+	}
+
+	// The browser context is only ever canceled when the browser process
+	// dies or is stopped, never on a request timeout. If the run failed
+	// and the browser context is done, the conversion failed because the
+	// browser went away mid-flight; fail fast with the same crash error
+	// instead of letting the error fall through as a generic context
+	// cancellation. The check is gated on runErr so a successful
+	// conversion is never discarded by a browser death that lands right
+	// after it.
+	// See https://github.com/gotenberg/gotenberg/issues/1640.
+	if runErr != nil {
+		if err := b.ctx.Err(); err != nil {
+			return fmt.Errorf("handle tasks: %w", ErrChromiumCrashed)
+		}
+	}
 
 	// Check event-driven errors first — they take priority over chromedp.Run
 	// errors because they carry the actual root cause (e.g., HTTP 500 from

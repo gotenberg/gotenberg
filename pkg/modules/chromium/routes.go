@@ -1020,6 +1020,16 @@ func handleChromiumError(err error, options Options) error {
 		return nil
 	}
 
+	if errors.Is(err, ErrChromiumCrashed) {
+		return api.WrapError(
+			err,
+			api.NewSentinelHttpError(
+				http.StatusServiceUnavailable,
+				"Chromium crashed while processing the request. Retry, or reduce the workload if the problem persists.",
+			),
+		)
+	}
+
 	if errors.Is(err, ErrInvalidEvaluationExpression) {
 		if options.WaitForExpression == "" {
 			// We do not expect the 'waitWindowStatus' form field to return
