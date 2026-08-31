@@ -89,6 +89,49 @@ func TestInitTracerProvider_HonorsSamplerEnv(t *testing.T) {
 	}
 }
 
+// TestExporterConfigured pins the opt-in gate: an unset or blank
+// OTEL_*_EXPORTER keeps the signal off, so Gotenberg never wires the OTLP
+// exporter that autoexport would otherwise default to and fail to reach at
+// localhost:4318. See https://github.com/gotenberg/gotenberg/issues/1643.
+func TestExporterConfigured(t *testing.T) {
+	const key = "OTEL_METRICS_EXPORTER"
+
+	orig, had := os.LookupEnv(key)
+	t.Cleanup(func() {
+		if had {
+			os.Setenv(key, orig)
+			return
+		}
+		os.Unsetenv(key)
+	})
+
+	for _, tc := range []struct {
+		scenario string
+		unset    bool
+		value    string
+		want     bool
+	}{
+		{"unset", true, "", false},
+		{"empty", false, "", false},
+		{"whitespace only", false, "   ", false},
+		{"none", false, "none", true},
+		{"otlp", false, "otlp", true},
+		{"padded value", false, "  otlp  ", true},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			if tc.unset {
+				os.Unsetenv(key)
+			} else {
+				os.Setenv(key, tc.value)
+			}
+
+			if got := exporterConfigured(key); got != tc.want {
+				t.Errorf("exporterConfigured(%q) = %v, want %v", key, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestExemplarFilterOptions(t *testing.T) {
 	t.Run("default pins trace-based", func(t *testing.T) {
 		if v, ok := os.LookupEnv("OTEL_METRICS_EXEMPLAR_FILTER"); ok {

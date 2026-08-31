@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"sync/atomic"
 
 	"go.opentelemetry.io/contrib/bridges/otelslog"
@@ -74,6 +75,24 @@ func buildResource(ctx context.Context, logger *slog.Logger, serviceName, servic
 	return merged
 }
 
+// OTEL_*_EXPORTER select the exporter for each signal. autoexport treats an
+// unset or empty value as a request for the OTLP exporter, which then fails
+// against the default localhost:4318 endpoint when nothing listens there and,
+// for metrics, keeps retrying on the periodic reader's timer. Gotenberg keeps
+// telemetry opt-in: a signal with no exporter configured is built without one
+// and stays inert. See https://github.com/gotenberg/gotenberg/issues/1643.
+const (
+	tracesExporterEnvKey  = "OTEL_TRACES_EXPORTER"
+	metricsExporterEnvKey = "OTEL_METRICS_EXPORTER"
+	logsExporterEnvKey    = "OTEL_LOGS_EXPORTER"
+)
+
+// exporterConfigured reports whether the operator selected an exporter for the
+// signal owning envKey. An unset or blank value keeps that signal off.
+func exporterConfigured(envKey string) bool {
+	return strings.TrimSpace(os.Getenv(envKey)) != ""
+}
+
 // InitTracerProvider initializes the OpenTelemetry tracer provider.
 func InitTracerProvider(logger *slog.Logger, serviceName, serviceVersion string) (shutdown func(context.Context) error, err error) {
 	initOtelLogger(logger)
@@ -86,13 +105,14 @@ func InitTracerProvider(logger *slog.Logger, serviceName, serviceVersion string)
 		trace.WithResource(res),
 	}
 
-	traceExporter, err := autoexport.NewSpanExporter(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if !autoexport.IsNoneSpanExporter(traceExporter) {
-		traceOpts = append(traceOpts, trace.WithBatcher(traceExporter))
+	if exporterConfigured(tracesExporterEnvKey) {
+		traceExporter, err := autoexport.NewSpanExporter(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if !autoexport.IsNoneSpanExporter(traceExporter) {
+			traceOpts = append(traceOpts, trace.WithBatcher(traceExporter))
+		}
 	}
 
 	traceProvider := trace.NewTracerProvider(traceOpts...)
@@ -119,13 +139,14 @@ func InitMeterProvider(logger *slog.Logger, serviceName, serviceVersion string) 
 	}
 	metricOpts = append(metricOpts, exemplarFilterOptions()...)
 
-	metricReader, err := autoexport.NewMetricReader(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if !autoexport.IsNoneMetricReader(metricReader) {
-		metricOpts = append(metricOpts, metric.WithReader(metricReader))
+	if exporterConfigured(metricsExporterEnvKey) {
+		metricReader, err := autoexport.NewMetricReader(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if !autoexport.IsNoneMetricReader(metricReader) {
+			metricOpts = append(metricOpts, metric.WithReader(metricReader))
+		}
 	}
 
 	meterProvider := metric.NewMeterProvider(metricOpts...)
@@ -157,13 +178,14 @@ func InitLoggerProvider(logger *slog.Logger, serviceName, serviceVersion string)
 		log.WithResource(res),
 	}
 
-	logExporter, err := autoexport.NewLogExporter(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if !autoexport.IsNoneLogExporter(logExporter) {
-		logOpts = append(logOpts, log.WithProcessor(log.NewBatchProcessor(logExporter)))
+	if exporterConfigured(logsExporterEnvKey) {
+		logExporter, err := autoexport.NewLogExporter(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
+		if !autoexport.IsNoneLogExporter(logExporter) {
+			logOpts = append(logOpts, log.WithProcessor(log.NewBatchProcessor(logExporter)))
+		}
 	}
 
 	loggerProvider := log.NewLoggerProvider(logOpts...)
