@@ -259,7 +259,7 @@ RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/so
         hyphen-no hyphen-or hyphen-pa hyphen-pl hyphen-pt-br hyphen-pt-pt hyphen-ro hyphen-ru hyphen-sk hyphen-sl \
         hyphen-sr hyphen-sv hyphen-ta hyphen-te hyphen-th hyphen-uk hyphen-zu \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t trixie-backports \
-        libreoffice-writer libreoffice-calc libreoffice-impress libreoffice-draw python3-uno \
+        libreoffice-writer libreoffice-calc libreoffice-impress libreoffice-draw libreoffice-math python3-uno \
     # unoconverter will look for the Python binary, which has to be at version 3.
     && ln -s /usr/bin/python3 /usr/bin/python \
     # Cleanup.
@@ -386,7 +386,7 @@ RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/so
         hyphen-no hyphen-or hyphen-pa hyphen-pl hyphen-pt-br hyphen-pt-pt hyphen-ro hyphen-ru hyphen-sk hyphen-sl \
         hyphen-sr hyphen-sv hyphen-ta hyphen-te hyphen-th hyphen-uk hyphen-zu \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t trixie-backports \
-        libreoffice-writer libreoffice-calc libreoffice-impress libreoffice-draw python3-uno \
+        libreoffice-writer libreoffice-calc libreoffice-impress libreoffice-draw libreoffice-math python3-uno \
     # unoconverter will look for the Python binary, which has to be at version 3.
     && ln -s /usr/bin/python3 /usr/bin/python \
     # Cleanup.
