@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"mime/multipart"
@@ -11,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -206,6 +208,137 @@ func TestNewContext_DownloadFromConcurrentMapWrites(t *testing.T) {
 	}
 	if got := len(ctx.filesByField[EmbedsFormField]); got != downloads {
 		t.Fatalf("filesByField[%q] entries = %d, want %d", EmbedsFormField, got, downloads)
+	}
+}
+
+// An oversized downloadFrom array must be rejected at the trust boundary with
+// a 400, before any download goroutine is spawned.
+// https://github.com/gotenberg/gotenberg/security/advisories/GHSA-6vqw-2jgm-4x88
+func TestNewContext_DownloadFromMaxEntries(t *testing.T) {
+	var hits atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		w.Header().Set("Content-Disposition", `attachment; filename="download.txt"`)
+		_, _ = w.Write([]byte("downloaded"))
+	}))
+	defer server.Close()
+
+	dls := make([]downloadFrom, 3)
+	for i := range dls {
+		dls[i] = downloadFrom{Url: fmt.Sprintf("%s/file?i=%d", server.URL, i)}
+	}
+
+	payload, err := json.Marshal(dls)
+	if err != nil {
+		t.Fatalf("marshal downloadFrom payload: %v", err)
+	}
+
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	err = writer.WriteField("downloadFrom", string(payload))
+	if err != nil {
+		t.Fatalf("write downloadFrom field: %v", err)
+	}
+	err = writer.Close()
+	if err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	echoCtx := echo.New().NewContext(req, httptest.NewRecorder())
+	logger := slog.New(slog.DiscardHandler)
+	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+	downloadFromCfg := downloadFromConfig{maxEntries: 2}
+
+	_, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromCfg)
+	if cancel != nil {
+		defer cancel()
+	}
+	if err == nil {
+		t.Fatal("newContext returned no error, want a 400 for too many entries")
+	}
+
+	var httpErr HttpError
+	if !errors.As(err, &httpErr) {
+		t.Fatalf("error %v is not an HttpError", err)
+	}
+	if status, _ := httpErr.HttpError(); status != http.StatusBadRequest {
+		t.Fatalf("HTTP status = %d, want %d", status, http.StatusBadRequest)
+	}
+	if got := hits.Load(); got != 0 {
+		t.Fatalf("server hits = %d, want 0 (rejected before any download)", got)
+	}
+}
+
+// The number of in-flight downloadFrom fetches must never exceed the
+// configured concurrency limit, regardless of array length.
+// https://github.com/gotenberg/gotenberg/security/advisories/GHSA-6vqw-2jgm-4x88
+func TestNewContext_DownloadFromMaxConcurrency(t *testing.T) {
+	const (
+		downloads      = 8
+		maxConcurrency = 2
+	)
+
+	var current, peak atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inFlight := current.Add(1)
+		for {
+			observed := peak.Load()
+			if inFlight <= observed || peak.CompareAndSwap(observed, inFlight) {
+				break
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
+		current.Add(-1)
+
+		filename := fmt.Sprintf("download-%s.txt", r.URL.Query().Get("i"))
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+		_, _ = w.Write([]byte("downloaded"))
+	}))
+	defer server.Close()
+
+	dls := make([]downloadFrom, downloads)
+	for i := range dls {
+		dls[i] = downloadFrom{Url: fmt.Sprintf("%s/file?i=%d", server.URL, i)}
+	}
+
+	payload, err := json.Marshal(dls)
+	if err != nil {
+		t.Fatalf("marshal downloadFrom payload: %v", err)
+	}
+
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	err = writer.WriteField("downloadFrom", string(payload))
+	if err != nil {
+		t.Fatalf("write downloadFrom field: %v", err)
+	}
+	err = writer.Close()
+	if err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	echoCtx := echo.New().NewContext(req, httptest.NewRecorder())
+	logger := slog.New(slog.DiscardHandler)
+	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+	downloadFromCfg := downloadFromConfig{maxConcurrency: maxConcurrency}
+
+	ctx, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromCfg)
+	if err != nil {
+		t.Fatalf("newContext returned error: %v", err)
+	}
+	defer cancel()
+
+	if got := len(ctx.files); got != downloads {
+		t.Fatalf("downloaded files = %d, want %d", got, downloads)
+	}
+	if got := peak.Load(); got > maxConcurrency {
+		t.Fatalf("peak concurrency = %d, want <= %d", got, maxConcurrency)
 	}
 }
 

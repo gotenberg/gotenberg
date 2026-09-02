@@ -35,6 +35,8 @@ services:
       - "--api-download-from-deny-public-ips=${API_DOWNLOAD_FROM_DENY_PUBLIC_IPS}"
       - "--api-download-from-enable-environment-proxy=${API_DOWNLOAD_FROM_ENABLE_ENVIRONMENT_PROXY}"
       - "--api-download-from-max-retry=${API_DOWNLOAD_FROM_MAX_RETRY}"
+      - "--api-download-from-max-concurrency=${API_DOWNLOAD_FROM_MAX_CONCURRENCY}"
+      - "--api-download-from-max-entries=${API_DOWNLOAD_FROM_MAX_ENTRIES}"
       - "--api-disable-download-from=${API_DISABLE_DOWNLOAD_FROM}"
       - "--api-disable-health-check-route-telemetry=${API_DISABLE_HEALTH_CHECK_ROUTE_TELEMETRY}"
       - "--api-disable-root-route-telemetry=${API_DISABLE_ROOT_ROUTE_TELEMETRY}"

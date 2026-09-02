@@ -67,6 +67,8 @@ type downloadFromConfig struct {
 	denyPublicIPs          bool
 	enableEnvironmentProxy bool
 	maxRetry               int
+	maxConcurrency         int
+	maxEntries             int
 	disable                bool
 }
 
@@ -212,6 +214,8 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Bool("api-download-from-deny-public-ips", false, "Reject downloadFrom URLs whose host resolves to a public IP address. Enable on air-gapped or data-governed deployments to prevent downloads from reaching the public internet")
 			fs.Bool("api-download-from-enable-environment-proxy", false, "Route downloadFrom fetches through the proxy defined by the standard HTTP_PROXY, HTTPS_PROXY, and NO_PROXY variables, including credentials")
 			fs.Int("api-download-from-max-retry", 4, "Set the maximum number of retries for the download from feature")
+			fs.Int("api-download-from-max-concurrency", 10, "Set the maximum number of downloadFrom entries fetched concurrently per request - bounds the outbound fan-out. Set to 0 to disable this feature")
+			fs.Int("api-download-from-max-entries", 0, "Set the maximum number of downloadFrom entries allowed per request. Set to 0 to disable this feature")
 			fs.Bool("api-disable-download-from", false, "Disable the download from feature")
 			fs.Bool("api-disable-health-check-route-telemetry", true, "Disable telemetry for health check route")
 			fs.Bool("api-disable-root-route-telemetry", true, "Disable telemetry for the root route")
@@ -255,6 +259,8 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 		denyPublicIPs:          flags.MustBool("api-download-from-deny-public-ips"),
 		enableEnvironmentProxy: flags.MustBool("api-download-from-enable-environment-proxy"),
 		maxRetry:               flags.MustInt("api-download-from-max-retry"),
+		maxConcurrency:         flags.MustInt("api-download-from-max-concurrency"),
+		maxEntries:             flags.MustInt("api-download-from-max-entries"),
 		disable:                flags.MustBool("api-disable-download-from"),
 	}
 	a.disableHealthCheckRouteTelemetry = flags.MustDeprecatedBool("api-disable-health-check-logging", "api-disable-health-check-route-telemetry")
@@ -402,6 +408,18 @@ func (a *Api) Validate() error {
 		if proxyErr != nil {
 			err = errors.Join(err, fmt.Errorf("--api-download-from-enable-environment-proxy is set: %w", proxyErr))
 		}
+	}
+
+	if a.downloadFromCfg.maxConcurrency < 0 {
+		err = errors.Join(err,
+			fmt.Errorf("download from max concurrency must not be negative, got %d; set --api-download-from-max-concurrency (env API_DOWNLOAD_FROM_MAX_CONCURRENCY) to 0 to disable the limit", a.downloadFromCfg.maxConcurrency),
+		)
+	}
+
+	if a.downloadFromCfg.maxEntries < 0 {
+		err = errors.Join(err,
+			fmt.Errorf("download from max entries must not be negative, got %d; set --api-download-from-max-entries (env API_DOWNLOAD_FROM_MAX_ENTRIES) to 0 to disable the limit", a.downloadFromCfg.maxEntries),
+		)
 	}
 
 	if (a.tlsCertFile != "" && a.tlsKeyFile == "") || (a.tlsCertFile == "" && a.tlsKeyFile != "") {

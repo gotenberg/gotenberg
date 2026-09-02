@@ -222,6 +222,16 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 			)
 		}
 
+		// Reject oversized arrays at the trust boundary, before allocating
+		// the results slice or spawning any goroutine, so a compact request
+		// cannot inflate into an unbounded fan-out.
+		if downloadFromCfg.maxEntries > 0 && len(dls) > downloadFromCfg.maxEntries {
+			return nil, cancel, WrapError(
+				fmt.Errorf("too many downloadFrom entries: got %d, max %d", len(dls), downloadFromCfg.maxEntries),
+				NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'downloadFrom' form field value: too many entries, the maximum is %d", downloadFromCfg.maxEntries)),
+			)
+		}
+
 		// Each goroutine writes to its own results slot. The main
 		// goroutine merges into ctx.files, ctx.diskToOriginal, and
 		// ctx.filesByField after eg.Wait() to avoid concurrent map
@@ -232,6 +242,13 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 		results := make([]downloadFromResult, len(dls))
 
 		eg, _ := errgroup.WithContext(ctx)
+		// Bound the number of in-flight downloads. Each entry allocates a
+		// retryable client, an outbound transport, a span, and logger state,
+		// so an unbounded array would otherwise exhaust process memory. A
+		// value of 0 keeps the fan-out unbounded.
+		if downloadFromCfg.maxConcurrency > 0 {
+			eg.SetLimit(downloadFromCfg.maxConcurrency)
+		}
 		for i, dl := range dls {
 			eg.Go(func() error {
 				deadline, ok := ctx.Deadline()
