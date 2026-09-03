@@ -580,9 +580,9 @@ func (s *processSupervisor) ensureHealthy(ctx context.Context) error {
 
 // maybeRestartAfterTask checks if the maximum request limit has been reached
 // and, if so, triggers an asynchronous restart bounded by
-// [eagerRestartTimeout]. If a restart is initiated, it takes ownership of the
-// caller's semaphore slot (the caller must not release it). Returns true if
-// ownership was taken.
+// [defaultEagerRestartTimeout]. If a restart is initiated, it takes ownership
+// of the caller's semaphore slot (the caller must not release it). Returns true
+// if ownership was taken.
 func (s *processSupervisor) maybeRestartAfterTask(logger *slog.Logger) bool {
 	if s.maxReqLimit <= 0 || s.reqCounter.Load() < s.maxReqLimit {
 		return false
