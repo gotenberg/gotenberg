@@ -115,6 +115,7 @@ Feature: /health
       | LIBREOFFICE_RESTART_AFTER | 1 |
     When I make 5 sequential "POST" requests to Gotenberg at the "/forms/libreoffice/convert" endpoint, probing "/health" after each, with the following form data and header(s):
       | files | testdata/page_1.docx | file |
+    Then all sequential response status codes should be 200
     Then all probe response status codes should be 200
 
 

@@ -89,6 +89,7 @@ type scenario struct {
 	resp                      *httptest.ResponseRecorder
 	concurrentResps           []*httptest.ResponseRecorder
 	probeResps                []*httptest.ResponseRecorder
+	sequentialResps           []*httptest.ResponseRecorder
 	workdir                   string
 	teststoreDir              string
 	gotenbergContainer        testcontainers.Container
@@ -101,6 +102,7 @@ func (s *scenario) reset(ctx context.Context) error {
 	s.resp = httptest.NewRecorder()
 	s.concurrentResps = nil
 	s.probeResps = nil
+	s.sequentialResps = nil
 
 	err := os.RemoveAll(s.workdir)
 	if err != nil {
@@ -474,9 +476,10 @@ func (s *scenario) iMakeConcurrentRequestsToGotenberg(ctx context.Context, count
 
 // iMakeSequentialRequestsToGotenbergProbing mirrors the client loop from
 // https://github.com/gotenberg/gotenberg/issues/1648: a conversion, then a
-// probe, repeated. It records every probe response so a scenario can assert
-// that a planned process restart never fails the probe. Requests are
-// sequential on purpose, since the bug only surfaces between two conversions.
+// probe, repeated. It records both the conversion and the probe responses so a
+// scenario can assert that a planned process restart neither fails the probe
+// nor breaks the conversions. Requests are sequential on purpose, since the bug
+// only surfaces between two conversions.
 func (s *scenario) iMakeSequentialRequestsToGotenbergProbing(ctx context.Context, count int, method, endpoint, probeEndpoint string, dataTable *godog.Table) error {
 	if s.gotenbergContainer == nil {
 		return errors.New("no Gotenberg container")
@@ -537,6 +540,7 @@ func (s *scenario) iMakeSequentialRequestsToGotenbergProbing(ctx context.Context
 	}
 
 	s.probeResps = make([]*httptest.ResponseRecorder, 0, count)
+	s.sequentialResps = make([]*httptest.ResponseRecorder, 0, count)
 
 	for i := range count {
 		resp, reqErr := doFormDataRequest(method, fmt.Sprintf("%s%s", base, endpoint), fields, files, headers)
@@ -549,6 +553,7 @@ func (s *scenario) iMakeSequentialRequestsToGotenbergProbing(ctx context.Context
 			return fmt.Errorf("request %d: %w", i+1, recErr)
 		}
 		s.resp = rec
+		s.sequentialResps = append(s.sequentialResps, rec)
 
 		probeResp, probeErr := doRequest(http.MethodGet, fmt.Sprintf("%s%s", base, probeEndpoint), nil, nil)
 		if probeErr != nil {
@@ -573,6 +578,20 @@ func (s *scenario) allProbeResponseStatusCodesShouldBe(expected int) error {
 	for i, resp := range s.probeResps {
 		if resp.Code != expected {
 			return fmt.Errorf("probe %d: expected status %d, got %d %q", i+1, expected, resp.Code, resp.Body.String())
+		}
+	}
+
+	return nil
+}
+
+func (s *scenario) allSequentialResponseStatusCodesShouldBe(expected int) error {
+	if len(s.sequentialResps) == 0 {
+		return errors.New("no sequential responses recorded")
+	}
+
+	for i, resp := range s.sequentialResps {
+		if resp.Code != expected {
+			return fmt.Errorf("sequential response %d: expected status %d, got %d %q", i+1, expected, resp.Code, resp.Body.String())
 		}
 	}
 
@@ -1759,6 +1778,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the response status code should be (\d+)$`, s.theResponseStatusCodeShouldBe)
 	ctx.Then(`^all concurrent response status codes should be (\d+)$`, s.allConcurrentResponseStatusCodesShouldBe)
 	ctx.Then(`^all probe response status codes should be (\d+)$`, s.allProbeResponseStatusCodesShouldBe)
+	ctx.Then(`^all sequential response status codes should be (\d+)$`, s.allSequentialResponseStatusCodesShouldBe)
 	ctx.Then(`^all concurrent responses should have (\d+) PDF\(s\)$`, s.allConcurrentResponsesShouldHavePdfs)
 	ctx.Then(`^the (response|webhook request|file request|server request) header "([^"]*)" should be "([^"]*)"$`, s.theHeaderValueShouldBe)
 	ctx.Then(`^the webhook request header "([^"]*)" should carry trace id "([^"]*)"$`, s.theWebhookRequestHeaderShouldCarryTraceID)
