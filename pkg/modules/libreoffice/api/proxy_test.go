@@ -361,7 +361,7 @@ func TestSofficeProxyEnv_OverridesExisting(t *testing.T) {
 	// Old proxy values must be gone, not duplicated. Count exact-case keys.
 	counts := map[string]int{}
 	for _, kv := range out {
-		key := strings.SplitN(kv, "=", 2)[0]
+		key, _, _ := strings.Cut(kv, "=")
 		counts[key]++
 	}
 	for _, key := range []string{"http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY", "no_proxy", "NO_PROXY"} {

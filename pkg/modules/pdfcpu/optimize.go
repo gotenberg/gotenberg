@@ -180,7 +180,7 @@ func (engine *PdfCpu) listImages(ctx context.Context, inputPath string) ([]pdfcp
 // their second column is not a numeric object number.
 func parseImagesList(output string) []pdfcpuImage {
 	var images []pdfcpuImage
-	for _, line := range strings.Split(output, "\n") {
+	for line := range strings.SplitSeq(output, "\n") {
 		cols := strings.Split(line, "│")
 		if len(cols) < 9 {
 			continue
