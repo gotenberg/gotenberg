@@ -214,9 +214,20 @@ lint-prettier: ## Lint non-Golang codebase
 lint-todo: ## Find TODOs in Golang codebase
 	golangci-lint run --no-config --disable-all --enable godox
 
+# TODO: restore a plain "go fix ./..." once both modernizers stop rewriting this
+# codebase into code that does not compile. Re-check by dropping a flag and
+# running "make fmt && make lint". Removing an analyzer upstream makes go fix
+# fail with "flag provided but not defined", so this cannot rot silently.
+#   embedlit folds a post-literal field assignment into a literal that already
+#   sets that key, producing a duplicate field name (cmd/gotenberg.go). Fixed in
+#   Go 1.27.1, so drop that flag once the toolchain moves past 1.27.0.
+#   See https://github.com/golang/go/issues/81101.
+#   errorsastype rewrites errors.As to errors.AsType[T] without checking that T
+#   satisfies error, which breaks on api.HttpError since it does not embed
+#   error. Still broken as of Go 1.27.1.
 .PHONY: fmt
 fmt: ## Format Golang codebase and "optimize" the dependencies
-	go fix ./...
+	go fix -embedlit=false -errorsastype=false ./...
 	golangci-lint fmt
 	go mod tidy
 
