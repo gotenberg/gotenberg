@@ -160,6 +160,41 @@ func TestProcessSupervisor_restart(t *testing.T) {
 	}
 }
 
+// TestProcessSupervisor_restart_ResetsCounterOnFailedLaunch verifies that a
+// restart whose launch fails still clears the request counter. Leaving it at
+// the limit makes maybeRestartAfterTask re-fire on every subsequent task.
+func TestProcessSupervisor_restart_ResetsCounterOnFailedLaunch(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	const maxReqLimit = 5
+
+	process := &ProcessMock{
+		StartMock:   func(_ *slog.Logger) error { return errors.New("start error") },
+		StopMock:    func(_ *slog.Logger) error { return nil },
+		HealthyMock: func(_ *slog.Logger) bool { return true },
+	}
+
+	ps := NewProcessSupervisor(logger, "test", process, maxReqLimit, 0, 1, 0).(*processSupervisor)
+	ps.reqCounter.Store(maxReqLimit)
+
+	err := ps.restart()
+	if err == nil {
+		t.Fatal("expected error but got none")
+	}
+
+	if got := ps.reqCounter.Load(); got != 0 {
+		t.Fatalf("expected the request counter to be reset but got %d", got)
+	}
+
+	if got := ps.restartsCounter.Load(); got != 0 {
+		t.Fatalf("expected the restarts counter to stay at 0 but got %d", got)
+	}
+
+	if ps.maybeRestartAfterTask(logger) {
+		t.Fatal("expected no further eager restart to be triggered")
+	}
+}
+
 func TestProcessSupervisor_Healthy(t *testing.T) {
 	for _, tc := range []struct {
 		scenario                string

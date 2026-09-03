@@ -244,12 +244,18 @@ func (s *processSupervisor) restart() error {
 		s.logger.WarnContext(context.Background(), fmt.Sprintf("stop process before restart: %s", err))
 	}
 
+	// Reset the counter on the attempt, not on its outcome. Leaving it at the
+	// limit after a failed launch re-triggers maybeRestartAfterTask on every
+	// subsequent task, producing back-to-back restarts. Recovering a process
+	// that will not start is ensureHealthy's job: it restarts synchronously
+	// before running a task, and reports the failure to the caller.
+	s.reqCounter.Store(0)
+
 	err = s.Launch()
 	if err != nil {
 		return fmt.Errorf("restart process: %w", err)
 	}
 
-	s.reqCounter.Store(0)
 	s.restartsCounter.Add(1)
 	s.logger.DebugContext(context.Background(), "process successfully restarted")
 
