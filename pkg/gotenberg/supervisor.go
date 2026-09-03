@@ -59,8 +59,9 @@ type ProcessSupervisor interface {
 	// Healthy checks and returns the health status of the managed [Process].
 	//
 	// A non-started process is considered healthy (startup is deferred until
-	// the first request). Returns false if the process is currently restarting
-	// or is reported unhealthy by the underlying [Process].
+	// the first request), as is one going through a planned restart, since it
+	// keeps serving traffic. Returns false during an unplanned restart or when
+	// the underlying [Process] reports unhealthy.
 	Healthy() bool
 
 	// Run executes a provided task while managing the state of the [Process].
@@ -103,6 +104,17 @@ const healthCheckCacheTTL = 2 * time.Second
 // this. See https://github.com/gotenberg/gotenberg/issues/1561.
 const healthFailureThreshold = 2
 
+// Restart reasons, also reported as the gotenberg.process.start.reason span
+// attribute by [processSupervisor.tracedLaunch]. Only
+// [restartReasonMaxRequests] is a planned restart: it fires on a healthy
+// process that reached its conversion limit, so the node keeps serving
+// traffic throughout. The others signal a process that cannot serve.
+const (
+	restartReasonFirstStart  = "first_start"
+	restartReasonUnhealthy   = "unhealthy"
+	restartReasonMaxRequests = "max_requests"
+)
+
 type processSupervisor struct {
 	logger         *slog.Logger
 	engine         string
@@ -118,11 +130,16 @@ type processSupervisor struct {
 	// transient failure (such as a cold-start timeout) must not poison the
 	// supervisor for the rest of the container's lifetime. See
 	// https://github.com/gotenberg/gotenberg/issues/1538.
-	firstStartMu        sync.Mutex
-	reqCounter          atomic.Int64
-	reqQueueSize        atomic.Int64
-	restartsCounter     atomic.Int64
-	isRestarting        atomic.Bool
+	firstStartMu    sync.Mutex
+	reqCounter      atomic.Int64
+	reqQueueSize    atomic.Int64
+	restartsCounter atomic.Int64
+	isRestarting    atomic.Bool
+	// restartPlanned records whether the in-flight restart is a planned one
+	// (see [restartReasonMaxRequests]). Written before isRestarting and never
+	// cleared, so a reader that observed isRestarting always sees the matching
+	// kind. See [processSupervisor.Healthy].
+	restartPlanned      atomic.Bool
 	activeTasks         atomic.Int64
 	restartMutex        sync.Mutex
 	idleShutdownTimeout time.Duration
@@ -234,9 +251,17 @@ func (s *processSupervisor) Healthy() bool {
 	}
 
 	if s.isRestarting.Load() {
-		// A restarting process is not yet healthy. This gives load balancers
-		// honest information so they can avoid routing traffic to this node.
-		return false
+		// A planned restart is routine maintenance: the process reached the
+		// limit set by --chromium-restart-after (env CHROMIUM_RESTART_AFTER) or
+		// --libreoffice-restart-after (env LIBREOFFICE_RESTART_AFTER) while
+		// healthy. Tasks arriving during it are requeued by acquireSlot, not
+		// rejected, so the node still serves traffic and must report healthy. A
+		// probe sent between two conversions used to fail here.
+		// See https://github.com/gotenberg/gotenberg/issues/1648.
+		//
+		// An unplanned restart keeps reporting unhealthy, which gives load
+		// balancers honest information so they can avoid routing traffic here.
+		return s.restartPlanned.Load()
 	}
 
 	// Cache hit: a recent probe succeeded. Skip the CDP roundtrip so probe
@@ -484,7 +509,7 @@ func (s *processSupervisor) ensureStarted(ctx context.Context) error {
 		return nil
 	}
 
-	err := s.tracedLaunch(ctx, "first_start", func() error {
+	err := s.tracedLaunch(ctx, restartReasonFirstStart, func() error {
 		return s.runWithDeadline(ctx, s.Launch)
 	})
 	if err != nil {
@@ -525,7 +550,7 @@ func (s *processSupervisor) ensureHealthy(ctx context.Context) error {
 
 	s.logger.DebugContext(context.Background(), "process is unhealthy, cannot handle task, restarting...")
 
-	if err := s.doRestart(ctx, "unhealthy"); err != nil {
+	if err := s.doRestart(ctx, restartReasonUnhealthy); err != nil {
 		return fmt.Errorf("process restart before task: %w", err)
 	}
 
@@ -548,7 +573,7 @@ func (s *processSupervisor) maybeRestartAfterTask(logger *slog.Logger) bool {
 	s.logger.DebugContext(context.Background(), "max request limit reached, restarting eagerly...")
 
 	go func() {
-		restartErr := s.doRestartLocked(context.Background(), "max_requests")
+		restartErr := s.doRestartLocked(context.Background(), restartReasonMaxRequests)
 		s.restartMutex.Unlock()
 		if restartErr != nil {
 			s.logger.ErrorContext(context.Background(), fmt.Sprintf("process restart after task: %v", restartErr))
@@ -571,6 +596,10 @@ func (s *processSupervisor) doRestart(ctx context.Context, reason string) error 
 
 // doRestartLocked performs the restart drain logic. The caller must hold restartMutex.
 func (s *processSupervisor) doRestartLocked(ctx context.Context, reason string) error {
+	// Publish the kind before raising the flag. [processSupervisor.Healthy]
+	// reads restartPlanned only after it observes isRestarting, so this
+	// ordering keeps it from pairing a new restart with a stale kind.
+	s.restartPlanned.Store(reason == restartReasonMaxRequests)
 	s.isRestarting.Store(true)
 	defer s.isRestarting.Store(false)
 

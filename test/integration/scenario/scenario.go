@@ -88,6 +88,7 @@ func findScenarioLine(filePath, name string) int {
 type scenario struct {
 	resp                      *httptest.ResponseRecorder
 	concurrentResps           []*httptest.ResponseRecorder
+	probeResps                []*httptest.ResponseRecorder
 	workdir                   string
 	teststoreDir              string
 	gotenbergContainer        testcontainers.Container
@@ -99,6 +100,7 @@ type scenario struct {
 func (s *scenario) reset(ctx context.Context) error {
 	s.resp = httptest.NewRecorder()
 	s.concurrentResps = nil
+	s.probeResps = nil
 
 	err := os.RemoveAll(s.workdir)
 	if err != nil {
@@ -465,6 +467,113 @@ func (s *scenario) iMakeConcurrentRequestsToGotenberg(ctx context.Context, count
 
 	if len(errs) > 0 {
 		return fmt.Errorf("concurrent requests failed: %v", errs)
+	}
+
+	return nil
+}
+
+// iMakeSequentialRequestsToGotenbergProbing mirrors the client loop from
+// https://github.com/gotenberg/gotenberg/issues/1648: a conversion, then a
+// probe, repeated. It records every probe response so a scenario can assert
+// that a planned process restart never fails the probe. Requests are
+// sequential on purpose, since the bug only surfaces between two conversions.
+func (s *scenario) iMakeSequentialRequestsToGotenbergProbing(ctx context.Context, count int, method, endpoint, probeEndpoint string, dataTable *godog.Table) error {
+	if s.gotenbergContainer == nil {
+		return errors.New("no Gotenberg container")
+	}
+
+	fields := make(map[string][]string)
+	files := make(map[string][]string)
+	headers := make(map[string]string)
+
+	for _, row := range dataTable.Rows {
+		name := row.Cells[0].Value
+		value := row.Cells[1].Value
+		kind := row.Cells[2].Value
+
+		switch kind {
+		case "field":
+			fields[name] = append(fields[name], value)
+		case "file":
+			wd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("get current directory: %w", err)
+			}
+			value = fmt.Sprintf("%s/%s", wd, value)
+			files[name] = append(files[name], value)
+		case "header":
+			headers[name] = value
+		default:
+			return fmt.Errorf("unexpected %q %q", kind, value)
+		}
+	}
+
+	base, err := containerHttpEndpoint(ctx, s.gotenbergContainer, "3000")
+	if err != nil {
+		return fmt.Errorf("get container HTTP endpoint: %w", err)
+	}
+
+	record := func(resp *http.Response) (*httptest.ResponseRecorder, error) {
+		defer resp.Body.Close()
+
+		body, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			return nil, fmt.Errorf("read response body: %w", readErr)
+		}
+
+		rec := httptest.NewRecorder()
+		rec.Code = resp.StatusCode
+		for key, values := range resp.Header {
+			for _, v := range values {
+				rec.Header().Add(key, v)
+			}
+		}
+		_, writeErr := rec.Body.Write(body)
+		if writeErr != nil {
+			return nil, fmt.Errorf("write response body: %w", writeErr)
+		}
+
+		return rec, nil
+	}
+
+	s.probeResps = make([]*httptest.ResponseRecorder, 0, count)
+
+	for i := range count {
+		resp, reqErr := doFormDataRequest(method, fmt.Sprintf("%s%s", base, endpoint), fields, files, headers)
+		if reqErr != nil {
+			return fmt.Errorf("request %d: do request: %w", i+1, reqErr)
+		}
+
+		rec, recErr := record(resp)
+		if recErr != nil {
+			return fmt.Errorf("request %d: %w", i+1, recErr)
+		}
+		s.resp = rec
+
+		probeResp, probeErr := doRequest(http.MethodGet, fmt.Sprintf("%s%s", base, probeEndpoint), nil, nil)
+		if probeErr != nil {
+			return fmt.Errorf("probe %d: do request: %w", i+1, probeErr)
+		}
+
+		probeRec, probeRecErr := record(probeResp)
+		if probeRecErr != nil {
+			return fmt.Errorf("probe %d: %w", i+1, probeRecErr)
+		}
+		s.probeResps = append(s.probeResps, probeRec)
+	}
+
+	return nil
+}
+
+func (s *scenario) allProbeResponseStatusCodesShouldBe(expected int) error {
+	if len(s.probeResps) == 0 {
+		return errors.New("no probe responses recorded")
+	}
+
+	for i, resp := range s.probeResps {
+		if resp.Code != expected {
+			return fmt.Errorf("probe %d: expected status %d, got %d %q", i+1, expected, resp.Code, resp.Body.String())
+		}
 	}
 
 	return nil
@@ -1644,10 +1753,12 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.When(`^I make a "(GET|HEAD)" request to Gotenberg at the "([^"]*)" endpoint with the following header\(s\):$`, s.iMakeARequestToGotenbergWithTheFollowingHeaders)
 	ctx.When(`^I make a "(POST)" request to Gotenberg at the "([^"]*)" endpoint with the following form data and header\(s\):$`, s.iMakeARequestToGotenbergWithTheFollowingFormDataAndHeaders)
 	ctx.When(`^I make (\d+) concurrent "(POST)" requests to Gotenberg at the "([^"]*)" endpoint with the following form data and header\(s\):$`, s.iMakeConcurrentRequestsToGotenberg)
+	ctx.When(`^I make (\d+) sequential "(POST)" requests to Gotenberg at the "([^"]*)" endpoint, probing "([^"]*)" after each, with the following form data and header\(s\):$`, s.iMakeSequentialRequestsToGotenbergProbing)
 	ctx.When(`^I wait for the asynchronous request to the webhook$`, s.iWaitForTheAsynchronousRequestToWebhook)
 	ctx.Then(`^the Gotenberg container (should|should NOT) log the following entries:$`, s.theGotenbergContainerShouldLogTheFollowingEntries)
 	ctx.Then(`^the response status code should be (\d+)$`, s.theResponseStatusCodeShouldBe)
 	ctx.Then(`^all concurrent response status codes should be (\d+)$`, s.allConcurrentResponseStatusCodesShouldBe)
+	ctx.Then(`^all probe response status codes should be (\d+)$`, s.allProbeResponseStatusCodesShouldBe)
 	ctx.Then(`^all concurrent responses should have (\d+) PDF\(s\)$`, s.allConcurrentResponsesShouldHavePdfs)
 	ctx.Then(`^the (response|webhook request|file request|server request) header "([^"]*)" should be "([^"]*)"$`, s.theHeaderValueShouldBe)
 	ctx.Then(`^the webhook request header "([^"]*)" should carry trace id "([^"]*)"$`, s.theWebhookRequestHeaderShouldCarryTraceID)

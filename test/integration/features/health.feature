@@ -1,6 +1,5 @@
 # TODO:
 # 1. Check if down for each module.
-# 2. Restarting modules do not make health check fail.
 
 @health
 Feature: /health
@@ -106,7 +105,18 @@ Feature: /health
     When I make a "HEAD" request to Gotenberg at the "/foo/health" endpoint
     Then the response status code should be 200
 
+  # A planned restart, the eager cycle after LIBREOFFICE_RESTART_AFTER
+  # conversions, must not fail the health check: requests arriving during it
+  # are requeued, not rejected. Setting the limit to 1 restarts LibreOffice
+  # after every conversion, so each probe lands right on a restart.
+  # See https://github.com/gotenberg/gotenberg/issues/1648.
+  Scenario: GET /health (Planned LibreOffice Restart)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | LIBREOFFICE_RESTART_AFTER | 1 |
+    When I make 5 sequential "POST" requests to Gotenberg at the "/forms/libreoffice/convert" endpoint, probing "/health" after each, with the following form data and header(s):
+      | files | testdata/page_1.docx | file |
+    Then all probe response status codes should be 200
+
 
 # TODO:
 # 1. Check if down for each module.
-# 2. Restarting modules do not make health check fail.

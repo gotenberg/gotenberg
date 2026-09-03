@@ -162,11 +162,12 @@ func TestProcessSupervisor_restart(t *testing.T) {
 
 func TestProcessSupervisor_Healthy(t *testing.T) {
 	for _, tc := range []struct {
-		scenario            string
-		initiallyStarted    bool
-		initiallyRestarting bool
-		processHealthy      bool
-		expectHealthy       bool
+		scenario                string
+		initiallyStarted        bool
+		initiallyRestarting     bool
+		initiallyRestartPlanned bool
+		processHealthy          bool
+		expectHealthy           bool
 	}{
 		{
 			scenario:         "non-started process is healthy",
@@ -178,6 +179,13 @@ func TestProcessSupervisor_Healthy(t *testing.T) {
 			initiallyStarted:    true,
 			initiallyRestarting: true,
 			expectHealthy:       false,
+		},
+		{
+			scenario:                "process going through a planned restart is healthy",
+			initiallyStarted:        true,
+			initiallyRestarting:     true,
+			initiallyRestartPlanned: true,
+			expectHealthy:           true,
 		},
 		{
 			scenario:         "process reports as healthy",
@@ -207,6 +215,9 @@ func TestProcessSupervisor_Healthy(t *testing.T) {
 			}
 			if tc.initiallyRestarting {
 				ps.isRestarting.Store(true)
+			}
+			if tc.initiallyRestartPlanned {
+				ps.restartPlanned.Store(true)
 			}
 
 			healthy := ps.Healthy()
@@ -255,6 +266,119 @@ func TestProcessSupervisor_Healthy_ConsecutiveFailures(t *testing.T) {
 	if ps.Healthy() {
 		t.Fatal("post-recovery second consecutive failure should report unhealthy")
 	}
+}
+
+// TestProcessSupervisor_Healthy_PlannedRestart reproduces
+// https://github.com/gotenberg/gotenberg/issues/1648. It drives the real
+// Run() path until the maximum request limit triggers the eager restart, then
+// asserts the supervisor reports healthy while that restart is in flight.
+// Tasks arriving during it are requeued by acquireSlot, not rejected, so the
+// node still serves traffic.
+func TestProcessSupervisor_Healthy_PlannedRestart(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	const maxReqLimit = 10
+
+	restarting := make(chan struct{})
+	release := make(chan struct{})
+
+	var (
+		starts    atomic.Int64
+		signalOne sync.Once
+	)
+	process := &ProcessMock{
+		StartMock: func(_ *slog.Logger) error {
+			// Hold the restart open so the assertions below run inside the
+			// window that used to report unhealthy.
+			if starts.Add(1) > 1 {
+				signalOne.Do(func() { close(restarting) })
+				<-release
+			}
+
+			return nil
+		},
+		StopMock:    func(_ *slog.Logger) error { return nil },
+		HealthyMock: func(_ *slog.Logger) bool { return true },
+	}
+
+	ps := NewProcessSupervisor(logger, "test", process, maxReqLimit, 0, 1, 0).(*processSupervisor)
+
+	for i := range maxReqLimit {
+		err := ps.Run(context.Background(), logger, func() error { return nil })
+		if err != nil {
+			t.Fatalf("task %d: expected no error but got: %v", i+1, err)
+		}
+	}
+
+	select {
+	case <-restarting:
+	case <-time.After(10 * time.Second):
+		t.Fatalf("expected an eager restart after %d tasks", maxReqLimit)
+	}
+
+	if !ps.isRestarting.Load() {
+		t.Fatal("expected the supervisor to be restarting")
+	}
+
+	if !ps.restartPlanned.Load() {
+		t.Fatal("expected the restart to be flagged as planned")
+	}
+
+	if !ps.Healthy() {
+		t.Fatal("expected a planned restart to report healthy")
+	}
+
+	close(release)
+}
+
+// TestProcessSupervisor_Healthy_UnplannedRestart verifies the counterpart of
+// [TestProcessSupervisor_Healthy_PlannedRestart]: a restart triggered by an
+// unhealthy process keeps reporting unhealthy, so load balancers get honest
+// information.
+func TestProcessSupervisor_Healthy_UnplannedRestart(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	restarting := make(chan struct{})
+	release := make(chan struct{})
+
+	var signalOne sync.Once
+	process := &ProcessMock{
+		StartMock: func(_ *slog.Logger) error {
+			signalOne.Do(func() { close(restarting) })
+			<-release
+
+			return nil
+		},
+		StopMock:    func(_ *slog.Logger) error { return nil },
+		HealthyMock: func(_ *slog.Logger) bool { return false },
+	}
+
+	ps := NewProcessSupervisor(logger, "test", process, 0, 0, 1, 0).(*processSupervisor)
+	ps.firstStart.Store(true)
+
+	go func() {
+		_ = ps.ensureHealthy(context.Background())
+	}()
+
+	select {
+	case <-restarting:
+	case <-time.After(10 * time.Second):
+		t.Fatal("expected an unhealthy restart to be triggered")
+	}
+
+	if !ps.isRestarting.Load() {
+		t.Fatal("expected the supervisor to be restarting")
+	}
+
+	if ps.restartPlanned.Load() {
+		t.Fatal("expected the restart not to be flagged as planned")
+	}
+
+	if ps.Healthy() {
+		t.Fatal("expected an unplanned restart to report unhealthy")
+	}
+
+	close(release)
 }
 
 // TestProcessSupervisor_Healthy_CachesPositiveResult verifies that a
