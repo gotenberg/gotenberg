@@ -212,7 +212,7 @@ lint-prettier: ## Lint non-Golang codebase
 
 .PHONY: lint-todo
 lint-todo: ## Find TODOs in Golang codebase
-	golangci-lint run --no-config --disable-all --enable godox
+	golangci-lint run --no-config --default=none --enable godox
 
 # TODO: restore a plain "go fix ./..." once both modernizers stop rewriting this
 # codebase into code that does not compile. Re-check by dropping a flag and
