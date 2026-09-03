@@ -115,6 +115,17 @@ const (
 	restartReasonMaxRequests = "max_requests"
 )
 
+// defaultEagerRestartTimeout bounds the restart triggered after the maximum
+// request limit. That restart runs on a background context, unlike the one from
+// ensureHealthy which inherits the request deadline, so without a deadline of
+// its own the drain loop in [processSupervisor.doRestartLocked] would wait
+// forever on a task that never completes. That would pin isRestarting and,
+// with it, the health reported by [processSupervisor.Healthy]. Sized well above
+// --api-timeout (30s by default) plus the engine start timeouts (20s by
+// default) so it never fires while tasks are merely slow. The eager restart is
+// opportunistic: on expiry it aborts, and the next task retries it.
+const defaultEagerRestartTimeout = 2 * time.Minute
+
 type processSupervisor struct {
 	logger         *slog.Logger
 	engine         string
@@ -152,6 +163,9 @@ type processSupervisor struct {
 	consecutiveHealthFailures atomic.Int64  // reset to 0 on every successful probe
 	idleMu                    sync.Mutex    // protects idleStopChan
 	idleStopChan              chan struct{} // signal to stop the idle ticker goroutine
+	// eagerRestartTimeout bounds the restart from maybeRestartAfterTask.
+	// Defaults to [defaultEagerRestartTimeout]; only tests shorten it.
+	eagerRestartTimeout time.Duration
 }
 
 // NewProcessSupervisor initializes a new [ProcessSupervisor]. engine names the
@@ -175,6 +189,7 @@ func NewProcessSupervisor(logger *slog.Logger, engine string, process Process, m
 		maxQueueSize:        maxQueueSize,
 		maxConcurrency:      maxConcurrency,
 		idleShutdownTimeout: idleShutdownTimeout,
+		eagerRestartTimeout: defaultEagerRestartTimeout,
 	}
 	b.reqCounter.Store(0)
 	b.reqQueueSize.Store(0)
@@ -558,9 +573,10 @@ func (s *processSupervisor) ensureHealthy(ctx context.Context) error {
 }
 
 // maybeRestartAfterTask checks if the maximum request limit has been reached
-// and, if so, triggers an asynchronous restart. If a restart is initiated, it
-// takes ownership of the caller's semaphore slot (the caller must not release
-// it). Returns true if ownership was taken.
+// and, if so, triggers an asynchronous restart bounded by
+// [eagerRestartTimeout]. If a restart is initiated, it takes ownership of the
+// caller's semaphore slot (the caller must not release it). Returns true if
+// ownership was taken.
 func (s *processSupervisor) maybeRestartAfterTask(logger *slog.Logger) bool {
 	if s.maxReqLimit <= 0 || s.reqCounter.Load() < s.maxReqLimit {
 		return false
@@ -573,7 +589,10 @@ func (s *processSupervisor) maybeRestartAfterTask(logger *slog.Logger) bool {
 	s.logger.DebugContext(context.Background(), "max request limit reached, restarting eagerly...")
 
 	go func() {
-		restartErr := s.doRestartLocked(context.Background(), restartReasonMaxRequests)
+		ctx, cancel := context.WithTimeout(context.Background(), s.eagerRestartTimeout)
+		defer cancel()
+
+		restartErr := s.doRestartLocked(ctx, restartReasonMaxRequests)
 		s.restartMutex.Unlock()
 		if restartErr != nil {
 			s.logger.ErrorContext(context.Background(), fmt.Sprintf("process restart after task: %v", restartErr))

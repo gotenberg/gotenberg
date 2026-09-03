@@ -381,6 +381,91 @@ func TestProcessSupervisor_Healthy_UnplannedRestart(t *testing.T) {
 	close(release)
 }
 
+// TestProcessSupervisor_doRestartLocked_DrainDeadline verifies that a drain
+// unable to acquire every slot gives up on the context deadline and clears
+// isRestarting. Without a deadline on the eager restart, a task that never
+// completes would pin the flag and, since a planned restart reports healthy,
+// leave the supervisor claiming health forever.
+func TestProcessSupervisor_doRestartLocked_DrainDeadline(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	var starts atomic.Int64
+	process := &ProcessMock{
+		StartMock: func(_ *slog.Logger) error {
+			starts.Add(1)
+
+			return nil
+		},
+		StopMock:    func(_ *slog.Logger) error { return nil },
+		HealthyMock: func(_ *slog.Logger) bool { return true },
+	}
+
+	// A concurrency of 2 makes the drain acquire one slot on top of the one the
+	// triggering task hands over. Fill the semaphore so it never can, mimicking
+	// a concurrent task that never completes.
+	ps := NewProcessSupervisor(logger, "test", process, 1, 0, 2, 0).(*processSupervisor)
+	ps.semaphore <- struct{}{}
+	ps.semaphore <- struct{}{}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	err := ps.doRestartLocked(ctx, restartReasonMaxRequests)
+	if err == nil {
+		t.Fatal("expected the drain to fail on the context deadline")
+	}
+
+	if ps.isRestarting.Load() {
+		t.Fatal("expected isRestarting to be cleared after a failed drain")
+	}
+
+	if starts.Load() != 0 {
+		t.Fatalf("expected no restart attempt after a failed drain but got %d", starts.Load())
+	}
+}
+
+// TestProcessSupervisor_maybeRestartAfterTask_Bounded verifies that the eager
+// restart runs under a deadline. A concurrent task that never completes blocks
+// the drain, and without a bound the restart goroutine would wait forever with
+// isRestarting pinned, leaving Healthy() reporting a planned restart for good.
+func TestProcessSupervisor_maybeRestartAfterTask_Bounded(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	process := &ProcessMock{
+		StartMock:   func(_ *slog.Logger) error { return nil },
+		StopMock:    func(_ *slog.Logger) error { return nil },
+		HealthyMock: func(_ *slog.Logger) bool { return true },
+	}
+
+	ps := NewProcessSupervisor(logger, "test", process, 1, 0, 2, 0).(*processSupervisor)
+	ps.eagerRestartTimeout = 100 * time.Millisecond
+	ps.firstStart.Store(true)
+
+	// Wedge one slot so the drain, which needs one on top of the slot the
+	// triggering task hands over, can never complete.
+	ps.semaphore <- struct{}{}
+
+	err := ps.Run(context.Background(), logger, func() error { return nil })
+	if err != nil {
+		t.Fatalf("expected no error but got: %v", err)
+	}
+
+	waitFor := func(what string, want bool) {
+		t.Helper()
+
+		deadline := time.Now().Add(5 * time.Second)
+		for ps.isRestarting.Load() != want {
+			if time.Now().After(deadline) {
+				t.Fatalf("timed out waiting for the eager restart to %s", what)
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+
+	waitFor("start", true)
+	waitFor("give up on its deadline", false)
+}
+
 // TestProcessSupervisor_Healthy_CachesPositiveResult verifies that a
 // successful probe is cached for [healthCheckCacheTTL] so subsequent
 // supervisor.Healthy() calls do not re-issue the underlying process
