@@ -589,7 +589,7 @@ Feature: /forms/chromium/convert/url
   @chromium-ssrf
   Scenario: POST /forms/chromium/convert/url (Redirect to a non-allow-listed address is re-filtered)
     Given I have a Gotenberg container with the following environment variable(s):
-      | CHROMIUM_ALLOW_LIST | ^https?://host\.docker\.internal(:[0-9]+)?/ |
+      | CHROMIUM_ALLOW_LIST | ^https?://host\\.docker\\.internal(:[0-9]+)?/ |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
       | url | http://host.docker.internal:%d/redirect-to-private | field |
