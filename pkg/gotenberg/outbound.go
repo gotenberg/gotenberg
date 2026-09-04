@@ -249,7 +249,9 @@ func httpLikeScheme(scheme string) bool {
 //
 // The semantics:
 //
-//  1. The URL is parsed and its scheme and host lowercased.
+//  1. The URL is parsed, its scheme and host lowercased, and any userinfo
+//     dropped from the form the regexes see. The request still carries the
+//     credentials.
 //  2. allowList and denyList apply against the normalized form with OR
 //     semantics. The deny-list always applies.
 //  3. For http, https, ws, and wss, the host is resolved and every
@@ -274,7 +276,19 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 	}
 	parsed.Scheme = strings.ToLower(parsed.Scheme)
 	parsed.Host = strings.ToLower(parsed.Host)
-	normalized := parsed.String()
+
+	// Match on a credential-free form. [url.URL.String] re-emits userinfo
+	// between "scheme://" and the host, so keeping it would let any
+	// "^https?://<host>" pattern be shifted past its own anchor:
+	// http://a@127.0.0.1/ escapes a deny-list anchored on 127\. and
+	// http://trusted.example.com@10.0.0.1/ satisfies an allow-list anchored on
+	// trusted\.example\.com. The host checks below already read
+	// [url.URL.Hostname], which ignores userinfo, so only the regex layer was
+	// affected. Dropping the credentials here also keeps them out of the error
+	// strings below, which reach operator logs and any OTEL log exporter.
+	matchable := *parsed
+	matchable.User = nil
+	normalized := matchable.String()
 
 	allowMatched := false
 	if len(allowList) > 0 {

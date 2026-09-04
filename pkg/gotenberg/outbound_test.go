@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/netip"
+	"strings"
 	"testing"
 	"time"
 
@@ -518,5 +519,124 @@ func TestDecideOutbound_Permissive_AllowsPrivate(t *testing.T) {
 	}
 	if len(decision.Pinned) != 1 || decision.Pinned[0].String() != "10.0.0.5" {
 		t.Fatalf("decision.Pinned = %v, want [10.0.0.5]", decision.Pinned)
+	}
+}
+
+// privateIPsDenyList is the textual private-IP deny-list that shipped as the
+// default for api-download-from-deny-list and webhook-deny-list in v8.31.0 and
+// is still published as a migration recipe. Every alternative is anchored on
+// "://", so userinfo used to slide the private address past the anchor.
+const privateIPsDenyList = `^https?://(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|169\.254\.|0\.0\.0\.0|127\.|localhost|\[::1\]|\[fd)`
+
+func TestDecideOutbound_UserinfoDoesNotEvadeDenyList(t *testing.T) {
+	for _, rawURL := range []string{
+		"http://127.0.0.1:9999/",
+		"http://a@127.0.0.1:9999/",
+		"http://@127.0.0.1:9999/",
+		"http://:@127.0.0.1:9999/",
+		"http://%61@127.0.0.1:9999/",
+		"http://user:pass@127.0.0.1:9999/",
+		"HTTP://A@127.0.0.1:9999/",
+		"http://a@169.254.169.254/latest/meta-data/",
+		// url.Parse takes the last "@" as the userinfo separator, so the host
+		// here is the second literal.
+		"http://a@127.0.0.1:9999@127.0.0.1:9999/",
+	} {
+		t.Run(rawURL, func(t *testing.T) {
+			withStubResolver(t, func(host string) ([]netip.Addr, error) {
+				t.Fatalf("unexpected DNS lookup for %q: the deny-list must reject before resolution", host)
+				return nil, nil
+			})
+
+			// Deny-list only, with the permissive IP defaults the modules ship.
+			_, err := DecideOutbound(
+				context.Background(),
+				rawURL,
+				nil,
+				[]*regexp2.Regexp{regexp2.MustCompile(privateIPsDenyList, 0)},
+				time.Now().Add(5*time.Second),
+			)
+			if !errors.Is(err, ErrFiltered) {
+				t.Fatalf("userinfo must not evade the deny-list, got: %v", err)
+			}
+		})
+	}
+}
+
+func TestDecideOutbound_UserinfoDoesNotSatisfyAllowList(t *testing.T) {
+	// A host-terminated allow-list, the shape the documentation recommends.
+	allowList := []*regexp2.Regexp{regexp2.MustCompile(`^https://trusted\.example\.com(:[0-9]+)?(/|$)`, 0)}
+
+	for _, rawURL := range []string{
+		"https://trusted.example.com@169.254.169.254/latest/meta-data/",
+		"https://trusted.example.com@10.0.0.5/",
+		"https://trusted.example.com:443@10.0.0.5/",
+	} {
+		t.Run(rawURL, func(t *testing.T) {
+			withStubResolver(t, func(host string) ([]netip.Addr, error) {
+				return mustAddrs(t, "10.0.0.5"), nil
+			})
+
+			decision, err := DecideOutbound(
+				context.Background(),
+				rawURL,
+				allowList, nil,
+				time.Now().Add(5*time.Second),
+				WithDenyPrivateIPs(true),
+			)
+			if err == nil {
+				t.Fatalf("userinfo must not satisfy the allow-list, got decision %+v", decision)
+			}
+			if decision.Bypass {
+				t.Fatal("userinfo must never produce a bypass")
+			}
+		})
+	}
+}
+
+func TestDecideOutbound_UserinfoKeptOutOfErrorMessages(t *testing.T) {
+	withStubResolver(t, func(host string) ([]netip.Addr, error) {
+		t.Fatalf("unexpected DNS lookup for %q", host)
+		return nil, nil
+	})
+
+	_, err := DecideOutbound(
+		context.Background(),
+		"http://alice:hunter2@127.0.0.1:9999/",
+		nil,
+		[]*regexp2.Regexp{regexp2.MustCompile(privateIPsDenyList, 0)},
+		time.Now().Add(5*time.Second),
+	)
+	if err == nil {
+		t.Fatal("expected the URL to be filtered")
+	}
+	if strings.Contains(err.Error(), "hunter2") || strings.Contains(err.Error(), "alice") {
+		t.Fatalf("error message must not leak URL credentials: %v", err)
+	}
+}
+
+func TestDecideOutbound_LegitimateCredentialsStillReachTheHost(t *testing.T) {
+	withStubResolver(t, func(host string) ([]netip.Addr, error) {
+		if host != "example.com" {
+			t.Fatalf("host = %q, want example.com: userinfo must not reach resolution", host)
+		}
+		return mustAddrs(t, "93.184.216.34"), nil
+	})
+
+	// Stripping userinfo is a matching concern only. A credentialed URL that
+	// breaks no rule must still be allowed through.
+	decision, err := DecideOutbound(
+		context.Background(),
+		"https://alice:hunter2@example.com/report.pdf",
+		[]*regexp2.Regexp{regexp2.MustCompile(`^https://example\.com(:[0-9]+)?(/|$)`, 0)},
+		nil,
+		time.Now().Add(5*time.Second),
+		WithDenyPrivateIPs(true),
+	)
+	if err != nil {
+		t.Fatalf("credentialed URL matching the allow-list must pass, got: %v", err)
+	}
+	if !decision.Bypass {
+		t.Fatalf("decision.Bypass = false, want true")
 	}
 }
