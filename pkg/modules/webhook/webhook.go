@@ -42,7 +42,7 @@ func (w *Webhook) Descriptor() gotenberg.ModuleDescriptor {
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("webhook", flag.ExitOnError)
 			fs.Bool("webhook-enable-sync-mode", false, "Enable synchronous mode for the webhook feature")
-			fs.StringSlice("webhook-allow-list", []string{}, "Set the allowed URLs for the webhook feature using regular expressions - supports multiple values")
+			fs.StringSlice("webhook-allow-list", []string{}, `Set the allowed URLs for the webhook feature using regular expressions - supports multiple values. A match bypasses --webhook-deny-private-ips (WEBHOOK_DENY_PRIVATE_IPS) and --webhook-deny-public-ips (WEBHOOK_DENY_PUBLIC_IPS), so terminate the host or the pattern also matches suffix hosts, for example ^https?://internal\.svc(:|/|$)`)
 			fs.StringSlice("webhook-deny-list", []string{}, "Set the denied URLs for the webhook feature using regular expressions - supports multiple values")
 			fs.Bool("webhook-deny-private-ips", false, "Reject webhook URLs whose host resolves to a non-public IP address (loopback, RFC1918, link-local, unique-local). Enable on deployments that accept untrusted webhook destinations to mitigate SSRF against internal services")
 			fs.Bool("webhook-deny-public-ips", false, "Reject webhook URLs whose host resolves to a public IP address. Enable on air-gapped or data-governed deployments to prevent callbacks from leaving a private network")
@@ -50,7 +50,7 @@ func (w *Webhook) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Int("webhook-max-retry", 4, "Set the maximum number of retries for the webhook feature")
 
 			// Deprecated flags.
-			fs.StringSlice("webhook-error-allow-list", []string{}, "Set the allowed URLs in case of an error for the webhook feature using regular expressions - supports multiple values")
+			fs.StringSlice("webhook-error-allow-list", []string{}, `Set the allowed URLs in case of an error for the webhook feature using regular expressions - supports multiple values. A match bypasses --webhook-deny-private-ips (WEBHOOK_DENY_PRIVATE_IPS) and --webhook-deny-public-ips (WEBHOOK_DENY_PUBLIC_IPS), so terminate the host or the pattern also matches suffix hosts, for example ^https?://internal\.svc(:|/|$)`)
 			fs.StringSlice("webhook-error-deny-list", []string{}, "Set the denied URLs in case of an error for the webhook feature using regular expressions - supports multiple values")
 			err := fs.MarkDeprecated("webhook-error-allow-list", "use --webhook-allow-list instead")
 			if err != nil {

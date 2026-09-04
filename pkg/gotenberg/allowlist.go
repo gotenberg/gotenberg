@@ -343,8 +343,9 @@ const (
 const hostTerminators = "/:#?"
 
 // crosserClassChars are the characters that, if a class can match them, let a
-// match escape the authority.
-const crosserClassChars = "/@?#"
+// match escape the authority. "/" is deliberately absent: it ends the
+// authority rather than escaping it, so a class such as "[:/]" is safe.
+const crosserClassChars = "@?#"
 
 // classifyHostToken classifies one token of the authority walk.
 func classifyHostToken(token string) hostTokenKind {
@@ -382,6 +383,9 @@ func classifyHostToken(token string) hostTokenKind {
 		}
 		if classContainsAny(inner, crosserClassChars) {
 			return hostTokenCrosser
+		}
+		if classOnlyTerminators(inner) {
+			return hostTokenTerminator
 		}
 		return hostTokenNeutral
 
@@ -475,6 +479,35 @@ func tokenAt(s string, i int) string {
 	}
 
 	return s[i : i+1]
+}
+
+// classOnlyTerminators reports whether every character a class can match ends
+// the authority, which makes the class itself a terminator. A range is never
+// treated as one.
+func classOnlyTerminators(class string) bool {
+	if class == "" {
+		return false
+	}
+
+	for i := 0; i < len(class); i++ {
+		if class[i] == '\\' && i+1 < len(class) {
+			if !strings.Contains(hostTerminators, class[i+1:i+2]) {
+				return false
+			}
+			i++
+			continue
+		}
+
+		if i+2 < len(class) && class[i+1] == '-' {
+			return false
+		}
+
+		if !strings.Contains(hostTerminators, class[i:i+1]) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // classContainsAny reports whether a character class body can match any of the

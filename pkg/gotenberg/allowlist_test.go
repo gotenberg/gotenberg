@@ -24,6 +24,8 @@ func TestAuditAllowList(t *testing.T) {
 		{"alternation both anchored and terminated", `^https://a\.example/|^https://b\.example/`, ""},
 		{"no authority to check", `^file:///tmp/`, ""},
 		{"digit class in host", `^https://node\d+\.example\.com/`, ""},
+		{"class of only terminators", `^https://example\.com[:/]`, ""},
+		{"feature file pattern, fixed", `^https?://host\.docker\.internal(:[0-9]+)?/`, ""},
 
 		// Unanchored: regexp2 searches, so these match anywhere in the URL.
 		{"no anchor", `trusted\.example\.com`, AllowListRiskUnanchored},

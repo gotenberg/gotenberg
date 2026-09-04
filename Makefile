@@ -33,7 +33,10 @@ API_OIDC_ISSUER=
 API_OIDC_AUDIENCE=
 API_OIDC_JWKS_URL=
 API_DOWNLOAD_FROM_ALLOW_LIST=
-API_DOWNLOAD_FROM_DENY_LIST=^https?://(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|169\.254\.|0\.0\.0\.0|127\.|localhost|\[::1\]|\[fd)
+# Empty, like the flag default since 8.32.0. A textual deny-list cannot
+# enumerate every way to write a private address, so *_DENY_PRIVATE_IPS is the
+# control to reach for. Left false here so local testing can reach the host.
+API_DOWNLOAD_FROM_DENY_LIST=
 API_DOWNLOAD_FROM_DENY_PRIVATE_IPS=false
 API_DOWNLOAD_FROM_DENY_PUBLIC_IPS=false
 API_DOWNLOAD_FROM_ENABLE_ENVIRONMENT_PROXY=false
@@ -114,7 +117,8 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
 OTEL_EXPORTER_OTLP_INSECURE=true
 WEBHOOK_ENABLE_SYNC_MODE=false
 WEBHOOK_ALLOW_LIST=
-WEBHOOK_DENY_LIST=^https?://(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|169\.254\.|0\.0\.0\.0|127\.|localhost|\[::1\]|\[fd)
+# See the note on API_DOWNLOAD_FROM_DENY_LIST.
+WEBHOOK_DENY_LIST=
 WEBHOOK_DENY_PRIVATE_IPS=false
 WEBHOOK_DENY_PUBLIC_IPS=false
 WEBHOOK_ENABLE_ENVIRONMENT_PROXY=false
