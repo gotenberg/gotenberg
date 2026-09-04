@@ -19,7 +19,7 @@ require (
 	github.com/moby/moby/api v1.55.0
 	github.com/moby/moby/client v0.5.1
 	github.com/prometheus/client_golang v1.24.1
-	github.com/shirou/gopsutil/v4 v4.26.7
+	github.com/shirou/gopsutil/v4 v4.26.8
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.12.1
 	github.com/testcontainers/testcontainers-go v0.44.0
