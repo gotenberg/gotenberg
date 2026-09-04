@@ -80,7 +80,7 @@ func Run() {
 	// Override their values if the corresponding environment variables are
 	// set.
 	fs.VisitAll(func(f *flag.Flag) {
-		envName := strings.ToUpper(strings.ReplaceAll(f.Name, "-", "_"))
+		envName := gotenberg.EnvVarName(f.Name)
 		val, ok := os.LookupEnv(envName)
 		if !ok {
 			return
