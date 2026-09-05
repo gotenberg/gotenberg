@@ -396,6 +396,17 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 					dlSpan.RecordError(err)
 					dlSpan.SetStatus(codes.Error, err.Error())
 					dlSpan.End()
+
+					// A redirect target is filtered inside the client, so the
+					// policy verdict surfaces here rather than from the
+					// pre-flight above. Keep it out of the response: the first
+					// hop answers a filtered URL with a generic 403, and a
+					// later hop must not describe the allow-list, the deny-list
+					// or the IP policy instead.
+					if errors.Is(err, gotenberg.ErrFiltered) {
+						return fmt.Errorf("download file from '%s': %w", dl.Url, err)
+					}
+
 					return WrapError(
 						fmt.Errorf("download file from to '%s': %w", dl.Url, err),
 						NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Unable to download file from '%s': %s", dl.Url, err)),

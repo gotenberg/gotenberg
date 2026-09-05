@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -18,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dlclark/regexp2"
 	"github.com/labstack/echo/v4"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
@@ -830,5 +832,73 @@ func TestNewContext_DuplicateFilenamesAreBothKept(t *testing.T) {
 	}
 	if len(seen) != 2 {
 		t.Fatalf("distinct disk paths = %d, want 2", len(seen))
+	}
+}
+
+// A redirect target is filtered inside the HTTP client, so the policy verdict
+// surfaces from client.Do rather than from the pre-flight check. It used to be
+// interpolated into the response body, so a redirect described the allow-list,
+// the deny-list or the IP policy where the first hop returns a generic 403.
+func TestNewContext_DownloadFromRedirectVerdictStaysGeneric(t *testing.T) {
+	private := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Disposition", `attachment; filename="secret.txt"`)
+		_, _ = w.Write([]byte("internal"))
+	}))
+	defer private.Close()
+
+	redirector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, private.URL+"/secret", http.StatusFound)
+	}))
+	defer redirector.Close()
+
+	payload, err := json.Marshal([]downloadFrom{{Url: redirector.URL + "/start"}})
+	if err != nil {
+		t.Fatalf("marshal downloadFrom payload: %v", err)
+	}
+
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	err = writer.WriteField("downloadFrom", string(payload))
+	if err != nil {
+		t.Fatalf("write downloadFrom field: %v", err)
+	}
+	err = writer.Close()
+	if err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	echoCtx := echo.New().NewContext(req, httptest.NewRecorder())
+	logger := slog.New(slog.DiscardHandler)
+	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+
+	// The first hop is allowed, the redirect target is denied by the deny-list.
+	denyList := []*regexp2.Regexp{regexp2.MustCompile("^"+regexp.QuoteMeta(private.URL), 0)}
+
+	_, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromConfig{
+		denyList: denyList,
+		maxRetry: 0,
+	})
+	if cancel != nil {
+		defer cancel()
+	}
+	if err == nil {
+		t.Fatal("expected the redirect to a denied host to fail")
+	}
+
+	status, message := ParseError(err)
+	if status != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d: a filtered redirect must answer like a filtered first hop", status, http.StatusForbidden)
+	}
+	if message != http.StatusText(http.StatusForbidden) {
+		t.Fatalf("message = %q, want the generic %q", message, http.StatusText(http.StatusForbidden))
+	}
+	// The response must not name the policy, the pattern, or the blocked host.
+	for _, leak := range []string{"denied list", "allowed list", "non-public", "expression", private.URL} {
+		if strings.Contains(message, leak) {
+			t.Fatalf("response message %q leaks %q", message, leak)
+		}
 	}
 }
