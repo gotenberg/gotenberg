@@ -2,6 +2,7 @@ package exiftool
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"testing"
 
@@ -209,5 +210,50 @@ func TestSafeKeyPattern(t *testing.T) {
 		if safeKeyPattern.MatchString(k) {
 			t.Fatalf("control-char key %q must be rejected", k)
 		}
+	}
+}
+
+// A metadata key that collides with an ExifTool option becomes a bare argv
+// entry such as "-csv=/etc/passwd", which exiftool reads as its own option and
+// treats the value as a filename to open.
+func TestBuildExifToolWriteArgs_RejectsControlOptions(t *testing.T) {
+	for _, key := range []string{"csv", "CSV", "json", "geotag", "config", "tagsFromFile", "execute", "stay_open", "o", "w", "if", "p"} {
+		t.Run(key, func(t *testing.T) {
+			_, err := buildExifToolWriteArgs(map[string]any{key: "/etc/passwd"})
+			if err == nil {
+				t.Fatalf("buildExifToolWriteArgs accepted the control option %q", key)
+			}
+			if !errors.Is(err, gotenberg.ErrPdfEngineMetadataValueNotSupported) {
+				t.Fatalf("error %v does not wrap ErrPdfEngineMetadataValueNotSupported", err)
+			}
+		})
+	}
+}
+
+// A group prefix makes the key unambiguous, so it must still be accepted.
+func TestBuildExifToolWriteArgs_AcceptsPrefixedOptionNames(t *testing.T) {
+	for _, key := range []string{"XMP:csv", "XMP-dc:json", "IPTC:p"} {
+		t.Run(key, func(t *testing.T) {
+			args, err := buildExifToolWriteArgs(map[string]any{key: "value"})
+			if err != nil {
+				t.Fatalf("buildExifToolWriteArgs rejected the prefixed key %q: %v", key, err)
+			}
+			want := fmt.Sprintf("-%s=value", key)
+			if len(args) != 1 || args[0] != want {
+				t.Fatalf("args = %v, want [%s]", args, want)
+			}
+		})
+	}
+}
+
+// Ordinary tags must be unaffected.
+func TestBuildExifToolWriteArgs_AcceptsOrdinaryTags(t *testing.T) {
+	for _, key := range []string{"Author", "Title", "Subject", "Keywords", "Producer", "Creator"} {
+		t.Run(key, func(t *testing.T) {
+			_, err := buildExifToolWriteArgs(map[string]any{key: "value"})
+			if err != nil {
+				t.Fatalf("buildExifToolWriteArgs rejected the ordinary tag %q: %v", key, err)
+			}
+		})
 	}
 }

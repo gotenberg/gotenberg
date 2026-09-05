@@ -80,6 +80,37 @@ var dangerousTags = []string{
 	"FilePermissions", // Writing this changes the file's permissions
 }
 
+// controlOptions lists ExifTool command-line option names that collide with a
+// tag assignment. A metadata key of "csv" becomes the argv entry "-csv=value",
+// which exiftool reads as its own option rather than as a tag, so the value
+// becomes a filename exiftool opens. Only an unprefixed key can collide:
+// "-XMP:csv=value" is unambiguously a tag.
+//
+// See https://exiftool.org/exiftool_pod.html.
+var controlOptions = []string{
+	"api", "argfile", "charset", "common_args", "config", "csv", "diff",
+	"echo", "efile", "execute", "ext", "fileorder", "geotag", "geosync",
+	"htmldump", "if", "json", "lang", "listitem", "o", "out", "p", "php",
+	"require", "srcfile", "stay_open", "tagsfromfile", "textout", "use", "w",
+	"wm", "xmlformat",
+}
+
+// isControlOption reports whether an unprefixed key would reach exiftool as
+// one of its own options instead of as a tag assignment.
+func isControlOption(key string) bool {
+	if strings.Contains(key, ":") {
+		return false
+	}
+
+	for _, option := range controlOptions {
+		if strings.EqualFold(key, option) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // isDangerousTag reports whether key matches one of the [dangerousTags]
 // after case-insensitive comparison with any group prefix stripped.
 func isDangerousTag(key string) bool {
@@ -113,6 +144,9 @@ func buildExifToolWriteArgs(metadata map[string]any) ([]string, error) {
 		}
 		if !safeKeyPattern.MatchString(key) {
 			return nil, fmt.Errorf("write PDF metadata with ExifTool: invalid metadata key %q: %w", key, gotenberg.ErrPdfEngineMetadataValueNotSupported)
+		}
+		if isControlOption(key) {
+			return nil, fmt.Errorf("write PDF metadata with ExifTool: metadata key %q is an ExifTool option, prefix it with a group such as %q: %w", key, "XMP:"+key, gotenberg.ErrPdfEngineMetadataValueNotSupported)
 		}
 
 		tag := key
