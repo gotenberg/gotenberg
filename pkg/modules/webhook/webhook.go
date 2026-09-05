@@ -92,6 +92,27 @@ func (w *Webhook) Provision(ctx *gotenberg.Context) error {
 	return nil
 }
 
+// minDeliveryTimeout is the floor for [Webhook.deliveryTimeout], so that a
+// deliberately tiny --webhook-client-timeout (env WEBHOOK_CLIENT_TIMEOUT) never
+// leaves a delivery with no budget at all.
+const minDeliveryTimeout = 1 * time.Second
+
+// deliveryTimeout bounds one webhook delivery including its retries. It is the
+// worst case a correctly behaving remote produces: one client timeout per
+// attempt, plus the capped wait between attempts.
+//
+// A delivery runs after the handler returned, so it cannot borrow the
+// conversion deadline. Without this budget it would have none, because
+// [retryablehttp] builds its requests on [context.Background].
+func (w *Webhook) deliveryTimeout() time.Duration {
+	timeout := w.clientTimeout*time.Duration(w.maxRetry+1) + w.retryMaxWait*time.Duration(w.maxRetry)
+	if timeout < minDeliveryTimeout {
+		return minDeliveryTimeout
+	}
+
+	return timeout
+}
+
 // Middlewares returns the middleware.
 func (w *Webhook) Middlewares() ([]api.Middleware, error) {
 	if w.disable {

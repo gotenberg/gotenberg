@@ -31,8 +31,31 @@ type client struct {
 	extraHttpHeaders map[string]string
 	startTime        time.Time
 
+	// deliveryTimeout bounds one delivery including retries. See
+	// [Webhook.deliveryTimeout].
+	deliveryTimeout time.Duration
+
 	client *retryablehttp.Client
 	logger *slog.Logger
+}
+
+// deliveryContext returns the context one delivery runs on.
+//
+// It keeps the values of ctx, so trace propagation and logging correlation
+// survive, and replaces its cancellation with a fresh budget. Threading the
+// conversion context straight through does not work: a delivery starts after
+// the handler returned, so that deadline may already be spent and the callback
+// would fail without a single attempt.
+func (c client) deliveryContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	timeout := c.deliveryTimeout
+	if timeout <= 0 {
+		// An unset budget would expire the delivery before its first attempt.
+		// [Webhook.deliveryTimeout] never returns a non-positive value, so this
+		// only guards a caller that builds a client without one.
+		timeout = minDeliveryTimeout
+	}
+
+	return context.WithTimeout(context.WithoutCancel(ctx), timeout)
 }
 
 // send call the webhook either to send the success response or the error response.
@@ -57,6 +80,9 @@ func (c client) send(ctx context.Context, body io.Reader, headers map[string]str
 		spanName = fmt.Sprintf("%s Webhook Error", method)
 	}
 
+	ctx, cancel := c.deliveryContext(ctx)
+	defer cancel()
+
 	tracer := gotenberg.Tracer()
 	ctx, span := tracer.Start(ctx, spanName,
 		trace.WithSpanKind(trace.SpanKindClient),
@@ -64,7 +90,10 @@ func (c client) send(ctx context.Context, body io.Reader, headers map[string]str
 	)
 	defer span.End()
 
-	req, err := retryablehttp.NewRequest(method, url, body)
+	// The request must carry ctx: retryablehttp.NewRequest builds on
+	// [context.Background], and its wait between attempts is a select on the
+	// request context, so a contextless request cannot be interrupted.
+	req, err := retryablehttp.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
@@ -165,6 +194,9 @@ func (c client) sendEvent(ctx context.Context, correlationIdHeader, correlationI
 		return
 	}
 
+	ctx, cancel := c.deliveryContext(ctx)
+	defer cancel()
+
 	tracer := gotenberg.Tracer()
 	ctx, span := tracer.Start(ctx, "POST Webhook Event",
 		trace.WithSpanKind(trace.SpanKindClient),
@@ -172,7 +204,7 @@ func (c client) sendEvent(ctx context.Context, correlationIdHeader, correlationI
 	)
 	defer span.End()
 
-	req, err := retryablehttp.NewRequest(http.MethodPost, c.eventsUrl, b)
+	req, err := retryablehttp.NewRequestWithContext(ctx, http.MethodPost, c.eventsUrl, b)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())

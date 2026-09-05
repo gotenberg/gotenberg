@@ -222,6 +222,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						eventsUrl:        webhookEventsUrl,
 						extraHttpHeaders: extraHttpHeaders,
 						startTime:        startTime,
+						deliveryTimeout:  w.deliveryTimeout(),
 
 						client: &retryablehttp.Client{
 							HTTPClient:   gotenberg.NewOutboundHttpClient(w.clientTimeout, w.allowList, w.denyList, w.enableEnvironmentProxy, ipOpts...),
@@ -230,7 +231,10 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 							RetryWaitMax: w.retryMaxWait,
 							Logger:       gotenberg.NewLeveledLogger(ctx.Log()),
 							CheckRetry:   retryablehttp.DefaultRetryPolicy,
-							Backoff:      retryablehttp.DefaultBackoff,
+							// Not DefaultBackoff: it returns a remote Retry-After
+							// verbatim, ignoring --webhook-retry-max-wait (env
+							// WEBHOOK_RETRY_MAX_WAIT).
+							Backoff: gotenberg.ClampedBackoff,
 						},
 						logger: ctx.Log(),
 					}
