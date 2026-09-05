@@ -51,6 +51,13 @@ type Context struct {
 	outputPaths    []string
 	cancelled      bool
 
+	// outputFilename is the sanitized Gotenberg-Output-Filename header,
+	// snapshotted while the [echo.Context] is still live. Echo returns that
+	// context to a pool as soon as the handler returns, and an asynchronous
+	// conversion outlives it, so reading the header from the pooled store later
+	// yields whichever request happens to own it by then.
+	outputFilename string
+
 	logger     *slog.Logger
 	echoCtx    echo.Context
 	mkdirAll   gotenberg.MkdirAll
@@ -159,14 +166,18 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 		return nil
 	}
 
+	// Snapshot now, while echoCtx still belongs to this request.
+	outputFilename, _ := echoCtx.Get("outputFilename").(string)
+
 	ctx := &Context{
-		outputPaths: make([]string, 0),
-		cancelled:   false,
-		logger:      logger,
-		echoCtx:     echoCtx,
-		mkdirAll:    new(gotenberg.OsMkdirAll),
-		pathRename:  new(gotenberg.OsPathRename),
-		Context:     processCtx,
+		outputPaths:    make([]string, 0),
+		cancelled:      false,
+		outputFilename: outputFilename,
+		logger:         logger,
+		echoCtx:        echoCtx,
+		mkdirAll:       new(gotenberg.OsMkdirAll),
+		pathRename:     new(gotenberg.OsPathRename),
+		Context:        processCtx,
 	}
 
 	// A custom cancel function which removes the context's working directory
@@ -754,11 +765,11 @@ func (ctx *Context) BuildOutputFile() (string, error) {
 // OutputFilename returns the filename based on the given output path or the
 // "Gotenberg-Output-Filename" header's value.
 func (ctx *Context) OutputFilename(outputPath string) string {
-	filename := ctx.echoCtx.Get("outputFilename").(string)
-
-	if filename == "" {
+	if ctx.outputFilename == "" {
 		return ctx.OriginalFilename(outputPath)
 	}
+
+	filename := ctx.outputFilename
 
 	return fmt.Sprintf("%s%s", filename, filepath.Ext(outputPath))
 }

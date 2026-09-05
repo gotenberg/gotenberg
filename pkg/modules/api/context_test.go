@@ -602,3 +602,70 @@ func TestDecodeDownloadFrom_StopsBeforeMaterializingTheArray(t *testing.T) {
 	}
 	t.Logf("allocated %d KiB decoding a %d-entry array with a limit of 1000", allocated>>10, entries)
 }
+
+// An asynchronous conversion outlives the [echo.Context]. Echo returns that
+// context to a sync.Pool as soon as the handler returns, and
+// outputFilenameMiddleware runs in srv.Pre on every request, including
+// /health, so a later request overwrites the store. Reading the output
+// filename from it after the fact returned another caller's value.
+func TestContext_OutputFilename_SurvivesEchoContextRecycling(t *testing.T) {
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	err := writer.Close()
+	if err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	echoCtx := echo.New().NewContext(req, httptest.NewRecorder())
+	// What outputFilenameMiddleware does for this request.
+	echoCtx.Set("outputFilename", "victim")
+
+	logger := slog.New(slog.DiscardHandler)
+	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+
+	ctx, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromConfig{disable: true})
+	if err != nil {
+		t.Fatalf("newContext returned error: %v", err)
+	}
+	defer cancel()
+
+	// Echo recycles the context and another request claims the store.
+	echoCtx.Set("outputFilename", "attacker-controlled")
+
+	if got := ctx.OutputFilename("/tmp/out.pdf"); got != "victim.pdf" {
+		t.Fatalf("OutputFilename = %q, want %q", got, "victim.pdf")
+	}
+}
+
+// A recycled context has a nil store, so the previous unguarded type assertion
+// could panic. The snapshot must tolerate an absent value.
+func TestContext_OutputFilename_NoHeader(t *testing.T) {
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	err := writer.Close()
+	if err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	// No Set call at all: the store holds nothing for "outputFilename".
+	echoCtx := echo.New().NewContext(req, httptest.NewRecorder())
+
+	logger := slog.New(slog.DiscardHandler)
+	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+
+	ctx, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromConfig{disable: true})
+	if err != nil {
+		t.Fatalf("newContext returned error: %v", err)
+	}
+	defer cancel()
+
+	if got := ctx.OutputFilename("/tmp/out.pdf"); got != "out.pdf" {
+		t.Fatalf("OutputFilename = %q, want the original filename %q", got, "out.pdf")
+	}
+}
