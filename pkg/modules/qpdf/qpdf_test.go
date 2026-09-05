@@ -3,9 +3,12 @@ package qpdf
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"os"
 	"testing"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 func TestStripQpdfStringPrefix(t *testing.T) {
@@ -269,4 +272,55 @@ func TestSetStreamSubtype(t *testing.T) {
 			t.Error("expected no updates for non-stream object")
 		}
 	})
+}
+
+func TestValidateSplitSpan(t *testing.T) {
+	for _, tc := range []struct {
+		span  string
+		valid bool
+	}{
+		// qpdf page ranges.
+		{"1", true},
+		{"12", true},
+		{"1-5", true},
+		{"2-z", true},
+		{"z", true},
+		{"r1", true},
+		{"r3-r1", true},
+		{"1,3,5-9", true},
+		{"1-5,x3", true},
+		{"1-z:odd", true},
+		{"1-z:even", true},
+
+		// Other engines' spellings. Not valid here, so the chain moves on.
+		{"2-end", false},
+		{"2-", false},
+		{"foo", false},
+
+		// A span qpdf would read as a source file.
+		{"/tmp/secret.pdf", false},
+		{"secret.pdf", false},
+		{"./secret.pdf", false},
+		{"../../etc/hosts", false},
+		{"1,/tmp/secret.pdf", false},
+		{"1 /tmp/secret.pdf", false},
+		{"", false},
+		{"--password=x", false},
+	} {
+		t.Run(tc.span, func(t *testing.T) {
+			err := validateSplitSpan(tc.span)
+			if tc.valid && err != nil {
+				t.Fatalf("validateSplitSpan(%q) = %v, want nil", tc.span, err)
+			}
+			if !tc.valid {
+				if err == nil {
+					t.Fatalf("validateSplitSpan(%q) = nil, want an error", tc.span)
+				}
+				// The chain must be able to try the next engine.
+				if !errors.Is(err, gotenberg.ErrPdfSplitModeNotSupported) {
+					t.Fatalf("error %v does not wrap ErrPdfSplitModeNotSupported", err)
+				}
+			}
+		})
+	}
 }

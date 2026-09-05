@@ -79,6 +79,18 @@ var nonPublicIPv6Prefixes = []netip.Prefix{
 	netip.MustParsePrefix("100::/64"),
 }
 
+// nonPublicIPv4Prefixes lists IPv4 ranges that the [netip.Addr] helpers do
+// not classify but that must not be considered public:
+//
+//   - 100.64.0.0/10 Carrier-grade NAT (RFC 6598). Routable inside provider
+//     and cluster networks, and Alibaba Cloud serves instance metadata from
+//     100.100.100.200.
+//   - 198.18.0.0/15 Benchmarking (RFC 2544). Never routed on the internet.
+var nonPublicIPv4Prefixes = []netip.Prefix{
+	netip.MustParsePrefix("100.64.0.0/10"),
+	netip.MustParsePrefix("198.18.0.0/15"),
+}
+
 // IsPublicIP reports whether addr is reachable on the public internet. It
 // returns false for loopback, private (RFC1918), link-local, unspecified,
 // multicast, and unique-local addresses. IPv4-mapped IPv6 addresses are
@@ -89,7 +101,8 @@ var nonPublicIPv6Prefixes = []netip.Prefix{
 // (6to4, Teredo, NAT64) are rejected wholesale rather than recursed into,
 // because a host that routes them implicitly trusts the IPv4 mapping and
 // the prefixes themselves are deprecated or translation-only. See
-// [nonPublicIPv6Prefixes] for the full list and rationale.
+// [nonPublicIPv6Prefixes] and [nonPublicIPv4Prefixes] for the full lists
+// and rationale.
 func IsPublicIP(addr netip.Addr) bool {
 	if !addr.IsValid() {
 		return false
@@ -104,6 +117,13 @@ func IsPublicIP(addr netip.Addr) bool {
 		addr.IsUnspecified(),
 		addr.IsInterfaceLocalMulticast():
 		return false
+	}
+	if addr.Is4() {
+		for _, p := range nonPublicIPv4Prefixes {
+			if p.Contains(addr) {
+				return false
+			}
+		}
 	}
 	if addr.Is6() {
 		for _, p := range nonPublicIPv6Prefixes {

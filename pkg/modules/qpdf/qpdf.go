@@ -120,6 +120,30 @@ func (engine *QPdf) spanAttrs(extra ...attribute.KeyValue) []attribute.KeyValue 
 	return append(attrs, extra...)
 }
 
+// qpdfPageRange matches the page range syntax qpdf accepts, and nothing else.
+//
+// A term is a page number, "z" for the last page, or "rN" counting from the
+// end, optionally prefixed with "x" to exclude it. Terms combine into ranges
+// with "-", ranges join with ",", and the whole thing takes an optional ":odd"
+// or ":even".
+var qpdfPageRange = regexp.MustCompile(`^x?(?:z|r\d+|\d+)(?:-x?(?:z|r\d+|\d+))?(?:,x?(?:z|r\d+|\d+)(?:-x?(?:z|r\d+|\d+))?)*(?::odd|:even)?$`)
+
+// validateSplitSpan returns span when it is a qpdf page range.
+//
+// qpdf reads the argument after "--pages ." as either a page range or another
+// source file, so a span carrying a path makes qpdf append that file's pages
+// to the output. Other engines in the split chain accept spellings qpdf does
+// not, such as pdfcpu's "2-end", so a span this rejects is not necessarily
+// invalid. Returning an error lets the chain move on to an engine that
+// understands it.
+func validateSplitSpan(span string) error {
+	if qpdfPageRange.MatchString(span) {
+		return nil
+	}
+
+	return fmt.Errorf("split span '%s' is not a QPDF page range: %w", span, gotenberg.ErrPdfSplitModeNotSupported)
+}
+
 // Split splits a given PDF file.
 func (engine *QPdf) Split(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
 	ctx, span := gotenberg.Tracer().Start(ctx, "qpdf.Split",
@@ -135,6 +159,12 @@ func (engine *QPdf) Split(ctx context.Context, logger *slog.Logger, mode gotenbe
 	case gotenberg.SplitModePages:
 		if !mode.Unify {
 			err := fmt.Errorf("split PDFs using mode '%s' without unify with QPDF: %w", mode.Mode, gotenberg.ErrPdfSplitModeNotSupported)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			return nil, err
+		}
+		err := validateSplitSpan(mode.Span)
+		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err

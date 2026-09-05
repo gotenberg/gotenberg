@@ -40,6 +40,24 @@ func TestIsPublicIP(t *testing.T) {
 
 		// Link-local.
 		{"169.254.169.254", false},
+		{"169.254.170.2", false},
+
+		// Carrier-grade NAT (RFC 6598). Alibaba Cloud serves instance
+		// metadata from 100.100.100.200.
+		{"100.64.0.0", false},
+		{"100.100.100.200", false},
+		{"100.127.255.255", false},
+		{"::ffff:100.100.100.200", false},
+
+		// Benchmarking (RFC 2544).
+		{"198.18.0.1", false},
+		{"198.19.255.255", false},
+
+		// Adjacent to the ranges above, and public.
+		{"100.63.255.255", true},
+		{"100.128.0.0", true},
+		{"198.17.255.255", true},
+		{"198.20.0.0", true},
 		{"fe80::1", false},
 
 		// Unique-local.
