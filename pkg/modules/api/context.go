@@ -458,7 +458,7 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 				// Use a UUID-based name on disk to avoid filesystem
 				// NAME_MAX limits with long filenames.
 				// See: https://github.com/gotenberg/gotenberg/issues/1500.
-				safeName := uuid.New().String() + filepath.Ext(filename)
+				safeName := uuid.New().String() + safeExt(filename)
 				path := fmt.Sprintf("%s/%s", ctx.dirPath, safeName)
 
 				out, err := os.Create(path)
@@ -512,18 +512,19 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 		}
 
 		for _, r := range results {
-			ctx.files[r.filename] = r.path
-			ctx.diskToOriginal[r.path] = r.filename
+			filename := ctx.uniqueFilename(r.filename)
+			ctx.files[filename] = r.path
+			ctx.diskToOriginal[r.path] = filename
 			if r.formField != "" {
 				ctx.filesByField[r.formField] = append(ctx.filesByField[r.formField], r.path)
 			}
 		}
 	}
 
-	copyToDisk := func(fh *multipart.FileHeader) error {
+	copyToDisk := func(fh *multipart.FileHeader) (string, error) {
 		in, err := fh.Open()
 		if err != nil {
-			return fmt.Errorf("open multipart file: %w", err)
+			return "", fmt.Errorf("open multipart file: %w", err)
 		}
 
 		defer func() {
@@ -546,12 +547,12 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 		// Use a UUID-based name on disk to avoid filesystem
 		// NAME_MAX limits with long filenames.
 		// See: https://github.com/gotenberg/gotenberg/issues/1500.
-		safeName := uuid.New().String() + filepath.Ext(filename)
+		safeName := uuid.New().String() + safeExt(filename)
 		path := fmt.Sprintf("%s/%s", ctx.dirPath, safeName)
 
 		out, err := os.Create(path)
 		if err != nil {
-			return fmt.Errorf("create local file: %w", err)
+			return "", fmt.Errorf("create local file: %w", err)
 		}
 		defer func() {
 			err := out.Close()
@@ -562,26 +563,26 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 
 		_, err = io.Copy(out, reader)
 		if err != nil {
-			return fmt.Errorf("copy multipart file to local file: %w", err)
+			return "", fmt.Errorf("copy multipart file to local file: %w", err)
 		}
 
+		filename = ctx.uniqueFilename(filename)
 		ctx.files[filename] = path
 		ctx.diskToOriginal[path] = filename
 
-		return nil
+		return filename, nil
 	}
 
 	// Then, copy the form files, if any.
 	for fieldName, files := range form.File {
 		for _, fh := range files {
-			err = copyToDisk(fh)
-			if err != nil {
-				return ctx, cancel, fmt.Errorf("copy to disk: %w", err)
+			filename, errCopy := copyToDisk(fh)
+			if errCopy != nil {
+				return ctx, cancel, fmt.Errorf("copy to disk: %w", errCopy)
 			}
-			// Track files by field name
-			filename := sanitizeFilename(fh.Filename)
-			filePath := ctx.files[filename]
-			ctx.filesByField[fieldName] = append(ctx.filesByField[fieldName], filePath)
+			// Track files by field name, under the name copyToDisk actually
+			// stored, which may be a de-duplicated variant.
+			ctx.filesByField[fieldName] = append(ctx.filesByField[fieldName], ctx.files[filename])
 		}
 	}
 
@@ -596,9 +597,9 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 		if symlinkPath == diskPath {
 			continue
 		}
-		err = os.Symlink(filepath.Base(diskPath), symlinkPath)
-		if err != nil {
-			logger.DebugContext(context.Background(), fmt.Sprintf("skip symlink for '%s': %s", originalName, err))
+		errSymlink := os.Symlink(filepath.Base(diskPath), symlinkPath)
+		if errSymlink != nil {
+			logger.DebugContext(context.Background(), fmt.Sprintf("skip symlink for '%s': %s", originalName, errSymlink))
 		}
 	}
 
@@ -607,7 +608,10 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 	ctx.Log().DebugContext(ctx, fmt.Sprintf("form files by field: %+v", ctx.filesByField))
 	ctx.Log().DebugContext(ctx, fmt.Sprintf("total bytes: %d", totalBytesRead.Load()))
 
-	return ctx, cancel, err
+	// Explicitly nil: the best-effort symlink loop above must not decide the
+	// outcome of the request. Its failure used to escape here as a bare 500,
+	// non-deterministically, because ctx.files iterates in random order.
+	return ctx, cancel, nil
 }
 
 // Request returns the [http.Request].
@@ -662,7 +666,7 @@ func (ctx *Context) GeneratePath(extension string) string {
 // limits but registers the given filename so that [Context.OriginalFilename]
 // can resolve it. It does not create a file.
 func (ctx *Context) GeneratePathFromFilename(filename string) string {
-	safeName := uuid.New().String() + filepath.Ext(filename)
+	safeName := uuid.New().String() + safeExt(filename)
 	path := fmt.Sprintf("%s/%s", ctx.dirPath, safeName)
 	ctx.diskToOriginal[path] = filename
 	return path
@@ -772,6 +776,50 @@ func (ctx *Context) OutputFilename(outputPath string) string {
 	filename := ctx.outputFilename
 
 	return fmt.Sprintf("%s%s", filename, filepath.Ext(outputPath))
+}
+
+// maxDiskExtLength bounds the extension copied onto a UUID-based disk name.
+// The UUID stem is 36 characters, so a longer extension risks NAME_MAX, which
+// is 255 on ext4 and overlayfs. The untruncated name is kept in
+// [Context.diskToOriginal], which never reaches the filesystem.
+const maxDiskExtLength = 32
+
+// safeExt returns the extension to append to a UUID-based disk name. It drops
+// an extension too long to be safe rather than let [os.Create] fail with
+// ENAMETOOLONG, which surfaced to the caller as a bare 500.
+func safeExt(filename string) string {
+	ext := filepath.Ext(filename)
+	if len(ext) > maxDiskExtLength {
+		return ""
+	}
+
+	return ext
+}
+
+// uniqueFilename returns filename, or a numbered variant of it when the
+// request already carries a file by that name.
+//
+// Uploads are keyed by their sanitized original filename, so two files sharing
+// one name used to collide: the second overwrote the first and only one
+// reached the conversion, while both stayed on disk and counted against the
+// body limit. Sanitizing strips directories, so "a/doc.pdf" and "b/doc.pdf"
+// collide too.
+func (ctx *Context) uniqueFilename(filename string) string {
+	_, exists := ctx.files[filename]
+	if !exists {
+		return filename
+	}
+
+	ext := filepath.Ext(filename)
+	stem := strings.TrimSuffix(filename, ext)
+
+	for i := 2; ; i++ {
+		candidate := fmt.Sprintf("%s (%d)%s", stem, i, ext)
+		_, exists = ctx.files[candidate]
+		if !exists {
+			return candidate
+		}
+	}
 }
 
 // sanitizeFilename strips path separators (including backslashes, which

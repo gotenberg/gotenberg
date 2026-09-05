@@ -669,3 +669,166 @@ func TestContext_OutputFilename_NoHeader(t *testing.T) {
 		t.Fatalf("OutputFilename = %q, want the original filename %q", got, "out.pdf")
 	}
 }
+
+func TestSafeExt(t *testing.T) {
+	for _, tc := range []struct {
+		scenario string
+		filename string
+		want     string
+	}{
+		{"ordinary extension", "report.pdf", ".pdf"},
+		{"no extension", "report", ""},
+		{"at the limit", "a." + strings.Repeat("x", maxDiskExtLength-1), "." + strings.Repeat("x", maxDiskExtLength-1)},
+		{"over the limit is dropped", "a." + strings.Repeat("x", 300), ""},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			got := safeExt(tc.filename)
+			if got != tc.want {
+				t.Fatalf("safeExt(%q) = %q, want %q", tc.filename, got, tc.want)
+			}
+			// A UUID stem is 36 characters. The whole disk name must stay
+			// under NAME_MAX.
+			if len(got)+36 > 255 {
+				t.Fatalf("disk name would be %d characters, over NAME_MAX", len(got)+36)
+			}
+		})
+	}
+}
+
+// An upload whose extension exceeds NAME_MAX used to fail os.Create and return
+// a bare 500. The extension is bounded, and the original name survives in
+// diskToOriginal.
+func TestNewContext_LongExtensionIsAccepted(t *testing.T) {
+	filename := "invoice." + strings.Repeat("x", 300)
+
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile("files", filename)
+	if err != nil {
+		t.Fatalf("create multipart file: %v", err)
+	}
+	_, err = part.Write([]byte("%PDF-1.4"))
+	if err != nil {
+		t.Fatalf("write multipart file: %v", err)
+	}
+	err = writer.Close()
+	if err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	echoCtx := echo.New().NewContext(req, httptest.NewRecorder())
+	logger := slog.New(slog.DiscardHandler)
+	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+
+	ctx, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromConfig{disable: true})
+	if cancel != nil {
+		defer cancel()
+	}
+	if err != nil {
+		t.Fatalf("newContext returned error for a long extension: %v", err)
+	}
+	if got := len(ctx.files); got != 1 {
+		t.Fatalf("files = %d, want 1", got)
+	}
+}
+
+// A filename that cannot become a symlink (too long, "..", "/") must not fail
+// the request. The symlink loop is best-effort, but its error escaped through
+// the shared err variable, and ctx.files iterates randomly, so byte-identical
+// requests gave different HTTP outcomes.
+func TestNewContext_UnsymlinkableFilenameStillSucceeds(t *testing.T) {
+	for _, filename := range []string{
+		strings.Repeat("a", 300) + ".txt",
+		"..",
+		"/",
+	} {
+		t.Run(filename[:min(len(filename), 12)], func(t *testing.T) {
+			body := new(bytes.Buffer)
+			writer := multipart.NewWriter(body)
+			part, err := writer.CreateFormFile("files", filename)
+			if err != nil {
+				t.Fatalf("create multipart file: %v", err)
+			}
+			_, err = part.Write([]byte("%PDF-1.4"))
+			if err != nil {
+				t.Fatalf("write multipart file: %v", err)
+			}
+			err = writer.Close()
+			if err != nil {
+				t.Fatalf("close multipart writer: %v", err)
+			}
+
+			req := httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", body)
+			req.Header.Set("Content-Type", writer.FormDataContentType())
+
+			echoCtx := echo.New().NewContext(req, httptest.NewRecorder())
+			logger := slog.New(slog.DiscardHandler)
+			fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+
+			_, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromConfig{disable: true})
+			if cancel != nil {
+				defer cancel()
+			}
+			if err != nil {
+				t.Fatalf("newContext failed on a best-effort symlink for %q: %v", filename, err)
+			}
+		})
+	}
+}
+
+// Two uploads sharing a filename must both reach the conversion. The second
+// used to overwrite the first in ctx.files, so one file was silently dropped
+// while both stayed on disk and counted against the body limit.
+func TestNewContext_DuplicateFilenamesAreBothKept(t *testing.T) {
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	for _, content := range []string{"FIRST", "SECOND"} {
+		part, err := writer.CreateFormFile("files", "doc.pdf")
+		if err != nil {
+			t.Fatalf("create multipart file: %v", err)
+		}
+		_, err = part.Write([]byte(content))
+		if err != nil {
+			t.Fatalf("write multipart file: %v", err)
+		}
+	}
+	err := writer.Close()
+	if err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/forms/pdfengines/merge", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	echoCtx := echo.New().NewContext(req, httptest.NewRecorder())
+	logger := slog.New(slog.DiscardHandler)
+	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+
+	ctx, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromConfig{disable: true})
+	if err != nil {
+		t.Fatalf("newContext returned error: %v", err)
+	}
+	defer cancel()
+
+	if got := len(ctx.files); got != 2 {
+		t.Fatalf("ctx.files = %d entries, want 2: a duplicate filename dropped a file", got)
+	}
+	if got := len(ctx.filesByField["files"]); got != 2 {
+		t.Fatalf("filesByField[files] = %d entries, want 2", got)
+	}
+
+	// The two maps must agree, and both files must be distinct on disk.
+	seen := make(map[string]struct{})
+	for _, path := range ctx.files {
+		if _, ok := ctx.diskToOriginal[path]; !ok {
+			t.Fatalf("path %q has no diskToOriginal entry", path)
+		}
+		seen[path] = struct{}{}
+	}
+	if len(seen) != 2 {
+		t.Fatalf("distinct disk paths = %d, want 2", len(seen))
+	}
+}
