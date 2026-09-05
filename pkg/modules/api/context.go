@@ -80,6 +80,48 @@ func (t *trackingReader) Read(p []byte) (int, error) {
 	return n, nil
 }
 
+// errTooManyDownloadFromEntries is returned by [decodeDownloadFrom] when the
+// array holds more entries than the configured maximum.
+var errTooManyDownloadFromEntries = errors.New("too many downloadFrom entries")
+
+// decodeDownloadFrom decodes the downloadFrom form field, refusing to
+// accumulate more than maxEntries. A maxEntries of 0 means no limit.
+//
+// It decodes element by element rather than calling [json.Unmarshal] on the
+// whole value. A compact array such as "[{},{},{}]" costs three bytes per
+// entry on the wire and expands to roughly seventy times that once
+// unmarshalled, so counting the entries afterwards is too late to bound the
+// allocation. Streaming keeps the cost proportional to maxEntries no matter
+// how long the array is.
+func decodeDownloadFrom(raw string, maxEntries int) ([]downloadFrom, error) {
+	dec := json.NewDecoder(strings.NewReader(raw))
+
+	token, err := dec.Token()
+	if err != nil {
+		return nil, err
+	}
+	if delim, ok := token.(json.Delim); !ok || delim != '[' {
+		return nil, fmt.Errorf("expected a JSON array, got '%v'", token)
+	}
+
+	var dls []downloadFrom
+	for dec.More() {
+		if maxEntries > 0 && len(dls) >= maxEntries {
+			return nil, errTooManyDownloadFromEntries
+		}
+
+		var dl downloadFrom
+		err = dec.Decode(&dl)
+		if err != nil {
+			return nil, err
+		}
+
+		dls = append(dls, dl)
+	}
+
+	return dls, nil
+}
+
 type downloadFrom struct {
 	// Url is the URL to download a file from.
 	Url string `json:"url"`
@@ -213,22 +255,17 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 	// any.
 	raw, ok := ctx.values["downloadFrom"]
 	if !downloadFromCfg.disable && ok {
-		var dls []downloadFrom
-		err = json.Unmarshal([]byte(raw[0]), &dls)
+		dls, err := decodeDownloadFrom(raw[0], downloadFromCfg.maxEntries)
+		if errors.Is(err, errTooManyDownloadFromEntries) {
+			return nil, cancel, WrapError(
+				fmt.Errorf("decode downloadFrom: %w", err),
+				NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'downloadFrom' form field value: too many entries, the maximum is %d", downloadFromCfg.maxEntries)),
+			)
+		}
 		if err != nil {
 			return nil, cancel, WrapError(
 				fmt.Errorf("unmarshal json: %w", err),
 				NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'downloadFrom' form field value: %s", err)),
-			)
-		}
-
-		// Reject oversized arrays at the trust boundary, before allocating
-		// the results slice or spawning any goroutine, so a compact request
-		// cannot inflate into an unbounded fan-out.
-		if downloadFromCfg.maxEntries > 0 && len(dls) > downloadFromCfg.maxEntries {
-			return nil, cancel, WrapError(
-				fmt.Errorf("too many downloadFrom entries: got %d, max %d", len(dls), downloadFromCfg.maxEntries),
-				NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'downloadFrom' form field value: too many entries, the maximum is %d", downloadFromCfg.maxEntries)),
 			)
 		}
 

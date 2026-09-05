@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -527,4 +529,76 @@ func TestNewContext_DownloadFromExpiredBudgetFailsClosed(t *testing.T) {
 	case <-time.After(15 * time.Second):
 		t.Fatal("newContext never returned: an entry starting past the deadline built an unbounded client")
 	}
+}
+
+func TestDecodeDownloadFrom(t *testing.T) {
+	for _, tc := range []struct {
+		scenario   string
+		raw        string
+		maxEntries int
+		expectErr  error
+		expectLen  int
+	}{
+		{"empty array", `[]`, 10, nil, 0},
+		{"under the limit", `[{"url":"http://a"},{"url":"http://b"}]`, 10, nil, 2},
+		{"exactly the limit", `[{"url":"http://a"},{"url":"http://b"}]`, 2, nil, 2},
+		{"over the limit", `[{"url":"http://a"},{"url":"http://b"}]`, 1, errTooManyDownloadFromEntries, 0},
+		{"no limit", `[{"url":"http://a"},{"url":"http://b"}]`, 0, nil, 2},
+		{"not an array", `{"url":"http://a"}`, 10, nil, 0},
+		{"malformed", `[{"url":`, 10, nil, 0},
+		{"not json", `nope`, 10, nil, 0},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			dls, err := decodeDownloadFrom(tc.raw, tc.maxEntries)
+
+			if tc.expectErr != nil {
+				if !errors.Is(err, tc.expectErr) {
+					t.Fatalf("error = %v, want %v", err, tc.expectErr)
+				}
+				return
+			}
+			if tc.scenario == "not an array" || tc.scenario == "malformed" || tc.scenario == "not json" {
+				if err == nil {
+					t.Fatalf("expected an error for %q", tc.raw)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(dls) != tc.expectLen {
+				t.Fatalf("decoded %d entries, want %d", len(dls), tc.expectLen)
+			}
+		})
+	}
+}
+
+// A compact array costs three bytes per entry on the wire and expands by
+// roughly seventy times once unmarshalled. Decoding must stop at the limit
+// rather than materialize the whole array and count afterwards.
+func TestDecodeDownloadFrom_StopsBeforeMaterializingTheArray(t *testing.T) {
+	const entries = 2_000_000
+
+	raw := "[" + strings.Repeat("{},", entries) + "{}]"
+
+	var before, after runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&before)
+
+	_, err := decodeDownloadFrom(raw, 1000)
+
+	runtime.ReadMemStats(&after)
+
+	if !errors.Is(err, errTooManyDownloadFromEntries) {
+		t.Fatalf("error = %v, want errTooManyDownloadFromEntries", err)
+	}
+
+	// json.Unmarshal on the same input allocates hundreds of MiB. Bounded
+	// decoding should stay in the low single-digit MiB, so this threshold is
+	// deliberately loose and still fails loudly on a regression.
+	allocated := after.TotalAlloc - before.TotalAlloc
+	if allocated > 32<<20 {
+		t.Fatalf("decoding allocated %d MiB for a %d-entry array, want the limit to bound it", allocated>>20, entries)
+	}
+	t.Logf("allocated %d KiB decoding a %d-entry array with a limit of 1000", allocated>>10, entries)
 }

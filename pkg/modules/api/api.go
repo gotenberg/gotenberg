@@ -215,7 +215,7 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Bool("api-download-from-enable-environment-proxy", false, "Route downloadFrom fetches through the proxy defined by the standard HTTP_PROXY, HTTPS_PROXY, and NO_PROXY variables, including credentials")
 			fs.Int("api-download-from-max-retry", 4, "Set the maximum number of retries for the download from feature")
 			fs.Int("api-download-from-max-concurrency", 10, "Set the maximum number of downloadFrom entries fetched concurrently per request - bounds the outbound fan-out. Set to 0 to disable this feature")
-			fs.Int("api-download-from-max-entries", 0, "Set the maximum number of downloadFrom entries allowed per request. Set to 0 to disable this feature")
+			fs.Int("api-download-from-max-entries", 1000, "Set the maximum number of downloadFrom entries allowed per request. Set to 0 to disable this limit, which lets a single request expand into an arbitrarily large array")
 			fs.Bool("api-disable-download-from", false, "Disable the download from feature")
 			fs.Bool("api-disable-health-check-route-telemetry", true, "Disable telemetry for health check route")
 			fs.Bool("api-disable-root-route-telemetry", true, "Disable telemetry for the root route")
