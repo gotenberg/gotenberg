@@ -51,6 +51,17 @@ type Context struct {
 	outputPaths    []string
 	cancelled      bool
 
+	// fileOrder records the order files were received in, keyed by disk path.
+	// It breaks ties when two uploads share an original filename, so that
+	// de-duplicated files keep their upload order instead of being ordered by
+	// the suffix uniqueFilename added.
+	fileOrder map[string]int
+
+	// fileBase maps a disk path to the original filename as received, before
+	// de-duplication. Sorting on it keeps a de-duplicated file next to its
+	// twin rather than wherever its numbered name would land.
+	fileBase map[string]string
+
 	// outputFilename is the sanitized Gotenberg-Output-Filename header,
 	// snapshotted while the [echo.Context] is still live. Echo returns that
 	// context to a pool as soon as the handler returns, and an asynchronous
@@ -515,6 +526,7 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 			filename := ctx.uniqueFilename(r.filename)
 			ctx.files[filename] = r.path
 			ctx.diskToOriginal[r.path] = filename
+			ctx.trackFileOrder(r.path, r.filename)
 			if r.formField != "" {
 				ctx.filesByField[r.formField] = append(ctx.filesByField[r.formField], r.path)
 			}
@@ -566,9 +578,11 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 			return "", fmt.Errorf("copy multipart file to local file: %w", err)
 		}
 
+		base := filename
 		filename = ctx.uniqueFilename(filename)
 		ctx.files[filename] = path
 		ctx.diskToOriginal[path] = filename
+		ctx.trackFileOrder(path, base)
 
 		return filename, nil
 	}
@@ -626,6 +640,8 @@ func (ctx *Context) FormData() *FormData {
 		files:          ctx.files,
 		filesByField:   ctx.filesByField,
 		diskToOriginal: ctx.diskToOriginal,
+		fileOrder:      ctx.fileOrder,
+		fileBase:       ctx.fileBase,
 		errors:         nil,
 	}
 }
@@ -820,6 +836,19 @@ func (ctx *Context) uniqueFilename(filename string) string {
 			return candidate
 		}
 	}
+}
+
+// trackFileOrder records where a file arrived in the request and the filename
+// it arrived under, so [FormData.paths] can order it the way the caller sent
+// it.
+func (ctx *Context) trackFileOrder(path, base string) {
+	if ctx.fileOrder == nil {
+		ctx.fileOrder = make(map[string]int)
+		ctx.fileBase = make(map[string]string)
+	}
+
+	ctx.fileOrder[path] = len(ctx.fileOrder)
+	ctx.fileBase[path] = base
 }
 
 // sanitizeFilename strips path separators (including backslashes, which

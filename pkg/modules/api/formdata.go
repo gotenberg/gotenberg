@@ -41,6 +41,8 @@ type FormData struct {
 	files          map[string]string
 	filesByField   map[string][]string
 	diskToOriginal map[string]string
+	fileOrder      map[string]int
+	fileBase       map[string]string
 	errors         error
 }
 
@@ -582,22 +584,40 @@ func (form *FormData) paths(extensions []string, target *[]string) *FormData {
 	}
 
 	// See https://github.com/gotenberg/gotenberg/issues/139.
-	originals := make(gotenberg.AlphanumericSort, len(entries))
-	for i, e := range entries {
-		originals[i] = e.original
-	}
-	sort.Sort(originals)
+	//
+	// Sort on the filename as received rather than on the map key. The key
+	// carries the suffix uniqueFilename adds when two uploads share a name,
+	// and that suffix would otherwise decide the order: "doc (2).pdf" sorts
+	// before "doc.pdf". Ordering on the received name keeps the pair adjacent,
+	// and the arrival index breaks the tie, so duplicates merge in the order
+	// the caller sent them. A file with a unique name is unaffected, since its
+	// received name and its key are the same string.
+	sort.SliceStable(entries, func(i, j int) bool {
+		nameI := form.receivedName(entries[i].disk, entries[i].original)
+		nameJ := form.receivedName(entries[j].disk, entries[j].original)
+		if nameI != nameJ {
+			return gotenberg.AlphanumericSort{nameI, nameJ}.Less(0, 1)
+		}
 
-	// Build a lookup from original name to disk path.
-	lookup := make(map[string]string, len(entries))
+		return form.fileOrder[entries[i].disk] < form.fileOrder[entries[j].disk]
+	})
+
 	for _, e := range entries {
-		lookup[e.original] = e.disk
-	}
-	for _, o := range originals {
-		*target = append(*target, lookup[o])
+		*target = append(*target, e.disk)
 	}
 
 	return form
+}
+
+// receivedName returns the filename the file at disk arrived under, before
+// de-duplication, falling back to fallback.
+func (form *FormData) receivedName(disk, fallback string) string {
+	base, ok := form.fileBase[disk]
+	if ok {
+		return base
+	}
+
+	return fallback
 }
 
 // append adds an error to the list of errors.

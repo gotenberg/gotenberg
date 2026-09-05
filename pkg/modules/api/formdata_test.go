@@ -1895,3 +1895,81 @@ func TestFormData_Watermarks(t *testing.T) {
 		t.Errorf("expected %+v, got %+v", want, got)
 	}
 }
+
+// De-duplicating a repeated filename must not change merge order. Files with
+// unique names keep exactly the order they had before de-duplication existed,
+// and two files sharing a name merge in the order the caller sent them.
+func TestFormData_paths_DuplicateFilenamesKeepUploadOrder(t *testing.T) {
+	for _, tc := range []struct {
+		scenario string
+		files    map[string]string
+		fileBase map[string]string
+		order    map[string]int
+		want     []string
+	}{
+		{
+			scenario: "unique names sort exactly as before",
+			files:    map[string]string{"b.pdf": "/w/2", "a.pdf": "/w/1", "c.pdf": "/w/3"},
+			fileBase: map[string]string{"/w/1": "a.pdf", "/w/2": "b.pdf", "/w/3": "c.pdf"},
+			order:    map[string]int{"/w/1": 0, "/w/2": 1, "/w/3": 2},
+			want:     []string{"/w/1", "/w/2", "/w/3"},
+		},
+		{
+			scenario: "numeric prefixes still win",
+			files:    map[string]string{"10_x.pdf": "/w/3", "2_x.pdf": "/w/2", "1_x.pdf": "/w/1"},
+			fileBase: map[string]string{"/w/1": "1_x.pdf", "/w/2": "2_x.pdf", "/w/3": "10_x.pdf"},
+			order:    map[string]int{"/w/1": 0, "/w/2": 1, "/w/3": 2},
+			want:     []string{"/w/1", "/w/2", "/w/3"},
+		},
+		{
+			scenario: "duplicates merge in upload order, not suffix order",
+			files:    map[string]string{"doc.pdf": "/w/1", "doc (2).pdf": "/w/2"},
+			fileBase: map[string]string{"/w/1": "doc.pdf", "/w/2": "doc.pdf"},
+			order:    map[string]int{"/w/1": 0, "/w/2": 1},
+			want:     []string{"/w/1", "/w/2"},
+		},
+		{
+			scenario: "duplicates stay adjacent and in position",
+			files: map[string]string{
+				"a.pdf": "/w/1", "doc.pdf": "/w/2", "doc (2).pdf": "/w/3", "z.pdf": "/w/4",
+			},
+			fileBase: map[string]string{
+				"/w/1": "a.pdf", "/w/2": "doc.pdf", "/w/3": "doc.pdf", "/w/4": "z.pdf",
+			},
+			order: map[string]int{"/w/1": 0, "/w/2": 1, "/w/3": 2, "/w/4": 3},
+			want:  []string{"/w/1", "/w/2", "/w/3", "/w/4"},
+		},
+		{
+			scenario: "three copies keep their order",
+			files:    map[string]string{"r.pdf": "/w/1", "r (2).pdf": "/w/2", "r (3).pdf": "/w/3"},
+			fileBase: map[string]string{"/w/1": "r.pdf", "/w/2": "r.pdf", "/w/3": "r.pdf"},
+			order:    map[string]int{"/w/1": 0, "/w/2": 1, "/w/3": 2},
+			want:     []string{"/w/1", "/w/2", "/w/3"},
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			form := &FormData{
+				files:        tc.files,
+				filesByField: map[string][]string{},
+				fileBase:     tc.fileBase,
+				fileOrder:    tc.order,
+			}
+
+			// Map iteration is randomised, so run it repeatedly: an unstable
+			// comparator shows up as a differing result across runs.
+			for range 50 {
+				var got []string
+				form.paths([]string{".pdf"}, &got)
+
+				if len(got) != len(tc.want) {
+					t.Fatalf("paths() returned %d entries, want %d", len(got), len(tc.want))
+				}
+				for i := range got {
+					if got[i] != tc.want[i] {
+						t.Fatalf("paths() = %v, want %v", got, tc.want)
+					}
+				}
+			}
+		})
+	}
+}
