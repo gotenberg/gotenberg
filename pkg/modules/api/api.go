@@ -383,10 +383,35 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 	// Logger.
 	a.logger = gotenberg.Logger(a)
 
+	a.warnInsecureDebugRoute()
+
 	// File system.
 	a.fs = gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 	return nil
+}
+
+// warnInsecureDebugRoute logs a warning when the debug route is reachable
+// without authentication.
+//
+// The route reports the resolved configuration of every module, which is
+// useful to an operator and equally useful to anyone else who can reach it.
+// This warns rather than refuses: an operator may sit behind a gateway that
+// authenticates on Gotenberg's behalf, and failing startup would break them.
+func (a *Api) warnInsecureDebugRoute() {
+	if !a.enableDebugRoute || a.basicAuthUsername != "" || a.oidcEnabled {
+		return
+	}
+	if a.logger == nil {
+		return
+	}
+
+	a.logger.WarnContext(
+		context.Background(),
+		"--api-enable-debug-route (API_ENABLE_DEBUG_ROUTE) is enabled but no authentication is configured, so anyone who can reach Gotenberg can read its configuration. Set --api-enable-basic-auth (API_ENABLE_BASIC_AUTH) with GOTENBERG_API_BASIC_AUTH_USERNAME and GOTENBERG_API_BASIC_AUTH_PASSWORD, set --api-enable-oidc-auth (API_ENABLE_OIDC_AUTH), or disable the route.",
+		slog.String("flag", "--api-enable-debug-route"),
+		slog.String("env", "API_ENABLE_DEBUG_ROUTE"),
+	)
 }
 
 // Validate validates the module properties.
