@@ -280,7 +280,12 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 
 				logger.DebugContext(dlCtx, fmt.Sprintf("download file from '%s'", dl.Url))
 
-				req, err := retryablehttp.NewRequest(http.MethodGet, dl.Url, nil)
+				// The request must carry dlCtx: retryablehttp.NewRequest builds
+				// on context.Background(), and its wait between attempts is a
+				// select on the request context, so a contextless request cannot
+				// be interrupted by --api-timeout (env API_TIMEOUT) or by the
+				// caller going away.
+				req, err := retryablehttp.NewRequestWithContext(dlCtx, http.MethodGet, dl.Url, nil)
 				if err != nil {
 					dlSpan.RecordError(err)
 					dlSpan.SetStatus(codes.Error, err.Error())
@@ -303,14 +308,28 @@ func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSys
 					}
 				}
 
+				// Entries are serialized by the concurrency limit above, so a
+				// late one can start after the deadline has already passed.
+				// Fail closed rather than derive a non-positive timeout, which
+				// [http.Client] reads as no deadline at all.
+				remaining := time.Until(deadline)
+				if remaining <= 0 {
+					dlSpan.RecordError(context.DeadlineExceeded)
+					dlSpan.SetStatus(codes.Error, context.DeadlineExceeded.Error())
+					dlSpan.End()
+					return fmt.Errorf("download file from '%s': %w", dl.Url, context.DeadlineExceeded)
+				}
+
 				client := &retryablehttp.Client{
-					HTTPClient:   gotenberg.NewOutboundHttpClient(time.Until(deadline), downloadFromCfg.allowList, downloadFromCfg.denyList, downloadFromCfg.enableEnvironmentProxy, ipOpts...),
+					HTTPClient:   gotenberg.NewOutboundHttpClient(remaining, downloadFromCfg.allowList, downloadFromCfg.denyList, downloadFromCfg.enableEnvironmentProxy, ipOpts...),
 					RetryMax:     downloadFromCfg.maxRetry,
 					RetryWaitMin: time.Duration(1) * time.Second,
-					RetryWaitMax: time.Until(deadline),
+					RetryWaitMax: remaining,
 					Logger:       gotenberg.NewLeveledLogger(logger),
 					CheckRetry:   retryablehttp.DefaultRetryPolicy,
-					Backoff:      retryablehttp.DefaultBackoff,
+					// Not DefaultBackoff: it hands a hostile origin control of
+					// the wait via Retry-After.
+					Backoff: gotenberg.ClampedBackoff,
 				}
 
 				resp, err := client.Do(req)

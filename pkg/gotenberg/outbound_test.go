@@ -3,6 +3,7 @@ package gotenberg
 import (
 	"context"
 	"errors"
+	"net/http"
 	"net/netip"
 	"strings"
 	"testing"
@@ -638,5 +639,61 @@ func TestDecideOutbound_LegitimateCredentialsStillReachTheHost(t *testing.T) {
 	}
 	if !decision.Bypass {
 		t.Fatalf("decision.Bypass = false, want true")
+	}
+}
+
+func TestClampedBackoff(t *testing.T) {
+	const (
+		min = 1 * time.Second
+		max = 30 * time.Second
+	)
+
+	retryAfter := func(status int, seconds string) *http.Response {
+		return &http.Response{StatusCode: status, Header: http.Header{"Retry-After": []string{seconds}}}
+	}
+
+	for _, tc := range []struct {
+		scenario string
+		resp     *http.Response
+		want     time.Duration
+	}{
+		{"429 with an hour is clamped", retryAfter(http.StatusTooManyRequests, "3600"), max},
+		{"429 with a day is clamped", retryAfter(http.StatusTooManyRequests, "86400"), max},
+		{"503 with an hour is clamped", retryAfter(http.StatusServiceUnavailable, "3600"), max},
+		{"429 under the ceiling is honored", retryAfter(http.StatusTooManyRequests, "5"), 5 * time.Second},
+		{"no response falls back to exponential", nil, min},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			got := ClampedBackoff(min, max, 0, tc.resp)
+			if got != tc.want {
+				t.Fatalf("ClampedBackoff = %s, want %s", got, tc.want)
+			}
+			if got > max {
+				t.Fatalf("ClampedBackoff = %s, which exceeds max %s", got, max)
+			}
+		})
+	}
+}
+
+// A negative max means the caller's budget is spent. The backoff must not
+// return a negative duration, which would make the retry loop spin.
+func TestClampedBackoff_NegativeMaxIsNotNegative(t *testing.T) {
+	got := ClampedBackoff(1*time.Second, -5*time.Second, 0, nil)
+	if got < 0 {
+		t.Fatalf("ClampedBackoff = %s, want a non-negative duration", got)
+	}
+}
+
+func TestNewOutboundHttpClient_NonPositiveTimeout(t *testing.T) {
+	// Zero stays unbounded: the LibreOffice proxy owns its own lifetime and
+	// passes it deliberately.
+	if got := NewOutboundHttpClient(0, nil, nil, false).Timeout; got != 0 {
+		t.Fatalf("timeout for 0 = %s, want 0", got)
+	}
+
+	// Negative means an expired budget. http.Client reads any non-positive
+	// Timeout as no deadline at all, so it must not be passed through.
+	if got := NewOutboundHttpClient(-5*time.Second, nil, nil, false).Timeout; got <= 0 {
+		t.Fatalf("timeout for a negative budget = %s, want a positive value so the client fails closed", got)
 	}
 }

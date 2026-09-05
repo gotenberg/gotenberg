@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/dlclark/regexp2"
+	"github.com/hashicorp/go-retryablehttp"
 	"golang.org/x/net/http/httpproxy"
 )
 
@@ -450,6 +451,16 @@ func (rt *outboundRoundTripper) RoundTrip(req *http.Request) (*http.Response, er
 // gate this behind their module's opt-in flag. See
 // https://github.com/gotenberg/gotenberg/issues/1592.
 func NewOutboundHttpClient(timeout time.Duration, allowList, denyList []*regexp2.Regexp, enableEnvironmentProxy bool, opts ...DecideOption) *http.Client {
+	// A negative timeout means the caller's budget is already spent, which
+	// happens when it derives one from a deadline that has passed. [http.Client]
+	// treats any non-positive Timeout as no deadline at all, so passing it
+	// through would silently produce an unbounded client. Fail closed instead.
+	// Zero keeps meaning unbounded: callers that own the connection lifetime
+	// themselves pass it deliberately.
+	if timeout < 0 {
+		timeout = time.Nanosecond
+	}
+
 	base := http.DefaultTransport.(*http.Transport).Clone()
 
 	var proxyFunc func(*url.URL) (*url.URL, error)
@@ -491,6 +502,25 @@ func NewOutboundHttpClient(timeout time.Duration, allowList, denyList []*regexp2
 			proxyFunc: proxyFunc,
 		},
 	}
+}
+
+// ClampedBackoff is a [retryablehttp.Backoff] that honors max on every path.
+//
+// [retryablehttp.DefaultBackoff] returns a Retry-After header from the remote
+// verbatim for 429 and 503, and returns it before applying its own max clamp.
+// A hostile origin therefore decides how long Gotenberg waits, and the wait is
+// not interruptible. Retry-After is still respected here, just never beyond
+// the ceiling the caller set.
+func ClampedBackoff(min, max time.Duration, attemptNum int, resp *http.Response) time.Duration {
+	wait := retryablehttp.DefaultBackoff(min, max, attemptNum, resp)
+	if wait > max {
+		return max
+	}
+	if wait < 0 {
+		return 0
+	}
+
+	return wait
 }
 
 // environmentProxyVariables are the variables golang.org/x/net/http/httpproxy

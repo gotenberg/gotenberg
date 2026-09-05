@@ -414,3 +414,117 @@ func TestContext_FileCount(t *testing.T) {
 		t.Errorf("expected 3 files, got %d", got)
 	}
 }
+
+// A hostile origin must not choose how long Gotenberg waits.
+// [retryablehttp.DefaultBackoff] returns a Retry-After header verbatim for 429
+// and 503, and the wait between attempts is a select on the request context.
+// Building the request without a context therefore pinned the goroutine, its
+// connection, and its working directory for the attacker's chosen duration,
+// well past --api-timeout (env API_TIMEOUT).
+func TestNewContext_DownloadFromHostileRetryAfterIsBounded(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Retry-After", "3600")
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+	defer server.Close()
+
+	payload, err := json.Marshal([]downloadFrom{{Url: server.URL + "/file"}})
+	if err != nil {
+		t.Fatalf("marshal downloadFrom payload: %v", err)
+	}
+
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	err = writer.WriteField("downloadFrom", string(payload))
+	if err != nil {
+		t.Fatalf("write downloadFrom field: %v", err)
+	}
+	err = writer.Close()
+	if err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	echoCtx := echo.New().NewContext(req, httptest.NewRecorder())
+	logger := slog.New(slog.DiscardHandler)
+	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+
+	const timeout = 500 * time.Millisecond
+
+	start := time.Now()
+	_, cancel, err := newContext(echoCtx, logger, fs, timeout, 0, downloadFromConfig{maxRetry: 2})
+	elapsed := time.Since(start)
+	if cancel != nil {
+		defer cancel()
+	}
+
+	if err == nil {
+		t.Fatal("expected newContext to fail against an origin that only answers 429")
+	}
+	// Generous: the deadline is 500ms and Retry-After asks for an hour. Any
+	// value in seconds means the remote is still in control.
+	if elapsed > 10*time.Second {
+		t.Fatalf("newContext took %s with Retry-After 3600; --api-timeout must bound it", elapsed)
+	}
+}
+
+// An entry that starts after the deadline has passed must fail closed. It used
+// to derive a negative client timeout, which [http.Client] reads as no
+// deadline at all, leaving the download unbounded.
+func TestNewContext_DownloadFromExpiredBudgetFailsClosed(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	defer server.Close()
+
+	// Two entries, serialized by the concurrency limit, so the second one
+	// starts once the first has burned the whole budget.
+	payload, err := json.Marshal([]downloadFrom{
+		{Url: server.URL + "/first"},
+		{Url: server.URL + "/second"},
+	})
+	if err != nil {
+		t.Fatalf("marshal downloadFrom payload: %v", err)
+	}
+
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	err = writer.WriteField("downloadFrom", string(payload))
+	if err != nil {
+		t.Fatalf("write downloadFrom field: %v", err)
+	}
+	err = writer.Close()
+	if err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	echoCtx := echo.New().NewContext(req, httptest.NewRecorder())
+	logger := slog.New(slog.DiscardHandler)
+	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+
+	done := make(chan error, 1)
+	go func() {
+		_, cancel, err := newContext(echoCtx, logger, fs, 400*time.Millisecond, 0, downloadFromConfig{
+			maxRetry:       0,
+			maxConcurrency: 1,
+		})
+		if cancel != nil {
+			cancel()
+		}
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("expected newContext to fail against a stalling origin")
+		}
+	case <-time.After(15 * time.Second):
+		t.Fatal("newContext never returned: an entry starting past the deadline built an unbounded client")
+	}
+}
