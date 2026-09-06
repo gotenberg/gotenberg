@@ -35,12 +35,13 @@ var (
 	zipMagic = []byte{0x50, 0x4b, 0x03, 0x04}
 
 	// An unencrypted OOXML document is always a ZIP package, so any of these
-	// extensions over a compound file means the payload is encrypted. Legacy
-	// binary formats (.doc, .xls, .ppt) are compound files either way and are
-	// deliberately absent.
+	// extensions over a compound file means the payload is encrypted. A .xlsb
+	// workbook stores binary parts inside that same ZIP package, so it belongs
+	// here too. Legacy binary formats (.doc, .xls, .ppt) are compound files
+	// either way and are deliberately absent.
 	ooxmlExtensions = map[string]struct{}{
 		".docx": {}, ".docm": {}, ".dotx": {}, ".dotm": {},
-		".xlsx": {}, ".xlsm": {}, ".xltx": {}, ".xltm": {},
+		".xlsx": {}, ".xlsm": {}, ".xltx": {}, ".xltm": {}, ".xlsb": {},
 		".pptx": {}, ".pptm": {}, ".potx": {}, ".potm": {},
 		".ppsx": {}, ".ppsm": {},
 	}

@@ -77,6 +77,11 @@ func TestDetectPasswordProtection(t *testing.T) {
 			want: PasswordProtectionRequired,
 		},
 		{
+			name: "encrypted binary workbook",
+			path: ole2("encrypted.xlsb"),
+			want: PasswordProtectionRequired,
+		},
+		{
 			name: "legacy binary document is inconclusive",
 			path: ole2("legacy.doc"),
 			want: PasswordProtectionUnknown,
