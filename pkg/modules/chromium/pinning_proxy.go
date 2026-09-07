@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/dlclark/regexp2"
@@ -56,6 +57,12 @@ type pinningProxy struct {
 	listener net.Listener
 	server   *http.Server
 	wg       sync.WaitGroup
+
+	// closing is closed by Stop to force in-flight CONNECT tunnels shut.
+	// [http.Server.Shutdown] cannot do it: net/http untracks a connection once
+	// a handler hijacks it, so a tunnel would otherwise outlive the proxy that
+	// created it. Recreated on every Start.
+	closing chan struct{}
 
 	logger  *slog.Logger
 	started bool
@@ -110,6 +117,7 @@ func (p *pinningProxy) Start(logger *slog.Logger) error {
 	}
 
 	p.listener = l
+	p.closing = make(chan struct{})
 	p.logger = logger.With(slog.String("logger", "pinning-proxy"))
 	p.server = &http.Server{
 		Handler: http.HandlerFunc(p.serveHTTP),
@@ -140,8 +148,17 @@ func (p *pinningProxy) Stop(logger *slog.Logger) error {
 		return nil
 	}
 	srv := p.server
+	closing := p.closing
+	p.closing = nil
 	p.started = false
 	p.mu.Unlock()
+
+	// Force in-flight tunnels shut before draining the server. Shutdown does
+	// not reach them, so a tunnel whose upstream never answers would otherwise
+	// survive the proxy, and with it every Chromium restart.
+	if closing != nil {
+		close(closing)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -264,24 +281,110 @@ func (p *pinningProxy) handleConnect(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Splice bytes in both directions until either side closes.
-	var splice sync.WaitGroup
-	splice.Add(2)
+	p.mu.Lock()
+	closing := p.closing
+	p.mu.Unlock()
+
+	spliceTunnel(client, upstream, closing, spliceIdleTimeout)
+}
+
+// spliceIdleTimeout bounds a CONNECT tunnel in which no byte has moved in
+// either direction.
+//
+// Nothing else bounds one. The hijacked connections carry no deadline: the
+// server clears the header read deadline once the request line is in, and
+// net.Dialer.Timeout only covers the connect. net/http also untracks a
+// connection once it is hijacked, so neither Server.Shutdown nor a Chromium
+// restart reaps it. Left alone, an upstream that accepts the tunnel and then
+// answers nothing holds two goroutines and two sockets until the process dies.
+//
+// Sized well above any legitimate pause between a request and its response, so
+// a slow origin is never cut off. A transfer that keeps making progress
+// refreshes the deadline and runs for as long as it needs.
+const spliceIdleTimeout = 2 * time.Minute
+
+// spliceTunnel copies bytes between the two ends of a CONNECT tunnel until
+// both directions finish, the tunnel sits idle for idleTimeout, or closing is
+// closed because the proxy is shutting down. Callers pass
+// [spliceIdleTimeout]; only tests shorten it.
+//
+// Each direction half-closes its destination once its source reaches EOF, so a
+// peer that waits for the request to end before answering still sees the EOF.
+// Idleness is tracked across both directions rather than per direction: the
+// client sends nothing for the length of a download, and half-closing its write
+// side then would tell the origin the client had gone away.
+func spliceTunnel(client, upstream net.Conn, closing <-chan struct{}, idleTimeout time.Duration) {
+	var lastActivity atomic.Int64
+	lastActivity.Store(time.Now().UnixNano())
+
+	var wg sync.WaitGroup
+	wg.Add(2)
 	go func() {
-		defer splice.Done()
-		_, _ = io.Copy(upstream, client)
+		defer wg.Done()
+		copyTracking(upstream, client, &lastActivity)
 		if cw, ok := upstream.(interface{ CloseWrite() error }); ok {
 			_ = cw.CloseWrite()
 		}
 	}()
 	go func() {
-		defer splice.Done()
-		_, _ = io.Copy(client, upstream)
+		defer wg.Done()
+		copyTracking(client, upstream, &lastActivity)
 		if cw, ok := client.(interface{ CloseWrite() error }); ok {
 			_ = cw.CloseWrite()
 		}
 	}()
-	splice.Wait()
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	ticker := time.NewTicker(idleTimeout / 4)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-done:
+			return
+		case <-closing:
+		case <-ticker.C:
+			if time.Since(time.Unix(0, lastActivity.Load())) < idleTimeout {
+				continue
+			}
+		}
+
+		// Closing both ends unblocks whichever copy is still reading. The
+		// caller's own deferred Close calls then become no-ops.
+		_ = client.Close()
+		_ = upstream.Close()
+		<-done
+
+		return
+	}
+}
+
+// copyTracking copies src into dst, recording the time of every chunk that
+// moves so [spliceTunnel] can tell a busy tunnel from an idle one.
+func copyTracking(dst, src net.Conn, lastActivity *atomic.Int64) {
+	buf := make([]byte, 32*1024)
+
+	for {
+		n, readErr := src.Read(buf)
+		if n > 0 {
+			lastActivity.Store(time.Now().UnixNano())
+
+			_, writeErr := dst.Write(buf[:n])
+			if writeErr != nil {
+				return
+			}
+
+			lastActivity.Store(time.Now().UnixNano())
+		}
+		if readErr != nil {
+			return
+		}
+	}
 }
 
 // handleForward handles plain HTTP requests sent to the proxy as absolute

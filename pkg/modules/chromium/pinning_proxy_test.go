@@ -898,3 +898,149 @@ func TestPinningProxy_StopIdempotent(t *testing.T) {
 		t.Fatalf("second Stop on stopped proxy: %v", err)
 	}
 }
+
+// tcpPair returns the two ends of a connected loopback TCP connection. Both
+// ends are closed when the test finishes.
+func tcpPair(t *testing.T) (net.Conn, net.Conn) {
+	t.Helper()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer func() { _ = listener.Close() }()
+
+	type accepted struct {
+		conn net.Conn
+		err  error
+	}
+
+	acceptChan := make(chan accepted, 1)
+	go func() {
+		conn, acceptErr := listener.Accept()
+		acceptChan <- accepted{conn: conn, err: acceptErr}
+	}()
+
+	dialed, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+
+	res := <-acceptChan
+	if res.err != nil {
+		t.Fatalf("accept: %v", res.err)
+	}
+
+	t.Cleanup(func() {
+		_ = dialed.Close()
+		_ = res.conn.Close()
+	})
+
+	return dialed, res.conn
+}
+
+// TestSpliceTunnel_IdleTunnelIsClosed covers the leak where an upstream that
+// accepted a CONNECT tunnel and then never spoke pinned both splice goroutines
+// and both sockets for the lifetime of the process. A hijacked connection
+// carries no deadline and net/http stops tracking it, so the idle bound in
+// spliceTunnel is the only thing that ends such a tunnel.
+func TestSpliceTunnel_IdleTunnelIsClosed(t *testing.T) {
+	// The peers are kept open by the pair's cleanup: the tunnel is silent, not
+	// finished.
+	client, _ := tcpPair(t)
+	upstream, _ := tcpPair(t)
+
+	done := make(chan struct{})
+	go func() {
+		spliceTunnel(client, upstream, nil, 100*time.Millisecond)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("spliceTunnel did not return on an idle tunnel")
+	}
+}
+
+// TestSpliceTunnel_ClosingShutsTunnelDown verifies that stopping the proxy
+// reaps in-flight tunnels. http.Server.Shutdown cannot: it stops tracking a
+// connection once a handler hijacks it, so without this signal a tunnel would
+// outlive the proxy and every Chromium restart after it.
+func TestSpliceTunnel_ClosingShutsTunnelDown(t *testing.T) {
+	client, _ := tcpPair(t)
+	upstream, _ := tcpPair(t)
+
+	closing := make(chan struct{})
+	done := make(chan struct{})
+
+	go func() {
+		// An idle timeout far beyond the test: only closing can end this.
+		spliceTunnel(client, upstream, closing, time.Hour)
+		close(done)
+	}()
+
+	close(closing)
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("spliceTunnel did not return when the proxy shut down")
+	}
+}
+
+// TestSpliceTunnel_ActiveTransferOutlivesIdleTimeout guards the idle bound
+// against cutting a healthy transfer. Idleness is tracked across both
+// directions, so a download that keeps making progress must survive well past
+// the timeout even though the client sends nothing throughout.
+func TestSpliceTunnel_ActiveTransferOutlivesIdleTimeout(t *testing.T) {
+	const (
+		idleTimeout = 100 * time.Millisecond
+		chunks      = 10
+		interval    = 30 * time.Millisecond
+	)
+
+	client, clientPeer := tcpPair(t)
+	upstream, upstreamPeer := tcpPair(t)
+
+	done := make(chan struct{})
+	go func() {
+		spliceTunnel(client, upstream, nil, idleTimeout)
+		close(done)
+	}()
+
+	// Trickle a response for well over the idle timeout, then finish.
+	go func() {
+		for range chunks {
+			_, _ = upstreamPeer.Write([]byte("x"))
+			time.Sleep(interval)
+		}
+		_ = upstreamPeer.Close()
+	}()
+
+	received := 0
+	buf := make([]byte, chunks)
+
+	for received < chunks {
+		err := clientPeer.SetReadDeadline(time.Now().Add(10 * time.Second))
+		if err != nil {
+			t.Fatalf("set read deadline: %v", err)
+		}
+
+		n, readErr := clientPeer.Read(buf)
+		received += n
+		if readErr != nil {
+			break
+		}
+	}
+
+	if received != chunks {
+		t.Fatalf("received %d bytes, want %d: the tunnel was cut while still transferring", received, chunks)
+	}
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("spliceTunnel did not return after the upstream closed")
+	}
+}
