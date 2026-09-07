@@ -68,6 +68,59 @@ func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 
 	userProfileDirPath := p.fs.NewDirPath()
 
+	var (
+		cmd     *gotenberg.Cmd
+		success bool
+	)
+
+	// Registered here, right after the proxy starts listening, so that every
+	// failure below tears it down. A return between the proxy start and this
+	// point strands it: its listener stays bound, its Serve goroutine and HTTP
+	// client stay alive, and p.proxy is only assigned on success, so nothing
+	// could ever reach it to stop it. exec.Cmd.Start fails precisely under fd
+	// or memory pressure, and the supervisor retries the launch on the next
+	// request, so each stranded proxy compounds the condition that caused it.
+	defer func() {
+		if success {
+			p.cfgMu.Lock()
+			defer p.cfgMu.Unlock()
+
+			p.socketPort = port
+			p.userProfileDirPath = userProfileDirPath
+			p.cmd = cmd
+			p.proxy = proxy
+			p.isStarted.Store(true)
+
+			return
+		}
+
+		// LibreOffice failed to start; tear the proxy down too.
+		stopErr := proxy.Stop(context.Background())
+		if stopErr != nil {
+			logger.WarnContext(context.Background(), fmt.Sprintf("stop LibreOffice outbound proxy after failed start: %s", stopErr))
+		}
+
+		// Let's make sure the process is killed. It is nil when the failure
+		// happened before the command was built.
+		if cmd != nil {
+			killErr := cmd.Kill()
+			if killErr != nil {
+				logger.DebugContext(context.Background(), fmt.Sprintf("kill LibreOffice process: %v", killErr))
+			}
+		}
+
+		// And the user profile directory is deleted. It may never have been
+		// created, which RemoveAll reports as success.
+		removeErr := os.RemoveAll(userProfileDirPath)
+		if removeErr != nil {
+			logger.ErrorContext(context.Background(), fmt.Sprintf("remove LibreOffice's user profile directory: %v", removeErr))
+
+			return
+		}
+
+		logger.DebugContext(context.Background(), fmt.Sprintf("'%s' LibreOffice's user profile directory removed", userProfileDirPath))
+	}()
+
 	// LibreOffice fetches external content (OOXML images via
 	// TargetMode=External, RTF INCLUDEPICTURE, ODT linked images) inside
 	// its own libcurl. The profile config routes those fetches through the
@@ -75,7 +128,6 @@ func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 	// blocks content linked from untrusted locations so absolute-path
 	// (file://) and direct fetches are dropped at the source.
 	if err := writeSofficeProfileConfig(userProfileDirPath, proxy.Addr()); err != nil {
-		_ = proxy.Stop(context.Background())
 		return fmt.Errorf("write soffice profile config: %w", err)
 	}
 	sofficeEnv := sofficeProxyEnv(os.Environ(), proxy.Addr())
@@ -95,9 +147,8 @@ func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 	ctx, cancel := context.WithTimeout(context.Background(), p.arguments.startTimeout)
 	defer cancel()
 
-	cmd, err := gotenberg.CommandContext(ctx, logger, p.arguments.binPath, args...)
+	cmd, err = gotenberg.CommandContext(ctx, logger, p.arguments.binPath, args...)
 	if err != nil {
-		_ = proxy.Stop(context.Background())
 		return fmt.Errorf("create LibreOffice command: %w", err)
 	}
 	cmd.SetEnv(sofficeEnv)
@@ -106,7 +157,6 @@ func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 	// able to run as a daemon.
 	exitCode, err := cmd.Exec()
 	if err != nil && exitCode != 81 {
-		_ = proxy.Stop(context.Background())
 		return fmt.Errorf("execute LibreOffice: %w", err)
 	}
 
@@ -153,43 +203,6 @@ func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 
 			break
 		}
-	}()
-
-	var success bool
-
-	defer func() {
-		if success {
-			p.cfgMu.Lock()
-			defer p.cfgMu.Unlock()
-
-			p.socketPort = port
-			p.userProfileDirPath = userProfileDirPath
-			p.cmd = cmd
-			p.proxy = proxy
-			p.isStarted.Store(true)
-
-			return
-		}
-
-		// LibreOffice failed to start; tear the proxy down too.
-		stopErr := proxy.Stop(context.Background())
-		if stopErr != nil {
-			logger.WarnContext(context.Background(), fmt.Sprintf("stop LibreOffice outbound proxy after failed start: %s", stopErr))
-		}
-
-		// Let's make sure the process is killed.
-		err = cmd.Kill()
-		if err != nil {
-			logger.DebugContext(context.Background(), fmt.Sprintf("kill LibreOffice process: %v", err))
-		}
-
-		// And the user profile directory is deleted.
-		err = os.RemoveAll(userProfileDirPath)
-		if err != nil {
-			logger.ErrorContext(context.Background(), fmt.Sprintf("remove LibreOffice's user profile directory: %v", err))
-		}
-
-		logger.DebugContext(context.Background(), fmt.Sprintf("'%s' LibreOffice's user profile directory removed", userProfileDirPath))
 	}()
 
 	logger.DebugContext(context.Background(), "waiting for the LibreOffice socket to be available...")
