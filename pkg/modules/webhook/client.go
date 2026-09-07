@@ -143,19 +143,25 @@ func (c client) send(ctx context.Context, body io.Reader, headers map[string]str
 		return fmt.Errorf("send '%s' request to '%s': %w", method, url, err)
 	}
 
-	if resp.StatusCode >= http.StatusBadRequest {
-		err := fmt.Errorf("send '%s' request to '%s': got status: '%s'", method, url, resp.Status)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return err
-	}
-
+	// Registered before the status check below. [retryablehttp.Client.Do] hands
+	// back a live body for a status it does not retry, which is every 4xx but
+	// 429, so returning early without closing it strands the connection and the
+	// transport goroutines that serve it for the lifetime of the process. The
+	// transport is built per delivery in [gotenberg.NewOutboundHttpClient], so
+	// nothing reclaims it later either.
 	defer func() {
 		err := resp.Body.Close()
 		if err != nil {
 			c.logger.ErrorContext(ctx, fmt.Sprintf("close response body from '%s': %s", url, err))
 		}
 	}()
+
+	if resp.StatusCode >= http.StatusBadRequest {
+		err := fmt.Errorf("send '%s' request to '%s': got status: '%s'", method, url, resp.Status)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
 
 	// Last piece for calculating the latency.
 	finishTime := time.Now()
