@@ -1044,3 +1044,134 @@ func TestSpliceTunnel_ActiveTransferOutlivesIdleTimeout(t *testing.T) {
 		t.Fatal("spliceTunnel did not return after the upstream closed")
 	}
 }
+
+// TestPinningProxy_CONNECT_TunnelCeiling verifies the ceiling that bounds what
+// tunnels refusing to end can accumulate. The idle bound cannot cover a peer
+// that trickles just under it, so the count is what stops the growth.
+func TestPinningProxy_CONNECT_TunnelCeiling(t *testing.T) {
+	// An upstream that accepts and then says nothing: the tunnel stays open.
+	upstreamAddr, stop := newRawTCPServer(t, func(c net.Conn) {
+		<-make(chan struct{})
+	})
+	t.Cleanup(stop)
+
+	p := newPinningProxy(nil, nil, false, false, false)
+	p.maxTunnels = 1
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
+		return gotenberg.OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
+	}
+	p.dialPinned = func(_ context.Context, network string, _ []netip.Addr, _ string) (net.Conn, error) {
+		return net.Dial(network, upstreamAddr)
+	}
+	proxyURL := newProxyForTest(t, p)
+	proxyAddr := strings.TrimPrefix(proxyURL, "http://")
+
+	connect := func(t *testing.T) *bufio.Reader {
+		t.Helper()
+
+		conn, err := net.Dial("tcp", proxyAddr)
+		if err != nil {
+			t.Fatalf("dial proxy: %v", err)
+		}
+		t.Cleanup(func() { _ = conn.Close() })
+
+		err = conn.SetDeadline(time.Now().Add(10 * time.Second))
+		if err != nil {
+			t.Fatalf("set deadline: %v", err)
+		}
+
+		_, err = fmt.Fprintf(conn, "CONNECT example.com:443 HTTP/1.1\r\nHost: example.com:443\r\n\r\n")
+		if err != nil {
+			t.Fatalf("write CONNECT: %v", err)
+		}
+
+		return bufio.NewReader(conn)
+	}
+
+	first := connect(t)
+	statusLine, err := first.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read first status: %v", err)
+	}
+	if !strings.Contains(statusLine, " 200 ") {
+		t.Fatalf("first CONNECT status = %q, want 200", statusLine)
+	}
+
+	// The first tunnel now holds the only slot.
+	second := connect(t)
+	resp, err := http.ReadResponse(second, nil)
+	if err != nil {
+		t.Fatalf("read second response: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("second CONNECT status = %d, want %d", resp.StatusCode, http.StatusServiceUnavailable)
+	}
+
+	if got := p.tunnels.Load(); got != 1 {
+		t.Errorf("tunnels in flight = %d, want 1: a refused CONNECT must not consume a slot", got)
+	}
+}
+
+// TestPinningProxy_TunnelSlotIsReleased verifies a completed tunnel gives its
+// slot back, so the ceiling bounds concurrency rather than lifetime totals.
+func TestPinningProxy_TunnelSlotIsReleased(t *testing.T) {
+	upstreamAddr, stop := newRawTCPServer(t, func(c net.Conn) {
+		defer c.Close()
+		_, _ = c.Write([]byte("HI"))
+	})
+	t.Cleanup(stop)
+
+	p := newPinningProxy(nil, nil, false, false, false)
+	p.maxTunnels = 1
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
+		return gotenberg.OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
+	}
+	p.dialPinned = func(_ context.Context, network string, _ []netip.Addr, _ string) (net.Conn, error) {
+		return net.Dial(network, upstreamAddr)
+	}
+	proxyURL := newProxyForTest(t, p)
+	proxyAddr := strings.TrimPrefix(proxyURL, "http://")
+
+	for attempt := range 3 {
+		conn, err := net.Dial("tcp", proxyAddr)
+		if err != nil {
+			t.Fatalf("attempt %d dial proxy: %v", attempt, err)
+		}
+
+		err = conn.SetDeadline(time.Now().Add(10 * time.Second))
+		if err != nil {
+			t.Fatalf("attempt %d set deadline: %v", attempt, err)
+		}
+
+		_, err = fmt.Fprintf(conn, "CONNECT example.com:443 HTTP/1.1\r\nHost: example.com:443\r\n\r\n")
+		if err != nil {
+			t.Fatalf("attempt %d write CONNECT: %v", attempt, err)
+		}
+
+		br := bufio.NewReader(conn)
+		statusLine, err := br.ReadString('\n')
+		if err != nil {
+			t.Fatalf("attempt %d read status: %v", attempt, err)
+		}
+		if !strings.Contains(statusLine, " 200 ") {
+			t.Fatalf("attempt %d CONNECT status = %q, want 200: the slot was not released", attempt, statusLine)
+		}
+
+		// Drain until the upstream's close ends the tunnel, then release it.
+		_, _ = io.ReadAll(br)
+		_ = conn.Close()
+
+		// The handler returns just after the splice ends.
+		for range 100 {
+			if p.tunnels.Load() == 0 {
+				break
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+		if got := p.tunnels.Load(); got != 0 {
+			t.Fatalf("attempt %d: tunnels in flight = %d, want 0", attempt, got)
+		}
+	}
+}

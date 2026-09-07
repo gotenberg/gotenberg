@@ -64,6 +64,12 @@ type pinningProxy struct {
 	// created it. Recreated on every Start.
 	closing chan struct{}
 
+	// maxTunnels ceilings the CONNECT handlers in flight. Tests may lower it.
+	maxTunnels int64
+
+	// tunnels counts the CONNECT handlers in flight.
+	tunnels atomic.Int64
+
 	logger  *slog.Logger
 	started bool
 	mu      sync.Mutex
@@ -89,6 +95,7 @@ func newPinningProxy(allowList, denyList []*regexp2.Regexp, denyPrivateIPs, deny
 			dialer := &net.Dialer{Timeout: 10 * time.Second}
 			return dialer.DialContext(ctx, network, addr)
 		},
+		maxTunnels: maxConcurrentTunnels,
 	}
 
 	if enableEnvironmentProxy {
@@ -198,6 +205,25 @@ func (p *pinningProxy) serveHTTP(w http.ResponseWriter, req *http.Request) {
 // Chromium then negotiates TLS end-to-end with the original hostname in
 // SNI.
 func (p *pinningProxy) handleConnect(w http.ResponseWriter, req *http.Request) {
+	// A ceiling, not a tuning knob: it bounds what a tunnel that refuses to end
+	// can accumulate, whatever keeps it alive. [spliceIdleTimeout] ends a silent
+	// tunnel, but a peer trickling a byte just under it stays "active" forever,
+	// and a compromised renderer can hold the client side open to match.
+	//
+	// Chromium caps itself well below this. Its socket pool manager allows 128
+	// sockets per proxy chain for normal traffic plus 128 for WebSocket
+	// traffic, and every request Gotenberg's Chromium makes traverses this one
+	// proxy chain, so an honest browser cannot exceed 256 tunnels here. At
+	// double that, a real page never meets the ceiling and a hostile one stops
+	// at it.
+	if !p.acquireTunnel() {
+		p.logger.WarnContext(req.Context(), fmt.Sprintf("CONNECT to '%s' refused: %d tunnels already in flight", req.Host, p.maxTunnels))
+		http.Error(w, "too many tunnels", http.StatusServiceUnavailable)
+
+		return
+	}
+	defer p.releaseTunnel()
+
 	_, port, err := net.SplitHostPort(req.Host)
 	if err != nil {
 		http.Error(w, "bad CONNECT target", http.StatusBadRequest)
@@ -288,6 +314,31 @@ func (p *pinningProxy) handleConnect(w http.ResponseWriter, req *http.Request) {
 	spliceTunnel(client, upstream, closing, spliceIdleTimeout)
 }
 
+// maxConcurrentTunnels is the default for [pinningProxy.maxTunnels]. See
+// [pinningProxy.handleConnect] for how the value is derived.
+const maxConcurrentTunnels = 512
+
+// acquireTunnel reserves a slot for one CONNECT handler, reporting false when
+// the proxy is already at [pinningProxy.maxTunnels]. The compare-and-swap loop
+// keeps the check and the increment atomic, so concurrent handlers cannot
+// overshoot the ceiling between them.
+func (p *pinningProxy) acquireTunnel() bool {
+	for {
+		current := p.tunnels.Load()
+		if current >= p.maxTunnels {
+			return false
+		}
+		if p.tunnels.CompareAndSwap(current, current+1) {
+			return true
+		}
+	}
+}
+
+// releaseTunnel returns a slot taken by [pinningProxy.acquireTunnel].
+func (p *pinningProxy) releaseTunnel() {
+	p.tunnels.Add(-1)
+}
+
 // spliceIdleTimeout bounds a CONNECT tunnel in which no byte has moved in
 // either direction.
 //
@@ -321,14 +372,14 @@ func spliceTunnel(client, upstream net.Conn, closing <-chan struct{}, idleTimeou
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		copyTracking(upstream, client, &lastActivity)
+		copyTracking(upstream, client, &lastActivity, idleTimeout)
 		if cw, ok := upstream.(interface{ CloseWrite() error }); ok {
 			_ = cw.CloseWrite()
 		}
 	}()
 	go func() {
 		defer wg.Done()
-		copyTracking(client, upstream, &lastActivity)
+		copyTracking(client, upstream, &lastActivity, idleTimeout)
 		if cw, ok := client.(interface{ CloseWrite() error }); ok {
 			_ = cw.CloseWrite()
 		}
@@ -366,13 +417,20 @@ func spliceTunnel(client, upstream net.Conn, closing <-chan struct{}, idleTimeou
 
 // copyTracking copies src into dst, recording the time of every chunk that
 // moves so [spliceTunnel] can tell a busy tunnel from an idle one.
-func copyTracking(dst, src net.Conn, lastActivity *atomic.Int64) {
+func copyTracking(dst, src net.Conn, lastActivity *atomic.Int64, writeTimeout time.Duration) {
 	buf := make([]byte, 32*1024)
 
 	for {
 		n, readErr := src.Read(buf)
 		if n > 0 {
 			lastActivity.Store(time.Now().UnixNano())
+
+			// Bound the write. A destination that has gone away accepts the
+			// first chunk into its send buffer and only fails on the next one,
+			// so without a deadline this direction keeps a dead tunnel alive
+			// for one more chunk. A destination that stops reading altogether
+			// would block here forever.
+			_ = dst.SetWriteDeadline(time.Now().Add(writeTimeout))
 
 			_, writeErr := dst.Write(buf[:n])
 			if writeErr != nil {
