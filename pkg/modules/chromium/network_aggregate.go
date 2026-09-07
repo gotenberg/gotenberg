@@ -11,6 +11,15 @@ import (
 // pathological page cannot grow the set without limit.
 const maxTrackedOrigins = 64
 
+// maxTrackedRequests bounds the request id to URL map. Entries are dropped as
+// soon as the request settles, so the map normally holds only what is in
+// flight, but a request that never reports a loading-finished or
+// loading-failed event never settles. Without a cap, a page that opens
+// requests it never resolves would grow the map for the whole conversion, at
+// the cost of one full response URL per entry. Losing an entry only costs the
+// heaviest-resource URL attribution for that request.
+const maxTrackedRequests = 1024
+
 // networkAggregate accumulates per-conversion network activity from Chromium
 // DevTools events. It is safe for concurrent use by the chromedp event listener
 // goroutine and the conversion goroutine that reads the snapshot afterwards.
@@ -60,7 +69,9 @@ func (a *networkAggregate) onResponseReceived(ev *network.EventResponseReceived)
 			a.origins[origin] = struct{}{}
 		}
 	}
-	a.requestURLByID[ev.RequestID] = ev.Response.URL
+	if len(a.requestURLByID) < maxTrackedRequests {
+		a.requestURLByID[ev.RequestID] = ev.Response.URL
+	}
 }
 
 // onLoadingFinished records a successfully completed request and its size,
@@ -81,6 +92,11 @@ func (a *networkAggregate) onLoadingFinished(ev *network.EventLoadingFinished) {
 		a.heaviestBytes = size
 		a.heaviestURL = a.requestURLByID[ev.RequestID]
 	}
+
+	// The request has settled and nothing reads its URL again. Dropping it
+	// keeps the map proportional to the requests in flight rather than to
+	// every request the page ever made.
+	delete(a.requestURLByID, ev.RequestID)
 }
 
 // onLoadingFailed records a request that failed to complete.
@@ -94,6 +110,9 @@ func (a *networkAggregate) onLoadingFailed(ev *network.EventLoadingFailed) {
 
 	a.requestCount++
 	a.failedCount++
+
+	// Settled, like a finished request: its URL is never read again.
+	delete(a.requestURLByID, ev.RequestID)
 }
 
 func (a *networkAggregate) snapshot() networkStats {
