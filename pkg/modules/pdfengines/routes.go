@@ -208,14 +208,14 @@ func RotateStub(ctx *api.Context, engine gotenberg.PdfEngine, angle int, pages s
 		return nil
 	}
 
-	for _, inputPath := range inputPaths {
+	return forEachInputPath(ctx, inputPaths, func(inputPath string) error {
 		err := engine.Rotate(ctx, ctx.Log(), inputPath, angle, pages)
 		if err != nil {
 			return fmt.Errorf("rotate '%s': %w", inputPath, err)
 		}
-	}
 
-	return nil
+		return nil
+	})
 }
 
 // ValidatePdfFormatsCompat checks for incompatible combinations of PDF formats
@@ -334,14 +334,14 @@ func SplitPdfStub(ctx *api.Context, engine gotenberg.PdfEngine, mode gotenberg.S
 // FlattenStub merges annotation appearances with page content for each given
 // PDF, effectively deleting the original annotations.
 func FlattenStub(ctx *api.Context, engine gotenberg.PdfEngine, inputPaths []string) error {
-	for _, inputPath := range inputPaths {
+	return forEachInputPath(ctx, inputPaths, func(inputPath string) error {
 		err := engine.Flatten(ctx, ctx.Log(), inputPath)
 		if err != nil {
 			return fmt.Errorf("flatten '%s': %w", inputPath, err)
 		}
-	}
 
-	return nil
+		return nil
+	})
 }
 
 // defaultImageQuality is the JPEG quality applied by the image optimization
@@ -393,19 +393,27 @@ func OptimizeStub(ctx *api.Context, engine gotenberg.PdfEngine, optimizeImages b
 		return nil
 	}
 
-	for _, inputPath := range inputPaths {
+	return forEachInputPath(ctx, inputPaths, func(inputPath string) error {
 		err := engine.OptimizeImages(ctx, ctx.Log(), imageQuality, inputPath)
 		if err != nil {
 			return fmt.Errorf("optimize images of '%s': %w", inputPath, err)
 		}
-	}
 
-	return nil
+		return nil
+	})
 }
 
 // ConvertStub transforms a given PDF to the specified formats defined in
 // [gotenberg.PdfFormats]. If no format, it does nothing and returns the input
 // paths.
+//
+// This loop stays sequential on purpose. Convert is the one PDF engine method
+// LibreOffice implements, and libreoffice-pdfengine is the default and only
+// convert engine, so every iteration here drives the single soffice daemon. A
+// LibreOffice instance is far too memory-hungry to run several of per
+// container: the way to convert more documents at once is to scale Gotenberg
+// containers, not to widen this loop. Do not route it through
+// [forEachInputPath].
 func ConvertStub(ctx *api.Context, engine gotenberg.PdfEngine, formats gotenberg.PdfFormats, inputPaths []string) ([]string, error) {
 	zeroValued := gotenberg.PdfFormats{}
 	if formats == zeroValued {
@@ -432,14 +440,14 @@ func WriteMetadataStub(ctx *api.Context, engine gotenberg.PdfEngine, metadata ma
 		return nil
 	}
 
-	for _, inputPath := range inputPaths {
+	return forEachInputPath(ctx, inputPaths, func(inputPath string) error {
 		err := engine.WriteMetadata(ctx, ctx.Log(), metadata, inputPath)
 		if err != nil {
 			return fmt.Errorf("write metadata into '%s': %w", inputPath, err)
 		}
-	}
 
-	return nil
+		return nil
+	})
 }
 
 // documentTitle returns the input PDF's Title metadata entry, falling back to
@@ -491,28 +499,33 @@ func WriteBookmarksStub(ctx *api.Context, engine gotenberg.PdfEngine, bookmarks 
 			return nil
 		}
 
-		for _, inputPath := range inputPaths {
+		return forEachInputPath(ctx, inputPaths, func(inputPath string) error {
 			err := engine.WriteBookmarks(ctx, ctx.Log(), inputPath, b)
 			if err != nil {
 				return fmt.Errorf("write bookmarks into '%s': %w", inputPath, err)
 			}
-		}
+
+			return nil
+		})
 	case map[string][]gotenberg.Bookmark:
-		for _, inputPath := range inputPaths {
+		return forEachInputPath(ctx, inputPaths, func(inputPath string) error {
 			filename := ctx.OriginalFilename(inputPath)
-			if specificBookmarks, ok := b[filename]; ok {
-				err := engine.WriteBookmarks(ctx, ctx.Log(), inputPath, specificBookmarks)
-				if err != nil {
-					return fmt.Errorf("write bookmarks into '%s': %w", inputPath, err)
-				}
+			specificBookmarks, ok := b[filename]
+			if !ok {
+				return nil
 			}
-		}
+
+			err := engine.WriteBookmarks(ctx, ctx.Log(), inputPath, specificBookmarks)
+			if err != nil {
+				return fmt.Errorf("write bookmarks into '%s': %w", inputPath, err)
+			}
+
+			return nil
+		})
 	default:
 		// Should not happen.
 		return fmt.Errorf("bookmarks type '%T' not supported", bookmarks)
 	}
-
-	return nil
 }
 
 // FormDataPdfEmbeds extracts embedded file paths from form data.
@@ -537,14 +550,14 @@ func EmbedFilesMetadataStub(ctx *api.Context, engine gotenberg.PdfEngine, metada
 		return nil
 	}
 
-	for _, inputPath := range inputPaths {
+	return forEachInputPath(ctx, inputPaths, func(inputPath string) error {
 		err := engine.EmbedFilesMetadata(ctx, ctx.Log(), metadata, inputPath)
 		if err != nil {
 			return fmt.Errorf("set embeds metadata on PDF '%s': %w", inputPath, err)
 		}
-	}
 
-	return nil
+		return nil
+	})
 }
 
 // FormDataPdfFacturX extracts the Factur-X parameters and the invoice XML path
@@ -737,14 +750,14 @@ func InjectFacturXXMPStub(ctx *api.Context, engine gotenberg.PdfEngine, facturX 
 		return nil
 	}
 
-	for _, inputPath := range inputPaths {
+	return forEachInputPath(ctx, inputPaths, func(inputPath string) error {
 		err := engine.InjectFacturXXMP(ctx, ctx.Log(), facturX, inputPath)
 		if err != nil {
 			return fmt.Errorf("inject Factur-X XMP into PDF '%s': %w", inputPath, err)
 		}
-	}
 
-	return nil
+		return nil
+	})
 }
 
 // FormDataPdfEncrypt extracts the encryption parameters and permissions from
@@ -783,14 +796,14 @@ func EncryptPdfStub(ctx *api.Context, engine gotenberg.PdfEngine, opts gotenberg
 		return nil
 	}
 
-	for _, inputPath := range inputPaths {
+	return forEachInputPath(ctx, inputPaths, func(inputPath string) error {
 		err := engine.Encrypt(ctx, ctx.Log(), inputPath, opts)
 		if err != nil {
 			return fmt.Errorf("encrypt PDF '%s': %w", inputPath, err)
 		}
-	}
 
-	return nil
+		return nil
+	})
 }
 
 // EmbedFilesStub embeds files into PDF files.
@@ -819,14 +832,14 @@ func EmbedFilesStub(ctx *api.Context, engine gotenberg.PdfEngine, embedPaths []s
 		resolvedPaths[i] = resolvedPath
 	}
 
-	for _, inputPath := range inputPaths {
+	return forEachInputPath(ctx, inputPaths, func(inputPath string) error {
 		err := engine.EmbedFiles(ctx, ctx.Log(), resolvedPaths, inputPath)
 		if err != nil {
 			return fmt.Errorf("embed files into PDF '%s': %w", inputPath, err)
 		}
-	}
 
-	return nil
+		return nil
+	})
 }
 
 // FormDataPdfStamps builds the ordered list of stamps from the repeated stamp
@@ -943,16 +956,23 @@ func bindStampOrWatermarkFiles(stamps []gotenberg.Stamp, files []string, kind st
 // WatermarkStub applies each watermark to a list of PDF files, in order.
 // Entries with no source are skipped, so an empty list does nothing.
 func WatermarkStub(ctx *api.Context, engine gotenberg.PdfEngine, watermarks []gotenberg.Stamp, inputPaths []string) error {
+	// Watermarks stack on the same file, so the outer loop stays sequential;
+	// only the file dimension is parallel.
 	for _, watermark := range watermarks {
 		if watermark.Source == "" {
 			continue
 		}
 
-		for _, inputPath := range inputPaths {
-			err := engine.Watermark(ctx, ctx.Log(), inputPath, watermark)
-			if err != nil {
-				return fmt.Errorf("watermark '%s': %w", inputPath, err)
+		err := forEachInputPath(ctx, inputPaths, func(inputPath string) error {
+			errWatermark := engine.Watermark(ctx, ctx.Log(), inputPath, watermark)
+			if errWatermark != nil {
+				return fmt.Errorf("watermark '%s': %w", inputPath, errWatermark)
 			}
+
+			return nil
+		})
+		if err != nil {
+			return err
 		}
 	}
 
@@ -962,16 +982,23 @@ func WatermarkStub(ctx *api.Context, engine gotenberg.PdfEngine, watermarks []go
 // StampStub applies each stamp to a list of PDF files, in order. Entries with
 // no source are skipped, so an empty list does nothing.
 func StampStub(ctx *api.Context, engine gotenberg.PdfEngine, stamps []gotenberg.Stamp, inputPaths []string) error {
+	// Stamps stack on the same file, so the outer loop stays sequential; only
+	// the file dimension is parallel.
 	for _, stamp := range stamps {
 		if stamp.Source == "" {
 			continue
 		}
 
-		for _, inputPath := range inputPaths {
-			err := engine.Stamp(ctx, ctx.Log(), inputPath, stamp)
-			if err != nil {
-				return fmt.Errorf("stamp '%s': %w", inputPath, err)
+		err := forEachInputPath(ctx, inputPaths, func(inputPath string) error {
+			errStamp := engine.Stamp(ctx, ctx.Log(), inputPath, stamp)
+			if errStamp != nil {
+				return fmt.Errorf("stamp '%s': %w", inputPath, errStamp)
 			}
+
+			return nil
+		})
+		if err != nil {
+			return err
 		}
 	}
 
@@ -1476,14 +1503,25 @@ func readMetadataRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			res := make(map[string]map[string]any, len(inputPaths))
-			for _, inputPath := range inputPaths {
-				metadata, err := engine.ReadMetadata(ctx, ctx.Log(), inputPath)
-				if err != nil {
-					return fmt.Errorf("read metadata: %w", err)
+			// Collected per index, then folded into the map on this
+			// goroutine: a shared map cannot be written concurrently.
+			collected := make([]map[string]any, len(inputPaths))
+			err = forEachInputPathIndexed(ctx, inputPaths, func(i int, inputPath string) error {
+				metadata, errRead := engine.ReadMetadata(ctx, ctx.Log(), inputPath)
+				if errRead != nil {
+					return fmt.Errorf("read metadata: %w", errRead)
 				}
 
-				res[ctx.OriginalFilename(inputPath)] = metadata
+				collected[i] = metadata
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+
+			res := make(map[string]map[string]any, len(inputPaths))
+			for i, inputPath := range inputPaths {
+				res[ctx.OriginalFilename(inputPath)] = collected[i]
 			}
 
 			err = c.JSON(http.StatusOK, res)
@@ -1554,14 +1592,25 @@ func readBookmarksRoute(engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			res := make(map[string][]gotenberg.Bookmark, len(inputPaths))
-			for _, inputPath := range inputPaths {
-				bookmarks, err := engine.ReadBookmarks(ctx, ctx.Log(), inputPath)
-				if err != nil {
-					return fmt.Errorf("read bookmarks: %w", err)
+			// Collected per index, then folded into the map on this
+			// goroutine: a shared map cannot be written concurrently.
+			collected := make([][]gotenberg.Bookmark, len(inputPaths))
+			err = forEachInputPathIndexed(ctx, inputPaths, func(i int, inputPath string) error {
+				bookmarks, errRead := engine.ReadBookmarks(ctx, ctx.Log(), inputPath)
+				if errRead != nil {
+					return fmt.Errorf("read bookmarks: %w", errRead)
 				}
 
-				res[ctx.OriginalFilename(inputPath)] = bookmarks
+				collected[i] = bookmarks
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+
+			res := make(map[string][]gotenberg.Bookmark, len(inputPaths))
+			for i, inputPath := range inputPaths {
+				res[ctx.OriginalFilename(inputPath)] = collected[i]
 			}
 
 			err = c.JSON(http.StatusOK, res)

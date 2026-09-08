@@ -96,6 +96,7 @@ services:
       - "--pdfengines-embed-engines=${PDFENGINES_EMBED_ENGINES}"
       - "--pdfengines-embed-metadata-engines=${PDFENGINES_EMBED_METADATA_ENGINES}"
       - "--pdfengines-factur-x-engines=${PDFENGINES_FACTUR_X_ENGINES}"
+      - "--pdfengines-max-concurrency=${PDFENGINES_MAX_CONCURRENCY}"
       - "--pdfengines-disable-routes=${PDFENGINES_DISABLE_ROUTES}"
       - "--prometheus-namespace=${PROMETHEUS_NAMESPACE}"
       - "--prometheus-collect-interval=${PROMETHEUS_COLLECT_INTERVAL}"

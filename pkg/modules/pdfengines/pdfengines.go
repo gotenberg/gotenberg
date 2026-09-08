@@ -45,6 +45,7 @@ type PdfEngines struct {
 	rotateNames         []string
 	facturXNames        []string
 	engines             []gotenberg.PdfEngine
+	maxConcurrency      int
 	disableRoutes       bool
 }
 
@@ -70,6 +71,7 @@ func (mod *PdfEngines) Descriptor() gotenberg.ModuleDescriptor {
 			fs.StringSlice("pdfengines-stamp-engines", []string{"pdfcpu", "pdftk"}, "Set the PDF engines and their order for the stamp feature - empty means all")
 			fs.StringSlice("pdfengines-rotate-engines", []string{"pdfcpu", "pdftk"}, "Set the PDF engines and their order for the rotate feature - empty means all")
 			fs.StringSlice("pdfengines-factur-x-engines", []string{"qpdf"}, "Set the PDF engines and their order for the Factur-X XMP feature - empty means all")
+			fs.Int("pdfengines-max-concurrency", defaultMaxConcurrency, "Set the maximum number of PDF files a feature processes concurrently, across all requests - bounds how many qpdf, pdfcpu, pdftk and exiftool processes run at once, so raising it trades memory for speed. Does not apply to LibreOffice: scale Gotenberg containers instead")
 			fs.Bool("pdfengines-disable-routes", false, "Disable the routes")
 
 			// Deprecated flags.
@@ -105,7 +107,15 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 	stampNames := flags.MustStringSlice("pdfengines-stamp-engines")
 	rotateNames := flags.MustStringSlice("pdfengines-rotate-engines")
 	facturXNames := flags.MustStringSlice("pdfengines-factur-x-engines")
+	mod.maxConcurrency = flags.MustInt("pdfengines-max-concurrency")
 	mod.disableRoutes = flags.MustBool("pdfengines-disable-routes")
+
+	if mod.maxConcurrency > 0 {
+		maxFileConcurrency = mod.maxConcurrency
+		// One fewer than the ceiling: each request already reserves a unit of
+		// its own. See [engineExtraSlots].
+		engineExtraSlots = make(chan struct{}, mod.maxConcurrency-1)
+	}
 
 	engines, err := ctx.Modules(new(gotenberg.PdfEngine))
 	if err != nil {
@@ -222,6 +232,10 @@ func (mod *PdfEngines) Validate() error {
 		return errors.New("no PDF engine is available; enable at least one engine module (e.g. qpdf, pdfcpu, pdftk, libreoffice-pdfengine, exiftool)")
 	}
 
+	if mod.maxConcurrency < 1 {
+		return fmt.Errorf("PDF engines max concurrency must be at least 1, got %d; set --pdfengines-max-concurrency (env PDFENGINES_MAX_CONCURRENCY) to a positive value", mod.maxConcurrency)
+	}
+
 	availableEngines := make([]string, len(mod.engines))
 
 	for i, engine := range mod.engines {
@@ -296,6 +310,7 @@ func (mod *PdfEngines) SystemMessages() []string {
 		fmt.Sprintf("stamp engines - %s", strings.Join(mod.stampNames, " ")),
 		fmt.Sprintf("rotate engines - %s", strings.Join(mod.rotateNames, " ")),
 		fmt.Sprintf("factur-x engines - %s", strings.Join(mod.facturXNames, " ")),
+		fmt.Sprintf("max concurrency - %d", mod.maxConcurrency),
 	}
 }
 
