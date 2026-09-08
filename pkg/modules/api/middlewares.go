@@ -309,32 +309,46 @@ func telemetryMiddleware(logger *slog.Logger, serverName, correlationIdHeader st
 				WriteBytes: c.Response().Size,
 			})...)
 
-			accessLogger := logger.
-				With(slog.String("log_type", "access")).
-				With(slog.String("correlation_id", correlationId)).
-				With(slog.String("remote_ip", c.RealIP())).
-				With(slog.String("host", c.Request().Host)).
-				With(slog.String("uri", c.Request().RequestURI)).
-				With(slog.String("method", c.Request().Method)).
-				With(slog.String("path", routePath)).
-				With(slog.String("referer", c.Request().Referer())).
-				With(slog.String("user_agent", c.Request().UserAgent())).
-				With(slog.Int("status", c.Response().Status)).
-				With(slog.Int64("latency", int64(finishTime.Sub(startTime)))).
-				With(slog.String("latency_human", finishTime.Sub(startTime).String())).
-				With(slog.Int64("bytes_in", c.Request().ContentLength)).
-				With(slog.Int64("bytes_out", c.Response().Size))
+			// Pick the level and message before building the record: err.Error
+			// walks a joined error chain, and the nil-error branch has no use
+			// for it.
+			level := slog.LevelInfo
+			msg := "request handled"
 
 			switch {
 			case err == nil:
-				accessLogger.InfoContext(ctx, "request handled")
 			case canceled:
 				// A client abort is expected, not a server failure; keep it
 				// visible but out of the error stream.
-				accessLogger.InfoContext(ctx, err.Error())
+				msg = err.Error()
 			default:
-				accessLogger.ErrorContext(ctx, err.Error())
+				level = slog.LevelError
+				msg = err.Error()
 			}
+
+			// One record rather than a chain of With calls. Each With clones
+			// the whole handler chain, and this logger fans out to a JSON
+			// handler and an OpenTelemetry bridge that is wired in even when no
+			// exporter is configured, so a 14-deep chain clones both sub-chains
+			// 14 times to emit a single line.
+			latency := finishTime.Sub(startTime)
+
+			logger.LogAttrs(ctx, level, msg,
+				slog.String("log_type", "access"),
+				slog.String("correlation_id", correlationId),
+				slog.String("remote_ip", c.RealIP()),
+				slog.String("host", c.Request().Host),
+				slog.String("uri", c.Request().RequestURI),
+				slog.String("method", c.Request().Method),
+				slog.String("path", routePath),
+				slog.String("referer", c.Request().Referer()),
+				slog.String("user_agent", c.Request().UserAgent()),
+				slog.Int("status", c.Response().Status),
+				slog.Int64("latency", int64(latency)),
+				slog.String("latency_human", latency.String()),
+				slog.Int64("bytes_in", c.Request().ContentLength),
+				slog.Int64("bytes_out", c.Response().Size),
+			)
 
 			additionalAttributes := []attribute.KeyValue{
 				semconvSrv.Route(routePath),
