@@ -715,3 +715,54 @@ func TestNewOutboundHttpClient_NonPositiveTimeout(t *testing.T) {
 		t.Fatalf("timeout for a negative budget = %s, want a positive value so the client fails closed", got)
 	}
 }
+
+func TestDecideOutboundExpiredDeadline(t *testing.T) {
+	// Patterns are matched under the fixed PatternMatchTimeout rather than
+	// under the caller's remaining budget, so an expired deadline no longer
+	// surfaces from the match itself. Every scheme must still fail closed,
+	// including the ones that return before a host is resolved.
+	expired := time.Now().Add(-time.Second)
+
+	for _, rawURL := range []string{
+		"https://example.com/",
+		"file:///tmp/foo.html",
+		"data:text/html,hello",
+	} {
+		_, err := DecideOutbound(context.Background(), rawURL, nil, nil, expired)
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("DecideOutbound(%q) with an expired deadline = %v, want context.DeadlineExceeded", rawURL, err)
+		}
+	}
+}
+
+func TestDecideOutboundBoundsCatastrophicPatterns(t *testing.T) {
+	// A deny-list pattern that backtracks catastrophically, matched against a
+	// client-controlled URL. Before PatternMatchTimeout the ceiling was the
+	// caller's whole budget, so a 30s API_TIMEOUT bought a 30s CPU burn.
+	// The trailing "!" makes the match fail only after the nested quantifier
+	// has explored every way to split the run of "a"s.
+	pattern := regexp2.MustCompile(`^https://example\.com/(a+)+$`, 0)
+	pattern.MatchTimeout = PatternMatchTimeout
+
+	rawURL := "https://example.com/" + strings.Repeat("a", 40) + "!"
+
+	start := time.Now()
+	_, err := DecideOutbound(
+		context.Background(),
+		rawURL,
+		nil,
+		[]*regexp2.Regexp{pattern},
+		time.Now().Add(30*time.Second),
+	)
+	elapsed := time.Since(start)
+
+	if err == nil {
+		t.Fatal("expected an error from a catastrophic deny-list pattern")
+	}
+
+	// Generous headroom over the 250ms ceiling, still far below the 30s
+	// deadline the match would otherwise have been allowed to consume.
+	if elapsed > 5*time.Second {
+		t.Fatalf("match took %s, want it aborted near PatternMatchTimeout (%s)", elapsed, PatternMatchTimeout)
+	}
+}

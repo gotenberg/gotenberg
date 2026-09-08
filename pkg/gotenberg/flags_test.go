@@ -1054,3 +1054,36 @@ func TestEnvVarName(t *testing.T) {
 		})
 	}
 }
+
+func TestParsedFlags_RegexpMatchTimeout(t *testing.T) {
+	// [DecideOutbound] matches on these patterns directly instead of compiling
+	// a private copy per call, so the bound has to come from here. regexp2's
+	// own default is math.MaxInt64, which it treats as no
+	// timeout at all, so a pattern built without this stamp runs unbounded
+	// against a client-controlled string.
+	fs := flag.NewFlagSet("tests", flag.ContinueOnError)
+	fs.StringSlice("some-deny-list", []string{`^file:`, `^https?://`}, "")
+	fs.String("some-pattern", `^file:`, "")
+
+	err := fs.Parse(nil)
+	if err != nil {
+		t.Fatalf("expected no error but got: %v", err)
+	}
+
+	parsedFlags := ParsedFlags{FlagSet: fs}
+
+	regexps := parsedFlags.MustRegexpSlice("some-deny-list")
+	if len(regexps) != 2 {
+		t.Fatalf("expected 2 patterns but got %d", len(regexps))
+	}
+
+	for _, re := range regexps {
+		if re.MatchTimeout != PatternMatchTimeout {
+			t.Fatalf("pattern '%s' has MatchTimeout %s, expected %s", re.String(), re.MatchTimeout, PatternMatchTimeout)
+		}
+	}
+
+	if got := parsedFlags.MustRegexp("some-pattern").MatchTimeout; got != PatternMatchTimeout {
+		t.Fatalf("expected MustRegexp MatchTimeout %s but got %s", PatternMatchTimeout, got)
+	}
+}

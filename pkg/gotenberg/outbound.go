@@ -27,6 +27,12 @@ import (
 // example [::ffff:127.0.0.1]).
 var ErrNonPublicIP = errors.New("non-public IP")
 
+// ErrFiltered happens when a value is rejected by an allow-list or a
+// deny-list, or when it cannot be validated and [DecideOutbound] fails closed.
+// Callers map it to a generic 403: the specific reason stays in the operator
+// logs so a client cannot probe the lists.
+var ErrFiltered = errors.New("value filtered")
+
 // ErrPublicIP indicates that an outbound URL targets an IP address that is
 // reachable on the public internet. It is returned when a caller opts
 // into denying public destinations via [WithDenyPublicIPs]; typical use
@@ -291,6 +297,15 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 		opt(&cfg)
 	}
 
+	// Each match is bounded by [PatternMatchTimeout] rather than by the
+	// remaining budget, so an already-spent deadline no longer surfaces from
+	// the match itself. Schemes that resolve a host still learn about it from
+	// resolveHost, but a non-matching file:// or data: URL returns before that
+	// point, so check it here to keep failing closed on every path.
+	if !time.Now().Before(deadline) {
+		return OutboundDecision{}, context.DeadlineExceeded
+	}
+
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
 		return OutboundDecision{}, fmt.Errorf("parse URL %q: %w", rawURL, ErrFiltered)
@@ -314,15 +329,12 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 	allowMatched := false
 	if len(allowList) > 0 {
 		for _, pattern := range allowList {
-			clone := regexp2.MustCompile(pattern.String(), 0)
-			clone.MatchTimeout = time.Until(deadline)
-
-			ok, err := clone.MatchString(normalized)
+			ok, err := pattern.MatchString(normalized)
 			if err != nil {
 				if time.Now().After(deadline) {
 					return OutboundDecision{}, context.DeadlineExceeded
 				}
-				return OutboundDecision{}, fmt.Errorf("'%s' cannot handle '%s': %w", clone.String(), normalized, err)
+				return OutboundDecision{}, fmt.Errorf("'%s' cannot handle '%s': %w", pattern.String(), normalized, err)
 			}
 
 			if ok {
@@ -337,15 +349,12 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 	}
 
 	for _, pattern := range denyList {
-		clone := regexp2.MustCompile(pattern.String(), 0)
-		clone.MatchTimeout = time.Until(deadline)
-
-		ok, err := clone.MatchString(normalized)
+		ok, err := pattern.MatchString(normalized)
 		if err != nil {
 			if time.Now().After(deadline) {
 				return OutboundDecision{}, context.DeadlineExceeded
 			}
-			return OutboundDecision{}, fmt.Errorf("'%s' cannot handle '%s': %w", clone.String(), normalized, err)
+			return OutboundDecision{}, fmt.Errorf("'%s' cannot handle '%s': %w", pattern.String(), normalized, err)
 		}
 
 		if ok {
@@ -392,9 +401,8 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 }
 
 // FilterOutboundURL validates that rawURL is acceptable for an outbound
-// request from Gotenberg. It is the URL-aware replacement for
-// [FilterDeadline] and should be preferred for any new code that filters
-// a URL before issuing or instructing an outbound request.
+// request from Gotenberg. Prefer it for any new code that filters a URL
+// before issuing or instructing an outbound request.
 //
 // The default behavior is permissive: the URL passes as long as it clears
 // the regex allow-list and deny-list. Callers that need IP-class checks

@@ -207,15 +207,38 @@ func (f *ParsedFlags) MustDeprecatedHumanReadableBytes(deprecated string, newNam
 	return f.MustHumanReadableBytes(newName)
 }
 
+// PatternMatchTimeout bounds a single match against an operator-supplied
+// allow-list or deny-list pattern.
+//
+// regexp2 backtracks, and the strings matched against these patterns are
+// client-controlled: a request URL, a CONNECT host. A pattern that backtracks
+// catastrophically would otherwise burn a core for as long as the caller's
+// deadline allows, which is --api-timeout (env API_TIMEOUT), 30 seconds by
+// default. The ceiling mirrors the one the Chromium module already applies to
+// the per-request extraHttpHeaders scope pattern.
+//
+// [ParsedFlags.MustRegexp] and [ParsedFlags.MustRegexpSlice] stamp this onto
+// every pattern they compile, which is how all four production lists are
+// built. Patterns compiled any other way keep regexp2's default of
+// math.MaxInt64, which it treats as no timeout at all, so a hand-built slice
+// must set this itself before reaching [DecideOutbound].
+const PatternMatchTimeout = 250 * time.Millisecond
+
 // MustRegexp returns the regular expression of a flag given by name.
 // It panics if an error occurs.
+//
+// The returned expression carries [PatternMatchTimeout] and is safe to match
+// on concurrently: callers must not compile a private copy per match.
 func (f *ParsedFlags) MustRegexp(name string) *regexp2.Regexp {
 	val, err := f.GetString(name)
 	if err != nil {
 		panic(err)
 	}
 
-	return regexp2.MustCompile(val, 0)
+	re := regexp2.MustCompile(val, 0)
+	re.MatchTimeout = PatternMatchTimeout
+
+	return re
 }
 
 // MustDeprecatedRegexp returns the regular expression of a deprecated flag if
@@ -235,6 +258,9 @@ func (f *ParsedFlags) MustDeprecatedRegexp(deprecated string, newName string) *r
 //
 // Every allow-list and deny-list in Gotenberg is read through this method, so
 // it is also where allow-list patterns are audited. See [AuditAllowList].
+//
+// The returned expressions carry [PatternMatchTimeout] and are safe to match
+// on concurrently: callers must not compile a private copy per match.
 func (f *ParsedFlags) MustRegexpSlice(name string) []*regexp2.Regexp {
 	vals := f.MustStringSlice(name)
 
@@ -246,7 +272,10 @@ func (f *ParsedFlags) MustRegexpSlice(name string) []*regexp2.Regexp {
 			continue
 		}
 
-		regexps = append(regexps, regexp2.MustCompile(val, 0))
+		re := regexp2.MustCompile(val, 0)
+		re.MatchTimeout = PatternMatchTimeout
+
+		regexps = append(regexps, re)
 	}
 
 	return regexps
