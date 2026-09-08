@@ -323,7 +323,15 @@ func listenForEventResponseReceived(
 				return
 			}
 
-			logger.DebugContext(ctx, fmt.Sprintf("event EventResponseReceived fired for a resource: %+v", ev.Response))
+			// Formatting the whole response is the most expensive thing this
+			// listener does, and it runs per sub-resource on chromedp's single
+			// per-target event goroutine while that goroutine holds the mutex
+			// it also takes to dispatch command responses. At the default log
+			// level the result is discarded, so gate it on the level rather
+			// than let slog drop it after the fact.
+			if logger.Enabled(ctx, slog.LevelDebug) {
+				logger.DebugContext(ctx, fmt.Sprintf("event EventResponseReceived fired for a resource: %+v", ev.Response))
+			}
 
 			if slices.Contains(options.failOnResourceOnHttpStatusCode, ev.Response.Status) {
 				if !shouldCheckResourceHttpStatusCode(ev.Response.URL, normalizedIgnoreDomains) {
