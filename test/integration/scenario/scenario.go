@@ -86,16 +86,15 @@ func findScenarioLine(filePath, name string) int {
 }
 
 type scenario struct {
-	resp                      *httptest.ResponseRecorder
-	concurrentResps           []*httptest.ResponseRecorder
-	probeResps                []*httptest.ResponseRecorder
-	sequentialResps           []*httptest.ResponseRecorder
-	workdir                   string
-	teststoreDir              string
-	gotenbergContainer        testcontainers.Container
-	gotenbergContainerNetwork *testcontainers.DockerNetwork
-	server                    *server
-	hostPort                  int
+	resp               *httptest.ResponseRecorder
+	concurrentResps    []*httptest.ResponseRecorder
+	probeResps         []*httptest.ResponseRecorder
+	sequentialResps    []*httptest.ResponseRecorder
+	workdir            string
+	teststoreDir       string
+	gotenbergContainer testcontainers.Container
+	server             *server
+	hostPort           int
 }
 
 func (s *scenario) reset(ctx context.Context) error {
@@ -123,11 +122,10 @@ func (s *scenario) reset(ctx context.Context) error {
 }
 
 func (s *scenario) iHaveADefaultGotenbergContainer(ctx context.Context) error {
-	n, c, err := startGotenbergContainer(ctx, nil)
+	c, err := startGotenbergContainer(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("create Gotenberg container: %s", err)
 	}
-	s.gotenbergContainerNetwork = n
 	s.gotenbergContainer = c
 	return nil
 }
@@ -137,11 +135,10 @@ func (s *scenario) iHaveAGotenbergContainerWithTheFollowingEnvironmentVariables(
 	for _, row := range envTable.Rows {
 		env[row.Cells[0].Value] = row.Cells[1].Value
 	}
-	n, c, err := startGotenbergContainer(ctx, env)
+	c, err := startGotenbergContainer(ctx, env)
 	if err != nil {
 		return fmt.Errorf("create Gotenberg container: %s", err)
 	}
-	s.gotenbergContainerNetwork = n
 	s.gotenbergContainer = c
 	return nil
 }
@@ -1810,12 +1807,6 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 			errTerminate := s.gotenbergContainer.Terminate(ctx, testcontainers.StopTimeout(0))
 			if errTerminate != nil {
 				return ctx, fmt.Errorf("terminate Gotenberg container: %w", errTerminate)
-			}
-		}
-		if s.gotenbergContainerNetwork != nil {
-			errRemove := s.gotenbergContainerNetwork.Remove(ctx)
-			if errRemove != nil {
-				return ctx, fmt.Errorf("remove Gotenberg container network: %w", errRemove)
 			}
 		}
 		return ctx, nil

@@ -11,7 +11,6 @@ import (
 	"github.com/moby/moby/client"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/exec"
-	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
@@ -21,11 +20,13 @@ import (
 const testcontainersLabel = "org.testcontainers"
 
 // PruneOrphanedNetworks removes dangling networks created by the test suite.
-// Each scenario spins a dedicated network, and a failed container start can
-// leak one before teardown records it. Leaked networks consume Docker's
-// predefined address pools until none remain and every later scenario fails
-// with "all predefined address pools have been fully subnetted". Call this
-// before a run and between retries to reclaim the subnets.
+// Scenarios no longer create one: the Gotenberg container is reached over its
+// mapped port and the host-side helper over host.docker.internal, so the
+// default bridge suffices. This stays as cheap insurance against networks
+// leaked by an older suite version or an interrupted run, which consume
+// Docker's predefined address pools until none remain and every later
+// scenario fails with "all predefined address pools have been fully
+// subnetted".
 //
 // Only unused networks bearing the testcontainers label are removed, so
 // running containers and operator networks are never affected.
@@ -99,16 +100,17 @@ func applyDefaultEnv(env map[string]string) map[string]string {
 	return env
 }
 
-func startGotenbergContainer(ctx context.Context, env map[string]string) (*testcontainers.DockerNetwork, testcontainers.Container, error) {
+// startGotenbergContainer starts a Gotenberg container on Docker's default
+// bridge. No dedicated network is created: the suite addresses the container
+// through container.Host plus its mapped port, and the container reaches the
+// host-side webhook and static file server through the host.docker.internal
+// alias below, so a per-scenario network would carry no traffic while still
+// consuming one of Docker's predefined subnets.
+func startGotenbergContainer(ctx context.Context, env map[string]string) (testcontainers.Container, error) {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 
 	env = applyDefaultEnv(env)
-
-	n, err := network.New(ctx)
-	if err != nil {
-		return nil, nil, fmt.Errorf("create Gotenberg container network: %w", err)
-	}
 
 	healthPath := "/health"
 	if env["API_ROOT_PATH"] != "" {
@@ -122,7 +124,6 @@ func startGotenbergContainer(ctx context.Context, env map[string]string) (*testc
 		HostConfigModifier: func(hostConfig *container.HostConfig) {
 			hostConfig.ExtraHosts = []string{"host.docker.internal:host-gateway"}
 		},
-		Networks:   []string{n.Name},
 		WaitingFor: wait.ForHTTP(healthPath),
 		Env:        env,
 	}
@@ -148,19 +149,10 @@ func startGotenbergContainer(ctx context.Context, env map[string]string) (*testc
 			}
 		}
 
-		// The network is already created. The scenario teardown only
-		// removes networks it knows about, and the caller discards n on
-		// error, so remove it here to avoid leaking a subnet on every
-		// failed start. Leaked networks accumulate until Docker's address
-		// pools are fully subnetted and all later scenarios fail.
-		if errRemove := n.Remove(ctx); errRemove != nil {
-			err = fmt.Errorf("%w (also failed to remove network: %v)", err, errRemove)
-		}
-
-		return nil, nil, err
+		return nil, err
 	}
 
-	return n, c, nil
+	return c, nil
 }
 
 func execCommandInIntegrationToolsContainer(ctx context.Context, cmd []string, path string) (string, error) {
