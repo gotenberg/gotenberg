@@ -83,12 +83,16 @@ runs:
         INPUT_PLATFORM: ${{ inputs.platform }}
         INPUT_ALTERNATE_REPOSITORY: ${{ inputs.alternate_repository }}
         INPUT_DRY_RUN: ${{ inputs.dry_run }}
+        # Exporting the build cache needs a registry login. Forks run without
+        # credentials, so they import the cache but never export it.
+        INPUT_CACHE_WRITABLE: ${{ inputs.docker_hub_username != '' }}
       run: |
         .github/actions/build-test-push/build.sh \
           --version "$INPUT_VERSION" \
           --platform "$INPUT_PLATFORM" \
           --alternate-repository "$INPUT_ALTERNATE_REPOSITORY" \
-          --dry-run "$INPUT_DRY_RUN"
+          --dry-run "$INPUT_DRY_RUN" \
+          --cache-writable "$INPUT_CACHE_WRITABLE"
 
     - name: Run integration tests
       if: inputs.skip_integrations_tests != 'true'

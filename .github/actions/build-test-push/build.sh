@@ -12,6 +12,7 @@ version=""
 platform=""
 alternate_repository=""
 dry_run=""
+cache_writable=""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -31,6 +32,10 @@ while [[ $# -gt 0 ]]; do
       dry_run="$2"
       shift 2
       ;;
+    --cache-writable)
+      cache_writable="$2"
+      shift 2
+      ;;
     *)
       echo "Unknown option $1"
       exit 1
@@ -44,10 +49,40 @@ echo
 echo "Gotenberg version: $version"
 echo "Target platform: $platform"
 
+# The build cache lives under the canonical repository, captured before the
+# alternate-repository override below. Pull requests build into "snapshot", so
+# deriving the cache ref after the override would give them a cache namespace
+# of their own and they would never import what main published, which is the
+# population that benefits most.
+cache_image="$DOCKER_REGISTRY/$DOCKER_REPOSITORY"
+
+# Layers are per-architecture, so each platform keeps its own cache manifest.
+cache_platform="${platform//\//-}"
+
+# Layers running "apt-get upgrade" install whatever versions are current at
+# build time, and the packages are deliberately not pinned. A persistent cache
+# would turn those into hits and freeze security patches into a published
+# image until debian:13-slim itself changes digest. Keying them on the ISO week
+# bounds that staleness to seven days while leaving every build within a week
+# free to reuse the cache.
+apt_snapshot="$(date -u +%G-W%V)"
+
+# Only a build that is not redirected to an alternate repository writes the
+# cache, so a pull request cannot make its own state the baseline for main.
+# Reading stays enabled everywhere, including forks, since the cache ref is
+# public and needs no credentials.
+cache_to_enabled="false"
+if [ "$cache_writable" = "true" ] && [ -z "$alternate_repository" ]; then
+  cache_to_enabled="true"
+fi
+
 if [ -n "$alternate_repository" ]; then
   DOCKER_REPOSITORY=$alternate_repository
   echo "⚠️ Using $alternate_repository for DOCKER_REPOSITORY"
 fi
+
+echo "Build cache: $cache_image:buildcache-<target>-$cache_platform (write: $cache_to_enabled)"
+echo "APT snapshot: $apt_snapshot"
 
 if [ "$dry_run" = "true" ]; then
   echo "🚧 Dry run"
@@ -189,12 +224,36 @@ join() {
   echo "$*"
 }
 
+# cache_flags echoes the buildx cache arguments for a build target. Each target
+# keeps its own manifest so that the Chromium and LibreOffice variants, which
+# branch from common-stage rather than from each other, do not overwrite one
+# another's entry.
+#
+# mode=max exports intermediate stages too, not just the final layers, which is
+# what makes the expensive apt and jlink stages reusable. type=registry, not
+# type=gha: the GitHub Actions cache is capped at 10 GB per repository and is
+# already carrying the Go and golangci-lint caches that the lint and test jobs
+# depend on. Multi-GB image layers across five platforms would evict them.
+cache_flags() {
+  local target="$1"
+  local ref="$cache_image:buildcache-$target-$cache_platform"
+  local flags="--cache-from type=registry,ref=$ref"
+
+  if [ "$cache_to_enabled" = "true" ]; then
+    flags="$flags --cache-to type=registry,ref=$ref,mode=max"
+  fi
+
+  echo "$flags"
+}
+
 no_arch_tag="$DOCKER_REGISTRY/$DOCKER_REPOSITORY:$version"
 
 # Full variant.
 cmd="docker buildx build \
     --target gotenberg \
     --build-arg GOTENBERG_VERSION=$version \
+    --build-arg APT_SNAPSHOT=$apt_snapshot \
+    $(cache_flags gotenberg) \
     --platform $platform \
     --load \
     ${tags_flags[*]} \
@@ -207,6 +266,8 @@ run_cmd "$cmd"
 cmd="docker buildx build \
     --target gotenberg-chromium \
     --build-arg GOTENBERG_VERSION=$version \
+    --build-arg APT_SNAPSHOT=$apt_snapshot \
+    $(cache_flags gotenberg-chromium) \
     --platform $platform \
     --load \
     ${tags_chromium_flags[*]} \
@@ -218,6 +279,8 @@ run_cmd "$cmd"
 cmd="docker buildx build \
     --target gotenberg-libreoffice \
     --build-arg GOTENBERG_VERSION=$version \
+    --build-arg APT_SNAPSHOT=$apt_snapshot \
+    $(cache_flags gotenberg-libreoffice) \
     --platform $platform \
     --load \
     ${tags_libreoffice_flags[*]} \
@@ -230,6 +293,8 @@ if [ "$platform" = "linux/amd64" ]; then
   cmd="docker buildx build \
       --target gotenberg-cloudrun \
       --build-arg GOTENBERG_VERSION=$version \
+      --build-arg APT_SNAPSHOT=$apt_snapshot \
+      $(cache_flags gotenberg-cloudrun) \
       --platform $platform \
       --load \
       ${tags_cloud_run_flags[*]} \
@@ -240,6 +305,8 @@ if [ "$platform" = "linux/amd64" ]; then
   cmd="docker buildx build \
       --target gotenberg-cloudrun-chromium \
       --build-arg GOTENBERG_VERSION=$version \
+      --build-arg APT_SNAPSHOT=$apt_snapshot \
+      $(cache_flags gotenberg-cloudrun-chromium) \
       --platform $platform \
       --load \
       ${tags_cloud_run_chromium_flags[*]} \
@@ -250,6 +317,8 @@ if [ "$platform" = "linux/amd64" ]; then
   cmd="docker buildx build \
       --target gotenberg-cloudrun-libreoffice \
       --build-arg GOTENBERG_VERSION=$version \
+      --build-arg APT_SNAPSHOT=$apt_snapshot \
+      $(cache_flags gotenberg-cloudrun-libreoffice) \
       --platform $platform \
       --load \
       ${tags_cloud_run_libreoffice_flags[*]} \
@@ -263,6 +332,8 @@ if [ "$platform" = "linux/amd64" ] || [ "$platform" = "linux/arm64" ]; then
   cmd="docker buildx build \
       --target gotenberg-aws-lambda \
       --build-arg GOTENBERG_VERSION=$version \
+      --build-arg APT_SNAPSHOT=$apt_snapshot \
+      $(cache_flags gotenberg-aws-lambda) \
       --platform $platform \
       --load \
       ${tags_aws_lambda_flags[*]} \
@@ -273,6 +344,8 @@ if [ "$platform" = "linux/amd64" ] || [ "$platform" = "linux/arm64" ]; then
   cmd="docker buildx build \
       --target gotenberg-aws-lambda-chromium \
       --build-arg GOTENBERG_VERSION=$version \
+      --build-arg APT_SNAPSHOT=$apt_snapshot \
+      $(cache_flags gotenberg-aws-lambda-chromium) \
       --platform $platform \
       --load \
       ${tags_aws_lambda_chromium_flags[*]} \
@@ -283,6 +356,8 @@ if [ "$platform" = "linux/amd64" ] || [ "$platform" = "linux/arm64" ]; then
   cmd="docker buildx build \
       --target gotenberg-aws-lambda-libreoffice \
       --build-arg GOTENBERG_VERSION=$version \
+      --build-arg APT_SNAPSHOT=$apt_snapshot \
+      $(cache_flags gotenberg-aws-lambda-libreoffice) \
       --platform $platform \
       --load \
       ${tags_aws_lambda_libreoffice_flags[*]} \

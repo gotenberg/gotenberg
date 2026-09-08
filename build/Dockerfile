@@ -59,7 +59,14 @@ RUN go build -o gotenberg -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/
 # ----------------------------------------------
 FROM debian:13-slim AS custom-jre-stage
 
-RUN apt-get update -qq \
+# APT_SNAPSHOT busts every layer below it when CI rotates the value, weekly.
+# Without it a persistent build cache turns the unpinned "apt-get upgrade" into
+# a cache hit and the published image keeps shipping the package versions that
+# were current when the cache was first populated.
+ARG APT_SNAPSHOT=""
+
+RUN echo "apt snapshot: $APT_SNAPSHOT" \
+    && apt-get update -qq \
     && apt-get upgrade -yqq \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends default-jdk-headless binutils
 
@@ -114,9 +121,15 @@ FROM base-image-stage AS common-stage
 ARG GOTENBERG_USER_GID=1001
 ARG GOTENBERG_USER_UID=1001
 
+# See the note on APT_SNAPSHOT in custom-jre-stage. Declaring it here covers
+# every "apt-get upgrade" in the gotenberg, gotenberg-chromium and
+# gotenberg-libreoffice targets too, since all three branch from this stage.
+ARG APT_SNAPSHOT=""
+
 # Create a non-root user.
 # All processes in the Docker container will run with this dedicated user.
-RUN groupadd --gid "$GOTENBERG_USER_GID" gotenberg \
+RUN echo "apt snapshot: $APT_SNAPSHOT" \
+    && groupadd --gid "$GOTENBERG_USER_GID" gotenberg \
     && useradd --uid "$GOTENBERG_USER_UID" --gid gotenberg --shell /bin/bash --home /home/gotenberg --no-create-home gotenberg \
     && mkdir /home/gotenberg \
     && chown gotenberg: /home/gotenberg
