@@ -3,6 +3,7 @@ package chromium
 import (
 	"context"
 	"log/slog"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -35,5 +36,26 @@ func TestChromiumBrowser_Start_rejectsOverlappingStart(t *testing.T) {
 	}
 	if b.isStarted.Load() {
 		t.Fatal("expected the browser to stay not started")
+	}
+}
+
+// TestChromiumDisableFeatures guards the override described in
+// https://github.com/gotenberg/gotenberg/issues/1656. Gotenberg replaces
+// chromedp's --disable-features value rather than extending it, as
+// chromedp.Flag keys its flags by switch name. Dropping one of chromedp's own
+// entries while editing this list would silently re-enable it.
+func TestChromiumDisableFeatures(t *testing.T) {
+	for _, feature := range []string{
+		// chromedp.DefaultExecAllocatorOptions.
+		"site-per-process",
+		"Translate",
+		"BlinkGenPropertyTrees",
+		// The address-bar popup WebUI, built even in headless.
+		"WebUIOmniboxPopup",
+		"WebUIOmniboxAimPopup",
+	} {
+		if !slices.Contains(strings.Split(chromiumDisableFeatures, ","), feature) {
+			t.Errorf("expected %q to be disabled, got %q", feature, chromiumDisableFeatures)
+		}
 	}
 }

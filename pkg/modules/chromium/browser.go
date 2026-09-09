@@ -23,6 +23,25 @@ import (
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
+// chromiumDisableFeatures is the value of Chromium's --disable-features
+// switch.
+//
+// It restates the "site-per-process,Translate,BlinkGenPropertyTrees" default
+// from chromedp.DefaultExecAllocatorOptions (chromedp v0.14.2) on purpose:
+// chromedp.Flag keys its flags by switch name, so a second --disable-features
+// replaces chromedp's value instead of merging with it. Revisit this list when
+// bumping chromedp.
+//
+// WebUIOmniboxPopup and WebUIOmniboxAimPopup became enabled by default in
+// Chromium 151.0.7922.132. Their presenters build the address-bar popup WebUI
+// at browser start, headless included, which leaves a renderer process holding
+// ~85 MB of anonymous memory for a UI a PDF service can never show. Chromium
+// silently ignores feature names it does not know, so both stay harmless on
+// older builds (they exist but default to disabled on the Chromium pinned for
+// ppc64el) and once upstream eventually removes them.
+// See https://github.com/gotenberg/gotenberg/issues/1656.
+const chromiumDisableFeatures = "site-per-process,Translate,BlinkGenPropertyTrees,WebUIOmniboxPopup,WebUIOmniboxAimPopup"
+
 type browser interface {
 	gotenberg.Process
 	pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions, aggregate *networkAggregate) error
@@ -133,6 +152,8 @@ func (b *chromiumBrowser) Start(logger *slog.Logger) error {
 		chromedp.Flag("disable-dev-shm-usage", true),
 		// See https://github.com/gotenberg/gotenberg/issues/1293.
 		chromedp.Flag("disable-component-update", false),
+		// See https://github.com/gotenberg/gotenberg/issues/1656.
+		chromedp.Flag("disable-features", chromiumDisableFeatures),
 	)
 
 	if b.arguments.allowInsecureLocalhost {
