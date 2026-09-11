@@ -355,17 +355,13 @@ func telemetryMiddleware(logger *slog.Logger, serverName, correlationIdHeader st
 			}
 
 			semconvSrv.RecordMetrics(ctx, semconvutil.ServerMetricData{
-				ServerName:   serverName,
-				ResponseSize: c.Response().Size,
-				MetricAttributes: semconvutil.MetricAttributes{
-					Req:                  request,
-					StatusCode:           status,
-					AdditionalAttributes: additionalAttributes,
-				},
-				MetricData: semconvutil.MetricData{
-					RequestSize: request.ContentLength,
-					ElapsedTime: float64(time.Since(startTime)) / float64(time.Millisecond),
-				},
+				ServerName:           serverName,
+				ResponseSize:         c.Response().Size,
+				Req:                  request,
+				StatusCode:           status,
+				AdditionalAttributes: additionalAttributes,
+				RequestSize:          request.ContentLength,
+				ElapsedTime:          float64(time.Since(startTime)) / float64(time.Millisecond),
 			})
 
 			return nil
