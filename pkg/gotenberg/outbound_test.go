@@ -103,6 +103,23 @@ func TestIsPublicIP(t *testing.T) {
 
 		// Discard prefix (RFC 6666).
 		{"100::1", false},
+
+		// A zone identifier must not change the classification.
+		{"::%1", false},
+		{"::%lo", false},
+		{"::1%1", false},
+		{"fe80::1%eth0", false},
+		{"fc00::1%1", false},
+		{"::ffff:127.0.0.1%1", false},
+		{"fec0::1%eth0", false},
+		{"2002:a9fe:a9fe::%1", false},
+		{"2001:0:abcd:ef12:3456:7890:a9fe:a9fe%1", false},
+		{"64:ff9b::a9fe:a9fe%1", false},
+		{"64:ff9b:1::a9fe:a9fe%1", false},
+		{"::a9fe:a9fe%1", false},
+		{"2001:db8::1%1", false},
+		{"100::1%1", false},
+		{"2606:4700:4700::1111%1", true},
 	} {
 		t.Run(tc.addr, func(t *testing.T) {
 			addr, err := netip.ParseAddr(tc.addr)
@@ -299,6 +316,22 @@ func TestFilterOutboundURL(t *testing.T) {
 		{
 			scenario:  "userinfo cannot mask host when deny-private-ips enabled",
 			rawURL:    "http://example.com@127.0.0.1/",
+			deny:      defaultDeny,
+			opts:      []DecideOption{WithDenyPrivateIPs(true)},
+			expectErr: true,
+			expectIs:  ErrFiltered,
+		},
+		{
+			scenario:  "zoned unspecified address blocked with deny-private-ips",
+			rawURL:    "http://[::%251]:9999/",
+			deny:      defaultDeny,
+			opts:      []DecideOption{WithDenyPrivateIPs(true)},
+			expectErr: true,
+			expectIs:  ErrFiltered,
+		},
+		{
+			scenario:  "zoned site-local address blocked with deny-private-ips",
+			rawURL:    "http://[fec0:1234::3%25eth0]:8080/",
 			deny:      defaultDeny,
 			opts:      []DecideOption{WithDenyPrivateIPs(true)},
 			expectErr: true,

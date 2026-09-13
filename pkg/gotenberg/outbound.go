@@ -109,11 +109,18 @@ var nonPublicIPv4Prefixes = []netip.Prefix{
 // the prefixes themselves are deprecated or translation-only. See
 // [nonPublicIPv6Prefixes] and [nonPublicIPv4Prefixes] for the full lists
 // and rationale.
+//
+// An IPv6 zone identifier is ignored, so [::%1] classifies the same as [::].
 func IsPublicIP(addr netip.Addr) bool {
 	if !addr.IsValid() {
 		return false
 	}
-	addr = addr.Unmap()
+	// A zone does not change where a non-link-local address routes, but
+	// [netip.Prefix.Contains] never matches a zoned address and
+	// [netip.Addr.IsUnspecified] compares the zone too. Keeping it would let
+	// http://[::%251]/ or any zoned address in the prefixes below pass as
+	// public.
+	addr = addr.WithZone("").Unmap()
 	switch {
 	case addr.IsLoopback(),
 		addr.IsPrivate(),
