@@ -18,7 +18,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-retryablehttp"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/mholt/archives"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
@@ -70,7 +70,7 @@ type Context struct {
 	outputFilename string
 
 	logger     *slog.Logger
-	echoCtx    echo.Context
+	echoCtx    *echo.Context
 	mkdirAll   gotenberg.MkdirAll
 	pathRename gotenberg.PathRename
 	context.Context
@@ -158,7 +158,7 @@ type downloadFrom struct {
 }
 
 // newContext returns a [Context] by parsing a "multipart/form-data" request.
-func newContext(echoCtx echo.Context, logger *slog.Logger, fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig) (*Context, context.CancelFunc, error) {
+func newContext(echoCtx *echo.Context, logger *slog.Logger, fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig) (*Context, context.CancelFunc, error) {
 	processCtx, processCancel := context.WithTimeout(echoCtx.Request().Context(), timeout)
 
 	// We want to make sure the multipart/form-data does not exceed a given

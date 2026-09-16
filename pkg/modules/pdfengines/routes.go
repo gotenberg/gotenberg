@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
@@ -1011,7 +1011,7 @@ func mergeRoute(engine gotenberg.PdfEngine) api.Route {
 		Method:      http.MethodPost,
 		Path:        "/forms/pdfengines/merge",
 		IsMultipart: true,
-		Handler: func(c echo.Context) error {
+		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
 			form := ctx.FormData()
@@ -1212,7 +1212,7 @@ func splitRoute(engine gotenberg.PdfEngine) api.Route {
 		Method:      http.MethodPost,
 		Path:        "/forms/pdfengines/split",
 		IsMultipart: true,
-		Handler: func(c echo.Context) error {
+		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
 			form := ctx.FormData()
@@ -1364,7 +1364,7 @@ func flattenRoute(engine gotenberg.PdfEngine) api.Route {
 		Method:      http.MethodPost,
 		Path:        "/forms/pdfengines/flatten",
 		IsMultipart: true,
-		Handler: func(c echo.Context) error {
+		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
 			form := ctx.FormData()
@@ -1399,7 +1399,7 @@ func optimizeRoute(engine gotenberg.PdfEngine) api.Route {
 		Method:      http.MethodPost,
 		Path:        "/forms/pdfengines/optimize",
 		IsMultipart: true,
-		Handler: func(c echo.Context) error {
+		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
 			form := ctx.FormData()
@@ -1435,7 +1435,7 @@ func convertRoute(engine gotenberg.PdfEngine) api.Route {
 		Method:      http.MethodPost,
 		Path:        "/forms/pdfengines/convert",
 		IsMultipart: true,
-		Handler: func(c echo.Context) error {
+		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
 			form := ctx.FormData()
@@ -1492,7 +1492,7 @@ func readMetadataRoute(engine gotenberg.PdfEngine) api.Route {
 		Method:      http.MethodPost,
 		Path:        "/forms/pdfengines/metadata/read",
 		IsMultipart: true,
-		Handler: func(c echo.Context) error {
+		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
 			var inputPaths []string
@@ -1546,7 +1546,7 @@ func writeMetadataRoute(engine gotenberg.PdfEngine) api.Route {
 		Method:      http.MethodPost,
 		Path:        "/forms/pdfengines/metadata/write",
 		IsMultipart: true,
-		Handler: func(c echo.Context) error {
+		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
 			form := ctx.FormData()
@@ -1581,7 +1581,7 @@ func readBookmarksRoute(engine gotenberg.PdfEngine) api.Route {
 		Method:      http.MethodPost,
 		Path:        "/forms/pdfengines/bookmarks/read",
 		IsMultipart: true,
-		Handler: func(c echo.Context) error {
+		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
 			var inputPaths []string
@@ -1634,7 +1634,7 @@ func writeBookmarksRoute(engine gotenberg.PdfEngine) api.Route {
 		Method:      http.MethodPost,
 		Path:        "/forms/pdfengines/bookmarks/write",
 		IsMultipart: true,
-		Handler: func(c echo.Context) error {
+		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
 			form := ctx.FormData()
@@ -1669,7 +1669,7 @@ func encryptRoute(engine gotenberg.PdfEngine) api.Route {
 		Method:      http.MethodPost,
 		Path:        "/forms/pdfengines/encrypt",
 		IsMultipart: true,
-		Handler: func(c echo.Context) error {
+		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
 			form := ctx.FormData()
@@ -1714,7 +1714,7 @@ func embedRoute(engine gotenberg.PdfEngine) api.Route {
 		Method:      http.MethodPost,
 		Path:        "/forms/pdfengines/embed",
 		IsMultipart: true,
-		Handler: func(c echo.Context) error {
+		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
 			form := ctx.FormData()
@@ -1776,7 +1776,7 @@ func watermarkRoute(engine gotenberg.PdfEngine) api.Route {
 		Method:      http.MethodPost,
 		Path:        "/forms/pdfengines/watermark",
 		IsMultipart: true,
-		Handler: func(c echo.Context) error {
+		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
 			form := ctx.FormData()
@@ -1833,7 +1833,7 @@ func stampRoute(engine gotenberg.PdfEngine) api.Route {
 		Method:      http.MethodPost,
 		Path:        "/forms/pdfengines/stamp",
 		IsMultipart: true,
-		Handler: func(c echo.Context) error {
+		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
 			form := ctx.FormData()
@@ -1892,7 +1892,7 @@ func rotateRoute(engine gotenberg.PdfEngine) api.Route {
 		Method:      http.MethodPost,
 		Path:        "/forms/pdfengines/rotate",
 		IsMultipart: true,
-		Handler: func(c echo.Context) error {
+		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
 			form := ctx.FormData()
@@ -1929,7 +1929,7 @@ func facturXRoute(engine gotenberg.PdfEngine) api.Route {
 		Method:      http.MethodPost,
 		Path:        "/forms/pdfengines/factur-x",
 		IsMultipart: true,
-		Handler: func(c echo.Context) error {
+		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
 			form := ctx.FormData()

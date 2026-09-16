@@ -16,7 +16,7 @@ import (
 
 	"github.com/dlclark/regexp2"
 	"github.com/gomarkdown/markdown"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/microcosm-cc/bluemonday"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
@@ -466,7 +466,7 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 		Method:      http.MethodPost,
 		Path:        "/forms/chromium/convert/url",
 		IsMultipart: true,
-		Handler: func(c echo.Context) error {
+		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPdfOptions(ctx)
 			mode := pdfengines.FormDataPdfSplitMode(form, false)
@@ -528,7 +528,7 @@ func screenshotUrlRoute(chromium Api) api.Route {
 		Method:      http.MethodPost,
 		Path:        "/forms/chromium/screenshot/url",
 		IsMultipart: true,
-		Handler: func(c echo.Context) error {
+		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumScreenshotOptions(ctx)
 
@@ -562,7 +562,7 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 		Method:      http.MethodPost,
 		Path:        "/forms/chromium/convert/html",
 		IsMultipart: true,
-		Handler: func(c echo.Context) error {
+		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPdfOptions(ctx)
 			mode := pdfengines.FormDataPdfSplitMode(form, false)
@@ -621,7 +621,7 @@ func screenshotHtmlRoute(chromium Api) api.Route {
 		Method:      http.MethodPost,
 		Path:        "/forms/chromium/screenshot/html",
 		IsMultipart: true,
-		Handler: func(c echo.Context) error {
+		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumScreenshotOptions(ctx)
 
@@ -652,7 +652,7 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 		Method:      http.MethodPost,
 		Path:        "/forms/chromium/convert/markdown",
 		IsMultipart: true,
-		Handler: func(c echo.Context) error {
+		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPdfOptions(ctx)
 			mode := pdfengines.FormDataPdfSplitMode(form, false)
@@ -720,7 +720,7 @@ func screenshotMarkdownRoute(chromium Api) api.Route {
 		Method:      http.MethodPost,
 		Path:        "/forms/chromium/screenshot/markdown",
 		IsMultipart: true,
-		Handler: func(c echo.Context) error {
+		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumScreenshotOptions(ctx)
 

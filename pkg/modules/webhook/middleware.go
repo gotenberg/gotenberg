@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
@@ -95,7 +95,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 					})
 				}
 
-				return func(c echo.Context) error {
+				return func(c *echo.Context) error {
 					webhookUrl := c.Request().Header.Get("Gotenberg-Webhook-Url")
 					if webhookUrl == "" {
 						// No webhook URL, call the next middleware in the chain.
@@ -208,7 +208,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						}
 					}
 
-					// Retrieve values from echo.Context before it gets recycled.
+					// Retrieve values from [echo.Context] before it gets recycled.
 					// See https://github.com/gotenberg/gotenberg/issues/1000.
 					startTime := c.Get("startTime").(time.Time)
 					correlationIdHeader := c.Get("correlationIdHeader").(string)
@@ -323,16 +323,16 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 					// As a webhook URL has been given, we handle the request in a
 					// goroutine and return immediately.
 					//
-					// Echo returns the echo.Context back to its sync.Pool as
+					// Echo returns the [echo.Context] back to its sync.Pool as
 					// soon as this synchronous handler returns ErrAsyncProcess.
 					// A concurrent request can then claim the recycled context
 					// and c.Reset() wipes the shared store, which would cause
 					// any c.Get("...").(T) assertion downstream of the webhook
 					// goroutine to panic on a nil value and crash the process.
 					// Snapshot the keys downstream reads onto a detached
-					// wrapper before spawning the goroutine so pool reuse
+					// context before spawning the goroutine so pool reuse
 					// cannot reach into our async work.
-					detached := newPoolSafeContext(c, "logger", "context", "correlationId", "correlationIdHeader", "startTime")
+					detached := newDetachedContext(c, "logger", "context", "correlationId", "correlationIdHeader", "startTime")
 
 					w.asyncCount.Add(1)
 					go func() {

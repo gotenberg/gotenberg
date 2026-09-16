@@ -15,7 +15,7 @@ import (
 
 	"github.com/cucumber/godog"
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/mholt/archives"
 )
 
@@ -26,12 +26,17 @@ type server struct {
 	errChan   chan error
 	eventBody []byte
 	eventMu   sync.Mutex
+
+	shutdown context.CancelFunc
+	done     chan struct{}
 }
 
 func newServer(ctx context.Context, workdir string) (*server, error) {
 	srv := echo.New()
-	srv.HideBanner = true
-	srv.HidePort = true
+	// The static file handlers below serve absolute paths, which Echo v5's
+	// default working-directory filesystem rejects. See newEchoServer in
+	// pkg/modules/api.
+	srv.Filesystem = echo.NewDefaultFS("/")
 	s := &server{
 		srv:     srv,
 		errChan: make(chan error, 1),
@@ -47,7 +52,7 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 		return err
 	}
 
-	webhookHandler := func(c echo.Context) error {
+	webhookHandler := func(c *echo.Context) error {
 		s.req = c.Request()
 
 		body, err := io.ReadAll(s.req.Body)
@@ -131,7 +136,7 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 
 		return webhookErr(c.String(http.StatusOK, http.StatusText(http.StatusOK)))
 	}
-	webhookErrorHandler := func(c echo.Context) error {
+	webhookErrorHandler := func(c *echo.Context) error {
 		s.req = c.Request()
 		body, err := io.ReadAll(s.req.Body)
 		if err != nil {
@@ -148,7 +153,7 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 	srv.PATCH("/webhook/error", webhookErrorHandler)
 	srv.PUT("/webhook/error", webhookErrorHandler)
 
-	webhookEventsHandler := func(c echo.Context) error {
+	webhookEventsHandler := func(c *echo.Context) error {
 		body, err := io.ReadAll(c.Request().Body)
 		if err != nil {
 			return c.String(http.StatusInternalServerError, err.Error())
@@ -159,7 +164,7 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 		return c.String(http.StatusOK, http.StatusText(http.StatusOK))
 	}
 	srv.POST("/webhook/events", webhookEventsHandler)
-	srv.GET("/static/:path", func(c echo.Context) error {
+	srv.GET("/static/:path", func(c *echo.Context) error {
 		s.req = c.Request()
 		path := c.Param("path")
 		if strings.Contains(path, "teststore") {
@@ -167,7 +172,7 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 		}
 		return c.Attachment(fmt.Sprintf("%s/%s", wd, path), filepath.Base(path))
 	})
-	srv.GET("/html/:path", func(c echo.Context) error {
+	srv.GET("/html/:path", func(c *echo.Context) error {
 		s.req = c.Request()
 		path := fmt.Sprintf("%s/%s", wd, c.Param("path"))
 		f, err := os.Open(path)
@@ -181,7 +186,7 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 		}
 		return c.HTML(http.StatusOK, string(b))
 	})
-	srv.GET("/redirect-to-private", func(c echo.Context) error {
+	srv.GET("/redirect-to-private", func(c *echo.Context) error {
 		s.req = c.Request()
 		// Redirect the browser to a non-public address so the outbound filter
 		// is exercised on the redirected request rather than on this URL.
@@ -206,9 +211,20 @@ func (s *server) start(ctx context.Context) (int, error) {
 
 	port := ln.Addr().(*net.TCPAddr).Port
 
+	startConfig := echo.StartConfig{
+		Listener:   ln,
+		HideBanner: true,
+		HidePort:   true,
+	}
+
+	serveCtx, cancel := context.WithCancel(context.Background())
+	s.shutdown = cancel
+	s.done = make(chan struct{})
+
 	go func() {
-		s.srv.Listener = ln
-		err = s.srv.Start("")
+		defer close(s.done)
+
+		err := startConfig.Start(serveCtx, s.srv)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			godog.Log(ctx, err.Error())
 		}
@@ -219,5 +235,17 @@ func (s *server) start(ctx context.Context) (int, error) {
 
 func (s *server) stop(ctx context.Context) error {
 	close(s.errChan)
-	return s.srv.Shutdown(ctx)
+
+	if s.shutdown == nil {
+		return nil
+	}
+
+	s.shutdown()
+
+	select {
+	case <-s.done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }

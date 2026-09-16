@@ -12,8 +12,8 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	"github.com/labstack/echo/v5"
+	"github.com/labstack/echo/v5/middleware"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -37,10 +37,12 @@ var (
 // ParseError parses an error and returns the corresponding HTTP status and
 // HTTP message.
 func ParseError(err error) (int, string) {
-	var echoErr *echo.HTTPError
-	ok := errors.As(err, &echoErr)
-	if ok {
-		return echoErr.Code, http.StatusText(echoErr.Code)
+	// [echo.StatusCode] also matches the router's ErrNotFound and
+	// ErrMethodNotAllowed sentinels, which Echo v5 no longer models as
+	// [echo.HTTPError]. Matching that type alone would let every unrouted
+	// request fall through to a 500.
+	if code := echo.StatusCode(err); code != 0 {
+		return code, http.StatusText(code)
 	}
 
 	if errors.Is(err, context.DeadlineExceeded) {
@@ -100,14 +102,14 @@ const statusClientClosedRequest = 499
 // A server-side timeout is [context.DeadlineExceeded], mapped to 503 by
 // [ParseError], and is deliberately not treated as a client abort.
 // See https://github.com/gotenberg/gotenberg/issues/1627.
-func requestCanceled(c echo.Context, err error) bool {
+func requestCanceled(c *echo.Context, err error) bool {
 	return errors.Is(err, context.Canceled) && errors.Is(c.Request().Context().Err(), context.Canceled)
 }
 
 // httpErrorHandler is the centralized HTTP error handler. It parses the error,
 // returns a response as "text/plain; charset=UTF-8".
 func httpErrorHandler() echo.HTTPErrorHandler {
-	return func(err error, c echo.Context) {
+	return func(c *echo.Context, err error) {
 		logger := c.Get("logger").(*slog.Logger)
 
 		if requestCanceled(c, err) {
@@ -134,7 +136,7 @@ func httpErrorHandler() echo.HTTPErrorHandler {
 //	startTime := c.Get("startTime").(time.Time)
 func latencyMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			// First piece for calculating the latency.
 			startTime := time.Now()
 			c.Set("startTime", startTime)
@@ -159,7 +161,7 @@ func latencyMiddleware() echo.MiddlewareFunc {
 //	}
 func rootPathMiddleware(rootPath string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			c.Set("rootPath", rootPath)
 			// Call the next middleware in the chain.
 			return next(c)
@@ -173,7 +175,7 @@ func rootPathMiddleware(rootPath string) echo.MiddlewareFunc {
 //	outputFilename := c.Get("outputFilename").(string)
 func outputFilenameMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			filename := c.Request().Header.Get("Gotenberg-Output-Filename")
 			// Keep only the last path segment, so that a caller cannot name an
 			// output file after a path.
@@ -203,9 +205,17 @@ func telemetryMiddleware(logger *slog.Logger, serverName, correlationIdHeader st
 	semconvSrv := semconvutil.NewHTTPServer(meter)
 
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			startTime := c.Get("startTime").(time.Time)
 			rootPath := c.Get("rootPath").(string)
+
+			// Echo v5 returns the bare [http.ResponseWriter] from
+			// Context.Response, so unwrap it to read the recorded status and
+			// size below.
+			response, errUnwrap := echo.UnwrapResponse(c.Response())
+			if errUnwrap != nil {
+				return fmt.Errorf("unwrap response: %w", errUnwrap)
+			}
 
 			request := c.Request()
 			savedCtx := request.Context()
@@ -239,7 +249,7 @@ func telemetryMiddleware(logger *slog.Logger, serverName, correlationIdHeader st
 
 				err := next(c)
 				if err != nil {
-					c.Error(err)
+					c.Echo().HTTPErrorHandler(c, err)
 				}
 				return nil
 			}
@@ -288,7 +298,7 @@ func telemetryMiddleware(logger *slog.Logger, serverName, correlationIdHeader st
 			err := next(c)
 			finishTime := time.Now()
 
-			status := c.Response().Status
+			status := response.Status
 			canceled := false
 			if err != nil {
 				canceled = requestCanceled(c, err)
@@ -300,13 +310,13 @@ func telemetryMiddleware(logger *slog.Logger, serverName, correlationIdHeader st
 				}
 
 				span.SetAttributes(attribute.String("error", err.Error()))
-				c.Error(err)
+				c.Echo().HTTPErrorHandler(c, err)
 			}
 
 			span.SetStatus(semconvSrv.Status(status))
 			span.SetAttributes(semconvSrv.ResponseTraceAttrs(semconvutil.ResponseTelemetry{
 				StatusCode: status,
-				WriteBytes: c.Response().Size,
+				WriteBytes: response.Size,
 			})...)
 
 			// Pick the level and message before building the record: err.Error
@@ -343,11 +353,11 @@ func telemetryMiddleware(logger *slog.Logger, serverName, correlationIdHeader st
 				slog.String("path", routePath),
 				slog.String("referer", c.Request().Referer()),
 				slog.String("user_agent", c.Request().UserAgent()),
-				slog.Int("status", c.Response().Status),
+				slog.Int("status", response.Status),
 				slog.Int64("latency", int64(latency)),
 				slog.String("latency_human", latency.String()),
 				slog.Int64("bytes_in", c.Request().ContentLength),
-				slog.Int64("bytes_out", c.Response().Size),
+				slog.Int64("bytes_out", response.Size),
 			)
 
 			additionalAttributes := []attribute.KeyValue{
@@ -356,7 +366,7 @@ func telemetryMiddleware(logger *slog.Logger, serverName, correlationIdHeader st
 
 			semconvSrv.RecordMetrics(ctx, semconvutil.ServerMetricData{
 				ServerName:           serverName,
-				ResponseSize:         c.Response().Size,
+				ResponseSize:         response.Size,
 				Req:                  request,
 				StatusCode:           status,
 				AdditionalAttributes: additionalAttributes,
@@ -371,7 +381,7 @@ func telemetryMiddleware(logger *slog.Logger, serverName, correlationIdHeader st
 
 // basicAuthMiddleware manages basic authentication.
 func basicAuthMiddleware(username, password string) echo.MiddlewareFunc {
-	return middleware.BasicAuth(func(u string, p string, e echo.Context) (bool, error) {
+	return middleware.BasicAuth(func(c *echo.Context, u string, p string) (bool, error) {
 		if subtle.ConstantTimeCompare([]byte(u), []byte(username)) == 1 &&
 			subtle.ConstantTimeCompare([]byte(p), []byte(password)) == 1 {
 			return true, nil
@@ -417,7 +427,7 @@ func (a *Api) buildOidcVerifier() (*oidc.IDTokenVerifier, error) {
 // it to the client.
 func oidcAuthMiddleware(verifier *oidc.IDTokenVerifier) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			rawToken, ok := strings.CutPrefix(c.Request().Header.Get("Authorization"), "Bearer ")
 			if !ok || rawToken == "" {
 				return echo.NewHTTPError(http.StatusUnauthorized, "a Bearer token is required in the Authorization header")
@@ -446,7 +456,7 @@ func oidcAuthMiddleware(verifier *oidc.IDTokenVerifier) echo.MiddlewareFunc {
 //	cancel := c.Get("cancel").(context.CancelFunc)
 func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			logger, _ := c.Get("logger").(*slog.Logger)
 			if logger == nil {
 				return errors.New("no logger in context (possible pool reuse)")
@@ -507,7 +517,7 @@ func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, bodyLimi
 // handler fails to timeout as expected.
 func hardTimeoutMiddleware(hardTimeout time.Duration) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			// Guard the type assertion so a pooled [echo.Context] whose
 			// store has been recycled under us does not crash the process.
 			// See the webhook async handler for the race this protects

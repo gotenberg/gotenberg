@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
@@ -27,7 +27,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 		Method:      http.MethodPost,
 		Path:        "/forms/libreoffice/convert",
 		IsMultipart: true,
-		Handler: func(c echo.Context) error {
+		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 			defaultOptions := libreofficeapi.DefaultOptions()
 

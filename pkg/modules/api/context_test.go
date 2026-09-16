@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/dlclark/regexp2"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )

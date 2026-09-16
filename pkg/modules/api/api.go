@@ -13,9 +13,8 @@ import (
 
 	"github.com/alexliesenfeld/health"
 	"github.com/dlclark/regexp2"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	flag "github.com/spf13/pflag"
-	"golang.org/x/net/http2"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
@@ -58,6 +57,12 @@ type Api struct {
 	fs                  *gotenberg.FileSystem
 	logger              *slog.Logger
 	srv                 *echo.Echo
+
+	// shutdownCancel triggers the graceful shutdown of the server started by
+	// [echo.StartConfig]. Echo v5 drives shutdown from a context instead of an
+	// Echo.Shutdown method. serveDone closes once that shutdown completed.
+	shutdownCancel context.CancelFunc
+	serveDone      chan struct{}
 }
 
 type downloadFromConfig struct {
@@ -134,7 +139,7 @@ const (
 //	middleware := Middleware{
 //	  Handler: func() echo.MiddlewareFunc {
 //	    return func(next echo.HandlerFunc) echo.HandlerFunc {
-//	      return func(c echo.Context) error {
+//	      return func(c *echo.Context) error {
 //	        rootPath := c.Get("rootPath").(string)
 //	        healthURI := fmt.Sprintf("%shealth", rootPath)
 //
@@ -536,16 +541,29 @@ func (a *Api) Validate() error {
 	return nil
 }
 
+// newEchoServer builds the [echo.Echo] instance with the settings Gotenberg
+// relies on, independently of the routes and middlewares added by [Api.Start].
+func newEchoServer() *echo.Echo {
+	srv := echo.New()
+	srv.HTTPErrorHandler = httpErrorHandler()
+	// Echo v5 serves files through Echo.Filesystem, an [fs.FS] rooted at the
+	// working directory, and [fs.FS] rejects absolute names. Every output file
+	// lives under the request's temporary directory, so Context.Attachment gets
+	// an absolute path and the default filesystem answers 404 for every
+	// conversion. Rooting at "/" restores the v4 behavior, where the path was
+	// opened as-is.
+	srv.Filesystem = echo.NewDefaultFS("/")
+	// Echo v5 dropped the X-Forwarded-For and X-Real-IP fallbacks from
+	// Context.RealIP. Keep the previous behavior so that the access log still
+	// reports the client IP when Gotenberg sits behind a reverse proxy.
+	srv.IPExtractor = echo.LegacyIPExtractor()
+
+	return srv
+}
+
 // Start starts the HTTP server.
 func (a *Api) Start() error {
-	a.srv = echo.New()
-	a.srv.HideBanner = true
-	a.srv.HidePort = true
-	a.srv.Server.ReadTimeout = a.timeout
-	a.srv.Server.IdleTimeout = a.timeout
-	// See https://github.com/gotenberg/gotenberg/issues/396.
-	a.srv.Server.WriteTimeout = a.timeout + a.timeout
-	a.srv.HTTPErrorHandler = httpErrorHandler()
+	a.srv = newEchoServer()
 
 	// Let's prepare the modules' routes.
 	var disableTelemetryForPaths []string
@@ -609,7 +627,7 @@ func (a *Api) Start() error {
 		securityMiddleware = oidcAuthMiddleware(verifier)
 	default:
 		securityMiddleware = func(next echo.HandlerFunc) echo.HandlerFunc {
-			return func(c echo.Context) error {
+			return func(c *echo.Context) error {
 				return next(c)
 			}
 		}
@@ -641,7 +659,7 @@ func (a *Api) Start() error {
 	// Root route.
 	a.srv.GET(
 		a.rootPath,
-		func(c echo.Context) error {
+		func(c *echo.Context) error {
 			return c.HTML(http.StatusOK, `Hey, Gotenberg has no UI, it's an API. Head to the <a href="https://gotenberg.dev">documentation</a> to learn how to interact with it 🚀`)
 		},
 		securityMiddleware,
@@ -650,7 +668,7 @@ func (a *Api) Start() error {
 	// Favicon route.
 	a.srv.GET(
 		fmt.Sprintf("%s%s", a.rootPath, "favicon.ico"),
-		func(c echo.Context) error {
+		func(c *echo.Context) error {
 			return c.NoContent(http.StatusNoContent)
 		},
 		securityMiddleware,
@@ -681,7 +699,7 @@ func (a *Api) Start() error {
 	// ...the version route.
 	a.srv.GET(
 		fmt.Sprintf("%s%s", a.rootPath, "version"),
-		func(c echo.Context) error {
+		func(c *echo.Context) error {
 			return c.String(http.StatusOK, gotenberg.Version)
 		},
 		securityMiddleware,
@@ -691,7 +709,7 @@ func (a *Api) Start() error {
 	if a.enableDebugRoute {
 		a.srv.GET(
 			fmt.Sprintf("%s%s", a.rootPath, "debug"),
-			func(c echo.Context) error {
+			func(c *echo.Context) error {
 				return c.JSONPretty(http.StatusOK, gotenberg.Debug(), "  ")
 			},
 			securityMiddleware,
@@ -712,18 +730,50 @@ func (a *Api) Start() error {
 		return fmt.Errorf("waiting for modules readiness: %w", err)
 	}
 
+	startConfig := echo.StartConfig{
+		Address:    fmt.Sprintf("%s:%d", a.bindIp, a.port),
+		HideBanner: true,
+		HidePort:   true,
+		BeforeServeFunc: func(s *http.Server) error {
+			s.ReadTimeout = a.timeout
+			s.IdleTimeout = a.timeout
+			// See https://github.com/gotenberg/gotenberg/issues/396.
+			s.WriteTimeout = a.timeout + a.timeout
+
+			if a.tlsCertFile == "" || a.tlsKeyFile == "" {
+				// Serve HTTP/2 Cleartext (h2c). Echo v5 dropped
+				// StartH2CServer and golang.org/x/net/http2/h2c is deprecated,
+				// so the standard library serves h2c through Server.Protocols
+				// instead.
+				protocols := new(http.Protocols)
+				protocols.SetHTTP1(true)
+				protocols.SetUnencryptedHTTP2(true)
+				s.Protocols = protocols
+			}
+
+			return nil
+		},
+	}
+
+	// Not named cancel: that would reassign the readiness timeout's cancel from
+	// above, whose deferred call is already bound to the old value.
+	serveCtx, serveCancel := context.WithCancel(context.Background())
+	a.shutdownCancel = serveCancel
+	a.serveDone = make(chan struct{})
+
 	// As the following code is blocking, run it in a goroutine.
 	go func() {
+		defer close(a.serveDone)
+
 		var err error
 		if a.tlsCertFile != "" && a.tlsKeyFile != "" {
 			// Start an HTTPS server (supports HTTP/2).
-			err = a.srv.StartTLS(fmt.Sprintf("%s:%d", a.bindIp, a.port), a.tlsCertFile, a.tlsKeyFile)
+			err = startConfig.StartTLS(serveCtx, a.srv, a.tlsCertFile, a.tlsKeyFile)
 		} else {
 			// Start an HTTP/2 Cleartext (non-HTTPS) server.
-			server := &http2.Server{}
-			err = a.srv.StartH2CServer(fmt.Sprintf("%s:%d", a.bindIp, a.port), server)
+			err = startConfig.Start(serveCtx, a.srv)
 		}
-		if !errors.Is(err, http.ErrServerClosed) {
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			a.logger.ErrorContext(context.Background(), err.Error())
 		}
 	}()
@@ -740,6 +790,26 @@ func (a *Api) StartupMessage() string {
 	return fmt.Sprintf("server started on %s:%d", ip, a.port)
 }
 
+// shutdown triggers the server's graceful shutdown and waits for it to
+// complete, or for ctx to be done. Cancelling the serve context is what Echo v5
+// exposes in place of Echo.Shutdown: [echo.StartConfig] shuts the server down
+// on its own deadline, so the shutdown proceeds even when ctx is already done.
+func (a *Api) shutdown(ctx context.Context) error {
+	if a.shutdownCancel == nil {
+		// Start never ran, so there is nothing to shut down.
+		return nil
+	}
+
+	a.shutdownCancel()
+
+	select {
+	case <-a.serveDone:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 // Stop stops the HTTP server.
 func (a *Api) Stop(ctx context.Context) error {
 	for {
@@ -749,7 +819,7 @@ func (a *Api) Stop(ctx context.Context) error {
 		}
 		select {
 		case <-ctx.Done():
-			return a.srv.Shutdown(ctx)
+			return a.shutdown(ctx)
 		default:
 			a.logger.DebugContext(ctx, fmt.Sprintf("%d asynchronous requests", count))
 			if count > 0 {
@@ -757,7 +827,7 @@ func (a *Api) Stop(ctx context.Context) error {
 				continue
 			}
 			a.logger.DebugContext(ctx, "no more asynchronous requests, continue with shutdown")
-			err := a.srv.Shutdown(ctx)
+			err := a.shutdown(ctx)
 			if err != nil {
 				return fmt.Errorf("shutdown: %w", err)
 			}

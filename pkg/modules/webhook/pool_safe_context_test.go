@@ -6,10 +6,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
-func TestPoolSafeContext_SurvivesUnderlyingReset(t *testing.T) {
+func TestNewDetachedContext_SurvivesUnderlyingReset(t *testing.T) {
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodPost, "/", nil)
 	rec := httptest.NewRecorder()
@@ -19,10 +19,10 @@ func TestPoolSafeContext_SurvivesUnderlyingReset(t *testing.T) {
 	c.Set("logger", logger)
 	c.Set("correlationId", "abc-123")
 
-	detached := newPoolSafeContext(c, "logger", "correlationId", "missing")
+	detached := newDetachedContext(c, "logger", "correlationId", "missing")
 
-	// Simulate Echo recycling c for a concurrent request. Reset wipes the
-	// shared store, which is exactly the crash scenario the wrapper
+	// Simulate Echo recycling c for a concurrent request. Reset clears the
+	// pooled store, which is exactly the crash scenario the detached context
 	// guards against.
 	c.Reset(httptest.NewRequest(http.MethodGet, "/", nil), httptest.NewRecorder())
 
@@ -38,17 +38,17 @@ func TestPoolSafeContext_SurvivesUnderlyingReset(t *testing.T) {
 
 	// Underlying c must remain clean.
 	if c.Get("logger") != nil {
-		t.Fatalf("underlying c.Get(\"logger\") leaked wrapper state after reset")
+		t.Fatalf("underlying c.Get(\"logger\") leaked detached state after reset")
 	}
 }
 
-func TestPoolSafeContext_SetDoesNotTouchUnderlying(t *testing.T) {
+func TestNewDetachedContext_SetDoesNotTouchUnderlying(t *testing.T) {
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodPost, "/", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	detached := newPoolSafeContext(c)
+	detached := newDetachedContext(c)
 	detached.Set("foo", "bar")
 
 	if got, _ := detached.Get("foo").(string); got != "bar" {
