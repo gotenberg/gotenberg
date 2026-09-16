@@ -222,6 +222,10 @@ func (f *ParsedFlags) MustDeprecatedHumanReadableBytes(deprecated string, newNam
 // built. Patterns compiled any other way keep regexp2's default of
 // math.MaxInt64, which it treats as no timeout at all, so a hand-built slice
 // must set this itself before reaching [DecideOutbound].
+//
+// The ceiling is wall-clock. Match through [MatchPattern] rather than calling
+// regexp2 directly: a match that never approaches the ceiling still aborts if
+// the process loses the CPU at the wrong moment.
 const PatternMatchTimeout = 250 * time.Millisecond
 
 // MustRegexp returns the regular expression of a flag given by name.

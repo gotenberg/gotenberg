@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/dlclark/regexp2"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 func TestScopeMatchBudget(t *testing.T) {
@@ -90,7 +92,7 @@ func TestScopeMatchBudget_BoundsCatastrophicBacktracking(t *testing.T) {
 			break
 		}
 		matchStart := time.Now()
-		_, _ = pattern.MatchString(url)
+		_, _ = gotenberg.MatchPattern(pattern, url)
 		b.consume(time.Since(matchStart))
 		matched++
 	}
@@ -100,10 +102,13 @@ func TestScopeMatchBudget_BoundsCatastrophicBacktracking(t *testing.T) {
 		t.Errorf("all %d headers were matched, want the budget to stop matching early", headers)
 	}
 
-	// Each match is separately capped at extraHttpHeaderScopeMatchTimeout, so
-	// the worst case is the budget plus one final match that started with the
-	// last of the credit. Generous slack keeps this stable on a loaded CI box.
-	ceiling := budget + extraHttpHeaderScopeMatchTimeout + time.Second
+	// A match that is genuinely out of budget costs a few
+	// extraHttpHeaderScopeMatchTimeout rather than one:
+	// [gotenberg.MatchPattern] retries an abort to tell a real runaway from
+	// one caused by the process losing the CPU. The worst case is the budget
+	// plus one final match that started with the last of the credit. Generous
+	// slack keeps this stable on a loaded CI box.
+	ceiling := budget + 4*extraHttpHeaderScopeMatchTimeout + time.Second
 	if elapsed > ceiling {
 		t.Errorf("matching took %s, want at most %s", elapsed, ceiling)
 	}

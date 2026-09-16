@@ -336,12 +336,16 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 	allowMatched := false
 	if len(allowList) > 0 {
 		for _, pattern := range allowList {
-			ok, err := pattern.MatchString(normalized)
+			ok, err := MatchPattern(pattern, normalized)
 			if err != nil {
 				if time.Now().After(deadline) {
 					return OutboundDecision{}, context.DeadlineExceeded
 				}
-				return OutboundDecision{}, fmt.Errorf("'%s' cannot handle '%s': %w", pattern.String(), normalized, err)
+				// The pattern could not be evaluated, so the URL cannot be
+				// cleared for the IP-check bypass an allow-list match grants.
+				// Fail closed like an unresolvable host does below, so the
+				// client gets a generic 403 rather than a 500.
+				return OutboundDecision{}, fmt.Errorf("'%s' cannot handle '%s': %v: %w", pattern.String(), normalized, err, ErrFiltered)
 			}
 
 			if ok {
@@ -356,12 +360,15 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 	}
 
 	for _, pattern := range denyList {
-		ok, err := pattern.MatchString(normalized)
+		ok, err := MatchPattern(pattern, normalized)
 		if err != nil {
 			if time.Now().After(deadline) {
 				return OutboundDecision{}, context.DeadlineExceeded
 			}
-			return OutboundDecision{}, fmt.Errorf("'%s' cannot handle '%s': %w", pattern.String(), normalized, err)
+			// The pattern could not be evaluated, so the URL cannot be proven
+			// to fall outside the deny-list. Fail closed rather than letting a
+			// deny-list that never ran pass the request through.
+			return OutboundDecision{}, fmt.Errorf("'%s' cannot handle '%s': %v: %w", pattern.String(), normalized, err, ErrFiltered)
 		}
 
 		if ok {

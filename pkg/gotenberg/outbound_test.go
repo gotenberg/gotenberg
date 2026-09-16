@@ -793,6 +793,13 @@ func TestDecideOutboundBoundsCatastrophicPatterns(t *testing.T) {
 		t.Fatal("expected an error from a catastrophic deny-list pattern")
 	}
 
+	// A deny-list that could not be evaluated cannot clear the URL, so the
+	// decision fails closed and the client gets a generic 403 rather than a
+	// 500 naming the pattern.
+	if !errors.Is(err, ErrFiltered) {
+		t.Fatalf("expected ErrFiltered from an unevaluable deny-list pattern but got: %v", err)
+	}
+
 	// Generous headroom over the 250ms ceiling, still far below the 30s
 	// deadline the match would otherwise have been allowed to consume.
 	if elapsed > 5*time.Second {

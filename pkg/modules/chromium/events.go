@@ -206,7 +206,7 @@ func listenForEventRequestPaused(ctx context.Context, logger *slog.Logger, optio
 						}
 
 						matchStart := time.Now()
-						ok, err := header.Scope.MatchString(e.Request.URL)
+						ok, err := gotenberg.MatchPattern(header.Scope, e.Request.URL)
 						budget.consume(time.Since(matchStart))
 
 						switch {
