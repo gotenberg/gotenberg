@@ -1,7 +1,7 @@
 package gotenberg
 
 import (
-	"github.com/dlclark/regexp2"
+	"github.com/dlclark/regexp2/v2"
 )
 
 // patternMatchAttempts caps how many times [MatchPattern] runs one pattern

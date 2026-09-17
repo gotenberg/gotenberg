@@ -17,14 +17,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dlclark/regexp2"
+	"github.com/dlclark/regexp2/v2"
 )
 
 func compileRegexes(t *testing.T, patterns ...string) []*regexp2.Regexp {
 	t.Helper()
 	out := make([]*regexp2.Regexp, 0, len(patterns))
 	for _, p := range patterns {
-		r, err := regexp2.Compile(p, 0)
+		r, err := regexp2.Compile(p, regexp2.None)
 		if err != nil {
 			t.Fatalf("compile %q: %v", p, err)
 		}

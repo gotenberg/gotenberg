@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dlclark/regexp2"
+	"github.com/dlclark/regexp2/v2"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )

@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dlclark/regexp2"
+	"github.com/dlclark/regexp2/v2"
 	"github.com/hashicorp/go-retryablehttp"
 	"golang.org/x/net/http/httpproxy"
 )

@@ -5,14 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dlclark/regexp2"
+	"github.com/dlclark/regexp2/v2"
 )
 
 // mustPattern compiles a pattern the way the production lists are built.
 func mustPattern(t *testing.T, expr string) *regexp2.Regexp {
 	t.Helper()
 
-	re := regexp2.MustCompile(expr, 0)
+	re := regexp2.MustCompile(expr, regexp2.None)
 	re.MatchTimeout = PatternMatchTimeout
 
 	return re

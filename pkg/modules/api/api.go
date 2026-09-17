@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/alexliesenfeld/health"
-	"github.com/dlclark/regexp2"
+	"github.com/dlclark/regexp2/v2"
 	"github.com/labstack/echo/v5"
 	flag "github.com/spf13/pflag"
 	"golang.org/x/sync/errgroup"

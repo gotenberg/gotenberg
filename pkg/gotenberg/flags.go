@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dlclark/regexp2"
+	"github.com/dlclark/regexp2/v2"
 	"github.com/labstack/gommon/bytes"
 	flag "github.com/spf13/pflag"
 
@@ -239,7 +239,7 @@ func (f *ParsedFlags) MustRegexp(name string) *regexp2.Regexp {
 		panic(err)
 	}
 
-	re := regexp2.MustCompile(val, 0)
+	re := regexp2.MustCompile(val, regexp2.None)
 	re.MatchTimeout = PatternMatchTimeout
 
 	return re
@@ -276,7 +276,7 @@ func (f *ParsedFlags) MustRegexpSlice(name string) []*regexp2.Regexp {
 			continue
 		}
 
-		re := regexp2.MustCompile(val, 0)
+		re := regexp2.MustCompile(val, regexp2.None)
 		re.MatchTimeout = PatternMatchTimeout
 
 		regexps = append(regexps, re)

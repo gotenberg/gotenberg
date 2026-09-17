@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dlclark/regexp2"
+	"github.com/dlclark/regexp2/v2"
 	flag "github.com/spf13/pflag"
 )
 

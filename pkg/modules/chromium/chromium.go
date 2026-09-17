@@ -14,7 +14,7 @@ import (
 
 	"github.com/alexliesenfeld/health"
 	"github.com/chromedp/cdproto/network"
-	"github.com/dlclark/regexp2"
+	"github.com/dlclark/regexp2/v2"
 	flag "github.com/spf13/pflag"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"

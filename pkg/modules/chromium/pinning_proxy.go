@@ -14,7 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/dlclark/regexp2"
+	"github.com/dlclark/regexp2/v2"
 	"golang.org/x/net/http/httpproxy"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"

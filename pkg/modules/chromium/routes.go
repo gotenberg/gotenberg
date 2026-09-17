@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dlclark/regexp2"
+	"github.com/dlclark/regexp2/v2"
 	"github.com/gomarkdown/markdown"
 	"github.com/labstack/echo/v5"
 	"github.com/microcosm-cc/bluemonday"

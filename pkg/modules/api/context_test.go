@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dlclark/regexp2"
+	"github.com/dlclark/regexp2/v2"
 	"github.com/labstack/echo/v5"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
@@ -875,7 +875,7 @@ func TestNewContext_DownloadFromRedirectVerdictStaysGeneric(t *testing.T) {
 	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 	// The first hop is allowed, the redirect target is denied by the deny-list.
-	denyList := []*regexp2.Regexp{regexp2.MustCompile("^"+regexp.QuoteMeta(private.URL), 0)}
+	denyList := []*regexp2.Regexp{regexp2.MustCompile("^"+regexp.QuoteMeta(private.URL), regexp2.None)}
 
 	_, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromConfig{
 		denyList: denyList,

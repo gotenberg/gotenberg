@@ -17,7 +17,7 @@ import (
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
-	"github.com/dlclark/regexp2"
+	"github.com/dlclark/regexp2/v2"
 	"github.com/shirou/gopsutil/v4/process"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"

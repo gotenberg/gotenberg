@@ -3,7 +3,7 @@ package gotenberg
 import (
 	"testing"
 
-	"github.com/dlclark/regexp2"
+	"github.com/dlclark/regexp2/v2"
 )
 
 func TestAuditAllowList(t *testing.T) {
@@ -93,7 +93,7 @@ func TestAuditAllowList_FlaggedPatternsAreActuallyExploitable(t *testing.T) {
 				t.Fatalf("pattern %q was not flagged", tc.pattern)
 			}
 
-			ok, err := regexp2.MustCompile(tc.pattern, 0).MatchString(tc.attack)
+			ok, err := regexp2.MustCompile(tc.pattern, regexp2.None).MatchString(tc.attack)
 			if err != nil {
 				t.Fatalf("match %q: %v", tc.attack, err)
 			}
@@ -129,7 +129,7 @@ func TestAuditAllowList_SafePatternsRejectTheAttacks(t *testing.T) {
 				t.Fatalf("safe pattern %q was flagged as %q", pattern, findings[0].Risk)
 			}
 
-			re := regexp2.MustCompile(pattern, 0)
+			re := regexp2.MustCompile(pattern, regexp2.None)
 			for _, attack := range attacks {
 				ok, err := re.MatchString(attack)
 				if err != nil {

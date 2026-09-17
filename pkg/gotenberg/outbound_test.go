@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dlclark/regexp2"
+	"github.com/dlclark/regexp2/v2"
 )
 
 func TestIsPublicIP(t *testing.T) {
@@ -164,10 +164,10 @@ func mustAddrs(t *testing.T, ss ...string) []netip.Addr {
 
 func TestFilterOutboundURL(t *testing.T) {
 	defaultDeny := []*regexp2.Regexp{
-		regexp2.MustCompile(`^https?://(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|169\.254\.|0\.0\.0\.0|127\.|localhost|\[::1\]|\[fd)`, 0),
+		regexp2.MustCompile(`^https?://(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|169\.254\.|0\.0\.0\.0|127\.|localhost|\[::1\]|\[fd)`, regexp2.None),
 	}
 	chromiumDeny := []*regexp2.Regexp{
-		regexp2.MustCompile(`^file:(?!//\/tmp/).*`, 0),
+		regexp2.MustCompile(`^file:(?!//\/tmp/).*`, regexp2.None),
 	}
 
 	for _, tc := range []struct {
@@ -246,7 +246,7 @@ func TestFilterOutboundURL(t *testing.T) {
 		{
 			scenario:  "allow-list match bypasses IP check",
 			rawURL:    "http://internal.service/api",
-			allow:     []*regexp2.Regexp{regexp2.MustCompile(`^http://internal\.service`, 0)},
+			allow:     []*regexp2.Regexp{regexp2.MustCompile(`^http://internal\.service`, regexp2.None)},
 			deny:      defaultDeny,
 			opts:      []DecideOption{WithDenyPrivateIPs(true)},
 			expectErr: false,
@@ -254,15 +254,15 @@ func TestFilterOutboundURL(t *testing.T) {
 		{
 			scenario:  "deny-list still wins over allow-list match",
 			rawURL:    "http://internal.service/api",
-			allow:     []*regexp2.Regexp{regexp2.MustCompile(`^http://internal`, 0)},
-			deny:      []*regexp2.Regexp{regexp2.MustCompile(`/api$`, 0)},
+			allow:     []*regexp2.Regexp{regexp2.MustCompile(`^http://internal`, regexp2.None)},
+			deny:      []*regexp2.Regexp{regexp2.MustCompile(`/api$`, regexp2.None)},
 			expectErr: true,
 			expectIs:  ErrFiltered,
 		},
 		{
 			scenario:  "allow-list non-empty and no match rejects",
 			rawURL:    "https://other.example/",
-			allow:     []*regexp2.Regexp{regexp2.MustCompile(`^https://allowed\.example`, 0)},
+			allow:     []*regexp2.Regexp{regexp2.MustCompile(`^https://allowed\.example`, regexp2.None)},
 			expectErr: true,
 			expectIs:  ErrFiltered,
 		},
@@ -539,7 +539,7 @@ func TestDecideOutbound_DenyLists_WinOverDenyPrivateIPs(t *testing.T) {
 	// The regex deny-list fires before any resolution; verifies that
 	// operator-supplied deny patterns remain effective regardless of
 	// IP-class options.
-	deny := []*regexp2.Regexp{regexp2.MustCompile(`^http://evil\.`, 0)}
+	deny := []*regexp2.Regexp{regexp2.MustCompile(`^http://evil\.`, regexp2.None)}
 
 	_, err := DecideOutbound(
 		context.Background(),
@@ -605,7 +605,7 @@ func TestDecideOutbound_UserinfoDoesNotEvadeDenyList(t *testing.T) {
 				context.Background(),
 				rawURL,
 				nil,
-				[]*regexp2.Regexp{regexp2.MustCompile(privateIPsDenyList, 0)},
+				[]*regexp2.Regexp{regexp2.MustCompile(privateIPsDenyList, regexp2.None)},
 				time.Now().Add(5*time.Second),
 			)
 			if !errors.Is(err, ErrFiltered) {
@@ -617,7 +617,7 @@ func TestDecideOutbound_UserinfoDoesNotEvadeDenyList(t *testing.T) {
 
 func TestDecideOutbound_UserinfoDoesNotSatisfyAllowList(t *testing.T) {
 	// A host-terminated allow-list, the shape the documentation recommends.
-	allowList := []*regexp2.Regexp{regexp2.MustCompile(`^https://trusted\.example\.com(:[0-9]+)?(/|$)`, 0)}
+	allowList := []*regexp2.Regexp{regexp2.MustCompile(`^https://trusted\.example\.com(:[0-9]+)?(/|$)`, regexp2.None)}
 
 	for _, rawURL := range []string{
 		"https://trusted.example.com@169.254.169.254/latest/meta-data/",
@@ -656,7 +656,7 @@ func TestDecideOutbound_UserinfoKeptOutOfErrorMessages(t *testing.T) {
 		context.Background(),
 		"http://alice:hunter2@127.0.0.1:9999/",
 		nil,
-		[]*regexp2.Regexp{regexp2.MustCompile(privateIPsDenyList, 0)},
+		[]*regexp2.Regexp{regexp2.MustCompile(privateIPsDenyList, regexp2.None)},
 		time.Now().Add(5*time.Second),
 	)
 	if err == nil {
@@ -680,7 +680,7 @@ func TestDecideOutbound_LegitimateCredentialsStillReachTheHost(t *testing.T) {
 	decision, err := DecideOutbound(
 		context.Background(),
 		"https://alice:hunter2@example.com/report.pdf",
-		[]*regexp2.Regexp{regexp2.MustCompile(`^https://example\.com(:[0-9]+)?(/|$)`, 0)},
+		[]*regexp2.Regexp{regexp2.MustCompile(`^https://example\.com(:[0-9]+)?(/|$)`, regexp2.None)},
 		nil,
 		time.Now().Add(5*time.Second),
 		WithDenyPrivateIPs(true),
@@ -774,7 +774,7 @@ func TestDecideOutboundBoundsCatastrophicPatterns(t *testing.T) {
 	// caller's whole budget, so a 30s API_TIMEOUT bought a 30s CPU burn.
 	// The trailing "!" makes the match fail only after the nested quantifier
 	// has explored every way to split the run of "a"s.
-	pattern := regexp2.MustCompile(`^https://example\.com/(a+)+$`, 0)
+	pattern := regexp2.MustCompile(`^https://example\.com/(a+)+$`, regexp2.None)
 	pattern.MatchTimeout = PatternMatchTimeout
 
 	rawURL := "https://example.com/" + strings.Repeat("a", 40) + "!"
