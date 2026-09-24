@@ -1,0 +1,33 @@
+meta {
+  name: Embed Files
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/forms/pdfengines/embed
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  files: @file(../test/integration/testdata/page_1.pdf)
+  embeds: @file(../test/integration/testdata/embed_1.xml)
+  embeds: @file(../test/integration/testdata/embed_2.xml)
+  embedsMetadata: {"embed_1.xml":{"mimeType":"text/xml","relationship":"Data"}, "embed_2.xml":{"mimeType":"text/xml","relationship":"Data"}}
+  ~facturxXml: @file(../test/integration/testdata/embed_1.xml)
+  ~facturxConformanceLevel: EN 16931
+  ~facturxDocumentType: INVOICE
+  ~facturxVersion: 1.0
+  ~downloadFrom: [{"url":"https://example.com/attachment.xml","embedded":true}]
+}
+
+headers {
+  ~Gotenberg-Output-Filename: with-embeds
+  ~Gotenberg-Webhook-Url: http://localhost:8080/webhook
+  ~Gotenberg-Webhook-Error-Url: http://localhost:8080/webhook/error
+  ~Gotenberg-Webhook-Events-Url: http://localhost:8080/webhook/events
+  ~Gotenberg-Webhook-Method: POST
+  ~Gotenberg-Webhook-Error-Method: POST
+  ~Gotenberg-Webhook-Extra-Http-Headers: {"X-Custom":"value"}
+}

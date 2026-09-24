@@ -14,7 +14,7 @@ func init() {
 	gotenberg.MustRegisterModule(new(LibreOffice))
 }
 
-// LibreOffice is a module which provides a route for converting documents to
+// LibreOffice is a module that provides a route for converting documents to
 // PDF with LibreOffice.
 type LibreOffice struct {
 	api           libeofficeapi.Uno

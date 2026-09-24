@@ -4,9 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"sync"
 	"sync/atomic"
+	"time"
 
-	"go.uber.org/zap"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // ErrProcessAlreadyRestarting happens if the [ProcessSupervisor] is trying
@@ -26,15 +31,15 @@ var ErrMaximumQueueSizeExceeded = errors.New("maximum queue size exceeded")
 type Process interface {
 	// Start initiates the process and returns an error if the process cannot
 	// be started.
-	Start(logger *zap.Logger) error
+	Start(logger *slog.Logger) error
 
 	// Stop terminates the process and returns an error if the process cannot
 	// be stopped.
-	Stop(logger *zap.Logger) error
+	Stop(logger *slog.Logger) error
 
 	// Healthy checks the health of the process. It returns true if the process
 	// is healthy; otherwise, it returns false.
-	Healthy(logger *zap.Logger) bool
+	Healthy(logger *slog.Logger) bool
 }
 
 // ProcessSupervisor provides methods to manage a [Process], including
@@ -53,9 +58,10 @@ type ProcessSupervisor interface {
 
 	// Healthy checks and returns the health status of the managed [Process].
 	//
-	// If the process has not been started or is restarting, it is considered
-	// healthy and true is returned. Otherwise, it returns the health status of
-	// the actual process.
+	// A non-started process is considered healthy (startup is deferred until
+	// the first request), as is one going through a planned restart, since it
+	// keeps serving traffic. Returns false during an unplanned restart or when
+	// the underlying [Process] reports unhealthy.
 	Healthy() bool
 
 	// Run executes a provided task while managing the state of the [Process].
@@ -65,207 +71,588 @@ type ProcessSupervisor interface {
 	//
 	// It returns an error if the task cannot be run or if the process state
 	// cannot be managed properly.
-	Run(ctx context.Context, logger *zap.Logger, task func() error) error
+	Run(ctx context.Context, logger *slog.Logger, task func() error) error
 
 	// ReqQueueSize returns the current size of the request queue.
 	ReqQueueSize() int64
 
 	// RestartsCount returns the current number of restart.
 	RestartsCount() int64
+
+	// ActiveTasksCount returns the current number of active tasks.
+	ActiveTasksCount() int64
+
+	// ConversionsSinceRestart returns the number of tasks handled since the
+	// last process (re)start.
+	ConversionsSinceRestart() int64
 }
 
+// healthCheckCacheTTL caches successful health probe results so kubelet-
+// style probes (liveness + readiness, every few seconds each) do not
+// hammer the underlying process with CDP roundtrips on every call.
+// Tuned to bridge typical probe periods while still catching outages
+// quickly: a real outage surfaces on the next probe after the TTL
+// elapses.
+const healthCheckCacheTTL = 2 * time.Second
+
+// healthFailureThreshold is the number of consecutive Healthy() failures
+// the supervisor tolerates before reporting unhealthy. Absorbs single-
+// probe blips of transient CDP latency (for example a slow
+// Browser.getVersion roundtrip when several conversion slots are
+// simultaneously stuck), without delaying detection of a real outage.
+// The container orchestrator's own failureThreshold stacks on top of
+// this. See https://github.com/gotenberg/gotenberg/issues/1561.
+const healthFailureThreshold = 2
+
+// Restart reasons, also reported as the gotenberg.process.start.reason span
+// attribute by [processSupervisor.tracedLaunch]. Only
+// [restartReasonMaxRequests] is a planned restart: it fires on a healthy
+// process that reached its conversion limit, so the node keeps serving
+// traffic throughout. The others signal a process that cannot serve.
+const (
+	restartReasonFirstStart  = "first_start"
+	restartReasonUnhealthy   = "unhealthy"
+	restartReasonMaxRequests = "max_requests"
+)
+
+// defaultEagerRestartTimeout bounds the restart triggered after the maximum
+// request limit. That restart runs on a background context, unlike the one from
+// ensureHealthy which inherits the request deadline, so without a deadline of
+// its own the drain loop in [processSupervisor.doRestartLocked] would wait
+// forever on a task that never completes. That would pin isRestarting and,
+// with it, the health reported by [processSupervisor.Healthy]. Sized well above
+// --api-timeout (30s by default) plus the engine start timeouts (20s by
+// default) so it never fires while tasks are merely slow. The eager restart is
+// opportunistic: on expiry it aborts, and the next task retries it.
+const defaultEagerRestartTimeout = 2 * time.Minute
+
 type processSupervisor struct {
-	logger          *zap.Logger
-	process         Process
-	maxReqLimit     int64
-	maxQueueSize    int64
-	mutexChan       chan struct{}
-	firstStart      atomic.Bool
+	logger         *slog.Logger
+	engine         string
+	process        Process
+	maxReqLimit    int64
+	maxQueueSize   int64
+	maxConcurrency int64
+	semaphore      chan struct{}
+	firstStart     atomic.Bool
+	// firstStartMu serializes lazy-launch attempts so concurrent callers do
+	// not all spawn Launch() simultaneously. Using a mutex (instead of
+	// sync.Once) lets a failed launch be retried by the next caller, since a
+	// transient failure (such as a cold-start timeout) must not poison the
+	// supervisor for the rest of the container's lifetime. See
+	// https://github.com/gotenberg/gotenberg/issues/1538.
+	firstStartMu    sync.Mutex
 	reqCounter      atomic.Int64
 	reqQueueSize    atomic.Int64
 	restartsCounter atomic.Int64
 	isRestarting    atomic.Bool
+	// restartPlanned records whether the in-flight restart is a planned one
+	// (see [restartReasonMaxRequests]). Written before isRestarting and never
+	// cleared, so a reader that observed isRestarting always sees the matching
+	// kind. See [processSupervisor.Healthy].
+	restartPlanned      atomic.Bool
+	activeTasks         atomic.Int64
+	restartMutex        sync.Mutex
+	idleShutdownTimeout time.Duration
+	lastActivity        atomic.Int64 // unix nano timestamp of last completed task
+	// healthMu serializes Healthy() probes so concurrent callers do not
+	// all issue a CDP roundtrip; the second caller hits the refreshed
+	// cache instead.
+	healthMu                  sync.Mutex
+	lastHealthyAt             atomic.Int64  // unix nano of last successful probe; 0 means never
+	consecutiveHealthFailures atomic.Int64  // reset to 0 on every successful probe
+	idleMu                    sync.Mutex    // protects idleStopChan
+	idleStopChan              chan struct{} // signal to stop the idle ticker goroutine
+	// eagerRestartTimeout bounds the restart from maybeRestartAfterTask.
+	// Defaults to [defaultEagerRestartTimeout]; only tests shorten it.
+	eagerRestartTimeout time.Duration
 }
 
-// NewProcessSupervisor initializes a new [ProcessSupervisor].
-func NewProcessSupervisor(logger *zap.Logger, process Process, maxReqLimit, maxQueueSize int64) ProcessSupervisor {
+// NewProcessSupervisor initializes a new [ProcessSupervisor]. engine names the
+// managed process (for example "chromium" or "libreoffice") and prefixes the
+// telemetry sub-spans; an empty engine falls back to "process".
+func NewProcessSupervisor(logger *slog.Logger, engine string, process Process, maxReqLimit, maxQueueSize, maxConcurrency int64, idleShutdownTimeout time.Duration) ProcessSupervisor {
+	if maxConcurrency < 1 {
+		maxConcurrency = 1
+	}
+
+	if engine == "" {
+		engine = "process"
+	}
+
 	b := &processSupervisor{
-		logger:       logger,
-		process:      process,
-		mutexChan:    make(chan struct{}, 1),
-		maxReqLimit:  maxReqLimit,
-		maxQueueSize: maxQueueSize,
+		logger:              logger,
+		engine:              engine,
+		process:             process,
+		semaphore:           make(chan struct{}, maxConcurrency),
+		maxReqLimit:         maxReqLimit,
+		maxQueueSize:        maxQueueSize,
+		maxConcurrency:      maxConcurrency,
+		idleShutdownTimeout: idleShutdownTimeout,
+		eagerRestartTimeout: defaultEagerRestartTimeout,
 	}
 	b.reqCounter.Store(0)
 	b.reqQueueSize.Store(0)
 	b.restartsCounter.Store(0)
 	b.isRestarting.Store(false)
+	b.activeTasks.Store(0)
 
 	return b
 }
 
 func (s *processSupervisor) Launch() error {
-	s.logger.Debug("start process")
+	s.logger.DebugContext(context.Background(), "start process")
 	err := s.process.Start(s.logger)
 	if err != nil {
 		return fmt.Errorf("start process: %w", err)
 	}
 
 	s.firstStart.Store(true)
-	s.logger.Debug("process successfully started")
+
+	if s.idleShutdownTimeout > 0 {
+		s.lastActivity.Store(time.Now().UnixNano())
+		s.startIdleTicker()
+	}
+
+	s.logger.DebugContext(context.Background(), "process successfully started")
 
 	return nil
 }
 
 func (s *processSupervisor) Shutdown() error {
-	s.logger.Debug("shutdown process")
+	s.logger.DebugContext(context.Background(), "shutdown process")
+
+	s.stopIdleTicker()
+
 	err := s.process.Stop(s.logger)
 	if err != nil {
 		return fmt.Errorf("shutdown process: %w", err)
 	}
 
-	s.logger.Debug("process successfully shutdown")
+	s.logger.DebugContext(context.Background(), "process successfully shutdown")
 
 	return nil
 }
 
 func (s *processSupervisor) restart() error {
-	if s.isRestarting.Load() {
-		s.logger.Debug("process already restarting, skip restart")
-
-		return ErrProcessAlreadyRestarting
-	}
-
-	s.logger.Debug("restart process")
-	s.isRestarting.Store(true)
-	defer s.isRestarting.Store(false)
+	s.logger.DebugContext(context.Background(), "restart process")
 
 	err := s.Shutdown()
 	if err != nil {
-		// No big deal? Chances are it's already stopped.
-		s.logger.Debug(fmt.Sprintf("stop process before restart: %s", err))
+		// Not necessarily critical — chances are the process is already stopped,
+		// but worth flagging in case it indicates a real issue.
+		s.logger.WarnContext(context.Background(), fmt.Sprintf("stop process before restart: %s", err))
 	}
+
+	// Reset the counter on the attempt, not on its outcome. Leaving it at the
+	// limit after a failed launch re-triggers maybeRestartAfterTask on every
+	// subsequent task, producing back-to-back restarts. Recovering a process
+	// that will not start is ensureHealthy's job: it restarts synchronously
+	// before running a task, and reports the failure to the caller.
+	s.reqCounter.Store(0)
 
 	err = s.Launch()
 	if err != nil {
 		return fmt.Errorf("restart process: %w", err)
 	}
 
-	s.reqCounter.Store(0)
 	s.restartsCounter.Add(1)
-	s.logger.Debug("process successfully restarted")
+	s.logger.DebugContext(context.Background(), "process successfully restarted")
 
 	return nil
 }
 
 func (s *processSupervisor) Healthy() bool {
 	if !s.firstStart.Load() {
-		// A non-started process is always healthy.
+		// A non-started process is considered healthy: Gotenberg defers
+		// process startup until the first request to keep resource usage low.
+		// Reporting unhealthy here would cause container orchestrators to
+		// restart the pod before any request arrives.
 		return true
 	}
 
 	if s.isRestarting.Load() {
-		// A restarting process is always healthy.
+		// A planned restart is routine maintenance: the process reached the
+		// limit set by --chromium-restart-after (env CHROMIUM_RESTART_AFTER) or
+		// --libreoffice-restart-after (env LIBREOFFICE_RESTART_AFTER) while
+		// healthy. Tasks arriving during it are requeued by acquireSlot, not
+		// rejected, so the node still serves traffic and must report healthy. A
+		// probe sent between two conversions used to fail here.
+		// See https://github.com/gotenberg/gotenberg/issues/1648.
+		//
+		// An unplanned restart keeps reporting unhealthy, which gives load
+		// balancers honest information so they can avoid routing traffic here.
+		return s.restartPlanned.Load()
+	}
+
+	// Cache hit: a recent probe succeeded. Skip the CDP roundtrip so probe
+	// spam does not pile commands onto a busy websocket.
+	if s.recentlyHealthy() {
 		return true
 	}
 
-	return s.process.Healthy(s.logger)
-}
+	// Serialize probes so concurrent callers do not all roundtrip. The
+	// second caller will see the refreshed cache (or counter) and return
+	// without re-probing.
+	s.healthMu.Lock()
+	defer s.healthMu.Unlock()
 
-func (s *processSupervisor) Run(ctx context.Context, logger *zap.Logger, task func() error) error {
-	// A user reported a potential issue:
-	//
-	// "Although the counting operation is atomic, nothing prevent 2 concurrent
-	// goroutines to retrieve the same 'currentQueueSize' and to compare its
-	// value against the max limit. Then, resulting queue size would be 1 above
-	// the allowed limit."
-	//
-	// However, he was unable to actually trigger this issue, even when sending
-	// a lot of requests.
-	//
-	// For now, the best option is to consider this issue to be unlikely to
-	// happen, and keep the code as it is because it is more readable this way.
-	//
-	// See https://github.com/gotenberg/gotenberg/issues/951.
-	currentQueueSize := s.reqQueueSize.Load()
-	if s.maxQueueSize > 0 && currentQueueSize >= s.maxQueueSize {
-		return ErrMaximumQueueSizeExceeded
+	if s.recentlyHealthy() {
+		return true
 	}
 
-	s.reqQueueSize.Add(1)
+	if s.process.Healthy(s.logger) {
+		s.lastHealthyAt.Store(time.Now().UnixNano())
+		s.consecutiveHealthFailures.Store(0)
+		return true
+	}
+
+	if s.consecutiveHealthFailures.Add(1) < healthFailureThreshold {
+		// First failure: tolerate it. Under load, a single blown CDP
+		// timeout is more likely transient pressure than a dead process.
+		// A genuinely dead process will fail the next probe as well and
+		// flip us unhealthy then.
+		return true
+	}
+	return false
+}
+
+// recentlyHealthy reports whether a successful probe landed within
+// [healthCheckCacheTTL]. Negative results are never cached so recovery
+// from a real outage is observable on the very next probe.
+func (s *processSupervisor) recentlyHealthy() bool {
+	last := s.lastHealthyAt.Load()
+	if last == 0 {
+		return false
+	}
+	return time.Since(time.Unix(0, last)) < healthCheckCacheTTL
+}
+
+func (s *processSupervisor) Run(ctx context.Context, logger *slog.Logger, task func() error) error {
+	// Time spent before the task body runs: queueing, slot acquisition, lazy
+	// launch, and health checks. Ended once, when the task is about to execute.
+	_, queueSpan := Tracer().Start(ctx, s.engine+".queue.wait",
+		trace.WithSpanKind(trace.SpanKindInternal),
+	)
+	queueWaitDone := false
+	endQueueWait := func() {
+		if !queueWaitDone {
+			queueWaitDone = true
+			queueSpan.End()
+		}
+	}
+	defer endQueueWait()
+
+	// Atomically check and increment the queue size to avoid the TOCTOU race
+	// originally reported in https://github.com/gotenberg/gotenberg/issues/951.
+	for {
+		current := s.reqQueueSize.Load()
+		if s.maxQueueSize > 0 && current >= s.maxQueueSize {
+			return ErrMaximumQueueSizeExceeded
+		}
+		if s.reqQueueSize.CompareAndSwap(current, current+1) {
+			break
+		}
+	}
+
+	// Decrement when Run() returns, regardless of which path is taken
+	// (context timeout, task completion, error, etc.). This ensures the
+	// request is counted as "in the queue" for the entire duration of Run(),
+	// preventing new requests from entering while one is being processed.
+	// See https://github.com/gotenberg/gotenberg/issues/1502.
+	defer s.reqQueueSize.Add(-1)
 
 	for {
 		err := func() error {
-			select {
-			case s.mutexChan <- struct{}{}:
-				logger.Debug("process lock acquired")
-				s.reqQueueSize.Add(-1)
-				s.reqCounter.Add(1)
-				releaseMutexChan := true
-
-				defer func() {
-					if releaseMutexChan {
-						logger.Debug("process lock released")
-						<-s.mutexChan
-					}
-				}()
-
-				if !s.firstStart.Load() {
-					err := s.runWithDeadline(ctx, func() error {
-						return s.Launch()
-					})
-					if err != nil {
-						return fmt.Errorf("process first start: %w", err)
-					}
-				}
-
-				if !s.Healthy() {
-					s.logger.Debug("process is unhealthy, cannot handle task, restarting...")
-					err := s.runWithDeadline(ctx, func() error {
-						return s.restart()
-					})
-					if err != nil {
-						return fmt.Errorf("process restart before task: %w", err)
-					}
-				}
-
-				err := s.runWithDeadline(ctx, task)
-
-				if s.maxReqLimit > 0 && s.reqCounter.Load() >= s.maxReqLimit {
-					s.logger.Debug("max request limit reached, restarting eagerly...")
-					releaseMutexChan = false
-
-					go func() {
-						err := s.runWithDeadline(context.Background(), func() error {
-							return s.restart()
-						})
-						if err != nil {
-							s.logger.Error(fmt.Sprintf("process restart after task: %v", err))
-						}
-						logger.Debug("process lock released")
-						<-s.mutexChan
-					}()
-				}
-
-				// Note: no error wrapping because it leaks on Chromium console exceptions output.
+			if err := s.acquireSlot(ctx, logger); err != nil {
 				return err
-			case <-ctx.Done():
-				logger.Debug("failed to acquire process lock before deadline")
-				s.reqQueueSize.Add(-1)
-
-				return fmt.Errorf("acquire process lock: %w", ctx.Err())
 			}
+
+			s.reqCounter.Add(1)
+			s.activeTasks.Add(1)
+			semaphoreOwned := true
+
+			defer func() {
+				s.activeTasks.Add(-1)
+				if s.idleShutdownTimeout > 0 {
+					s.lastActivity.Store(time.Now().UnixNano())
+				}
+				if semaphoreOwned {
+					logger.DebugContext(ctx, "process lock released")
+					<-s.semaphore
+				}
+			}()
+
+			if err := s.ensureStarted(ctx); err != nil {
+				return err
+			}
+
+			if err := s.ensureHealthy(ctx); err != nil {
+				return err
+			}
+
+			endQueueWait()
+			err := s.runWithDeadline(ctx, task)
+
+			if s.maybeRestartAfterTask(logger) {
+				semaphoreOwned = false
+			}
+
+			// Note: no error wrapping because it leaks on Chromium console exceptions output.
+			return err
 		}()
 
 		if errors.Is(err, ErrProcessAlreadyRestarting) {
-			logger.Debug("process is already restarting, trying to acquire process lock again...")
-			s.reqQueueSize.Add(1)
+			logger.DebugContext(ctx, "process is already restarting, trying to acquire process lock again...")
+			time.Sleep(10 * time.Millisecond)
 			continue
 		}
 
 		// Note: no error wrapping because it leaks on Chromium console exceptions output.
 		return err
 	}
+}
+
+// startIdleTicker starts a background goroutine that periodically checks
+// whether the process has been idle long enough to shut down.
+func (s *processSupervisor) startIdleTicker() {
+	stopChan := make(chan struct{})
+
+	s.idleMu.Lock()
+	s.idleStopChan = stopChan
+	s.idleMu.Unlock()
+
+	go func() {
+		ticker := time.NewTicker(s.idleShutdownTimeout)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				s.maybeIdleShutdown()
+			case <-stopChan:
+				return
+			}
+		}
+	}()
+}
+
+// stopIdleTicker signals the idle ticker goroutine to exit, if one is running.
+func (s *processSupervisor) stopIdleTicker() {
+	s.idleMu.Lock()
+	defer s.idleMu.Unlock()
+
+	if s.idleStopChan != nil {
+		close(s.idleStopChan)
+		s.idleStopChan = nil
+	}
+}
+
+// maybeIdleShutdown stops the process if it has been idle for longer than
+// the configured timeout. It is safe to call concurrently with Run and
+// restart.
+func (s *processSupervisor) maybeIdleShutdown() {
+	if !s.firstStart.Load() || s.isRestarting.Load() {
+		return
+	}
+
+	if s.activeTasks.Load() > 0 || s.reqQueueSize.Load() > 0 {
+		return
+	}
+
+	lastNano := s.lastActivity.Load()
+	if lastNano == 0 || time.Since(time.Unix(0, lastNano)) < s.idleShutdownTimeout {
+		return
+	}
+
+	if !s.restartMutex.TryLock() {
+		return
+	}
+	defer s.restartMutex.Unlock()
+
+	// Double-check after acquiring the lock.
+	if s.activeTasks.Load() > 0 || s.reqQueueSize.Load() > 0 {
+		return
+	}
+
+	s.logger.DebugContext(context.Background(), "idle shutdown timeout reached, stopping process")
+
+	// Stop the ticker — it will be restarted on the next Launch().
+	s.stopIdleTicker()
+
+	err := s.process.Stop(s.logger)
+	if err != nil {
+		s.logger.WarnContext(context.Background(), fmt.Sprintf("idle shutdown: %s", err))
+		return
+	}
+
+	// Reset state so ensureStarted() re-launches on next request.
+	s.firstStart.Store(false)
+	s.reqCounter.Store(0)
+
+	s.logger.DebugContext(context.Background(), "process stopped due to idle timeout")
+}
+
+// acquireSlot attempts to acquire a semaphore slot, yielding it back if a
+// restart drain is in progress.
+func (s *processSupervisor) acquireSlot(ctx context.Context, logger *slog.Logger) error {
+	select {
+	case s.semaphore <- struct{}{}:
+		// If a restart drain is in progress, release the slot
+		// immediately so the drain can acquire it instead.
+		if s.isRestarting.Load() {
+			<-s.semaphore
+			return ErrProcessAlreadyRestarting
+		}
+
+		logger.DebugContext(ctx, "process lock acquired")
+
+		return nil
+	case <-ctx.Done():
+		logger.DebugContext(ctx, "failed to acquire process lock before deadline")
+
+		return fmt.Errorf("acquire process lock: %w", ctx.Err())
+	}
+}
+
+// ensureStarted performs a lazy launch of the process on its first use.
+// Concurrent callers serialize on firstStartMu; once the launch succeeds,
+// subsequent calls short-circuit on the firstStart flag. A failed launch
+// leaves firstStart unset, so the next caller retries the launch.
+func (s *processSupervisor) ensureStarted(ctx context.Context) error {
+	if s.firstStart.Load() {
+		return nil
+	}
+
+	s.firstStartMu.Lock()
+	defer s.firstStartMu.Unlock()
+
+	if s.firstStart.Load() {
+		return nil
+	}
+
+	err := s.tracedLaunch(ctx, restartReasonFirstStart, func() error {
+		return s.runWithDeadline(ctx, s.Launch)
+	})
+	if err != nil {
+		return fmt.Errorf("process first start: %w", err)
+	}
+
+	return nil
+}
+
+// tracedLaunch wraps a process (re)start in an <engine>.process.start span,
+// tagged with the reason that triggered it. The eager restart after the maximum
+// request limit runs on a background context, so its span is a detached root.
+func (s *processSupervisor) tracedLaunch(ctx context.Context, reason string, launch func() error) error {
+	_, span := Tracer().Start(ctx, s.engine+".process.start",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(attribute.String("gotenberg.process.start.reason", reason)),
+	)
+	defer span.End()
+
+	err := launch()
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+// ensureHealthy checks the underlying process health and triggers a
+// synchronous restart if the process is unhealthy. Skips the check if a
+// restart is already in progress.
+func (s *processSupervisor) ensureHealthy(ctx context.Context) error {
+	if s.isRestarting.Load() || s.process.Healthy(s.logger) {
+		return nil
+	}
+
+	s.logger.DebugContext(context.Background(), "process is unhealthy, cannot handle task, restarting...")
+
+	if err := s.doRestart(ctx, restartReasonUnhealthy); err != nil {
+		return fmt.Errorf("process restart before task: %w", err)
+	}
+
+	return nil
+}
+
+// maybeRestartAfterTask checks if the maximum request limit has been reached
+// and, if so, triggers an asynchronous restart bounded by
+// [defaultEagerRestartTimeout]. If a restart is initiated, it takes ownership
+// of the caller's semaphore slot (the caller must not release it). Returns true
+// if ownership was taken.
+func (s *processSupervisor) maybeRestartAfterTask(logger *slog.Logger) bool {
+	if s.maxReqLimit <= 0 || s.reqCounter.Load() < s.maxReqLimit {
+		return false
+	}
+
+	if !s.restartMutex.TryLock() {
+		return false
+	}
+
+	s.logger.DebugContext(context.Background(), "max request limit reached, restarting eagerly...")
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), s.eagerRestartTimeout)
+		defer cancel()
+
+		restartErr := s.doRestartLocked(ctx, restartReasonMaxRequests)
+		s.restartMutex.Unlock()
+		if restartErr != nil {
+			s.logger.ErrorContext(context.Background(), fmt.Sprintf("process restart after task: %v", restartErr))
+		}
+		logger.DebugContext(context.Background(), "process lock released")
+		<-s.semaphore
+	}()
+
+	return true
+}
+
+// doRestart coordinates a process restart, draining all active concurrent
+// tasks before stopping and restarting the process.
+func (s *processSupervisor) doRestart(ctx context.Context, reason string) error {
+	s.restartMutex.Lock()
+	defer s.restartMutex.Unlock()
+
+	return s.doRestartLocked(ctx, reason)
+}
+
+// doRestartLocked performs the restart drain logic. The caller must hold restartMutex.
+func (s *processSupervisor) doRestartLocked(ctx context.Context, reason string) error {
+	// Publish the kind before raising the flag. [processSupervisor.Healthy]
+	// reads restartPlanned only after it observes isRestarting, so this
+	// ordering keeps it from pairing a new restart with a stale kind.
+	s.restartPlanned.Store(reason == restartReasonMaxRequests)
+	s.isRestarting.Store(true)
+	defer s.isRestarting.Store(false)
+
+	// Drain all other active semaphore slots so no other tasks are running during the restart.
+	slotsToAcquire := s.maxConcurrency - 1
+	acquired := make([]struct{}, 0, slotsToAcquire)
+
+	for range slotsToAcquire {
+		select {
+		case s.semaphore <- struct{}{}:
+			acquired = append(acquired, struct{}{})
+		case <-ctx.Done():
+			for range acquired {
+				<-s.semaphore
+			}
+			return fmt.Errorf("drain active tasks before restart: %w", ctx.Err())
+		}
+	}
+
+	err := s.tracedLaunch(ctx, reason, func() error {
+		return s.runWithDeadline(ctx, s.restart)
+	})
+
+	for range acquired {
+		<-s.semaphore
+	}
+
+	return err
 }
 
 func (s *processSupervisor) runWithDeadline(ctx context.Context, task func() error) error {
@@ -290,6 +677,17 @@ func (s *processSupervisor) ReqQueueSize() int64 {
 
 func (s *processSupervisor) RestartsCount() int64 {
 	return s.restartsCounter.Load()
+}
+
+func (s *processSupervisor) ActiveTasksCount() int64 {
+	return s.activeTasks.Load()
+}
+
+// ConversionsSinceRestart returns the number of tasks handled since the last
+// process (re)start. reqCounter is reset to zero on every restart and idle
+// shutdown.
+func (s *processSupervisor) ConversionsSinceRestart() int64 {
+	return s.reqCounter.Load()
 }
 
 // Interface guards.

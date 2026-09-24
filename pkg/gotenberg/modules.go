@@ -75,6 +75,12 @@ type SystemLogger interface {
 	SystemMessages() []string
 }
 
+// Debuggable is a module interface for modules which want to provide
+// additional debug data.
+type Debuggable interface {
+	Debug() map[string]any
+}
+
 // MustRegisterModule registers a module.
 //
 // To register a module, create an init() method in the module main go file:

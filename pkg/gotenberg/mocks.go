@@ -2,8 +2,8 @@ package gotenberg
 
 import (
 	"context"
-
-	"go.uber.org/zap"
+	"log/slog"
+	"os"
 )
 
 // ModuleMock is a mock for the [Module] interface.
@@ -33,28 +33,108 @@ func (mod *ValidatorMock) Validate() error {
 	return mod.ValidateMock()
 }
 
-// PdfEngineMock is a mock for the [PdfEngine] interface.
-type PdfEngineMock struct {
-	MergeMock         func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error
-	ConvertMock       func(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error
-	ReadMetadataMock  func(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error)
-	WriteMetadataMock func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error
+type DebuggableMock struct {
+	DebugMock func() map[string]any
 }
 
-func (engine *PdfEngineMock) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
+func (mod *DebuggableMock) Debug() map[string]any {
+	return mod.DebugMock()
+}
+
+// PdfEngineMock is a mock for the [PdfEngine] interface.
+//
+//nolint:dupl
+type PdfEngineMock struct {
+	MergeMock               func(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error
+	SplitMock               func(ctx context.Context, logger *slog.Logger, mode SplitMode, inputPath, outputDirPath string) ([]string, error)
+	FlattenMock             func(ctx context.Context, logger *slog.Logger, inputPath string) error
+	ConvertMock             func(ctx context.Context, logger *slog.Logger, formats PdfFormats, inputPath, outputPath string) error
+	OptimizeImagesMock      func(ctx context.Context, logger *slog.Logger, imageQuality int, inputPath string) error
+	ReadMetadataMock        func(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error)
+	PageCountMock           func(ctx context.Context, logger *slog.Logger, inputPath string) (int, error)
+	WriteMetadataMock       func(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error
+	ReadBookmarksMock       func(ctx context.Context, logger *slog.Logger, inputPath string) ([]Bookmark, error)
+	EncryptMock             func(ctx context.Context, logger *slog.Logger, inputPath string, opts EncryptOptions) error
+	EmbedFilesMock          func(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error
+	EmbedFilesMetadataMock  func(ctx context.Context, logger *slog.Logger, metadata map[string]map[string]string, inputPath string) error
+	WriteBookmarksMock      func(ctx context.Context, logger *slog.Logger, inputPath string, bookmarks []Bookmark) error
+	WatermarkMock           func(ctx context.Context, logger *slog.Logger, inputPath string, stamp Stamp) error
+	StampMock               func(ctx context.Context, logger *slog.Logger, inputPath string, stamp Stamp) error
+	RotateMock              func(ctx context.Context, logger *slog.Logger, inputPath string, angle int, pages string) error
+	InjectFacturXXMPMock    func(ctx context.Context, logger *slog.Logger, facturX FacturX, inputPath string) error
+	ReadPdfAConformanceMock func(ctx context.Context, logger *slog.Logger, inputPath string) (string, string, error)
+}
+
+func (engine *PdfEngineMock) Merge(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
 	return engine.MergeMock(ctx, logger, inputPaths, outputPath)
 }
 
-func (engine *PdfEngineMock) Convert(ctx context.Context, logger *zap.Logger, formats PdfFormats, inputPath, outputPath string) error {
+func (engine *PdfEngineMock) Split(ctx context.Context, logger *slog.Logger, mode SplitMode, inputPath, outputDirPath string) ([]string, error) {
+	return engine.SplitMock(ctx, logger, mode, inputPath, outputDirPath)
+}
+
+func (engine *PdfEngineMock) Flatten(ctx context.Context, logger *slog.Logger, inputPath string) error {
+	return engine.FlattenMock(ctx, logger, inputPath)
+}
+
+func (engine *PdfEngineMock) Convert(ctx context.Context, logger *slog.Logger, formats PdfFormats, inputPath, outputPath string) error {
 	return engine.ConvertMock(ctx, logger, formats, inputPath, outputPath)
 }
 
-func (engine *PdfEngineMock) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
+func (engine *PdfEngineMock) OptimizeImages(ctx context.Context, logger *slog.Logger, imageQuality int, inputPath string) error {
+	return engine.OptimizeImagesMock(ctx, logger, imageQuality, inputPath)
+}
+
+func (engine *PdfEngineMock) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
 	return engine.ReadMetadataMock(ctx, logger, inputPath)
 }
 
-func (engine *PdfEngineMock) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
+func (engine *PdfEngineMock) PageCount(ctx context.Context, logger *slog.Logger, inputPath string) (int, error) {
+	return engine.PageCountMock(ctx, logger, inputPath)
+}
+
+func (engine *PdfEngineMock) WriteMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
 	return engine.WriteMetadataMock(ctx, logger, metadata, inputPath)
+}
+
+func (engine *PdfEngineMock) ReadBookmarks(ctx context.Context, logger *slog.Logger, inputPath string) ([]Bookmark, error) {
+	return engine.ReadBookmarksMock(ctx, logger, inputPath)
+}
+
+func (engine *PdfEngineMock) Encrypt(ctx context.Context, logger *slog.Logger, inputPath string, opts EncryptOptions) error {
+	return engine.EncryptMock(ctx, logger, inputPath, opts)
+}
+
+func (engine *PdfEngineMock) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {
+	return engine.EmbedFilesMock(ctx, logger, filePaths, inputPath)
+}
+
+func (engine *PdfEngineMock) EmbedFilesMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]map[string]string, inputPath string) error {
+	return engine.EmbedFilesMetadataMock(ctx, logger, metadata, inputPath)
+}
+
+func (engine *PdfEngineMock) WriteBookmarks(ctx context.Context, logger *slog.Logger, inputPath string, bookmarks []Bookmark) error {
+	return engine.WriteBookmarksMock(ctx, logger, inputPath, bookmarks)
+}
+
+func (engine *PdfEngineMock) Watermark(ctx context.Context, logger *slog.Logger, inputPath string, stamp Stamp) error {
+	return engine.WatermarkMock(ctx, logger, inputPath, stamp)
+}
+
+func (engine *PdfEngineMock) Stamp(ctx context.Context, logger *slog.Logger, inputPath string, stamp Stamp) error {
+	return engine.StampMock(ctx, logger, inputPath, stamp)
+}
+
+func (engine *PdfEngineMock) Rotate(ctx context.Context, logger *slog.Logger, inputPath string, angle int, pages string) error {
+	return engine.RotateMock(ctx, logger, inputPath, angle, pages)
+}
+
+func (engine *PdfEngineMock) InjectFacturXXMP(ctx context.Context, logger *slog.Logger, facturX FacturX, inputPath string) error {
+	return engine.InjectFacturXXMPMock(ctx, logger, facturX, inputPath)
+}
+
+func (engine *PdfEngineMock) ReadPdfAConformance(ctx context.Context, logger *slog.Logger, inputPath string) (string, string, error) {
+	return engine.ReadPdfAConformanceMock(ctx, logger, inputPath)
 }
 
 // PdfEngineProviderMock is a mock for the [PdfEngineProvider] interface.
@@ -68,31 +148,33 @@ func (provider *PdfEngineProviderMock) PdfEngine() (PdfEngine, error) {
 
 // ProcessMock is a mock for the [Process] interface.
 type ProcessMock struct {
-	StartMock   func(logger *zap.Logger) error
-	StopMock    func(logger *zap.Logger) error
-	HealthyMock func(logger *zap.Logger) bool
+	StartMock   func(logger *slog.Logger) error
+	StopMock    func(logger *slog.Logger) error
+	HealthyMock func(logger *slog.Logger) bool
 }
 
-func (p *ProcessMock) Start(logger *zap.Logger) error {
+func (p *ProcessMock) Start(logger *slog.Logger) error {
 	return p.StartMock(logger)
 }
 
-func (p *ProcessMock) Stop(logger *zap.Logger) error {
+func (p *ProcessMock) Stop(logger *slog.Logger) error {
 	return p.StopMock(logger)
 }
 
-func (p *ProcessMock) Healthy(logger *zap.Logger) bool {
+func (p *ProcessMock) Healthy(logger *slog.Logger) bool {
 	return p.HealthyMock(logger)
 }
 
 // ProcessSupervisorMock is a mock for the [ProcessSupervisor] interface.
 type ProcessSupervisorMock struct {
-	LaunchMock        func() error
-	ShutdownMock      func() error
-	HealthyMock       func() bool
-	RunMock           func(ctx context.Context, logger *zap.Logger, task func() error) error
-	ReqQueueSizeMock  func() int64
-	RestartsCountMock func() int64
+	LaunchMock                  func() error
+	ShutdownMock                func() error
+	HealthyMock                 func() bool
+	RunMock                     func(ctx context.Context, logger *slog.Logger, task func() error) error
+	ReqQueueSizeMock            func() int64
+	RestartsCountMock           func() int64
+	ActiveTasksCountMock        func() int64
+	ConversionsSinceRestartMock func() int64
 }
 
 func (s *ProcessSupervisorMock) Launch() error {
@@ -107,7 +189,7 @@ func (s *ProcessSupervisorMock) Healthy() bool {
 	return s.HealthyMock()
 }
 
-func (s *ProcessSupervisorMock) Run(ctx context.Context, logger *zap.Logger, task func() error) error {
+func (s *ProcessSupervisorMock) Run(ctx context.Context, logger *slog.Logger, task func() error) error {
 	return s.RunMock(ctx, logger, task)
 }
 
@@ -119,13 +201,12 @@ func (s *ProcessSupervisorMock) RestartsCount() int64 {
 	return s.RestartsCountMock()
 }
 
-// LoggerProviderMock is a mock for the [LoggerProvider] interface.
-type LoggerProviderMock struct {
-	LoggerMock func(mod Module) (*zap.Logger, error)
+func (s *ProcessSupervisorMock) ActiveTasksCount() int64 {
+	return s.ActiveTasksCountMock()
 }
 
-func (provider *LoggerProviderMock) Logger(mod Module) (*zap.Logger, error) {
-	return provider.LoggerMock(mod)
+func (s *ProcessSupervisorMock) ConversionsSinceRestart() int64 {
+	return s.ConversionsSinceRestartMock()
 }
 
 // MetricsProviderMock is a mock for the [MetricsProvider] interface.
@@ -135,6 +216,15 @@ type MetricsProviderMock struct {
 
 func (provider *MetricsProviderMock) Metrics() ([]Metric, error) {
 	return provider.MetricsMock()
+}
+
+// MkdirAllMock is a mock for the [MkdirAll] interface.
+type MkdirAllMock struct {
+	MkdirAllMock func(path string, perm os.FileMode) error
+}
+
+func (mkdirAll *MkdirAllMock) MkdirAll(path string, perm os.FileMode) error {
+	return mkdirAll.MkdirAllMock(path, perm)
 }
 
 // PathRenameMock is a mock for the [PathRename] interface.
@@ -154,6 +244,7 @@ var (
 	_ PdfEngineProvider = (*PdfEngineProviderMock)(nil)
 	_ Process           = (*ProcessMock)(nil)
 	_ ProcessSupervisor = (*ProcessSupervisorMock)(nil)
-	_ LoggerProvider    = (*LoggerProviderMock)(nil)
 	_ MetricsProvider   = (*MetricsProviderMock)(nil)
+	_ MkdirAll          = (*MkdirAllMock)(nil)
+	_ PathRename        = (*PathRenameMock)(nil)
 )

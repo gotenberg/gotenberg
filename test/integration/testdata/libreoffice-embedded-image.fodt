@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" office:version="1.2" office:mimetype="application/vnd.oasis.opendocument.text">
+ <office:body><office:text>
+  <text:p>An embedded image is stored in the document and must survive.</text:p>
+  <text:p><draw:frame text:anchor-type="as-char" svg:width="3cm" svg:height="3cm"><draw:image><office:binary-data>iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC</office:binary-data></draw:image></draw:frame></text:p>
+ </office:text></office:body>
+</office:document>

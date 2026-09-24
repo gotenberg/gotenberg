@@ -1,0 +1,52 @@
+name: Merge
+description: Merge tags to single multi-platform tags
+author: Julien Neuhart
+
+inputs:
+  github_token:
+    description: The GitHub token
+    required: true
+    default: ${{ github.token }}
+  docker_hub_username:
+    description: The Docker Hub username
+    required: true
+  docker_hub_password:
+    description: The Docker Hub password
+    required: true
+  tags:
+    description: Comma separated tags to merge
+    required: true
+  alternate_registry:
+    description: Alternate registry to also push resulting tags
+  dry_run:
+    description: Dry run this action
+
+runs:
+  using: composite
+  steps:
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Check out code
+      uses: actions/checkout@v6
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ inputs.docker_hub_username }}
+        password: ${{ inputs.docker_hub_password }}
+
+    - name: Merge
+      shell: bash
+      env:
+        INPUT_TAGS: ${{ inputs.tags }}
+        INPUT_ALTERNATE_REGISTRY: ${{ inputs.alternate_registry }}
+        INPUT_DRY_RUN: ${{ inputs.dry_run }}
+      run: |
+        .github/actions/merge/merge.sh \
+          --tags "$INPUT_TAGS" \
+          --alternate-registry "$INPUT_ALTERNATE_REGISTRY" \
+          --dry-run "$INPUT_DRY_RUN"

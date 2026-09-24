@@ -1,9 +1,10 @@
 package api
 
 import (
+	"log/slog"
+
 	"github.com/alexliesenfeld/health"
 	"github.com/labstack/echo/v4"
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
@@ -54,7 +55,7 @@ func (ctx *ContextMock) SetFiles(files map[string]string) {
 	ctx.files = files
 }
 
-// SetCancelled sets if the context is cancelled or not.
+// SetCancelled sets if the context is canceled or not.
 //
 //	ctx := &api.ContextMock{Context: &api.Context{}}
 //	ctx.SetCancelled(true)
@@ -73,8 +74,8 @@ func (ctx *ContextMock) OutputPaths() []string {
 // SetLogger sets the logger.
 //
 //	ctx := &api.ContextMock{Context: &api.Context{}}
-//	ctx.SetLogger(zap.NewNop())
-func (ctx *ContextMock) SetLogger(logger *zap.Logger) {
+//	ctx.SetLogger(slog.Default())
+func (ctx *ContextMock) SetLogger(logger *slog.Logger) {
 	ctx.logger = logger
 }
 
@@ -83,7 +84,15 @@ func (ctx *ContextMock) SetLogger(logger *zap.Logger) {
 //	ctx := &api.ContextMock{Context: &api.Context{}}
 //	ctx.setEchoContext(c)
 func (ctx *ContextMock) SetEchoContext(c echo.Context) {
-	ctx.Context.echoCtx = c
+	ctx.echoCtx = c
+}
+
+// SetMkdirAll sets the [gotenberg.MkdirAll].
+//
+//	ctx := &api.ContextMock{Context: &api.Context{}}
+//	ctx.SetMkdirAll(mkdirAll)
+func (ctx *ContextMock) SetMkdirAll(mkdirAll gotenberg.MkdirAll) {
+	ctx.mkdirAll = mkdirAll
 }
 
 // SetPathRename sets the [gotenberg.PathRename].
@@ -91,7 +100,7 @@ func (ctx *ContextMock) SetEchoContext(c echo.Context) {
 //	ctx := &api.ContextMock{Context: &api.Context{}}
 //	ctx.setPathRename(rename)
 func (ctx *ContextMock) SetPathRename(rename gotenberg.PathRename) {
-	ctx.Context.pathRename = rename
+	ctx.pathRename = rename
 }
 
 // RouterMock is a mock for the [Router] interface.
@@ -112,7 +121,7 @@ func (provider *MiddlewareProviderMock) Middlewares() ([]Middleware, error) {
 	return provider.MiddlewaresMock()
 }
 
-// HealthCheckerMock is mock for the [HealthChecker] interface.
+// HealthCheckerMock is a mock for the [HealthChecker] interface.
 type HealthCheckerMock struct {
 	ChecksMock func() ([]health.CheckerOption, error)
 	ReadyMock  func() error

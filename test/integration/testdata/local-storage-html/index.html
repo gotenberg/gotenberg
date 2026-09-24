@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Local storage counter</title>
+  </head>
+  <body>
+    <!-- Increments a per-origin localStorage counter and renders it, so a value
+         above 1 means a previous conversion of the same origin leaked into this
+         one. See https://github.com/gotenberg/gotenberg/issues/919. -->
+    <pre id="out"></pre>
+    <script>
+      var n = (parseInt(localStorage.getItem("n"), 10) || 0) + 1;
+      localStorage.setItem("n", n);
+      document.getElementById("out").textContent = "localStorageCount=" + n;
+    </script>
+  </body>
+</html>

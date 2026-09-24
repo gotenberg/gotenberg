@@ -3,6 +3,7 @@ package pdfengines
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	flag "github.com/spf13/pflag"
@@ -27,12 +28,25 @@ func init() {
 // the [api.Router] interface to expose relevant PDF processing routes if
 // enabled.
 type PdfEngines struct {
-	mergeNames        []string
-	convertNames      []string
-	readMetadataNames []string
-	writeMedataNames  []string
-	engines           []gotenberg.PdfEngine
-	disableRoutes     bool
+	mergeNames          []string
+	splitNames          []string
+	flattenNames        []string
+	convertNames        []string
+	optimizeImagesNames []string
+	readMetadataNames   []string
+	writeMetadataNames  []string
+	encryptNames        []string
+	embedNames          []string
+	embedMetadataNames  []string
+	readBookmarksNames  []string
+	writeBookmarksNames []string
+	watermarkNames      []string
+	stampNames          []string
+	rotateNames         []string
+	facturXNames        []string
+	engines             []gotenberg.PdfEngine
+	maxConcurrency      int
+	disableRoutes       bool
 }
 
 // Descriptor returns a PdfEngines' module descriptor.
@@ -42,11 +56,25 @@ func (mod *PdfEngines) Descriptor() gotenberg.ModuleDescriptor {
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("pdfengines", flag.ExitOnError)
 			fs.StringSlice("pdfengines-merge-engines", []string{"qpdf", "pdfcpu", "pdftk"}, "Set the PDF engines and their order for the merge feature - empty means all")
+			fs.StringSlice("pdfengines-split-engines", []string{"pdfcpu", "qpdf", "pdftk"}, "Set the PDF engines and their order for the split feature - empty means all")
+			fs.StringSlice("pdfengines-flatten-engines", []string{"qpdf"}, "Set the PDF engines and their order for the flatten feature - empty means all")
 			fs.StringSlice("pdfengines-convert-engines", []string{"libreoffice-pdfengine"}, "Set the PDF engines and their order for the convert feature - empty means all")
+			fs.StringSlice("pdfengines-optimize-images-engines", []string{"pdfcpu"}, "Set the PDF engines and their order for the image optimization feature - empty means all")
 			fs.StringSlice("pdfengines-read-metadata-engines", []string{"exiftool"}, "Set the PDF engines and their order for the read metadata feature - empty means all")
 			fs.StringSlice("pdfengines-write-metadata-engines", []string{"exiftool"}, "Set the PDF engines and their order for the write metadata feature - empty means all")
+			fs.StringSlice("pdfengines-encrypt-engines", []string{"qpdf", "pdftk", "pdfcpu"}, "Set the PDF engines and their order for the password protection feature - empty means all")
+			fs.StringSlice("pdfengines-embed-engines", []string{"pdfcpu"}, "Set the PDF engines and their order for the file embedding feature - empty means all")
+			fs.StringSlice("pdfengines-embed-metadata-engines", []string{"qpdf"}, "Set the PDF engines and their order for the embed metadata feature - empty means all")
+			fs.StringSlice("pdfengines-read-bookmarks-engines", []string{"pdfcpu"}, "Set the PDF engines and their order for the read bookmarks feature - empty means all")
+			fs.StringSlice("pdfengines-write-bookmarks-engines", []string{"pdfcpu"}, "Set the PDF engines and their order for the write bookmarks feature - empty means all")
+			fs.StringSlice("pdfengines-watermark-engines", []string{"pdfcpu", "pdftk"}, "Set the PDF engines and their order for the watermark feature - empty means all")
+			fs.StringSlice("pdfengines-stamp-engines", []string{"pdfcpu", "pdftk"}, "Set the PDF engines and their order for the stamp feature - empty means all")
+			fs.StringSlice("pdfengines-rotate-engines", []string{"pdfcpu", "pdftk"}, "Set the PDF engines and their order for the rotate feature - empty means all")
+			fs.StringSlice("pdfengines-factur-x-engines", []string{"qpdf"}, "Set the PDF engines and their order for the Factur-X XMP feature - empty means all")
+			fs.Int("pdfengines-max-concurrency", defaultMaxConcurrency, "Set the maximum number of PDF files a feature processes concurrently, across all requests - bounds how many qpdf, pdfcpu, pdftk and exiftool processes run at once, so raising it trades memory for speed. Does not apply to LibreOffice: scale Gotenberg containers instead")
 			fs.Bool("pdfengines-disable-routes", false, "Disable the routes")
 
+			// Deprecated flags.
 			fs.StringSlice("pdfengines-engines", make([]string, 0), "Set the default PDF engines and their default order - all by default")
 			err := fs.MarkDeprecated("pdfengines-engines", "use other flags for a more granular selection of PDF engines per method")
 			if err != nil {
@@ -64,10 +92,30 @@ func (mod *PdfEngines) Descriptor() gotenberg.ModuleDescriptor {
 func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	mergeNames := flags.MustStringSlice("pdfengines-merge-engines")
+	splitNames := flags.MustStringSlice("pdfengines-split-engines")
+	flattenNames := flags.MustStringSlice("pdfengines-flatten-engines")
 	convertNames := flags.MustStringSlice("pdfengines-convert-engines")
+	optimizeImagesNames := flags.MustStringSlice("pdfengines-optimize-images-engines")
 	readMetadataNames := flags.MustStringSlice("pdfengines-read-metadata-engines")
 	writeMetadataNames := flags.MustStringSlice("pdfengines-write-metadata-engines")
+	encryptNames := flags.MustStringSlice("pdfengines-encrypt-engines")
+	embedNames := flags.MustStringSlice("pdfengines-embed-engines")
+	embedMetadataNames := flags.MustStringSlice("pdfengines-embed-metadata-engines")
+	readBookmarksNames := flags.MustStringSlice("pdfengines-read-bookmarks-engines")
+	writeBookmarksNames := flags.MustStringSlice("pdfengines-write-bookmarks-engines")
+	watermarkNames := flags.MustStringSlice("pdfengines-watermark-engines")
+	stampNames := flags.MustStringSlice("pdfengines-stamp-engines")
+	rotateNames := flags.MustStringSlice("pdfengines-rotate-engines")
+	facturXNames := flags.MustStringSlice("pdfengines-factur-x-engines")
+	mod.maxConcurrency = flags.MustInt("pdfengines-max-concurrency")
 	mod.disableRoutes = flags.MustBool("pdfengines-disable-routes")
+
+	if mod.maxConcurrency > 0 {
+		maxFileConcurrency = mod.maxConcurrency
+		// One fewer than the ceiling: each request already reserves a unit of
+		// its own. See [engineExtraSlots].
+		engineExtraSlots = make(chan struct{}, mod.maxConcurrency-1)
+	}
 
 	engines, err := ctx.Modules(new(gotenberg.PdfEngine))
 	if err != nil {
@@ -85,17 +133,27 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 		defaultNames[i] = engine.(gotenberg.Module).Descriptor().ID
 	}
 
-	// Example in case of deprecated module name.
-	//for i, name := range defaultNames {
-	//	if name == "unoconv-pdfengine" || name == "uno-pdfengine" {
-	//		logger.Warn(fmt.Sprintf("%s is deprecated; prefer libreoffice-pdfengine instead", name))
-	//		mod.defaultNames[i] = "libreoffice-pdfengine"
-	//	}
-	//}
+	// Example in the case of deprecated module name.
+	// for i, name := range defaultNames {
+	// 	if name == "unoconv-pdfengine" || name == "uno-pdfengine" {
+	// 		logger.Warn(fmt.Sprintf("%s is deprecated; prefer libreoffice-pdfengine instead", name))
+	// 		mod.defaultNames[i] = "libreoffice-pdfengine"
+	// 	}
+	// }
 
 	mod.mergeNames = defaultNames
 	if len(mergeNames) > 0 {
 		mod.mergeNames = mergeNames
+	}
+
+	mod.splitNames = defaultNames
+	if len(splitNames) > 0 {
+		mod.splitNames = splitNames
+	}
+
+	mod.flattenNames = defaultNames
+	if len(flattenNames) > 0 {
+		mod.flattenNames = flattenNames
 	}
 
 	mod.convertNames = defaultNames
@@ -103,14 +161,64 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 		mod.convertNames = convertNames
 	}
 
+	mod.optimizeImagesNames = defaultNames
+	if len(optimizeImagesNames) > 0 {
+		mod.optimizeImagesNames = optimizeImagesNames
+	}
+
 	mod.readMetadataNames = defaultNames
 	if len(readMetadataNames) > 0 {
 		mod.readMetadataNames = readMetadataNames
 	}
 
-	mod.writeMedataNames = defaultNames
+	mod.writeMetadataNames = defaultNames
 	if len(writeMetadataNames) > 0 {
-		mod.writeMedataNames = writeMetadataNames
+		mod.writeMetadataNames = writeMetadataNames
+	}
+
+	mod.encryptNames = defaultNames
+	if len(encryptNames) > 0 {
+		mod.encryptNames = encryptNames
+	}
+
+	mod.embedNames = defaultNames
+	if len(embedNames) > 0 {
+		mod.embedNames = embedNames
+	}
+
+	mod.embedMetadataNames = defaultNames
+	if len(embedMetadataNames) > 0 {
+		mod.embedMetadataNames = embedMetadataNames
+	}
+
+	mod.readBookmarksNames = defaultNames
+	if len(readBookmarksNames) > 0 {
+		mod.readBookmarksNames = readBookmarksNames
+	}
+
+	mod.writeBookmarksNames = defaultNames
+	if len(writeBookmarksNames) > 0 {
+		mod.writeBookmarksNames = writeBookmarksNames
+	}
+
+	mod.watermarkNames = defaultNames
+	if len(watermarkNames) > 0 {
+		mod.watermarkNames = watermarkNames
+	}
+
+	mod.stampNames = defaultNames
+	if len(stampNames) > 0 {
+		mod.stampNames = stampNames
+	}
+
+	mod.rotateNames = defaultNames
+	if len(rotateNames) > 0 {
+		mod.rotateNames = rotateNames
+	}
+
+	mod.facturXNames = defaultNames
+	if len(facturXNames) > 0 {
+		mod.facturXNames = facturXNames
 	}
 
 	return nil
@@ -121,7 +229,11 @@ func (mod *PdfEngines) Provision(ctx *gotenberg.Context) error {
 // actually exist.
 func (mod *PdfEngines) Validate() error {
 	if len(mod.engines) == 0 {
-		return errors.New("no PDF engine")
+		return errors.New("no PDF engine is available; enable at least one engine module (e.g. qpdf, pdfcpu, pdftk, libreoffice-pdfengine, exiftool)")
+	}
+
+	if mod.maxConcurrency < 1 {
+		return fmt.Errorf("PDF engines max concurrency must be at least 1, got %d; set --pdfengines-max-concurrency (env PDFENGINES_MAX_CONCURRENCY) to a positive value", mod.maxConcurrency)
 	}
 
 	availableEngines := make([]string, len(mod.engines))
@@ -146,13 +258,7 @@ func (mod *PdfEngines) Validate() error {
 				continue
 			}
 
-			alreadyInSlice := false
-			for _, engine := range nonExistingEngines {
-				if engine == name {
-					alreadyInSlice = true
-					break
-				}
-			}
+			alreadyInSlice := slices.Contains(nonExistingEngines, name)
 
 			if !alreadyInSlice {
 				nonExistingEngines = append(nonExistingEngines, name)
@@ -161,9 +267,21 @@ func (mod *PdfEngines) Validate() error {
 	}
 
 	findNonExistingEngines(mod.mergeNames)
+	findNonExistingEngines(mod.splitNames)
+	findNonExistingEngines(mod.flattenNames)
+	findNonExistingEngines(mod.optimizeImagesNames)
 	findNonExistingEngines(mod.convertNames)
 	findNonExistingEngines(mod.readMetadataNames)
-	findNonExistingEngines(mod.writeMedataNames)
+	findNonExistingEngines(mod.writeMetadataNames)
+	findNonExistingEngines(mod.encryptNames)
+	findNonExistingEngines(mod.embedNames)
+	findNonExistingEngines(mod.embedMetadataNames)
+	findNonExistingEngines(mod.readBookmarksNames)
+	findNonExistingEngines(mod.writeBookmarksNames)
+	findNonExistingEngines(mod.watermarkNames)
+	findNonExistingEngines(mod.stampNames)
+	findNonExistingEngines(mod.rotateNames)
+	findNonExistingEngines(mod.facturXNames)
 
 	if len(nonExistingEngines) == 0 {
 		return nil
@@ -176,10 +294,23 @@ func (mod *PdfEngines) Validate() error {
 // modules.
 func (mod *PdfEngines) SystemMessages() []string {
 	return []string{
-		fmt.Sprintf("merge engines - %s", strings.Join(mod.mergeNames[:], " ")),
-		fmt.Sprintf("convert engines - %s", strings.Join(mod.convertNames[:], " ")),
-		fmt.Sprintf("read metadata engines - %s", strings.Join(mod.readMetadataNames[:], " ")),
-		fmt.Sprintf("write medata engines - %s", strings.Join(mod.writeMedataNames[:], " ")),
+		fmt.Sprintf("merge engines - %s", strings.Join(mod.mergeNames, " ")),
+		fmt.Sprintf("split engines - %s", strings.Join(mod.splitNames, " ")),
+		fmt.Sprintf("flatten engines - %s", strings.Join(mod.flattenNames, " ")),
+		fmt.Sprintf("convert engines - %s", strings.Join(mod.convertNames, " ")),
+		fmt.Sprintf("optimize images engines - %s", strings.Join(mod.optimizeImagesNames, " ")),
+		fmt.Sprintf("read metadata engines - %s", strings.Join(mod.readMetadataNames, " ")),
+		fmt.Sprintf("write metadata engines - %s", strings.Join(mod.writeMetadataNames, " ")),
+		fmt.Sprintf("encrypt engines - %s", strings.Join(mod.encryptNames, " ")),
+		fmt.Sprintf("embed engines - %s", strings.Join(mod.embedNames, " ")),
+		fmt.Sprintf("embed metadata engines - %s", strings.Join(mod.embedMetadataNames, " ")),
+		fmt.Sprintf("read bookmarks engines - %s", strings.Join(mod.readBookmarksNames, " ")),
+		fmt.Sprintf("write bookmarks engines - %s", strings.Join(mod.writeBookmarksNames, " ")),
+		fmt.Sprintf("watermark engines - %s", strings.Join(mod.watermarkNames, " ")),
+		fmt.Sprintf("stamp engines - %s", strings.Join(mod.stampNames, " ")),
+		fmt.Sprintf("rotate engines - %s", strings.Join(mod.rotateNames, " ")),
+		fmt.Sprintf("factur-x engines - %s", strings.Join(mod.facturXNames, " ")),
+		fmt.Sprintf("max concurrency - %d", mod.maxConcurrency),
 	}
 }
 
@@ -201,9 +332,21 @@ func (mod *PdfEngines) PdfEngine() (gotenberg.PdfEngine, error) {
 
 	return newMultiPdfEngines(
 		engines(mod.mergeNames),
+		engines(mod.splitNames),
+		engines(mod.flattenNames),
 		engines(mod.convertNames),
+		engines(mod.optimizeImagesNames),
 		engines(mod.readMetadataNames),
-		engines(mod.writeMedataNames),
+		engines(mod.writeMetadataNames),
+		engines(mod.encryptNames),
+		engines(mod.embedNames),
+		engines(mod.embedMetadataNames),
+		engines(mod.readBookmarksNames),
+		engines(mod.writeBookmarksNames),
+		engines(mod.watermarkNames),
+		engines(mod.stampNames),
+		engines(mod.rotateNames),
+		engines(mod.facturXNames),
 	), nil
 }
 
@@ -222,9 +365,20 @@ func (mod *PdfEngines) Routes() ([]api.Route, error) {
 
 	return []api.Route{
 		mergeRoute(engine),
+		splitRoute(engine),
+		flattenRoute(engine),
+		optimizeRoute(engine),
 		convertRoute(engine),
 		readMetadataRoute(engine),
 		writeMetadataRoute(engine),
+		readBookmarksRoute(engine),
+		writeBookmarksRoute(engine),
+		encryptRoute(engine),
+		embedRoute(engine),
+		watermarkRoute(engine),
+		stampRoute(engine),
+		rotateRoute(engine),
+		facturXRoute(engine),
 	}, nil
 }
 

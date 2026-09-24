@@ -1,50 +1,72 @@
 <p align="center">
-    <img src="https://user-images.githubusercontent.com/8983173/130322857-185831e2-f041-46eb-a17f-0a69d066c4e5.png" alt="Gotenberg Logo" width="150" height="150" />
+    <img src="https://raw.githubusercontent.com/gotenberg/art/master/logo.png" alt="Gotenberg Logo" width="150" height="150" />
     <h3 align="center">Gotenberg</h3>
-    <p align="center">A Docker-powered stateless API for PDF files</p>
+    <p align="center">A Docker-based API for converting documents to PDF</p>
     <p align="center">
         <a href="https://hub.docker.com/r/gotenberg/gotenberg"><img alt="Total downloads (gotenberg/gotenberg)" src="https://img.shields.io/docker/pulls/gotenberg/gotenberg"></a>
-        <a href="https://hub.docker.com/r/thecodingmachine/gotenberg"><img alt="Total downloads (thecodingmachine/gotenberg)" src="https://img.shields.io/docker/pulls/thecodingmachine/gotenberg"></a>
-        <br>
-        <a href="https://github.com/gotenberg/gotenberg/actions/workflows/continuous_integration.yml"><img alt="Continuous Integration" src="https://github.com/gotenberg/gotenberg/actions/workflows/continuous_integration.yml/badge.svg"></a>
+        <a href="https://github.com/gotenberg/gotenberg/actions/workflows/continuous-integration.yml"><img alt="Continuous Integration" src="https://github.com/gotenberg/gotenberg/actions/workflows/continuous-integration.yml/badge.svg"></a>
         <a href="https://pkg.go.dev/github.com/gotenberg/gotenberg/v8"><img alt="Go Reference" src="https://pkg.go.dev/badge/github.com/gotenberg/gotenberg.svg"></a>
-        <a href="https://codecov.io/gh/gotenberg/gotenberg/branch/main/graph/badge.svg"><img alt="Code coverage" src="https://codecov.io/gh/gotenberg/gotenberg/branch/main/graph/badge.svg"></a>
     </p>
-    <p align="center"><a href="https://gotenberg.dev/docs/getting-started/introduction">Documentation</a> &#183; <a href="https://gotenberg.dev/docs/getting-started/installation#live-demo-">Live Demo</a> 🔥</p>
+    <p align="center">
+        <a href="https://trendshift.io/repositories/2996"><img src="https://trendshift.io/api/badge/repositories/2996" alt="gotenberg%2Fgotenberg | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+    </p>
+    <p align="center">
+        <a href="https://gotenberg.dev/docs/getting-started/introduction"><strong>Documentation</strong></a> &#183;
+        <a href="https://gotenberg.dev/docs/getting-started/installation#live-demo"><strong>Live Demo</strong></a> &#183;
+        <a href="https://github.com/gotenberg/gotenberg/discussions"><strong>Community</strong></a>
+    </p>
 </p>
 
 ---
 
-**Gotenberg** provides a developer-friendly API to interact with powerful tools like Chromium and LibreOffice for converting 
-numerous document formats (HTML, Markdown, Word, Excel, etc.) into PDF files, and more!
+**Gotenberg** is a Docker-based API for converting documents to PDF. Trusted in production by thousands of companies. Also adopted by notable open-source projects.
+
+Send your files via `multipart/form-data`, get a PDF back. No need to manage Chromium, LibreOffice, or fonts yourself.
 
 ## Quick Start
 
-Open a terminal and run the following command:
-
-```
+```bash
 docker run --rm -p 3000:3000 gotenberg/gotenberg:8
 ```
 
-Alternatively, using the historic Docker repository from our sponsor [TheCodingMachine](https://www.thecodingmachine.com):
+Convert a URL to PDF:
 
+```bash
+curl \
+  --request POST http://localhost:3000/forms/chromium/convert/url \
+  --form url=https://sparksuite.github.io/simple-html-invoice-template/ \
+  -o invoice.pdf
 ```
-docker run --rm -p 3000:3000 thecodingmachine/gotenberg:8
-```
 
-The API is now available on your host at http://localhost:3000.
+## Features
 
-Head to the [documentation](https://gotenberg.dev/docs/getting-started/introduction) to learn how to interact with it 🚀
+- **HTML, URL, Markdown to PDF** via Headless Chromium
+- **Office documents to PDF** via LibreOffice (100+ formats)
+- **Merge, split, rotate, flatten** PDFs
+- **Watermark, stamp, encrypt** PDFs
+- **PDF/A and PDF/UA** compliance
+- **Screenshots** of URLs and HTML
+- **Read/write metadata and bookmarks**
+
+See the [full documentation](https://gotenberg.dev/docs/getting-started/introduction).
+
+## Contributing
+
+Questions and feedback: [GitHub Discussions](https://github.com/gotenberg/gotenberg/discussions).
+Bug reports: [GitHub Issues](https://github.com/gotenberg/gotenberg/issues).
 
 ## Sponsors
 
-<p align="center">
-    <a href="https://thecodingmachine.com">
-        <img src="https://user-images.githubusercontent.com/8983173/130324668-9d6e7b35-53a3-49c7-a574-38190d2bd6b0.png" alt="TheCodingMachine Logo" width="333" height="163" />
-    </a>
-    <a href="https://zolsec.com?utm_source=gotenberg_github&utm_medium=website" target="_blank">
-        <img src="https://github.com/gotenberg/gotenberg/assets/8983173/707ccc97-a79b-4dcb-8fc8-6827366e5be3" alt="Zolsec Logo" width="333" height="163" />
-    </a>
-</p>
+If Gotenberg powers your workflow or your business, consider [**becoming a sponsor**](https://github.com/sponsors/gulien).
 
-Sponsorships help maintaining and improving Gotenberg - [become a sponsor](https://github.com/sponsors/gulien) ❤️
+**Historic & GitHub Sponsors**
+
+- [TheCodingMachine](https://thecodingmachine.com/)
+- [pdfme](https://pdfme.com/)
+- [PDFBolt](https://pdfbolt.com)
+- [FileToPDF.dev](https://filetopdf.dev)
+
+**Powered By**
+
+- [Docker](https://docs.docker.com/docker-hub/repos/manage/trusted-content/dsos-program/)
+- [JetBrains](https://www.jetbrains.com/community/opensource/)

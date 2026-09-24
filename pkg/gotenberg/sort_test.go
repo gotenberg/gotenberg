@@ -18,9 +18,25 @@ func TestAlphanumericSort(t *testing.T) {
 			expectedSort: []string{"1bar.pdf", "2_aza.txt", "2_baz.txt", "3.pdf", "4_foo.pdf", "10qux.pdf", "25zeta.txt", "Afoo.txt", "Bbar.docx"},
 		},
 		{
+			scenario:     "numeric suffixes with extensions",
+			values:       []string{"sample1_10.pdf", "sample1_11.pdf", "sample1_4.pdf", "sample1_3.pdf", "sample1_1.pdf", "sample1_2.pdf"},
+			expectedSort: []string{"sample1_1.pdf", "sample1_2.pdf", "sample1_3.pdf", "sample1_4.pdf", "sample1_10.pdf", "sample1_11.pdf"},
+		},
+		{
+			scenario:     "numeric suffixes",
+			values:       []string{"sample1_10", "sample1_11", "sample1_4", "sample1_3", "sample1_1", "sample1_2"},
+			expectedSort: []string{"sample1_1", "sample1_2", "sample1_3", "sample1_4", "sample1_10", "sample1_11"},
+		},
+		{
 			scenario:     "hrtime (PHP library)",
 			values:       []string{"245654773395259", "245654773395039", "245654773395149", "245654773394919", "245654773394369"},
 			expectedSort: []string{"245654773394369", "245654773394919", "245654773395039", "245654773395149", "245654773395259"},
+		},
+		{
+			// https://github.com/gotenberg/gotenberg/issues/1287.
+			scenario:     "different basenames with numeric suffixes",
+			values:       []string{"RIJNMOND-attach-Opdrachtbevestiging_P0007104.pdf", "Bundle-25029.pdf"},
+			expectedSort: []string{"Bundle-25029.pdf", "RIJNMOND-attach-Opdrachtbevestiging_P0007104.pdf"},
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {

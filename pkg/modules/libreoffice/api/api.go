@@ -4,13 +4,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
+	"os/exec"
+	"strings"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/alexliesenfeld/health"
 	flag "github.com/spf13/pflag"
-	"go.uber.org/multierr"
-	"go.uber.org/zap"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
+	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
@@ -21,43 +29,79 @@ func init() {
 }
 
 var (
-	// ErrInvalidPdfFormats happens if the PDF formats option cannot be handled
-	// by LibreOffice.
+	// ErrInvalidPdfFormats happens if LibreOffice cannot handle the PDF
+	// formats option.
 	ErrInvalidPdfFormats = errors.New("invalid PDF formats")
 
-	// ErrUnoException happens when unoconverter returns an exit code 5.
+	// ErrUnoException happens when unoconverter returns exit code 5. That code
+	// is the residual bucket of unoconverter's catch-all UNO exception handler:
+	// it covers a malformed page range, a password supplied to a document that
+	// does not need one, a failure to open the document and a failure to write
+	// the output alike. It names the exception class that was caught, not a
+	// cause. See https://github.com/gotenberg/gotenberg/issues/1588.
 	ErrUnoException = errors.New("uno exception")
 
-	// ErrRuntimeException happens when unoconverter returns an exit code 6.
-	ErrRuntimeException = errors.New("uno exception")
+	// ErrRuntimeException happens when unoconverter returns exit code 6.
+	// unoconverter's own message for it reads "Office probably died", yet a
+	// wrong or missing password also surfaces there. Like [ErrUnoException], it
+	// does not establish who is at fault.
+	ErrRuntimeException = errors.New("runtime exception")
 
-	// ErrCoreDumped happens randomly; sometime a conversion will work as
+	// ErrIoException happens when unoconverter returns exit code 3. LibreOffice
+	// could not read the source document.
+	ErrIoException = errors.New("io exception")
+
+	// ErrCannotConvertException happens when unoconverter returns exit code 4.
+	// LibreOffice read the document but could not convert it to PDF.
+	ErrCannotConvertException = errors.New("cannot convert exception")
+
+	// ErrIllegalArgumentException happens when unoconverter returns exit code
+	// 8. LibreOffice rejected the source document, usually because its contents
+	// do not match its extension.
+	ErrIllegalArgumentException = errors.New("illegal argument exception")
+
+	// ErrCoreDumped happens randomly; sometimes a conversion will work as
 	// expected, and some other time the same conversion will fail.
 	// See https://github.com/gotenberg/gotenberg/issues/639.
 	ErrCoreDumped = errors.New("core dumped")
 )
 
-// Api is a module which provides a [Uno] to interact with LibreOffice.
+// Api is a module that provides a [Uno] to interact with LibreOffice.
 type Api struct {
 	autoStart bool
 	args      libreOfficeArguments
 
-	logger      *zap.Logger
+	logger      *slog.Logger
 	libreOffice libreOffice
 	supervisor  gotenberg.ProcessSupervisor
+
+	version     string
+	versionOnce sync.Once
+
+	reqsCounter               metric.Int64Counter
+	errsCounter               metric.Int64Counter
+	conversionDurationCounter metric.Float64Histogram
+	queueWaitDurationCounter  metric.Float64Histogram
+	pdfOutputSizeCounter      metric.Int64Histogram
+	coreDumpedRetriesCounter  metric.Int64Counter
 }
 
 // Options gathers available options when converting a document to PDF.
 // See: https://help.libreoffice.org/latest/en-US/text/shared/guide/pdf_params.html.
 type Options struct {
 	// Password specifies the password for opening the source file.
-	Password string
+	Password string // #nosec
 
-	// Landscape allows to change the orientation of the resulting PDF.
+	// Landscape allows changing the orientation of the resulting PDF.
 	Landscape bool
 
-	// PageRanges allows to select the pages to convert.
+	// PageRanges allows selecting the pages to convert.
 	PageRanges string
+
+	// UpdateIndexes specifies whether to update the indexes before conversion,
+	// keeping in mind that doing so might result in missing links in the final
+	// PDF.
+	UpdateIndexes bool
 
 	// ExportFormFields specifies whether form fields are exported as widgets
 	// or only their fixed print representation is exported.
@@ -75,7 +119,7 @@ type Options struct {
 	// Named Destination.
 	ExportBookmarksToPdfDestination bool
 
-	// ExportPlaceholders exports the placeholders fields visual markings only.
+	// ExportPlaceholders exports the placeholder fields visual markings only.
 	// The exported placeholder is ineffective.
 	ExportPlaceholders bool
 
@@ -86,15 +130,16 @@ type Options struct {
 	// Notes pages are available in Impress documents only.
 	ExportNotesPages bool
 
-	// ExportOnlyNotesPages specifies, if the property ExportNotesPages is set
-	// to true, if only notes pages are exported to PDF.
+	// ExportOnlyNotesPages specifies if the property ExportNotesPages is set
+	// to true if only notes pages are exported to PDF.
 	ExportOnlyNotesPages bool
 
-	// ExportNotesInMargin specifies if notes in margin are exported to PDF.
+	// ExportNotesInMargin specifies if notes in the margin are exported to
+	// PDF.
 	ExportNotesInMargin bool
 
 	// ConvertOooTargetToPdfTarget specifies that the target documents with
-	// .od[tpgs] extension, will have that extension changed to .pdf when the
+	// .od[tpgs] extension will have that extension changed to .pdf when the
 	// link is exported to PDF. The source document remains untouched.
 	ConvertOooTargetToPdfTarget bool
 
@@ -120,6 +165,66 @@ type Options struct {
 	// one page.
 	SinglePageSheets bool
 
+	// InitialView specifies how the PDF document should be displayed when
+	// opened. 0 = neither outlines nor thumbnails, 1 = outline pane open,
+	// 2 = thumbnail pane open.
+	InitialView int
+
+	// InitialPage specifies the page on which the PDF document should be
+	// opened in the viewer.
+	InitialPage int
+
+	// Magnification specifies the action to be performed when the PDF document
+	// is opened. 0 = default, 1 = fit entire page, 2 = fit page width,
+	// 3 = fit visible, 4 = use zoom value from Zoom property.
+	Magnification int
+
+	// Zoom specifies the zoom level the PDF document is opened with. Only
+	// used if Magnification is set to 4.
+	Zoom int
+
+	// PageLayout specifies the page layout when the document is opened.
+	// 0 = default, 1 = single page, 2 = one column, 3 = two columns.
+	PageLayout int
+
+	// FirstPageOnLeft is used with PageLayout value 3. If true, the first
+	// page is displayed on the left side.
+	FirstPageOnLeft bool
+
+	// ResizeWindowToInitialPage specifies that the PDF viewer window is
+	// resized to show the whole initial page.
+	ResizeWindowToInitialPage bool
+
+	// CenterWindow specifies that the PDF viewer window is centered on the
+	// screen.
+	CenterWindow bool
+
+	// OpenInFullScreenMode specifies that the PDF viewer window is opened
+	// full screen.
+	OpenInFullScreenMode bool
+
+	// DisplayPDFDocumentTitle specifies that the document title is displayed
+	// in the PDF viewer title bar.
+	DisplayPDFDocumentTitle bool
+
+	// HideViewerMenubar specifies whether to hide the PDF viewer menubar.
+	HideViewerMenubar bool
+
+	// HideViewerToolbar specifies whether to hide the PDF viewer toolbar.
+	HideViewerToolbar bool
+
+	// HideViewerWindowControls specifies whether to hide the PDF viewer
+	// window controls.
+	HideViewerWindowControls bool
+
+	// UseTransitionEffects specifies that slide transitions are exported to
+	// PDF. Only active for Impress documents.
+	UseTransitionEffects bool
+
+	// OpenBookmarkLevels specifies how many bookmark levels should be opened
+	// in the reader. -1 = all levels, 1-10 = specific level.
+	OpenBookmarkLevels int
+
 	// LosslessImageCompression specifies if images are exported to PDF using
 	// a lossless compression format like PNG or compressed using the JPEG
 	// format.
@@ -138,13 +243,32 @@ type Options struct {
 	// Possible values are: 75, 150, 300, 600 and 1200.
 	MaxImageResolution int
 
+	// NativeWatermarkText specifies the text for a watermark to be drawn on
+	// every page of the exported PDF file.
+	// See https://help.libreoffice.org/latest/en-US/text/shared/guide/pdf_params.html.
+	NativeWatermarkText string
+
+	// NativeWatermarkColor specifies the color for the watermark text as a
+	// decimal long value. Default is 8388223 (light green).
+	NativeWatermarkColor int
+
+	// NativeWatermarkFontHeight specifies the font size for the watermark text.
+	NativeWatermarkFontHeight int
+
+	// NativeWatermarkRotateAngle specifies the rotation angle for the watermark
+	// text in tenths of a degree (e.g., 450 = 45°).
+	NativeWatermarkRotateAngle int
+
+	// NativeWatermarkFontName specifies the font name for the watermark text.
+	// Default is "Helvetica".
+	NativeWatermarkFontName string
+
+	// NativeTiledWatermarkText specifies the tiled watermark text.
+	NativeTiledWatermarkText string
+
 	// PdfFormats allows to convert the resulting PDF to PDF/A-1b, PDF/A-2b,
 	// PDF/A-3b and PDF/UA.
 	PdfFormats gotenberg.PdfFormats
-
-	// Specify a non-PDF output format.
-	// Fow now, the only supported value is "xlsx".
-	OutputFormat string
 }
 
 // DefaultOptions returns the default values for Options.
@@ -153,6 +277,7 @@ func DefaultOptions() Options {
 		Password:                        "",
 		Landscape:                       false,
 		PageRanges:                      "",
+		UpdateIndexes:                   true,
 		ExportFormFields:                true,
 		AllowDuplicateFieldNames:        false,
 		ExportBookmarks:                 true,
@@ -168,25 +293,45 @@ func DefaultOptions() Options {
 		SkipEmptyPages:                  false,
 		AddOriginalDocumentAsStream:     false,
 		SinglePageSheets:                false,
+		InitialView:                     0,
+		InitialPage:                     1,
+		Magnification:                   0,
+		Zoom:                            100,
+		PageLayout:                      0,
+		FirstPageOnLeft:                 false,
+		ResizeWindowToInitialPage:       false,
+		CenterWindow:                    false,
+		OpenInFullScreenMode:            false,
+		DisplayPDFDocumentTitle:         true,
+		HideViewerMenubar:               false,
+		HideViewerToolbar:               false,
+		HideViewerWindowControls:        false,
+		UseTransitionEffects:            true,
+		OpenBookmarkLevels:              -1,
 		LosslessImageCompression:        false,
 		Quality:                         90,
 		ReduceImageResolution:           false,
 		MaxImageResolution:              300,
+		NativeWatermarkText:             "",
+		NativeWatermarkColor:            8388223,
+		NativeWatermarkFontHeight:       0,
+		NativeWatermarkRotateAngle:      0,
+		NativeWatermarkFontName:         "Helvetica",
+		NativeTiledWatermarkText:        "",
 		PdfFormats: gotenberg.PdfFormats{
 			PdfA:  "",
 			PdfUa: false,
 		},
-		OutputFormat:                    "pdf",
 	}
 }
 
 // Uno is an abstraction on top of the Universal Network Objects API.
 type Uno interface {
-	Pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
+	Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error
 	Extensions() []string
 }
 
-// Provider is a module interface which exposes a method for creating a
+// Provider is a module interface that exposes a method for creating a
 // [Uno] for other modules.
 //
 //	func (m *YourModule) Provision(ctx *gotenberg.Context) error {
@@ -205,8 +350,14 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs := flag.NewFlagSet("api", flag.ExitOnError)
 			fs.Int64("libreoffice-restart-after", 10, "Number of conversions after which LibreOffice will automatically restart. Set to 0 to disable this feature")
 			fs.Int64("libreoffice-max-queue-size", 0, "Maximum request queue size for LibreOffice. Set to 0 to disable this feature")
+			fs.Duration("libreoffice-idle-shutdown-timeout", 0, "Shutdown LibreOffice after being idle for the given duration. Set to 0 to disable this feature")
 			fs.Bool("libreoffice-auto-start", false, "Automatically launch LibreOffice upon initialization if set to true; otherwise, LibreOffice will start at the time of the first conversion")
 			fs.Duration("libreoffice-start-timeout", time.Duration(20)*time.Second, "Maximum duration to wait for LibreOffice to start or restart")
+			fs.StringSlice("libreoffice-allow-list", []string{}, `Set the allowed URLs for LibreOffice outbound fetches (embedded images, linked content) using regular expressions - supports multiple values. A match bypasses --libreoffice-deny-private-ips (LIBREOFFICE_DENY_PRIVATE_IPS) and --libreoffice-deny-public-ips (LIBREOFFICE_DENY_PUBLIC_IPS), so terminate the host or the pattern also matches suffix hosts, for example ^https?://internal\.svc(:|/|$)`)
+			fs.StringSlice("libreoffice-deny-list", []string{}, "Set the denied URLs for LibreOffice outbound fetches using regular expressions - supports multiple values")
+			fs.Bool("libreoffice-deny-private-ips", false, "Reject LibreOffice outbound URLs whose host resolves to a non-public IP address (loopback, RFC1918, link-local, unique-local). Enable on deployments that accept untrusted documents to mitigate SSRF against internal services")
+			fs.Bool("libreoffice-deny-public-ips", false, "Reject LibreOffice outbound URLs whose host resolves to a public IP address. Enable on air-gapped or data-governed deployments to prevent outbound traffic from leaving a private network")
+			fs.Bool("libreoffice-enable-environment-proxy", false, "Route LibreOffice outbound fetches through the proxy defined by the standard HTTP_PROXY, HTTPS_PROXY, and NO_PROXY variables, including credentials")
 
 			return fs
 		}(),
@@ -233,22 +384,126 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 		binPath:      libreOfficeBinPath,
 		unoBinPath:   unoBinPath,
 		startTimeout: flags.MustDuration("libreoffice-start-timeout"),
+		proxyOptions: outboundProxyOptions{
+			allowList:              flags.MustRegexpSlice("libreoffice-allow-list"),
+			denyList:               flags.MustRegexpSlice("libreoffice-deny-list"),
+			denyPrivateIPs:         flags.MustBool("libreoffice-deny-private-ips"),
+			denyPublicIPs:          flags.MustBool("libreoffice-deny-public-ips"),
+			enableEnvironmentProxy: flags.MustBool("libreoffice-enable-environment-proxy"),
+		},
 	}
 
 	// Logger.
-	loggerProvider, err := ctx.Module(new(gotenberg.LoggerProvider))
-	if err != nil {
-		return fmt.Errorf("get logger provider: %w", err)
-	}
-	logger, err := loggerProvider.(gotenberg.LoggerProvider).Logger(a)
-	if err != nil {
-		return fmt.Errorf("get logger: %w", err)
-	}
-	a.logger = logger.Named("libreoffice")
+	a.logger = gotenberg.Logger(a).With(slog.String("logger", "libreoffice"))
 
 	// Process.
 	a.libreOffice = newLibreOfficeProcess(a.args)
-	a.supervisor = gotenberg.NewProcessSupervisor(a.logger, a.libreOffice, flags.MustInt64("libreoffice-restart-after"), flags.MustInt64("libreoffice-max-queue-size"))
+	a.supervisor = gotenberg.NewProcessSupervisor(a.logger, "libreoffice", a.libreOffice, flags.MustInt64("libreoffice-restart-after"), flags.MustInt64("libreoffice-max-queue-size"), 1, flags.MustDuration("libreoffice-idle-shutdown-timeout"))
+
+	// Metrics.
+	meter := gotenberg.Meter()
+
+	// Observable gauges.
+	var err error
+
+	_, err = meter.Int64ObservableGauge(
+		"libreoffice.requests.active",
+		metric.WithDescription("Current number of active LibreOffice requests"),
+		metric.WithUnit("{request}"),
+		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
+			o.Observe(a.supervisor.ActiveTasksCount())
+			return nil
+		}),
+	)
+	if err != nil {
+		return fmt.Errorf("create libreoffice.requests.active gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"libreoffice.requests.queue_size",
+		metric.WithDescription("Current number of LibreOffice conversion requests waiting to be treated"),
+		metric.WithUnit("{request}"),
+		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
+			o.Observe(a.supervisor.ReqQueueSize())
+			return nil
+		}),
+	)
+	if err != nil {
+		return fmt.Errorf("create libreoffice.requests.queue_size gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableCounter(
+		"libreoffice.process.restarts.total",
+		metric.WithDescription("Current number of LibreOffice restarts"),
+		metric.WithUnit("{restart}"),
+		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
+			o.Observe(a.supervisor.RestartsCount())
+			return nil
+		}),
+	)
+	if err != nil {
+		return fmt.Errorf("create libreoffice.process.restarts.total counter: %w", err)
+	}
+
+	// Counters.
+	a.reqsCounter, err = meter.Int64Counter(
+		"libreoffice.requests.total",
+		metric.WithDescription("Total number of LibreOffice conversion requests"),
+		metric.WithUnit("{request}"),
+	)
+	if err != nil {
+		return fmt.Errorf("create libreoffice.requests.total counter: %w", err)
+	}
+
+	a.errsCounter, err = meter.Int64Counter(
+		"libreoffice.errors.total",
+		metric.WithDescription("Total number of LibreOffice conversion errors"),
+		metric.WithUnit("{error}"),
+	)
+	if err != nil {
+		return fmt.Errorf("create libreoffice.errors.total counter: %w", err)
+	}
+
+	// Histograms.
+	durationBuckets := metric.WithExplicitBucketBoundaries(0.5, 1, 2, 5, 10, 30, 60)
+
+	a.conversionDurationCounter, err = meter.Float64Histogram(
+		"libreoffice.conversion.duration",
+		metric.WithDescription("Duration of LibreOffice conversions"),
+		metric.WithUnit("s"),
+		durationBuckets,
+	)
+	if err != nil {
+		return fmt.Errorf("create libreoffice.conversion.duration histogram: %w", err)
+	}
+
+	a.queueWaitDurationCounter, err = meter.Float64Histogram(
+		"libreoffice.queue.wait.duration",
+		metric.WithDescription("Duration of waiting in queue for LibreOffice conversions"),
+		metric.WithUnit("s"),
+		durationBuckets,
+	)
+	if err != nil {
+		return fmt.Errorf("create libreoffice.queue.wait.duration histogram: %w", err)
+	}
+
+	a.pdfOutputSizeCounter, err = meter.Int64Histogram(
+		"libreoffice.pdf.output.size",
+		metric.WithDescription("Size of PDF output from LibreOffice conversions"),
+		metric.WithUnit("By"),
+	)
+	if err != nil {
+		return fmt.Errorf("create libreoffice.pdf.output.size histogram: %w", err)
+	}
+
+	a.coreDumpedRetriesCounter, err = meter.Int64Counter(
+		"libreoffice.conversion.retries.total",
+		metric.WithDescription("Total number of LibreOffice conversion retries after a core dump"),
+		metric.WithUnit("{retry}"),
+	)
+	if err != nil {
+		return fmt.Errorf("create libreoffice.conversion.retries.total counter: %w", err)
+	}
 
 	return nil
 }
@@ -259,12 +514,19 @@ func (a *Api) Validate() error {
 
 	_, statErr := os.Stat(a.args.binPath)
 	if os.IsNotExist(statErr) {
-		err = multierr.Append(err, fmt.Errorf("LibreOffice binary path does not exist: %w", statErr))
+		err = errors.Join(err, fmt.Errorf("LibreOffice binary does not exist at %q; check the LIBREOFFICE_BIN_PATH environment variable: %w", a.args.binPath, statErr))
 	}
 
 	_, statErr = os.Stat(a.args.unoBinPath)
 	if os.IsNotExist(statErr) {
-		err = multierr.Append(err, fmt.Errorf("unoconverter binary path does not exist: %w", statErr))
+		err = errors.Join(err, fmt.Errorf("unoconverter binary does not exist at %q; check the UNOCONVERTER_BIN_PATH environment variable: %w", a.args.unoBinPath, statErr))
+	}
+
+	if a.args.proxyOptions.enableEnvironmentProxy {
+		proxyErr := gotenberg.ValidateEnvironmentProxyVariables()
+		if proxyErr != nil {
+			err = errors.Join(err, fmt.Errorf("--libreoffice-enable-environment-proxy is set: %w", proxyErr))
+		}
 	}
 
 	return err
@@ -296,9 +558,9 @@ func (a *Api) StartupMessage() string {
 
 // Stop stops the current browser instance.
 func (a *Api) Stop(ctx context.Context) error {
-	// Block until the context is done so that other module may gracefully stop
-	// before we do a shutdown.
-	a.logger.Debug("wait for the end of grace duration")
+	// Block until the context is done so that another module may gracefully
+	// stop before we do a shutdown.
+	a.logger.DebugContext(ctx, "wait for the end of grace duration")
 
 	<-ctx.Done()
 
@@ -308,6 +570,50 @@ func (a *Api) Stop(ctx context.Context) error {
 	}
 
 	return fmt.Errorf("stop LibreOffice: %w", err)
+}
+
+// Debug returns additional debug data.
+func (a *Api) Debug() map[string]any {
+	return map[string]any{"version": a.detectVersion()}
+}
+
+// detectVersion resolves the LibreOffice version once, preferring the value
+// captured at image build time so it never spawns LibreOffice at runtime. It
+// falls back to running soffice --version for local or non-Docker builds.
+func (a *Api) detectVersion() string {
+	a.versionOnce.Do(func() {
+		if v, ok := gotenberg.BuildVersion("libreoffice-api"); ok {
+			a.version = v
+			return
+		}
+
+		cmd := exec.Command(a.args.binPath, "--version") //nolint:gosec
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+		output, err := cmd.Output()
+		if err != nil {
+			a.version = err.Error()
+			return
+		}
+
+		a.version = strings.TrimSpace(string(output))
+	})
+
+	return a.version
+}
+
+// spanAttrs returns the client-span attributes for a LibreOffice invocation:
+// the server address and the LibreOffice version, plus any extra attributes.
+// The version rides on every conversion span so a trace records which
+// LibreOffice rendered the document.
+func (a *Api) spanAttrs(extra ...attribute.KeyValue) []attribute.KeyValue {
+	attrs := make([]attribute.KeyValue, 0, 2+len(extra))
+	attrs = append(attrs, semconv.ServerAddress(a.args.binPath))
+	if v := a.detectVersion(); v != "" {
+		attrs = append(attrs, attribute.String("gotenberg.libreoffice.version", v))
+	}
+
+	return append(attrs, extra...)
 }
 
 // Metrics returns the metrics.
@@ -380,22 +686,127 @@ func (a *Api) LibreOffice() (Uno, error) {
 }
 
 // Pdf converts a document to PDF.
-func (a *Api) Pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error {
-	err := a.supervisor.Run(ctx, logger, func() error {
-		return a.libreOffice.pdf(ctx, logger, inputPath, outputPath, options)
-	})
+func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "libreoffice.Pdf",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(a.spanAttrs()...),
+	)
+	defer span.End()
 
-	if err == nil {
-		return nil
+	span.SetAttributes(
+		attribute.Int64("gotenberg.queue.depth_at_arrival", a.supervisor.ReqQueueSize()),
+		attribute.Int64("gotenberg.conversions_since_last_restart", a.supervisor.ConversionsSinceRestart()),
+	)
+	span.SetAttributes(conversionRequestAttributes(inputPath, options)...)
+
+	// ErrCoreDumped happens randomly (https://github.com/gotenberg/gotenberg/issues/639);
+	// retry the conversion, but cap the retries so a permanently failing
+	// document cannot loop forever. Each attempt records its own metrics.
+	const maxCoreDumpedRetries = 10
+
+	var err error
+	var reason string
+	for attempt := 0; ; attempt++ {
+		start := time.Now()
+		var conversionStart time.Time
+
+		err = a.supervisor.Run(ctx, logger, func() error {
+			conversionStart = time.Now()
+			return a.libreOffice.pdf(ctx, logger, inputPath, outputPath, options)
+		})
+
+		// Determine status and error reason.
+		status := "success"
+		reason = ""
+
+		if err != nil {
+			status = "error"
+			if errors.Is(err, context.DeadlineExceeded) {
+				status = "timeout"
+			}
+			reason = libreofficeErrorType(err)
+		}
+
+		// Record metrics for this attempt.
+		attrs := metric.WithAttributes(attribute.String("status", status))
+		a.reqsCounter.Add(ctx, 1, attrs)
+
+		if reason != "" {
+			a.errsCounter.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", reason)))
+		}
+
+		if !conversionStart.IsZero() {
+			queueWait := conversionStart.Sub(start).Seconds()
+			a.queueWaitDurationCounter.Record(ctx, queueWait, attrs)
+
+			conversionDuration := time.Since(conversionStart).Seconds()
+			a.conversionDurationCounter.Record(ctx, conversionDuration, attrs)
+		}
+
+		if err == nil {
+			stat, statErr := os.Stat(outputPath)
+			if statErr == nil {
+				a.pdfOutputSizeCounter.Record(ctx, stat.Size(), attrs)
+				span.SetAttributes(attribute.Int64("gotenberg.conversion.output.bytes", stat.Size()))
+			}
+
+			span.SetStatus(codes.Ok, "")
+			return nil
+		}
+
+		if errors.Is(err, ErrCoreDumped) && attempt < maxCoreDumpedRetries {
+			logger.DebugContext(ctx, fmt.Sprintf("got a '%s' error, retry conversion (attempt %d)", err, attempt+1))
+			span.AddEvent("conversion.retry", trace.WithAttributes(
+				attribute.Int("attempt", attempt+1),
+			))
+			a.coreDumpedRetriesCounter.Add(ctx, 1)
+			continue
+		}
+
+		break
 	}
 
-	// See https://github.com/gotenberg/gotenberg/issues/639.
-	if errors.Is(err, ErrCoreDumped) {
-		logger.Debug(fmt.Sprintf("got a '%s' error, retry conversion", err))
-		return a.Pdf(ctx, logger, inputPath, outputPath, options)
-	}
-
+	gotenberg.SpanErrorType(span, reason)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
 	return fmt.Errorf("supervisor run task: %w", err)
+}
+
+// conversionRequestAttributes derives low-cardinality attributes describing the
+// requested conversion: the input document size and the requested PDF format
+// options.
+func conversionRequestAttributes(inputPath string, options Options) []attribute.KeyValue {
+	attrs := []attribute.KeyValue{
+		attribute.String("gotenberg.libreoffice.pdf_a", options.PdfFormats.PdfA),
+		attribute.Bool("gotenberg.libreoffice.pdf_ua", options.PdfFormats.PdfUa),
+		attribute.Bool("gotenberg.conversion.landscape", options.Landscape),
+		attribute.Bool("gotenberg.conversion.has_page_ranges", options.PageRanges != ""),
+	}
+
+	if info, err := os.Stat(inputPath); err == nil {
+		attrs = append(attrs, attribute.Int64("gotenberg.conversion.input.bytes", info.Size()))
+	}
+
+	return attrs
+}
+
+// libreofficeErrorType maps a conversion error to LibreOffice's bounded reason
+// value, reused as the span error.type. Generic failures fall back to
+// [gotenberg.ClassifyError].
+func libreofficeErrorType(err error) string {
+	switch {
+	case errors.Is(err, ErrInvalidPdfFormats),
+		errors.Is(err, ErrIoException),
+		errors.Is(err, ErrCannotConvertException),
+		errors.Is(err, ErrIllegalArgumentException):
+		return gotenberg.ErrorTypeInvalidInput
+	case errors.Is(err, ErrUnoException), errors.Is(err, ErrRuntimeException):
+		return "libreoffice_exception"
+	case errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded), errors.Is(err, gotenberg.ErrProcessAlreadyRestarting):
+		return "libreoffice_unavailable"
+	default:
+		return gotenberg.ClassifyError(err)
+	}
 }
 
 // Extensions returns the file extensions available for conversions.
@@ -468,6 +879,8 @@ func (a *Api) Extensions() []string {
 		".potx",
 		".ppm",
 		".pps",
+		".ppsm",
+		".ppsx",
 		".ppt",
 		".pptm",
 		".pptx",
@@ -541,6 +954,7 @@ var (
 	_ gotenberg.Provisioner     = (*Api)(nil)
 	_ gotenberg.Validator       = (*Api)(nil)
 	_ gotenberg.App             = (*Api)(nil)
+	_ gotenberg.Debuggable      = (*Api)(nil)
 	_ gotenberg.MetricsProvider = (*Api)(nil)
 	_ api.HealthChecker         = (*Api)(nil)
 	_ Uno                       = (*Api)(nil)

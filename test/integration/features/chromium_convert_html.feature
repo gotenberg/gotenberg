@@ -1,0 +1,1463 @@
+# TODO:
+# 1. JavaScript disabled on some feature.
+
+@chromium
+@chromium-convert-html
+Feature: /forms/chromium/convert/html
+
+  Scenario: POST /forms/chromium/convert/html (Default)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/page-1-html/index.html | file   |
+      | Gotenberg-Output-Filename | foo                             | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+
+  Scenario: POST /forms/chromium/convert/html (Single Page)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/pages-12-html/index.html | file   |
+      | Gotenberg-Output-Filename | foo                               | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 12 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "foo.pdf" PDF should have the following content at page 12:
+      """
+      Page 12
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/pages-12-html/index.html | file   |
+      | singlePage                | true                              | field  |
+      | Gotenberg-Output-Filename | foo                               | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "foo.pdf" PDF should NOT have the following content at page 1:
+      # page-break-after: always; tells the browser's print engine to force a page break after each element,
+      # even when calculating a large enough paper height, Chromium's PDF rendering will still honor those page break
+      # directives.
+      """
+      Page 12
+      """
+
+  # A wide table on one landscape page: the page must expand its width to the
+  # content, so the rightmost column is not truncated and the page comes out
+  # landscape instead of the narrow-tall strip the height-only expansion used
+  # to produce. See https://github.com/gotenberg/gotenberg/issues/1390.
+  Scenario: POST /forms/chromium/convert/html (Single Page Landscape)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/wide-table-html/index.html | file   |
+      | singlePage                | true                                | field  |
+      | landscape                 | true                                | field  |
+      | Gotenberg-Output-Filename | foo                                 | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should be set to landscape orientation
+    Then the "foo.pdf" PDF should have content matching "Column 12" at page 1
+
+  Scenario: POST /forms/chromium/convert/html (Landscape)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/page-1-html/index.html | file   |
+      | Gotenberg-Output-Filename | foo                             | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should NOT be set to landscape orientation
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/page-1-html/index.html | file   |
+      | landscape                 | true                            | field  |
+      | Gotenberg-Output-Filename | foo                             | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should be set to landscape orientation
+
+  Scenario: POST /forms/chromium/convert/html (Native Page Ranges)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/pages-12-html/index.html | file   |
+      | nativePageRanges          | 2-3                               | field  |
+      | Gotenberg-Output-Filename | foo                               | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 2 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 2
+      """
+    Then the "foo.pdf" PDF should have the following content at page 2:
+      """
+      Page 3
+      """
+
+  Scenario: POST /forms/chromium/convert/html (Header & Footer)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/pages-12-html/index.html       | file   |
+      | files                     | testdata/header-footer-html/header.html | file   |
+      | files                     | testdata/header-footer-html/footer.html | file   |
+      | Gotenberg-Output-Filename | foo                                     | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 12 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Pages 12
+      """
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      1 of 12
+      """
+    Then the "foo.pdf" PDF should have the following content at page 12:
+      """
+      Pages 12
+      """
+    Then the "foo.pdf" PDF should have the following content at page 12:
+      """
+      12 of 12
+      """
+
+  Scenario: POST /forms/chromium/convert/html (Wait Delay)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/feature-rich-html/index.html | file   |
+      | Gotenberg-Output-Filename | foo                                   | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should NOT have the following content at page 1:
+      """
+      Wait delay > 2 seconds or expression window globalVar === 'ready' returns true.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/feature-rich-html/index.html | file   |
+      | waitDelay                 | 2.5s                                  | field  |
+      | Gotenberg-Output-Filename | foo                                   | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Wait delay > 2 seconds or expression window globalVar === 'ready' returns true.
+      """
+
+  Scenario: POST /forms/chromium/convert/html (Wait For Expression)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/feature-rich-html/index.html | file   |
+      | Gotenberg-Output-Filename | foo                                   | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should NOT have the following content at page 1:
+      """
+      Wait delay > 2 seconds or expression window globalVar === 'ready' returns true.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/feature-rich-html/index.html | file   |
+      | waitForExpression         | window.globalVar === 'ready'          | field  |
+      | Gotenberg-Output-Filename | foo                                   | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Wait delay > 2 seconds or expression window globalVar === 'ready' returns true.
+      """
+
+  # A thenable (async) expression is awaited and its resolved value gates the
+  # print. Without awaiting, the Promise object never evaluates to true and the
+  # request would time out. See https://github.com/gotenberg/gotenberg/pull/1617.
+  Scenario: POST /forms/chromium/convert/html (Wait For Thenable Expression)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/feature-rich-html/index.html        | file   |
+      | waitForExpression         | (async () => window.globalVar === 'ready')() | field  |
+      | Gotenberg-Output-Filename | foo                                          | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Wait delay > 2 seconds or expression window globalVar === 'ready' returns true.
+      """
+
+  Scenario: POST /forms/chromium/convert/html (rAF / ResizeObserver / IntersectionObserver fire with waitForExpression)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/paint-callbacks-html/index.html       | file   |
+      | waitForExpression         | !!document.body.getAttribute('data-pdf-ready') | field  |
+      | Gotenberg-Output-Filename | foo                                            | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      raf-fired
+      """
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      ro-fired
+      """
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      io-fired
+      """
+
+  Scenario: POST /forms/chromium/convert/html (rAF / ResizeObserver / IntersectionObserver fire with waitDelay and emulatedMediaType=print)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/paint-callbacks-html/index.html | file   |
+      | waitDelay                 | 3s                                       | field  |
+      | emulatedMediaType         | print                                    | field  |
+      | Gotenberg-Output-Filename | foo                                      | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      raf-fired
+      """
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      ro-fired
+      """
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      io-fired
+      """
+
+  Scenario: POST /forms/chromium/convert/html (Wait For Selector)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/feature-rich-html/index.html | file   |
+      | Gotenberg-Output-Filename | foo                                   | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should NOT have the following content at page 1:
+      """
+      Wait on selector returns true.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/feature-rich-html/index.html | file   |
+      | waitForSelector           | #wait-selector                        | field  |
+      | Gotenberg-Output-Filename | foo                                   | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Wait on selector returns true.
+      """
+
+  Scenario: POST /forms/chromium/convert/html (Emulated Media Type)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/feature-rich-html/index.html | file   |
+      | Gotenberg-Output-Filename | foo                                   | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Emulated media type is 'print'.
+      """
+    Then the "foo.pdf" PDF should NOT have the following content at page 1:
+      """
+      Emulated media type is 'screen'.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/feature-rich-html/index.html | file   |
+      | emulatedMediaType         | print                                 | field  |
+      | Gotenberg-Output-Filename | foo                                   | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Emulated media type is 'print'.
+      """
+    Then the "foo.pdf" PDF should NOT have the following content at page 1:
+      """
+      Emulated media type is 'screen'.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/feature-rich-html/index.html | file   |
+      | emulatedMediaType         | screen                                | field  |
+      | Gotenberg-Output-Filename | foo                                   | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Emulated media type is 'screen'.
+      """
+    Then the "foo.pdf" PDF should NOT have the following content at page 1:
+      """
+      Emulated media type is 'print'.
+      """
+
+  Scenario: POST /forms/chromium/convert/html (Emulated Media Features)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/feature-rich-html/index.html | file   |
+      | Gotenberg-Output-Filename | foo                                   | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should NOT have the following content at page 1:
+      """
+      Prefers reduced motion.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/feature-rich-html/index.html | file   |
+      | emulatedMediaFeatures     | {"prefers-reduced-motion":"reduce"}   | field  |
+      | Gotenberg-Output-Filename | foo                                   | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Prefers reduced motion.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/feature-rich-html/index.html | file   |
+      | emulatedMediaType         | screen                                | field  |
+      | emulatedMediaFeatures     | {"prefers-reduced-motion":"reduce"}   | field  |
+      | Gotenberg-Output-Filename | foo                                   | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Emulated media type is 'screen'.
+      """
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Prefers reduced motion.
+      """
+    Then the "foo.pdf" PDF should NOT have the following content at page 1:
+      """
+      Emulated media type is 'print'.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/feature-rich-html/index.html | file   |
+      | emulatedMediaType         | print                                 | field  |
+      | emulatedMediaFeatures     | {"prefers-reduced-motion":"reduce"}   | field  |
+      | Gotenberg-Output-Filename | foo                                   | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Emulated media type is 'print'.
+      """
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Prefers reduced motion.
+      """
+    Then the "foo.pdf" PDF should NOT have the following content at page 1:
+      """
+      Emulated media type is 'screen'.
+      """
+
+  Scenario: POST /forms/chromium/convert/html (Default Allow / Deny Lists)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files | testdata/feature-rich-html/index.html | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the Gotenberg container should log the following entries:
+      | 'file:///etc/passwd' matches the expression from the denied list |
+
+  # Control for the WebSocket scenario below. An ordinary fetch to a loopback
+  # address is surfaced as a Fetch.requestPaused event, so it is blocked by
+  # CHROMIUM_DENY_PRIVATE_IPS and the block is logged. The allow-list is
+  # cleared because a matching allow-list entry bypasses the IP-based check.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/html (Fetch to a non-public address is filtered)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST       |      |
+      | CHROMIUM_DENY_PRIVATE_IPS | true |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/ssrf-fetch-html/index.html | file  |
+      | waitDelay | 1s                                  | field |
+    Then the response status code should be 200
+    Then the Gotenberg container should log the following entries:
+      | 'http://127.0.0.1:9999/ssrf-fetch' targets a non-public address |
+
+  # A WebSocket handshake is never surfaced as a Fetch.requestPaused event, so
+  # it escapes the filter in listenForEventRequestPaused. The page opens
+  # WebSockets to two non-public addresses (loopback and the link-local cloud
+  # metadata IP). listenForEventWebSocketCreated logs each disallowed handshake
+  # with its full ws:// URL (detection), and the pinning proxy severs the
+  # connection now that the implicit loopback bypass is removed (enforcement).
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/html (WebSocket to a non-public address is filtered)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST       |      |
+      | CHROMIUM_DENY_PRIVATE_IPS | true |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/ssrf-websocket-html/index.html | file  |
+      | waitDelay | 1s                                      | field |
+    Then the response status code should be 200
+    Then the Gotenberg container should log the following entries:
+      | 'ws://127.0.0.1:9999/ssrf-websocket' targets a non-public address |
+      | CONNECT blocked for '127.0.0.1:9999'                              |
+
+  # A Web Worker is a separate CDP target, so its WebSocket handshake is not
+  # observed by listenForEventWebSocketCreated. Enforcement must not depend on
+  # that listener: the pinning proxy sees the handshake and severs it whatever
+  # the originating context. Only the proxy's block is asserted, since no
+  # detection log is produced for the worker target.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/html (WebSocket from a Web Worker is filtered)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST       |      |
+      | CHROMIUM_DENY_PRIVATE_IPS | true |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/ssrf-websocket-worker-html/index.html | file  |
+      | waitDelay | 1s                                             | field |
+    Then the response status code should be 200
+    Then the Gotenberg container should log the following entries:
+      | CONNECT blocked for '127.0.0.1:9999' |
+
+  # wss:// (TLS) handshakes tunnel through the proxy via CONNECT, the same path
+  # as ws://, and must be filtered identically.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/html (Secure WebSocket to a non-public address is filtered)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST       |      |
+      | CHROMIUM_DENY_PRIVATE_IPS | true |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/ssrf-websocket-tls-html/index.html | file  |
+      | waitDelay | 1s                                          | field |
+    Then the response status code should be 200
+    Then the Gotenberg container should log the following entries:
+      | 'wss://127.0.0.1:9999/wss-test' targets a non-public address |
+      | CONNECT blocked for '127.0.0.1:9999'                         |
+
+  # EventSource issues an ordinary HTTP GET, so unlike a WebSocket it IS surfaced
+  # as a fetch.EventRequestPaused and blocked by listenForEventRequestPaused.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/html (EventSource to a non-public address is filtered)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST       |      |
+      | CHROMIUM_DENY_PRIVATE_IPS | true |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/ssrf-eventsource-html/index.html | file  |
+      | waitDelay | 1s                                        | field |
+    Then the response status code should be 200
+    Then the Gotenberg container should log the following entries:
+      | 'http://127.0.0.1:9999/sse' targets a non-public address |
+
+  Scenario: POST /forms/chromium/convert/html (Main URL does NOT match allowed list)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST | ^file:(?!//\\/tmp/).* |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files | testdata/feature-rich-html/index.html | file |
+    Then the response status code should be 403
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Forbidden
+      """
+
+  Scenario: POST /forms/chromium/convert/html (Main URL does match denied list)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST |                |
+      | CHROMIUM_DENY_LIST  | ^file:///tmp.* |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files | testdata/feature-rich-html/index.html | file |
+    Then the response status code should be 403
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Forbidden
+      """
+
+  Scenario: POST /forms/chromium/convert/html (Request does not match the allowed list)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST | ^file:///tmp.* |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files | testdata/feature-rich-html/index.html | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the Gotenberg container should log the following entries:
+      | 'file:///etc/passwd' does not match any expression from the allowed list |
+
+  Scenario: POST /forms/chromium/convert/html (JavaScript Enabled)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/feature-rich-html/index.html | file   |
+      | Gotenberg-Output-Filename | foo                                   | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      JavaScript is enabled.
+      """
+
+  Scenario: POST /forms/chromium/convert/html (JavaScript Disabled)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_DISABLE_JAVASCRIPT | true |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/feature-rich-html/index.html | file   |
+      | Gotenberg-Output-Filename | foo                                   | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should NOT have the following content at page 1:
+      """
+      JavaScript is enabled.
+      """
+
+  Scenario: POST /forms/chromium/convert/html (Fail On Resource HTTP Status Codes)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                         | testdata/feature-rich-html/index.html | file  |
+      | failOnResourceHttpStatusCodes | [499,599]                             | field |
+    Then the response status code should be 409
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid HTTP status code from resources:
+      https://gethttpstatus.com/400 - 400: Bad Request
+      """
+
+  Scenario: POST /forms/chromium/convert/html (Fail On Resource HTTP Status Codes - Ignore Domains)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                           | testdata/feature-rich-html/index.html | file  |
+      | failOnResourceHttpStatusCodes   | [499,599]                             | field |
+      | ignoreResourceHttpStatusDomains | ["gethttpstatus.com"]                 | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
+  Scenario: POST /forms/chromium/convert/html (Fail On Resource Loading Failed)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                       | testdata/feature-rich-html/index.html | file  |
+      | failOnResourceLoadingFailed | true                                  | field |
+    Then the response status code should be 409
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should contain string:
+      """
+      Chromium failed to load resources
+      """
+    Then the response body should contain string:
+      """
+      resource Stylesheet: net::ERR_CONNECTION_REFUSED
+      """
+    Then the response body should contain string:
+      """
+      resource Stylesheet: net::ERR_FILE_NOT_FOUND
+      """
+
+  Scenario: POST /forms/chromium/convert/html (Fail On Console Exceptions)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                   | testdata/feature-rich-html/index.html | file  |
+      | failOnConsoleExceptions | true                                  | field |
+    Then the response status code should be 409
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should contain string:
+      """
+      Chromium console exceptions
+      """
+    Then the response body should contain string:
+      """
+      Error: Exception 1
+      """
+    Then the response body should contain string:
+      """
+      Error: Exception 2
+      """
+
+  Scenario: POST /forms/chromium/convert/html (Document Outline)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/page-outline-html/index.html | file   |
+      | generateDocumentOutline   | true                                  | field  |
+      | Gotenberg-Output-Filename | foo                                   | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    # generateTaggedPdf is left unset, yet the outline must still be embedded:
+    # Gotenberg enables tagged PDF automatically because Chromium derives the
+    # outline from the structure tree. See issue #1579.
+    Then the "foo.pdf" PDF should have a document outline
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/page-outline-html/index.html | file   |
+      | Gotenberg-Output-Filename | bar                                   | header |
+    Then the response status code should be 200
+    Then the "bar.pdf" PDF should NOT have a document outline
+
+  Scenario: POST /forms/chromium/convert/html (Bad Request)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | singlePage                    | foo | field |
+      | paperWidth                    | foo | field |
+      | paperHeight                   | foo | field |
+      | marginTop                     | foo | field |
+      | marginBottom                  | foo | field |
+      | marginLeft                    | foo | field |
+      | marginRight                   | foo | field |
+      | preferCssPageSize             | foo | field |
+      | generateDocumentOutline       | foo | field |
+      | generateTaggedPdf             | foo | field |
+      | printBackground               | foo | field |
+      | omitBackground                | foo | field |
+      | landscape                     | foo | field |
+      | scale                         | foo | field |
+      | waitDelay                     | foo | field |
+      | emulatedMediaType             | foo | field |
+      | failOnHttpStatusCodes         | foo | field |
+      | failOnResourceHttpStatusCodes | foo | field |
+      | failOnResourceLoadingFailed   | foo | field |
+      | failOnConsoleExceptions       | foo | field |
+      | skipNetworkIdleEvent          | foo | field |
+      | skipNetworkAlmostIdleEvent    | foo | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'skipNetworkIdleEvent' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'skipNetworkAlmostIdleEvent' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'failOnHttpStatusCodes' is invalid (got 'foo', resulting to unmarshal failOnHttpStatusCodes: invalid character 'o' in literal false (expecting 'a'))
+      form field 'failOnResourceHttpStatusCodes' is invalid (got 'foo', resulting to unmarshal failOnResourceHttpStatusCodes: invalid character 'o' in literal false (expecting 'a'))
+      form field 'failOnResourceLoadingFailed' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'failOnConsoleExceptions' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'waitDelay' is invalid (got 'foo', resulting to time: invalid duration "foo")
+      form field 'emulatedMediaType' is invalid (got 'foo', resulting to wrong value, expected either 'screen', 'print' or empty)
+      form field 'omitBackground' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'landscape' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'printBackground' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'scale' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax)
+      form field 'singlePage' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'paperWidth' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax)
+      form field 'paperHeight' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax)
+      form field 'marginTop' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax)
+      form field 'marginBottom' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax)
+      form field 'marginLeft' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax)
+      form field 'marginRight' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax)
+      form field 'preferCssPageSize' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'generateDocumentOutline' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'generateTaggedPdf' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form file 'index.html' is required
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files          | testdata/page-1-html/index.html | file  |
+      | omitBackground | true                            | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      omitBackground requires printBackground set to true
+      """
+    # Does not seems to happen on amd architectures anymore since Chromium 137.
+    # See: https://github.com/gotenberg/gotenberg/actions/runs/15384321883/job/43280184372.
+    #    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+    #      | files        | testdata/page-1-html/index.html | file  |
+    #      | paperWidth   | 0                               | field |
+    #      | paperHeight  | 0                               | field |
+    #      | marginTop    | 1000000                         | field |
+    #      | marginBottom | 1000000                         | field |
+    #      | marginLeft   | 1000000                         | field |
+    #      | marginRight  | 1000000                         | field |
+    #    Then the response status code should be 400
+    #    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    #    Then the response body should match string:
+    #      """
+    #      Chromium does not handle the provided settings; please check for aberrant form values
+    #      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files            | testdata/page-1-html/index.html | file  |
+      | nativePageRanges | foo                             | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Chromium does not handle the page ranges 'foo' (nativePageRanges) syntax
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files            | testdata/page-1-html/index.html | file  |
+      | nativePageRanges | 2-3                             | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      The page ranges '2-3' (nativePageRanges) exceeds the page count
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files             | testdata/page-1-html/index.html | file  |
+      | waitForExpression | undefined                       | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      The expression 'undefined' (waitForExpression) returned an exception or undefined
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files   | testdata/page-1-html/index.html | file  |
+      | cookies | foo                             | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'cookies' is invalid (got 'foo', resulting to unmarshal cookies: invalid character 'o' in literal false (expecting 'a'))
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files   | testdata/page-1-html/index.html           | file  |
+      | cookies | [{"name":"yummy_cookie","value":"choco"}] | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'cookies' is invalid (got '[{"name":"yummy_cookie","value":"choco"}]', resulting to cookie 0 must have its name, value and domain set)
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files            | testdata/page-1-html/index.html | file  |
+      | extraHttpHeaders | foo                             | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'extraHttpHeaders' is invalid (got 'foo', resulting to unmarshal extraHttpHeaders: invalid character 'o' in literal false (expecting 'a'))
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files            | testdata/page-1-html/index.html | file  |
+      | extraHttpHeaders | {"foo":"bar;scope;;"}           | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'extraHttpHeaders' is invalid (got '{"foo":"bar;scope;;"}', resulting to invalid scope '' for header 'foo')
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files            | testdata/page-1-html/index.html | file  |
+      | extraHttpHeaders | {"foo":"bar;scope=*."}          | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'extraHttpHeaders' is invalid (got '{"foo":"bar;scope=*."}', resulting to invalid scope regex pattern for header 'foo': error parsing regexp: missing argument to repetition operator in `*.`)
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                 | testdata/page-1-html/index.html | file  |
+      | emulatedMediaFeatures | foo                             | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'emulatedMediaFeatures' is invalid (got 'foo', resulting to unmarshal emulatedMediaFeatures: invalid character 'o' in literal false (expecting 'a'))
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/page-1-html/index.html | file  |
+      | splitMode | foo                             | field |
+      | splitSpan | 2                               | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'splitMode' is invalid (got 'foo', resulting to wrong value, expected either 'intervals' or 'pages')
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/page-1-html/index.html | file  |
+      | splitMode | intervals                       | field |
+      | splitSpan | foo                             | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'splitSpan' is invalid (got 'foo', resulting to strconv.Atoi: parsing "foo": invalid syntax)
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/page-1-html/index.html | file  |
+      | splitMode | pages                           | field |
+      | splitSpan | foo                             | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      The requested split mode is not supported, or no PDF engine could process it. Valid modes: 'intervals', 'pages'.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files | testdata/page-1-html/index.html | file  |
+      | pdfa  | foo                             | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      The requested PDF format is not supported, or no PDF engine could apply it. Valid formats include PDF/A-1b, PDF/A-2b, PDF/A-3b, and PDF/UA.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files | testdata/page-1-html/index.html | file  |
+      | pdfua | foo                             | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'pdfua' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files    | testdata/page-1-html/index.html | file  |
+      | metadata | foo                             | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'metadata' is invalid (got 'foo', resulting to unmarshal metadata: invalid character 'o' in literal false (expecting 'a'))
+      """
+
+  @split
+  Scenario: POST /forms/chromium/convert/html (Split Intervals)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/pages-3-html/index.html | file  |
+      | splitMode | intervals                        | field |
+      | splitSpan | 2                                | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | *_0.pdf |
+      | *_1.pdf |
+    Then the "*_0.pdf" PDF should have 2 page(s)
+    Then the "*_1.pdf" PDF should have 1 page(s)
+    Then the "*_0.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "*_0.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
+    Then the "*_1.pdf" PDF should have the following content at page 1:
+      """
+      Page 3
+      """
+
+  # See https://github.com/gotenberg/gotenberg/issues/1130.
+  # A backslash is not a path separator on Linux, so filepath.Base leaves it in
+  # place and it reaches the archive entry names. See GHSA-hwc4-gmrw-5222.
+  @split
+  @output-filename
+  Scenario: POST /forms/chromium/convert/html (Split Windows Path As Output Filename)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/pages-3-html/index.html   | file   |
+      | splitMode                 | intervals                          | field  |
+      | splitSpan                 | 2                                  | field  |
+      | Gotenberg-Output-Filename | ..\\..\\..\\Windows\\System32\\foo | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.zip   |
+      | foo_0.pdf |
+      | foo_1.pdf |
+
+  Scenario: POST /forms/chromium/convert/html (Split Rooted Windows Path As Output Filename)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/pages-3-html/index.html | file   |
+      | splitMode                 | intervals                        | field  |
+      | splitSpan                 | 2                                | field  |
+      | Gotenberg-Output-Filename | C:\\Windows\\Temp\\foo           | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.zip   |
+      | foo_0.pdf |
+      | foo_1.pdf |
+
+  Scenario: POST /forms/chromium/convert/html (Split Output Filename)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/pages-3-html/index.html | file   |
+      | splitMode                 | intervals                        | field  |
+      | splitSpan                 | 2                                | field  |
+      | Gotenberg-Output-Filename | foo                              | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.zip   |
+      | foo_0.pdf |
+      | foo_1.pdf |
+    Then the "foo_0.pdf" PDF should have 2 page(s)
+    Then the "foo_1.pdf" PDF should have 1 page(s)
+    Then the "foo_0.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "foo_0.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
+    Then the "foo_1.pdf" PDF should have the following content at page 1:
+      """
+      Page 3
+      """
+
+  @split
+  Scenario: POST /forms/chromium/convert/html (Split Pages)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/pages-3-html/index.html | file  |
+      | splitMode | pages                            | field |
+      | splitSpan | 2-                               | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | *_0.pdf |
+      | *_1.pdf |
+    Then the "*_0.pdf" PDF should have 1 page(s)
+    Then the "*_1.pdf" PDF should have 1 page(s)
+    Then the "*_0.pdf" PDF should have the following content at page 1:
+      """
+      Page 2
+      """
+    Then the "*_1.pdf" PDF should have the following content at page 1:
+      """
+      Page 3
+      """
+
+  @split
+  Scenario: POST /forms/chromium/convert/html (Split Pages & Unify)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/pages-3-html/index.html | file   |
+      | splitMode                 | pages                            | field  |
+      | splitSpan                 | 2-                               | field  |
+      | splitUnify                | true                             | field  |
+      | Gotenberg-Output-Filename | foo                              | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 2 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 2
+      """
+    Then the "foo.pdf" PDF should have the following content at page 2:
+      """
+      Page 3
+      """
+
+  @split
+  Scenario: POST /forms/chromium/convert/html (Split Many PDFs - Lot of Pages)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/pages-12-html/index.html | file  |
+      | splitMode | intervals                         | field |
+      | splitSpan | 1                                 | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 12 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | *_0.pdf  |
+      | *_1.pdf  |
+      | *_2.pdf  |
+      | *_3.pdf  |
+      | *_4.pdf  |
+      | *_5.pdf  |
+      | *_6.pdf  |
+      | *_7.pdf  |
+      | *_8.pdf  |
+      | *_9.pdf  |
+      | *_10.pdf |
+      | *_11.pdf |
+    Then the "*_0.pdf" PDF should have 1 page(s)
+    Then the "*_11.pdf" PDF should have 1 page(s)
+    Then the "*_0.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "*_11.pdf" PDF should have the following content at page 1:
+      """
+      Page 12
+      """
+
+  @convert
+  Scenario: POST /forms/chromium/convert/html (PDF/A-1b & PDF/UA-1)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files | testdata/page-1-html/index.html | file  |
+      | pdfa  | PDF/A-1b                        | field |
+      | pdfua | true                            | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
+
+  @convert
+  @split
+  Scenario: POST /forms/chromium/convert/html (Split & PDF/A-1b & PDF/UA-1)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/pages-3-html/index.html | file  |
+      | splitMode | intervals                        | field |
+      | splitSpan | 2                                | field |
+      | pdfa      | PDF/A-1b                         | field |
+      | pdfua     | true                             | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | *_0.pdf |
+      | *_1.pdf |
+    Then the "*_0.pdf" PDF should have 2 page(s)
+    Then the "*_1.pdf" PDF should have 1 page(s)
+    Then the "*_0.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "*_0.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
+    Then the "*_1.pdf" PDF should have the following content at page 1:
+      """
+      Page 3
+      """
+    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
+
+  # See https://github.com/gotenberg/gotenberg/issues/1130.
+  @convert
+  @split
+  @output-filename
+  Scenario: POST /forms/chromium/convert/html (Split & PDF/A-1b & PDF/UA-1 & Output Filename)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/pages-3-html/index.html | file   |
+      | splitMode                 | intervals                        | field  |
+      | splitSpan                 | 2                                | field  |
+      | pdfa                      | PDF/A-1b                         | field  |
+      | pdfua                     | true                             | field  |
+      | Gotenberg-Output-Filename | foo                              | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.zip   |
+      | foo_0.pdf |
+      | foo_1.pdf |
+    Then the "foo_0.pdf" PDF should have 2 page(s)
+    Then the "foo_1.pdf" PDF should have 1 page(s)
+    Then the "foo_0.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "foo_0.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
+    Then the "foo_1.pdf" PDF should have the following content at page 1:
+      """
+      Page 3
+      """
+    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
+
+  @metadata
+  Scenario: POST /forms/chromium/convert/html (Metadata)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/page-1-html/index.html                                                                                                                                                                                                                                                                           | file   |
+      | metadata                  | {"Author":"Julien Neuhart","Copyright":"Julien Neuhart","CreateDate":"2006-09-18T16:27:50-04:00","Creator":"Gotenberg","Keywords":["first","second"],"Marked":true,"ModDate":"2006-09-18T16:27:50-04:00","PDFVersion":1.7,"Producer":"Gotenberg","Subject":"Sample","Title":"Sample","Trapped":"Unknown"} | field  |
+      | Gotenberg-Output-Filename | foo                                                                                                                                                                                                                                                                                                       | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/read" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/json"
+    Then the response body should match JSON:
+      """
+      {
+        "foo.pdf": {
+          "Author": "Julien Neuhart",
+          "Copyright": "Julien Neuhart",
+          "CreateDate": "2006:09:18 16:27:50-04:00",
+          "Creator": "Gotenberg",
+          "Keywords": ["first", "second"],
+          "Marked": true,
+          "ModDate": "2006:09:18 16:27:50-04:00",
+          "PDFVersion": 1.7,
+          "Producer": "Gotenberg",
+          "Subject": "Sample",
+          "Title": "Sample",
+          "Trapped": "Unknown"
+        }
+      }
+      """
+
+  @flatten
+  Scenario: POST /forms/chromium/convert/html (Flatten)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files   | testdata/page-1-html/index.html | file  |
+      | flatten | true                            | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be flatten
+
+  # Post-processing image optimization re-encodes the embedded lossless image to
+  # JPEG. The same page is ~700 KB without it and well under 300 KB with it.
+  # See https://github.com/gotenberg/gotenberg/issues/359.
+  Scenario: POST /forms/chromium/convert/html (Optimize Images)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/optimize-image-html/index.html | file   |
+      | files                     | testdata/optimize-image-html/image.png  | file   |
+      | Gotenberg-Output-Filename | foo                                     | header |
+    Then the response status code should be 200
+    Then the "foo.pdf" file size should be greater than 300 KB
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/optimize-image-html/index.html | file   |
+      | files                     | testdata/optimize-image-html/image.png  | file   |
+      | optimizeImages            | true                                    | field  |
+      | Gotenberg-Output-Filename | foo                                     | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then the "foo.pdf" file size should be less than 300 KB
+
+  @encrypt
+  Scenario: POST /forms/chromium/convert/html (Encrypt - user password only)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files        | testdata/page-1-html/index.html | file  |
+      | userPassword | foo                             | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be encrypted
+
+  @encrypt
+  Scenario: POST /forms/chromium/convert/html (Encrypt - both user and owner passwords)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files         | testdata/page-1-html/index.html | file  |
+      | userPassword  | foo                             | field |
+      | ownerPassword | bar                             | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be encrypted
+
+  @watermark
+  Scenario: POST /forms/chromium/convert/html (Watermark - Text)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files               | testdata/page-1-html/index.html | file  |
+      | watermarkSource     | text                            | field |
+      | watermarkExpression | CONFIDENTIAL                    | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
+  @stamp
+  Scenario: POST /forms/chromium/convert/html (Stamp - Text)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files           | testdata/page-1-html/index.html | file  |
+      | stampSource     | text                            | field |
+      | stampExpression | DRAFT                           | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
+  @rotate
+  Scenario: POST /forms/chromium/convert/html (Rotate 90)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files       | testdata/page-1-html/index.html | file  |
+      | rotateAngle | 90                              | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
+  @embed
+  Scenario: POST /forms/chromium/convert/html (Embeds)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/page-1-html/index.html | file   |
+      | embeds                    | testdata/embed_1.xml            | file   |
+      | embeds                    | testdata/embed_2.xml            | file   |
+      | Gotenberg-Output-Filename | foo                             | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the response PDF(s) should have the "embed_1.xml" file embedded
+    Then the response PDF(s) should have the "embed_2.xml" file embedded
+
+  # FIXME: once decrypt is done, add encrypt and check after the content of the PDF.
+  @convert
+  @metadata
+  @watermark
+  @stamp
+  @flatten
+  @embed
+  Scenario: POST /forms/chromium/convert/html (PDF/A-3b & PDF/UA-1 & Metadata & Watermark & Stamp & Flatten & Embeds)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/page-1-html/index.html                                                                                                                                                                                                                                                                           | file   |
+      | pdfa                      | PDF/A-3b                                                                                                                                                                                                                                                                                                  | field  |
+      | pdfua                     | true                                                                                                                                                                                                                                                                                                      | field  |
+      | metadata                  | {"Author":"Julien Neuhart","Copyright":"Julien Neuhart","CreateDate":"2006-09-18T16:27:50-04:00","Creator":"Gotenberg","Keywords":["first","second"],"Marked":true,"ModDate":"2006-09-18T16:27:50-04:00","PDFVersion":1.7,"Producer":"Gotenberg","Subject":"Sample","Title":"Sample","Trapped":"Unknown"} | field  |
+      | flatten                   | true                                                                                                                                                                                                                                                                                                      | field  |
+      | embeds                    | testdata/embed_1.xml                                                                                                                                                                                                                                                                                      | file   |
+      | embeds                    | testdata/embed_2.xml                                                                                                                                                                                                                                                                                      | file   |
+      | Gotenberg-Output-Filename | foo                                                                                                                                                                                                                                                                                                       | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 5 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
+    Then the response PDF(s) should be flatten
+    Then the response PDF(s) should have the "embed_1.xml" file embedded
+    Then the response PDF(s) should have the "embed_2.xml" file embedded
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/read" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/json"
+    Then the response body should match JSON:
+      """
+      {
+        "foo.pdf": {
+          "Author": "Julien Neuhart",
+          "Copyright": "Julien Neuhart",
+          "Creator": "Gotenberg",
+          "Marked": true,
+          "PDFVersion": 1.7,
+          "Producer": "Gotenberg",
+          "Subject": "Sample",
+          "Title": "Sample",
+          "Trapped": "Unknown"
+        }
+      }
+      """
+
+  Scenario: POST /forms/chromium/convert/html (Routes Disabled)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_DISABLE_ROUTES | true |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files | testdata/page-1-html/index.html | file |
+    Then the response status code should be 404
+
+  Scenario: POST /forms/chromium/convert/html (Gotenberg Trace)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files           | testdata/page-1-html/index.html | file   |
+      | Gotenberg-Trace | forms_chromium_convert_html     | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then the response header "Gotenberg-Trace" should be "forms_chromium_convert_html"
+    Then the Gotenberg container should log the following entries:
+      | "correlation_id":"forms_chromium_convert_html" |
+
+  @download-from
+  Scenario: POST /forms/chromium/convert/html (Download From)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | downloadFrom | [{"url":"http://host.docker.internal:%d/static/testdata/page-1-html/index.html","extraHttpHeaders":{"X-Foo":"bar"}}] | field |
+    Then the response status code should be 200
+    Then the file request header "X-Foo" should be "bar"
+    Then the response header "Content-Type" should be "application/pdf"
+
+  @webhook
+  Scenario: POST /forms/chromium/convert/html (Webhook)
+    Given I have a default Gotenberg container
+    Given I have a webhook server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                       | testdata/page-1-html/index.html              | file   |
+      | Gotenberg-Output-Filename   | foo                                          | header |
+      | Gotenberg-Webhook-Url       | http://host.docker.internal:%d/webhook       | header |
+      | Gotenberg-Webhook-Error-Url | http://host.docker.internal:%d/webhook/error | header |
+    Then the response status code should be 204
+    When I wait for the asynchronous request to the webhook
+    Then the webhook request header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the webhook request
+    Then there should be the following file(s) in the webhook request:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+
+  Scenario: POST /forms/chromium/convert/html (Basic Auth)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | API_ENABLE_BASIC_AUTH             | true |
+      | GOTENBERG_API_BASIC_AUTH_USERNAME | foo  |
+      | GOTENBERG_API_BASIC_AUTH_PASSWORD | bar  |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files | testdata/page-1-html/index.html | file |
+    Then the response status code should be 401
+
+  Scenario: POST /foo/forms/chromium/convert/html (Root Path)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | API_ENABLE_DEBUG_ROUTE | true  |
+      | API_ROOT_PATH          | /foo/ |
+    When I make a "POST" request to Gotenberg at the "/foo/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files | testdata/page-1-html/index.html | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+
+  # See: https://github.com/gotenberg/gotenberg/issues/1505.
+  Scenario: POST /forms/chromium/convert/html (Asset)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/html-with-asset/index.html | file   |
+      | files                     | testdata/html-with-asset/image.png  | file   |
+      | Gotenberg-Output-Filename | foo                                 | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have 1 image(s)
+
+  Scenario: POST /forms/chromium/convert/html (stampSource=pdf without uploaded stamp file => 400)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files           | testdata/page-1-html/index.html | file  |
+      | stampSource     | pdf                             | field |
+      | stampExpression | /etc/hostname                   | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: a stamp file is required for image or pdf source
+      """
+
+  Scenario: POST /forms/chromium/convert/html (watermarkSource=pdf without uploaded watermark file => 400)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files               | testdata/page-1-html/index.html | file  |
+      | watermarkSource     | pdf                             | field |
+      | watermarkExpression | /etc/hostname                   | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: a watermark file is required for image or pdf source
+      """
+
+  # See: https://github.com/gotenberg/gotenberg/issues/1500.
+  Scenario: POST /forms/chromium/convert/html (Long Filename)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/page-1-html/index.html | file   |
+      | Gotenberg-Output-Filename | foo                             | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF should have 1 page(s)

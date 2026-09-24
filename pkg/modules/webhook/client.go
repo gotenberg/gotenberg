@@ -1,15 +1,24 @@
 package webhook
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/labstack/echo/v4"
-	"go.uber.org/zap"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
+	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	"go.opentelemetry.io/otel/trace"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 // client gathers all the data required to send a request to a webhook.
@@ -18,29 +27,81 @@ type client struct {
 	method           string
 	errorUrl         string
 	errorMethod      string
+	eventsUrl        string
 	extraHttpHeaders map[string]string
 	startTime        time.Time
 
+	// deliveryTimeout bounds one delivery including retries. See
+	// [Webhook.deliveryTimeout].
+	deliveryTimeout time.Duration
+
 	client *retryablehttp.Client
-	logger *zap.Logger
+	logger *slog.Logger
+}
+
+// deliveryContext returns the context one delivery runs on.
+//
+// It keeps the values of ctx, so trace propagation and logging correlation
+// survive, and replaces its cancellation with a fresh budget. Threading the
+// conversion context straight through does not work: a delivery starts after
+// the handler returned, so that deadline may already be spent and the callback
+// would fail without a single attempt.
+func (c client) deliveryContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	timeout := c.deliveryTimeout
+	if timeout <= 0 {
+		// An unset budget would expire the delivery before its first attempt.
+		// [Webhook.deliveryTimeout] never returns a non-positive value, so this
+		// only guards a caller that builds a client without one.
+		timeout = minDeliveryTimeout
+	}
+
+	return context.WithTimeout(context.WithoutCancel(ctx), timeout)
 }
 
 // send call the webhook either to send the success response or the error response.
-func (c client) send(body io.Reader, headers map[string]string, erroed bool) error {
+func (c client) send(ctx context.Context, body io.Reader, headers map[string]string, errored bool) error {
 	url := c.url
-	if erroed {
+	if errored {
+		if c.errorUrl == "" {
+			// No error URL provided; error details will be sent
+			// via the events URL instead.
+			return nil
+		}
 		url = c.errorUrl
 	}
 
 	method := c.method
-	if erroed {
+	if errored {
 		method = c.errorMethod
 	}
 
-	req, err := retryablehttp.NewRequest(method, url, body)
+	spanName := fmt.Sprintf("%s Webhook", method)
+	if errored {
+		spanName = fmt.Sprintf("%s Webhook Error", method)
+	}
+
+	ctx, cancel := c.deliveryContext(ctx)
+	defer cancel()
+
+	tracer := gotenberg.Tracer()
+	ctx, span := tracer.Start(ctx, spanName,
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(semconv.ServerAddress(url)),
+	)
+	defer span.End()
+
+	// The request must carry ctx: retryablehttp.NewRequest builds on
+	// [context.Background], and its wait between attempts is a select on the
+	// request context, so a contextless request cannot be interrupted.
+	req, err := retryablehttp.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("create '%s' request to '%s': %w", method, url, err)
 	}
+
+	// Inject trace context into outbound request headers.
+	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 
 	req.Header.Set("User-Agent", "Gotenberg")
 
@@ -54,15 +115,17 @@ func (c client) send(body io.Reader, headers map[string]string, erroed bool) err
 	contentLength, ok := headers[echo.HeaderContentLength]
 	if ok {
 		// Golang "http" package should automatically calculate the size of the
-		// body. But, when using a buffered file reader, it does not work.
-		// Worse, the "Content-Length" header is also removed. Therefore, in
-		// order to keep this valuable information, we have to trust the caller
+		// body. But when using a buffered file reader, it does not work.
+		// Worse, the "Content-Length" header is also removed. Therefore,
+		// to keep this valuable information, we have to trust the caller
 		// by reading the value of the "Content-Length" entry and set it as the
 		// content length of the request. It's kinda suboptimal, but hey, at
 		// least it works.
 
 		bodySize, err := strconv.ParseInt(contentLength, 10, 64)
 		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 			return fmt.Errorf("parse content length entry: %w", err)
 		}
 
@@ -75,38 +138,117 @@ func (c client) send(body io.Reader, headers map[string]string, erroed bool) err
 
 	resp, err := c.client.Do(req)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("send '%s' request to '%s': %w", method, url, err)
 	}
 
-	if resp.StatusCode >= http.StatusBadRequest {
-		return fmt.Errorf("send '%s' request to '%s': got status: '%s'", method, url, resp.Status)
-	}
-
+	// Registered before the status check below. [retryablehttp.Client.Do] hands
+	// back a live body for a status it does not retry, which is every 4xx but
+	// 429, so returning early without closing it strands the connection and the
+	// transport goroutines that serve it for the lifetime of the process. The
+	// transport is built per delivery in [gotenberg.NewOutboundHttpClient], so
+	// nothing reclaims it later either.
 	defer func() {
 		err := resp.Body.Close()
 		if err != nil {
-			c.logger.Error(fmt.Sprintf("close response body from '%s': %s", url, err))
+			c.logger.ErrorContext(ctx, fmt.Sprintf("close response body from '%s': %s", url, err))
 		}
 	}()
+
+	if resp.StatusCode >= http.StatusBadRequest {
+		err := fmt.Errorf("send '%s' request to '%s': got status: '%s'", method, url, resp.Status)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
 
 	// Last piece for calculating the latency.
 	finishTime := time.Now()
 
 	// Now let's log!
-	fields := make([]zap.Field, 5)
-	fields[0] = zap.String("webhook_url", url)
-	fields[1] = zap.String("method", method)
-	fields[2] = zap.Int64("latency", int64(finishTime.Sub(c.startTime)))
-	fields[3] = zap.String("latency_human", finishTime.Sub(c.startTime).String())
-	fields[4] = zap.Int64("bytes_out", req.ContentLength)
+	attrs := []any{
+		slog.String("webhook_url", url),
+		slog.String("method", method),
+		slog.Int64("latency", int64(finishTime.Sub(c.startTime))),
+		slog.String("latency_human", finishTime.Sub(c.startTime).String()),
+		slog.Int64("bytes_out", req.ContentLength),
+	}
 
-	if erroed {
-		c.logger.Warn("request to webhook with error details handled", fields...)
-
+	if errored {
+		c.logger.WarnContext(ctx, "request to webhook with error details handled", attrs...)
+		span.SetStatus(codes.Ok, "")
 		return nil
 	}
 
-	c.logger.Info("request to webhook handled", fields...)
+	c.logger.InfoContext(ctx, "request to webhook handled", attrs...)
+	span.SetStatus(codes.Ok, "")
 
 	return nil
+}
+
+// sendEvent sends a structured JSON event to the events URL. It is
+// fire-and-forget: failures are logged but do not propagate.
+func (c client) sendEvent(ctx context.Context, correlationIdHeader, correlationId string, event map[string]any) {
+	if c.eventsUrl == "" {
+		return
+	}
+
+	b, err := json.Marshal(event)
+	if err != nil {
+		c.logger.ErrorContext(ctx, fmt.Sprintf("marshal webhook event: %s", err))
+		return
+	}
+
+	ctx, cancel := c.deliveryContext(ctx)
+	defer cancel()
+
+	tracer := gotenberg.Tracer()
+	ctx, span := tracer.Start(ctx, "POST Webhook Event",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(semconv.ServerAddress(c.eventsUrl)),
+	)
+	defer span.End()
+
+	req, err := retryablehttp.NewRequestWithContext(ctx, http.MethodPost, c.eventsUrl, b)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		c.logger.ErrorContext(ctx, fmt.Sprintf("create webhook event request: %s", err))
+		return
+	}
+
+	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
+
+	req.Header.Set("User-Agent", "Gotenberg")
+	for key, value := range c.extraHttpHeaders {
+		req.Header.Set(key, value)
+	}
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	req.Header.Set(correlationIdHeader, correlationId)
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		c.logger.ErrorContext(ctx, fmt.Sprintf("send webhook event to '%s': %s", c.eventsUrl, err))
+		return
+	}
+
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			c.logger.ErrorContext(ctx, fmt.Sprintf("close response body from '%s': %s", c.eventsUrl, err))
+		}
+	}()
+
+	if resp.StatusCode >= http.StatusBadRequest {
+		span.RecordError(fmt.Errorf("webhook event: got status '%s'", resp.Status))
+		span.SetStatus(codes.Error, resp.Status)
+		c.logger.ErrorContext(ctx, fmt.Sprintf("send webhook event to '%s': got status '%s'", c.eventsUrl, resp.Status))
+		return
+	}
+
+	span.SetStatus(codes.Ok, "")
+	c.logger.InfoContext(ctx, fmt.Sprintf("webhook event sent to '%s'", c.eventsUrl))
 }

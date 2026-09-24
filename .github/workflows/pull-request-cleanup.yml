@@ -1,0 +1,24 @@
+name: Pull Request Cleanup
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    name: Cleanup Docker images
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+
+      - name: Cleanup
+        uses: ./.github/actions/clean
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          snapshot_version: pr-${{ github.event.pull_request.number }}

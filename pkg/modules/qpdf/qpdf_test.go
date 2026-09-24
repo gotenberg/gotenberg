@@ -2,169 +2,325 @@ package qpdf
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"log/slog"
 	"os"
-	"reflect"
 	"testing"
-
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
-func TestQPdf_Descriptor(t *testing.T) {
-	descriptor := new(QPdf).Descriptor()
-
-	actual := reflect.TypeOf(descriptor.New())
-	expect := reflect.TypeOf(new(QPdf))
-
-	if actual != expect {
-		t.Errorf("expected '%s' but got '%s'", expect, actual)
-	}
-}
-
-func TestQPdf_Provision(t *testing.T) {
-	engine := new(QPdf)
-	ctx := gotenberg.NewContext(gotenberg.ParsedFlags{}, nil)
-
-	err := engine.Provision(ctx)
-	if err != nil {
-		t.Errorf("expected no error but got: %v", err)
-	}
-}
-
-func TestQPdf_Validate(t *testing.T) {
-	for _, tc := range []struct {
-		scenario    string
-		binPath     string
-		expectError bool
+func TestStripQpdfStringPrefix(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
 	}{
-		{
-			scenario:    "empty bin path",
-			binPath:     "",
-			expectError: true,
-		},
-		{
-			scenario:    "bin path does not exist",
-			binPath:     "/foo",
-			expectError: true,
-		},
-		{
-			scenario:    "validate success",
-			binPath:     os.Getenv("QPDF_BIN_PATH"),
-			expectError: false,
-		},
-	} {
-		t.Run(tc.scenario, func(t *testing.T) {
-			engine := new(QPdf)
-			engine.binPath = tc.binPath
-			err := engine.Validate()
+		{"unicode prefix", "u:factur-x.xml", "factur-x.xml"},
+		{"binary prefix", "b:binary.bin", "binary.bin"},
+		{"encoded prefix", "e:encoded.txt", "encoded.txt"},
+		{"no prefix", "plain.xml", "plain.xml"},
+		{"empty string", "", ""},
+		{"prefix only", "u:", ""},
+		{"colon in value", "u:file:name.xml", "file:name.xml"},
+	}
 
-			if !tc.expectError && err != nil {
-				t.Fatalf("expected no error but got: %v", err)
-			}
-
-			if tc.expectError && err == nil {
-				t.Fatal("expected error but got none")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := stripQpdfStringPrefix(tt.input)
+			if got != tt.expected {
+				t.Errorf("stripQpdfStringPrefix(%q) = %q, want %q", tt.input, got, tt.expected)
 			}
 		})
 	}
 }
 
-func TestQPdf_Merge(t *testing.T) {
-	for _, tc := range []struct {
-		scenario    string
-		ctx         context.Context
-		inputPaths  []string
-		expectError bool
+func TestParsePdfObjects(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		wantKeys  []string
+		wantError bool
 	}{
 		{
-			scenario:    "invalid context",
-			ctx:         nil,
-			expectError: true,
+			name:     "valid QPDF JSON v2",
+			input:    `{"qpdf":[{"jsonversion":2},{"obj:1 0 R":{"value":{"/Type":"/Catalog"}}}]}`,
+			wantKeys: []string{"obj:1 0 R"},
 		},
 		{
-			scenario: "invalid input path",
-			ctx:      context.TODO(),
-			inputPaths: []string{
-				"foo",
-			},
-			expectError: true,
+			name:      "invalid JSON",
+			input:     `not json`,
+			wantError: true,
 		},
 		{
-			scenario: "single file success",
-			ctx:      context.TODO(),
-			inputPaths: []string{
-				"/tests/test/testdata/pdfengines/sample1.pdf",
-			},
-			expectError: false,
+			name:      "empty qpdf array",
+			input:     `{"qpdf":[]}`,
+			wantError: true,
 		},
 		{
-			scenario: "many files success",
-			ctx:      context.TODO(),
-			inputPaths: []string{
-				"/tests/test/testdata/pdfengines/sample1.pdf",
-				"/tests/test/testdata/pdfengines/sample2.pdf",
-			},
-			expectError: false,
+			name:      "only header element",
+			input:     `{"qpdf":[{"jsonversion":2}]}`,
+			wantError: true,
 		},
-	} {
-		t.Run(tc.scenario, func(t *testing.T) {
-			engine := new(QPdf)
-			err := engine.Provision(nil)
-			if err != nil {
-				t.Fatalf("expected error but got: %v", err)
-			}
+		{
+			name:     "multiple objects",
+			input:    `{"qpdf":[{},{"obj:1 0 R":{"value":{}},"obj:2 0 R":{"value":{}}}]}`,
+			wantKeys: []string{"obj:1 0 R", "obj:2 0 R"},
+		},
+	}
 
-			fs := gotenberg.NewFileSystem()
-			outputDir, err := fs.MkdirAll()
-			if err != nil {
-				t.Fatalf("expected error but got: %v", err)
-			}
-
-			defer func() {
-				err = os.RemoveAll(fs.WorkingDirPath())
-				if err != nil {
-					t.Fatalf("expected no error while cleaning up but got: %v", err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			objects, err := parsePdfObjects([]byte(tt.input))
+			if tt.wantError {
+				if err == nil {
+					t.Error("expected error, got nil")
 				}
-			}()
-
-			err = engine.Merge(tc.ctx, zap.NewNop(), tc.inputPaths, outputDir+"/foo.pdf")
-
-			if !tc.expectError && err != nil {
-				t.Fatalf("expected no error but got: %v", err)
+				return
 			}
-
-			if tc.expectError && err == nil {
-				t.Fatal("expected error but got none")
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			for _, key := range tt.wantKeys {
+				if _, ok := objects[key]; !ok {
+					t.Errorf("expected key %q in objects", key)
+				}
 			}
 		})
 	}
 }
 
-func TestQPdf_Convert(t *testing.T) {
-	engine := new(QPdf)
-	err := engine.Convert(context.TODO(), zap.NewNop(), gotenberg.PdfFormats{}, "", "")
+func TestPatchFilespecMetadata(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
-	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
-		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)
-	}
+	t.Run("sets AFRelationship on matching Filespec", func(t *testing.T) {
+		objects := map[string]json.RawMessage{
+			"obj:1 0 R": json.RawMessage(`{"value":{"/Type":"/Catalog"}}`),
+			"obj:2 0 R": json.RawMessage(`{"value":{"/Type":"/Filespec","/UF":"u:factur-x.xml"}}`),
+		}
+		metadata := map[string]map[string]string{
+			"factur-x.xml": {"relationship": "Data"},
+		}
+
+		catalogRef, _, filespecRefs, updateObjects := patchFilespecMetadata(context.Background(), logger, objects, metadata)
+
+		if catalogRef != "obj:1 0 R" {
+			t.Errorf("catalogRef = %q, want %q", catalogRef, "obj:1 0 R")
+		}
+		if len(filespecRefs) != 1 || filespecRefs[0] != "obj:2 0 R" {
+			t.Errorf("filespecRefs = %v, want [obj:2 0 R]", filespecRefs)
+		}
+		updated, ok := updateObjects["obj:2 0 R"]
+		if !ok {
+			t.Fatal("expected obj:2 0 R in updateObjects")
+		}
+		value := updated.(map[string]any)["value"].(map[string]any)
+		if value["/AFRelationship"] != "/Data" {
+			t.Errorf("/AFRelationship = %v, want /Data", value["/AFRelationship"])
+		}
+	})
+
+	t.Run("skips Filespec with no matching metadata", func(t *testing.T) {
+		objects := map[string]json.RawMessage{
+			"obj:1 0 R": json.RawMessage(`{"value":{"/Type":"/Filespec","/UF":"u:other.xml"}}`),
+		}
+		metadata := map[string]map[string]string{
+			"factur-x.xml": {"relationship": "Data"},
+		}
+
+		_, _, filespecRefs, _ := patchFilespecMetadata(context.Background(), logger, objects, metadata)
+		if len(filespecRefs) != 0 {
+			t.Errorf("filespecRefs = %v, want empty", filespecRefs)
+		}
+	})
+
+	t.Run("falls back to /F when /UF is absent", func(t *testing.T) {
+		objects := map[string]json.RawMessage{
+			"obj:1 0 R": json.RawMessage(`{"value":{"/Type":"/Filespec","/F":"u:factur-x.xml"}}`),
+		}
+		metadata := map[string]map[string]string{
+			"factur-x.xml": {"relationship": "Alternative"},
+		}
+
+		_, _, filespecRefs, updateObjects := patchFilespecMetadata(context.Background(), logger, objects, metadata)
+		if len(filespecRefs) != 1 {
+			t.Fatalf("filespecRefs = %v, want 1 entry", filespecRefs)
+		}
+		value := updateObjects["obj:1 0 R"].(map[string]any)["value"].(map[string]any)
+		if value["/AFRelationship"] != "/Alternative" {
+			t.Errorf("/AFRelationship = %v, want /Alternative", value["/AFRelationship"])
+		}
+	})
+
+	t.Run("sets stream Subtype via EF reference", func(t *testing.T) {
+		objects := map[string]json.RawMessage{
+			"obj:2 0 R": json.RawMessage(`{"value":{"/Type":"/Filespec","/UF":"u:factur-x.xml","/EF":{"/F":"3 0 R"}}}`),
+			"obj:3 0 R": json.RawMessage(`{"stream":{"dict":{"/Type":"/EmbeddedFile"}}}`),
+		}
+		metadata := map[string]map[string]string{
+			"factur-x.xml": {"mimeType": "text/xml"},
+		}
+
+		_, _, _, updateObjects := patchFilespecMetadata(context.Background(), logger, objects, metadata)
+		streamObj, ok := updateObjects["obj:3 0 R"]
+		if !ok {
+			t.Fatal("expected obj:3 0 R in updateObjects")
+		}
+		stream := streamObj.(map[string]any)["stream"].(map[string]any)
+		dict := stream["dict"].(map[string]any)
+		if dict["/Subtype"] != "/text/xml" {
+			t.Errorf("/Subtype = %v, want /text/xml", dict["/Subtype"])
+		}
+	})
 }
 
-func TestLibreOfficePdfEngine_ReadMetadata(t *testing.T) {
-	engine := new(QPdf)
-	_, err := engine.ReadMetadata(context.Background(), zap.NewNop(), "")
+func TestPatchCatalogAF(t *testing.T) {
+	t.Run("adds filespec refs to AF array", func(t *testing.T) {
+		catalogValue := map[string]any{"/Type": "/Catalog"}
+		updateObjects := make(map[string]any)
 
-	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
-		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)
-	}
+		patchCatalogAF("obj:1 0 R", catalogValue, []string{"obj:2 0 R", "obj:3 0 R"}, updateObjects)
+
+		af, ok := catalogValue["/AF"].([]any)
+		if !ok {
+			t.Fatal("expected /AF to be []any")
+		}
+		if len(af) != 2 {
+			t.Fatalf("/AF has %d entries, want 2", len(af))
+		}
+		if af[0] != "2 0 R" || af[1] != "3 0 R" {
+			t.Errorf("/AF = %v, want [2 0 R, 3 0 R]", af)
+		}
+	})
+
+	t.Run("does not duplicate existing refs", func(t *testing.T) {
+		catalogValue := map[string]any{
+			"/Type": "/Catalog",
+			"/AF":   []any{"2 0 R"},
+		}
+		updateObjects := make(map[string]any)
+
+		patchCatalogAF("obj:1 0 R", catalogValue, []string{"obj:2 0 R", "obj:3 0 R"}, updateObjects)
+
+		af := catalogValue["/AF"].([]any)
+		if len(af) != 2 {
+			t.Fatalf("/AF has %d entries, want 2", len(af))
+		}
+	})
+
+	t.Run("no-op when catalogRef is empty", func(t *testing.T) {
+		updateObjects := make(map[string]any)
+		patchCatalogAF("", nil, []string{"obj:2 0 R"}, updateObjects)
+		if len(updateObjects) != 0 {
+			t.Error("expected no updates for empty catalogRef")
+		}
+	})
 }
 
-func TestLibreOfficePdfEngine_WriteMetadata(t *testing.T) {
-	engine := new(QPdf)
-	err := engine.WriteMetadata(context.Background(), zap.NewNop(), nil, "")
+func TestSetStreamSubtype(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
-	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
-		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)
+	t.Run("sets Subtype in stream dict", func(t *testing.T) {
+		objects := map[string]json.RawMessage{
+			"obj:3 0 R": json.RawMessage(`{"stream":{"dict":{"/Type":"/EmbeddedFile"}}}`),
+		}
+		updateObjects := make(map[string]any)
+
+		setStreamSubtype(context.Background(), logger, objects, updateObjects, "obj:3 0 R", "text/xml")
+
+		streamObj := updateObjects["obj:3 0 R"].(map[string]any)["stream"].(map[string]any)
+		dict := streamObj["dict"].(map[string]any)
+		if dict["/Subtype"] != "/text/xml" {
+			t.Errorf("/Subtype = %v, want /text/xml", dict["/Subtype"])
+		}
+	})
+
+	t.Run("auto-adds obj: prefix to ref", func(t *testing.T) {
+		objects := map[string]json.RawMessage{
+			"obj:5 0 R": json.RawMessage(`{"stream":{"dict":{}}}`),
+		}
+		updateObjects := make(map[string]any)
+
+		setStreamSubtype(context.Background(), logger, objects, updateObjects, "5 0 R", "application/pdf")
+
+		if _, ok := updateObjects["obj:5 0 R"]; !ok {
+			t.Error("expected obj:5 0 R in updateObjects")
+		}
+	})
+
+	t.Run("warns on missing object", func(t *testing.T) {
+		objects := map[string]json.RawMessage{}
+		updateObjects := make(map[string]any)
+
+		setStreamSubtype(context.Background(), logger, objects, updateObjects, "obj:99 0 R", "text/xml")
+
+		if len(updateObjects) != 0 {
+			t.Error("expected no updates for missing object")
+		}
+	})
+
+	t.Run("warns on object without stream key", func(t *testing.T) {
+		objects := map[string]json.RawMessage{
+			"obj:3 0 R": json.RawMessage(`{"value":{"/Type":"/Page"}}`),
+		}
+		updateObjects := make(map[string]any)
+
+		setStreamSubtype(context.Background(), logger, objects, updateObjects, "obj:3 0 R", "text/xml")
+
+		if len(updateObjects) != 0 {
+			t.Error("expected no updates for non-stream object")
+		}
+	})
+}
+
+func TestValidateSplitSpan(t *testing.T) {
+	for _, tc := range []struct {
+		span  string
+		valid bool
+	}{
+		// qpdf page ranges.
+		{"1", true},
+		{"12", true},
+		{"1-5", true},
+		{"2-z", true},
+		{"z", true},
+		{"r1", true},
+		{"r3-r1", true},
+		{"1,3,5-9", true},
+		{"1-5,x3", true},
+		{"1-z:odd", true},
+		{"1-z:even", true},
+
+		// Other engines' spellings. Not valid here, so the chain moves on.
+		{"2-end", false},
+		{"2-", false},
+		{"foo", false},
+
+		// A span qpdf would read as a source file.
+		{"/tmp/secret.pdf", false},
+		{"secret.pdf", false},
+		{"./secret.pdf", false},
+		{"../../etc/hosts", false},
+		{"1,/tmp/secret.pdf", false},
+		{"1 /tmp/secret.pdf", false},
+		{"", false},
+		{"--password=x", false},
+	} {
+		t.Run(tc.span, func(t *testing.T) {
+			err := validateSplitSpan(tc.span)
+			if tc.valid && err != nil {
+				t.Fatalf("validateSplitSpan(%q) = %v, want nil", tc.span, err)
+			}
+			if !tc.valid {
+				if err == nil {
+					t.Fatalf("validateSplitSpan(%q) = nil, want an error", tc.span)
+				}
+				// The chain must be able to try the next engine.
+				if !errors.Is(err, gotenberg.ErrPdfSplitModeNotSupported) {
+					t.Fatalf("error %v does not wrap ErrPdfSplitModeNotSupported", err)
+				}
+			}
+		})
 	}
 }

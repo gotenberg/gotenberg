@@ -24,7 +24,7 @@ type streamReader struct {
 // Read a chunk of the stream.
 func (reader *streamReader) Read(p []byte) (n int, err error) {
 	if reader.r != nil {
-		// Continue reading from buffer.
+		// Continue reading from the buffer.
 		return reader.read(p)
 	}
 
@@ -39,11 +39,9 @@ func (reader *streamReader) Read(p []byte) (n int, err error) {
 	// Chromium might have an off-by-one when deciding the maximum size (at
 	// least for base64 encoded data), usually it will overflow. We subtract
 	// one to make sure it fits into p.
-	size := len(p) - 1
-	if size < 1 {
+	size := max(len(p)-1,
 		// Safety-check to avoid crashing Chrome (e.g. via SetSize(-1)).
-		size = 1
-	}
+		1)
 
 	reply, err := reader.next(reader.pos, size)
 	if err != nil {

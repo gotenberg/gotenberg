@@ -1,0 +1,746 @@
+@pdfengines
+@pdfengines-merge
+@merge
+Feature: /forms/pdfengines/merge
+
+  Scenario: POST /forms/pdfengines/merge (default)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf | file   |
+      | files                     | testdata/page_2.pdf | file   |
+      | Gotenberg-Output-Filename | foo                 | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 2 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "foo.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
+
+  Scenario: POST /forms/pdfengines/merge (QPDF)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PDFENGINES_MERGE_ENGINES | qpdf |
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf | file   |
+      | files                     | testdata/page_2.pdf | file   |
+      | Gotenberg-Output-Filename | foo                 | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 2 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "foo.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
+
+  Scenario: POST /forms/pdfengines/merge (pdfcpu)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PDFENGINES_MERGE_ENGINES | pdfcpu |
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf | file   |
+      | files                     | testdata/page_2.pdf | file   |
+      | Gotenberg-Output-Filename | foo                 | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 2 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "foo.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
+
+  Scenario: POST /forms/pdfengines/merge (PDFtk)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PDFENGINES_MERGE_ENGINES | pdftk |
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf | file   |
+      | files                     | testdata/page_2.pdf | file   |
+      | Gotenberg-Output-Filename | foo                 | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 2 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "foo.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
+
+  Scenario: POST /forms/pdfengines/merge (Bad Request)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | Gotenberg-Output-Filename | foo | header |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: no form file found for extensions: [.pdf]
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files | testdata/page_1.pdf | file  |
+      | files | testdata/page_2.pdf | file  |
+      | pdfa  | foo                 | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      The requested PDF format is not supported, or no PDF engine could apply it. Valid formats include PDF/A-1b, PDF/A-2b, PDF/A-3b, and PDF/UA.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files | testdata/page_1.pdf | file  |
+      | files | testdata/page_2.pdf | file  |
+      | pdfua | foo                 | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'pdfua' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files    | testdata/page_1.pdf | file  |
+      | files    | testdata/page_2.pdf | file  |
+      | metadata | foo                 | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'metadata' is invalid (got 'foo', resulting to unmarshal metadata: invalid character 'o' in literal false (expecting 'a'))
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files     | testdata/page_1.pdf | file  |
+      | files     | testdata/page_2.pdf | file  |
+      | bookmarks | foo                 | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'bookmarks' is invalid (got 'foo', resulting to unmarshal bookmarks: invalid character 'o' in literal false (expecting 'a'))
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files              | testdata/page_1.pdf | file  |
+      | files              | testdata/page_2.pdf | file  |
+      | autoIndexBookmarks | foo                 | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'autoIndexBookmarks' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      """
+
+  @convert
+  Scenario: POST /forms/pdfengines/merge (PDF/A-1b & PDF/UA-1)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf | file   |
+      | files                     | testdata/page_2.pdf | file   |
+      | pdfa                      | PDF/A-1b            | field  |
+      | pdfua                     | true                | field  |
+      | Gotenberg-Output-Filename | foo                 | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 2 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "foo.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
+    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
+
+  @metadata
+  Scenario: POST /forms/pdfengines/merge (Metadata)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf                                                                                                                                                                                                                                                                                       | file   |
+      | files                     | testdata/page_2.pdf                                                                                                                                                                                                                                                                                       | file   |
+      | metadata                  | {"Author":"Julien Neuhart","Copyright":"Julien Neuhart","CreateDate":"2006-09-18T16:27:50-04:00","Creator":"Gotenberg","Keywords":["first","second"],"Marked":true,"ModDate":"2006-09-18T16:27:50-04:00","PDFVersion":1.7,"Producer":"Gotenberg","Subject":"Sample","Title":"Sample","Trapped":"Unknown"} | field  |
+      | Gotenberg-Output-Filename | foo                                                                                                                                                                                                                                                                                                       | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 2 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "foo.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/read" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/json"
+    Then the response body should match JSON:
+      """
+      {
+        "foo.pdf": {
+          "Author": "Julien Neuhart",
+          "Copyright": "Julien Neuhart",
+          "CreateDate": "2006:09:18 16:27:50-04:00",
+          "Creator": "Gotenberg",
+          "Keywords": ["first", "second"],
+          "Marked": true,
+          "ModDate": "2006:09:18 16:27:50-04:00",
+          "PDFVersion": 1.7,
+          "Producer": "Gotenberg",
+          "Subject": "Sample",
+          "Title": "Sample",
+          "Trapped": "Unknown"
+        }
+      }
+      """
+
+  @bookmarks
+  Scenario: POST /forms/pdfengines/merge (Bookmarks List)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf                 | file   |
+      | files                     | testdata/page_2.pdf                 | file   |
+      | bookmarks                 | [{"title":"Merged Index","page":1}] | field  |
+      | Gotenberg-Output-Filename | foo                                 | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/bookmarks/read" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/json"
+    Then the response body should match JSON:
+      """
+      {
+        "foo.pdf": [
+          {
+            "title": "Merged Index",
+            "page": 1
+          }
+        ]
+      }
+      """
+
+  @bookmarks
+  Scenario: POST /forms/pdfengines/merge (Bookmarks Map)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf                                                                                                                                                                                       | file   |
+      | files                     | testdata/page_2.pdf                                                                                                                                                                                       | file   |
+      | bookmarks                 | {"page_1.pdf":[{"title":"Page 1 Index","page":1,"children":[{"title":"Page 1 Sub-index","page":1}]}],"page_2.pdf":[{"title":"Page 2 Index","page":1,"children":[{"title":"Page 2 Sub-index","page":1}]}]} | field  |
+      | Gotenberg-Output-Filename | foo                                                                                                                                                                                                       | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/bookmarks/read" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/json"
+    Then the response body should match JSON:
+      """
+      {
+        "foo.pdf": [
+          {
+            "title": "Page 1 Index",
+            "page": 1,
+            "children": [
+              {
+                "title": "Page 1 Sub-index",
+                "page": 1
+              }
+            ]
+          },
+          {
+            "title": "Page 2 Index",
+            "page": 2,
+            "children": [
+              {
+                "title": "Page 2 Sub-index",
+                "page": 2
+              }
+            ]
+          }
+        ]
+      }
+      """
+
+  # titleBookmarks adds a top-level bookmark per merged document, labeled by its
+  # Title metadata (falling back to the filename) and pointing to its first page,
+  # with the document's own outline nested underneath.
+  # See https://github.com/gotenberg/gotenberg/issues/867.
+  @bookmarks
+  Scenario: POST /forms/pdfengines/merge (Title Bookmarks)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/titled_alpha.pdf   | file   |
+      | files                     | testdata/titled_bravo.pdf   | file   |
+      | files                     | testdata/untitled_gamma.pdf | file   |
+      | titleBookmarks            | true                        | field  |
+      | Gotenberg-Output-Filename | foo                         | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/bookmarks/read" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/json"
+    Then the response body should match JSON:
+      """
+      {
+        "foo.pdf": [
+          {
+            "title": "Alpha",
+            "page": 1,
+            "children": [
+              { "title": "A1", "page": 1 },
+              { "title": "A2", "page": 2 }
+            ]
+          },
+          {
+            "title": "Bravo",
+            "page": 3
+          },
+          {
+            "title": "untitled_gamma",
+            "page": 4
+          }
+        ]
+      }
+      """
+
+  @bookmarks
+  Scenario: POST /forms/pdfengines/merge (Auto-index Bookmarks)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1_with_bookmarks.pdf | file   |
+      | files                     | testdata/page_2_with_bookmarks.pdf | file   |
+      | autoIndexBookmarks        | true                               | field  |
+      | Gotenberg-Output-Filename | foo                                | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/bookmarks/read" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/json"
+    Then the response body should match JSON:
+      """
+      {
+        "foo.pdf": [
+          {
+            "title": "Page 1",
+            "page": 1
+          },
+          {
+            "title": "Page 2",
+            "page": 2
+          }
+        ]
+      }
+      """
+
+  @bookmarks
+  Scenario: POST /forms/pdfengines/merge (Auto-index Bookmarks + Bookmarks Map)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf                                | file   |
+      | files                     | testdata/page_2_with_bookmarks.pdf                 | file   |
+      | bookmarks                 | {"page_1.pdf":[{"title":"Page 1 Index","page":1}]} | field  |
+      | autoIndexBookmarks        | true                                               | field  |
+      | Gotenberg-Output-Filename | foo                                                | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/bookmarks/read" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/json"
+    Then the response body should match JSON:
+      """
+      {
+        "foo.pdf": [
+          {
+            "title": "Page 1 Index",
+            "page": 1
+          },
+          {
+            "title": "Page 2",
+            "page": 2
+          }
+        ]
+      }
+      """
+
+  @flatten
+  Scenario: POST /forms/pdfengines/merge (Flatten)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf | file   |
+      | files                     | testdata/page_2.pdf | file   |
+      | flatten                   | true                | field  |
+      | Gotenberg-Output-Filename | foo                 | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 2 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "foo.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
+    Then the response PDF(s) should be flatten
+
+  @encrypt
+  Scenario: POST /forms/pdfengines/merge (Encrypt - user password only)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files        | testdata/page_1.pdf | file  |
+      | files        | testdata/page_2.pdf | file  |
+      | userPassword | foo                 | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be encrypted
+
+  @encrypt
+  Scenario: POST /forms/pdfengines/merge (Encrypt - both user and owner passwords)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files         | testdata/page_1.pdf | file  |
+      | files         | testdata/page_2.pdf | file  |
+      | userPassword  | foo                 | field |
+      | ownerPassword | bar                 | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be encrypted
+
+  @watermark
+  Scenario: POST /forms/pdfengines/merge (Watermark - Text)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files               | testdata/page_1.pdf | file  |
+      | files               | testdata/page_2.pdf | file  |
+      | watermarkSource     | text                | field |
+      | watermarkExpression | CONFIDENTIAL        | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
+  @stamp
+  Scenario: POST /forms/pdfengines/merge (Stamp - Text)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files           | testdata/page_1.pdf | file  |
+      | files           | testdata/page_2.pdf | file  |
+      | stampSource     | text                | field |
+      | stampExpression | DRAFT               | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
+  @rotate
+  Scenario: POST /forms/pdfengines/merge (Rotate 90)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files       | testdata/page_1.pdf | file  |
+      | files       | testdata/page_2.pdf | file  |
+      | rotateAngle | 90                  | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
+  @embed
+  Scenario: POST /foo/forms/pdfengines/merge (Embeds)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf  | file   |
+      | files                     | testdata/page_2.pdf  | file   |
+      | embeds                    | testdata/embed_1.xml | file   |
+      | embeds                    | testdata/embed_2.xml | file   |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then the response PDF(s) should have the "embed_1.xml" file embedded
+    Then the response PDF(s) should have the "embed_2.xml" file embedded
+
+  # FIXME: once decrypt is done, add encrypt and check after the content of the PDF.
+  @convert
+  @metadata
+  @watermark
+  @stamp
+  @rotate
+  @flatten
+  @embed
+  @bookmarks
+  Scenario: POST /forms/pdfengines/merge (PDF/A-3b & PDF/UA-1 & Metadata & Watermark & Stamp & Rotate & Flatten & Embeds & Bookmarks)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf                                                                                                                                                                                                                                                                                       | file   |
+      | files                     | testdata/page_2.pdf                                                                                                                                                                                                                                                                                       | file   |
+      | pdfa                      | PDF/A-3b                                                                                                                                                                                                                                                                                                  | field  |
+      | pdfua                     | true                                                                                                                                                                                                                                                                                                      | field  |
+      | metadata                  | {"Author":"Julien Neuhart","Copyright":"Julien Neuhart","CreateDate":"2006-09-18T16:27:50-04:00","Creator":"Gotenberg","Keywords":["first","second"],"Marked":true,"ModDate":"2006-09-18T16:27:50-04:00","PDFVersion":1.7,"Producer":"Gotenberg","Subject":"Sample","Title":"Sample","Trapped":"Unknown"} | field  |
+      | watermarkSource           | text                                                                                                                                                                                                                                                                                                      | field  |
+      | watermarkExpression       | CONFIDENTIAL                                                                                                                                                                                                                                                                                              | field  |
+      | stampSource               | text                                                                                                                                                                                                                                                                                                      | field  |
+      | stampExpression           | DRAFT                                                                                                                                                                                                                                                                                                     | field  |
+      | rotateAngle               | 90                                                                                                                                                                                                                                                                                                        | field  |
+      | bookmarks                 | [{"title":"Merged Index","page":1}]                                                                                                                                                                                                                                                                       | field  |
+      | flatten                   | true                                                                                                                                                                                                                                                                                                      | field  |
+      | embeds                    | testdata/embed_1.xml                                                                                                                                                                                                                                                                                      | file   |
+      | embeds                    | testdata/embed_2.xml                                                                                                                                                                                                                                                                                      | file   |
+      | Gotenberg-Output-Filename | foo                                                                                                                                                                                                                                                                                                       | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 2 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "foo.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
+    Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 5 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
+    Then the response PDF(s) should be flatten
+    Then the response PDF(s) should have the "embed_1.xml" file embedded
+    Then the response PDF(s) should have the "embed_2.xml" file embedded
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/bookmarks/read" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/json"
+    Then the response body should match JSON:
+      """
+      {
+        "foo.pdf": [
+          {
+            "title": "Merged Index",
+            "page": 1
+          }
+        ]
+      }
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/read" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/json"
+    Then the response body should match JSON:
+      """
+      {
+        "foo.pdf": {
+          "Author": "Julien Neuhart",
+          "Copyright": "Julien Neuhart",
+          "Creator": "Gotenberg",
+          "Marked": true,
+          "PDFVersion": 1.7,
+          "Producer": "Gotenberg",
+          "Subject": "Sample",
+          "Title": "Sample",
+          "Trapped": "Unknown"
+        }
+      }
+      """
+
+  Scenario: POST /forms/pdfengines/merge (Routes Disabled)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PDFENGINES_DISABLE_ROUTES | true |
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files | testdata/page_1.pdf | file |
+      | files | testdata/page_2.pdf | file |
+    Then the response status code should be 404
+
+  Scenario: POST /forms/pdfengines/merge (Gotenberg Trace)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files           | testdata/page_1.pdf    | file   |
+      | files           | testdata/page_2.pdf    | file   |
+      | Gotenberg-Trace | forms_pdfengines_merge | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then the response header "Gotenberg-Trace" should be "forms_pdfengines_merge"
+    Then the Gotenberg container should log the following entries:
+      | "correlation_id":"forms_pdfengines_merge" |
+
+  @download-from
+  Scenario: POST /forms/pdfengines/merge (Download From)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | downloadFrom | [{"url":"http://host.docker.internal:%d/static/testdata/page_1.pdf"},{"url":"http://host.docker.internal:%d/static/testdata/page_2.pdf"}] | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+
+  @download-from
+  Scenario: POST /forms/pdfengines/merge (Watermark via Download From)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PDFENGINES_WATERMARK_ENGINES | pdfcpu |
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files           | testdata/page_1.pdf                                                                          | file  |
+      | files           | testdata/page_2.pdf                                                                          | file  |
+      | downloadFrom    | [{"url":"http://host.docker.internal:%d/static/testdata/watermark.png","field":"watermark"}] | field |
+      | watermarkSource | image                                                                                        | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+
+  @download-from
+  Scenario: POST /forms/pdfengines/merge (Stamp via Download From)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PDFENGINES_STAMP_ENGINES | pdfcpu |
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files        | testdata/page_1.pdf                                                                   | file  |
+      | files        | testdata/page_2.pdf                                                                   | file  |
+      | downloadFrom | [{"url":"http://host.docker.internal:%d/static/testdata/page_2.pdf","field":"stamp"}] | field |
+      | stampSource  | pdf                                                                                   | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+
+  @webhook
+  Scenario: POST /forms/pdfengines/merge (Webhook)
+    Given I have a default Gotenberg container
+    Given I have a webhook server
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                       | testdata/page_1.pdf                          | file   |
+      | files                       | testdata/page_2.pdf                          | file   |
+      | Gotenberg-Output-Filename   | foo                                          | header |
+      | Gotenberg-Webhook-Url       | http://host.docker.internal:%d/webhook       | header |
+      | Gotenberg-Webhook-Error-Url | http://host.docker.internal:%d/webhook/error | header |
+    Then the response status code should be 204
+    When I wait for the asynchronous request to the webhook
+    Then the webhook request header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the webhook request
+    Then there should be the following file(s) in the webhook request:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 2 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "foo.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
+
+  Scenario: POST /forms/pdfengines/merge (Basic Auth)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | API_ENABLE_BASIC_AUTH             | true |
+      | GOTENBERG_API_BASIC_AUTH_USERNAME | foo  |
+      | GOTENBERG_API_BASIC_AUTH_PASSWORD | bar  |
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files | testdata/page_1.pdf | file |
+      | files | testdata/page_2.pdf | file |
+    Then the response status code should be 401
+
+  Scenario: POST /foo/forms/pdfengines/merge (Root Path)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | API_ENABLE_DEBUG_ROUTE | true  |
+      | API_ROOT_PATH          | /foo/ |
+    When I make a "POST" request to Gotenberg at the "/foo/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files | testdata/page_1.pdf | file |
+      | files | testdata/page_2.pdf | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+
+  @convert
+  @encrypt
+  Scenario: POST /forms/pdfengines/merge (PDF/A + Encrypt => 400)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files        | testdata/page_1.pdf | file  |
+      | files        | testdata/page_2.pdf | file  |
+      | pdfa         | PDF/A-1b            | field |
+      | userPassword | secret              | field |
+    Then the response status code should be 400
+
+  @convert
+  @embed
+  Scenario: POST /forms/pdfengines/merge (PDF/A-1b + Embeds => 400)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.pdf  | file  |
+      | files  | testdata/page_2.pdf  | file  |
+      | pdfa   | PDF/A-1b             | field |
+      | embeds | testdata/embed_1.xml | file  |
+    Then the response status code should be 400
+
+  @convert
+  @embed
+  Scenario: POST /forms/pdfengines/merge (PDF/A-3b + Embeds => 200)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.pdf  | file  |
+      | files  | testdata/page_2.pdf  | file  |
+      | pdfa   | PDF/A-3b             | field |
+      | embeds | testdata/embed_1.xml | file  |
+    Then the response status code should be 200
+
+  Scenario: POST /forms/pdfengines/merge (stampSource=pdf without uploaded stamp file => 400)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files           | testdata/page_1.pdf | file  |
+      | files           | testdata/page_2.pdf | file  |
+      | stampSource     | pdf                 | field |
+      | stampExpression | /etc/hostname       | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: a stamp file is required for image or pdf source
+      """
+
+  Scenario: POST /forms/pdfengines/merge (watermarkSource=pdf without uploaded watermark file => 400)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files               | testdata/page_1.pdf | file  |
+      | files               | testdata/page_2.pdf | file  |
+      | watermarkSource     | pdf                 | field |
+      | watermarkExpression | /etc/hostname       | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: a watermark file is required for image or pdf source
+      """
+
+  # See: https://github.com/gotenberg/gotenberg/issues/1500.
+  Scenario: POST /forms/pdfengines/merge (Long Filename)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/Longitudinell_jämförelse_mellan_laserkirurgi_och_strålbehandling_gällande_röstkvalitet_och_självskattad_kommunikation_upp_till_två_år_efter_tidig_stämbandscancer_i_ett_randomiserat_kontrollerat_försök.pdf | file   |
+      | files                     | testdata/page_2.pdf                                                                                                                                                                                                   | file   |
+      | Gotenberg-Output-Filename | foo                                                                                                                                                                                                                   | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response

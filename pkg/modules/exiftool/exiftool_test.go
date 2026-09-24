@@ -1,352 +1,258 @@
 package exiftool
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"io"
-	"os"
-	"reflect"
+	"slices"
 	"testing"
-
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
-func TestExifTool_Descriptor(t *testing.T) {
-	descriptor := new(ExifTool).Descriptor()
-
-	actual := reflect.TypeOf(descriptor.New())
-	expect := reflect.TypeOf(new(ExifTool))
-
-	if actual != expect {
-		t.Errorf("expected '%s' but got '%s'", expect, actual)
-	}
-}
-
-func TestExifTool_Provision(t *testing.T) {
-	engine := new(ExifTool)
-	ctx := gotenberg.NewContext(gotenberg.ParsedFlags{}, nil)
-
-	err := engine.Provision(ctx)
+func TestBuildExifToolWriteArgs_String(t *testing.T) {
+	args, err := buildExifToolWriteArgs(map[string]any{"Title": "sample"})
 	if err != nil {
-		t.Errorf("expected no error but got: %v", err)
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := []string{"-Title=sample"}
+	if !slices.Equal(args, want) {
+		t.Fatalf("args = %v, want %v", args, want)
 	}
 }
 
-func TestExifTool_Validate(t *testing.T) {
+func TestBuildExifToolWriteArgs_StringSlice(t *testing.T) {
+	args, err := buildExifToolWriteArgs(map[string]any{"Keywords": []string{"first", "second"}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := []string{"-Keywords=first", "-Keywords=second"}
+	if !slices.Equal(args, want) {
+		t.Fatalf("args = %v, want %v", args, want)
+	}
+}
+
+func TestBuildExifToolWriteArgs_AnySliceOfStrings(t *testing.T) {
+	args, err := buildExifToolWriteArgs(map[string]any{"Keywords": []any{"a", "b"}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := []string{"-Keywords=a", "-Keywords=b"}
+	if !slices.Equal(args, want) {
+		t.Fatalf("args = %v, want %v", args, want)
+	}
+}
+
+func TestBuildExifToolWriteArgs_AnySliceMixedRejected(t *testing.T) {
+	_, err := buildExifToolWriteArgs(map[string]any{"Keywords": []any{"a", 42}})
+	if !errors.Is(err, gotenberg.ErrPdfEngineMetadataValueNotSupported) {
+		t.Fatalf("expected ErrPdfEngineMetadataValueNotSupported, got %v", err)
+	}
+}
+
+func TestBuildExifToolWriteArgs_Numbers(t *testing.T) {
 	for _, tc := range []struct {
-		scenario    string
-		binPath     string
-		expectError bool
+		name string
+		in   any
+		want string
 	}{
-		{
-			scenario:    "empty bin path",
-			binPath:     "",
-			expectError: true,
-		},
-		{
-			scenario:    "bin path does not exist",
-			binPath:     "/foo",
-			expectError: true,
-		},
-		{
-			scenario:    "validate success",
-			binPath:     os.Getenv("EXIFTOOL_BIN_PATH"),
-			expectError: false,
-		},
+		{"int", 42, "-K=42"},
+		{"int64", int64(42), "-K=42"},
+		{"float32", float32(1.5), "-K=1.5"},
+		{"float64", 1.7, "-K=1.7"},
 	} {
-		t.Run(tc.scenario, func(t *testing.T) {
-			engine := new(ExifTool)
-			engine.binPath = tc.binPath
-			err := engine.Validate()
-
-			if !tc.expectError && err != nil {
-				t.Fatalf("expected no error but got: %v", err)
+		t.Run(tc.name, func(t *testing.T) {
+			args, err := buildExifToolWriteArgs(map[string]any{"K": tc.in})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
 			}
-
-			if tc.expectError && err == nil {
-				t.Fatal("expected error but got none")
+			if len(args) != 1 || args[0] != tc.want {
+				t.Fatalf("args = %v, want [%q]", args, tc.want)
 			}
 		})
 	}
 }
 
-func TestExiftool_Merge(t *testing.T) {
-	engine := new(ExifTool)
-	err := engine.Merge(context.Background(), zap.NewNop(), nil, "")
-
-	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
-		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)
+func TestBuildExifToolWriteArgs_Bool(t *testing.T) {
+	args, err := buildExifToolWriteArgs(map[string]any{"Marked": true})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := []string{"-Marked=true"}
+	if !slices.Equal(args, want) {
+		t.Fatalf("args = %v, want %v", args, want)
 	}
 }
 
-func TestExiftool_Convert(t *testing.T) {
-	engine := new(ExifTool)
-	err := engine.Convert(context.Background(), zap.NewNop(), gotenberg.PdfFormats{}, "", "")
-
-	if !errors.Is(err, gotenberg.ErrPdfEngineMethodNotSupported) {
-		t.Errorf("expected error %v, but got: %v", gotenberg.ErrPdfEngineMethodNotSupported, err)
-	}
-}
-
-func TestExiftool_ReadMetadata(t *testing.T) {
-	for _, tc := range []struct {
-		scenario       string
-		inputPath      string
-		expectMetadata map[string]interface{}
-		expectError    bool
-	}{
-		{
-			scenario:       "invalid input path",
-			inputPath:      "foo",
-			expectMetadata: nil,
-			expectError:    true,
-		},
-		{
-			scenario:  "success",
-			inputPath: "/tests/test/testdata/pdfengines/sample1.pdf",
-			expectMetadata: map[string]interface{}{
-				"FileName":          "sample1.pdf",
-				"FileTypeExtension": "pdf",
-				"MIMEType":          "application/pdf",
-				"PDFVersion":        1.4,
-				"PageCount":         float64(3),
-			},
-			expectError: false,
-		},
+func TestBuildExifToolWriteArgs_InvalidKey(t *testing.T) {
+	for _, key := range []string{
+		"",           // empty
+		"-rm",        // leading dash — would be parsed as a flag
+		"foo\nbar",   // newline
+		"foo bar",    // space
+		"foo=bar",    // contains equals
+		"weird/char", // slash
 	} {
-		t.Run(tc.scenario, func(t *testing.T) {
-			engine := new(ExifTool)
-			err := engine.Provision(nil)
-			if err != nil {
-				t.Fatalf("expected error but got: %v", err)
-			}
-
-			metadata, err := engine.ReadMetadata(context.Background(), zap.NewNop(), tc.inputPath)
-
-			if !tc.expectError && err != nil {
-				t.Fatalf("expected no error but got: %v", err)
-			}
-
-			if tc.expectError && err == nil {
-				t.Fatal("expected error but got none")
-			}
-
-			if tc.expectMetadata != nil && err == nil {
-				for k, v := range tc.expectMetadata {
-					if v2, ok := metadata[k]; !ok || v != v2 {
-						t.Errorf("expected entry %s with value %v to exists", k, v)
-					}
-				}
+		t.Run(key, func(t *testing.T) {
+			_, err := buildExifToolWriteArgs(map[string]any{key: "value"})
+			if !errors.Is(err, gotenberg.ErrPdfEngineMetadataValueNotSupported) {
+				t.Fatalf("expected ErrPdfEngineMetadataValueNotSupported for key %q, got %v", key, err)
 			}
 		})
 	}
 }
 
-func TestExiftool_WriteMetadata(t *testing.T) {
-	for _, tc := range []struct {
-		scenario       string
-		createCopy     bool
-		inputPath      string
-		metadata       map[string]interface{}
-		expectMetadata map[string]interface{}
-		expectError    bool
-		expectedError  error
-	}{
-		{
-			scenario:    "invalid input path",
-			createCopy:  false,
-			inputPath:   "foo",
-			expectError: true,
-		},
-		{
-			scenario:   "gotenberg.ErrPdfEngineMetadataValueNotSupported (not string array)",
-			createCopy: true,
-			inputPath:  "/tests/test/testdata/pdfengines/sample1.pdf",
-			metadata: map[string]interface{}{
-				"Unsupported": []interface{}{
-					"foo",
-					1,
-				},
-			},
-			expectError:   true,
-			expectedError: gotenberg.ErrPdfEngineMetadataValueNotSupported,
-		},
-		{
-			scenario:   "gotenberg.ErrPdfEngineMetadataValueNotSupported (default)",
-			createCopy: true,
-			inputPath:  "/tests/test/testdata/pdfengines/sample1.pdf",
-			metadata: map[string]interface{}{
-				"Unsupported": map[string]interface{}{},
-			},
-			expectError:   true,
-			expectedError: gotenberg.ErrPdfEngineMetadataValueNotSupported,
-		},
-		{
-			scenario:   "success (interface array to string array)",
-			createCopy: true,
-			inputPath:  "/tests/test/testdata/pdfengines/sample1.pdf",
-			metadata: map[string]interface{}{
-				"Keywords": []interface{}{
-					"first",
-					"second",
-				},
-			},
-			expectMetadata: map[string]interface{}{
-				"Keywords": []interface{}{
-					"first",
-					"second",
-				},
-			},
-			expectError: false,
-		},
-		{
-			scenario:   "success",
-			createCopy: true,
-			inputPath:  "/tests/test/testdata/pdfengines/sample1.pdf",
-			metadata: map[string]interface{}{
-				"Author":       "Julien Neuhart",
-				"Copyright":    "Julien Neuhart",
-				"CreationDate": "2006-09-18T16:27:50-04:00",
-				"Creator":      "Gotenberg",
-				"Keywords": []string{
-					"first",
-					"second",
-				},
-				"Marked":     true,
-				"ModDate":    "2006-09-18T16:27:50-04:00",
-				"PDFVersion": 1.7,
-				"Producer":   "Gotenberg",
-				"Subject":    "Sample",
-				"Title":      "Sample",
-				"Trapped":    "Unknown",
-				// Those are not valid PDF metadata.
-				"int":     1,
-				"int64":   int64(2),
-				"float32": float32(2.2),
-				"float64": 3.3,
-			},
-			expectMetadata: map[string]interface{}{
-				"Author":       "Julien Neuhart",
-				"Copyright":    "Julien Neuhart",
-				"CreationDate": "2006:09:18 16:27:50-04:00",
-				"Creator":      "Gotenberg",
-				"Keywords": []interface{}{
-					"first",
-					"second",
-				},
-				"Marked":     true,
-				"ModDate":    "2006:09:18 16:27:50-04:00",
-				"PDFVersion": 1.7,
-				"Producer":   "Gotenberg",
-				"Subject":    "Sample",
-				"Title":      "Sample",
-				"Trapped":    "Unknown",
-			},
-			expectError: false,
-		},
+func TestBuildExifToolWriteArgs_ControlCharValue(t *testing.T) {
+	for _, val := range []string{
+		"foo\nbar",
+		"foo\rbar",
+		"foo\x00bar",
 	} {
-		t.Run(tc.scenario, func(t *testing.T) {
-			engine := new(ExifTool)
-			err := engine.Provision(nil)
+		t.Run(val, func(t *testing.T) {
+			_, err := buildExifToolWriteArgs(map[string]any{"Title": val})
+			if !errors.Is(err, gotenberg.ErrPdfEngineMetadataValueNotSupported) {
+				t.Fatalf("expected ErrPdfEngineMetadataValueNotSupported for value %q, got %v", val, err)
+			}
+		})
+	}
+}
+
+func TestBuildExifToolWriteArgs_DangerousTagsStripped(t *testing.T) {
+	// Dangerous tag keys are silently dropped; legitimate keys still pass.
+	args, err := buildExifToolWriteArgs(map[string]any{
+		"Author":          "legit",
+		"FileName":        "stolen.pdf",
+		"System:FileName": "stolen.pdf",
+		"Directory":       "/tmp",
+		"HardLink":        "/tmp/link",
+		"SymLink":         "/tmp/link",
+		"FilePermissions": "777",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !slices.Equal(args, []string{"-Author=legit"}) {
+		t.Fatalf("args = %v, want [-Author=legit]", args)
+	}
+}
+
+func TestBuildExifToolWriteArgs_DangerousTagsCaseInsensitive(t *testing.T) {
+	// Case variations are all dropped because exiftool is case-insensitive.
+	args, err := buildExifToolWriteArgs(map[string]any{
+		"filename":        "x",
+		"FILENAME":        "x",
+		"System:Filename": "x",
+		"Title":           "keep",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !slices.Equal(args, []string{"-Title=keep"}) {
+		t.Fatalf("args = %v, want [-Title=keep]", args)
+	}
+}
+
+func TestBuildExifToolWriteArgs_UnsupportedType(t *testing.T) {
+	_, err := buildExifToolWriteArgs(map[string]any{"K": map[string]any{"nested": "x"}})
+	if !errors.Is(err, gotenberg.ErrPdfEngineMetadataValueNotSupported) {
+		t.Fatalf("expected ErrPdfEngineMetadataValueNotSupported, got %v", err)
+	}
+}
+
+func TestBuildExifToolWriteArgs_Empty(t *testing.T) {
+	args, err := buildExifToolWriteArgs(map[string]any{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(args) != 0 {
+		t.Fatalf("args = %v, want empty", args)
+	}
+}
+
+func TestIsDangerousTag(t *testing.T) {
+	for _, tc := range []struct {
+		key  string
+		want bool
+	}{
+		{"FileName", true},
+		{"filename", true},
+		{"System:FileName", true},
+		{"XMP:FileName", true},
+		{"Directory", true},
+		{"HardLink", true},
+		{"SymLink", true},
+		{"FilePermissions", true},
+		{"Title", false},
+		{"Author", false},
+		{"FileNameExtra", false}, // Suffix must not match.
+		{"", false},
+	} {
+		t.Run(tc.key, func(t *testing.T) {
+			if got := isDangerousTag(tc.key); got != tc.want {
+				t.Fatalf("isDangerousTag(%q) = %v, want %v", tc.key, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestSafeKeyPattern(t *testing.T) {
+	// Rejects leading dash to prevent argv-level flag injection.
+	if safeKeyPattern.MatchString("-injected") {
+		t.Fatalf("leading-dash key must be rejected")
+	}
+	// Accepts common legitimate forms.
+	for _, k := range []string{"Title", "System:Title", "XMP-pdf:Title", "My_Tag.1"} {
+		if !safeKeyPattern.MatchString(k) {
+			t.Fatalf("key %q must be accepted", k)
+		}
+	}
+	// Rejects control characters.
+	for _, k := range []string{"a\nb", "a\rb", "a\x00b", "a b"} {
+		if safeKeyPattern.MatchString(k) {
+			t.Fatalf("control-char key %q must be rejected", k)
+		}
+	}
+}
+
+// A metadata key that collides with an ExifTool option becomes a bare argv
+// entry such as "-csv=/etc/passwd", which exiftool reads as its own option and
+// treats the value as a filename to open.
+func TestBuildExifToolWriteArgs_RejectsControlOptions(t *testing.T) {
+	for _, key := range []string{"csv", "CSV", "json", "geotag", "config", "tagsFromFile", "execute", "stay_open", "o", "w", "if", "p"} {
+		t.Run(key, func(t *testing.T) {
+			_, err := buildExifToolWriteArgs(map[string]any{key: "/etc/passwd"})
+			if err == nil {
+				t.Fatalf("buildExifToolWriteArgs accepted the control option %q", key)
+			}
+			if !errors.Is(err, gotenberg.ErrPdfEngineMetadataValueNotSupported) {
+				t.Fatalf("error %v does not wrap ErrPdfEngineMetadataValueNotSupported", err)
+			}
+		})
+	}
+}
+
+// A group prefix makes the key unambiguous, so it must still be accepted.
+func TestBuildExifToolWriteArgs_AcceptsPrefixedOptionNames(t *testing.T) {
+	for _, key := range []string{"XMP:csv", "XMP-dc:json", "IPTC:p"} {
+		t.Run(key, func(t *testing.T) {
+			args, err := buildExifToolWriteArgs(map[string]any{key: "value"})
 			if err != nil {
-				t.Fatalf("expected no error but got: %v", err)
+				t.Fatalf("buildExifToolWriteArgs rejected the prefixed key %q: %v", key, err)
 			}
-
-			var destinationPath string
-			if tc.createCopy {
-				fs := gotenberg.NewFileSystem()
-				outputDir, err := fs.MkdirAll()
-				if err != nil {
-					t.Fatalf("expected error no but got: %v", err)
-				}
-
-				defer func() {
-					err = os.RemoveAll(fs.WorkingDirPath())
-					if err != nil {
-						t.Fatalf("expected no error while cleaning up but got: %v", err)
-					}
-				}()
-
-				destinationPath = fmt.Sprintf("%s/copy_temp.pdf", outputDir)
-				source, err := os.Open(tc.inputPath)
-				if err != nil {
-					t.Fatalf("open source file: %v", err)
-				}
-
-				defer func(source *os.File) {
-					err := source.Close()
-					if err != nil {
-						t.Fatalf("close file: %v", err)
-					}
-				}(source)
-
-				destination, err := os.Create(destinationPath)
-				if err != nil {
-					t.Fatalf("create destination file: %v", err)
-				}
-
-				defer func(destination *os.File) {
-					err := destination.Close()
-					if err != nil {
-						t.Fatalf("close file: %v", err)
-					}
-				}(destination)
-
-				_, err = io.Copy(destination, source)
-				if err != nil {
-					t.Fatalf("copy source into destination: %v", err)
-				}
-			} else {
-				destinationPath = tc.inputPath
+			want := fmt.Sprintf("-%s=value", key)
+			if len(args) != 1 || args[0] != want {
+				t.Fatalf("args = %v, want [%s]", args, want)
 			}
+		})
+	}
+}
 
-			err = engine.WriteMetadata(context.Background(), zap.NewNop(), tc.metadata, destinationPath)
-
-			if !tc.expectError && err != nil {
-				t.Fatalf("expected no error but got: %v", err)
-			}
-
-			if tc.expectError && err == nil {
-				t.Fatal("expected error but got none")
-			}
-
-			if tc.expectedError != nil && !errors.Is(err, tc.expectedError) {
-				t.Fatalf("expected error %v but got: %v", tc.expectedError, err)
-			}
-
-			if tc.expectError {
-				return
-			}
-
-			metadata, err := engine.ReadMetadata(context.Background(), zap.NewNop(), destinationPath)
+// Ordinary tags must be unaffected.
+func TestBuildExifToolWriteArgs_AcceptsOrdinaryTags(t *testing.T) {
+	for _, key := range []string{"Author", "Title", "Subject", "Keywords", "Producer", "Creator"} {
+		t.Run(key, func(t *testing.T) {
+			_, err := buildExifToolWriteArgs(map[string]any{key: "value"})
 			if err != nil {
-				t.Fatalf("expected no error but got: %v", err)
-			}
-
-			if tc.expectMetadata != nil && err == nil {
-				for k, v := range tc.expectMetadata {
-					v2, ok := metadata[k]
-					if !ok {
-						t.Errorf("expected entry %s with value %v to exists, but got none", k, v)
-						continue
-					}
-
-					switch v2.(type) {
-					case []interface{}:
-						for i, entry := range v.([]interface{}) {
-							if entry != v2.([]interface{})[i] {
-								t.Errorf("expected entry %s to contain value %v, but got %v", k, entry, v2.([]interface{})[i])
-							}
-						}
-					default:
-						if v != v2 {
-							t.Errorf("expected entry %s with value %v to exists, but got %v", k, v, v2)
-						}
-					}
-				}
+				t.Fatalf("buildExifToolWriteArgs rejected the ordinary tag %q: %v", key, err)
 			}
 		})
 	}

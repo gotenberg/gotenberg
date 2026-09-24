@@ -1,0 +1,512 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number) || 'main' }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  lint:
+    name: Lint Golang codebase
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Run linters
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.13.2
+
+  lint-prettier:
+    name: Lint non-Golang codebase
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      - name: Install Dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Run linters
+        run: make lint-prettier
+
+  test-unit:
+    needs:
+      - lint
+      - lint-prettier
+    name: Run unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Run tests
+        run: make test-unit
+
+  snapshot_amd64:
+    if: github.event_name == 'pull_request'
+    needs:
+      - test-unit
+    name: Snapshot linux/amd64
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.build_test_push.outputs.tags }}
+      tags_chromium: ${{ steps.build_test_push.outputs.tags_chromium }}
+      tags_libreoffice: ${{ steps.build_test_push.outputs.tags_libreoffice }}
+      tags_cloud_run: ${{ steps.build_test_push.outputs.tags_cloud_run }}
+      tags_cloud_run_chromium: ${{ steps.build_test_push.outputs.tags_cloud_run_chromium }}
+      tags_cloud_run_libreoffice: ${{ steps.build_test_push.outputs.tags_cloud_run_libreoffice }}
+      tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
+      tags_aws_lambda_chromium: ${{ steps.build_test_push.outputs.tags_aws_lambda_chromium }}
+      tags_aws_lambda_libreoffice: ${{ steps.build_test_push.outputs.tags_aws_lambda_libreoffice }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v7
+
+      - name: Build, test and push
+        id: build_test_push
+        uses: ./.github/actions/build-test-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: pr-${{ github.event.pull_request.number }}
+          platform: linux/amd64
+          alternate_repository: snapshot
+
+  snapshot_ppc64le:
+    if: github.event_name == 'pull_request'
+    needs:
+      - test-unit
+    name: Snapshot linux/ppc64le
+    runs-on: ubuntu-24.04-ppc64le
+    outputs:
+      tags: ${{ steps.build_test_push.outputs.tags }}
+      tags_chromium: ${{ steps.build_test_push.outputs.tags_chromium }}
+      tags_libreoffice: ${{ steps.build_test_push.outputs.tags_libreoffice }}
+      tags_cloud_run: ${{ steps.build_test_push.outputs.tags_cloud_run }}
+      tags_cloud_run_chromium: ${{ steps.build_test_push.outputs.tags_cloud_run_chromium }}
+      tags_cloud_run_libreoffice: ${{ steps.build_test_push.outputs.tags_cloud_run_libreoffice }}
+      tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
+      tags_aws_lambda_chromium: ${{ steps.build_test_push.outputs.tags_aws_lambda_chromium }}
+      tags_aws_lambda_libreoffice: ${{ steps.build_test_push.outputs.tags_aws_lambda_libreoffice }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v7
+
+      - name: Build, test and push
+        id: build_test_push
+        uses: ./.github/actions/build-test-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: pr-${{ github.event.pull_request.number }}
+          platform: linux/ppc64le
+          alternate_repository: snapshot
+
+  snapshot_386:
+    if: github.event_name == 'pull_request'
+    needs:
+      - test-unit
+    name: Snapshot linux/386
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.build_test_push.outputs.tags }}
+      tags_chromium: ${{ steps.build_test_push.outputs.tags_chromium }}
+      tags_libreoffice: ${{ steps.build_test_push.outputs.tags_libreoffice }}
+      tags_cloud_run: ${{ steps.build_test_push.outputs.tags_cloud_run }}
+      tags_cloud_run_chromium: ${{ steps.build_test_push.outputs.tags_cloud_run_chromium }}
+      tags_cloud_run_libreoffice: ${{ steps.build_test_push.outputs.tags_cloud_run_libreoffice }}
+      tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
+      tags_aws_lambda_chromium: ${{ steps.build_test_push.outputs.tags_aws_lambda_chromium }}
+      tags_aws_lambda_libreoffice: ${{ steps.build_test_push.outputs.tags_aws_lambda_libreoffice }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v7
+
+      - name: Build, test and push
+        id: build_test_push
+        uses: ./.github/actions/build-test-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: pr-${{ github.event.pull_request.number }}
+          platform: linux/386
+          alternate_repository: snapshot
+
+  snapshot_arm64:
+    if: github.event_name == 'pull_request'
+    needs:
+      - test-unit
+    name: Snapshot linux/arm64
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      tags: ${{ steps.build_test_push.outputs.tags }}
+      tags_chromium: ${{ steps.build_test_push.outputs.tags_chromium }}
+      tags_libreoffice: ${{ steps.build_test_push.outputs.tags_libreoffice }}
+      tags_cloud_run: ${{ steps.build_test_push.outputs.tags_cloud_run }}
+      tags_cloud_run_chromium: ${{ steps.build_test_push.outputs.tags_cloud_run_chromium }}
+      tags_cloud_run_libreoffice: ${{ steps.build_test_push.outputs.tags_cloud_run_libreoffice }}
+      tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
+      tags_aws_lambda_chromium: ${{ steps.build_test_push.outputs.tags_aws_lambda_chromium }}
+      tags_aws_lambda_libreoffice: ${{ steps.build_test_push.outputs.tags_aws_lambda_libreoffice }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v7
+
+      - name: Build, test and push
+        id: build_test_push
+        uses: ./.github/actions/build-test-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: pr-${{ github.event.pull_request.number }}
+          platform: linux/arm64
+          alternate_repository: snapshot
+
+  snapshot_arm_v7:
+    if: github.event_name == 'pull_request'
+    needs:
+      - test-unit
+    name: Snapshot linux/arm/v7
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      tags: ${{ steps.build_test_push.outputs.tags }}
+      tags_chromium: ${{ steps.build_test_push.outputs.tags_chromium }}
+      tags_libreoffice: ${{ steps.build_test_push.outputs.tags_libreoffice }}
+      tags_cloud_run: ${{ steps.build_test_push.outputs.tags_cloud_run }}
+      tags_cloud_run_chromium: ${{ steps.build_test_push.outputs.tags_cloud_run_chromium }}
+      tags_cloud_run_libreoffice: ${{ steps.build_test_push.outputs.tags_cloud_run_libreoffice }}
+      tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
+      tags_aws_lambda_chromium: ${{ steps.build_test_push.outputs.tags_aws_lambda_chromium }}
+      tags_aws_lambda_libreoffice: ${{ steps.build_test_push.outputs.tags_aws_lambda_libreoffice }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v7
+
+      - name: Build, test and push
+        id: build_test_push
+        uses: ./.github/actions/build-test-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: pr-${{ github.event.pull_request.number }}
+          platform: linux/arm/v7
+          alternate_repository: snapshot
+
+  merge_clean_snapshot_guard:
+    needs:
+      - snapshot_amd64
+      - snapshot_386
+      - snapshot_ppc64le
+      - snapshot_arm64
+      - snapshot_arm_v7
+    name: Secrets access check
+    runs-on: ubuntu-latest
+    outputs:
+      continue: ${{ steps.check.outputs.continue }}
+    steps:
+      - name: Check
+        id: check
+        run: |
+          if [ -n "${{ secrets.DOCKERHUB_USERNAME }}" ]; then
+            echo "continue=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "continue=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  merge_clean_snapshot_tags:
+    if: needs.merge_clean_snapshot_guard.outputs.continue == 'true'
+    needs:
+      - merge_clean_snapshot_guard
+      - snapshot_amd64
+      - snapshot_386
+      - snapshot_ppc64le
+      - snapshot_arm64
+      - snapshot_arm_v7
+    name: Merge and clean snapshot tags
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v7
+
+      - name: Merge
+        uses: ./.github/actions/merge
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.snapshot_amd64.outputs.tags }},${{ needs.snapshot_386.outputs.tags }},${{ needs.snapshot_ppc64le.outputs.tags }},${{ needs.snapshot_arm64.outputs.tags }},${{ needs.snapshot_arm_v7.outputs.tags }}"
+
+      - name: Merge Chromium
+        uses: ./.github/actions/merge
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.snapshot_amd64.outputs.tags_chromium }},${{ needs.snapshot_386.outputs.tags_chromium }},${{ needs.snapshot_ppc64le.outputs.tags_chromium }},${{ needs.snapshot_arm64.outputs.tags_chromium }},${{ needs.snapshot_arm_v7.outputs.tags_chromium }}"
+
+      - name: Merge LibreOffice
+        uses: ./.github/actions/merge
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.snapshot_amd64.outputs.tags_libreoffice }},${{ needs.snapshot_386.outputs.tags_libreoffice }},${{ needs.snapshot_ppc64le.outputs.tags_libreoffice }},${{ needs.snapshot_arm64.outputs.tags_libreoffice }},${{ needs.snapshot_arm_v7.outputs.tags_libreoffice }}"
+
+      - name: Merge AWS Lambda
+        uses: ./.github/actions/merge
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.snapshot_amd64.outputs.tags_aws_lambda }},${{ needs.snapshot_arm64.outputs.tags_aws_lambda }}"
+
+      - name: Merge AWS Lambda Chromium
+        uses: ./.github/actions/merge
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.snapshot_amd64.outputs.tags_aws_lambda_chromium }},${{ needs.snapshot_arm64.outputs.tags_aws_lambda_chromium }}"
+
+      - name: Merge AWS Lambda LibreOffice
+        uses: ./.github/actions/merge
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.snapshot_amd64.outputs.tags_aws_lambda_libreoffice }},${{ needs.snapshot_arm64.outputs.tags_aws_lambda_libreoffice }}"
+
+      - name: Clean
+        uses: ./.github/actions/clean
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.snapshot_amd64.outputs.tags }},${{ needs.snapshot_386.outputs.tags }},${{ needs.snapshot_ppc64le.outputs.tags }},${{ needs.snapshot_arm64.outputs.tags }},${{ needs.snapshot_arm_v7.outputs.tags }},${{ needs.snapshot_amd64.outputs.tags_chromium }},${{ needs.snapshot_386.outputs.tags_chromium }},${{ needs.snapshot_ppc64le.outputs.tags_chromium }},${{ needs.snapshot_arm64.outputs.tags_chromium }},${{ needs.snapshot_arm_v7.outputs.tags_chromium }},${{ needs.snapshot_amd64.outputs.tags_libreoffice }},${{ needs.snapshot_386.outputs.tags_libreoffice }},${{ needs.snapshot_ppc64le.outputs.tags_libreoffice }},${{ needs.snapshot_arm64.outputs.tags_libreoffice }},${{ needs.snapshot_arm_v7.outputs.tags_libreoffice }},${{ needs.snapshot_amd64.outputs.tags_aws_lambda }},${{ needs.snapshot_arm64.outputs.tags_aws_lambda }},${{ needs.snapshot_amd64.outputs.tags_aws_lambda_chromium }},${{ needs.snapshot_arm64.outputs.tags_aws_lambda_chromium }},${{ needs.snapshot_amd64.outputs.tags_aws_lambda_libreoffice }},${{ needs.snapshot_arm64.outputs.tags_aws_lambda_libreoffice }}"
+
+  edge_amd64:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - test-unit
+    name: Edge linux/amd64
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.build_test_push.outputs.tags }}
+      tags_chromium: ${{ steps.build_test_push.outputs.tags_chromium }}
+      tags_libreoffice: ${{ steps.build_test_push.outputs.tags_libreoffice }}
+      tags_cloud_run: ${{ steps.build_test_push.outputs.tags_cloud_run }}
+      tags_cloud_run_chromium: ${{ steps.build_test_push.outputs.tags_cloud_run_chromium }}
+      tags_cloud_run_libreoffice: ${{ steps.build_test_push.outputs.tags_cloud_run_libreoffice }}
+      tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
+      tags_aws_lambda_chromium: ${{ steps.build_test_push.outputs.tags_aws_lambda_chromium }}
+      tags_aws_lambda_libreoffice: ${{ steps.build_test_push.outputs.tags_aws_lambda_libreoffice }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v7
+
+      - name: Build, test and push
+        id: build_test_push
+        uses: ./.github/actions/build-test-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: edge
+          platform: linux/amd64
+
+  edge_386:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - test-unit
+    name: Edge linux/386
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.build_test_push.outputs.tags }}
+      tags_chromium: ${{ steps.build_test_push.outputs.tags_chromium }}
+      tags_libreoffice: ${{ steps.build_test_push.outputs.tags_libreoffice }}
+      tags_cloud_run: ${{ steps.build_test_push.outputs.tags_cloud_run }}
+      tags_cloud_run_chromium: ${{ steps.build_test_push.outputs.tags_cloud_run_chromium }}
+      tags_cloud_run_libreoffice: ${{ steps.build_test_push.outputs.tags_cloud_run_libreoffice }}
+      tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
+      tags_aws_lambda_chromium: ${{ steps.build_test_push.outputs.tags_aws_lambda_chromium }}
+      tags_aws_lambda_libreoffice: ${{ steps.build_test_push.outputs.tags_aws_lambda_libreoffice }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v7
+
+      - name: Build, test and push
+        id: build_test_push
+        uses: ./.github/actions/build-test-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: edge
+          platform: linux/386
+
+  edge_ppc64le:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - test-unit
+    name: Edge linux/ppc64le
+    runs-on: ubuntu-24.04-ppc64le
+    outputs:
+      tags: ${{ steps.build_test_push.outputs.tags }}
+      tags_chromium: ${{ steps.build_test_push.outputs.tags_chromium }}
+      tags_libreoffice: ${{ steps.build_test_push.outputs.tags_libreoffice }}
+      tags_cloud_run: ${{ steps.build_test_push.outputs.tags_cloud_run }}
+      tags_cloud_run_chromium: ${{ steps.build_test_push.outputs.tags_cloud_run_chromium }}
+      tags_cloud_run_libreoffice: ${{ steps.build_test_push.outputs.tags_cloud_run_libreoffice }}
+      tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
+      tags_aws_lambda_chromium: ${{ steps.build_test_push.outputs.tags_aws_lambda_chromium }}
+      tags_aws_lambda_libreoffice: ${{ steps.build_test_push.outputs.tags_aws_lambda_libreoffice }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v7
+
+      - name: Build, test and push
+        id: build_test_push
+        uses: ./.github/actions/build-test-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: edge
+          platform: linux/ppc64le
+
+  edge_arm64:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - test-unit
+    name: Edge linux/arm64
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      tags: ${{ steps.build_test_push.outputs.tags }}
+      tags_chromium: ${{ steps.build_test_push.outputs.tags_chromium }}
+      tags_libreoffice: ${{ steps.build_test_push.outputs.tags_libreoffice }}
+      tags_cloud_run: ${{ steps.build_test_push.outputs.tags_cloud_run }}
+      tags_cloud_run_chromium: ${{ steps.build_test_push.outputs.tags_cloud_run_chromium }}
+      tags_cloud_run_libreoffice: ${{ steps.build_test_push.outputs.tags_cloud_run_libreoffice }}
+      tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
+      tags_aws_lambda_chromium: ${{ steps.build_test_push.outputs.tags_aws_lambda_chromium }}
+      tags_aws_lambda_libreoffice: ${{ steps.build_test_push.outputs.tags_aws_lambda_libreoffice }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v7
+
+      - name: Build, test and push
+        id: build_test_push
+        uses: ./.github/actions/build-test-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: edge
+          platform: linux/arm64
+
+  edge_arm_v7:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - test-unit
+    name: Edge linux/arm/v7
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      tags: ${{ steps.build_test_push.outputs.tags }}
+      tags_chromium: ${{ steps.build_test_push.outputs.tags_chromium }}
+      tags_libreoffice: ${{ steps.build_test_push.outputs.tags_libreoffice }}
+      tags_cloud_run: ${{ steps.build_test_push.outputs.tags_cloud_run }}
+      tags_cloud_run_chromium: ${{ steps.build_test_push.outputs.tags_cloud_run_chromium }}
+      tags_cloud_run_libreoffice: ${{ steps.build_test_push.outputs.tags_cloud_run_libreoffice }}
+      tags_aws_lambda: ${{ steps.build_test_push.outputs.tags_aws_lambda }}
+      tags_aws_lambda_chromium: ${{ steps.build_test_push.outputs.tags_aws_lambda_chromium }}
+      tags_aws_lambda_libreoffice: ${{ steps.build_test_push.outputs.tags_aws_lambda_libreoffice }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v7
+
+      - name: Build, test and push
+        id: build_test_push
+        uses: ./.github/actions/build-test-push
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          version: edge
+          platform: linux/arm/v7
+
+  merge_clean_edge_tags:
+    needs:
+      - edge_amd64
+      - edge_386
+      - edge_ppc64le
+      - edge_arm64
+      - edge_arm_v7
+    name: Merge and clean edge tags
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v7
+
+      - name: Merge
+        uses: ./.github/actions/merge
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.edge_amd64.outputs.tags }},${{ needs.edge_386.outputs.tags }},${{ needs.edge_ppc64le.outputs.tags }},${{ needs.edge_arm64.outputs.tags }},${{ needs.edge_arm_v7.outputs.tags }}"
+
+      - name: Merge Chromium
+        uses: ./.github/actions/merge
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.edge_amd64.outputs.tags_chromium }},${{ needs.edge_386.outputs.tags_chromium }},${{ needs.edge_ppc64le.outputs.tags_chromium }},${{ needs.edge_arm64.outputs.tags_chromium }},${{ needs.edge_arm_v7.outputs.tags_chromium }}"
+
+      - name: Merge LibreOffice
+        uses: ./.github/actions/merge
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.edge_amd64.outputs.tags_libreoffice }},${{ needs.edge_386.outputs.tags_libreoffice }},${{ needs.edge_ppc64le.outputs.tags_libreoffice }},${{ needs.edge_arm64.outputs.tags_libreoffice }},${{ needs.edge_arm_v7.outputs.tags_libreoffice }}"
+
+      - name: Merge AWS Lambda
+        uses: ./.github/actions/merge
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.edge_amd64.outputs.tags_aws_lambda }},${{ needs.edge_arm64.outputs.tags_aws_lambda }}"
+
+      - name: Merge AWS Lambda Chromium
+        uses: ./.github/actions/merge
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.edge_amd64.outputs.tags_aws_lambda_chromium }},${{ needs.edge_arm64.outputs.tags_aws_lambda_chromium }}"
+
+      - name: Merge AWS Lambda LibreOffice
+        uses: ./.github/actions/merge
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.edge_amd64.outputs.tags_aws_lambda_libreoffice }},${{ needs.edge_arm64.outputs.tags_aws_lambda_libreoffice }}"
+
+      - name: Clean
+        uses: ./.github/actions/clean
+        with:
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          docker_hub_password: ${{ secrets.DOCKERHUB_TOKEN }}
+          tags: "${{ needs.edge_amd64.outputs.tags }},${{ needs.edge_386.outputs.tags }},${{ needs.edge_ppc64le.outputs.tags }},${{ needs.edge_arm64.outputs.tags }},${{ needs.edge_arm_v7.outputs.tags }},${{ needs.edge_amd64.outputs.tags_chromium }},${{ needs.edge_386.outputs.tags_chromium }},${{ needs.edge_ppc64le.outputs.tags_chromium }},${{ needs.edge_arm64.outputs.tags_chromium }},${{ needs.edge_arm_v7.outputs.tags_chromium }},${{ needs.edge_amd64.outputs.tags_libreoffice }},${{ needs.edge_386.outputs.tags_libreoffice }},${{ needs.edge_ppc64le.outputs.tags_libreoffice }},${{ needs.edge_arm64.outputs.tags_libreoffice }},${{ needs.edge_arm_v7.outputs.tags_libreoffice }},${{ needs.edge_amd64.outputs.tags_aws_lambda }},${{ needs.edge_arm64.outputs.tags_aws_lambda }},${{ needs.edge_amd64.outputs.tags_aws_lambda_chromium }},${{ needs.edge_arm64.outputs.tags_aws_lambda_chromium }},${{ needs.edge_amd64.outputs.tags_aws_lambda_libreoffice }},${{ needs.edge_arm64.outputs.tags_aws_lambda_libreoffice }}"

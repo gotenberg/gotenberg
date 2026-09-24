@@ -2,9 +2,11 @@ package gotenbergcmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -23,7 +25,7 @@ const banner = `
 \___/\___/\__/\__/_//_/_.__/\__/_/  \_, / 
                                    /___/
 
-A Docker-powered stateless API for PDF files.
+A Docker-based API for converting documents to PDF.
 Version: %s
 -------------------------------------------------------
 `
@@ -34,34 +36,115 @@ var Version = "snapshot"
 
 // Run starts the Gotenberg application. Call this in the main of your program.
 func Run() {
-	fmt.Printf(banner, Version)
 	gotenberg.Version = Version
 
 	// Create the root FlagSet and adds the modules flags to it.
 	fs := flag.NewFlagSet("gotenberg", flag.ExitOnError)
+	fs.Bool("gotenberg-hide-banner", false, "Hide the banner")
 	fs.Duration("gotenberg-graceful-shutdown-duration", time.Duration(30)*time.Second, "Set the graceful shutdown duration")
+	fs.Bool("gotenberg-build-debug-data", true, "Set if build data is needed")
 
-	descriptors := gotenberg.GetModuleDescriptors()
-	var modsInfo string
-	for _, desc := range descriptors {
-		fs.AddFlagSet(desc.FlagSet)
-		modsInfo += desc.ID + " "
+	// Logging & telemetry flags.
+	fs.String("log-level", gotenberg.InfoLoggingLevel, "Set the log level")
+	fs.String("log-fields-prefix", "", "Prepend a specified prefix to each log field key")
+	fs.String("log-std-format", gotenberg.AutoLoggingFormat, "Set the log format for standard output")
+	fs.Bool("log-std-enable-gcp-fields", false, "Use GCP-compatible field names in log output")
+	fs.String("log-std-level-case", gotenberg.LowerLevelCase, "Set the case of the level field in the standard output, either lower or upper")
+
+	// Deprecated logging flags.
+	fs.String("log-format", gotenberg.AutoLoggingFormat, "Set the log format")
+	fs.Bool("log-enable-gcp-fields", false, "Use GCP-compatible field names")
+
+	if err := errors.Join(
+		fs.MarkDeprecated("log-format", "use --log-std-format instead"),
+		fs.MarkDeprecated("log-enable-gcp-fields", "use --log-std-enable-gcp-fields instead"),
+	); err != nil {
+		fmt.Printf("[FATAL] mark deprecated flags: %s\n", err)
+		os.Exit(1)
 	}
 
-	fmt.Printf("[SYSTEM] modules: %s\n", modsInfo)
+	descriptors := gotenberg.GetModuleDescriptors()
+	var modsInfo strings.Builder
+	for _, desc := range descriptors {
+		fs.AddFlagSet(desc.FlagSet)
+		modsInfo.WriteString(desc.ID + " ")
+	}
 
-	// Parse the flags...
+	// Parse the flags.
 	err := fs.Parse(os.Args[1:])
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	// ...and create a wrapper around those.
-	parsedFlags := gotenberg.ParsedFlags{FlagSet: fs}
+	// Override their values if the corresponding environment variables are
+	// set.
+	fs.VisitAll(func(f *flag.Flag) {
+		envName := gotenberg.EnvVarName(f.Name)
+		val, ok := os.LookupEnv(envName)
+		if !ok {
+			return
+		}
 
-	// Get the graceful shutdown duration.
+		sliceVal, ok := f.Value.(flag.SliceValue)
+		if ok {
+			// We don't want to append the values (default pflag behavior).
+			items := strings.Split(val, ",")
+			err = sliceVal.Replace(items)
+			if err != nil {
+				fmt.Printf("[FATAL] invalid overriding value '%s' from %s: %v\n", val, envName, err)
+				os.Exit(1)
+			}
+			f.Changed = true
+			return
+		}
+
+		err = fs.Set(f.Name, val)
+		if err != nil {
+			fmt.Printf("[FATAL] invalid overriding value '%s' from %s: %v\n", val, envName, err)
+			os.Exit(1)
+		}
+	})
+
+	// Create a wrapper around our flags.
+	parsedFlags := gotenberg.ParsedFlags{FlagSet: fs}
+	hideBanner := parsedFlags.MustBool("gotenberg-hide-banner")
 	gracefulShutdownDuration := parsedFlags.MustDuration("gotenberg-graceful-shutdown-duration")
+
+	// Initialize telemetry (logging + OTEL).
+	serviceName := os.Getenv("OTEL_SERVICE_NAME")
+	if serviceName == "" {
+		serviceName = "gotenberg"
+	}
+
+	telemetryCfg := gotenberg.TelemetryConfig{
+		ServiceName:           serviceName,
+		ServiceVersion:        Version,
+		LogLevel:              parsedFlags.MustDeprecatedString("log-format", "log-std-format"),
+		LogFieldsPrefix:       parsedFlags.MustString("log-fields-prefix"),
+		LogStdFormat:          parsedFlags.MustDeprecatedString("log-format", "log-std-format"),
+		LogStdEnableGcpFields: parsedFlags.MustDeprecatedBool("log-enable-gcp-fields", "log-std-enable-gcp-fields"),
+		LogStdLevelCase:       parsedFlags.MustString("log-std-level-case"),
+	}
+	// LogLevel uses its own flag, not the format flag.
+	telemetryCfg.LogLevel = parsedFlags.MustString("log-level")
+
+	err = telemetryCfg.Validate()
+	if err != nil {
+		fmt.Printf("[FATAL] invalid telemetry config: %s\n", err)
+		os.Exit(1)
+	}
+
+	shutdownTelemetry, err := gotenberg.StartTelemetry(telemetryCfg)
+	if err != nil {
+		fmt.Printf("[FATAL] start telemetry: %s\n", err)
+		os.Exit(1)
+	}
+
+	if !hideBanner {
+		fmt.Printf(banner, Version)
+	}
+	fmt.Printf("[SYSTEM] modules: %s\n", modsInfo.String())
 
 	ctx := gotenberg.NewContext(parsedFlags, descriptors)
 
@@ -108,6 +191,11 @@ func Run() {
 		}(l.(gotenberg.SystemLogger))
 	}
 
+	if parsedFlags.MustBool("gotenberg-build-debug-data") {
+		// Build the debug data.
+		gotenberg.BuildDebug(ctx)
+	}
+
 	quit := make(chan os.Signal, 1)
 
 	// We'll accept graceful shutdowns when quit via SIGINT (Ctrl+C) or SIGTERM (Kubernetes).
@@ -138,7 +226,9 @@ func Run() {
 				id := app.(gotenberg.Module).Descriptor().ID
 
 				err = app.Stop(gracefulShutdownCtx)
-				if err != nil {
+				if errors.Is(err, gotenberg.ErrCancelGracefulShutdownContext) {
+					cancel()
+				} else if err != nil {
 					return fmt.Errorf("stopping %s: %w", id, err)
 				}
 
@@ -150,8 +240,17 @@ func Run() {
 
 	err = eg.Wait()
 	if err != nil {
+		cancel()
 		fmt.Printf("[FATAL] %v\n", err)
-		os.Exit(1)
+		os.Exit(1) //nolint:gocritic // defers are already called explicitly above
+	}
+
+	// Shutdown telemetry (flush spans, metrics, logs).
+	err = shutdownTelemetry(gracefulShutdownCtx)
+	if err != nil {
+		cancel()
+		fmt.Printf("[FATAL] %v\n", err)
+		os.Exit(1) //nolint:gocritic // defers are already called explicitly above
 	}
 
 	os.Exit(0)

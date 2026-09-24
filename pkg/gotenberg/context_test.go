@@ -5,28 +5,11 @@ import (
 	"testing"
 )
 
-func TestNewContext(t *testing.T) {
-	if NewContext(ParsedFlags{}, nil) == nil {
-		t.Error("expected a non-nil value")
-	}
-}
-
-func TestContext_ParsedFlags(t *testing.T) {
-	ctx := NewContext(ParsedFlags{}, nil)
-
-	actual := ctx.ParsedFlags()
-	expect := ParsedFlags{}
-
-	if actual != expect {
-		t.Errorf("expected %v but got %v", expect, actual)
-	}
-}
-
 func TestContext_Module(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string
 		mods        []ModuleDescriptor
-		kind        interface{}
+		kind        any
 		expectError bool
 	}{
 		{
@@ -97,7 +80,7 @@ func TestContext_Modules(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string
 		mods        []ModuleDescriptor
-		kind        interface{}
+		kind        any
 		expectError bool
 	}{
 		{
@@ -168,12 +151,12 @@ func TestContext_Modules(t *testing.T) {
 func TestContext_loadModule(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string
-		instance    interface{}
+		instance    any
 		expectError bool
 	}{
 		{
 			scenario: "module with error on provision",
-			instance: func() interface{} {
+			instance: func() any {
 				mod := &struct {
 					ModuleMock
 					ProvisionerMock
@@ -188,7 +171,7 @@ func TestContext_loadModule(t *testing.T) {
 		},
 		{
 			scenario: "module with error on validation",
-			instance: func() interface{} {
+			instance: func() any {
 				mod := &struct {
 					ModuleMock
 					ValidatorMock
@@ -203,7 +186,7 @@ func TestContext_loadModule(t *testing.T) {
 		},
 		{
 			scenario: "success",
-			instance: func() interface{} {
+			instance: func() any {
 				mod := &struct {
 					ModuleMock
 					ValidatorMock

@@ -5,116 +5,198 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"net/url"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/cdproto/runtime"
+	"github.com/chromedp/cdproto/storage"
 	"github.com/chromedp/chromedp"
-	"go.uber.org/zap"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
-func printToPdfActionFunc(logger *zap.Logger, outputPath string, options PdfOptions) chromedp.ActionFunc {
+// resolvePdfOptions applies the cross-option constraints Chromium imposes
+// before printing.
+//
+// Chromium derives the PDF document outline from the tagged-PDF structure
+// tree, so [PdfOptions.GenerateDocumentOutline] produces no outline unless
+// tagged PDF is also generated. Requesting an outline therefore implies
+// tagged PDF. See https://github.com/gotenberg/gotenberg/issues/1579.
+func resolvePdfOptions(options PdfOptions) PdfOptions {
+	if options.GenerateDocumentOutline {
+		options.GenerateTaggedPdf = true
+	}
+
+	return options
+}
+
+func printToPdfActionFunc(reqCtx context.Context, logger *slog.Logger, outputPath string, options PdfOptions) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
-		paperHeight := options.PaperHeight
-		pageRanges := options.PageRanges
-
-		if options.SinglePage {
-			logger.Debug("single page PDF")
-
-			_, _, _, _, _, cssContentSize, err := page.GetLayoutMetrics().Do(ctx)
-			if err != nil {
-				return fmt.Errorf("get layout metrics: %w", err)
-			}
-
-			// There are 96 CSS pixels per inch.
-			// See https://issues.chromium.org/issues/40267771#comment14.
-			paperHeight = cssContentSize.Height / 96
-			pageRanges = "1" // little dirty hack to avoid leftovers.
+		if options.GenerateDocumentOutline && !options.GenerateTaggedPdf {
+			logger.DebugContext(ctx, "document outline requested, enabling tagged PDF because Chromium derives the outline from the structure tree")
 		}
 
-		printToPdf := page.PrintToPDF().
-			WithTransferMode(page.PrintToPDFTransferModeReturnAsStream).
-			WithLandscape(options.Landscape).
-			WithPrintBackground(options.PrintBackground).
-			WithScale(options.Scale).
-			WithPaperWidth(options.PaperWidth).
-			WithPaperHeight(paperHeight).
-			WithMarginTop(options.MarginTop).
-			WithMarginBottom(options.MarginBottom).
-			WithMarginLeft(options.MarginLeft).
-			WithMarginRight(options.MarginRight).
-			WithPageRanges(pageRanges).
-			WithPreferCSSPageSize(options.PreferCssPageSize).
-			WithGenerateDocumentOutline(options.GenerateDocumentOutline).
-			// Does not seem to work.
-			// See https://github.com/gotenberg/gotenberg/issues/831.
-			WithGenerateTaggedPDF(false)
+		options = resolvePdfOptions(options)
 
-		hasCustomHeaderFooter := options.HeaderTemplate != DefaultPdfOptions().HeaderTemplate ||
-			options.FooterTemplate != DefaultPdfOptions().FooterTemplate
+		// ctx is the chromedp task context, derived from context.Background(),
+		// so the span is started under reqCtx to keep print_to_pdf in the
+		// conversion trace instead of orphaning it into a new one.
+		_, span := gotenberg.Tracer().Start(reqCtx, "chromium.print_to_pdf",
+			trace.WithSpanKind(trace.SpanKindClient),
+			trace.WithAttributes(printToPdfAttrs(options)...),
+		)
+		defer span.End()
 
-		if !hasCustomHeaderFooter {
-			logger.Debug("no custom header nor footer")
+		err := func() error {
+			paperWidth := options.PaperWidth
+			paperHeight := options.PaperHeight
+			pageRanges := options.PageRanges
 
-			printToPdf = printToPdf.WithDisplayHeaderFooter(false)
+			if options.SinglePage {
+				logger.DebugContext(ctx, "single page PDF")
+
+				_, _, _, _, _, cssContentSize, err := page.GetLayoutMetrics().Do(ctx)
+				if err != nil {
+					return fmt.Errorf("get layout metrics: %w", err)
+				}
+
+				// There are 96 CSS pixels per inch.
+				// See https://issues.chromium.org/issues/40267771#comment14.
+				if options.Landscape {
+					// Landscape swaps the paper dimensions, so the page is
+					// WithPaperHeight wide by WithPaperWidth tall. Size both to
+					// the content so the width expands to fit a wide document
+					// (e.g. a table) instead of the height-only expansion
+					// landing on the width axis and truncating it.
+					// See https://github.com/gotenberg/gotenberg/issues/1390.
+					paperWidth = (cssContentSize.Height / 96) + options.MarginTop + options.MarginBottom
+					paperHeight = (cssContentSize.Width / 96) + options.MarginLeft + options.MarginRight
+				} else {
+					// We add top and bottom margins so that the content area
+					// is large enough to fit the entire content.
+					paperHeight = (cssContentSize.Height / 96) + options.MarginTop + options.MarginBottom
+				}
+				pageRanges = "1" // little dirty hack to avoid leftovers.
+			}
+
+			printToPdf := page.PrintToPDF().
+				WithTransferMode(page.PrintToPDFTransferModeReturnAsStream).
+				WithLandscape(options.Landscape).
+				WithPrintBackground(options.PrintBackground).
+				WithScale(options.Scale).
+				WithPaperWidth(paperWidth).
+				WithPaperHeight(paperHeight).
+				WithMarginTop(options.MarginTop).
+				WithMarginBottom(options.MarginBottom).
+				WithMarginLeft(options.MarginLeft).
+				WithMarginRight(options.MarginRight).
+				WithPageRanges(pageRanges).
+				WithPreferCSSPageSize(options.PreferCssPageSize).
+				WithGenerateDocumentOutline(options.GenerateDocumentOutline).
+				// See https://github.com/gotenberg/gotenberg/issues/1210.
+				WithGenerateTaggedPDF(options.GenerateTaggedPdf)
+
+			hasCustomHeaderFooter := options.HeaderTemplate != DefaultPdfOptions().HeaderTemplate ||
+				options.FooterTemplate != DefaultPdfOptions().FooterTemplate
+
+			if !hasCustomHeaderFooter {
+				logger.DebugContext(ctx, "no custom header nor footer")
+
+				printToPdf = printToPdf.WithDisplayHeaderFooter(false)
+			} else {
+				logger.DebugContext(ctx, "with custom header and/or footer")
+
+				printToPdf = printToPdf.
+					WithDisplayHeaderFooter(true).
+					WithHeaderTemplate(options.HeaderTemplate).
+					WithFooterTemplate(options.FooterTemplate)
+			}
+
+			logger.DebugContext(ctx, fmt.Sprintf("print to PDF with: %+v", printToPdf))
+
+			_, stream, err := printToPdf.Do(ctx)
+			if err != nil {
+				return fmt.Errorf("print to PDF: %w", err)
+			}
+
+			reader := &streamReader{
+				ctx:    ctx,
+				handle: stream,
+				r:      nil,
+				pos:    0,
+				eof:    false,
+			}
+
+			defer func() {
+				err = reader.Close()
+				if err != nil {
+					logger.ErrorContext(ctx, fmt.Sprintf("close reader: %s", err))
+				}
+			}()
+
+			file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY, 0o600)
+			if err != nil {
+				return fmt.Errorf("open output path: %w", err)
+			}
+
+			defer func() {
+				err = file.Close()
+				if err != nil {
+					logger.ErrorContext(ctx, fmt.Sprintf("close output path: %s", err))
+				}
+			}()
+
+			buffer := bufio.NewReader(reader)
+
+			_, err = buffer.WriteTo(file)
+			if err != nil {
+				return fmt.Errorf("write result to output path: %w", err)
+			}
+
+			return nil
+		}()
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 		} else {
-			logger.Debug("with custom header and/or footer")
-
-			printToPdf = printToPdf.
-				WithDisplayHeaderFooter(true).
-				WithHeaderTemplate(options.HeaderTemplate).
-				WithFooterTemplate(options.FooterTemplate)
+			span.SetStatus(codes.Ok, "")
 		}
 
-		logger.Debug(fmt.Sprintf("print to PDF with: %+v", printToPdf))
-
-		_, stream, err := printToPdf.Do(ctx)
-		if err != nil {
-			return fmt.Errorf("print to PDF: %w", err)
-		}
-
-		reader := &streamReader{
-			ctx:    ctx,
-			handle: stream,
-			r:      nil,
-			pos:    0,
-			eof:    false,
-		}
-
-		defer func() {
-			err = reader.Close()
-			if err != nil {
-				logger.Error(fmt.Sprintf("close reader: %s", err))
-			}
-		}()
-
-		file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY, 0o600)
-		if err != nil {
-			return fmt.Errorf("open output path: %w", err)
-		}
-
-		defer func() {
-			err = file.Close()
-			if err != nil {
-				logger.Error(fmt.Sprintf("close output path: %s", err))
-			}
-		}()
-
-		buffer := bufio.NewReader(reader)
-
-		_, err = buffer.WriteTo(file)
-		if err != nil {
-			return fmt.Errorf("write result to output path: %w", err)
-		}
-
-		return nil
+		return err
 	}
 }
 
-func captureScreenshotActionFunc(logger *zap.Logger, outputPath string, options ScreenshotOptions) chromedp.ActionFunc {
+// printToPdfAttrs derives bounded, low-cardinality attributes from the print
+// options. Raw header/footer templates and page ranges are reduced to booleans
+// to avoid leaking document content and exploding cardinality.
+func printToPdfAttrs(options PdfOptions) []attribute.KeyValue {
+	return []attribute.KeyValue{
+		attribute.Bool("gotenberg.chromium.print.landscape", options.Landscape),
+		attribute.Bool("gotenberg.chromium.print.print_background", options.PrintBackground),
+		attribute.Float64("gotenberg.chromium.print.scale", options.Scale),
+		attribute.Float64("gotenberg.chromium.print.paper_width", options.PaperWidth),
+		attribute.Float64("gotenberg.chromium.print.paper_height", options.PaperHeight),
+		attribute.Bool("gotenberg.chromium.print.single_page", options.SinglePage),
+		attribute.Bool("gotenberg.chromium.print.prefer_css_page_size", options.PreferCssPageSize),
+		attribute.Bool("gotenberg.chromium.print.generate_tagged_pdf", options.GenerateTaggedPdf),
+		attribute.Bool("gotenberg.chromium.print.has_page_ranges", options.PageRanges != ""),
+		attribute.Bool("gotenberg.chromium.print.has_header", options.HeaderTemplate != DefaultPdfOptions().HeaderTemplate),
+		attribute.Bool("gotenberg.chromium.print.has_footer", options.FooterTemplate != DefaultPdfOptions().FooterTemplate),
+	}
+}
+
+func captureScreenshotActionFunc(logger *slog.Logger, outputPath string, options ScreenshotOptions) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		captureScreenshot := page.CaptureScreenshot().
 			WithCaptureBeyondViewport(true).
@@ -122,7 +204,16 @@ func captureScreenshotActionFunc(logger *zap.Logger, outputPath string, options 
 			WithOptimizeForSpeed(options.OptimizeForSpeed).
 			WithFormat(page.CaptureScreenshotFormat(options.Format))
 
-		if options.Clip {
+		switch {
+		case options.Selector != "":
+			clip, err := elementClip(ctx, options.Selector)
+			if err != nil {
+				return err
+			}
+
+			logger.DebugContext(ctx, fmt.Sprintf("clip screenshot to selector '%s'", options.Selector))
+			captureScreenshot = captureScreenshot.WithClip(clip)
+		case options.Clip:
 			captureScreenshot = captureScreenshot.WithClip(&page.Viewport{
 				Width:  float64(options.Width),
 				Height: float64(options.Height),
@@ -135,7 +226,7 @@ func captureScreenshotActionFunc(logger *zap.Logger, outputPath string, options 
 				WithQuality(int64(options.Quality))
 		}
 
-		logger.Debug(fmt.Sprintf("capture screenshot with: %+v", captureScreenshot))
+		logger.DebugContext(ctx, fmt.Sprintf("capture screenshot with: %+v", captureScreenshot))
 
 		buffer, err := captureScreenshot.Do(ctx)
 		if err != nil {
@@ -150,7 +241,7 @@ func captureScreenshotActionFunc(logger *zap.Logger, outputPath string, options 
 		defer func() {
 			err = file.Close()
 			if err != nil {
-				logger.Error(fmt.Sprintf("close output path: %s", err))
+				logger.ErrorContext(ctx, fmt.Sprintf("close output path: %s", err))
 			}
 		}()
 
@@ -163,11 +254,54 @@ func captureScreenshotActionFunc(logger *zap.Logger, outputPath string, options 
 	}
 }
 
-func setDeviceMetricsOverride(logger *zap.Logger, width, height int) chromedp.ActionFunc {
-	return func(ctx context.Context) error {
-		logger.Debug("set device metrics override")
+// elementClip resolves the first element matching selector to a page-space clip
+// rectangle for Page.captureScreenshot.
+//
+// getBoundingClientRect reports viewport-relative CSS pixels; adding the scroll
+// offset puts the rectangle in the document coordinate space that
+// WithCaptureBeyondViewport expects. It fails with
+// [ErrScreenshotSelectorNotFound] when nothing matches or the match has no
+// rendered box (display:none or a zero area), so the caller can answer 400.
+func elementClip(ctx context.Context, selector string) (*page.Viewport, error) {
+	var rect struct {
+		Found  bool    `json:"found"`
+		X      float64 `json:"x"`
+		Y      float64 `json:"y"`
+		Width  float64 `json:"width"`
+		Height float64 `json:"height"`
+	}
 
-		err := emulation.SetDeviceMetricsOverride(int64(width), int64(height), 1.0, false).Do(ctx)
+	expr := fmt.Sprintf(`(() => {
+	const el = document.querySelector(%s);
+	if (!el) {
+		return { found: false };
+	}
+	const r = el.getBoundingClientRect();
+	return { found: true, x: r.left + window.scrollX, y: r.top + window.scrollY, width: r.width, height: r.height };
+})()`, strconv.Quote(selector))
+
+	err := chromedp.Evaluate(expr, &rect).Do(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("evaluate selector box: %v: %w", err, ErrScreenshotSelectorNotFound)
+	}
+	if !rect.Found || rect.Width <= 0 || rect.Height <= 0 {
+		return nil, fmt.Errorf("selector %q matched no element with a visible box: %w", selector, ErrScreenshotSelectorNotFound)
+	}
+
+	return &page.Viewport{
+		X:      rect.X,
+		Y:      rect.Y,
+		Width:  rect.Width,
+		Height: rect.Height,
+		Scale:  1,
+	}, nil
+}
+
+func setDeviceMetricsOverride(logger *slog.Logger, width, height int, deviceScaleFactor float64) chromedp.ActionFunc {
+	return func(ctx context.Context) error {
+		logger.DebugContext(ctx, "set device metrics override")
+
+		err := emulation.SetDeviceMetricsOverride(int64(width), int64(height), deviceScaleFactor, false).Do(ctx)
 		if err == nil {
 			return nil
 		}
@@ -176,15 +310,15 @@ func setDeviceMetricsOverride(logger *zap.Logger, width, height int) chromedp.Ac
 	}
 }
 
-func clearCacheActionFunc(logger *zap.Logger, clear bool) chromedp.ActionFunc {
+func clearCacheActionFunc(logger *slog.Logger, clear bool) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		// See https://github.com/gotenberg/gotenberg/issues/753.
 		if !clear {
-			logger.Debug("cache not cleared")
+			logger.DebugContext(ctx, "cache not cleared")
 			return nil
 		}
 
-		logger.Debug("clear cache")
+		logger.DebugContext(ctx, "clear cache")
 
 		err := network.ClearBrowserCache().Do(ctx)
 		if err == nil {
@@ -195,15 +329,15 @@ func clearCacheActionFunc(logger *zap.Logger, clear bool) chromedp.ActionFunc {
 	}
 }
 
-func clearCookiesActionFunc(logger *zap.Logger, clear bool) chromedp.ActionFunc {
+func clearCookiesActionFunc(logger *slog.Logger, clear bool) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		// See https://github.com/gotenberg/gotenberg/issues/753.
 		if !clear {
-			logger.Debug("cookies not cleared")
+			logger.DebugContext(ctx, "cookies not cleared")
 			return nil
 		}
 
-		logger.Debug("clear cookies")
+		logger.DebugContext(ctx, "clear cookies")
 
 		err := network.ClearBrowserCookies().Do(ctx)
 		if err == nil {
@@ -214,15 +348,63 @@ func clearCookiesActionFunc(logger *zap.Logger, clear bool) chromedp.ActionFunc 
 	}
 }
 
-func disableJavaScriptActionFunc(logger *zap.Logger, disable bool) chromedp.ActionFunc {
+// clearStorageActionFunc clears the converted origin's local storage before the
+// page loads, so state written by a previous conversion of the same origin does
+// not leak into this one. See https://github.com/gotenberg/gotenberg/issues/919.
+//
+// Session storage is not touched: each conversion runs in its own browsing
+// context (a fresh tab), so it is already isolated and cannot leak. Local
+// storage is per-origin and shared across tabs of the long-lived browser, so it
+// is the only web storage that carries over.
+func clearStorageActionFunc(logger *slog.Logger, clear bool, rawURL string) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
-		// See https://github.com/gotenberg/gotenberg/issues/175.
-		if !disable {
-			logger.Debug("JavaScript not disabled")
+		if !clear {
+			logger.DebugContext(ctx, "local storage not cleared")
 			return nil
 		}
 
-		logger.Debug("disable JavaScript")
+		origin, ok := httpOrigin(rawURL)
+		if !ok {
+			// A file:// upload gets an opaque, per-request origin that is not
+			// shared between conversions, so there is nothing to clear.
+			logger.DebugContext(ctx, "local storage not cleared: non-http(s) origin is already isolated")
+			return nil
+		}
+
+		logger.DebugContext(ctx, fmt.Sprintf("clear local storage for %s", origin))
+
+		err := storage.ClearDataForOrigin(origin, string(storage.TypeLocalStorage)).Do(ctx)
+		if err == nil {
+			return nil
+		}
+
+		return fmt.Errorf("clear local storage: %w", err)
+	}
+}
+
+// httpOrigin returns the http(s) security origin (scheme://host[:port]) of
+// rawURL, and false when rawURL is not http(s). A non-http(s) URL such as a
+// file:// upload has an opaque origin that no other conversion shares.
+func httpOrigin(rawURL string) (string, bool) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return "", false
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return "", false
+	}
+	return fmt.Sprintf("%s://%s", parsed.Scheme, parsed.Host), true
+}
+
+func disableJavaScriptActionFunc(logger *slog.Logger, disable bool) chromedp.ActionFunc {
+	return func(ctx context.Context) error {
+		// See https://github.com/gotenberg/gotenberg/issues/175.
+		if !disable {
+			logger.DebugContext(ctx, "JavaScript not disabled")
+			return nil
+		}
+
+		logger.DebugContext(ctx, "disable JavaScript")
 
 		err := emulation.SetScriptExecutionDisabled(true).Do(ctx)
 		if err == nil {
@@ -233,10 +415,10 @@ func disableJavaScriptActionFunc(logger *zap.Logger, disable bool) chromedp.Acti
 	}
 }
 
-func setCookiesActionFunc(logger *zap.Logger, cookies []Cookie) chromedp.ActionFunc {
+func setCookiesActionFunc(logger *slog.Logger, cookies []Cookie) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		if len(cookies) == 0 {
-			logger.Debug("no cookies to set")
+			logger.DebugContext(ctx, "no cookies to set")
 			return nil
 		}
 
@@ -275,21 +457,21 @@ func setCookiesActionFunc(logger *zap.Logger, cookies []Cookie) chromedp.ActionF
 				return fmt.Errorf("set cookie %s: %w", cookiePretty(cookieParams), err)
 			}
 
-			logger.Debug(fmt.Sprintf("set cookie %s", cookiePretty(cookieParams)))
+			logger.DebugContext(ctx, fmt.Sprintf("set cookie %s", cookiePretty(cookieParams)))
 		}
 
 		return nil
 	}
 }
 
-func userAgentOverride(logger *zap.Logger, userAgent string) chromedp.ActionFunc {
+func userAgentOverride(logger *slog.Logger, userAgent string) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		if len(userAgent) == 0 {
-			logger.Debug("no user agent override")
+			logger.DebugContext(ctx, "no user agent override")
 			return nil
 		}
 
-		logger.Debug(fmt.Sprintf("user agent override: %s", userAgent))
+		logger.DebugContext(ctx, fmt.Sprintf("user agent override: %s", userAgent))
 		err := emulation.SetUserAgentOverride(userAgent).Do(ctx)
 		if err == nil {
 			return nil
@@ -304,38 +486,40 @@ func userAgentOverride(logger *zap.Logger, userAgent string) chromedp.ActionFunc
 // network.SetExtraHTTPHeaders set the headers for ALL requests from the page.
 // See https://github.com/gotenberg/gotenberg/issues/1011.
 //
-//func extraHttpHeadersActionFunc(logger *zap.Logger, extraHttpHeaders map[string]string) chromedp.ActionFunc {
-//	return func(ctx context.Context) error {
-//		if len(extraHttpHeaders) == 0 {
-//			logger.Debug("no extra HTTP headers")
-//			return nil
-//		}
+//  func extraHttpHeadersActionFunc(logger *slog.Logger, extraHttpHeaders map[string]string) chromedp.ActionFunc {
+// 	return func(ctx context.Context) error {
+// 		if len(extraHttpHeaders) == 0 {
+// 			logger.DebugContext(ctx,"no extra HTTP headers")
+// 			return nil
+// 		}
 //
-//		logger.Debug(fmt.Sprintf("extra HTTP headers: %+v", extraHttpHeaders))
+// 		logger.DebugContext(ctx,fmt.Sprintf("extra HTTP headers: %+v", extraHttpHeaders))
 //
-//		headers := make(network.Headers, len(extraHttpHeaders))
-//		for key, value := range extraHttpHeaders {
-//			headers[key] = value
-//		}
+// 		headers := make(network.Headers, len(extraHttpHeaders))
+// 		for key, value := range extraHttpHeaders {
+// 			headers[key] = value
+// 		}
 //
-//		err := network.SetExtraHTTPHeaders(headers).Do(ctx)
-//		if err == nil {
-//			return nil
-//		}
+// 		err := network.SetExtraHTTPHeaders(headers).Do(ctx)
+// 		if err == nil {
+// 			return nil
+// 		}
 //
-//		return fmt.Errorf("set extra HTTP headers: %w", err)
-//	}
-//}
+// 		return fmt.Errorf("set extra HTTP headers: %w", err)
+// 	}
+// }
 
-func navigateActionFunc(logger *zap.Logger, url string, skipNetworkIdleEvent bool) chromedp.ActionFunc {
+func navigateActionFunc(logger *slog.Logger, url string, skipNetworkIdleEvent, skipNetworkAlmostIdleEvent bool) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
-		logger.Debug(fmt.Sprintf("navigate to '%s'", url))
+		logger.DebugContext(ctx, fmt.Sprintf("navigate to '%s'", url))
 
-		_, _, _, err := page.Navigate(url).Do(ctx)
-		if err != nil {
-			return fmt.Errorf("navigate to '%s': %w", url, err)
-		}
-
+		// Register lifecycle listeners before issuing Page.navigate. For
+		// fast loads (typically file:// pages with no external
+		// sub-resources), DomContentEventFired / LoadEventFired /
+		// LoadingFinished can fire between Navigate.Do returning and
+		// runBatch spawning the waiter goroutines. Registering ahead of
+		// the navigate command closes that race.
+		// See https://github.com/gotenberg/gotenberg/issues/1561.
 		waitFunc := []func() error{
 			waitForEventDomContentEventFired(ctx, logger),
 			waitForEventLoadEventFired(ctx, logger),
@@ -345,7 +529,18 @@ func navigateActionFunc(logger *zap.Logger, url string, skipNetworkIdleEvent boo
 		if !skipNetworkIdleEvent {
 			waitFunc = append(waitFunc, waitForEventNetworkIdle(ctx, logger))
 		} else {
-			logger.Debug("skipping network idle event")
+			logger.DebugContext(ctx, "skipping network idle event")
+		}
+
+		if !skipNetworkAlmostIdleEvent {
+			waitFunc = append(waitFunc, waitForEventNetworkAlmostIdle(ctx, logger))
+		} else {
+			logger.DebugContext(ctx, "skipping network almost idle event")
+		}
+
+		_, _, _, _, err := page.Navigate(url).Do(ctx)
+		if err != nil {
+			return fmt.Errorf("navigate to '%s': %w", url, err)
 		}
 
 		err = runBatch(
@@ -361,11 +556,11 @@ func navigateActionFunc(logger *zap.Logger, url string, skipNetworkIdleEvent boo
 	}
 }
 
-func hideDefaultWhiteBackgroundActionFunc(logger *zap.Logger, omitBackground, printBackground bool) chromedp.ActionFunc {
+func hideDefaultWhiteBackgroundActionFunc(logger *slog.Logger, omitBackground, printBackground bool) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		// See https://github.com/gotenberg/gotenberg/issues/226.
 		if !omitBackground {
-			logger.Debug("default white background not hidden")
+			logger.DebugContext(ctx, "default white background not hidden")
 			return nil
 		}
 
@@ -374,7 +569,7 @@ func hideDefaultWhiteBackgroundActionFunc(logger *zap.Logger, omitBackground, pr
 			return fmt.Errorf("validate omit background: %w", ErrOmitBackgroundWithoutPrintBackground)
 		}
 
-		logger.Debug("hide default white background")
+		logger.DebugContext(ctx, "hide default white background")
 
 		err := emulation.SetDefaultBackgroundColorOverride().WithColor(
 			&cdp.RGBA{
@@ -392,26 +587,30 @@ func hideDefaultWhiteBackgroundActionFunc(logger *zap.Logger, omitBackground, pr
 	}
 }
 
-func forceExactColorsActionFunc() chromedp.ActionFunc {
+func forceExactColorsActionFunc(logger *slog.Logger, printBackground bool) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
-		// See:
-		// https://github.com/gotenberg/gotenberg/issues/354
-		// https://github.com/puppeteer/puppeteer/issues/2685
-		// https://github.com/chromedp/chromedp/issues/520
-		script := `
-(() => {
-	const css = 'html { -webkit-print-color-adjust: exact !important; }';
+		css := "html { -webkit-print-color-adjust: exact !important; }"
+		if !printBackground {
+			// The -webkit-print-color-adjust: exact CSS property forces the
+			// print of the background, whatever the printToPDF args.
+			// See https://github.com/gotenberg/gotenberg/issues/1154.
+			additionalCss := "html, body { background: none !important; }"
+			logger.DebugContext(ctx, fmt.Sprintf("inject %s as printBackground is %t", additionalCss, printBackground))
+			css += additionalCss
+		}
 
+		script := fmt.Sprintf(`
+(() => {
+	const css = '%s';
 	const style = document.createElement('style');
 	style.type = 'text/css';
 	style.appendChild(document.createTextNode(css));
 	document.head.appendChild(style);
 })();
-`
+`, css)
 
 		evaluate := chromedp.Evaluate(script, nil)
 		err := evaluate.Do(ctx)
-
 		if err == nil {
 			return nil
 		}
@@ -420,44 +619,62 @@ func forceExactColorsActionFunc() chromedp.ActionFunc {
 	}
 }
 
-func emulateMediaTypeActionFunc(logger *zap.Logger, mediaType string) chromedp.ActionFunc {
+func emulateMediaTypeActionFunc(logger *slog.Logger, mediaType string, mediaFeatures []EmulatedMediaFeature) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
-		if mediaType == "" {
-			logger.Debug("no emulated media type")
+		if mediaType == "" && len(mediaFeatures) == 0 {
+			logger.DebugContext(ctx, "no emulated media type or features")
 			return nil
 		}
 
-		if mediaType != "screen" && mediaType != "print" {
+		if mediaType != "" && mediaType != "screen" && mediaType != "print" {
 			return fmt.Errorf("validate emulated media type '%s': %w", mediaType, ErrInvalidEmulatedMediaType)
 		}
 
-		logger.Debug(fmt.Sprintf("emulate media type '%s'", mediaType))
-
 		emulatedMedia := emulation.SetEmulatedMedia()
-		err := emulatedMedia.WithMedia(mediaType).Do(ctx)
+
+		if mediaType != "" {
+			logger.DebugContext(ctx, fmt.Sprintf("emulate media type '%s'", mediaType))
+			emulatedMedia = emulatedMedia.WithMedia(mediaType)
+		}
+
+		if len(mediaFeatures) > 0 {
+			logger.DebugContext(ctx, fmt.Sprintf("emulate media features %+v", mediaFeatures))
+
+			features := make([]*emulation.MediaFeature, len(mediaFeatures))
+			for i, f := range mediaFeatures {
+				features[i] = &emulation.MediaFeature{
+					Name:  f.Name,
+					Value: f.Value,
+				}
+			}
+
+			emulatedMedia = emulatedMedia.WithFeatures(features)
+		}
+
+		err := emulatedMedia.Do(ctx)
 		if err == nil {
 			return nil
 		}
 
-		return fmt.Errorf("emulate media type '%s': %w", mediaType, err)
+		return fmt.Errorf("emulate media: %w", err)
 	}
 }
 
-func waitDelayBeforePrintActionFunc(logger *zap.Logger, disableJavaScript bool, delay time.Duration) chromedp.ActionFunc {
+func waitDelayBeforePrintActionFunc(logger *slog.Logger, disableJavaScript bool, delay time.Duration) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		if disableJavaScript {
-			logger.Debug("JavaScript disabled, skipping wait delay")
+			logger.DebugContext(ctx, "JavaScript disabled, skipping wait delay")
 			return nil
 		}
 
 		if delay <= 0 {
-			logger.Debug("no wait delay")
+			logger.DebugContext(ctx, "no wait delay")
 			return nil
 		}
 
 		// We wait for a given amount of time so that JavaScript
 		// scripts have a chance to finish before printing the page.
-		logger.Debug(fmt.Sprintf("wait '%s' before print", delay))
+		logger.DebugContext(ctx, fmt.Sprintf("wait '%s' before print", delay))
 
 		select {
 		case <-ctx.Done():
@@ -468,21 +685,21 @@ func waitDelayBeforePrintActionFunc(logger *zap.Logger, disableJavaScript bool, 
 	}
 }
 
-func waitForExpressionBeforePrintActionFunc(logger *zap.Logger, disableJavaScript bool, expression string) chromedp.ActionFunc {
+func waitForExpressionBeforePrintActionFunc(logger *slog.Logger, disableJavaScript bool, expression string) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		if disableJavaScript {
-			logger.Debug("JavaScript disabled, skipping wait expression")
+			logger.DebugContext(ctx, "JavaScript disabled, skipping wait expression")
 			return nil
 		}
 
 		if expression == "" {
-			logger.Debug("no wait expression")
+			logger.DebugContext(ctx, "no wait expression")
 			return nil
 		}
 
 		// We wait until the evaluation of the expression is true or
 		// until the context is done.
-		logger.Debug(fmt.Sprintf("wait until '%s' is true before print", expression))
+		logger.DebugContext(ctx, fmt.Sprintf("wait until '%s' is true before print", expression))
 		ticker := time.NewTicker(time.Duration(100) * time.Millisecond)
 
 		for {
@@ -492,7 +709,13 @@ func waitForExpressionBeforePrintActionFunc(logger *zap.Logger, disableJavaScrip
 				return fmt.Errorf("context done while evaluating '%s': %w", expression, ctx.Err())
 			case <-ticker.C:
 				var ok bool
-				evaluate := chromedp.Evaluate(expression, &ok)
+				// Await the result so a thenable expression (an async function
+				// returning a Promise) resolves before its value is read. A
+				// non-promise result is unaffected.
+				// See https://github.com/gotenberg/gotenberg/pull/1617.
+				evaluate := chromedp.Evaluate(expression, &ok, func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
+					return p.WithAwaitPromise(true)
+				})
 
 				err := evaluate.Do(ctx)
 				if err != nil {
@@ -507,5 +730,21 @@ func waitForExpressionBeforePrintActionFunc(logger *zap.Logger, disableJavaScrip
 				continue
 			}
 		}
+	}
+}
+
+func waitForSelectorVisibleBeforePrintActionFunc(logger *slog.Logger, selector string) chromedp.ActionFunc {
+	return func(ctx context.Context) error {
+		if selector == "" {
+			logger.DebugContext(ctx, "no wait selector")
+			return nil
+		}
+
+		logger.DebugContext(ctx, fmt.Sprintf("wait until '%s' is visible before print", selector))
+		err := chromedp.WaitVisible(selector, chromedp.ByQuery, chromedp.RetryInterval(time.Duration(100)*time.Millisecond)).Do(ctx)
+		if err != nil {
+			return fmt.Errorf("wait visible: %v: %w", err, ErrInvalidSelectorQuery)
+		}
+		return nil
 	}
 }

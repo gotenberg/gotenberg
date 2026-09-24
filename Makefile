@@ -1,216 +1,244 @@
+include .env
+
 .PHONY: help
 help: ## Show the help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
-
-.PHONY: it
-it: build build-tests ## Initialize the development environment
-
-GOLANG_VERSION=1.23
-DOCKER_REGISTRY=gotenberg
-DOCKER_REPOSITORY=gotenberg
-GOTENBERG_VERSION=snapshot
-GOTENBERG_USER_GID=1001
-GOTENBERG_USER_UID=1001
-NOTO_COLOR_EMOJI_VERSION=v2.047 # See https://github.com/googlefonts/noto-emoji/releases.
-PDFTK_VERSION=v3.3.3 # See https://gitlab.com/pdftk-java/pdftk/-/releases - Binary package.
-PDFCPU_VERSION=v0.8.1 # See https://github.com/pdfcpu/pdfcpu/releases.
-GOLANGCI_LINT_VERSION=v1.61.0 # See https://github.com/golangci/golangci-lint/releases.
+	@grep -hE '^[A-Za-z0-9_ \-]*?:.*##.*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: build
-build: ## Build the Gotenberg's Docker image
+build: ## Build the Gotenberg's Docker image (use TARGET=gotenberg-chromium or TARGET=gotenberg-libreoffice for variants)
 	docker build \
-	--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
-	--build-arg GOTENBERG_VERSION=$(GOTENBERG_VERSION) \
-	--build-arg GOTENBERG_USER_GID=$(GOTENBERG_USER_GID) \
-	--build-arg GOTENBERG_USER_UID=$(GOTENBERG_USER_UID) \
-	--build-arg NOTO_COLOR_EMOJI_VERSION=$(NOTO_COLOR_EMOJI_VERSION) \
-	--build-arg PDFTK_VERSION=$(PDFTK_VERSION) \
-	--build-arg PDFCPU_VERSION=$(PDFCPU_VERSION) \
+	--target $(TARGET) \
 	-t $(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
-	-f build/Dockerfile .
+	-f $(DOCKERFILE) $(DOCKER_BUILD_CONTEXT)
 
+TZ=UTC
+GOTENBERG_HIDE_BANNER=false
 GOTENBERG_GRACEFUL_SHUTDOWN_DURATION=30s
+GOTENBERG_BUILD_DEBUG_DATA=true
 API_PORT=3000
 API_PORT_FROM_ENV=
 API_BIND_IP=
+API_TLS_CERT_FILE=
+API_TLS_KEY_FILE=
 API_START_TIMEOUT=30s
 API_TIMEOUT=30s
 API_BODY_LIMIT=
 API_ROOT_PATH=/
-API_TRACE_HEADER=Gotenberg-Trace
+API_CORRELATION_ID_HEADER=Gotenberg-Trace
 API_ENABLE_BASIC_AUTH=false
 GOTENBERG_API_BASIC_AUTH_USERNAME=
 GOTENBERG_API_BASIC_AUTH_PASSWORD=
-API-DOWNLOAD-FROM-ALLOW-LIST=
-API-DOWNLOAD-FROM-DENY-LIST=
-API-DOWNLOAD-FROM-FROM-MAX-RETRY=4
-API-DISABLE-DOWNLOAD-FROM=false
-API_DISABLE_HEALTH_CHECK_LOGGING=false
-CHROMIUM_RESTART_AFTER=0
+API_ENABLE_OIDC_AUTH=false
+API_OIDC_ISSUER=
+API_OIDC_AUDIENCE=
+API_OIDC_JWKS_URL=
+API_DOWNLOAD_FROM_ALLOW_LIST=
+# Empty, like the flag default since 8.32.0. A textual deny-list cannot
+# enumerate every way to write a private address, so *_DENY_PRIVATE_IPS is the
+# control to reach for. Left false here so local testing can reach the host.
+API_DOWNLOAD_FROM_DENY_LIST=
+API_DOWNLOAD_FROM_DENY_PRIVATE_IPS=false
+API_DOWNLOAD_FROM_DENY_PUBLIC_IPS=false
+API_DOWNLOAD_FROM_ENABLE_ENVIRONMENT_PROXY=false
+API_DOWNLOAD_FROM_MAX_RETRY=4
+API_DOWNLOAD_FROM_MAX_CONCURRENCY=10
+API_DOWNLOAD_FROM_MAX_ENTRIES=0
+API_DISABLE_DOWNLOAD_FROM=false
+API_DISABLE_HEALTH_CHECK_ROUTE_TELEMETRY=true
+API_DISABLE_ROOT_ROUTE_TELEMETRY=true
+API_DISABLE_DEBUG_ROUTE_TELEMETRY=true
+API_DISABLE_VERSION_ROUTE_TELEMETRY=true
+API_ENABLE_DEBUG_ROUTE=false
+CHROMIUM_RESTART_AFTER=100
 CHROMIUM_MAX_QUEUE_SIZE=0
+CHROMIUM_IDLE_SHUTDOWN_TIMEOUT=0
+CHROMIUM_MAX_CONCURRENCY=6
 CHROMIUM_AUTO_START=false
 CHROMIUM_START_TIMEOUT=20s
-CHROMIUM_INCOGNITO=false
 CHROMIUM_ALLOW_INSECURE_LOCALHOST=false
 CHROMIUM_IGNORE_CERTIFICATE_ERRORS=false
 CHROMIUM_DISABLE_WEB_SECURITY=false
 CHROMIUM_ALLOW_FILE_ACCESS_FROM_FILES=false
 CHROMIUM_HOST_RESOLVER_RULES=
 CHROMIUM_PROXY_SERVER=
+CHROMIUM_ENABLE_ENVIRONMENT_PROXY=false
 CHROMIUM_ALLOW_LIST=
 CHROMIUM_DENY_LIST=^file:(?!//\/tmp/).*
+CHROMIUM_DENY_PRIVATE_IPS=false
+CHROMIUM_DENY_PUBLIC_IPS=false
 CHROMIUM_CLEAR_CACHE=false
 CHROMIUM_CLEAR_COOKIES=false
 CHROMIUM_DISABLE_JAVASCRIPT=false
 CHROMIUM_DISABLE_ROUTES=false
 LIBREOFFICE_RESTART_AFTER=10
 LIBREOFFICE_MAX_QUEUE_SIZE=0
+LIBREOFFICE_IDLE_SHUTDOWN_TIMEOUT=0
 LIBREOFFICE_AUTO_START=false
 LIBREOFFICE_START_TIMEOUT=20s
+LIBREOFFICE_ALLOW_LIST=
+LIBREOFFICE_DENY_LIST=
+LIBREOFFICE_DENY_PRIVATE_IPS=false
+LIBREOFFICE_DENY_PUBLIC_IPS=false
+LIBREOFFICE_ENABLE_ENVIRONMENT_PROXY=false
 LIBREOFFICE_DISABLE_ROUTES=false
 LOG_LEVEL=info
-LOG_FORMAT=auto
 LOG_FIELDS_PREFIX=
-PDFENGINES_ENGINES=
+LOG_STD_FORMAT=auto
+LOG_STD_ENABLE_GCP_FIELDS=false
+LOG_STD_LEVEL_CASE=lower
+PDFENGINES_DISABLE_ROUTES=false
+PDFENGINES_MAX_CONCURRENCY=1
 PDFENGINES_MERGE_ENGINES=qpdf,pdfcpu,pdftk
+PDFENGINES_SPLIT_ENGINES=pdfcpu,qpdf,pdftk
+PDFENGINES_FLATTEN_ENGINES=qpdf
 PDFENGINES_CONVERT_ENGINES=libreoffice-pdfengine
+PDFENGINES_OPTIMIZE_IMAGES_ENGINES=pdfcpu
 PDFENGINES_READ_METADATA_ENGINES=exiftool
 PDFENGINES_WRITE_METADATA_ENGINES=exiftool
-PDFENGINES_DISABLE_ROUTES=false
+PDFENGINES_READ_BOOKMARKS_ENGINES=pdfcpu
+PDFENGINES_WRITE_BOOKMARKS_ENGINES=pdfcpu
+PDFENGINES_WATERMARK_ENGINES=pdfcpu,pdftk
+PDFENGINES_STAMP_ENGINES=pdfcpu,pdftk
+PDFENGINES_ENCRYPT_ENGINES=qpdf,pdfcpu,pdftk
+PDFENGINES_ROTATE_ENGINES=pdfcpu,pdftk
+PDFENGINES_EMBED_ENGINES=pdfcpu
+PDFENGINES_EMBED_METADATA_ENGINES=qpdf
+PDFENGINES_FACTUR_X_ENGINES=qpdf
 PROMETHEUS_NAMESPACE=gotenberg
 PROMETHEUS_COLLECT_INTERVAL=1s
-PROMETHEUS_DISABLE_ROUTE_LOGGING=false
+PROMETHEUS_DISABLE_ROUTE_TELEMETRY=true
 PROMETHEUS_DISABLE_COLLECT=false
+PROMETHEUS_METRICS_PATH=/prometheus/metrics
+OTEL_SERVICE_NAME=gotenberg
+OTEL_TRACES_EXPORTER=none
+OTEL_METRICS_EXPORTER=none
+OTEL_LOGS_EXPORTER=none
+OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+OTEL_EXPORTER_OTLP_INSECURE=true
+WEBHOOK_ENABLE_SYNC_MODE=false
 WEBHOOK_ALLOW_LIST=
+# See the note on API_DOWNLOAD_FROM_DENY_LIST.
 WEBHOOK_DENY_LIST=
-WEBHOOK_ERROR_ALLOW_LIST=
-WEBHOOK_ERROR_DENY_LIST=
+WEBHOOK_DENY_PRIVATE_IPS=false
+WEBHOOK_DENY_PUBLIC_IPS=false
+WEBHOOK_ENABLE_ENVIRONMENT_PROXY=false
 WEBHOOK_MAX_RETRY=4
 WEBHOOK_RETRY_MIN_WAIT=1s
 WEBHOOK_RETRY_MAX_WAIT=30s
 WEBHOOK_CLIENT_TIMEOUT=30s
 WEBHOOK_DISABLE=false
 
+# Export all variables so they are available to Compose
+export
+
 .PHONY: run
-run: ## Start a Gotenberg container
-	docker run --rm -it \
-	-p $(API_PORT):$(API_PORT) \
-	-e GOTENBERG_API_BASIC_AUTH_USERNAME=$(GOTENBERG_API_BASIC_AUTH_USERNAME) \
-	-e GOTENBERG_API_BASIC_AUTH_PASSWORD=$(GOTENBERG_API_BASIC_AUTH_PASSWORD) \
-	$(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
-	gotenberg \
-	--gotenberg-graceful-shutdown-duration=$(GOTENBERG_GRACEFUL_SHUTDOWN_DURATION) \
-	--api-port=$(API_PORT) \
-	--api-port-from-env=$(API_PORT_FROM_ENV) \
-	--api-bind-ip=$(API_BIND_IP) \
-	--api-start-timeout=$(API_START_TIMEOUT) \
-	--api-timeout=$(API_TIMEOUT) \
-	--api-body-limit="$(API_BODY_LIMIT)" \
-	--api-root-path=$(API_ROOT_PATH) \
-	--api-trace-header=$(API_TRACE_HEADER) \
-	--api-enable-basic-auth=$(API_ENABLE_BASIC_AUTH) \
-	--api-download-from-allow-list=$(API-DOWNLOAD-FROM-ALLOW-LIST) \
-	--api-download-from-deny-list=$(API-DOWNLOAD-FROM-DENY-LIST) \
-	--api-download-from-max-retry=$(API-DOWNLOAD-FROM-FROM-MAX-RETRY) \
-	--api-disable-download-from=$(API-DISABLE-DOWNLOAD-FROM) \
-	--api-disable-health-check-logging=$(API_DISABLE_HEALTH_CHECK_LOGGING) \
-	--chromium-restart-after=$(CHROMIUM_RESTART_AFTER) \
-	--chromium-auto-start=$(CHROMIUM_AUTO_START) \
-	--chromium-max-queue-size=$(CHROMIUM_MAX_QUEUE_SIZE) \
-	--chromium-start-timeout=$(CHROMIUM_START_TIMEOUT) \
-	--chromium-incognito=$(CHROMIUM_INCOGNITO) \
-	--chromium-allow-insecure-localhost=$(CHROMIUM_ALLOW_INSECURE_LOCALHOST) \
-	--chromium-ignore-certificate-errors=$(CHROMIUM_IGNORE_CERTIFICATE_ERRORS) \
-	--chromium-disable-web-security=$(CHROMIUM_DISABLE_WEB_SECURITY) \
-	--chromium-allow-file-access-from-files=$(CHROMIUM_ALLOW_FILE_ACCESS_FROM_FILES) \
-	--chromium-host-resolver-rules=$(CHROMIUM_HOST_RESOLVER_RULES) \
-	--chromium-proxy-server=$(CHROMIUM_PROXY_SERVER) \
-	--chromium-allow-list="$(CHROMIUM_ALLOW_LIST)" \
-	--chromium-deny-list="$(CHROMIUM_DENY_LIST)" \
-	--chromium-clear-cache=$(CHROMIUM_CLEAR_CACHE) \
-	--chromium-clear-cookies=$(CHROMIUM_CLEAR_COOKIES) \
-	--chromium-disable-javascript=$(CHROMIUM_DISABLE_JAVASCRIPT) \
-	--chromium-disable-routes=$(CHROMIUM_DISABLE_ROUTES) \
-	--libreoffice-restart-after=$(LIBREOFFICE_RESTART_AFTER) \
-	--libreoffice-max-queue-size=$(LIBREOFFICE_MAX_QUEUE_SIZE) \
-	--libreoffice-auto-start=$(LIBREOFFICE_AUTO_START) \
-	--libreoffice-start-timeout=$(LIBREOFFICE_START_TIMEOUT) \
-	--libreoffice-disable-routes=$(LIBREOFFICE_DISABLE_ROUTES) \
-	--log-level=$(LOG_LEVEL) \
-	--log-format=$(LOG_FORMAT) \
-	--log-fields-prefix=$(LOG_FIELDS_PREFIX) \
-	--pdfengines-engines=$(PDFENGINES_ENGINES) \
-	--pdfengines-merge-engines=$(PDFENGINES_MERGE_ENGINES) \
-	--pdfengines-convert-engines=$(PDFENGINES_CONVERT_ENGINES) \
-	--pdfengines-read-metadata-engines=$(PDFENGINES_READ_METADATA_ENGINES) \
-	--pdfengines-write-metadata-engines=$(PDFENGINES_WRITE_METADATA_ENGINES) \
-	--pdfengines-disable-routes=$(PDFENGINES_DISABLE_ROUTES) \
-	--prometheus-namespace=$(PROMETHEUS_NAMESPACE) \
-	--prometheus-collect-interval=$(PROMETHEUS_COLLECT_INTERVAL) \
-	--prometheus-disable-route-logging=$(PROMETHEUS_DISABLE_ROUTE_LOGGING) \
-	--prometheus-disable-collect=$(PROMETHEUS_DISABLE_COLLECT) \
-	--webhook-allow-list="$(WEBHOOK_ALLOW_LIST)" \
-	--webhook-deny-list="$(WEBHOOK_DENY_LIST)" \
-	--webhook-error-allow-list=$(WEBHOOK_ERROR_ALLOW_LIST) \
-	--webhook-error-deny-list=$(WEBHOOK_ERROR_DENY_LIST) \
-	--webhook-max-retry=$(WEBHOOK_MAX_RETRY) \
-	--webhook-retry-min-wait=$(WEBHOOK_RETRY_MIN_WAIT) \
-	--webhook-retry-max-wait=$(WEBHOOK_RETRY_MAX_WAIT) \
-	--webhook-client-timeout=$(WEBHOOK_CLIENT_TIMEOUT) \
-	--webhook-disable=$(WEBHOOK_DISABLE)
+run: ## Start a Gotenberg container via Compose
+	docker compose up gotenberg
 
-.PHONY: build-tests
-build-tests: ## Build the tests' Docker image
-	docker build \
-	--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
-	--build-arg DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
-	--build-arg DOCKER_REPOSITORY=$(DOCKER_REPOSITORY) \
-	--build-arg GOTENBERG_VERSION=$(GOTENBERG_VERSION) \
-	--build-arg GOLANGCI_LINT_VERSION=$(GOLANGCI_LINT_VERSION) \
-	-t $(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION)-tests \
-	-f test/Dockerfile .
+.PHONY: telemetry
+telemetry: ## Start an OpenTelemetry collector and OpenObserve containers via Compose
+	docker compose up otel-collector openobserve
 
-.PHONY: tests
-tests: ## Start the testing environment
-	docker run --rm -it \
-	-v $(PWD):/tests \
-	$(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION)-tests \
-	bash
+.PHONY: down
+down: ## Stop all containers
+	docker compose down -v
 
-.PHONY: tests-once
-tests-once: ## Run the tests once (prefer the "tests" command while developing)
-	docker run --rm  \
-	-v $(PWD):/tests \
-	$(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION)-tests \
-	gotest
+.PHONY: test-unit
+test-unit: ## Run unit tests
+	go test -race ./...
 
-# go install mvdan.cc/gofumpt@latest
-# go install github.com/daixiang0/gci@latest
+PLATFORM=
+NO_CONCURRENCY=false
+# Available tags:
+# chromium
+# chromium-concurrent
+# chromium-convert-html
+# chromium-convert-markdown
+# chromium-convert-url
+# chromium-screenshot-html
+# chromium-screenshot-markdown
+# chromium-screenshot-url
+# chromium-ssrf
+# debug
+# health
+# libreoffice
+# libreoffice-convert
+# libreoffice-ssrf
+# output-filename
+# pdfengines
+# pdfengines-convert
+# pdfengines-embed
+# embed
+# pdfengines-encrypt
+# encrypt
+# pdfengines-flatten
+# flatten
+# pdfengines-optimize
+# optimize
+# pdfengines-merge
+# merge
+# pdfengines-metadata
+# metadata
+# pdfengines-split
+# split
+# pdfengines-watermark
+# watermark
+# pdfengines-stamp
+# stamp
+# pdfengines-rotate
+# rotate
+# factur-x
+# pdfengines-bookmarks
+# bookmarks
+# prometheus-metrics
+# root
+# version
+# webhook
+# download-from
+TAGS=
+
+.PHONY: test-integration
+test-integration: ## Run integration tests (automatically retries failed scenarios up to 3 times)
+	go test -timeout 40m -tags=integration -v github.com/gotenberg/gotenberg/v8/test/integration -args \
+	--gotenberg-docker-repository=$(DOCKER_REPOSITORY) \
+	--gotenberg-version=$(GOTENBERG_VERSION) \
+ 	--gotenberg-container-platform=$(PLATFORM) \
+ 	--no-concurrency=$(NO_CONCURRENCY) \
+ 	--tags="$(TAGS)"
+
+.PHONY: lint
+lint: ## Lint Golang codebase
+	golangci-lint run
+
+.PHONY: lint-prettier
+lint-prettier: ## Lint non-Golang codebase
+	npx prettier --check .
+
+.PHONY: lint-todo
+lint-todo: ## Find TODOs in Golang codebase
+	golangci-lint run --no-config --default=none --enable godox
+
+# TODO: restore a plain "go fix ./..." once the errorsastype modernizer stops
+# rewriting this codebase into code that does not compile. Re-check by dropping
+# the flag and running "make fmt && make lint". Removing the analyzer upstream
+# makes go fix fail with "flag provided but not defined", so this cannot rot
+# silently.
+#   errorsastype rewrites errors.As to errors.AsType[T] without checking that T
+#   satisfies error, which breaks on api.HttpError since it does not embed
+#   error. Still broken as of Go 1.27.1.
 .PHONY: fmt
-fmt: ## Format the code and "optimize" the dependencies
-	gofumpt -l -w .
-	gci write -s standard -s default -s "prefix(github.com/gotenberg/gotenberg/v8)" --skip-generated --skip-vendor --custom-order .
+fmt: ## Format Golang codebase and "optimize" the dependencies
+	go fix -errorsastype=false ./...
+	golangci-lint fmt
 	go mod tidy
+
+.PHONY: prettify
+prettify: ## Format non-Golang codebase
+	npx prettier --write .
 
 # go install golang.org/x/tools/cmd/godoc@latest
 .PHONY: godoc
 godoc: ## Run a webserver with Gotenberg godoc
 	$(info http://localhost:6060/pkg/github.com/gotenberg/gotenberg/v8)
 	godoc -http=:6060
-
-LINUX_AMD64_RELEASE=false
-
-.PHONY: release
-release: ## Build the Gotenberg's Docker image and push it to a Docker repository
-	./scripts/release.sh \
- 	$(GOLANG_VERSION) \
-	$(GOTENBERG_VERSION) \
-	$(GOTENBERG_USER_GID) \
-	$(GOTENBERG_USER_UID) \
-	$(NOTO_COLOR_EMOJI_VERSION) \
-	$(PDFTK_VERSION) \
-	$(PDFCPU_VERSION) \
-	$(DOCKER_REGISTRY) \
-	$(DOCKER_REPOSITORY) \
-	$(LINUX_AMD64_RELEASE)
-

@@ -1,12 +1,25 @@
 package pdfcpu
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"syscall"
 
-	"go.uber.org/zap"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
@@ -19,6 +32,19 @@ func init() {
 // [gotenberg.PdfEngine] interface.
 type PdfCpu struct {
 	binPath string
+
+	version     string
+	versionOnce sync.Once
+}
+
+type pdfcpuBookmark struct {
+	Title    string           `json:"title"`
+	Page     int              `json:"page"`
+	Children []pdfcpuBookmark `json:"kids,omitempty"`
+}
+
+type pdfcpuBookmarks struct {
+	Bookmarks []pdfcpuBookmark `json:"bookmarks"`
 }
 
 // Descriptor returns a [PdfCpu]'s module descriptor.
@@ -51,11 +77,627 @@ func (engine *PdfCpu) Validate() error {
 	return nil
 }
 
+// Debug returns additional debug data.
+func (engine *PdfCpu) Debug() map[string]any {
+	return map[string]any{"version": engine.detectVersion()}
+}
+
+// detectVersion resolves the pdfcpu version once, preferring the value captured
+// at image build time so it never spawns pdfcpu at runtime. It falls back to
+// running pdfcpu version for local or non-Docker builds.
+func (engine *PdfCpu) detectVersion() string {
+	engine.versionOnce.Do(func() {
+		if v, ok := gotenberg.BuildVersion("pdfcpu"); ok {
+			engine.version = v
+			return
+		}
+
+		cmd := exec.Command(engine.binPath, "version") //nolint:gosec
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+		output, err := cmd.Output()
+		if err != nil {
+			engine.version = err.Error()
+			return
+		}
+
+		engine.version = "Unable to determine pdfcpu version"
+
+		lines := strings.SplitSeq(string(output), "\n")
+		for line := range lines {
+			if after, ok := strings.CutPrefix(line, "pdfcpu:"); ok {
+				engine.version = strings.TrimSpace(after)
+				break
+			}
+		}
+	})
+
+	return engine.version
+}
+
+// spanAttrs returns the client-span attributes for a pdfcpu invocation: the
+// server address and the pdfcpu version, plus any extra attributes. The version
+// rides on every span so a trace records which pdfcpu ran the operation.
+func (engine *PdfCpu) spanAttrs(extra ...attribute.KeyValue) []attribute.KeyValue {
+	attrs := make([]attribute.KeyValue, 0, 2+len(extra))
+	attrs = append(attrs, semconv.ServerAddress(engine.binPath))
+	if v := engine.detectVersion(); v != "" {
+		attrs = append(attrs, attribute.String("gotenberg.pdfcpu.version", v))
+	}
+
+	return append(attrs, extra...)
+}
+
 // Merge combines multiple PDFs into a single PDF.
-func (engine *PdfCpu) Merge(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-	var args []string
+func (engine *PdfCpu) Merge(ctx context.Context, logger *slog.Logger, inputPaths []string, outputPath string) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "pdfcpu.Merge",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(engine.spanAttrs()...),
+	)
+	defer span.End()
+
+	args := make([]string, 0, 2+len(inputPaths))
 	args = append(args, "merge", outputPath)
 	args = append(args, inputPaths...)
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		err = fmt.Errorf("create command: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	_, err = cmd.Exec()
+	if err == nil {
+		span.SetStatus(codes.Ok, "")
+		return nil
+	}
+
+	err = fmt.Errorf("merge PDFs with pdfcpu: %w", err)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return err
+}
+
+// Split splits a given PDF file.
+func (engine *PdfCpu) Split(ctx context.Context, logger *slog.Logger, mode gotenberg.SplitMode, inputPath, outputDirPath string) ([]string, error) {
+	ctx, span := gotenberg.Tracer().Start(ctx, "pdfcpu.Split",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(engine.spanAttrs()...),
+	)
+	defer span.End()
+
+	var args []string
+
+	switch mode.Mode {
+	case gotenberg.SplitModeIntervals:
+		args = append(args, "split", "--mode", "span", inputPath, outputDirPath, mode.Span)
+	case gotenberg.SplitModePages:
+		if mode.Unify {
+			outputPath := fmt.Sprintf("%s/%s", outputDirPath, filepath.Base(inputPath))
+			args = append(args, "trim", "--pages", mode.Span, inputPath, outputPath)
+			break
+		}
+		args = append(args, "extract", "--mode", "page", "--pages", mode.Span, inputPath, outputDirPath)
+	default:
+		err := fmt.Errorf("split PDFs using mode '%s' with pdfcpu: %w", mode.Mode, gotenberg.ErrPdfSplitModeNotSupported)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		err = fmt.Errorf("create command: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+
+	_, err = cmd.Exec()
+	if err != nil {
+		err = fmt.Errorf("split PDFs with pdfcpu: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+
+	var outputPaths []string
+	err = filepath.Walk(outputDirPath, func(path string, info os.FileInfo, pathErr error) error {
+		if pathErr != nil {
+			return pathErr
+		}
+		if info.IsDir() {
+			return nil
+		}
+		if strings.EqualFold(filepath.Ext(info.Name()), ".pdf") {
+			outputPaths = append(outputPaths, path)
+		}
+		return nil
+	})
+	if err != nil {
+		err = fmt.Errorf("walk directory to find resulting PDFs from split with pdfcpu: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+
+	sort.Sort(digitSuffixSort(outputPaths))
+
+	span.SetStatus(codes.Ok, "")
+	return outputPaths, nil
+}
+
+// Flatten is not available in this implementation.
+func (engine *PdfCpu) Flatten(ctx context.Context, logger *slog.Logger, inputPath string) error {
+	_, span := gotenberg.Tracer().Start(ctx, "pdfcpu.Flatten",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(engine.spanAttrs()...),
+	)
+	defer span.End()
+
+	err := fmt.Errorf("flatten PDF with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return err
+}
+
+// Convert is not available in this implementation.
+func (engine *PdfCpu) Convert(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
+	_, span := gotenberg.Tracer().Start(ctx, "pdfcpu.Convert",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(engine.spanAttrs()...),
+	)
+	defer span.End()
+
+	err := fmt.Errorf("convert PDF to '%+v' with pdfcpu: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return err
+}
+
+// ReadMetadata is not available in this implementation.
+func (engine *PdfCpu) ReadMetadata(ctx context.Context, logger *slog.Logger, inputPath string) (map[string]any, error) {
+	_, span := gotenberg.Tracer().Start(ctx, "pdfcpu.ReadMetadata",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(engine.spanAttrs()...),
+	)
+	defer span.End()
+
+	err := fmt.Errorf("read PDF metadata with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return nil, err
+}
+
+// WriteMetadata is not available in this implementation.
+func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]any, inputPath string) error {
+	_, span := gotenberg.Tracer().Start(ctx, "pdfcpu.WriteMetadata",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(engine.spanAttrs()...),
+	)
+	defer span.End()
+
+	err := fmt.Errorf("write PDF metadata with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return err
+}
+
+// PageCount is not available in this implementation.
+func (engine *PdfCpu) PageCount(ctx context.Context, logger *slog.Logger, inputPath string) (int, error) {
+	_, span := gotenberg.Tracer().Start(ctx, "pdfcpu.PageCount",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(engine.spanAttrs()...),
+	)
+	defer span.End()
+
+	err := fmt.Errorf("page count with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return 0, err
+}
+
+// ReadBookmarks reads the document outline (bookmarks) of a PDF file using pdfcpu.
+func (engine *PdfCpu) ReadBookmarks(ctx context.Context, logger *slog.Logger, inputPath string) ([]gotenberg.Bookmark, error) {
+	ctx, span := gotenberg.Tracer().Start(ctx, "pdfcpu.ReadBookmarks",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(engine.spanAttrs()...),
+	)
+	defer span.End()
+
+	tmpPath := fmt.Sprintf("%s.read.json", inputPath)
+	// --force: without it, a leftover file from an interrupted run makes pdfcpu
+	// refuse, and the stale contents would then be read as this document's
+	// bookmarks.
+	args := []string{"bookmarks", "export", "--force", inputPath, tmpPath}
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		err = fmt.Errorf("create command: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+
+	defer func() {
+		err := os.Remove(tmpPath)
+		if err != nil && !os.IsNotExist(err) {
+			logger.ErrorContext(ctx, fmt.Sprintf("remove temporary bookmarks JSON file: %v", err))
+		}
+	}()
+
+	_, cmdErr := cmd.Exec()
+
+	// Check file existence and size.
+	info, statErr := os.Stat(tmpPath)
+
+	if cmdErr != nil {
+		// If the file wasn't created, or it was created but is 0 bytes,
+		// it means pdfcpu had no bookmarks to write.
+		if os.IsNotExist(statErr) || (statErr == nil && info.Size() == 0) {
+			span.SetStatus(codes.Ok, "")
+			return make([]gotenberg.Bookmark, 0), nil
+		}
+
+		// Fallback: Check the error string just in case pdfcpu failed without
+		// touching the file.
+		if strings.Contains(strings.ToLower(cmdErr.Error()), "no bookmarks") {
+			span.SetStatus(codes.Ok, "")
+			return make([]gotenberg.Bookmark, 0), nil
+		}
+		err = fmt.Errorf("read bookmarks with pdfcpu: %w", cmdErr)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+
+	// If cmd succeeded, but output a 0-byte file anyway.
+	if info != nil && info.Size() == 0 {
+		span.SetStatus(codes.Ok, "")
+		return make([]gotenberg.Bookmark, 0), nil
+	}
+
+	// Read the file content.
+	jsonBytes, err := os.ReadFile(tmpPath)
+	if err != nil {
+		err = fmt.Errorf("read temporary bookmarks JSON file: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+
+	// Check if the content is just empty whitespace.
+	if len(bytes.TrimSpace(jsonBytes)) == 0 {
+		span.SetStatus(codes.Ok, "")
+		return make([]gotenberg.Bookmark, 0), nil
+	}
+
+	var data pdfcpuBookmarks
+	err = json.Unmarshal(jsonBytes, &data)
+	if err != nil {
+		err = fmt.Errorf("unmarshal bookmarks: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+
+	// Safety check: Does the parsed JSON actually contain bookmarks?
+	if len(data.Bookmarks) == 0 {
+		span.SetStatus(codes.Ok, "")
+		return make([]gotenberg.Bookmark, 0), nil
+	}
+
+	var mapBookmarks func(bookmarks []pdfcpuBookmark) []gotenberg.Bookmark
+	mapBookmarks = func(bookmarks []pdfcpuBookmark) []gotenberg.Bookmark {
+		res := make([]gotenberg.Bookmark, len(bookmarks))
+		for i, b := range bookmarks {
+			res[i] = gotenberg.Bookmark{
+				Title:    b.Title,
+				Page:     b.Page,
+				Children: mapBookmarks(b.Children),
+			}
+		}
+		return res
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return mapBookmarks(data.Bookmarks), nil
+}
+
+// WriteBookmarks adds a document outline (bookmarks) to a PDF file using pdfcpu.
+func (engine *PdfCpu) WriteBookmarks(ctx context.Context, logger *slog.Logger, inputPath string, bookmarks []gotenberg.Bookmark) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "pdfcpu.WriteBookmarks",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(engine.spanAttrs()...),
+	)
+	defer span.End()
+
+	if len(bookmarks) == 0 {
+		span.SetStatus(codes.Ok, "")
+		return nil
+	}
+
+	var mapBookmarks func(bookmarks []gotenberg.Bookmark) []pdfcpuBookmark
+	mapBookmarks = func(bookmarks []gotenberg.Bookmark) []pdfcpuBookmark {
+		res := make([]pdfcpuBookmark, len(bookmarks))
+		for i, b := range bookmarks {
+			res[i] = pdfcpuBookmark{
+				Title:    b.Title,
+				Page:     b.Page,
+				Children: mapBookmarks(b.Children),
+			}
+		}
+		return res
+	}
+
+	data := pdfcpuBookmarks{
+		Bookmarks: mapBookmarks(bookmarks),
+	}
+
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		err = fmt.Errorf("marshal bookmarks: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	tmpPath := fmt.Sprintf("%s.json", inputPath)
+	err = os.WriteFile(tmpPath, jsonBytes, 0o600)
+	if err != nil {
+		err = fmt.Errorf("write temporary bookmarks JSON file: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	defer func() {
+		err := os.Remove(tmpPath)
+		if err != nil {
+			logger.ErrorContext(ctx, fmt.Sprintf("remove temporary bookmarks JSON file: %v", err))
+		}
+	}()
+
+	// --force: the output path is the input path, and pdfcpu refuses to
+	// overwrite an existing file without it.
+	args := []string{"bookmarks", "import", "--replace", "--force", inputPath, tmpPath, inputPath}
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		err = fmt.Errorf("create command: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	_, err = cmd.Exec()
+	if err != nil {
+		err = fmt.Errorf("write bookmarks with pdfcpu: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+// EmbedFilesMetadata is not available in this implementation.
+func (engine *PdfCpu) EmbedFilesMetadata(ctx context.Context, logger *slog.Logger, metadata map[string]map[string]string, inputPath string) error {
+	return fmt.Errorf("set embeds metadata with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
+// InjectFacturXXMP is not available in this implementation.
+func (engine *PdfCpu) InjectFacturXXMP(ctx context.Context, logger *slog.Logger, facturX gotenberg.FacturX, inputPath string) error {
+	return fmt.Errorf("inject Factur-X XMP with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
+// ReadPdfAConformance is not available in this implementation.
+func (engine *PdfCpu) ReadPdfAConformance(ctx context.Context, logger *slog.Logger, inputPath string) (string, string, error) {
+	return "", "", fmt.Errorf("read PDF/A conformance with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+}
+
+// EmbedFiles embeds files into a PDF. All files are embedded as file attachments
+// without modifying the main PDF content.
+func (engine *PdfCpu) EmbedFiles(ctx context.Context, logger *slog.Logger, filePaths []string, inputPath string) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "pdfcpu.EmbedFiles",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(engine.spanAttrs()...),
+	)
+	defer span.End()
+
+	if len(filePaths) == 0 {
+		span.SetStatus(codes.Ok, "")
+		return nil
+	}
+
+	logger.DebugContext(ctx, fmt.Sprintf("embedding %d file(s) to %s: %v", len(filePaths), inputPath, filePaths))
+
+	args := make([]string, 0, 3+len(filePaths))
+	args = append(args, "attachments", "add", inputPath)
+	args = append(args, filePaths...)
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		err = fmt.Errorf("create command for attaching files: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	_, err = cmd.Exec()
+	if err != nil {
+		err = fmt.Errorf("attach files with pdfcpu: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+// Encrypt adds password protection to a PDF file using pdfcpu.
+func (engine *PdfCpu) Encrypt(ctx context.Context, logger *slog.Logger, inputPath string, opts gotenberg.EncryptOptions) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "pdfcpu.Encrypt",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(engine.spanAttrs()...),
+	)
+	defer span.End()
+
+	ownerPassword := opts.OwnerPassword
+	if ownerPassword == "" {
+		ownerPassword = opts.UserPassword
+	}
+
+	// An empty user password is allowed: it produces an owner-only document.
+	if opts.UserPassword == "" && ownerPassword == "" {
+		err := errors.New("at least a user or owner password is required")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	// pdfcpu only supports coarse permissions: all actions or none.
+	perm := "all"
+	if opts.Permissions.Restricted() {
+		perm = "none"
+	}
+
+	args := make([]string, 0, 12)
+	args = append(args, "encrypt")
+	// --force: the output path is the input path, and pdfcpu refuses to
+	// overwrite an existing file without it.
+	args = append(args, "--force")
+	args = append(args, "--mode", "aes")
+	args = append(args, "--upw", opts.UserPassword)
+	args = append(args, "--opw", ownerPassword)
+	args = append(args, "--perm", perm)
+	args = append(args, inputPath, inputPath)
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		err = fmt.Errorf("create command: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	_, err = cmd.Exec()
+	if err != nil {
+		err = fmt.Errorf("encrypt PDF with pdfcpu: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+// Watermark applies a watermark (behind page content) to a PDF file using pdfcpu.
+func (engine *PdfCpu) Watermark(ctx context.Context, logger *slog.Logger, inputPath string, stamp gotenberg.Stamp) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "pdfcpu.Watermark",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(engine.spanAttrs()...),
+	)
+	defer span.End()
+
+	err := engine.applyStampOrWatermark(ctx, logger, "watermark", inputPath, stamp)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+// Stamp applies a stamp (on top of page content) to a PDF file using pdfcpu.
+func (engine *PdfCpu) Stamp(ctx context.Context, logger *slog.Logger, inputPath string, stamp gotenberg.Stamp) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "pdfcpu.Stamp",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(engine.spanAttrs()...),
+	)
+	defer span.End()
+
+	err := engine.applyStampOrWatermark(ctx, logger, "stamp", inputPath, stamp)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+// Rotate rotates pages of a PDF file by the given angle using pdfcpu.
+func (engine *PdfCpu) Rotate(ctx context.Context, logger *slog.Logger, inputPath string, angle int, pages string) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "pdfcpu.Rotate",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(engine.spanAttrs()...),
+	)
+	defer span.End()
+
+	// --force: the output path is the input path, and pdfcpu refuses to
+	// overwrite an existing file without it.
+	args := []string{"rotate", "--force"}
+	if pages != "" {
+		args = append(args, "--pages", pages)
+	}
+	args = append(args, "--", inputPath, strconv.Itoa(angle), inputPath)
+
+	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
+	if err != nil {
+		err = fmt.Errorf("create command: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	_, err = cmd.Exec()
+	if err != nil {
+		err = fmt.Errorf("rotate PDF with pdfcpu: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+func (engine *PdfCpu) applyStampOrWatermark(ctx context.Context, logger *slog.Logger, command string, inputPath string, stamp gotenberg.Stamp) error {
+	var mode string
+	switch stamp.Source {
+	case gotenberg.StampSourceText:
+		mode = "text"
+	case gotenberg.StampSourceImage:
+		mode = "image"
+	case gotenberg.StampSourcePDF:
+		mode = "pdf"
+	default:
+		return fmt.Errorf("%s PDF with pdfcpu: %w", command, gotenberg.ErrPdfStampSourceNotSupported)
+	}
+
+	// Build description from Options map.
+	var descParts []string
+	for k, v := range stamp.Options {
+		descParts = append(descParts, fmt.Sprintf("%s:%s", k, v))
+	}
+	description := strings.Join(descParts, ", ")
+
+	// --force: the output path is the input path, and pdfcpu refuses to
+	// overwrite an existing file without it.
+	args := []string{command, "add", "--mode", mode, "--force"}
+
+	if stamp.Pages != "" {
+		args = append(args, "--pages", stamp.Pages)
+	}
+
+	args = append(args, "--", stamp.Expression, description, inputPath, inputPath)
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
 	if err != nil {
@@ -63,26 +705,11 @@ func (engine *PdfCpu) Merge(ctx context.Context, logger *zap.Logger, inputPaths 
 	}
 
 	_, err = cmd.Exec()
-	if err == nil {
-		return nil
+	if err != nil {
+		return fmt.Errorf("%s PDF with pdfcpu: %w", command, err)
 	}
 
-	return fmt.Errorf("merge PDFs with pdfcpu: %w", err)
-}
-
-// Convert is not available in this implementation.
-func (engine *PdfCpu) Convert(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
-	return fmt.Errorf("convert PDF to '%+v' with pdfcpu: %w", formats, gotenberg.ErrPdfEngineMethodNotSupported)
-}
-
-// ReadMetadata is not available in this implementation.
-func (engine *PdfCpu) ReadMetadata(ctx context.Context, logger *zap.Logger, inputPath string) (map[string]interface{}, error) {
-	return nil, fmt.Errorf("read PDF metadata with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
-}
-
-// WriteMetadata is not available in this implementation.
-func (engine *PdfCpu) WriteMetadata(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
-	return fmt.Errorf("write PDF metadata with pdfcpu: %w", gotenberg.ErrPdfEngineMethodNotSupported)
+	return nil
 }
 
 // Interface guards.
@@ -90,5 +717,6 @@ var (
 	_ gotenberg.Module      = (*PdfCpu)(nil)
 	_ gotenberg.Provisioner = (*PdfCpu)(nil)
 	_ gotenberg.Validator   = (*PdfCpu)(nil)
+	_ gotenberg.Debuggable  = (*PdfCpu)(nil)
 	_ gotenberg.PdfEngine   = (*PdfCpu)(nil)
 )

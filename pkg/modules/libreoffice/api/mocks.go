@@ -3,19 +3,18 @@ package api
 import (
 	"context"
 	"errors"
-
-	"go.uber.org/zap"
+	"log/slog"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 // ApiMock is a mock for the [Uno] interface.
 type ApiMock struct {
-	PdfMock        func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
+	PdfMock        func(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error
 	ExtensionsMock func() []string
 }
 
-func (api *ApiMock) Pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error {
+func (api *ApiMock) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error {
 	return api.PdfMock(ctx, logger, inputPath, outputPath, options)
 }
 
@@ -37,10 +36,10 @@ type libreOfficeMock struct {
 	errCoreDumpedCount int
 
 	gotenberg.ProcessMock
-	pdfMock func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
+	pdfMock func(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error
 }
 
-func (b *libreOfficeMock) pdf(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error {
+func (b *libreOfficeMock) pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error {
 	err := b.pdfMock(ctx, logger, inputPath, outputPath, options)
 	if errors.Is(err, ErrCoreDumped) {
 		b.errCoreDumpedCount += 1

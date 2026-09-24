@@ -1,597 +1,240 @@
 package libreoffice
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
-	"errors"
+	"fmt"
+	"log/slog"
 	"net/http"
-	"slices"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/labstack/echo/v4"
-	"go.uber.org/zap"
 
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
 	libreofficeapi "github.com/gotenberg/gotenberg/v8/pkg/modules/libreoffice/api"
 )
 
-func TestConvertRoute(t *testing.T) {
+// compoundFile writes a document whose header marks it as a compound file. Over
+// an OOXML extension, that means an encrypted payload.
+func compoundFile(t *testing.T, dir, name string) string {
+	t.Helper()
+
+	content := append(
+		[]byte{0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1},
+		bytes.Repeat([]byte{0x00}, 64)...,
+	)
+
+	return writeTestFile(t, dir, name, content)
+}
+
+// zipPackage writes a minimal, unencrypted OOXML package.
+func zipPackage(t *testing.T, dir, name string) string {
+	t.Helper()
+
+	buf := new(bytes.Buffer)
+	w := zip.NewWriter(buf)
+
+	f, err := w.Create("[Content_Types].xml")
+	if err != nil {
+		t.Fatalf("create zip entry: %v", err)
+	}
+	_, err = f.Write([]byte("<Types/>"))
+	if err != nil {
+		t.Fatalf("write zip entry: %v", err)
+	}
+	err = w.Close()
+	if err != nil {
+		t.Fatalf("close zip writer: %v", err)
+	}
+
+	return writeTestFile(t, dir, name, buf.Bytes())
+}
+
+func writeTestFile(t *testing.T, dir, name string, content []byte) string {
+	t.Helper()
+
+	path := filepath.Join(dir, name)
+	err := os.WriteFile(path, content, 0o600)
+	if err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+
+	return path
+}
+
+// TestConvertRoute_FailureStatus pins the branch table that decides whether a
+// LibreOffice failure is the client's fault. See
+// https://github.com/gotenberg/gotenberg/issues/1588.
+func TestConvertRoute_FailureStatus(t *testing.T) {
+	dir := t.TempDir()
+
+	var (
+		protected   = compoundFile(t, dir, "protected_page_1.docx")
+		plain       = zipPackage(t, dir, "page_1.docx")
+		legacy      = compoundFile(t, dir, "legacy.doc")
+		corrupted   = writeTestFile(t, dir, "corrupted.docx", []byte("not a document"))
+		unreachable = filepath.Join(dir, "vanished.docx")
+	)
+
 	for _, tc := range []struct {
-		scenario               string
-		ctx                    *api.ContextMock
-		libreOffice            libreofficeapi.Uno
-		engine                 gotenberg.PdfEngine
-		expectOptions          libreofficeapi.Options
-		expectError            bool
-		expectHttpError        bool
-		expectHttpStatus       int
-		expectOutputPathsCount int
-		expectOutputPaths      []string
+		name       string
+		inputPath  string
+		values     map[string][]string
+		err        error
+		wantStatus int
+		wantBody   string
 	}{
 		{
-			scenario: "missing at least one mandatory file",
-			ctx:      &api.ContextMock{Context: new(api.Context)},
-			libreOffice: &libreofficeapi.ApiMock{ExtensionsMock: func() []string {
-				return []string{".docx"}
-			}},
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusBadRequest,
-			expectOutputPathsCount: 0,
+			name:       "encrypted document, no password",
+			inputPath:  protected,
+			err:        libreofficeapi.ErrRuntimeException,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "The document 'protected_page_1.docx' is password-protected. Provide its password in the 'password' form field.",
 		},
 		{
-			scenario: "invalid quality form field (not an integer)",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"document.docx": "/document.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"quality": {
-						"foo",
-					},
-				})
-				return ctx
-			}(),
-			libreOffice: &libreofficeapi.ApiMock{ExtensionsMock: func() []string {
-				return []string{".docx"}
-			}},
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusBadRequest,
-			expectOutputPathsCount: 0,
+			name:       "encrypted document, wrong password",
+			inputPath:  protected,
+			values:     map[string][]string{"password": {"bar"}},
+			err:        libreofficeapi.ErrRuntimeException,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "The password for the document 'protected_page_1.docx' is incorrect. Check the 'password' form field.",
 		},
 		{
-			scenario: "invalid quality form field (< 1)",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"document.docx": "/document.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"quality": {
-						"0",
-					},
-				})
-				return ctx
-			}(),
-			libreOffice: &libreofficeapi.ApiMock{ExtensionsMock: func() []string {
-				return []string{".docx"}
-			}},
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusBadRequest,
-			expectOutputPathsCount: 0,
+			name:       "unencrypted document, password supplied",
+			inputPath:  plain,
+			values:     map[string][]string{"password": {"foo"}},
+			err:        libreofficeapi.ErrUnoException,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "The document 'page_1.docx' is not password-protected. Remove the 'password' form field.",
 		},
 		{
-			scenario: "invalid quality form field (> 100)",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"document.docx": "/document.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"quality": {
-						"101",
-					},
-				})
-				return ctx
-			}(),
-			libreOffice: &libreofficeapi.ApiMock{ExtensionsMock: func() []string {
-				return []string{".docx"}
-			}},
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusBadRequest,
-			expectOutputPathsCount: 0,
+			name:       "inconclusive document, password supplied",
+			inputPath:  legacy,
+			values:     map[string][]string{"password": {"foo"}},
+			err:        libreofficeapi.ErrUnoException,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "LibreOffice could not open the document 'legacy.doc' with the given password. Check the 'password' form field, and omit it if the document is not password-protected.",
 		},
 		{
-			scenario: "invalid maxImageResolution form field (not an integer)",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"document.docx": "/document.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"maxImageResolution": {
-						"foo",
-					},
-				})
-				return ctx
-			}(),
-			libreOffice: &libreofficeapi.ApiMock{ExtensionsMock: func() []string {
-				return []string{".docx"}
-			}},
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusBadRequest,
-			expectOutputPathsCount: 0,
+			name:       "malformed page ranges",
+			inputPath:  plain,
+			values:     map[string][]string{"nativePageRanges": {"foo"}},
+			err:        libreofficeapi.ErrUnoException,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "LibreOffice could not apply the page ranges 'foo' to the document 'page_1.docx'. Check the 'nativePageRanges' form field; valid values look like '1-4', '2' or '1,3,5-7'.",
 		},
 		{
-			scenario: "invalid maxImageResolution form field (not in range)",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"document.docx": "/document.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"maxImageResolution": {
-						"1",
-					},
-				})
-				return ctx
-			}(),
-			libreOffice: &libreofficeapi.ApiMock{ExtensionsMock: func() []string {
-				return []string{".docx"}
-			}},
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusBadRequest,
-			expectOutputPathsCount: 0,
+			name:       "password evidence outranks page ranges",
+			inputPath:  protected,
+			values:     map[string][]string{"nativePageRanges": {"1-2"}},
+			err:        libreofficeapi.ErrUnoException,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "The document 'protected_page_1.docx' is password-protected. Provide its password in the 'password' form field.",
 		},
 		{
-			scenario: "invalid metadata form field",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"document.docx": "/document.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"metadata": {
-						"foo",
-					},
-				})
-				return ctx
-			}(),
-			libreOffice: &libreofficeapi.ApiMock{ExtensionsMock: func() []string {
-				return []string{".docx"}
-			}},
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusBadRequest,
-			expectOutputPathsCount: 0,
+			name:       "page ranges do not excuse a runtime exception",
+			inputPath:  plain,
+			values:     map[string][]string{"nativePageRanges": {"1-2"}},
+			err:        libreofficeapi.ErrRuntimeException,
+			wantStatus: http.StatusInternalServerError,
+			wantBody:   fmt.Sprintf(unattributableFailureMessage, "page_1.docx"),
 		},
 		{
-			scenario: "ErrPdfFormatNotSupported (nativePdfFormats)",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"document.docx": "/document.docx",
-				})
-				return ctx
-			}(),
-			libreOffice: &libreofficeapi.ApiMock{
-				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
-					return libreofficeapi.ErrInvalidPdfFormats
-				},
-				ExtensionsMock: func() []string {
-					return []string{".docx"}
-				},
-			},
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusBadRequest,
-			expectOutputPathsCount: 0,
+			name:       "nothing implicated, uno exception",
+			inputPath:  plain,
+			err:        libreofficeapi.ErrUnoException,
+			wantStatus: http.StatusInternalServerError,
+			wantBody:   fmt.Sprintf(unattributableFailureMessage, "page_1.docx"),
 		},
 		{
-			scenario: "ErrUnoException",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"document.docx": "/document.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"nativePageRanges": {
-						"foo",
-					},
-				})
-				return ctx
-			}(),
-			libreOffice: &libreofficeapi.ApiMock{
-				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
-					return libreofficeapi.ErrUnoException
-				},
-				ExtensionsMock: func() []string {
-					return []string{".docx"}
-				},
-			},
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusBadRequest,
-			expectOutputPathsCount: 0,
+			name:       "nothing implicated, runtime exception",
+			inputPath:  plain,
+			err:        libreofficeapi.ErrRuntimeException,
+			wantStatus: http.StatusInternalServerError,
+			wantBody:   fmt.Sprintf(unattributableFailureMessage, "page_1.docx"),
 		},
 		{
-			scenario: "ErrRuntimeException",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"document.docx": "/document.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"password": {
-						"invalid",
-					},
-				})
-				return ctx
-			}(),
-			libreOffice: &libreofficeapi.ApiMock{
-				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
-					return libreofficeapi.ErrRuntimeException
-				},
-				ExtensionsMock: func() []string {
-					return []string{".docx"}
-				},
-			},
-			expectError:            true,
-			expectHttpError:        true,
-			expectHttpStatus:       http.StatusBadRequest,
-			expectOutputPathsCount: 0,
+			name:       "detection cannot read the document",
+			inputPath:  unreachable,
+			err:        libreofficeapi.ErrUnoException,
+			wantStatus: http.StatusInternalServerError,
+			wantBody:   fmt.Sprintf(unattributableFailureMessage, "vanished.docx"),
 		},
 		{
-			scenario: "error from LibreOffice",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"document.docx": "/document.docx",
-				})
-				return ctx
-			}(),
-			libreOffice: &libreofficeapi.ApiMock{
-				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
-					return errors.New("foo")
-				},
-				ExtensionsMock: func() []string {
-					return []string{".docx"}
-				},
-			},
-			expectError:            true,
-			expectHttpError:        false,
-			expectOutputPathsCount: 0,
+			name:       "unreadable source",
+			inputPath:  corrupted,
+			err:        libreofficeapi.ErrIoException,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "LibreOffice could not read the document 'corrupted.docx'. Ensure the file is not corrupted and that its extension matches its actual format.",
 		},
 		{
-			scenario: "PDF engine merge error",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"document.docx":  "/document.docx",
-					"document2.docx": "/document2.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"merge": {
-						"true",
-					},
-				})
-				return ctx
-			}(),
-			libreOffice: &libreofficeapi.ApiMock{
-				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
-					return nil
-				},
-				ExtensionsMock: func() []string {
-					return []string{".docx"}
-				},
-			},
-			engine: &gotenberg.PdfEngineMock{
-				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-					return errors.New("foo")
-				},
-			},
-			expectError:            true,
-			expectHttpError:        false,
-			expectOutputPathsCount: 0,
+			name:       "rejected source",
+			inputPath:  corrupted,
+			err:        libreofficeapi.ErrIllegalArgumentException,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "LibreOffice could not read the document 'corrupted.docx'. Ensure the file is not corrupted and that its extension matches its actual format.",
 		},
 		{
-			scenario: "PDF engine convert error",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"document.docx": "/document.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"pdfa": {
-						gotenberg.PdfA1b,
-					},
-					"nativePdfFormats": {
-						"false",
-					},
-				})
-				return ctx
-			}(),
-			libreOffice: &libreofficeapi.ApiMock{
-				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
-					return nil
-				},
-				ExtensionsMock: func() []string {
-					return []string{".docx"}
-				},
-			},
-			engine: &gotenberg.PdfEngineMock{
-				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
-					return errors.New("foo")
-				},
-			},
-			expectError:            true,
-			expectHttpError:        false,
-			expectOutputPathsCount: 0,
+			name:       "unconvertible document",
+			inputPath:  corrupted,
+			err:        libreofficeapi.ErrCannotConvertException,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "LibreOffice read the document 'corrupted.docx' but could not convert it to PDF. The document may be corrupted or rely on an unsupported feature.",
 		},
 		{
-			scenario: "PDF engine write metadata error",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"document.docx": "/document.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"metadata": {
-						"{\"Creator\": \"foo\", \"Producer\": \"bar\" }",
-					},
-				})
-				return ctx
-			}(),
-			libreOffice: &libreofficeapi.ApiMock{
-				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
-					return nil
-				},
-				ExtensionsMock: func() []string {
-					return []string{".docx"}
-				},
-			},
-			engine: &gotenberg.PdfEngineMock{
-				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
-					return errors.New("foo")
-				},
-			},
-			expectError:            true,
-			expectHttpError:        false,
-			expectOutputPathsCount: 0,
+			name:       "core dumped past the retry cap",
+			inputPath:  plain,
+			err:        libreofficeapi.ErrCoreDumped,
+			wantStatus: http.StatusInternalServerError,
+			wantBody:   http.StatusText(http.StatusInternalServerError),
 		},
 		{
-			scenario: "cannot rename many files",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"document.docx":  "/document.docx",
-					"document2.docx": "/document2.docx",
-					"document2.doc":  "/document2.doc",
-				})
-				ctx.SetPathRename(&gotenberg.PathRenameMock{RenameMock: func(oldpath, newpath string) error {
-					return errors.New("cannot rename")
-				}})
-				return ctx
-			}(),
-			libreOffice: &libreofficeapi.ApiMock{
-				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
-					return nil
-				},
-				ExtensionsMock: func() []string {
-					return []string{".docx", ".doc"}
-				},
-			},
-			expectError:            true,
-			expectHttpError:        false,
-			expectOutputPathsCount: 0,
-		},
-		{
-			scenario: "cannot add output paths",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"document.docx": "/document.docx",
-				})
-				ctx.SetCancelled(true)
-				return ctx
-			}(),
-			libreOffice: &libreofficeapi.ApiMock{
-				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
-					return nil
-				},
-				ExtensionsMock: func() []string {
-					return []string{".docx"}
-				},
-			},
-			expectError:            true,
-			expectHttpError:        false,
-			expectOutputPathsCount: 0,
-		},
-		{
-			scenario: "success (single file)",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"document.docx":  "/document.docx",
-					"document2.docx": "/document2.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"quality": {
-						"100",
-					},
-					"maxImageResolution": {
-						"1200",
-					},
-					"merge": {
-						"true",
-					},
-					"pdfa": {
-						gotenberg.PdfA1b,
-					},
-					"pdfua": {
-						"true",
-					},
-					"nativePdfFormats": {
-						"false",
-					},
-					"metadata": {
-						"{\"Creator\": \"foo\", \"Producer\": \"bar\" }",
-					},
-				})
-				return ctx
-			}(),
-			libreOffice: &libreofficeapi.ApiMock{
-				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
-					return nil
-				},
-				ExtensionsMock: func() []string {
-					return []string{".docx"}
-				},
-			},
-			engine: &gotenberg.PdfEngineMock{
-				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
-					return nil
-				},
-				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-					return nil
-				},
-				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
-					return nil
-				},
-			},
-			expectError:            false,
-			expectHttpError:        false,
-			expectOutputPathsCount: 1,
-		},
-		{
-			scenario: "success (many files)",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"document.docx":  "/document.docx",
-					"document2.docx": "/document2.docx",
-					"document2.doc":  "/document2.doc",
-				})
-				ctx.SetValues(map[string][]string{
-					"pdfa": {
-						gotenberg.PdfA1b,
-					},
-					"pdfua": {
-						"true",
-					},
-					"nativePdfFormats": {
-						"false",
-					},
-					"metadata": {
-						"{\"Creator\": \"foo\", \"Producer\": \"bar\" }",
-					},
-				})
-				ctx.SetPathRename(&gotenberg.PathRenameMock{RenameMock: func(oldpath, newpath string) error {
-					return nil
-				}})
-				return ctx
-			}(),
-			libreOffice: &libreofficeapi.ApiMock{
-				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
-					return nil
-				},
-				ExtensionsMock: func() []string {
-					return []string{".docx", ".doc"}
-				},
-			},
-			engine: &gotenberg.PdfEngineMock{
-				ConvertMock: func(ctx context.Context, logger *zap.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
-					return nil
-				},
-				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
-					return nil
-				},
-				WriteMetadataMock: func(ctx context.Context, logger *zap.Logger, metadata map[string]interface{}, inputPath string) error {
-					return nil
-				},
-			},
-			expectError:            false,
-			expectHttpError:        false,
-			expectOutputPathsCount: 3,
-			expectOutputPaths:      []string{"/document.docx.pdf", "/document2.docx.pdf", "/document2.doc.pdf"},
-		},
-		{
-			scenario: "success with native PDF/A & PDF/UA",
-			ctx: func() *api.ContextMock {
-				ctx := &api.ContextMock{Context: new(api.Context)}
-				ctx.SetFiles(map[string]string{
-					"document.docx": "/document.docx",
-				})
-				ctx.SetValues(map[string][]string{
-					"pdfa": {
-						gotenberg.PdfA1b,
-					},
-					"pdfua": {
-						"true",
-					},
-				})
-				return ctx
-			}(),
-			libreOffice: &libreofficeapi.ApiMock{
-				PdfMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options libreofficeapi.Options) error {
-					return nil
-				},
-				ExtensionsMock: func() []string {
-					return []string{".docx"}
-				},
-			},
-			expectError:            false,
-			expectHttpError:        false,
-			expectOutputPathsCount: 1,
+			name:       "unmapped exit code",
+			inputPath:  plain,
+			err:        fmt.Errorf("convert to PDF: exit status 7"),
+			wantStatus: http.StatusInternalServerError,
+			wantBody:   http.StatusText(http.StatusInternalServerError),
 		},
 	} {
-		t.Run(tc.scenario, func(t *testing.T) {
-			tc.ctx.SetLogger(zap.NewNop())
-			c := echo.New().NewContext(nil, nil)
-			c.Set("context", tc.ctx.Context)
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := &api.ContextMock{Context: new(api.Context)}
+			ctx.SetDirPath(dir)
+			ctx.SetFiles(map[string]string{filepath.Base(tc.inputPath): tc.inputPath})
+			ctx.SetValues(tc.values)
+			ctx.SetLogger(slog.New(slog.DiscardHandler))
 
-			err := convertRoute(tc.libreOffice, tc.engine).Handler(c)
-
-			if tc.expectError && err == nil {
-				t.Fatal("expected error but got none", err)
+			uno := &libreofficeapi.ApiMock{
+				ExtensionsMock: func() []string {
+					return []string{".docx", ".doc"}
+				},
+				PdfMock: func(_ context.Context, _ *slog.Logger, _, _ string, _ libreofficeapi.Options) error {
+					// Mirror the wrapping done by [libreofficeapi.Api.Pdf].
+					return fmt.Errorf("supervisor run task: %w", tc.err)
+				},
 			}
 
-			if !tc.expectError && err != nil {
-				t.Fatalf("expected no error but got: %v", err)
+			c := echo.New().NewContext(
+				httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", nil),
+				httptest.NewRecorder(),
+			)
+			c.Set("context", ctx.Context)
+
+			err := convertRoute(uno, new(gotenberg.PdfEngineMock)).Handler(c)
+			if err == nil {
+				t.Fatal("expected an error, got none")
 			}
 
-			var httpErr api.HttpError
-			isHttpError := errors.As(err, &httpErr)
-
-			if tc.expectHttpError && !isHttpError {
-				t.Errorf("expected an HTTP error but got: %v", err)
+			status, message := api.ParseError(err)
+			if status != tc.wantStatus {
+				t.Errorf("status = %d, want %d (message: %s)", status, tc.wantStatus, message)
 			}
-
-			if !tc.expectHttpError && isHttpError {
-				t.Errorf("expected no HTTP error but got one: %v", httpErr)
-			}
-
-			if err != nil && tc.expectHttpError && isHttpError {
-				status, _ := httpErr.HttpError()
-				if status != tc.expectHttpStatus {
-					t.Errorf("expected %d as HTTP status code but got %d", tc.expectHttpStatus, status)
-				}
-			}
-
-			if tc.expectOutputPathsCount != len(tc.ctx.OutputPaths()) {
-				t.Errorf("expected %d output paths but got %d", tc.expectOutputPathsCount, len(tc.ctx.OutputPaths()))
-			}
-
-			for _, path := range tc.expectOutputPaths {
-				if !slices.Contains(tc.ctx.OutputPaths(), path) {
-					t.Errorf("expected '%s' in output paths %v", path, tc.ctx.OutputPaths())
-				}
+			if message != tc.wantBody {
+				t.Errorf("message =\n%s\nwant\n%s", message, tc.wantBody)
 			}
 		})
 	}

@@ -1425,36 +1425,36 @@ func TestFormData_Content(t *testing.T) {
 			scenario: "file does exist without file extension",
 			form: &FormData{
 				files: map[string]string{
-					"foo": "/tests/test/testdata/api/sample1.txt",
+					"foo": "testdata/sample.txt",
 				},
 			},
 			filename:     "foo",
 			defaultValue: "",
-			expect:       "foo",
+			expect:       "This is a text from a text file.",
 			expectError:  false,
 		},
 		{
 			scenario: "file does exist with an uppercase file extension",
 			form: &FormData{
 				files: map[string]string{
-					"foo.TXT": "/tests/test/testdata/api/sample1.txt",
+					"foo.TXT": "testdata/sample.txt",
 				},
 			},
 			filename:     "foo.txt",
 			defaultValue: "",
-			expect:       "foo",
+			expect:       "This is a text from a text file.",
 			expectError:  false,
 		},
 		{
 			scenario: "file does exist without a lowercase file extension",
 			form: &FormData{
 				files: map[string]string{
-					"foo.txt": "/tests/test/testdata/api/sample1.txt",
+					"foo.txt": "testdata/sample.txt",
 				},
 			},
 			filename:     "foo.txt",
 			defaultValue: "",
-			expect:       "foo",
+			expect:       "This is a text from a text file.",
 			expectError:  false,
 		},
 	} {
@@ -1519,33 +1519,33 @@ func TestFormData_MandatoryContent(t *testing.T) {
 			scenario: "mandatory file does exist without file extension",
 			form: &FormData{
 				files: map[string]string{
-					"foo": "/tests/test/testdata/api/sample1.txt",
+					"foo": "testdata/sample.txt",
 				},
 			},
 			filename:    "foo",
-			expect:      "foo",
+			expect:      "This is a text from a text file.",
 			expectError: false,
 		},
 		{
 			scenario: "mandatory file does exist with an uppercase file extension",
 			form: &FormData{
 				files: map[string]string{
-					"foo.TXT": "/tests/test/testdata/api/sample1.txt",
+					"foo.TXT": "testdata/sample.txt",
 				},
 			},
 			filename:    "foo.txt",
-			expect:      "foo",
+			expect:      "This is a text from a text file.",
 			expectError: false,
 		},
 		{
 			scenario: "mandatory file does exist without a lowercase file extension",
 			form: &FormData{
 				files: map[string]string{
-					"foo.txt": "/tests/test/testdata/api/sample1.txt",
+					"foo.txt": "testdata/sample.txt",
 				},
 			},
 			filename:    "foo.txt",
-			expect:      "foo",
+			expect:      "This is a text from a text file.",
 			expectError: false,
 		},
 	} {
@@ -1611,6 +1611,24 @@ func TestFormData_Paths(t *testing.T) {
 				"/b.PDF",
 			},
 			expectCount: 2,
+		},
+		{
+			scenario: "files except embeds",
+			form: &FormData{
+				files: map[string]string{
+					"foo.pdf":     "/foo.pdf",
+					"embed_1.pdf": "/embed_1.pdf",
+					"embed_2.xml": "/embed_2.xml",
+				},
+				filesByField: map[string][]string{
+					"embeds": {"/embed_1.pdf", "/embed_2.xml"},
+				},
+			},
+			extensions: []string{".pdf"},
+			expect: []string{
+				"/foo.pdf",
+			},
+			expectCount: 1,
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
@@ -1739,4 +1757,219 @@ func TestFormData_mustAssign(t *testing.T) {
 
 	var target []string
 	form.mustAssign("foo", "foo", &target)
+}
+
+func TestFormData_Embeds(t *testing.T) {
+	expected := []string{"/bar.xml", "/baz.xml"}
+
+	var actual []string
+	form := &FormData{
+		files: map[string]string{
+			"foo.pdf": "/foo.pdf",
+			"bar.xml": "/bar.xml",
+			"baz.xml": "/baz.xml",
+		},
+		filesByField: map[string][]string{
+			"embeds": {"/bar.xml", "/baz.xml"},
+		},
+	}
+	form.Embeds(&actual)
+
+	if len(actual) != len(expected) {
+		t.Errorf("expected %d embeds but got %d", len(expected), len(actual))
+	}
+
+	if !reflect.DeepEqual(actual, expected) {
+		t.Errorf("expected %v but got %v", expected, actual)
+	}
+}
+
+func TestFormData_FacturXXml(t *testing.T) {
+	for _, tc := range []struct {
+		scenario string
+		form     *FormData
+		expect   string
+	}{
+		{
+			scenario: "no facturxXml file",
+			form:     &FormData{},
+			expect:   "",
+		},
+		{
+			scenario: "facturxXml file present",
+			form: &FormData{
+				filesByField: map[string][]string{
+					FacturXXmlFormField: {"/tmp/abc/12345.xml"},
+				},
+			},
+			expect: "/tmp/abc/12345.xml",
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			var actual string
+
+			tc.form.FacturXXml(&actual)
+
+			if actual != tc.expect {
+				t.Errorf("expected %q but got %q", tc.expect, actual)
+			}
+		})
+	}
+}
+
+// TestFormData_paths_excludesFacturXXml verifies that an uploaded facturxXml is
+// never picked up as an input document by paths().
+func TestFormData_paths_excludesFacturXXml(t *testing.T) {
+	form := &FormData{
+		files: map[string]string{
+			"document.xml": "/tmp/abc/document.xml",
+			"factur-x.xml": "/tmp/abc/invoice.xml",
+		},
+		filesByField: map[string][]string{
+			FacturXXmlFormField: {"/tmp/abc/invoice.xml"},
+		},
+	}
+
+	var paths []string
+	form.paths([]string{".xml"}, &paths)
+
+	if len(paths) != 1 || paths[0] != "/tmp/abc/document.xml" {
+		t.Errorf("expected only the non-Factur-X .xml document, got %+v", paths)
+	}
+}
+
+func TestFormData_Strings(t *testing.T) {
+	form := &FormData{
+		values: map[string][]string{
+			"foo": {"a", "b", "c"},
+		},
+	}
+
+	var got []string
+	form.Strings("foo", &got)
+
+	if want := []string{"a", "b", "c"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("expected %+v, got %+v", want, got)
+	}
+
+	var missing []string
+	form.Strings("bar", &missing)
+	if missing != nil {
+		t.Errorf("expected nil for a missing key, got %+v", missing)
+	}
+}
+
+func TestFormData_Stamps(t *testing.T) {
+	form := &FormData{
+		filesByField: map[string][]string{
+			StampFormField: {"/tmp/abc/a.png", "/tmp/abc/b.pdf"},
+		},
+	}
+
+	var got []string
+	form.Stamps(&got)
+
+	if want := []string{"/tmp/abc/a.png", "/tmp/abc/b.pdf"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("expected %+v, got %+v", want, got)
+	}
+
+	empty := &FormData{}
+	var none []string
+	empty.Stamps(&none)
+	if none != nil {
+		t.Errorf("expected nil when no stamp file was uploaded, got %+v", none)
+	}
+}
+
+func TestFormData_Watermarks(t *testing.T) {
+	form := &FormData{
+		filesByField: map[string][]string{
+			WatermarkFormField: {"/tmp/abc/a.png"},
+		},
+	}
+
+	var got []string
+	form.Watermarks(&got)
+
+	if want := []string{"/tmp/abc/a.png"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("expected %+v, got %+v", want, got)
+	}
+}
+
+// De-duplicating a repeated filename must not change merge order. Files with
+// unique names keep exactly the order they had before de-duplication existed,
+// and two files sharing a name merge in the order the caller sent them.
+func TestFormData_paths_DuplicateFilenamesKeepUploadOrder(t *testing.T) {
+	for _, tc := range []struct {
+		scenario string
+		files    map[string]string
+		fileBase map[string]string
+		order    map[string]int
+		want     []string
+	}{
+		{
+			scenario: "unique names sort exactly as before",
+			files:    map[string]string{"b.pdf": "/w/2", "a.pdf": "/w/1", "c.pdf": "/w/3"},
+			fileBase: map[string]string{"/w/1": "a.pdf", "/w/2": "b.pdf", "/w/3": "c.pdf"},
+			order:    map[string]int{"/w/1": 0, "/w/2": 1, "/w/3": 2},
+			want:     []string{"/w/1", "/w/2", "/w/3"},
+		},
+		{
+			scenario: "numeric prefixes still win",
+			files:    map[string]string{"10_x.pdf": "/w/3", "2_x.pdf": "/w/2", "1_x.pdf": "/w/1"},
+			fileBase: map[string]string{"/w/1": "1_x.pdf", "/w/2": "2_x.pdf", "/w/3": "10_x.pdf"},
+			order:    map[string]int{"/w/1": 0, "/w/2": 1, "/w/3": 2},
+			want:     []string{"/w/1", "/w/2", "/w/3"},
+		},
+		{
+			scenario: "duplicates merge in upload order, not suffix order",
+			files:    map[string]string{"doc.pdf": "/w/1", "doc (2).pdf": "/w/2"},
+			fileBase: map[string]string{"/w/1": "doc.pdf", "/w/2": "doc.pdf"},
+			order:    map[string]int{"/w/1": 0, "/w/2": 1},
+			want:     []string{"/w/1", "/w/2"},
+		},
+		{
+			scenario: "duplicates stay adjacent and in position",
+			files: map[string]string{
+				"a.pdf": "/w/1", "doc.pdf": "/w/2", "doc (2).pdf": "/w/3", "z.pdf": "/w/4",
+			},
+			fileBase: map[string]string{
+				"/w/1": "a.pdf", "/w/2": "doc.pdf", "/w/3": "doc.pdf", "/w/4": "z.pdf",
+			},
+			order: map[string]int{"/w/1": 0, "/w/2": 1, "/w/3": 2, "/w/4": 3},
+			want:  []string{"/w/1", "/w/2", "/w/3", "/w/4"},
+		},
+		{
+			scenario: "three copies keep their order",
+			files:    map[string]string{"r.pdf": "/w/1", "r (2).pdf": "/w/2", "r (3).pdf": "/w/3"},
+			fileBase: map[string]string{"/w/1": "r.pdf", "/w/2": "r.pdf", "/w/3": "r.pdf"},
+			order:    map[string]int{"/w/1": 0, "/w/2": 1, "/w/3": 2},
+			want:     []string{"/w/1", "/w/2", "/w/3"},
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			form := &FormData{
+				files:        tc.files,
+				filesByField: map[string][]string{},
+				fileBase:     tc.fileBase,
+				fileOrder:    tc.order,
+			}
+
+			// Map iteration is randomised, so run it repeatedly: an unstable
+			// comparator shows up as a differing result across runs.
+			for range 50 {
+				var got []string
+				form.paths([]string{".pdf"}, &got)
+
+				if len(got) != len(tc.want) {
+					t.Fatalf("paths() returned %d entries, want %d", len(got), len(tc.want))
+				}
+				for i := range got {
+					if got[i] != tc.want[i] {
+						t.Fatalf("paths() = %v, want %v", got, tc.want)
+					}
+				}
+			}
+		})
+	}
 }

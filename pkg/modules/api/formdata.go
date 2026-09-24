@@ -1,19 +1,35 @@
 package api
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"go.uber.org/multierr"
-
 	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+)
+
+const (
+	// EmbedsFormField represents the form field name for embedding files.
+	EmbedsFormField string = "embeds"
+
+	// WatermarkFormField represents the form field name for the watermark file.
+	WatermarkFormField string = "watermark"
+
+	// StampFormField represents the form field name for the stamp file.
+	StampFormField string = "stamp"
+
+	// FacturXXmlFormField represents the form field name for the Factur-X CII
+	// invoice XML file.
+	FacturXXmlFormField string = "facturxXml"
 )
 
 // FormData is a helper for validating and hydrating values from a
@@ -21,13 +37,17 @@ import (
 //
 //	form := ctx.FormData()
 type FormData struct {
-	values map[string][]string
-	files  map[string]string
-	errors error
+	values         map[string][]string
+	files          map[string]string
+	filesByField   map[string][]string
+	diskToOriginal map[string]string
+	fileOrder      map[string]int
+	fileBase       map[string]string
+	errors         error
 }
 
 // Validate returns nil or an error related to the [FormData] values, with a
-// [SentinelHttpError] (status code 400, errors' details as message) wrapped
+// [SentinelHttpError] (status code 400, errors' details as a message) wrapped
 // inside.
 //
 //	var foo string
@@ -96,7 +116,7 @@ func (form *FormData) Int(key string, target *int, defaultValue int) *FormData {
 }
 
 // MandatoryInt binds a form field to an int variable. It populates an
-// error if the value is not int, is empty, or the "key" does not exist.
+// error if the value is not int, or is empty, or the "key" does not exist.
 //
 //	var foo int
 //
@@ -116,7 +136,7 @@ func (form *FormData) Float64(key string, target *float64, defaultValue float64)
 }
 
 // MandatoryFloat64 binds a form field to a float64 variable. It populates
-// an error if the is not float64, is empty, or the "key" does not exist.
+// an error if the value is not float64, is empty, or the "key" does not exist.
 //
 //	var foo float64
 //
@@ -136,8 +156,8 @@ func (form *FormData) Duration(key string, target *time.Duration, defaultValue t
 }
 
 // MandatoryDuration binds a form field to a time.Duration variable. It
-// populates an error if the value is not time.Duration, is empty, or the "key"
-// does not exist.
+// populates an error if the value is not time.Duration, or is empty, or the
+// "key" does not exist.
 //
 //	var foo time.Duration
 //
@@ -146,7 +166,7 @@ func (form *FormData) MandatoryDuration(key string, target *time.Duration) *Form
 	return form.mustMandatoryField(key, target)
 }
 
-// Inches binds a form field to a float64 variable. It populates an error
+// Inches bind a form field to a float64 variable. It populates an error
 // if the value cannot be computed back to inches.
 //
 //	var foo float64
@@ -303,7 +323,7 @@ func (form *FormData) Path(filename string, target *string) *FormData {
 	return form.path(filename, target)
 }
 
-// MandatoryPath binds the absolute path ofa  form data file to a string
+// MandatoryPath binds the absolute path of a form data file to a string
 // variable. It populates an error if the file does not exist.
 //
 //	var path string
@@ -348,7 +368,7 @@ func (form *FormData) MandatoryContent(filename string, target *string) *FormDat
 	return form.readFile(path, filename, target)
 }
 
-// Paths binds the absolute paths of form data files, according to a list of
+// Paths bind the absolute paths of form data files, according to a list of
 // file extensions, to a string slice variable.
 //
 //	var paths []string
@@ -356,6 +376,58 @@ func (form *FormData) MandatoryContent(filename string, target *string) *FormDat
 //	ctx.FormData().Paths([]string{".txt"}, &paths)
 func (form *FormData) Paths(extensions []string, target *[]string) *FormData {
 	return form.paths(extensions, target)
+}
+
+// Embeds binds the absolute paths of form data files that should be
+// embedded in the PDF. Only files uploaded with the "embeds" field name
+// will be included.
+//
+//	var embeds []string
+//
+//	ctx.FormData().Embeds(&embeds)
+func (form *FormData) Embeds(target *[]string) *FormData {
+	if form.errors != nil {
+		return form
+	}
+
+	// Get files from the "embeds" field
+	if paths, ok := form.filesByField[EmbedsFormField]; ok {
+		*target = append(*target, paths...)
+	}
+
+	return form
+}
+
+// EmbedsMetadata parses the "embedsMetadata" form field (a JSON string) into
+// a map keyed by filename. Each value is a map of property names to values
+// (e.g., "mimeType" and "relationship").
+//
+//	var metadata map[string]map[string]string
+//
+//	ctx.FormData().EmbedsMetadata(&metadata)
+func (form *FormData) EmbedsMetadata(target *map[string]map[string]string) *FormData {
+	if form.errors != nil {
+		return form
+	}
+
+	val, ok := form.values["embedsMetadata"]
+	if !ok || len(val) == 0 || val[0] == "" {
+		return form
+	}
+
+	raw := val[0]
+	parsed := make(map[string]map[string]string)
+
+	err := json.Unmarshal([]byte(raw), &parsed)
+	if err != nil {
+		form.append(
+			fmt.Errorf("form field 'embedsMetadata' is invalid: %w", err),
+		)
+		return form
+	}
+
+	*target = parsed
+	return form
 }
 
 // MandatoryPaths binds the absolute paths of form data files, according to a
@@ -379,37 +451,188 @@ func (form *FormData) MandatoryPaths(extensions []string, target *[]string) *For
 	return form
 }
 
-// paths binds the absolute paths of form data files, according to a list of
+// Watermark binds the absolute path of the form data file that should be
+// used as a watermark source. Only a file uploaded with the "watermark"
+// field name will be included.
+func (form *FormData) Watermark(target *string) *FormData {
+	if form.errors != nil {
+		return form
+	}
+
+	if paths, ok := form.filesByField[WatermarkFormField]; ok && len(paths) > 0 {
+		*target = paths[0]
+	}
+
+	return form
+}
+
+// Stamp binds the absolute path of the form data file that should be
+// used as a stamp source. Only a file uploaded with the "stamp"
+// field name will be included.
+func (form *FormData) Stamp(target *string) *FormData {
+	if form.errors != nil {
+		return form
+	}
+
+	if paths, ok := form.filesByField[StampFormField]; ok && len(paths) > 0 {
+		*target = paths[0]
+	}
+
+	return form
+}
+
+// Stamps binds the absolute paths of every file uploaded with the "stamp"
+// field name, in submission order. Unlike [FormData.Stamp], it keeps all of
+// them so a route can apply several stamps in a single request.
+func (form *FormData) Stamps(target *[]string) *FormData {
+	if form.errors != nil {
+		return form
+	}
+
+	if paths, ok := form.filesByField[StampFormField]; ok {
+		*target = paths
+	}
+
+	return form
+}
+
+// Watermarks binds the absolute paths of every file uploaded with the
+// "watermark" field name, in submission order. Unlike [FormData.Watermark], it
+// keeps all of them so a route can apply several watermarks in a single request.
+func (form *FormData) Watermarks(target *[]string) *FormData {
+	if form.errors != nil {
+		return form
+	}
+
+	if paths, ok := form.filesByField[WatermarkFormField]; ok {
+		*target = paths
+	}
+
+	return form
+}
+
+// Strings binds every value submitted for key, in submission order. A field
+// repeated in the multipart body (e.g. multiple "stampSource") contributes one
+// entry per occurrence, which lets a route read parallel field arrays.
+func (form *FormData) Strings(key string, target *[]string) *FormData {
+	if form.errors != nil {
+		return form
+	}
+
+	if values, ok := form.values[key]; ok {
+		*target = values
+	}
+
+	return form
+}
+
+// FacturXXml binds the absolute path of the uploaded Factur-X CII invoice
+// XML. Only a file uploaded with the "facturxXml" field name is included.
+func (form *FormData) FacturXXml(target *string) *FormData {
+	if form.errors != nil {
+		return form
+	}
+
+	if paths, ok := form.filesByField[FacturXXmlFormField]; ok && len(paths) > 0 {
+		*target = paths[0]
+	}
+
+	return form
+}
+
+// paths bind the absolute paths of form data files, according to a list of
 // file extensions, to a string slice variable.
+// embeds, watermark, stamp, and facturxXml files are excluded.
 func (form *FormData) paths(extensions []string, target *[]string) *FormData {
+	embeds, ok := form.filesByField[EmbedsFormField]
+	watermarks, wmOk := form.filesByField[WatermarkFormField]
+	stamps, stOk := form.filesByField[StampFormField]
+	facturxXmls, fxOk := form.filesByField[FacturXXmlFormField]
+
+	// Collect (originalFilename, diskPath) pairs so that we can sort by
+	// original filename rather than by UUID-based disk name.
+	// See https://github.com/gotenberg/gotenberg/issues/1500.
+	type entry struct {
+		original string
+		disk     string
+	}
+	var entries []entry
+
 	for filename, path := range form.files {
+		if ok && slices.Contains(embeds, path) {
+			continue
+		}
+
+		if wmOk && slices.Contains(watermarks, path) {
+			continue
+		}
+
+		if stOk && slices.Contains(stamps, path) {
+			continue
+		}
+
+		if fxOk && slices.Contains(facturxXmls, path) {
+			continue
+		}
+
 		for _, ext := range extensions {
 			// See https://github.com/gotenberg/gotenberg/issues/228.
 			if strings.ToLower(filepath.Ext(filename)) == ext {
-				*target = append(*target, path)
+				entries = append(entries, entry{original: filename, disk: path})
 			}
 		}
 	}
 
 	// See https://github.com/gotenberg/gotenberg/issues/139.
-	sort.Sort(gotenberg.AlphanumericSort(*target))
+	//
+	// Sort on the filename as received rather than on the map key. The key
+	// carries the suffix uniqueFilename adds when two uploads share a name,
+	// and that suffix would otherwise decide the order: "doc (2).pdf" sorts
+	// before "doc.pdf". Ordering on the received name keeps the pair adjacent,
+	// and the arrival index breaks the tie, so duplicates merge in the order
+	// the caller sent them. A file with a unique name is unaffected, since its
+	// received name and its key are the same string.
+	sort.SliceStable(entries, func(i, j int) bool {
+		nameI := form.receivedName(entries[i].disk, entries[i].original)
+		nameJ := form.receivedName(entries[j].disk, entries[j].original)
+		if nameI != nameJ {
+			return gotenberg.AlphanumericSort{nameI, nameJ}.Less(0, 1)
+		}
+
+		return form.fileOrder[entries[i].disk] < form.fileOrder[entries[j].disk]
+	})
+
+	for _, e := range entries {
+		*target = append(*target, e.disk)
+	}
 
 	return form
 }
 
+// receivedName returns the filename the file at disk arrived under, before
+// de-duplication, falling back to fallback.
+func (form *FormData) receivedName(disk, fallback string) string {
+	base, ok := form.fileBase[disk]
+	if ok {
+		return base
+	}
+
+	return fallback
+}
+
 // append adds an error to the list of errors.
 func (form *FormData) append(err error) {
-	form.errors = multierr.Append(form.errors, err)
+	form.errors = errors.Join(form.errors, err)
 }
 
 // mustValue binds the target interface with a form field. If the value is
 // empty or the "key" does not exist, it binds the default value. Currently,
 // only the string, bool, int, float64 and time.Duration types are bindable.
-func (form *FormData) mustValue(key string, target interface{}, defaultValue interface{}) *FormData {
+func (form *FormData) mustValue(key string, target any, defaultValue any) *FormData {
 	val, ok := form.values[key]
 
 	if !ok || val[0] == "" {
-		switch t := (target).(type) {
+		switch t := target.(type) {
 		case *string:
 			*t = defaultValue.(string)
 		case *bool:
@@ -434,7 +657,7 @@ func (form *FormData) mustValue(key string, target interface{}, defaultValue int
 // populates an error if the value is empty or the "key" does not exist.
 // Currently, only the string, bool, int, float64 and time.Duration types are
 // bindable.
-func (form *FormData) mustMandatoryField(key string, target interface{}) *FormData {
+func (form *FormData) mustMandatoryField(key string, target any) *FormData {
 	val, ok := form.values[key]
 
 	if !ok || val[0] == "" {
@@ -453,10 +676,10 @@ func (form *FormData) mustMandatoryField(key string, target interface{}) *FormDa
 // mustAssign parses the string value and tries to convert it to the target
 // interface real type. Currently, only the string, bool, int, float64 and
 // time.Duration types are bindable.
-func (form *FormData) mustAssign(key, value string, target interface{}) *FormData {
+func (form *FormData) mustAssign(key, value string, target any) *FormData {
 	var err error
 
-	switch t := (target).(type) {
+	switch t := target.(type) {
 	case *string:
 		*t = value
 	case *bool:

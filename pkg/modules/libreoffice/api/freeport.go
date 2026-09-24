@@ -1,14 +1,14 @@
 package api
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"strconv"
-
-	"go.uber.org/zap"
 )
 
-func freePort(logger *zap.Logger) (int, error) {
+func freePort(logger *slog.Logger) (int, error) {
 	netListener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return 0, fmt.Errorf("listen on the local network address: %w", err)
@@ -16,7 +16,7 @@ func freePort(logger *zap.Logger) (int, error) {
 	defer func() {
 		err := netListener.Close()
 		if err != nil {
-			logger.Error(fmt.Sprintf("close network listener: %s", err.Error()))
+			logger.ErrorContext(context.Background(), fmt.Sprintf("close network listener: %s", err.Error()))
 		}
 	}()
 

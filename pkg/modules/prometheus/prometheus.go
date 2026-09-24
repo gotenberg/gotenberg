@@ -20,13 +20,14 @@ func init() {
 	gotenberg.MustRegisterModule(new(Prometheus))
 }
 
-// Prometheus is a module which collects metrics and exposes them via an HTTP
+// Prometheus is a module that collects metrics and exposes them via an HTTP
 // route.
 type Prometheus struct {
-	namespace           string
-	interval            time.Duration
-	disableRouteLogging bool
-	disableCollect      bool
+	namespace             string
+	interval              time.Duration
+	disableRouteTelemetry bool
+	disableCollect        bool
+	metricsPath           string
 
 	metrics  []gotenberg.Metric
 	registry *prometheus.Registry
@@ -40,8 +41,17 @@ func (mod *Prometheus) Descriptor() gotenberg.ModuleDescriptor {
 			fs := flag.NewFlagSet("prometheus", flag.ExitOnError)
 			fs.String("prometheus-namespace", "gotenberg", "Set the namespace of modules' metrics")
 			fs.Duration("prometheus-collect-interval", time.Duration(1)*time.Second, "Set the interval for collecting modules' metrics")
-			fs.Bool("prometheus-disable-route-logging", false, "Disable the route logging")
+			fs.Bool("prometheus-disable-route-telemetry", true, "Disable telemetry for the Prometheus metrics route")
 			fs.Bool("prometheus-disable-collect", false, "Disable the collect of metrics")
+			fs.String("prometheus-metrics-path", "/prometheus/metrics", "Path for Prometheus metrics endpoint")
+
+			// Deprecated flags.
+			fs.Bool("prometheus-disable-route-logging", false, "Disable the route logging")
+
+			err := fs.MarkDeprecated("prometheus-disable-route-logging", "use --prometheus-disable-route-telemetry instead")
+			if err != nil {
+				panic(err)
+			}
 
 			return fs
 		}(),
@@ -49,13 +59,14 @@ func (mod *Prometheus) Descriptor() gotenberg.ModuleDescriptor {
 	}
 }
 
-// Provision sets the modules properties.
+// Provision sets the module properties.
 func (mod *Prometheus) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	mod.namespace = flags.MustString("prometheus-namespace")
 	mod.interval = flags.MustDuration("prometheus-collect-interval")
-	mod.disableRouteLogging = flags.MustBool("prometheus-disable-route-logging")
+	mod.disableRouteTelemetry = flags.MustDeprecatedBool("prometheus-disable-route-logging", "prometheus-disable-route-telemetry")
 	mod.disableCollect = flags.MustBool("prometheus-disable-collect")
+	mod.metricsPath = flags.MustString("prometheus-metrics-path")
 
 	if mod.disableCollect {
 		// Exit early.
@@ -96,6 +107,10 @@ func (mod *Prometheus) Validate() error {
 
 	if mod.namespace == "" {
 		return errors.New("namespace must not be empty")
+	}
+
+	if mod.metricsPath == "" {
+		return errors.New("metrics path cannot be empty")
 	}
 
 	metricsMap := make(map[string]string, len(mod.metrics))
@@ -170,9 +185,9 @@ func (mod *Prometheus) Routes() ([]api.Route, error) {
 
 	return []api.Route{
 		{
-			Method:         http.MethodGet,
-			Path:           "/prometheus/metrics",
-			DisableLogging: mod.disableRouteLogging,
+			Method:           http.MethodGet,
+			Path:             mod.metricsPath,
+			DisableTelemetry: mod.disableRouteTelemetry,
 			Handler: echo.WrapHandler(
 				promhttp.HandlerFor(mod.registry, promhttp.HandlerOpts{}),
 			),

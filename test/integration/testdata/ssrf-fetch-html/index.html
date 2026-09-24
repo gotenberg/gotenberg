@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fetch SSRF Control</title>
+  </head>
+  <body>
+    <h1>Fetch SSRF Control</h1>
+    <script type="application/javascript">
+      // Control: an ordinary fetch to a loopback address IS surfaced as a
+      // Fetch.requestPaused event and blocked by CHROMIUM_DENY_PRIVATE_IPS.
+      fetch("http://127.0.0.1:9999/ssrf-fetch").catch(() => {});
+    </script>
+  </body>
+</html>

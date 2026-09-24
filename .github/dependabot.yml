@@ -1,8 +1,26 @@
 version: 2
 updates:
-
-  # Maintain dependencies for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+  - package-ecosystem: "docker"
+    directory: "/build"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    ignore:
+      # Held at v0.14.2: v0.15.x breaks the headless print-mode paint pipeline
+      # (rAF / ResizeObserver / IntersectionObserver stop firing, blank charts).
+      # See https://github.com/gotenberg/gotenberg/issues/1535.
+      - dependency-name: "github.com/chromedp/chromedp"
+      - dependency-name: "github.com/chromedp/cdproto"
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7

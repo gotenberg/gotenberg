@@ -1,0 +1,57 @@
+meta {
+  name: Merge PDFs
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/forms/pdfengines/merge
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  files: @file(../../test/integration/testdata/page_1.pdf)
+  files: @file(../../test/integration/testdata/page_2.pdf)
+  ~flatten: false
+  ~autoIndexBookmarks: false
+  ~titleBookmarks: false
+  ~pdfa: PDF/A-1b
+  ~pdfua: true
+  ~optimizeImages: false
+  ~imageQuality: 80
+  ~metadata: {"Author":"Bruno","Title":"Test"}
+  ~bookmarks: [{"title":"Page 1","page":1},{"title":"Page 2","page":2}]
+  ~userPassword:
+  ~ownerPassword:
+  ~allowPrinting: false
+  ~allowCopying: false
+  ~allowModifying: false
+  ~allowAnnotating: false
+  ~allowFillingForms: false
+  ~allowAssembling: false
+  ~watermarkSource: text
+  ~watermarkExpression: CONFIDENTIAL
+  ~watermarkPages:
+  ~watermarkOptions: {"scale":"0.5 abs","rot":"45","fillcolor":"#FF0000"}
+  ~stampSource: text
+  ~stampExpression: DRAFT
+  ~stampPages:
+  ~stampOptions: {"scale":"0.5 abs","rot":"45"}
+  ~rotateAngle: 90
+  ~rotatePages:
+  ~facturxXml: @file(../../test/integration/testdata/embed_1.xml)
+  ~facturxConformanceLevel: EN 16931
+  ~facturxDocumentType: INVOICE
+  ~facturxVersion: 1.0
+}
+
+headers {
+  ~Gotenberg-Output-Filename: merged
+  ~Gotenberg-Webhook-Url: http://localhost:8080/webhook
+  ~Gotenberg-Webhook-Error-Url: http://localhost:8080/webhook/error
+  ~Gotenberg-Webhook-Events-Url: http://localhost:8080/webhook/events
+  ~Gotenberg-Webhook-Method: POST
+  ~Gotenberg-Webhook-Error-Method: POST
+  ~Gotenberg-Webhook-Extra-Http-Headers: {"X-Custom":"value"}
+}

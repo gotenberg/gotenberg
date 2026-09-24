@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>EventSource SSRF</title>
+  </head>
+  <body>
+    <h1>EventSource SSRF</h1>
+    <script type="application/javascript">
+      // EventSource issues an ordinary HTTP GET, so it is surfaced as a
+      // Fetch.requestPaused event and blocked by the outbound filter.
+      new EventSource("http://127.0.0.1:9999/sse");
+    </script>
+  </body>
+</html>

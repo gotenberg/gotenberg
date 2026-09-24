@@ -1,3 +1,3 @@
-// Package webhook provides a module which adds a middleware for uploading
-// output files to any destination in an asynchronous fashion.
+// Package webhook adds middleware for uploading output files to any destination
+// asynchronously.
 package webhook

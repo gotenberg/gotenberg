@@ -1,18 +1,19 @@
 package gotenberg
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"go.uber.org/zap"
+	"time"
 )
 
 // GarbageCollect scans the root path and deletes files or directories with
-// names containing specific substrings.
-func GarbageCollect(logger *zap.Logger, rootPath string, includeSubstr []string) error {
-	logger = logger.Named("gc")
+// names containing specific substrings and before a given expiration time.
+func GarbageCollect(ctx context.Context, logger *slog.Logger, rootPath string, includeSubstr []string, expirationTime time.Time) error {
+	logger = logger.With(slog.String("logger", "gc"))
 
 	// To make sure that the next Walk method stays on
 	// the root level of the considered path, we have to
@@ -36,13 +37,13 @@ func GarbageCollect(logger *zap.Logger, rootPath string, includeSubstr []string)
 		}
 
 		for _, substr := range includeSubstr {
-			if strings.Contains(info.Name(), substr) || path == substr {
-				err := os.RemoveAll(path)
+			if (strings.Contains(info.Name(), substr) || path == substr) && info.ModTime().Before(expirationTime) {
+				err := os.RemoveAll(path) //nolint:gosec // G122: rootPath is a trusted internal working directory
 				if err != nil {
 					return fmt.Errorf("garbage collect '%s': %w", path, err)
 				}
 
-				logger.Debug(fmt.Sprintf("'%s' removed", path))
+				logger.DebugContext(ctx, fmt.Sprintf("'%s' removed", path))
 
 				return skipDirOrNil(info)
 			}

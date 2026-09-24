@@ -1,0 +1,1007 @@
+@libreoffice
+@libreoffice-convert
+Feature: /forms/libreoffice/convert
+
+  Scenario: POST /forms/libreoffice/convert (Single Document)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.docx | file   |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+
+  # LibreOffice detects OOXML PowerPoint shows from content and converts them
+  # like .pptx; only Gotenberg's extension allow list gated them out.
+  # See https://github.com/gotenberg/gotenberg/pull/1626.
+  Scenario: POST /forms/libreoffice/convert (PowerPoint Show .ppsx)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/slideshow.ppsx | file   |
+      | Gotenberg-Output-Filename | foo                     | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+
+  Scenario: POST /forms/libreoffice/convert (PowerPoint Show .ppsm)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/slideshow.ppsm | file   |
+      | Gotenberg-Output-Filename | foo                     | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+
+  # A CSV becomes a single Calc sheet named after the input file, and Calc's
+  # default page style prints that sheet name as a centered header. Uploads are
+  # stored under a UUID-based filename, so the UUID must not leak into the PDF.
+  # See https://github.com/gotenberg/gotenberg/issues/1568.
+  Scenario: POST /forms/libreoffice/convert (CSV Without Sheet Name Header)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/sheet.csv | file   |
+      | Gotenberg-Output-Filename | foo                | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Alice
+      """
+    Then the "foo.pdf" PDF should NOT have content matching "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}" at page 1
+
+  Scenario: POST /forms/libreoffice/convert (Many Documents)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.docx | file   |
+      | files                     | testdata/page_2.docx | file   |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.zip         |
+      | page_1.docx.pdf |
+      | page_2.docx.pdf |
+    Then the "page_1.docx.pdf" PDF should have 1 page(s)
+    Then the "page_2.docx.pdf" PDF should have 1 page(s)
+    Then the "page_1.docx.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "page_2.docx.pdf" PDF should have the following content at page 1:
+      """
+      Page 2
+      """
+
+  # See:
+  # https://github.com/gotenberg/gotenberg/issues/104
+  # https://github.com/gotenberg/gotenberg/issues/730
+  Scenario: POST /forms/libreoffice/convert (Non-basic Latin Characters)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/Special_Chars_ß.docx | file   |
+      | Gotenberg-Output-Filename | foo                           | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+
+  Scenario: POST /forms/libreoffice/convert (Protected)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files | testdata/protected_page_1.docx | file |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      The document 'protected_page_1.docx' is password-protected. Provide its password in the 'password' form field.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files    | testdata/protected_page_1.docx | file  |
+      | password | foo                            | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
+  Scenario: POST /forms/libreoffice/convert (Landscape)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.docx | file   |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should NOT be set to landscape orientation
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.docx | file   |
+      | landscape                 | true                 | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should be set to landscape orientation
+
+  Scenario: POST /forms/libreoffice/convert (Native Page Ranges - Single Document)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/pages_3.docx | file   |
+      | nativePageRanges          | 2-3                   | field  |
+      | Gotenberg-Output-Filename | foo                   | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 2 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 2
+      """
+    Then the "foo.pdf" PDF should have the following content at page 2:
+      """
+      Page 3
+      """
+
+  Scenario: POST /forms/libreoffice/convert (Native Page Ranges - Many Documents)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/pages_3.docx  | file   |
+      | files                     | testdata/pages_12.docx | file   |
+      | nativePageRanges          | 2-3                    | field  |
+      | Gotenberg-Output-Filename | foo                    | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.zip           |
+      | pages_3.docx.pdf  |
+      | pages_12.docx.pdf |
+    Then the "pages_3.docx.pdf" PDF should have 2 page(s)
+    Then the "pages_12.docx.pdf" PDF should have 2 page(s)
+    Then the "pages_3.docx.pdf" PDF should have the following content at page 1:
+      """
+      Page 2
+      """
+    Then the "pages_3.docx.pdf" PDF should have the following content at page 2:
+      """
+      Page 3
+      """
+    Then the "pages_12.docx.pdf" PDF should have the following content at page 1:
+      """
+      Page 2
+      """
+    Then the "pages_12.docx.pdf" PDF should have the following content at page 2:
+      """
+      Page 3
+      """
+
+  Scenario: POST /forms/libreoffice/convert (Bad Request)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | landscape                       | foo | field |
+      | exportFormFields                | foo | field |
+      | allowDuplicateFieldNames        | foo | field |
+      | exportBookmarks                 | foo | field |
+      | exportBookmarksToPdfDestination | foo | field |
+      | exportPlaceholders              | foo | field |
+      | exportNotes                     | foo | field |
+      | exportNotesPages                | foo | field |
+      | exportOnlyNotesPages            | foo | field |
+      | exportNotesInMargin             | foo | field |
+      | convertOooTargetToPdfTarget     | foo | field |
+      | exportLinksRelativeFsys         | foo | field |
+      | exportHiddenSlides              | foo | field |
+      | skipEmptyPages                  | foo | field |
+      | addOriginalDocumentAsStream     | foo | field |
+      | singlePageSheets                | foo | field |
+      | initialView                     | 5   | field |
+      | initialPage                     | -1  | field |
+      | magnification                   | 9   | field |
+      | zoom                            | -1  | field |
+      | pageLayout                      | 7   | field |
+      | firstPageOnLeft                 | foo | field |
+      | resizeWindowToInitialPage       | foo | field |
+      | centerWindow                    | foo | field |
+      | openInFullScreenMode            | foo | field |
+      | displayPDFDocumentTitle         | foo | field |
+      | hideViewerMenubar               | foo | field |
+      | hideViewerToolbar               | foo | field |
+      | hideViewerWindowControls        | foo | field |
+      | useTransitionEffects            | foo | field |
+      | openBookmarkLevels              | 15  | field |
+      | losslessImageCompression        | foo | field |
+      | quality                         | -1  | field |
+      | reduceImageResolution           | foo | field |
+      | maxImageResolution              | 10  | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: no form file found for extensions: [.123 .602 .abw .bib .bmp .cdr .cgm .cmx .csv .cwk .dbf .dif .doc .docm .docx .dot .dotm .dotx .dxf .emf .eps .epub .fodg .fodp .fods .fodt .fopd .gif .htm .html .hwp .jpeg .jpg .key .ltx .lwp .mcw .met .mml .mw .numbers .odd .odg .odm .odp .ods .odt .otg .oth .otp .ots .ott .pages .pbm .pcd .pct .pcx .pdb .pdf .pgm .png .pot .potm .potx .ppm .pps .ppsm .ppsx .ppt .pptm .pptx .psd .psw .pub .pwp .pxl .ras .rtf .sda .sdc .sdd .sdp .sdw .sgl .slk .smf .stc .std .sti .stw .svg .svm .swf .sxc .sxd .sxg .sxi .sxm .sxw .tga .tif .tiff .txt .uof .uop .uos .uot .vdx .vor .vsd .vsdm .vsdx .wb2 .wk1 .wks .wmf .wpd .wpg .wps .xbm .xhtml .xls .xlsb .xlsm .xlsx .xlt .xltm .xltx .xlw .xml .xpm .zabw]
+      form field 'landscape' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'exportFormFields' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'allowDuplicateFieldNames' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'exportBookmarks' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'exportBookmarksToPdfDestination' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'exportPlaceholders' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'exportNotes' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'exportNotesPages' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'exportOnlyNotesPages' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'exportNotesInMargin' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'convertOooTargetToPdfTarget' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'exportLinksRelativeFsys' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'exportHiddenSlides' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'skipEmptyPages' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'addOriginalDocumentAsStream' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'singlePageSheets' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'initialView' is invalid (got '5', resulting to value is not 0, 1 or 2)
+      form field 'initialPage' is invalid (got '-1', resulting to value is inferior to 1)
+      form field 'magnification' is invalid (got '9', resulting to value is not 0, 1, 2, 3 or 4)
+      form field 'zoom' is invalid (got '-1', resulting to value is inferior to 1)
+      form field 'pageLayout' is invalid (got '7', resulting to value is not 0, 1, 2 or 3)
+      form field 'firstPageOnLeft' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'resizeWindowToInitialPage' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'centerWindow' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'openInFullScreenMode' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'displayPDFDocumentTitle' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'hideViewerMenubar' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'hideViewerToolbar' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'hideViewerWindowControls' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'useTransitionEffects' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'openBookmarkLevels' is invalid (got '15', resulting to value is not -1 or between 1 and 10)
+      form field 'losslessImageCompression' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'quality' is invalid (got '-1', resulting to value is inferior to 1)
+      form field 'reduceImageResolution' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'maxImageResolution' is invalid (got '10', resulting to value is not 75, 150, 300, 600 or 1200)
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files            | testdata/page_1.docx | file  |
+      | nativePageRanges | foo                  | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      LibreOffice could not apply the page ranges 'foo' to the document 'page_1.docx'. Check the 'nativePageRanges' form field; valid values look like '1-4', '2' or '1,3,5-7'.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files    | testdata/page_1.docx | file  |
+      | password | foo                  | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      The document 'page_1.docx' is not password-protected. Remove the 'password' form field.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files    | testdata/protected_page_1.docx | file  |
+      | password | bar                            | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      The password for the document 'protected_page_1.docx' is incorrect. Check the 'password' form field.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files | testdata/page_1.docx | file  |
+      | files | testdata/page_2.docx | file  |
+      | merge | foo                  | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'merge' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files     | testdata/pages_3.docx | file  |
+      | splitMode | foo                   | field |
+      | splitSpan | 2                     | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'splitMode' is invalid (got 'foo', resulting to wrong value, expected either 'intervals' or 'pages')
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files     | testdata/pages_3.docx | file  |
+      | splitMode | intervals             | field |
+      | splitSpan | foo                   | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'splitSpan' is invalid (got 'foo', resulting to strconv.Atoi: parsing "foo": invalid syntax)
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files     | testdata/pages_3.docx | file  |
+      | splitMode | pages                 | field |
+      | splitSpan | foo                   | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      The requested split mode is not supported, or no PDF engine could process it. Valid modes: 'intervals', 'pages'.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files | testdata/pages_3.docx | file  |
+      | pdfa  | foo                   | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      The PDF format 'foo' is not supported. Valid formats include PDF/A-1b, PDF/A-2b, PDF/A-3b, and PDF/UA.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files | testdata/page_1.docx | file  |
+      | pdfua | foo                  | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'pdfua' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files    | testdata/page_1.docx | file  |
+      | metadata | foo                  | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'metadata' is invalid (got 'foo', resulting to unmarshal metadata: invalid character 'o' in literal false (expecting 'a'))
+      """
+
+  @merge
+  Scenario: POST /forms/libreoffice/convert (Merge)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.docx | file   |
+      | files                     | testdata/page_2.docx | file   |
+      | merge                     | true                 | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 2 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "foo.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
+
+  @merge
+  @split
+  Scenario: POST /forms/libreoffice/convert (Merge & Split)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files     | testdata/page_1.docx | file  |
+      | files     | testdata/page_2.docx | file  |
+      | merge     | true                 | field |
+      | splitMode | intervals            | field |
+      | splitSpan | 1                    | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | *_0.pdf |
+      | *_1.pdf |
+    Then the "*_0.pdf" PDF should have 1 page(s)
+    Then the "*_1.pdf" PDF should have 1 page(s)
+    Then the "*_0.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "*_1.pdf" PDF should have the following content at page 1:
+      """
+      Page 2
+      """
+
+  @split
+  Scenario: POST /forms/libreoffice/convert (Split Intervals)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files     | testdata/pages_3.docx | file  |
+      | splitMode | intervals             | field |
+      | splitSpan | 2                     | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | pages_3.docx_0.pdf |
+      | pages_3.docx_1.pdf |
+    Then the "pages_3.docx_0.pdf" PDF should have 2 page(s)
+    Then the "pages_3.docx_1.pdf" PDF should have 1 page(s)
+    Then the "pages_3.docx_0.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "pages_3.docx_0.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
+    Then the "pages_3.docx_1.pdf" PDF should have the following content at page 1:
+      """
+      Page 3
+      """
+
+  @split
+  Scenario: POST /forms/libreoffice/convert (Split Pages)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files     | testdata/pages_3.docx | file  |
+      | splitMode | pages                 | field |
+      | splitSpan | 2-                    | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | pages_3.docx_0.pdf |
+      | pages_3.docx_1.pdf |
+    Then the "pages_3.docx_0.pdf" PDF should have 1 page(s)
+    Then the "pages_3.docx_1.pdf" PDF should have 1 page(s)
+    Then the "pages_3.docx_0.pdf" PDF should have the following content at page 1:
+      """
+      Page 2
+      """
+    Then the "pages_3.docx_1.pdf" PDF should have the following content at page 1:
+      """
+      Page 3
+      """
+
+  @split
+  Scenario: POST /forms/libreoffice/convert (Split Pages & Unify)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files      | testdata/pages_3.docx | file  |
+      | splitMode  | pages                 | field |
+      | splitSpan  | 2-                    | field |
+      | splitUnify | true                  | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | pages_3.docx.pdf |
+    Then the "pages_3.docx.pdf" PDF should have 2 page(s)
+    Then the "pages_3.docx.pdf" PDF should have the following content at page 1:
+      """
+      Page 2
+      """
+    Then the "pages_3.docx.pdf" PDF should have the following content at page 2:
+      """
+      Page 3
+      """
+
+  @split
+  Scenario: POST /forms/libreoffice/convert (Split Many PDFs - Lot of Pages)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files     | testdata/pages_12.docx | file  |
+      | files     | testdata/pages_3.docx  | file  |
+      | splitMode | intervals              | field |
+      | splitSpan | 1                      | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 15 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | pages_3.docx_0.pdf   |
+      | pages_3.docx_1.pdf   |
+      | pages_3.docx_2.pdf   |
+      | pages_12.docx_0.pdf  |
+      | pages_12.docx_1.pdf  |
+      | pages_12.docx_2.pdf  |
+      | pages_12.docx_3.pdf  |
+      | pages_12.docx_4.pdf  |
+      | pages_12.docx_5.pdf  |
+      | pages_12.docx_6.pdf  |
+      | pages_12.docx_7.pdf  |
+      | pages_12.docx_8.pdf  |
+      | pages_12.docx_9.pdf  |
+      | pages_12.docx_10.pdf |
+      | pages_12.docx_11.pdf |
+    Then the "pages_3.docx_0.pdf" PDF should have 1 page(s)
+    Then the "pages_3.docx_2.pdf" PDF should have 1 page(s)
+    Then the "pages_12.docx_0.pdf" PDF should have 1 page(s)
+    Then the "pages_12.docx_11.pdf" PDF should have 1 page(s)
+    Then the "pages_3.docx_0.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "pages_3.docx_2.pdf" PDF should have the following content at page 1:
+      """
+      Page 3
+      """
+    Then the "pages_12.docx_0.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "pages_12.docx_11.pdf" PDF should have the following content at page 1:
+      """
+      Page 12
+      """
+
+  @convert
+  Scenario: POST /forms/libreoffice/convert (PDF/A-1b & PDF/UA-1)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files | testdata/page_1.docx | file  |
+      | pdfa  | PDF/A-1b             | field |
+      | pdfua | true                 | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
+
+  @split
+  @convert
+  Scenario: POST /forms/libreoffice/convert (Split & PDF/A-1b & PDF/UA-1)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files     | testdata/pages_3.docx | file  |
+      | splitMode | intervals             | field |
+      | splitSpan | 2                     | field |
+      | pdfa      | PDF/A-1b              | field |
+      | pdfua     | true                  | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 2 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | pages_3.docx_0.pdf |
+      | pages_3.docx_1.pdf |
+    Then the "pages_3.docx_0.pdf" PDF should have 2 page(s)
+    Then the "pages_3.docx_1.pdf" PDF should have 1 page(s)
+    Then the "pages_3.docx_0.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "pages_3.docx_0.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
+    Then the "pages_3.docx_1.pdf" PDF should have the following content at page 1:
+      """
+      Page 3
+      """
+    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
+
+  @metadata
+  Scenario: POST /forms/libreoffice/convert (Metadata)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.docx                                                                                                                                                                                                                                                                                      | file   |
+      | metadata                  | {"Author":"Julien Neuhart","Copyright":"Julien Neuhart","CreateDate":"2006-09-18T16:27:50-04:00","Creator":"Gotenberg","Keywords":["first","second"],"Marked":true,"ModDate":"2006-09-18T16:27:50-04:00","PDFVersion":1.7,"Producer":"Gotenberg","Subject":"Sample","Title":"Sample","Trapped":"Unknown"} | field  |
+      | Gotenberg-Output-Filename | foo                                                                                                                                                                                                                                                                                                       | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/read" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/json"
+    Then the response body should match JSON:
+      """
+      {
+        "foo.pdf": {
+          "Author": "Julien Neuhart",
+          "Copyright": "Julien Neuhart",
+          "CreateDate": "2006:09:18 16:27:50-04:00",
+          "Creator": "Gotenberg",
+          "Keywords": ["first", "second"],
+          "Marked": true,
+          "ModDate": "2006:09:18 16:27:50-04:00",
+          "PDFVersion": 1.7,
+          "Producer": "Gotenberg",
+          "Subject": "Sample",
+          "Title": "Sample",
+          "Trapped": "Unknown"
+        }
+      }
+      """
+
+  @flatten
+  Scenario: POST /forms/libreoffice/convert (Flatten)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files   | testdata/page_1.docx | file  |
+      | flatten | true                 | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be flatten
+
+  @encrypt
+  Scenario: POST /forms/libreoffice/convert (Encrypt - user password only)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files        | testdata/page_1.docx | file  |
+      | userPassword | foo                  | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be encrypted
+
+  @encrypt
+  Scenario: POST /forms/libreoffice/convert (Encrypt - both user and owner passwords)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files         | testdata/page_1.docx | file  |
+      | userPassword  | foo                  | field |
+      | ownerPassword | bar                  | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be encrypted
+
+  @watermark
+  Scenario: POST /forms/libreoffice/convert (Watermark - Text)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files               | testdata/page_1.docx | file  |
+      | watermarkSource     | text                 | field |
+      | watermarkExpression | CONFIDENTIAL         | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
+  @stamp
+  Scenario: POST /forms/libreoffice/convert (Stamp - Text)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files           | testdata/page_1.docx | file  |
+      | stampSource     | text                 | field |
+      | stampExpression | DRAFT                | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
+  @rotate
+  Scenario: POST /forms/libreoffice/convert (Rotate 90)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files       | testdata/page_1.docx | file  |
+      | rotateAngle | 90                   | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
+  @watermark
+  Scenario: POST /forms/libreoffice/convert (Native Watermark - Text)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files               | testdata/page_1.docx | file  |
+      | nativeWatermarkText | CONFIDENTIAL         | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
+  @watermark
+  Scenario: POST /forms/libreoffice/convert (Native Watermark - Text with Options)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                      | testdata/page_1.docx | file  |
+      | nativeWatermarkText        | DRAFT                | field |
+      | nativeWatermarkColor       | 16711680             | field |
+      | nativeWatermarkFontHeight  | 48                   | field |
+      | nativeWatermarkRotateAngle | 450                  | field |
+      | nativeWatermarkFontName    | Courier              | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
+  @watermark
+  Scenario: POST /forms/libreoffice/convert (Native Watermark - Tiled)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                    | testdata/page_1.docx | file  |
+      | nativeTiledWatermarkText | CONFIDENTIAL         | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
+  @embed
+  Scenario: POST /forms/libreoffice/convert (Embeds)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.docx | file   |
+      | embeds                    | testdata/embed_1.xml | file   |
+      | embeds                    | testdata/embed_2.xml | file   |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the response PDF(s) should have the "embed_1.xml" file embedded
+    Then the response PDF(s) should have the "embed_2.xml" file embedded
+
+  # A Factur-X request supplies the invoice XML via facturxXml plus the
+  # facturxConformanceLevel; Gotenberg owns the PDF/A-3, the Alternative
+  # relationship, and the canonical factur-x.xml name. No explicit pdfa here
+  # exercises the automatic PDF/A-3b default for a source document.
+  @convert
+  @factur-x
+  Scenario: POST /forms/libreoffice/convert (Factur-X / ZUGFeRD)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.docx | file   |
+      | facturxXml                | testdata/embed_1.xml | file   |
+      | facturxConformanceLevel   | EN 16931             | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 0 failed rule(s)
+    Then the response PDF(s) should have the "factur-x.xml" file embedded with relationship "Alternative"
+    Then the response PDF(s) should declare Factur-X XMP with conformance level "EN 16931"
+
+  # The base PDF is already PDF/A-3b: detection keeps it as-is, no reconversion.
+  @factur-x
+  Scenario: POST /forms/pdfengines/factur-x (Standalone, already PDF/A-3)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.docx | file   |
+      | pdfa                      | PDF/A-3b             | field  |
+      | Gotenberg-Output-Filename | base                 | header |
+    Then the response status code should be 200
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/factur-x" endpoint with the following form data and header(s):
+      | files                     | teststore/base.pdf   | file   |
+      | facturxXml                | testdata/embed_1.xml | file   |
+      | facturxConformanceLevel   | BASIC                | field  |
+      | facturxDocumentType       | ORDER                | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 0 failed rule(s)
+    Then the response PDF(s) should have the "factur-x.xml" file embedded with relationship "Alternative"
+    Then the response PDF(s) should declare Factur-X XMP with conformance level "BASIC"
+
+  # The base PDF is not PDF/A: detection converts it to PDF/A-3b automatically.
+  @factur-x
+  Scenario: POST /forms/pdfengines/factur-x (Standalone, converts non-PDF/A input)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.docx | file   |
+      | Gotenberg-Output-Filename | plain                | header |
+    Then the response status code should be 200
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/factur-x" endpoint with the following form data and header(s):
+      | files                     | teststore/plain.pdf  | file   |
+      | facturxXml                | testdata/embed_1.xml | file   |
+      | facturxConformanceLevel   | EN 16931             | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 0 failed rule(s)
+    Then the response PDF(s) should have the "factur-x.xml" file embedded with relationship "Alternative"
+    Then the response PDF(s) should declare Factur-X XMP with conformance level "EN 16931"
+
+  # facturxConformanceLevel without facturxXml is a half-specified request.
+  @factur-x
+  Scenario: POST /forms/pdfengines/factur-x (Bad Request)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/factur-x" endpoint with the following form data and header(s):
+      | files                   | testdata/page_1.pdf | file  |
+      | facturxConformanceLevel | EN 16931            | field |
+    Then the response status code should be 400
+
+  # FIXME: once decrypt is done, add encrypt and check after the content of the PDF.
+  @convert
+  @metadata
+  @watermark
+  @stamp
+  @rotate
+  @flatten
+  @embed
+  Scenario: POST /forms/libreoffice/convert (PDF/A-3b & PDF/UA-1 & Metadata & Watermark & Stamp & Rotate & Flatten & Embeds)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.docx                                                                                                                                                                                                                                                                                      | file   |
+      | pdfa                      | PDF/A-3b                                                                                                                                                                                                                                                                                                  | field  |
+      | pdfua                     | true                                                                                                                                                                                                                                                                                                      | field  |
+      | metadata                  | {"Author":"Julien Neuhart","Copyright":"Julien Neuhart","CreateDate":"2006-09-18T16:27:50-04:00","Creator":"Gotenberg","Keywords":["first","second"],"Marked":true,"ModDate":"2006-09-18T16:27:50-04:00","PDFVersion":1.7,"Producer":"Gotenberg","Subject":"Sample","Title":"Sample","Trapped":"Unknown"} | field  |
+      | watermarkSource           | text                                                                                                                                                                                                                                                                                                      | field  |
+      | watermarkExpression       | CONFIDENTIAL                                                                                                                                                                                                                                                                                              | field  |
+      | stampSource               | text                                                                                                                                                                                                                                                                                                      | field  |
+      | stampExpression           | DRAFT                                                                                                                                                                                                                                                                                                     | field  |
+      | rotateAngle               | 90                                                                                                                                                                                                                                                                                                        | field  |
+      | flatten                   | true                                                                                                                                                                                                                                                                                                      | field  |
+      | embeds                    | testdata/embed_1.xml                                                                                                                                                                                                                                                                                      | file   |
+      | embeds                    | testdata/embed_2.xml                                                                                                                                                                                                                                                                                      | file   |
+      | Gotenberg-Output-Filename | foo                                                                                                                                                                                                                                                                                                       | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 5 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
+    Then the response PDF(s) should be flatten
+    Then the response PDF(s) should have the "embed_1.xml" file embedded
+    Then the response PDF(s) should have the "embed_2.xml" file embedded
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/read" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/json"
+    Then the response body should match JSON:
+      """
+      {
+        "foo.pdf": {
+          "Author": "Julien Neuhart",
+          "Copyright": "Julien Neuhart",
+          "Creator": "Gotenberg",
+          "Marked": true,
+          "PDFVersion": 1.7,
+          "Producer": "Gotenberg",
+          "Subject": "Sample",
+          "Title": "Sample",
+          "Trapped": "Unknown"
+        }
+      }
+      """
+
+  Scenario: POST /forms/libreoffice/convert (Routes Disabled)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | LIBREOFFICE_DISABLE_ROUTES | true |
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files | testdata/page_1.docx | file |
+    Then the response status code should be 404
+
+  Scenario: POST /forms/libreoffice/convert (Gotenberg Trace)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files           | testdata/page_1.docx      | file   |
+      | Gotenberg-Trace | forms_libreoffice_convert | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then the response header "Gotenberg-Trace" should be "forms_libreoffice_convert"
+    Then the Gotenberg container should log the following entries:
+      | "correlation_id":"forms_libreoffice_convert" |
+
+  @download-from
+  Scenario: POST /forms/libreoffice/convert (Download From)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | downloadFrom | [{"url":"http://host.docker.internal:%d/static/testdata/page_1.docx","extraHttpHeaders":{"X-Foo":"bar"}}] | field |
+    Then the response status code should be 200
+    Then the file request header "X-Foo" should be "bar"
+    Then the response header "Content-Type" should be "application/pdf"
+
+  @webhook
+  Scenario: POST /forms/libreoffice/convert (Webhook)
+    Given I have a default Gotenberg container
+    Given I have a webhook server
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                       | testdata/page_1.docx                         | file   |
+      | Gotenberg-Output-Filename   | foo                                          | header |
+      | Gotenberg-Webhook-Url       | http://host.docker.internal:%d/webhook       | header |
+      | Gotenberg-Webhook-Error-Url | http://host.docker.internal:%d/webhook/error | header |
+    Then the response status code should be 204
+    When I wait for the asynchronous request to the webhook
+    Then the webhook request header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the webhook request
+    Then there should be the following file(s) in the webhook request:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+
+  Scenario: POST /forms/libreoffice/convert (Basic Auth)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | API_ENABLE_BASIC_AUTH             | true |
+      | GOTENBERG_API_BASIC_AUTH_USERNAME | foo  |
+      | GOTENBERG_API_BASIC_AUTH_PASSWORD | bar  |
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files | testdata/page_1.docx | file |
+    Then the response status code should be 401
+
+  Scenario: POST /foo/forms/libreoffice/convert (Root Path)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | API_ENABLE_DEBUG_ROUTE | true  |
+      | API_ROOT_PATH          | /foo/ |
+    When I make a "POST" request to Gotenberg at the "/foo/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files | testdata/page_1.docx | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+
+  Scenario: POST /forms/libreoffice/convert (stampSource=pdf without uploaded stamp file => 400)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files           | testdata/page_1.docx | file  |
+      | stampSource     | pdf                  | field |
+      | stampExpression | /etc/hostname        | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: a stamp file is required for image or pdf source
+      """
+
+  Scenario: POST /forms/libreoffice/convert (watermarkSource=pdf without uploaded watermark file => 400)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files               | testdata/page_1.docx | file  |
+      | watermarkSource     | pdf                  | field |
+      | watermarkExpression | /etc/hostname        | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: a watermark file is required for image or pdf source
+      """
+
+  # See: https://github.com/gotenberg/gotenberg/issues/1500.
+  Scenario: POST /forms/libreoffice/convert (Long Filename)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/Longitudinell_jämförelse_mellan_laserkirurgi_och_strålbehandling_gällande_röstkvalitet_och_självskattad_kommunikation_upp_till_två_år_efter_tidig_stämbandscancer_i_ett_randomiserat_kontrollerat_försök.docx | file   |
+      | Gotenberg-Output-Filename | foo                                                                                                                                                                                                                    | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF should have 1 page(s)
+
+  # An embedded image is stored inside the document, not linked, so blocking
+  # untrusted linked content leaves it untouched. Guards against over-blocking.
+  @libreoffice-ssrf
+  Scenario: POST /forms/libreoffice/convert (Embedded Image Survives)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/libreoffice-embedded-image.fodt | file   |
+      | Gotenberg-Output-Filename | foo                                      | header |
+    Then the response status code should be 200
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF should have 1 image(s)
+
+  # An uploaded document always loads from an untrusted location, so soffice
+  # refuses to resolve any content it links (absolute file:// path or external
+  # URL). Closes the SSRF and local-file-read vector.
+  @libreoffice-ssrf
+  Scenario: POST /forms/libreoffice/convert (Linked External Resource Blocked)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/libreoffice-linked-external.fodt | file   |
+      | Gotenberg-Output-Filename | foo                                       | header |
+    Then the response status code should be 200
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF should have 0 image(s)
+
+  # The workbook was saved scrolled down to row 37. Without the topLeftCell
+  # reset, SinglePageSheets would start the page there and drop the header rows,
+  # so the "Meteor" column header only appears when the whole sheet is rendered.
+  # See https://github.com/gotenberg/gotenberg/issues/1222.
+  Scenario: POST /forms/libreoffice/convert (SinglePageSheets renders a scrolled workbook in full)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/singlepagesheets-scrolled.xlsx | file   |
+      | singlePageSheets          | true                                    | field  |
+      | Gotenberg-Output-Filename | foo                                     | header |
+    Then the response status code should be 200
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF should have content matching "Meteor" at page 1

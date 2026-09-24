@@ -2,40 +2,28 @@
 
 ## Supported Versions
 
-Please ensure to keep your environment up-to-date and use only the latest version of Gotenberg. 
-Security updates and patches will be applied only to the most recent version.
+Only the latest version receives security updates and patches. Keep your environment up to date.
 
 ## Reporting a Vulnerability
 
-Your help in identifying vulnerabilities in our project is much appreciated. 
-We take all reports regarding security seriously.
+Do not publish vulnerabilities publicly. Report them through [GitHub's private vulnerability reporting](https://github.com/gotenberg/gotenberg/security/advisories/new).
 
-If you discover a security vulnerability, please refrain from publishing it publicly. 
-Instead, kindly send us the details via email to *neuhart [dot] julien [at] gmail [dot] com*.
+Include:
 
-In the subject of your email, please indicate that it's a security vulnerability report for Gotenberg. 
-In your message, please include:
+- A detailed description of the vulnerability.
+- Steps to reproduce the issue.
+- Potential impact on users or the system.
 
-* A detailed description of the vulnerability.
-* The steps to reproduce the issue.
-* Any potential impact of the vulnerability on the users or system.
-
-Please remember that this process is done in a *'best-effort'* manner. 
-This means we strive to respond and act as quickly as possible, but the speed may vary depending on the severity of
-the issue and our resources.
-
-Thank you in advance for helping to keep our project safe!
+This process is handled on a best-effort basis. Response speed may vary depending on severity and available resources.
 
 ## Disclosure Policy
 
-Once we have received your vulnerability report, we will work to validate and reproduce the issue. 
-If we can confirm the vulnerability, we will proceed to:
+Once a report is received and confirmed:
 
-* Work on a fix and a release timeline.
-* Notify you when the fix has been implemented and released.
-* Credit you for discovering the vulnerability (unless you request anonymity).
-* Please note that we will do our best to keep you informed about the progress towards resolving the issue.
+- A fix and release timeline will be prepared.
+- The reporter will be notified when the fix is released.
+- The reporter will be credited for the discovery (unless anonymity is requested).
 
 ## Comments on this Policy
 
-If you have suggestions on how this process could be improved, please submit a pull request.
+Submit a pull request with suggestions for improving this process.
