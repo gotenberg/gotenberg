@@ -269,6 +269,9 @@ type Options struct {
 	// PdfFormats allows to convert the resulting PDF to PDF/A-1b, PDF/A-2b,
 	// PDF/A-3b and PDF/UA.
 	PdfFormats gotenberg.PdfFormats
+
+	// OutputFormat is the format LibreOffice converts to: "pdf" or "xlsx".
+	OutputFormat string
 }
 
 // DefaultOptions returns the default values for Options.
@@ -322,6 +325,7 @@ func DefaultOptions() Options {
 			PdfA:  "",
 			PdfUa: false,
 		},
+		OutputFormat: "pdf",
 	}
 }
 

@@ -103,6 +103,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				nativePdfFormats                bool
 				merge                           bool
 				flatten                         bool
+				outputFormat                    string
 			)
 
 			err := form.
@@ -312,6 +313,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				Bool("nativePdfFormats", &nativePdfFormats, true).
 				Bool("merge", &merge, false).
 				Bool("flatten", &flatten, false).
+				String("outputFormat", &outputFormat, defaultOptions.OutputFormat).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -350,7 +352,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 
 			outputPaths := make([]string, len(inputPaths))
 			for i, inputPath := range inputPaths {
-				outputPaths[i] = ctx.GeneratePath(".pdf")
+				outputPaths[i] = ctx.GeneratePath("." + outputFormat)
 				options := libreofficeapi.Options{
 					Password:                        password,
 					Landscape:                       landscape,
@@ -396,6 +398,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					NativeWatermarkRotateAngle:      nativeWatermarkRotateAngle,
 					NativeWatermarkFontName:         nativeWatermarkFontName,
 					NativeTiledWatermarkText:        nativeTiledWatermarkText,
+					OutputFormat:                    outputFormat,
 				}
 
 				if nativePdfFormats && splitMode == zeroValuedSplitMode && !hasPostProcessing {
@@ -465,6 +468,16 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 
 					return fmt.Errorf("convert to PDF: %w", err)
 				}
+			}
+
+			// Every step below is PDF-only.
+			if outputFormat != "pdf" {
+				err = ctx.AddOutputPaths(outputPaths...)
+				if err != nil {
+					return fmt.Errorf("add output paths: %w", err)
+				}
+
+				return nil
 			}
 
 			if merge {

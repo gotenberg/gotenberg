@@ -314,10 +314,15 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *slog.Logger, input
 		inputPath = resetCalcScrollPosition(ctx, logger, inputPath)
 	}
 
+	outputFormat := options.OutputFormat
+	if outputFormat == "" {
+		outputFormat = "pdf"
+	}
+
 	args := []string{
 		"--no-launch",
 		"--format",
-		"pdf",
+		outputFormat,
 	}
 
 	args = append(args, "--port", fmt.Sprintf("%d", p.socketPort))
