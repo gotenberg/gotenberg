@@ -4,7 +4,9 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -227,6 +229,157 @@ func TestConvertRoute_FailureStatus(t *testing.T) {
 			err := convertRoute(uno, new(gotenberg.PdfEngineMock)).Handler(c)
 			if err == nil {
 				t.Fatal("expected an error, got none")
+			}
+
+			status, message := api.ParseError(err)
+			if status != tc.wantStatus {
+				t.Errorf("status = %d, want %d (message: %s)", status, tc.wantStatus, message)
+			}
+			if message != tc.wantBody {
+				t.Errorf("message =\n%s\nwant\n%s", message, tc.wantBody)
+			}
+		})
+	}
+}
+
+// TestConvertRoute_Variables pins how the route applies the 'variables' form
+// field before handing the document to LibreOffice.
+func TestConvertRoute_Variables(t *testing.T) {
+	dir := t.TempDir()
+
+	var (
+		protected = compoundFile(t, dir, "protected.docx")
+		corrupted = writeTestFile(t, dir, "corrupted.docx", []byte("not a document"))
+		sheet     = writeTestFile(t, dir, "sheet.csv", []byte("a,b"))
+	)
+
+	buf := new(bytes.Buffer)
+	w := zip.NewWriter(buf)
+	f, err := w.Create("word/document.xml")
+	if err != nil {
+		t.Fatalf("create zip entry: %v", err)
+	}
+	_, err = f.Write([]byte(`<w:p><w:r><w:t>${legal_address}</w:t></w:r></w:p>`))
+	if err != nil {
+		t.Fatalf("write zip entry: %v", err)
+	}
+	err = w.Close()
+	if err != nil {
+		t.Fatalf("close zip writer: %v", err)
+	}
+	document := writeTestFile(t, dir, "contract.docx", buf.Bytes())
+
+	// Returned by the PDF mock once it has checked its input, so the test
+	// stops before the post-processing steps.
+	errConverted := errors.New("converted")
+
+	for _, tc := range []struct {
+		name       string
+		inputPaths []string
+		variables  string
+		wantErr    error
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:       "rewritten copy reaches LibreOffice",
+			inputPaths: []string{document},
+			variables:  `{"legal_address":"221B Baker Street"}`,
+			wantErr:    errConverted,
+		},
+		{
+			name:       "invalid JSON",
+			inputPaths: []string{document},
+			variables:  `foo`,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   `Invalid form data: form field 'variables' is invalid (got 'foo', resulting to value is not a JSON object with string values, like {"legal_address":"221B Baker Street"}: invalid character 'o' in literal false (expecting 'a'))`,
+		},
+		{
+			name:       "invalid variable name",
+			inputPaths: []string{document},
+			variables:  `{"b":"x","a b":"y"}`,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   `Invalid form data: form field 'variables' is invalid (got '{"b":"x","a b":"y"}', resulting to variable name 'a b' is invalid: use letters, digits, '_', '.' or '-', starting with a letter or '_')`,
+		},
+		{
+			name:       "unsupported document",
+			inputPaths: []string{document, sheet},
+			variables:  `{"legal_address":"foo"}`,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "The 'variables' form field only applies to Word documents (.docx, .docm, .dotx, .dotm), but 'sheet.csv' is not one. Remove the 'variables' form field or convert 'sheet.csv' in a separate request.",
+		},
+		{
+			name:       "password-protected document",
+			inputPaths: []string{protected},
+			variables:  `{"legal_address":"foo"}`,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "The 'variables' form field cannot be applied to the password-protected document 'protected.docx'. Remove the document's password protection, or remove the 'variables' form field.",
+		},
+		{
+			name:       "corrupted document",
+			inputPaths: []string{corrupted},
+			variables:  `{"legal_address":"foo"}`,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "Gotenberg could not apply the 'variables' form field to the document 'corrupted.docx'. Ensure the file is not corrupted and that its extension matches its actual format.",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := &api.ContextMock{Context: new(api.Context)}
+			ctx.SetDirPath(dir)
+			files := make(map[string]string)
+			for _, p := range tc.inputPaths {
+				files[filepath.Base(p)] = p
+			}
+			ctx.SetFiles(files)
+			ctx.SetValues(map[string][]string{"variables": {tc.variables}})
+			ctx.SetLogger(slog.New(slog.DiscardHandler))
+
+			uno := &libreofficeapi.ApiMock{
+				ExtensionsMock: func() []string {
+					return []string{".docx", ".csv"}
+				},
+				PdfMock: func(_ context.Context, _ *slog.Logger, inputPath, _ string, _ libreofficeapi.Options) error {
+					if inputPath == document {
+						return errors.New("LibreOffice received the original document")
+					}
+					r, err := zip.OpenReader(inputPath)
+					if err != nil {
+						return fmt.Errorf("open rewritten document: %w", err)
+					}
+					defer r.Close()
+					rc, err := r.File[0].Open()
+					if err != nil {
+						return fmt.Errorf("open rewritten part: %w", err)
+					}
+					defer rc.Close()
+					data, err := io.ReadAll(rc)
+					if err != nil {
+						return fmt.Errorf("read rewritten part: %w", err)
+					}
+					want := `<w:p><w:r><w:t xml:space="preserve">221B Baker Street</w:t></w:r></w:p>`
+					if string(data) != want {
+						return fmt.Errorf("rewritten part = %s, want %s", data, want)
+					}
+					return errConverted
+				},
+			}
+
+			c := echo.New().NewContext(
+				httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", nil),
+				httptest.NewRecorder(),
+			)
+			c.Set("context", ctx.Context)
+
+			err := convertRoute(uno, new(gotenberg.PdfEngineMock)).Handler(c)
+			if err == nil {
+				t.Fatal("expected an error, got none")
+			}
+
+			if tc.wantErr != nil {
+				if !errors.Is(err, tc.wantErr) {
+					t.Fatalf("err = %v, want %v", err, tc.wantErr)
+				}
+				return
 			}
 
 			status, message := api.ParseError(err)

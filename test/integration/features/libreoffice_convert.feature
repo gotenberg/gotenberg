@@ -1005,3 +1005,48 @@ Feature: /forms/libreoffice/convert
     Then the response status code should be 200
     Then there should be 1 PDF(s) in the response
     Then the "foo.pdf" PDF should have content matching "Meteor" at page 1
+
+  Scenario: POST /forms/libreoffice/convert (Variables)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/variables.docx                                                                                                   | file   |
+      | variables                 | {"company_name":"Smith & Sons <Ltd>","legal_address":"221B Baker Street\\nLondon NW1 6XE","contract_number":"C-2026-042"} | field  |
+      | Gotenberg-Output-Filename | foo                                                                                                                       | header |
+    Then the response status code should be 200
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF should have content matching "Company: Smith & Sons <Ltd>" at page 1
+    Then the "foo.pdf" PDF should have content matching "Address: 221B Baker Street\n+London NW1 6XE \(registered\)" at page 1
+    Then the "foo.pdf" PDF should have content matching "Contract C-2026-042" at page 1
+    Then the "foo.pdf" PDF should have content matching "Unknown: \$\{not_provided\}" at page 1
+    Then the "foo.pdf" PDF should NOT have content matching "legal_address" at page 1
+
+  Scenario: POST /forms/libreoffice/convert (Variables - Bad Request)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files     | testdata/variables.docx | file  |
+      | variables | foo                     | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should contain string:
+      """
+      form field 'variables' is invalid
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files     | testdata/variables.docx | file  |
+      | variables | {"legal address":"foo"} | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should contain string:
+      """
+      form field 'variables' is invalid (got '{"legal address":"foo"}', resulting to variable name 'legal address' is invalid: use letters, digits, '_', '.' or '-', starting with a letter or '_')
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files     | testdata/page_1.docx    | file  |
+      | files     | testdata/sheet.csv      | file  |
+      | variables | {"legal_address":"foo"} | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      The 'variables' form field only applies to Word documents (.docx, .docm, .dotx, .dotm), but 'sheet.csv' is not one. Remove the 'variables' form field or convert 'sheet.csv' in a separate request.
+      """

@@ -1,11 +1,13 @@
 package libreoffice
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/labstack/echo/v5"
 
@@ -103,6 +105,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				nativePdfFormats                bool
 				merge                           bool
 				flatten                         bool
+				variables                       map[string]string
 			)
 
 			err := form.
@@ -312,9 +315,47 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				Bool("nativePdfFormats", &nativePdfFormats, true).
 				Bool("merge", &merge, false).
 				Bool("flatten", &flatten, false).
+				Custom("variables", func(value string) error {
+					if value == "" {
+						return nil
+					}
+					err := json.Unmarshal([]byte(value), &variables)
+					if err != nil {
+						return fmt.Errorf(`value is not a JSON object with string values, like {"legal_address":"221B Baker Street"}: %w`, err)
+					}
+					// Sorted so that the reported name is deterministic.
+					names := make([]string, 0, len(variables))
+					for name := range variables {
+						names = append(names, name)
+					}
+					slices.Sort(names)
+					for _, name := range names {
+						err = libreofficeapi.ValidateVariableName(name)
+						if err != nil {
+							return err
+						}
+					}
+					return nil
+				}).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			if len(variables) > 0 {
+				for _, inputPath := range inputPaths {
+					if libreofficeapi.SupportsVariables(inputPath) {
+						continue
+					}
+					filename := ctx.OriginalFilename(inputPath)
+					return api.WrapError(
+						fmt.Errorf("variables with unsupported document '%s'", filename),
+						api.NewSentinelHttpError(
+							http.StatusBadRequest,
+							fmt.Sprintf("The 'variables' form field only applies to Word documents (%s), but '%s' is not one. Remove the 'variables' form field or convert '%s' in a separate request.", strings.Join(libreofficeapi.VariablesExtensions(), ", "), filename, filename),
+						),
+					)
+				}
 			}
 
 			err = pdfengines.BindWatermarkFiles(watermarks, watermarkFiles)
@@ -405,7 +446,34 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					options.PdfFormats = pdfFormats
 				}
 
-				err = libreOffice.Pdf(ctx, ctx.Log(), inputPath, outputPaths[i], options)
+				// The rewritten copy is only fed to LibreOffice: inputPath keeps
+				// resolving to the original filename for output naming.
+				conversionPath := inputPath
+				if len(variables) > 0 {
+					conversionPath, err = libreofficeapi.ApplyVariables(inputPath, variables)
+					if err != nil {
+						filename := ctx.OriginalFilename(inputPath)
+
+						if errors.Is(err, libreofficeapi.ErrVariablesPasswordProtected) {
+							return api.WrapError(
+								fmt.Errorf("apply variables: %w", err),
+								api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("The 'variables' form field cannot be applied to the password-protected document '%s'. Remove the document's password protection, or remove the 'variables' form field.", filename)),
+							)
+						}
+
+						if errors.Is(err, libreofficeapi.ErrVariablesInvalidDocument) {
+							return api.WrapError(
+								fmt.Errorf("apply variables: %w", err),
+								api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Gotenberg could not apply the 'variables' form field to the document '%s'. Ensure the file is not corrupted and that its extension matches its actual format.", filename)),
+							)
+						}
+
+						return fmt.Errorf("apply variables: %w", err)
+					}
+					ctx.Log().DebugContext(ctx, fmt.Sprintf("applied %d variable(s) to '%s'", len(variables), ctx.OriginalFilename(inputPath)))
+				}
+
+				err = libreOffice.Pdf(ctx, ctx.Log(), conversionPath, outputPaths[i], options)
 				if err != nil {
 					if errors.Is(err, libreofficeapi.ErrInvalidPdfFormats) {
 						return api.WrapError(
