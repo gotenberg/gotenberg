@@ -12,7 +12,7 @@ require (
 	github.com/gomarkdown/markdown v0.0.0-20260824154242-13c5cf49db8d
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
-	github.com/labstack/echo/v5 v5.3.1
+	github.com/labstack/echo/v5 v5.4.0
 	github.com/labstack/gommon v0.5.0
 	github.com/mholt/archives v0.1.5
 	github.com/microcosm-cc/bluemonday v1.0.27
