@@ -154,6 +154,7 @@ NO_CONCURRENCY=false
 # chromium
 # chromium-concurrent
 # chromium-convert-html
+# chromium-image-deduplication
 # chromium-convert-markdown
 # chromium-convert-url
 # chromium-screenshot-html

@@ -1799,6 +1799,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have the following content at page (\d+):$`, s.thePdfShouldHaveTheFollowingContentAtPage)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have content matching "([^"]*)" at page (\d+)$`, s.thePdfShouldHaveContentMatchingAtPage)
 	ctx.Then(`^the "([^"]*)" PDF should have (\d+) image\(s\)$`, s.thePdfShouldHaveImages)
+	ctx.Then(`^the "([^"]*)" PDF should reuse (\d+) image XObject\(s\) across (\d+) page\(s\)$`, s.thePdfShouldReuseImageXObjects)
 	ctx.Then(`^the "([^"]*)" image should be (\d+)x(\d+) pixels$`, s.theImageShouldBePixels)
 	ctx.Then(`^the "([^"]*)" image pixel at (\d+),(\d+) should be "([^"]*)"$`, s.theImagePixelShouldBe)
 	ctx.Then(`^the "([^"]*)" file size should be (less|greater) than (\d+) KB$`, s.theFileSizeShouldBe)
