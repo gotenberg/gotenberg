@@ -266,6 +266,10 @@ type Options struct {
 	// NativeTiledWatermarkText specifies the tiled watermark text.
 	NativeTiledWatermarkText string
 
+	// GenerateTaggedPdf specifies whether to generate a tagged (accessible)
+	// PDF without declaring PDF/UA conformance. PdfFormats.PdfUa implies it.
+	GenerateTaggedPdf bool
+
 	// PdfFormats allows to convert the resulting PDF to PDF/A-1b, PDF/A-2b,
 	// PDF/A-3b and PDF/UA.
 	PdfFormats gotenberg.PdfFormats
@@ -318,6 +322,7 @@ func DefaultOptions() Options {
 		NativeWatermarkRotateAngle:      0,
 		NativeWatermarkFontName:         "Helvetica",
 		NativeTiledWatermarkText:        "",
+		GenerateTaggedPdf:               false,
 		PdfFormats: gotenberg.PdfFormats{
 			PdfA:  "",
 			PdfUa: false,
