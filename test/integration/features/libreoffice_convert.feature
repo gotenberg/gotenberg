@@ -142,6 +142,24 @@ Feature: /forms/libreoffice/convert
       | foo.pdf |
     Then the "foo.pdf" PDF should be set to landscape orientation
 
+  Scenario: POST /forms/libreoffice/convert (Tagged PDF)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.docx | file   |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should NOT be tagged
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.docx | file   |
+      | generateTaggedPdf         | true                 | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should be tagged
+
   Scenario: POST /forms/libreoffice/convert (Native Page Ranges - Single Document)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
@@ -215,6 +233,7 @@ Feature: /forms/libreoffice/convert
       | skipEmptyPages                  | foo | field |
       | addOriginalDocumentAsStream     | foo | field |
       | singlePageSheets                | foo | field |
+      | generateTaggedPdf               | foo | field |
       | initialView                     | 5   | field |
       | initialPage                     | -1  | field |
       | magnification                   | 9   | field |
@@ -255,6 +274,7 @@ Feature: /forms/libreoffice/convert
       form field 'skipEmptyPages' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
       form field 'addOriginalDocumentAsStream' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
       form field 'singlePageSheets' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'generateTaggedPdf' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
       form field 'initialView' is invalid (got '5', resulting to value is not 0, 1 or 2)
       form field 'initialPage' is invalid (got '-1', resulting to value is inferior to 1)
       form field 'magnification' is invalid (got '9', resulting to value is not 0, 1, 2, 3 or 4)

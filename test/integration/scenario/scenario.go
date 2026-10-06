@@ -1795,6 +1795,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the (response|webhook request) PDF\(s\) should declare Factur-X XMP with conformance level "([^"]*)"$`, s.thePdfsShouldDeclareFacturXConformanceLevel)
 	ctx.Then(`^the "([^"]*)" PDF should have (\d+) page\(s\)$`, s.thePdfShouldHavePages)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) be set to landscape orientation$`, s.thePdfShouldBeSetToLandscapeOrientation)
+	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) be tagged$`, s.thePdfShouldBeTagged)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have a document outline$`, s.thePdfShouldHaveADocumentOutline)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have the following content at page (\d+):$`, s.thePdfShouldHaveTheFollowingContentAtPage)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have content matching "([^"]*)" at page (\d+)$`, s.thePdfShouldHaveContentMatchingAtPage)

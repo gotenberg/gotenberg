@@ -75,6 +75,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				skipEmptyPages                  bool
 				addOriginalDocumentAsStream     bool
 				singlePageSheets                bool
+				generateTaggedPdf               bool
 				losslessImageCompression        bool
 				quality                         int
 				reduceImageResolution           bool
@@ -126,6 +127,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				Bool("skipEmptyPages", &skipEmptyPages, defaultOptions.SkipEmptyPages).
 				Bool("addOriginalDocumentAsStream", &addOriginalDocumentAsStream, defaultOptions.AddOriginalDocumentAsStream).
 				Bool("singlePageSheets", &singlePageSheets, defaultOptions.SinglePageSheets).
+				Bool("generateTaggedPdf", &generateTaggedPdf, defaultOptions.GenerateTaggedPdf).
 				Custom("initialView", func(value string) error {
 					if value == "" {
 						initialView = defaultOptions.InitialView
@@ -396,6 +398,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					NativeWatermarkRotateAngle:      nativeWatermarkRotateAngle,
 					NativeWatermarkFontName:         nativeWatermarkFontName,
 					NativeTiledWatermarkText:        nativeTiledWatermarkText,
+					GenerateTaggedPdf:               generateTaggedPdf,
 				}
 
 				if nativePdfFormats && splitMode == zeroValuedSplitMode && !hasPostProcessing {

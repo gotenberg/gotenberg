@@ -437,7 +437,7 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *slog.Logger, input
 		args = append(
 			args,
 			"--export", "PDFUACompliance=false",
-			"--export", "UseTaggedPDF=false",
+			"--export", fmt.Sprintf("UseTaggedPDF=%t", options.GenerateTaggedPdf),
 			"--export", "EnableTextAccessForAccessibilityTools=false",
 		)
 	}
