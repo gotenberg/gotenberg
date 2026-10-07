@@ -269,6 +269,22 @@ func TestConvertRoute_Variables(t *testing.T) {
 	}
 	document := writeTestFile(t, dir, "contract.docx", buf.Bytes())
 
+	buf = new(bytes.Buffer)
+	w = zip.NewWriter(buf)
+	f, err = w.Create("word/document.xml")
+	if err != nil {
+		t.Fatalf("create zip entry: %v", err)
+	}
+	_, err = f.Write([]byte(`<w:tbl><w:tr><w:tc><w:p><w:r><w:t>${a.x} ${b.x}</w:t></w:r></w:p></w:tc></w:tr></w:tbl>`))
+	if err != nil {
+		t.Fatalf("write zip entry: %v", err)
+	}
+	err = w.Close()
+	if err != nil {
+		t.Fatalf("close zip writer: %v", err)
+	}
+	table := writeTestFile(t, dir, "table.docx", buf.Bytes())
+
 	// Returned by the PDF mock once it has checked its input, so the test
 	// stops before the post-processing steps.
 	errConverted := errors.New("converted")
@@ -292,7 +308,7 @@ func TestConvertRoute_Variables(t *testing.T) {
 			inputPaths: []string{document},
 			variables:  `foo`,
 			wantStatus: http.StatusBadRequest,
-			wantBody:   `Invalid form data: form field 'variables' is invalid (got 'foo', resulting to value is not a JSON object with string values, like {"legal_address":"221B Baker Street"}: invalid character 'o' in literal false (expecting 'a'))`,
+			wantBody:   `Invalid form data: form field 'variables' is invalid (got 'foo', resulting to value is not a JSON object, like {"legal_address":"221B Baker Street"}: invalid character 'o' in literal false (expecting 'a'))`,
 		},
 		{
 			name:       "invalid variable name",
@@ -300,6 +316,20 @@ func TestConvertRoute_Variables(t *testing.T) {
 			variables:  `{"b":"x","a b":"y"}`,
 			wantStatus: http.StatusBadRequest,
 			wantBody:   `Invalid form data: form field 'variables' is invalid (got '{"b":"x","a b":"y"}', resulting to variable name 'a b' is invalid: use letters, digits, '_', '.' or '-', starting with a letter or '_')`,
+		},
+		{
+			name:       "invalid list",
+			inputPaths: []string{document},
+			variables:  `{"items":[{"name":1}]}`,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   `Invalid form data: form field 'variables' is invalid (got '{"items":[{"name":1}]}', resulting to variable 'items' is invalid: use a string, or an array of objects with string values to repeat a table row)`,
+		},
+		{
+			name:       "table row with two lists",
+			inputPaths: []string{table},
+			variables:  `{"a":[{"x":"1"}],"b":[{"x":"2"}]}`,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "A table row of the document 'table.docx' uses the fields of more than one list from the 'variables' form field. Use the fields of a single list per table row.",
 		},
 		{
 			name:       "unsupported document",

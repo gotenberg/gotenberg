@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -118,7 +120,7 @@ func TestValidateVariableName(t *testing.T) {
 		{name: "a}", expectError: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			err := ValidateVariableName(tc.name)
+			err := validateVariableName(tc.name)
 			if tc.expectError != (err != nil) {
 				t.Errorf("expected error %t, got %v", tc.expectError, err)
 			}
@@ -197,7 +199,7 @@ func TestApplyVariables(t *testing.T) {
 				t.Fatalf("write input: %v", err)
 			}
 
-			outputPath, err := ApplyVariables(inputPath, map[string]string{"a": "1", "b": "2"})
+			outputPath, err := ApplyVariables(inputPath, Variables{Values: map[string]string{"a": "1", "b": "2"}})
 			if tc.expectError != nil {
 				if !errors.Is(err, tc.expectError) {
 					t.Fatalf("expected error %v, got %v", tc.expectError, err)
@@ -268,4 +270,260 @@ func readZip(t *testing.T, path string) map[string]string {
 	}
 
 	return parts
+}
+
+func TestParseVariables(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		raw         string
+		expect      Variables
+		expectError string
+	}{
+		{
+			scenario: "empty",
+			raw:      "",
+		},
+		{
+			scenario: "values and lists",
+			raw:      `{"company":"Smith","items":[{"name":"Router","qty":"2"},{}],"none":[]}`,
+			expect: Variables{
+				Values: map[string]string{"company": "Smith"},
+				Lists: map[string][]map[string]string{
+					"items": {{"name": "Router", "qty": "2"}, {}},
+					"none":  {},
+				},
+			},
+		},
+		{
+			scenario:    "not a JSON object",
+			raw:         `foo`,
+			expectError: `value is not a JSON object, like {"legal_address":"221B Baker Street"}: invalid character 'o' in literal false (expecting 'a')`,
+		},
+		{
+			scenario:    "invalid name",
+			raw:         `{"b":"x","a b":"y"}`,
+			expectError: "variable name 'a b' is invalid: use letters, digits, '_', '.' or '-', starting with a letter or '_'",
+		},
+		{
+			scenario:    "number value",
+			raw:         `{"a":1}`,
+			expectError: "variable 'a' is invalid: use a string, or an array of objects with string values to repeat a table row",
+		},
+		{
+			scenario:    "null value",
+			raw:         `{"a":null}`,
+			expectError: "variable 'a' is invalid: use a string, or an array of objects with string values to repeat a table row",
+		},
+		{
+			scenario:    "list of strings",
+			raw:         `{"a":["x"]}`,
+			expectError: "variable 'a' is invalid: use a string, or an array of objects with string values to repeat a table row",
+		},
+		{
+			scenario:    "list with a null element",
+			raw:         `{"a":[null]}`,
+			expectError: "variable 'a' is invalid: use a string, or an array of objects with string values to repeat a table row",
+		},
+		{
+			scenario:    "list with a non-string field",
+			raw:         `{"a":[{"x":1}]}`,
+			expectError: "variable 'a' is invalid: use a string, or an array of objects with string values to repeat a table row",
+		},
+		{
+			scenario:    "list name with a dot",
+			raw:         `{"a.b":[]}`,
+			expectError: "list name 'a.b' is invalid: a list name cannot contain '.'",
+		},
+		{
+			scenario:    "field name with a dot",
+			raw:         `{"a":[{"x.y":"1"}]}`,
+			expectError: "field name 'x.y' of list 'a' is invalid: a field name cannot contain '.'",
+		},
+		{
+			scenario:    "invalid field name",
+			raw:         `{"a":[{"x y":"1"}]}`,
+			expectError: "list 'a': variable name 'x y' is invalid: use letters, digits, '_', '.' or '-', starting with a letter or '_'",
+		},
+		{
+			scenario:    "value shadowing a list field",
+			raw:         `{"a":[],"a.x":"1"}`,
+			expectError: "variable 'a.x' is ambiguous: 'a' is a list, and 'a.' refers to its fields",
+		},
+		{
+			scenario:    "too many elements",
+			raw:         `{"a":[` + strings.Repeat("{},", maxVariableListRows) + `{}]}`,
+			expectError: "list 'a' has 10001 elements: the maximum is 10000",
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			variables, err := ParseVariables(tc.raw)
+			if tc.expectError != "" {
+				if err == nil || err.Error() != tc.expectError {
+					t.Fatalf("expected error\n%s\ngot\n%v", tc.expectError, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+			if !reflect.DeepEqual(variables, tc.expect) {
+				t.Errorf("expected %+v, got %+v", tc.expect, variables)
+			}
+		})
+	}
+}
+
+func TestExpandPartRows(t *testing.T) {
+	cell := func(text string) string {
+		return `<w:tc><w:p><w:r><w:t>` + text + `</w:t></w:r></w:p></w:tc>`
+	}
+	preserved := func(text string) string {
+		return `<w:tc><w:p><w:r><w:t xml:space="preserve">` + text + `</w:t></w:r></w:p></w:tc>`
+	}
+	header := `<w:tr><w:trPr><w:tblHeader/></w:trPr>` + cell("Name") + `</w:tr>`
+
+	lists := map[string][]map[string]string{
+		"items": {{"name": "Router", "qty": "2"}, {"name": "Cable & co", "qty": "5"}},
+		"none":  {},
+		"other": {{"name": "x", "_index": "A"}},
+	}
+
+	for _, tc := range []struct {
+		scenario      string
+		part          string
+		expectChanged bool
+		expectPart    string
+		expectError   error
+	}{
+		{
+			scenario:      "one row per element",
+			part:          `<w:tbl>` + header + `<w:tr><w:trPr><w:trHeight w:val="300"/></w:trPr>` + cell("${items._index}") + cell("${items.name}") + cell("${items.qty} pcs") + `</w:tr></w:tbl>`,
+			expectChanged: true,
+			expectPart: `<w:tbl>` + header +
+				`<w:tr><w:trPr><w:trHeight w:val="300"/></w:trPr>` + preserved("1") + preserved("Router") + preserved("2 pcs") + `</w:tr>` +
+				`<w:tr><w:trPr><w:trHeight w:val="300"/></w:trPr>` + preserved("2") + preserved("Cable &amp; co") + preserved("5 pcs") + `</w:tr>` +
+				`</w:tbl>`,
+		},
+		{
+			scenario:      "empty list removes the row",
+			part:          `<w:tbl>` + header + `<w:tr>` + cell("${none.name}") + `</w:tr></w:tbl>`,
+			expectChanged: true,
+			expectPart:    `<w:tbl>` + header + `</w:tbl>`,
+		},
+		{
+			scenario:      "placeholder split across runs",
+			part:          `<w:tbl><w:tr><w:tc><w:p><w:r><w:t>$</w:t></w:r><w:r><w:t>{items.</w:t></w:r><w:r><w:t>name}</w:t></w:r></w:p></w:tc></w:tr></w:tbl>`,
+			expectChanged: true,
+			expectPart: `<w:tbl>` +
+				`<w:tr><w:tc><w:p><w:r><w:t xml:space="preserve">Router</w:t></w:r><w:r><w:t xml:space="preserve"></w:t></w:r><w:r><w:t xml:space="preserve"></w:t></w:r></w:p></w:tc></w:tr>` +
+				`<w:tr><w:tc><w:p><w:r><w:t xml:space="preserve">Cable &amp; co</w:t></w:r><w:r><w:t xml:space="preserve"></w:t></w:r><w:r><w:t xml:space="preserve"></w:t></w:r></w:p></w:tc></w:tr>` +
+				`</w:tbl>`,
+		},
+		{
+			scenario:      "unknown field and plain variable stay",
+			part:          `<w:tbl><w:tr>` + cell("${items.name} ${items.unknown} ${currency}") + `</w:tr></w:tbl>`,
+			expectChanged: true,
+			expectPart: `<w:tbl>` +
+				`<w:tr>` + preserved("Router ${items.unknown} ${currency}") + `</w:tr>` +
+				`<w:tr>` + preserved("Cable &amp; co ${items.unknown} ${currency}") + `</w:tr>` +
+				`</w:tbl>`,
+		},
+		{
+			scenario:      "element overrides the index",
+			part:          `<w:tbl><w:tr>` + cell("${other._index}") + `</w:tr></w:tbl>`,
+			expectChanged: true,
+			expectPart:    `<w:tbl><w:tr>` + preserved("A") + `</w:tr></w:tbl>`,
+		},
+		{
+			scenario:      "nested row repeats without repeating its parent",
+			part:          `<w:tbl><w:tr><w:tc><w:p><w:r><w:t>outer</w:t></w:r></w:p><w:tbl><w:tr>` + cell("${items.name}") + `</w:tr></w:tbl><w:p/></w:tc></w:tr></w:tbl>`,
+			expectChanged: true,
+			expectPart:    `<w:tbl><w:tr><w:tc><w:p><w:r><w:t>outer</w:t></w:r></w:p><w:tbl><w:tr>` + preserved("Router") + `</w:tr><w:tr>` + preserved("Cable &amp; co") + `</w:tr></w:tbl><w:p/></w:tc></w:tr></w:tbl>`,
+		},
+		{
+			scenario:      "no list placeholder in a row",
+			part:          `<w:tbl><w:tr>` + cell("${company} ${unknown.name}") + `</w:tr></w:tbl><w:p><w:r><w:t>${items.name}</w:t></w:r></w:p>`,
+			expectChanged: false,
+		},
+		{
+			scenario:    "two lists in one row",
+			part:        `<w:tbl><w:tr>` + cell("${items.name}") + cell("${other.name}") + `</w:tr></w:tbl>`,
+			expectError: ErrVariablesMixedLists,
+		},
+		{
+			scenario:      "unbalanced rows leave the part untouched",
+			part:          `<w:tbl><w:tr>` + cell("${items.name}") + `</w:tbl>`,
+			expectChanged: false,
+		},
+		{
+			scenario:      "stray row end leaves the part untouched",
+			part:          `<w:tbl></w:tr><w:tr>` + cell("${items.name}") + `</w:tr></w:tbl>`,
+			expectChanged: false,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			out, changed, err := expandPartRows([]byte(tc.part), lists)
+			if tc.expectError != nil {
+				if !errors.Is(err, tc.expectError) {
+					t.Fatalf("expected error %v, got %v", tc.expectError, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+			if changed != tc.expectChanged {
+				t.Fatalf("expected changed %t, got %t", tc.expectChanged, changed)
+			}
+			if changed && string(out) != tc.expectPart {
+				t.Errorf("expected\n%s\ngot\n%s", tc.expectPart, out)
+			}
+		})
+	}
+}
+
+func TestApplyVariables_Lists(t *testing.T) {
+	row := func(text string) string {
+		return `<w:tr><w:tc><w:p><w:r><w:t>` + text + `</w:t></w:r></w:p></w:tc></w:tr>`
+	}
+	document := buildZip(t, map[string]string{
+		"word/document.xml": `<w:document><w:body><w:tbl>` + row("${items.name} ${currency}") + `</w:tbl></w:body></w:document>`,
+	})
+
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "in.docx")
+	err := os.WriteFile(inputPath, document, 0o600)
+	if err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+
+	outputPath, err := ApplyVariables(inputPath, Variables{
+		Values: map[string]string{"currency": "USD"},
+		Lists:  map[string][]map[string]string{"items": {{"name": "a"}, {"name": "b"}}},
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	preserved := func(text string) string {
+		return `<w:tr><w:tc><w:p><w:r><w:t xml:space="preserve">` + text + `</w:t></w:r></w:p></w:tc></w:tr>`
+	}
+	expect := `<w:document><w:body><w:tbl>` + preserved("a USD") + preserved("b USD") + `</w:tbl></w:body></w:document>`
+	got := readZip(t, outputPath)["word/document.xml"]
+	if got != expect {
+		t.Errorf("expected\n%s\ngot\n%s", expect, got)
+	}
+
+	// A list that only repeats rows, without any plain variable replaced.
+	outputPath, err = ApplyVariables(inputPath, Variables{
+		Lists: map[string][]map[string]string{"items": {}},
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	expect = `<w:document><w:body><w:tbl></w:tbl></w:body></w:document>`
+	got = readZip(t, outputPath)["word/document.xml"]
+	if got != expect {
+		t.Errorf("expected\n%s\ngot\n%s", expect, got)
+	}
 }

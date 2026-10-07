@@ -1,7 +1,6 @@
 package libreoffice
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -105,7 +104,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				nativePdfFormats                bool
 				merge                           bool
 				flatten                         bool
-				variables                       map[string]string
+				variables                       libreofficeapi.Variables
 			)
 
 			err := form.
@@ -316,33 +315,16 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				Bool("merge", &merge, false).
 				Bool("flatten", &flatten, false).
 				Custom("variables", func(value string) error {
-					if value == "" {
-						return nil
-					}
-					err := json.Unmarshal([]byte(value), &variables)
-					if err != nil {
-						return fmt.Errorf(`value is not a JSON object with string values, like {"legal_address":"221B Baker Street"}: %w`, err)
-					}
-					// Sorted so that the reported name is deterministic.
-					names := make([]string, 0, len(variables))
-					for name := range variables {
-						names = append(names, name)
-					}
-					slices.Sort(names)
-					for _, name := range names {
-						err = libreofficeapi.ValidateVariableName(name)
-						if err != nil {
-							return err
-						}
-					}
-					return nil
+					var err error
+					variables, err = libreofficeapi.ParseVariables(value)
+					return err
 				}).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			if len(variables) > 0 {
+			if !variables.Empty() {
 				for _, inputPath := range inputPaths {
 					if libreofficeapi.SupportsVariables(inputPath) {
 						continue
@@ -449,7 +431,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				// The rewritten copy is only fed to LibreOffice: inputPath keeps
 				// resolving to the original filename for output naming.
 				conversionPath := inputPath
-				if len(variables) > 0 {
+				if !variables.Empty() {
 					conversionPath, err = libreofficeapi.ApplyVariables(inputPath, variables)
 					if err != nil {
 						filename := ctx.OriginalFilename(inputPath)
@@ -468,9 +450,23 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 							)
 						}
 
+						if errors.Is(err, libreofficeapi.ErrVariablesMixedLists) {
+							return api.WrapError(
+								fmt.Errorf("apply variables: %w", err),
+								api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("A table row of the document '%s' uses the fields of more than one list from the 'variables' form field. Use the fields of a single list per table row.", filename)),
+							)
+						}
+
+						if errors.Is(err, libreofficeapi.ErrVariablesTooLarge) {
+							return api.WrapError(
+								fmt.Errorf("apply variables: %w", err),
+								api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("The lists of the 'variables' form field repeat too many table rows in the document '%s'. Reduce the number of elements in the lists.", filename)),
+							)
+						}
+
 						return fmt.Errorf("apply variables: %w", err)
 					}
-					ctx.Log().DebugContext(ctx, fmt.Sprintf("applied %d variable(s) to '%s'", len(variables), ctx.OriginalFilename(inputPath)))
+					ctx.Log().DebugContext(ctx, fmt.Sprintf("applied %d variable(s) and %d list(s) to '%s'", len(variables.Values), len(variables.Lists), ctx.OriginalFilename(inputPath)))
 				}
 
 				err = libreOffice.Pdf(ctx, ctx.Log(), conversionPath, outputPaths[i], options)
