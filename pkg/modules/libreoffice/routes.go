@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/labstack/echo/v5"
 
@@ -103,6 +104,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				nativePdfFormats                bool
 				merge                           bool
 				flatten                         bool
+				variables                       libreofficeapi.Variables
 			)
 
 			err := form.
@@ -312,9 +314,30 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				Bool("nativePdfFormats", &nativePdfFormats, true).
 				Bool("merge", &merge, false).
 				Bool("flatten", &flatten, false).
+				Custom("variables", func(value string) error {
+					var err error
+					variables, err = libreofficeapi.ParseVariables(value)
+					return err
+				}).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			if !variables.Empty() {
+				for _, inputPath := range inputPaths {
+					if libreofficeapi.SupportsVariables(inputPath) {
+						continue
+					}
+					filename := ctx.OriginalFilename(inputPath)
+					return api.WrapError(
+						fmt.Errorf("variables with unsupported document '%s'", filename),
+						api.NewSentinelHttpError(
+							http.StatusBadRequest,
+							fmt.Sprintf("The 'variables' form field only applies to Word documents (%s), but '%s' is not one. Remove the 'variables' form field or convert '%s' in a separate request.", strings.Join(libreofficeapi.VariablesExtensions(), ", "), filename, filename),
+						),
+					)
+				}
 			}
 
 			err = pdfengines.BindWatermarkFiles(watermarks, watermarkFiles)
@@ -405,7 +428,48 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					options.PdfFormats = pdfFormats
 				}
 
-				err = libreOffice.Pdf(ctx, ctx.Log(), inputPath, outputPaths[i], options)
+				// The rewritten copy is only fed to LibreOffice: inputPath keeps
+				// resolving to the original filename for output naming.
+				conversionPath := inputPath
+				if !variables.Empty() {
+					conversionPath, err = libreofficeapi.ApplyVariables(inputPath, variables)
+					if err != nil {
+						filename := ctx.OriginalFilename(inputPath)
+
+						if errors.Is(err, libreofficeapi.ErrVariablesPasswordProtected) {
+							return api.WrapError(
+								fmt.Errorf("apply variables: %w", err),
+								api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("The 'variables' form field cannot be applied to the password-protected document '%s'. Remove the document's password protection, or remove the 'variables' form field.", filename)),
+							)
+						}
+
+						if errors.Is(err, libreofficeapi.ErrVariablesInvalidDocument) {
+							return api.WrapError(
+								fmt.Errorf("apply variables: %w", err),
+								api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Gotenberg could not apply the 'variables' form field to the document '%s'. Ensure the file is not corrupted and that its extension matches its actual format.", filename)),
+							)
+						}
+
+						if errors.Is(err, libreofficeapi.ErrVariablesMixedLists) {
+							return api.WrapError(
+								fmt.Errorf("apply variables: %w", err),
+								api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("A table row of the document '%s' uses the fields of more than one list from the 'variables' form field. Use the fields of a single list per table row.", filename)),
+							)
+						}
+
+						if errors.Is(err, libreofficeapi.ErrVariablesTooLarge) {
+							return api.WrapError(
+								fmt.Errorf("apply variables: %w", err),
+								api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("The lists of the 'variables' form field repeat too many table rows in the document '%s'. Reduce the number of elements in the lists.", filename)),
+							)
+						}
+
+						return fmt.Errorf("apply variables: %w", err)
+					}
+					ctx.Log().DebugContext(ctx, fmt.Sprintf("applied %d variable(s) and %d list(s) to '%s'", len(variables.Values), len(variables.Lists), ctx.OriginalFilename(inputPath)))
+				}
+
+				err = libreOffice.Pdf(ctx, ctx.Log(), conversionPath, outputPaths[i], options)
 				if err != nil {
 					if errors.Is(err, libreofficeapi.ErrInvalidPdfFormats) {
 						return api.WrapError(
