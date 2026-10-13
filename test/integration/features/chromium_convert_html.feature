@@ -644,9 +644,23 @@ Feature: /forms/chromium/convert/html
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
 
+  # Through the pinning proxy, an unreachable resource must still fail the
+  # conversion. The proxy resets the connection instead of answering 502, which
+  # Chromium would treat as an ordinary HTTP error.
+  Scenario: POST /forms/chromium/convert/html (Fail On Resource Loading Failed through the pinning proxy)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                       | testdata/feature-rich-html/index.html | file  |
+      | failOnResourceLoadingFailed | true                                  | field |
+    Then the response status code should be 409
+    Then the response body should contain string:
+      """
+      resource Stylesheet: net::ERR_CONNECTION_RESET
+      """
+
   Scenario: POST /forms/chromium/convert/html (Fail On Resource Loading Failed)
     # A configured allow-list routes loopback through the pinning proxy, which
-    # reports a refused connection as a 502 response, not a loading failure.
+    # reports a refused connection as a reset. See the scenario below.
     Given I have a Gotenberg container with the following environment variable(s):
       | CHROMIUM_ALLOW_LIST |  |
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):

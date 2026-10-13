@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -764,6 +765,47 @@ func TestPinningProxy_CONNECT_DialFailure_LoggedAtWarn(t *testing.T) {
 	}
 }
 
+// A forward request whose target cannot be reached resets the client
+// connection rather than answering 502. Chromium treats a proxy response as
+// the origin's own, so a 502 would hide the failure from
+// failOnResourceLoadingFailed.
+func TestPinningProxy_Forward_DialFailure_ResetsClient(t *testing.T) {
+	p := newPinningProxy(nil, nil, false, false, false)
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
+		return gotenberg.OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
+	}
+	p.dialPinned = func(_ context.Context, _ string, _ []netip.Addr, _ string) (net.Conn, error) {
+		return nil, errors.New("connection refused")
+	}
+
+	logger := slog.New(slog.DiscardHandler)
+	err := p.Start(logger)
+	if err != nil {
+		t.Fatalf("start pinning proxy: %v", err)
+	}
+	t.Cleanup(func() { _ = p.Stop(logger) })
+
+	conn, err := net.Dial("tcp", strings.TrimPrefix(p.URL(), "http://"))
+	if err != nil {
+		t.Fatalf("dial proxy: %v", err)
+	}
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
+
+	_, err = fmt.Fprintf(conn, "GET http://real.example/ HTTP/1.1\r\nHost: real.example\r\n\r\n")
+	if err != nil {
+		t.Fatalf("write request: %v", err)
+	}
+	resp, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err == nil {
+		_ = resp.Body.Close()
+		t.Fatalf("got status %d, want the connection reset", resp.StatusCode)
+	}
+	if !errors.Is(err, syscall.ECONNRESET) && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("read response: %v, want a connection reset", err)
+	}
+}
+
 // TestPinningProxy_Forward_RoundTripCancellation_LoggedAtDebug verifies
 // the handleForward dial-cancellation path: when the inner Transport's
 // dial returns a canceled error (client hung up mid-dial), the proxy
@@ -790,12 +832,9 @@ func TestPinningProxy_Forward_RoundTripCancellation_LoggedAtDebug(t *testing.T) 
 		Timeout:   5 * time.Second,
 	}
 	resp, err := client.Get("http://www.google.com/")
-	if err != nil {
-		t.Fatalf("GET via proxy: %v", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusBadGateway {
-		t.Fatalf("status = %d, want 502", resp.StatusCode)
+	if err == nil {
+		_ = resp.Body.Close()
+		t.Fatalf("GET via proxy: got status %d, want the connection reset", resp.StatusCode)
 	}
 
 	records := rec.snapshot()

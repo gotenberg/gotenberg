@@ -522,7 +522,7 @@ func (p *pinningProxy) handleForward(w http.ResponseWriter, req *http.Request) {
 		} else {
 			p.logger.WarnContext(req.Context(), fmt.Sprintf("forward RoundTrip failed for '%s': %s", req.URL, err))
 		}
-		http.Error(w, "upstream error", http.StatusBadGateway)
+		resetClient(w)
 		return
 	}
 	defer resp.Body.Close()
@@ -584,4 +584,24 @@ func isClientCancellation(ctx context.Context, err error) bool {
 // tests. See https://github.com/gotenberg/gotenberg/issues/1592.
 func (p *pinningProxy) dialThroughUpstreamProxy(ctx context.Context, proxyURL *url.URL, target string) (net.Conn, error) {
 	return gotenberg.DialThroughProxy(ctx, proxyURL, target, p.dialBypass)
+}
+
+// resetClient aborts the client connection with a TCP reset instead of
+// answering. Chromium treats a proxy response as the origin's own, so a 502
+// would reach the page as an ordinary HTTP error; a reset surfaces as a
+// network failure, as it would without the proxy.
+func resetClient(w http.ResponseWriter) {
+	hj, ok := w.(http.Hijacker)
+	if !ok {
+		http.Error(w, "upstream error", http.StatusBadGateway)
+		return
+	}
+	conn, _, err := hj.Hijack()
+	if err != nil {
+		return
+	}
+	if tcpConn, ok := conn.(*net.TCPConn); ok {
+		_ = tcpConn.SetLinger(0)
+	}
+	_ = conn.Close()
 }

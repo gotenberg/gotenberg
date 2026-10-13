@@ -468,6 +468,8 @@ func listenForEventLoadingFailed(ctx context.Context, logger *slog.Logger, optio
 				"net::ERR_CONNECTION_REFUSED",
 				"net::ERR_CONNECTION_ABORTED",
 				"net::ERR_CONNECTION_FAILED",
+				// What a pinning proxy CONNECT that cannot reach its target reports.
+				"net::ERR_TUNNEL_CONNECTION_FAILED",
 				"net::ERR_NAME_NOT_RESOLVED",
 				"net::ERR_INTERNET_DISCONNECTED",
 				"net::ERR_ADDRESS_UNREACHABLE",

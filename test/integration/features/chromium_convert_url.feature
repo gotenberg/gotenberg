@@ -712,7 +712,8 @@ Feature: /forms/chromium/convert/url
 
   Scenario: POST /forms/chromium/convert/url (Fail On Resource Loading Failed)
     # A configured allow-list routes loopback through the pinning proxy, which
-    # reports a refused connection as a 502 response, not a loading failure.
+    # reports a refused connection as a reset. See the convert/html
+    # scenario.
     Given I have a Gotenberg container with the following environment variable(s):
       | CHROMIUM_ALLOW_LIST |  |
     Given I have a static server
