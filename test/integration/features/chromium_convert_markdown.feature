@@ -400,6 +400,7 @@ Feature: /forms/chromium/convert/markdown
       | files                         | testdata/feature-rich-markdown/index.html | file  |
       | files                         | testdata/feature-rich-markdown/table.md   | file  |
       | failOnResourceHttpStatusCodes | [499,599]                                 | field |
+      | skipNetworkIdleEvent          | false                                     | field |
     Then the response status code should be 409
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:

@@ -609,6 +609,7 @@ Feature: /forms/chromium/convert/html
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
       | files                         | testdata/feature-rich-html/index.html | file  |
       | failOnResourceHttpStatusCodes | [499,599]                             | field |
+      | skipNetworkIdleEvent          | false                                 | field |
     Then the response status code should be 409
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:

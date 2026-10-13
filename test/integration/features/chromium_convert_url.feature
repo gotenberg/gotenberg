@@ -649,6 +649,7 @@ Feature: /forms/chromium/convert/url
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
       | url                           | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field |
       | failOnResourceHttpStatusCodes | [499,599]                                                                        | field |
+      | skipNetworkIdleEvent          | false                                                                            | field |
     Then the response status code should be 409
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should contain string:
