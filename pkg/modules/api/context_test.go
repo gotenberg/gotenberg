@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"mime/multipart"
 	"net/http"
@@ -900,5 +901,102 @@ func TestNewContext_DownloadFromRedirectVerdictStaysGeneric(t *testing.T) {
 		if strings.Contains(message, leak) {
 			t.Fatalf("response message %q leaks %q", message, leak)
 		}
+	}
+}
+
+type countingReadCloser struct {
+	r io.Reader
+	n int64
+}
+
+func (c *countingReadCloser) Read(p []byte) (int, error) {
+	n, err := c.r.Read(p)
+	c.n += int64(n)
+	return n, err
+}
+
+func (*countingReadCloser) Close() error { return nil }
+
+// The body limit must stop the multipart parser itself. It used to apply
+// only after the parser had read the whole request and spooled file parts
+// to disk.
+func TestNewContext_BodyLimitBoundsIngress(t *testing.T) {
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	err := writer.WriteField("foo", "bar")
+	if err != nil {
+		t.Fatalf("write multipart field: %v", err)
+	}
+	part, err := writer.CreateFormFile("files", "large.bin")
+	if err != nil {
+		t.Fatalf("create multipart file: %v", err)
+	}
+	_, err = part.Write(bytes.Repeat([]byte("A"), 2<<20))
+	if err != nil {
+		t.Fatalf("write multipart file: %v", err)
+	}
+	err = writer.Close()
+	if err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+	size := int64(body.Len())
+
+	for _, tc := range []struct {
+		scenario         string
+		bodyLimit        int64
+		knownLength      bool
+		expectErr        bool
+		maxBytesConsumed int64
+	}{
+		{scenario: "known length over the limit is rejected before reading", bodyLimit: 1024, knownLength: true, expectErr: true, maxBytesConsumed: 0},
+		{scenario: "unknown length over the limit stops at the limit", bodyLimit: 1024, knownLength: false, expectErr: true, maxBytesConsumed: 1024 + 1},
+		{scenario: "unknown length one byte over the limit", bodyLimit: size - 1, knownLength: false, expectErr: true, maxBytesConsumed: size},
+		{scenario: "body exactly at the limit", bodyLimit: size, knownLength: true, expectErr: false},
+		{scenario: "body exactly at the limit with unknown length", bodyLimit: size, knownLength: false, expectErr: false},
+		{scenario: "no limit", bodyLimit: 0, knownLength: false, expectErr: false},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			counted := &countingReadCloser{r: bytes.NewReader(body.Bytes())}
+			req := httptest.NewRequest(http.MethodPost, "/forms/pdfengines/merge", nil)
+			req.Body = counted
+			req.ContentLength = -1
+			if tc.knownLength {
+				req.ContentLength = size
+			}
+			req.Header.Set("Content-Type", writer.FormDataContentType())
+
+			echoCtx := echo.New().NewContext(req, httptest.NewRecorder())
+			logger := slog.New(slog.DiscardHandler)
+			fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+
+			_, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, tc.bodyLimit, downloadFromConfig{disable: true})
+			if cancel != nil {
+				defer cancel()
+			}
+
+			if !tc.expectErr {
+				if err != nil {
+					t.Fatalf("newContext returned error: %v", err)
+				}
+				if counted.n != size {
+					t.Fatalf("consumed %d bytes, want %d", counted.n, size)
+				}
+				return
+			}
+
+			if err == nil {
+				t.Fatal("expected the body limit to reject the request")
+			}
+			var httpErr HttpError
+			if !errors.As(err, &httpErr) {
+				t.Fatalf("expected an HttpError, got: %v", err)
+			}
+			if status, _ := httpErr.HttpError(); status != http.StatusRequestEntityTooLarge {
+				t.Fatalf("status = %d, want %d", status, http.StatusRequestEntityTooLarge)
+			}
+			if counted.n > tc.maxBytesConsumed {
+				t.Fatalf("consumed %d/%d bytes before rejection, want at most %d", counted.n, size, tc.maxBytesConsumed)
+			}
+		})
 	}
 }

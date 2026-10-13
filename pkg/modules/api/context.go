@@ -166,13 +166,17 @@ func newContext(echoCtx *echo.Context, logger *slog.Logger, fs *gotenberg.FileSy
 	// downloaded remotely ("download from" feature).
 	var totalBytesRead atomic.Int64
 
+	bodyLimitErr := func() error {
+		return WrapError(
+			fmt.Errorf("body limit reached (> %d)", bodyLimit),
+			NewSentinelHttpError(http.StatusRequestEntityTooLarge, "The request body exceeds the configured size limit. Increase it with --api-body-limit, or send a smaller request."),
+		)
+	}
+
 	addReadBytes := func(n int64) error {
 		newTotal := totalBytesRead.Add(n)
 		if bodyLimit != 0 && newTotal > bodyLimit {
-			return WrapError(
-				fmt.Errorf("body limit reached (> %d)", bodyLimit),
-				NewSentinelHttpError(http.StatusRequestEntityTooLarge, "The request body exceeds the configured size limit. Increase it with --api-body-limit, or send a smaller request."),
-			)
+			return bodyLimitErr()
 		}
 		return nil
 	}
@@ -217,8 +221,25 @@ func newContext(echoCtx *echo.Context, logger *slog.Logger, fs *gotenberg.FileSy
 		}
 	}()
 
+	// The multipart parser reads the whole request and spools file parts to
+	// disk before the counter above sees a single byte, so the limit must
+	// also bound the raw body itself. Content-Length allows an early
+	// rejection, but it may be absent or lie, hence the reader.
+	if bodyLimit > 0 {
+		req := echoCtx.Request()
+		if req.ContentLength > bodyLimit {
+			return nil, cancel, fmt.Errorf("check content length: %w", bodyLimitErr())
+		}
+		req.Body = http.MaxBytesReader(echoCtx.Response(), req.Body, bodyLimit)
+	}
+
 	form, err := echoCtx.MultipartForm()
 	if err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			return nil, cancel, fmt.Errorf("get multipart form: %w", bodyLimitErr())
+		}
+
 		if errors.Is(err, http.ErrNotMultipart) {
 			return nil, cancel, WrapError(
 				fmt.Errorf("get multipart form: %w", err),
