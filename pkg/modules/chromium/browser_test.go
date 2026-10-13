@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/dlclark/regexp2/v2"
 )
 
 // TestChromiumBrowser_Start_rejectsOverlappingStart guards against the latch
@@ -57,5 +59,38 @@ func TestChromiumDisableFeatures(t *testing.T) {
 		if !slices.Contains(strings.Split(chromiumDisableFeatures, ","), feature) {
 			t.Errorf("expected %q to be disabled, got %q", feature, chromiumDisableFeatures)
 		}
+	}
+}
+
+// A WebSocket the outbound policy rejects must reach the pinning proxy, so
+// the implicit loopback proxy bypass is removed whenever a policy can reject
+// a network URL. See GHSA-73vq-mh8c-27wg.
+func TestBrowserArguments_restrictsNetwork(t *testing.T) {
+	re := func(patterns ...string) []*regexp2.Regexp {
+		var res []*regexp2.Regexp
+		for _, p := range patterns {
+			res = append(res, regexp2.MustCompile(p, regexp2.None))
+		}
+		return res
+	}
+
+	for _, tc := range []struct {
+		scenario string
+		args     browserArguments
+		expect   bool
+	}{
+		{scenario: "default deny-list only", args: browserArguments{denyList: re(defaultDenyListPattern)}, expect: false},
+		{scenario: "no lists", args: browserArguments{}, expect: false},
+		{scenario: "allow-list", args: browserArguments{allowList: re(`^https://example\.com`), denyList: re(defaultDenyListPattern)}, expect: true},
+		{scenario: "custom deny-list", args: browserArguments{denyList: re(`^http://internal`)}, expect: true},
+		{scenario: "default and custom deny-list", args: browserArguments{denyList: re(defaultDenyListPattern, `^http://internal`)}, expect: true},
+		{scenario: "deny private IPs", args: browserArguments{denyList: re(defaultDenyListPattern), denyPrivateIPs: true}, expect: true},
+		{scenario: "deny public IPs", args: browserArguments{denyPublicIPs: true}, expect: true},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			if got := tc.args.restrictsNetwork(); got != tc.expect {
+				t.Fatalf("restrictsNetwork() = %t, want %t", got, tc.expect)
+			}
+		})
 	}
 }

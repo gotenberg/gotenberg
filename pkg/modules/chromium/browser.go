@@ -75,6 +75,20 @@ type browserArguments struct {
 	disableJavaScript    bool
 }
 
+// restrictsNetwork reports whether the outbound policy can reject a network
+// URL. The default deny-list only rejects file:// URLs, so it does not count.
+func (a browserArguments) restrictsNetwork() bool {
+	if a.denyPrivateIPs || a.denyPublicIPs || len(a.allowList) > 0 {
+		return true
+	}
+	for _, pattern := range a.denyList {
+		if pattern.String() != defaultDenyListPattern {
+			return true
+		}
+	}
+	return false
+}
+
 type chromiumBrowser struct {
 	initialCtx         context.Context
 	ctx                context.Context
@@ -205,7 +219,7 @@ func (b *chromiumBrowser) Start(logger *slog.Logger) error {
 		}
 		opts = append(opts, chromedp.ProxyServer(b.pinningProxy.URL()))
 
-		if b.arguments.denyPrivateIPs || b.arguments.denyPublicIPs {
+		if b.arguments.restrictsNetwork() {
 			// Chromium implicitly bypasses the proxy for loopback and
 			// link-local destinations. A WebSocket handshake is never surfaced
 			// as a fetch.EventRequestPaused, so listenForEventRequestPaused
@@ -213,17 +227,14 @@ func (b *chromiumBrowser) Start(logger *slog.Logger) error {
 			// it. Left alone, a page could open a WebSocket to 127.0.0.1, ::1,
 			// localhost, or the link-local cloud metadata endpoint
 			// (169.254.169.254) and reach it unfiltered. "<-loopback>" removes
-			// the implicit bypass so those handshakes also traverse the pinning
-			// proxy and go through [gotenberg.DecideOutbound] like every other
-			// request.
+			// the implicit bypass so those handshakes also traverse the
+			// pinning proxy and go through [gotenberg.DecideOutbound] like
+			// every other request.
 			//
-			// Gated on the IP-class policy: it is the control this closes, and
-			// under it loopback and link-local HTTP sub-resources are already
-			// blocked by listenForEventRequestPaused before they would reach
-			// the proxy, so this adds only the missing WebSocket coverage. When
-			// the policy is off, loopback is not restricted, and routing it
-			// through the proxy would merely change how an unreachable loopback
-			// sub-resource reports its failure.
+			// Gated on a policy that can reject a network URL: without one,
+			// loopback is not restricted, and routing it through the proxy
+			// would only turn a refused loopback sub-resource into a 502
+			// response instead of a loading failure.
 			opts = append(opts, chromedp.Flag("proxy-bypass-list", "<-loopback>"))
 		}
 	}

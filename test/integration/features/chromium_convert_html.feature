@@ -521,6 +521,22 @@ Feature: /forms/chromium/convert/html
       | 'wss://127.0.0.1:9999/wss-test' targets a non-public address |
       | CONNECT blocked for '127.0.0.1:9999'                         |
 
+  # An allow-list is enforced on its own, without the IP-class flags. Chromium
+  # skips the proxy for loopback and link-local destinations unless told
+  # otherwise, so a WebSocket the allow-list rejects must still reach the
+  # pinning proxy to be severed.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/html (WebSocket not in the allow-list is filtered)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST | ^file:///tmp/.* |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/ssrf-websocket-html/index.html | file  |
+      | waitDelay | 1s                                      | field |
+    Then the response status code should be 200
+    Then the Gotenberg container should log the following entries:
+      | 'ws://127.0.0.1:9999/ssrf-websocket' does not match any expression from the allowed list |
+      | CONNECT blocked for '127.0.0.1:9999'                                                     |
+
   # EventSource issues an ordinary HTTP GET, so unlike a WebSocket it IS surfaced
   # as a fetch.EventRequestPaused and blocked by listenForEventRequestPaused.
   @chromium-ssrf
@@ -629,7 +645,10 @@ Feature: /forms/chromium/convert/html
     Then there should be 1 PDF(s) in the response
 
   Scenario: POST /forms/chromium/convert/html (Fail On Resource Loading Failed)
-    Given I have a default Gotenberg container
+    # A configured allow-list routes loopback through the pinning proxy, which
+    # reports a refused connection as a 502 response, not a loading failure.
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST |  |
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
       | files                       | testdata/feature-rich-html/index.html | file  |
       | failOnResourceLoadingFailed | true                                  | field |

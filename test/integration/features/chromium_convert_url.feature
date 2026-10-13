@@ -711,7 +711,10 @@ Feature: /forms/chromium/convert/url
       """
 
   Scenario: POST /forms/chromium/convert/url (Fail On Resource Loading Failed)
-    Given I have a default Gotenberg container
+    # A configured allow-list routes loopback through the pinning proxy, which
+    # reports a refused connection as a 502 response, not a loading failure.
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST |  |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
       | url                         | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field |

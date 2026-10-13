@@ -97,6 +97,10 @@ var (
 	ErrPageRangesExceedsPageCount = errors.New("page ranges exceeds page count")
 )
 
+// defaultDenyListPattern is the default --chromium-deny-list entry. It only
+// rejects file:// URLs outside /tmp.
+const defaultDenyListPattern = `^file:(?!//\/tmp/).*`
+
 // Chromium is a module that provides both an [Api] and routes for converting
 // an HTML document to PDF.
 type Chromium struct {
@@ -476,7 +480,7 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.String("chromium-proxy-server", "", "Set the outbound proxy server; this switch only affects HTTP and HTTPS requests")
 			fs.Bool("chromium-enable-environment-proxy", false, "Route Chromium's outbound requests through the proxy defined by the standard HTTP_PROXY, HTTPS_PROXY, and NO_PROXY variables, including credentials. Use this instead of --chromium-proxy-server for authenticated proxies, and leave --chromium-proxy-server and --chromium-host-resolver-rules unset")
 			fs.StringSlice("chromium-allow-list", []string{}, `Set the allowed URLs for Chromium using regular expressions - supports multiple values. A match bypasses --chromium-deny-private-ips (CHROMIUM_DENY_PRIVATE_IPS) and --chromium-deny-public-ips (CHROMIUM_DENY_PUBLIC_IPS), so terminate the host or the pattern also matches suffix hosts, for example ^https?://internal\.svc(:|/|$)`)
-			fs.StringSlice("chromium-deny-list", []string{`^file:(?!//\/tmp/).*`}, "Set the denied URLs for Chromium using regular expressions - supports multiple values")
+			fs.StringSlice("chromium-deny-list", []string{defaultDenyListPattern}, "Set the denied URLs for Chromium using regular expressions - supports multiple values")
 			fs.Bool("chromium-deny-private-ips", false, "Reject URLs whose host resolves to a non-public IP address (loopback, RFC1918, link-local, unique-local). Enable on deployments that accept untrusted form input to mitigate SSRF against internal services")
 			fs.Bool("chromium-deny-public-ips", false, "Reject URLs whose host resolves to a public IP address. Enable on air-gapped or data-governed deployments to prevent outbound traffic from leaving a private network")
 			fs.Bool("chromium-shared-browser-context", false, "Run every conversion in one shared browser context, so cookies, cache, and storage carry over between conversions. Only enable it when all callers trust each other: a conversion can then reuse cookies another one set")
