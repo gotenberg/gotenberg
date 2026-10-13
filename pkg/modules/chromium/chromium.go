@@ -479,9 +479,10 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.StringSlice("chromium-deny-list", []string{`^file:(?!//\/tmp/).*`}, "Set the denied URLs for Chromium using regular expressions - supports multiple values")
 			fs.Bool("chromium-deny-private-ips", false, "Reject URLs whose host resolves to a non-public IP address (loopback, RFC1918, link-local, unique-local). Enable on deployments that accept untrusted form input to mitigate SSRF against internal services")
 			fs.Bool("chromium-deny-public-ips", false, "Reject URLs whose host resolves to a public IP address. Enable on air-gapped or data-governed deployments to prevent outbound traffic from leaving a private network")
-			fs.Bool("chromium-clear-cache", false, "Clear Chromium cache between each conversion")
-			fs.Bool("chromium-clear-cookies", false, "Clear Chromium cookies between each conversion")
-			fs.Bool("chromium-clear-storage", false, "Clear Chromium local storage between each conversion (session storage is already isolated per conversion)")
+			fs.Bool("chromium-shared-browser-context", false, "Run every conversion in one shared browser context, so cookies, cache, and storage carry over between conversions. Only enable it when all callers trust each other: a conversion can then reuse cookies another one set")
+			fs.Bool("chromium-clear-cache", false, "Clear Chromium cache between each conversion - only applies with --chromium-shared-browser-context")
+			fs.Bool("chromium-clear-cookies", false, "Clear Chromium cookies between each conversion - only applies with --chromium-shared-browser-context")
+			fs.Bool("chromium-clear-storage", false, "Clear Chromium local storage between each conversion - only applies with --chromium-shared-browser-context")
 			fs.Bool("chromium-disable-javascript", false, "Disable JavaScript")
 			fs.Bool("chromium-disable-routes", false, "Disable the routes")
 
@@ -515,6 +516,8 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 		return errors.New("CHROMIUM_HYPHEN_DATA_DIR_PATH environment variable is not set; set it to the absolute path of the Chromium hyphenation data directory (it ships in the Gotenberg image)")
 	}
 
+	sharedBrowserContext := flags.MustBool("chromium-shared-browser-context")
+
 	mod.args = browserArguments{
 		binPath:                  binPath,
 		allowInsecureLocalhost:   flags.MustBool("chromium-allow-insecure-localhost"),
@@ -527,13 +530,16 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 		wsUrlReadTimeout:         flags.MustDuration("chromium-start-timeout"),
 		hyphenDataDirPath:        hyphenDataDirPath,
 
-		allowList:         flags.MustRegexpSlice("chromium-allow-list"),
-		denyList:          flags.MustRegexpSlice("chromium-deny-list"),
-		denyPrivateIPs:    flags.MustBool("chromium-deny-private-ips"),
-		denyPublicIPs:     flags.MustBool("chromium-deny-public-ips"),
-		clearCache:        flags.MustBool("chromium-clear-cache"),
-		clearCookies:      flags.MustBool("chromium-clear-cookies"),
-		clearStorage:      flags.MustBool("chromium-clear-storage"),
+		allowList:            flags.MustRegexpSlice("chromium-allow-list"),
+		denyList:             flags.MustRegexpSlice("chromium-deny-list"),
+		denyPrivateIPs:       flags.MustBool("chromium-deny-private-ips"),
+		denyPublicIPs:        flags.MustBool("chromium-deny-public-ips"),
+		sharedBrowserContext: sharedBrowserContext,
+		// An isolated conversion starts from an empty browser context that
+		// is disposed afterward, so there is nothing to clear.
+		clearCache:        sharedBrowserContext && flags.MustBool("chromium-clear-cache"),
+		clearCookies:      sharedBrowserContext && flags.MustBool("chromium-clear-cookies"),
+		clearStorage:      sharedBrowserContext && flags.MustBool("chromium-clear-storage"),
 		disableJavaScript: flags.MustBool("chromium-disable-javascript"),
 	}
 

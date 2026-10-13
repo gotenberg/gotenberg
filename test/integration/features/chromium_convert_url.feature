@@ -22,11 +22,29 @@ Feature: /forms/chromium/convert/url
       Page 1
       """
 
-  # localStorage is per-origin and shared by the long-lived browser, so without
-  # clearing it accumulates across same-origin conversions.
-  # See https://github.com/gotenberg/gotenberg/issues/919.
-  Scenario: POST /forms/chromium/convert/url (localStorage leaks without clearing)
+  # Each conversion runs in its own browser context, so localStorage never
+  # carries over.
+  Scenario: POST /forms/chromium/convert/url (localStorage isolated per conversion)
     Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                       | http://host.docker.internal:%d/html/testdata/local-storage-html/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                                        | header |
+    Then the response status code should be 200
+    Then the "foo.pdf" PDF should have content matching "localStorageCount=1" at page 1
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                       | http://host.docker.internal:%d/html/testdata/local-storage-html/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                                        | header |
+    Then the response status code should be 200
+    Then the "foo.pdf" PDF should have content matching "localStorageCount=1" at page 1
+
+  # With --chromium-shared-browser-context, localStorage is per-origin and
+  # shared by the long-lived browser, so without clearing it accumulates
+  # across same-origin conversions.
+  # See https://github.com/gotenberg/gotenberg/issues/919.
+  Scenario: POST /forms/chromium/convert/url (localStorage leaks in a shared browser context)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_SHARED_BROWSER_CONTEXT | true |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
       | url                       | http://host.docker.internal:%d/html/testdata/local-storage-html/index.html | field  |
@@ -39,12 +57,13 @@ Feature: /forms/chromium/convert/url
     Then the response status code should be 200
     Then the "foo.pdf" PDF should have content matching "localStorageCount=2" at page 1
 
-  # With --chromium-clear-storage every conversion clears the origin's
-  # localStorage first, so the counter never carries over.
+  # With --chromium-clear-storage every conversion in a shared browser context
+  # clears the origin's localStorage first, so the counter never carries over.
   # See https://github.com/gotenberg/gotenberg/issues/919.
   Scenario: POST /forms/chromium/convert/url (Clear Storage)
     Given I have a Gotenberg container with the following environment variable(s):
-      | CHROMIUM_CLEAR_STORAGE | true |
+      | CHROMIUM_SHARED_BROWSER_CONTEXT | true |
+      | CHROMIUM_CLEAR_STORAGE          | true |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
       | url                       | http://host.docker.internal:%d/html/testdata/local-storage-html/index.html | field  |
@@ -209,6 +228,36 @@ Feature: /forms/chromium/convert/url
       | foo.pdf |
     Then the server request cookie "cookie_1" should be "foo"
     Then the server request cookie "cookie_2" should be ""
+
+  # A cookie set by one conversion must not reach the next one.
+  Scenario: POST /forms/chromium/convert/url (Cookies isolated per conversion)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url     | http://host.docker.internal:%d/html/testdata/page-1-html/index.html    | field |
+      | cookies | [{"name":"cookie_1","value":"foo","domain":"host.docker.internal:%d"}] | field |
+    Then the response status code should be 200
+    Then the server request cookie "cookie_1" should be "foo"
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+    Then the response status code should be 200
+    Then the server request cookie "cookie_1" should be ""
+
+  # With --chromium-shared-browser-context, cookies carry over between
+  # conversions.
+  Scenario: POST /forms/chromium/convert/url (Cookies in a shared browser context)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_SHARED_BROWSER_CONTEXT | true |
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url     | http://host.docker.internal:%d/html/testdata/page-1-html/index.html    | field |
+      | cookies | [{"name":"cookie_1","value":"foo","domain":"host.docker.internal:%d"}] | field |
+    Then the response status code should be 200
+    Then the server request cookie "cookie_1" should be "foo"
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+    Then the response status code should be 200
+    Then the server request cookie "cookie_1" should be "foo"
 
   # See https://github.com/gotenberg/gotenberg/issues/1130.
   Scenario: POST /forms/chromium/convert/url (case-insensitive sameSite)

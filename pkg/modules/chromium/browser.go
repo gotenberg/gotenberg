@@ -12,10 +12,12 @@ import (
 	"time"
 
 	cdprotobrowser "github.com/chromedp/cdproto/browser"
+	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
+	"github.com/chromedp/cdproto/target"
 	"github.com/chromedp/chromedp"
 	"github.com/dlclark/regexp2/v2"
 	"github.com/shirou/gopsutil/v4/process"
@@ -62,14 +64,15 @@ type browserArguments struct {
 	hyphenDataDirPath        string
 
 	// Tasks specific.
-	allowList         []*regexp2.Regexp
-	denyList          []*regexp2.Regexp
-	denyPrivateIPs    bool
-	denyPublicIPs     bool
-	clearCache        bool
-	clearCookies      bool
-	clearStorage      bool
-	disableJavaScript bool
+	allowList            []*regexp2.Regexp
+	denyList             []*regexp2.Regexp
+	denyPrivateIPs       bool
+	denyPublicIPs        bool
+	sharedBrowserContext bool
+	clearCache           bool
+	clearCookies         bool
+	clearStorage         bool
+	disableJavaScript    bool
 }
 
 type chromiumBrowser struct {
@@ -435,6 +438,55 @@ func (b *chromiumBrowser) screenshot(ctx context.Context, logger *slog.Logger, u
 	})
 }
 
+// newIsolatedTarget creates a browser context and opens a blank tab in it, so
+// cookies, cache, and storage never leak to another conversion, even a
+// concurrent one. The caller must dispose the browser context.
+//
+// chromedp.WithNewBrowserContext does not work here: it opens the tab without
+// a new window, which headless Chromium rejects with "no browser is open", and
+// it leaks the browser context on that failure.
+func (b *chromiumBrowser) newIsolatedTarget(ctx context.Context, logger *slog.Logger) (cdp.BrowserContextID, target.ID, error) {
+	c := chromedp.FromContext(b.ctx)
+	if c == nil || c.Browser == nil {
+		return "", "", errors.New("browser not allocated")
+	}
+	executor := cdp.WithExecutor(ctx, c.Browser)
+
+	browserContextID, err := target.CreateBrowserContext().WithDisposeOnDetach(true).Do(executor)
+	if err != nil {
+		return "", "", fmt.Errorf("create browser context: %w", err)
+	}
+
+	targetID, err := target.CreateTarget("about:blank").
+		WithBrowserContextID(browserContextID).
+		WithNewWindow(true).
+		Do(executor)
+	if err != nil {
+		b.disposeBrowserContext(logger, browserContextID)
+		return "", "", fmt.Errorf("create target: %w", err)
+	}
+
+	return browserContextID, targetID, nil
+}
+
+// disposeBrowserContext disposes a browser context created by
+// [chromiumBrowser.newIsolatedTarget]. It uses a fresh context, as the
+// conversion's one may already be done.
+func (b *chromiumBrowser) disposeBrowserContext(logger *slog.Logger, browserContextID cdp.BrowserContextID) {
+	c := chromedp.FromContext(b.ctx)
+	if c == nil || c.Browser == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := target.DisposeBrowserContext(browserContextID).Do(cdp.WithExecutor(ctx, c.Browser))
+	if err != nil {
+		logger.ErrorContext(ctx, fmt.Sprintf("dispose browser context: %s", err))
+	}
+}
+
 func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url string, options Options, aggregate *networkAggregate, tasks chromedp.Tasks) error {
 	if !b.isStarted.Load() {
 		return errors.New("browser not started, cannot handle tasks")
@@ -461,7 +513,18 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 	timeoutCtx, timeoutCancel := context.WithTimeout(b.ctx, time.Until(deadline))
 	defer timeoutCancel()
 
-	taskCtx, taskCancel := chromedp.NewContext(timeoutCtx)
+	var taskOpts []chromedp.ContextOption
+	if !b.arguments.sharedBrowserContext {
+		browserContextID, targetID, err := b.newIsolatedTarget(timeoutCtx, logger)
+		if err != nil {
+			return fmt.Errorf("create isolated browser context: %w", err)
+		}
+		// Deferred before taskCancel, so it runs after the tab is closed.
+		defer b.disposeBrowserContext(logger, browserContextID)
+		taskOpts = append(taskOpts, chromedp.WithTargetID(targetID))
+	}
+
+	taskCtx, taskCancel := chromedp.NewContext(timeoutCtx, taskOpts...)
 	defer taskCancel()
 
 	// Accumulate per-conversion network activity for telemetry.

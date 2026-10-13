@@ -60,6 +60,7 @@ services:
       - "--chromium-deny-list=${CHROMIUM_DENY_LIST}"
       - "--chromium-deny-private-ips=${CHROMIUM_DENY_PRIVATE_IPS}"
       - "--chromium-deny-public-ips=${CHROMIUM_DENY_PUBLIC_IPS}"
+      - "--chromium-shared-browser-context=${CHROMIUM_SHARED_BROWSER_CONTEXT}"
       - "--chromium-clear-cache=${CHROMIUM_CLEAR_CACHE}"
       - "--chromium-clear-cookies=${CHROMIUM_CLEAR_COOKIES}"
       - "--chromium-disable-javascript=${CHROMIUM_DISABLE_JAVASCRIPT}"
