@@ -17,7 +17,7 @@ require (
 	github.com/mholt/archives v0.1.5
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/moby/moby/api v1.56.1
-	github.com/moby/moby/client v0.6.0
+	github.com/moby/moby/client v0.6.2
 	github.com/prometheus/client_golang v1.24.1
 	github.com/shirou/gopsutil/v4 v4.26.9
 	github.com/spf13/pflag v1.0.10
@@ -41,7 +41,7 @@ require (
 
 require (
 	dario.cat/mergo v1.0.2 // indirect
-	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
+	github.com/Azure/go-ansiterm v0.0.0-20261006220739-8c912ac31dd4 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/STARRY-S/zip v0.2.3 // indirect
 	github.com/andybalholm/brotli v1.2.3 // indirect
@@ -62,7 +62,7 @@ require (
 	github.com/cucumber/gherkin/go/v42 v42.0.1 // indirect
 	github.com/cucumber/messages/go/v34 v34.2.1 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/go-connections v0.8.1 // indirect
+	github.com/docker/go-connections v0.8.2 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707 // indirect
 	github.com/ebitengine/purego v0.11.1 // indirect
