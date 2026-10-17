@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -755,6 +756,25 @@ func (a *Api) Start() error {
 		},
 	}
 
+	// Read the TLS certificate and key here rather than handing their paths
+	// to Echo: StartTLS reads string paths through os.DirFS("."), which
+	// rejects absolute paths (fs.ErrInvalid), and it does so in the serve
+	// goroutine, where an error is only logged. Reading them now accepts any
+	// path and fails the startup when a file is missing or unreadable.
+	// See https://github.com/gotenberg/gotenberg/issues/1690.
+	var tlsCert, tlsKey []byte
+	if a.tlsCertFile != "" && a.tlsKeyFile != "" {
+		tlsCert, err = os.ReadFile(a.tlsCertFile)
+		if err != nil {
+			return fmt.Errorf("read TLS certificate file: %w", err)
+		}
+
+		tlsKey, err = os.ReadFile(a.tlsKeyFile)
+		if err != nil {
+			return fmt.Errorf("read TLS key file: %w", err)
+		}
+	}
+
 	// Not named cancel: that would reassign the readiness timeout's cancel from
 	// above, whose deferred call is already bound to the old value.
 	serveCtx, serveCancel := context.WithCancel(context.Background())
@@ -766,9 +786,9 @@ func (a *Api) Start() error {
 		defer close(a.serveDone)
 
 		var err error
-		if a.tlsCertFile != "" && a.tlsKeyFile != "" {
+		if tlsCert != nil && tlsKey != nil {
 			// Start an HTTPS server (supports HTTP/2).
-			err = startConfig.StartTLS(serveCtx, a.srv, a.tlsCertFile, a.tlsKeyFile)
+			err = startConfig.StartTLS(serveCtx, a.srv, tlsCert, tlsKey)
 		} else {
 			// Start an HTTP/2 Cleartext (non-HTTPS) server.
 			err = startConfig.Start(serveCtx, a.srv)
