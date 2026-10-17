@@ -856,11 +856,12 @@ func FormDataPdfWatermarks(form *api.FormData) ([]gotenberg.Stamp, error) {
 
 // formDataPdfStampsOrWatermarks builds the ordered list of stamps or watermarks
 // from the repeated {prefix}Source, {prefix}Expression, {prefix}Pages and
-// {prefix}Options fields. The number of entries equals the number of
-// {prefix}Source values, so a single occurrence of each field yields one entry,
-// preserving the single-stamp/watermark behavior. Fields are aligned by
-// position; a missing expression, pages or options entry defaults to empty.
-// Image and pdf entries take their file from the uploaded files, in order (see
+// {prefix}Options fields. Fields are aligned by position. Each non-empty
+// {prefix}Source value yields one entry, so a single occurrence of each field
+// keeps the single-stamp/watermark behavior. An empty source yields no entry,
+// as it did before the fields could repeat, and does not shift the others. A
+// missing expression, pages or options entry defaults to empty. Image and pdf
+// entries take their file from the uploaded files, in order (see
 // [bindStampOrWatermarkFiles]).
 func formDataPdfStampsOrWatermarks(form *api.FormData, prefix string) ([]gotenberg.Stamp, error) {
 	var sources, expressions, pages, options []string
@@ -879,6 +880,12 @@ func formDataPdfStampsOrWatermarks(form *api.FormData, prefix string) ([]gotenbe
 
 	stamps := make([]gotenberg.Stamp, 0, len(sources))
 	for i, source := range sources {
+		// An empty source means no stamp, as it did before the fields could
+		// repeat. The other fields keep their position.
+		if source == "" {
+			continue
+		}
+
 		if source != gotenberg.StampSourceText && source != gotenberg.StampSourceImage && source != gotenberg.StampSourcePDF {
 			return nil, api.WrapError(
 				fmt.Errorf("wrong %sSource value '%s'", prefix, source),
