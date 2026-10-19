@@ -198,7 +198,7 @@ func outputFilenameMiddleware() echo.MiddlewareFunc {
 // versionHeaderMiddleware sets the Gotenberg-Version response header, so that
 // clients learn which version handled a request without calling the version
 // route. It runs after authentication, so it discloses nothing the version
-// route does not. The header is set before the handler runs, so error
+// route does not. It sets the header before the handler runs, so error
 // responses carry it too.
 // See https://github.com/gotenberg/gotenberg/issues/1693.
 func versionHeaderMiddleware() echo.MiddlewareFunc {
