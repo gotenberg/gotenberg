@@ -2,8 +2,16 @@ package webhook
 
 import (
 	"context"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/go-retryablehttp"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 func TestWebhook_deliveryTimeout(t *testing.T) {
@@ -91,5 +99,76 @@ func TestClient_deliveryContext_IsBounded(t *testing.T) {
 	case <-ctx.Done():
 	case <-time.After(5 * time.Second):
 		t.Fatal("delivery context never expired")
+	}
+}
+
+// TestClient_VersionHeader pins the "Gotenberg-Version" header on every webhook
+// delivery, and that extra HTTP headers cannot override it.
+// See https://github.com/gotenberg/gotenberg/issues/1693.
+func TestClient_VersionHeader(t *testing.T) {
+	for _, tc := range []struct {
+		scenario string
+		deliver  func(c client) error
+	}{
+		{
+			scenario: "output file",
+			deliver: func(c client) error {
+				return c.send(context.Background(), strings.NewReader("%PDF-1.7"), nil, false)
+			},
+		},
+		{
+			scenario: "error details",
+			deliver: func(c client) error {
+				return c.send(context.Background(), strings.NewReader("{}"), nil, true)
+			},
+		},
+		{
+			scenario: "event",
+			deliver: func(c client) error {
+				c.sendEvent(context.Background(), "Gotenberg-Trace", "foo", map[string]any{"event": "webhook.success"})
+				return nil
+			},
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			received := make(chan string, 1)
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				received <- r.Header.Get("Gotenberg-Version")
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer srv.Close()
+
+			retryableClient := retryablehttp.NewClient()
+			retryableClient.HTTPClient = srv.Client()
+			retryableClient.RetryMax = 0
+			retryableClient.Logger = nil
+
+			c := client{
+				url:              srv.URL,
+				method:           http.MethodPost,
+				errorUrl:         srv.URL,
+				errorMethod:      http.MethodPost,
+				eventsUrl:        srv.URL,
+				extraHttpHeaders: map[string]string{"Gotenberg-Version": "spoofed"},
+				startTime:        time.Now(),
+				deliveryTimeout:  30 * time.Second,
+				client:           retryableClient,
+				logger:           slog.New(slog.DiscardHandler),
+			}
+
+			err := tc.deliver(c)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			select {
+			case got := <-received:
+				if got != gotenberg.Version {
+					t.Errorf("Gotenberg-Version = %q, want %q", got, gotenberg.Version)
+				}
+			default:
+				t.Fatal("the webhook server received no request")
+			}
+		})
 	}
 }

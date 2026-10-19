@@ -13,8 +13,10 @@ Feature: Webhook
       | Gotenberg-Webhook-Url       | http://host.docker.internal:%d/webhook       | header |
       | Gotenberg-Webhook-Error-Url | http://host.docker.internal:%d/webhook/error | header |
     Then the response status code should be 204
+    Then the response header "Gotenberg-Version" should be "{version}"
     When I wait for the asynchronous request to the webhook
     Then the webhook request header "Content-Type" should be "application/pdf"
+    Then the webhook request header "Gotenberg-Version" should be "{version}"
     Then there should be 1 PDF(s) in the webhook request
 
   Scenario: Extra HTTP Headers

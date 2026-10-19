@@ -19,6 +19,8 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/coreos/go-oidc/v3/oidc/oidctest"
 	"github.com/labstack/echo/v5"
+
+	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
 )
 
 // TestRequestCanceled pins the client-abort discriminator: only a
@@ -127,6 +129,68 @@ func TestOutputFilenameMiddleware(t *testing.T) {
 			}
 			if got != tc.want {
 				t.Errorf("outputFilename = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestVersionHeaderMiddleware pins where the "Gotenberg-Version" header shows
+// up: on authenticated responses, failed ones included, and never on a request
+// that fails authentication.
+// See https://github.com/gotenberg/gotenberg/issues/1693.
+func TestVersionHeaderMiddleware(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		handler    echo.HandlerFunc
+		authorized bool
+		wantStatus int
+		wantHeader string
+	}{
+		{
+			name:       "success",
+			handler:    func(c *echo.Context) error { return c.NoContent(http.StatusOK) },
+			authorized: true,
+			wantStatus: http.StatusOK,
+			wantHeader: gotenberg.Version,
+		},
+		{
+			name:       "handler error",
+			handler:    func(c *echo.Context) error { return echo.NewHTTPError(http.StatusBadRequest, "bad request") },
+			authorized: true,
+			wantStatus: http.StatusBadRequest,
+			wantHeader: gotenberg.Version,
+		},
+		{
+			name:       "unauthorized",
+			handler:    func(c *echo.Context) error { return c.NoContent(http.StatusOK) },
+			authorized: false,
+			wantStatus: http.StatusUnauthorized,
+			wantHeader: "",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := newEchoServer()
+			srv.Pre(func(next echo.HandlerFunc) echo.HandlerFunc {
+				return func(c *echo.Context) error {
+					c.Set("logger", slog.New(slog.DiscardHandler))
+					return next(c)
+				}
+			})
+			srv.GET("/", tc.handler, basicAuthMiddleware("foo", "bar"), versionHeaderMiddleware())
+
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tc.authorized {
+				req.SetBasicAuth("foo", "bar")
+			}
+			rec := httptest.NewRecorder()
+
+			srv.ServeHTTP(rec, req)
+
+			if rec.Code != tc.wantStatus {
+				t.Fatalf("status = %d, want %d", rec.Code, tc.wantStatus)
+			}
+			if got := rec.Header().Get("Gotenberg-Version"); got != tc.wantHeader {
+				t.Errorf("Gotenberg-Version = %q, want %q", got, tc.wantHeader)
 			}
 		})
 	}
