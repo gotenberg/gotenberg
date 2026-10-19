@@ -723,6 +723,7 @@ func (s *scenario) theHeaderValueShouldBe(kind, name string, expected string) er
 		actual = s.server.req.Header.Get(name)
 	}
 
+	expected = strings.ReplaceAll(expected, "{version}", GotenbergVersion)
 	if expected != actual {
 		return fmt.Errorf("expected %s header %q to be: %q, but actual is: %q", kind, name, expected, actual)
 	}

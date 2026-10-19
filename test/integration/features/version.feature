@@ -6,6 +6,7 @@ Feature: /version
     When I make a "GET" request to Gotenberg at the "/version" endpoint
     Then the response status code should be 200
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response header "Gotenberg-Version" should be "{version}"
     Then the response body should match string:
       """
       {version}
@@ -28,6 +29,7 @@ Feature: /version
       | GOTENBERG_API_BASIC_AUTH_PASSWORD | bar  |
     When I make a "GET" request to Gotenberg at the "/version" endpoint
     Then the response status code should be 401
+    Then the response header "Gotenberg-Version" should be ""
 
   Scenario: GET /foo/version (Root Path)
     Given I have a Gotenberg container with the following environment variable(s):
