@@ -136,6 +136,10 @@ func (c client) send(ctx context.Context, body io.Reader, headers map[string]str
 		req.Header.Set(key, value)
 	}
 
+	// Set last so that extra HTTP headers cannot misreport the version.
+	// See https://github.com/gotenberg/gotenberg/issues/1693.
+	req.Header.Set("Gotenberg-Version", gotenberg.Version)
+
 	resp, err := c.client.Do(req)
 	if err != nil {
 		span.RecordError(err)
@@ -226,6 +230,7 @@ func (c client) sendEvent(ctx context.Context, correlationIdHeader, correlationI
 	}
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	req.Header.Set(correlationIdHeader, correlationId)
+	req.Header.Set("Gotenberg-Version", gotenberg.Version)
 
 	resp, err := c.client.Do(req)
 	if err != nil {
