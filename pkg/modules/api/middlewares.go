@@ -428,8 +428,10 @@ func (a *Api) buildOidcVerifier() (*oidc.IDTokenVerifier, error) {
 func oidcAuthMiddleware(verifier *oidc.IDTokenVerifier) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
-			rawToken, ok := strings.CutPrefix(c.Request().Header.Get("Authorization"), "Bearer ")
-			if !ok || rawToken == "" {
+			// An authentication scheme is case-insensitive (RFC 9110, section
+			// 11.1), so "bearer" and "BEARER" name the same scheme as "Bearer".
+			scheme, rawToken, ok := strings.Cut(c.Request().Header.Get("Authorization"), " ")
+			if !ok || !strings.EqualFold(scheme, "Bearer") || rawToken == "" {
 				return echo.NewHTTPError(http.StatusUnauthorized, "a Bearer token is required in the Authorization header")
 			}
 
