@@ -207,9 +207,12 @@ func TestOidcAuthMiddleware(t *testing.T) {
 		wantStatus int
 	}{
 		{"valid token", "Bearer " + sign(claims(srv.URL, audience, time.Hour)), http.StatusOK},
+		{"lower-case scheme", "bearer " + sign(claims(srv.URL, audience, time.Hour)), http.StatusOK},
+		{"upper-case scheme", "BEARER " + sign(claims(srv.URL, audience, time.Hour)), http.StatusOK},
 		{"missing header", "", http.StatusUnauthorized},
 		{"wrong scheme", "Basic Zm9vOmJhcg==", http.StatusUnauthorized},
 		{"empty bearer", "Bearer ", http.StatusUnauthorized},
+		{"no space after scheme", "Bearer" + sign(claims(srv.URL, audience, time.Hour)), http.StatusUnauthorized},
 		{"malformed token", "Bearer not-a-jwt", http.StatusUnauthorized},
 		{"wrong issuer", "Bearer " + sign(claims("https://evil.example/", audience, time.Hour)), http.StatusUnauthorized},
 		{"wrong audience", "Bearer " + sign(claims(srv.URL, "someone-else", time.Hour)), http.StatusUnauthorized},
