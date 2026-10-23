@@ -740,6 +740,19 @@ func (a *Api) Start() error {
 			// See https://github.com/gotenberg/gotenberg/issues/396.
 			s.WriteTimeout = a.timeout + a.timeout
 
+			// Advertise the HTTP/2 default SETTINGS_MAX_FRAME_SIZE (16 KiB)
+			// instead of Go's 1 MiB default. Proxies such as Cloud Run's honor
+			// the advertised size and send DATA frames of hundreds of KiB on a
+			// fast link, while Go's server answers with a WINDOW_UPDATE pair
+			// for roughly every 4 KiB it consumes. That volume exceeds the
+			// proxy's per-frame WINDOW_UPDATE allowance, so it drops the
+			// connection mid-upload and the client sees a 502 "protocol
+			// error" or "client disconnected". With 16 KiB frames the ratio
+			// stays within limits. See
+			// https://github.com/golang/go/issues/73343 and
+			// https://github.com/gotenberg/gotenberg/issues/1112.
+			s.HTTP2 = &http.HTTP2Config{MaxReadFrameSize: 16 << 10}
+
 			if a.tlsCertFile == "" || a.tlsKeyFile == "" {
 				// Serve HTTP/2 Cleartext (h2c). Echo v5 dropped
 				// StartH2CServer and golang.org/x/net/http2/h2c is deprecated,
