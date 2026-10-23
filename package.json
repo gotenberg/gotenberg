@@ -1,6 +1,6 @@
 {
   "devDependencies": {
-    "prettier": "3.9.9",
+    "prettier": "3.9.10",
     "prettier-plugin-gherkin": "^4.0.0",
     "prettier-plugin-sh": "^0.20.2"
   }
