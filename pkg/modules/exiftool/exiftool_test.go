@@ -217,7 +217,7 @@ func TestSafeKeyPattern(t *testing.T) {
 // entry such as "-csv=/etc/passwd", which exiftool reads as its own option and
 // treats the value as a filename to open.
 func TestBuildExifToolWriteArgs_RejectsControlOptions(t *testing.T) {
-	for _, key := range []string{"csv", "CSV", "json", "geotag", "config", "tagsFromFile", "execute", "stay_open", "o", "w", "if", "p"} {
+	for _, key := range []string{"csv", "CSV", "json", "j", "J", "geotag", "config", "tagsFromFile", "addTagsFromFile", "allTagsFromFile", "execute", "stay_open", "o", "w", "if", "p"} {
 		t.Run(key, func(t *testing.T) {
 			_, err := buildExifToolWriteArgs(map[string]any{key: "/etc/passwd"})
 			if err == nil {

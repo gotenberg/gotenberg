@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -86,14 +87,29 @@ var dangerousTags = []string{
 // becomes a filename exiftool opens. Only an unprefixed key can collide:
 // "-XMP:csv=value" is unambiguously a tag.
 //
+// The list must cover every alias exiftool accepts in the "-NAME=value" form.
+// As of ExifTool 13.25, those are the options its argument parser matches with
+// /^(all|add)?tagsfromfile(=.*)?$/i, /^csv(\+?=.*)?$/i and /^j(son)?(\+?=.*)?$/i.
+// Missing the "j" alias of "json" let a client import a JSON file that sets
+// the HardLink pseudo-tag, bypassing [dangerousTags].
+//
 // See https://exiftool.org/exiftool_pod.html.
 var controlOptions = []string{
-	"api", "argfile", "charset", "common_args", "config", "csv", "diff",
-	"echo", "efile", "execute", "ext", "fileorder", "geotag", "geosync",
-	"htmldump", "if", "json", "lang", "listitem", "o", "out", "p", "php",
-	"require", "srcfile", "stay_open", "tagsfromfile", "textout", "use", "w",
-	"wm", "xmlformat",
+	"addtagsfromfile", "alltagsfromfile", "api", "argfile", "charset",
+	"common_args", "config", "csv", "diff", "echo", "efile", "execute", "ext",
+	"fileorder", "geotag", "geosync", "htmldump", "if", "j", "json", "lang",
+	"listitem", "o", "out", "p", "php", "require", "srcfile", "stay_open",
+	"tagsfromfile", "textout", "use", "w", "wm", "xmlformat",
 }
+
+// noConfigArgs disables the user config file. By default exiftool evaluates
+// "~/.ExifTool_config" as Perl on every run, so a file planted in the service
+// user's home directory would turn the next invocation into code execution.
+// Gotenberg relies on no exiftool configuration. The option must come first
+// on the command line.
+//
+// See https://exiftool.org/config.html.
+var noConfigArgs = []string{"-config", ""}
 
 // isControlOption reports whether an unprefixed key would reach exiftool as
 // one of its own options instead of as a tag assignment.
@@ -256,7 +272,7 @@ func (engine *ExifTool) detectVersion() string {
 			return
 		}
 
-		cmd := exec.Command(engine.binPath, "-ver") //nolint:gosec
+		cmd := exec.Command(engine.binPath, append(slices.Clone(noConfigArgs), "-ver")...) //nolint:gosec
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 		output, err := cmd.Output()
@@ -364,7 +380,7 @@ func (engine *ExifTool) ReadMetadata(ctx context.Context, logger *slog.Logger, i
 	)
 	defer span.End()
 
-	cmd := exec.CommandContext(ctx, engine.binPath, "-j", inputPath) //nolint:gosec
+	cmd := exec.CommandContext(ctx, engine.binPath, append(slices.Clone(noConfigArgs), "-j", inputPath)...) //nolint:gosec
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	output, err := cmd.Output()
@@ -435,7 +451,8 @@ func (engine *ExifTool) WriteMetadata(ctx context.Context, logger *slog.Logger, 
 		return nil
 	}
 
-	args := append([]string{"-overwrite_original"}, extraArgs...)
+	args := append(slices.Clone(noConfigArgs), "-overwrite_original")
+	args = append(args, extraArgs...)
 	args = append(args, inputPath)
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)

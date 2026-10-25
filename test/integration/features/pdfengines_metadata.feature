@@ -143,6 +143,21 @@ Feature: /forms/pdfengines/metadata/{write|read}
       "Author":"legit"
       """
 
+  Scenario: POST /forms/pdfengines/metadata/write (Reject ExifTool Option Alias)
+    # Regression: "j" is ExifTool's short alias of "json". As a metadata key it
+    # became "-j=<path>", a JSON metadata import able to set the HardLink
+    # pseudo-tag and plant an ExifTool config file in the home directory.
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/write" endpoint with the following form data and header(s):
+      | files    | testdata/page_1.pdf  | file  |
+      | metadata | {"j":"/tmp/db.json"} | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should contain string:
+      """
+      The requested metadata could not be written
+      """
+
   Scenario: POST /forms/pdfengines/metadata/read (Bad Request)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/read" endpoint with the following form data and header(s):
