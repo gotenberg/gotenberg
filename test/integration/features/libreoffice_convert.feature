@@ -9,6 +9,7 @@ Feature: /forms/libreoffice/convert
       | Gotenberg-Output-Filename | foo                  | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
+    Then the response header "Gotenberg-Version" should be "{version}"
     Then there should be 1 PDF(s) in the response
     Then there should be the following file(s) in the response:
       | foo.pdf |
@@ -255,6 +256,7 @@ Feature: /forms/libreoffice/convert
       | maxImageResolution              | 10  | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response header "Gotenberg-Version" should be "{version}"
     Then the response body should match string:
       """
       Invalid form data: no form file found for extensions: [.123 .602 .abw .bib .bmp .cdr .cgm .cmx .csv .cwk .dbf .dif .doc .docm .docx .dot .dotm .dotx .dxf .emf .eps .epub .fodg .fodp .fods .fodt .fopd .gif .htm .html .hwp .jpeg .jpg .key .ltx .lwp .mcw .met .mml .mw .numbers .odd .odg .odm .odp .ods .odt .otg .oth .otp .ots .ott .pages .pbm .pcd .pct .pcx .pdb .pdf .pgm .png .pot .potm .potx .ppm .pps .ppsm .ppsx .ppt .pptm .pptx .psd .psw .pub .pwp .pxl .ras .rtf .sda .sdc .sdd .sdp .sdw .sgl .slk .smf .stc .std .sti .stw .svg .svm .swf .sxc .sxd .sxg .sxi .sxm .sxw .tga .tif .tiff .txt .uof .uop .uos .uot .vdx .vor .vsd .vsdm .vsdx .wb2 .wk1 .wks .wmf .wpd .wpg .wps .xbm .xhtml .xls .xlsb .xlsm .xlsx .xlt .xltm .xltx .xlw .xml .xpm .zabw]

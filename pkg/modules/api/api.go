@@ -634,10 +634,15 @@ func (a *Api) Start() error {
 		}
 	}
 
+	// Only authenticated routes advertise the version, so that enabling
+	// authentication also hides it from anonymous clients, as it does for the
+	// version route.
+	versionHeader := versionHeaderMiddleware()
+
 	// Add the modules' routes and their specific middlewares.
 	for _, route := range a.routes {
 		var middlewares []echo.MiddlewareFunc
-		middlewares = append(middlewares, securityMiddleware)
+		middlewares = append(middlewares, securityMiddleware, versionHeader)
 
 		if route.IsMultipart {
 			middlewares = append(middlewares, contextMiddleware(a.fs, a.timeout, a.bodyLimit, a.downloadFromCfg))
@@ -664,6 +669,7 @@ func (a *Api) Start() error {
 			return c.HTML(http.StatusOK, `Hey, Gotenberg has no UI, it's an API. Head to the <a href="https://gotenberg.dev">documentation</a> to learn how to interact with it 🚀`)
 		},
 		securityMiddleware,
+		versionHeader,
 	)
 
 	// Favicon route.
@@ -673,6 +679,7 @@ func (a *Api) Start() error {
 			return c.NoContent(http.StatusNoContent)
 		},
 		securityMiddleware,
+		versionHeader,
 	)
 
 	// Let's not forget the health check routes...
@@ -704,6 +711,7 @@ func (a *Api) Start() error {
 			return c.String(http.StatusOK, gotenberg.Version)
 		},
 		securityMiddleware,
+		versionHeader,
 	)
 
 	// ...and the debug route.
@@ -714,6 +722,7 @@ func (a *Api) Start() error {
 				return c.JSONPretty(http.StatusOK, gotenberg.Debug(), "  ")
 			},
 			securityMiddleware,
+			versionHeader,
 		)
 	}
 
