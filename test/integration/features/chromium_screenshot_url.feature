@@ -55,6 +55,31 @@ Feature: /forms/chromium/screenshot/url
       file:// URLs are not accepted on this route. Use the /convert/html or /convert/markdown routes to render local HTML
       """
 
+  # devtools:// pages expose privileged bindings such as InspectorFrontendHost,
+  # so evaluating waitForExpression there could read local files. chrome://
+  # pages can crash or restart the browser. Only http(s) URLs are accepted.
+  Scenario Outline: POST /forms/chromium/screenshot/url (non-http(s) scheme rejected at route layer)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/screenshot/url" endpoint with the following form data and header(s):
+      | url               | <url>                    | field |
+      | waitForExpression | window.foo === undefined | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'url' must be an http:// or https:// URL
+      """
+
+    Examples:
+      | url                                           |
+      | devtools://devtools/bundled/devtools_app.html |
+      | DEVTOOLS://devtools/bundled/devtools_app.html |
+      | chrome://version                              |
+      | chrome-untrusted://terminal/                  |
+      | view-source:https://example.com               |
+      | javascript:alert(1)                           |
+      | data:text/html,foo                            |
+
   @webhook
   Scenario: POST /forms/chromium/screenshot/url (Webhook)
     Given I have a default Gotenberg container

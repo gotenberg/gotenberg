@@ -70,3 +70,44 @@ func TestHandleChromiumError_ConsoleMessages(t *testing.T) {
 		t.Errorf("message = %q, want %q", message, want)
 	}
 }
+
+// TestValidateUrlScheme pins the schemes the URL routes accept. Chromium's
+// own schemes must never reach the browser: devtools:// exposes privileged
+// bindings to waitForExpression, and chrome:// can crash the browser.
+func TestValidateUrlScheme(t *testing.T) {
+	for _, tc := range []struct {
+		url     string
+		wantErr bool
+	}{
+		{"http://example.com", false},
+		{"https://example.com/path?q=1", false},
+		{"HTTPS://example.com", false},
+		{"file:///tmp/foo/index.html", true},
+		{"devtools://devtools/bundled/devtools_app.html", true},
+		{"DevTools://devtools/bundled/devtools_app.html", true},
+		{"chrome://crash", true},
+		{"chrome-untrusted://terminal/", true},
+		{"chrome-extension://abc/index.html", true},
+		{"view-source:https://example.com", true},
+		{"javascript:alert(1)", true},
+		{"data:text/html,foo", true},
+		{"about:blank", true},
+		{"example.com", true},
+		{"", true},
+	} {
+		t.Run(tc.url, func(t *testing.T) {
+			err := validateUrlScheme(tc.url)
+			if tc.wantErr != (err != nil) {
+				t.Fatalf("validateUrlScheme(%q) error = %v, want error: %t", tc.url, err, tc.wantErr)
+			}
+			if err == nil {
+				return
+			}
+
+			status, _ := api.ParseError(err)
+			if status != http.StatusBadRequest {
+				t.Errorf("status = %d, want %d", status, http.StatusBadRequest)
+			}
+		})
+	}
+}

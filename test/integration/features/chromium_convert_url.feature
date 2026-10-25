@@ -573,6 +573,31 @@ Feature: /forms/chromium/convert/url
       file:// URLs are not accepted on this route. Use the /convert/html or /convert/markdown routes to render local HTML
       """
 
+  # devtools:// pages expose privileged bindings such as InspectorFrontendHost,
+  # so evaluating waitForExpression there could read local files. chrome://
+  # pages can crash or restart the browser. Only http(s) URLs are accepted.
+  Scenario Outline: POST /forms/chromium/convert/url (non-http(s) scheme rejected at route layer)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url               | <url>                    | field |
+      | waitForExpression | window.foo === undefined | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'url' must be an http:// or https:// URL
+      """
+
+    Examples:
+      | url                                           |
+      | devtools://devtools/bundled/devtools_app.html |
+      | DEVTOOLS://devtools/bundled/devtools_app.html |
+      | chrome://version                              |
+      | chrome-untrusted://terminal/                  |
+      | view-source:https://example.com               |
+      | javascript:alert(1)                           |
+      | data:text/html,foo                            |
+
   Scenario: POST /forms/chromium/convert/url (Main URL resolves to a non-public IP, permissive default)
     Given I have a Gotenberg container with the following environment variable(s):
       | CHROMIUM_ALLOW_LIST |  |
@@ -1485,19 +1510,3 @@ Feature: /forms/chromium/convert/url
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
     Then the "foo.pdf" PDF should have 1 page(s)
-
-  # chrome://crash makes the renderer crash deterministically, the same
-  # failure class as a renderer crash triggered by the page content. The
-  # request must fail fast with a 503 instead of hanging until the API
-  # timeout.
-  # See https://github.com/gotenberg/gotenberg/issues/1640.
-  Scenario: POST /forms/chromium/convert/url (Chromium crash fails fast with 503)
-    Given I have a default Gotenberg container
-    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url | chrome://crash | field |
-    Then the response status code should be 503
-    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
-    Then the response body should contain string:
-      """
-      Chromium crashed while processing the request
-      """
