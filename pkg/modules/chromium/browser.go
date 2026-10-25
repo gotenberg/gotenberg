@@ -600,6 +600,22 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 	}
 
 	var (
+		consoleMessages        []string
+		droppedConsoleMessages int
+		consoleMessagesMu      sync.RWMutex
+	)
+
+	// See https://github.com/gotenberg/gotenberg/issues/1667.
+	if len(options.FailOnConsoleMessageTypes) != 0 && !b.arguments.disableJavaScript {
+		listenForEventConsoleAPICalled(taskCtx, logger, eventConsoleAPICalledOptions{
+			types:                  options.FailOnConsoleMessageTypes,
+			consoleMessages:        &consoleMessages,
+			droppedConsoleMessages: &droppedConsoleMessages,
+			consoleMessagesMu:      &consoleMessagesMu,
+		})
+	}
+
+	var (
 		loadingFailed           error
 		loadingFailedMu         sync.RWMutex
 		resourceLoadingFailed   error
@@ -721,6 +737,18 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 
 	if consoleExceptions != nil {
 		return fmt.Errorf("%v: %w", consoleExceptions, ErrConsoleExceptions)
+	}
+
+	// See https://github.com/gotenberg/gotenberg/issues/1667.
+	consoleMessagesMu.RLock()
+	defer consoleMessagesMu.RUnlock()
+
+	if len(consoleMessages) != 0 {
+		if droppedConsoleMessages != 0 {
+			consoleMessages = append(consoleMessages, fmt.Sprintf("(%d more console message(s) omitted)", droppedConsoleMessages))
+		}
+
+		return fmt.Errorf("%s: %w", strings.Join(consoleMessages, "\n"), ErrConsoleMessages)
 	}
 
 	// See https://github.com/gotenberg/gotenberg/issues/1021.

@@ -148,6 +148,7 @@ Feature: /forms/chromium/screenshot/html
       | skipNetworkAlmostIdleEvent  | foo | field |
       | failOnResourceLoadingFailed | foo | field |
       | failOnConsoleExceptions     | foo | field |
+      | failOnConsoleMessageTypes   | foo | field |
       | emulatedMediaType           | foo | field |
       | omitBackground              | foo | field |
       | width                       | foo | field |

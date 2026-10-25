@@ -1,6 +1,12 @@
 package chromium
 
-import "testing"
+import (
+	"strings"
+	"testing"
+	"unicode/utf8"
+
+	"github.com/chromedp/cdproto/runtime"
+)
 
 func TestNormalizeDomain(t *testing.T) {
 	tests := []struct {
@@ -105,5 +111,60 @@ func TestIsAllowedFileSubResource(t *testing.T) {
 				t.Fatalf("isAllowedFileSubResource(%q, %v) = %v, want %v", tc.rawURL, tc.prefixes, got, tc.want)
 			}
 		})
+	}
+}
+
+// TestFormatConsoleMessage pins how console call arguments render in the
+// error response of "failOnConsoleMessageTypes".
+// See https://github.com/gotenberg/gotenberg/issues/1667.
+func TestFormatConsoleMessage(t *testing.T) {
+	tests := []struct {
+		name string
+		args []*runtime.RemoteObject
+		want string
+	}{
+		{name: "no arguments", args: nil, want: ""},
+		{name: "string is unquoted", args: []*runtime.RemoteObject{{Type: runtime.TypeString, Value: []byte(`"an error message"`)}}, want: "an error message"},
+		{name: "escaped string", args: []*runtime.RemoteObject{{Type: runtime.TypeString, Value: []byte(`"line 1\nline 2"`)}}, want: "line 1\nline 2"},
+		{name: "number", args: []*runtime.RemoteObject{{Type: runtime.TypeNumber, Value: []byte(`42`)}}, want: "42"},
+		{name: "unserializable", args: []*runtime.RemoteObject{{Type: runtime.TypeNumber, UnserializableValue: "NaN"}}, want: "NaN"},
+		{name: "object", args: []*runtime.RemoteObject{{Type: runtime.TypeObject, Description: "Error: boom"}}, want: "Error: boom"},
+		{name: "undefined", args: []*runtime.RemoteObject{{Type: runtime.TypeUndefined}}, want: "undefined"},
+		{name: "nil argument", args: []*runtime.RemoteObject{nil, {Type: runtime.TypeString, Value: []byte(`"foo"`)}}, want: "foo"},
+		{
+			name: "several arguments",
+			args: []*runtime.RemoteObject{
+				{Type: runtime.TypeString, Value: []byte(`"total:"`)},
+				{Type: runtime.TypeNumber, Value: []byte(`3`)},
+				{Type: runtime.TypeBoolean, Value: []byte(`true`)},
+			},
+			want: "total: 3 true",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := formatConsoleMessage(tt.args); got != tt.want {
+				t.Fatalf("formatConsoleMessage() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestFormatConsoleMessage_Truncates guards the size cap: a long message is cut
+// to [maxConsoleMessageLength] bytes on a rune boundary.
+func TestFormatConsoleMessage_Truncates(t *testing.T) {
+	// "é" is two bytes, so the cut lands in the middle of a rune.
+	long := "a" + strings.Repeat("é", maxConsoleMessageLength)
+	got := formatConsoleMessage([]*runtime.RemoteObject{{Type: runtime.TypeString, Value: []byte(`"` + long + `"`)}})
+
+	if !strings.HasSuffix(got, "...") {
+		t.Fatalf("formatConsoleMessage() = %q, want a truncated message", got)
+	}
+	if len(got) > maxConsoleMessageLength+len("...") {
+		t.Errorf("len = %d, want at most %d", len(got), maxConsoleMessageLength+len("..."))
+	}
+	if !utf8.ValidString(got) {
+		t.Error("truncated message is not valid UTF-8")
 	}
 }

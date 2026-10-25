@@ -752,6 +752,34 @@ Feature: /forms/chromium/convert/url
       Error: Exception 2
       """
 
+  Scenario: POST /forms/chromium/convert/url (Fail On Console Message Types)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field |
+      | failOnConsoleMessageTypes | ["error","warning"]                                                              | field |
+    Then the response status code should be 409
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Chromium console messages:
+      [warning] a warning message
+      [error] an error message
+      """
+
+  Scenario: POST /forms/chromium/convert/url (Fail On Console Message Types - Unknown Type)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field |
+      | failOnConsoleMessageTypes | ["warn"]                                                                         | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'failOnConsoleMessageTypes' is invalid (got '["warn"]', resulting to unknown console message type 'warn', expected one or more of: log, debug, info, warning, error, assert)
+      """
+
   Scenario: POST /forms/chromium/convert/url (Bad Request)
     Given I have a default Gotenberg container
     Given I have a static server
@@ -776,6 +804,7 @@ Feature: /forms/chromium/convert/url
       | failOnResourceHttpStatusCodes | foo | field |
       | failOnResourceLoadingFailed   | foo | field |
       | failOnConsoleExceptions       | foo | field |
+      | failOnConsoleMessageTypes     | foo | field |
       | skipNetworkIdleEvent          | foo | field |
       | skipNetworkAlmostIdleEvent    | foo | field |
     Then the response status code should be 400
@@ -788,6 +817,7 @@ Feature: /forms/chromium/convert/url
       form field 'failOnResourceHttpStatusCodes' is invalid (got 'foo', resulting to unmarshal failOnResourceHttpStatusCodes: invalid character 'o' in literal false (expecting 'a'))
       form field 'failOnResourceLoadingFailed' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
       form field 'failOnConsoleExceptions' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'failOnConsoleMessageTypes' is invalid (got 'foo', resulting to unmarshal failOnConsoleMessageTypes: invalid character 'o' in literal false (expecting 'a'))
       form field 'waitDelay' is invalid (got 'foo', resulting to time: invalid duration "foo")
       form field 'emulatedMediaType' is invalid (got 'foo', resulting to wrong value, expected either 'screen', 'print' or empty)
       form field 'omitBackground' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)

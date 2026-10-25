@@ -2,6 +2,7 @@ package chromium
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -530,6 +531,102 @@ func listenForEventExceptionThrown(ctx context.Context, logger *slog.Logger, con
 			*consoleExceptions = errors.Join(*consoleExceptions, fmt.Errorf("\n%+v", ev.ExceptionDetails))
 		}
 	})
+}
+
+// consoleMessageTypes lists the console message types a client may pass in
+// [Options.FailOnConsoleMessageTypes]. They are the Runtime.consoleAPICalled
+// types for the console methods a page uses to report problems or progress.
+var consoleMessageTypes = []string{
+	string(runtime.APITypeLog),
+	string(runtime.APITypeDebug),
+	string(runtime.APITypeInfo),
+	string(runtime.APITypeWarning),
+	string(runtime.APITypeError),
+	string(runtime.APITypeAssert),
+}
+
+// Caps on the console messages a conversion records, so that a page logging
+// in a loop cannot grow the error response without bound.
+const (
+	maxConsoleMessages      = 50
+	maxConsoleMessageLength = 512
+)
+
+type eventConsoleAPICalledOptions struct {
+	types                  []string
+	consoleMessages        *[]string
+	droppedConsoleMessages *int
+	consoleMessagesMu      *sync.RWMutex
+}
+
+// listenForEventConsoleAPICalled listens for console calls from the page and
+// records those whose type is in the given types. It only covers calls made
+// by page scripts: Chromium's own messages, like failed resource loads, have
+// dedicated options.
+// See https://github.com/gotenberg/gotenberg/issues/1667.
+func listenForEventConsoleAPICalled(ctx context.Context, logger *slog.Logger, options eventConsoleAPICalledOptions) {
+	chromedp.ListenTarget(ctx, func(ev any) {
+		call, ok := ev.(*runtime.EventConsoleAPICalled)
+		if !ok || !slices.Contains(options.types, string(call.Type)) {
+			return
+		}
+
+		logger.DebugContext(ctx, fmt.Sprintf("event EventConsoleAPICalled fired: %s", call.Type))
+
+		options.consoleMessagesMu.Lock()
+		defer options.consoleMessagesMu.Unlock()
+
+		if len(*options.consoleMessages) >= maxConsoleMessages {
+			*options.droppedConsoleMessages++
+			return
+		}
+
+		*options.consoleMessages = append(*options.consoleMessages, fmt.Sprintf("[%s] %s", call.Type, formatConsoleMessage(call.Args)))
+	})
+}
+
+// formatConsoleMessage renders the arguments of a console call the way the
+// DevTools console does for primitives: strings unquoted, other values as
+// their description. The result is truncated to [maxConsoleMessageLength]
+// bytes.
+func formatConsoleMessage(args []*runtime.RemoteObject) string {
+	parts := make([]string, 0, len(args))
+
+	for _, arg := range args {
+		if arg == nil {
+			continue
+		}
+
+		parts = append(parts, formatConsoleArg(arg))
+	}
+
+	message := strings.Join(parts, " ")
+	if len(message) <= maxConsoleMessageLength {
+		return message
+	}
+
+	// Cut on a rune boundary so that the response stays valid UTF-8.
+	return strings.ToValidUTF8(message[:maxConsoleMessageLength], "") + "..."
+}
+
+func formatConsoleArg(arg *runtime.RemoteObject) string {
+	if arg.Type == runtime.TypeString && len(arg.Value) != 0 {
+		var value string
+		if err := json.Unmarshal(arg.Value, &value); err == nil {
+			return value
+		}
+	}
+
+	switch {
+	case len(arg.Value) != 0:
+		return string(arg.Value)
+	case arg.UnserializableValue != "":
+		return string(arg.UnserializableValue)
+	case arg.Description != "":
+		return arg.Description
+	default:
+		return string(arg.Type)
+	}
 }
 
 type eventTargetCrashedOptions struct {

@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -51,6 +52,7 @@ var sameSiteRegexp = regexp2.MustCompile(
 //   - failOnHttpStatusCodes: []int
 //   - failOnResourceHttpStatusCodes: []int
 //   - ignoreResourceHttpStatusDomains: []string
+//   - failOnConsoleMessageTypes: []string
 //   - cookies: []Cookie
 //   - extraHttpHeaders: map[string]string
 //   - emulatedMediaFeatures: map[string]string
@@ -68,6 +70,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		ignoreResourceHttpStatusDomains []string
 		failOnResourceLoadingFailed     bool
 		failOnConsoleExceptions         bool
+		failOnConsoleMessageTypes       []string
 		waitDelay                       time.Duration
 		waitWindowStatus                string
 		waitForExpression               string
@@ -124,6 +127,25 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		}).
 		Bool("failOnResourceLoadingFailed", &failOnResourceLoadingFailed, defaultOptions.FailOnResourceLoadingFailed).
 		Bool("failOnConsoleExceptions", &failOnConsoleExceptions, defaultOptions.FailOnConsoleExceptions).
+		Custom("failOnConsoleMessageTypes", func(value string) error {
+			if value == "" {
+				failOnConsoleMessageTypes = defaultOptions.FailOnConsoleMessageTypes
+				return nil
+			}
+
+			err := json.Unmarshal([]byte(value), &failOnConsoleMessageTypes)
+			if err != nil {
+				return fmt.Errorf("unmarshal failOnConsoleMessageTypes: %w", err)
+			}
+
+			for _, messageType := range failOnConsoleMessageTypes {
+				if !slices.Contains(consoleMessageTypes, messageType) {
+					return fmt.Errorf("unknown console message type '%s', expected one or more of: %s", messageType, strings.Join(consoleMessageTypes, ", "))
+				}
+			}
+
+			return nil
+		}).
 		Duration("waitDelay", &waitDelay, defaultOptions.WaitDelay).
 		String("waitWindowStatus", &waitWindowStatus, defaultOptions.WaitWindowStatus).
 		String("waitForExpression", &waitForExpression, defaultOptions.WaitForExpression).
@@ -284,6 +306,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 		IgnoreResourceHttpStatusDomains: ignoreResourceHttpStatusDomains,
 		FailOnResourceLoadingFailed:     failOnResourceLoadingFailed,
 		FailOnConsoleExceptions:         failOnConsoleExceptions,
+		FailOnConsoleMessageTypes:       failOnConsoleMessageTypes,
 		WaitDelay:                       waitDelay,
 		WaitWindowStatus:                waitWindowStatus,
 		WaitForExpression:               waitForExpression,
@@ -1089,6 +1112,16 @@ func handleChromiumError(err error, options Options) error {
 			api.NewSentinelHttpError(
 				http.StatusConflict,
 				fmt.Sprintf("Chromium console exceptions:\n%s", strings.ReplaceAll(err.Error(), ErrConsoleExceptions.Error(), "")),
+			),
+		)
+	}
+
+	if errors.Is(err, ErrConsoleMessages) {
+		return api.WrapError(
+			err,
+			api.NewSentinelHttpError(
+				http.StatusConflict,
+				fmt.Sprintf("Chromium console messages:\n%s", strings.TrimSuffix(err.Error(), fmt.Sprintf(": %s", ErrConsoleMessages.Error()))),
 			),
 		)
 	}

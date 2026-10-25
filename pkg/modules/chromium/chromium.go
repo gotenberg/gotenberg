@@ -65,6 +65,10 @@ var (
 	// is set to true.
 	ErrConsoleExceptions = errors.New("console exceptions")
 
+	// ErrConsoleMessages happens when the page writes to the Chromium console
+	// with one of the types in [Options.FailOnConsoleMessageTypes].
+	ErrConsoleMessages = errors.New("console messages")
+
 	// ErrLoadingFailed happens when the main page failed to load.
 	ErrLoadingFailed = errors.New("loading failed")
 
@@ -169,6 +173,12 @@ type Options struct {
 	// exceptions in the Chromium console.
 	FailOnConsoleExceptions bool
 
+	// FailOnConsoleMessageTypes sets the console message types that make the
+	// conversion fail when the page writes them, for instance "error" for
+	// console.error. Valid types are "log", "debug", "info", "warning",
+	// "error" and "assert".
+	FailOnConsoleMessageTypes []string
+
 	// WaitDelay is the duration to wait when loading an HTML document before
 	// converting it.
 	WaitDelay time.Duration
@@ -240,6 +250,7 @@ func DefaultOptions() Options {
 		IgnoreResourceHttpStatusDomains: nil,
 		FailOnResourceLoadingFailed:     false,
 		FailOnConsoleExceptions:         false,
+		FailOnConsoleMessageTypes:       nil,
 		WaitDelay:                       0,
 		WaitWindowStatus:                "",
 		WaitForExpression:               "",
@@ -1117,6 +1128,7 @@ func chromiumErrorType(err error, queueReason string) string {
 		errors.Is(err, ErrInvalidResourceHttpStatusCode),
 		errors.Is(err, ErrLoadingFailed),
 		errors.Is(err, ErrResourceLoadingFailed),
+		errors.Is(err, ErrConsoleMessages),
 		errors.Is(err, ErrInvalidEvaluationExpression),
 		errors.Is(err, ErrInvalidSelectorQuery):
 		return gotenberg.ErrorTypeInvalidInput

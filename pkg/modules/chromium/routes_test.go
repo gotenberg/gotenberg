@@ -49,3 +49,24 @@ func TestHandleChromiumError_CrashedTakesPrecedence(t *testing.T) {
 		t.Errorf("status = %d, want %d", status, http.StatusServiceUnavailable)
 	}
 }
+
+// TestHandleChromiumError_ConsoleMessages pins the response of
+// "failOnConsoleMessageTypes": a 409 that lists the recorded messages.
+// See https://github.com/gotenberg/gotenberg/issues/1667.
+func TestHandleChromiumError_ConsoleMessages(t *testing.T) {
+	// Mirror the wrapping done by [chromiumBrowser.do].
+	err := handleChromiumError(fmt.Errorf("%s: %w", "[warning] foo\n[error] bar", ErrConsoleMessages), Options{})
+	if err == nil {
+		t.Fatal("expected an error, got none")
+	}
+
+	status, message := api.ParseError(err)
+	if status != http.StatusConflict {
+		t.Errorf("status = %d, want %d (message: %s)", status, http.StatusConflict, message)
+	}
+
+	want := "Chromium console messages:\n[warning] foo\n[error] bar"
+	if message != want {
+		t.Errorf("message = %q, want %q", message, want)
+	}
+}
