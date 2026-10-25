@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"slices"
@@ -50,6 +51,13 @@ type eventWebSocketCreatedOptions struct {
 	allowList, denyList []*regexp2.Regexp
 	denyPrivateIPs      bool
 	denyPublicIPs       bool
+
+	// decideTunnel is the pinning proxy's CONNECT verdict, or nil when the
+	// pinning proxy is not in use.
+	decideTunnel func(ctx context.Context, hostport string, deadline time.Time) (gotenberg.OutboundDecision, error)
+	denied       *error
+	deniedMu     *sync.RWMutex
+	cancel       context.CancelFunc
 }
 
 // listenForEventWebSocketCreated validates the target of every WebSocket
@@ -67,6 +75,12 @@ type eventWebSocketCreatedOptions struct {
 // proxy is not started; the WebSocket then follows the operator's egress path
 // and this warning is the remaining safeguard, since a WebSocket handshake
 // cannot be aborted through the CDP Network domain.
+//
+// The pinning proxy only sees the host and port of the tunnel, so a deny-list
+// rule that names a path, such as "^wss://host/ws", cannot sever it. When the
+// deny-list refuses the full URL but the proxy would admit the tunnel, the
+// listener fails the conversion instead, so that nothing the page read
+// through the WebSocket reaches the client.
 func listenForEventWebSocketCreated(ctx context.Context, logger *slog.Logger, options eventWebSocketCreatedOptions) {
 	chromedp.ListenTarget(ctx, func(ev any) {
 		e, ok := ev.(*network.EventWebSocketCreated)
@@ -87,11 +101,67 @@ func listenForEventWebSocketCreated(ctx context.Context, logger *slog.Logger, op
 				gotenberg.WithDenyPrivateIPs(options.denyPrivateIPs),
 				gotenberg.WithDenyPublicIPs(options.denyPublicIPs),
 			)
-			if err != nil {
-				logger.WarnContext(ctx, err.Error())
+			if err == nil {
+				return
 			}
+
+			logger.WarnContext(ctx, err.Error())
+
+			if options.decideTunnel == nil {
+				return
+			}
+
+			deniedErr := gotenberg.FilterDenyList(e.URL, options.denyList, deadline)
+			if deniedErr == nil {
+				// Not a deny-list refusal: the proxy runs the same allow-list
+				// and IP-class checks on the tunnel.
+				return
+			}
+
+			hostport, ok := webSocketHostPort(e.URL)
+			if !ok {
+				return
+			}
+
+			_, tunnelErr := options.decideTunnel(ctx, hostport, deadline)
+			if tunnelErr != nil {
+				// The proxy refuses the tunnel too.
+				return
+			}
+
+			options.deniedMu.Lock()
+			defer options.deniedMu.Unlock()
+
+			if *options.denied == nil {
+				*options.denied = fmt.Errorf("WebSocket handshake: %w", deniedErr)
+			}
+
+			options.cancel()
 		}()
 	})
+}
+
+// webSocketHostPort returns the host and port Chromium sends in the CONNECT
+// request for the ws:// or wss:// URL rawURL.
+func webSocketHostPort(rawURL string) (string, bool) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Hostname() == "" {
+		return "", false
+	}
+
+	port := parsed.Port()
+	if port == "" {
+		switch strings.ToLower(parsed.Scheme) {
+		case "ws":
+			port = "80"
+		case "wss":
+			port = "443"
+		default:
+			return "", false
+		}
+	}
+
+	return net.JoinHostPort(strings.ToLower(parsed.Hostname()), port), true
 }
 
 type eventRequestPausedOptions struct {

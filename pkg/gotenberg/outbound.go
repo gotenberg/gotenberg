@@ -313,25 +313,10 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 		return OutboundDecision{}, context.DeadlineExceeded
 	}
 
-	parsed, err := url.Parse(rawURL)
+	parsed, normalized, err := normalizeOutboundURL(rawURL)
 	if err != nil {
-		return OutboundDecision{}, fmt.Errorf("parse URL %q: %w", rawURL, ErrFiltered)
+		return OutboundDecision{}, err
 	}
-	parsed.Scheme = strings.ToLower(parsed.Scheme)
-	parsed.Host = strings.ToLower(parsed.Host)
-
-	// Match on a credential-free form. [url.URL.String] re-emits userinfo
-	// between "scheme://" and the host, so keeping it would let any
-	// "^https?://<host>" pattern be shifted past its own anchor:
-	// http://a@127.0.0.1/ escapes a deny-list anchored on 127\. and
-	// http://trusted.example.com@10.0.0.1/ satisfies an allow-list anchored on
-	// trusted\.example\.com. The host checks below already read
-	// [url.URL.Hostname], which ignores userinfo, so only the regex layer was
-	// affected. Dropping the credentials here also keeps them out of the error
-	// strings below, which reach operator logs and any OTEL log exporter.
-	matchable := *parsed
-	matchable.User = nil
-	normalized := matchable.String()
 
 	allowMatched := false
 	if len(allowList) > 0 {
@@ -359,21 +344,9 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 		}
 	}
 
-	for _, pattern := range denyList {
-		ok, err := MatchPattern(pattern, normalized)
-		if err != nil {
-			if time.Now().After(deadline) {
-				return OutboundDecision{}, context.DeadlineExceeded
-			}
-			// The pattern could not be evaluated, so the URL cannot be proven
-			// to fall outside the deny-list. Fail closed rather than letting a
-			// deny-list that never ran pass the request through.
-			return OutboundDecision{}, fmt.Errorf("'%s' cannot handle '%s': %v: %w", pattern.String(), normalized, err, ErrFiltered)
-		}
-
-		if ok {
-			return OutboundDecision{}, fmt.Errorf("'%s' matches the expression from the denied list: %w", normalized, ErrFiltered)
-		}
+	err = matchDenyList(normalized, denyList, deadline)
+	if err != nil {
+		return OutboundDecision{}, err
 	}
 
 	if allowMatched {
@@ -412,6 +385,74 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 	}
 
 	return OutboundDecision{Pinned: addrs}, nil
+}
+
+// normalizeOutboundURL parses rawURL and returns it along with the form the
+// allow-list and deny-list match against: scheme and host lowercased, userinfo
+// dropped.
+func normalizeOutboundURL(rawURL string) (*url.URL, string, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, "", fmt.Errorf("parse URL %q: %w", rawURL, ErrFiltered)
+	}
+	parsed.Scheme = strings.ToLower(parsed.Scheme)
+	parsed.Host = strings.ToLower(parsed.Host)
+
+	// Match on a credential-free form. [url.URL.String] re-emits userinfo
+	// between "scheme://" and the host, so keeping it would let any
+	// "^https?://<host>" pattern be shifted past its own anchor:
+	// http://a@127.0.0.1/ escapes a deny-list anchored on 127\. and
+	// http://trusted.example.com@10.0.0.1/ satisfies an allow-list anchored on
+	// trusted\.example\.com. The host checks in [DecideOutbound] already read
+	// [url.URL.Hostname], which ignores userinfo, so only the regex layer was
+	// affected. Dropping the credentials here also keeps them out of the error
+	// strings, which reach operator logs and any OTEL log exporter.
+	matchable := *parsed
+	matchable.User = nil
+
+	return parsed, matchable.String(), nil
+}
+
+// matchDenyList returns an error wrapping [ErrFiltered] when normalized
+// matches one of the denyList expressions, or when one of them cannot be
+// evaluated.
+func matchDenyList(normalized string, denyList []*regexp2.Regexp, deadline time.Time) error {
+	for _, pattern := range denyList {
+		ok, err := MatchPattern(pattern, normalized)
+		if err != nil {
+			if time.Now().After(deadline) {
+				return context.DeadlineExceeded
+			}
+			// The pattern could not be evaluated, so the URL cannot be proven
+			// to fall outside the deny-list. Fail closed rather than letting a
+			// deny-list that never ran pass the request through.
+			return fmt.Errorf("'%s' cannot handle '%s': %v: %w", pattern.String(), normalized, err, ErrFiltered)
+		}
+
+		if ok {
+			return fmt.Errorf("'%s' matches the expression from the denied list: %w", normalized, ErrFiltered)
+		}
+	}
+
+	return nil
+}
+
+// FilterDenyList validates rawURL against the deny-list alone, with the same
+// normalization as [DecideOutbound] and without resolving the host. It returns
+// an error wrapping [ErrFiltered] when rawURL is denied. Use it where only part
+// of a destination is visible, such as the host and port of a CONNECT tunnel,
+// and the full [DecideOutbound] runs separately.
+func FilterDenyList(rawURL string, denyList []*regexp2.Regexp, deadline time.Time) error {
+	if !time.Now().Before(deadline) {
+		return context.DeadlineExceeded
+	}
+
+	_, normalized, err := normalizeOutboundURL(rawURL)
+	if err != nil {
+		return err
+	}
+
+	return matchDenyList(normalized, denyList, deadline)
 }
 
 // FilterOutboundURL validates that rawURL is acceptable for an outbound

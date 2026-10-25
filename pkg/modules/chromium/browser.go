@@ -558,12 +558,25 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 	// listenForEventRequestPaused above cannot filter them. Validate them
 	// against the same allow / deny lists and IP-class policy.
 	// See https://github.com/gotenberg/gotenberg/issues/1011.
-	listenForEventWebSocketCreated(taskCtx, logger, eventWebSocketCreatedOptions{
+	var (
+		webSocketDenied   error
+		webSocketDeniedMu sync.RWMutex
+	)
+
+	webSocketOptions := eventWebSocketCreatedOptions{
 		allowList:      b.arguments.allowList,
 		denyList:       b.arguments.denyList,
 		denyPrivateIPs: b.arguments.denyPrivateIPs,
 		denyPublicIPs:  b.arguments.denyPublicIPs,
-	})
+		denied:         &webSocketDenied,
+		deniedMu:       &webSocketDeniedMu,
+		cancel:         taskCancel,
+	}
+	if b.arguments.proxyServer == "" && b.arguments.hostResolverRules == "" {
+		webSocketOptions.decideTunnel = b.pinningProxy.decideTunnel
+	}
+
+	listenForEventWebSocketCreated(taskCtx, logger, webSocketOptions)
 
 	var (
 		invalidHttpStatusCode           error
@@ -656,6 +669,15 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 
 	if crashed != nil {
 		return fmt.Errorf("handle tasks: %w", crashed)
+	}
+
+	// A WebSocket the deny-list refuses cancels the conversion, so report the
+	// refusal rather than the cancellation it caused.
+	webSocketDeniedMu.RLock()
+	defer webSocketDeniedMu.RUnlock()
+
+	if webSocketDenied != nil {
+		return fmt.Errorf("handle tasks: %w", webSocketDenied)
 	}
 
 	// The browser context is only ever canceled when the browser process

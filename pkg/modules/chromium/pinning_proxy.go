@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -235,10 +236,7 @@ func (p *pinningProxy) handleConnect(w http.ResponseWriter, req *http.Request) {
 		deadline = time.Now().Add(30 * time.Second)
 	}
 
-	// The validation URL uses https:// so that http-like scheme checks
-	// apply in [gotenberg.DecideOutbound]. The scheme does not influence
-	// the CONNECT handling beyond filtering.
-	decision, err := p.decide(req.Context(), "https://"+req.Host, p.allowList, p.denyList, deadline)
+	decision, err := p.decideTunnel(req.Context(), req.Host, deadline)
 	if err != nil {
 		if isClientCancellation(req.Context(), err) {
 			p.logger.DebugContext(req.Context(), fmt.Sprintf("CONNECT abandoned by client for '%s': %s", req.Host, err))
@@ -312,6 +310,56 @@ func (p *pinningProxy) handleConnect(w http.ResponseWriter, req *http.Request) {
 	p.mu.Unlock()
 
 	spliceTunnel(client, upstream, closing, spliceIdleTimeout)
+}
+
+// tunnelSchemes lists the schemes Chromium sends through a CONNECT tunnel and
+// their default ports: HTTPS sub-resources and WebSocket handshakes, secure or
+// not. Plain http:// requests use the forward path instead.
+var tunnelSchemes = []struct {
+	scheme      string
+	defaultPort string
+}{
+	{"https", "443"},
+	{"wss", "443"},
+	{"ws", "80"},
+}
+
+// decideTunnel validates the destination of a CONNECT tunnel to hostport.
+//
+// A tunnel is opaque: the proxy sees the host and port, never the scheme or
+// the path of what travels through it. The deny-list is therefore matched
+// against the root URL of every scheme a tunnel may carry, such as
+// "https://host/" and "wss://host/", so that a rule anchored on a scheme or on
+// "host/" refuses the tunnel exactly as it refuses the ordinary request. Such a
+// rule refuses every tunnel to that host and port, whatever travels through
+// it. Rules that name a path cannot match here; for WebSocket handshakes,
+// [listenForEventWebSocketCreated] covers them.
+//
+// The allow-list and the IP-class checks then run through decide on the
+// https:// form, as before. The scheme does not influence the CONNECT handling
+// beyond filtering.
+func (p *pinningProxy) decideTunnel(ctx context.Context, hostport string, deadline time.Time) (gotenberg.OutboundDecision, error) {
+	host, port, err := net.SplitHostPort(hostport)
+	if err != nil {
+		return gotenberg.OutboundDecision{}, fmt.Errorf("split CONNECT target %q: %v: %w", hostport, err, gotenberg.ErrFiltered)
+	}
+
+	for _, ts := range tunnelSchemes {
+		authority := net.JoinHostPort(host, port)
+		if port == ts.defaultPort {
+			authority = host
+			if strings.Contains(host, ":") {
+				authority = "[" + host + "]"
+			}
+		}
+
+		err = gotenberg.FilterDenyList(ts.scheme+"://"+authority+"/", p.denyList, deadline)
+		if err != nil {
+			return gotenberg.OutboundDecision{}, err
+		}
+	}
+
+	return p.decide(ctx, "https://"+hostport, p.allowList, p.denyList, deadline)
 }
 
 // maxConcurrentTunnels is the default for [pinningProxy.maxTunnels]. See

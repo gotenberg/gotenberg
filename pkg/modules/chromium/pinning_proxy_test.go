@@ -1214,3 +1214,40 @@ func TestPinningProxy_TunnelSlotIsReleased(t *testing.T) {
 		}
 	}
 }
+
+// TestPinningProxy_DecideTunnel_DenyRuleShapes pins which deny-list rule
+// shapes refuse a CONNECT tunnel. The proxy only sees host:port, so the rules
+// are matched against the root URL of every scheme a tunnel may carry.
+func TestPinningProxy_DecideTunnel_DenyRuleShapes(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		rule     string
+		hostport string
+		denied   bool
+	}{
+		{"host terminated", `^https?://denied\.example(:|/|$)`, "denied.example:443", true},
+		{"path terminated", `^https?://denied\.example/`, "denied.example:443", true},
+		{"wss anchored", `^wss://denied\.example/`, "denied.example:443", true},
+		{"ws anchored", `^ws://denied\.example/`, "denied.example:80", true},
+		{"non-default port", `^wss://denied\.example:8443/`, "denied.example:8443", true},
+		{"ipv6 literal", `^wss://\[::1\]/`, "[::1]:443", true},
+		{"other host", `^https?://denied\.example/`, "allowed.example:443", false},
+		{"ws rule on the https port", `^ws://denied\.example/`, "denied.example:443", false},
+		{"path rule cannot match a tunnel", `^wss://denied\.example/ws`, "denied.example:443", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := newPinningProxy(nil, []*regexp2.Regexp{regexp2.MustCompile(tc.rule, regexp2.None)}, false, false, false)
+			p.decide = func(context.Context, string, []*regexp2.Regexp, []*regexp2.Regexp, time.Time) (gotenberg.OutboundDecision, error) {
+				return gotenberg.OutboundDecision{Bypass: true}, nil
+			}
+
+			_, err := p.decideTunnel(context.Background(), tc.hostport, time.Now().Add(time.Minute))
+			if tc.denied != (err != nil) {
+				t.Fatalf("decideTunnel(%q) with rule %q: error = %v, want denied: %t", tc.hostport, tc.rule, err, tc.denied)
+			}
+			if err != nil && !errors.Is(err, gotenberg.ErrFiltered) {
+				t.Errorf("error %v does not wrap gotenberg.ErrFiltered", err)
+			}
+		})
+	}
+}

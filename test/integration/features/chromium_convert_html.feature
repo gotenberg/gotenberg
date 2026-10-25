@@ -537,6 +537,41 @@ Feature: /forms/chromium/convert/html
       | 'ws://127.0.0.1:9999/ssrf-websocket' does not match any expression from the allowed list |
       | CONNECT blocked for '127.0.0.1:9999'                                                     |
 
+  # The pinning proxy sees only the host and port of a CONNECT tunnel, so it
+  # matches the deny-list against the root URL of every scheme a tunnel may
+  # carry. A rule anchored on the wss:// scheme and terminated on "host/"
+  # therefore severs the tunnel.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/html (WebSocket denied by a scheme-anchored rule is filtered)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_DENY_LIST | ^wss://127\\.0\\.0\\.1:9999/ |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/ssrf-websocket-tls-html/index.html | file  |
+      | waitDelay | 1s                                          | field |
+    Then the response status code should be 200
+    Then the Gotenberg container should log the following entries:
+      | 'wss://127.0.0.1:9999/' matches the expression from the denied list |
+      | CONNECT blocked for '127.0.0.1:9999'                                |
+
+  # A rule that names a path cannot match a tunnel, so the proxy would admit
+  # it. The handshake cannot be aborted through CDP either, so the conversion
+  # fails with a generic 403 instead.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/html (WebSocket denied by a path rule fails the conversion)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_DENY_LIST | ^wss://127\\.0\\.0\\.1:9999/wss-test |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/ssrf-websocket-tls-html/index.html | file  |
+      | waitDelay | 1s                                          | field |
+    Then the response status code should be 403
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Forbidden
+      """
+    Then the Gotenberg container should log the following entries:
+      | 'wss://127.0.0.1:9999/wss-test' matches the expression from the denied list |
+
   # EventSource issues an ordinary HTTP GET, so unlike a WebSocket it IS surfaced
   # as a fetch.EventRequestPaused and blocked by listenForEventRequestPaused.
   @chromium-ssrf

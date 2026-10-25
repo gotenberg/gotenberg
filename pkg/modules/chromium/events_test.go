@@ -168,3 +168,25 @@ func TestFormatConsoleMessage_Truncates(t *testing.T) {
 		t.Error("truncated message is not valid UTF-8")
 	}
 }
+
+func TestWebSocketHostPort(t *testing.T) {
+	for _, tc := range []struct {
+		url  string
+		want string
+		ok   bool
+	}{
+		{"wss://Denied.Example/ws", "denied.example:443", true},
+		{"ws://denied.example/ws", "denied.example:80", true},
+		{"wss://denied.example:8443/ws", "denied.example:8443", true},
+		{"ws://[::1]:9000/", "[::1]:9000", true},
+		{"https://denied.example/", "", false},
+		{"wss:///ws", "", false},
+	} {
+		t.Run(tc.url, func(t *testing.T) {
+			got, ok := webSocketHostPort(tc.url)
+			if got != tc.want || ok != tc.ok {
+				t.Fatalf("webSocketHostPort(%q) = %q, %t; want %q, %t", tc.url, got, ok, tc.want, tc.ok)
+			}
+		})
+	}
+}
