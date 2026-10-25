@@ -82,6 +82,16 @@ RUN jlink \
     --compress=2 \
     --output /custom-jre
 
+# Remove the eMudhra roots (emSign ECC Root CA - G3 and AAA Certificate
+# Services) from the JRE trust store. Debian's ca-certificates and Chromium
+# already distrust them, but Debian's OpenJDK still ships them in the bundled
+# cacerts. The loop skips an alias once a newer OpenJDK drops it.
+RUN for alias in "emsigneccrootcag3 [jdk]" "comodoaaaca [jdk]"; do \
+        if keytool -list -keystore /custom-jre/lib/security/cacerts -storepass changeit -alias "$alias" > /dev/null 2>&1; then \
+            keytool -delete -keystore /custom-jre/lib/security/cacerts -storepass changeit -alias "$alias"; \
+        fi; \
+    done
+
 # ----------------------------------------------
 # Downloader stage
 # ----------------------------------------------
