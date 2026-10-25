@@ -48,6 +48,25 @@ func TestFormDataPdfStamps(t *testing.T) {
 			expect:   []gotenberg.Stamp{},
 		},
 		{
+			scenario: "empty source",
+			values: map[string][]string{
+				"stampSource":     {""},
+				"stampExpression": {""},
+			},
+			expect: []gotenberg.Stamp{},
+		},
+		{
+			scenario: "empty source skipped, others keep their position",
+			values: map[string][]string{
+				"stampSource":     {"", "text"},
+				"stampExpression": {"", "TWO"},
+				"stampPages":      {"", "2"},
+			},
+			expect: []gotenberg.Stamp{
+				{Source: "text", Expression: "TWO", Pages: "2"},
+			},
+		},
+		{
 			scenario:   "invalid source",
 			values:     map[string][]string{"stampSource": {"text", "foo"}},
 			expectErr:  true,
