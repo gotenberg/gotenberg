@@ -62,7 +62,7 @@ func ParseError(err error) (int, string) {
 	}
 
 	if errors.Is(err, gotenberg.ErrPdfFormatNotSupported) {
-		return http.StatusBadRequest, "The requested PDF format is not supported, or no PDF engine could apply it. Valid formats include PDF/A-1b, PDF/A-2b, PDF/A-3b, and PDF/UA."
+		return http.StatusBadRequest, "The requested PDF format is not supported, or no PDF engine could apply it. Valid formats include PDF/A-1b, PDF/A-2b, PDF/A-3b, PDF/A-4, and PDF/UA."
 	}
 
 	if errors.Is(err, gotenberg.ErrPdfEngineMetadataValueNotSupported) {

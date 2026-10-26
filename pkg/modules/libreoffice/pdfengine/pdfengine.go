@@ -66,7 +66,7 @@ func (engine *LibreOfficePdfEngine) OptimizeImages(ctx context.Context, logger *
 }
 
 // Convert converts the given PDF to a specific PDF format. Currently, only the
-// PDF/A-1b, PDF/A-2b, PDF/A-3b and PDF/UA formats are available. If another
+// PDF/A-1b, PDF/A-2b, PDF/A-3b, PDF/A-4 and PDF/UA formats are available. If another
 // PDF format is requested, it returns a [gotenberg.ErrPdfFormatNotSupported]
 // error.
 func (engine *LibreOfficePdfEngine) Convert(ctx context.Context, logger *slog.Logger, formats gotenberg.PdfFormats, inputPath, outputPath string) error {
