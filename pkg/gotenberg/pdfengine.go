@@ -135,6 +135,9 @@ const (
 
 	// PdfA3u represents the PDF/A-3u format.
 	PdfA3u string = "PDF/A-3u"
+
+	// PdfA4 represents the PDF/A-4 format.
+	PdfA4 string = "PDF/A-4"
 )
 
 // PdfFormats specifies the target formats for a PDF conversion.

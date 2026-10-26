@@ -271,7 +271,7 @@ type Options struct {
 	GenerateTaggedPdf bool
 
 	// PdfFormats allows to convert the resulting PDF to PDF/A-1b, PDF/A-2b,
-	// PDF/A-3b and PDF/UA.
+	// PDF/A-3b, PDF/A-4 and PDF/UA.
 	PdfFormats gotenberg.PdfFormats
 }
 

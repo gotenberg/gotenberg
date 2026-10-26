@@ -1009,6 +1009,8 @@ func (s *scenario) thePdfsShouldBeValidWithAToleranceOf(ctx context.Context, kin
 		flavor = "2b"
 	case "PDF/A-3b":
 		flavor = "3b"
+	case "PDF/A-4":
+		flavor = "4"
 	case "PDF/UA-1":
 		flavor = "ua1"
 	case "PDF/UA-2":

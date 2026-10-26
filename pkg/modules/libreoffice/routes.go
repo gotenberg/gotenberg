@@ -415,7 +415,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 							fmt.Errorf("convert to PDF: %w", err),
 							api.NewSentinelHttpError(
 								http.StatusBadRequest,
-								fmt.Sprintf("The PDF format '%s' is not supported. Valid formats include PDF/A-1b, PDF/A-2b, PDF/A-3b, and PDF/UA.", pdfFormats.PdfA),
+								fmt.Sprintf("The PDF format '%s' is not supported. Valid formats include PDF/A-1b, PDF/A-2b, PDF/A-3b, PDF/A-4, and PDF/UA.", pdfFormats.PdfA),
 							),
 						)
 					}

@@ -421,6 +421,8 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *slog.Logger, input
 		args = append(args, "--export", "SelectPdfVersion=2", "--export", "EmbedStandardFonts=true")
 	case gotenberg.PdfA3b:
 		args = append(args, "--export", "SelectPdfVersion=3", "--export", "EmbedStandardFonts=true")
+	case gotenberg.PdfA4:
+		args = append(args, "--export", "SelectPdfVersion=4", "--export", "EmbedStandardFonts=true")
 	default:
 		return ErrInvalidPdfFormats
 	}
