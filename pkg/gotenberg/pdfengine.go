@@ -239,7 +239,22 @@ const (
 	// FacturXDocumentFileName is the canonical name of the embedded XML invoice
 	// mandated by the Factur-X standard. Validators expect this exact name.
 	FacturXDocumentFileName string = "factur-x.xml"
+
+	// XRechnungDocumentFileName is the name of the embedded XML invoice for the
+	// XRECHNUNG reference profile. Per Factur-X 1.07.2 / ZUGFeRD 2.3.2, §6.2 and
+	// §7.7, this profile must not embed a factur-x.xml.
+	XRechnungDocumentFileName string = "xrechnung.xml"
 )
+
+// FacturXDocumentFileNameFor returns the name of the embedded XML invoice for
+// the given conformance level: [XRechnungDocumentFileName] for
+// [FacturXConformanceXRechnung], [FacturXDocumentFileName] otherwise.
+func FacturXDocumentFileNameFor(conformanceLevel string) string {
+	if conformanceLevel == FacturXConformanceXRechnung {
+		return XRechnungDocumentFileName
+	}
+	return FacturXDocumentFileName
+}
 
 // FacturX gathers the properties required by the Factur-X/ZUGFeRD standard for
 // the document-level XMP metadata packet of a PDF/A-3.
@@ -251,7 +266,7 @@ type FacturX struct {
 	DocumentType string
 
 	// DocumentFileName is the name of the embedded XML invoice. It is set
-	// internally to the canonical [FacturXDocumentFileName], not by the caller.
+	// internally from [FacturXDocumentFileNameFor], not by the caller.
 	DocumentFileName string
 
 	// Version is the Factur-X version (e.g., "1.0").

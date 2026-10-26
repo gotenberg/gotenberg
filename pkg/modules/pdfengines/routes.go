@@ -562,8 +562,8 @@ func EmbedFilesMetadataStub(ctx *api.Context, engine gotenberg.PdfEngine, metada
 
 // FormDataPdfFacturX extracts the Factur-X parameters and the invoice XML path
 // from form data. Factur-X is requested when both facturxConformanceLevel and
-// facturxXml are provided. The embedded XML always takes the canonical
-// [gotenberg.FacturXDocumentFileName] name.
+// facturxXml are provided. The embedded XML takes the name the conformance
+// level mandates (see [gotenberg.FacturXDocumentFileNameFor]).
 func FormDataPdfFacturX(form *api.FormData) (gotenberg.FacturX, string) {
 	var (
 		facturxXmlPath   string
@@ -610,7 +610,7 @@ func FormDataPdfFacturX(form *api.FormData) (gotenberg.FacturX, string) {
 	return gotenberg.FacturX{
 		ConformanceLevel: conformanceLevel,
 		DocumentType:     documentType,
-		DocumentFileName: gotenberg.FacturXDocumentFileName,
+		DocumentFileName: gotenberg.FacturXDocumentFileNameFor(conformanceLevel),
 		Version:          version,
 	}, facturxXmlPath
 }
@@ -694,7 +694,7 @@ func ApplyFacturXStub(ctx *api.Context, engine gotenberg.PdfEngine, facturX gote
 		return nil
 	}
 
-	err := embedFacturXXml(ctx, engine, facturxXmlPath, inputPaths)
+	err := embedFacturXXml(ctx, engine, facturX.DocumentFileName, facturxXmlPath, inputPaths)
 	if err != nil {
 		return err
 	}
@@ -719,15 +719,14 @@ func ApplyFacturXStub(ctx *api.Context, engine gotenberg.PdfEngine, facturX gote
 }
 
 // embedFacturXXml embeds the Factur-X invoice XML into each PDF under the
-// canonical [gotenberg.FacturXDocumentFileName] name, regardless of the
-// uploaded file name.
-func embedFacturXXml(ctx *api.Context, engine gotenberg.PdfEngine, facturxXmlPath string, inputPaths []string) error {
+// given file name, regardless of the uploaded file name.
+func embedFacturXXml(ctx *api.Context, engine gotenberg.PdfEngine, fileName, facturxXmlPath string, inputPaths []string) error {
 	embedDir, err := ctx.CreateSubDirectory(uuid.New().String())
 	if err != nil {
 		return fmt.Errorf("create Factur-X embed subdirectory: %w", err)
 	}
 
-	canonicalPath := fmt.Sprintf("%s/%s", embedDir, gotenberg.FacturXDocumentFileName)
+	canonicalPath := fmt.Sprintf("%s/%s", embedDir, fileName)
 	err = os.Symlink(facturxXmlPath, canonicalPath)
 	if err != nil {
 		return fmt.Errorf("symlink Factur-X invoice XML: %w", err)

@@ -181,6 +181,18 @@ func TestInjectFacturXIntoXMP(t *testing.T) {
 		}
 	})
 
+	t.Run("writes xrechnung.xml for the XRECHNUNG profile", func(t *testing.T) {
+		xrechnung := facturX
+		xrechnung.ConformanceLevel = gotenberg.FacturXConformanceXRechnung
+		xrechnung.DocumentFileName = gotenberg.FacturXDocumentFileNameFor(xrechnung.ConformanceLevel)
+		got, changed := injectFacturXIntoXMP(libreOfficeXMP, xrechnung)
+		if !changed {
+			t.Fatal("expected changed = true")
+		}
+		assertContains(t, got, "<fx:ConformanceLevel>XRECHNUNG</fx:ConformanceLevel>")
+		assertContains(t, got, "<fx:DocumentFileName>xrechnung.xml</fx:DocumentFileName>")
+	})
+
 	t.Run("idempotent when fx already present", func(t *testing.T) {
 		once, _ := injectFacturXIntoXMP(libreOfficeXMP, facturX)
 		twice, changed := injectFacturXIntoXMP(once, facturX)
