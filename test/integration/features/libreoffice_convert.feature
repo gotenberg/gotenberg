@@ -578,6 +578,22 @@ Feature: /forms/libreoffice/convert
     Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
     Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
 
+  @merge
+  @convert
+  Scenario: POST /forms/libreoffice/convert (Merge & PDF/A-1b & PDF/UA-1)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files | testdata/page_1.docx | file  |
+      | files | testdata/page_2.docx | file  |
+      | merge | true                 | field |
+      | pdfa  | PDF/A-1b             | field |
+      | pdfua | true                 | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
+
   @convert
   Scenario: POST /forms/libreoffice/convert (PDF/A-4)
     Given I have a default Gotenberg container
