@@ -42,7 +42,19 @@ import (
 // older builds (they exist but default to disabled on the Chromium pinned for
 // ppc64el) and once upstream eventually removes them.
 // See https://github.com/gotenberg/gotenberg/issues/1656.
-const chromiumDisableFeatures = "site-per-process,Translate,BlinkGenPropertyTrees,WebUIOmniboxPopup,WebUIOmniboxAimPopup"
+//
+// OptimizationHints, OptimizationTargetPrediction and
+// NetworkTimeServiceQuerying make Chromium call Google services at every
+// start, which helps no conversion and logs blocked CONNECTs in locked-down
+// deployments.
+// See https://github.com/gotenberg/gotenberg/issues/1706.
+const chromiumDisableFeatures = "site-per-process,Translate,BlinkGenPropertyTrees,WebUIOmniboxPopup,WebUIOmniboxAimPopup,OptimizationHints,OptimizationTargetPrediction,NetworkTimeServiceQuerying"
+
+// chromiumGaiaUrl replaces Chromium's Google sign-in URL with a closed
+// loopback port. No feature switch stops the ListAccounts calls Chromium
+// makes at every start, so they now fail locally instead of reaching Google.
+// See https://github.com/gotenberg/gotenberg/issues/1706.
+const chromiumGaiaUrl = "http://127.0.0.1:9"
 
 type browser interface {
 	gotenberg.Process
@@ -171,6 +183,8 @@ func (b *chromiumBrowser) Start(logger *slog.Logger) error {
 		chromedp.Flag("disable-component-update", false),
 		// See https://github.com/gotenberg/gotenberg/issues/1656.
 		chromedp.Flag("disable-features", chromiumDisableFeatures),
+		// See https://github.com/gotenberg/gotenberg/issues/1706.
+		chromedp.Flag("gaia-url", chromiumGaiaUrl),
 	)
 
 	if b.arguments.allowInsecureLocalhost {
