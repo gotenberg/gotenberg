@@ -347,8 +347,12 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			// requested. The conversion runs as a post-processing step below.
 			pdfFormats = pdfengines.FacturXPdfFormats(ctx, engine, facturX, pdfFormats, true, nil)
 
+			// Merging several documents builds a new one from their pages,
+			// which loses the metadata, output intent and structure tree of a
+			// native PDF/A or PDF/UA conversion.
 			hasPostProcessing := len(watermarks) > 0 || len(stamps) > 0 || angle != 0 ||
-				len(embedPaths) > 0 || len(metadata) > 0 || flatten || facturX.ConformanceLevel != ""
+				len(embedPaths) > 0 || len(metadata) > 0 || flatten || facturX.ConformanceLevel != "" ||
+				(merge && len(inputPaths) > 1)
 
 			outputPaths := make([]string, len(inputPaths))
 			for i, inputPath := range inputPaths {

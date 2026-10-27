@@ -239,3 +239,90 @@ func TestConvertRoute_FailureStatus(t *testing.T) {
 		})
 	}
 }
+
+// TestConvertRoute_MergePdfFormats checks that the PDF formats of a merge are
+// applied to the merged PDF, since merging loses those of each document.
+func TestConvertRoute_MergePdfFormats(t *testing.T) {
+	dir := t.TempDir()
+
+	for _, tc := range []struct {
+		name            string
+		inputs          []string
+		wantNative      gotenberg.PdfFormats
+		wantConvertRuns int
+	}{
+		{
+			name:            "many documents",
+			inputs:          []string{"page_1.docx", "page_2.docx"},
+			wantNative:      gotenberg.PdfFormats{},
+			wantConvertRuns: 1,
+		},
+		{
+			name:            "single document",
+			inputs:          []string{"page_1.docx"},
+			wantNative:      gotenberg.PdfFormats{PdfA: gotenberg.PdfA1b},
+			wantConvertRuns: 0,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			files := make(map[string]string)
+			for _, name := range tc.inputs {
+				files[name] = zipPackage(t, dir, name)
+			}
+
+			ctx := &api.ContextMock{Context: new(api.Context)}
+			ctx.SetDirPath(dir)
+			ctx.SetFiles(files)
+			ctx.SetValues(map[string][]string{
+				"merge": {"true"},
+				"pdfa":  {gotenberg.PdfA1b},
+			})
+			ctx.SetLogger(slog.New(slog.DiscardHandler))
+
+			var native []gotenberg.PdfFormats
+			uno := &libreofficeapi.ApiMock{
+				ExtensionsMock: func() []string {
+					return []string{".docx"}
+				},
+				PdfMock: func(_ context.Context, _ *slog.Logger, _, _ string, options libreofficeapi.Options) error {
+					native = append(native, options.PdfFormats)
+					return nil
+				},
+			}
+
+			convertRuns := 0
+			engine := &gotenberg.PdfEngineMock{
+				MergeMock: func(_ context.Context, _ *slog.Logger, _ []string, _ string) error {
+					return nil
+				},
+				ConvertMock: func(_ context.Context, _ *slog.Logger, formats gotenberg.PdfFormats, _, _ string) error {
+					convertRuns++
+					if formats.PdfA != gotenberg.PdfA1b {
+						t.Errorf("convert formats = %+v, want PDF/A %q", formats, gotenberg.PdfA1b)
+					}
+					return nil
+				},
+			}
+
+			c := echo.New().NewContext(
+				httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", nil),
+				httptest.NewRecorder(),
+			)
+			c.Set("context", ctx.Context)
+
+			err := convertRoute(uno, engine).Handler(c)
+			if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+
+			for _, formats := range native {
+				if formats != tc.wantNative {
+					t.Errorf("native formats = %+v, want %+v", formats, tc.wantNative)
+				}
+			}
+			if convertRuns != tc.wantConvertRuns {
+				t.Errorf("convert runs = %d, want %d", convertRuns, tc.wantConvertRuns)
+			}
+		})
+	}
+}
