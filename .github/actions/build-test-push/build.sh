@@ -232,7 +232,7 @@ join() {
 # mode=max exports intermediate stages too, not just the final layers, which is
 # what makes the expensive apt and jlink stages reusable. type=registry, not
 # type=gha: the GitHub Actions cache is capped at 10 GB per repository and is
-# already carrying the Go and golangci-lint caches that the lint and test jobs
+# already carrying the Go caches that the lint and test jobs
 # depend on. Multi-GB image layers across five platforms would evict them.
 cache_flags() {
   local target="$1"

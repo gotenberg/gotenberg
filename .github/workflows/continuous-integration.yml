@@ -29,9 +29,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Run linters
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.15.0
+        run: make lint
 
   lint-prettier:
     name: Lint non-Golang codebase
