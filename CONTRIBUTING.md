@@ -11,7 +11,7 @@ Gotenberg is a Docker-based API for converting documents to PDF. Two rules overr
 - Go: see version in `go.mod`
 - Docker
 - Node.js (see `.node-version`), for Prettier linting
-- [golangci-lint](https://golangci-lint.run/) v2+
+- golangci-lint: the Makefile runs golangci-lint at a pinned version through `go run`, never the copy on your `PATH`.
 
 ## Before you start
 
@@ -41,17 +41,19 @@ All build and verification tasks go through the Makefile. Do not run `go` comman
 
 | Command                 | Purpose                                          | When to use                                                              |
 | ----------------------- | ------------------------------------------------ | ------------------------------------------------------------------------ |
+| `make help`             | Show the available commands                      | To discover targets                                                      |
 | `make build`            | Build the Gotenberg Docker image                 | Before integration tests or manual testing                               |
+| `make fmt`              | Format Go code and tidy the dependencies         | Before committing                                                        |
+| `make prettify`         | Format non-Go files (Markdown, YAML, JSON)       | Before committing                                                        |
+| `make lint`             | Lint Go code (zero warnings permitted)           | Before committing                                                        |
+| `make lint-prettier`    | Lint non-Go files                                | Before committing                                                        |
+| `make lint-todo`        | Find TODOs in Go code                            | Before committing                                                        |
+| `make test-unit`        | Run unit tests                                   | Before committing                                                        |
+| `make test-integration` | Run all integration tests (40 min timeout)       | Before committing                                                        |
+| `make godoc`            | Serve GoDoc at `localhost:6060`                  | To verify documentation                                                  |
 | `make run`              | Run a Gotenberg container via `docker compose`   | Manual testing. Flags configured via Makefile variables and compose.yaml |
 | `make telemetry`        | Start an OpenTelemetry collector and OpenObserve | When testing telemetry locally                                           |
 | `make down`             | Stop all compose containers                      | After manual testing                                                     |
-| `make godoc`            | Serve GoDoc at `localhost:6060`                  | To verify documentation                                                  |
-| `make fmt`              | Format Go code                                   | Before committing                                                        |
-| `make lint`             | Lint Go code (zero errors permitted)             | Before committing                                                        |
-| `make prettify`         | Format non-Go files (Markdown, YAML, JSON)       | Before committing                                                        |
-| `make lint-prettier`    | Lint non-Go files                                | Before committing                                                        |
-| `make test-unit`        | Run unit tests                                   | Before committing                                                        |
-| `make test-integration` | Run all integration tests (40 min timeout)       | Before committing                                                        |
 
 Run only the integration test tag(s) relevant to your change rather than the full suite:
 
@@ -111,33 +113,19 @@ Enforced by `gci`: standard library, then third-party, then `github.com/gotenber
 ### Tone
 
 - Short, declarative sentences. Say what it does, then stop.
-- Lead with the action. "Validates font embedding", not "This function validates font embedding".
-- Active voice. "Gotenberg checks the profile", not "The profile is checked by Gotenberg".
+- Lead with the action. "Validates the input", not "This function validates the input".
+- Active voice. "Gotenberg checks the input", not "The input is checked by Gotenberg".
 - No em dashes. Use a period, colon, or comma.
 - No "we" hedging. "Don't...", not "We do not recommend...".
 
 ### Godoc
 
-Every exported type and function has a Godoc comment starting with its identifier name:
-
-```go
-// OutboundDecision is the result of validating an outbound URL via
-// [DecideOutbound]. ...
-type OutboundDecision struct { ... }
-
-// DialPinned dials each addr in turn until one connects, returning the
-// first successful connection or the last error. ...
-func DialPinned(ctx context.Context, network string, addrs []netip.Addr, port string) (net.Conn, error)
-```
-
-Each package should have a `doc.go` with a `// Package foo ...` comment:
+Every exported identifier has a doc comment starting with its name, and every package a `doc.go` with a `// Package foo ...` comment. Reference identifiers with `[Name]` for pkg.go.dev links. Test, fuzz, benchmark and example functions are exempt.
 
 ```go
 // Package api manages a LibreOffice instance via the UNO API.
 package api
 ```
-
-Reference identifiers with `[Name]` brackets for pkg.go.dev linking:
 
 ```go
 // Callers pass the Pinned slice from [OutboundDecision] so that the dial
@@ -148,9 +136,7 @@ Reference identifiers with `[Name]` brackets for pkg.go.dev linking:
 ### Code comments
 
 - Explain _why_, not _what_.
-- No numbered step comments (`// 1. Do X`, `// 2. Do Y`).
-- No section dividers with numbers (`// --- 8. Foo ---`). Plain dividers are fine for major boundaries.
-- No noise comments that restate the code (`// Check if err is nil`, `// Return results`).
+- No numbered steps, no section separators, no comments that restate the code.
 - Reference spec clauses where relevant (`// Per ISO 32000-2, Table 116...`).
 - Mark debt with `// TODO: [context]`.
 
@@ -170,9 +156,9 @@ Gherkin (BDD) via Godog with `testcontainers-go` for Docker orchestration. Featu
 
 ### Commits
 
-[Conventional Commits](https://www.conventionalcommits.org/): `<type>(<scope>): <description>`.
+[Conventional Commits](https://www.conventionalcommits.org/), title only: `<type>(<scope>): <description>`. No body, no trailers (no `Co-Authored-By`, no `Signed-off-by`).
 
-Common types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`, `build`. The scope matches the module or area of the change (e.g., `chromium`, `pdfengines`, `api`).
+Common types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`, `build`. The scope names the area of the change.
 
 Stage specific files. Never `git add -A` or `git add .`.
 

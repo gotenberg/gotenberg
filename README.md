@@ -52,8 +52,10 @@ See the [full documentation](https://gotenberg.dev/docs/getting-started/introduc
 
 ## Contributing
 
-Questions and feedback: [GitHub Discussions](https://github.com/gotenberg/gotenberg/discussions).
-Bug reports: [GitHub Issues](https://github.com/gotenberg/gotenberg/issues).
+- Contributing guide: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Bug reports: [GitHub Issues](https://github.com/gotenberg/gotenberg/issues)
+- Questions and feedback: [GitHub Discussions](https://github.com/gotenberg/gotenberg/discussions)
+- Security vulnerabilities: [SECURITY.md](SECURITY.md)
 
 ## Sponsors
 
