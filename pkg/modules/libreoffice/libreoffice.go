@@ -8,6 +8,7 @@ import (
 	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 	libeofficeapi "github.com/gotenberg/gotenberg/v9/pkg/modules/libreoffice/api"
+	"github.com/gotenberg/gotenberg/v9/pkg/modules/pdf"
 )
 
 func init() {
@@ -18,7 +19,7 @@ func init() {
 // PDF with LibreOffice.
 type LibreOffice struct {
 	api           libeofficeapi.Uno
-	engine        gotenberg.PdfEngine
+	processor     *pdf.Processor
 	disableRoutes bool
 }
 
@@ -53,17 +54,12 @@ func (mod *LibreOffice) Provision(ctx *gotenberg.Context) error {
 
 	mod.api = libreOfficeApi
 
-	provider, err = ctx.Module(new(gotenberg.PdfEngineProvider))
+	provider, err = ctx.Module(new(pdf.Provider))
 	if err != nil {
-		return fmt.Errorf("get PDF engine provider: %w", err)
+		return fmt.Errorf("get PDF provider: %w", err)
 	}
 
-	engine, err := provider.(gotenberg.PdfEngineProvider).PdfEngine()
-	if err != nil {
-		return fmt.Errorf("get PDF engine: %w", err)
-	}
-
-	mod.engine = engine
+	mod.processor = provider.(pdf.Provider).Processor()
 
 	return nil
 }
@@ -75,7 +71,7 @@ func (mod *LibreOffice) Routes() ([]api.Route, error) {
 	}
 
 	return []api.Route{
-		convertRoute(mod.api, mod.engine),
+		convertRoute(mod.api, mod.processor),
 	}, nil
 }
 

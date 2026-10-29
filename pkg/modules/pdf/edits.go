@@ -261,7 +261,11 @@ func (*decryptStage) edit(_ context.Context, w *litho.Writer, _ *runEnv) error {
 }
 
 func (s *remediateStage) edit(ctx context.Context, w *litho.Writer, env *runEnv) error {
-	opts := []litho.RemediateOption{env.processor.fonts}
+	var opts []litho.RemediateOption
+	if env.processor.fonts != nil {
+		opts = append(opts, env.processor.fonts)
+	}
+
 	if s.Language != "" {
 		opts = append(opts, litho.WithLanguage(s.Language))
 	}

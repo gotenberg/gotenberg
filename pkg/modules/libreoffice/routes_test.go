@@ -17,6 +17,7 @@ import (
 	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 	libreofficeapi "github.com/gotenberg/gotenberg/v9/pkg/modules/libreoffice/api"
+	"github.com/gotenberg/gotenberg/v9/pkg/modules/pdf"
 )
 
 // compoundFile writes a document whose header marks it as a compound file. Over
@@ -224,7 +225,7 @@ func TestConvertRoute_FailureStatus(t *testing.T) {
 			)
 			c.Set("context", ctx.Context)
 
-			err := convertRoute(uno, new(gotenberg.PdfEngineMock)).Handler(c)
+			err := convertRoute(uno, new(pdf.Processor)).Handler(c)
 			if err == nil {
 				t.Fatal("expected an error, got none")
 			}
@@ -240,89 +241,68 @@ func TestConvertRoute_FailureStatus(t *testing.T) {
 	}
 }
 
-// TestConvertRoute_MergePdfFormats checks that the PDF formats of a merge are
-// applied to the merged PDF, since merging loses those of each document.
-func TestConvertRoute_MergePdfFormats(t *testing.T) {
+// TestConvertRoute_Stages checks that the PDF formats apply natively to every
+// document, and that the stages then run on the converted PDFs.
+func TestConvertRoute_Stages(t *testing.T) {
 	dir := t.TempDir()
 
-	for _, tc := range []struct {
-		name            string
-		inputs          []string
-		wantNative      gotenberg.PdfFormats
-		wantConvertRuns int
-	}{
-		{
-			name:            "many documents",
-			inputs:          []string{"page_1.docx", "page_2.docx"},
-			wantNative:      gotenberg.PdfFormats{},
-			wantConvertRuns: 1,
+	pdfFixture, err := os.ReadFile("../../../test/integration/testdata/page_1.pdf")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	files := map[string]string{
+		"page_1.docx": zipPackage(t, dir, "page_1.docx"),
+		"page_2.docx": zipPackage(t, dir, "page_2.docx"),
+	}
+
+	ctx := &api.ContextMock{Context: &api.Context{Context: context.Background()}}
+	ctx.SetDirPath(dir)
+	ctx.SetFiles(files)
+	ctx.SetValues(map[string][]string{
+		"pdfa":   {gotenberg.PdfA1b},
+		"stages": {`[{"op":"merge"}]`},
+	})
+	ctx.SetLogger(slog.New(slog.DiscardHandler))
+
+	var native []gotenberg.PdfFormats
+	uno := &libreofficeapi.ApiMock{
+		ExtensionsMock: func() []string {
+			return []string{".docx"}
 		},
-		{
-			name:            "single document",
-			inputs:          []string{"page_1.docx"},
-			wantNative:      gotenberg.PdfFormats{PdfA: gotenberg.PdfA1b},
-			wantConvertRuns: 0,
+		PdfMock: func(_ context.Context, _ *slog.Logger, _, outputPath string, options libreofficeapi.Options) error {
+			native = append(native, options.PdfFormats)
+			return os.WriteFile(outputPath, pdfFixture, 0o600)
 		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			files := make(map[string]string)
-			for _, name := range tc.inputs {
-				files[name] = zipPackage(t, dir, name)
-			}
+	}
 
-			ctx := &api.ContextMock{Context: new(api.Context)}
-			ctx.SetDirPath(dir)
-			ctx.SetFiles(files)
-			ctx.SetValues(map[string][]string{
-				"merge": {"true"},
-				"pdfa":  {gotenberg.PdfA1b},
-			})
-			ctx.SetLogger(slog.New(slog.DiscardHandler))
+	c := echo.New().NewContext(
+		httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", nil),
+		httptest.NewRecorder(),
+	)
+	c.Set("context", ctx.Context)
 
-			var native []gotenberg.PdfFormats
-			uno := &libreofficeapi.ApiMock{
-				ExtensionsMock: func() []string {
-					return []string{".docx"}
-				},
-				PdfMock: func(_ context.Context, _ *slog.Logger, _, _ string, options libreofficeapi.Options) error {
-					native = append(native, options.PdfFormats)
-					return nil
-				},
-			}
+	err = convertRoute(uno, new(pdf.Processor)).Handler(c)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
 
-			convertRuns := 0
-			engine := &gotenberg.PdfEngineMock{
-				MergeMock: func(_ context.Context, _ *slog.Logger, _ []string, _ string) error {
-					return nil
-				},
-				ConvertMock: func(_ context.Context, _ *slog.Logger, formats gotenberg.PdfFormats, _, _ string) error {
-					convertRuns++
-					if formats.PdfA != gotenberg.PdfA1b {
-						t.Errorf("convert formats = %+v, want PDF/A %q", formats, gotenberg.PdfA1b)
-					}
-					return nil
-				},
-			}
+	if len(native) != 2 {
+		t.Fatalf("%d conversions, want 2", len(native))
+	}
 
-			c := echo.New().NewContext(
-				httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", nil),
-				httptest.NewRecorder(),
-			)
-			c.Set("context", ctx.Context)
+	for _, formats := range native {
+		if formats.PdfA != gotenberg.PdfA1b {
+			t.Errorf("native formats = %+v, want PDF/A %q", formats, gotenberg.PdfA1b)
+		}
+	}
 
-			err := convertRoute(uno, engine).Handler(c)
-			if err != nil {
-				t.Fatalf("expected no error, got %v", err)
-			}
+	outputs := ctx.OutputPaths()
+	if len(outputs) != 1 {
+		t.Fatalf("%d outputs, want 1 merged PDF", len(outputs))
+	}
 
-			for _, formats := range native {
-				if formats != tc.wantNative {
-					t.Errorf("native formats = %+v, want %+v", formats, tc.wantNative)
-				}
-			}
-			if convertRuns != tc.wantConvertRuns {
-				t.Errorf("convert runs = %d, want %d", convertRuns, tc.wantConvertRuns)
-			}
-		})
+	if name := ctx.OriginalFilename(outputs[0]); name != "page_1.docx.pdf" {
+		t.Errorf("output name = %q, want page_1.docx.pdf", name)
 	}
 }

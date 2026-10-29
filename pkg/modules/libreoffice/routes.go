@@ -3,6 +3,7 @@ package libreoffice
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"slices"
 	"strconv"
@@ -12,7 +13,7 @@ import (
 	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 	libreofficeapi "github.com/gotenberg/gotenberg/v9/pkg/modules/libreoffice/api"
-	"github.com/gotenberg/gotenberg/v9/pkg/modules/pdfengines"
+	"github.com/gotenberg/gotenberg/v9/pkg/modules/pdf"
 )
 
 // unattributableFailureMessage is returned when LibreOffice fails and no
@@ -22,7 +23,7 @@ const unattributableFailureMessage = "LibreOffice failed to convert the document
 
 // convertRoute returns an [api.Route] which can convert LibreOffice documents
 // to PDF.
-func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) api.Route {
+func convertRoute(libreOffice libreofficeapi.Uno, processor *pdf.Processor) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
 		Path:        "/forms/libreoffice/convert",
@@ -32,27 +33,10 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 			defaultOptions := libreofficeapi.DefaultOptions()
 
 			form := ctx.FormData()
-			splitMode := pdfengines.FormDataPdfSplitMode(form, false)
-			pdfFormats := pdfengines.FormDataPdfFormats(form)
-			metadata := pdfengines.FormDataPdfMetadata(form, false)
-			encrypt := pdfengines.FormDataPdfEncrypt(form)
-			embedPaths := pdfengines.FormDataPdfEmbeds(form)
-			watermarks, wErr := pdfengines.FormDataPdfWatermarks(form)
-			if wErr != nil {
-				return fmt.Errorf("form data watermarks: %w", wErr)
+			stages, files, err := pdf.FormDataStages(form)
+			if err != nil {
+				return err
 			}
-			stamps, sErr := pdfengines.FormDataPdfStamps(form)
-			if sErr != nil {
-				return fmt.Errorf("form data stamps: %w", sErr)
-			}
-			var watermarkFiles, stampFiles []string
-			form.Watermarks(&watermarkFiles).Stamps(&stampFiles)
-			angle, rotatePages := pdfengines.FormDataPdfRotate(form, false)
-			embedsMetadata := pdfengines.FormDataPdfEmbedsMetadata(form)
-			facturX, facturxXmlPath := pdfengines.FormDataPdfFacturX(form)
-			optimizeImages, imageQuality := pdfengines.FormDataPdfOptimize(form)
-
-			zeroValuedSplitMode := gotenberg.SplitMode{}
 
 			var (
 				inputPaths                      []string
@@ -101,12 +85,11 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				nativeWatermarkRotateAngle      int
 				nativeWatermarkFontName         string
 				nativeTiledWatermarkText        string
-				nativePdfFormats                bool
-				merge                           bool
-				flatten                         bool
+				pdfa                            string
+				pdfua                           bool
 			)
 
-			err := form.
+			err = form.
 				MandatoryPaths(libreOffice.Extensions(), &inputPaths).
 				String("password", &password, defaultOptions.Password).
 				Bool("landscape", &landscape, defaultOptions.Landscape).
@@ -311,52 +294,33 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				}).
 				String("nativeWatermarkFontName", &nativeWatermarkFontName, defaultOptions.NativeWatermarkFontName).
 				String("nativeTiledWatermarkText", &nativeTiledWatermarkText, defaultOptions.NativeTiledWatermarkText).
-				Bool("nativePdfFormats", &nativePdfFormats, true).
-				Bool("merge", &merge, false).
-				Bool("flatten", &flatten, false).
+				String("pdfa", &pdfa, "").
+				Bool("pdfua", &pdfua, false).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			err = pdfengines.BindWatermarkFiles(watermarks, watermarkFiles)
-			if err != nil {
-				return fmt.Errorf("bind watermark files: %w", err)
-			}
-			err = pdfengines.BindStampFiles(stamps, stampFiles)
-			if err != nil {
-				return fmt.Errorf("bind stamp files: %w", err)
-			}
-
-			err = pdfengines.ValidatePdfFormatsCompat(pdfFormats, encrypt.UserPassword, embedPaths)
-			if err != nil {
-				return err
-			}
-
-			err = pdfengines.ValidatePdfEncryptCompat(encrypt)
-			if err != nil {
-				return err
+			// A file a stage reads, such as a stamp image, is not a document to
+			// convert, although LibreOffice may read its format.
+			referenced := slices.Collect(maps.Values(files))
+			inputPaths = slices.DeleteFunc(inputPaths, func(path string) bool {
+				return slices.Contains(referenced, path)
+			})
+			if len(inputPaths) == 0 {
+				return api.NewSentinelHttpError(
+					http.StatusBadRequest,
+					"Invalid form data: no document to convert; every uploaded file is read by a stage",
+				)
 			}
 
-			err = pdfengines.ValidateFacturXCompat(facturX, facturxXmlPath, pdfFormats)
-			if err != nil {
-				return err
-			}
-
-			// Factur-X requires PDF/A-3; default to PDF/A-3b when no format was
-			// requested. The conversion runs as a post-processing step below.
-			pdfFormats = pdfengines.FacturXPdfFormats(ctx, engine, facturX, pdfFormats, true, nil)
-
-			// Merging several documents builds a new one from their pages,
-			// which loses the metadata, output intent and structure tree of a
-			// native PDF/A or PDF/UA conversion.
-			hasPostProcessing := len(watermarks) > 0 || len(stamps) > 0 || angle != 0 ||
-				len(embedPaths) > 0 || len(metadata) > 0 || flatten || facturX.ConformanceLevel != "" ||
-				(merge && len(inputPaths) > 1)
+			pdfFormats := gotenberg.PdfFormats{PdfA: pdfa, PdfUa: pdfua}
 
 			outputPaths := make([]string, len(inputPaths))
 			for i, inputPath := range inputPaths {
-				outputPaths[i] = ctx.GeneratePath(".pdf")
+				// document.docx -> document.docx.pdf, which names the output,
+				// or the archive entry, and the parts of a split.
+				outputPaths[i] = ctx.GeneratePathFromFilename(ctx.OriginalFilename(inputPath) + ".pdf")
 				options := libreofficeapi.Options{
 					Password:                        password,
 					Landscape:                       landscape,
@@ -403,13 +367,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 					NativeWatermarkFontName:         nativeWatermarkFontName,
 					NativeTiledWatermarkText:        nativeTiledWatermarkText,
 					GenerateTaggedPdf:               generateTaggedPdf,
-				}
-
-				if nativePdfFormats && splitMode == zeroValuedSplitMode && !hasPostProcessing {
-					// Only natively apply given PDF formats if we're not
-					// splitting the PDF later and no post-processing features
-					// are enabled (as they would degrade compliance).
-					options.PdfFormats = pdfFormats
+					PdfFormats:                      pdfFormats,
 				}
 
 				err = libreOffice.Pdf(ctx, ctx.Log(), inputPath, outputPaths[i], options)
@@ -474,129 +432,9 @@ func convertRoute(libreOffice libreofficeapi.Uno, engine gotenberg.PdfEngine) ap
 				}
 			}
 
-			if merge {
-				outputPath, err := pdfengines.MergeStub(ctx, engine, outputPaths)
-				if err != nil {
-					return fmt.Errorf("merge PDFs: %w", err)
-				}
-
-				// Only one output path.
-				outputPaths = []string{outputPath}
-			}
-
-			if splitMode != zeroValuedSplitMode {
-				if !merge {
-					// document.docx -> document.docx.pdf, so that split naming
-					// document.docx_0.pdf, etc.
-					for i, inputPath := range inputPaths {
-						originalName := ctx.OriginalFilename(inputPath)
-						outputPath := ctx.GeneratePathFromFilename(originalName + ".pdf")
-
-						err = ctx.Rename(outputPaths[i], outputPath)
-						if err != nil {
-							return fmt.Errorf("rename output path: %w", err)
-						}
-
-						outputPaths[i] = outputPath
-					}
-				}
-
-				outputPaths, err = pdfengines.SplitPdfStub(ctx, engine, splitMode, outputPaths)
-				if err != nil {
-					return fmt.Errorf("split PDFs: %w", err)
-				}
-			}
-
-			err = pdfengines.WatermarkStub(ctx, engine, watermarks, outputPaths)
+			outputPaths, err = processor.Run(ctx, stages, outputPaths, files)
 			if err != nil {
-				return fmt.Errorf("watermark PDFs: %w", err)
-			}
-
-			err = pdfengines.StampStub(ctx, engine, stamps, outputPaths)
-			if err != nil {
-				return fmt.Errorf("stamp PDFs: %w", err)
-			}
-
-			err = pdfengines.RotateStub(ctx, engine, angle, rotatePages, outputPaths)
-			if err != nil {
-				return fmt.Errorf("rotate PDFs: %w", err)
-			}
-
-			if flatten {
-				err = pdfengines.FlattenStub(ctx, engine, outputPaths)
-				if err != nil {
-					return fmt.Errorf("flatten PDFs: %w", err)
-				}
-			}
-
-			err = pdfengines.OptimizeStub(ctx, engine, optimizeImages, imageQuality, outputPaths)
-			if err != nil {
-				return fmt.Errorf("optimize PDF images: %w", err)
-			}
-
-			needsConvertStub := !nativePdfFormats ||
-				(nativePdfFormats && splitMode != zeroValuedSplitMode) ||
-				(nativePdfFormats && hasPostProcessing)
-			if needsConvertStub {
-				convertOutputPaths, err := pdfengines.ConvertStub(ctx, engine, pdfFormats, outputPaths)
-				if err != nil {
-					return fmt.Errorf("convert PDFs: %w", err)
-				}
-
-				if splitMode != zeroValuedSplitMode {
-					// The PDF has been split and split parts have been converted to
-					// specific formats. We want to keep the split naming.
-					for i, convertOutputPath := range convertOutputPaths {
-						err = ctx.Rename(convertOutputPath, outputPaths[i])
-						if err != nil {
-							return fmt.Errorf("rename output path: %w", err)
-						}
-					}
-				} else {
-					outputPaths = convertOutputPaths
-				}
-			}
-
-			// Metadata, embeds are written after Convert, as LibreOffice
-			// strips them during PDF/A conversion.
-			err = pdfengines.WriteMetadataStub(ctx, engine, metadata, outputPaths)
-			if err != nil {
-				return fmt.Errorf("write metadata: %w", err)
-			}
-
-			err = pdfengines.EmbedFilesStub(ctx, engine, embedPaths, outputPaths)
-			if err != nil {
-				return fmt.Errorf("embed files into PDFs: %w", err)
-			}
-
-			err = pdfengines.EmbedFilesMetadataStub(ctx, engine, embedsMetadata, outputPaths)
-			if err != nil {
-				return fmt.Errorf("set embeds metadata: %w", err)
-			}
-
-			err = pdfengines.ApplyFacturXStub(ctx, engine, facturX, facturxXmlPath, outputPaths)
-			if err != nil {
-				return fmt.Errorf("apply Factur-X: %w", err)
-			}
-
-			err = pdfengines.EncryptPdfStub(ctx, engine, encrypt, outputPaths)
-			if err != nil {
-				return fmt.Errorf("encrypt PDFs: %w", err)
-			}
-
-			if len(outputPaths) > 1 && splitMode == zeroValuedSplitMode {
-				// If .zip archive, document.docx -> document.docx.pdf.
-				for i, inputPath := range inputPaths {
-					originalName := ctx.OriginalFilename(inputPath)
-					outputPath := ctx.GeneratePathFromFilename(originalName + ".pdf")
-
-					err = ctx.Rename(outputPaths[i], outputPath)
-					if err != nil {
-						return fmt.Errorf("rename output path: %w", err)
-					}
-
-					outputPaths[i] = outputPath
-				}
+				return fmt.Errorf("run stages: %w", err)
 			}
 
 			err = ctx.AddOutputPaths(outputPaths...)

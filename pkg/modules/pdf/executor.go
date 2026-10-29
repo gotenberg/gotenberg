@@ -16,7 +16,8 @@ import (
 )
 
 // Processor runs [Stages] on PDF documents with litho. It is safe for
-// concurrent use.
+// concurrent use. The zero value uses litho's default limits and HTTP client,
+// and remediates without the system's fonts.
 type Processor struct {
 	limits     litho.Limits
 	fonts      litho.RemediateOption
@@ -50,7 +51,19 @@ type document struct {
 // A document keeps its filename through the stages. "merge" names its output
 // after the first document, and "split" numbers its outputs. Without stages,
 // Run returns inputPaths.
+//
+// A failure the request causes, such as a page range past the last page or a
+// wrong password, returns a 400 error naming the stage and the document.
 func (p *Processor) Run(ctx *api.Context, stages Stages, inputPaths []string, files map[string]string) ([]string, error) {
+	paths, err := p.run(ctx, stages, inputPaths, files)
+	if err != nil {
+		return nil, handleError(err, ctx.DirPath())
+	}
+
+	return paths, nil
+}
+
+func (p *Processor) run(ctx *api.Context, stages Stages, inputPaths []string, files map[string]string) ([]string, error) {
 	docs := make([]document, len(inputPaths))
 	for i, path := range inputPaths {
 		docs[i] = document{path: path, filename: ctx.OriginalFilename(path)}
@@ -139,7 +152,12 @@ func (p *Processor) write(ctx *api.Context, pipeline *litho.Pipeline, filename s
 		return document{}, fmt.Errorf("create output file: %w", err)
 	}
 
-	writeCtx := litho.ContextWithHTTPClient(ctx, p.httpClient(ctx))
+	var client *http.Client
+	if p.httpClient != nil {
+		client = p.httpClient(ctx)
+	}
+
+	writeCtx := litho.ContextWithHTTPClient(ctx, client)
 	_, err = pipeline.WriteTo(writeCtx, out, append(opts, litho.WithPipelineTempDir(ctx.DirPath()))...)
 
 	closeErr := out.Close()

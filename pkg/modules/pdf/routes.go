@@ -70,7 +70,7 @@ func runStages(ctx *api.Context, processor *Processor, stages Stages, files map[
 
 	outputPaths, err := processor.Run(ctx, stages, inputPaths, files)
 	if err != nil {
-		return fmt.Errorf("run stages: %w", handleError(err, ctx.DirPath()))
+		return fmt.Errorf("run stages: %w", err)
 	}
 
 	err = ctx.AddOutputPaths(outputPaths...)
