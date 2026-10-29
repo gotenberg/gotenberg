@@ -24,6 +24,7 @@ import (
 
 	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
+	"github.com/gotenberg/gotenberg/v9/pkg/modules/pdf"
 )
 
 func init() {
@@ -116,7 +117,7 @@ type Chromium struct {
 	logger     *slog.Logger
 	browser    browser
 	supervisor gotenberg.ProcessSupervisor
-	engine     gotenberg.PdfEngine
+	processor  *pdf.Processor
 
 	version     string
 	versionOnce sync.Once
@@ -565,16 +566,12 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 	mod.browser = newChromiumBrowser(mod.args)
 	mod.supervisor = gotenberg.NewProcessSupervisor(mod.logger, "chromium", mod.browser, flags.MustInt64("chromium-restart-after"), flags.MustInt64("chromium-max-queue-size"), mod.maxConcurrency, flags.MustDuration("chromium-idle-shutdown-timeout"))
 
-	// PDF Engine.
-	provider, err := ctx.Module(new(gotenberg.PdfEngineProvider))
+	// PDF processing.
+	provider, err := ctx.Module(new(pdf.Provider))
 	if err != nil {
-		return fmt.Errorf("get PDF engine provider: %w", err)
+		return fmt.Errorf("get PDF provider: %w", err)
 	}
-	engine, err := provider.(gotenberg.PdfEngineProvider).PdfEngine()
-	if err != nil {
-		return fmt.Errorf("get PDF engine: %w", err)
-	}
-	mod.engine = engine
+	mod.processor = provider.(pdf.Provider).Processor()
 
 	// Metrics.
 	meter := gotenberg.Meter()
@@ -887,11 +884,11 @@ func (mod *Chromium) Routes() ([]api.Route, error) {
 	}
 
 	return []api.Route{
-		convertUrlRoute(mod, mod.engine),
+		convertUrlRoute(mod, mod.processor),
 		screenshotUrlRoute(mod),
-		convertHtmlRoute(mod, mod.engine),
+		convertHtmlRoute(mod, mod.processor),
 		screenshotHtmlRoute(mod),
-		convertMarkdownRoute(mod, mod.engine),
+		convertMarkdownRoute(mod, mod.processor),
 		screenshotMarkdownRoute(mod),
 	}, nil
 }

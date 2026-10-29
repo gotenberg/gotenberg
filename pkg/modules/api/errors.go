@@ -48,6 +48,12 @@ func (w sentinelWrappedError) HttpError() (int, string) {
 	return w.sentinel.HttpError()
 }
 
+// Unwrap returns the logged error, so that [errors.Is] and [errors.As] reach
+// its cause.
+func (w sentinelWrappedError) Unwrap() error {
+	return w.error
+}
+
 // WrapError wraps the given error with a [SentinelHttpError]. The wrapped
 // error will be displayed in a log, while the [SentinelHttpError] will be sent
 // in the response.

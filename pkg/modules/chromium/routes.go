@@ -20,9 +20,8 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/microcosm-cc/bluemonday"
 
-	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
-	"github.com/gotenberg/gotenberg/v9/pkg/modules/pdfengines"
+	"github.com/gotenberg/gotenberg/v9/pkg/modules/pdf"
 )
 
 // Bounds on the scoped extra HTTP headers feature. Chromium matches every
@@ -500,7 +499,7 @@ func validateUrlScheme(rawURL string) error {
 }
 
 // convertUrlRoute returns an [api.Route] which can convert a URL to PDF.
-func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
+func convertUrlRoute(chromium Api, processor *pdf.Processor) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
 		Path:        "/forms/chromium/convert/url",
@@ -508,28 +507,13 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPdfOptions(ctx)
-			mode := pdfengines.FormDataPdfSplitMode(form, false)
-			pdfFormats := pdfengines.FormDataPdfFormats(form)
-			metadata := pdfengines.FormDataPdfMetadata(form, false)
-			encrypt := pdfengines.FormDataPdfEncrypt(form)
-			embedPaths := pdfengines.FormDataPdfEmbeds(form)
-			watermarks, wErr := pdfengines.FormDataPdfWatermarks(form)
-			if wErr != nil {
-				return fmt.Errorf("form data watermarks: %w", wErr)
+			stages, files, err := pdf.FormDataStages(form)
+			if err != nil {
+				return err
 			}
-			stamps, sErr := pdfengines.FormDataPdfStamps(form)
-			if sErr != nil {
-				return fmt.Errorf("form data stamps: %w", sErr)
-			}
-			var watermarkFiles, stampFiles []string
-			form.Watermarks(&watermarkFiles).Stamps(&stampFiles)
-			rotateAngle, rotatePages := pdfengines.FormDataPdfRotate(form, false)
-			optimizeImages, imageQuality := pdfengines.FormDataPdfOptimize(form)
-			embedsMetadata := pdfengines.FormDataPdfEmbedsMetadata(form)
-			facturX, facturxXmlPath := pdfengines.FormDataPdfFacturX(form)
 
 			var url string
-			err := form.
+			err = form.
 				MandatoryString("url", &url).
 				Validate()
 			if err != nil {
@@ -541,16 +525,7 @@ func convertUrlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 				return fmt.Errorf("reject URL scheme: %w", err)
 			}
 
-			err = pdfengines.BindWatermarkFiles(watermarks, watermarkFiles)
-			if err != nil {
-				return fmt.Errorf("bind watermark files: %w", err)
-			}
-			err = pdfengines.BindStampFiles(stamps, stampFiles)
-			if err != nil {
-				return fmt.Errorf("bind stamp files: %w", err)
-			}
-
-			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, encrypt, embedPaths, embedsMetadata, facturX, facturxXmlPath, watermarks, stamps, rotateAngle, rotatePages, optimizeImages, imageQuality)
+			err = convertUrl(ctx, chromium, processor, url, options, stages, files)
 			if err != nil {
 				return fmt.Errorf("convert URL to PDF: %w", err)
 			}
@@ -596,7 +571,7 @@ func screenshotUrlRoute(chromium Api) api.Route {
 
 // convertHtmlRoute returns an [api.Route] which can convert an HTML file to
 // PDF.
-func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
+func convertHtmlRoute(chromium Api, processor *pdf.Processor) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
 		Path:        "/forms/chromium/convert/html",
@@ -604,46 +579,22 @@ func convertHtmlRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPdfOptions(ctx)
-			mode := pdfengines.FormDataPdfSplitMode(form, false)
-			pdfFormats := pdfengines.FormDataPdfFormats(form)
-			metadata := pdfengines.FormDataPdfMetadata(form, false)
-			encrypt := pdfengines.FormDataPdfEncrypt(form)
-			embedPaths := pdfengines.FormDataPdfEmbeds(form)
-			watermarks, wErr := pdfengines.FormDataPdfWatermarks(form)
-			if wErr != nil {
-				return fmt.Errorf("form data watermarks: %w", wErr)
+			stages, files, err := pdf.FormDataStages(form)
+			if err != nil {
+				return err
 			}
-			stamps, sErr := pdfengines.FormDataPdfStamps(form)
-			if sErr != nil {
-				return fmt.Errorf("form data stamps: %w", sErr)
-			}
-			var watermarkFiles, stampFiles []string
-			form.Watermarks(&watermarkFiles).Stamps(&stampFiles)
-			rotateAngle, rotatePages := pdfengines.FormDataPdfRotate(form, false)
-			optimizeImages, imageQuality := pdfengines.FormDataPdfOptimize(form)
-			embedsMetadata := pdfengines.FormDataPdfEmbedsMetadata(form)
-			facturX, facturxXmlPath := pdfengines.FormDataPdfFacturX(form)
 
 			var inputPath string
-			err := form.
+			err = form.
 				MandatoryPath("index.html", &inputPath).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			err = pdfengines.BindWatermarkFiles(watermarks, watermarkFiles)
-			if err != nil {
-				return fmt.Errorf("bind watermark files: %w", err)
-			}
-			err = pdfengines.BindStampFiles(stamps, stampFiles)
-			if err != nil {
-				return fmt.Errorf("bind stamp files: %w", err)
-			}
-
 			url := fmt.Sprintf("file://%s", inputPath)
 			options.AllowedFilePrefixes = []string{ctx.DirPath()}
-			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, encrypt, embedPaths, embedsMetadata, facturX, facturxXmlPath, watermarks, stamps, rotateAngle, rotatePages, optimizeImages, imageQuality)
+			err = convertUrl(ctx, chromium, processor, url, options, stages, files)
 			if err != nil {
 				return fmt.Errorf("convert HTML to PDF: %w", err)
 			}
@@ -686,7 +637,7 @@ func screenshotHtmlRoute(chromium Api) api.Route {
 
 // convertMarkdownRoute returns an [api.Route] which can convert markdown files
 // to PDF.
-func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
+func convertMarkdownRoute(chromium Api, processor *pdf.Processor) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
 		Path:        "/forms/chromium/convert/markdown",
@@ -694,46 +645,22 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPdfOptions(ctx)
-			mode := pdfengines.FormDataPdfSplitMode(form, false)
-			pdfFormats := pdfengines.FormDataPdfFormats(form)
-			metadata := pdfengines.FormDataPdfMetadata(form, false)
-			encrypt := pdfengines.FormDataPdfEncrypt(form)
-			embedPaths := pdfengines.FormDataPdfEmbeds(form)
-			watermarks, wErr := pdfengines.FormDataPdfWatermarks(form)
-			if wErr != nil {
-				return fmt.Errorf("form data watermarks: %w", wErr)
+			stages, files, err := pdf.FormDataStages(form)
+			if err != nil {
+				return err
 			}
-			stamps, sErr := pdfengines.FormDataPdfStamps(form)
-			if sErr != nil {
-				return fmt.Errorf("form data stamps: %w", sErr)
-			}
-			var watermarkFiles, stampFiles []string
-			form.Watermarks(&watermarkFiles).Stamps(&stampFiles)
-			rotateAngle, rotatePages := pdfengines.FormDataPdfRotate(form, false)
-			optimizeImages, imageQuality := pdfengines.FormDataPdfOptimize(form)
-			embedsMetadata := pdfengines.FormDataPdfEmbedsMetadata(form)
-			facturX, facturxXmlPath := pdfengines.FormDataPdfFacturX(form)
 
 			var (
 				inputPath     string
 				markdownPaths []string
 			)
 
-			err := form.
+			err = form.
 				MandatoryPath("index.html", &inputPath).
 				MandatoryPaths([]string{".md"}, &markdownPaths).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
-			}
-
-			err = pdfengines.BindWatermarkFiles(watermarks, watermarkFiles)
-			if err != nil {
-				return fmt.Errorf("bind watermark files: %w", err)
-			}
-			err = pdfengines.BindStampFiles(stamps, stampFiles)
-			if err != nil {
-				return fmt.Errorf("bind stamp files: %w", err)
 			}
 
 			url, err := markdownToHtml(ctx, inputPath, markdownPaths)
@@ -742,7 +669,7 @@ func convertMarkdownRoute(chromium Api, engine gotenberg.PdfEngine) api.Route {
 			}
 
 			options.AllowedFilePrefixes = []string{ctx.DirPath()}
-			err = convertUrl(ctx, chromium, engine, url, options, mode, pdfFormats, metadata, encrypt, embedPaths, embedsMetadata, facturX, facturxXmlPath, watermarks, stamps, rotateAngle, rotatePages, optimizeImages, imageQuality)
+			err = convertUrl(ctx, chromium, processor, url, options, stages, files)
 			if err != nil {
 				return fmt.Errorf("convert markdown to PDF: %w", err)
 			}
@@ -867,7 +794,7 @@ func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) 
 	return fmt.Sprintf("file://%s", inputPath), nil
 }
 
-func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url string, options PdfOptions, mode gotenberg.SplitMode, pdfFormats gotenberg.PdfFormats, metadata map[string]any, encrypt gotenberg.EncryptOptions, embedPaths []string, embedsMetadata map[string]map[string]string, facturX gotenberg.FacturX, facturxXmlPath string, watermarks, stamps []gotenberg.Stamp, rotateAngle int, rotatePages string, optimizeImages bool, imageQuality int) error {
+func convertUrl(ctx *api.Context, chromium Api, processor *pdf.Processor, url string, options PdfOptions, stages pdf.Stages, files map[string]string) error {
 	outputPath := ctx.GeneratePath(".pdf")
 	// See https://github.com/gotenberg/gotenberg/issues/1130.
 	filename := ctx.OutputFilename(outputPath)
@@ -929,93 +856,9 @@ func convertUrl(ctx *api.Context, chromium Api, engine gotenberg.PdfEngine, url 
 		return fmt.Errorf("convert to PDF: %w", err)
 	}
 
-	err = pdfengines.ValidatePdfFormatsCompat(pdfFormats, encrypt.UserPassword, embedPaths)
+	outputPaths, err := processor.Run(ctx, stages, []string{outputPath}, files)
 	if err != nil {
-		return err
-	}
-
-	err = pdfengines.ValidatePdfEncryptCompat(encrypt)
-	if err != nil {
-		return err
-	}
-
-	err = pdfengines.ValidateFacturXCompat(facturX, facturxXmlPath, pdfFormats)
-	if err != nil {
-		return err
-	}
-
-	outputPaths, err := pdfengines.SplitPdfStub(ctx, engine, mode, []string{outputPath})
-	if err != nil {
-		return fmt.Errorf("split PDF: %w", err)
-	}
-
-	err = pdfengines.WatermarkStub(ctx, engine, watermarks, outputPaths)
-	if err != nil {
-		return fmt.Errorf("watermark PDFs: %w", err)
-	}
-
-	err = pdfengines.StampStub(ctx, engine, stamps, outputPaths)
-	if err != nil {
-		return fmt.Errorf("stamp PDFs: %w", err)
-	}
-
-	err = pdfengines.RotateStub(ctx, engine, rotateAngle, rotatePages, outputPaths)
-	if err != nil {
-		return fmt.Errorf("rotate PDFs: %w", err)
-	}
-
-	err = pdfengines.OptimizeStub(ctx, engine, optimizeImages, imageQuality, outputPaths)
-	if err != nil {
-		return fmt.Errorf("optimize PDF images: %w", err)
-	}
-
-	pdfFormats = pdfengines.FacturXPdfFormats(ctx, engine, facturX, pdfFormats, true, nil)
-
-	convertOutputPaths, err := pdfengines.ConvertStub(ctx, engine, pdfFormats, outputPaths)
-	if err != nil {
-		return fmt.Errorf("convert PDF(s): %w", err)
-	}
-
-	// Metadata, embeds are written after Convert, as LibreOffice
-	// strips them during PDF/A conversion.
-	err = pdfengines.WriteMetadataStub(ctx, engine, metadata, convertOutputPaths)
-	if err != nil {
-		return fmt.Errorf("write metadata: %w", err)
-	}
-
-	err = pdfengines.EmbedFilesStub(ctx, engine, embedPaths, convertOutputPaths)
-	if err != nil {
-		return fmt.Errorf("embed files into PDFs: %w", err)
-	}
-
-	err = pdfengines.EmbedFilesMetadataStub(ctx, engine, embedsMetadata, convertOutputPaths)
-	if err != nil {
-		return fmt.Errorf("set embeds metadata: %w", err)
-	}
-
-	err = pdfengines.ApplyFacturXStub(ctx, engine, facturX, facturxXmlPath, convertOutputPaths)
-	if err != nil {
-		return fmt.Errorf("apply Factur-X: %w", err)
-	}
-
-	err = pdfengines.EncryptPdfStub(ctx, engine, encrypt, convertOutputPaths)
-	if err != nil {
-		return fmt.Errorf("encrypt PDFs: %w", err)
-	}
-
-	zeroValuedSplitMode := gotenberg.SplitMode{}
-	zeroValuedPdfFormats := gotenberg.PdfFormats{}
-	if mode != zeroValuedSplitMode && pdfFormats != zeroValuedPdfFormats {
-		// The PDF has been split and split parts have been converted to a
-		// specific format. We want to keep the split naming.
-		for i, convertOutputPath := range convertOutputPaths {
-			err = ctx.Rename(convertOutputPath, outputPaths[i])
-			if err != nil {
-				return fmt.Errorf("rename output path: %w", err)
-			}
-		}
-	} else {
-		outputPaths = convertOutputPaths
+		return fmt.Errorf("run stages: %w", err)
 	}
 
 	err = ctx.AddOutputPaths(outputPaths...)
