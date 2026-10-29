@@ -27,12 +27,20 @@ import (
 // are left untouched: a JPEG pass would add artifacts for little or no gain.
 const minOptimizeImageSize = 30 << 10 // 30 KiB
 
-// pdfcpuListRowID matches the image Id (e.g. "X6") in a `pdfcpu images extract`
-// filename such as "input_1_X6.png".
-var pdfcpuListRowID = regexp.MustCompile(`_(X\d+)\.`)
+// pdfcpuListRowID matches the page and the image Id (e.g. "X6") in a
+// `pdfcpu images extract` filename such as "input_1_X6.png".
+var pdfcpuListRowID = regexp.MustCompile(`_(\d+)_(X\d+)\.`)
+
+// pdfcpuImageRef identifies an image by page and Id: a resource name is only
+// unique within one page, and merged PDFs often reuse one on several pages.
+type pdfcpuImageRef struct {
+	page int
+	id   string
+}
 
 // pdfcpuImage is one raster image XObject as reported by `pdfcpu images list`.
 type pdfcpuImage struct {
+	page   int
 	obj    int
 	id     string
 	masked bool
@@ -102,7 +110,7 @@ func (engine *PdfCpu) OptimizeImages(ctx context.Context, logger *slog.Logger, i
 	current := inputPath
 	optimized := 0
 	for _, img := range targets {
-		src, ok := extracted[img.id]
+		src, ok := extracted[pdfcpuImageRef{page: img.page, id: img.id}]
 		if !ok {
 			logger.WarnContext(ctx, fmt.Sprintf("optimize images: image %s was not extracted, leaving it as is", img.id))
 			continue
@@ -177,9 +185,11 @@ func (engine *PdfCpu) listImages(ctx context.Context, inputPath string) ([]pdfcp
 
 // parseImagesList parses the fixed-column table of `pdfcpu images list`. Columns
 // are separated by U+2502; the header and separator rows are skipped because
-// their second column is not a numeric object number.
+// their second column is not a numeric object number. The page number is only
+// printed on the first row of each page.
 func parseImagesList(output string) []pdfcpuImage {
 	var images []pdfcpuImage
+	page := 0
 	for line := range strings.SplitSeq(output, "\n") {
 		cols := strings.Split(line, "│")
 		if len(cols) < 9 {
@@ -191,12 +201,17 @@ func parseImagesList(output string) []pdfcpuImage {
 			continue
 		}
 
+		if p, err := strconv.Atoi(strings.TrimSpace(cols[0])); err == nil {
+			page = p
+		}
+
 		comp := 0
 		if fields := strings.Fields(cols[6]); len(fields) >= 2 {
 			comp, _ = strconv.Atoi(fields[1])
 		}
 
 		images = append(images, pdfcpuImage{
+			page:   page,
 			obj:    obj,
 			id:     strings.TrimSpace(cols[2]),
 			masked: strings.TrimSpace(cols[3]) != "image",
@@ -238,8 +253,8 @@ func parseHumanSize(cell string) int64 {
 }
 
 // extractImages extracts every image of inputPath into dir and returns a map of
-// image Id (e.g. "X6") to the extracted file path.
-func (engine *PdfCpu) extractImages(ctx context.Context, logger *slog.Logger, inputPath, dir string) (map[string]string, error) {
+// page and image Id to the extracted file path.
+func (engine *PdfCpu) extractImages(ctx context.Context, logger *slog.Logger, inputPath, dir string) (map[pdfcpuImageRef]string, error) {
 	args := []string{"images", "extract", inputPath, dir}
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
 	if err != nil {
@@ -256,14 +271,32 @@ func (engine *PdfCpu) extractImages(ctx context.Context, logger *slog.Logger, in
 		return nil, fmt.Errorf("read extracted images: %w", err)
 	}
 
-	extracted := make(map[string]string, len(entries))
+	extracted := make(map[pdfcpuImageRef]string, len(entries))
 	for _, entry := range entries {
-		if match := pdfcpuListRowID.FindStringSubmatch(entry.Name()); match != nil {
-			extracted[match[1]] = filepath.Join(dir, entry.Name())
+		ref, ok := parseExtractedImageName(entry.Name())
+		if ok {
+			extracted[ref] = filepath.Join(dir, entry.Name())
 		}
 	}
 
 	return extracted, nil
+}
+
+// parseExtractedImageName returns the page and the image Id of a file written by
+// `pdfcpu images extract`. The page number is zero-padded to the digits of the
+// last page.
+func parseExtractedImageName(name string) (pdfcpuImageRef, bool) {
+	match := pdfcpuListRowID.FindStringSubmatch(name)
+	if match == nil {
+		return pdfcpuImageRef{}, false
+	}
+
+	page, err := strconv.Atoi(match[1])
+	if err != nil {
+		return pdfcpuImageRef{}, false
+	}
+
+	return pdfcpuImageRef{page: page, id: match[2]}, true
 }
 
 // updateImage replaces the image object objNr of inFile with the image at
