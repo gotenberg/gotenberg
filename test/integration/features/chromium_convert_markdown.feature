@@ -22,6 +22,29 @@ Feature: /forms/chromium/convert/markdown
       Page 1
       """
 
+  Scenario: POST /forms/chromium/convert/markdown (Paper Size)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
+      | files                     | testdata/page-1-markdown/index.html | file   |
+      | files                     | testdata/page-1-markdown/page_1.md  | file   |
+      | paperSize                 | A4                                  | field  |
+      | Gotenberg-Output-Filename | foo                                 | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then the "foo.pdf" PDF first page should be 595.28x841.89 points
+
+  Scenario: POST /forms/chromium/convert/markdown (Paper Size With Width Override)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
+      | files                     | testdata/page-1-markdown/index.html | file   |
+      | files                     | testdata/page-1-markdown/page_1.md  | file   |
+      | paperSize                 | A4                                  | field  |
+      | paperWidth                | 100mm                               | field  |
+      | Gotenberg-Output-Filename | foo                                 | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then the "foo.pdf" PDF first page should be 283.46x841.89 points
+
   Scenario: POST /forms/chromium/convert/markdown (Single Page)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
@@ -504,8 +527,8 @@ Feature: /forms/chromium/convert/markdown
       | marginLeft                    | foo | field |
       | marginRight                   | foo | field |
       | preferCssPageSize             | foo | field |
-      | generateDocumentOutline       | foo | field |
-      | generateTaggedPdf             | foo | field |
+      | nativeBookmarks               | foo | field |
+      | nativeTaggedPdf               | foo | field |
       | printBackground               | foo | field |
       | omitBackground                | foo | field |
       | landscape                     | foo | field |
@@ -544,8 +567,8 @@ Feature: /forms/chromium/convert/markdown
       form field 'marginLeft' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax)
       form field 'marginRight' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax)
       form field 'preferCssPageSize' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'generateDocumentOutline' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'generateTaggedPdf' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'nativeBookmarks' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'nativeTaggedPdf' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
       form file 'index.html' is required
       no form file found for extensions: [.md]
       """
@@ -657,79 +680,76 @@ Feature: /forms/chromium/convert/markdown
       Invalid form data: form field 'extraHttpHeaders' is invalid (got '{"foo":"bar;scope=*."}', resulting to invalid scope regex pattern for header 'foo': error parsing regexp: missing argument to repetition operator in `*.`)
       """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files     | testdata/page-1-markdown/index.html | file  |
-      | files     | testdata/page-1-markdown/page_1.md  | file  |
-      | splitMode | foo                                 | field |
-      | splitSpan | 2                                   | field |
+      | files  | testdata/page-1-markdown/index.html | file  |
+      | files  | testdata/page-1-markdown/page_1.md  | file  |
+      | stages | foo                                 | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Invalid form data: form field 'splitMode' is invalid (got 'foo', resulting to wrong value, expected either 'intervals' or 'pages')
+      Invalid form data: form field 'stages' is invalid: stages must be a JSON array of objects: invalid character 'o' in literal false (expecting 'a')
       """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files     | testdata/page-1-markdown/index.html | file  |
-      | files     | testdata/page-1-markdown/page_1.md  | file  |
-      | splitMode | intervals                           | field |
-      | splitSpan | foo                                 | field |
+      | files  | testdata/page-1-markdown/index.html | file  |
+      | files  | testdata/page-1-markdown/page_1.md  | file  |
+      | stages | [{"op":"shred"}]                    | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Invalid form data: form field 'splitSpan' is invalid (got 'foo', resulting to strconv.Atoi: parsing "foo": invalid syntax)
+      Invalid form data: form field 'stages' is invalid: stage 0: unknown operation "shred"
       """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files     | testdata/page-1-markdown/index.html | file  |
-      | files     | testdata/page-1-markdown/page_1.md  | file  |
-      | splitMode | pages                               | field |
-      | splitSpan | foo                                 | field |
+      | files  | testdata/page-1-markdown/index.html | file  |
+      | files  | testdata/page-1-markdown/page_1.md  | file  |
+      | stages | [{"op":"split"}]                    | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      The requested split mode is not supported, or no PDF engine could process it. Valid modes: 'intervals', 'pages'.
+      Invalid form data: form field 'stages' is invalid: stage 0: split: set "every" or "ranges"
       """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files | testdata/page-1-markdown/index.html | file  |
-      | files | testdata/page-1-markdown/page_1.md  | file  |
-      | pdfa  | foo                                 | field |
+      | files  | testdata/page-1-markdown/index.html  | file  |
+      | files  | testdata/page-1-markdown/page_1.md   | file  |
+      | stages | [{"op":"remediate","profile":"foo"}] | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
-    Then the response body should match string:
+    Then the response body should contain string:
       """
-      The requested PDF format is not supported, or no PDF engine could apply it. Valid formats include PDF/A-1b, PDF/A-2b, PDF/A-3b, PDF/A-4, and PDF/UA.
+      Invalid form data: form field 'stages' is invalid: stage 0: remediate: "profile" must be one of
       """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files | testdata/page-1-markdown/index.html | file  |
-      | files | testdata/page-1-markdown/page_1.md  | file  |
-      | pdfua | foo                                 | field |
+      | files  | testdata/page-1-markdown/index.html                                  | file  |
+      | files  | testdata/page-1-markdown/page_1.md                                   | file  |
+      | stages | [{"op":"remediate","profile":"PDF/A-2b"},{"op":"rotate","angle":90}] | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Invalid form data: form field 'pdfua' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      Invalid form data: form field 'stages' is invalid: stage 1: "rotate" cannot follow "remediate": only encrypt, optimize, sign and timestamp may
       """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files    | testdata/page-1-markdown/index.html | file  |
-      | files    | testdata/page-1-markdown/page_1.md  | file  |
-      | metadata | foo                                 | field |
+      | files                     | testdata/page-1-markdown/index.html      | file   |
+      | files                     | testdata/page-1-markdown/page_1.md       | file   |
+      | stages                    | [{"op":"rotate","angle":90,"pages":"5"}] | field  |
+      | Gotenberg-Output-Filename | foo                                      | header |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
-    Then the response body should match string:
+    Then the response body should contain string:
       """
-      Invalid form data: form field 'metadata' is invalid (got 'foo', resulting to unmarshal metadata: invalid character 'o' in literal false (expecting 'a'))
+      Stage 'rotate' failed on 'foo.pdf':
       """
 
-  @split
+  @pdf-split
   Scenario: POST /forms/chromium/convert/markdown (Split Intervals)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files     | testdata/pages-3-markdown/index.html | file  |
-      | files     | testdata/pages-3-markdown/page_1.md  | file  |
-      | files     | testdata/pages-3-markdown/page_2.md  | file  |
-      | files     | testdata/pages-3-markdown/page_3.md  | file  |
-      | splitMode | intervals                            | field |
-      | splitSpan | 2                                    | field |
+      | files  | testdata/pages-3-markdown/index.html | file  |
+      | files  | testdata/pages-3-markdown/page_1.md  | file  |
+      | files  | testdata/pages-3-markdown/page_2.md  | file  |
+      | files  | testdata/pages-3-markdown/page_3.md  | file  |
+      | stages | [{"op":"split","every":2}]           | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
     Then there should be 2 PDF(s) in the response
@@ -752,7 +772,7 @@ Feature: /forms/chromium/convert/markdown
       """
 
   # See https://github.com/gotenberg/gotenberg/issues/1130.
-  @split
+  @pdf-split
   @output-filename
   Scenario: POST /forms/chromium/convert/markdown (Split Output Filename)
     Given I have a default Gotenberg container
@@ -761,8 +781,7 @@ Feature: /forms/chromium/convert/markdown
       | files                     | testdata/pages-3-markdown/page_1.md  | file   |
       | files                     | testdata/pages-3-markdown/page_2.md  | file   |
       | files                     | testdata/pages-3-markdown/page_3.md  | file   |
-      | splitMode                 | intervals                            | field  |
-      | splitSpan                 | 2                                    | field  |
+      | stages                    | [{"op":"split","every":2}]           | field  |
       | Gotenberg-Output-Filename | foo                                  | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
@@ -786,16 +805,15 @@ Feature: /forms/chromium/convert/markdown
       Page 3
       """
 
-  @split
+  @pdf-split
   Scenario: POST /forms/chromium/convert/markdown (Split Pages)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files     | testdata/pages-3-markdown/index.html | file  |
-      | files     | testdata/pages-3-markdown/page_1.md  | file  |
-      | files     | testdata/pages-3-markdown/page_2.md  | file  |
-      | files     | testdata/pages-3-markdown/page_3.md  | file  |
-      | splitMode | pages                                | field |
-      | splitSpan | 2-                                   | field |
+      | files  | testdata/pages-3-markdown/index.html | file  |
+      | files  | testdata/pages-3-markdown/page_1.md  | file  |
+      | files  | testdata/pages-3-markdown/page_2.md  | file  |
+      | files  | testdata/pages-3-markdown/page_3.md  | file  |
+      | stages | [{"op":"split","ranges":"2,3"}]      | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
     Then there should be 2 PDF(s) in the response
@@ -813,7 +831,7 @@ Feature: /forms/chromium/convert/markdown
       Page 3
       """
 
-  @split
+  @pdf-split
   Scenario: POST /forms/chromium/convert/markdown (Split Pages & Unify)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
@@ -821,9 +839,7 @@ Feature: /forms/chromium/convert/markdown
       | files                     | testdata/pages-3-markdown/page_1.md  | file   |
       | files                     | testdata/pages-3-markdown/page_2.md  | file   |
       | files                     | testdata/pages-3-markdown/page_3.md  | file   |
-      | splitMode                 | pages                                | field  |
-      | splitSpan                 | 2-                                   | field  |
-      | splitUnify                | true                                 | field  |
+      | stages                    | [{"op":"select","pages":"2-3"}]      | field  |
       | Gotenberg-Output-Filename | foo                                  | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
@@ -840,25 +856,24 @@ Feature: /forms/chromium/convert/markdown
       Page 3
       """
 
-  @split
+  @pdf-split
   Scenario: POST /forms/chromium/convert/markdown (Split Many PDFs - Lot of Pages)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files     | testdata/pages-12-markdown/index.html | file  |
-      | files     | testdata/pages-12-markdown/page_1.md  | file  |
-      | files     | testdata/pages-12-markdown/page_2.md  | file  |
-      | files     | testdata/pages-12-markdown/page_3.md  | file  |
-      | files     | testdata/pages-12-markdown/page_4.md  | file  |
-      | files     | testdata/pages-12-markdown/page_5.md  | file  |
-      | files     | testdata/pages-12-markdown/page_6.md  | file  |
-      | files     | testdata/pages-12-markdown/page_7.md  | file  |
-      | files     | testdata/pages-12-markdown/page_8.md  | file  |
-      | files     | testdata/pages-12-markdown/page_9.md  | file  |
-      | files     | testdata/pages-12-markdown/page_10.md | file  |
-      | files     | testdata/pages-12-markdown/page_11.md | file  |
-      | files     | testdata/pages-12-markdown/page_12.md | file  |
-      | splitMode | intervals                             | field |
-      | splitSpan | 1                                     | field |
+      | files  | testdata/pages-12-markdown/index.html | file  |
+      | files  | testdata/pages-12-markdown/page_1.md  | file  |
+      | files  | testdata/pages-12-markdown/page_2.md  | file  |
+      | files  | testdata/pages-12-markdown/page_3.md  | file  |
+      | files  | testdata/pages-12-markdown/page_4.md  | file  |
+      | files  | testdata/pages-12-markdown/page_5.md  | file  |
+      | files  | testdata/pages-12-markdown/page_6.md  | file  |
+      | files  | testdata/pages-12-markdown/page_7.md  | file  |
+      | files  | testdata/pages-12-markdown/page_8.md  | file  |
+      | files  | testdata/pages-12-markdown/page_9.md  | file  |
+      | files  | testdata/pages-12-markdown/page_10.md | file  |
+      | files  | testdata/pages-12-markdown/page_11.md | file  |
+      | files  | testdata/pages-12-markdown/page_12.md | file  |
+      | stages | [{"op":"split","every":1}]            | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
     Then there should be 12 PDF(s) in the response
@@ -886,33 +901,41 @@ Feature: /forms/chromium/convert/markdown
       Page 12
       """
 
-  @convert
-  Scenario: POST /forms/chromium/convert/markdown (PDF/A-1b & PDF/UA-1)
+  @pdf-remediate
+  Scenario: POST /forms/chromium/convert/markdown (PDF/A-1b)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files | testdata/page-1-markdown/index.html | file  |
-      | files | testdata/page-1-markdown/page_1.md  | file  |
-      | pdfa  | PDF/A-1b                            | field |
-      | pdfua | true                                | field |
+      | files  | testdata/page-1-markdown/index.html       | file  |
+      | files  | testdata/page-1-markdown/page_1.md        | file  |
+      | stages | [{"op":"remediate","profile":"PDF/A-1b"}] | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
-    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
-    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 0 failed rule(s)
 
-  @convert
-  @split
-  Scenario: POST /forms/chromium/convert/markdown (Split & PDF/A-1b & PDF/UA-1)
+  @pdf-remediate
+  Scenario: POST /forms/chromium/convert/markdown (PDF/UA-1)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files     | testdata/pages-3-markdown/index.html | file  |
-      | files     | testdata/pages-3-markdown/page_1.md  | file  |
-      | files     | testdata/pages-3-markdown/page_2.md  | file  |
-      | files     | testdata/pages-3-markdown/page_3.md  | file  |
-      | splitMode | intervals                            | field |
-      | splitSpan | 2                                    | field |
-      | pdfa      | PDF/A-1b                             | field |
-      | pdfua     | true                                 | field |
+      | files           | testdata/page-1-markdown/index.html       | file  |
+      | files           | testdata/page-1-markdown/page_1.md        | file  |
+      | nativeTaggedPdf | true                                      | field |
+      | stages          | [{"op":"remediate","profile":"PDF/UA-1"}] | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 0 failed rule(s)
+
+  @pdf-remediate
+  @pdf-split
+  Scenario: POST /forms/chromium/convert/markdown (Split & PDF/A-1b)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
+      | files  | testdata/pages-3-markdown/index.html                               | file  |
+      | files  | testdata/pages-3-markdown/page_1.md                                | file  |
+      | files  | testdata/pages-3-markdown/page_2.md                                | file  |
+      | files  | testdata/pages-3-markdown/page_3.md                                | file  |
+      | stages | [{"op":"split","every":2},{"op":"remediate","profile":"PDF/A-1b"}] | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
     Then there should be 2 PDF(s) in the response
@@ -933,25 +956,21 @@ Feature: /forms/chromium/convert/markdown
       """
       Page 3
       """
-    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
-    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 0 failed rule(s)
 
   # See https://github.com/gotenberg/gotenberg/issues/1130.
-  @convert
-  @split
+  @pdf-remediate
+  @pdf-split
   @output-filename
-  Scenario: POST /forms/chromium/convert/markdown (Split & PDF/A-1b & PDF/UA-1 & Output Filename)
+  Scenario: POST /forms/chromium/convert/markdown (Split & PDF/A-1b & Output Filename)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files                     | testdata/pages-3-markdown/index.html | file   |
-      | files                     | testdata/pages-3-markdown/page_1.md  | file   |
-      | files                     | testdata/pages-3-markdown/page_2.md  | file   |
-      | files                     | testdata/pages-3-markdown/page_3.md  | file   |
-      | splitMode                 | intervals                            | field  |
-      | splitSpan                 | 2                                    | field  |
-      | pdfa                      | PDF/A-1b                             | field  |
-      | pdfua                     | true                                 | field  |
-      | Gotenberg-Output-Filename | foo                                  | header |
+      | files                     | testdata/pages-3-markdown/index.html                               | file   |
+      | files                     | testdata/pages-3-markdown/page_1.md                                | file   |
+      | files                     | testdata/pages-3-markdown/page_2.md                                | file   |
+      | files                     | testdata/pages-3-markdown/page_3.md                                | file   |
+      | stages                    | [{"op":"split","every":2},{"op":"remediate","profile":"PDF/A-1b"}] | field  |
+      | Gotenberg-Output-Filename | foo                                                                | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
     Then there should be 2 PDF(s) in the response
@@ -973,92 +992,73 @@ Feature: /forms/chromium/convert/markdown
       """
       Page 3
       """
-    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 1 failed rule(s)
-    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/A-1b" with a tolerance of 0 failed rule(s)
 
-  @metadata
+  @pdf-metadata
   Scenario: POST /forms/chromium/convert/markdown (Metadata)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files                     | testdata/page-1-markdown/index.html                                                                                                                                                                                                                                                                       | file   |
-      | files                     | testdata/page-1-markdown/page_1.md                                                                                                                                                                                                                                                                        | file   |
-      | metadata                  | {"Author":"Julien Neuhart","Copyright":"Julien Neuhart","CreateDate":"2006-09-18T16:27:50-04:00","Creator":"Gotenberg","Keywords":["first","second"],"Marked":true,"ModDate":"2006-09-18T16:27:50-04:00","PDFVersion":1.7,"Producer":"Gotenberg","Subject":"Sample","Title":"Sample","Trapped":"Unknown"} | field  |
-      | Gotenberg-Output-Filename | foo                                                                                                                                                                                                                                                                                                       | header |
+      | files                     | testdata/page-1-markdown/index.html                                                                                                                           | file   |
+      | files                     | testdata/page-1-markdown/page_1.md                                                                                                                            | file   |
+      | stages                    | [{"op":"set-metadata","title":"Sample","author":"Julien Neuhart","subject":"Sample","creator":"Gotenberg","producer":"Gotenberg","keywords":"first, second"}] | field  |
+      | Gotenberg-Output-Filename | foo                                                                                                                                                           | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
     Then there should be the following file(s) in the response:
       | foo.pdf |
-    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/read" endpoint with the following form data and header(s):
-      | files | teststore/foo.pdf | file |
-    Then the response status code should be 200
-    Then the response header "Content-Type" should be "application/json"
-    Then the response body should match JSON:
-      """
-      {
-        "foo.pdf": {
-          "Author": "Julien Neuhart",
-          "Copyright": "Julien Neuhart",
-          "CreateDate": "2006:09:18 16:27:50-04:00",
-          "Creator": "Gotenberg",
-          "Keywords": ["first", "second"],
-          "Marked": true,
-          "ModDate": "2006:09:18 16:27:50-04:00",
-          "PDFVersion": 1.7,
-          "Producer": "Gotenberg",
-          "Subject": "Sample",
-          "Title": "Sample",
-          "Trapped": "Unknown"
-        }
-      }
-      """
+    Then the "foo.pdf" PDF should have the "Title" metadata set to "Sample"
+    Then the "foo.pdf" PDF should have the "Author" metadata set to "Julien Neuhart"
+    Then the "foo.pdf" PDF should have the "Subject" metadata set to "Sample"
+    Then the "foo.pdf" PDF should have the "Creator" metadata set to "Gotenberg"
+    Then the "foo.pdf" PDF should have the "Producer" metadata set to "Gotenberg"
 
-  @flatten
+  @pdf-form
   Scenario: POST /forms/chromium/convert/markdown (Flatten)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files   | testdata/page-1-markdown/index.html | file  |
-      | files   | testdata/page-1-markdown/page_1.md  | file  |
-      | flatten | true                                | field |
+      | files  | testdata/page-1-markdown/index.html | file  |
+      | files  | testdata/page-1-markdown/page_1.md  | file  |
+      | stages | [{"op":"flatten-form"}]             | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be flatten
 
-  @encrypt
+  @pdf-encrypt
   Scenario: POST /forms/chromium/convert/markdown (Encrypt - user password only)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files        | testdata/page-1-markdown/index.html | file  |
-      | files        | testdata/page-1-markdown/page_1.md  | file  |
-      | userPassword | foo                                 | field |
+      | files  | testdata/page-1-markdown/index.html     | file  |
+      | files  | testdata/page-1-markdown/page_1.md      | file  |
+      | stages | [{"op":"encrypt","userPassword":"foo"}] | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be encrypted
 
-  @encrypt
+  @pdf-encrypt
   Scenario: POST /forms/chromium/convert/markdown (Encrypt - both user and owner passwords)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files         | testdata/page-1-markdown/index.html | file  |
-      | files         | testdata/page-1-markdown/page_1.md  | file  |
-      | userPassword  | foo                                 | field |
-      | ownerPassword | bar                                 | field |
+      | files  | testdata/page-1-markdown/index.html                           | file  |
+      | files  | testdata/page-1-markdown/page_1.md                            | file  |
+      | stages | [{"op":"encrypt","userPassword":"foo","ownerPassword":"bar"}] | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be encrypted
 
-  @embed
-  Scenario: POST /forms/chromium/convert/markdown (Embeds)
+  @pdf-attach
+  Scenario: POST /forms/chromium/convert/markdown (Attach)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files                     | testdata/page-1-markdown/index.html | file   |
-      | files                     | testdata/page-1-markdown/page_1.md  | file   |
-      | embeds                    | testdata/embed_1.xml                | file   |
-      | embeds                    | testdata/embed_2.xml                | file   |
-      | Gotenberg-Output-Filename | foo                                 | header |
+      | files                     | testdata/page-1-markdown/index.html                                         | file   |
+      | files                     | testdata/page-1-markdown/page_1.md                                          | file   |
+      | files                     | testdata/embed_1.xml                                                        | file   |
+      | files                     | testdata/embed_2.xml                                                        | file   |
+      | stages                    | [{"op":"attach","file":"embed_1.xml"},{"op":"attach","file":"embed_2.xml"}] | field  |
+      | Gotenberg-Output-Filename | foo                                                                         | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -1067,53 +1067,34 @@ Feature: /forms/chromium/convert/markdown
     Then the response PDF(s) should have the "embed_1.xml" file embedded
     Then the response PDF(s) should have the "embed_2.xml" file embedded
 
-  # FIXME: once decrypt is done, add encrypt and check after the content of the PDF.
-  @convert
-  @metadata
-  @flatten
-  @embed
-  Scenario: POST /forms/chromium/convert/markdown (PDF/A-3b & PDF/UA-1 & Metadata & Flatten & Embeds)
+  # Attaching files to a PDF/A-3 document needs a relationship, here Data.
+  @pdf-remediate
+  @pdf-metadata
+  @pdf-form
+  @pdf-attach
+  Scenario: POST /forms/chromium/convert/markdown (PDF/A-3b & Metadata & Flatten & Attach)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files                     | testdata/page-1-markdown/index.html                                                                                                                                                                                                                                                                       | file   |
-      | files                     | testdata/page-1-markdown/page_1.md                                                                                                                                                                                                                                                                        | file   |
-      | pdfa                      | PDF/A-3b                                                                                                                                                                                                                                                                                                  | field  |
-      | pdfua                     | true                                                                                                                                                                                                                                                                                                      | field  |
-      | metadata                  | {"Author":"Julien Neuhart","Copyright":"Julien Neuhart","CreateDate":"2006-09-18T16:27:50-04:00","Creator":"Gotenberg","Keywords":["first","second"],"Marked":true,"ModDate":"2006-09-18T16:27:50-04:00","PDFVersion":1.7,"Producer":"Gotenberg","Subject":"Sample","Title":"Sample","Trapped":"Unknown"} | field  |
-      | flatten                   | true                                                                                                                                                                                                                                                                                                      | field  |
-      | embeds                    | testdata/embed_1.xml                                                                                                                                                                                                                                                                                      | file   |
-      | embeds                    | testdata/embed_2.xml                                                                                                                                                                                                                                                                                      | file   |
-      | Gotenberg-Output-Filename | foo                                                                                                                                                                                                                                                                                                       | header |
+      | files                     | testdata/page-1-markdown/index.html                                                                                                                                                                                                                                                                                                               | file   |
+      | files                     | testdata/page-1-markdown/page_1.md                                                                                                                                                                                                                                                                                                                | file   |
+      | files                     | testdata/embed_1.xml                                                                                                                                                                                                                                                                                                                              | file   |
+      | files                     | testdata/embed_2.xml                                                                                                                                                                                                                                                                                                                              | file   |
+      | stages                    | [{"op":"set-metadata","title":"Sample","author":"Julien Neuhart","subject":"Sample","creator":"Gotenberg","producer":"Gotenberg","keywords":"first, second"},{"op":"flatten-form"},{"op":"attach","file":"embed_1.xml","relationship":"Data"},{"op":"attach","file":"embed_2.xml","relationship":"Data"},{"op":"remediate","profile":"PDF/A-3b"}] | field  |
+      | Gotenberg-Output-Filename | foo                                                                                                                                                                                                                                                                                                                                               | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
     Then there should be the following file(s) in the response:
       | foo.pdf |
-    Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 5 failed rule(s)
-    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 3 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 0 failed rule(s)
     Then the response PDF(s) should be flatten
     Then the response PDF(s) should have the "embed_1.xml" file embedded
     Then the response PDF(s) should have the "embed_2.xml" file embedded
-    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/read" endpoint with the following form data and header(s):
-      | files | teststore/foo.pdf | file |
-    Then the response status code should be 200
-    Then the response header "Content-Type" should be "application/json"
-    Then the response body should match JSON:
-      """
-      {
-        "foo.pdf": {
-          "Author": "Julien Neuhart",
-          "Copyright": "Julien Neuhart",
-          "Creator": "Gotenberg",
-          "Marked": true,
-          "PDFVersion": 1.7,
-          "Producer": "Gotenberg",
-          "Subject": "Sample",
-          "Title": "Sample",
-          "Trapped": "Unknown"
-        }
-      }
-      """
+    Then the "foo.pdf" PDF should have the "Title" metadata set to "Sample"
+    Then the "foo.pdf" PDF should have the "Author" metadata set to "Julien Neuhart"
+    Then the "foo.pdf" PDF should have the "Subject" metadata set to "Sample"
+    Then the "foo.pdf" PDF should have the "Creator" metadata set to "Gotenberg"
+    Then the "foo.pdf" PDF should have the "Producer" metadata set to "Gotenberg"
 
   Scenario: POST /forms/chromium/convert/markdown (Routes Disabled)
     Given I have a Gotenberg container with the following environment variable(s):
@@ -1188,30 +1169,16 @@ Feature: /forms/chromium/convert/markdown
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
 
-  Scenario: POST /forms/chromium/convert/markdown (stampSource=pdf without uploaded stamp file => 400)
+  Scenario: POST /forms/chromium/convert/markdown (Stage file not uploaded => 400)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files           | testdata/page-1-markdown/index.html | file  |
-      | files           | testdata/page-1-markdown/page_1.md  | file  |
-      | stampSource     | pdf                                 | field |
-      | stampExpression | /etc/hostname                       | field |
+      | files  | testdata/page-1-markdown/index.html        | file  |
+      | files  | testdata/page-1-markdown/page_1.md         | file  |
+      | stages | [{"op":"stamp-pdf","pdf":"/etc/hostname"}] | field |
     Then the response status code should be 400
     Then the response body should match string:
       """
-      Invalid form data: a stamp file is required for image or pdf source
-      """
-
-  Scenario: POST /forms/chromium/convert/markdown (watermarkSource=pdf without uploaded watermark file => 400)
-    Given I have a default Gotenberg container
-    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files               | testdata/page-1-markdown/index.html | file  |
-      | files               | testdata/page-1-markdown/page_1.md  | file  |
-      | watermarkSource     | pdf                                 | field |
-      | watermarkExpression | /etc/hostname                       | field |
-    Then the response status code should be 400
-    Then the response body should match string:
-      """
-      Invalid form data: a watermark file is required for image or pdf source
+      Invalid form data: form file '/etc/hostname' is required
       """
 
   # See: https://github.com/gotenberg/gotenberg/issues/1500.
