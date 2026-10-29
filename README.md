@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="https://raw.githubusercontent.com/gotenberg/art/master/logo.png" alt="Gotenberg Logo" width="150" height="150" />
+    <img src="https://raw.githubusercontent.com/gotenberg/art/main/logo.png" alt="Gotenberg Logo" width="150" height="150" />
     <h3 align="center">Gotenberg</h3>
     <p align="center">A Docker-based API for converting documents to PDF</p>
     <p align="center">
