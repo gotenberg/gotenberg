@@ -18,37 +18,12 @@ Feature: /debug
         "version": "{version}",
         "timezone": "UTC",
         "architecture": "ignore",
-        "modules": [
-          "api",
-          "chromium",
-          "exiftool",
-          "libreoffice",
-          "libreoffice-api",
-          "libreoffice-pdfengine",
-          "pdfcpu",
-          "pdfengines",
-          "pdftk",
-          "prometheus",
-          "qpdf",
-          "webhook"
-        ],
+        "modules": ["api", "chromium", "libreoffice", "libreoffice-api", "pdf", "prometheus", "webhook"],
         "modules_additional_data": {
           "chromium": {
             "version": "ignore"
           },
-          "exiftool": {
-            "version": "ignore"
-          },
           "libreoffice-api": {
-            "version": "ignore"
-          },
-          "pdfcpu": {
-            "version": "ignore"
-          },
-          "pdftk": {
-            "version": "ignore"
-          },
-          "qpdf": {
             "version": "ignore"
           }
         },
@@ -114,16 +89,16 @@ Feature: /debug
           "log-level": "info",
           "log-std-enable-gcp-fields": "false",
           "log-std-format": "auto",
-          "pdfengines-convert-engines": "[libreoffice-pdfengine]",
-          "pdfengines-disable-routes": "false",
-          "pdfengines-engines": "[]",
-          "pdfengines-flatten-engines": "[qpdf]",
-          "pdfengines-merge-engines": "[qpdf,pdfcpu,pdftk]",
-          "pdfengines-read-bookmarks-engines": "[pdfcpu]",
-          "pdfengines-read-metadata-engines": "[exiftool]",
-          "pdfengines-split-engines": "[pdfcpu,qpdf,pdftk]",
-          "pdfengines-write-bookmarks-engines": "[pdfcpu]",
-          "pdfengines-write-metadata-engines": "[exiftool]",
+          "pdf-allow-list": "[]",
+          "pdf-deny-list": "[]",
+          "pdf-deny-private-ips": "false",
+          "pdf-deny-public-ips": "false",
+          "pdf-disable-routes": "false",
+          "pdf-enable-environment-proxy": "false",
+          "pdf-max-concurrency": "1",
+          "pdf-max-embedded-file-bytes": "",
+          "pdf-max-image-pixels": "0",
+          "pdf-max-stream-bytes": "",
           "prometheus-collect-interval": "1s",
           "prometheus-disable-collect": "false",
           "prometheus-disable-route-logging": "false",
@@ -158,37 +133,12 @@ Feature: /debug
         "version": "{version}",
         "timezone": "America/New_York",
         "architecture": "ignore",
-        "modules": [
-          "api",
-          "chromium",
-          "exiftool",
-          "libreoffice",
-          "libreoffice-api",
-          "libreoffice-pdfengine",
-          "pdfcpu",
-          "pdfengines",
-          "pdftk",
-          "prometheus",
-          "qpdf",
-          "webhook"
-        ],
+        "modules": ["api", "chromium", "libreoffice", "libreoffice-api", "pdf", "prometheus", "webhook"],
         "modules_additional_data": {
           "chromium": {
             "version": "ignore"
           },
-          "exiftool": {
-            "version": "ignore"
-          },
           "libreoffice-api": {
-            "version": "ignore"
-          },
-          "pdfcpu": {
-            "version": "ignore"
-          },
-          "pdftk": {
-            "version": "ignore"
-          },
-          "qpdf": {
             "version": "ignore"
           }
         },
@@ -254,16 +204,16 @@ Feature: /debug
           "log-level": "info",
           "log-std-enable-gcp-fields": "false",
           "log-std-format": "auto",
-          "pdfengines-convert-engines": "[libreoffice-pdfengine]",
-          "pdfengines-disable-routes": "false",
-          "pdfengines-engines": "[]",
-          "pdfengines-flatten-engines": "[qpdf]",
-          "pdfengines-merge-engines": "[qpdf,pdfcpu,pdftk]",
-          "pdfengines-read-bookmarks-engines": "[pdfcpu]",
-          "pdfengines-read-metadata-engines": "[exiftool]",
-          "pdfengines-split-engines": "[pdfcpu,qpdf,pdftk]",
-          "pdfengines-write-bookmarks-engines": "[pdfcpu]",
-          "pdfengines-write-metadata-engines": "[exiftool]",
+          "pdf-allow-list": "[]",
+          "pdf-deny-list": "[]",
+          "pdf-deny-private-ips": "false",
+          "pdf-deny-public-ips": "false",
+          "pdf-disable-routes": "false",
+          "pdf-enable-environment-proxy": "false",
+          "pdf-max-concurrency": "1",
+          "pdf-max-embedded-file-bytes": "",
+          "pdf-max-image-pixels": "0",
+          "pdf-max-stream-bytes": "",
           "prometheus-collect-interval": "1s",
           "prometheus-disable-collect": "false",
           "prometheus-disable-route-logging": "false",

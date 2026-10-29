@@ -3,7 +3,7 @@ Feature: Output Filename
 
   Scenario: Default (Single Output File)
     Given I have a default Gotenberg container
-    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/flatten" endpoint with the following form data and header(s):
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
       | files                     | testdata/page_1.pdf | file   |
       | Gotenberg-Output-Filename | foo                 | header |
     Then the response status code should be 200
@@ -13,7 +13,7 @@ Feature: Output Filename
 
   Scenario: Default (Many Output Files)
     Given I have a default Gotenberg container
-    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/flatten" endpoint with the following form data and header(s):
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
       | files                     | testdata/page_1.pdf | file   |
       | files                     | testdata/page_2.pdf | file   |
       | Gotenberg-Output-Filename | foo                 | header |
@@ -25,7 +25,7 @@ Feature: Output Filename
   # See GHSA-hwc4-gmrw-5222.
   Scenario: Windows Path As Filename
     Given I have a default Gotenberg container
-    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/flatten" endpoint with the following form data and header(s):
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
       | files                     | testdata/page_1.pdf    | file   |
       | Gotenberg-Output-Filename | C:\\Windows\\Temp\\foo | header |
     Then the response status code should be 200
@@ -36,7 +36,7 @@ Feature: Output Filename
   # See https://github.com/gotenberg/gotenberg/issues/1227.
   Scenario: Path As Filename
     Given I have a default Gotenberg container
-    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/flatten" endpoint with the following form data and header(s):
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
       | files                     | testdata/page_1.pdf | file   |
       | Gotenberg-Output-Filename | /tmp/foo            | header |
     Then the response status code should be 200
