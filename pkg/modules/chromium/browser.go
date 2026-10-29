@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -748,7 +749,7 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 			return ErrPrintingFailed
 		}
 
-		if strings.Contains(errMessage, "Show invalid printer settings error (-32000)") || strings.Contains(errMessage, "content area is empty (-32602)") {
+		if isInvalidPrinterSettingsError(errMessage) {
 			return ErrInvalidPrinterSettings
 		}
 
@@ -795,6 +796,29 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 	}
 
 	return nil
+}
+
+// invalidPrinterSettingsMessages are the errors Chromium returns when it
+// rejects the Page.printToPDF parameters. The InvalidParams (-32602) messages
+// come from GetPrintPagesParams in Chromium's
+// components/printing/browser/print_to_pdf/pdf_print_utils.cc.
+var invalidPrinterSettingsMessages = []string{
+	"Show invalid printer settings error (-32000)",
+	"scale is outside of [0.1 - 2] range (-32602)",
+	"margin is negative (-32602)",
+	"paper width is zero or negative (-32602)",
+	"paper height is zero or negative (-32602)",
+	"printable area is empty (-32602)",
+	"content area is empty (-32602)",
+	"invalid print parameters (-32602)",
+}
+
+// isInvalidPrinterSettingsError reports whether errMessage carries one of the
+// errors Chromium returns for aberrant Page.printToPDF parameters.
+func isInvalidPrinterSettingsError(errMessage string) bool {
+	return slices.ContainsFunc(invalidPrinterSettingsMessages, func(message string) bool {
+		return strings.Contains(errMessage, message)
+	})
 }
 
 // Interface guards.
