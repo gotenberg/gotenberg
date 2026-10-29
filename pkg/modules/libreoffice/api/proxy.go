@@ -33,13 +33,13 @@ type outboundProxyOptions struct {
 // outbound requests through. Every proxied request goes through
 // [gotenberg.DecideOutbound] so the same allow/deny lists and IP-class
 // filters that protect chromium and webhook fetches also apply to
-// soffice's own libcurl-driven fetches.
+// LibreOffice's own libcurl-driven fetches.
 //
-// soffice triggers an outbound request whenever a document references
+// LibreOffice triggers an outbound request whenever a document references
 // external content (OOXML images via TargetMode="External", RTF
 // INCLUDEPICTURE, ODT linked images). Without a filtering proxy in the
 // path those fetches bypass every Go-side SSRF guard because they
-// originate inside the soffice subprocess.
+// originate inside the lok subprocess.
 type libreOfficeProxy struct {
 	listener net.Listener
 	server   *http.Server
@@ -58,7 +58,7 @@ type libreOfficeProxy struct {
 
 // newLibreOfficeProxy binds a proxy listener to a free local port and
 // applies opts to every proxied request. Callers must call [Start]
-// before pointing soffice at the proxy and [Stop] on shutdown.
+// before pointing LibreOffice at the proxy and [Stop] on shutdown.
 func newLibreOfficeProxy(logger *slog.Logger, opts outboundProxyOptions) (*libreOfficeProxy, error) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -195,7 +195,7 @@ func (p *libreOfficeProxy) handleConnect(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// When the operator routes egress through an authenticated proxy, soffice
+	// When the operator routes egress through an authenticated proxy, LibreOffice
 	// cannot supply the credentials, so the proxy performs the CONNECT (and
 	// authentication) upstream. The decision above still gated the destination.
 	var proxyURL *url.URL
@@ -262,7 +262,7 @@ func pipeAndClose(dst, src net.Conn) {
 }
 
 // hopByHopHeaders is the set of hop-by-hop headers from RFC 7230 6.1
-// plus the ones soffice adds when acting as a forward-proxy client.
+// plus the ones LibreOffice adds when acting as a forward-proxy client.
 var hopByHopHeaders = []string{
 	"Connection",
 	"Proxy-Connection",
@@ -275,26 +275,31 @@ var hopByHopHeaders = []string{
 	"Upgrade",
 }
 
-// sofficeProfileConfigTmpl is the registrymodifications.xcu the soffice
-// daemon loads at startup. It does two things:
+// profileConfigTmpl is the registrymodifications.xcu LibreOffice loads at
+// startup, in the lok process. It does three things:
 //
-//  1. Routes every HTTP and HTTPS fetch through proxyHost:proxyPort so
-//     soffice's own libcurl fetches hit the in-process SSRF proxy.
-//  2. Sets BlockUntrustedRefererLinks so soffice refuses to load content
+//   - Routes every HTTP and HTTPS fetch through proxyHost:proxyPort so
+//     LibreOffice's own libcurl fetches hit the in-process SSRF proxy.
+//   - Sets BlockUntrustedRefererLinks so LibreOffice refuses to load content
 //     linked from a document that sits in an untrusted location.
+//   - Never updates a document's links on load, in Writer (Link 2) and Calc
+//     (Link 1, as Calc numbers the choices differently). LibreOfficeKit cannot
+//     set the load-time update mode itself, so the profile does.
 //
-// The second setting closes the local-read and direct-fetch vectors the
-// proxy cannot see. A document that links an absolute path
+// The second and third settings close the local-read and direct-fetch vectors
+// the proxy cannot see. A document that links an absolute path
 // (file:///etc/...) or any URL is loaded from the per-request temp dir,
-// which is never a trusted location, so soffice drops the linked content
+// which is never a trusted location, so LibreOffice drops the linked content
 // instead of resolving it. Embedded content (stored inside the document)
 // is unaffected.
 //
 // The %s placeholders accept the proxy host and port respectively (host
 // first, port second, repeated for HTTP and HTTPS).
-const sofficeProfileConfigTmpl = `<?xml version="1.0" encoding="UTF-8"?>
+const profileConfigTmpl = `<?xml version="1.0" encoding="UTF-8"?>
 <oor:items xmlns:oor="http://openoffice.org/2001/registry" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <item oor:path="/org.openoffice.Office.Common/Security/Scripting"><prop oor:name="BlockUntrustedRefererLinks" oor:op="fuse"><value>true</value></prop></item>
+  <item oor:path="/org.openoffice.Office.Writer/Content/Update"><prop oor:name="Link" oor:op="fuse"><value>2</value></prop></item>
+  <item oor:path="/org.openoffice.Office.Calc/Content/Update"><prop oor:name="Link" oor:op="fuse"><value>1</value></prop></item>
   <item oor:path="/org.openoffice.Inet/Settings"><prop oor:name="ooInetProxyType" oor:op="fuse"><value>1</value></prop></item>
   <item oor:path="/org.openoffice.Inet/Settings"><prop oor:name="ooInetHTTPProxyName" oor:op="fuse"><value>%s</value></prop></item>
   <item oor:path="/org.openoffice.Inet/Settings"><prop oor:name="ooInetHTTPProxyPort" oor:op="fuse"><value>%s</value></prop></item>
@@ -304,11 +309,11 @@ const sofficeProfileConfigTmpl = `<?xml version="1.0" encoding="UTF-8"?>
 </oor:items>
 `
 
-// writeSofficeProfileConfig drops a registrymodifications.xcu file into
-// userProfileDirPath/user/ that points soffice's UCB layer at proxyAddr
-// for both HTTP and HTTPS and blocks linked content from untrusted
-// locations. proxyAddr must be a host:port pair.
-func writeSofficeProfileConfig(userProfileDirPath, proxyAddr string) error {
+// writeProfileConfig drops a registrymodifications.xcu file into
+// userProfileDirPath/user/ that points LibreOffice's UCB layer at proxyAddr
+// for both HTTP and HTTPS, blocks linked content from untrusted locations and
+// never updates links on load. proxyAddr must be a host:port pair.
+func writeProfileConfig(userProfileDirPath, proxyAddr string) error {
 	host, port, err := net.SplitHostPort(proxyAddr)
 	if err != nil {
 		return fmt.Errorf("split proxy address %q: %w", proxyAddr, err)
@@ -317,10 +322,10 @@ func writeSofficeProfileConfig(userProfileDirPath, proxyAddr string) error {
 	userDir := userProfileDirPath + "/user"
 	err = os.MkdirAll(userDir, 0o755)
 	if err != nil {
-		return fmt.Errorf("create soffice user profile directory: %w", err)
+		return fmt.Errorf("create LibreOffice user profile directory: %w", err)
 	}
 
-	body := fmt.Sprintf(sofficeProfileConfigTmpl, host, port, host, port)
+	body := fmt.Sprintf(profileConfigTmpl, host, port, host, port)
 	err = os.WriteFile(userDir+"/registrymodifications.xcu", []byte(body), 0o600)
 	if err != nil {
 		return fmt.Errorf("write registrymodifications.xcu: %w", err)
@@ -329,11 +334,12 @@ func writeSofficeProfileConfig(userProfileDirPath, proxyAddr string) error {
 	return nil
 }
 
-// sofficeProxyEnv overlays http_proxy/https_proxy on env so soffice's
-// libcurl path also routes through proxyAddr. The environment variables
-// supplement the registrymodifications.xcu config so coverage stays
-// intact if soffice upgrades and one of the two paths regresses.
-func sofficeProxyEnv(env []string, proxyAddr string) []string {
+// proxyEnv overlays http_proxy/https_proxy on env so LibreOffice's libcurl
+// path also routes through proxyAddr. LibreOffice runs inside the lok process,
+// which inherits them. The environment variables supplement the
+// registrymodifications.xcu config so coverage stays intact if LibreOffice
+// upgrades and one of the two paths regresses.
+func proxyEnv(env []string, proxyAddr string) []string {
 	proxyURL := "http://" + proxyAddr
 
 	filtered := env[:0:0]

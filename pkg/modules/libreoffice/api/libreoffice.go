@@ -1,11 +1,13 @@
 package api
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
-	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,18 +24,26 @@ type libreOffice interface {
 }
 
 type libreOfficeArguments struct {
+	// binPath is the soffice binary. Its directory is the LibreOffice program
+	// directory lok loads LibreOffice from.
 	binPath      string
-	unoBinPath   string
+	lokBinPath   string
 	startTimeout time.Duration
 	proxyOptions outboundProxyOptions
 }
 
+// libreOfficeProcess runs LibreOffice in a long-running lok process, which
+// converts the documents it reads as JSON lines on its standard input, one at
+// a time, and answers each with a JSON line on its standard output.
 type libreOfficeProcess struct {
-	socketPort         int
 	userProfileDirPath string
 	cmd                *gotenberg.Cmd
+	stdin              io.WriteCloser
+	stdout             *bufio.Reader
+	exited             chan struct{}
 	proxy              *libreOfficeProxy
 	cfgMu              sync.RWMutex
+	convMu             sync.Mutex
 	isStarted          atomic.Bool
 
 	arguments libreOfficeArguments
@@ -50,14 +60,158 @@ func newLibreOfficeProcess(arguments libreOfficeArguments) libreOffice {
 	return p
 }
 
+// lokRequest is a conversion request of lok's long-running mode. Every option
+// is sent, so lok's own defaults never apply.
+type lokRequest struct {
+	InputPath                       string `json:"inputPath"`
+	OutputPath                      string `json:"outputPath"`
+	Password                        string `json:"password,omitempty"` //nolint:gosec // document open password, sent to the local lok process only
+	Landscape                       bool   `json:"landscape"`
+	PageRanges                      string `json:"pageRanges"`
+	UpdateIndexes                   bool   `json:"updateIndexes"`
+	DisableCalcHeader               bool   `json:"disableCalcHeader"`
+	ExportFormFields                bool   `json:"exportFormFields"`
+	AllowDuplicateFieldNames        bool   `json:"allowDuplicateFieldNames"`
+	ExportBookmarks                 bool   `json:"exportBookmarks"`
+	ExportBookmarksToPdfDestination bool   `json:"exportBookmarksToPdfDestination"`
+	ExportPlaceholders              bool   `json:"exportPlaceholders"`
+	ExportNotes                     bool   `json:"exportNotes"`
+	ExportNotesPages                bool   `json:"exportNotesPages"`
+	ExportOnlyNotesPages            bool   `json:"exportOnlyNotesPages"`
+	ExportNotesInMargin             bool   `json:"exportNotesInMargin"`
+	ConvertOooTargetToPdfTarget     bool   `json:"convertOooTargetToPdfTarget"`
+	ExportLinksRelativeFsys         bool   `json:"exportLinksRelativeFsys"`
+	ExportHiddenSlides              bool   `json:"exportHiddenSlides"`
+	SkipEmptyPages                  bool   `json:"skipEmptyPages"`
+	AddOriginalDocumentAsStream     bool   `json:"addOriginalDocumentAsStream"`
+	SinglePageSheets                bool   `json:"singlePageSheets"`
+	InitialView                     int    `json:"initialView"`
+	InitialPage                     int    `json:"initialPage"`
+	Magnification                   int    `json:"magnification"`
+	Zoom                            int    `json:"zoom"`
+	PageLayout                      int    `json:"pageLayout"`
+	FirstPageOnLeft                 bool   `json:"firstPageOnLeft"`
+	ResizeWindowToInitialPage       bool   `json:"resizeWindowToInitialPage"`
+	CenterWindow                    bool   `json:"centerWindow"`
+	OpenInFullScreenMode            bool   `json:"openInFullScreenMode"`
+	DisplayPDFDocumentTitle         bool   `json:"displayPDFDocumentTitle"`
+	HideViewerMenubar               bool   `json:"hideViewerMenubar"`
+	HideViewerToolbar               bool   `json:"hideViewerToolbar"`
+	HideViewerWindowControls        bool   `json:"hideViewerWindowControls"`
+	UseTransitionEffects            bool   `json:"useTransitionEffects"`
+	OpenBookmarkLevels              int    `json:"openBookmarkLevels"`
+	LosslessImageCompression        bool   `json:"losslessImageCompression"`
+	Quality                         int    `json:"quality"`
+	ReduceImageResolution           bool   `json:"reduceImageResolution"`
+	MaxImageResolution              int    `json:"maxImageResolution"`
+	NativeWatermarkText             string `json:"nativeWatermarkText"`
+	NativeWatermarkColor            int    `json:"nativeWatermarkColor"`
+	NativeWatermarkFontHeight       int    `json:"nativeWatermarkFontHeight"`
+	NativeWatermarkRotateAngle      int    `json:"nativeWatermarkRotateAngle"`
+	NativeWatermarkFontName         string `json:"nativeWatermarkFontName"`
+	NativeTiledWatermarkText        string `json:"nativeTiledWatermarkText"`
+	PdfVersion                      int    `json:"pdfVersion"`
+	PdfUniversalAccess              bool   `json:"pdfUniversalAccess"`
+	TaggedPdf                       bool   `json:"taggedPdf"`
+	EmbedStandardFonts              bool   `json:"embedStandardFonts"`
+}
+
+// lokResponse is the answer of lok's long-running mode to a request.
+type lokResponse struct {
+	Success bool   `json:"success"`
+	Code    string `json:"code"`
+	Error   string `json:"error"`
+}
+
+// pdfVersions maps the native PDF/A formats to lok's SelectPdfVersion values.
+var pdfVersions = map[string]int{
+	"":     0,
+	PdfA1b: 1,
+	PdfA2b: 2,
+	PdfA3b: 3,
+	PdfA4:  4,
+}
+
+// newLokRequest builds the lok request for a conversion.
+func newLokRequest(inputPath, outputPath string, options Options) (lokRequest, error) {
+	pdfVersion, ok := pdfVersions[options.PdfFormats.PdfA]
+	if !ok {
+		return lokRequest{}, ErrInvalidPdfFormats
+	}
+
+	// LibreOffice's default watermark font. Leaving it out keeps lok's default
+	// identical to it.
+	fontName := options.NativeWatermarkFontName
+	if fontName == "Helvetica" {
+		fontName = ""
+	}
+
+	return lokRequest{
+		InputPath:  inputPath,
+		OutputPath: outputPath,
+		Password:   options.Password,
+		Landscape:  options.Landscape,
+		PageRanges: options.PageRanges,
+		// See https://github.com/gotenberg/gotenberg/issues/1149.
+		UpdateIndexes: options.UpdateIndexes,
+		// A CSV becomes a single Calc sheet named after the input file, and
+		// Calc's default page style prints that sheet name as a centered
+		// header. Uploads are stored under a UUID-based filename, so the UUID
+		// would otherwise leak into the rendered PDF. Spreadsheets that carry
+		// their own page styles (XLSX, ODS) are left untouched.
+		// See https://github.com/gotenberg/gotenberg/issues/1568.
+		DisableCalcHeader:               strings.EqualFold(filepath.Ext(inputPath), ".csv"),
+		ExportFormFields:                options.ExportFormFields,
+		AllowDuplicateFieldNames:        options.AllowDuplicateFieldNames,
+		ExportBookmarks:                 options.ExportBookmarks,
+		ExportBookmarksToPdfDestination: options.ExportBookmarksToPdfDestination,
+		ExportPlaceholders:              options.ExportPlaceholders,
+		ExportNotes:                     options.ExportNotes,
+		ExportNotesPages:                options.ExportNotesPages,
+		ExportOnlyNotesPages:            options.ExportOnlyNotesPages,
+		ExportNotesInMargin:             options.ExportNotesInMargin,
+		ConvertOooTargetToPdfTarget:     options.ConvertOooTargetToPdfTarget,
+		ExportLinksRelativeFsys:         options.ExportLinksRelativeFsys,
+		ExportHiddenSlides:              options.ExportHiddenSlides,
+		SkipEmptyPages:                  options.SkipEmptyPages,
+		AddOriginalDocumentAsStream:     options.AddOriginalDocumentAsStream,
+		SinglePageSheets:                options.SinglePageSheets,
+		InitialView:                     options.InitialView,
+		InitialPage:                     options.InitialPage,
+		Magnification:                   options.Magnification,
+		Zoom:                            options.Zoom,
+		PageLayout:                      options.PageLayout,
+		FirstPageOnLeft:                 options.FirstPageOnLeft,
+		ResizeWindowToInitialPage:       options.ResizeWindowToInitialPage,
+		CenterWindow:                    options.CenterWindow,
+		OpenInFullScreenMode:            options.OpenInFullScreenMode,
+		DisplayPDFDocumentTitle:         options.DisplayPDFDocumentTitle,
+		HideViewerMenubar:               options.HideViewerMenubar,
+		HideViewerToolbar:               options.HideViewerToolbar,
+		HideViewerWindowControls:        options.HideViewerWindowControls,
+		UseTransitionEffects:            options.UseTransitionEffects,
+		OpenBookmarkLevels:              options.OpenBookmarkLevels,
+		LosslessImageCompression:        options.LosslessImageCompression,
+		Quality:                         options.Quality,
+		ReduceImageResolution:           options.ReduceImageResolution,
+		MaxImageResolution:              options.MaxImageResolution,
+		NativeWatermarkText:             options.NativeWatermarkText,
+		NativeWatermarkColor:            options.NativeWatermarkColor,
+		NativeWatermarkFontHeight:       options.NativeWatermarkFontHeight,
+		NativeWatermarkRotateAngle:      options.NativeWatermarkRotateAngle,
+		NativeWatermarkFontName:         fontName,
+		NativeTiledWatermarkText:        options.NativeTiledWatermarkText,
+		PdfVersion:                      pdfVersion,
+		PdfUniversalAccess:              options.PdfFormats.PdfUa,
+		TaggedPdf:                       options.GenerateTaggedPdf,
+		// PDF/A and PDF/UA require every font embedded.
+		EmbedStandardFonts: pdfVersion != 0 || options.PdfFormats.PdfUa,
+	}, nil
+}
+
 func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 	if p.isStarted.Load() {
 		return errors.New("LibreOffice is already started")
-	}
-
-	port, err := freePort(logger)
-	if err != nil {
-		return fmt.Errorf("get free port: %w", err)
 	}
 
 	proxy, err := newLibreOfficeProxy(logger, p.arguments.proxyOptions)
@@ -70,6 +224,9 @@ func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 
 	var (
 		cmd     *gotenberg.Cmd
+		stdin   io.WriteCloser
+		stdout  *bufio.Reader
+		exited  chan struct{}
 		success bool
 	)
 
@@ -85,9 +242,11 @@ func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 			p.cfgMu.Lock()
 			defer p.cfgMu.Unlock()
 
-			p.socketPort = port
 			p.userProfileDirPath = userProfileDirPath
 			p.cmd = cmd
+			p.stdin = stdin
+			p.stdout = stdout
+			p.exited = exited
 			p.proxy = proxy
 			p.isStarted.Store(true)
 
@@ -126,102 +285,63 @@ func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 	// its own libcurl. The profile config routes those fetches through the
 	// in-process proxy so the chromium/webhook SSRF filters apply, and
 	// blocks content linked from untrusted locations so absolute-path
-	// (file://) and direct fetches are dropped at the source.
-	if err := writeSofficeProfileConfig(userProfileDirPath, proxy.Addr()); err != nil {
-		return fmt.Errorf("write soffice profile config: %w", err)
-	}
-	sofficeEnv := sofficeProxyEnv(os.Environ(), proxy.Addr())
-
-	args := []string{
-		"--headless",
-		"--invisible",
-		"--nocrashreport",
-		"--nodefault",
-		"--nologo",
-		"--nofirststartwizard",
-		"--norestore",
-		fmt.Sprintf("-env:UserInstallation=file://%s", userProfileDirPath),
-		fmt.Sprintf("--accept=socket,host=127.0.0.1,port=%d,tcpNoDelay=1;urp;StarOffice.ComponentContext", port),
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), p.arguments.startTimeout)
-	defer cancel()
-
-	cmd, err = gotenberg.CommandContext(ctx, logger, p.arguments.binPath, args...)
+	// (file://) and direct fetches are dropped at the source. lok loads
+	// LibreOffice in its own process, against this profile.
+	err = writeProfileConfig(userProfileDirPath, proxy.Addr())
 	if err != nil {
-		return fmt.Errorf("create LibreOffice command: %w", err)
-	}
-	cmd.SetEnv(sofficeEnv)
-
-	// For whatever reason, LibreOffice requires a first start before being
-	// able to run as a daemon.
-	exitCode, err := cmd.Exec()
-	if err != nil && exitCode != 81 {
-		return fmt.Errorf("execute LibreOffice: %w", err)
+		return fmt.Errorf("write LibreOffice profile config: %w", err)
 	}
 
-	logger.DebugContext(context.Background(), "got exit code 81, e.g., LibreOffice first start")
+	cmd = gotenberg.Command(
+		logger,
+		p.arguments.lokBinPath,
+		"--long-running",
+		"--libreoffice-program-path", filepath.Dir(p.arguments.binPath),
+		"--user-profile-path", userProfileDirPath,
+	)
+	cmd.SetEnv(proxyEnv(os.Environ(), proxy.Addr()))
 
-	// Second start (daemon).
-	cmd = gotenberg.Command(logger, p.arguments.binPath, args...)
-	cmd.SetEnv(sofficeEnv)
-
-	err = cmd.Start()
+	in, out, err := cmd.StartWithPipes()
 	if err != nil {
-		return fmt.Errorf("start LibreOffice: %w", err)
+		return fmt.Errorf("start lok: %w", err)
 	}
 
-	waitChan := make(chan error, 1)
+	stdin = in
+	stdout = bufio.NewReader(out)
+	exited = make(chan struct{})
 
 	go func() {
 		// By waiting the process, we avoid the creation of a zombie process
-		// and make sure we catch an early exit if any.
-		waitChan <- cmd.Wait()
+		// and learn when it exits, which makes it unhealthy.
+		waitErr := cmd.Wait()
+		if waitErr != nil {
+			logger.DebugContext(context.Background(), fmt.Sprintf("lok exited: %s", waitErr))
+		}
+
+		close(exited)
 	}()
 
-	connChan := make(chan error, 1)
+	// lok reads its standard input only once LibreOffice is loaded. A request
+	// without paths is answered right away, so its answer tells that the
+	// process is ready.
+	ctx, cancel := context.WithTimeout(context.Background(), p.arguments.startTimeout)
+	defer cancel()
 
-	go func() {
-		// As the LibreOffice socket may take some time to be available, we
-		// have to ensure that it is indeed accepting connections.
-		for {
-			if ctx.Err() != nil {
-				connChan <- ctx.Err()
-				break
-			}
+	logger.DebugContext(ctx, "waiting for LibreOffice to be loaded...")
 
-			conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), time.Duration(1)*time.Second)
-			if err != nil {
-				continue
-			}
-
-			connChan <- nil
-			err = conn.Close()
-			if err != nil {
-				logger.DebugContext(context.Background(), fmt.Sprintf("close connection after health checking the LibreOffice: %v", err))
-			}
-
-			break
-		}
-	}()
-
-	logger.DebugContext(context.Background(), "waiting for the LibreOffice socket to be available...")
-
-	for {
-		select {
-		case err = <-connChan:
-			if err != nil {
-				return fmt.Errorf("LibreOffice did not become available within the start timeout; increase --libreoffice-start-timeout or check system resources: %w", err)
-			}
-
-			logger.DebugContext(context.Background(), "LibreOffice socket available")
-			success = true
-
-			return nil
-		case err = <-waitChan:
-			return fmt.Errorf("LibreOffice exited unexpectedly during startup; check system resources such as memory, disk, and permissions: %w", err)
-		}
+	resp, err := exchange(ctx, stdin, stdout, exited, struct{}{})
+	if err != nil {
+		return fmt.Errorf("LibreOffice did not load within the start timeout; increase --libreoffice-start-timeout (env LIBREOFFICE_START_TIMEOUT) or check system resources: %w", err)
 	}
+
+	if resp.Code != lokCodeInvalidRequest {
+		return fmt.Errorf("unexpected lok answer to the readiness request: %+v", resp)
+	}
+
+	logger.DebugContext(ctx, "LibreOffice loaded")
+	success = true
+
+	return nil
 }
 
 func (p *libreOfficeProcess) Stop(logger *slog.Logger) error {
@@ -230,7 +350,7 @@ func (p *libreOfficeProcess) Stop(logger *slog.Logger) error {
 		return nil
 	}
 
-	// Always remove the user profile directory created by LibreOffice.
+	// Always remove the user profile directory created for LibreOffice.
 	copyUserProfileDirPath := p.userProfileDirPath
 	expirationTime := time.Now()
 	defer func(userProfileDirPath string, expirationTime time.Time) {
@@ -243,7 +363,7 @@ func (p *libreOfficeProcess) Stop(logger *slog.Logger) error {
 			}
 
 			// Also, remove LibreOffice specific files in the temporary directory.
-			err = gotenberg.GarbageCollect(context.Background(), logger, os.TempDir(), []string{"OSL_PIPE", ".tmp"}, expirationTime)
+			err = gotenberg.GarbageCollect(context.Background(), logger, os.TempDir(), []string{"OSL_PIPE", ".tmp", "lok-"}, expirationTime)
 			if err != nil {
 				logger.ErrorContext(context.Background(), err.Error())
 			}
@@ -255,7 +375,7 @@ func (p *libreOfficeProcess) Stop(logger *slog.Logger) error {
 
 	err := p.cmd.Kill()
 	if err != nil {
-		return fmt.Errorf("kill LibreOffice process: %w", err)
+		return fmt.Errorf("kill lok process: %w", err)
 	}
 
 	if p.proxy != nil {
@@ -268,37 +388,32 @@ func (p *libreOfficeProcess) Stop(logger *slog.Logger) error {
 		p.proxy = nil
 	}
 
-	p.socketPort = 0
 	p.userProfileDirPath = ""
 	p.cmd = nil
+	p.stdin = nil
+	p.stdout = nil
 	p.isStarted.Store(false)
 
 	return nil
 }
 
-func (p *libreOfficeProcess) Healthy(logger *slog.Logger) bool {
+func (p *libreOfficeProcess) Healthy(_ *slog.Logger) bool {
 	// Good to know: the supervisor does not call this method if no first start
 	// or if the process is restarting.
 
 	if !p.isStarted.Load() {
-		// Non-started browser but not restarting?
 		return false
 	}
 
 	p.cfgMu.RLock()
 	defer p.cfgMu.RUnlock()
 
-	conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", p.socketPort), time.Duration(10)*time.Second)
-	if err == nil {
-		err = conn.Close()
-		if err != nil {
-			logger.DebugContext(context.Background(), fmt.Sprintf("close connection after health checking LibreOffice: %v", err))
-		}
-
+	select {
+	case <-p.exited:
+		return false
+	default:
 		return true
 	}
-
-	return false
 }
 
 func (p *libreOfficeProcess) pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error {
@@ -306,184 +421,144 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *slog.Logger, input
 		return errors.New("LibreOffice not started, cannot handle PDF conversion")
 	}
 
-	// SinglePageSheets starts each sheet's single page at the workbook's saved
-	// scroll position, truncating everything above and to the left of it.
-	// Render a copy with that position reset to the top-left cell instead.
-	// See https://github.com/gotenberg/gotenberg/issues/1222.
-	if options.SinglePageSheets {
-		inputPath = resetCalcScrollPosition(ctx, logger, inputPath)
-	}
-
-	args := []string{
-		"--no-launch",
-		"--format",
-		"pdf",
-	}
-
-	args = append(args, "--port", fmt.Sprintf("%d", p.socketPort))
-
-	if logger.Enabled(ctx, slog.LevelDebug) {
-		args = append(args, "-vvv")
-	}
-
-	if options.Password != "" {
-		args = append(args, "--password", options.Password)
-	}
-
-	if options.Landscape {
-		args = append(args, "--printer", "PaperOrientation=landscape")
-	}
-
-	// See: https://github.com/gotenberg/gotenberg/issues/1149.
-	if options.PageRanges != "" {
-		args = append(args, "--export", fmt.Sprintf("PageRange=%s", options.PageRanges))
-	}
-
-	if !options.UpdateIndexes {
-		args = append(args, "--disable-update-indexes")
-	}
-
-	// A CSV becomes a single Calc sheet named after the input file, and Calc's
-	// default page style prints that sheet name as a centered header. Uploads
-	// are stored under a UUID-based filename, so the UUID would otherwise leak
-	// into the rendered PDF. Suppress the header for CSV inputs; spreadsheets
-	// that carry their own page styles (XLSX, ODS) are left untouched.
-	// See https://github.com/gotenberg/gotenberg/issues/1568.
-	if strings.EqualFold(filepath.Ext(inputPath), ".csv") {
-		args = append(args, "--disable-calc-header")
-	}
-
-	args = append(args, "--export", fmt.Sprintf("ExportFormFields=%t", options.ExportFormFields))
-	args = append(args, "--export", fmt.Sprintf("AllowDuplicateFieldNames=%t", options.AllowDuplicateFieldNames))
-	args = append(args, "--export", fmt.Sprintf("ExportBookmarks=%t", options.ExportBookmarks))
-	args = append(args, "--export", fmt.Sprintf("ExportBookmarks=%t", options.ExportBookmarks))
-	args = append(args, "--export", fmt.Sprintf("ExportBookmarksToPDFDestination=%t", options.ExportBookmarksToPdfDestination))
-	args = append(args, "--export", fmt.Sprintf("ExportPlaceholders=%t", options.ExportPlaceholders))
-	args = append(args, "--export", fmt.Sprintf("ExportNotes=%t", options.ExportNotes))
-	args = append(args, "--export", fmt.Sprintf("ExportNotesPages=%t", options.ExportNotesPages))
-	args = append(args, "--export", fmt.Sprintf("ExportOnlyNotesPages=%t", options.ExportOnlyNotesPages))
-	args = append(args, "--export", fmt.Sprintf("ExportNotesInMargin=%t", options.ExportNotesInMargin))
-	args = append(args, "--export", fmt.Sprintf("ConvertOOoTargetToPDFTarget=%t", options.ConvertOooTargetToPdfTarget))
-	args = append(args, "--export", fmt.Sprintf("ExportLinksRelativeFsys=%t", options.ExportLinksRelativeFsys))
-	args = append(args, "--export", fmt.Sprintf("ExportHiddenSlides=%t", options.ExportHiddenSlides))
-	args = append(args, "--export", fmt.Sprintf("IsSkipEmptyPages=%t", options.SkipEmptyPages))
-	args = append(args, "--export", fmt.Sprintf("IsAddStream=%t", options.AddOriginalDocumentAsStream))
-	args = append(args, "--export", fmt.Sprintf("SinglePageSheets=%t", options.SinglePageSheets))
-	args = append(args, "--export", fmt.Sprintf("InitialView=%d", options.InitialView))
-	args = append(args, "--export", fmt.Sprintf("InitialPage=%d", options.InitialPage))
-	args = append(args, "--export", fmt.Sprintf("Magnification=%d", options.Magnification))
-	args = append(args, "--export", fmt.Sprintf("Zoom=%d", options.Zoom))
-	args = append(args, "--export", fmt.Sprintf("PageLayout=%d", options.PageLayout))
-	args = append(args, "--export", fmt.Sprintf("FirstPageOnLeft=%t", options.FirstPageOnLeft))
-	args = append(args, "--export", fmt.Sprintf("ResizeWindowToInitialPage=%t", options.ResizeWindowToInitialPage))
-	args = append(args, "--export", fmt.Sprintf("CenterWindow=%t", options.CenterWindow))
-	args = append(args, "--export", fmt.Sprintf("OpenInFullScreenMode=%t", options.OpenInFullScreenMode))
-	args = append(args, "--export", fmt.Sprintf("DisplayPDFDocumentTitle=%t", options.DisplayPDFDocumentTitle))
-	args = append(args, "--export", fmt.Sprintf("HideViewerMenubar=%t", options.HideViewerMenubar))
-	args = append(args, "--export", fmt.Sprintf("HideViewerToolbar=%t", options.HideViewerToolbar))
-	args = append(args, "--export", fmt.Sprintf("HideViewerWindowControls=%t", options.HideViewerWindowControls))
-	args = append(args, "--export", fmt.Sprintf("UseTransitionEffects=%t", options.UseTransitionEffects))
-	args = append(args, "--export", fmt.Sprintf("OpenBookmarkLevels=%d", options.OpenBookmarkLevels))
-	args = append(args, "--export", fmt.Sprintf("UseLosslessCompression=%t", options.LosslessImageCompression))
-	args = append(args, "--export", fmt.Sprintf("Quality=%d", options.Quality))
-	args = append(args, "--export", fmt.Sprintf("ReduceImageResolution=%t", options.ReduceImageResolution))
-	args = append(args, "--export", fmt.Sprintf("MaxImageResolution=%d", options.MaxImageResolution))
-
-	if options.NativeWatermarkText != "" {
-		args = append(args, "--export", fmt.Sprintf("Watermark=%s", options.NativeWatermarkText))
-	}
-
-	if options.NativeWatermarkColor != 0 {
-		args = append(args, "--export", fmt.Sprintf("WatermarkColor=%d", options.NativeWatermarkColor))
-	}
-
-	if options.NativeWatermarkFontHeight > 0 {
-		args = append(args, "--export", fmt.Sprintf("WatermarkFontHeight=%d", options.NativeWatermarkFontHeight))
-	}
-
-	if options.NativeWatermarkRotateAngle != 0 {
-		args = append(args, "--export", fmt.Sprintf("WatermarkRotateAngle=%d", options.NativeWatermarkRotateAngle))
-	}
-
-	if options.NativeWatermarkFontName != "" && options.NativeWatermarkFontName != "Helvetica" {
-		args = append(args, "--export", fmt.Sprintf("WatermarkFontName=%s", options.NativeWatermarkFontName))
-	}
-
-	if options.NativeTiledWatermarkText != "" {
-		args = append(args, "--export", fmt.Sprintf("TiledWatermark=%s", options.NativeTiledWatermarkText))
-	}
-
-	switch options.PdfFormats.PdfA {
-	case "":
-	case PdfA1b:
-		args = append(args, "--export", "SelectPdfVersion=1", "--export", "EmbedStandardFonts=true")
-	case PdfA2b:
-		args = append(args, "--export", "SelectPdfVersion=2", "--export", "EmbedStandardFonts=true")
-	case PdfA3b:
-		args = append(args, "--export", "SelectPdfVersion=3", "--export", "EmbedStandardFonts=true")
-	case PdfA4:
-		args = append(args, "--export", "SelectPdfVersion=4", "--export", "EmbedStandardFonts=true")
-	default:
-		return ErrInvalidPdfFormats
-	}
-
-	if options.PdfFormats.PdfUa {
-		args = append(
-			args,
-			"--export", "PDFUACompliance=true",
-			"--export", "UseTaggedPDF=true",
-			"--export", "EnableTextAccessForAccessibilityTools=true",
-			"--export", "EmbedStandardFonts=true",
-		)
-	} else {
-		args = append(
-			args,
-			"--export", "PDFUACompliance=false",
-			"--export", fmt.Sprintf("UseTaggedPDF=%t", options.GenerateTaggedPdf),
-			"--export", "EnableTextAccessForAccessibilityTools=false",
-		)
-	}
-
-	args = append(args, "--output", outputPath, inputPath)
-
-	cmd, err := gotenberg.CommandContext(ctx, logger, p.arguments.unoBinPath, args...)
+	req, err := newLokRequest(inputPath, outputPath, options)
 	if err != nil {
-		return fmt.Errorf("create uno command: %w", err)
+		return err
 	}
+
+	// lok converts one document at a time, and a request must read its own
+	// answer.
+	p.convMu.Lock()
+	defer p.convMu.Unlock()
+
+	p.cfgMu.RLock()
+	cmd, stdin, stdout, exited := p.cmd, p.stdin, p.stdout, p.exited
+	p.cfgMu.RUnlock()
 
 	logger.DebugContext(ctx, fmt.Sprintf("print to PDF with: %+v", options))
 
-	exitCode, err := cmd.Exec()
-	if err == nil {
+	resp, err := exchange(ctx, stdin, stdout, exited, req)
+	if err != nil {
+		if ctx.Err() != nil {
+			// LibreOfficeKit calls cannot be cancelled: kill lok so that its
+			// late answer never reaches the next request. The process is then
+			// unhealthy, and the supervisor restarts it.
+			killErr := cmd.Kill()
+			if killErr != nil {
+				logger.ErrorContext(ctx, fmt.Sprintf("kill lok after cancellation: %s", killErr))
+			}
+
+			return ctx.Err()
+		}
+
+		// lok exited mid-conversion: LibreOffice crashed. The same
+		// conversion often succeeds once restarted.
+		// See https://github.com/gotenberg/gotenberg/issues/639.
+		//
+		// The read can fail before the process is reaped, while lok still
+		// reports healthy. Make sure it is gone, so that the supervisor
+		// restarts it instead of handing it the next request.
+		killErr := cmd.Kill()
+		if killErr != nil {
+			logger.ErrorContext(ctx, fmt.Sprintf("kill lok after a failed exchange: %s", killErr))
+		}
+
+		select {
+		case <-exited:
+		case <-time.After(reapTimeout):
+			logger.ErrorContext(ctx, "lok not reaped after a failed exchange")
+		}
+
+		return fmt.Errorf("%w: %w", ErrCrashed, err)
+	}
+
+	if resp.Success {
 		return nil
 	}
 
-	// LibreOffice's errors are not explicit: unoconverter derives its exit code
-	// from the UNO exception class it caught, not from a diagnosis. Exit codes
-	// 5 and 6 are ambiguous in particular, so the route decides the HTTP status
-	// from the request and the document rather than from the code alone.
-	// See https://github.com/gotenberg/gotenberg/issues/1588.
+	return lokError(resp)
+}
 
-	// We may want to retry in case of a core-dumped event.
-	// See https://github.com/gotenberg/gotenberg/issues/639.
-	if strings.Contains(err.Error(), "core dumped") {
-		return ErrCoreDumped
+// reapTimeout bounds the wait for a killed lok process to be reaped.
+const reapTimeout = 5 * time.Second
+
+// Codes of lok's long-running answers.
+const (
+	lokCodeInvalidRequest  = "invalid_request"
+	lokCodeInvalidPassword = "invalid_password"
+	lokCodeLoadFailed      = "load_failed"
+	lokCodeSaveFailed      = "save_failed"
+)
+
+// lokError maps a failed lok answer to the matching sentinel error.
+func lokError(resp lokResponse) error {
+	detail := errors.New(resp.Error)
+
+	switch resp.Code {
+	case lokCodeInvalidPassword:
+		return fmt.Errorf("%w: %w", ErrInvalidPassword, detail)
+	case lokCodeLoadFailed:
+		return fmt.Errorf("%w: %w", ErrLoadFailed, detail)
+	case lokCodeSaveFailed:
+		return fmt.Errorf("%w: %w", ErrSaveFailed, detail)
+	default:
+		return fmt.Errorf("lok %s: %w", resp.Code, detail)
+	}
+}
+
+// exchange writes a request line to lok and reads its answer line. It returns
+// early when ctx is done or the process exits, and then leaves the read
+// behind: only killing the process ends it.
+func exchange(ctx context.Context, stdin io.Writer, stdout *bufio.Reader, exited <-chan struct{}, req any) (lokResponse, error) {
+	line, err := json.Marshal(req)
+	if err != nil {
+		return lokResponse{}, fmt.Errorf("encode lok request: %w", err)
 	}
 
-	switch exitCode {
-	case 3:
-		return ErrIoException
-	case 4:
-		return ErrCannotConvertException
-	case 5:
-		return ErrUnoException
-	case 6:
-		return ErrRuntimeException
-	case 8:
-		return ErrIllegalArgumentException
+	type result struct {
+		resp lokResponse
+		err  error
 	}
 
-	return fmt.Errorf("convert to PDF: %w", err)
+	done := make(chan result, 1)
+
+	go func() {
+		_, err := stdin.Write(append(line, '\n'))
+		if err != nil {
+			done <- result{err: fmt.Errorf("write lok request: %w", err)}
+			return
+		}
+
+		answer, err := stdout.ReadBytes('\n')
+		if err != nil {
+			done <- result{err: fmt.Errorf("read lok answer: %w", err)}
+			return
+		}
+
+		var resp lokResponse
+		err = json.Unmarshal(answer, &resp)
+		if err != nil {
+			done <- result{err: fmt.Errorf("decode lok answer %q: %w", answer, err)}
+			return
+		}
+
+		done <- result{resp: resp}
+	}()
+
+	select {
+	case r := <-done:
+		return r.resp, r.err
+	case <-ctx.Done():
+		return lokResponse{}, ctx.Err()
+	case <-exited:
+		// The answer may have arrived just before the exit.
+		select {
+		case r := <-done:
+			return r.resp, r.err
+		default:
+			return lokResponse{}, errors.New("lok exited")
+		}
+	}
 }
 
 // Interface guards.

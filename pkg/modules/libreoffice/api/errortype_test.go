@@ -17,14 +17,12 @@ func TestLibreofficeErrorType(t *testing.T) {
 		{"deadline", context.DeadlineExceeded, "timeout"},
 		{"canceled", context.Canceled, "context_cancelled"},
 		{"invalid pdf formats", ErrInvalidPdfFormats, "invalid_input"},
-		{"io exception", ErrIoException, "invalid_input"},
-		{"cannot convert exception", ErrCannotConvertException, "invalid_input"},
-		{"illegal argument exception", ErrIllegalArgumentException, "invalid_input"},
-		{"uno exception", ErrUnoException, "libreoffice_exception"},
-		{"runtime exception", ErrRuntimeException, "libreoffice_exception"},
+		{"load failed", ErrLoadFailed, "invalid_input"},
+		{"invalid password", ErrInvalidPassword, "invalid_input"},
+		{"save failed", ErrSaveFailed, "libreoffice_exception"},
+		{"crashed", ErrCrashed, "libreoffice_exception"},
 		{"queue size exceeded", gotenberg.ErrMaximumQueueSizeExceeded, "libreoffice_unavailable"},
 		{"process restarting", gotenberg.ErrProcessAlreadyRestarting, "libreoffice_unavailable"},
-		{"core dumped", ErrCoreDumped, "unknown"},
 		{"unknown", errors.New("boom"), "unknown"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

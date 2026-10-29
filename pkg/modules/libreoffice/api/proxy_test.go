@@ -280,11 +280,11 @@ func TestLibreOfficeProxy_StopIsIdempotent(t *testing.T) {
 	}
 }
 
-func TestWriteSofficeProfileConfig(t *testing.T) {
+func TestWriteProfileConfig(t *testing.T) {
 	dir := t.TempDir()
 
-	if err := writeSofficeProfileConfig(dir, "127.0.0.1:9876"); err != nil {
-		t.Fatalf("writeSofficeProfileConfig: %v", err)
+	if err := writeProfileConfig(dir, "127.0.0.1:9876"); err != nil {
+		t.Fatalf("writeProfileConfig: %v", err)
 	}
 
 	body, err := os.ReadFile(filepath.Join(dir, "user", "registrymodifications.xcu"))
@@ -300,6 +300,9 @@ func TestWriteSofficeProfileConfig(t *testing.T) {
 		// Blocks linked content from untrusted locations, closing the
 		// file:// local-read and direct-fetch vectors the proxy cannot see.
 		`BlockUntrustedRefererLinks`, `<value>true</value>`,
+		// Never updates links on load: Writer numbers "never" 2, Calc 1.
+		`<item oor:path="/org.openoffice.Office.Writer/Content/Update"><prop oor:name="Link" oor:op="fuse"><value>2</value></prop></item>`,
+		`<item oor:path="/org.openoffice.Office.Calc/Content/Update"><prop oor:name="Link" oor:op="fuse"><value>1</value></prop></item>`,
 	} {
 		if !strings.Contains(string(body), want) {
 			t.Errorf("xcu missing %q\nfull body:\n%s", want, body)
@@ -307,8 +310,8 @@ func TestWriteSofficeProfileConfig(t *testing.T) {
 	}
 }
 
-func TestWriteSofficeProfileConfig_InvalidAddr(t *testing.T) {
-	err := writeSofficeProfileConfig(t.TempDir(), "not-a-host-port")
+func TestWriteProfileConfig_InvalidAddr(t *testing.T) {
+	err := writeProfileConfig(t.TempDir(), "not-a-host-port")
 	if err == nil {
 		t.Fatal("expected error for malformed proxy address")
 	}
@@ -319,7 +322,7 @@ func TestWriteSofficeProfileConfig_InvalidAddr(t *testing.T) {
 	}
 }
 
-func TestSofficeProxyEnv_OverridesExisting(t *testing.T) {
+func TestProxyEnv_OverridesExisting(t *testing.T) {
 	in := []string{
 		"PATH=/usr/bin",
 		"http_proxy=http://attacker:1",
@@ -327,7 +330,7 @@ func TestSofficeProxyEnv_OverridesExisting(t *testing.T) {
 		"NO_PROXY=internal",
 		"USER=gotenberg",
 	}
-	out := sofficeProxyEnv(in, "127.0.0.1:9876")
+	out := proxyEnv(in, "127.0.0.1:9876")
 
 	want := map[string]string{
 		"http_proxy":  "http://127.0.0.1:9876",

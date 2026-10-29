@@ -33,7 +33,7 @@ func (provider *ProviderMock) LibreOffice() (Uno, error) {
 
 // libreOfficeMock is a mock for the [libreOffice] interface.
 type libreOfficeMock struct {
-	errCoreDumpedCount int
+	errCrashedCount int
 
 	gotenberg.ProcessMock
 	pdfMock func(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error
@@ -41,10 +41,10 @@ type libreOfficeMock struct {
 
 func (b *libreOfficeMock) pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error {
 	err := b.pdfMock(ctx, logger, inputPath, outputPath, options)
-	if errors.Is(err, ErrCoreDumped) {
-		b.errCoreDumpedCount += 1
+	if errors.Is(err, ErrCrashed) {
+		b.errCrashedCount += 1
 	}
-	if b.errCoreDumpedCount > 1 {
+	if b.errCrashedCount > 1 {
 		return nil
 	}
 	return err

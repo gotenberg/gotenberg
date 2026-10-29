@@ -29,6 +29,35 @@ RUN go build -o pdfcpu -ldflags "-s -w -X 'main.version=$PDFCPU_VERSION' -X 'git
     && ./pdfcpu version
 
 # ----------------------------------------------
+# lok binary build stage
+# ----------------------------------------------
+# lok converts documents with LibreOfficeKit. It is built from a pinned commit
+# until a lok release carries the features Gotenberg relies on; then lok's
+# install.sh replaces this stage. It links against the LibreOfficeKit headers
+# of the LibreOffice the final images install from trixie-backports.
+FROM golang:$GOLANG_VERSION-trixie AS lok-binary-stage
+
+# See https://github.com/gotenberg/lok.
+ARG LOK_COMMIT=54ab7ed85e20281b3ab39c66f4f415df8d69c2cd
+ENV CGO_ENABLED=1
+# LibreOffice from trixie-backports is newer than 7.6, which provides the
+# trimMemory API.
+ENV CGO_CFLAGS="-DLOK_HAS_TRIM_MEMORY"
+
+RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/sources.list \
+    && apt-get update -qq \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t trixie-backports libreofficekit-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /home
+
+RUN curl -Ls "https://github.com/gotenberg/lok/archive/$LOK_COMMIT.tar.gz" -o lok.tar.gz \
+    && tar --strip-components=1 -xzf lok.tar.gz \
+    && go build -o lok -ldflags "-s -w -X main.version=$LOK_COMMIT" ./cmd/lok \
+    # Verify installation.
+    && ./lok --version
+
+# ----------------------------------------------
 # Gotenberg binary build stage
 # ----------------------------------------------
 FROM golang:$GOLANG_VERSION AS gotenberg-binary-stage
@@ -104,9 +133,6 @@ RUN apt-get update -qq \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl ca-certificates
 
 WORKDIR /downloads
-
-RUN curl -Ls https://raw.githubusercontent.com/gotenberg/unoconverter/v0.5.0/unoconv -o unoconverter \
-    && chmod +x unoconverter
 
 RUN curl -o pdftk-all.jar "https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/$PDFTK_VERSION/pdftk-all.jar" \
     && chmod a+x pdftk-all.jar
@@ -268,12 +294,11 @@ RUN /bin/bash -c \
     fi' \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Install LibreOffice & unoconverter.
+# Install LibreOffice.
 RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/sources.list \
     && apt-get update -qq \
     && apt-get upgrade -yqq \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
-        python3 python3-distutils-extra \
         # Install Hyphenation for LibreOffice.
         # Credits: https://wiki.archlinux.org/title/LibreOffice.
         hyphen-af hyphen-as hyphen-be hyphen-bg hyphen-bn hyphen-ca hyphen-cs hyphen-da hyphen-de hyphen-el \
@@ -282,9 +307,7 @@ RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/so
         hyphen-no hyphen-or hyphen-pa hyphen-pl hyphen-pt-br hyphen-pt-pt hyphen-ro hyphen-ru hyphen-sk hyphen-sl \
         hyphen-sr hyphen-sv hyphen-ta hyphen-te hyphen-th hyphen-uk hyphen-zu \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t trixie-backports \
-        libreoffice-writer libreoffice-calc libreoffice-impress libreoffice-draw libreoffice-math python3-uno \
-    # unoconverter will look for the Python binary, which has to be at version 3.
-    && ln -s /usr/bin/python3 /usr/bin/python \
+        libreoffice-writer libreoffice-calc libreoffice-impress libreoffice-draw libreoffice-math \
     # Cleanup.
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -293,8 +316,8 @@ RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/so
 # Copy the Gotenberg binary (full variant with all modules).
 COPY --link --from=gotenberg-binary-stage /home/gotenberg /usr/bin/
 
-# Copy unoconverter.
-COPY --link --from=downloader-stage /downloads/unoconverter /usr/bin/unoconverter
+# Copy lok.
+COPY --link --from=lok-binary-stage /home/lok /usr/bin/lok
 
 # Copy dictionnaries so that hyphens work on Chromium.
 # See https://github.com/gotenberg/gotenberg/issues/1293.
@@ -303,7 +326,7 @@ COPY --link --chown="$GOTENBERG_USER_UID:$GOTENBERG_USER_GID" build/chromium-hyp
 ENV CHROMIUM_BIN_PATH=/usr/bin/chromium
 ENV CHROMIUM_HYPHEN_DATA_DIR_PATH=/opt/gotenberg/chromium-hyphen-data
 ENV LIBREOFFICE_BIN_PATH=/usr/lib/libreoffice/program/soffice.bin
-ENV UNOCONVERTER_BIN_PATH=/usr/bin/unoconverter
+ENV LOK_BIN_PATH=/usr/bin/lok
 
 # Capture Chromium and LibreOffice versions now that both are installed.
 RUN bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" chromium "$CHROMIUM_BIN_PATH" --version \
@@ -395,12 +418,11 @@ LABEL org.opencontainers.image.title="Gotenberg (LibreOffice)" \
     org.opencontainers.image.documentation="https://gotenberg.dev" \
     org.opencontainers.image.source="https://github.com/gotenberg/gotenberg"
 
-# Install LibreOffice & unoconverter.
+# Install LibreOffice.
 RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/sources.list \
     && apt-get update -qq \
     && apt-get upgrade -yqq \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
-        python3 python3-distutils-extra \
         # Install Hyphenation for LibreOffice.
         # Credits: https://wiki.archlinux.org/title/LibreOffice.
         hyphen-af hyphen-as hyphen-be hyphen-bg hyphen-bn hyphen-ca hyphen-cs hyphen-da hyphen-de hyphen-el \
@@ -409,9 +431,7 @@ RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/so
         hyphen-no hyphen-or hyphen-pa hyphen-pl hyphen-pt-br hyphen-pt-pt hyphen-ro hyphen-ru hyphen-sk hyphen-sl \
         hyphen-sr hyphen-sv hyphen-ta hyphen-te hyphen-th hyphen-uk hyphen-zu \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t trixie-backports \
-        libreoffice-writer libreoffice-calc libreoffice-impress libreoffice-draw libreoffice-math python3-uno \
-    # unoconverter will look for the Python binary, which has to be at version 3.
-    && ln -s /usr/bin/python3 /usr/bin/python \
+        libreoffice-writer libreoffice-calc libreoffice-impress libreoffice-draw libreoffice-math \
     # Cleanup.
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -420,11 +440,11 @@ RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/so
 # Copy the Gotenberg binary (LibreOffice variant, no Chromium modules).
 COPY --link --from=gotenberg-binary-stage /home/gotenberg-libreoffice /usr/bin/gotenberg
 
-# Copy unoconverter.
-COPY --link --from=downloader-stage /downloads/unoconverter /usr/bin/unoconverter
+# Copy lok.
+COPY --link --from=lok-binary-stage /home/lok /usr/bin/lok
 
 ENV LIBREOFFICE_BIN_PATH=/usr/lib/libreoffice/program/soffice.bin
-ENV UNOCONVERTER_BIN_PATH=/usr/bin/unoconverter
+ENV LOK_BIN_PATH=/usr/bin/lok
 
 # Capture the LibreOffice version now that it is installed.
 RUN bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" libreoffice-api "$LIBREOFFICE_BIN_PATH" --version
