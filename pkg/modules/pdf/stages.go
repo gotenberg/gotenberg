@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/gotenberg/litho/pkg/models"
@@ -118,12 +119,23 @@ func decodeStage(object json.RawMessage) (stage, error) {
 	}
 
 	delete(fields, "op")
+
+	s := newStage()
+
+	// encoding/json matches keys case-insensitively, so "Title" would set the
+	// "title" option. Option names are exact.
+	known := optionNames(s)
+	for _, key := range sortedKeys(fields) {
+		if !known[key] {
+			return nil, fmt.Errorf("%s: unknown option %q", op, key)
+		}
+	}
+
 	options, err := json.Marshal(fields)
 	if err != nil {
 		return nil, fmt.Errorf("%s: re-encode options: %w", op, err)
 	}
 
-	s := newStage()
 	decoder := json.NewDecoder(bytes.NewReader(options))
 	decoder.DisallowUnknownFields()
 	err = decoder.Decode(s)
@@ -254,4 +266,19 @@ var facturXLevels = map[string]models.FacturXLevel{
 	string(models.FacturXEN16931):   models.FacturXEN16931,
 	string(models.FacturXExtended):  models.FacturXExtended,
 	string(models.FacturXXRechnung): models.FacturXXRechnung,
+}
+
+// optionNames returns the JSON names of a stage's options.
+func optionNames(s stage) map[string]bool {
+	t := reflect.TypeOf(s).Elem()
+	names := make(map[string]bool, t.NumField())
+
+	for i := range t.NumField() {
+		name, _, _ := strings.Cut(t.Field(i).Tag.Get("json"), ",")
+		if name != "" {
+			names[name] = true
+		}
+	}
+
+	return names
 }
