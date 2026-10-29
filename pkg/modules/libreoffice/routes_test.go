@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/labstack/echo/v5"
@@ -214,8 +215,8 @@ func TestConvertRoute_Stages(t *testing.T) {
 	ctx.SetDirPath(dir)
 	ctx.SetFiles(files)
 	ctx.SetValues(map[string][]string{
-		"pdfa":   {libreofficeapi.PdfA1b},
-		"stages": {`[{"op":"merge"}]`},
+		"nativePdfa": {libreofficeapi.PdfA1b},
+		"stages":     {`[{"op":"merge"}]`},
 	})
 	ctx.SetLogger(slog.New(slog.DiscardHandler))
 
@@ -258,5 +259,58 @@ func TestConvertRoute_Stages(t *testing.T) {
 
 	if name := ctx.OriginalFilename(outputs[0]); name != "page_1.docx.pdf" {
 		t.Errorf("output name = %q, want page_1.docx.pdf", name)
+	}
+}
+
+// TestConvertRoute_PaperNeedsBothSides checks that a custom paper size needs
+// both sides unless a named size supplies the other one.
+func TestConvertRoute_PaperNeedsBothSides(t *testing.T) {
+	dir := t.TempDir()
+
+	for _, tc := range []struct {
+		name    string
+		values  map[string][]string
+		wantErr bool
+	}{
+		{name: "width alone", values: map[string][]string{"paperWidth": {"8in"}}, wantErr: true},
+		{name: "width over a named size", values: map[string][]string{"paperSize": {"A4"}, "paperWidth": {"8in"}}},
+		{name: "both sides", values: map[string][]string{"paperWidth": {"8in"}, "paperHeight": {"10in"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := &api.ContextMock{Context: &api.Context{Context: context.Background()}}
+			ctx.SetDirPath(dir)
+			ctx.SetFiles(map[string]string{"page_1.docx": zipPackage(t, dir, "page_1.docx")})
+			ctx.SetValues(tc.values)
+			ctx.SetLogger(slog.New(slog.DiscardHandler))
+
+			var got libreofficeapi.Options
+			uno := &libreofficeapi.ApiMock{
+				ExtensionsMock: func() []string { return []string{".docx"} },
+				PdfMock: func(_ context.Context, _ *slog.Logger, _, _ string, options libreofficeapi.Options) error {
+					got = options
+					return nil
+				},
+			}
+
+			c := echo.New().NewContext(httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", nil), httptest.NewRecorder())
+			c.Set("context", ctx.Context)
+
+			err := convertRoute(uno, new(pdf.Processor)).Handler(c)
+			if tc.wantErr {
+				status, message := api.ParseError(err)
+				if status != http.StatusBadRequest || !strings.Contains(message, "'paperWidth' and 'paperHeight'") {
+					t.Fatalf("got %d %q, want a 400 naming both fields", status, message)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("handler: %v", err)
+			}
+
+			if got.PaperWidth != 8 || got.PaperHeight == 0 {
+				t.Errorf("paper = %gx%g, want 8 inches wide with a height", got.PaperWidth, got.PaperHeight)
+			}
+		})
 	}
 }

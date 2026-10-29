@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"testing"
 	"time"
@@ -1834,6 +1835,34 @@ func TestFormData_paths_DuplicateFilenamesKeepUploadOrder(t *testing.T) {
 						t.Fatalf("paths() = %v, want %v", got, tc.want)
 					}
 				}
+			}
+		})
+	}
+}
+
+func TestFormData_PaperSize(t *testing.T) {
+	for _, tc := range []struct {
+		value                 string
+		wantWidth, wantHeight float64
+		wantErr               bool
+	}{
+		{value: "", wantWidth: -1, wantHeight: -1},
+		{value: "A4", wantWidth: 210 / 25.4, wantHeight: 297 / 25.4},
+		{value: "letter", wantWidth: 8.5, wantHeight: 11},
+		{value: "Tabloid", wantWidth: 11, wantHeight: 17},
+		{value: "A0", wantWidth: -1, wantHeight: -1, wantErr: true},
+	} {
+		t.Run(tc.value, func(t *testing.T) {
+			form := &FormData{values: map[string][]string{"paperSize": {tc.value}}}
+			width, height := -1.0, -1.0
+
+			err := form.PaperSize("paperSize", &width, &height).Validate()
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("err = %v, wantErr %t", err, tc.wantErr)
+			}
+
+			if math.Abs(width-tc.wantWidth) > 1e-9 || math.Abs(height-tc.wantHeight) > 1e-9 {
+				t.Errorf("size = %gx%g, want %gx%g", width, height, tc.wantWidth, tc.wantHeight)
 			}
 		})
 	}

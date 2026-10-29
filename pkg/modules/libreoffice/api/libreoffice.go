@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -67,6 +68,9 @@ type lokRequest struct {
 	OutputPath                      string `json:"outputPath"`
 	Password                        string `json:"password,omitempty"` //nolint:gosec // document open password, sent to the local lok process only
 	Landscape                       bool   `json:"landscape"`
+	PaperFormat                     int    `json:"paperFormat"`
+	PaperWidth                      int    `json:"paperWidth"`
+	PaperHeight                     int    `json:"paperHeight"`
 	PageRanges                      string `json:"pageRanges"`
 	UpdateIndexes                   bool   `json:"updateIndexes"`
 	DisableCalcHeader               bool   `json:"disableCalcHeader"`
@@ -123,6 +127,13 @@ type lokResponse struct {
 	Error   string `json:"error"`
 }
 
+// lok's paper formats: unset keeps the document's size, user takes the width
+// and height of the request.
+const (
+	lokPaperFormatUnset = -1
+	lokPaperFormatUser  = 8
+)
+
 // pdfVersions maps the native PDF/A formats to lok's SelectPdfVersion values.
 var pdfVersions = map[string]int{
 	"":     0,
@@ -146,12 +157,24 @@ func newLokRequest(inputPath, outputPath string, options Options) (lokRequest, e
 		fontName = ""
 	}
 
+	// lok's custom paper format takes the size in 1/100 mm; -1 keeps the
+	// document's own size.
+	paperFormat, paperWidth, paperHeight := lokPaperFormatUnset, 0, 0
+	if options.PaperWidth > 0 && options.PaperHeight > 0 {
+		paperFormat = lokPaperFormatUser
+		paperWidth = int(math.Round(options.PaperWidth * 2540))
+		paperHeight = int(math.Round(options.PaperHeight * 2540))
+	}
+
 	return lokRequest{
-		InputPath:  inputPath,
-		OutputPath: outputPath,
-		Password:   options.Password,
-		Landscape:  options.Landscape,
-		PageRanges: options.PageRanges,
+		InputPath:   inputPath,
+		OutputPath:  outputPath,
+		Password:    options.Password,
+		Landscape:   options.Landscape,
+		PaperFormat: paperFormat,
+		PaperWidth:  paperWidth,
+		PaperHeight: paperHeight,
+		PageRanges:  options.PageRanges,
 		// See https://github.com/gotenberg/gotenberg/issues/1149.
 		UpdateIndexes: options.UpdateIndexes,
 		// A CSV becomes a single Calc sheet named after the input file, and
