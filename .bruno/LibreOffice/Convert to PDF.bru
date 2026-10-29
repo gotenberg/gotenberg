@@ -14,11 +14,14 @@ body:multipart-form {
   files: @file(../test/integration/testdata/page_1.docx)
   ~password:
   ~landscape: false
+  ~paperSize: A4
+  ~paperWidth: 8.27in
+  ~paperHeight: 11.69in
   ~nativePageRanges:
   ~updateIndexes: false
   ~exportFormFields: true
   ~allowDuplicateFieldNames: false
-  ~exportBookmarks: true
+  ~nativeBookmarks: true
   ~exportBookmarksToPdfDestination: false
   ~exportPlaceholders: false
   ~exportNotes: false
@@ -30,8 +33,8 @@ body:multipart-form {
   ~exportHiddenSlides: false
   ~skipEmptyPages: false
   ~addOriginalDocumentAsStream: false
-  ~singlePageSheets: false
-  ~generateTaggedPdf: false
+  ~singlePage: false
+  ~nativeTaggedPdf: false
   ~initialView: 0
   ~initialPage: 1
   ~magnification: 0
@@ -47,52 +50,19 @@ body:multipart-form {
   ~hideViewerWindowControls: false
   ~useTransitionEffects: true
   ~openBookmarkLevels: -1
-  ~losslessImageCompression: false
-  ~quality: 90
-  ~reduceImageResolution: false
-  ~maxImageResolution: 300
+  ~nativeLosslessImageCompression: false
+  ~nativeQuality: 90
+  ~nativeReduceImageResolution: false
+  ~nativeMaxImageResolution: 300
   ~nativeWatermarkText:
   ~nativeWatermarkColor: 0
   ~nativeWatermarkFontHeight: 0
   ~nativeWatermarkRotateAngle: 0
   ~nativeWatermarkFontName:
   ~nativeTiledWatermarkText:
-  ~nativePdfFormats: true
-  ~merge: false
-  ~flatten: false
-  ~splitMode: intervals
-  ~splitSpan: 1
-  ~splitUnify: false
-  ~pdfa: PDF/A-1b
-  ~pdfua: true
-  ~optimizeImages: false
-  ~imageQuality: 80
-  ~metadata: {"Author":"Bruno","Title":"Test"}
-  ~userPassword:
-  ~ownerPassword:
-  ~allowPrinting: false
-  ~allowCopying: false
-  ~allowModifying: false
-  ~allowAnnotating: false
-  ~allowFillingForms: false
-  ~allowAssembling: false
-  ~embeds: @file(../test/integration/testdata/embed_1.xml)
-  ~embeds: @file(../test/integration/testdata/embed_2.xml)
-  ~embedsMetadata: {"embed_1.xml":{"mimeType":"text/xml","relationship":"Data"}, "embed_2.xml":{"mimeType":"text/xml","relationship":"Data"}}
-  ~facturxXml: @file(../test/integration/testdata/embed_1.xml)
-  ~facturxConformanceLevel: EN 16931
-  ~facturxDocumentType: INVOICE
-  ~facturxVersion: 1.0
-  ~watermarkSource: text
-  ~watermarkExpression: CONFIDENTIAL
-  ~watermarkPages:
-  ~watermarkOptions: {"scale":"0.5 abs","rot":"45","fillcolor":"#FF0000"}
-  ~stampSource: text
-  ~stampExpression: DRAFT
-  ~stampPages:
-  ~stampOptions: {"scale":"0.5 abs","rot":"45"}
-  ~rotateAngle: 90
-  ~rotatePages:
+  ~nativePdfa: PDF/A-2b
+  ~nativePdfua: false
+  ~stages: [{"op":"set-metadata","title":"My title"},{"op":"remediate","profile":"PDF/A-2b"}]
 }
 
 headers {

@@ -15,7 +15,7 @@
 ├── Chromium/Convert/                # POST routes grouped by module
 ├── Chromium/Screenshot/
 ├── LibreOffice/
-└── PDF Engines/<Feature>/           # One folder per feature (Merge, Split, Rotate, ...)
+└── PDF/<Group>/                     # /forms/pdf routes: Pipe, Pages, Stamps, Edit, Attachments, Security, Compliance, Read
 ```
 
 ## `.bru` file format
@@ -54,12 +54,12 @@ headers {
 - Mandatory fields have no prefix. Optional fields use `~` (disabled by default in Bruno).
 - File references use relative paths to `test/integration/testdata/`.
 - Webhook and output filename headers appear on every POST route as optional (`~`).
-- One `.bru` file per request. For routes with read/write variants (e.g., bookmarks, metadata), create separate files in the same folder.
+- One `.bru` file per request. The `/forms/pdf` single-operation routes take the stage's JSON options as flat form fields; files a stage reads (stamp images, attachments, certificates) are uploaded under `files` and referenced by filename.
 
 ## Checklist
 
 1. Create or update the `.bru` file in the matching folder under `.bruno/`.
 2. Include all form fields from the route handler. Check `FormData*` calls in the route function.
-3. For file upload fields (`files`, `watermark`, `stamp`, `embeds`), use `@file(...)` with a suitable test file.
+3. For file uploads, use `@file(...)` with a suitable test file.
 4. Verify the URL path matches the route's `Path` field exactly.
-5. For new module folders, keep the naming consistent (e.g., `PDF Engines/Rotate/`).
+5. For new module folders, keep the naming consistent (e.g., `PDF/Pages/`).

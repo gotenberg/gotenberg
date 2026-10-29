@@ -17,6 +17,7 @@ body:multipart-form {
   ~printBackground: false
   ~scale: 1.0
   ~singlePage: false
+  ~paperSize: A4
   ~paperWidth: 8.5
   ~paperHeight: 11
   ~marginTop: 0.39
@@ -25,8 +26,8 @@ body:multipart-form {
   ~marginRight: 0.39
   ~nativePageRanges: 1-2
   ~preferCssPageSize: false
-  ~generateDocumentOutline: false
-  ~generateTaggedPdf: false
+  ~nativeBookmarks: false
+  ~nativeTaggedPdf: false
   ~skipNetworkIdleEvent: false
   ~failOnHttpStatusCodes: [499,599]
   ~failOnResourceHttpStatusCodes: []
@@ -44,39 +45,7 @@ body:multipart-form {
   ~emulatedMediaType: print
   ~emulatedMediaFeatures: {"prefers-color-scheme":"dark"}
   ~omitBackground: false
-  ~splitMode: intervals
-  ~splitSpan: 1
-  ~splitUnify: false
-  ~pdfa: PDF/A-1b
-  ~pdfua: true
-  ~optimizeImages: false
-  ~imageQuality: 80
-  ~metadata: {"Author":"Bruno","Title":"Test"}
-  ~userPassword:
-  ~ownerPassword:
-  ~allowPrinting: false
-  ~allowCopying: false
-  ~allowModifying: false
-  ~allowAnnotating: false
-  ~allowFillingForms: false
-  ~allowAssembling: false
-  ~embeds: @file(../test/integration/testdata/embed_1.xml)
-  ~embeds: @file(../test/integration/testdata/embed_2.xml)
-  ~embedsMetadata: {"embed_1.xml":{"mimeType":"text/xml","relationship":"Data"}, "embed_2.xml":{"mimeType":"text/xml","relationship":"Data"}}
-  ~facturxXml: @file(../../test/integration/testdata/embed_1.xml)
-  ~facturxConformanceLevel: EN 16931
-  ~facturxDocumentType: INVOICE
-  ~facturxVersion: 1.0
-  ~watermarkSource: text
-  ~watermarkExpression: CONFIDENTIAL
-  ~watermarkPages:
-  ~watermarkOptions: {"scale":"0.5 abs","rot":"45","fillcolor":"#FF0000"}
-  ~stampSource: text
-  ~stampExpression: DRAFT
-  ~stampPages:
-  ~stampOptions: {"scale":"0.5 abs","rot":"45"}
-  ~rotateAngle: 90
-  ~rotatePages:
+  ~stages: [{"op":"set-metadata","title":"My title"},{"op":"remediate","profile":"PDF/A-2b"}]
 }
 
 headers {
