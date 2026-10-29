@@ -4,13 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"path/filepath"
 	"time"
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/exec"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
@@ -123,7 +121,14 @@ func startGotenbergContainer(ctx context.Context, env map[string]string) (testco
 		ExposedPorts:  []string{"3000/tcp"},
 		HostConfigModifier: func(hostConfig *container.HostConfig) {
 			hostConfig.ExtraHosts = []string{"host.docker.internal:host-gateway"}
-			allowSocketcall(hostConfig)
+			// Docker 29.4 and later deny socketcall on i386 in their default
+			// seccomp profile, to block the AF_ALG sockets of CVE-2026-31431, and
+			// Go's linux/386 port opens every socket through it: Gotenberg would
+			// fail to listen. Users of the 386 image need the same option.
+			// See https://github.com/moby/moby/pull/52494.
+			if GotenbergContainerPlatform == "linux/386" {
+				hostConfig.SecurityOpt = append(hostConfig.SecurityOpt, "seccomp=unconfined")
+			}
 		},
 		WaitingFor: wait.ForHTTP(healthPath),
 		Env:        env,
@@ -154,64 +159,6 @@ func startGotenbergContainer(ctx context.Context, env map[string]string) (testco
 	}
 
 	return c, nil
-}
-
-// allowSocketcall lifts Docker's default seccomp profile from a linux/386
-// container. Docker 29.4 and later deny socketcall on i386 there, to block the
-// AF_ALG sockets of CVE-2026-31431, and Go's linux/386 port opens every socket
-// through it: Gotenberg fails to listen, and veraPDF in the integration tools
-// fails too. Users of the 386 image need the same option.
-// See https://github.com/moby/moby/pull/52494.
-func allowSocketcall(hostConfig *container.HostConfig) {
-	if GotenbergContainerPlatform == "linux/386" {
-		hostConfig.SecurityOpt = append(hostConfig.SecurityOpt, "seccomp=unconfined")
-	}
-}
-
-func execCommandInIntegrationToolsContainer(ctx context.Context, cmd []string, path string) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
-	defer cancel()
-
-	req := testcontainers.ContainerRequest{
-		Image:         "gotenberg/integration-tools:latest",
-		ImagePlatform: GotenbergContainerPlatform,
-		Files: []testcontainers.ContainerFile{
-			{
-				HostFilePath:      path,
-				ContainerFilePath: filepath.Base(path),
-				FileMode:          0o700,
-			},
-		},
-		Cmd:                []string{"tail", "-f", "/dev/null"}, // Keeps container running indefinitely.
-		HostConfigModifier: allowSocketcall,
-	}
-
-	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-		Logger:           &noopLogger{},
-	})
-	if err != nil {
-		return "", fmt.Errorf("start new Integration Tools container: %w", err)
-	}
-	defer func(c testcontainers.Container, ctx context.Context) {
-		err := c.Terminate(ctx)
-		if err != nil {
-			fmt.Printf("terminate container: %v\n", err)
-		}
-	}(c, ctx)
-
-	_, output, err := c.Exec(ctx, cmd, exec.Multiplexed())
-	if err != nil {
-		return "", fmt.Errorf("exec %q: %w", cmd, err)
-	}
-
-	b, err := io.ReadAll(output)
-	if err != nil {
-		return "", fmt.Errorf("read output: %w", err)
-	}
-
-	return string(b), nil
 }
 
 func containerHttpEndpoint(ctx context.Context, container testcontainers.Container, port string) (string, error) {

@@ -7,7 +7,7 @@ Gherkin (BDD) via [Godog](https://github.com/cucumber/godog), with `testcontaine
 - Entry point: `test/integration/main_test.go` (build tag: `integration`).
 - Test data: `test/integration/testdata/`.
 
-Each scenario spins up a fresh Gotenberg Docker container via testcontainers. A separate `gotenberg/integration-tools` container provides PDF validation tools (`verapdf`, `pdfinfo`, `pdftotext`).
+Each scenario spins up a fresh Gotenberg Docker container via testcontainers. The PDF assertions read the produced documents with [litho](https://github.com/gotenberg/litho), in process: page count, size, text, tagging, bookmarks, metadata, attachments, permissions, signatures, and PDF/A and PDF/UA conformance.
 
 Run `make build` before `make test-integration`. Integration tests require a Docker image.
 
@@ -16,26 +16,26 @@ Run `make build` before `make test-integration`. Integration tests require a Doc
 ```bash
 make test-integration TAGS=health
 make test-integration TAGS=chromium-convert-html
-make test-integration TAGS="merge,split"
+make test-integration TAGS="pdf-merge,pdf-split"
 make test-integration NO_CONCURRENCY=true  # disable parallel scenarios
 make test-integration PLATFORM=linux/arm64 # force a specific platform
 ```
 
 Available tags:
 
-| Group       | Tags                                                                                                                                                                                                                                                                                                                                                                                                    |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Chromium    | `chromium`, `chromium-concurrent`, `chromium-convert-html`, `chromium-image-deduplication`, `chromium-convert-markdown`, `chromium-convert-url`, `chromium-screenshot-html`, `chromium-screenshot-markdown`, `chromium-screenshot-url`, `chromium-ssrf`                                                                                                                                                 |
-| LibreOffice | `libreoffice`, `libreoffice-convert`, `libreoffice-ssrf`                                                                                                                                                                                                                                                                                                                                                |
-| PDF Engines | `pdfengines`, `pdfengines-convert`, `pdfengines-merge`, `merge`, `pdfengines-split`, `split`, `pdfengines-flatten`, `flatten`, `pdfengines-optimize`, `optimize`, `pdfengines-rotate`, `rotate`, `pdfengines-embed`, `embed`, `pdfengines-encrypt`, `encrypt`, `pdfengines-watermark`, `watermark`, `pdfengines-stamp`, `stamp`, `pdfengines-metadata`, `metadata`, `pdfengines-bookmarks`, `bookmarks` |
-| Infra       | `health`, `debug`, `root`, `version`, `output-filename`, `prometheus-metrics`, `webhook`, `download-from`                                                                                                                                                                                                                                                                                               |
+| Group       | Tags                                                                                                                                                                                                                                                    |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chromium    | `chromium`, `chromium-concurrent`, `chromium-convert-html`, `chromium-image-deduplication`, `chromium-convert-markdown`, `chromium-convert-url`, `chromium-screenshot-html`, `chromium-screenshot-markdown`, `chromium-screenshot-url`, `chromium-ssrf` |
+| LibreOffice | `libreoffice`, `libreoffice-convert`, `libreoffice-ssrf`                                                                                                                                                                                                |
+| PDF         | `pdf`, `pdf-pipe`, `pdf-merge`, `pdf-split`, `pdf-pages`, `pdf-rotate`, `pdf-stamp`, `pdf-metadata`, `pdf-bookmarks`, `pdf-form`, `pdf-attach`, `pdf-encrypt`, `pdf-remediate`, `factur-x`, `pdf-sign`, `pdf-optimize`, `pdf-read`                      |
+| Infra       | `health`, `debug`, `root`, `version`, `output-filename`, `prometheus-metrics`, `webhook`, `download-from`                                                                                                                                               |
 
 ## Writing a new test
 
 1. Create or update a `.feature` file in `test/integration/features/`.
 2. Tag it appropriately (e.g., `@chromium @chromium-convert-html`).
 3. For new tags, add them to both the `TAGS` comment block in the `Makefile` and the table above.
-4. For new step definitions, add the function to `scenario/scenario.go`, register it in `InitializeScenario`, and add the step pattern to the step reference below.
+4. For new step definitions, add the function to `scenario/scenario.go` (or `scenario/pdf.go` for PDF assertions), register it in `InitializeScenario`, and add the step pattern to the step reference below.
 5. Test data goes in `test/integration/testdata/`.
 
 ## Step reference
@@ -70,11 +70,18 @@ Available tags:
 - `the "<name>" PDF (should|should NOT) be tagged`
 - `the "<name>" PDF (should|should NOT) have the following content at page <N>:` (docstring)
 - `the "<name>" PDF (should|should NOT) have content matching "<regexp>" at page <N>`
-- `the (response|webhook request) PDF(s) should be valid "<standard>" with a tolerance of <N> failed rule(s)` (standards: `PDF/A-1b`, `PDF/A-2b`, `PDF/A-3b`, `PDF/UA-1`, `PDF/UA-2`)
+- `the (response|webhook request) PDF(s) should be valid "<standard>" with a tolerance of <N> failed rule(s)` (standards: `PDF/A-1b`, `PDF/A-2b`, `PDF/A-3b`, `PDF/A-4`, `PDF/UA-1`, `PDF/UA-2`; counts distinct failed rules, as veraPDF does)
 - `the (response|webhook request) PDF(s) (should|should NOT) be flatten`
 - `the (response|webhook request) PDF(s) (should|should NOT) be encrypted`
 - `the (response|webhook request) PDF(s) (should|should NOT) allow "<action>"` (actions: `printing`, `copying`, `modifying`, `annotating`)
 - `the (response|webhook request) PDF(s) (should|should NOT) have the "<filename>" file embedded`
+- `the (response|webhook request) PDF(s) should have the "<filename>" file embedded with relationship "<relationship>"`
+- `the (response|webhook request) PDF(s) should declare Factur-X XMP with conformance level "<level>"`
+- `the (response|webhook request) PDF(s) (should|should NOT) be signed`
+- `the "<name>" PDF should have the "<key>" metadata set to "<value>"` (keys: `Title`, `Author`, `Subject`, `Keywords`, `Creator`, `Producer`)
+- `the "<name>" PDF page <N> should be rotated by <angle> degrees`
+- `the "<name>" PDF first page should be <width>x<height> points` (one point of tolerance)
+- `the "<name>" PDF (should|should NOT) have a document outline`
 - `the "<name>" PDF should have <N> image(s)`
 - `the "<name>" PDF should reuse <N> image XObject(s) across <P> page(s)` (checks image appearances on every page and distinct PDF object IDs)
 - `the Gotenberg container (should|should NOT) log the following entries:` (table of log substrings)
