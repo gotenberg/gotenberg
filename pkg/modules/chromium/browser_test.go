@@ -2,11 +2,14 @@ package chromium
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/chromedp/cdproto"
 	"github.com/dlclark/regexp2/v2"
 )
 
@@ -90,6 +93,35 @@ func TestBrowserArguments_restrictsNetwork(t *testing.T) {
 		t.Run(tc.scenario, func(t *testing.T) {
 			if got := tc.args.restrictsNetwork(); got != tc.expect {
 				t.Fatalf("restrictsNetwork() = %t, want %t", got, tc.expect)
+			}
+		})
+	}
+}
+
+func TestIsInvalidPrinterSettingsError(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"invalid printer settings", &cdproto.Error{Code: -32000, Message: "Show invalid printer settings error"}, true},
+		{"scale out of range", &cdproto.Error{Code: -32602, Message: "scale is outside of [0.1 - 2] range"}, true},
+		{"negative left margin", &cdproto.Error{Code: -32602, Message: "left margin is negative"}, true},
+		{"negative bottom margin", &cdproto.Error{Code: -32602, Message: "bottom margin is negative"}, true},
+		{"zero paper width", &cdproto.Error{Code: -32602, Message: "paper width is zero or negative"}, true},
+		{"zero paper height", &cdproto.Error{Code: -32602, Message: "paper height is zero or negative"}, true},
+		{"empty printable area", &cdproto.Error{Code: -32602, Message: "invalid print parameters: printable area is empty"}, true},
+		{"empty content area", &cdproto.Error{Code: -32602, Message: "invalid print parameters: content area is empty"}, true},
+		{"invalid print parameters", &cdproto.Error{Code: -32602, Message: "invalid print parameters"}, true},
+		{"printing failed", &cdproto.Error{Code: -32000, Message: "Printing failed"}, false},
+		{"page range exceeds page count", &cdproto.Error{Code: -32000, Message: "Page range exceeds page count"}, false},
+		{"unknown", errors.New("boom"), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Mirrors how the print task wraps the error returned by Chromium.
+			err := fmt.Errorf("print to PDF: %w", tc.err)
+			if got := isInvalidPrinterSettingsError(err.Error()); got != tc.want {
+				t.Errorf("isInvalidPrinterSettingsError(%q) = %t, want %t", err.Error(), got, tc.want)
 			}
 		})
 	}
