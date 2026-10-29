@@ -11,7 +11,7 @@ import (
 
 	"github.com/hashicorp/go-retryablehttp"
 
-	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
 
 func TestWebhook_deliveryTimeout(t *testing.T) {

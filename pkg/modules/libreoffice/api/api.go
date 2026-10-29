@@ -20,8 +20,8 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
-	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 )
 
 func init() {

@@ -24,7 +24,7 @@ import (
 	"github.com/dlclark/regexp2/v2"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
 
 // listenForNetworkActivity accumulates per-conversion network activity into

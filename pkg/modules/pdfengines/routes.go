@@ -13,8 +13,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 
-	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
-	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 )
 
 // FormDataPdfSplitMode creates a [gotenberg.SplitMode] from the form data.

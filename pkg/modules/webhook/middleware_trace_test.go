@@ -10,8 +10,8 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
-	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 )
 
 // TestDetachAsyncContext_TraceContinuity asserts that an asynchronous webhook

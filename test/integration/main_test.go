@@ -13,7 +13,7 @@ import (
 	"github.com/cucumber/godog/colors"
 	flag "github.com/spf13/pflag"
 
-	"github.com/gotenberg/gotenberg/v8/test/integration/scenario"
+	"github.com/gotenberg/gotenberg/v9/test/integration/scenario"
 )
 
 func TestMain(m *testing.M) {

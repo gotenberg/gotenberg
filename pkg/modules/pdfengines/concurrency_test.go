@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
+	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 )
 
 func TestForEachInputPath(t *testing.T) {

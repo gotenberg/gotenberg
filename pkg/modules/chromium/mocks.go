@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
 
 // ApiMock is a mock for the [Api] interface.

@@ -20,8 +20,8 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
-	semconvutil "github.com/gotenberg/gotenberg/v8/pkg/gotenberg/semconv"
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
+	semconvutil "github.com/gotenberg/gotenberg/v9/pkg/gotenberg/semconv"
 )
 
 var (

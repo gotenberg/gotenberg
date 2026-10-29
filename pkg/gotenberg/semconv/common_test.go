@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg/semconv"
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg/semconv"
 	"go.opentelemetry.io/otel/attribute"
 )
 

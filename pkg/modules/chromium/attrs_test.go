@@ -9,7 +9,7 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 
-	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
+	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 )
 
 func TestPrintToPdfAttrs(t *testing.T) {

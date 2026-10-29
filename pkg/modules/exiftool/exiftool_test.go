@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
 
 func TestBuildExifToolWriteArgs_String(t *testing.T) {
