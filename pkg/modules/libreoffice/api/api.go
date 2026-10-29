@@ -86,6 +86,30 @@ type Api struct {
 	coreDumpedRetriesCounter  metric.Int64Counter
 }
 
+// The PDF/A formats LibreOffice exports natively.
+const (
+	// PdfA1b represents the PDF/A-1b format.
+	PdfA1b string = "PDF/A-1b"
+
+	// PdfA2b represents the PDF/A-2b format.
+	PdfA2b string = "PDF/A-2b"
+
+	// PdfA3b represents the PDF/A-3b format.
+	PdfA3b string = "PDF/A-3b"
+
+	// PdfA4 represents the PDF/A-4 format.
+	PdfA4 string = "PDF/A-4"
+)
+
+// PdfFormats specifies the formats LibreOffice exports natively.
+type PdfFormats struct {
+	// PdfA is one of [PdfA1b], [PdfA2b], [PdfA3b] or [PdfA4], or empty.
+	PdfA string
+
+	// PdfUa enables PDF/UA (Universal Accessibility) compliance.
+	PdfUa bool
+}
+
 // Options gathers available options when converting a document to PDF.
 // See: https://help.libreoffice.org/latest/en-US/text/shared/guide/pdf_params.html.
 type Options struct {
@@ -272,7 +296,7 @@ type Options struct {
 
 	// PdfFormats allows to convert the resulting PDF to PDF/A-1b, PDF/A-2b,
 	// PDF/A-3b, PDF/A-4 and PDF/UA.
-	PdfFormats gotenberg.PdfFormats
+	PdfFormats PdfFormats
 }
 
 // DefaultOptions returns the default values for Options.
@@ -323,7 +347,7 @@ func DefaultOptions() Options {
 		NativeWatermarkFontName:         "Helvetica",
 		NativeTiledWatermarkText:        "",
 		GenerateTaggedPdf:               false,
-		PdfFormats: gotenberg.PdfFormats{
+		PdfFormats: PdfFormats{
 			PdfA:  "",
 			PdfUa: false,
 		},

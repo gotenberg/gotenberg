@@ -1,35 +1,18 @@
 package api
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
 	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
-)
-
-const (
-	// EmbedsFormField represents the form field name for embedding files.
-	EmbedsFormField string = "embeds"
-
-	// WatermarkFormField represents the form field name for the watermark file.
-	WatermarkFormField string = "watermark"
-
-	// StampFormField represents the form field name for the stamp file.
-	StampFormField string = "stamp"
-
-	// FacturXXmlFormField represents the form field name for the Factur-X CII
-	// invoice XML file.
-	FacturXXmlFormField string = "facturxXml"
 )
 
 // FormData is a helper for validating and hydrating values from a
@@ -39,7 +22,6 @@ const (
 type FormData struct {
 	values         map[string][]string
 	files          map[string]string
-	filesByField   map[string][]string
 	diskToOriginal map[string]string
 	fileOrder      map[string]int
 	fileBase       map[string]string
@@ -378,58 +360,6 @@ func (form *FormData) Paths(extensions []string, target *[]string) *FormData {
 	return form.paths(extensions, target)
 }
 
-// Embeds binds the absolute paths of form data files that should be
-// embedded in the PDF. Only files uploaded with the "embeds" field name
-// will be included.
-//
-//	var embeds []string
-//
-//	ctx.FormData().Embeds(&embeds)
-func (form *FormData) Embeds(target *[]string) *FormData {
-	if form.errors != nil {
-		return form
-	}
-
-	// Get files from the "embeds" field
-	if paths, ok := form.filesByField[EmbedsFormField]; ok {
-		*target = append(*target, paths...)
-	}
-
-	return form
-}
-
-// EmbedsMetadata parses the "embedsMetadata" form field (a JSON string) into
-// a map keyed by filename. Each value is a map of property names to values
-// (e.g., "mimeType" and "relationship").
-//
-//	var metadata map[string]map[string]string
-//
-//	ctx.FormData().EmbedsMetadata(&metadata)
-func (form *FormData) EmbedsMetadata(target *map[string]map[string]string) *FormData {
-	if form.errors != nil {
-		return form
-	}
-
-	val, ok := form.values["embedsMetadata"]
-	if !ok || len(val) == 0 || val[0] == "" {
-		return form
-	}
-
-	raw := val[0]
-	parsed := make(map[string]map[string]string)
-
-	err := json.Unmarshal([]byte(raw), &parsed)
-	if err != nil {
-		form.append(
-			fmt.Errorf("form field 'embedsMetadata' is invalid: %w", err),
-		)
-		return form
-	}
-
-	*target = parsed
-	return form
-}
-
 // MandatoryPaths binds the absolute paths of form data files, according to a
 // list of file extensions, to a string slice variable. It populates an error
 // if there is no file for given file extensions.
@@ -451,66 +381,6 @@ func (form *FormData) MandatoryPaths(extensions []string, target *[]string) *For
 	return form
 }
 
-// Watermark binds the absolute path of the form data file that should be
-// used as a watermark source. Only a file uploaded with the "watermark"
-// field name will be included.
-func (form *FormData) Watermark(target *string) *FormData {
-	if form.errors != nil {
-		return form
-	}
-
-	if paths, ok := form.filesByField[WatermarkFormField]; ok && len(paths) > 0 {
-		*target = paths[0]
-	}
-
-	return form
-}
-
-// Stamp binds the absolute path of the form data file that should be
-// used as a stamp source. Only a file uploaded with the "stamp"
-// field name will be included.
-func (form *FormData) Stamp(target *string) *FormData {
-	if form.errors != nil {
-		return form
-	}
-
-	if paths, ok := form.filesByField[StampFormField]; ok && len(paths) > 0 {
-		*target = paths[0]
-	}
-
-	return form
-}
-
-// Stamps binds the absolute paths of every file uploaded with the "stamp"
-// field name, in submission order. Unlike [FormData.Stamp], it keeps all of
-// them so a route can apply several stamps in a single request.
-func (form *FormData) Stamps(target *[]string) *FormData {
-	if form.errors != nil {
-		return form
-	}
-
-	if paths, ok := form.filesByField[StampFormField]; ok {
-		*target = paths
-	}
-
-	return form
-}
-
-// Watermarks binds the absolute paths of every file uploaded with the
-// "watermark" field name, in submission order. Unlike [FormData.Watermark], it
-// keeps all of them so a route can apply several watermarks in a single request.
-func (form *FormData) Watermarks(target *[]string) *FormData {
-	if form.errors != nil {
-		return form
-	}
-
-	if paths, ok := form.filesByField[WatermarkFormField]; ok {
-		*target = paths
-	}
-
-	return form
-}
-
 // Strings binds every value submitted for key, in submission order. A field
 // repeated in the multipart body (e.g. multiple "stampSource") contributes one
 // entry per occurrence, which lets a route read parallel field arrays.
@@ -526,29 +396,9 @@ func (form *FormData) Strings(key string, target *[]string) *FormData {
 	return form
 }
 
-// FacturXXml binds the absolute path of the uploaded Factur-X CII invoice
-// XML. Only a file uploaded with the "facturxXml" field name is included.
-func (form *FormData) FacturXXml(target *string) *FormData {
-	if form.errors != nil {
-		return form
-	}
-
-	if paths, ok := form.filesByField[FacturXXmlFormField]; ok && len(paths) > 0 {
-		*target = paths[0]
-	}
-
-	return form
-}
-
 // paths bind the absolute paths of form data files, according to a list of
 // file extensions, to a string slice variable.
-// embeds, watermark, stamp, and facturxXml files are excluded.
 func (form *FormData) paths(extensions []string, target *[]string) *FormData {
-	embeds, ok := form.filesByField[EmbedsFormField]
-	watermarks, wmOk := form.filesByField[WatermarkFormField]
-	stamps, stOk := form.filesByField[StampFormField]
-	facturxXmls, fxOk := form.filesByField[FacturXXmlFormField]
-
 	// Collect (originalFilename, diskPath) pairs so that we can sort by
 	// original filename rather than by UUID-based disk name.
 	// See https://github.com/gotenberg/gotenberg/issues/1500.
@@ -559,22 +409,6 @@ func (form *FormData) paths(extensions []string, target *[]string) *FormData {
 	var entries []entry
 
 	for filename, path := range form.files {
-		if ok && slices.Contains(embeds, path) {
-			continue
-		}
-
-		if wmOk && slices.Contains(watermarks, path) {
-			continue
-		}
-
-		if stOk && slices.Contains(stamps, path) {
-			continue
-		}
-
-		if fxOk && slices.Contains(facturxXmls, path) {
-			continue
-		}
-
 		for _, ext := range extensions {
 			// See https://github.com/gotenberg/gotenberg/issues/228.
 			if strings.ToLower(filepath.Ext(filename)) == ext {

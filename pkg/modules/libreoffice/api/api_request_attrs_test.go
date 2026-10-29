@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
 
 func TestConversionRequestAttributes(t *testing.T) {
@@ -18,7 +17,7 @@ func TestConversionRequestAttributes(t *testing.T) {
 	options := Options{
 		Landscape:  true,
 		PageRanges: "1-3",
-		PdfFormats: gotenberg.PdfFormats{PdfA: "PDF/A-2b", PdfUa: true},
+		PdfFormats: PdfFormats{PdfA: "PDF/A-2b", PdfUa: true},
 	}
 
 	got := map[string]any{}

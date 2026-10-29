@@ -14,7 +14,6 @@ import (
 
 	"github.com/labstack/echo/v5"
 
-	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 	libreofficeapi "github.com/gotenberg/gotenberg/v9/pkg/modules/libreoffice/api"
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/pdf"
@@ -260,12 +259,12 @@ func TestConvertRoute_Stages(t *testing.T) {
 	ctx.SetDirPath(dir)
 	ctx.SetFiles(files)
 	ctx.SetValues(map[string][]string{
-		"pdfa":   {gotenberg.PdfA1b},
+		"pdfa":   {libreofficeapi.PdfA1b},
 		"stages": {`[{"op":"merge"}]`},
 	})
 	ctx.SetLogger(slog.New(slog.DiscardHandler))
 
-	var native []gotenberg.PdfFormats
+	var native []libreofficeapi.PdfFormats
 	uno := &libreofficeapi.ApiMock{
 		ExtensionsMock: func() []string {
 			return []string{".docx"}
@@ -292,8 +291,8 @@ func TestConvertRoute_Stages(t *testing.T) {
 	}
 
 	for _, formats := range native {
-		if formats.PdfA != gotenberg.PdfA1b {
-			t.Errorf("native formats = %+v, want PDF/A %q", formats, gotenberg.PdfA1b)
+		if formats.PdfA != libreofficeapi.PdfA1b {
+			t.Errorf("native formats = %+v, want PDF/A %q", formats, libreofficeapi.PdfA1b)
 		}
 	}
 

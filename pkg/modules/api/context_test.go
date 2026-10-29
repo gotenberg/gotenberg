@@ -140,7 +140,7 @@ func TestNewContext_RemovesMultipartTemporaryFiles(t *testing.T) {
 }
 
 // Concurrent downloadFrom entries must not race on the shared maps
-// (ctx.files, ctx.diskToOriginal, ctx.filesByField). Run under -race
+// (ctx.files, ctx.diskToOriginal). Run under -race
 // to catch the data race; without -race a sufficient number of entries
 // still surfaces "fatal error: concurrent map writes".
 func TestNewContext_DownloadFromConcurrentMapWrites(t *testing.T) {
@@ -168,8 +168,7 @@ func TestNewContext_DownloadFromConcurrentMapWrites(t *testing.T) {
 	dls := make([]downloadFrom, downloads)
 	for i := range dls {
 		dls[i] = downloadFrom{
-			Url:   fmt.Sprintf("%s/file?i=%d", server.URL, i),
-			Field: "embedded",
+			Url: fmt.Sprintf("%s/file?i=%d", server.URL, i),
 		}
 	}
 
@@ -210,9 +209,6 @@ func TestNewContext_DownloadFromConcurrentMapWrites(t *testing.T) {
 	}
 	if got := len(ctx.diskToOriginal); got != downloads {
 		t.Fatalf("diskToOriginal entries = %d, want %d", got, downloads)
-	}
-	if got := len(ctx.filesByField[EmbedsFormField]); got != downloads {
-		t.Fatalf("filesByField[%q] entries = %d, want %d", EmbedsFormField, got, downloads)
 	}
 }
 
@@ -803,7 +799,7 @@ func TestNewContext_DuplicateFilenamesAreBothKept(t *testing.T) {
 		t.Fatalf("close multipart writer: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodPost, "/forms/pdfengines/merge", body)
+	req := httptest.NewRequest(http.MethodPost, "/forms/pdf/merge", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	echoCtx := echo.New().NewContext(req, httptest.NewRecorder())
@@ -818,9 +814,6 @@ func TestNewContext_DuplicateFilenamesAreBothKept(t *testing.T) {
 
 	if got := len(ctx.files); got != 2 {
 		t.Fatalf("ctx.files = %d entries, want 2: a duplicate filename dropped a file", got)
-	}
-	if got := len(ctx.filesByField["files"]); got != 2 {
-		t.Fatalf("filesByField[files] = %d entries, want 2", got)
 	}
 
 	// The two maps must agree, and both files must be distinct on disk.
@@ -957,7 +950,7 @@ func TestNewContext_BodyLimitBoundsIngress(t *testing.T) {
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			counted := &countingReadCloser{r: bytes.NewReader(body.Bytes())}
-			req := httptest.NewRequest(http.MethodPost, "/forms/pdfengines/merge", nil)
+			req := httptest.NewRequest(http.MethodPost, "/forms/pdf/merge", nil)
 			req.Body = counted
 			req.ContentLength = -1
 			if tc.knownLength {
