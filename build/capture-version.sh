@@ -20,15 +20,6 @@ mkdir -p "$dir"
 # Run the probe once. On failure, keep going with empty output.
 raw="$("$@" 2>/dev/null)" || raw=""
 
-case "$id" in
-pdfcpu)
-    # pdfcpu prints "pdfcpu: <version>"; keep only the part the runtime parser
-    # keeps so the recorded value matches the live-detection fallback.
-    version="$(printf '%s\n' "$raw" | grep -m1 '^pdfcpu:' | sed 's/^pdfcpu:[[:space:]]*//')"
-    ;;
-*)
-    version="$(printf '%s\n' "$raw" | head -n1)"
-    ;;
-esac
+version="$(printf '%s\n' "$raw" | head -n1)"
 
 printf '%s' "$version" | tr -d '\r' >"$dir/$id"
