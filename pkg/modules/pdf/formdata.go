@@ -16,13 +16,17 @@ import (
 const StagesFormField = "stages"
 
 // FormDataStages parses the optional "stages" form field and resolves the
-// uploaded files the stages read. It returns a 400 error naming the field or
-// the missing file.
+// uploaded files the stages read. An invalid "stages" field returns a 400
+// error right away. A missing file is recorded on the form instead, so that
+// the route's own [api.FormData.Validate] reports it with the other form
+// errors.
 func FormDataStages(form *api.FormData) (Stages, map[string]string, error) {
-	var raw string
-	err := form.String(StagesFormField, &raw, "").Validate()
-	if err != nil {
-		return nil, nil, fmt.Errorf("validate form data: %w", err)
+	var values []string
+	form.Strings(StagesFormField, &values)
+
+	raw := ""
+	if len(values) > 0 {
+		raw = values[0]
 	}
 
 	stages, err := ParseStages(raw)
@@ -30,34 +34,22 @@ func FormDataStages(form *api.FormData) (Stages, map[string]string, error) {
 		return nil, nil, handleError(err, "")
 	}
 
-	files, err := stageFiles(form, stages)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return stages, files, nil
+	return stages, stageFiles(form, stages), nil
 }
 
 // stageFiles resolves the uploaded files stages read to their paths on disk.
-func stageFiles(form *api.FormData, stages Stages) (map[string]string, error) {
+// A missing file is recorded on the form, and validated with it.
+func stageFiles(form *api.FormData, stages Stages) map[string]string {
 	names := stages.Files()
 	files := make(map[string]string, len(names))
-	paths := make([]string, len(names))
 
-	for i, name := range names {
-		form.MandatoryPath(name, &paths[i])
+	for _, name := range names {
+		var path string
+		form.MandatoryPath(name, &path)
+		files[name] = path
 	}
 
-	err := form.Validate()
-	if err != nil {
-		return nil, fmt.Errorf("validate form data: %w", err)
-	}
-
-	for i, name := range names {
-		files[name] = paths[i]
-	}
-
-	return files, nil
+	return files
 }
 
 // inputPDFs returns the uploaded PDFs no stage reads, in upload-name order.
@@ -140,12 +132,7 @@ func stageFromForm(op string, form *api.FormData) (Stages, map[string]string, er
 		))
 	}
 
-	files, err := stageFiles(form, stages)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return stages, files, nil
+	return stages, stageFiles(form, stages), nil
 }
 
 // formValue converts a form field to the JSON value of a stage option of type

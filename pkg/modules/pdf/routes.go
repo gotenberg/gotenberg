@@ -23,7 +23,9 @@ func pipeRoute(processor *Processor) api.Route {
 		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
-			stages, files, err := FormDataStages(ctx.FormData())
+			form := ctx.FormData()
+
+			stages, files, err := FormDataStages(form)
 			if err != nil {
 				return err
 			}
@@ -35,7 +37,7 @@ func pipeRoute(processor *Processor) api.Route {
 				)
 			}
 
-			return runStages(ctx, processor, stages, files)
+			return runStages(ctx, form, processor, stages, files)
 		},
 	}
 }
@@ -50,20 +52,23 @@ func stageRoute(processor *Processor, op string) api.Route {
 		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 
-			stages, files, err := stageFromForm(op, ctx.FormData())
+			form := ctx.FormData()
+
+			stages, files, err := stageFromForm(op, form)
 			if err != nil {
 				return err
 			}
 
-			return runStages(ctx, processor, stages, files)
+			return runStages(ctx, form, processor, stages, files)
 		},
 	}
 }
 
 // runStages runs stages on the uploaded PDFs no stage reads and registers the
-// outputs.
-func runStages(ctx *api.Context, processor *Processor, stages Stages, files map[string]string) error {
-	inputPaths, err := inputPDFs(ctx.FormData(), files)
+// outputs. form must be the one the stages were read from, so that its
+// validation reports a missing stage file.
+func runStages(ctx *api.Context, form *api.FormData, processor *Processor, stages Stages, files map[string]string) error {
+	inputPaths, err := inputPDFs(form, files)
 	if err != nil {
 		return err
 	}
