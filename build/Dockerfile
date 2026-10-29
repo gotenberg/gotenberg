@@ -4,31 +4,6 @@
 ARG GOLANG_VERSION=1.27.3
 
 # ----------------------------------------------
-# pdfcpu binary build stage
-# ----------------------------------------------
-# Note: this stage is required as pdfcpu does not release an armhf variant by
-# default.
-FROM golang:$GOLANG_VERSION AS pdfcpu-binary-stage
-
-# See https://github.com/pdfcpu/pdfcpu/releases.
-ARG PDFCPU_VERSION=v0.16.3
-ENV CGO_ENABLED=0
-
-# Define the working directory outside of $GOPATH (we're using go modules).
-WORKDIR /home
-
-RUN curl -Ls "https://github.com/pdfcpu/pdfcpu/archive/refs/tags/$PDFCPU_VERSION.tar.gz" -o pdfcpu.tar.gz \
-    && tar --strip-components=1 -xvzf pdfcpu.tar.gz
-
-# Install module dependencies.
-RUN go mod download \
-    && go mod verify
-
-RUN go build -o pdfcpu -ldflags "-s -w -X 'main.version=$PDFCPU_VERSION' -X 'github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model.VersionStr=$PDFCPU_VERSION' -X main.builtBy=gotenberg" ./cmd/pdfcpu \
-    # Verify installation.
-    && ./pdfcpu version
-
-# ----------------------------------------------
 # lok binary build stage
 # ----------------------------------------------
 # lok converts documents with LibreOfficeKit. It is built from a pinned commit
@@ -83,61 +58,6 @@ RUN go build -o gotenberg -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v9/
     && go build -o gotenberg-libreoffice -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v9/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg-libreoffice/main.go
 
 # ----------------------------------------------
-# Custom JRE stage
-# Credits: https://github.com/jodconverter/docker-image-jodconverter-runtime
-# ----------------------------------------------
-FROM debian:13-slim AS custom-jre-stage
-
-# APT_SNAPSHOT busts every layer below it when CI rotates the value, weekly.
-# Without it a persistent build cache turns the unpinned "apt-get upgrade" into
-# a cache hit and the published image keeps shipping the package versions that
-# were current when the cache was first populated.
-ARG APT_SNAPSHOT=""
-
-RUN echo "apt snapshot: $APT_SNAPSHOT" \
-    && apt-get update -qq \
-    && apt-get upgrade -yqq \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends default-jdk-headless binutils
-
-# Note: jdeps helps finding which modules a JAR requires.
-# Currently only for PDFtk, as we don't rely on LibreOffice UNO Java SDK.
-ENV JAVA_MODULES=java.base,java.desktop,java.naming,java.sql
-
-RUN jlink \
-    --add-modules $JAVA_MODULES \
-    --strip-debug \
-    --no-man-pages \
-    --no-header-files \
-    --compress=2 \
-    --output /custom-jre
-
-# Remove the eMudhra roots (emSign ECC Root CA - G3 and AAA Certificate
-# Services) from the JRE trust store. Debian's ca-certificates and Chromium
-# already distrust them, but Debian's OpenJDK still ships them in the bundled
-# cacerts. The loop skips an alias once a newer OpenJDK drops it.
-RUN for alias in "emsigneccrootcag3 [jdk]" "comodoaaaca [jdk]"; do \
-        if keytool -list -keystore /custom-jre/lib/security/cacerts -storepass changeit -alias "$alias" > /dev/null 2>&1; then \
-            keytool -delete -keystore /custom-jre/lib/security/cacerts -storepass changeit -alias "$alias"; \
-        fi; \
-    done
-
-# ----------------------------------------------
-# Downloader stage
-# ----------------------------------------------
-FROM debian:13-slim AS downloader-stage
-
-# See https://gitlab.com/pdftk-java/pdftk/-/releases - Binary package.
-ARG PDFTK_VERSION=v3.3.3
-
-RUN apt-get update -qq \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl ca-certificates
-
-WORKDIR /downloads
-
-RUN curl -o pdftk-all.jar "https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/$PDFTK_VERSION/pdftk-all.jar" \
-    && chmod a+x pdftk-all.jar
-
-# ----------------------------------------------
 # Base image stage
 # ----------------------------------------------
 FROM debian:13-slim AS base-image-stage
@@ -145,9 +65,6 @@ FROM debian:13-slim AS base-image-stage
 ARG TIMEZONE=UTC
 ENV TZ=$TIMEZONE
 
-COPY --link --from=custom-jre-stage /custom-jre /opt/java
-
-ENV PATH="/opt/java/bin:${PATH}"
 
 # ----------------------------------------------
 # Common stage
@@ -157,7 +74,10 @@ FROM base-image-stage AS common-stage
 ARG GOTENBERG_USER_GID=1001
 ARG GOTENBERG_USER_UID=1001
 
-# See the note on APT_SNAPSHOT in custom-jre-stage. Declaring it here covers
+# APT_SNAPSHOT busts every layer below it when CI rotates the value, weekly.
+# Without it a persistent build cache turns the unpinned "apt-get upgrade" into
+# a cache hit and the published image keeps shipping the package versions that
+# were current when the cache was first populated. Declaring it here covers
 # every "apt-get upgrade" in the gotenberg, gotenberg-chromium and
 # gotenberg-libreoffice targets too, since all three branch from this stage.
 ARG APT_SNAPSHOT=""
@@ -192,17 +112,10 @@ RUN apt-get update -qq \
         fonts-noto-color-emoji \
         # Tofu prevention.
         fonts-noto-core \
-        # Install QPDF & ExifTool (PDF engines).
-        qpdf exiftool \
     # See https://github.com/nextcloud/docker/issues/380.
     && mkdir -p /usr/share/man/man1 \
     # Cleanup.
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# PDFtk bash wrapper.
-# See https://github.com/gotenberg/gotenberg/pull/273.
-RUN printf '#!/bin/bash\n\nexec java -jar /usr/bin/pdftk-all.jar "$@"' > /usr/bin/pdftk \
-    && chmod +x /usr/bin/pdftk
 
 # Support for arbitrary user IDs (OpenShift).
 # See:
@@ -220,24 +133,12 @@ RUN usermod -aG root gotenberg \
 # https://github.com/arachnys/athenapdf/commit/ba25a8d80a25d08d58865519c4cd8756dc9a336d.
 COPY --link build/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 
-# Copy PDFtk jar.
-COPY --link --from=downloader-stage /downloads/pdftk-all.jar /usr/bin/pdftk-all.jar
-
-# Copy the pdfcpu binary (shared across all variants).
-COPY --link --from=pdfcpu-binary-stage /home/pdfcpu /usr/bin/
-
 # Set default characterset encoding to UTF-8.
 # See:
 # https://github.com/gotenberg/gotenberg/issues/104
 # https://github.com/gotenberg/gotenberg/issues/730
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
-
-# Environment variables for PDF engines.
-ENV PDFTK_BIN_PATH=/usr/bin/pdftk
-ENV QPDF_BIN_PATH=/usr/bin/qpdf
-ENV EXIFTOOL_BIN_PATH=/usr/bin/exiftool
-ENV PDFCPU_BIN_PATH=/usr/bin/pdfcpu
 
 # Capture backing-binary versions at build time so the running process reports
 # them on traces without spawning the binaries at startup or per request.
@@ -246,11 +147,6 @@ ENV PDFCPU_BIN_PATH=/usr/bin/pdfcpu
 ENV GOTENBERG_VERSIONS_DIR_PATH=/opt/gotenberg/versions
 
 COPY --link build/capture-version.sh /opt/gotenberg/capture-version.sh
-
-RUN bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" qpdf "$QPDF_BIN_PATH" --version \
-    && bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" exiftool "$EXIFTOOL_BIN_PATH" -ver \
-    && bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" pdftk "$PDFTK_BIN_PATH" --version \
-    && bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" pdfcpu "$PDFCPU_BIN_PATH" version
 
 # OpenTelemetry defaults (noop - no telemetry overhead unless explicitly enabled).
 ENV OTEL_TRACES_EXPORTER=none
@@ -389,8 +285,6 @@ COPY --link --chown="$GOTENBERG_USER_UID:$GOTENBERG_USER_GID" build/chromium-hyp
 
 ENV CHROMIUM_BIN_PATH=/usr/bin/chromium
 ENV CHROMIUM_HYPHEN_DATA_DIR_PATH=/opt/gotenberg/chromium-hyphen-data
-# No LibreOffice in this variant; override the default to use all available engines.
-ENV PDFENGINES_CONVERT_ENGINES=
 
 # Capture the Chromium version now that it is installed.
 RUN bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" chromium "$CHROMIUM_BIN_PATH" --version
