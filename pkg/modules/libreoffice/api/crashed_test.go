@@ -30,7 +30,7 @@ func sumInt64Counter(rm metricdata.ResourceMetrics, name string) int64 {
 	return total
 }
 
-func TestApi_Pdf_CoreDumpedRetryCap(t *testing.T) {
+func TestApi_Pdf_CrashRetryCap(t *testing.T) {
 	reader := sdkmetric.NewManualReader()
 	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
 	previous := otel.GetMeterProvider()
@@ -41,7 +41,7 @@ func TestApi_Pdf_CoreDumpedRetryCap(t *testing.T) {
 	supervisor := &gotenberg.ProcessSupervisorMock{
 		RunMock: func(_ context.Context, _ *slog.Logger, _ func() error) error {
 			runCalls++
-			return ErrCoreDumped
+			return ErrCrashed
 		},
 		ReqQueueSizeMock:            func() int64 { return 0 },
 		ConversionsSinceRestartMock: func() int64 { return 0 },
@@ -54,14 +54,14 @@ func TestApi_Pdf_CoreDumpedRetryCap(t *testing.T) {
 	a.conversionDurationCounter, _ = meter.Float64Histogram("libreoffice.conversion.duration")
 	a.queueWaitDurationCounter, _ = meter.Float64Histogram("libreoffice.queue.wait.duration")
 	a.pdfOutputSizeCounter, _ = meter.Int64Histogram("libreoffice.pdf.output.size")
-	a.coreDumpedRetriesCounter, _ = meter.Int64Counter("libreoffice.conversion.retries.total")
+	a.crashRetriesCounter, _ = meter.Int64Counter("libreoffice.conversion.retries.total")
 
 	err := a.Pdf(context.Background(), slog.New(slog.DiscardHandler), "/nonexistent/in.docx", "/tmp/out.pdf", Options{})
 	if err == nil {
 		t.Fatal("expected an error after exhausting the retries")
 	}
-	if !errors.Is(err, ErrCoreDumped) {
-		t.Errorf("expected ErrCoreDumped, got %v", err)
+	if !errors.Is(err, ErrCrashed) {
+		t.Errorf("expected ErrCrashed, got %v", err)
 	}
 
 	// 1 initial attempt + 10 retries.

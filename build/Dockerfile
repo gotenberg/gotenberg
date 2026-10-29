@@ -29,6 +29,35 @@ RUN go build -o pdfcpu -ldflags "-s -w -X 'main.version=$PDFCPU_VERSION' -X 'git
     && ./pdfcpu version
 
 # ----------------------------------------------
+# lok binary build stage
+# ----------------------------------------------
+# lok converts documents with LibreOfficeKit. It is built from a pinned commit
+# until a lok release carries the features Gotenberg relies on; then lok's
+# install.sh replaces this stage. It links against the LibreOfficeKit headers
+# of the LibreOffice the final images install from trixie-backports.
+FROM golang:$GOLANG_VERSION-trixie AS lok-binary-stage
+
+# See https://github.com/gotenberg/lok.
+ARG LOK_COMMIT=54ab7ed85e20281b3ab39c66f4f415df8d69c2cd
+ENV CGO_ENABLED=1
+# LibreOffice from trixie-backports is newer than 7.6, which provides the
+# trimMemory API.
+ENV CGO_CFLAGS="-DLOK_HAS_TRIM_MEMORY"
+
+RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/sources.list \
+    && apt-get update -qq \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t trixie-backports libreofficekit-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /home
+
+RUN curl -Ls "https://github.com/gotenberg/lok/archive/$LOK_COMMIT.tar.gz" -o lok.tar.gz \
+    && tar --strip-components=1 -xzf lok.tar.gz \
+    && go build -o lok -ldflags "-s -w -X main.version=$LOK_COMMIT" ./cmd/lok \
+    # Verify installation.
+    && ./lok --version
+
+# ----------------------------------------------
 # Gotenberg binary build stage
 # ----------------------------------------------
 FROM golang:$GOLANG_VERSION AS gotenberg-binary-stage
@@ -83,9 +112,9 @@ RUN jlink \
     --output /custom-jre
 
 # Remove the eMudhra roots (emSign ECC Root CA - G3 and AAA Certificate
-# Services) from the JRE trust store. Debian's ca-certificates already drops
-# them and Chromium distrusts them through build/chromium-policies, but
-# Debian's OpenJDK still ships them in the bundled cacerts. The loop skips an alias once a newer OpenJDK drops it.
+# Services) from the JRE trust store. Debian's ca-certificates and Chromium
+# already distrust them, but Debian's OpenJDK still ships them in the bundled
+# cacerts. The loop skips an alias once a newer OpenJDK drops it.
 RUN for alias in "emsigneccrootcag3 [jdk]" "comodoaaaca [jdk]"; do \
         if keytool -list -keystore /custom-jre/lib/security/cacerts -storepass changeit -alias "$alias" > /dev/null 2>&1; then \
             keytool -delete -keystore /custom-jre/lib/security/cacerts -storepass changeit -alias "$alias"; \
@@ -104,9 +133,6 @@ RUN apt-get update -qq \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl ca-certificates
 
 WORKDIR /downloads
-
-RUN curl -Ls https://raw.githubusercontent.com/gotenberg/unoconverter/v0.5.0/unoconv -o unoconverter \
-    && chmod +x unoconverter
 
 RUN curl -o pdftk-all.jar "https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/$PDFTK_VERSION/pdftk-all.jar" \
     && chmod a+x pdftk-all.jar
@@ -268,12 +294,11 @@ RUN /bin/bash -c \
     fi' \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Install LibreOffice & unoconverter.
+# Install LibreOffice.
 RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/sources.list \
     && apt-get update -qq \
     && apt-get upgrade -yqq \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
-        python3 \
         # Install Hyphenation for LibreOffice.
         # Credits: https://wiki.archlinux.org/title/LibreOffice.
         hyphen-af hyphen-as hyphen-be hyphen-bg hyphen-bn hyphen-ca hyphen-cs hyphen-da hyphen-de hyphen-el \
@@ -282,9 +307,7 @@ RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/so
         hyphen-no hyphen-or hyphen-pa hyphen-pl hyphen-pt-br hyphen-pt-pt hyphen-ro hyphen-ru hyphen-sk hyphen-sl \
         hyphen-sr hyphen-sv hyphen-ta hyphen-te hyphen-th hyphen-uk hyphen-zu \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t trixie-backports \
-        libreoffice-writer libreoffice-calc libreoffice-impress libreoffice-draw libreoffice-math python3-uno \
-    # unoconverter will look for the Python binary, which has to be at version 3.
-    && ln -s /usr/bin/python3 /usr/bin/python \
+        libreoffice-writer libreoffice-calc libreoffice-impress libreoffice-draw libreoffice-math \
     # Cleanup.
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -293,28 +316,17 @@ RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/so
 # Copy the Gotenberg binary (full variant with all modules).
 COPY --link --from=gotenberg-binary-stage /home/gotenberg /usr/bin/
 
-# Copy unoconverter.
-COPY --link --from=downloader-stage /downloads/unoconverter /usr/bin/unoconverter
+# Copy lok.
+COPY --link --from=lok-binary-stage /home/lok /usr/bin/lok
 
 # Copy dictionnaries so that hyphens work on Chromium.
 # See https://github.com/gotenberg/gotenberg/issues/1293.
 COPY --link --chown="$GOTENBERG_USER_UID:$GOTENBERG_USER_GID" build/chromium-hyphen-data /opt/gotenberg/chromium-hyphen-data
 
-# Distrust the roots behind the compromised eMudhra intermediates from the
-# first request. Chromium's root store still trusts emSign ECC Root CA - G3,
-# and only rejects the chains once its component updater fetches a CRLSet,
-# about two minutes after each start, or never without access to Google.
-# The policy lists, by SHA-256 fingerprint:
-#   - emSign ECC Root CA - G3 86A1ECBA089C4A8D3BBE2734C612BA341D813E043CF9E8A862CD5C57A36BBE6B
-#   - emSign Root TLS CA - G3 7DD78D5F4F13459A83DFF9ABBBA62EDBAF6F2D102BF257FD712F4D9F2746ED8D
-#   - AAA Certificate Services D7A7A0FB5D7E2731D771E9484EBCDEF71D5F0C3E0A2948782BC83EE0EA699EF4
-# See https://emudhra.we-have-a-problem.com.
-COPY --link build/chromium-policies /etc/chromium/policies/managed
-
 ENV CHROMIUM_BIN_PATH=/usr/bin/chromium
 ENV CHROMIUM_HYPHEN_DATA_DIR_PATH=/opt/gotenberg/chromium-hyphen-data
 ENV LIBREOFFICE_BIN_PATH=/usr/lib/libreoffice/program/soffice.bin
-ENV UNOCONVERTER_BIN_PATH=/usr/bin/unoconverter
+ENV LOK_BIN_PATH=/usr/bin/lok
 
 # Capture Chromium and LibreOffice versions now that both are installed.
 RUN bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" chromium "$CHROMIUM_BIN_PATH" --version \
@@ -375,17 +387,6 @@ COPY --link --from=gotenberg-binary-stage /home/gotenberg-chromium /usr/bin/gote
 # See https://github.com/gotenberg/gotenberg/issues/1293.
 COPY --link --chown="$GOTENBERG_USER_UID:$GOTENBERG_USER_GID" build/chromium-hyphen-data /opt/gotenberg/chromium-hyphen-data
 
-# Distrust the roots behind the compromised eMudhra intermediates from the
-# first request. Chromium's root store still trusts emSign ECC Root CA - G3,
-# and only rejects the chains once its component updater fetches a CRLSet,
-# about two minutes after each start, or never without access to Google.
-# The policy lists, by SHA-256 fingerprint:
-#   - emSign ECC Root CA - G3 86A1ECBA089C4A8D3BBE2734C612BA341D813E043CF9E8A862CD5C57A36BBE6B
-#   - emSign Root TLS CA - G3 7DD78D5F4F13459A83DFF9ABBBA62EDBAF6F2D102BF257FD712F4D9F2746ED8D
-#   - AAA Certificate Services D7A7A0FB5D7E2731D771E9484EBCDEF71D5F0C3E0A2948782BC83EE0EA699EF4
-# See https://emudhra.we-have-a-problem.com.
-COPY --link build/chromium-policies /etc/chromium/policies/managed
-
 ENV CHROMIUM_BIN_PATH=/usr/bin/chromium
 ENV CHROMIUM_HYPHEN_DATA_DIR_PATH=/opt/gotenberg/chromium-hyphen-data
 # No LibreOffice in this variant; override the default to use all available engines.
@@ -417,12 +418,11 @@ LABEL org.opencontainers.image.title="Gotenberg (LibreOffice)" \
     org.opencontainers.image.documentation="https://gotenberg.dev" \
     org.opencontainers.image.source="https://github.com/gotenberg/gotenberg"
 
-# Install LibreOffice & unoconverter.
+# Install LibreOffice.
 RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/sources.list \
     && apt-get update -qq \
     && apt-get upgrade -yqq \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
-        python3 \
         # Install Hyphenation for LibreOffice.
         # Credits: https://wiki.archlinux.org/title/LibreOffice.
         hyphen-af hyphen-as hyphen-be hyphen-bg hyphen-bn hyphen-ca hyphen-cs hyphen-da hyphen-de hyphen-el \
@@ -431,9 +431,7 @@ RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/so
         hyphen-no hyphen-or hyphen-pa hyphen-pl hyphen-pt-br hyphen-pt-pt hyphen-ro hyphen-ru hyphen-sk hyphen-sl \
         hyphen-sr hyphen-sv hyphen-ta hyphen-te hyphen-th hyphen-uk hyphen-zu \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t trixie-backports \
-        libreoffice-writer libreoffice-calc libreoffice-impress libreoffice-draw libreoffice-math python3-uno \
-    # unoconverter will look for the Python binary, which has to be at version 3.
-    && ln -s /usr/bin/python3 /usr/bin/python \
+        libreoffice-writer libreoffice-calc libreoffice-impress libreoffice-draw libreoffice-math \
     # Cleanup.
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -442,11 +440,11 @@ RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/so
 # Copy the Gotenberg binary (LibreOffice variant, no Chromium modules).
 COPY --link --from=gotenberg-binary-stage /home/gotenberg-libreoffice /usr/bin/gotenberg
 
-# Copy unoconverter.
-COPY --link --from=downloader-stage /downloads/unoconverter /usr/bin/unoconverter
+# Copy lok.
+COPY --link --from=lok-binary-stage /home/lok /usr/bin/lok
 
 ENV LIBREOFFICE_BIN_PATH=/usr/lib/libreoffice/program/soffice.bin
-ENV UNOCONVERTER_BIN_PATH=/usr/bin/unoconverter
+ENV LOK_BIN_PATH=/usr/bin/lok
 
 # Capture the LibreOffice version now that it is installed.
 RUN bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" libreoffice-api "$LIBREOFFICE_BIN_PATH" --version

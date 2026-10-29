@@ -85,6 +85,40 @@ func (cmd *Cmd) Start() error {
 	return nil
 }
 
+// StartWithPipes starts the unix process and returns its standard input and
+// output, for a process that speaks a protocol over them. Its standard error
+// is logged at debug level. Call Wait so that the process does not leak a
+// zombie.
+func (cmd *Cmd) StartWithPipes() (io.WriteCloser, io.ReadCloser, error) {
+	stdin, err := cmd.process.StdinPipe()
+	if err != nil {
+		return nil, nil, fmt.Errorf("pipe unix process stdin: %w", err)
+	}
+
+	stdout, err := cmd.process.StdoutPipe()
+	if err != nil {
+		return nil, nil, fmt.Errorf("pipe unix process stdout: %w", err)
+	}
+
+	if cmd.logger.Enabled(context.Background(), slog.LevelDebug) {
+		stderr, err := cmd.process.StderrPipe()
+		if err != nil {
+			return nil, nil, fmt.Errorf("pipe unix process stderr: %w", err)
+		}
+
+		go logCommandOutput(cmd.logger.With(slog.String("logger", "stderr")), stderr)
+	}
+
+	cmd.logger.DebugContext(context.Background(), fmt.Sprintf("start unix process: %s", strings.Join(cmd.process.Args, " ")))
+
+	err = cmd.process.Start()
+	if err != nil {
+		return nil, nil, fmt.Errorf("start unix process: %w", err)
+	}
+
+	return stdin, stdout, nil
+}
+
 // Wait waits for the command to complete. It should be called when using the
 // Start method so that the command does not leak zombies.
 func (cmd *Cmd) Wait() error {
@@ -207,33 +241,6 @@ func (cmd *Cmd) pipeOutput() error {
 		return fmt.Errorf("unix process sdterr: %w", err)
 	}
 
-	// logCommandOutput creates logs entries according to a reader
-	// (either stdout or stderr).
-	logCommandOutput := func(logger *slog.Logger, reader io.ReadCloser) {
-		r := bufio.NewReader(reader)
-		defer func(reader io.ReadCloser) {
-			err := reader.Close()
-			if err != nil && !strings.Contains(err.Error(), "file already closed") {
-				logger.ErrorContext(context.Background(), fmt.Sprintf("close reader: %s", err))
-			}
-		}(reader)
-
-		for {
-			line, _, err := r.ReadLine()
-			if err != nil {
-				if err != io.EOF && !strings.Contains(err.Error(), "file already closed") {
-					logger.ErrorContext(context.Background(), fmt.Sprintf("pipe unix process output error: %s", err))
-				}
-
-				break
-			}
-
-			if len(line) != 0 {
-				logger.DebugContext(context.Background(), string(line))
-			}
-		}
-	}
-
 	go logCommandOutput(cmd.logger.With(slog.String("logger", "stdout")), stdout)
 	go logCommandOutput(cmd.logger.With(slog.String("logger", "stderr")), stderr)
 
@@ -264,4 +271,30 @@ func (cmd *Cmd) Kill() error {
 	}
 
 	return fmt.Errorf("kill unix process: %w", err)
+}
+
+// logCommandOutput creates log entries from the lines of a process output.
+func logCommandOutput(logger *slog.Logger, reader io.ReadCloser) {
+	r := bufio.NewReader(reader)
+	defer func(reader io.ReadCloser) {
+		err := reader.Close()
+		if err != nil && !strings.Contains(err.Error(), "file already closed") {
+			logger.ErrorContext(context.Background(), fmt.Sprintf("close reader: %s", err))
+		}
+	}(reader)
+
+	for {
+		line, _, err := r.ReadLine()
+		if err != nil {
+			if err != io.EOF && !strings.Contains(err.Error(), "file already closed") {
+				logger.ErrorContext(context.Background(), fmt.Sprintf("pipe unix process output error: %s", err))
+			}
+
+			break
+		}
+
+		if len(line) != 0 {
+			logger.DebugContext(context.Background(), string(line))
+		}
+	}
 }

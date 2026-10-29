@@ -1,113 +1,207 @@
 package api
 
 import (
+	"bufio"
+	"context"
+	"encoding/json"
+	"errors"
 	"log/slog"
-	"net"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
 
-func TestDialUno(t *testing.T) {
-	// The first bytes LibreOffice 25.x sends on a new URP connection.
-	greeting := []byte("\x00\x00\x00e\x00\x00\x00\x01\xf8\x04\x96\x00\x00'com.sun.star.bridge.XProtocolProperties\x15UrpProtocolProperties")
+// fakeLokEnv makes the test binary act as lok's long-running mode, so the
+// process code runs against the real pipe protocol without LibreOffice.
+const fakeLokEnv = "GOTENBERG_TEST_FAKE_LOK"
+
+func TestMain(m *testing.M) {
+	if os.Getenv(fakeLokEnv) != "" {
+		fakeLok()
+		os.Exit(0)
+	}
+
+	os.Exit(m.Run())
+}
+
+// fakeLok answers each request according to the input filename: "ok" writes
+// the output, "badpass" and "unreadable" fail with lok's codes, "hang" never
+// answers, and "crash" exits. It records its arguments next to its profile.
+func fakeLok() {
+	for i, arg := range os.Args {
+		if arg == "--user-profile-path" && i+1 < len(os.Args) {
+			_ = os.WriteFile(filepath.Join(os.Args[i+1], "args"), []byte(strings.Join(os.Args[1:], " ")), 0o600)
+		}
+	}
+
+	in := bufio.NewReader(os.Stdin)
+	out := json.NewEncoder(os.Stdout)
+
+	for {
+		line, err := in.ReadBytes('\n')
+		if err != nil {
+			return
+		}
+
+		var req lokRequest
+		_ = json.Unmarshal(line, &req)
+
+		name := strings.TrimSuffix(filepath.Base(req.InputPath), filepath.Ext(req.InputPath))
+		if req.InputPath == "" {
+			name = ""
+		}
+
+		switch name {
+		case "":
+			_ = out.Encode(lokResponse{Code: lokCodeInvalidRequest, Error: "inputPath and outputPath are required"})
+		case "ok":
+			_ = os.WriteFile(req.OutputPath, line, 0o600)
+			_ = out.Encode(lokResponse{Success: true})
+		case "badpass":
+			_ = out.Encode(lokResponse{Code: lokCodeInvalidPassword, Error: "failed to load document: wrong document password"})
+		case "unreadable":
+			_ = out.Encode(lokResponse{Code: lokCodeLoadFailed, Error: "failed to load document"})
+		case "hang":
+			time.Sleep(time.Hour)
+		case "crash":
+			os.Exit(3)
+		}
+	}
+}
+
+func startFakeLok(t *testing.T) *libreOfficeProcess {
+	t.Helper()
+	t.Setenv(fakeLokEnv, "1")
+
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p := newLibreOfficeProcess(libreOfficeArguments{
+		binPath:      "/opt/libreoffice/program/soffice.bin",
+		lokBinPath:   exe,
+		startTimeout: 10 * time.Second,
+	}).(*libreOfficeProcess)
+
+	logger := slog.New(slog.DiscardHandler)
+
+	err = p.Start(logger)
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	t.Cleanup(func() { _ = p.Stop(logger) })
+
+	return p
+}
+
+func TestLibreOfficeProcess(t *testing.T) {
+	p := startFakeLok(t)
+	logger := slog.New(slog.DiscardHandler)
+	dir := t.TempDir()
+
+	args, err := os.ReadFile(filepath.Join(p.userProfileDirPath, "args"))
+	if err != nil {
+		t.Fatalf("read the fake lok arguments: %v", err)
+	}
+
+	want := "--long-running --libreoffice-program-path /opt/libreoffice/program --user-profile-path " + p.userProfileDirPath
+	if string(args) != want {
+		t.Errorf("lok arguments = %q, want %q", args, want)
+	}
+
+	xcu, err := os.ReadFile(filepath.Join(p.userProfileDirPath, "user", "registrymodifications.xcu"))
+	if err != nil || !strings.Contains(string(xcu), "BlockUntrustedRefererLinks") {
+		t.Errorf("the profile was not seeded before lok started: %v", err)
+	}
+
+	output := filepath.Join(dir, "out.pdf")
+	options := DefaultOptions()
+	options.PdfFormats = PdfFormats{PdfA: PdfA2b}
+
+	err = p.pdf(context.Background(), logger, filepath.Join(dir, "ok.csv"), output, options)
+	if err != nil {
+		t.Fatalf("pdf: %v", err)
+	}
+
+	var sent lokRequest
+	data, err := os.ReadFile(output)
+	if err != nil || json.Unmarshal(data, &sent) != nil {
+		t.Fatalf("the fake lok wrote no request: %v", err)
+	}
+
+	if sent.PdfVersion != 2 || !sent.EmbedStandardFonts || !sent.DisableCalcHeader || !sent.UpdateIndexes {
+		t.Errorf("request = %+v, want PDF/A-2b with embedded fonts, the CSV header off and indexes updated", sent)
+	}
 
 	for _, tc := range []struct {
-		scenario  string
-		serve     func(conn net.Conn)
-		listen    bool
-		expectErr bool
+		input string
+		want  error
 	}{
-		{
-			scenario: "LibreOffice greeting",
-			serve: func(conn net.Conn) {
-				_, _ = conn.Write(greeting)
-			},
-			listen: true,
-		},
-		{
-			scenario: "greeting split across writes",
-			serve: func(conn net.Conn) {
-				_, _ = conn.Write(greeting[:20])
-				time.Sleep(10 * time.Millisecond)
-				_, _ = conn.Write(greeting[20:])
-			},
-			listen: true,
-		},
-		{
-			// An HTTP server, such as the LibreOffice outbound proxy, waits
-			// for the request and sends nothing.
-			// See https://github.com/gotenberg/gotenberg/issues/1713.
-			scenario:  "silent listener",
-			serve:     func(conn net.Conn) {},
-			listen:    true,
-			expectErr: true,
-		},
-		{
-			scenario: "listener that sends something else",
-			serve: func(conn net.Conn) {
-				_, _ = conn.Write([]byte("SSH-2.0-OpenSSH_9.9\r\n"))
-			},
-			listen:    true,
-			expectErr: true,
-		},
-		{
-			scenario: "listener that streams without the greeting",
-			serve: func(conn net.Conn) {
-				for range 64 {
-					_, err := conn.Write(make([]byte, 64))
-					if err != nil {
-						return
-					}
-				}
-			},
-			listen:    true,
-			expectErr: true,
-		},
-		{
-			scenario:  "nothing listening",
-			expectErr: true,
-		},
+		{"badpass.docx", ErrInvalidPassword},
+		{"unreadable.docx", ErrLoadFailed},
 	} {
-		t.Run(tc.scenario, func(t *testing.T) {
-			listener, err := net.Listen("tcp", "127.0.0.1:0")
-			if err != nil {
-				t.Fatalf("listen: %v", err)
-			}
-			port := listener.Addr().(*net.TCPAddr).Port
+		err = p.pdf(context.Background(), logger, filepath.Join(dir, tc.input), output, DefaultOptions())
+		if !errors.Is(err, tc.want) {
+			t.Errorf("pdf(%s) = %v, want %v", tc.input, err, tc.want)
+		}
+	}
 
-			if !tc.listen {
-				err = listener.Close()
-				if err != nil {
-					t.Fatalf("close listener: %v", err)
-				}
-			} else {
-				done := make(chan struct{})
-				t.Cleanup(func() {
-					close(done)
-					_ = listener.Close()
-				})
+	if !p.Healthy(logger) {
+		t.Fatal("failed conversions left lok unhealthy")
+	}
+}
 
-				go func() {
-					conn, err := listener.Accept()
-					if err != nil {
-						return
-					}
-					defer conn.Close()
+func TestLibreOfficeProcess_InvalidPdfFormats(t *testing.T) {
+	p := startFakeLok(t)
 
-					tc.serve(conn)
-					<-done
-				}()
-			}
+	options := DefaultOptions()
+	options.PdfFormats = PdfFormats{PdfA: "PDF/A-1a"}
 
-			err = dialUno(slog.New(slog.DiscardHandler), port, 200*time.Millisecond)
+	err := p.pdf(context.Background(), slog.New(slog.DiscardHandler), "ok.docx", "out.pdf", options)
+	if !errors.Is(err, ErrInvalidPdfFormats) {
+		t.Fatalf("pdf = %v, want ErrInvalidPdfFormats", err)
+	}
+}
 
-			if !tc.expectErr && err != nil {
-				t.Errorf("expected no error but got: %v", err)
-			}
+// TestLibreOfficeProcess_TimeoutKills pins that a cancelled conversion kills
+// lok, so that its late answer can never reach the next request.
+func TestLibreOfficeProcess_TimeoutKills(t *testing.T) {
+	p := startFakeLok(t)
+	logger := slog.New(slog.DiscardHandler)
 
-			if tc.expectErr && err == nil {
-				t.Error("expected an error but got none")
-			}
-		})
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	err := p.pdf(ctx, logger, "hang.docx", "out.pdf", DefaultOptions())
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("pdf = %v, want DeadlineExceeded", err)
+	}
+
+	select {
+	case <-p.exited:
+	case <-time.After(5 * time.Second):
+		t.Fatal("lok still runs after a cancelled conversion")
+	}
+
+	if p.Healthy(logger) {
+		t.Fatal("a killed lok reports healthy")
+	}
+}
+
+func TestLibreOfficeProcess_Crash(t *testing.T) {
+	p := startFakeLok(t)
+	logger := slog.New(slog.DiscardHandler)
+
+	err := p.pdf(context.Background(), logger, "crash.docx", "out.pdf", DefaultOptions())
+	if !errors.Is(err, ErrCrashed) {
+		t.Fatalf("pdf = %v, want ErrCrashed", err)
+	}
+
+	if p.Healthy(logger) {
+		t.Fatal("a crashed lok reports healthy")
 	}
 }

@@ -33,37 +33,24 @@ var (
 	// formats option.
 	ErrInvalidPdfFormats = errors.New("invalid PDF formats")
 
-	// ErrUnoException happens when unoconverter returns exit code 5. That code
-	// is the residual bucket of unoconverter's catch-all UNO exception handler:
-	// it covers a malformed page range, a password supplied to a document that
-	// does not need one, a failure to open the document and a failure to write
-	// the output alike. It names the exception class that was caught, not a
-	// cause. See https://github.com/gotenberg/gotenberg/issues/1588.
-	ErrUnoException = errors.New("uno exception")
+	// ErrLoadFailed happens when LibreOffice cannot load the document: it is
+	// corrupted, its extension does not match its format, or it is encrypted
+	// and no password was given.
+	ErrLoadFailed = errors.New("load failed")
 
-	// ErrRuntimeException happens when unoconverter returns exit code 6.
-	// unoconverter's own message for it reads "Office probably died", yet a
-	// wrong or missing password also surfaces there. Like [ErrUnoException], it
-	// does not establish who is at fault.
-	ErrRuntimeException = errors.New("runtime exception")
+	// ErrInvalidPassword happens when LibreOffice rejects the password given
+	// for an encrypted document.
+	ErrInvalidPassword = errors.New("invalid password")
 
-	// ErrIoException happens when unoconverter returns exit code 3. LibreOffice
-	// could not read the source document.
-	ErrIoException = errors.New("io exception")
+	// ErrSaveFailed happens when LibreOffice loads the document but cannot
+	// export it to PDF, for instance with a page range the document does not
+	// have.
+	ErrSaveFailed = errors.New("save failed")
 
-	// ErrCannotConvertException happens when unoconverter returns exit code 4.
-	// LibreOffice read the document but could not convert it to PDF.
-	ErrCannotConvertException = errors.New("cannot convert exception")
-
-	// ErrIllegalArgumentException happens when unoconverter returns exit code
-	// 8. LibreOffice rejected the source document, usually because its contents
-	// do not match its extension.
-	ErrIllegalArgumentException = errors.New("illegal argument exception")
-
-	// ErrCoreDumped happens randomly; sometimes a conversion will work as
-	// expected, and some other time the same conversion will fail.
+	// ErrCrashed happens when LibreOffice exits during a conversion. The same
+	// conversion often succeeds once LibreOffice restarts.
 	// See https://github.com/gotenberg/gotenberg/issues/639.
-	ErrCoreDumped = errors.New("core dumped")
+	ErrCrashed = errors.New("LibreOffice crashed")
 )
 
 // Api is a module that provides a [Uno] to interact with LibreOffice.
@@ -83,7 +70,7 @@ type Api struct {
 	conversionDurationCounter metric.Float64Histogram
 	queueWaitDurationCounter  metric.Float64Histogram
 	pdfOutputSizeCounter      metric.Int64Histogram
-	coreDumpedRetriesCounter  metric.Int64Counter
+	crashRetriesCounter       metric.Int64Counter
 }
 
 // The PDF/A formats LibreOffice exports natively.
@@ -404,14 +391,14 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 		return errors.New("LIBREOFFICE_BIN_PATH environment variable is not set")
 	}
 
-	unoBinPath, ok := os.LookupEnv("UNOCONVERTER_BIN_PATH")
+	lokBinPath, ok := os.LookupEnv("LOK_BIN_PATH")
 	if !ok {
-		return errors.New("UNOCONVERTER_BIN_PATH environment variable is not set")
+		return errors.New("LOK_BIN_PATH environment variable is not set")
 	}
 
 	a.args = libreOfficeArguments{
 		binPath:      libreOfficeBinPath,
-		unoBinPath:   unoBinPath,
+		lokBinPath:   lokBinPath,
 		startTimeout: flags.MustDuration("libreoffice-start-timeout"),
 		proxyOptions: outboundProxyOptions{
 			allowList:              flags.MustRegexpSlice("libreoffice-allow-list"),
@@ -525,9 +512,9 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 		return fmt.Errorf("create libreoffice.pdf.output.size histogram: %w", err)
 	}
 
-	a.coreDumpedRetriesCounter, err = meter.Int64Counter(
+	a.crashRetriesCounter, err = meter.Int64Counter(
 		"libreoffice.conversion.retries.total",
-		metric.WithDescription("Total number of LibreOffice conversion retries after a core dump"),
+		metric.WithDescription("Total number of LibreOffice conversion retries after a LibreOffice crash"),
 		metric.WithUnit("{retry}"),
 	)
 	if err != nil {
@@ -546,9 +533,9 @@ func (a *Api) Validate() error {
 		err = errors.Join(err, fmt.Errorf("LibreOffice binary does not exist at %q; check the LIBREOFFICE_BIN_PATH environment variable: %w", a.args.binPath, statErr))
 	}
 
-	_, statErr = os.Stat(a.args.unoBinPath)
+	_, statErr = os.Stat(a.args.lokBinPath)
 	if os.IsNotExist(statErr) {
-		err = errors.Join(err, fmt.Errorf("unoconverter binary does not exist at %q; check the UNOCONVERTER_BIN_PATH environment variable: %w", a.args.unoBinPath, statErr))
+		err = errors.Join(err, fmt.Errorf("lok binary does not exist at %q; check the LOK_BIN_PATH environment variable: %w", a.args.lokBinPath, statErr))
 	}
 
 	if a.args.proxyOptions.enableEnvironmentProxy {
@@ -728,10 +715,10 @@ func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPat
 	)
 	span.SetAttributes(conversionRequestAttributes(inputPath, options)...)
 
-	// ErrCoreDumped happens randomly (https://github.com/gotenberg/gotenberg/issues/639);
+	// LibreOffice crashes randomly (https://github.com/gotenberg/gotenberg/issues/639);
 	// retry the conversion, but cap the retries so a permanently failing
 	// document cannot loop forever. Each attempt records its own metrics.
-	const maxCoreDumpedRetries = 10
+	const maxCrashRetries = 10
 
 	var err error
 	var reason string
@@ -783,12 +770,12 @@ func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPat
 			return nil
 		}
 
-		if errors.Is(err, ErrCoreDumped) && attempt < maxCoreDumpedRetries {
+		if errors.Is(err, ErrCrashed) && attempt < maxCrashRetries {
 			logger.DebugContext(ctx, fmt.Sprintf("got a '%s' error, retry conversion (attempt %d)", err, attempt+1))
 			span.AddEvent("conversion.retry", trace.WithAttributes(
 				attribute.Int("attempt", attempt+1),
 			))
-			a.coreDumpedRetriesCounter.Add(ctx, 1)
+			a.crashRetriesCounter.Add(ctx, 1)
 			continue
 		}
 
@@ -825,11 +812,10 @@ func conversionRequestAttributes(inputPath string, options Options) []attribute.
 func libreofficeErrorType(err error) string {
 	switch {
 	case errors.Is(err, ErrInvalidPdfFormats),
-		errors.Is(err, ErrIoException),
-		errors.Is(err, ErrCannotConvertException),
-		errors.Is(err, ErrIllegalArgumentException):
+		errors.Is(err, ErrLoadFailed),
+		errors.Is(err, ErrInvalidPassword):
 		return gotenberg.ErrorTypeInvalidInput
-	case errors.Is(err, ErrUnoException), errors.Is(err, ErrRuntimeException):
+	case errors.Is(err, ErrSaveFailed), errors.Is(err, ErrCrashed):
 		return "libreoffice_exception"
 	case errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded), errors.Is(err, gotenberg.ErrProcessAlreadyRestarting):
 		return "libreoffice_unavailable"
