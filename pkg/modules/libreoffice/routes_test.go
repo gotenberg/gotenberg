@@ -14,9 +14,9 @@ import (
 
 	"github.com/labstack/echo/v5"
 
-	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
-	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
-	libreofficeapi "github.com/gotenberg/gotenberg/v8/pkg/modules/libreoffice/api"
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
+	libreofficeapi "github.com/gotenberg/gotenberg/v9/pkg/modules/libreoffice/api"
 )
 
 // compoundFile writes a document whose header marks it as a compound file. Over

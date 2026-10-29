@@ -20,9 +20,9 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/microcosm-cc/bluemonday"
 
-	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
-	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
-	"github.com/gotenberg/gotenberg/v8/pkg/modules/pdfengines"
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
+	"github.com/gotenberg/gotenberg/v9/pkg/modules/pdfengines"
 )
 
 // Bounds on the scoped extra HTTP headers feature. Chromium matches every

@@ -18,7 +18,7 @@ import (
 	"github.com/dlclark/regexp2/v2"
 	"golang.org/x/net/http/httpproxy"
 
-	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
 
 // pinningProxy is a loopback-bound HTTP/1.1 forward and CONNECT proxy

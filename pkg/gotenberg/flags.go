@@ -11,7 +11,7 @@ import (
 	"github.com/labstack/gommon/bytes"
 	flag "github.com/spf13/pflag"
 
-	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg/internal/log"
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg/internal/log"
 )
 
 // ParsedFlags wraps a [flag.FlagSet] so that retrieving the typed values is

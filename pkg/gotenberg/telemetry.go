@@ -12,8 +12,8 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg/internal/log"
-	internalotel "github.com/gotenberg/gotenberg/v8/pkg/gotenberg/internal/otel"
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg/internal/log"
+	internalotel "github.com/gotenberg/gotenberg/v9/pkg/gotenberg/internal/otel"
 )
 
 const (

@@ -17,7 +17,7 @@ import (
 	"github.com/dlclark/regexp2/v2"
 	"golang.org/x/net/http/httpproxy"
 
-	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
 
 // outboundProxyOptions configures a [libreOfficeProxy].

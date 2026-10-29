@@ -1,9 +1,9 @@
 package main
 
 import (
-	gotenbergcmd "github.com/gotenberg/gotenberg/v8/cmd"
+	gotenbergcmd "github.com/gotenberg/gotenberg/v9/cmd"
 	// Gotenberg modules (LibreOffice variant — no Chromium).
-	_ "github.com/gotenberg/gotenberg/v8/pkg/standard/libreoffice"
+	_ "github.com/gotenberg/gotenberg/v9/pkg/standard/libreoffice"
 )
 
 func main() {

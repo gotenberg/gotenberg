@@ -23,7 +23,7 @@ import (
 	"github.com/dlclark/regexp2/v2"
 	"github.com/labstack/echo/v5"
 
-	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
 
 // Propagate HTTP request context cancellation to processing modules to save resources

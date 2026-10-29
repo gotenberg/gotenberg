@@ -28,7 +28,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/text/unicode/norm"
 
-	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
 
 var (

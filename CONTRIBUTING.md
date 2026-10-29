@@ -7,7 +7,7 @@ Gotenberg is a Docker-based API for converting documents to PDF. Two rules overr
 
 ## Toolchain
 
-- Module: `github.com/gotenberg/gotenberg/v8`
+- Module: `github.com/gotenberg/gotenberg/v9`
 - Go: see version in `go.mod`
 - Docker
 - Node.js (see `.node-version`), for Prettier linting
@@ -106,7 +106,7 @@ External tool calls (Chromium, LibreOffice, PDF engines, webhooks, downloads) mu
 
 ### Import ordering
 
-Enforced by `gci`: standard library, then third-party, then `github.com/gotenberg/gotenberg/v8`. Three groups separated by blank lines.
+Enforced by `gci`: standard library, then third-party, then `github.com/gotenberg/gotenberg/v9`. Three groups separated by blank lines.
 
 ## Documentation conventions
 

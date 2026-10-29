@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/gotenberg/gotenberg/v8/pkg/modules/api"
+	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 )
 
 // TestHandleChromiumError_Crashed pins the mapping of a Chromium renderer

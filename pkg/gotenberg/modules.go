@@ -89,7 +89,7 @@ type Debuggable interface {
 //		gotenberg.MustRegisterModule(YourModule{})
 //	}
 //
-// Then, in the main command (github.com/gotenberg/gotenberg/v8/cmd/gotenberg),
+// Then, in the main command (github.com/gotenberg/gotenberg/v9/cmd/gotenberg),
 // import the module:
 //
 //	imports (

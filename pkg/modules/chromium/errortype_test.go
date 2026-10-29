@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
 
 func TestChromiumErrorType(t *testing.T) {

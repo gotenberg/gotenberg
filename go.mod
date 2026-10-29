@@ -1,4 +1,4 @@
-module github.com/gotenberg/gotenberg/v8
+module github.com/gotenberg/gotenberg/v9
 
 go 1.27.3
 

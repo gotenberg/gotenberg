@@ -21,7 +21,7 @@ import (
 
 	"github.com/dlclark/regexp2/v2"
 
-	"github.com/gotenberg/gotenberg/v8/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
 
 // recordingHandler is a slog.Handler that captures every record emitted

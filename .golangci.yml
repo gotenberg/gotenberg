@@ -52,7 +52,7 @@ formatters:
       sections:
         - standard
         - default
-        - prefix(github.com/gotenberg/gotenberg/v8)
+        - prefix(github.com/gotenberg/gotenberg/v9)
       custom-order: true
   exclusions:
     generated: lax
