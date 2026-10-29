@@ -1,0 +1,33 @@
+meta {
+  name: Set Metadata
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/forms/pdf/set-metadata
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  files: @file(../../test/integration/testdata/page_1.pdf)
+  ~title: Title
+  ~author: Author
+  ~subject: Subject
+  ~keywords: a, b
+  ~creator: Creator
+  ~producer: Producer
+  ~creationDate: D:20260101000000Z
+  ~modDate: D:20260101000000Z
+}
+
+headers {
+  ~Gotenberg-Output-Filename: metadata
+  ~Gotenberg-Webhook-Url: http://localhost:8080/webhook
+  ~Gotenberg-Webhook-Error-Url: http://localhost:8080/webhook/error
+  ~Gotenberg-Webhook-Events-Url: http://localhost:8080/webhook/events
+  ~Gotenberg-Webhook-Method: POST
+  ~Gotenberg-Webhook-Error-Method: POST
+  ~Gotenberg-Webhook-Extra-Http-Headers: {"X-Custom":"value"}
+}

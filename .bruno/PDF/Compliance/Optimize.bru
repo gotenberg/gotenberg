@@ -1,0 +1,29 @@
+meta {
+  name: Optimize
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/forms/pdf/optimize
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  files: @file(../../test/integration/testdata/image-heavy.pdf)
+  ~objectStreams: true
+  ~dedup: true
+  ~recompressImages: true
+  ~subsetFonts: true
+}
+
+headers {
+  ~Gotenberg-Output-Filename: optimized
+  ~Gotenberg-Webhook-Url: http://localhost:8080/webhook
+  ~Gotenberg-Webhook-Error-Url: http://localhost:8080/webhook/error
+  ~Gotenberg-Webhook-Events-Url: http://localhost:8080/webhook/events
+  ~Gotenberg-Webhook-Method: POST
+  ~Gotenberg-Webhook-Error-Method: POST
+  ~Gotenberg-Webhook-Extra-Http-Headers: {"X-Custom":"value"}
+}
