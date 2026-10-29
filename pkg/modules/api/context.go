@@ -695,6 +695,10 @@ func (ctx *Context) OriginalFilename(diskPath string) string {
 // RegisterDiskPath associates a disk path with an original filename so that
 // [Context.OriginalFilename] can resolve it later.
 func (ctx *Context) RegisterDiskPath(diskPath, originalFilename string) {
+	if ctx.diskToOriginal == nil {
+		ctx.diskToOriginal = make(map[string]string)
+	}
+
 	ctx.diskToOriginal[diskPath] = originalFilename
 }
 
@@ -716,7 +720,7 @@ func (ctx *Context) GeneratePath(extension string) string {
 func (ctx *Context) GeneratePathFromFilename(filename string) string {
 	safeName := uuid.New().String() + safeExt(filename)
 	path := fmt.Sprintf("%s/%s", ctx.dirPath, safeName)
-	ctx.diskToOriginal[path] = filename
+	ctx.RegisterDiskPath(path, filename)
 	return path
 }
 

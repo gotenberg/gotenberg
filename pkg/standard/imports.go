@@ -8,6 +8,7 @@ import (
 	_ "github.com/gotenberg/gotenberg/v9/pkg/modules/libreoffice"
 	_ "github.com/gotenberg/gotenberg/v9/pkg/modules/libreoffice/api"
 	_ "github.com/gotenberg/gotenberg/v9/pkg/modules/libreoffice/pdfengine"
+	_ "github.com/gotenberg/gotenberg/v9/pkg/modules/pdf"
 	_ "github.com/gotenberg/gotenberg/v9/pkg/modules/pdfcpu"
 	_ "github.com/gotenberg/gotenberg/v9/pkg/modules/pdfengines"
 	_ "github.com/gotenberg/gotenberg/v9/pkg/modules/pdftk"
