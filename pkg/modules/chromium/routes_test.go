@@ -2,6 +2,7 @@ package chromium
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"testing"
 
@@ -109,5 +110,42 @@ func TestValidateUrlScheme(t *testing.T) {
 				t.Errorf("status = %d, want %d", status, http.StatusBadRequest)
 			}
 		})
+	}
+}
+
+func TestFormDataChromiumPdfOptions_PaperSize(t *testing.T) {
+	for _, tc := range []struct {
+		name                  string
+		values                map[string][]string
+		wantWidth, wantHeight float64
+	}{
+		{name: "default", values: nil, wantWidth: 8.5, wantHeight: 11},
+		{name: "named size", values: map[string][]string{"paperSize": {"A4"}}, wantWidth: 210 / 25.4, wantHeight: 297 / 25.4},
+		{name: "width overrides the size", values: map[string][]string{"paperSize": {"A4"}, "paperWidth": {"100mm"}}, wantWidth: 100 / 25.4, wantHeight: 297 / 25.4},
+		{name: "explicit sizes", values: map[string][]string{"paperWidth": {"4"}, "paperHeight": {"6"}}, wantWidth: 4, wantHeight: 6},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := &api.ContextMock{Context: new(api.Context)}
+			ctx.SetValues(tc.values)
+
+			form, options := FormDataChromiumPdfOptions(ctx.Context)
+			if err := form.Validate(); err != nil {
+				t.Fatalf("validate: %v", err)
+			}
+
+			if math.Abs(options.PaperWidth-tc.wantWidth) > 1e-9 || math.Abs(options.PaperHeight-tc.wantHeight) > 1e-9 {
+				t.Errorf("paper = %gx%g, want %gx%g", options.PaperWidth, options.PaperHeight, tc.wantWidth, tc.wantHeight)
+			}
+		})
+	}
+}
+
+func TestFormDataChromiumPdfOptions_NativeFields(t *testing.T) {
+	ctx := &api.ContextMock{Context: new(api.Context)}
+	ctx.SetValues(map[string][]string{"nativeBookmarks": {"true"}, "nativeTaggedPdf": {"true"}})
+
+	_, options := FormDataChromiumPdfOptions(ctx.Context)
+	if !options.GenerateDocumentOutline || !options.GenerateTaggedPdf {
+		t.Fatalf("options = %+v, want the outline and tagging from nativeBookmarks and nativeTaggedPdf", options)
 	}
 }

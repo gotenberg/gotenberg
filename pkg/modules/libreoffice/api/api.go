@@ -106,6 +106,11 @@ type Options struct {
 	// Landscape allows changing the orientation of the resulting PDF.
 	Landscape bool
 
+	// PaperWidth and PaperHeight set the page size of every page style, in
+	// inches. Zero keeps the document's own page size.
+	PaperWidth  float64
+	PaperHeight float64
+
 	// PageRanges allows selecting the pages to convert.
 	PageRanges string
 

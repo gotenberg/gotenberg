@@ -338,13 +338,18 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		generateTaggedPdf                                bool
 	)
 
+	// A paper size sets the default width and height, which paperWidth and
+	// paperHeight then override one at a time.
+	defaultPaperWidth, defaultPaperHeight := defaultPdfOptions.PaperWidth, defaultPdfOptions.PaperHeight
+	form.PaperSize("paperSize", &defaultPaperWidth, &defaultPaperHeight)
+
 	form.
 		Bool("landscape", &landscape, defaultPdfOptions.Landscape).
 		Bool("printBackground", &printBackground, defaultPdfOptions.PrintBackground).
 		Float64("scale", &scale, defaultPdfOptions.Scale).
 		Bool("singlePage", &singlePage, defaultPdfOptions.SinglePage).
-		Inches("paperWidth", &paperWidth, defaultPdfOptions.PaperWidth).
-		Inches("paperHeight", &paperHeight, defaultPdfOptions.PaperHeight).
+		Inches("paperWidth", &paperWidth, defaultPaperWidth).
+		Inches("paperHeight", &paperHeight, defaultPaperHeight).
 		Inches("marginTop", &marginTop, defaultPdfOptions.MarginTop).
 		Inches("marginBottom", &marginBottom, defaultPdfOptions.MarginBottom).
 		Inches("marginLeft", &marginLeft, defaultPdfOptions.MarginLeft).
@@ -353,8 +358,8 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		Content("header.html", &headerTemplate, defaultPdfOptions.HeaderTemplate).
 		Content("footer.html", &footerTemplate, defaultPdfOptions.FooterTemplate).
 		Bool("preferCssPageSize", &preferCssPageSize, defaultPdfOptions.PreferCssPageSize).
-		Bool("generateDocumentOutline", &generateDocumentOutline, defaultPdfOptions.GenerateDocumentOutline).
-		Bool("generateTaggedPdf", &generateTaggedPdf, defaultPdfOptions.GenerateTaggedPdf)
+		Bool("nativeBookmarks", &generateDocumentOutline, defaultPdfOptions.GenerateDocumentOutline).
+		Bool("nativeTaggedPdf", &generateTaggedPdf, defaultPdfOptions.GenerateTaggedPdf)
 
 	pdfOptions := PdfOptions{
 		Options:                 options,

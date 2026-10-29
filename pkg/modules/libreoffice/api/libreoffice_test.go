@@ -155,6 +155,22 @@ func TestLibreOfficeProcess(t *testing.T) {
 	}
 }
 
+func TestNewLokRequest_Paper(t *testing.T) {
+	options := DefaultOptions()
+
+	req, err := newLokRequest("in.docx", "out.pdf", options)
+	if err != nil || req.PaperFormat != lokPaperFormatUnset {
+		t.Fatalf("no paper size: %+v, %v, want the document's own size", req, err)
+	}
+
+	options.PaperWidth, options.PaperHeight = 210/25.4, 297/25.4
+
+	req, err = newLokRequest("in.docx", "out.pdf", options)
+	if err != nil || req.PaperFormat != lokPaperFormatUser || req.PaperWidth != 21000 || req.PaperHeight != 29700 {
+		t.Fatalf("A4: %+v, %v, want a custom 21000x29700 size", req, err)
+	}
+}
+
 func TestLibreOfficeProcess_InvalidPdfFormats(t *testing.T) {
 	p := startFakeLok(t)
 

@@ -148,6 +148,49 @@ func (form *FormData) MandatoryDuration(key string, target *time.Duration) *Form
 	return form.mustMandatoryField(key, target)
 }
 
+// paperSizes maps the paper size names to their width and height in
+// millimeters, portrait.
+var paperSizes = map[string][2]float64{
+	"a3":      {297, 420},
+	"a4":      {210, 297},
+	"a5":      {148, 210},
+	"b4":      {250, 353},
+	"b5":      {176, 250},
+	"letter":  {215.9, 279.4},
+	"legal":   {215.9, 355.6},
+	"tabloid": {279.4, 431.8},
+}
+
+// PaperSize binds the width and height, in inches, of the paper size a form
+// field names: A3, A4, A5, B4, B5, Letter, Legal or Tabloid, in any case. It
+// leaves the targets untouched when the field is empty, and populates an
+// error for an unknown name.
+//
+//	var width, height float64
+//
+//	ctx.FormData().PaperSize("paperSize", &width, &height)
+func (form *FormData) PaperSize(key string, width, height *float64) *FormData {
+	var value string
+	form.mustValue(key, &value, "")
+
+	if value == "" {
+		return form
+	}
+
+	size, ok := paperSizes[strings.ToLower(value)]
+	if !ok {
+		form.append(
+			fmt.Errorf("form field '%s' is invalid (got '%s', want A3, A4, A5, B4, B5, Letter, Legal or Tabloid)", key, value),
+		)
+		return form
+	}
+
+	*width = size[0] / 25.4
+	*height = size[1] / 25.4
+
+	return form
+}
+
 // Inches bind a form field to a float64 variable. It populates an error
 // if the value cannot be computed back to inches.
 //

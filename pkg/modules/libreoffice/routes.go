@@ -41,6 +41,8 @@ func convertRoute(libreOffice libreofficeapi.Uno, processor *pdf.Processor) api.
 				inputPaths                      []string
 				password                        string
 				landscape                       bool
+				paperWidth                      float64
+				paperHeight                     float64
 				nativePageRanges                string
 				updateIndexes                   bool
 				exportFormFields                bool
@@ -88,15 +90,23 @@ func convertRoute(libreOffice libreofficeapi.Uno, processor *pdf.Processor) api.
 				pdfua                           bool
 			)
 
+			// A paper size sets the default width and height, which paperWidth
+			// and paperHeight then override one at a time. Without any, each
+			// document keeps its own page size.
+			var defaultPaperWidth, defaultPaperHeight float64
+			form.PaperSize("paperSize", &defaultPaperWidth, &defaultPaperHeight)
+
 			err = form.
 				MandatoryPaths(libreOffice.Extensions(), &inputPaths).
 				String("password", &password, defaultOptions.Password).
 				Bool("landscape", &landscape, defaultOptions.Landscape).
+				Inches("paperWidth", &paperWidth, defaultPaperWidth).
+				Inches("paperHeight", &paperHeight, defaultPaperHeight).
 				String("nativePageRanges", &nativePageRanges, defaultOptions.PageRanges).
 				Bool("updateIndexes", &updateIndexes, defaultOptions.UpdateIndexes).
 				Bool("exportFormFields", &exportFormFields, defaultOptions.ExportFormFields).
 				Bool("allowDuplicateFieldNames", &allowDuplicateFieldNames, defaultOptions.AllowDuplicateFieldNames).
-				Bool("exportBookmarks", &exportBookmarks, defaultOptions.ExportBookmarks).
+				Bool("nativeBookmarks", &exportBookmarks, defaultOptions.ExportBookmarks).
 				Bool("exportBookmarksToPdfDestination", &exportBookmarksToPdfDestination, defaultOptions.ExportBookmarksToPdfDestination).
 				Bool("exportPlaceholders", &exportPlaceholders, defaultOptions.ExportPlaceholders).
 				Bool("exportNotes", &exportNotes, defaultOptions.ExportNotes).
@@ -108,8 +118,8 @@ func convertRoute(libreOffice libreofficeapi.Uno, processor *pdf.Processor) api.
 				Bool("exportHiddenSlides", &exportHiddenSlides, defaultOptions.ExportHiddenSlides).
 				Bool("skipEmptyPages", &skipEmptyPages, defaultOptions.SkipEmptyPages).
 				Bool("addOriginalDocumentAsStream", &addOriginalDocumentAsStream, defaultOptions.AddOriginalDocumentAsStream).
-				Bool("singlePageSheets", &singlePageSheets, defaultOptions.SinglePageSheets).
-				Bool("generateTaggedPdf", &generateTaggedPdf, defaultOptions.GenerateTaggedPdf).
+				Bool("singlePage", &singlePageSheets, defaultOptions.SinglePageSheets).
+				Bool("nativeTaggedPdf", &generateTaggedPdf, defaultOptions.GenerateTaggedPdf).
 				Custom("initialView", func(value string) error {
 					if value == "" {
 						initialView = defaultOptions.InitialView
@@ -209,8 +219,8 @@ func convertRoute(libreOffice libreofficeapi.Uno, processor *pdf.Processor) api.
 					openBookmarkLevels = intValue
 					return nil
 				}).
-				Bool("losslessImageCompression", &losslessImageCompression, defaultOptions.LosslessImageCompression).
-				Custom("quality", func(value string) error {
+				Bool("nativeLosslessImageCompression", &losslessImageCompression, defaultOptions.LosslessImageCompression).
+				Custom("nativeQuality", func(value string) error {
 					if value == "" {
 						quality = defaultOptions.Quality
 						return nil
@@ -232,8 +242,8 @@ func convertRoute(libreOffice libreofficeapi.Uno, processor *pdf.Processor) api.
 					quality = intValue
 					return nil
 				}).
-				Bool("reduceImageResolution", &reduceImageResolution, defaultOptions.ReduceImageResolution).
-				Custom("maxImageResolution", func(value string) error {
+				Bool("nativeReduceImageResolution", &reduceImageResolution, defaultOptions.ReduceImageResolution).
+				Custom("nativeMaxImageResolution", func(value string) error {
 					if value == "" {
 						maxImageResolution = defaultOptions.MaxImageResolution
 						return nil
@@ -293,11 +303,18 @@ func convertRoute(libreOffice libreofficeapi.Uno, processor *pdf.Processor) api.
 				}).
 				String("nativeWatermarkFontName", &nativeWatermarkFontName, defaultOptions.NativeWatermarkFontName).
 				String("nativeTiledWatermarkText", &nativeTiledWatermarkText, defaultOptions.NativeTiledWatermarkText).
-				String("pdfa", &pdfa, "").
-				Bool("pdfua", &pdfua, false).
+				String("nativePdfa", &pdfa, "").
+				Bool("nativePdfua", &pdfua, false).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
+			}
+
+			if (paperWidth == 0) != (paperHeight == 0) {
+				return api.NewSentinelHttpError(
+					http.StatusBadRequest,
+					"Invalid form data: set 'paperSize', or both 'paperWidth' and 'paperHeight'",
+				)
 			}
 
 			// A file a stage reads, such as a stamp image, is not a document to
@@ -323,6 +340,8 @@ func convertRoute(libreOffice libreofficeapi.Uno, processor *pdf.Processor) api.
 				options := libreofficeapi.Options{
 					Password:                        password,
 					Landscape:                       landscape,
+					PaperWidth:                      paperWidth,
+					PaperHeight:                     paperHeight,
 					PageRanges:                      nativePageRanges,
 					UpdateIndexes:                   updateIndexes,
 					ExportFormFields:                exportFormFields,
@@ -376,7 +395,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, processor *pdf.Processor) api.
 							fmt.Errorf("convert to PDF: %w", err),
 							api.NewSentinelHttpError(
 								http.StatusBadRequest,
-								fmt.Sprintf("The PDF format '%s' is not supported. Valid formats include PDF/A-1b, PDF/A-2b, PDF/A-3b, PDF/A-4, and PDF/UA.", pdfFormats.PdfA),
+								fmt.Sprintf("Invalid form data: form field 'nativePdfa' is invalid (got '%s', want PDF/A-1b, PDF/A-2b, PDF/A-3b or PDF/A-4).", pdfFormats.PdfA),
 							),
 						)
 					}
