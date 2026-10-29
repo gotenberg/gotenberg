@@ -46,7 +46,6 @@ type Context struct {
 	dirPath        string
 	values         map[string][]string
 	files          map[string]string
-	filesByField   map[string][]string
 	diskToOriginal map[string]string
 	outputPaths    []string
 	cancelled      bool
@@ -146,15 +145,6 @@ type downloadFrom struct {
 
 	// ExtraHttpHeaders are the HTTP headers to send alongside.
 	ExtraHttpHeaders map[string]string `json:"extraHttpHeaders"`
-
-	// Embedded routes the downloaded file as an embed. Deprecated: use
-	// Field instead. Kept for backward compatibility.
-	Embedded bool `json:"embedded"`
-
-	// Field routes the downloaded file to a specific form field bucket.
-	// Supported values: "watermark", "stamp". For embeds, prefer the
-	// Embedded flag or set Field to "embedded".
-	Field string `json:"field"`
 }
 
 // newContext returns a [Context] by parsing a "multipart/form-data" request.
@@ -291,7 +281,6 @@ func newContext(echoCtx *echo.Context, logger *slog.Logger, fs *gotenberg.FileSy
 	ctx.dirPath = dirPath
 	ctx.values = form.Value
 	ctx.files = make(map[string]string)
-	ctx.filesByField = make(map[string][]string)
 	ctx.diskToOriginal = make(map[string]string)
 
 	// First, try to download files listed in the "downloadFrom" form field, if
@@ -313,11 +302,10 @@ func newContext(echoCtx *echo.Context, logger *slog.Logger, fs *gotenberg.FileSy
 		}
 
 		// Each goroutine writes to its own results slot. The main
-		// goroutine merges into ctx.files, ctx.diskToOriginal, and
-		// ctx.filesByField after eg.Wait() to avoid concurrent map
-		// writes.
+		// goroutine merges into ctx.files and ctx.diskToOriginal after
+		// eg.Wait() to avoid concurrent map writes.
 		type downloadFromResult struct {
-			filename, path, formField string
+			filename, path string
 		}
 		results := make([]downloadFromResult, len(dls))
 
@@ -534,16 +522,7 @@ func newContext(echoCtx *echo.Context, logger *slog.Logger, fs *gotenberg.FileSy
 				dlSpan.SetStatus(codes.Ok, "")
 				dlSpan.End()
 
-				var formField string
-				switch {
-				case dl.Field == "embedded" || dl.Embedded:
-					formField = EmbedsFormField
-				case dl.Field == "watermark":
-					formField = WatermarkFormField
-				case dl.Field == "stamp":
-					formField = StampFormField
-				}
-				results[i] = downloadFromResult{filename: filename, path: path, formField: formField}
+				results[i] = downloadFromResult{filename: filename, path: path}
 
 				return nil
 			})
@@ -559,9 +538,6 @@ func newContext(echoCtx *echo.Context, logger *slog.Logger, fs *gotenberg.FileSy
 			ctx.files[filename] = r.path
 			ctx.diskToOriginal[r.path] = filename
 			ctx.trackFileOrder(r.path, r.filename)
-			if r.formField != "" {
-				ctx.filesByField[r.formField] = append(ctx.filesByField[r.formField], r.path)
-			}
 		}
 	}
 
@@ -620,15 +596,12 @@ func newContext(echoCtx *echo.Context, logger *slog.Logger, fs *gotenberg.FileSy
 	}
 
 	// Then, copy the form files, if any.
-	for fieldName, files := range form.File {
+	for _, files := range form.File {
 		for _, fh := range files {
-			filename, errCopy := copyToDisk(fh)
+			_, errCopy := copyToDisk(fh)
 			if errCopy != nil {
 				return ctx, cancel, fmt.Errorf("copy to disk: %w", errCopy)
 			}
-			// Track files by field name, under the name copyToDisk actually
-			// stored, which may be a de-duplicated variant.
-			ctx.filesByField[fieldName] = append(ctx.filesByField[fieldName], ctx.files[filename])
 		}
 	}
 
@@ -651,7 +624,6 @@ func newContext(echoCtx *echo.Context, logger *slog.Logger, fs *gotenberg.FileSy
 
 	ctx.Log().DebugContext(ctx, fmt.Sprintf("form fields: %+v", ctx.values))
 	ctx.Log().DebugContext(ctx, fmt.Sprintf("form files: %+v", ctx.files))
-	ctx.Log().DebugContext(ctx, fmt.Sprintf("form files by field: %+v", ctx.filesByField))
 	ctx.Log().DebugContext(ctx, fmt.Sprintf("total bytes: %d", totalBytesRead.Load()))
 
 	// Explicitly nil: the best-effort symlink loop above must not decide the
@@ -670,7 +642,6 @@ func (ctx *Context) FormData() *FormData {
 	return &FormData{
 		values:         ctx.values,
 		files:          ctx.files,
-		filesByField:   ctx.filesByField,
 		diskToOriginal: ctx.diskToOriginal,
 		fileOrder:      ctx.fileOrder,
 		fileBase:       ctx.fileBase,

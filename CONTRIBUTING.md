@@ -26,7 +26,7 @@ When adding a feature or route, write the Gherkin scenario before the Go code, a
 ```
 cmd/gotenberg/       -> Entry point only (wiring/startup). No business logic.
 pkg/gotenberg/       -> Core module system, interfaces, utilities, mocks.
-pkg/modules/         -> Feature modules (api, chromium, libreoffice, pdfengines, etc.).
+pkg/modules/         -> Feature modules (api, chromium, libreoffice, pdf, etc.).
 pkg/standard/        -> Wires all standard modules together via imports.
 test/integration/    -> Gherkin feature files + Go test infrastructure.
 build/               -> Dockerfile, fonts, Chromium config.
@@ -102,7 +102,7 @@ Use `gotenberg.Logger(mod)` to get the module's slog logger during `Provision()`
 
 ### Telemetry
 
-External tool calls (Chromium, LibreOffice, PDF engines, webhooks, downloads) must create OTEL spans with `trace.SpanKindClient` and `semconv.ServerAddress("toolname")`. Use `gotenberg.Tracer()` and `gotenberg.Meter()` for traces and metrics.
+External tool calls (Chromium, LibreOffice, webhooks, downloads) must create OTEL spans with `trace.SpanKindClient` and `semconv.ServerAddress("toolname")`. Use `gotenberg.Tracer()` and `gotenberg.Meter()` for traces and metrics.
 
 ### Import ordering
 
@@ -178,4 +178,3 @@ Before opening the PR, confirm:
 
 - [`test/integration/README.md`](test/integration/README.md) — Gherkin step reference, available tags, writing new tests.
 - [`.bruno/README.md`](.bruno/README.md) — `.bru` file format, conventions, route update checklist.
-- [`pkg/modules/pdfengines/README.md`](pkg/modules/pdfengines/README.md) — adding new engine features (Makefile variable and flag).

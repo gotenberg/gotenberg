@@ -10,7 +10,6 @@ import (
 
 	"github.com/labstack/echo/v5"
 
-	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 	libreofficeapi "github.com/gotenberg/gotenberg/v9/pkg/modules/libreoffice/api"
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/pdf"
@@ -314,7 +313,7 @@ func convertRoute(libreOffice libreofficeapi.Uno, processor *pdf.Processor) api.
 				)
 			}
 
-			pdfFormats := gotenberg.PdfFormats{PdfA: pdfa, PdfUa: pdfua}
+			pdfFormats := libreofficeapi.PdfFormats{PdfA: pdfa, PdfUa: pdfua}
 
 			outputPaths := make([]string, len(inputPaths))
 			for i, inputPath := range inputPaths {

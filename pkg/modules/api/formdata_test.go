@@ -1612,24 +1612,6 @@ func TestFormData_Paths(t *testing.T) {
 			},
 			expectCount: 2,
 		},
-		{
-			scenario: "files except embeds",
-			form: &FormData{
-				files: map[string]string{
-					"foo.pdf":     "/foo.pdf",
-					"embed_1.pdf": "/embed_1.pdf",
-					"embed_2.xml": "/embed_2.xml",
-				},
-				filesByField: map[string][]string{
-					"embeds": {"/embed_1.pdf", "/embed_2.xml"},
-				},
-			},
-			extensions: []string{".pdf"},
-			expect: []string{
-				"/foo.pdf",
-			},
-			expectCount: 1,
-		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			var actual []string
@@ -1759,85 +1741,6 @@ func TestFormData_mustAssign(t *testing.T) {
 	form.mustAssign("foo", "foo", &target)
 }
 
-func TestFormData_Embeds(t *testing.T) {
-	expected := []string{"/bar.xml", "/baz.xml"}
-
-	var actual []string
-	form := &FormData{
-		files: map[string]string{
-			"foo.pdf": "/foo.pdf",
-			"bar.xml": "/bar.xml",
-			"baz.xml": "/baz.xml",
-		},
-		filesByField: map[string][]string{
-			"embeds": {"/bar.xml", "/baz.xml"},
-		},
-	}
-	form.Embeds(&actual)
-
-	if len(actual) != len(expected) {
-		t.Errorf("expected %d embeds but got %d", len(expected), len(actual))
-	}
-
-	if !reflect.DeepEqual(actual, expected) {
-		t.Errorf("expected %v but got %v", expected, actual)
-	}
-}
-
-func TestFormData_FacturXXml(t *testing.T) {
-	for _, tc := range []struct {
-		scenario string
-		form     *FormData
-		expect   string
-	}{
-		{
-			scenario: "no facturxXml file",
-			form:     &FormData{},
-			expect:   "",
-		},
-		{
-			scenario: "facturxXml file present",
-			form: &FormData{
-				filesByField: map[string][]string{
-					FacturXXmlFormField: {"/tmp/abc/12345.xml"},
-				},
-			},
-			expect: "/tmp/abc/12345.xml",
-		},
-	} {
-		t.Run(tc.scenario, func(t *testing.T) {
-			var actual string
-
-			tc.form.FacturXXml(&actual)
-
-			if actual != tc.expect {
-				t.Errorf("expected %q but got %q", tc.expect, actual)
-			}
-		})
-	}
-}
-
-// TestFormData_paths_excludesFacturXXml verifies that an uploaded facturxXml is
-// never picked up as an input document by paths().
-func TestFormData_paths_excludesFacturXXml(t *testing.T) {
-	form := &FormData{
-		files: map[string]string{
-			"document.xml": "/tmp/abc/document.xml",
-			"factur-x.xml": "/tmp/abc/invoice.xml",
-		},
-		filesByField: map[string][]string{
-			FacturXXmlFormField: {"/tmp/abc/invoice.xml"},
-		},
-	}
-
-	var paths []string
-	form.paths([]string{".xml"}, &paths)
-
-	if len(paths) != 1 || paths[0] != "/tmp/abc/document.xml" {
-		t.Errorf("expected only the non-Factur-X .xml document, got %+v", paths)
-	}
-}
-
 func TestFormData_Strings(t *testing.T) {
 	form := &FormData{
 		values: map[string][]string{
@@ -1856,43 +1759,6 @@ func TestFormData_Strings(t *testing.T) {
 	form.Strings("bar", &missing)
 	if missing != nil {
 		t.Errorf("expected nil for a missing key, got %+v", missing)
-	}
-}
-
-func TestFormData_Stamps(t *testing.T) {
-	form := &FormData{
-		filesByField: map[string][]string{
-			StampFormField: {"/tmp/abc/a.png", "/tmp/abc/b.pdf"},
-		},
-	}
-
-	var got []string
-	form.Stamps(&got)
-
-	if want := []string{"/tmp/abc/a.png", "/tmp/abc/b.pdf"}; !reflect.DeepEqual(got, want) {
-		t.Errorf("expected %+v, got %+v", want, got)
-	}
-
-	empty := &FormData{}
-	var none []string
-	empty.Stamps(&none)
-	if none != nil {
-		t.Errorf("expected nil when no stamp file was uploaded, got %+v", none)
-	}
-}
-
-func TestFormData_Watermarks(t *testing.T) {
-	form := &FormData{
-		filesByField: map[string][]string{
-			WatermarkFormField: {"/tmp/abc/a.png"},
-		},
-	}
-
-	var got []string
-	form.Watermarks(&got)
-
-	if want := []string{"/tmp/abc/a.png"}; !reflect.DeepEqual(got, want) {
-		t.Errorf("expected %+v, got %+v", want, got)
 	}
 }
 
@@ -1949,10 +1815,9 @@ func TestFormData_paths_DuplicateFilenamesKeepUploadOrder(t *testing.T) {
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			form := &FormData{
-				files:        tc.files,
-				filesByField: map[string][]string{},
-				fileBase:     tc.fileBase,
-				fileOrder:    tc.order,
+				files:     tc.files,
+				fileBase:  tc.fileBase,
+				fileOrder: tc.order,
 			}
 
 			// Map iteration is randomised, so run it repeatedly: an unstable

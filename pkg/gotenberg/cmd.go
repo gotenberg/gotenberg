@@ -101,8 +101,8 @@ func (cmd *Cmd) Wait() error {
 //
 // When the context carries an active trace span, Exec records a
 // "process.exec" client span around the execution. It is the single
-// instrumentation point for every short-lived external binary (soffice, pdftk,
-// qpdf, exiftool, pdfcpu). The span is skipped when there is no active parent,
+// instrumentation point for every short-lived external binary, such as
+// soffice. The span is skipped when there is no active parent,
 // so process starts performed off the request path do not emit orphan roots.
 func (cmd *Cmd) Exec() (int, error) {
 	if cmd.ctx == nil {
