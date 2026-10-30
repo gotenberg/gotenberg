@@ -74,6 +74,7 @@ services:
       - "--libreoffice-deny-list=${LIBREOFFICE_DENY_LIST}"
       - "--libreoffice-deny-private-ips=${LIBREOFFICE_DENY_PRIVATE_IPS}"
       - "--libreoffice-deny-public-ips=${LIBREOFFICE_DENY_PUBLIC_IPS}"
+      - "--libreoffice-enable-macros=${LIBREOFFICE_ENABLE_MACROS}"
       - "--libreoffice-enable-environment-proxy=${LIBREOFFICE_ENABLE_ENVIRONMENT_PROXY}"
       - "--libreoffice-disable-routes=${LIBREOFFICE_DISABLE_ROUTES}"
       - "--log-level=${LOG_LEVEL}"

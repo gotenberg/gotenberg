@@ -931,6 +931,16 @@ Feature: /forms/libreoffice/convert
       | files | testdata/page_1.docx | file |
     Then the response status code should be 404
 
+  Scenario: POST /forms/libreoffice/convert (Enable Macros)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | LIBREOFFICE_ENABLE_MACROS | true |
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files | testdata/page_1.docx | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then the Gotenberg container should log the following entries:
+      | --libreoffice-enable-macros (LIBREOFFICE_ENABLE_MACROS) runs the macros of every converted document |
+
   Scenario: POST /forms/libreoffice/convert (Gotenberg Trace)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
