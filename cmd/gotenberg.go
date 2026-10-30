@@ -144,7 +144,7 @@ func Run() {
 	for _, a := range apps {
 		go func(app gotenberg.App) {
 			id := app.(gotenberg.Module).Descriptor().ID
-			err = app.Start()
+			err := app.Start()
 			if err != nil {
 				fmt.Printf("[FATAL] starting %s: %s\n", id, err)
 				os.Exit(1)
@@ -204,24 +204,23 @@ func Run() {
 
 	fmt.Printf("[SYSTEM] graceful shutdown of %s\n", gracefulShutdownDuration)
 
-	eg, _ := errgroup.WithContext(gracefulShutdownCtx)
+	var eg errgroup.Group
 
 	for _, a := range apps {
-		eg.Go(func(app gotenberg.App) func() error {
-			return func() error {
-				id := app.(gotenberg.Module).Descriptor().ID
+		app := a.(gotenberg.App)
+		eg.Go(func() error {
+			id := app.(gotenberg.Module).Descriptor().ID
 
-				err = app.Stop(gracefulShutdownCtx)
-				if errors.Is(err, gotenberg.ErrCancelGracefulShutdownContext) {
-					cancel()
-				} else if err != nil {
-					return fmt.Errorf("stopping %s: %w", id, err)
-				}
-
-				fmt.Printf("[SYSTEM] %s: application stopped\n", id)
-				return nil
+			err := app.Stop(gracefulShutdownCtx)
+			if errors.Is(err, gotenberg.ErrCancelGracefulShutdownContext) {
+				cancel()
+			} else if err != nil {
+				return fmt.Errorf("stopping %s: %w", id, err)
 			}
-		}(a.(gotenberg.App)))
+
+			fmt.Printf("[SYSTEM] %s: application stopped\n", id)
+			return nil
+		})
 	}
 
 	err = eg.Wait()
