@@ -17,7 +17,6 @@ import (
 	"github.com/dlclark/regexp2/v2"
 	flag "github.com/spf13/pflag"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
 	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 	"go.opentelemetry.io/otel/trace"
@@ -122,14 +121,10 @@ type Chromium struct {
 	version     string
 	versionOnce sync.Once
 
-	reqsCounter               metric.Int64Counter
-	errsCounter               metric.Int64Counter
-	conversionDurationCounter metric.Float64Histogram
-	queueWaitDurationCounter  metric.Float64Histogram
-	pdfOutputSizeCounter      metric.Int64Histogram
-	imageOutputSizeCounter    metric.Int64Histogram
-	networkRequestsCounter    metric.Int64Counter
-	networkBytesCounter       metric.Int64Histogram
+	pdfOutputSizeCounter   metric.Int64Histogram
+	imageOutputSizeCounter metric.Int64Histogram
+	networkRequestsCounter metric.Int64Counter
+	networkBytesCounter    metric.Int64Histogram
 }
 
 // Options are the common options for all conversions.
@@ -567,7 +562,17 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 
 	// Process.
 	mod.browser = newChromiumBrowser(mod.args)
-	mod.supervisor = gotenberg.NewProcessSupervisor(mod.logger, "chromium", mod.browser, flags.MustInt64("chromium-restart-after"), flags.MustInt64("chromium-max-queue-size"), mod.maxConcurrency, flags.MustDuration("chromium-idle-shutdown-timeout"))
+	supervisor, err := gotenberg.NewProcessSupervisor(mod.logger, "chromium", mod.browser, gotenberg.SupervisorOptions{
+		RestartAfter:        flags.MustInt64("chromium-restart-after"),
+		MaxQueueSize:        flags.MustInt64("chromium-max-queue-size"),
+		MaxConcurrency:      mod.maxConcurrency,
+		IdleShutdownTimeout: flags.MustDuration("chromium-idle-shutdown-timeout"),
+		ErrorType:           chromiumErrorType,
+	})
+	if err != nil {
+		return fmt.Errorf("create Chromium supervisor: %w", err)
+	}
+	mod.supervisor = supervisor
 
 	// PDF processing.
 	provider, err := ctx.Module(new(pdf.Provider))
@@ -578,88 +583,6 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 
 	// Metrics.
 	meter := gotenberg.Meter()
-
-	// Observable gauges.
-	_, err = meter.Int64ObservableGauge(
-		"chromium.requests.active",
-		metric.WithDescription("Current number of active Chromium requests"),
-		metric.WithUnit("{request}"),
-		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
-			o.Observe(mod.supervisor.ActiveTasksCount())
-			return nil
-		}),
-	)
-	if err != nil {
-		return fmt.Errorf("create chromium.requests.active gauge: %w", err)
-	}
-
-	_, err = meter.Int64ObservableGauge(
-		"chromium.requests.queue_size",
-		metric.WithDescription("Current number of Chromium conversion requests waiting to be treated"),
-		metric.WithUnit("{request}"),
-		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
-			o.Observe(mod.supervisor.ReqQueueSize())
-			return nil
-		}),
-	)
-	if err != nil {
-		return fmt.Errorf("create chromium.requests.queue_size gauge: %w", err)
-	}
-
-	_, err = meter.Int64ObservableCounter(
-		"chromium.process.restarts.total",
-		metric.WithDescription("Current number of Chromium restarts"),
-		metric.WithUnit("{restart}"),
-		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
-			o.Observe(mod.supervisor.RestartsCount())
-			return nil
-		}),
-	)
-	if err != nil {
-		return fmt.Errorf("create chromium.process.restarts.total counter: %w", err)
-	}
-
-	// Counters.
-	mod.reqsCounter, err = meter.Int64Counter(
-		"chromium.requests.total",
-		metric.WithDescription("Total number of Chromium conversion requests"),
-		metric.WithUnit("{request}"),
-	)
-	if err != nil {
-		return fmt.Errorf("create chromium.requests.total counter: %w", err)
-	}
-
-	mod.errsCounter, err = meter.Int64Counter(
-		"chromium.errors.total",
-		metric.WithDescription("Total number of Chromium conversion errors"),
-		metric.WithUnit("{error}"),
-	)
-	if err != nil {
-		return fmt.Errorf("create chromium.errors.total counter: %w", err)
-	}
-
-	// Histograms.
-	durationBuckets := metric.WithExplicitBucketBoundaries(0.5, 1, 2, 5, 10, 30, 60)
-
-	mod.conversionDurationCounter, err = meter.Float64Histogram(
-		"chromium.conversion.duration",
-		metric.WithDescription("Duration of Chromium conversions"),
-		metric.WithUnit("s"),
-		durationBuckets,
-	)
-	if err != nil {
-		return fmt.Errorf("create chromium.conversion.duration histogram: %w", err)
-	}
-
-	mod.queueWaitDurationCounter, err = meter.Float64Histogram(
-		"chromium.queue.wait.duration",
-		metric.WithDescription("Duration of waiting in queue for Chromium conversions"),
-		metric.WithUnit("s"),
-		durationBuckets,
-	)
-	if err != nil {
-		return fmt.Errorf("create chromium.queue.wait.duration histogram: %w", err)
-	}
 
 	mod.pdfOutputSizeCounter, err = meter.Int64Histogram(
 		"chromium.pdf.output.size",
@@ -873,167 +796,58 @@ func (mod *Chromium) Routes() ([]api.Route, error) {
 }
 
 // Pdf converts a URL to PDF.
-//
-//nolint:dupl
 func (mod *Chromium) Pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error {
+	return mod.convert(ctx, logger, "chromium.Pdf", url, outputPath, mod.pdfOutputSizeCounter, func(ctx context.Context, aggregate *networkAggregate) error {
+		return mod.browser.pdf(ctx, logger, url, outputPath, options, aggregate)
+	})
+}
+
+// Screenshot captures a screenshot from a URL.
+func (mod *Chromium) Screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions) error {
+	return mod.convert(ctx, logger, "chromium.Screenshot", url, outputPath, mod.imageOutputSizeCounter, func(ctx context.Context, aggregate *networkAggregate) error {
+		return mod.browser.screenshot(ctx, logger, url, outputPath, options, aggregate)
+	})
+}
+
+// convert runs a browser task under the supervisor, within a client span named
+// spanName. The supervisor records the run metrics; convert adds what only
+// Chromium knows: the network aggregate and the output size.
+func (mod *Chromium) convert(ctx context.Context, logger *slog.Logger, spanName, url, outputPath string, outputSize metric.Int64Histogram, task func(context.Context, *networkAggregate) error) error {
 	// Read input attributes before Start rebinds ctx to the span context, which
 	// would shadow the underlying [api.Context].
 	inputAttrs := conversionInputAttrs(ctx, url)
 
-	ctx, span := gotenberg.Tracer().Start(ctx, "chromium.Pdf",
+	ctx, span := gotenberg.Tracer().Start(ctx, spanName,
 		trace.WithSpanKind(trace.SpanKindClient),
 		trace.WithAttributes(mod.spanAttrs()...),
 	)
 	defer span.End()
 
 	span.SetAttributes(inputAttrs...)
-	span.SetAttributes(
-		attribute.Int64("gotenberg.queue.depth_at_arrival", mod.supervisor.ReqQueueSize()),
-		attribute.Int64("gotenberg.conversions_since_last_restart", mod.supervisor.ConversionsSinceRestart()),
-	)
-
-	start := time.Now()
-	var conversionStart time.Time
 
 	aggregate := newNetworkAggregate()
 	err := mod.supervisor.Run(ctx, logger, func() error {
-		conversionStart = time.Now()
-		return mod.browser.pdf(ctx, logger, url, outputPath, options, aggregate)
+		return task(ctx, aggregate)
 	})
-
-	end := time.Now()
-
-	status := "success"
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-			status = "timeout"
-		} else {
-			status = "error"
-		}
-
-		reason := chromiumErrorType(err, "chromium_unavailable")
-
-		mod.errsCounter.Add(ctx, 1, metric.WithAttributes(
-			attribute.String("reason", reason),
-		))
-		gotenberg.SpanErrorType(span, reason)
-	}
-
-	if !conversionStart.IsZero() {
-		waitDuration := conversionStart.Sub(start).Seconds()
-		conversionDuration := end.Sub(conversionStart).Seconds()
-
-		mod.queueWaitDurationCounter.Record(ctx, waitDuration, metric.WithAttributes(
-			attribute.String("status", status),
-		))
-		mod.conversionDurationCounter.Record(ctx, conversionDuration, metric.WithAttributes(
-			attribute.String("status", status),
-		))
-	} else {
-		waitDuration := end.Sub(start).Seconds()
-		mod.queueWaitDurationCounter.Record(ctx, waitDuration, metric.WithAttributes(
-			attribute.String("status", status),
-		))
-	}
-
-	mod.reqsCounter.Add(ctx, 1, metric.WithAttributes(
-		attribute.String("status", status),
-	))
 
 	mod.recordNetwork(ctx, span, aggregate)
 
 	if err == nil {
-		if fileInfo, statErr := os.Stat(outputPath); statErr == nil {
-			mod.pdfOutputSizeCounter.Record(ctx, fileInfo.Size())
-			span.SetAttributes(attribute.Int64("gotenberg.conversion.output.bytes", fileInfo.Size()))
-		}
-
-		span.SetStatus(codes.Ok, "")
-		return nil
+		recordOutputSize(ctx, span, outputSize, outputPath)
 	}
 
-	span.RecordError(err)
-	span.SetStatus(codes.Error, err.Error())
-	return err
+	return gotenberg.SetSpanStatus(span, err, chromiumErrorType(err))
 }
 
-// Screenshot captures a screenshot from a URL.
-//
-//nolint:dupl
-func (mod *Chromium) Screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions) error {
-	ctx, span := gotenberg.Tracer().Start(ctx, "chromium.Screenshot",
-		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(mod.spanAttrs()...),
-	)
-	defer span.End()
-
-	span.SetAttributes(
-		attribute.Int64("gotenberg.queue.depth_at_arrival", mod.supervisor.ReqQueueSize()),
-		attribute.Int64("gotenberg.conversions_since_last_restart", mod.supervisor.ConversionsSinceRestart()),
-	)
-
-	start := time.Now()
-	var conversionStart time.Time
-
-	aggregate := newNetworkAggregate()
-	err := mod.supervisor.Run(ctx, logger, func() error {
-		conversionStart = time.Now()
-		return mod.browser.screenshot(ctx, logger, url, outputPath, options, aggregate)
-	})
-
-	end := time.Now()
-
-	status := "success"
+// recordOutputSize records the size of the file at outputPath.
+func recordOutputSize(ctx context.Context, span trace.Span, outputSize metric.Int64Histogram, outputPath string) {
+	info, err := os.Stat(outputPath)
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-			status = "timeout"
-		} else {
-			status = "error"
-		}
-
-		reason := chromiumErrorType(err, "chromium_maximum_queue_size_exceeded")
-
-		mod.errsCounter.Add(ctx, 1, metric.WithAttributes(
-			attribute.String("reason", reason),
-		))
-		gotenberg.SpanErrorType(span, reason)
+		return
 	}
 
-	if !conversionStart.IsZero() {
-		waitDuration := conversionStart.Sub(start).Seconds()
-		conversionDuration := end.Sub(conversionStart).Seconds()
-
-		mod.queueWaitDurationCounter.Record(ctx, waitDuration, metric.WithAttributes(
-			attribute.String("status", status),
-		))
-		mod.conversionDurationCounter.Record(ctx, conversionDuration, metric.WithAttributes(
-			attribute.String("status", status),
-		))
-	} else {
-		waitDuration := end.Sub(start).Seconds()
-		mod.queueWaitDurationCounter.Record(ctx, waitDuration, metric.WithAttributes(
-			attribute.String("status", status),
-		))
-	}
-
-	mod.reqsCounter.Add(ctx, 1, metric.WithAttributes(
-		attribute.String("status", status),
-	))
-
-	mod.recordNetwork(ctx, span, aggregate)
-
-	if err == nil {
-		if fileInfo, statErr := os.Stat(outputPath); statErr == nil {
-			mod.imageOutputSizeCounter.Record(ctx, fileInfo.Size())
-		}
-
-		span.SetStatus(codes.Ok, "")
-		return nil
-	}
-
-	span.RecordError(err)
-	span.SetStatus(codes.Error, err.Error())
-	return err
+	outputSize.Record(ctx, info.Size())
+	span.SetAttributes(attribute.Int64("gotenberg.conversion.output.bytes", info.Size()))
 }
 
 // recordNetwork lifts per-conversion network aggregates onto the span and the
@@ -1093,12 +907,9 @@ func conversionInputAttrs(ctx context.Context, url string) []attribute.KeyValue 
 }
 
 // chromiumErrorType maps a conversion error to chromium's bounded reason value,
-// reused as the span error.type. queueReason preserves the historical,
-// route-specific label for a saturated queue: Pdf collapses it into
-// "chromium_unavailable", whereas Screenshot keeps
-// "chromium_maximum_queue_size_exceeded". Generic failures fall back to
+// reused as the span error.type. Generic failures fall back to
 // [gotenberg.ClassifyError].
-func chromiumErrorType(err error, queueReason string) string {
+func chromiumErrorType(err error) string {
 	switch {
 	case errors.Is(err, ErrInvalidHttpStatusCode),
 		errors.Is(err, ErrInvalidResourceHttpStatusCode),
@@ -1115,11 +926,9 @@ func chromiumErrorType(err error, queueReason string) string {
 		errors.Is(err, ErrPageRangesSyntaxError),
 		errors.Is(err, ErrPageRangesExceedsPageCount):
 		return gotenberg.ErrorTypeInvalidInput
-	case errors.Is(err, ErrChromiumCrashed):
-		return "chromium_unavailable"
-	case errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded):
-		return queueReason
-	case errors.Is(err, gotenberg.ErrProcessAlreadyRestarting):
+	case errors.Is(err, ErrChromiumCrashed),
+		errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded),
+		errors.Is(err, gotenberg.ErrProcessAlreadyRestarting):
 		return "chromium_unavailable"
 	default:
 		return gotenberg.ClassifyError(err)

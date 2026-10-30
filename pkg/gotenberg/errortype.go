@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -49,4 +50,19 @@ func SpanErrorType(span trace.Span, errorType string) {
 		return
 	}
 	span.SetAttributes(semconv.ErrorTypeKey.String(errorType))
+}
+
+// SetSpanStatus sets the status of span from the outcome of the operation it
+// traces, with errorType as its error.type on failure, and returns err.
+func SetSpanStatus(span trace.Span, err error, errorType string) error {
+	if err == nil {
+		span.SetStatus(codes.Ok, "")
+		return nil
+	}
+
+	SpanErrorType(span, errorType)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+
+	return err
 }

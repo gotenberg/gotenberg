@@ -72,22 +72,36 @@ type ProcessSupervisor interface {
 	// The task must return once ctx is done: Run holds its slot until it
 	// does, so that the concurrency limit stays true.
 	//
+	// Run measures every run in the <engine>.* metrics, and annotates the
+	// span in ctx with the queue depth on arrival and the number of runs since
+	// the last restart.
+	//
 	// It returns an error if the task cannot be run or if the process state
 	// cannot be managed properly.
 	Run(ctx context.Context, logger *slog.Logger, task func() error) error
+}
 
-	// ReqQueueSize returns the current size of the request queue.
-	ReqQueueSize() int64
+// SupervisorOptions configures a [ProcessSupervisor].
+type SupervisorOptions struct {
+	// RestartAfter restarts the process after this number of runs. 0 never
+	// restarts it.
+	RestartAfter int64
 
-	// RestartsCount returns the current number of restart.
-	RestartsCount() int64
+	// MaxQueueSize rejects a run with [ErrMaximumQueueSizeExceeded] once this
+	// number of runs are queued. 0 means no limit.
+	MaxQueueSize int64
 
-	// ActiveTasksCount returns the current number of active tasks.
-	ActiveTasksCount() int64
+	// MaxConcurrency is the number of runs the process handles at once. It
+	// defaults to 1.
+	MaxConcurrency int64
 
-	// ConversionsSinceRestart returns the number of tasks handled since the
-	// last process (re)start.
-	ConversionsSinceRestart() int64
+	// IdleShutdownTimeout stops the process after this duration without runs.
+	// 0 keeps it running.
+	IdleShutdownTimeout time.Duration
+
+	// ErrorType maps the error of a failed run to the bounded reason of the
+	// <engine>.errors.total metric. It defaults to [ClassifyError].
+	ErrorType func(error) string
 }
 
 // healthCheckCacheTTL caches successful health probe results so kubelet-
@@ -169,38 +183,46 @@ type processSupervisor struct {
 	// eagerRestartTimeout bounds the restart from maybeRestartAfterTask.
 	// Defaults to [defaultEagerRestartTimeout]; only tests shorten it.
 	eagerRestartTimeout time.Duration
+	errorType           func(error) string
+	metrics             runMetrics
 }
 
 // NewProcessSupervisor initializes a new [ProcessSupervisor]. engine names the
-// managed process (for example "chromium" or "libreoffice") and prefixes the
-// telemetry sub-spans; an empty engine falls back to "process".
-func NewProcessSupervisor(logger *slog.Logger, engine string, process Process, maxReqLimit, maxQueueSize, maxConcurrency int64, idleShutdownTimeout time.Duration) ProcessSupervisor {
-	if maxConcurrency < 1 {
-		maxConcurrency = 1
+// managed process (for example "chromium" or "libreoffice") and prefixes its
+// metrics and telemetry sub-spans; an empty engine falls back to "process".
+func NewProcessSupervisor(logger *slog.Logger, engine string, process Process, opts SupervisorOptions) (ProcessSupervisor, error) {
+	if opts.MaxConcurrency < 1 {
+		opts.MaxConcurrency = 1
+	}
+
+	if opts.ErrorType == nil {
+		opts.ErrorType = ClassifyError
 	}
 
 	if engine == "" {
 		engine = "process"
 	}
 
-	b := &processSupervisor{
+	s := &processSupervisor{
 		logger:              logger,
 		engine:              engine,
 		process:             process,
-		semaphore:           make(chan struct{}, maxConcurrency),
-		maxReqLimit:         maxReqLimit,
-		maxQueueSize:        maxQueueSize,
-		maxConcurrency:      maxConcurrency,
-		idleShutdownTimeout: idleShutdownTimeout,
+		semaphore:           make(chan struct{}, opts.MaxConcurrency),
+		maxReqLimit:         opts.RestartAfter,
+		maxQueueSize:        opts.MaxQueueSize,
+		maxConcurrency:      opts.MaxConcurrency,
+		idleShutdownTimeout: opts.IdleShutdownTimeout,
 		eagerRestartTimeout: defaultEagerRestartTimeout,
+		errorType:           opts.ErrorType,
 	}
-	b.reqCounter.Store(0)
-	b.reqQueueSize.Store(0)
-	b.restartsCounter.Store(0)
-	b.isRestarting.Store(false)
-	b.activeTasks.Store(0)
 
-	return b
+	metrics, err := newRunMetrics(s)
+	if err != nil {
+		return nil, fmt.Errorf("create %s metrics: %w", engine, err)
+	}
+	s.metrics = metrics
+
+	return s, nil
 }
 
 func (s *processSupervisor) Launch(ctx context.Context) error {
@@ -331,7 +353,12 @@ func (s *processSupervisor) recentlyHealthy() bool {
 	return time.Since(time.Unix(0, last)) < healthCheckCacheTTL
 }
 
-func (s *processSupervisor) Run(ctx context.Context, logger *slog.Logger, task func() error) error {
+func (s *processSupervisor) Run(ctx context.Context, logger *slog.Logger, task func() error) (err error) {
+	measure := s.measureRun(ctx)
+	defer func() {
+		measure.end(ctx, err)
+	}()
+
 	// Time spent before the task body runs: queueing, slot acquisition, lazy
 	// launch, and health checks. Ended once, when the task is about to execute.
 	_, queueSpan := Tracer().Start(ctx, s.engine+".queue.wait",
@@ -395,6 +422,7 @@ func (s *processSupervisor) Run(ctx context.Context, logger *slog.Logger, task f
 			}
 
 			endQueueWait()
+			measure.taskStarted()
 			err := task()
 
 			if s.maybeRestartAfterTask(logger) {
