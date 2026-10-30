@@ -63,9 +63,6 @@ type Validator interface {
 // application.
 type App interface {
 	Start() error
-	// StartupMessage returns a custom message to display on startup. If it
-	// returns an empty string, a default startup message is used instead.
-	StartupMessage() string
 	Stop(ctx context.Context) error
 }
 
@@ -77,10 +74,28 @@ type Ingress interface {
 	Ingress()
 }
 
-// SystemLogger is a module interface for modules which want to display
-// messages on startup.
-type SystemLogger interface {
-	SystemMessages() []string
+// Reporter is a module interface for modules which describe their state in
+// the startup summary, once every [App] has started.
+type Reporter interface {
+	Report() Report
+}
+
+// Report is a module's line in the startup summary.
+type Report struct {
+	// Name labels the line, such as "Chromium".
+	Name string
+
+	// Fields describe the module's state, in display order.
+	Fields []ReportField
+}
+
+// ReportField is a fact of a [Report]. Key and Value form the attribute of the
+// startup log record. Text, when set, replaces Value in the terminal summary,
+// where it reads after the [Report] name.
+type ReportField struct {
+	Key   string
+	Value any
+	Text  string
 }
 
 // Debuggable is a module interface for modules which want to provide

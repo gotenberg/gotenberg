@@ -93,6 +93,16 @@ func exporterConfigured(envKey string) bool {
 	return strings.TrimSpace(os.Getenv(envKey)) != ""
 }
 
+// Exporters returns the exporters the operator selected for traces, metrics,
+// and logs. An empty value means the signal stays off.
+func Exporters() (traces, metrics, logs string) {
+	exporter := func(envKey string) string {
+		return strings.TrimSpace(os.Getenv(envKey))
+	}
+
+	return exporter(tracesExporterEnvKey), exporter(metricsExporterEnvKey), exporter(logsExporterEnvKey)
+}
+
 // InitTracerProvider initializes the OpenTelemetry tracer provider.
 func InitTracerProvider(logger *slog.Logger, serviceName, serviceVersion string) (shutdown func(context.Context) error, err error) {
 	initOtelLogger(logger)

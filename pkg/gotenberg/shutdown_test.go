@@ -15,7 +15,6 @@ type appStub struct {
 }
 
 func (a *appStub) Start() error                   { return nil }
-func (a *appStub) StartupMessage() string         { return "" }
 func (a *appStub) Stop(ctx context.Context) error { return a.stop(ctx) }
 
 type ingressStub struct{ appStub }

@@ -69,6 +69,9 @@ type Api struct {
 	server    *http.Server
 	stopping  bool
 	serveDone chan struct{}
+
+	// listenAddr is the address the server listens on, once Start returned.
+	listenAddr string
 }
 
 // archiveConfig bounds the zip archives the "archives" form field unpacks.
@@ -769,10 +772,21 @@ func (a *Api) Start() error {
 		return fmt.Errorf("waiting for modules readiness: %w", err)
 	}
 
+	// Start returns once the server accepts connections, or failed to.
+	ready := make(chan error, 1)
+	var listenOnce sync.Once
+	listening := func(err error) {
+		listenOnce.Do(func() { ready <- err })
+	}
+
 	startConfig := echo.StartConfig{
 		Address:    fmt.Sprintf("%s:%d", a.bindIp, a.port),
 		HideBanner: true,
 		HidePort:   true,
+		ListenerAddrFunc: func(addr net.Addr) {
+			a.listenAddr = addr.String()
+			listening(nil)
+		},
 		// Stop drains the server itself, bounded by the graceful shutdown
 		// duration.
 		GracefulTimeout: -1,
@@ -842,6 +856,9 @@ func (a *Api) Start() error {
 	// As the following code is blocking, run it in a goroutine.
 	go func() {
 		defer close(a.serveDone)
+		// Serving may end before listening, such as on a port in use: Start
+		// then returns its error.
+		defer listening(errors.New("server stopped before listening"))
 
 		var err error
 		if tlsCert != nil && tlsKey != nil {
@@ -851,21 +868,39 @@ func (a *Api) Start() error {
 			// Start an HTTP/2 Cleartext (non-HTTPS) server.
 			err = startConfig.Start(context.Background(), a.srv)
 		}
+		listening(err)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			a.logger.ErrorContext(context.Background(), err.Error())
 		}
 	}()
 
+	err = <-ready
+	if err != nil {
+		return fmt.Errorf("listen on %s: %w", startConfig.Address, err)
+	}
+
 	return nil
 }
 
-// StartupMessage returns a custom startup message.
-func (a *Api) StartupMessage() string {
-	ip := a.bindIp
-	if a.bindIp == "" {
-		ip = "[::]"
+// Report describes the address the API listens on, and its authentication.
+func (a *Api) Report() gotenberg.Report {
+	scheme := "http"
+	if a.tlsCertFile != "" && a.tlsKeyFile != "" {
+		scheme = "https"
 	}
-	return fmt.Sprintf("server started on %s:%d", ip, a.port)
+
+	fields := []gotenberg.ReportField{
+		{Key: "address", Value: fmt.Sprintf("%s://%s%s", scheme, a.listenAddr, a.rootPath)},
+	}
+
+	switch {
+	case a.basicAuthUsername != "":
+		fields = append(fields, gotenberg.ReportField{Key: "auth", Value: "basic", Text: "basic auth"})
+	case a.oidcEnabled:
+		fields = append(fields, gotenberg.ReportField{Key: "auth", Value: "oidc", Text: "OIDC auth"})
+	}
+
+	return gotenberg.Report{Name: "API", Fields: fields}
 }
 
 // shutdown stops accepting requests and waits for the in-flight ones, or for
@@ -931,4 +966,5 @@ var (
 	_ gotenberg.Validator   = (*Api)(nil)
 	_ gotenberg.App         = (*Api)(nil)
 	_ gotenberg.Ingress     = (*Api)(nil)
+	_ gotenberg.Reporter    = (*Api)(nil)
 )
