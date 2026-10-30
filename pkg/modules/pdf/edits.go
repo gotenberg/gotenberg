@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/gotenberg/litho/pkg/models"
 	litho "github.com/gotenberg/litho/pkg/pdf"
 )
 
@@ -288,20 +287,11 @@ func (s *remediateStage) edit(ctx context.Context, w *litho.Writer, env *runEnv)
 		return err
 	}
 
-	// The XML invoice is the alternative representation of the document, and
-	// the XRECHNUNG reference profile must not embed a factur-x.xml
-	// (Factur-X 1.07.2 / ZUGFeRD 2.3.2, 6.2 and 7.7).
-	fileName := "factur-x.xml"
-	if s.Level == string(models.FacturXXRechnung) {
-		fileName = "xrechnung.xml"
-	}
-
+	// litho picks the embedded file name and relationship the level requires.
 	_, err = w.RemediateFacturX(ctx, litho.FacturXConfig{
 		InvoiceXML:   xml,
 		Level:        facturXLevels[s.Level],
 		DocumentType: s.DocumentType,
-		FileName:     fileName,
-		Relationship: "Alternative",
 	}, opts...)
 
 	return err

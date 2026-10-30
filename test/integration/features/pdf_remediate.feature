@@ -92,6 +92,23 @@ Feature: /forms/pdf/remediate
     Then the response PDF(s) should NOT have the "factur-x.xml" file embedded
     Then the response PDF(s) should declare Factur-X XMP with conformance level "XRECHNUNG"
 
+  # MINIMUM carries less invoice data than the visual part, so the relationship
+  # is Data (Factur-X 1.07.2, 6.2.2).
+  @factur-x
+  Scenario: POST /forms/pdf/remediate (Factur-X MINIMUM)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf  | file   |
+      | files                     | testdata/embed_1.xml | file   |
+      | profile                   | Factur-X             | field  |
+      | xml                       | embed_1.xml          | field  |
+      | level                     | MINIMUM              | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 0 failed rule(s)
+    Then the response PDF(s) should have the "factur-x.xml" file embedded with relationship "Data"
+    Then the response PDF(s) should declare Factur-X XMP with conformance level "MINIMUM"
+
   Scenario: POST /forms/pdf/remediate (Bad Request)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
