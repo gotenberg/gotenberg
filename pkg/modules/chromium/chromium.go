@@ -375,7 +375,7 @@ type ScreenshotOptions struct {
 	// "webp".
 	Format string
 
-	// Quality is the compression quality from range [0..100] (jpeg only).
+	// Quality is the compression quality from range [1..100] (jpeg only).
 	Quality int
 
 	// OptimizeForSpeed defines whether to optimize image encoding for speed,
