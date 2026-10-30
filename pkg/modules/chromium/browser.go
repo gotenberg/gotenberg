@@ -580,6 +580,18 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 	taskCtx, taskCancel := chromedp.NewContext(timeoutCtx, taskOpts...)
 	defer taskCancel()
 
+	failures := new(conversionFailures)
+	b.listen(taskCtx, taskCancel, logger, url, options, aggregate, failures)
+
+	runErr := chromedp.Run(taskCtx, tasks...)
+
+	return failures.err(runErr, b.ctx.Err() != nil, options.FailOnResourceLoadingFailed)
+}
+
+// listen registers the event listeners of one conversion on taskCtx. They
+// record what fails the conversion in failures, and some cancel taskCtx so
+// that the conversion stops at once.
+func (b *chromiumBrowser) listen(taskCtx context.Context, taskCancel context.CancelFunc, logger *slog.Logger, url string, options Options, aggregate *networkAggregate, failures *conversionFailures) {
 	// Accumulate per-conversion network activity for telemetry.
 	listenForNetworkActivity(taskCtx, aggregate)
 
@@ -600,18 +612,12 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 	// listenForEventRequestPaused above cannot filter them. Validate them
 	// against the same allow / deny lists and IP-class policy.
 	// See https://github.com/gotenberg/gotenberg/issues/1011.
-	var (
-		webSocketDenied   error
-		webSocketDeniedMu sync.RWMutex
-	)
-
 	webSocketOptions := eventWebSocketCreatedOptions{
 		allowList:      b.arguments.allowList,
 		denyList:       b.arguments.denyList,
 		denyPrivateIPs: b.arguments.denyPrivateIPs,
 		denyPublicIPs:  b.arguments.denyPublicIPs,
-		denied:         &webSocketDenied,
-		deniedMu:       &webSocketDeniedMu,
+		failures:       failures,
 		cancel:         taskCancel,
 	}
 	if b.arguments.proxyServer == "" && b.arguments.hostResolverRules == "" {
@@ -620,13 +626,6 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 
 	listenForEventWebSocketCreated(taskCtx, logger, webSocketOptions)
 
-	var (
-		invalidHttpStatusCode           error
-		invalidHttpStatusCodeMu         sync.RWMutex
-		invalidResourceHttpStatusCode   error
-		invalidResourceHttpStatusCodeMu sync.RWMutex
-	)
-
 	// See:
 	// https://github.com/gotenberg/gotenberg/issues/613.
 	// https://github.com/gotenberg/gotenberg/issues/1021.
@@ -634,195 +633,40 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 		listenForEventResponseReceived(taskCtx, logger, eventResponseReceivedOptions{
 			mainPageUrl:                     url,
 			failOnHttpStatusCodes:           options.FailOnHttpStatusCodes,
-			invalidHttpStatusCode:           &invalidHttpStatusCode,
-			invalidHttpStatusCodeMu:         &invalidHttpStatusCodeMu,
 			failOnResourceOnHttpStatusCode:  options.FailOnResourceHttpStatusCodes,
 			ignoreResourceHttpStatusDomains: options.IgnoreResourceHttpStatusDomains,
-			invalidResourceHttpStatusCode:   &invalidResourceHttpStatusCode,
-			invalidResourceHttpStatusCodeMu: &invalidResourceHttpStatusCodeMu,
+			failures:                        failures,
 			cancelOnMainPageError:           taskCancel,
 		})
 	}
 
-	var (
-		consoleExceptions   error
-		consoleExceptionsMu sync.RWMutex
-	)
-
 	// See https://github.com/gotenberg/gotenberg/issues/262.
 	if options.FailOnConsoleExceptions && !b.arguments.disableJavaScript {
-		listenForEventExceptionThrown(taskCtx, logger, &consoleExceptions, &consoleExceptionsMu)
+		listenForEventExceptionThrown(taskCtx, logger, failures)
 	}
-
-	var (
-		consoleMessages        []string
-		droppedConsoleMessages int
-		consoleMessagesMu      sync.RWMutex
-	)
 
 	// See https://github.com/gotenberg/gotenberg/issues/1667.
 	if len(options.FailOnConsoleMessageTypes) != 0 && !b.arguments.disableJavaScript {
 		listenForEventConsoleAPICalled(taskCtx, logger, eventConsoleAPICalledOptions{
-			types:                  options.FailOnConsoleMessageTypes,
-			consoleMessages:        &consoleMessages,
-			droppedConsoleMessages: &droppedConsoleMessages,
-			consoleMessagesMu:      &consoleMessagesMu,
+			types:    options.FailOnConsoleMessageTypes,
+			failures: failures,
 		})
 	}
-
-	var (
-		loadingFailed           error
-		loadingFailedMu         sync.RWMutex
-		resourceLoadingFailed   error
-		resourceLoadingFailedMu sync.RWMutex
-	)
 
 	// See:
 	// https://github.com/gotenberg/gotenberg/issues/913.
 	// https://github.com/gotenberg/gotenberg/issues/959.
 	// https://github.com/gotenberg/gotenberg/issues/1021.
 	listenForEventLoadingFailed(taskCtx, logger, eventLoadingFailedOptions{
-		loadingFailed:           &loadingFailed,
-		loadingFailedMu:         &loadingFailedMu,
-		resourceLoadingFailed:   &resourceLoadingFailed,
-		resourceLoadingFailedMu: &resourceLoadingFailedMu,
-		cancelOnMainPageError:   taskCancel,
+		failures:              failures,
+		cancelOnMainPageError: taskCancel,
 	})
-
-	var (
-		crashed   error
-		crashedMu sync.RWMutex
-	)
 
 	// See https://github.com/gotenberg/gotenberg/issues/1640.
 	listenForEventTargetCrashed(taskCtx, logger, eventTargetCrashedOptions{
-		crashed:   &crashed,
-		crashedMu: &crashedMu,
-		cancel:    taskCancel,
+		failures: failures,
+		cancel:   taskCancel,
 	})
-
-	runErr := chromedp.Run(taskCtx, tasks...)
-
-	// A crashed renderer is the root cause of every other failure this
-	// conversion may have recorded, so check it first.
-	// See https://github.com/gotenberg/gotenberg/issues/1640.
-	crashedMu.RLock()
-	defer crashedMu.RUnlock()
-
-	if crashed != nil {
-		return fmt.Errorf("handle tasks: %w", crashed)
-	}
-
-	// A WebSocket the deny-list refuses cancels the conversion, so report the
-	// refusal rather than the cancellation it caused.
-	webSocketDeniedMu.RLock()
-	defer webSocketDeniedMu.RUnlock()
-
-	if webSocketDenied != nil {
-		return fmt.Errorf("handle tasks: %w", webSocketDenied)
-	}
-
-	// The browser context is only ever canceled when the browser process
-	// dies or is stopped, never on a request timeout. If the run failed
-	// and the browser context is done, the conversion failed because the
-	// browser went away mid-flight; fail fast with the same crash error
-	// instead of letting the error fall through as a generic context
-	// cancellation. The check is gated on runErr so a successful
-	// conversion is never discarded by a browser death that lands right
-	// after it.
-	// See https://github.com/gotenberg/gotenberg/issues/1640.
-	if runErr != nil {
-		if err := b.ctx.Err(); err != nil {
-			return fmt.Errorf("handle tasks: %w", ErrChromiumCrashed)
-		}
-	}
-
-	// Check event-driven errors first — they take priority over chromedp.Run
-	// errors because they carry the actual root cause (e.g., HTTP 500 from
-	// the main page). When we cancel taskCtx on a main page error,
-	// chromedp.Run returns a context error that is less informative.
-	// See https://github.com/gotenberg/gotenberg/issues/1492.
-
-	// See https://github.com/gotenberg/gotenberg/issues/613.
-	invalidHttpStatusCodeMu.RLock()
-	defer invalidHttpStatusCodeMu.RUnlock()
-
-	if invalidHttpStatusCode != nil {
-		return fmt.Errorf("%v: %w", invalidHttpStatusCode, ErrInvalidHttpStatusCode)
-	}
-
-	// See https://github.com/gotenberg/gotenberg/issues/1021.
-	invalidResourceHttpStatusCodeMu.RLock()
-	defer invalidResourceHttpStatusCodeMu.RUnlock()
-
-	if invalidResourceHttpStatusCode != nil {
-		return fmt.Errorf("%v: %w", invalidResourceHttpStatusCode, ErrInvalidResourceHttpStatusCode)
-	}
-
-	// See:
-	// https://github.com/gotenberg/gotenberg/issues/913.
-	// https://github.com/gotenberg/gotenberg/issues/959.
-	loadingFailedMu.RLock()
-	defer loadingFailedMu.RUnlock()
-
-	if loadingFailed != nil {
-		return fmt.Errorf("%v: %w", loadingFailed, ErrLoadingFailed)
-	}
-
-	if runErr != nil {
-		errMessage := runErr.Error()
-
-		if strings.Contains(errMessage, "Printing failed (-32000)") {
-			return ErrPrintingFailed
-		}
-
-		if isInvalidPrinterSettingsError(errMessage) {
-			return ErrInvalidPrinterSettings
-		}
-
-		if strings.Contains(errMessage, "Page range syntax error") {
-			return ErrPageRangesSyntaxError
-		}
-
-		if strings.Contains(errMessage, "Page range exceeds page count (-32000)") {
-			return ErrPageRangesExceedsPageCount
-		}
-
-		if strings.Contains(errMessage, "rpcc: message too large") {
-			return ErrRpccMessageTooLarge
-		}
-
-		return fmt.Errorf("handle tasks: %w", runErr)
-	}
-
-	// See https://github.com/gotenberg/gotenberg/issues/262.
-	consoleExceptionsMu.RLock()
-	defer consoleExceptionsMu.RUnlock()
-
-	if consoleExceptions != nil {
-		return fmt.Errorf("%v: %w", consoleExceptions, ErrConsoleExceptions)
-	}
-
-	// See https://github.com/gotenberg/gotenberg/issues/1667.
-	consoleMessagesMu.RLock()
-	defer consoleMessagesMu.RUnlock()
-
-	if len(consoleMessages) != 0 {
-		if droppedConsoleMessages != 0 {
-			consoleMessages = append(consoleMessages, fmt.Sprintf("(%d more console message(s) omitted)", droppedConsoleMessages))
-		}
-
-		return fmt.Errorf("%s: %w", strings.Join(consoleMessages, "\n"), ErrConsoleMessages)
-	}
-
-	// See https://github.com/gotenberg/gotenberg/issues/1021.
-	if options.FailOnResourceLoadingFailed {
-		if resourceLoadingFailed != nil {
-			return fmt.Errorf("%v: %w", resourceLoadingFailed, ErrResourceLoadingFailed)
-		}
-	}
-
-	return nil
 }
 
 // invalidPrinterSettingsMessages are the errors Chromium returns when it

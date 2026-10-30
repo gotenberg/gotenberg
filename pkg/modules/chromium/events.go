@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/chromedp/cdproto/cdp"
@@ -55,8 +54,7 @@ type eventWebSocketCreatedOptions struct {
 	// decideTunnel is the pinning proxy's CONNECT verdict, or nil when the
 	// pinning proxy is not in use.
 	decideTunnel func(ctx context.Context, hostport string, deadline time.Time) (gotenberg.OutboundDecision, error)
-	denied       *error
-	deniedMu     *sync.RWMutex
+	failures     *conversionFailures
 	cancel       context.CancelFunc
 }
 
@@ -129,13 +127,7 @@ func listenForEventWebSocketCreated(ctx context.Context, logger *slog.Logger, op
 				return
 			}
 
-			options.deniedMu.Lock()
-			defer options.deniedMu.Unlock()
-
-			if *options.denied == nil {
-				*options.denied = fmt.Errorf("WebSocket handshake: %w", deniedErr)
-			}
-
+			options.failures.denyWebSocket(deniedErr)
 			options.cancel()
 		}()
 	})
@@ -345,12 +337,9 @@ func listenForEventRequestPaused(ctx context.Context, logger *slog.Logger, optio
 type eventResponseReceivedOptions struct {
 	mainPageUrl                     string
 	failOnHttpStatusCodes           []int64
-	invalidHttpStatusCode           *error
-	invalidHttpStatusCodeMu         *sync.RWMutex
 	failOnResourceOnHttpStatusCode  []int64
 	ignoreResourceHttpStatusDomains []string
-	invalidResourceHttpStatusCode   *error
-	invalidResourceHttpStatusCodeMu *sync.RWMutex
+	failures                        *conversionFailures
 	cancelOnMainPageError           context.CancelFunc
 }
 
@@ -386,10 +375,7 @@ func listenForEventResponseReceived(
 				logger.DebugContext(ctx, fmt.Sprintf("event EventResponseReceived fired for main page: %+v", ev.Response))
 
 				if slices.Contains(options.failOnHttpStatusCodes, ev.Response.Status) {
-					options.invalidHttpStatusCodeMu.Lock()
-					defer options.invalidHttpStatusCodeMu.Unlock()
-
-					*options.invalidHttpStatusCode = fmt.Errorf("%d: %s", ev.Response.Status, ev.Response.StatusText)
+					options.failures.failMainPageStatus(fmt.Errorf("%d: %s", ev.Response.Status, ev.Response.StatusText))
 
 					// Cancel the task context so that any in-flight wait
 					// operations (waitForSelector, waitForExpression, etc.)
@@ -419,11 +405,7 @@ func listenForEventResponseReceived(
 					return
 				}
 
-				options.invalidResourceHttpStatusCodeMu.Lock()
-				defer options.invalidResourceHttpStatusCodeMu.Unlock()
-
-				*options.invalidResourceHttpStatusCode = errors.Join(
-					*options.invalidResourceHttpStatusCode,
+				options.failures.failResourceStatus(
 					fmt.Errorf("%s - %d: %s", ev.Response.URL, ev.Response.Status, http.StatusText(int(ev.Response.Status))),
 				)
 			}
@@ -522,11 +504,8 @@ func matchesAnyDomain(host string, domains []string) bool {
 }
 
 type eventLoadingFailedOptions struct {
-	loadingFailed           *error
-	loadingFailedMu         *sync.RWMutex
-	resourceLoadingFailed   *error
-	resourceLoadingFailedMu *sync.RWMutex
-	cancelOnMainPageError   context.CancelFunc
+	failures              *conversionFailures
+	cancelOnMainPageError context.CancelFunc
 }
 
 // listenForEventLoadingFailed listens for an event indicating that the main
@@ -568,10 +547,7 @@ func listenForEventLoadingFailed(ctx context.Context, logger *slog.Logger, optio
 				// resource type Document is about the main page.
 				logger.DebugContext(ctx, "event EventLoadingFailed fired for main page")
 
-				options.loadingFailedMu.Lock()
-				defer options.loadingFailedMu.Unlock()
-
-				*options.loadingFailed = fmt.Errorf("%s", ev.ErrorText)
+				options.failures.failMainPageLoading(fmt.Errorf("%s", ev.ErrorText))
 
 				// Cancel the task context so that any in-flight wait
 				// operations abort immediately.
@@ -585,29 +561,20 @@ func listenForEventLoadingFailed(ctx context.Context, logger *slog.Logger, optio
 
 			logger.DebugContext(ctx, "event EventLoadingFailed fired for a resource")
 
-			options.resourceLoadingFailedMu.Lock()
-			defer options.resourceLoadingFailedMu.Unlock()
-
-			*options.resourceLoadingFailed = errors.Join(
-				*options.resourceLoadingFailed,
-				fmt.Errorf("resource %s: %s", ev.Type, ev.ErrorText),
-			)
+			options.failures.failResourceLoading(fmt.Errorf("resource %s: %s", ev.Type, ev.ErrorText))
 		}
 	})
 }
 
 // listenForEventExceptionThrown listens for exceptions in the console and
-// appends those exceptions to the given error pointer.
+// records them in failures.
 // See https://github.com/gotenberg/gotenberg/issues/262.
-func listenForEventExceptionThrown(ctx context.Context, logger *slog.Logger, consoleExceptions *error, consoleExceptionsMu *sync.RWMutex) {
+func listenForEventExceptionThrown(ctx context.Context, logger *slog.Logger, failures *conversionFailures) {
 	chromedp.ListenTarget(ctx, func(ev any) {
 		if ev, ok := ev.(*runtime.EventExceptionThrown); ok {
 			logger.DebugContext(ctx, fmt.Sprintf("event EventExceptionThrown fired: %+v", ev.ExceptionDetails))
 
-			consoleExceptionsMu.Lock()
-			defer consoleExceptionsMu.Unlock()
-
-			*consoleExceptions = errors.Join(*consoleExceptions, fmt.Errorf("\n%+v", ev.ExceptionDetails))
+			failures.addConsoleException(fmt.Errorf("\n%+v", ev.ExceptionDetails))
 		}
 	})
 }
@@ -632,10 +599,8 @@ const (
 )
 
 type eventConsoleAPICalledOptions struct {
-	types                  []string
-	consoleMessages        *[]string
-	droppedConsoleMessages *int
-	consoleMessagesMu      *sync.RWMutex
+	types    []string
+	failures *conversionFailures
 }
 
 // listenForEventConsoleAPICalled listens for console calls from the page and
@@ -652,15 +617,7 @@ func listenForEventConsoleAPICalled(ctx context.Context, logger *slog.Logger, op
 
 		logger.DebugContext(ctx, fmt.Sprintf("event EventConsoleAPICalled fired: %s", call.Type))
 
-		options.consoleMessagesMu.Lock()
-		defer options.consoleMessagesMu.Unlock()
-
-		if len(*options.consoleMessages) >= maxConsoleMessages {
-			*options.droppedConsoleMessages++
-			return
-		}
-
-		*options.consoleMessages = append(*options.consoleMessages, fmt.Sprintf("[%s] %s", call.Type, formatConsoleMessage(call.Args)))
+		options.failures.addConsoleMessage(fmt.Sprintf("[%s] %s", call.Type, formatConsoleMessage(call.Args)))
 	})
 }
 
@@ -709,9 +666,8 @@ func formatConsoleArg(arg *runtime.RemoteObject) string {
 }
 
 type eventTargetCrashedOptions struct {
-	crashed   *error
-	crashedMu *sync.RWMutex
-	cancel    context.CancelFunc
+	failures *conversionFailures
+	cancel   context.CancelFunc
 }
 
 // listenForEventTargetCrashed listens for the Inspector.targetCrashed event,
@@ -727,10 +683,7 @@ func listenForEventTargetCrashed(ctx context.Context, logger *slog.Logger, optio
 		if _, ok := ev.(*inspector.EventTargetCrashed); ok {
 			logger.DebugContext(ctx, "event EventTargetCrashed fired")
 
-			options.crashedMu.Lock()
-			defer options.crashedMu.Unlock()
-
-			*options.crashed = ErrChromiumCrashed
+			options.failures.crash()
 
 			// Cancel the task context so the in-flight CDP command aborts
 			// immediately instead of waiting for a response the crashed
