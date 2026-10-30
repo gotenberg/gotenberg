@@ -18,3 +18,13 @@ Feature: Chromium concurrent conversions
       | files | testdata/page-1-html/index.html | file |
     Then all concurrent response status codes should be 200
     Then all concurrent responses should have 1 PDF(s)
+
+  # The queue counts the conversion in flight, so while one holds its slot the
+  # others are rejected instead of waiting.
+  Scenario: Concurrent conversions exceeding the queue size
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_MAX_QUEUE_SIZE | 1 |
+    When I make 3 concurrent "POST" requests to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/page-1-html/index.html | file  |
+      | waitDelay | 3s                              | field |
+    Then at least one concurrent response status code should be 429
