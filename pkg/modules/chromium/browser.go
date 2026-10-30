@@ -585,6 +585,14 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 
 	runErr := chromedp.Run(taskCtx, tasks...)
 
+	// The tab is canceled when the request ends, so the run reports
+	// context.Canceled even when the request ran out of time. Report the
+	// request's own error, so that a deadline still maps to a 503 and a client
+	// that went away to a 499.
+	if runErr != nil && ctx.Err() != nil {
+		runErr = fmt.Errorf("%w: %w", ctx.Err(), runErr)
+	}
+
 	return failures.err(runErr, b.ctx.Err() != nil, options.FailOnResourceLoadingFailed)
 }
 
