@@ -42,9 +42,8 @@ body:multipart-form {
 headers {
   ~Gotenberg-Output-Filename: <name>
   ~Gotenberg-Webhook-Url: http://localhost:8080/webhook
-  ~Gotenberg-Webhook-Error-Url: http://localhost:8080/webhook/error
   ~Gotenberg-Webhook-Method: POST
-  ~Gotenberg-Webhook-Error-Method: POST
+  ~Gotenberg-Webhook-Events-Url: http://localhost:8080/webhook/events
   ~Gotenberg-Webhook-Extra-Http-Headers: {"X-Custom":"value"}
 }
 ```

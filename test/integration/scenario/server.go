@@ -136,22 +136,10 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 
 		return webhookErr(c.String(http.StatusOK, http.StatusText(http.StatusOK)))
 	}
-	webhookErrorHandler := func(c *echo.Context) error {
-		s.req = c.Request()
-		body, err := io.ReadAll(s.req.Body)
-		if err != nil {
-			return webhookErr(fmt.Errorf("read request body: %w", err))
-		}
-		s.bodyCopy = body
-		return webhookErr(c.String(http.StatusOK, http.StatusText(http.StatusOK)))
-	}
 
 	srv.POST("/webhook", webhookHandler)
 	srv.PATCH("/webhook", webhookHandler)
 	srv.PUT("/webhook", webhookHandler)
-	srv.POST("/webhook/error", webhookErrorHandler)
-	srv.PATCH("/webhook/error", webhookErrorHandler)
-	srv.PUT("/webhook/error", webhookErrorHandler)
 
 	webhookEventsHandler := func(c *echo.Context) error {
 		body, err := io.ReadAll(c.Request().Body)

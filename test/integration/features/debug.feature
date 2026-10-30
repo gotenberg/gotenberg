@@ -100,8 +100,6 @@ Feature: /debug
           "webhook-deny-private-ips": "false",
           "webhook-deny-public-ips": "false",
           "webhook-disable": "false",
-          "webhook-error-allow-list": "[]",
-          "webhook-error-deny-list": "[]",
           "webhook-max-retry": "4",
           "webhook-retry-max-wait": "30s",
           "webhook-retry-min-wait": "1s"
@@ -204,8 +202,6 @@ Feature: /debug
           "webhook-deny-private-ips": "false",
           "webhook-deny-public-ips": "false",
           "webhook-disable": "false",
-          "webhook-error-allow-list": "[]",
-          "webhook-error-deny-list": "[]",
           "webhook-max-retry": "4",
           "webhook-retry-max-wait": "30s",
           "webhook-retry-min-wait": "1s"
