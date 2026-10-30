@@ -46,13 +46,17 @@ func PruneOrphanedNetworks(ctx context.Context) (int, error) {
 }
 
 var (
+	// GotenbergDockerRepository is the repository of the image, such as
+	// "gotenberg/gotenberg".
 	GotenbergDockerRepository string
 	// GotenbergVersion is the version the image reports, such as in the
 	// Gotenberg-Version header.
 	GotenbergVersion string
 	// GotenbergVariant selects a variant image, such as "chromium", tagged
 	// <version>-<variant>. Empty selects the full image, tagged <version>.
-	GotenbergVariant           string
+	GotenbergVariant string
+	// GotenbergContainerPlatform is the platform of the image, such as
+	// "linux/amd64".
 	GotenbergContainerPlatform string
 )
 

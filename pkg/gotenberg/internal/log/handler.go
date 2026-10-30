@@ -12,6 +12,9 @@ type gotenbergHandler struct {
 	loggerName   string
 }
 
+// NewGotenbergHandler wraps next to add the logger name to each record and,
+// when prefix is set, to prefix the keys of its fields, the correlation and
+// trace fields aside.
 func NewGotenbergHandler(next slog.Handler, prefix string) slog.Handler {
 	return &gotenbergHandler{Handler: next, fieldsPrefix: prefix}
 }
@@ -104,6 +107,8 @@ type multiHandler struct {
 	handlers []slog.Handler
 }
 
+// FanOut returns a [slog.Handler] that hands each record to every handler that
+// accepts its level.
 func FanOut(handlers ...slog.Handler) slog.Handler {
 	return &multiHandler{handlers: handlers}
 }
@@ -150,6 +155,8 @@ type levelHandler struct {
 	level slog.Level
 }
 
+// LevelFilter returns a [slog.Handler] that drops the records of next below
+// level.
 func LevelFilter(next slog.Handler, level slog.Level) slog.Handler {
 	return &levelHandler{Handler: next, level: level}
 }

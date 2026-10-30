@@ -51,6 +51,7 @@ func (s *scenario) reset(ctx context.Context) error {
 	return nil
 }
 
+// InitializeScenario registers the steps and hooks of a scenario.
 func InitializeScenario(ctx *godog.ScenarioContext) {
 	s := &scenario{}
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
