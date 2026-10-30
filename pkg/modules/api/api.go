@@ -53,7 +53,7 @@ type Api struct {
 	routes              []Route
 	externalMiddlewares []Middleware
 	healthChecks        []health.CheckerOption
-	readyFn             []func() error
+	readyFn             []func(context.Context) error
 	asyncCounters       []AsynchronousCounter
 	fs                  *gotenberg.FileSystem
 	logger              *slog.Logger
@@ -182,7 +182,8 @@ type Middleware struct {
 // See https://github.com/alexliesenfeld/health for more details.
 type HealthChecker interface {
 	Checks() ([]health.CheckerOption, error)
-	Ready() error
+	// Ready blocks until the module is ready, or until ctx is done.
+	Ready(ctx context.Context) error
 }
 
 // AsynchronousCounter is a module interface that returns the number of active
@@ -719,12 +720,17 @@ func (a *Api) Start() error {
 	ctx, cancel := context.WithTimeout(context.Background(), a.startTimeout)
 	defer cancel()
 
-	eg, _ := errgroup.WithContext(ctx)
+	eg, readyCtx := errgroup.WithContext(ctx)
 	for _, f := range a.readyFn {
-		eg.Go(f)
+		eg.Go(func() error {
+			return f(readyCtx)
+		})
 	}
 
 	err := eg.Wait()
+	if errors.Is(err, context.DeadlineExceeded) && errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return fmt.Errorf("modules not ready within %s, increase it with --api-start-timeout (API_START_TIMEOUT): %w", a.startTimeout, err)
+	}
 	if err != nil {
 		return fmt.Errorf("waiting for modules readiness: %w", err)
 	}

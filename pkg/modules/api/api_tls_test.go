@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -148,5 +149,32 @@ func TestApi_Start_TLSWithMissingFiles(t *testing.T) {
 
 	if err == nil {
 		t.Fatal("expected an error from Start, got nil")
+	}
+}
+
+// A module that never becomes ready must fail the startup once
+// --api-start-timeout elapses.
+func TestApi_Start_HonorsStartTimeout(t *testing.T) {
+	a := newTLSTestApi(t, "", "")
+	a.startTimeout = 100 * time.Millisecond
+	a.readyFn = append(a.readyFn, func(ctx context.Context) error {
+		<-ctx.Done()
+		return ctx.Err()
+	})
+
+	start := time.Now()
+	err := a.Start()
+	t.Cleanup(func() {
+		_ = a.Stop(context.Background())
+	})
+
+	if err == nil {
+		t.Fatal("expected an error from Start, got nil")
+	}
+	if !strings.Contains(err.Error(), "API_START_TIMEOUT") {
+		t.Errorf("expected the error to name API_START_TIMEOUT, got %q", err)
+	}
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
+		t.Errorf("Start returned after %s, want shortly after the start timeout", elapsed)
 	}
 }

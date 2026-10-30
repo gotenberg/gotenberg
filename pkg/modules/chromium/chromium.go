@@ -817,13 +817,13 @@ func (mod *Chromium) Checks() ([]health.CheckerOption, error) {
 	}, nil
 }
 
-// Ready returns no error if the module is ready.
-func (mod *Chromium) Ready() error {
+// Ready blocks until Chromium is ready, or until ctx is done.
+func (mod *Chromium) Ready(ctx context.Context) error {
 	if !mod.autoStart {
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), mod.args.wsUrlReadTimeout)
+	ctx, cancel := context.WithTimeout(ctx, mod.args.wsUrlReadTimeout)
 	defer cancel()
 
 	ticker := time.NewTicker(time.Duration(100) * time.Millisecond)
