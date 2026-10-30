@@ -1104,9 +1104,16 @@ func chromiumErrorType(err error, queueReason string) string {
 		errors.Is(err, ErrInvalidResourceHttpStatusCode),
 		errors.Is(err, ErrLoadingFailed),
 		errors.Is(err, ErrResourceLoadingFailed),
+		errors.Is(err, ErrConsoleExceptions),
 		errors.Is(err, ErrConsoleMessages),
 		errors.Is(err, ErrInvalidEvaluationExpression),
-		errors.Is(err, ErrInvalidSelectorQuery):
+		errors.Is(err, ErrInvalidSelectorQuery),
+		errors.Is(err, ErrScreenshotSelectorNotFound),
+		errors.Is(err, ErrOmitBackgroundWithoutPrintBackground),
+		errors.Is(err, ErrPrintingFailed),
+		errors.Is(err, ErrInvalidPrinterSettings),
+		errors.Is(err, ErrPageRangesSyntaxError),
+		errors.Is(err, ErrPageRangesExceedsPageCount):
 		return gotenberg.ErrorTypeInvalidInput
 	case errors.Is(err, ErrChromiumCrashed):
 		return "chromium_unavailable"
