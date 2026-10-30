@@ -18,6 +18,19 @@ Feature: /forms/pdf/remediate
       | files   | testdata/page_1.pdf | file  |
       | profile | PDF/A-2b            | field |
     Then the response status code should be 200
+    Then the response header "Gotenberg-Remediation-Residual" should be "0"
+    Then the response header "Gotenberg-Remediation-Rolled-Back" should be "0"
+    Then the response PDF(s) should be valid "PDF/A-2b" with a tolerance of 0 failed rule(s)
+
+  Scenario: POST /forms/pdf/remediate (Aggressive)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
+      | files         | testdata/pages_3.pdf | file  |
+      | profile       | PDF/A-2b             | field |
+      | aggressive    | true                 | field |
+      | figureAltText | A figure             | field |
+    Then the response status code should be 200
+    Then the response header "Gotenberg-Remediation-Residual" should be "0"
     Then the response PDF(s) should be valid "PDF/A-2b" with a tolerance of 0 failed rule(s)
 
   Scenario: POST /forms/pdf/remediate (PDF/A-3b)
@@ -109,6 +122,50 @@ Feature: /forms/pdf/remediate
     Then the response PDF(s) should have the "factur-x.xml" file embedded with relationship "Data"
     Then the response PDF(s) should declare Factur-X XMP with conformance level "MINIMUM"
 
+  # Without the XML, Factur-X repairs the container metadata of the invoice the
+  # PDF already carries.
+  @factur-x
+  Scenario: POST /forms/pdf/remediate (Factur-X Repair)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf  | file   |
+      | files                     | testdata/embed_1.xml | file   |
+      | profile                   | Factur-X             | field  |
+      | xml                       | embed_1.xml          | field  |
+      | level                     | EN 16931             | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
+      | files   | teststore/foo.pdf | file  |
+      | profile | Factur-X          | field |
+    Then the response status code should be 200
+    Then the response header "Gotenberg-Remediation-Rolled-Back" should be "0"
+    Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 0 failed rule(s)
+    Then the response PDF(s) should have the "factur-x.xml" file embedded with relationship "Alternative"
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
+      | files   | testdata/page_1.pdf | file  |
+      | profile | Factur-X            | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'remediate' failed on 'page_1.pdf': no hybrid invoice attachment found
+      """
+
+  @webhook
+  Scenario: POST /forms/pdf/remediate (Webhook)
+    Given I have a default Gotenberg container
+    Given I have a webhook server
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
+      | files                        | testdata/page_1.pdf     | file   |
+      | profile                      | PDF/A-2b                | field  |
+      | Gotenberg-Webhook-Url        | {helper}/webhook        | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events | header |
+    Then the response status code should be 204
+    When I wait for the asynchronous request to the webhook
+    Then the webhook request header "Content-Type" should be "application/pdf"
+    Then the webhook request header "Gotenberg-Remediation-Residual" should be "0"
+    Then the webhook request header "Gotenberg-Remediation-Rolled-Back" should be "0"
+
   Scenario: POST /forms/pdf/remediate (Bad Request)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
@@ -126,7 +183,7 @@ Feature: /forms/pdf/remediate
     Then the response status code should be 400
     Then the response body should match string:
       """
-      Invalid form data: remediate: "xml" must name the uploaded Factur-X invoice XML
+      Invalid form data: remediate: "level" and "documentType" need "xml", the uploaded Factur-X invoice XML to embed; without "xml", the remediation repairs the invoice the PDF already carries
       """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
       | files   | testdata/page_1.pdf | file  |
@@ -136,6 +193,15 @@ Feature: /forms/pdf/remediate
     Then the response body should match string:
       """
       Invalid form data: remediate: "xml", "level" and "documentType" only apply to the Factur-X profile
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
+      | files      | testdata/page_1.pdf | file  |
+      | profile    | PDF/A-2b            | field |
+      | aggressive | foo                 | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'aggressive' is invalid: must be true or false, got "foo"
       """
 
   Scenario: POST /forms/pdf/autotag

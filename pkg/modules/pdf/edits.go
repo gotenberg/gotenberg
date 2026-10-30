@@ -270,31 +270,49 @@ func (s *remediateStage) edit(ctx context.Context, w *litho.Writer, env *runEnv)
 		opts = append(opts, litho.WithLanguage(s.Language))
 	}
 
-	if profile, ok := pdfaProfiles[s.Profile]; ok {
-		_, err := w.RemediatePDFA(ctx, profile, opts...)
-
-		return err
+	if s.Aggressive {
+		opts = append(opts, litho.WithAggressiveFixes())
 	}
 
-	if profile, ok := pdfuaProfiles[s.Profile]; ok {
-		_, err := w.RemediatePDFUA(ctx, profile, opts...)
-
-		return err
+	if s.FigureAltText != "" {
+		opts = append(opts, litho.WithFigureAltText(s.FigureAltText))
 	}
 
-	xml, err := env.read(s.Xml)
+	var (
+		report *litho.RemediationReport
+		err    error
+	)
+
+	switch {
+	case pdfaProfiles[s.Profile] != "":
+		report, err = w.RemediatePDFA(ctx, pdfaProfiles[s.Profile], opts...)
+	case pdfuaProfiles[s.Profile] != "":
+		report, err = w.RemediatePDFUA(ctx, pdfuaProfiles[s.Profile], opts...)
+	case s.Xml == "":
+		report, err = w.RepairFacturX(ctx, opts...)
+	default:
+		var xml []byte
+		xml, err = env.read(s.Xml)
+		if err != nil {
+			return err
+		}
+
+		// litho picks the embedded file name and relationship the level
+		// requires.
+		report, err = w.RemediateFacturX(ctx, litho.FacturXConfig{
+			InvoiceXML:   xml,
+			Level:        facturXLevels[s.Level],
+			DocumentType: s.DocumentType,
+		}, opts...)
+	}
+
 	if err != nil {
 		return err
 	}
 
-	// litho picks the embedded file name and relationship the level requires.
-	_, err = w.RemediateFacturX(ctx, litho.FacturXConfig{
-		InvoiceXML:   xml,
-		Level:        facturXLevels[s.Level],
-		DocumentType: s.DocumentType,
-	}, opts...)
+	env.report = report
 
-	return err
+	return nil
 }
 
 func (s *signStage) edit(_ context.Context, w *litho.Writer, env *runEnv) error {
