@@ -45,6 +45,7 @@ type Api struct {
 	oidcAudience                     string
 	oidcJwksUrl                      string
 	downloadFromCfg                  downloadFromConfig
+	archiveCfg                       archiveConfig
 	disableHealthCheckRouteTelemetry bool
 	disableRootRouteTelemetry        bool
 	disableDebugRouteTelemetry       bool
@@ -68,6 +69,12 @@ type Api struct {
 	server    *http.Server
 	stopping  bool
 	serveDone chan struct{}
+}
+
+// archiveConfig bounds the zip archives the "archives" form field unpacks.
+type archiveConfig struct {
+	maxEntries int
+	maxRatio   int64
 }
 
 type downloadFromConfig struct {
@@ -217,6 +224,8 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Duration("api-start-timeout", time.Duration(30)*time.Second, "Set the time limit for the API to start")
 			fs.Duration("api-timeout", time.Duration(30)*time.Second, "Set the time limit for requests")
 			fs.String("api-body-limit", "", "Set the body limit for multipart/form-data requests - it accepts values like 5MB, 1GB, etc")
+			fs.Int("api-archive-max-entries", 10000, "Set the maximum number of entries of a zip archive sent in the archives form field")
+			fs.Int64("api-archive-max-ratio", 100, "Set how many times its own size a zip archive sent in the archives form field may unpack to - guards against zip bombs")
 			fs.String("api-root-path", "/", "Set the root path of the API - for service discovery via URL paths")
 			fs.String("api-correlation-id-header", "Gotenberg-Trace", "Set the header name to use for identifying requests")
 			fs.Bool("api-enable-basic-auth", false, "Enable basic authentication - will look for the GOTENBERG_API_BASIC_AUTH_USERNAME and GOTENBERG_API_BASIC_AUTH_PASSWORD environment variables")
@@ -257,6 +266,10 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 	a.bodyLimit = flags.MustHumanReadableBytes("api-body-limit")
 	a.rootPath = flags.MustString("api-root-path")
 	a.correlationIdHeader = flags.MustString("api-correlation-id-header")
+	a.archiveCfg = archiveConfig{
+		maxEntries: flags.MustInt("api-archive-max-entries"),
+		maxRatio:   flags.MustInt64("api-archive-max-ratio"),
+	}
 	a.downloadFromCfg = downloadFromConfig{
 		allowList:              flags.MustRegexpSlice("api-download-from-allow-list"),
 		denyList:               flags.MustRegexpSlice("api-download-from-deny-list"),
@@ -443,6 +456,18 @@ func (a *Api) Validate() error {
 	if a.downloadFromCfg.maxConcurrency < 0 {
 		err = errors.Join(err,
 			fmt.Errorf("download from max concurrency must not be negative, got %d; set --api-download-from-max-concurrency (env API_DOWNLOAD_FROM_MAX_CONCURRENCY) to 0 to disable the limit", a.downloadFromCfg.maxConcurrency),
+		)
+	}
+
+	if a.archiveCfg.maxEntries <= 0 {
+		err = errors.Join(err,
+			fmt.Errorf("archive max entries must be positive, got %d; set --api-archive-max-entries (env API_ARCHIVE_MAX_ENTRIES)", a.archiveCfg.maxEntries),
+		)
+	}
+
+	if a.archiveCfg.maxRatio <= 0 {
+		err = errors.Join(err,
+			fmt.Errorf("archive max ratio must be positive, got %d; set --api-archive-max-ratio (env API_ARCHIVE_MAX_RATIO)", a.archiveCfg.maxRatio),
 		)
 	}
 
@@ -644,7 +669,7 @@ func (a *Api) Start() error {
 		middlewares = append(middlewares, securityMiddleware, versionHeader)
 
 		if route.IsMultipart {
-			middlewares = append(middlewares, contextMiddleware(a.fs, a.timeout, a.bodyLimit, a.downloadFromCfg))
+			middlewares = append(middlewares, contextMiddleware(a.fs, a.timeout, a.bodyLimit, a.downloadFromCfg, a.archiveCfg))
 
 			for _, externalMultipartMiddleware := range externalMultipartMiddlewares {
 				middlewares = append(middlewares, externalMultipartMiddleware.Handler)

@@ -176,7 +176,7 @@ func (b *bodyBudget) exceeded() error {
 }
 
 // newContext returns a [Context] by parsing a "multipart/form-data" request.
-func newContext(echoCtx *echo.Context, logger *slog.Logger, fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig) (*Context, context.CancelFunc, error) {
+func newContext(echoCtx *echo.Context, logger *slog.Logger, fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig, archiveCfg archiveConfig) (*Context, context.CancelFunc, error) {
 	processCtx, processCancel := context.WithTimeout(echoCtx.Request().Context(), timeout)
 	budget := &bodyBudget{limit: bodyLimit}
 
@@ -251,9 +251,18 @@ func newContext(echoCtx *echo.Context, logger *slog.Logger, fs *gotenberg.FileSy
 		}
 	}
 
-	// Then, copy the form files, if any.
-	for _, files := range form.File {
+	// Then, copy the form files, if any, and unpack the archives.
+	for field, files := range form.File {
 		for _, fh := range files {
+			if field == ArchivesFormField {
+				err = ctx.extractArchive(fh, archiveCfg, budget)
+				if err != nil {
+					return ctx, cancel, err
+				}
+
+				continue
+			}
+
 			err = ctx.copyToDisk(fh, budget)
 			if err != nil {
 				return ctx, cancel, fmt.Errorf("copy to disk: %w", err)
@@ -573,10 +582,7 @@ func (ctx *Context) copyToDisk(fh *multipart.FileHeader, budget *bodyBudget) err
 		return fmt.Errorf("copy multipart file to local file: %w", err)
 	}
 
-	unique := ctx.uniqueFilename(filename)
-	ctx.files[unique] = path
-	ctx.diskToOriginal[path] = unique
-	ctx.trackFileOrder(path, filename)
+	ctx.addFile(filename, path)
 
 	return nil
 }

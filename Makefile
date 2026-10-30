@@ -23,6 +23,8 @@ API_TLS_KEY_FILE=
 API_START_TIMEOUT=30s
 API_TIMEOUT=30s
 API_BODY_LIMIT=
+API_ARCHIVE_MAX_ENTRIES=10000
+API_ARCHIVE_MAX_RATIO=100
 API_ROOT_PATH=/
 API_CORRELATION_ID_HEADER=Gotenberg-Trace
 API_ENABLE_BASIC_AUTH=false
@@ -149,6 +151,7 @@ KEEP_FAILED=
 # Available tags:
 # chromium
 # api-limits
+# api-archives
 # chromium-concurrent
 # chromium-convert-html
 # chromium-image-deduplication

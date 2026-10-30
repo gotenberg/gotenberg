@@ -53,7 +53,7 @@ func TestNewContext_Cancellation(t *testing.T) {
 		disable: true,
 	}
 
-	ctx, cancel, err := newContext(c, logger, fs, timeout, 0, downloadFromCfg)
+	ctx, cancel, err := newContext(c, logger, fs, timeout, 0, downloadFromCfg, archiveConfig{})
 	if err != nil {
 		t.Fatalf("expected no error from newContext, got: %v", err)
 	}
@@ -127,7 +127,7 @@ func TestNewContext_RemovesMultipartTemporaryFiles(t *testing.T) {
 	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 	downloadFromCfg := downloadFromConfig{disable: true}
 
-	_, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromCfg)
+	_, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromCfg, archiveConfig{})
 	if err != nil {
 		t.Fatalf("newContext returned error: %v", err)
 	}
@@ -160,7 +160,7 @@ func TestNewContext_DebugLogOmitsFormValues(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
-	_, cancel, err := newContext(echo.New().NewContext(req, httptest.NewRecorder()), logger, fs, 10*time.Second, 0, downloadFromConfig{disable: true})
+	_, cancel, err := newContext(echo.New().NewContext(req, httptest.NewRecorder()), logger, fs, 10*time.Second, 0, downloadFromConfig{disable: true}, archiveConfig{})
 	if err != nil {
 		t.Fatalf("newContext returned error: %v", err)
 	}
@@ -233,7 +233,7 @@ func TestNewContext_DownloadFromConcurrentMapWrites(t *testing.T) {
 		maxRetry: 0,
 	}
 
-	ctx, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromCfg)
+	ctx, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromCfg, archiveConfig{})
 	if err != nil {
 		t.Fatalf("newContext returned error: %v", err)
 	}
@@ -286,7 +286,7 @@ func TestNewContext_DownloadFromFailureCancelsSiblings(t *testing.T) {
 	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
 	start := time.Now()
-	_, cancel, err := newContext(echoCtx, logger, fs, 30*time.Second, 0, downloadFromConfig{})
+	_, cancel, err := newContext(echoCtx, logger, fs, 30*time.Second, 0, downloadFromConfig{}, archiveConfig{})
 	defer cancel()
 
 	if err == nil {
@@ -338,7 +338,7 @@ func TestNewContext_DownloadFromMaxEntries(t *testing.T) {
 	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 	downloadFromCfg := downloadFromConfig{maxEntries: 2}
 
-	_, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromCfg)
+	_, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromCfg, archiveConfig{})
 	if cancel != nil {
 		defer cancel()
 	}
@@ -414,7 +414,7 @@ func TestNewContext_DownloadFromMaxConcurrency(t *testing.T) {
 	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 	downloadFromCfg := downloadFromConfig{maxConcurrency: maxConcurrency}
 
-	ctx, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromCfg)
+	ctx, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromCfg, archiveConfig{})
 	if err != nil {
 		t.Fatalf("newContext returned error: %v", err)
 	}
@@ -540,7 +540,7 @@ func TestNewContext_DownloadFromHostileRetryAfterIsBounded(t *testing.T) {
 	const timeout = 500 * time.Millisecond
 
 	start := time.Now()
-	_, cancel, err := newContext(echoCtx, logger, fs, timeout, 0, downloadFromConfig{maxRetry: 2})
+	_, cancel, err := newContext(echoCtx, logger, fs, timeout, 0, downloadFromConfig{maxRetry: 2}, archiveConfig{})
 	elapsed := time.Since(start)
 	if cancel != nil {
 		defer cancel()
@@ -598,7 +598,7 @@ func TestNewContext_DownloadFromExpiredBudgetFailsClosed(t *testing.T) {
 		_, cancel, err := newContext(echoCtx, logger, fs, 400*time.Millisecond, 0, downloadFromConfig{
 			maxRetry:       0,
 			maxConcurrency: 1,
-		})
+		}, archiveConfig{})
 		if cancel != nil {
 			cancel()
 		}
@@ -710,7 +710,7 @@ func TestContext_OutputFilename_SurvivesEchoContextRecycling(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
-	ctx, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromConfig{disable: true})
+	ctx, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromConfig{disable: true}, archiveConfig{})
 	if err != nil {
 		t.Fatalf("newContext returned error: %v", err)
 	}
@@ -743,7 +743,7 @@ func TestContext_OutputFilename_NoHeader(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
-	ctx, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromConfig{disable: true})
+	ctx, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromConfig{disable: true}, archiveConfig{})
 	if err != nil {
 		t.Fatalf("newContext returned error: %v", err)
 	}
@@ -807,7 +807,7 @@ func TestNewContext_LongExtensionIsAccepted(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
-	ctx, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromConfig{disable: true})
+	ctx, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromConfig{disable: true}, archiveConfig{})
 	if cancel != nil {
 		defer cancel()
 	}
@@ -852,7 +852,7 @@ func TestNewContext_UnsymlinkableFilenameStillSucceeds(t *testing.T) {
 			logger := slog.New(slog.DiscardHandler)
 			fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
-			_, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromConfig{disable: true})
+			_, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromConfig{disable: true}, archiveConfig{})
 			if cancel != nil {
 				defer cancel()
 			}
@@ -891,7 +891,7 @@ func TestNewContext_DuplicateFilenamesAreBothKept(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
-	ctx, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromConfig{disable: true})
+	ctx, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromConfig{disable: true}, archiveConfig{})
 	if err != nil {
 		t.Fatalf("newContext returned error: %v", err)
 	}
@@ -959,7 +959,7 @@ func TestNewContext_DownloadFromRedirectVerdictStaysGeneric(t *testing.T) {
 	_, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromConfig{
 		denyList: denyList,
 		maxRetry: 0,
-	})
+	}, archiveConfig{})
 	if cancel != nil {
 		defer cancel()
 	}
@@ -1047,7 +1047,7 @@ func TestNewContext_BodyLimitBoundsIngress(t *testing.T) {
 			logger := slog.New(slog.DiscardHandler)
 			fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
 
-			_, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, tc.bodyLimit, downloadFromConfig{disable: true})
+			_, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, tc.bodyLimit, downloadFromConfig{disable: true}, archiveConfig{})
 			if cancel != nil {
 				defer cancel()
 			}

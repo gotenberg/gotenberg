@@ -13,6 +13,7 @@ post {
 body:multipart-form {
   files: @file(../../test/integration/testdata/page_1.pdf)
   files: @file(../../test/integration/testdata/page_2.pdf)
+  ~archives: @file(../../test/integration/testdata/pages_1_2.zip)
 }
 
 headers {
