@@ -703,7 +703,7 @@ Feature: /forms/chromium/convert/html
     Then the response body should match string:
       """
       Invalid HTTP status code from resources:
-      https://gethttpstatus.com/400 - 400: Bad Request
+      http://localhost:3000/no-such-stylesheet.css - 404: Not Found
       """
 
   Scenario: POST /forms/chromium/convert/html (Fail On Resource HTTP Status Codes - Ignore Domains)
@@ -711,7 +711,7 @@ Feature: /forms/chromium/convert/html
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
       | files                           | testdata/feature-rich-html/index.html | file  |
       | failOnResourceHttpStatusCodes   | [499,599]                             | field |
-      | ignoreResourceHttpStatusDomains | ["gethttpstatus.com"]                 | field |
+      | ignoreResourceHttpStatusDomains | ["localhost"]                         | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response

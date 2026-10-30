@@ -429,7 +429,7 @@ Feature: /forms/chromium/convert/markdown
     Then the response body should match string:
       """
       Invalid HTTP status code from resources:
-      https://gethttpstatus.com/400 - 400: Bad Request
+      http://localhost:3000/no-such-stylesheet.css - 404: Not Found
       """
 
   Scenario: POST /forms/chromium/convert/markdown (Fail On Resource Loading Failed)
