@@ -268,6 +268,16 @@ go.opentelemetry.io/contrib/exporters/autoexport v0.72.0 h1:TPXrl7vEkmh69tp7dHTp
 go.opentelemetry.io/contrib/exporters/autoexport v0.72.0/go.mod h1:0jE6K8nsOgeiF53rcEhy71cgakek+XEWi4OPROUqLoI=
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.72.0 h1:LxwW/9ctSCv+QkE/cLR7M91ZIkXNMqJtEMi1vCw9U8s=
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.72.0/go.mod h1:tOsftB4SslBwwErVEPaenU2RpThXWPIU8DoJHEC4dyw=
+go.opentelemetry.io/contrib/propagators/autoprop v0.72.0 h1:/Kv8DucXan87cGRpa3NeZtlk26kFahF2YrL6Sz3GFsI=
+go.opentelemetry.io/contrib/propagators/autoprop v0.72.0/go.mod h1:Qttdialu54uM051nRjcHgqPshuTi2YGZb/rruiNJ8zo=
+go.opentelemetry.io/contrib/propagators/aws v1.47.0 h1:n/2x/vQki1ojD7R2jYHdnNdI74Yx/OFdY4YXFFesm8M=
+go.opentelemetry.io/contrib/propagators/aws v1.47.0/go.mod h1:qz0eA26XfmJUDbcqCZrn2HJ5WIETXpcMfiKRAEHRvmQ=
+go.opentelemetry.io/contrib/propagators/b3 v1.47.0 h1:vlKDmtjhe1R0d7kdov/+KVTKWOKeGLyohB+iXoDPRMQ=
+go.opentelemetry.io/contrib/propagators/b3 v1.47.0/go.mod h1:0zRiXIfXU30PKYMsdbqYbGK8iHF8KqyPi0qdXT2wAuE=
+go.opentelemetry.io/contrib/propagators/jaeger v1.47.0 h1:2lDw6AKPV33/7Qw9oN5YdxuSJIlUz7q3tkfSlJX5rh0=
+go.opentelemetry.io/contrib/propagators/jaeger v1.47.0/go.mod h1:y1ORt/QAquBL+O3I06KE7iMENp9p05iBqaV4xNF3J7k=
+go.opentelemetry.io/contrib/propagators/ot v1.47.0 h1:nZUqh0/8CMRh7fQMfJl3HWFW92vqJ4FcTRQ7lrubOO4=
+go.opentelemetry.io/contrib/propagators/ot v1.47.0/go.mod h1:K3kUrioG2mDmYF2xaEbjASrL0Slv6b7deOeV/4QofgU=
 go.opentelemetry.io/otel v1.47.0 h1:j7ALJ/zgkS7Z6aeJW09p8VC9804bC+PpeTfCD4XPnOM=
 go.opentelemetry.io/otel v1.47.0/go.mod h1:8wS9O2qfXrYrzp6hIF/HOYJJf/wIhFPhR2xLuP+iXQU=
 go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc v0.23.0 h1:5Ek4qQ5XX0PSQfY7lMW3CvcR36yy8YFDfGnYnaku8zE=
@@ -312,6 +322,8 @@ go.opentelemetry.io/proto/otlp v1.11.1 h1:SCrPqH9NE5CmBrOqpjNCiT0X5mGwMyGERXdogf
 go.opentelemetry.io/proto/otlp v1.11.1/go.mod h1:wq8W4aSf6bOy8RZyESOeQFr9Pu7wydWX/TY4sgvrTPg=
 go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=
 go.uber.org/goleak v1.3.0/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=
+go.uber.org/multierr v1.11.0 h1:blXXJkSxSSfBVBlC76pxqeO+LN3aDfLQo+309xJstO0=
+go.uber.org/multierr v1.11.0/go.mod h1:20+QtiLqy0Nd6FdQB9TLXag12DsQkrbs3htMFfDN80Y=
 go.yaml.in/yaml/v2 v2.4.4 h1:tuyd0P+2Ont/d6e2rl3be67goVK4R6deVxCUX5vyPaQ=
 go.yaml.in/yaml/v2 v2.4.4/go.mod h1:gMZqIpDtDqOfM0uNfy0SkpRhvUryYH0Z6wdMYcacYXQ=
 go.yaml.in/yaml/v3 v3.0.5 h1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw=

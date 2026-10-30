@@ -20,5 +20,17 @@
 // histograms still link to representative traces regardless of the head
 // sampling ratio.
 //
+// # Exporters and propagators
+//
+// Each signal stays off until its OTEL_TRACES_EXPORTER, OTEL_METRICS_EXPORTER
+// or OTEL_LOGS_EXPORTER names an exporter: otlp, console or none, and
+// prometheus for metrics. The prometheus exporter serves the metrics on its
+// own listener, OTEL_EXPORTER_PROMETHEUS_HOST and OTEL_EXPORTER_PROMETHEUS_PORT,
+// localhost:9464 by default. Inside a container, set the host to 0.0.0.0 and
+// publish the port, or nothing outside reaches it.
+//
+// OTEL_PROPAGATORS selects the propagators, such as b3multi or jaeger, W3C
+// Trace Context and Baggage by default. An unknown name stops the startup.
+//
 // See https://opentelemetry.io/.
 package otel
