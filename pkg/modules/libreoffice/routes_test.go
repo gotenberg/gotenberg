@@ -164,7 +164,7 @@ func TestConvertRoute_FailureStatus(t *testing.T) {
 			ctx.SetValues(tc.values)
 			ctx.SetLogger(slog.New(slog.DiscardHandler))
 
-			uno := &libreofficeapi.ApiMock{
+			converter := &libreofficeapi.ApiMock{
 				ExtensionsMock: func() []string {
 					return []string{".docx", ".doc"}
 				},
@@ -180,7 +180,7 @@ func TestConvertRoute_FailureStatus(t *testing.T) {
 			)
 			c.Set("context", ctx.Context)
 
-			err := convertRoute(uno, new(pdf.Processor)).Handler(c)
+			err := convertRoute(converter, new(pdf.Processor)).Handler(c)
 			if err == nil {
 				t.Fatal("expected an error, got none")
 			}
@@ -221,7 +221,7 @@ func TestConvertRoute_Stages(t *testing.T) {
 	ctx.SetLogger(slog.New(slog.DiscardHandler))
 
 	var native []libreofficeapi.PdfFormats
-	uno := &libreofficeapi.ApiMock{
+	converter := &libreofficeapi.ApiMock{
 		ExtensionsMock: func() []string {
 			return []string{".docx"}
 		},
@@ -237,7 +237,7 @@ func TestConvertRoute_Stages(t *testing.T) {
 	)
 	c.Set("context", ctx.Context)
 
-	err = convertRoute(uno, new(pdf.Processor)).Handler(c)
+	err = convertRoute(converter, new(pdf.Processor)).Handler(c)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -284,7 +284,7 @@ func TestConvertRoute_PaperNeedsBothSides(t *testing.T) {
 			ctx.SetLogger(slog.New(slog.DiscardHandler))
 
 			var got libreofficeapi.Options
-			uno := &libreofficeapi.ApiMock{
+			converter := &libreofficeapi.ApiMock{
 				ExtensionsMock: func() []string { return []string{".docx"} },
 				PdfMock: func(_ context.Context, _ *slog.Logger, _, _ string, options libreofficeapi.Options) error {
 					got = options
@@ -295,7 +295,7 @@ func TestConvertRoute_PaperNeedsBothSides(t *testing.T) {
 			c := echo.New().NewContext(httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", nil), httptest.NewRecorder())
 			c.Set("context", ctx.Context)
 
-			err := convertRoute(uno, new(pdf.Processor)).Handler(c)
+			err := convertRoute(converter, new(pdf.Processor)).Handler(c)
 			if tc.wantErr {
 				status, message := api.ParseError(err)
 				if status != http.StatusBadRequest || !strings.Contains(message, "'paperWidth' and 'paperHeight'") {
@@ -325,7 +325,7 @@ func TestConvertRoute_InvalidNativePdfa(t *testing.T) {
 	ctx.SetValues(map[string][]string{"nativePdfa": {"foo"}})
 	ctx.SetLogger(slog.New(slog.DiscardHandler))
 
-	uno := &libreofficeapi.ApiMock{
+	converter := &libreofficeapi.ApiMock{
 		ExtensionsMock: func() []string { return []string{".docx"} },
 		PdfMock: func(_ context.Context, _ *slog.Logger, _, _ string, _ libreofficeapi.Options) error {
 			t.Fatal("LibreOffice ran with an invalid PDF/A value")
@@ -336,7 +336,7 @@ func TestConvertRoute_InvalidNativePdfa(t *testing.T) {
 	c := echo.New().NewContext(httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", nil), httptest.NewRecorder())
 	c.Set("context", ctx.Context)
 
-	err := convertRoute(uno, new(pdf.Processor)).Handler(c)
+	err := convertRoute(converter, new(pdf.Processor)).Handler(c)
 	status, message := api.ParseError(err)
 	if status != http.StatusBadRequest || !strings.Contains(message, "'nativePdfa'") {
 		t.Fatalf("got %d %q, want a 400 naming 'nativePdfa'", status, message)
