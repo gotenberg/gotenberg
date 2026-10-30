@@ -104,15 +104,6 @@ func (s *ProcessSupervisorMock) ConversionsSinceRestart() int64 {
 	return s.ConversionsSinceRestartMock()
 }
 
-// MetricsProviderMock is a mock for the [MetricsProvider] interface.
-type MetricsProviderMock struct {
-	MetricsMock func() ([]Metric, error)
-}
-
-func (provider *MetricsProviderMock) Metrics() ([]Metric, error) {
-	return provider.MetricsMock()
-}
-
 // MkdirAllMock is a mock for the [MkdirAll] interface.
 type MkdirAllMock struct {
 	MkdirAllMock func(path string, perm os.FileMode) error
@@ -137,7 +128,6 @@ var (
 	_ Validator         = (*ValidatorMock)(nil)
 	_ Process           = (*ProcessMock)(nil)
 	_ ProcessSupervisor = (*ProcessSupervisorMock)(nil)
-	_ MetricsProvider   = (*MetricsProviderMock)(nil)
 	_ MkdirAll          = (*MkdirAllMock)(nil)
 	_ PathRename        = (*PathRenameMock)(nil)
 )

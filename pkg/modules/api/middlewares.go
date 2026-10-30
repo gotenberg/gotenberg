@@ -68,7 +68,7 @@ func ParseError(err error) (int, string) {
 
 // statusClientClosedRequest is the non-standard 499 status (nginx convention)
 // recorded when the client aborts the request before it completes. It keeps
-// such outcomes out of the 5xx range in the access log and Prometheus metrics.
+// such outcomes out of the 5xx range in the access log and the metrics.
 const statusClientClosedRequest = 499
 
 // requestCanceled reports whether err is the result of the client aborting the

@@ -637,26 +637,6 @@ func (a *Api) spanAttrs(extra ...attribute.KeyValue) []attribute.KeyValue {
 	return append(attrs, extra...)
 }
 
-// Metrics returns the metrics.
-func (a *Api) Metrics() ([]gotenberg.Metric, error) {
-	return []gotenberg.Metric{
-		{
-			Name:        "libreoffice_requests_queue_size",
-			Description: "Current number of LibreOffice conversion requests waiting to be treated.",
-			Read: func() float64 {
-				return float64(a.supervisor.ReqQueueSize())
-			},
-		},
-		{
-			Name:        "libreoffice_restarts_count",
-			Description: "Current number of LibreOffice restarts.",
-			Read: func() float64 {
-				return float64(a.supervisor.RestartsCount())
-			},
-		},
-	}, nil
-}
-
 // Checks adds a health check that verifies if LibreOffice is healthy.
 func (a *Api) Checks() ([]health.CheckerOption, error) {
 	return []health.CheckerOption{
@@ -970,13 +950,12 @@ func (a *Api) Extensions() []string {
 
 // Interface guards.
 var (
-	_ gotenberg.Module          = (*Api)(nil)
-	_ gotenberg.Provisioner     = (*Api)(nil)
-	_ gotenberg.Validator       = (*Api)(nil)
-	_ gotenberg.App             = (*Api)(nil)
-	_ gotenberg.Debuggable      = (*Api)(nil)
-	_ gotenberg.MetricsProvider = (*Api)(nil)
-	_ api.HealthChecker         = (*Api)(nil)
-	_ Uno                       = (*Api)(nil)
-	_ Provider                  = (*Api)(nil)
+	_ gotenberg.Module      = (*Api)(nil)
+	_ gotenberg.Provisioner = (*Api)(nil)
+	_ gotenberg.Validator   = (*Api)(nil)
+	_ gotenberg.App         = (*Api)(nil)
+	_ gotenberg.Debuggable  = (*Api)(nil)
+	_ api.HealthChecker     = (*Api)(nil)
+	_ Uno                   = (*Api)(nil)
+	_ Provider              = (*Api)(nil)
 )

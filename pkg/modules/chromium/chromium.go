@@ -807,26 +807,6 @@ func (mod *Chromium) spanAttrs(extra ...attribute.KeyValue) []attribute.KeyValue
 	return append(attrs, extra...)
 }
 
-// Metrics returns the metrics.
-func (mod *Chromium) Metrics() ([]gotenberg.Metric, error) {
-	return []gotenberg.Metric{
-		{
-			Name:        "chromium_requests_queue_size",
-			Description: "Current number of Chromium conversion requests waiting to be treated.",
-			Read: func() float64 {
-				return float64(mod.supervisor.ReqQueueSize())
-			},
-		},
-		{
-			Name:        "chromium_restarts_count",
-			Description: "Current number of Chromium restarts.",
-			Read: func() float64 {
-				return float64(mod.supervisor.RestartsCount())
-			},
-		},
-	}, nil
-}
-
 // Checks adds a health check that verifies if Chromium is healthy.
 func (mod *Chromium) Checks() ([]health.CheckerOption, error) {
 	return []health.CheckerOption{
@@ -1142,14 +1122,13 @@ func chromiumErrorType(err error, queueReason string) string {
 
 // Interface guards.
 var (
-	_ gotenberg.Module          = (*Chromium)(nil)
-	_ gotenberg.Provisioner     = (*Chromium)(nil)
-	_ gotenberg.Validator       = (*Chromium)(nil)
-	_ gotenberg.App             = (*Chromium)(nil)
-	_ gotenberg.Debuggable      = (*Chromium)(nil)
-	_ gotenberg.MetricsProvider = (*Chromium)(nil)
-	_ api.HealthChecker         = (*Chromium)(nil)
-	_ api.Router                = (*Chromium)(nil)
-	_ Api                       = (*Chromium)(nil)
-	_ Provider                  = (*Chromium)(nil)
+	_ gotenberg.Module      = (*Chromium)(nil)
+	_ gotenberg.Provisioner = (*Chromium)(nil)
+	_ gotenberg.Validator   = (*Chromium)(nil)
+	_ gotenberg.App         = (*Chromium)(nil)
+	_ gotenberg.Debuggable  = (*Chromium)(nil)
+	_ api.HealthChecker     = (*Chromium)(nil)
+	_ api.Router            = (*Chromium)(nil)
+	_ Api                   = (*Chromium)(nil)
+	_ Provider              = (*Chromium)(nil)
 )

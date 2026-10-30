@@ -7,6 +7,5 @@ import (
 	_ "github.com/gotenberg/gotenberg/v9/pkg/modules/libreoffice"
 	_ "github.com/gotenberg/gotenberg/v9/pkg/modules/libreoffice/api"
 	_ "github.com/gotenberg/gotenberg/v9/pkg/modules/pdf"
-	_ "github.com/gotenberg/gotenberg/v9/pkg/modules/prometheus"
 	_ "github.com/gotenberg/gotenberg/v9/pkg/modules/webhook"
 )
