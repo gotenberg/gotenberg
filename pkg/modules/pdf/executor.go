@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 
 	litho "github.com/gotenberg/litho/pkg/pdf"
 	"go.opentelemetry.io/otel/attribute"
@@ -58,16 +61,26 @@ type document struct {
 //
 // A failure the request causes, such as a page range past the last page or a
 // wrong password, returns a 400 error naming the stage and the document.
+//
+// A "remediate" stage sets the [ResidualHeader] and [RolledBackHeader] output
+// headers, summed over the documents, and logs the details of each.
 func (p *Processor) Run(ctx *api.Context, stages Stages, inputPaths []string, files map[string]string) ([]string, error) {
-	paths, err := p.run(ctx, stages, inputPaths, files)
+	outcome := new(remediationOutcome)
+
+	paths, err := p.run(ctx, stages, inputPaths, files, outcome)
 	if err != nil {
 		return nil, handleError(err, ctx.DirPath())
+	}
+
+	if stages.remediates() {
+		ctx.SetOutputHeader(ResidualHeader, strconv.Itoa(outcome.residual))
+		ctx.SetOutputHeader(RolledBackHeader, strconv.Itoa(outcome.rolledBack))
 	}
 
 	return paths, nil
 }
 
-func (p *Processor) run(ctx *api.Context, stages Stages, inputPaths []string, files map[string]string) ([]string, error) {
+func (p *Processor) run(ctx *api.Context, stages Stages, inputPaths []string, files map[string]string, outcome *remediationOutcome) ([]string, error) {
 	docs := make([]document, len(inputPaths))
 	for i, path := range inputPaths {
 		docs[i] = document{path: path, filename: ctx.OriginalFilename(path)}
@@ -91,7 +104,7 @@ func (p *Processor) run(ctx *api.Context, stages Stages, inputPaths []string, fi
 			i++
 		default:
 			end := runEnd(stages, i)
-			docs, err = p.runEach(ctx, stages[i:end], docs, password, files)
+			docs, err = p.runEach(ctx, stages[i:end], docs, password, files, outcome)
 			i = end
 		}
 
@@ -307,12 +320,12 @@ func splitGroups(s *splitStage, pageCount int) ([][]int, error) {
 }
 
 // runEach runs a run of stages on every document.
-func (p *Processor) runEach(ctx *api.Context, run Stages, docs []document, password string, files map[string]string) ([]document, error) {
+func (p *Processor) runEach(ctx *api.Context, run Stages, docs []document, password string, files map[string]string, outcome *remediationOutcome) ([]document, error) {
 	out := make([]document, len(docs))
 
 	err := p.forEachInputPathIndexed(ctx, documentPaths(docs), func(i int, _ string) error {
 		var err error
-		out[i], err = p.runOne(ctx, run, docs[i], password, files)
+		out[i], err = p.runOne(ctx, run, docs[i], password, files, outcome)
 
 		return err
 	})
@@ -325,7 +338,7 @@ func (p *Processor) runEach(ctx *api.Context, run Stages, docs []document, passw
 
 // runOne runs a run of stages on one document through a single litho
 // pipeline.
-func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password string, files map[string]string) (document, error) {
+func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password string, files map[string]string, outcome *remediationOutcome) (document, error) {
 	r, err := p.open(ctx, d.path, password)
 	if err != nil {
 		return document{}, &stageError{op: run[0].op(), filename: d.filename, err: err}
@@ -394,7 +407,61 @@ func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password st
 		return document{}, &stageError{op: run[len(run)-1].op(), filename: d.filename, err: err}
 	}
 
+	if env.report != nil {
+		outcome.add(ctx, d.filename, env.report)
+	}
+
 	return out, nil
+}
+
+// ResidualHeader is the output header counting the violations remediation
+// could not fix. The output still claims the profile: a non-zero count means
+// it does not conform.
+const ResidualHeader = "Gotenberg-Remediation-Residual"
+
+// RolledBackHeader is the output header counting the fixes remediation
+// discarded because they changed the content beyond its tolerance.
+const RolledBackHeader = "Gotenberg-Remediation-Rolled-Back"
+
+// remediationOutcome sums the remediation reports of the documents of a run.
+type remediationOutcome struct {
+	mu         sync.Mutex
+	residual   int
+	rolledBack int
+}
+
+// add sums report, and logs what it says of the document named filename: a
+// warning when the output falls short of the profile.
+func (o *remediationOutcome) add(ctx *api.Context, filename string, report *litho.RemediationReport) {
+	o.mu.Lock()
+	o.residual += len(report.Residual)
+	o.rolledBack += len(report.RolledBack)
+	o.mu.Unlock()
+
+	residual := make([]string, len(report.Residual))
+	for i, err := range report.Residual {
+		residual[i] = err.Error()
+	}
+
+	fonts := make([]string, len(report.FontRefusals))
+	for i, refusal := range report.FontRefusals {
+		fonts[i] = fmt.Sprintf("%s: %s", refusal.BaseFont, refusal.Err)
+	}
+
+	attrs := []any{
+		slog.String("filename", filename),
+		slog.Int("fixed", len(report.Fixed)),
+		slog.Any("residual", residual),
+		slog.Any("rolled_back", report.RolledBack),
+		slog.Any("font_refusals", fonts),
+	}
+
+	if len(residual) == 0 && len(report.RolledBack) == 0 && len(fonts) == 0 {
+		ctx.Log().DebugContext(ctx, "remediation complete", attrs...)
+		return
+	}
+
+	ctx.Log().WarnContext(ctx, "remediation incomplete", attrs...)
 }
 
 func documentPaths(docs []document) []string {
@@ -414,6 +481,8 @@ type runEnv struct {
 	pageCount int
 	files     map[string]string
 	readers   []*litho.Reader
+	// report is what the remediation of the document said, if any.
+	report *litho.RemediationReport
 }
 
 // pages resolves an optional page range specification. Empty means every page,

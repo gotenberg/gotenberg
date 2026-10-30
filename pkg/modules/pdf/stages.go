@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/gotenberg/litho/pkg/models"
@@ -221,6 +222,11 @@ func (stages Stages) validateOrder() error {
 	}
 
 	return nil
+}
+
+// remediates reports whether the stages remediate.
+func (stages Stages) remediates() bool {
+	return slices.ContainsFunc(stages, func(s stage) bool { return s.op() == "remediate" })
 }
 
 // afterRemediation reports whether op may follow a remediation.

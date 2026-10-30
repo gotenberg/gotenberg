@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -351,4 +352,88 @@ func render(t *testing.T, path string, page int) []uint8 {
 	}
 
 	return pixels
+}
+
+func TestRunRemediationHeaders(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		stages      string
+		wantHeaders bool
+	}{
+		{name: "no remediation, no headers", stages: `[{"op":"rotate","angle":90}]`},
+		{name: "PDF/A-2b", stages: `[{"op":"remediate","profile":"PDF/A-2b"}]`, wantHeaders: true},
+		{name: "aggressive PDF/UA-1 with alternate text", stages: `[{"op":"remediate","profile":"PDF/UA-1","aggressive":true,"figureAltText":"A chart"}]`, wantHeaders: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, paths := testContext(t, "page_1.pdf", "page_2.pdf")
+
+			_, err := testProcessor().Run(ctx, mustStages(t, tc.stages), []string{paths["page_1.pdf"], paths["page_2.pdf"]}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			headers := ctx.OutputHeaders()
+			for _, key := range []string{ResidualHeader, RolledBackHeader} {
+				value, ok := headers[key]
+				if ok != tc.wantHeaders {
+					t.Fatalf("header %s set = %v, want %v", key, ok, tc.wantHeaders)
+				}
+				if !ok {
+					continue
+				}
+
+				n, err := strconv.Atoi(value)
+				if err != nil || n < 0 {
+					t.Errorf("header %s = %q, want a count", key, value)
+				}
+			}
+		})
+	}
+}
+
+func TestRunRepairFacturX(t *testing.T) {
+	ctx, paths := testContext(t, "page_1.pdf", "embed_1.xml")
+
+	embedded, err := testProcessor().Run(ctx, mustStages(t, `[{"op":"remediate","profile":"Factur-X","xml":"embed_1.xml","level":"EN 16931"}]`), []string{paths["page_1.pdf"]}, map[string]string{"embed_1.xml": paths["embed_1.xml"]})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	repaired, err := testProcessor().Run(ctx, mustStages(t, `[{"op":"remediate","profile":"Factur-X"}]`), embedded, nil)
+	if err != nil {
+		t.Fatalf("repair an embedded invoice: %v", err)
+	}
+
+	// embed_1.xml is no CII invoice, and a repair leaves the XML as it is: it
+	// must not add a violation to the ones the XML causes.
+	fatals := func(path string) []string {
+		report, err := openOutput(t, path).ValidateFacturXReport(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var out []string
+		for _, v := range report.Fatals() {
+			out = append(out, v.Description)
+		}
+
+		return out
+	}
+
+	before, after := fatals(embedded[0]), fatals(repaired[0])
+	for _, v := range after {
+		if !slices.Contains(before, v) {
+			t.Errorf("the repair added a violation: %s", v)
+		}
+	}
+
+	_, err = testProcessor().Run(ctx, mustStages(t, `[{"op":"remediate","profile":"Factur-X"}]`), []string{paths["page_1.pdf"]}, nil)
+	if err == nil {
+		t.Fatal("repairing a PDF without an invoice must fail")
+	}
+
+	status, message := api.ParseError(err)
+	if status != http.StatusBadRequest || !strings.Contains(message, "no hybrid invoice attachment found") {
+		t.Fatalf("status %d, message %q, want a 400 naming the missing invoice", status, message)
+	}
 }

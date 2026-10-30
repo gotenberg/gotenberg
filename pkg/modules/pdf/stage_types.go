@@ -422,13 +422,17 @@ func (*decryptStage) files() []string { return nil }
 
 // remediateStage repairs the document to a conformance profile: a PDF/A or
 // PDF/UA one, or Factur-X, which embeds the invoice XML into a PDF/A-3
-// document.
+// document. Without the XML, Factur-X repairs the invoice the document
+// already carries, a Factur-X or ZUGFeRD one, leaving its XML as is. Aggressive allows the fixes that may change how pages look, and
+// FigureAltText fills the alternate text of the figures that lack one.
 type remediateStage struct {
-	Profile      string `json:"profile"`
-	Language     string `json:"language"`
-	Xml          string `json:"xml"`
-	Level        string `json:"level"`
-	DocumentType string `json:"documentType"`
+	Profile       string `json:"profile"`
+	Language      string `json:"language"`
+	Aggressive    bool   `json:"aggressive"`
+	FigureAltText string `json:"figureAltText"`
+	Xml           string `json:"xml"`
+	Level         string `json:"level"`
+	DocumentType  string `json:"documentType"`
 }
 
 func (*remediateStage) op() string { return "remediate" }
@@ -444,7 +448,11 @@ func (s *remediateStage) validate() error {
 		}
 	case s.Profile == facturXProfile:
 		if s.Xml == "" {
-			return errors.New(`"xml" must name the uploaded Factur-X invoice XML`)
+			if s.Level != "" || s.DocumentType != "" {
+				return errors.New(`"level" and "documentType" need "xml", the uploaded Factur-X invoice XML to embed; without "xml", the remediation repairs the invoice the PDF already carries`)
+			}
+
+			return nil
 		}
 
 		_, ok := facturXLevels[s.Level]

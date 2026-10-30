@@ -878,7 +878,8 @@ Feature: /forms/libreoffice/convert
     Then the response PDF(s) should NOT have the "factur-x.xml" file embedded
     Then the response PDF(s) should declare Factur-X XMP with conformance level "XRECHNUNG"
 
-  # A Factur-X remediation without the invoice XML is a half-specified request.
+  # A Factur-X level without the invoice XML is a half-specified request:
+  # without the XML, the remediation repairs an existing invoice instead.
   @pdf-remediate
   @factur-x
   Scenario: POST /forms/pdf/remediate (Factur-X Bad Request)
@@ -891,7 +892,7 @@ Feature: /forms/libreoffice/convert
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Invalid form data: remediate: "xml" must name the uploaded Factur-X invoice XML
+      Invalid form data: remediate: "level" and "documentType" need "xml", the uploaded Factur-X invoice XML to embed; without "xml", the remediation repairs the invoice the PDF already carries
       """
 
   # Edits run in order on the native PDF/A-3b document, and the remediation

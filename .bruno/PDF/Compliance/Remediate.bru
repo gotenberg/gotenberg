@@ -14,6 +14,8 @@ body:multipart-form {
   files: @file(../../test/integration/testdata/page_1.pdf)
   profile: PDF/A-2b
   ~language: en-US
+  ~aggressive: true
+  ~figureAltText: A chart
   ~xml: embed_1.xml
   ~files: @file(../../test/integration/testdata/embed_1.xml)
   ~level: EN 16931

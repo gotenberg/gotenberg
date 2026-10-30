@@ -36,7 +36,7 @@ func TestParseStages(t *testing.T) {
 		{name: "bad opacity", raw: `[{"op":"stamp-text","text":"t","opacity":2}]`, wantErr: "between 0 and 1"},
 		{name: "bad image", raw: `[{"op":"stamp-image","image":"logo.gif"}]`, wantErr: ".png"},
 		{name: "bad profile", raw: `[{"op":"remediate","profile":"PDF/X-4"}]`, wantErr: `"profile" must be one of`},
-		{name: "factur-x needs xml", raw: `[{"op":"remediate","profile":"Factur-X","level":"BASIC"}]`, wantErr: `"xml"`},
+		{name: "factur-x level needs xml", raw: `[{"op":"remediate","profile":"Factur-X","level":"BASIC"}]`, wantErr: `"level" and "documentType" need "xml"`},
 		{name: "factur-x options on pdf/a", raw: `[{"op":"remediate","profile":"PDF/A-2b","level":"BASIC"}]`, wantErr: "only apply to the Factur-X"},
 		{name: "encrypt needs a password", raw: `[{"op":"encrypt"}]`, wantErr: "userPassword"},
 		{name: "bad algorithm", raw: `[{"op":"encrypt","userPassword":"u","algorithm":"des"}]`, wantErr: "aes256"},
