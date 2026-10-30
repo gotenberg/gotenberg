@@ -66,11 +66,11 @@ func convertRoute(libreOffice libreofficeapi.Converter, processor *pdf.Processor
 				Bool("addOriginalDocumentAsStream", &options.AddOriginalDocumentAsStream).
 				Bool("singlePage", &options.SinglePageSheets).
 				Bool("nativeTaggedPdf", &options.GenerateTaggedPdf).
-				Int("initialView", &options.InitialView, api.OneOf(0, 1, 2)).
+				Custom("initialView", into(&options.InitialView, initialViews.parse)).
 				Int("initialPage", &options.InitialPage, api.Min(1)).
-				Int("magnification", &options.Magnification, api.OneOf(0, 1, 2, 3, 4)).
+				Custom("magnification", into(&options.Magnification, magnifications.parse)).
 				Int("zoom", &options.Zoom, api.Min(1)).
-				Int("pageLayout", &options.PageLayout, api.OneOf(0, 1, 2, 3)).
+				Custom("pageLayout", into(&options.PageLayout, pageLayouts.parse)).
 				Bool("firstPageOnLeft", &options.FirstPageOnLeft).
 				Bool("resizeWindowToInitialPage", &options.ResizeWindowToInitialPage).
 				Bool("centerWindow", &options.CenterWindow).
@@ -91,13 +91,23 @@ func convertRoute(libreOffice libreofficeapi.Converter, processor *pdf.Processor
 				Bool("nativeReduceImageResolution", &options.ReduceImageResolution).
 				Int("nativeMaxImageResolution", &options.MaxImageResolution, api.OneOf(75, 150, 300, 600, 1200)).
 				String("nativeWatermarkText", &options.NativeWatermarkText).
-				Int("nativeWatermarkColor", &options.NativeWatermarkColor).
-				Int("nativeWatermarkFontHeight", &options.NativeWatermarkFontHeight, api.Min(0)).
-				Int("nativeWatermarkRotateAngle", &options.NativeWatermarkRotateAngle).
-				String("nativeWatermarkFontName", &options.NativeWatermarkFontName).
+				Custom("nativeWatermarkColor", into(&options.NativeWatermarkColor, parseColor)).
+				Int("nativeWatermarkFontSize", &options.NativeWatermarkFontHeight, api.Min(0)).
+				Custom("nativeWatermarkRotation", into(&options.NativeWatermarkRotateAngle, parseRotation)).
+				String("nativeWatermarkFont", &options.NativeWatermarkFontName).
 				String("nativeTiledWatermarkText", &options.NativeTiledWatermarkText).
 				String("nativePdfa", &options.PdfFormats.PdfA).
-				Bool("nativePdfua", &options.PdfFormats.PdfUa).
+				Custom("nativePdfua", func(value string) error {
+					switch value {
+					case "":
+					case pdfuaProfile:
+						options.PdfFormats.PdfUa = true
+					default:
+						return fmt.Errorf("must be %s, got %q", pdfuaProfile, value)
+					}
+
+					return nil
+				}).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
