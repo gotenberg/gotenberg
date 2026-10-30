@@ -31,17 +31,6 @@ func (f *ParsedFlags) MustString(name string) string {
 	return val
 }
 
-// MustDeprecatedString returns the string value of a deprecated flag if it was
-// explicitly set or the string value of the new flag.
-// It panics if an error occurs.
-func (f *ParsedFlags) MustDeprecatedString(deprecated string, newName string) string {
-	if f.Changed(deprecated) {
-		return f.MustString(deprecated)
-	}
-
-	return f.MustString(newName)
-}
-
 // MustStringSlice returns the string slice value of a flag given by name.
 // It panics if an error occurs.
 func (f *ParsedFlags) MustStringSlice(name string) []string {
@@ -51,17 +40,6 @@ func (f *ParsedFlags) MustStringSlice(name string) []string {
 	}
 
 	return val
-}
-
-// MustDeprecatedStringSlice returns the string slice value of a deprecated
-// flag if it was explicitly set or the string slice value of the new flag.
-// It panics if an error occurs.
-func (f *ParsedFlags) MustDeprecatedStringSlice(deprecated string, newName string) []string {
-	if f.Changed(deprecated) {
-		return f.MustStringSlice(deprecated)
-	}
-
-	return f.MustStringSlice(newName)
 }
 
 // MustBool returns the boolean value of a flag given by name.
@@ -75,17 +53,6 @@ func (f *ParsedFlags) MustBool(name string) bool {
 	return val
 }
 
-// MustDeprecatedBool returns the boolean value of a deprecated flag if it was
-// explicitly set or the int value of the new flag.
-// It panics if an error occurs.
-func (f *ParsedFlags) MustDeprecatedBool(deprecated string, newName string) bool {
-	if f.Changed(deprecated) {
-		return f.MustBool(deprecated)
-	}
-
-	return f.MustBool(newName)
-}
-
 // MustInt64 returns the int64 value of a flag given by name.
 // It panics if an error occurs.
 func (f *ParsedFlags) MustInt64(name string) int64 {
@@ -95,17 +62,6 @@ func (f *ParsedFlags) MustInt64(name string) int64 {
 	}
 
 	return val
-}
-
-// MustDeprecatedInt64 returns the int64 value of a deprecated flag if it was
-// explicitly set or the int64 value of the new flag.
-// It panics if an error occurs.
-func (f *ParsedFlags) MustDeprecatedInt64(deprecated string, newName string) int64 {
-	if f.Changed(deprecated) {
-		return f.MustInt64(deprecated)
-	}
-
-	return f.MustInt64(newName)
 }
 
 // MustInt returns the int value of a flag given by name.
@@ -119,17 +75,6 @@ func (f *ParsedFlags) MustInt(name string) int {
 	return val
 }
 
-// MustDeprecatedInt returns the int value of a deprecated flag if it was
-// explicitly set or the int value of the new flag.
-// It panics if an error occurs.
-func (f *ParsedFlags) MustDeprecatedInt(deprecated string, newName string) int {
-	if f.Changed(deprecated) {
-		return f.MustInt(deprecated)
-	}
-
-	return f.MustInt(newName)
-}
-
 // MustFloat64 returns the float value of a flag given by name.
 // It panics if an error occurs.
 func (f *ParsedFlags) MustFloat64(name string) float64 {
@@ -141,17 +86,6 @@ func (f *ParsedFlags) MustFloat64(name string) float64 {
 	return val
 }
 
-// MustDeprecatedFloat64 returns the float value of a deprecated flag if it was
-// explicitly set or the float value of the new flag.
-// It panics if an error occurs.
-func (f *ParsedFlags) MustDeprecatedFloat64(deprecated string, newName string) float64 {
-	if f.Changed(deprecated) {
-		return f.MustFloat64(deprecated)
-	}
-
-	return f.MustFloat64(newName)
-}
-
 // MustDuration returns the time.Duration value of a flag given by name.
 // It panics if an error occurs.
 func (f *ParsedFlags) MustDuration(name string) time.Duration {
@@ -161,17 +95,6 @@ func (f *ParsedFlags) MustDuration(name string) time.Duration {
 	}
 
 	return val
-}
-
-// MustDeprecatedDuration returns the time.Duration value of a deprecated flag
-// if it was explicitly set or the time.Duration value of the new flag.
-// It panics if an error occurs.
-func (f *ParsedFlags) MustDeprecatedDuration(deprecated string, newName string) time.Duration {
-	if f.Changed(deprecated) {
-		return f.MustDuration(deprecated)
-	}
-
-	return f.MustDuration(newName)
 }
 
 // MustHumanReadableBytes returns the human-readable bytes string of a flag
@@ -193,18 +116,6 @@ func (f *ParsedFlags) MustHumanReadableBytes(name string) int64 {
 	}
 
 	return b
-}
-
-// MustDeprecatedHumanReadableBytes returns the human-readable bytes of a
-// deprecated flag if it was explicitly set or the human-readable bytes string
-// of the new flag.
-// It panics if an error occurs.
-func (f *ParsedFlags) MustDeprecatedHumanReadableBytes(deprecated string, newName string) int64 {
-	if f.Changed(deprecated) {
-		return f.MustHumanReadableBytes(deprecated)
-	}
-
-	return f.MustHumanReadableBytes(newName)
 }
 
 // PatternMatchTimeout bounds a single match against an operator-supplied
@@ -243,17 +154,6 @@ func (f *ParsedFlags) MustRegexp(name string) *regexp2.Regexp {
 	re.MatchTimeout = PatternMatchTimeout
 
 	return re
-}
-
-// MustDeprecatedRegexp returns the regular expression of a deprecated flag if
-// it was explicitly set or the regular expression of the new flag.
-// It panics if an error occurs.
-func (f *ParsedFlags) MustDeprecatedRegexp(deprecated string, newName string) *regexp2.Regexp {
-	if f.Changed(deprecated) {
-		return f.MustRegexp(deprecated)
-	}
-
-	return f.MustRegexp(newName)
 }
 
 // MustRegexpSlice returns a slice of compiled regular expressions from a
@@ -369,14 +269,6 @@ func (f *ParsedFlags) bypassSentence(name string) string {
 
 	private, public := prefix+"-deny-private-ips", prefix+"-deny-public-ips"
 	if f.Lookup(private) == nil || f.Lookup(public) == nil {
-		// A deprecated alias such as webhook-error-allow-list carries an extra
-		// segment that the IP-check flags do not have.
-		if i := strings.LastIndex(prefix, "-"); i != -1 {
-			private, public = prefix[:i]+"-deny-private-ips", prefix[:i]+"-deny-public-ips"
-		}
-	}
-
-	if f.Lookup(private) == nil || f.Lookup(public) == nil {
 		return "A URL that matches the allow-list skips the private and public IP checks. "
 	}
 
@@ -391,15 +283,4 @@ func (f *ParsedFlags) bypassSentence(name string) string {
 // overrides, so operator-facing messages can name both without drifting.
 func EnvVarName(name string) string {
 	return strings.ToUpper(strings.ReplaceAll(name, "-", "_"))
-}
-
-// MustDeprecatedRegexpSlice returns the slice of compiled regular expressions
-// of a deprecated flag if it was explicitly set or the slice of the new flag.
-// It panics if an error occurs.
-func (f *ParsedFlags) MustDeprecatedRegexpSlice(deprecated string, newName string) []*regexp2.Regexp {
-	if f.Changed(deprecated) {
-		return f.MustRegexpSlice(deprecated)
-	}
-
-	return f.MustRegexpSlice(newName)
 }
