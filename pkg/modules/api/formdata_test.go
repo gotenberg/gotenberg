@@ -528,6 +528,45 @@ func TestFormData_Float64(t *testing.T) {
 			expect:       3.5,
 			expectError:  false,
 		},
+		{
+			scenario: "key does exist, but value NaN is not finite",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"NaN",
+					},
+				},
+			},
+			defaultValue: 0.0,
+			expect:       0.0,
+			expectError:  true,
+		},
+		{
+			scenario: "key does exist, but value Inf is not finite",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"Inf",
+					},
+				},
+			},
+			defaultValue: 0.0,
+			expect:       0.0,
+			expectError:  true,
+		},
+		{
+			scenario: "key does exist, but value -inf is not finite",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"-inf",
+					},
+				},
+			},
+			defaultValue: 0.0,
+			expect:       0.0,
+			expectError:  true,
+		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			var actual float64
@@ -921,6 +960,45 @@ func TestFormData_Inches(t *testing.T) {
 			defaultValue: 0.0,
 			expect:       100,
 			expectError:  false,
+		},
+		{
+			scenario: "key does exist, but value NaN is not finite",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"NaN",
+					},
+				},
+			},
+			defaultValue: 0.0,
+			expect:       0.0,
+			expectError:  true,
+		},
+		{
+			scenario: "key does exist, but value Infmm is not finite",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"Infmm",
+					},
+				},
+			},
+			defaultValue: 0.0,
+			expect:       0.0,
+			expectError:  true,
+		},
+		{
+			scenario: "key does exist, but value +Infpx is not finite",
+			form: &FormData{
+				values: map[string][]string{
+					"foo": {
+						"+Infpx",
+					},
+				},
+			},
+			defaultValue: 0.0,
+			expect:       0.0,
+			expectError:  true,
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {

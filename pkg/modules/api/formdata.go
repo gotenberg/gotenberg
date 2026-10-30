@@ -238,7 +238,7 @@ func (form *FormData) inches(key string, target *float64) *FormData {
 			continue
 		}
 
-		val, err := strconv.ParseFloat(strings.TrimSuffix(value, unit), 64)
+		val, err := parseFiniteFloat(strings.TrimSuffix(value, unit))
 		if err != nil {
 			form.append(
 				fmt.Errorf("form field '%s' is invalid (got '%s', resulting to %w)", key, value, err),
@@ -264,7 +264,7 @@ func (form *FormData) inches(key string, target *float64) *FormData {
 		return form
 	}
 
-	val, err := strconv.ParseFloat(value, 64)
+	val, err := parseFiniteFloat(value)
 	if err != nil {
 		form.append(
 			fmt.Errorf("form field '%s' is invalid (got '%s', resulting to %w)", key, value, err),
@@ -274,6 +274,24 @@ func (form *FormData) inches(key string, target *float64) *FormData {
 
 	*target = val
 	return form
+}
+
+// errNotFinite happens when a number form field is NaN or infinite, which
+// [strconv.ParseFloat] accepts.
+var errNotFinite = errors.New("not a finite number")
+
+// parseFiniteFloat parses value as a finite float64.
+func parseFiniteFloat(value string) (float64, error) {
+	val, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	if math.IsNaN(val) || math.IsInf(val, 0) {
+		return 0, errNotFinite
+	}
+
+	return val, nil
 }
 
 // Custom helps to define a custom binding function for a form field.
@@ -564,7 +582,7 @@ func (form *FormData) mustAssign(key, value string, target any) *FormData {
 	case *int:
 		*t, err = strconv.Atoi(value)
 	case *float64:
-		*t, err = strconv.ParseFloat(value, 64)
+		*t, err = parseFiniteFloat(value)
 	case *time.Duration:
 		*t, err = time.ParseDuration(value)
 	default:
