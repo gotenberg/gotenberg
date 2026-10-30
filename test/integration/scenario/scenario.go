@@ -19,8 +19,12 @@ type scenario struct {
 	workdir            string
 	teststoreDir       string
 	gotenbergContainer testcontainers.Container
-	server             *server
-	hostPort           int
+	// ownContainer forbids the scenario a pooled default container, and
+	// pooledContainer tells that its container came from the pool.
+	ownContainer    bool
+	pooledContainer bool
+	server          *server
+	hostPort        int
 }
 
 func (s *scenario) reset(ctx context.Context) error {
@@ -57,6 +61,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 			return ctx, fmt.Errorf("create working directory: %w", err)
 		}
 		s.workdir = workdir
+		s.ownContainer = needsOwnContainer(sc)
 		return ctx, nil
 	})
 	ctx.Given(`^I have a default Gotenberg container$`, s.iHaveADefaultGotenbergContainer)
@@ -111,11 +116,27 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the "([^"]*)" image pixel at (\d+),(\d+) should be "([^"]*)"$`, s.theImagePixelShouldBe)
 	ctx.Then(`^the "([^"]*)" file size should be (less|greater) than (\d+) KB$`, s.theFileSizeShouldBe)
 	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
-		if s.gotenbergContainer != nil {
-			errTerminate := s.gotenbergContainer.Terminate(ctx, testcontainers.StopTimeout(0))
-			if errTerminate != nil {
-				return ctx, fmt.Errorf("terminate Gotenberg container: %w", errTerminate)
+		if s.gotenbergContainer == nil {
+			return ctx, nil
+		}
+
+		if s.pooledContainer {
+			// A failed scenario may leave its container in a bad state.
+			if err == nil {
+				releaseDefaultContainer(s.gotenbergContainer)
+				return ctx, nil
 			}
+
+			errDiscard := discardDefaultContainer(ctx, s.gotenbergContainer)
+			if errDiscard != nil {
+				return ctx, fmt.Errorf("terminate pooled Gotenberg container: %w", errDiscard)
+			}
+			return ctx, nil
+		}
+
+		errTerminate := s.gotenbergContainer.Terminate(ctx, testcontainers.StopTimeout(0))
+		if errTerminate != nil {
+			return ctx, fmt.Errorf("terminate Gotenberg container: %w", errTerminate)
 		}
 		return ctx, nil
 	})

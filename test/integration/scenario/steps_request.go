@@ -15,11 +15,21 @@ import (
 )
 
 func (s *scenario) iHaveADefaultGotenbergContainer(ctx context.Context) error {
-	c, err := startGotenbergContainer(ctx, nil)
+	if s.ownContainer {
+		c, err := startGotenbergContainer(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("create Gotenberg container: %s", err)
+		}
+		s.gotenbergContainer = c
+		return nil
+	}
+
+	c, err := acquireDefaultContainer(ctx)
 	if err != nil {
 		return fmt.Errorf("create Gotenberg container: %s", err)
 	}
 	s.gotenbergContainer = c
+	s.pooledContainer = true
 	return nil
 }
 

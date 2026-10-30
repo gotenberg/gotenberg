@@ -88,6 +88,12 @@ func TestMain(m *testing.M) {
 			},
 		}.Run()
 
+		// Pooled containers live across scenarios, not across runs: a retry
+		// starts from fresh ones.
+		if err := scenario.TerminateDefaultContainers(context.Background()); err != nil {
+			fmt.Fprintf(colors.Colored(os.Stdout), "warning: %v\n", err)
+		}
+
 		if code == 0 {
 			if len(flaky) > 0 {
 				fmt.Fprintf(colors.Colored(os.Stdout), "\n--- %d flaky scenario(s), passed on a retry ---\n%s\n", len(flaky), strings.Join(flaky, "\n"))
