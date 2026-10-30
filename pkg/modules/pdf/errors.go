@@ -11,79 +11,6 @@ import (
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 )
 
-// clientErrors lists the litho errors the request causes: a document litho
-// cannot read or edit as asked, an option out of range, or credentials that do
-// not fit. Every other litho error is a server error.
-var clientErrors = []error{
-	litho.ErrInvalidPassword,
-	litho.ErrPasswordRejected,
-	litho.ErrEncryptedNotAuthenticated,
-	litho.ErrUnsupportedEncryption,
-	litho.ErrNotAPDF,
-	litho.ErrDamagedXRef,
-	litho.ErrDamagedStream,
-	litho.ErrStreamTooLarge,
-	litho.ErrImageTooLarge,
-	litho.ErrPageContentTooLarge,
-	litho.ErrInvalidPageNumber,
-	litho.ErrInvalidPageRange,
-	litho.ErrInvalidRotation,
-	litho.ErrEmptyPageList,
-	litho.ErrEmptyText,
-	litho.ErrEmptyData,
-	litho.ErrUnsupportedMimeType,
-	litho.ErrImageNotDecodable,
-	litho.ErrInvalidFont,
-	litho.ErrInvalidPageSize,
-	litho.ErrSourceIndexOutOfRange,
-	litho.ErrSignatureFieldUnavailable,
-	litho.ErrSignatureFieldLocked,
-	litho.ErrSeedValueUnmet,
-	litho.ErrSignerKeyUnsupported,
-	litho.ErrSignerKeyMismatch,
-	litho.ErrSignerCertificateUsage,
-	litho.ErrSignerKeyEncrypted,
-	litho.ErrSignerPEM,
-	litho.ErrSignerPKCS12,
-	litho.ErrSignerPKCS12Password,
-	litho.ErrSignFullRewriteIncompatible,
-	litho.ErrCertificateRevoked,
-	litho.ErrRedactionRefused,
-	litho.ErrRedactionIncomplete,
-	litho.ErrInvalidRedactOptions,
-	litho.ErrPageDeletionIncomplete,
-	litho.ErrAutoTagAlreadyTagged,
-	litho.ErrAutoTagMarkedContent,
-	litho.ErrAutoTagUnreadableContent,
-	litho.ErrAutoTagNothingToTag,
-	litho.ErrRemediationBrokePDF,
-	litho.ErrRemediationUnverified,
-	litho.ErrFontNotSupplied,
-	litho.ErrFontProgramInvalid,
-	litho.ErrFontEmbeddingRestricted,
-	litho.ErrFontKind,
-	litho.ErrFontCoverage,
-	litho.ErrFontWidths,
-	litho.ErrFontRejected,
-	litho.ErrFontUnwritable,
-	litho.ErrFontRolledBack,
-	litho.ErrFontMissing,
-	litho.ErrRequiresOCR,
-	litho.ErrEditAfterRemediation,
-	litho.ErrPDFAForbidsEncryption,
-	litho.ErrPDFA1ForbidsObjectStreams,
-	litho.ErrPDFUAForbidsBarringAccessibility,
-	litho.ErrEmptyInvoiceXML,
-	litho.ErrInvalidFacturXLevel,
-	litho.ErrInvalidFacturXProfile,
-	litho.ErrNoOutputIntent,
-	litho.ErrColorConversionRefused,
-	litho.ErrOutputIntentConflict,
-	litho.ErrTransparencyFlatteningRefused,
-	litho.ErrAttachmentTreeIncomplete,
-	litho.ErrNameHoldsNull,
-}
-
 // handleError turns a stage failure the request caused into a 400 response
 // naming the stage and the document. dirPath, the request's working
 // directory, is stripped from the message so that disk paths never reach the
@@ -115,15 +42,15 @@ func handleError(err error, dirPath string) error {
 		))
 	}
 
-	for _, clientErr := range clientErrors {
-		if errors.Is(err, clientErr) {
-			message := strings.ReplaceAll(se.err.Error(), dirPath+"/", "")
+	// litho classifies its own errors, so a new litho error never reaches the
+	// client as a 500 by omission.
+	if litho.IsInvalidInput(err) {
+		message := strings.ReplaceAll(se.err.Error(), dirPath+"/", "")
 
-			return api.WrapError(err, api.NewSentinelHttpError(
-				http.StatusBadRequest,
-				fmt.Sprintf("Stage '%s' failed on '%s': %s", se.op, se.filename, message),
-			))
-		}
+		return api.WrapError(err, api.NewSentinelHttpError(
+			http.StatusBadRequest,
+			fmt.Sprintf("Stage '%s' failed on '%s': %s", se.op, se.filename, message),
+		))
 	}
 
 	return err
