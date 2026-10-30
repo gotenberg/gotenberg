@@ -62,6 +62,7 @@ var stageFactories = map[string]func() stage{
 	"remediate":            func() stage { return new(remediateStage) },
 	"sign":                 func() stage { return new(signStage) },
 	"timestamp":            func() stage { return new(timestampStage) },
+	"render":               func() stage { return new(renderStage) },
 }
 
 // ParseStages decodes and validates a JSON array of stages, such as:
@@ -179,13 +180,18 @@ func (stages Stages) validateOrder() error {
 	for i, s := range stages {
 		op := s.op()
 
+		// Render draws the final documents, and writes none.
+		if op == "render" && i != len(stages)-1 {
+			return fmt.Errorf("stage %d: \"render\" must be the last stage", i)
+		}
+
 		switch {
-		case signed >= 0 && op != "sign" && op != "timestamp":
+		case signed >= 0 && op != "sign" && op != "timestamp" && op != "render":
 			return fmt.Errorf("stage %d: %q cannot follow %q, which must come last", i, op, stages[signed].op())
-		case encrypted >= 0 && op != "optimize":
+		case encrypted >= 0 && op != "optimize" && op != "render":
 			return fmt.Errorf("stage %d: %q cannot follow \"encrypt\", which must come last", i, op)
 		case remediated >= 0 && !afterRemediation(op):
-			return fmt.Errorf("stage %d: %q cannot follow \"remediate\": only encrypt, optimize, sign and timestamp may", i, op)
+			return fmt.Errorf("stage %d: %q cannot follow \"remediate\": only encrypt, optimize, sign, timestamp and render may", i, op)
 		}
 
 		switch op {
@@ -232,7 +238,7 @@ func (stages Stages) remediates() bool {
 // afterRemediation reports whether op may follow a remediation.
 func afterRemediation(op string) bool {
 	switch op {
-	case "encrypt", "optimize", "sign", "timestamp":
+	case "encrypt", "optimize", "sign", "timestamp", "render":
 		return true
 	default:
 		return false

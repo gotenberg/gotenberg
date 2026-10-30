@@ -49,6 +49,13 @@ func TestParseStages(t *testing.T) {
 		{name: "encrypt and sign", raw: `[{"op":"sign","certificate":"c.p12"},{"op":"encrypt","userPassword":"u"}]`, wantErr: `cannot follow "sign"`},
 		{name: "encrypted pdf/a", raw: `[{"op":"remediate","profile":"PDF/A-2b"},{"op":"encrypt","userPassword":"u"}]`, wantErr: "PDF/A forbids encryption"},
 		{name: "encrypted factur-x", raw: `[{"op":"remediate","profile":"Factur-X","xml":"i.xml","level":"BASIC"},{"op":"encrypt","userPassword":"u"}]`, wantErr: "PDF/A forbids encryption"},
+		{name: "render not last", raw: `[{"op":"render"},{"op":"rotate","angle":90}]`, wantErr: `"render" must be the last stage`},
+		{name: "bad render format", raw: `[{"op":"render","format":"webp"}]`, wantErr: "png or jpeg"},
+		{name: "quality on png", raw: `[{"op":"render","quality":80}]`, wantErr: "only applies to the jpeg"},
+		{name: "bad render quality", raw: `[{"op":"render","format":"jpeg","quality":101}]`, wantErr: "between 1 and 100"},
+		{name: "negative dpi", raw: `[{"op":"render","dpi":-1}]`, wantErr: `"dpi" must be positive`},
+		{name: "render after sign", raw: `[{"op":"sign","certificate":"c.p12"},{"op":"render"}]`, wantOps: []string{"sign", "render"}},
+		{name: "render after remediate and encrypt", raw: `[{"op":"remediate","profile":"PDF/UA-1"},{"op":"encrypt","userPassword":"u"},{"op":"render"}]`, wantOps: []string{"remediate", "encrypt", "render"}},
 		{name: "sign then timestamp", raw: `[{"op":"sign","certificate":"c.p12"},{"op":"timestamp","url":"https://tsa.example.com"}]`, wantOps: []string{"sign", "timestamp"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

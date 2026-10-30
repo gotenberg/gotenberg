@@ -1,8 +1,12 @@
 package pdf
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"image"
+	_ "image/jpeg"
+	_ "image/png"
 	"log/slog"
 	"net/http"
 	"os"
@@ -435,5 +439,81 @@ func TestRunRepairFacturX(t *testing.T) {
 	status, message := api.ParseError(err)
 	if status != http.StatusBadRequest || !strings.Contains(message, "no hybrid invoice attachment found") {
 		t.Fatalf("status %d, message %q, want a 400 naming the missing invoice", status, message)
+	}
+}
+
+func TestRunRender(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		stages    string
+		wantNames []string
+		wantType  string
+	}{
+		{
+			name:      "every page as png, next to the document",
+			stages:    `[{"op":"render","dpi":36}]`,
+			wantNames: []string{"pages_3.pdf", "pages_3_1.png", "pages_3_2.png", "pages_3_3.png"},
+			wantType:  "image/png",
+		},
+		{
+			name:      "selected pages of the merged document as jpeg",
+			stages:    `[{"op":"merge"},{"op":"render","pages":"1,4","dpi":36,"format":"jpeg","quality":80}]`,
+			wantNames: []string{"pages_3.pdf", "pages_3_1.jpeg", "pages_3_4.jpeg"},
+			wantType:  "image/jpeg",
+		},
+		{
+			name:      "an encrypted output, opened with its password",
+			stages:    `[{"op":"encrypt","userPassword":"u"},{"op":"render","pages":"1","dpi":36}]`,
+			wantNames: []string{"pages_3.pdf", "pages_3_1.png"},
+			wantType:  "image/png",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fixtures := []string{"pages_3.pdf"}
+			if strings.Contains(tc.stages, "merge") {
+				fixtures = append(fixtures, "page_1.pdf")
+			}
+
+			ctx, paths := testContext(t, fixtures...)
+			inputs := make([]string, len(fixtures))
+			for i, f := range fixtures {
+				inputs[i] = paths[f]
+			}
+
+			outputs, err := testProcessor().Run(ctx, mustStages(t, tc.stages), inputs, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			names := make([]string, len(outputs))
+			for i, path := range outputs {
+				names[i] = ctx.OriginalFilename(path)
+			}
+			if !slices.Equal(names, tc.wantNames) {
+				t.Fatalf("outputs = %v, want %v", names, tc.wantNames)
+			}
+
+			for _, path := range outputs[1:] {
+				data, err := os.ReadFile(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if got := http.DetectContentType(data); got != tc.wantType {
+					t.Errorf("%s: content type %s, want %s", ctx.OriginalFilename(path), got, tc.wantType)
+				}
+
+				cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+				if err != nil {
+					t.Fatalf("decode %s: %v", ctx.OriginalFilename(path), err)
+				}
+
+				// The fixtures' pages are 448 x 632 points: half as many
+				// pixels at 36 dpi.
+				if cfg.Width != 224 || cfg.Height != 316 {
+					t.Errorf("%s: %dx%d, want a page drawn at 36 dpi", ctx.OriginalFilename(path), cfg.Width, cfg.Height)
+				}
+			}
+		})
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -77,6 +78,14 @@ func runStages(ctx *api.Context, form *api.FormData, processor *Processor, stage
 	outputPaths, err := processor.Run(ctx, stages, inputPaths, files)
 	if err != nil {
 		return fmt.Errorf("run stages: %w", err)
+	}
+
+	// A render alone leaves the uploaded PDFs as they are: answer the images
+	// only.
+	if len(stages) == 1 && stages[0].op() == "render" {
+		outputPaths = slices.DeleteFunc(outputPaths, func(path string) bool {
+			return strings.EqualFold(filepath.Ext(path), ".pdf")
+		})
 	}
 
 	err = ctx.AddOutputPaths(outputPaths...)

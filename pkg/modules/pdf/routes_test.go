@@ -92,6 +92,21 @@ func TestStageRoute(t *testing.T) {
 			wantBody:   "every uploaded PDF is read by a stage",
 		},
 		{
+			name:     "render answers the images only",
+			op:       "render",
+			values:   map[string][]string{"dpi": {"20"}},
+			fixtures: []string{"page_1.pdf", "pages_3.pdf"},
+			wantOut:  4,
+		},
+		{
+			name:       "render a page past the end",
+			op:         "render",
+			values:     map[string][]string{"pages": {"2"}},
+			fixtures:   []string{"page_1.pdf"},
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "Stage 'render' failed on 'page_1.pdf'",
+		},
+		{
 			name:       "page past the end",
 			op:         "rotate",
 			values:     map[string][]string{"angle": {"90"}, "pages": {"3"}},

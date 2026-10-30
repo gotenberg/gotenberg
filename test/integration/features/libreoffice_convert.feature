@@ -878,6 +878,19 @@ Feature: /forms/libreoffice/convert
     Then the response PDF(s) should NOT have the "factur-x.xml" file embedded
     Then the response PDF(s) should declare Factur-X XMP with conformance level "XRECHNUNG"
 
+  @pdf-render
+  Scenario: POST /forms/libreoffice/convert (Render)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.docx              | file  |
+      | stages | [{"op":"render","format":"jpeg"}] | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | page_1.docx.pdf    |
+      | page_1.docx_1.jpeg |
+
   # A Factur-X level without the invoice XML is a half-specified request:
   # without the XML, the remediation repairs an existing invoice instead.
   @pdf-remediate

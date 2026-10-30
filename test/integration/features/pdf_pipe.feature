@@ -104,7 +104,7 @@ Feature: /forms/pdf/pipe
     Then the response status code should be 400
     Then the response body should match string:
       """
-      Invalid form data: form field 'stages' is invalid: stage 1: "rotate" cannot follow "remediate": only encrypt, optimize, sign and timestamp may
+      Invalid form data: form field 'stages' is invalid: stage 1: "rotate" cannot follow "remediate": only encrypt, optimize, sign, timestamp and render may
       """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
       | files  | testdata/page_1.pdf                                                             | file  |
