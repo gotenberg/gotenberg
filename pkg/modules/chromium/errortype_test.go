@@ -10,36 +10,34 @@ import (
 
 func TestChromiumErrorType(t *testing.T) {
 	for _, tc := range []struct {
-		name        string
-		err         error
-		queueReason string
-		want        string
+		name string
+		err  error
+		want string
 	}{
-		{"deadline", context.DeadlineExceeded, "chromium_unavailable", "timeout"},
-		{"canceled", context.Canceled, "chromium_unavailable", "context_cancelled"},
-		{"invalid http status", ErrInvalidHttpStatusCode, "chromium_unavailable", "invalid_input"},
-		{"invalid resource http status", ErrInvalidResourceHttpStatusCode, "chromium_unavailable", "invalid_input"},
-		{"loading failed", ErrLoadingFailed, "chromium_unavailable", "invalid_input"},
-		{"resource loading failed", ErrResourceLoadingFailed, "chromium_unavailable", "invalid_input"},
-		{"console messages", ErrConsoleMessages, "chromium_unavailable", "invalid_input"},
-		{"crashed", ErrChromiumCrashed, "chromium_unavailable", "chromium_unavailable"},
-		{"invalid evaluation expression", ErrInvalidEvaluationExpression, "chromium_unavailable", "invalid_input"},
-		{"invalid selector query", ErrInvalidSelectorQuery, "chromium_unavailable", "invalid_input"},
-		{"console exceptions", ErrConsoleExceptions, "chromium_unavailable", "invalid_input"},
-		{"screenshot selector not found", ErrScreenshotSelectorNotFound, "chromium_unavailable", "invalid_input"},
-		{"omit background", ErrOmitBackgroundWithoutPrintBackground, "chromium_unavailable", "invalid_input"},
-		{"printing failed", ErrPrintingFailed, "chromium_unavailable", "invalid_input"},
-		{"invalid printer settings", ErrInvalidPrinterSettings, "chromium_unavailable", "invalid_input"},
-		{"page ranges syntax", ErrPageRangesSyntaxError, "chromium_unavailable", "invalid_input"},
-		{"page ranges exceed count", ErrPageRangesExceedsPageCount, "chromium_unavailable", "invalid_input"},
-		{"pdf queue", gotenberg.ErrMaximumQueueSizeExceeded, "chromium_unavailable", "chromium_unavailable"},
-		{"screenshot queue", gotenberg.ErrMaximumQueueSizeExceeded, "chromium_maximum_queue_size_exceeded", "chromium_maximum_queue_size_exceeded"},
-		{"restarting", gotenberg.ErrProcessAlreadyRestarting, "chromium_maximum_queue_size_exceeded", "chromium_unavailable"},
-		{"unknown", errors.New("boom"), "chromium_unavailable", "unknown"},
+		{"deadline", context.DeadlineExceeded, "timeout"},
+		{"canceled", context.Canceled, "context_cancelled"},
+		{"invalid http status", ErrInvalidHttpStatusCode, "invalid_input"},
+		{"invalid resource http status", ErrInvalidResourceHttpStatusCode, "invalid_input"},
+		{"loading failed", ErrLoadingFailed, "invalid_input"},
+		{"resource loading failed", ErrResourceLoadingFailed, "invalid_input"},
+		{"console messages", ErrConsoleMessages, "invalid_input"},
+		{"crashed", ErrChromiumCrashed, "chromium_unavailable"},
+		{"invalid evaluation expression", ErrInvalidEvaluationExpression, "invalid_input"},
+		{"invalid selector query", ErrInvalidSelectorQuery, "invalid_input"},
+		{"console exceptions", ErrConsoleExceptions, "invalid_input"},
+		{"screenshot selector not found", ErrScreenshotSelectorNotFound, "invalid_input"},
+		{"omit background", ErrOmitBackgroundWithoutPrintBackground, "invalid_input"},
+		{"printing failed", ErrPrintingFailed, "invalid_input"},
+		{"invalid printer settings", ErrInvalidPrinterSettings, "invalid_input"},
+		{"page ranges syntax", ErrPageRangesSyntaxError, "invalid_input"},
+		{"page ranges exceed count", ErrPageRangesExceedsPageCount, "invalid_input"},
+		{"queue", gotenberg.ErrMaximumQueueSizeExceeded, "chromium_unavailable"},
+		{"restarting", gotenberg.ErrProcessAlreadyRestarting, "chromium_unavailable"},
+		{"unknown", errors.New("boom"), "unknown"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := chromiumErrorType(tc.err, tc.queueReason); got != tc.want {
-				t.Errorf("chromiumErrorType(%v, %q) = %q, want %q", tc.err, tc.queueReason, got, tc.want)
+			if got := chromiumErrorType(tc.err); got != tc.want {
+				t.Errorf("chromiumErrorType(%v) = %q, want %q", tc.err, got, tc.want)
 			}
 		})
 	}

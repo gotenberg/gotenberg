@@ -62,14 +62,10 @@ func (p *ProcessMock) Healthy(logger *slog.Logger) bool {
 
 // ProcessSupervisorMock is a mock for the [ProcessSupervisor] interface.
 type ProcessSupervisorMock struct {
-	LaunchMock                  func(ctx context.Context) error
-	ShutdownMock                func() error
-	HealthyMock                 func() bool
-	RunMock                     func(ctx context.Context, logger *slog.Logger, task func() error) error
-	ReqQueueSizeMock            func() int64
-	RestartsCountMock           func() int64
-	ActiveTasksCountMock        func() int64
-	ConversionsSinceRestartMock func() int64
+	LaunchMock   func(ctx context.Context) error
+	ShutdownMock func() error
+	HealthyMock  func() bool
+	RunMock      func(ctx context.Context, logger *slog.Logger, task func() error) error
 }
 
 func (s *ProcessSupervisorMock) Launch(ctx context.Context) error {
@@ -86,22 +82,6 @@ func (s *ProcessSupervisorMock) Healthy() bool {
 
 func (s *ProcessSupervisorMock) Run(ctx context.Context, logger *slog.Logger, task func() error) error {
 	return s.RunMock(ctx, logger, task)
-}
-
-func (s *ProcessSupervisorMock) ReqQueueSize() int64 {
-	return s.ReqQueueSizeMock()
-}
-
-func (s *ProcessSupervisorMock) RestartsCount() int64 {
-	return s.RestartsCountMock()
-}
-
-func (s *ProcessSupervisorMock) ActiveTasksCount() int64 {
-	return s.ActiveTasksCountMock()
-}
-
-func (s *ProcessSupervisorMock) ConversionsSinceRestart() int64 {
-	return s.ConversionsSinceRestartMock()
 }
 
 // MkdirAllMock is a mock for the [MkdirAll] interface.

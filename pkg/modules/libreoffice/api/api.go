@@ -15,7 +15,6 @@ import (
 	"github.com/alexliesenfeld/health"
 	flag "github.com/spf13/pflag"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
 	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 	"go.opentelemetry.io/otel/trace"
@@ -65,12 +64,8 @@ type Api struct {
 	version     string
 	versionOnce sync.Once
 
-	reqsCounter               metric.Int64Counter
-	errsCounter               metric.Int64Counter
-	conversionDurationCounter metric.Float64Histogram
-	queueWaitDurationCounter  metric.Float64Histogram
-	pdfOutputSizeCounter      metric.Int64Histogram
-	crashRetriesCounter       metric.Int64Counter
+	pdfOutputSizeCounter metric.Int64Histogram
+	crashRetriesCounter  metric.Int64Counter
 }
 
 // The PDF/A formats LibreOffice exports natively.
@@ -436,94 +431,19 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 
 	// Process.
 	a.libreOffice = newLibreOfficeProcess(a.args)
-	a.supervisor = gotenberg.NewProcessSupervisor(a.logger, "libreoffice", a.libreOffice, flags.MustInt64("libreoffice-restart-after"), flags.MustInt64("libreoffice-max-queue-size"), 1, flags.MustDuration("libreoffice-idle-shutdown-timeout"))
+	supervisor, err := gotenberg.NewProcessSupervisor(a.logger, "libreoffice", a.libreOffice, gotenberg.SupervisorOptions{
+		RestartAfter:        flags.MustInt64("libreoffice-restart-after"),
+		MaxQueueSize:        flags.MustInt64("libreoffice-max-queue-size"),
+		IdleShutdownTimeout: flags.MustDuration("libreoffice-idle-shutdown-timeout"),
+		ErrorType:           libreofficeErrorType,
+	})
+	if err != nil {
+		return fmt.Errorf("create LibreOffice supervisor: %w", err)
+	}
+	a.supervisor = supervisor
 
 	// Metrics.
 	meter := gotenberg.Meter()
-
-	// Observable gauges.
-	var err error
-
-	_, err = meter.Int64ObservableGauge(
-		"libreoffice.requests.active",
-		metric.WithDescription("Current number of active LibreOffice requests"),
-		metric.WithUnit("{request}"),
-		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
-			o.Observe(a.supervisor.ActiveTasksCount())
-			return nil
-		}),
-	)
-	if err != nil {
-		return fmt.Errorf("create libreoffice.requests.active gauge: %w", err)
-	}
-
-	_, err = meter.Int64ObservableGauge(
-		"libreoffice.requests.queue_size",
-		metric.WithDescription("Current number of LibreOffice conversion requests waiting to be treated"),
-		metric.WithUnit("{request}"),
-		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
-			o.Observe(a.supervisor.ReqQueueSize())
-			return nil
-		}),
-	)
-	if err != nil {
-		return fmt.Errorf("create libreoffice.requests.queue_size gauge: %w", err)
-	}
-
-	_, err = meter.Int64ObservableCounter(
-		"libreoffice.process.restarts.total",
-		metric.WithDescription("Current number of LibreOffice restarts"),
-		metric.WithUnit("{restart}"),
-		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
-			o.Observe(a.supervisor.RestartsCount())
-			return nil
-		}),
-	)
-	if err != nil {
-		return fmt.Errorf("create libreoffice.process.restarts.total counter: %w", err)
-	}
-
-	// Counters.
-	a.reqsCounter, err = meter.Int64Counter(
-		"libreoffice.requests.total",
-		metric.WithDescription("Total number of LibreOffice conversion requests"),
-		metric.WithUnit("{request}"),
-	)
-	if err != nil {
-		return fmt.Errorf("create libreoffice.requests.total counter: %w", err)
-	}
-
-	a.errsCounter, err = meter.Int64Counter(
-		"libreoffice.errors.total",
-		metric.WithDescription("Total number of LibreOffice conversion errors"),
-		metric.WithUnit("{error}"),
-	)
-	if err != nil {
-		return fmt.Errorf("create libreoffice.errors.total counter: %w", err)
-	}
-
-	// Histograms.
-	durationBuckets := metric.WithExplicitBucketBoundaries(0.5, 1, 2, 5, 10, 30, 60)
-
-	a.conversionDurationCounter, err = meter.Float64Histogram(
-		"libreoffice.conversion.duration",
-		metric.WithDescription("Duration of LibreOffice conversions"),
-		metric.WithUnit("s"),
-		durationBuckets,
-	)
-	if err != nil {
-		return fmt.Errorf("create libreoffice.conversion.duration histogram: %w", err)
-	}
-
-	a.queueWaitDurationCounter, err = meter.Float64Histogram(
-		"libreoffice.queue.wait.duration",
-		metric.WithDescription("Duration of waiting in queue for LibreOffice conversions"),
-		metric.WithUnit("s"),
-		durationBuckets,
-	)
-	if err != nil {
-		return fmt.Errorf("create libreoffice.queue.wait.duration histogram: %w", err)
-	}
 
 	a.pdfOutputSizeCounter, err = meter.Int64Histogram(
 		"libreoffice.pdf.output.size",
@@ -707,83 +627,40 @@ func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPat
 	)
 	defer span.End()
 
-	span.SetAttributes(
-		attribute.Int64("gotenberg.queue.depth_at_arrival", a.supervisor.ReqQueueSize()),
-		attribute.Int64("gotenberg.conversions_since_last_restart", a.supervisor.ConversionsSinceRestart()),
-	)
 	span.SetAttributes(conversionRequestAttributes(inputPath, options)...)
 
 	// LibreOffice crashes randomly (https://github.com/gotenberg/gotenberg/issues/639);
 	// retry the conversion, but cap the retries so a permanently failing
-	// document cannot loop forever. Each attempt records its own metrics.
+	// document cannot loop forever. The supervisor measures each attempt.
 	const maxCrashRetries = 10
 
 	var err error
-	var reason string
 	for attempt := 0; ; attempt++ {
-		start := time.Now()
-		var conversionStart time.Time
-
 		err = a.supervisor.Run(ctx, logger, func() error {
-			conversionStart = time.Now()
 			return a.libreOffice.pdf(ctx, logger, inputPath, outputPath, options)
 		})
-
-		// Determine status and error reason.
-		status := "success"
-		reason = ""
-
-		if err != nil {
-			status = "error"
-			if errors.Is(err, context.DeadlineExceeded) {
-				status = "timeout"
-			}
-			reason = libreofficeErrorType(err)
+		if !errors.Is(err, ErrCrashed) || attempt >= maxCrashRetries {
+			break
 		}
 
-		// Record metrics for this attempt.
-		attrs := metric.WithAttributes(attribute.String("status", status))
-		a.reqsCounter.Add(ctx, 1, attrs)
-
-		if reason != "" {
-			a.errsCounter.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", reason)))
-		}
-
-		if !conversionStart.IsZero() {
-			queueWait := conversionStart.Sub(start).Seconds()
-			a.queueWaitDurationCounter.Record(ctx, queueWait, attrs)
-
-			conversionDuration := time.Since(conversionStart).Seconds()
-			a.conversionDurationCounter.Record(ctx, conversionDuration, attrs)
-		}
-
-		if err == nil {
-			stat, statErr := os.Stat(outputPath)
-			if statErr == nil {
-				a.pdfOutputSizeCounter.Record(ctx, stat.Size(), attrs)
-				span.SetAttributes(attribute.Int64("gotenberg.conversion.output.bytes", stat.Size()))
-			}
-
-			span.SetStatus(codes.Ok, "")
-			return nil
-		}
-
-		if errors.Is(err, ErrCrashed) && attempt < maxCrashRetries {
-			logger.DebugContext(ctx, fmt.Sprintf("got a '%s' error, retry conversion (attempt %d)", err, attempt+1))
-			span.AddEvent("conversion.retry", trace.WithAttributes(
-				attribute.Int("attempt", attempt+1),
-			))
-			a.crashRetriesCounter.Add(ctx, 1)
-			continue
-		}
-
-		break
+		logger.DebugContext(ctx, fmt.Sprintf("got a '%s' error, retry conversion (attempt %d)", err, attempt+1))
+		span.AddEvent("conversion.retry", trace.WithAttributes(
+			attribute.Int("attempt", attempt+1),
+		))
+		a.crashRetriesCounter.Add(ctx, 1)
 	}
 
-	gotenberg.SpanErrorType(span, reason)
-	span.RecordError(err)
-	span.SetStatus(codes.Error, err.Error())
-	return fmt.Errorf("supervisor run task: %w", err)
+	if err != nil {
+		return gotenberg.SetSpanStatus(span, fmt.Errorf("supervisor run task: %w", err), libreofficeErrorType(err))
+	}
+
+	stat, statErr := os.Stat(outputPath)
+	if statErr == nil {
+		a.pdfOutputSizeCounter.Record(ctx, stat.Size())
+		span.SetAttributes(attribute.Int64("gotenberg.conversion.output.bytes", stat.Size()))
+	}
+
+	return gotenberg.SetSpanStatus(span, nil, "")
 }
 
 // conversionRequestAttributes derives low-cardinality attributes describing the
