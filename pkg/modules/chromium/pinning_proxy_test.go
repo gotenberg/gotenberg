@@ -1251,3 +1251,62 @@ func TestPinningProxy_DecideTunnel_DenyRuleShapes(t *testing.T) {
 		})
 	}
 }
+
+// A tunnel whose upstream never answers must end with the proxy that accepted
+// it, including across a restart: Shutdown does not reach hijacked
+// connections.
+func TestPinningProxy_StopClosesTunnels(t *testing.T) {
+	upstreamAddr, stop := newRawTCPServer(t, func(c net.Conn) {
+		defer c.Close()
+		_, _ = io.Copy(io.Discard, c)
+	})
+	t.Cleanup(stop)
+
+	p := newPinningProxy(nil, nil, false, false, false)
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
+		return gotenberg.OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
+	}
+	p.dialPinned = func(_ context.Context, network string, _ []netip.Addr, _ string) (net.Conn, error) {
+		return net.Dial(network, upstreamAddr)
+	}
+
+	for attempt := range 2 {
+		err := p.Start(testLogger())
+		if err != nil {
+			t.Fatalf("attempt %d start pinning proxy: %v", attempt, err)
+		}
+
+		conn, err := net.Dial("tcp", strings.TrimPrefix(p.URL(), "http://"))
+		if err != nil {
+			t.Fatalf("attempt %d dial proxy: %v", attempt, err)
+		}
+
+		_, err = fmt.Fprintf(conn, "CONNECT example.com:443 HTTP/1.1\r\nHost: example.com:443\r\n\r\n")
+		if err != nil {
+			t.Fatalf("attempt %d write CONNECT: %v", attempt, err)
+		}
+
+		br := bufio.NewReader(conn)
+		statusLine, err := br.ReadString('\n')
+		if err != nil || !strings.Contains(statusLine, " 200 ") {
+			t.Fatalf("attempt %d CONNECT status = %q, %v, want 200", attempt, statusLine, err)
+		}
+		_, _ = br.ReadString('\n')
+
+		err = p.Stop(testLogger())
+		if err != nil {
+			t.Fatalf("attempt %d stop pinning proxy: %v", attempt, err)
+		}
+
+		err = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		if err != nil {
+			t.Fatalf("attempt %d set deadline: %v", attempt, err)
+		}
+		_, err = br.ReadByte()
+		var netErr net.Error
+		if errors.As(err, &netErr) && netErr.Timeout() {
+			t.Fatalf("attempt %d: the tunnel outlived the proxy", attempt)
+		}
+		_ = conn.Close()
+	}
+}

@@ -59,11 +59,13 @@ type pinningProxy struct {
 	server   *http.Server
 	wg       sync.WaitGroup
 
-	// closing is closed by Stop to force in-flight CONNECT tunnels shut.
-	// [http.Server.Shutdown] cannot do it: net/http untracks a connection once
-	// a handler hijacks it, so a tunnel would otherwise outlive the proxy that
-	// created it. Recreated on every Start.
-	closing chan struct{}
+	// cancelRequests is called by Stop to force in-flight CONNECT tunnels
+	// shut. [http.Server.Shutdown] cannot do it: net/http untracks a
+	// connection once a handler hijacks it, so a tunnel would otherwise
+	// outlive the proxy that created it. Every request context of a Start
+	// derives from the context it cancels, so a tunnel is bound to the server
+	// that accepted it, even when it outlives a Stop and the next Start.
+	cancelRequests context.CancelFunc
 
 	// maxTunnels ceilings the CONNECT handlers in flight. Tests may lower it.
 	maxTunnels int64
@@ -124,11 +126,14 @@ func (p *pinningProxy) Start(logger *slog.Logger) error {
 		return fmt.Errorf("bind pinning proxy: %w", err)
 	}
 
+	baseCtx, cancelRequests := context.WithCancel(context.Background())
+
 	p.listener = l
-	p.closing = make(chan struct{})
+	p.cancelRequests = cancelRequests
 	p.logger = logger.With(slog.String("logger", "pinning-proxy"))
 	p.server = &http.Server{
-		Handler: http.HandlerFunc(p.serveHTTP),
+		Handler:     http.HandlerFunc(p.serveHTTP),
+		BaseContext: func(net.Listener) context.Context { return baseCtx },
 		// Guard against slow header attacks. Body reads are controlled
 		// per-handler.
 		ReadHeaderTimeout: 15 * time.Second,
@@ -156,17 +161,15 @@ func (p *pinningProxy) Stop(logger *slog.Logger) error {
 		return nil
 	}
 	srv := p.server
-	closing := p.closing
-	p.closing = nil
+	cancelRequests := p.cancelRequests
+	p.cancelRequests = nil
 	p.started = false
 	p.mu.Unlock()
 
 	// Force in-flight tunnels shut before draining the server. Shutdown does
 	// not reach them, so a tunnel whose upstream never answers would otherwise
 	// survive the proxy, and with it every Chromium restart.
-	if closing != nil {
-		close(closing)
-	}
+	cancelRequests()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -305,11 +308,7 @@ func (p *pinningProxy) handleConnect(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	p.mu.Lock()
-	closing := p.closing
-	p.mu.Unlock()
-
-	spliceTunnel(client, upstream, closing, spliceIdleTimeout)
+	spliceTunnel(client, upstream, req.Context().Done(), spliceIdleTimeout)
 }
 
 // tunnelSchemes lists the schemes Chromium sends through a CONNECT tunnel and
