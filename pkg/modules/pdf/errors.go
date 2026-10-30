@@ -8,8 +8,18 @@ import (
 
 	litho "github.com/gotenberg/litho/pkg/pdf"
 
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 )
+
+// errorType classifies a stage failure for the error.type of its span.
+func errorType(err error) string {
+	if litho.IsInvalidInput(err) {
+		return gotenberg.ErrorTypeInvalidInput
+	}
+
+	return gotenberg.ClassifyError(err)
+}
 
 // handleError turns a stage failure the request caused into a 400 response
 // naming the stage and the document. dirPath, the request's working
