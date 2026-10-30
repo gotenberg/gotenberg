@@ -17,9 +17,12 @@ Run `make build` before `make test-integration`. Integration tests require a Doc
 make test-integration TAGS=health
 make test-integration TAGS=chromium-convert-html
 make test-integration TAGS="pdf-merge,pdf-split"
-make test-integration CONCURRENCY=1        # one scenario at a time (0, the default, runs one per CPU)
-make test-integration PLATFORM=linux/arm64 # force a specific platform
+make test-integration CONCURRENCY=1           # one scenario at a time (0, the default, runs one per CPU)
+make test-integration PLATFORM=linux/arm64    # force a specific platform
+make test-integration KEEP_FAILED=/tmp/failed # keep the outputs of failed scenarios
 ```
+
+The scenarios work in a temporary directory the run removes when it ends, on an interrupt (Ctrl+C) included. `KEEP_FAILED` moves the directory of each failed scenario aside first, and the run prints where.
 
 Available tags:
 

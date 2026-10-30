@@ -6,6 +6,10 @@ import (
 	_ "image/png" // Register the PNG decoder for image.DecodeConfig.
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"strings"
+	"time"
+	"unicode"
 
 	"github.com/cucumber/godog"
 	"github.com/testcontainers/testcontainers-go"
@@ -25,6 +29,59 @@ type scenario struct {
 	pooledContainer bool
 	server          *server
 	hostPort        int
+}
+
+// RunDir is the directory the scenarios of a run work in. TestMain creates and
+// removes it.
+var RunDir string
+
+// KeepFailedDir, when set, receives the working directory of each failed
+// scenario, so that its outputs can be inspected after the run.
+var KeepFailedDir string
+
+// cleanupTimeout bounds the cleanup of a scenario.
+const cleanupTimeout = time.Minute
+
+// cleanupContext returns a context for cleaning up after a scenario: it keeps
+// the values of ctx, but not its cancellation.
+func cleanupContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(ctx), cleanupTimeout)
+}
+
+// keepWorkdir moves the working directory of the failed scenario sc under
+// [KeepFailedDir], if set.
+func (s *scenario) keepWorkdir(sc *godog.Scenario) {
+	if KeepFailedDir == "" || s.workdir == "" {
+		return
+	}
+
+	name := strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_' {
+			return r
+		}
+		return '_'
+	}, fmt.Sprintf("%s_%s", filepath.Base(sc.Uri), sc.Name))
+
+	err := os.MkdirAll(KeepFailedDir, 0o755)
+	if err == nil {
+		var dst string
+		dst, err = os.MkdirTemp(KeepFailedDir, name+"-")
+		if err == nil {
+			// os.Rename needs the destination gone; the empty directory only
+			// reserved a unique name.
+			err = os.Remove(dst)
+			if err == nil {
+				err = os.Rename(s.workdir, dst)
+			}
+			if err == nil {
+				s.workdir = ""
+				fmt.Fprintf(os.Stdout, "kept the working directory of %q in %s\n", sc.Name, dst)
+				return
+			}
+		}
+	}
+
+	fmt.Fprintf(os.Stdout, "warning: keep the working directory of %q: %v\n", sc.Name, err)
 }
 
 func (s *scenario) reset(ctx context.Context) error {
@@ -55,9 +112,9 @@ func (s *scenario) reset(ctx context.Context) error {
 func InitializeScenario(ctx *godog.ScenarioContext) {
 	s := &scenario{}
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
-		// Outside the repository, so that an interrupted run leaves nothing
-		// behind in the working tree.
-		workdir, err := os.MkdirTemp("", "gotenberg-integration-")
+		// Under the run's directory, which TestMain removes even when a run is
+		// interrupted.
+		workdir, err := os.MkdirTemp(RunDir, "scenario-")
 		if err != nil {
 			return ctx, fmt.Errorf("create working directory: %w", err)
 		}
@@ -121,6 +178,11 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 			return ctx, nil
 		}
 
+		// The run's context may be done, on a timeout or an interrupt: the
+		// cleanup still gets its own time.
+		ctx, cancel := cleanupContext(ctx)
+		defer cancel()
+
 		if s.pooledContainer {
 			// A failed scenario may leave its container in a bad state.
 			if err == nil {
@@ -144,7 +206,11 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		if err != nil {
 			recordFailedScenario(sc)
+			s.keepWorkdir(sc)
 		}
+
+		ctx, cancel := cleanupContext(ctx)
+		defer cancel()
 
 		errReset := s.reset(ctx)
 		if errReset != nil {

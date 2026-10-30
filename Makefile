@@ -143,6 +143,9 @@ PLATFORM=
 VARIANT=
 # Number of scenarios run at once; 0 runs one per CPU.
 CONCURRENCY=0
+# Directory receiving the working directory of each failed scenario, its
+# outputs included. Empty discards them.
+KEEP_FAILED=
 # Available tags:
 # chromium
 # api-limits
@@ -194,6 +197,7 @@ test-integration: ## Run integration tests (automatically retries failed scenari
 	--gotenberg-variant=$(VARIANT) \
  	--gotenberg-container-platform=$(PLATFORM) \
  	--concurrency=$(CONCURRENCY) \
+ 	--keep-failed="$(KEEP_FAILED)" \
  	--tags="$(TAGS)"
 
 # golangci-lint runs at a pinned version, so a Homebrew upgrade cannot move the
