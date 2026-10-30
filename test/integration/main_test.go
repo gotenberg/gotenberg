@@ -111,6 +111,9 @@ func TestMain(m *testing.M) {
 				Concurrency:    concurrency,
 				Tags:           *tags,
 				DefaultContext: runCtx,
+				// An undefined or pending step fails the run instead of
+				// passing it unchecked.
+				Strict: true,
 			},
 		}.Run()
 
