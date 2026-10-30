@@ -10,6 +10,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/alexliesenfeld/health"
@@ -59,11 +60,14 @@ type Api struct {
 	logger              *slog.Logger
 	srv                 *echo.Echo
 
-	// shutdownCancel triggers the graceful shutdown of the server started by
-	// [echo.StartConfig]. Echo v5 drives shutdown from a context instead of an
-	// Echo.Shutdown method. serveDone closes once that shutdown completed.
-	shutdownCancel context.CancelFunc
-	serveDone      chan struct{}
+	// server is the [http.Server] that [echo.StartConfig] serves, kept so Stop
+	// can drain it within its own deadline: Echo's graceful shutdown uses a
+	// fixed timeout instead. stopping tells a server about to serve that Stop
+	// already ran. serveDone closes once serving ended.
+	serverMu  sync.Mutex
+	server    *http.Server
+	stopping  bool
+	serveDone chan struct{}
 }
 
 type downloadFromConfig struct {
@@ -739,7 +743,18 @@ func (a *Api) Start() error {
 		Address:    fmt.Sprintf("%s:%d", a.bindIp, a.port),
 		HideBanner: true,
 		HidePort:   true,
+		// Stop drains the server itself, bounded by the graceful shutdown
+		// duration.
+		GracefulTimeout: -1,
 		BeforeServeFunc: func(s *http.Server) error {
+			a.serverMu.Lock()
+			defer a.serverMu.Unlock()
+
+			if a.stopping {
+				return http.ErrServerClosed
+			}
+			a.server = s
+
 			s.ReadTimeout = a.timeout
 			s.IdleTimeout = a.timeout
 			// See https://github.com/gotenberg/gotenberg/issues/396.
@@ -792,10 +807,6 @@ func (a *Api) Start() error {
 		}
 	}
 
-	// Not named cancel: that would reassign the readiness timeout's cancel from
-	// above, whose deferred call is already bound to the old value.
-	serveCtx, serveCancel := context.WithCancel(context.Background())
-	a.shutdownCancel = serveCancel
 	a.serveDone = make(chan struct{})
 
 	// As the following code is blocking, run it in a goroutine.
@@ -805,10 +816,10 @@ func (a *Api) Start() error {
 		var err error
 		if tlsCert != nil && tlsKey != nil {
 			// Start an HTTPS server (supports HTTP/2).
-			err = startConfig.StartTLS(serveCtx, a.srv, tlsCert, tlsKey)
+			err = startConfig.StartTLS(context.Background(), a.srv, tlsCert, tlsKey)
 		} else {
 			// Start an HTTP/2 Cleartext (non-HTTPS) server.
-			err = startConfig.Start(serveCtx, a.srv)
+			err = startConfig.Start(context.Background(), a.srv)
 		}
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			a.logger.ErrorContext(context.Background(), err.Error())
@@ -827,51 +838,61 @@ func (a *Api) StartupMessage() string {
 	return fmt.Sprintf("server started on %s:%d", ip, a.port)
 }
 
-// shutdown triggers the server's graceful shutdown and waits for it to
-// complete, or for ctx to be done. Cancelling the serve context is what Echo v5
-// exposes in place of Echo.Shutdown: [echo.StartConfig] shuts the server down
-// on its own deadline, so the shutdown proceeds even when ctx is already done.
+// shutdown stops accepting requests and waits for the in-flight ones, or for
+// ctx to be done, in which case it closes their connections.
 func (a *Api) shutdown(ctx context.Context) error {
-	if a.shutdownCancel == nil {
-		// Start never ran, so there is nothing to shut down.
+	a.serverMu.Lock()
+	a.stopping = true
+	srv := a.server
+	a.serverMu.Unlock()
+
+	if srv == nil {
+		// Start never served, and never will.
 		return nil
 	}
 
-	a.shutdownCancel()
-
-	select {
-	case <-a.serveDone:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
+	err := srv.Shutdown(ctx)
+	if err != nil {
+		closeErr := srv.Close()
+		return errors.Join(err, closeErr)
 	}
+
+	<-a.serveDone
+
+	return nil
 }
 
-// Stop stops the HTTP server.
+// Stop stops accepting requests, then waits for the synchronous ones and the
+// asynchronous ones, such as webhook deliveries, to complete. The engines
+// these requests use stop afterward. See [gotenberg.Ingress].
 func (a *Api) Stop(ctx context.Context) error {
+	err := a.shutdown(ctx)
+	if err != nil {
+		return fmt.Errorf("shutdown: %w", err)
+	}
+
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
 	for {
-		count := int64(0)
+		var count int64
 		for _, asyncCounter := range a.asyncCounters {
 			count += asyncCounter.AsyncCount()
 		}
+		if count == 0 {
+			return nil
+		}
+
 		select {
 		case <-ctx.Done():
-			return a.shutdown(ctx)
-		default:
-			a.logger.DebugContext(ctx, fmt.Sprintf("%d asynchronous requests", count))
-			if count > 0 {
-				time.Sleep(1 * time.Second)
-				continue
-			}
-			a.logger.DebugContext(ctx, "no more asynchronous requests, continue with shutdown")
-			err := a.shutdown(ctx)
-			if err != nil {
-				return fmt.Errorf("shutdown: %w", err)
-			}
-			return gotenberg.ErrCancelGracefulShutdownContext
+			return fmt.Errorf("%d asynchronous requests still running: %w", count, ctx.Err())
+		case <-ticker.C:
 		}
 	}
 }
+
+// Ingress marks the API as the [gotenberg.Ingress] of the engines.
+func (a *Api) Ingress() {}
 
 // Interface guards.
 var (
@@ -879,4 +900,5 @@ var (
 	_ gotenberg.Provisioner = (*Api)(nil)
 	_ gotenberg.Validator   = (*Api)(nil)
 	_ gotenberg.App         = (*Api)(nil)
+	_ gotenberg.Ingress     = (*Api)(nil)
 )

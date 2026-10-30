@@ -71,29 +71,29 @@ func TestApi_Validate_Auth(t *testing.T) {
 func TestApi_warnInsecureDebugRoute(t *testing.T) {
 	for _, tc := range []struct {
 		scenario     string
-		api          Api
+		api          *Api
 		expectWarn   bool
 		expectFields []string
 	}{
 		{
 			scenario:     "debug route on with no auth warns",
-			api:          Api{enableDebugRoute: true},
+			api:          &Api{enableDebugRoute: true},
 			expectWarn:   true,
 			expectFields: []string{"--api-enable-debug-route", "API_ENABLE_DEBUG_ROUTE", "--api-enable-basic-auth", "API_ENABLE_BASIC_AUTH", "--api-enable-oidc-auth", "API_ENABLE_OIDC_AUTH"},
 		},
 		{
 			scenario:   "debug route off is silent",
-			api:        Api{enableDebugRoute: false},
+			api:        &Api{enableDebugRoute: false},
 			expectWarn: false,
 		},
 		{
 			scenario:   "basic auth silences it",
-			api:        Api{enableDebugRoute: true, basicAuthUsername: "foo"},
+			api:        &Api{enableDebugRoute: true, basicAuthUsername: "foo"},
 			expectWarn: false,
 		},
 		{
 			scenario:   "oidc silences it",
-			api:        Api{enableDebugRoute: true, oidcEnabled: true},
+			api:        &Api{enableDebugRoute: true, oidcEnabled: true},
 			expectWarn: false,
 		},
 	} {

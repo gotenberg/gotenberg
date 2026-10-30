@@ -69,6 +69,14 @@ type App interface {
 	Stop(ctx context.Context) error
 }
 
+// Ingress is an [App] that takes requests and hands their work to the other
+// apps, such as the API. [StopApps] stops every Ingress before the other apps,
+// so the work in flight completes while the apps it uses still run.
+type Ingress interface {
+	App
+	Ingress()
+}
+
 // SystemLogger is a module interface for modules which want to display
 // messages on startup.
 type SystemLogger interface {

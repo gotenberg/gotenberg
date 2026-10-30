@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -18,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -176,5 +178,96 @@ func TestApi_Start_HonorsStartTimeout(t *testing.T) {
 	}
 	if elapsed := time.Since(start); elapsed > 5*time.Second {
 		t.Errorf("Start returned after %s, want shortly after the start timeout", elapsed)
+	}
+}
+
+type asyncCounterStub struct{ count atomic.Int64 }
+
+func (s *asyncCounterStub) AsyncCount() int64 { return s.count.Load() }
+
+// Stop must refuse new requests before it waits for the asynchronous ones, so
+// that the wait cannot be stretched by new work.
+func TestApi_Stop_RefusesRequestsBeforeWaitingForAsyncOnes(t *testing.T) {
+	a := newTLSTestApi(t, "", "")
+	counter := new(asyncCounterStub)
+	counter.count.Store(1)
+	a.asyncCounters = []AsynchronousCounter{counter}
+
+	err := a.Start()
+	if err != nil {
+		t.Fatalf("expected no error from Start, got %v", err)
+	}
+
+	url := fmt.Sprintf("http://127.0.0.1:%d/version", a.port)
+	client := &http.Client{Timeout: time.Second}
+
+	var lastErr error
+	for range 50 {
+		var resp *http.Response
+		resp, lastErr = client.Get(url)
+		if lastErr == nil {
+			_ = resp.Body.Close()
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if lastErr != nil {
+		t.Fatalf("server never answered on %s: %v", url, lastErr)
+	}
+
+	stopped := make(chan error, 1)
+	go func() {
+		stopped <- a.Stop(context.Background())
+	}()
+
+	refused := false
+	for range 50 {
+		resp, err := client.Get(url)
+		if err != nil {
+			refused = true
+			break
+		}
+		_ = resp.Body.Close()
+		time.Sleep(20 * time.Millisecond)
+	}
+	if !refused {
+		t.Fatal("the server still accepted requests while waiting for asynchronous ones")
+	}
+
+	select {
+	case err = <-stopped:
+		t.Fatalf("Stop returned with an asynchronous request still running: %v", err)
+	default:
+	}
+
+	counter.count.Store(0)
+
+	select {
+	case err = <-stopped:
+		if err != nil {
+			t.Fatalf("expected no error from Stop, got %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Stop did not return once the asynchronous requests completed")
+	}
+}
+
+func TestApi_Stop_HonorsContextWhileWaitingForAsyncOnes(t *testing.T) {
+	a := newTLSTestApi(t, "", "")
+	counter := new(asyncCounterStub)
+	counter.count.Store(1)
+	a.asyncCounters = []AsynchronousCounter{counter}
+
+	err := a.Start()
+	if err != nil {
+		t.Fatalf("expected no error from Start, got %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	err = a.Stop(ctx)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected a deadline error, got %v", err)
 	}
 }

@@ -595,14 +595,9 @@ func (a *Api) StartupMessage() string {
 	return "LibreOffice automatically started"
 }
 
-// Stop stops the current browser instance.
-func (a *Api) Stop(ctx context.Context) error {
-	// Block until the context is done so that another module may gracefully
-	// stop before we do a shutdown.
-	a.logger.DebugContext(ctx, "wait for the end of grace duration")
-
-	<-ctx.Done()
-
+// Stop stops the current LibreOffice instance. [gotenberg.StopApps] calls it
+// once the API no longer hands it work.
+func (a *Api) Stop(_ context.Context) error {
 	err := a.supervisor.Shutdown()
 	if err == nil {
 		return nil

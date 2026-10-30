@@ -2,7 +2,6 @@ package gotenbergcmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -11,7 +10,6 @@ import (
 	"time"
 
 	flag "github.com/spf13/pflag"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
@@ -207,26 +205,14 @@ func Run() {
 
 	fmt.Printf("[SYSTEM] graceful shutdown of %s\n", gracefulShutdownDuration)
 
-	var eg errgroup.Group
-
-	for _, a := range apps {
-		app := a.(gotenberg.App)
-		eg.Go(func() error {
-			id := app.(gotenberg.Module).Descriptor().ID
-
-			err := app.Stop(gracefulShutdownCtx)
-			if errors.Is(err, gotenberg.ErrCancelGracefulShutdownContext) {
-				cancel()
-			} else if err != nil {
-				return fmt.Errorf("stopping %s: %w", id, err)
-			}
-
-			fmt.Printf("[SYSTEM] %s: application stopped\n", id)
-			return nil
-		})
+	stoppable := make([]gotenberg.App, len(apps))
+	for i, a := range apps {
+		stoppable[i] = a.(gotenberg.App)
 	}
 
-	err = eg.Wait()
+	err = gotenberg.StopApps(gracefulShutdownCtx, stoppable, func(app gotenberg.App) {
+		fmt.Printf("[SYSTEM] %s: application stopped\n", app.(gotenberg.Module).Descriptor().ID)
+	})
 	if err != nil {
 		cancel()
 		fmt.Printf("[FATAL] %v\n", err)
@@ -234,8 +220,8 @@ func Run() {
 	}
 
 	// Shutdown telemetry (flush spans, metrics, logs). The graceful shutdown's
-	// context may already be done, by its deadline or by a module ending it
-	// early, so the flush gets its own.
+	// context may already be done, by its deadline or a forced quit, so the
+	// flush gets its own.
 	telemetryCtx, telemetryCancel := context.WithTimeout(context.Background(), telemetryShutdownTimeout)
 	defer telemetryCancel()
 
