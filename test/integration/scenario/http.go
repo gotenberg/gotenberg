@@ -8,7 +8,14 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 )
+
+// httpClient sends the requests to Gotenberg. Its timeout ends a request that
+// hangs well after --api-timeout (30s by default) would, allowing for a cold
+// engine start and a synchronous webhook delivery, instead of holding the run
+// until the go test timeout.
+var httpClient = &http.Client{Timeout: 2 * time.Minute}
 
 func doRequest(method, url string, headers map[string]string, body io.Reader) (*http.Response, error) {
 	req, err := http.NewRequest(method, url, body)
@@ -21,7 +28,7 @@ func doRequest(method, url string, headers map[string]string, body io.Reader) (*
 	}
 
 	// #nosec
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("send a request: %w", err)
 	}
@@ -78,7 +85,7 @@ func doFormDataRequest(method, url string, fields map[string][]string, files map
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	// #nosec
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("send a request: %w", err)
 	}
