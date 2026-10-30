@@ -140,12 +140,6 @@ func readRoute(processor *Processor, name string, read func(ctx context.Context,
 
 			err = c.JSON(http.StatusOK, res)
 			if err != nil {
-				if strings.Contains(err.Error(), "request method or response status code does not allow body") {
-					// High probability that the user is using the webhook
-					// feature. It does not make sense for this route.
-					return api.ErrNoOutputFile
-				}
-
 				return fmt.Errorf("return JSON response: %w", err)
 			}
 

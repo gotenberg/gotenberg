@@ -58,3 +58,19 @@ func TestNewDetachedContext_SetDoesNotTouchUnderlying(t *testing.T) {
 		t.Fatalf("Set leaked %q to the underlying pooled context", "foo")
 	}
 }
+
+func TestNewDetachedContext_DiscardsWrites(t *testing.T) {
+	e := echo.New()
+	rec := httptest.NewRecorder()
+	c := e.NewContext(httptest.NewRequest(http.MethodPost, "/", nil), rec)
+
+	detached := newDetachedContext(c)
+
+	err := detached.JSON(http.StatusOK, map[string]string{"foo": "bar"})
+	if err != nil {
+		t.Fatalf("detached JSON: %v", err)
+	}
+	if rec.Body.Len() != 0 || rec.Code != http.StatusOK || len(rec.Header()) != 0 {
+		t.Fatalf("detached write reached the client's response: %q", rec.Body.String())
+	}
+}
