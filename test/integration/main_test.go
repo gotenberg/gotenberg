@@ -6,9 +6,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"runtime"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -30,6 +32,7 @@ func TestMain(m *testing.M) {
 	platform := flag.String("gotenberg-container-platform", "", "")
 	concurrencyFlag := flag.Int("concurrency", 0, "")
 	tags := flag.String("tags", "", "")
+	keepFailed := flag.String("keep-failed", "", "")
 	flag.Parse()
 
 	if *platform == "" {
@@ -45,6 +48,7 @@ func TestMain(m *testing.M) {
 	scenario.GotenbergVersion = *version
 	scenario.GotenbergVariant = *variant
 	scenario.GotenbergContainerPlatform = *platform
+	scenario.KeepFailedDir = *keepFailed
 
 	concurrency := *concurrencyFlag
 	if concurrency <= 0 {
@@ -57,8 +61,30 @@ func TestMain(m *testing.M) {
 	// Steps run on this context: a step that waits on it fails before the go
 	// test timeout (-timeout 40m in the Makefile) panics, which would skip the
 	// retries and the report.
-	runCtx, cancelRun := context.WithTimeout(context.Background(), runTimeout)
-	defer cancelRun()
+	timeoutCtx, cancelTimeout := context.WithTimeout(context.Background(), runTimeout)
+	defer cancelTimeout()
+
+	// An interrupt cancels the steps, then the run cleans up and stops rather
+	// than retrying. A second interrupt kills the process.
+	runCtx, stopSignals := signal.NotifyContext(timeoutCtx, os.Interrupt, syscall.SIGTERM)
+	defer stopSignals()
+
+	runDir, err := os.MkdirTemp("", "gotenberg-integration-")
+	if err != nil {
+		fmt.Fprintf(colors.Colored(os.Stdout), "create the run directory: %v\n", err)
+		os.Exit(1)
+	}
+	scenario.RunDir = runDir
+
+	// os.Exit skips the deferred calls: exit cleans up first.
+	exit := func(code int) {
+		stopSignals()
+		err := os.RemoveAll(runDir)
+		if err != nil {
+			fmt.Fprintf(colors.Colored(os.Stdout), "warning: remove the run directory: %v\n", err)
+		}
+		os.Exit(code)
+	}
 
 	// Scenarios that failed at least once: reported when they pass on a retry.
 	var flaky []string
@@ -94,23 +120,28 @@ func TestMain(m *testing.M) {
 			fmt.Fprintf(colors.Colored(os.Stdout), "warning: %v\n", err)
 		}
 
+		if runCtx.Err() != nil && timeoutCtx.Err() == nil {
+			fmt.Fprintf(colors.Colored(os.Stdout), "\n--- interrupted ---\n")
+			exit(130)
+		}
+
 		if code == 0 {
 			if len(flaky) > 0 {
 				fmt.Fprintf(colors.Colored(os.Stdout), "\n--- %d flaky scenario(s), passed on a retry ---\n%s\n", len(flaky), strings.Join(flaky, "\n"))
 			}
-			os.Exit(0)
+			exit(0)
 		}
 
 		// A failure the retry cannot target would be dropped from it, and a
 		// green retry would then hide it.
 		if unmapped := scenario.UnmappedFailures(); unmapped > 0 {
 			fmt.Fprintf(colors.Colored(os.Stdout), "\n--- %d failed scenario(s) cannot be retried, failing the run ---\n", unmapped)
-			os.Exit(code)
+			exit(code)
 		}
 
 		failedPaths := scenario.FailedScenarioPaths()
 		if len(failedPaths) == 0 || attempt == maxAttempts {
-			os.Exit(code)
+			exit(code)
 		}
 
 		for _, path := range failedPaths {
@@ -128,5 +159,5 @@ func TestMain(m *testing.M) {
 		paths = failedPaths
 	}
 
-	os.Exit(1)
+	exit(1)
 }
