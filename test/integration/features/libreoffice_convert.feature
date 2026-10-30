@@ -962,6 +962,21 @@ Feature: /forms/libreoffice/convert
     Then the file request header "X-Foo" should be "bar"
     Then the response header "Content-Type" should be "application/pdf"
 
+  # The outbound filter refuses a download URL the deny-list names, even when
+  # the allow-list matches every URL. A refusal stays generic for the client.
+  @download-from
+  Scenario: POST /forms/libreoffice/convert (Download From In The Deny-List)
+    Given I have a static server
+    Given I have a Gotenberg container with the following environment variable(s):
+      | API_DOWNLOAD_FROM_DENY_LIST | ^{helper}/static/ |
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | downloadFrom | [{"url":"{helper}/static/testdata/page_1.docx"}] | field |
+    Then the response status code should be 403
+    Then the response body should match string:
+      """
+      Forbidden
+      """
+
   @webhook
   Scenario: POST /forms/libreoffice/convert (Webhook)
     Given I have a default Gotenberg container
