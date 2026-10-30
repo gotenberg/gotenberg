@@ -45,7 +45,11 @@ type libreOfficeProcess struct {
 	proxy              *libreOfficeProxy
 	cfgMu              sync.RWMutex
 	convMu             sync.Mutex
-	isStarted          atomic.Bool
+	// lifecycleMu serializes Start and Stop. isStarted alone cannot: a start
+	// only sets it once lok is ready, so two overlapping starts would each
+	// spawn a lok process and leak one.
+	lifecycleMu sync.Mutex
+	isStarted   atomic.Bool
 
 	arguments libreOfficeArguments
 	fs        *gotenberg.FileSystem
@@ -233,6 +237,14 @@ func newLokRequest(inputPath, outputPath string, options Options) (lokRequest, e
 }
 
 func (p *libreOfficeProcess) Start(ctx context.Context, logger *slog.Logger) error {
+	p.lifecycleMu.Lock()
+	defer p.lifecycleMu.Unlock()
+
+	err := ctx.Err()
+	if err != nil {
+		return fmt.Errorf("start LibreOffice: %w", err)
+	}
+
 	if p.isStarted.Load() {
 		return errors.New("LibreOffice is already started")
 	}
@@ -372,6 +384,9 @@ func (p *libreOfficeProcess) Start(ctx context.Context, logger *slog.Logger) err
 }
 
 func (p *libreOfficeProcess) Stop(logger *slog.Logger) error {
+	p.lifecycleMu.Lock()
+	defer p.lifecycleMu.Unlock()
+
 	if !p.isStarted.Load() {
 		// No big deal? Like calling cancel twice.
 		return nil
@@ -461,6 +476,18 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *slog.Logger, input
 	p.cfgMu.RLock()
 	cmd, stdin, stdout, exited := p.cmd, p.stdin, p.stdout, p.exited
 	p.cfgMu.RUnlock()
+
+	// A stop may have run between the isStarted check and the lock.
+	if cmd == nil || stdin == nil {
+		return errors.New("LibreOffice not started, cannot handle PDF conversion")
+	}
+
+	// Sending a request on behalf of a request that gave up would only get
+	// lok killed below, for nothing.
+	err = ctx.Err()
+	if err != nil {
+		return err
+	}
 
 	logger.DebugContext(ctx, fmt.Sprintf("print to PDF with: %+v", options))
 
