@@ -331,6 +331,16 @@ func convertRoute(libreOffice libreofficeapi.Uno, processor *pdf.Processor) api.
 			}
 
 			pdfFormats := libreofficeapi.PdfFormats{PdfA: pdfa, PdfUa: pdfua}
+			err = pdfFormats.Validate()
+			if err != nil {
+				return api.WrapError(
+					fmt.Errorf("validate PDF formats: %w", err),
+					api.NewSentinelHttpError(
+						http.StatusBadRequest,
+						fmt.Sprintf("Invalid form data: form field 'nativePdfa' is invalid (got '%s', want PDF/A-1b, PDF/A-2b, PDF/A-3b or PDF/A-4).", pdfFormats.PdfA),
+					),
+				)
+			}
 
 			outputPaths := make([]string, len(inputPaths))
 			for i, inputPath := range inputPaths {
@@ -390,16 +400,6 @@ func convertRoute(libreOffice libreofficeapi.Uno, processor *pdf.Processor) api.
 
 				err = libreOffice.Pdf(ctx, ctx.Log(), inputPath, outputPaths[i], options)
 				if err != nil {
-					if errors.Is(err, libreofficeapi.ErrInvalidPdfFormats) {
-						return api.WrapError(
-							fmt.Errorf("convert to PDF: %w", err),
-							api.NewSentinelHttpError(
-								http.StatusBadRequest,
-								fmt.Sprintf("Invalid form data: form field 'nativePdfa' is invalid (got '%s', want PDF/A-1b, PDF/A-2b, PDF/A-3b or PDF/A-4).", pdfFormats.PdfA),
-							),
-						)
-					}
-
 					filename := ctx.OriginalFilename(inputPath)
 
 					// Blame the client only when one of its inputs is actually

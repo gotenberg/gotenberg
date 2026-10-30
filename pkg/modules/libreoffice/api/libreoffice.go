@@ -150,6 +150,17 @@ var pdfVersions = map[string]int{
 	PdfA4:  4,
 }
 
+// Validate returns [ErrInvalidPdfFormats] if lok does not support the PDF/A
+// format.
+func (f PdfFormats) Validate() error {
+	_, ok := pdfVersions[f.PdfA]
+	if !ok {
+		return ErrInvalidPdfFormats
+	}
+
+	return nil
+}
+
 // newLokRequest builds the lok request for a conversion.
 func newLokRequest(inputPath, outputPath string, options Options) (lokRequest, error) {
 	pdfVersion, ok := pdfVersions[options.PdfFormats.PdfA]

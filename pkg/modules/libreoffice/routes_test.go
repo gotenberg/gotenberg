@@ -314,3 +314,31 @@ func TestConvertRoute_PaperNeedsBothSides(t *testing.T) {
 		})
 	}
 }
+
+// An invalid PDF/A value is a client error caught before LibreOffice runs.
+func TestConvertRoute_InvalidNativePdfa(t *testing.T) {
+	dir := t.TempDir()
+
+	ctx := &api.ContextMock{Context: &api.Context{Context: context.Background()}}
+	ctx.SetDirPath(dir)
+	ctx.SetFiles(map[string]string{"page_1.docx": zipPackage(t, dir, "page_1.docx")})
+	ctx.SetValues(map[string][]string{"nativePdfa": {"foo"}})
+	ctx.SetLogger(slog.New(slog.DiscardHandler))
+
+	uno := &libreofficeapi.ApiMock{
+		ExtensionsMock: func() []string { return []string{".docx"} },
+		PdfMock: func(_ context.Context, _ *slog.Logger, _, _ string, _ libreofficeapi.Options) error {
+			t.Fatal("LibreOffice ran with an invalid PDF/A value")
+			return nil
+		},
+	}
+
+	c := echo.New().NewContext(httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", nil), httptest.NewRecorder())
+	c.Set("context", ctx.Context)
+
+	err := convertRoute(uno, new(pdf.Processor)).Handler(c)
+	status, message := api.ParseError(err)
+	if status != http.StatusBadRequest || !strings.Contains(message, "'nativePdfa'") {
+		t.Fatalf("got %d %q, want a 400 naming 'nativePdfa'", status, message)
+	}
+}
