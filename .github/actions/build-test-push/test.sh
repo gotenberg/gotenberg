@@ -75,5 +75,12 @@ run_cmd() {
 cmd="make test-integration DOCKER_REPOSITORY=$repository GOTENBERG_VERSION=$version PLATFORM=$platform CONCURRENCY=3"
 run_cmd "$cmd"
 
+# The variants carry one engine each: run the scenarios of that engine.
+cmd="make test-integration DOCKER_REPOSITORY=$repository GOTENBERG_VERSION=$version PLATFORM=$platform CONCURRENCY=3 VARIANT=chromium TAGS=chromium"
+run_cmd "$cmd"
+
+cmd="make test-integration DOCKER_REPOSITORY=$repository GOTENBERG_VERSION=$version PLATFORM=$platform CONCURRENCY=3 VARIANT=libreoffice TAGS=libreoffice"
+run_cmd "$cmd"
+
 echo "✅ Done!"
 exit 0

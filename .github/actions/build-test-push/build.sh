@@ -246,7 +246,11 @@ cache_flags() {
   echo "$flags"
 }
 
+# Local tags the integration tests run, never pushed: push.sh only pushes the
+# tags above.
 no_arch_tag="$DOCKER_REGISTRY/$DOCKER_REPOSITORY:$version"
+no_arch_tag_chromium="$DOCKER_REGISTRY/$DOCKER_REPOSITORY:$version-chromium"
+no_arch_tag_libreoffice="$DOCKER_REGISTRY/$DOCKER_REPOSITORY:$version-libreoffice"
 
 # Full variant.
 cmd="docker buildx build \
@@ -271,6 +275,7 @@ cmd="docker buildx build \
     --platform $platform \
     --load \
     ${tags_chromium_flags[*]} \
+    -t $no_arch_tag_chromium \
     -f $DOCKERFILE $DOCKER_BUILD_CONTEXT
 "
 run_cmd "$cmd"
@@ -284,6 +289,7 @@ cmd="docker buildx build \
     --platform $platform \
     --load \
     ${tags_libreoffice_flags[*]} \
+    -t $no_arch_tag_libreoffice \
     -f $DOCKERFILE $DOCKER_BUILD_CONTEXT
 "
 run_cmd "$cmd"
