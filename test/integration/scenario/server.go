@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/cucumber/godog"
 	"github.com/google/uuid"
@@ -19,13 +20,37 @@ import (
 	"github.com/mholt/archives"
 )
 
+// request is a request the helper server received, recorded once fully read.
+type request struct {
+	header  http.Header
+	cookies []*http.Cookie
+	body    []byte
+}
+
+// newRequest records r, whose body has already been read into body.
+func newRequest(r *http.Request, body []byte) *request {
+	return &request{header: r.Header.Clone(), cookies: r.Cookies(), body: body}
+}
+
+// server is the helper HTTP server a scenario points Gotenberg at. Handlers run
+// on their own goroutines, so every record lives behind mu.
 type server struct {
-	srv       *echo.Echo
-	req       *http.Request
-	bodyCopy  []byte
-	errChan   chan error
+	srv *echo.Echo
+
+	mu sync.Mutex
+	// webhook is the last webhook delivery, recorded once its output is stored
+	// on disk, and webhookErr the error that delivery failed with.
+	webhook    *request
+	webhookErr error
+	// webhookArrived signals a recorded webhook delivery. Handlers send on it
+	// without blocking and nothing closes it, so a late retry from Gotenberg
+	// can never panic the run.
+	webhookArrived chan struct{}
+	// page is the last page Chromium loaded from /html or /redirect-to-private,
+	// and file the last file served from /static.
+	page      *request
+	file      *request
 	eventBody []byte
-	eventMu   sync.Mutex
 
 	shutdown context.CancelFunc
 	done     chan struct{}
@@ -38,8 +63,8 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 	// pkg/modules/api.
 	srv.Filesystem = echo.NewDefaultFS("/")
 	s := &server{
-		srv:     srv,
-		errChan: make(chan error, 1),
+		srv:            srv,
+		webhookArrived: make(chan struct{}, 1),
 	}
 
 	wd, err := os.Getwd()
@@ -47,94 +72,23 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 		return nil, fmt.Errorf("get current directory: %w", err)
 	}
 
-	webhookErr := func(err error) error {
-		s.errChan <- err
-		return err
-	}
-
 	webhookHandler := func(c *echo.Context) error {
-		s.req = c.Request()
-
-		body, err := io.ReadAll(s.req.Body)
+		body, err := io.ReadAll(c.Request().Body)
 		if err != nil {
-			return webhookErr(fmt.Errorf("read request body: %w", err))
+			err = fmt.Errorf("read request body: %w", err)
+			s.recordWebhook(nil, err)
+			return err
 		}
 
-		s.bodyCopy = body
+		rec := newRequest(c.Request(), body)
 
-		cd := s.req.Header.Get("Content-Disposition")
-		if cd == "" {
-			return webhookErr(fmt.Errorf("no Content-Disposition header"))
-		}
-
-		_, params, err := mime.ParseMediaType(cd)
+		err = storeWebhookOutput(ctx, workdir, rec)
+		s.recordWebhook(rec, err)
 		if err != nil {
-			return webhookErr(fmt.Errorf("parse Content-Disposition header: %w", err))
+			return err
 		}
 
-		filename, ok := params["filename"]
-		if !ok {
-			filename = uuid.NewString()
-			contentType := s.req.Header.Get("Content-Type")
-			switch contentType {
-			case "application/zip":
-				filename = fmt.Sprintf("%s.zip", filename)
-			case "application/pdf":
-				filename = fmt.Sprintf("%s.pdf", filename)
-			default:
-				return webhookErr(errors.New("no filename in Content-Disposition header"))
-			}
-		}
-
-		dirPath := fmt.Sprintf("%s/%s", workdir, s.req.Header.Get("Gotenberg-Trace"))
-		// #nosec
-		err = os.MkdirAll(dirPath, 0o755)
-		if err != nil {
-			return webhookErr(fmt.Errorf("create working directory: %w", err))
-		}
-
-		fpath := fmt.Sprintf("%s/%s", dirPath, filename)
-		// #nosec
-		file, err := os.Create(fpath)
-		if err != nil {
-			return webhookErr(fmt.Errorf("create file %q: %w", fpath, err))
-		}
-		defer file.Close()
-
-		_, err = file.Write(body)
-		if err != nil {
-			return webhookErr(fmt.Errorf("write file %q: %w", fpath, err))
-		}
-
-		if s.req.Header.Get("Content-Type") == "application/zip" {
-			var format archives.Zip
-			err = format.Extract(ctx, file, func(ctx context.Context, f archives.FileInfo) error {
-				source, err := f.Open()
-				if err != nil {
-					return fmt.Errorf("open file %q: %w", f.Name(), err)
-				}
-				defer source.Close()
-
-				targetPath := fmt.Sprintf("%s/%s", dirPath, f.Name())
-				target, err := os.Create(targetPath)
-				if err != nil {
-					return fmt.Errorf("create file %q: %w", targetPath, err)
-				}
-				defer target.Close()
-
-				_, err = io.Copy(target, source)
-				if err != nil {
-					return fmt.Errorf("copy file %q: %w", targetPath, err)
-				}
-
-				return nil
-			})
-			if err != nil {
-				return webhookErr(err)
-			}
-		}
-
-		return webhookErr(c.String(http.StatusOK, http.StatusText(http.StatusOK)))
+		return c.String(http.StatusOK, http.StatusText(http.StatusOK))
 	}
 
 	srv.POST("/webhook", webhookHandler)
@@ -146,22 +100,22 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 		if err != nil {
 			return c.String(http.StatusInternalServerError, err.Error())
 		}
-		s.eventMu.Lock()
+		s.mu.Lock()
 		s.eventBody = body
-		s.eventMu.Unlock()
+		s.mu.Unlock()
 		return c.String(http.StatusOK, http.StatusText(http.StatusOK))
 	}
 	srv.POST("/webhook/events", webhookEventsHandler)
 	srv.GET("/static/:path", func(c *echo.Context) error {
-		s.req = c.Request()
+		s.recordRequest(&s.file, c.Request())
 		path := c.Param("path")
 		if strings.Contains(path, "teststore") {
-			return c.Attachment(fmt.Sprintf("%s/%s/%s", workdir, s.req.Header.Get("Gotenberg-Trace"), filepath.Base(path)), filepath.Base(path))
+			return c.Attachment(fmt.Sprintf("%s/%s/%s", workdir, c.Request().Header.Get("Gotenberg-Trace"), filepath.Base(path)), filepath.Base(path))
 		}
 		return c.Attachment(fmt.Sprintf("%s/%s", wd, path), filepath.Base(path))
 	})
 	srv.GET("/html/:path", func(c *echo.Context) error {
-		s.req = c.Request()
+		s.recordRequest(&s.page, c.Request())
 		path := fmt.Sprintf("%s/%s", wd, c.Param("path"))
 		f, err := os.Open(path)
 		if err != nil {
@@ -175,7 +129,7 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 		return c.HTML(http.StatusOK, string(b))
 	})
 	srv.GET("/redirect-to-private", func(c *echo.Context) error {
-		s.req = c.Request()
+		s.recordRequest(&s.page, c.Request())
 		// Redirect the browser to a non-public address so the outbound filter
 		// is exercised on the redirected request rather than on this URL.
 		return c.Redirect(http.StatusFound, "http://127.0.0.1:9999/redirected")
@@ -184,9 +138,161 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 	return s, nil
 }
 
+// storeWebhookOutput writes the output a webhook delivered into the working
+// directory of its request, and extracts it when it is a zip archive.
+func storeWebhookOutput(ctx context.Context, workdir string, rec *request) error {
+	cd := rec.header.Get("Content-Disposition")
+	if cd == "" {
+		return errors.New("no Content-Disposition header")
+	}
+
+	_, params, err := mime.ParseMediaType(cd)
+	if err != nil {
+		return fmt.Errorf("parse Content-Disposition header: %w", err)
+	}
+
+	filename, ok := params["filename"]
+	if !ok {
+		filename = uuid.NewString()
+		contentType := rec.header.Get("Content-Type")
+		switch contentType {
+		case "application/zip":
+			filename = fmt.Sprintf("%s.zip", filename)
+		case "application/pdf":
+			filename = fmt.Sprintf("%s.pdf", filename)
+		default:
+			return errors.New("no filename in Content-Disposition header")
+		}
+	}
+
+	dirPath := fmt.Sprintf("%s/%s", workdir, rec.header.Get("Gotenberg-Trace"))
+	// #nosec
+	err = os.MkdirAll(dirPath, 0o755)
+	if err != nil {
+		return fmt.Errorf("create working directory: %w", err)
+	}
+
+	fpath := fmt.Sprintf("%s/%s", dirPath, filename)
+	// #nosec
+	file, err := os.Create(fpath)
+	if err != nil {
+		return fmt.Errorf("create file %q: %w", fpath, err)
+	}
+	defer file.Close()
+
+	_, err = file.Write(rec.body)
+	if err != nil {
+		return fmt.Errorf("write file %q: %w", fpath, err)
+	}
+
+	if rec.header.Get("Content-Type") == "application/zip" {
+		var format archives.Zip
+		err = format.Extract(ctx, file, func(ctx context.Context, f archives.FileInfo) error {
+			source, err := f.Open()
+			if err != nil {
+				return fmt.Errorf("open file %q: %w", f.Name(), err)
+			}
+			defer source.Close()
+
+			targetPath := fmt.Sprintf("%s/%s", dirPath, f.Name())
+			target, err := os.Create(targetPath)
+			if err != nil {
+				return fmt.Errorf("create file %q: %w", targetPath, err)
+			}
+			defer target.Close()
+
+			_, err = io.Copy(target, source)
+			if err != nil {
+				return fmt.Errorf("copy file %q: %w", targetPath, err)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// recordRequest records r, whose body is not read, into *slot.
+func (s *server) recordRequest(slot **request, r *http.Request) {
+	rec := newRequest(r, nil)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	*slot = rec
+}
+
+// recordWebhook records a webhook delivery and signals it.
+func (s *server) recordWebhook(rec *request, err error) {
+	s.mu.Lock()
+	s.webhook, s.webhookErr = rec, err
+	s.mu.Unlock()
+
+	select {
+	case s.webhookArrived <- struct{}{}:
+	default:
+	}
+}
+
+// waitForWebhook returns once a webhook delivery is recorded, with the error
+// it failed with, or once ctx is done or timeout elapses.
+func (s *server) waitForWebhook(ctx context.Context, timeout time.Duration) error {
+	deadline := time.NewTimer(timeout)
+	defer deadline.Stop()
+
+	for {
+		s.mu.Lock()
+		rec, err := s.webhook, s.webhookErr
+		s.mu.Unlock()
+
+		if err != nil {
+			return err
+		}
+		if rec != nil {
+			return nil
+		}
+
+		select {
+		case <-s.webhookArrived:
+		case <-ctx.Done():
+			return fmt.Errorf("wait for the webhook: %w", ctx.Err())
+		case <-deadline.C:
+			return fmt.Errorf("no webhook request within %s", timeout)
+		}
+	}
+}
+
+// received returns the last request of the given kind: "webhook request",
+// "file request" or "server request".
+func (s *server) received(kind string) (*request, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var rec *request
+	switch kind {
+	case "webhook request":
+		rec = s.webhook
+	case "file request":
+		rec = s.file
+	case "server request":
+		rec = s.page
+	default:
+		return nil, fmt.Errorf("unknown request kind %q", kind)
+	}
+
+	if rec == nil {
+		return nil, fmt.Errorf("no %s received", kind)
+	}
+
+	return rec, nil
+}
+
 func (s *server) getEventBody() []byte {
-	s.eventMu.Lock()
-	defer s.eventMu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.eventBody
 }
 
@@ -222,8 +328,6 @@ func (s *server) start(ctx context.Context) (int, error) {
 }
 
 func (s *server) stop(ctx context.Context) error {
-	close(s.errChan)
-
 	if s.shutdown == nil {
 		return nil
 	}
