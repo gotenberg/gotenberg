@@ -345,7 +345,7 @@ func splitGroups(s *splitStage, pageCount int) ([][]int, error) {
 		return groups, nil
 	}
 
-	for part := range strings.SplitSeq(s.Ranges, ",") {
+	for _, part := range s.Ranges {
 		pages, err := litho.ParsePageRanges(part, pageCount)
 		if err != nil {
 			return nil, err

@@ -39,7 +39,7 @@ Feature: /forms/pdf/{stamp-text|stamp-image|stamp-pdf}
     When I make a "POST" request to Gotenberg at the "/forms/pdf/stamp-pdf" endpoint with the following form data and header(s):
       | files                     | testdata/page_1.pdf | file   |
       | files                     | testdata/page_2.pdf | file   |
-      | pdf                       | page_2.pdf          | field  |
+      | source                    | page_2.pdf          | field  |
       | scale                     | 0.5                 | field  |
       | Gotenberg-Output-Filename | foo                 | header |
     Then the response status code should be 200
@@ -101,8 +101,8 @@ Feature: /forms/pdf/{stamp-text|stamp-image|stamp-pdf}
       Invalid form data: stamp-image: "image" must be a .png, .jpg or .jpeg file, got "logo.gif"
       """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/stamp-pdf" endpoint with the following form data and header(s):
-      | files | testdata/page_1.pdf | file  |
-      | pdf   | page_1.pdf          | field |
+      | files  | testdata/page_1.pdf | file  |
+      | source | page_1.pdf          | field |
     Then the response status code should be 400
     Then the response body should match string:
       """

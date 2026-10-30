@@ -30,7 +30,7 @@ func TestParseStages(t *testing.T) {
 		{name: "invalid angle", raw: `[{"op":"rotate","angle":45}]`, wantErr: "multiple of 90"},
 		{name: "missing pages", raw: `[{"op":"select"}]`, wantErr: `"pages" must not be empty`},
 		{name: "split needs one mode", raw: `[{"op":"split"}]`, wantErr: `set "every" or "ranges"`},
-		{name: "split modes exclusive", raw: `[{"op":"split","every":2,"ranges":"1"}]`, wantErr: "not both"},
+		{name: "split modes exclusive", raw: `[{"op":"split","every":2,"ranges":["1"]}]`, wantErr: "not both"},
 		{name: "bad color", raw: `[{"op":"stamp-text","text":"t","color":"red"}]`, wantErr: "#rrggbb"},
 		{name: "bad font", raw: `[{"op":"stamp-text","text":"t","font":"Arial"}]`, wantErr: "standard PDF fonts"},
 		{name: "bad opacity", raw: `[{"op":"stamp-text","text":"t","opacity":2}]`, wantErr: "between 0 and 1"},
@@ -40,7 +40,9 @@ func TestParseStages(t *testing.T) {
 		{name: "factur-x options on pdf/a", raw: `[{"op":"remediate","profile":"PDF/A-2b","level":"BASIC"}]`, wantErr: "only apply to the Factur-X"},
 		{name: "encrypt needs a password", raw: `[{"op":"encrypt"}]`, wantErr: "userPassword"},
 		{name: "bad algorithm", raw: `[{"op":"encrypt","userPassword":"u","algorithm":"des"}]`, wantErr: "aes256"},
-		{name: "timestamp url scheme", raw: `[{"op":"timestamp","url":"file:///etc/passwd"}]`, wantErr: "http:// or https://"},
+		{name: "split range not a list", raw: `[{"op":"split","ranges":"1-3,4"}]`, wantErr: "ranges"},
+		{name: "empty split range", raw: `[{"op":"split","ranges":["1-3",""]}]`, wantErr: `"ranges" entry 1 must select pages`},
+		{name: "timestamp url scheme", raw: `[{"op":"timestamp","timestampUrl":"file:///etc/passwd"}]`, wantErr: "http:// or https://"},
 		{name: "decrypt not first", raw: `[{"op":"merge"},{"op":"decrypt","password":"x"}]`, wantErr: "must be the first stage"},
 		{name: "edit after remediate", raw: `[{"op":"remediate","profile":"PDF/A-2b"},{"op":"rotate","angle":90}]`, wantErr: `cannot follow "remediate"`},
 		{name: "two remediations", raw: `[{"op":"remediate","profile":"PDF/UA-1"},{"op":"remediate","profile":"PDF/UA-1"}]`, wantErr: `cannot follow "remediate"`},
@@ -56,7 +58,7 @@ func TestParseStages(t *testing.T) {
 		{name: "negative dpi", raw: `[{"op":"render","dpi":-1}]`, wantErr: `"dpi" must be positive`},
 		{name: "render after sign", raw: `[{"op":"sign","certificate":"c.p12"},{"op":"render"}]`, wantOps: []string{"sign", "render"}},
 		{name: "render after remediate and encrypt", raw: `[{"op":"remediate","profile":"PDF/UA-1"},{"op":"encrypt","userPassword":"u"},{"op":"render"}]`, wantOps: []string{"remediate", "encrypt", "render"}},
-		{name: "sign then timestamp", raw: `[{"op":"sign","certificate":"c.p12"},{"op":"timestamp","url":"https://tsa.example.com"}]`, wantOps: []string{"sign", "timestamp"}},
+		{name: "sign then timestamp", raw: `[{"op":"sign","certificate":"c.p12"},{"op":"timestamp","timestampUrl":"https://tsa.example.com"}]`, wantOps: []string{"sign", "timestamp"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			stages, err := ParseStages(tc.raw)
@@ -93,7 +95,7 @@ func TestParseStages(t *testing.T) {
 func TestStagesFiles(t *testing.T) {
 	stages, err := ParseStages(`[
 		{"op":"stamp-image","image":"logo.png"},
-		{"op":"stamp-pdf","pdf":"cover.pdf"},
+		{"op":"stamp-pdf","source":"cover.pdf"},
 		{"op":"attach","file":"logo.png"},
 		{"op":"insert","source":"annex.pdf","at":1},
 		{"op":"sign","certificate":"cert.pem","key":"key.pem"}
@@ -138,15 +140,15 @@ func TestSplitGroups(t *testing.T) {
 		t.Fatalf("every 2 of 5 = %v", groups)
 	}
 
-	groups, err = splitGroups(&splitStage{Ranges: "1-2, 4,last"}, 5)
+	groups, err = splitGroups(&splitStage{Ranges: []string{"1-2", " 4", "last", "1,3,5"}}, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(groups) != 3 || !slices.Equal(groups[0], []int{1, 2}) || !slices.Equal(groups[2], []int{5}) {
+	if len(groups) != 4 || !slices.Equal(groups[0], []int{1, 2}) || !slices.Equal(groups[2], []int{5}) || !slices.Equal(groups[3], []int{1, 3, 5}) {
 		t.Fatalf("ranges = %v", groups)
 	}
 
-	if _, err := splitGroups(&splitStage{Ranges: "1,9"}, 5); err == nil {
+	if _, err := splitGroups(&splitStage{Ranges: []string{"1", "9"}}, 5); err == nil {
 		t.Fatal("a range past the last page must fail")
 	}
 }

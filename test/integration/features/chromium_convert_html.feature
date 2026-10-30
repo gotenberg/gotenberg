@@ -238,7 +238,7 @@ Feature: /forms/chromium/convert/html
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
       | files                     | testdata/feature-rich-html/index.html | file   |
-      | waitWindowStatus          | ready                                 | field  |
+      | waitForWindowStatus       | ready                                 | field  |
       | Gotenberg-Output-Filename | foo                                   | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
@@ -1142,8 +1142,8 @@ Feature: /forms/chromium/convert/html
   Scenario: POST /forms/chromium/convert/html (Split Pages)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
-      | files  | testdata/pages-3-html/index.html | file  |
-      | stages | [{"op":"split","ranges":"2,3"}]  | field |
+      | files  | testdata/pages-3-html/index.html    | file  |
+      | stages | [{"op":"split","ranges":["2","3"]}] | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
     Then there should be 2 PDF(s) in the response
@@ -1548,8 +1548,8 @@ Feature: /forms/chromium/convert/html
   Scenario: POST /forms/chromium/convert/html (Stage file not uploaded => 400)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
-      | files  | testdata/page-1-html/index.html            | file  |
-      | stages | [{"op":"stamp-pdf","pdf":"/etc/hostname"}] | field |
+      | files  | testdata/page-1-html/index.html               | file  |
+      | stages | [{"op":"stamp-pdf","source":"/etc/hostname"}] | field |
     Then the response status code should be 400
     Then the response body should match string:
       """

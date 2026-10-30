@@ -115,12 +115,12 @@ func (s *stampPdfStage) edit(ctx context.Context, w *litho.Writer, env *runEnv) 
 		return err
 	}
 
-	source, err := env.openFile(ctx, s.Pdf)
+	source, err := env.openFile(ctx, s.Source)
 	if err != nil {
 		return err
 	}
 
-	page := s.Page
+	page := s.SourcePage
 	if page == 0 {
 		page = 1
 	}
@@ -323,7 +323,7 @@ func (s *signStage) edit(_ context.Context, w *litho.Writer, env *runEnv) error 
 
 	var signer litho.Signer
 	if s.Key == "" {
-		signer, err = litho.ParseSignerPKCS12(certificate, s.Password)
+		signer, err = litho.ParseSignerPKCS12(certificate, s.CertificatePassword)
 	} else {
 		var key []byte
 		key, err = env.read(s.Key)
@@ -367,7 +367,7 @@ func (s *signStage) edit(_ context.Context, w *litho.Writer, env *runEnv) error 
 }
 
 func (s *timestampStage) edit(_ context.Context, w *litho.Writer, _ *runEnv) error {
-	w.Timestamp(s.Url)
+	w.Timestamp(s.TimestampUrl)
 
 	return nil
 }

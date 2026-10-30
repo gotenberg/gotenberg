@@ -79,12 +79,12 @@ Feature: /forms/pdf/sign
       Invalid form data: form field 'stages' is invalid: stage 1: "encrypt" cannot follow "sign", which must come last
       """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/timestamp" endpoint with the following form data and header(s):
-      | files | testdata/page_1.pdf | file  |
-      | url   | ftp://tsa.example   | field |
+      | files        | testdata/page_1.pdf | file  |
+      | timestampUrl | ftp://tsa.example   | field |
     Then the response status code should be 400
     Then the response body should match string:
       """
-      Invalid form data: timestamp: "url" must be an http:// or https:// URL
+      Invalid form data: timestamp: "timestampUrl" must be an http:// or https:// URL
       """
 
   # The helper server answers as an RFC 3161 timestamp authority.
@@ -107,8 +107,8 @@ Feature: /forms/pdf/sign
     Given I have a default Gotenberg container
     Given I have a webhook server
     When I make a "POST" request to Gotenberg at the "/forms/pdf/timestamp" endpoint with the following form data and header(s):
-      | files | testdata/page_1.pdf | file  |
-      | url   | {helper}/tsa        | field |
+      | files        | testdata/page_1.pdf | file  |
+      | timestampUrl | {helper}/tsa        | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response

@@ -55,7 +55,7 @@ func TestStageRoute(t *testing.T) {
 		{
 			name:     "files read by the stage are not inputs",
 			op:       "stamp-pdf",
-			values:   map[string][]string{"pdf": {"page_2.pdf"}},
+			values:   map[string][]string{"source": {"page_2.pdf"}},
 			fixtures: []string{"page_1.pdf", "page_2.pdf"},
 			wantOut:  1,
 		},
@@ -86,7 +86,7 @@ func TestStageRoute(t *testing.T) {
 		{
 			name:       "only stage files",
 			op:         "stamp-pdf",
-			values:     map[string][]string{"pdf": {"page_2.pdf"}},
+			values:     map[string][]string{"source": {"page_2.pdf"}},
 			fixtures:   []string{"page_2.pdf"},
 			wantStatus: http.StatusBadRequest,
 			wantBody:   "every uploaded PDF is read by a stage",

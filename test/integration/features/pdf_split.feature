@@ -28,7 +28,7 @@ Feature: /forms/pdf/split
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/split" endpoint with the following form data and header(s):
       | files  | testdata/pages_3.pdf | file  |
-      | ranges | 2-3,1                | field |
+      | ranges | ["2-3","1"]          | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
     Then there should be the following file(s) in the response:
@@ -86,7 +86,7 @@ Feature: /forms/pdf/split
     When I make a "POST" request to Gotenberg at the "/forms/pdf/split" endpoint with the following form data and header(s):
       | files  | testdata/pages_3.pdf | file  |
       | every  | 2                    | field |
-      | ranges | 1                    | field |
+      | ranges | ["1"]                | field |
     Then the response status code should be 400
     Then the response body should match string:
       """
@@ -102,7 +102,7 @@ Feature: /forms/pdf/split
       """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/split" endpoint with the following form data and header(s):
       | files  | testdata/pages_3.pdf | file  |
-      | ranges | 1,9                  | field |
+      | ranges | ["1","9"]            | field |
     Then the response status code should be 400
     Then the response body should match string:
       """
