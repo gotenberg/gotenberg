@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"mime"
 	"net"
 	"net/http"
@@ -297,10 +298,9 @@ func (s *server) getEventBody() []byte {
 }
 
 func (s *server) start(ctx context.Context) (int, error) {
-	// #nosec
-	ln, err := net.Listen("tcp", "0.0.0.0:0")
+	ln, err := listenOutsideEphemeralRange()
 	if err != nil {
-		return 0, fmt.Errorf("create listener: %w", err)
+		return 0, err
 	}
 
 	port := ln.Addr().(*net.TCPAddr).Port
@@ -340,4 +340,34 @@ func (s *server) stop(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+// Helper ports come from this range, below the ephemeral ranges of Linux
+// (32768-60999) and macOS (49152-65535) that the kernel hands out to ":0"
+// listeners and Docker to published container ports. A helper port taken from
+// the same range can collide with a Gotenberg container's published port on
+// the other address family, and a webhook then reaches that container instead.
+const (
+	helperPortMin      = 20000
+	helperPortMax      = 29999
+	helperPortAttempts = 50
+)
+
+// listenOutsideEphemeralRange listens, on every address family, on a free port
+// of the helper range.
+func listenOutsideEphemeralRange() (net.Listener, error) {
+	var lastErr error
+
+	for range helperPortAttempts {
+		port := helperPortMin + rand.IntN(helperPortMax-helperPortMin+1) // #nosec G404 -- picks a port, not a secret
+
+		// #nosec G102 -- the Gotenberg container reaches the helper through the host gateway.
+		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+		if err == nil {
+			return ln, nil
+		}
+		lastErr = err
+	}
+
+	return nil, fmt.Errorf("listen on a port between %d and %d: %w", helperPortMin, helperPortMax, lastErr)
 }
