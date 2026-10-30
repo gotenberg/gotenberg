@@ -27,8 +27,8 @@ func TestMain(m *testing.M) {
 }
 
 // fakeLok answers each request according to the input filename: "ok" writes
-// the output, "badpass" and "unreadable" fail with lok's codes, "hang" never
-// answers, and "crash" exits. It records its arguments next to its profile.
+// the output, "badpass", "unreadable", "destroyed" and "panic" fail with lok's
+// codes, "hang" never answers, and "crash" exits. It records its arguments next to its profile.
 func fakeLok() {
 	for i, arg := range os.Args {
 		if arg == "--user-profile-path" && i+1 < len(os.Args) {
@@ -67,6 +67,10 @@ func fakeLok() {
 			time.Sleep(time.Hour)
 		case "crash":
 			os.Exit(3)
+		case "destroyed":
+			_ = out.Encode(lokResponse{Code: lokCodeOfficeDestroyed, Error: "office destroyed"})
+		case "panic":
+			_ = out.Encode(lokResponse{Code: lokCodePanic, Error: "panic during conversion: boom"})
 		}
 	}
 }
@@ -185,6 +189,27 @@ func TestNewLokRequest_DisablesMacrosExplicitly(t *testing.T) {
 	}
 	if !strings.Contains(string(b), `"enableMacros":false`) {
 		t.Fatalf("expected an explicit enableMacros:false, got %s", b)
+	}
+}
+
+// A lok that answers office_destroyed or panic is still running, but unusable:
+// the conversion must be retried on a restarted lok.
+func TestLibreOfficeProcess_UnusableLokIsTerminated(t *testing.T) {
+	for _, input := range []string{"destroyed.docx", "panic.docx"} {
+		t.Run(input, func(t *testing.T) {
+			p := startFakeLok(t)
+			logger := slog.New(slog.DiscardHandler)
+			dir := t.TempDir()
+
+			err := p.pdf(context.Background(), logger, filepath.Join(dir, input), filepath.Join(dir, "out.pdf"), DefaultOptions())
+			if !errors.Is(err, ErrCrashed) {
+				t.Fatalf("pdf(%s) = %v, want %v", input, err, ErrCrashed)
+			}
+
+			if p.Healthy(logger) {
+				t.Fatal("lok still reported healthy, so the supervisor would not restart it")
+			}
+		})
 	}
 }
 

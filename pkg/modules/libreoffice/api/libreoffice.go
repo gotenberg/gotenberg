@@ -513,18 +513,8 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *slog.Logger, input
 		// See https://github.com/gotenberg/gotenberg/issues/639.
 		//
 		// The read can fail before the process is reaped, while lok still
-		// reports healthy. Make sure it is gone, so that the supervisor
-		// restarts it instead of handing it the next request.
-		killErr := cmd.Kill()
-		if killErr != nil {
-			logger.ErrorContext(ctx, fmt.Sprintf("kill lok after a failed exchange: %s", killErr))
-		}
-
-		select {
-		case <-exited:
-		case <-time.After(reapTimeout):
-			logger.ErrorContext(ctx, "lok not reaped after a failed exchange")
-		}
+		// reports healthy.
+		terminate(ctx, logger, cmd, exited)
 
 		return fmt.Errorf("%w: %w", ErrCrashed, err)
 	}
@@ -533,7 +523,30 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *slog.Logger, input
 		return nil
 	}
 
+	if resp.Code == lokCodeOfficeDestroyed || resp.Code == lokCodePanic {
+		// lok survived, but its LibreOffice instance is gone or in an unknown
+		// state: every later conversion would fail the same way.
+		terminate(ctx, logger, cmd, exited)
+
+		return fmt.Errorf("%w: %w", ErrCrashed, lokError(resp))
+	}
+
 	return lokError(resp)
+}
+
+// terminate kills lok and waits for it to be reaped, so that the supervisor
+// restarts it instead of handing it the next request.
+func terminate(ctx context.Context, logger *slog.Logger, cmd *gotenberg.Cmd, exited <-chan struct{}) {
+	err := cmd.Kill()
+	if err != nil {
+		logger.ErrorContext(ctx, fmt.Sprintf("kill lok: %s", err))
+	}
+
+	select {
+	case <-exited:
+	case <-time.After(reapTimeout):
+		logger.ErrorContext(ctx, "lok not reaped after being killed")
+	}
 }
 
 // reapTimeout bounds the wait for a killed lok process to be reaped.
@@ -545,6 +558,8 @@ const (
 	lokCodeInvalidPassword = "invalid_password"
 	lokCodeLoadFailed      = "load_failed"
 	lokCodeSaveFailed      = "save_failed"
+	lokCodeOfficeDestroyed = "office_destroyed"
+	lokCodePanic           = "panic"
 )
 
 // lokError maps a failed lok answer to the matching sentinel error.
