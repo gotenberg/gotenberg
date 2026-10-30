@@ -613,6 +613,35 @@ func (s *scenario) allSequentialResponseStatusCodesShouldBe(expected int) error 
 	return nil
 }
 
+func (s *scenario) someConcurrentResponseStatusCodeShouldBe(expected int) error {
+	if len(s.concurrentResps) == 0 {
+		return errors.New("no concurrent responses recorded")
+	}
+
+	codes := make([]int, len(s.concurrentResps))
+	for i, resp := range s.concurrentResps {
+		if resp.Code == expected {
+			return nil
+		}
+		codes[i] = resp.Code
+	}
+
+	return fmt.Errorf("expected at least one concurrent response with status %d, got %v", expected, codes)
+}
+
+func (s *scenario) theRequestMethodShouldBe(kind, expected string) error {
+	rec, err := s.received(kind)
+	if err != nil {
+		return err
+	}
+
+	if rec.method != expected {
+		return fmt.Errorf("expected %s method to be %q, but actual is %q", kind, expected, rec.method)
+	}
+
+	return nil
+}
+
 func (s *scenario) allConcurrentResponseStatusCodesShouldBe(expected int) error {
 	if len(s.concurrentResps) == 0 {
 		return errors.New("no concurrent responses recorded")
@@ -1156,6 +1185,8 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the Gotenberg container (should|should NOT) log the following entries:$`, s.theGotenbergContainerShouldLogTheFollowingEntries)
 	ctx.Then(`^the response status code should be (\d+)$`, s.theResponseStatusCodeShouldBe)
 	ctx.Then(`^all concurrent response status codes should be (\d+)$`, s.allConcurrentResponseStatusCodesShouldBe)
+	ctx.Then(`^at least one concurrent response status code should be (\d+)$`, s.someConcurrentResponseStatusCodeShouldBe)
+	ctx.Then(`^the (webhook request|file request|server request) method should be "([^"]*)"$`, s.theRequestMethodShouldBe)
 	ctx.Then(`^all probe response status codes should be (\d+)$`, s.allProbeResponseStatusCodesShouldBe)
 	ctx.Then(`^all sequential response status codes should be (\d+)$`, s.allSequentialResponseStatusCodesShouldBe)
 	ctx.Then(`^all concurrent responses should have (\d+) PDF\(s\)$`, s.allConcurrentResponsesShouldHavePdfs)
