@@ -540,8 +540,12 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 	b.ctxMu.RLock()
 	defer b.ctxMu.RUnlock()
 
+	// The tab derives from the browser, not from the request, but must not
+	// outlive it: the supervisor holds the request's slot until do returns.
 	timeoutCtx, timeoutCancel := context.WithTimeout(b.ctx, time.Until(deadline))
 	defer timeoutCancel()
+	stopCancelOnRequest := context.AfterFunc(ctx, timeoutCancel)
+	defer stopCancelOnRequest()
 
 	var taskOpts []chromedp.ContextOption
 	if !b.arguments.sharedBrowserContext {
