@@ -131,11 +131,11 @@ func newChromiumBrowser(arguments browserArguments) browser {
 	return b
 }
 
-func (b *chromiumBrowser) Start(ctx context.Context, logger *slog.Logger) error {
+func (b *chromiumBrowser) Start(ctx context.Context, logger *slog.Logger) (err error) {
 	b.lifecycleMu.Lock()
 	defer b.lifecycleMu.Unlock()
 
-	err := ctx.Err()
+	err = ctx.Err()
 	if err != nil {
 		return fmt.Errorf("start browser: %w", err)
 	}
@@ -152,6 +152,21 @@ func (b *chromiumBrowser) Start(ctx context.Context, logger *slog.Logger) error 
 	if err != nil {
 		return fmt.Errorf("could not create user profile directory: %w", err)
 	}
+
+	// Stop only cleans up after a successful start, and every supervisor retry
+	// creates a new directory.
+	defer func() {
+		if err == nil {
+			return
+		}
+
+		rmErr := os.RemoveAll(b.userProfileDirPath)
+		if rmErr != nil {
+			logger.ErrorContext(context.Background(), fmt.Sprintf("remove Chromium's user profile directory after a failed start: %s", rmErr))
+		}
+		b.userProfileDirPath = ""
+	}()
+
 	err = os.Symlink(b.arguments.hyphenDataDirPath, fmt.Sprintf("%s/hyphen-data", b.userProfileDirPath))
 	if err != nil {
 		return fmt.Errorf("create symlink to hyphen-data directory: %w", err)
