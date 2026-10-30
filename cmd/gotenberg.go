@@ -68,32 +68,11 @@ func Run() {
 
 	// Override their values if the corresponding environment variables are
 	// set.
-	fs.VisitAll(func(f *flag.Flag) {
-		envName := gotenberg.EnvVarName(f.Name)
-		val, ok := os.LookupEnv(envName)
-		if !ok {
-			return
-		}
-
-		sliceVal, ok := f.Value.(flag.SliceValue)
-		if ok {
-			// We don't want to append the values (default pflag behavior).
-			items := strings.Split(val, ",")
-			err = sliceVal.Replace(items)
-			if err != nil {
-				fmt.Printf("[FATAL] invalid overriding value '%s' from %s: %v\n", val, envName, err)
-				os.Exit(1)
-			}
-			f.Changed = true
-			return
-		}
-
-		err = fs.Set(f.Name, val)
-		if err != nil {
-			fmt.Printf("[FATAL] invalid overriding value '%s' from %s: %v\n", val, envName, err)
-			os.Exit(1)
-		}
-	})
+	err = gotenberg.ApplyEnvOverrides(fs)
+	if err != nil {
+		fmt.Printf("[FATAL] %v\n", err)
+		os.Exit(1)
+	}
 
 	// Create a wrapper around our flags.
 	parsedFlags := gotenberg.ParsedFlags{FlagSet: fs}

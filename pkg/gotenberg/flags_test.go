@@ -557,3 +557,73 @@ func TestParsedFlags_RegexpMatchTimeout(t *testing.T) {
 		}
 	}
 }
+
+func TestApplyEnvOverrides(t *testing.T) {
+	newFlags := func() *flag.FlagSet {
+		fs := flag.NewFlagSet("tests", flag.ContinueOnError)
+		fs.String("api-root-path", "/", "")
+		fs.Int("api-port", 3000, "")
+		fs.StringSlice("chromium-allow-list", []string{"default"}, "")
+		return fs
+	}
+
+	t.Run("unset variables keep the flags", func(t *testing.T) {
+		fs := newFlags()
+
+		err := ApplyEnvOverrides(fs)
+		if err != nil {
+			t.Fatalf("expected no error but got: %v", err)
+		}
+
+		parsed := ParsedFlags{FlagSet: fs}
+		if got := parsed.MustString("api-root-path"); got != "/" {
+			t.Errorf("api-root-path = %q, want /", got)
+		}
+	})
+
+	t.Run("a variable overrides the command line", func(t *testing.T) {
+		fs := newFlags()
+		err := fs.Parse([]string{"--api-port=4000"})
+		if err != nil {
+			t.Fatalf("parse: %v", err)
+		}
+		t.Setenv("API_PORT", "5000")
+
+		err = ApplyEnvOverrides(fs)
+		if err != nil {
+			t.Fatalf("expected no error but got: %v", err)
+		}
+
+		if got := (&ParsedFlags{FlagSet: fs}).MustInt("api-port"); got != 5000 {
+			t.Errorf("api-port = %d, want 5000", got)
+		}
+	})
+
+	t.Run("a slice is replaced, not appended to", func(t *testing.T) {
+		fs := newFlags()
+		t.Setenv("CHROMIUM_ALLOW_LIST", "a,b")
+
+		err := ApplyEnvOverrides(fs)
+		if err != nil {
+			t.Fatalf("expected no error but got: %v", err)
+		}
+
+		got := (&ParsedFlags{FlagSet: fs}).MustStringSlice("chromium-allow-list")
+		if len(got) != 2 || got[0] != "a" || got[1] != "b" {
+			t.Errorf("chromium-allow-list = %v, want [a b]", got)
+		}
+		if !fs.Lookup("chromium-allow-list").Changed {
+			t.Error("chromium-allow-list should be marked as changed")
+		}
+	})
+
+	t.Run("an invalid value names its variable", func(t *testing.T) {
+		fs := newFlags()
+		t.Setenv("API_PORT", "foo")
+
+		err := ApplyEnvOverrides(fs)
+		if err == nil || !strings.Contains(err.Error(), "API_PORT") || !strings.Contains(err.Error(), "'foo'") {
+			t.Fatalf("expected an error naming API_PORT and the value, got: %v", err)
+		}
+	})
+}

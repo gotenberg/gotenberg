@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -251,8 +252,44 @@ func (f *ParsedFlags) bypassSentence(name string) string {
 }
 
 // EnvVarName returns the environment variable that overrides the flag given by
-// name. The entry point derives the same name when it applies environment
-// overrides, so operator-facing messages can name both without drifting.
+// name. [ApplyEnvOverrides] derives the same name, so operator-facing messages
+// can name both without drifting.
 func EnvVarName(name string) string {
 	return strings.ToUpper(strings.ReplaceAll(name, "-", "_"))
+}
+
+// ApplyEnvOverrides sets every flag of fs whose environment variable, see
+// [EnvVarName], is set. The environment wins over the command line. A slice
+// flag takes the comma-separated values in place of its current ones, rather
+// than appending to them as pflag does. It returns an error naming the
+// variable of the first value that does not parse.
+func ApplyEnvOverrides(fs *flag.FlagSet) error {
+	var err error
+
+	fs.VisitAll(func(f *flag.Flag) {
+		if err != nil {
+			return
+		}
+
+		envName := EnvVarName(f.Name)
+		val, ok := os.LookupEnv(envName)
+		if !ok {
+			return
+		}
+
+		var setErr error
+		sliceVal, ok := f.Value.(flag.SliceValue)
+		if ok {
+			setErr = sliceVal.Replace(strings.Split(val, ","))
+			f.Changed = true
+		} else {
+			setErr = fs.Set(f.Name, val)
+		}
+
+		if setErr != nil {
+			err = fmt.Errorf("invalid overriding value '%s' from %s: %w", val, envName, setErr)
+		}
+	})
+
+	return err
 }
