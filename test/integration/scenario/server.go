@@ -106,6 +106,12 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 		return c.String(http.StatusOK, http.StatusText(http.StatusOK))
 	}
 	srv.POST("/webhook/events", webhookEventsHandler)
+
+	tsa, err := newTimestampAuthority()
+	if err != nil {
+		return nil, fmt.Errorf("create timestamp authority: %w", err)
+	}
+	srv.POST("/tsa", echo.WrapHandler(tsa))
 	srv.GET("/static/:path", func(c *echo.Context) error {
 		s.recordRequest(&s.file, c.Request())
 		path := c.Param("path")
