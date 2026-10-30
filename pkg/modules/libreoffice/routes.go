@@ -21,7 +21,7 @@ const unattributableFailureMessage = "LibreOffice failed to convert the document
 
 // convertRoute returns an [api.Route] which can convert LibreOffice documents
 // to PDF.
-func convertRoute(libreOffice libreofficeapi.Uno, processor *pdf.Processor) api.Route {
+func convertRoute(libreOffice libreofficeapi.Converter, processor *pdf.Processor) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
 		Path:        "/forms/libreoffice/convert",

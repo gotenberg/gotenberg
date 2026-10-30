@@ -7,7 +7,7 @@ import (
 
 	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
-	libeofficeapi "github.com/gotenberg/gotenberg/v9/pkg/modules/libreoffice/api"
+	libreofficeapi "github.com/gotenberg/gotenberg/v9/pkg/modules/libreoffice/api"
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/pdf"
 )
 
@@ -18,7 +18,7 @@ func init() {
 // LibreOffice is a module that provides a route for converting documents to
 // PDF with LibreOffice.
 type LibreOffice struct {
-	api           libeofficeapi.Uno
+	api           libreofficeapi.Converter
 	processor     *pdf.Processor
 	disableRoutes bool
 }
@@ -42,14 +42,14 @@ func (mod *LibreOffice) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	mod.disableRoutes = flags.MustBool("libreoffice-disable-routes")
 
-	provider, err := ctx.Module(new(libeofficeapi.Provider))
+	provider, err := ctx.Module(new(libreofficeapi.Provider))
 	if err != nil {
-		return fmt.Errorf("get LibreOffice Uno provider: %w", err)
+		return fmt.Errorf("get LibreOffice converter provider: %w", err)
 	}
 
-	libreOfficeApi, err := provider.(libeofficeapi.Provider).LibreOffice()
+	libreOfficeApi, err := provider.(libreofficeapi.Provider).LibreOffice()
 	if err != nil {
-		return fmt.Errorf("get LibreOffice Uno: %w", err)
+		return fmt.Errorf("get LibreOffice converter: %w", err)
 	}
 
 	mod.api = libreOfficeApi

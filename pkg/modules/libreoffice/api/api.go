@@ -52,7 +52,7 @@ var (
 	ErrCrashed = errors.New("LibreOffice crashed")
 )
 
-// Api is a module that provides a [Uno] to interact with LibreOffice.
+// Api is a module that provides a [Converter] backed by LibreOffice.
 type Api struct {
 	autoStart bool
 	args      libreOfficeArguments
@@ -352,21 +352,21 @@ func DefaultOptions() Options {
 	}
 }
 
-// Uno is an abstraction on top of the Universal Network Objects API.
-type Uno interface {
+// Converter converts documents to PDF with LibreOffice.
+type Converter interface {
 	Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error
 	Extensions() []string
 }
 
 // Provider is a module interface that exposes a method for creating a
-// [Uno] for other modules.
+// [Converter] for other modules.
 //
 //	func (m *YourModule) Provision(ctx *gotenberg.Context) error {
 //		provider, _ := ctx.Module(new(libreofficeapi.Provider))
 //		libreOffice, _      := provider.(api.Provider).LibreOffice()
 //	}
 type Provider interface {
-	LibreOffice() (Uno, error)
+	LibreOffice() (Converter, error)
 }
 
 // Descriptor returns a [Api]'s module descriptor.
@@ -614,8 +614,8 @@ func (a *Api) Ready(ctx context.Context) error {
 	}
 }
 
-// LibreOffice returns a [Uno] for interacting with LibreOffice.
-func (a *Api) LibreOffice() (Uno, error) {
+// LibreOffice returns a [Converter] backed by LibreOffice.
+func (a *Api) LibreOffice() (Converter, error) {
 	return a, nil
 }
 
@@ -846,6 +846,6 @@ var (
 	_ gotenberg.App         = (*Api)(nil)
 	_ gotenberg.Debuggable  = (*Api)(nil)
 	_ api.HealthChecker     = (*Api)(nil)
-	_ Uno                   = (*Api)(nil)
+	_ Converter             = (*Api)(nil)
 	_ Provider              = (*Api)(nil)
 )

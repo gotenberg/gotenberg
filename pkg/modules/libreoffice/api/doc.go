@@ -1,2 +1,3 @@
-// Package api manages a LibreOffice instance via the UNO API.
+// Package api manages a LibreOffice instance, driven through lok, and
+// converts documents to PDF with it.
 package api

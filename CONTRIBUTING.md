@@ -123,7 +123,8 @@ Enforced by `gci`: standard library, then third-party, then `github.com/gotenber
 Every exported identifier has a doc comment starting with its name, and every package a `doc.go` with a `// Package foo ...` comment. Reference identifiers with `[Name]` for pkg.go.dev links. Test, fuzz, benchmark and example functions are exempt.
 
 ```go
-// Package api manages a LibreOffice instance via the UNO API.
+// Package api manages a LibreOffice instance, driven through lok, and
+// converts documents to PDF with it.
 package api
 ```
 

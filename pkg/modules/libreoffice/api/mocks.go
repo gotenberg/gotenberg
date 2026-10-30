@@ -8,7 +8,7 @@ import (
 	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
 
-// ApiMock is a mock for the [Uno] interface.
+// ApiMock is a mock for the [Converter] interface.
 type ApiMock struct {
 	PdfMock        func(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error
 	ExtensionsMock func() []string
@@ -24,10 +24,10 @@ func (api *ApiMock) Extensions() []string {
 
 // ProviderMock is a mock for the [Provider] interface.
 type ProviderMock struct {
-	LibreOfficeMock func() (Uno, error)
+	LibreOfficeMock func() (Converter, error)
 }
 
-func (provider *ProviderMock) LibreOffice() (Uno, error) {
+func (provider *ProviderMock) LibreOffice() (Converter, error) {
 	return provider.LibreOfficeMock()
 }
 
@@ -52,7 +52,7 @@ func (b *libreOfficeMock) pdf(ctx context.Context, logger *slog.Logger, inputPat
 
 // Interface guards.
 var (
-	_ Uno         = (*ApiMock)(nil)
+	_ Converter   = (*ApiMock)(nil)
 	_ Provider    = (*ProviderMock)(nil)
 	_ libreOffice = (*libreOfficeMock)(nil)
 )
