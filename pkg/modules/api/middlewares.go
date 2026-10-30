@@ -30,8 +30,8 @@ var (
 	// in an asynchronous fashion.
 	ErrAsyncProcess = errors.New("async process")
 
-	// ErrNoOutputFile happens when a handler or middleware handles a request
-	// without sending any output file.
+	// ErrNoOutputFile happens when a handler or middleware has already written
+	// the response itself, so no output file must be sent.
 	ErrNoOutputFile = errors.New("no output file")
 )
 
@@ -481,9 +481,7 @@ func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, bodyLimi
 			defer cancel()
 
 			if errors.Is(err, ErrNoOutputFile) {
-				// A middleware/handler tells us that it's handling the process
-				// in an asynchronous fashion. Therefore, we must not cancel
-				// the context nor send an output file.
+				// A middleware/handler already wrote the response.
 				return nil
 			}
 

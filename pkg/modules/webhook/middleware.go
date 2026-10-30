@@ -227,32 +227,36 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						})
 					}
 
-					if w.enableSyncMode {
-						err := next(c)
+					// The downstream chain writes into a detached response, never
+					// the client's: the client only ever gets the 204 below, and the
+					// outcome goes to the webhook URLs. See newDetachedContext.
+					detached := newDetachedContext(c, "logger", "context", "correlationId", "correlationIdHeader", "startTime")
+
+					process := func() {
+						err := next(detached)
+						if errors.Is(err, api.ErrNoOutputFile) {
+							handleError(api.WrapError(
+								fmt.Errorf("%w - the webhook middleware cannot handle the result of this route", err),
+								api.NewSentinelHttpError(
+									http.StatusBadRequest,
+									"The webhook middleware can only work with multipart/form-data routes that results in output files",
+								),
+							))
+							return
+						}
 						if err != nil {
-							if errors.Is(err, api.ErrNoOutputFile) {
-								errNoOutputFile := fmt.Errorf("%w - the webhook middleware cannot handle the result of this route", err)
-								handleError(api.WrapError(
-									errNoOutputFile,
-									api.NewSentinelHttpError(
-										http.StatusBadRequest,
-										"The webhook middleware can only work with multipart/form-data routes that results in output files",
-									),
-								))
-								return nil
-							}
 							ctx.Log().Error(err.Error())
 							handleError(err)
-							return nil
+							return
 						}
 
 						outputPath, err := ctx.BuildOutputFile()
 						if err != nil {
 							ctx.Log().Error(fmt.Sprintf("build output file: %s", err))
 							handleError(err)
-							return nil
+							return
 						}
-						// No error, let's send the output file to the webhook URL.
+
 						sendOutputFile(sendOutputFileParams{
 							ctx:                 ctx,
 							outputPath:          outputPath,
@@ -262,34 +266,29 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 							client:              client,
 							handleError:         handleError,
 						})
-						return c.NoContent(http.StatusNoContent)
+					}
+
+					if w.enableSyncMode {
+						process()
+
+						err = c.NoContent(http.StatusNoContent)
+						if err != nil {
+							return fmt.Errorf("send response: %w", err)
+						}
+
+						// The response is out: contextMiddleware must only clean up.
+						return api.ErrNoOutputFile
 					}
 
 					cancel = detachAsyncContext(ctx, cancel)
-
-					// As a webhook URL has been given, we handle the request in a
-					// goroutine and return immediately.
-					//
-					// Echo returns the [echo.Context] back to its sync.Pool as
-					// soon as this synchronous handler returns ErrAsyncProcess.
-					// A concurrent request can then claim the recycled context
-					// and c.Reset() wipes the shared store, which would cause
-					// any c.Get("...").(T) assertion downstream of the webhook
-					// goroutine to panic on a nil value and crash the process.
-					// Snapshot the keys downstream reads onto a detached
-					// context before spawning the goroutine so pool reuse
-					// cannot reach into our async work.
-					detached := newDetachedContext(c, "logger", "context", "correlationId", "correlationIdHeader", "startTime")
 
 					w.asyncCount.Add(1)
 					go func() {
 						defer cancel()
 						defer w.asyncCount.Add(-1)
 
-						// Defense in depth: any panic that escapes the
-						// downstream chain (including future regressions of
-						// the pool-reuse bug) routes through handleError and
-						// leaves the process running.
+						// Defense in depth: a panic escaping the downstream chain
+						// reaches the events URL and leaves the process running.
 						defer func() {
 							r := recover()
 							if r == nil {
@@ -299,44 +298,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 							handleError(fmt.Errorf("internal error: %v", r))
 						}()
 
-						// Call the next middleware in the chain.
-						err := next(detached)
-						if err != nil {
-							if errors.Is(err, api.ErrNoOutputFile) {
-								errNoOutputFile := fmt.Errorf("%w - the webhook middleware cannot handle the result of this route", err)
-								handleError(api.WrapError(
-									errNoOutputFile,
-									api.NewSentinelHttpError(
-										http.StatusBadRequest,
-										"The webhook middleware can only work with multipart/form-data routes that results in output files",
-									),
-								))
-								return
-							}
-							// The process failed for whatever reason. Let's send the
-							// details to the webhook.
-							ctx.Log().Error(err.Error())
-							handleError(err)
-							return
-						}
-
-						// No error, let's get to build the output file.
-						outputPath, err := ctx.BuildOutputFile()
-						if err != nil {
-							ctx.Log().Error(fmt.Sprintf("build output file: %s", err))
-							handleError(err)
-							return
-						}
-
-						sendOutputFile(sendOutputFileParams{
-							ctx:                 ctx,
-							outputPath:          outputPath,
-							extraHttpHeaders:    extraHttpHeaders,
-							correlationIdHeader: correlationIdHeader,
-							correlationId:       correlationId,
-							client:              client,
-							handleError:         handleError,
-						})
+						process()
 					}()
 
 					return api.ErrAsyncProcess
