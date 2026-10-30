@@ -40,7 +40,7 @@ func TestProcessSupervisor_Launch(t *testing.T) {
 			logger := slog.New(slog.DiscardHandler)
 
 			process := &ProcessMock{
-				StartMock: func(logger *slog.Logger) error {
+				StartMock: func(_ context.Context, logger *slog.Logger) error {
 					return tc.startError
 				},
 			}
@@ -50,7 +50,7 @@ func TestProcessSupervisor_Launch(t *testing.T) {
 				ps.firstStart.Store(true)
 			}
 
-			err := ps.Launch()
+			err := ps.Launch(context.Background())
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
@@ -137,7 +137,7 @@ func TestProcessSupervisor_restart(t *testing.T) {
 			logger := slog.New(slog.DiscardHandler)
 
 			process := &ProcessMock{
-				StartMock: func(logger *slog.Logger) error {
+				StartMock: func(_ context.Context, logger *slog.Logger) error {
 					return tc.startError
 				},
 				StopMock: func(logger *slog.Logger) error {
@@ -147,7 +147,7 @@ func TestProcessSupervisor_restart(t *testing.T) {
 
 			ps := NewProcessSupervisor(logger, "test", process, 5, 0, 1, 0).(*processSupervisor)
 
-			err := ps.restart()
+			err := ps.restart(context.Background())
 
 			if !tc.expectError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
@@ -169,7 +169,7 @@ func TestProcessSupervisor_restart_ResetsCounterOnFailedLaunch(t *testing.T) {
 	const maxReqLimit = 5
 
 	process := &ProcessMock{
-		StartMock:   func(_ *slog.Logger) error { return errors.New("start error") },
+		StartMock:   func(_ context.Context, _ *slog.Logger) error { return errors.New("start error") },
 		StopMock:    func(_ *slog.Logger) error { return nil },
 		HealthyMock: func(_ *slog.Logger) bool { return true },
 	}
@@ -177,7 +177,7 @@ func TestProcessSupervisor_restart_ResetsCounterOnFailedLaunch(t *testing.T) {
 	ps := NewProcessSupervisor(logger, "test", process, maxReqLimit, 0, 1, 0).(*processSupervisor)
 	ps.reqCounter.Store(maxReqLimit)
 
-	err := ps.restart()
+	err := ps.restart(context.Background())
 	if err == nil {
 		t.Fatal("expected error but got none")
 	}
@@ -322,7 +322,7 @@ func TestProcessSupervisor_Healthy_PlannedRestart(t *testing.T) {
 		signalOne sync.Once
 	)
 	process := &ProcessMock{
-		StartMock: func(_ *slog.Logger) error {
+		StartMock: func(_ context.Context, _ *slog.Logger) error {
 			// Hold the restart open so the assertions below run inside the
 			// window that used to report unhealthy.
 			if starts.Add(1) > 1 {
@@ -378,7 +378,7 @@ func TestProcessSupervisor_Healthy_UnplannedRestart(t *testing.T) {
 
 	var signalOne sync.Once
 	process := &ProcessMock{
-		StartMock: func(_ *slog.Logger) error {
+		StartMock: func(_ context.Context, _ *slog.Logger) error {
 			signalOne.Do(func() { close(restarting) })
 			<-release
 
@@ -426,7 +426,7 @@ func TestProcessSupervisor_doRestartLocked_DrainDeadline(t *testing.T) {
 
 	var starts atomic.Int64
 	process := &ProcessMock{
-		StartMock: func(_ *slog.Logger) error {
+		StartMock: func(_ context.Context, _ *slog.Logger) error {
 			starts.Add(1)
 
 			return nil
@@ -467,7 +467,7 @@ func TestProcessSupervisor_maybeRestartAfterTask_Bounded(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 
 	process := &ProcessMock{
-		StartMock:   func(_ *slog.Logger) error { return nil },
+		StartMock:   func(_ context.Context, _ *slog.Logger) error { return nil },
 		StopMock:    func(_ *slog.Logger) error { return nil },
 		HealthyMock: func(_ *slog.Logger) bool { return true },
 	}
@@ -617,7 +617,7 @@ func TestProcessSupervisor_Run(t *testing.T) {
 			tasksToRun:           1,
 			expectError:          false,
 			expectedStartCalls:   1,
-			expectedHealthyCalls: 1,
+			expectedHealthyCalls: 2, // ensureHealthy, then doRestart re-checks under the lock.
 			expectedStopCalls:    1,
 		},
 		{
@@ -630,7 +630,7 @@ func TestProcessSupervisor_Run(t *testing.T) {
 			tasksToRun:           1,
 			expectError:          true,
 			expectedStartCalls:   1,
-			expectedHealthyCalls: 1,
+			expectedHealthyCalls: 2, // ensureHealthy, then doRestart re-checks under the lock.
 			expectedStopCalls:    1,
 		},
 		{
@@ -719,7 +719,7 @@ func TestProcessSupervisor_Run(t *testing.T) {
 			stopCalls.Store(0)
 
 			process := &ProcessMock{
-				StartMock: func(logger *slog.Logger) error {
+				StartMock: func(_ context.Context, logger *slog.Logger) error {
 					startCalls.Add(1)
 					return tc.startError
 				},
@@ -799,52 +799,130 @@ func TestProcessSupervisor_Run(t *testing.T) {
 	}
 }
 
-func TestProcessSupervisor_runWithDeadline(t *testing.T) {
-	for _, tc := range []struct {
-		scenario    string
-		ctxDone     bool
-		expectError bool
-	}{
-		{
-			scenario:    "task finished",
-			ctxDone:     false,
-			expectError: false,
-		},
-		{
-			scenario:    "context expired",
-			ctxDone:     true,
-			expectError: true,
-		},
-	} {
-		t.Run(tc.scenario, func(t *testing.T) {
-			ps := NewProcessSupervisor(slog.New(slog.DiscardHandler), "test", new(ProcessMock), 0, 0, 1, 0).(*processSupervisor)
+// TestProcessSupervisor_Run_HoldsSlotUntilTaskReturns checks that a task
+// whose request gave up keeps its slot until it actually returns. Releasing it
+// earlier would let another task run alongside it, past the concurrency limit.
+func TestProcessSupervisor_Run_HoldsSlotUntilTaskReturns(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+	process := &ProcessMock{
+		StartMock:   func(_ context.Context, logger *slog.Logger) error { return nil },
+		StopMock:    func(logger *slog.Logger) error { return nil },
+		HealthyMock: func(logger *slog.Logger) bool { return true },
+	}
+	ps := NewProcessSupervisor(logger, "test", process, 0, 0, 1, 0)
 
-			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-			if tc.ctxDone {
-				cancel()
-			} else {
-				defer cancel()
-			}
+	ctx, cancel := context.WithCancel(context.Background())
+	running := make(chan struct{})
+	release := make(chan struct{})
+	firstDone := make(chan error, 1)
 
-			err := ps.runWithDeadline(ctx, func() error {
-				return nil
-			})
-
-			if tc.expectError && err == nil {
-				t.Fatal("expected an error but got none")
-			}
-
-			if !tc.expectError && err != nil {
-				t.Fatalf("expected no error but got: %v", err)
-			}
+	go func() {
+		firstDone <- ps.Run(ctx, logger, func() error {
+			close(running)
+			// A task that takes a while to unwind once its request is done.
+			<-ctx.Done()
+			<-release
+			return ctx.Err()
 		})
+	}()
+
+	<-running
+	cancel()
+
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer waitCancel()
+
+	err := ps.Run(waitCtx, logger, func() error { return nil })
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected the second task to wait for the slot, got %v", err)
+	}
+
+	close(release)
+
+	err = <-firstDone
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected the first task to return context.Canceled, got %v", err)
+	}
+
+	err = ps.Run(context.Background(), logger, func() error { return nil })
+	if err != nil {
+		t.Fatalf("expected a task to run once the slot is free, got %v", err)
+	}
+}
+
+// TestProcessSupervisor_IdleShutdown_SkippedWhileSlotHeld checks that idle
+// shutdown never stops the process under a task that holds a slot but has not
+// counted itself active yet.
+func TestProcessSupervisor_IdleShutdown_SkippedWhileSlotHeld(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	var stopCalls atomic.Int64
+	process := &ProcessMock{
+		StartMock: func(_ context.Context, logger *slog.Logger) error { return nil },
+		StopMock: func(logger *slog.Logger) error {
+			stopCalls.Add(1)
+			return nil
+		},
+		HealthyMock: func(logger *slog.Logger) bool { return true },
+	}
+	ps := NewProcessSupervisor(logger, "test", process, 0, 0, 2, time.Hour).(*processSupervisor)
+	ps.firstStart.Store(true)
+	ps.lastActivity.Store(time.Now().Add(-2 * time.Hour).UnixNano())
+
+	ps.semaphore <- struct{}{}
+
+	ps.maybeIdleShutdown()
+
+	if stopCalls.Load() != 0 {
+		t.Fatal("expected idle shutdown to skip while a slot is held")
+	}
+	if len(ps.semaphore) != 1 {
+		t.Fatalf("expected idle shutdown to give back the slots it took, %d held", len(ps.semaphore))
+	}
+
+	<-ps.semaphore
+
+	ps.maybeIdleShutdown()
+
+	if stopCalls.Load() != 1 {
+		t.Fatal("expected idle shutdown to stop the process once every slot is free")
+	}
+	if len(ps.semaphore) != 0 {
+		t.Fatalf("expected idle shutdown to give back every slot, %d held", len(ps.semaphore))
+	}
+}
+
+// TestProcessSupervisor_doRestart_SkipsHealthyProcess checks that tasks which
+// all found the process unhealthy restart it once, not once each.
+func TestProcessSupervisor_doRestart_SkipsHealthyProcess(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	var stopCalls atomic.Int64
+	process := &ProcessMock{
+		StartMock: func(_ context.Context, logger *slog.Logger) error { return nil },
+		StopMock: func(logger *slog.Logger) error {
+			stopCalls.Add(1)
+			return nil
+		},
+		HealthyMock: func(logger *slog.Logger) bool { return true },
+	}
+	ps := NewProcessSupervisor(logger, "test", process, 0, 0, 1, 0).(*processSupervisor)
+	ps.firstStart.Store(true)
+
+	err := ps.doRestart(context.Background(), restartReasonUnhealthy)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if stopCalls.Load() != 0 {
+		t.Fatal("expected no restart of a process another task already restarted")
 	}
 }
 
 func TestProcessSupervisor_ReqQueueSize(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 	process := &ProcessMock{
-		StartMock: func(logger *slog.Logger) error {
+		StartMock: func(_ context.Context, logger *slog.Logger) error {
 			return nil
 		},
 		HealthyMock: func(logger *slog.Logger) bool {
@@ -902,7 +980,7 @@ func TestProcessSupervisor_QueueSizeCAS(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 
 	process := &ProcessMock{
-		StartMock: func(logger *slog.Logger) error {
+		StartMock: func(_ context.Context, logger *slog.Logger) error {
 			return nil
 		},
 		HealthyMock: func(logger *slog.Logger) bool {
@@ -957,7 +1035,7 @@ func TestProcessSupervisor_QueueSizeIncludesActiveTasks(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 
 	process := &ProcessMock{
-		StartMock: func(logger *slog.Logger) error {
+		StartMock: func(_ context.Context, logger *slog.Logger) error {
 			return nil
 		},
 		HealthyMock: func(logger *slog.Logger) bool {
@@ -1047,7 +1125,7 @@ func TestProcessSupervisor_RestartsCount(t *testing.T) {
 			logger := slog.New(slog.DiscardHandler)
 
 			process := &ProcessMock{
-				StartMock: func(logger *slog.Logger) error {
+				StartMock: func(_ context.Context, logger *slog.Logger) error {
 					return tc.startError
 				},
 				StopMock: func(logger *slog.Logger) error {
@@ -1059,7 +1137,7 @@ func TestProcessSupervisor_RestartsCount(t *testing.T) {
 			ps.restartsCounter.Store(tc.initialRestartsCount)
 
 			for i := 0; i < tc.restartAttempts; i++ {
-				_ = ps.restart()
+				_ = ps.restart(context.Background())
 			}
 
 			actualRestartsCount := ps.RestartsCount()
@@ -1075,7 +1153,7 @@ func TestProcessSupervisor_ConcurrentRun(t *testing.T) {
 
 	var startCalls atomic.Int64
 	process := &ProcessMock{
-		StartMock: func(logger *slog.Logger) error {
+		StartMock: func(_ context.Context, logger *slog.Logger) error {
 			startCalls.Add(1)
 			return nil
 		},
@@ -1138,7 +1216,7 @@ func TestProcessSupervisor_RestartDrainsAllSlots(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 
 	process := &ProcessMock{
-		StartMock: func(logger *slog.Logger) error {
+		StartMock: func(_ context.Context, logger *slog.Logger) error {
 			return nil
 		},
 		StopMock: func(logger *slog.Logger) error {
@@ -1194,7 +1272,7 @@ func TestProcessSupervisor_IdleShutdown(t *testing.T) {
 
 	var stopCalls atomic.Int64
 	process := &ProcessMock{
-		StartMock: func(logger *slog.Logger) error {
+		StartMock: func(_ context.Context, logger *slog.Logger) error {
 			return nil
 		},
 		StopMock: func(logger *slog.Logger) error {
@@ -1253,7 +1331,7 @@ func TestProcessSupervisor_RetryAfterFailedFirstStart(t *testing.T) {
 
 	var startCalls atomic.Int64
 	process := &ProcessMock{
-		StartMock: func(logger *slog.Logger) error {
+		StartMock: func(_ context.Context, logger *slog.Logger) error {
 			if startCalls.Add(1) == 1 {
 				return errors.New("first start failed")
 			}
@@ -1300,7 +1378,7 @@ func TestProcessSupervisor_IdleShutdownSkippedWhenActive(t *testing.T) {
 	taskDone := make(chan struct{})
 
 	process := &ProcessMock{
-		StartMock: func(logger *slog.Logger) error {
+		StartMock: func(_ context.Context, logger *slog.Logger) error {
 			return nil
 		},
 		StopMock: func(logger *slog.Logger) error {
@@ -1338,7 +1416,7 @@ func TestProcessSupervisor_IdleShutdownSkippedWhenActive(t *testing.T) {
 
 func TestProcessSupervisor_ConversionsSinceRestart(t *testing.T) {
 	process := &ProcessMock{
-		StartMock:   func(*slog.Logger) error { return nil },
+		StartMock:   func(context.Context, *slog.Logger) error { return nil },
 		StopMock:    func(*slog.Logger) error { return nil },
 		HealthyMock: func(*slog.Logger) bool { return true },
 	}
@@ -1353,7 +1431,7 @@ func TestProcessSupervisor_ConversionsSinceRestart(t *testing.T) {
 		t.Errorf("expected 7 conversions, got %d", got)
 	}
 
-	if err := s.restart(); err != nil {
+	if err := s.restart(context.Background()); err != nil {
 		t.Fatalf("restart: %v", err)
 	}
 	if got := s.ConversionsSinceRestart(); got != 0 {
@@ -1365,7 +1443,7 @@ func TestProcessSupervisor_RunEmitsSubSpans(t *testing.T) {
 	recorder := newTestSpanRecorder(t)
 
 	process := &ProcessMock{
-		StartMock:   func(*slog.Logger) error { return nil },
+		StartMock:   func(context.Context, *slog.Logger) error { return nil },
 		StopMock:    func(*slog.Logger) error { return nil },
 		HealthyMock: func(*slog.Logger) bool { return true },
 	}

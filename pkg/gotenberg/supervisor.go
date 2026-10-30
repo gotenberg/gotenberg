@@ -30,8 +30,9 @@ var ErrMaximumQueueSizeExceeded = errors.New("maximum queue size exceeded")
 // starting, stopping, and ensuring the process's health.
 type Process interface {
 	// Start initiates the process and returns an error if the process cannot
-	// be started.
-	Start(logger *slog.Logger) error
+	// be started. It returns once ctx is done at the latest, so that the
+	// supervisor never leaves a start running behind it.
+	Start(ctx context.Context, logger *slog.Logger) error
 
 	// Stop terminates the process and returns an error if the process cannot
 	// be stopped.
@@ -50,8 +51,8 @@ type Process interface {
 // requests that can be handled by the process, as well as managing a request
 // queue.
 type ProcessSupervisor interface {
-	// Launch starts the managed [Process].
-	Launch() error
+	// Launch starts the managed [Process], bounded by ctx.
+	Launch(ctx context.Context) error
 
 	// Shutdown stops the managed [Process].
 	Shutdown() error
@@ -68,6 +69,8 @@ type ProcessSupervisor interface {
 	//
 	// Run manages the request queue and may restart the process if it is not
 	// healthy or if the number of handled requests exceeds the maximum limit.
+	// The task must return once ctx is done: Run holds its slot until it
+	// does, so that the concurrency limit stays true.
 	//
 	// It returns an error if the task cannot be run or if the process state
 	// cannot be managed properly.
@@ -200,9 +203,9 @@ func NewProcessSupervisor(logger *slog.Logger, engine string, process Process, m
 	return b
 }
 
-func (s *processSupervisor) Launch() error {
-	s.logger.DebugContext(context.Background(), "start process")
-	err := s.process.Start(s.logger)
+func (s *processSupervisor) Launch(ctx context.Context) error {
+	s.logger.DebugContext(ctx, "start process")
+	err := s.process.Start(ctx, s.logger)
 	if err != nil {
 		return fmt.Errorf("start process: %w", err)
 	}
@@ -234,7 +237,7 @@ func (s *processSupervisor) Shutdown() error {
 	return nil
 }
 
-func (s *processSupervisor) restart() error {
+func (s *processSupervisor) restart(ctx context.Context) error {
 	s.logger.DebugContext(context.Background(), "restart process")
 
 	err := s.Shutdown()
@@ -251,7 +254,7 @@ func (s *processSupervisor) restart() error {
 	// before running a task, and reports the failure to the caller.
 	s.reqCounter.Store(0)
 
-	err = s.Launch()
+	err = s.Launch(ctx)
 	if err != nil {
 		return fmt.Errorf("restart process: %w", err)
 	}
@@ -392,7 +395,7 @@ func (s *processSupervisor) Run(ctx context.Context, logger *slog.Logger, task f
 			}
 
 			endQueueWait()
-			err := s.runWithDeadline(ctx, task)
+			err := task()
 
 			if s.maybeRestartAfterTask(logger) {
 				semaphoreOwned = false
@@ -469,8 +472,27 @@ func (s *processSupervisor) maybeIdleShutdown() {
 	}
 	defer s.restartMutex.Unlock()
 
-	// Double-check after acquiring the lock.
-	if s.activeTasks.Load() > 0 || s.reqQueueSize.Load() > 0 {
+	// Hold every slot while stopping: a task holds its slot from before
+	// ensureStarted until it returns, so none can find the process started
+	// and then lose it. A busy slot means a task is running; try again on the
+	// next tick.
+	var held int64
+	defer func() {
+		for range held {
+			<-s.semaphore
+		}
+	}()
+
+	for range s.maxConcurrency {
+		select {
+		case s.semaphore <- struct{}{}:
+			held++
+		default:
+			return
+		}
+	}
+
+	if s.reqQueueSize.Load() > 0 {
 		return
 	}
 
@@ -531,7 +553,7 @@ func (s *processSupervisor) ensureStarted(ctx context.Context) error {
 	}
 
 	err := s.tracedLaunch(ctx, restartReasonFirstStart, func() error {
-		return s.runWithDeadline(ctx, s.Launch)
+		return s.Launch(ctx)
 	})
 	if err != nil {
 		return fmt.Errorf("process first start: %w", err)
@@ -616,6 +638,12 @@ func (s *processSupervisor) doRestart(ctx context.Context, reason string) error 
 	s.restartMutex.Lock()
 	defer s.restartMutex.Unlock()
 
+	// Concurrent tasks may all have found the process unhealthy: the first one
+	// through the lock restarts it, the others find it healthy again.
+	if s.process.Healthy(s.logger) {
+		return nil
+	}
+
 	return s.doRestartLocked(ctx, reason)
 }
 
@@ -645,7 +673,7 @@ func (s *processSupervisor) doRestartLocked(ctx context.Context, reason string) 
 	}
 
 	err := s.tracedLaunch(ctx, reason, func() error {
-		return s.runWithDeadline(ctx, s.restart)
+		return s.restart(ctx)
 	})
 
 	for range acquired {
@@ -653,22 +681,6 @@ func (s *processSupervisor) doRestartLocked(ctx context.Context, reason string) 
 	}
 
 	return err
-}
-
-func (s *processSupervisor) runWithDeadline(ctx context.Context, task func() error) error {
-	runChan := make(chan error, 1)
-	go func() {
-		runChan <- task()
-	}()
-
-	for {
-		select {
-		case err := <-runChan:
-			return err
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
 }
 
 func (s *processSupervisor) ReqQueueSize() int64 {

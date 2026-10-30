@@ -13,29 +13,21 @@ import (
 	"github.com/dlclark/regexp2/v2"
 )
 
-// TestChromiumBrowser_Start_rejectsOverlappingStart guards against the latch
-// reported in https://github.com/gotenberg/gotenberg/issues/1599. When the
-// supervisor abandons a Start goroutine on request-deadline expiry, that
-// goroutine keeps running and holds startMu (and the pinning proxy it started)
-// until it unwinds. A second Start must be refused rather than proceeding to
-// start the pinning proxy a second time.
-func TestChromiumBrowser_Start_rejectsOverlappingStart(t *testing.T) {
+// TestChromiumBrowser_Start_honorsDoneContext checks that a start whose
+// context is already done touches no startup resource, so the supervisor never
+// leaves a half-started browser behind a request that gave up.
+// See https://github.com/gotenberg/gotenberg/issues/1599.
+func TestChromiumBrowser_Start_honorsDoneContext(t *testing.T) {
 	b := &chromiumBrowser{initialCtx: context.Background()}
 
-	// Simulate a Start still in flight.
-	b.startMu.Lock()
-	defer b.startMu.Unlock()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
 
-	err := b.Start(slog.New(slog.DiscardHandler))
-	if err == nil {
-		t.Fatal("expected an error when a start is already in progress, got nil")
-	}
-	if !strings.Contains(err.Error(), "already in progress") {
-		t.Fatalf("expected an 'already in progress' error, got %q", err)
+	err := b.Start(ctx, slog.New(slog.DiscardHandler))
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected a context.Canceled error, got %v", err)
 	}
 
-	// The guard must return before touching any startup resource, so no user
-	// profile directory is created and the browser stays not started.
 	if b.userProfileDirPath != "" {
 		t.Fatalf("expected no user profile directory to be created, got %q", b.userProfileDirPath)
 	}

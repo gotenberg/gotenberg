@@ -723,7 +723,8 @@ func (mod *Chromium) Start() error {
 		return nil
 	}
 
-	err := mod.supervisor.Launch()
+	// No request bounds an auto-start: --chromium-start-timeout does.
+	err := mod.supervisor.Launch(context.Background())
 	if err != nil {
 		return fmt.Errorf("launch supervisor: %w", err)
 	}
