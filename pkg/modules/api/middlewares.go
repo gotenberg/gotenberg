@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -532,11 +533,15 @@ func hardTimeoutMiddleware(hardTimeout time.Duration) echo.MiddlewareFunc {
 			errChan := make(chan error, 1)
 
 			go func() {
-				// In case of hard timeout, a panic may occur.
-				// This deferred function allows us to recover from such scenarios.
+				// A panic either comes from the handler itself or, after a hard
+				// timeout, from c being recycled under this goroutine. In the
+				// first case the client gets a 500 right away; in the second
+				// nobody reads errChan anymore, and its buffer keeps the send
+				// from blocking.
 				defer func() {
 					if r := recover(); r != nil {
-						logger.DebugContext(hardTimeoutCtx, fmt.Sprintf("recovering from a panic (possible cause being a hard timeout): %s", r))
+						logger.ErrorContext(hardTimeoutCtx, fmt.Sprintf("recover from handler panic: %v\n%s", r, debug.Stack()))
+						errChan <- fmt.Errorf("handler panic: %v", r)
 					}
 				}()
 

@@ -224,6 +224,28 @@ func TestHardTimeoutMiddleware_MissingLoggerReturnsErrorInsteadOfPanicking(t *te
 	}
 }
 
+func TestHardTimeoutMiddleware_PanicReturnsErrorImmediately(t *testing.T) {
+	mw := hardTimeoutMiddleware(time.Minute)
+	handler := mw(func(c *echo.Context) error { panic("boom") })
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	c := e.NewContext(req, httptest.NewRecorder())
+	c.Set("logger", slog.New(slog.DiscardHandler))
+
+	start := time.Now()
+	err := handler(c)
+	if err == nil {
+		t.Fatal("expected an error for a panicking handler, got nil")
+	}
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
+		t.Fatalf("handler returned after %s, want before the hard timeout", elapsed)
+	}
+	if status, _ := ParseError(err); status != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", status, http.StatusInternalServerError)
+	}
+}
+
 func TestOidcAuthMiddleware(t *testing.T) {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
