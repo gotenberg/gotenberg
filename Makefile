@@ -141,6 +141,7 @@ PLATFORM=
 NO_CONCURRENCY=false
 # Available tags:
 # chromium
+# api-limits
 # chromium-concurrent
 # chromium-convert-html
 # chromium-image-deduplication
@@ -172,6 +173,8 @@ NO_CONCURRENCY=false
 # factur-x
 # pdf-sign
 # pdf-optimize
+# pdf-redact
+# pdf-colors
 # pdf-read
 # root
 # version
