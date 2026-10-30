@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -208,6 +209,32 @@ func TestLibreOfficeProcess_UnusableLokIsTerminated(t *testing.T) {
 
 			if p.Healthy(logger) {
 				t.Fatal("lok still reported healthy, so the supervisor would not restart it")
+			}
+		})
+	}
+}
+
+// --libreoffice-enable-macros reaches lok on every request, in both states.
+func TestLibreOfficeProcess_EnableMacros(t *testing.T) {
+	for _, enableMacros := range []bool{false, true} {
+		t.Run(fmt.Sprint(enableMacros), func(t *testing.T) {
+			p := startFakeLok(t)
+			p.arguments.enableMacros = enableMacros
+			dir := t.TempDir()
+			output := filepath.Join(dir, "out.pdf")
+
+			err := p.pdf(context.Background(), slog.New(slog.DiscardHandler), filepath.Join(dir, "ok.docx"), output, DefaultOptions())
+			if err != nil {
+				t.Fatalf("pdf: %v", err)
+			}
+
+			var sent lokRequest
+			data, err := os.ReadFile(output)
+			if err != nil || json.Unmarshal(data, &sent) != nil {
+				t.Fatalf("the fake lok wrote no request: %v", err)
+			}
+			if sent.EnableMacros != enableMacros {
+				t.Errorf("enableMacros = %t, want %t", sent.EnableMacros, enableMacros)
 			}
 		})
 	}

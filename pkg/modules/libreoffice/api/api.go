@@ -389,6 +389,7 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.StringSlice("libreoffice-deny-list", []string{}, "Set the denied URLs for LibreOffice outbound fetches using regular expressions - supports multiple values")
 			fs.Bool("libreoffice-deny-private-ips", false, "Reject LibreOffice outbound URLs whose host resolves to a non-public IP address (loopback, RFC1918, link-local, unique-local). Enable on deployments that accept untrusted documents to mitigate SSRF against internal services")
 			fs.Bool("libreoffice-deny-public-ips", false, "Reject LibreOffice outbound URLs whose host resolves to a public IP address. Enable on air-gapped or data-governed deployments to prevent outbound traffic from leaving a private network")
+			fs.Bool("libreoffice-enable-macros", false, "Run the macros of the converted documents, including the ones bound to document events such as load. Macros run code inside the container: enable it only for trusted documents")
 			fs.Bool("libreoffice-enable-environment-proxy", false, "Route LibreOffice outbound fetches through the proxy defined by the standard HTTP_PROXY, HTTPS_PROXY, and NO_PROXY variables, including credentials")
 
 			return fs
@@ -416,6 +417,7 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 		binPath:      libreOfficeBinPath,
 		lokBinPath:   lokBinPath,
 		startTimeout: flags.MustDuration("libreoffice-start-timeout"),
+		enableMacros: flags.MustBool("libreoffice-enable-macros"),
 		proxyOptions: outboundProxyOptions{
 			allowList:              flags.MustRegexpSlice("libreoffice-allow-list"),
 			denyList:               flags.MustRegexpSlice("libreoffice-deny-list"),
@@ -427,6 +429,10 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 
 	// Logger.
 	a.logger = gotenberg.Logger(a).With(slog.String("logger", "libreoffice"))
+
+	if a.args.enableMacros {
+		a.logger.WarnContext(context.Background(), "--libreoffice-enable-macros (LIBREOFFICE_ENABLE_MACROS) runs the macros of every converted document, including on load. Enable it only when every document comes from a trusted source")
+	}
 
 	// Process.
 	a.libreOffice = newLibreOfficeProcess(a.args)

@@ -30,6 +30,9 @@ type libreOfficeArguments struct {
 	binPath      string
 	lokBinPath   string
 	startTimeout time.Duration
+	// enableMacros lets lok run the documents' macros. Off by default: a
+	// macro runs code inside the container.
+	enableMacros bool
 	proxyOptions outboundProxyOptions
 }
 
@@ -71,8 +74,8 @@ type lokRequest struct {
 	InputPath  string `json:"inputPath"`
 	OutputPath string `json:"outputPath"`
 	Password   string `json:"password,omitempty"` //nolint:gosec // document open password, sent to the local lok process only
-	// EnableMacros stays false: a document's macros run code inside the
-	// container.
+	// EnableMacros is always sent, so lok's own default never applies. See
+	// --libreoffice-enable-macros.
 	EnableMacros                    bool   `json:"enableMacros"`
 	Landscape                       bool   `json:"landscape"`
 	PaperFormat                     int    `json:"paperFormat"`
@@ -481,6 +484,7 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *slog.Logger, input
 	if err != nil {
 		return err
 	}
+	req.EnableMacros = p.arguments.enableMacros
 
 	// lok converts one document at a time, and a request must read its own
 	// answer.
