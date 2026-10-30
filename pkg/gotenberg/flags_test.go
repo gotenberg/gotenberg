@@ -56,6 +56,7 @@ func TestParsedFlags_MustString(t *testing.T) {
 		})
 	}
 }
+
 func TestParsedFlags_MustStringSlice(t *testing.T) {
 	fs := flag.NewFlagSet("tests", flag.ContinueOnError)
 	fs.StringSlice("foo", make([]string, 0), "")
@@ -104,6 +105,7 @@ func TestParsedFlags_MustStringSlice(t *testing.T) {
 		})
 	}
 }
+
 func TestParsedFlags_MustBool(t *testing.T) {
 	fs := flag.NewFlagSet("tests", flag.ContinueOnError)
 	fs.Bool("foo", false, "")
@@ -152,6 +154,7 @@ func TestParsedFlags_MustBool(t *testing.T) {
 		})
 	}
 }
+
 func TestParsedFlags_MustInt64(t *testing.T) {
 	fs := flag.NewFlagSet("tests", flag.ContinueOnError)
 	fs.Int64("foo", 0, "")
@@ -200,6 +203,7 @@ func TestParsedFlags_MustInt64(t *testing.T) {
 		})
 	}
 }
+
 func TestParsedFlags_MustInt(t *testing.T) {
 	fs := flag.NewFlagSet("tests", flag.ContinueOnError)
 	fs.Int("foo", 0, "")
@@ -248,6 +252,7 @@ func TestParsedFlags_MustInt(t *testing.T) {
 		})
 	}
 }
+
 func TestParsedFlags_MustFloat64(t *testing.T) {
 	fs := flag.NewFlagSet("tests", flag.ContinueOnError)
 	fs.Float64("foo", 1.0, "")
@@ -296,6 +301,7 @@ func TestParsedFlags_MustFloat64(t *testing.T) {
 		})
 	}
 }
+
 func TestParsedFlags_MustDuration(t *testing.T) {
 	fs := flag.NewFlagSet("tests", flag.ContinueOnError)
 	fs.Duration("foo", time.Duration(1)*time.Second, "")
@@ -344,6 +350,7 @@ func TestParsedFlags_MustDuration(t *testing.T) {
 		})
 	}
 }
+
 func TestParsedFlags_MustHumanReadableBytes(t *testing.T) {
 	fs := flag.NewFlagSet("tests", flag.ContinueOnError)
 	fs.String("foo", "1MB", "")
@@ -399,6 +406,7 @@ func TestParsedFlags_MustHumanReadableBytes(t *testing.T) {
 		})
 	}
 }
+
 func TestParsedFlags_MustRegexp(t *testing.T) {
 	fs := flag.NewFlagSet("tests", flag.ContinueOnError)
 	fs.String("foo", "", "")
@@ -448,6 +456,7 @@ func TestParsedFlags_MustRegexp(t *testing.T) {
 		})
 	}
 }
+
 func TestParsedFlags_MustRegexpSlice(t *testing.T) {
 	fs := flag.NewFlagSet("tests", flag.ContinueOnError)
 	fs.StringSlice("foo", []string{}, "")
@@ -517,6 +526,7 @@ func TestParsedFlags_MustRegexpSlice(t *testing.T) {
 		t.Errorf("expected 0 regexps for empty strings but got %d", len(result))
 	}
 }
+
 func TestParsedFlags_AllowListWarning(t *testing.T) {
 	fs := flag.NewFlagSet("tests", flag.ContinueOnError)
 	fs.StringSlice("chromium-allow-list", []string{}, "")
