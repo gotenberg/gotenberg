@@ -33,6 +33,11 @@ var ErrNonPublicIP = errors.New("non-public IP")
 // logs so a client cannot probe the lists.
 var ErrFiltered = errors.New("value filtered")
 
+// ErrUnresolvableHost happens when the host of an outbound URL cannot be
+// resolved. [DecideOutbound] wraps it together with [ErrFiltered], so callers
+// that only match the latter still fail closed.
+var ErrUnresolvableHost = errors.New("unresolvable host")
+
 // ErrPublicIP indicates that an outbound URL targets an IP address that is
 // reachable on the public internet. It is returned when a caller opts
 // into denying public destinations via [WithDenyPublicIPs]; typical use
@@ -380,7 +385,7 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 			// generic 403 rather than a 500. This also denies alternate IP
 			// encodings such as http://2130706433/ that the resolver rejects
 			// as a hostname but Chromium would read as a private IP.
-			return OutboundDecision{}, fmt.Errorf("validate '%s' host: %v: %w", normalized, err, ErrFiltered)
+			return OutboundDecision{}, fmt.Errorf("validate '%s' host: %v: %w: %w", normalized, err, ErrUnresolvableHost, ErrFiltered)
 		}
 	}
 

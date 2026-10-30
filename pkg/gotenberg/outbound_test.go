@@ -376,6 +376,9 @@ func TestDecideOutbound_UnresolvableHostFailsClosed(t *testing.T) {
 	if !errors.Is(err, ErrFiltered) {
 		t.Fatalf("expected ErrFiltered, got: %v", err)
 	}
+	if !errors.Is(err, ErrUnresolvableHost) {
+		t.Fatalf("expected ErrUnresolvableHost, got: %v", err)
+	}
 }
 
 func TestDecideOutbound_ResolverCancellationNotFiltered(t *testing.T) {

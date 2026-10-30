@@ -209,6 +209,15 @@ func listenForEventRequestPaused(ctx context.Context, logger *slog.Logger, optio
 					allow = false
 				}
 
+				reason := network.ErrorReasonAccessDenied
+				if errors.Is(err, gotenberg.ErrUnresolvableHost) && e.ResourceType != network.ResourceTypeDocument {
+					// Without the pinning proxy, Chromium would have reported
+					// the failed lookup itself, and failOnResourceLoadingFailed
+					// would catch it. A Document keeps AccessDenied for the
+					// reason below.
+					reason = network.ErrorReasonNameNotResolved
+				}
+
 				// Sub-resource file:// URLs are opt-in per route. A route
 				// that renders local files (HTML, Markdown) populates
 				// allowedFilePrefixes with the request working directory
@@ -236,7 +245,7 @@ func listenForEventRequestPaused(ctx context.Context, logger *slog.Logger, optio
 					// would attribute the iframe failure to the main page.
 					// Filter-block observability is provided by the warn log
 					// above instead.
-					req := fetch.FailRequest(e.RequestID, network.ErrorReasonAccessDenied)
+					req := fetch.FailRequest(e.RequestID, reason)
 					err = req.Do(executorCtx)
 					if err != nil {
 						logger.ErrorContext(ctx, fmt.Sprintf("fail request: %s", err))

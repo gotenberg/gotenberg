@@ -737,6 +737,20 @@ Feature: /forms/chromium/convert/html
       resource Stylesheet: net::ERR_FILE_NOT_FOUND
       """
 
+  # The URL filter resolves the host itself, so a failed lookup must still
+  # surface as Chromium's own name resolution error.
+  Scenario: POST /forms/chromium/convert/html (Fail On Resource Loading Failed with an unresolvable host)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST |  |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                       | testdata/unresolvable-resource-html/index.html | file  |
+      | failOnResourceLoadingFailed | true                                           | field |
+    Then the response status code should be 409
+    Then the response body should contain string:
+      """
+      resource Stylesheet: net::ERR_NAME_NOT_RESOLVED
+      """
+
   Scenario: POST /forms/chromium/convert/html (Fail On Console Exceptions)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
