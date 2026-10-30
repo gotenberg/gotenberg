@@ -158,6 +158,25 @@ Feature: Webhook
       }
       """
 
+  # A graceful shutdown stops taking requests, then lets the asynchronous ones
+  # deliver before the engines stop.
+  Scenario: Graceful Shutdown With An Asynchronous Request In Flight
+    Given I have a default Gotenberg container
+    Given I have a webhook server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                        | testdata/page-1-html/index.html               | file   |
+      | waitDelay                    | 3s                                            | field  |
+      | Gotenberg-Webhook-Url        | http://host.docker.internal:%d/webhook        | header |
+      | Gotenberg-Webhook-Events-Url | http://host.docker.internal:%d/webhook/events | header |
+    Then the response status code should be 204
+    When I stop the Gotenberg container
+    When I wait for the asynchronous request to the webhook
+    Then the webhook request header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the webhook request
+    Then the Gotenberg container should log the following entries:
+      | api: application stopped      |
+      | chromium: application stopped |
+
   Scenario: Missing Events URL
     Given I have a default Gotenberg container
     Given I have a webhook server

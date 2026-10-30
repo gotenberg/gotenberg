@@ -660,6 +660,30 @@ func (s *scenario) iWaitForTheAsynchronousRequestToWebhook(ctx context.Context) 
 	}
 }
 
+// iStopTheGotenbergContainer sends SIGTERM to Gotenberg and expects a graceful
+// shutdown: a clean exit within the stop timeout.
+func (s *scenario) iStopTheGotenbergContainer(ctx context.Context) error {
+	if s.gotenbergContainer == nil {
+		return errors.New("no Gotenberg container")
+	}
+
+	timeout := 60 * time.Second
+	err := s.gotenbergContainer.Stop(ctx, &timeout)
+	if err != nil {
+		return fmt.Errorf("stop Gotenberg container: %w", err)
+	}
+
+	state, err := s.gotenbergContainer.State(ctx)
+	if err != nil {
+		return fmt.Errorf("get Gotenberg container state: %w", err)
+	}
+	if state.ExitCode != 0 {
+		return fmt.Errorf("expected Gotenberg to exit with code 0, got %d", state.ExitCode)
+	}
+
+	return nil
+}
+
 func (s *scenario) theGotenbergContainerShouldLogTheFollowingEntries(ctx context.Context, should string, entriesTable *godog.Table) error {
 	if s.gotenbergContainer == nil {
 		return errors.New("no Gotenberg container")
@@ -1113,6 +1137,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.When(`^I make (\d+) concurrent "(POST)" requests to Gotenberg at the "([^"]*)" endpoint with the following form data and header\(s\):$`, s.iMakeConcurrentRequestsToGotenberg)
 	ctx.When(`^I make (\d+) sequential "(POST)" requests to Gotenberg at the "([^"]*)" endpoint, probing "([^"]*)" after each, with the following form data and header\(s\):$`, s.iMakeSequentialRequestsToGotenbergProbing)
 	ctx.When(`^I wait for the asynchronous request to the webhook$`, s.iWaitForTheAsynchronousRequestToWebhook)
+	ctx.When(`^I stop the Gotenberg container$`, s.iStopTheGotenbergContainer)
 	ctx.Then(`^the Gotenberg container (should|should NOT) log the following entries:$`, s.theGotenbergContainerShouldLogTheFollowingEntries)
 	ctx.Then(`^the response status code should be (\d+)$`, s.theResponseStatusCodeShouldBe)
 	ctx.Then(`^all concurrent response status codes should be (\d+)$`, s.allConcurrentResponseStatusCodesShouldBe)

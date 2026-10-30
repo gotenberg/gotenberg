@@ -751,14 +751,9 @@ func (mod *Chromium) StartupMessage() string {
 	return "Chromium automatically started"
 }
 
-// Stop stops the current browser instance.
-func (mod *Chromium) Stop(ctx context.Context) error {
-	// Block until the context is done so that another module may gracefully
-	// stop before we do a shutdown.
-	mod.logger.DebugContext(ctx, "wait for the end of grace duration")
-
-	<-ctx.Done()
-
+// Stop stops the current browser instance. [gotenberg.StopApps] calls it once
+// the API no longer hands it work.
+func (mod *Chromium) Stop(_ context.Context) error {
 	err := mod.supervisor.Shutdown()
 	if err == nil {
 		return nil
