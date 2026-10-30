@@ -88,7 +88,7 @@ func startFakeLok(t *testing.T) *libreOfficeProcess {
 
 	logger := slog.New(slog.DiscardHandler)
 
-	err = p.Start(logger)
+	err = p.Start(context.Background(), logger)
 	if err != nil {
 		t.Fatalf("Start: %v", err)
 	}

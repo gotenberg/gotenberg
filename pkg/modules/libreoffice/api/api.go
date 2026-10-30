@@ -560,7 +560,8 @@ func (a *Api) Start() error {
 		return nil
 	}
 
-	err := a.supervisor.Launch()
+	// No request bounds an auto-start: --libreoffice-start-timeout does.
+	err := a.supervisor.Launch(context.Background())
 	if err != nil {
 		return fmt.Errorf("launch supervisor: %w", err)
 	}

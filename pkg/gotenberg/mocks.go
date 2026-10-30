@@ -43,13 +43,13 @@ func (mod *DebuggableMock) Debug() map[string]any {
 
 // ProcessMock is a mock for the [Process] interface.
 type ProcessMock struct {
-	StartMock   func(logger *slog.Logger) error
+	StartMock   func(ctx context.Context, logger *slog.Logger) error
 	StopMock    func(logger *slog.Logger) error
 	HealthyMock func(logger *slog.Logger) bool
 }
 
-func (p *ProcessMock) Start(logger *slog.Logger) error {
-	return p.StartMock(logger)
+func (p *ProcessMock) Start(ctx context.Context, logger *slog.Logger) error {
+	return p.StartMock(ctx, logger)
 }
 
 func (p *ProcessMock) Stop(logger *slog.Logger) error {
@@ -62,7 +62,7 @@ func (p *ProcessMock) Healthy(logger *slog.Logger) bool {
 
 // ProcessSupervisorMock is a mock for the [ProcessSupervisor] interface.
 type ProcessSupervisorMock struct {
-	LaunchMock                  func() error
+	LaunchMock                  func(ctx context.Context) error
 	ShutdownMock                func() error
 	HealthyMock                 func() bool
 	RunMock                     func(ctx context.Context, logger *slog.Logger, task func() error) error
@@ -72,8 +72,8 @@ type ProcessSupervisorMock struct {
 	ConversionsSinceRestartMock func() int64
 }
 
-func (s *ProcessSupervisorMock) Launch() error {
-	return s.LaunchMock()
+func (s *ProcessSupervisorMock) Launch(ctx context.Context) error {
+	return s.LaunchMock(ctx)
 }
 
 func (s *ProcessSupervisorMock) Shutdown() error {

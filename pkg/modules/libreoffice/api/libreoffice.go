@@ -232,7 +232,7 @@ func newLokRequest(inputPath, outputPath string, options Options) (lokRequest, e
 	}, nil
 }
 
-func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
+func (p *libreOfficeProcess) Start(ctx context.Context, logger *slog.Logger) error {
 	if p.isStarted.Load() {
 		return errors.New("LibreOffice is already started")
 	}
@@ -333,7 +333,7 @@ func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 	stdout = bufio.NewReader(out)
 	exited = make(chan struct{})
 
-	go func() {
+	go func() { //nolint:gosec // G118: the process outlives the start request
 		// By waiting the process, we avoid the creation of a zombie process
 		// and learn when it exits, which makes it unhealthy.
 		waitErr := cmd.Wait()
@@ -347,12 +347,16 @@ func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 	// lok reads its standard input only once LibreOffice is loaded. A request
 	// without paths is answered right away, so its answer tells that the
 	// process is ready.
-	ctx, cancel := context.WithTimeout(context.Background(), p.arguments.startTimeout)
+	readyCtx, cancel := context.WithTimeout(ctx, p.arguments.startTimeout)
 	defer cancel()
 
-	logger.DebugContext(ctx, "waiting for LibreOffice to be loaded...")
+	logger.DebugContext(readyCtx, "waiting for LibreOffice to be loaded...")
 
-	resp, err := exchange(ctx, stdin, stdout, exited, struct{}{})
+	resp, err := exchange(readyCtx, stdin, stdout, exited, struct{}{})
+	if err != nil && ctx.Err() != nil {
+		// The request gave up first: the start timeout is not to blame.
+		return fmt.Errorf("start LibreOffice: %w", err)
+	}
 	if err != nil {
 		return fmt.Errorf("LibreOffice did not load within the start timeout; increase --libreoffice-start-timeout (env LIBREOFFICE_START_TIMEOUT) or check system resources: %w", err)
 	}
@@ -361,7 +365,7 @@ func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 		return fmt.Errorf("unexpected lok answer to the readiness request: %+v", resp)
 	}
 
-	logger.DebugContext(ctx, "LibreOffice loaded")
+	logger.DebugContext(readyCtx, "LibreOffice loaded")
 	success = true
 
 	return nil
