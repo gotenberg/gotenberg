@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,6 +29,9 @@ import (
 var (
 	failedScenariosMu sync.Mutex
 	failedScenarios   []string // file:line paths for re-run
+	// unmappedFailures counts the failed scenarios no file:line path could be
+	// found for. A retry would skip them, so the run must fail instead.
+	unmappedFailures int
 )
 
 // ResetFailedScenarios clears the collected failures.
@@ -35,6 +39,15 @@ func ResetFailedScenarios() {
 	failedScenariosMu.Lock()
 	defer failedScenariosMu.Unlock()
 	failedScenarios = nil
+	unmappedFailures = 0
+}
+
+// UnmappedFailures returns the number of failed scenarios a retry cannot
+// target.
+func UnmappedFailures() int {
+	failedScenariosMu.Lock()
+	defer failedScenariosMu.Unlock()
+	return unmappedFailures
 }
 
 // FailedScenarioPaths returns file:line paths of failed scenarios.
@@ -59,6 +72,9 @@ func recordFailedScenario(sc *godog.Scenario) {
 
 	line := findScenarioLine(filePath, sc.Name)
 	if line <= 0 {
+		failedScenariosMu.Lock()
+		defer failedScenariosMu.Unlock()
+		unmappedFailures++
 		return
 	}
 
@@ -75,9 +91,10 @@ func findScenarioLine(filePath, name string) int {
 		return 0
 	}
 
-	target := "Scenario: " + name
+	// A retry of a Scenario Outline line runs all of its examples.
+	targets := []string{"Scenario: " + name, "Scenario Outline: " + name}
 	for i, line := range strings.Split(string(data), "\n") {
-		if strings.TrimSpace(line) == target {
+		if slices.Contains(targets, strings.TrimSpace(line)) {
 			return i + 1
 		}
 	}

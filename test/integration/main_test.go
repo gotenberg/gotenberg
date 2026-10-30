@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/cucumber/godog"
@@ -45,6 +47,9 @@ func TestMain(m *testing.M) {
 	maxAttempts := 4 // 1 initial run + up to 3 retries
 	paths := []string{"features"}
 
+	// Scenarios that failed at least once: reported when they pass on a retry.
+	var flaky []string
+
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		// Reset the failure collector before each run.
 		scenario.ResetFailedScenarios()
@@ -70,12 +75,28 @@ func TestMain(m *testing.M) {
 		}.Run()
 
 		if code == 0 {
+			if len(flaky) > 0 {
+				fmt.Fprintf(colors.Colored(os.Stdout), "\n--- %d flaky scenario(s), passed on a retry ---\n%s\n", len(flaky), strings.Join(flaky, "\n"))
+			}
 			os.Exit(0)
+		}
+
+		// A failure the retry cannot target would be dropped from it, and a
+		// green retry would then hide it.
+		if unmapped := scenario.UnmappedFailures(); unmapped > 0 {
+			fmt.Fprintf(colors.Colored(os.Stdout), "\n--- %d failed scenario(s) cannot be retried, failing the run ---\n", unmapped)
+			os.Exit(code)
 		}
 
 		failedPaths := scenario.FailedScenarioPaths()
 		if len(failedPaths) == 0 || attempt == maxAttempts {
 			os.Exit(code)
+		}
+
+		for _, path := range failedPaths {
+			if !slices.Contains(flaky, path) {
+				flaky = append(flaky, path)
+			}
 		}
 
 		fmt.Fprintf(colors.Colored(os.Stdout),
