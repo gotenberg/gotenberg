@@ -74,13 +74,6 @@ func (mod *PDF) Provision(ctx *gotenberg.Context) error {
 	mod.denyPublicIPs = flags.MustBool("pdf-deny-public-ips")
 	mod.envProxy = flags.MustBool("pdf-enable-environment-proxy")
 
-	if mod.maxConcurrency > 0 {
-		maxFileConcurrency = mod.maxConcurrency
-		// One fewer than the ceiling: each request already reserves a unit of
-		// its own. See [extraSlots].
-		extraSlots = make(chan struct{}, mod.maxConcurrency-1)
-	}
-
 	mod.processor = &Processor{
 		limits: litho.Limits{
 			MaxStreamBytes:       flags.MustHumanReadableBytes("pdf-max-stream-bytes"),
@@ -91,6 +84,7 @@ func (mod *PDF) Provision(ctx *gotenberg.Context) error {
 		// Built once, so the font directories are indexed once per process.
 		fonts:      litho.WithSystemFonts(),
 		httpClient: mod.httpClient,
+		files:      newFileConcurrency(mod.maxConcurrency),
 	}
 
 	return nil

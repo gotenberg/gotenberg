@@ -18,13 +18,14 @@ import (
 // the headroom opt in.
 const defaultMaxConcurrency = 1
 
-// maxFileConcurrency is how many files one request may have in flight at once.
-// It is replaced during [PDF.Provision].
-var maxFileConcurrency = defaultMaxConcurrency
-
+// fileConcurrency bounds how many files a [Processor] runs at once.
+//
+// max is how many files one request may have in flight at once. Below two, a
+// request processes its files one after the other.
+//
 // extraSlots bounds the concurrency this package ADDS, across the whole
-// process rather than per request, and holds one fewer slot than
-// [maxFileConcurrency] because every request already owns one unit of its own.
+// process rather than per request, and holds one fewer slot than max because
+// every request already owns one unit of its own.
 //
 // Bounding the added concurrency rather than the total is what keeps the
 // ceiling from becoming a throughput regression. The sequential loops this
@@ -33,12 +34,28 @@ var maxFileConcurrency = defaultMaxConcurrency
 // down to the ceiling, so an operator raising the flag to speed up a single
 // multi-file request would slow the server down under real load. Reserving
 // each request the unit it always had makes the worst case "what happened
-// before, plus at most maxFileConcurrency-1".
+// before, plus at most max-1".
 //
 // A per-request limit would have the opposite failure: X simultaneous requests
 // forking X times the limit, trading the timeouts this exists to prevent for
 // memory exhaustion.
-var extraSlots = make(chan struct{}, defaultMaxConcurrency-1)
+type fileConcurrency struct {
+	max        int
+	extraSlots chan struct{}
+}
+
+// newFileConcurrency returns the [fileConcurrency] of a ceiling of maxFiles,
+// or of [defaultMaxConcurrency] when maxFiles is not positive.
+func newFileConcurrency(maxFiles int) fileConcurrency {
+	if maxFiles < 1 {
+		maxFiles = defaultMaxConcurrency
+	}
+
+	return fileConcurrency{
+		max:        maxFiles,
+		extraSlots: make(chan struct{}, maxFiles-1),
+	}
+}
 
 // acquireSlot waits for the first unit of capacity to become available,
 // either this request's reserved unit or a slot from the shared pool, and
@@ -49,7 +66,7 @@ var extraSlots = make(chan struct{}, defaultMaxConcurrency-1)
 // cannot pick up its own request's reserved unit when the file before it
 // finishes, so the reserved units sit idle while every file queues on the
 // pool, which is slower than having no pool at all.
-func acquireSlot(ctx *api.Context, reserved chan struct{}) (func(), error) {
+func (p *Processor) acquireSlot(ctx *api.Context, reserved chan struct{}) (func(), error) {
 	// An [api.Context] carries a request context in production, but one built
 	// as a literal, which the unit tests do, embeds a nil [context.Context]
 	// and would panic on Done. A nil channel never fires, which correctly
@@ -73,8 +90,8 @@ func acquireSlot(ctx *api.Context, reserved chan struct{}) (func(), error) {
 	select {
 	case <-reserved:
 		return func() { reserved <- struct{}{} }, nil
-	case extraSlots <- struct{}{}:
-		return func() { <-extraSlots }, nil
+	case p.files.extraSlots <- struct{}{}:
+		return func() { <-p.files.extraSlots }, nil
 	case <-done:
 		return nil, ctx.Err()
 	}
@@ -95,7 +112,7 @@ func acquireSlot(ctx *api.Context, reserved chan struct{}) (func(), error) {
 // fn receives the input path's index, for callers collecting a result per
 // file. Writing into a preallocated slice at the given index needs no further
 // synchronization; writing into a shared map does and must not be done from fn.
-func forEachInputPathIndexed(ctx *api.Context, inputPaths []string, fn func(i int, inputPath string) error) error {
+func (p *Processor) forEachInputPathIndexed(ctx *api.Context, inputPaths []string, fn func(i int, inputPath string) error) error {
 	if len(inputPaths) == 0 {
 		return nil
 	}
@@ -112,7 +129,7 @@ func forEachInputPathIndexed(ctx *api.Context, inputPaths []string, fn func(i in
 	// scheduler, and every file would be attempted even once one has failed.
 	// Taking the old path keeps the default a genuine no-op: same order, same
 	// early return, no goroutines.
-	if maxFileConcurrency < 2 {
+	if p.files.max < 2 {
 		for i, inputPath := range inputPaths {
 			err := fn(i, inputPath)
 			if err != nil {
@@ -126,7 +143,7 @@ func forEachInputPathIndexed(ctx *api.Context, inputPaths []string, fn func(i in
 	// The unit this request would have had all to itself before any of this
 	// existed. Whichever file claims it runs without touching the shared pool,
 	// so concurrent requests can never throttle each other below the
-	// one-document-apiece they already got. See [extraSlots].
+	// one-document-apiece they already got. See [fileConcurrency].
 	reserved := make(chan struct{}, 1)
 	reserved <- struct{}{}
 
@@ -135,7 +152,7 @@ func forEachInputPathIndexed(ctx *api.Context, inputPaths []string, fn func(i in
 	var wg sync.WaitGroup
 	for i, inputPath := range inputPaths {
 		wg.Go(func() {
-			release, err := acquireSlot(ctx, reserved)
+			release, err := p.acquireSlot(ctx, reserved)
 			if err != nil {
 				errs[i] = err
 				return

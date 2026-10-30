@@ -22,6 +22,7 @@ type Processor struct {
 	limits     litho.Limits
 	fonts      litho.RemediateOption
 	httpClient func(ctx context.Context) *http.Client
+	files      fileConcurrency
 }
 
 // stageError locates a failure to a stage and a document, for the client.
@@ -210,7 +211,7 @@ func (p *Processor) merge(ctx *api.Context, docs []document, password string) ([
 func (p *Processor) split(ctx *api.Context, s *splitStage, docs []document, password string) ([]document, error) {
 	parts := make([][]document, len(docs))
 
-	err := forEachInputPathIndexed(ctx, documentPaths(docs), func(i int, _ string) error {
+	err := p.forEachInputPathIndexed(ctx, documentPaths(docs), func(i int, _ string) error {
 		var err error
 		parts[i], err = p.splitOne(ctx, s, docs[i], password)
 		if err != nil {
@@ -296,7 +297,7 @@ func splitGroups(s *splitStage, pageCount int) ([][]int, error) {
 func (p *Processor) runEach(ctx *api.Context, run Stages, docs []document, password string, files map[string]string) ([]document, error) {
 	out := make([]document, len(docs))
 
-	err := forEachInputPathIndexed(ctx, documentPaths(docs), func(i int, _ string) error {
+	err := p.forEachInputPathIndexed(ctx, documentPaths(docs), func(i int, _ string) error {
 		var err error
 		out[i], err = p.runOne(ctx, run, docs[i], password, files)
 
