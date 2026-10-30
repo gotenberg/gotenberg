@@ -261,11 +261,11 @@ Feature: /forms/libreoffice/convert
       | addOriginalDocumentAsStream     | foo | field |
       | singlePage                      | foo | field |
       | nativeTaggedPdf                 | foo | field |
-      | initialView                     | 5   | field |
+      | initialView                     | foo | field |
       | initialPage                     | -1  | field |
-      | magnification                   | 9   | field |
+      | magnification                   | foo | field |
       | zoom                            | -1  | field |
-      | pageLayout                      | 7   | field |
+      | pageLayout                      | foo | field |
       | firstPageOnLeft                 | foo | field |
       | resizeWindowToInitialPage       | foo | field |
       | centerWindow                    | foo | field |
@@ -303,11 +303,11 @@ Feature: /forms/libreoffice/convert
       form field 'addOriginalDocumentAsStream' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
       form field 'singlePage' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
       form field 'nativeTaggedPdf' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'initialView' is invalid (got '5', resulting to value is not 0, 1 or 2)
+      form field 'initialView' is invalid (got 'foo', resulting to must be one of default, outline, thumbnails, got "foo")
       form field 'initialPage' is invalid (got '-1', resulting to value is inferior to 1)
-      form field 'magnification' is invalid (got '9', resulting to value is not 0, 1, 2, 3 or 4)
+      form field 'magnification' is invalid (got 'foo', resulting to must be one of default, fitWindow, fitWidth, fitVisible, zoom, got "foo")
       form field 'zoom' is invalid (got '-1', resulting to value is inferior to 1)
-      form field 'pageLayout' is invalid (got '7', resulting to value is not 0, 1, 2 or 3)
+      form field 'pageLayout' is invalid (got 'foo', resulting to must be one of default, singlePage, oneColumn, twoColumnLeft, twoColumnRight, got "foo")
       form field 'firstPageOnLeft' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
       form field 'resizeWindowToInitialPage' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
       form field 'centerWindow' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
@@ -357,7 +357,7 @@ Feature: /forms/libreoffice/convert
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Invalid form data: form field 'nativePdfua' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      Invalid form data: form field 'nativePdfua' is invalid (got 'foo', resulting to must be PDF/UA-1, got "foo")
       """
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
       | files      | testdata/page_1.docx | file  |
@@ -604,7 +604,7 @@ Feature: /forms/libreoffice/convert
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
       | files       | testdata/page_1.docx | file  |
       | nativePdfa  | PDF/A-1b             | field |
-      | nativePdfua | true                 | field |
+      | nativePdfua | PDF/UA-1             | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -753,12 +753,12 @@ Feature: /forms/libreoffice/convert
   Scenario: POST /forms/libreoffice/convert (Native Watermark - Text with Options)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
-      | files                      | testdata/page_1.docx | file  |
-      | nativeWatermarkText        | DRAFT                | field |
-      | nativeWatermarkColor       | 16711680             | field |
-      | nativeWatermarkFontHeight  | 48                   | field |
-      | nativeWatermarkRotateAngle | 450                  | field |
-      | nativeWatermarkFontName    | Courier              | field |
+      | files                   | testdata/page_1.docx | file  |
+      | nativeWatermarkText     | DRAFT                | field |
+      | nativeWatermarkColor    | #ff0000              | field |
+      | nativeWatermarkFontSize | 48                   | field |
+      | nativeWatermarkRotation | 45                   | field |
+      | nativeWatermarkFont     | Courier              | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response

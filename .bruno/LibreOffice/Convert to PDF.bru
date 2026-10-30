@@ -35,11 +35,11 @@ body:multipart-form {
   ~addOriginalDocumentAsStream: false
   ~singlePage: false
   ~nativeTaggedPdf: false
-  ~initialView: 0
+  ~initialView: outline
   ~initialPage: 1
-  ~magnification: 0
+  ~magnification: fitWidth
   ~zoom: 100
-  ~pageLayout: 0
+  ~pageLayout: singlePage
   ~firstPageOnLeft: false
   ~resizeWindowToInitialPage: false
   ~centerWindow: false
@@ -55,13 +55,13 @@ body:multipart-form {
   ~nativeReduceImageResolution: false
   ~nativeMaxImageResolution: 300
   ~nativeWatermarkText:
-  ~nativeWatermarkColor: 0
-  ~nativeWatermarkFontHeight: 0
-  ~nativeWatermarkRotateAngle: 0
-  ~nativeWatermarkFontName:
+  ~nativeWatermarkColor: #ff0000
+  ~nativeWatermarkFontSize: 48
+  ~nativeWatermarkRotation: 45
+  ~nativeWatermarkFont: Helvetica
   ~nativeTiledWatermarkText:
   ~nativePdfa: PDF/A-2b
-  ~nativePdfua: false
+  ~nativePdfua: PDF/UA-1
   ~stages: [{"op":"set-metadata","title":"My title"},{"op":"remediate","profile":"PDF/A-2b"},{"op":"render","pages":"1"}]
 }
 
