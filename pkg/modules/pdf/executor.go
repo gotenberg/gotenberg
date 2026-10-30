@@ -11,7 +11,10 @@ import (
 	"strings"
 
 	litho "github.com/gotenberg/litho/pkg/pdf"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 )
 
@@ -144,8 +147,18 @@ func (p *Processor) open(ctx context.Context, path, password string) (*litho.Rea
 	return r, nil
 }
 
-// write runs pipeline into a new file named filename and returns its document.
-func (p *Processor) write(ctx *api.Context, pipeline *litho.Pipeline, filename string, opts ...litho.WriteOption) (document, error) {
+// write runs pipeline, the stages ops, into a new file named filename and
+// returns its document. The pipeline runs its stages as it writes, so the
+// pdf.write span holds the spans of the edits.
+func (p *Processor) write(ctx *api.Context, pipeline *litho.Pipeline, ops []string, filename string, opts ...litho.WriteOption) (_ document, err error) {
+	spanCtx, span := gotenberg.Tracer().Start(ctx, "pdf.write",
+		trace.WithAttributes(attribute.StringSlice("gotenberg.pdf.stages", ops)),
+	)
+	defer func() {
+		_ = gotenberg.SetSpanStatus(span, err, errorType(err))
+		span.End()
+	}()
+
 	path := ctx.GeneratePath(".pdf")
 
 	out, err := os.Create(path)
@@ -158,7 +171,7 @@ func (p *Processor) write(ctx *api.Context, pipeline *litho.Pipeline, filename s
 		client = p.httpClient(ctx)
 	}
 
-	writeCtx := litho.ContextWithHTTPClient(ctx, client)
+	writeCtx := litho.ContextWithHTTPClient(spanCtx, client)
 	_, err = pipeline.WriteTo(writeCtx, out, append(opts, litho.WithPipelineTempDir(ctx.DirPath()))...)
 
 	closeErr := out.Close()
@@ -199,7 +212,7 @@ func (p *Processor) merge(ctx *api.Context, docs []document, password string) ([
 
 	pipeline := litho.NewPipeline().Open(readers[0]).Merge(readers[1:])
 
-	merged, err := p.write(ctx, pipeline, docs[0].filename)
+	merged, err := p.write(ctx, pipeline, []string{"merge"}, docs[0].filename)
 	if err != nil {
 		return nil, &stageError{op: "merge", filename: docs[0].filename, err: err}
 	}
@@ -253,7 +266,7 @@ func (p *Processor) splitOne(ctx *api.Context, s *splitStage, d document, passwo
 	parts := make([]document, 0, len(groups))
 
 	for i, pages := range groups {
-		part, err := p.write(ctx, litho.NewPipeline().Open(r).Split(pages), fmt.Sprintf("%s_%d.pdf", base, i))
+		part, err := p.write(ctx, litho.NewPipeline().Open(r).Split(pages), []string{"split"}, fmt.Sprintf("%s_%d.pdf", base, i))
 		if err != nil {
 			return nil, err
 		}
@@ -347,8 +360,14 @@ func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password st
 
 			writeOpts = append(writeOpts, opts...)
 		case editor:
-			pipeline.Apply(func(ctx context.Context, w *litho.Writer) error {
-				err := s.edit(ctx, w, env)
+			pipeline.Apply(func(ctx context.Context, w *litho.Writer) (err error) {
+				ctx, span := gotenberg.Tracer().Start(ctx, "pdf."+s.op())
+				defer func() {
+					_ = gotenberg.SetSpanStatus(span, err, errorType(err))
+					span.End()
+				}()
+
+				err = s.edit(ctx, w, env)
 				if err != nil {
 					return &stageError{op: s.op(), filename: d.filename, err: err}
 				}
@@ -360,7 +379,12 @@ func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password st
 		}
 	}
 
-	out, err := p.write(ctx, pipeline, d.filename, writeOpts...)
+	ops := make([]string, len(run))
+	for i, s := range run {
+		ops[i] = s.op()
+	}
+
+	out, err := p.write(ctx, pipeline, ops, d.filename, writeOpts...)
 	if err != nil {
 		var se *stageError
 		if errors.As(err, &se) {
