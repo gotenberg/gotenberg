@@ -4,33 +4,22 @@
 ARG GOLANG_VERSION=1.27.3
 
 # ----------------------------------------------
-# lok binary build stage
+# lok binary stage
 # ----------------------------------------------
-# lok converts documents with LibreOfficeKit. It is built from a pinned commit
-# until a lok release carries the features Gotenberg relies on; then lok's
-# install.sh replaces this stage. It links against the LibreOfficeKit headers
-# of the LibreOffice the final images install from trixie-backports.
-FROM golang:$GOLANG_VERSION-trixie AS lok-binary-stage
+# lok converts documents with LibreOfficeKit. Its release binaries link
+# against the LibreOfficeKit headers of the LibreOffice the final images
+# install from trixie-backports, and need no newer glibc than Debian 13 has.
+FROM debian:13-slim AS lok-binary-stage
 
-# See https://github.com/gotenberg/lok.
-ARG LOK_COMMIT=54ab7ed85e20281b3ab39c66f4f415df8d69c2cd
-ENV CGO_ENABLED=1
-# LibreOffice from trixie-backports is newer than 7.6, which provides the
-# trimMemory API.
-ENV CGO_CFLAGS="-DLOK_HAS_TRIM_MEMORY"
+# See https://github.com/gotenberg/lok/releases.
+ARG LOK_VERSION=v0.0.2
 
-RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/sources.list \
-    && apt-get update -qq \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -t trixie-backports libreofficekit-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /home
-
-RUN curl -Ls "https://github.com/gotenberg/lok/archive/$LOK_COMMIT.tar.gz" -o lok.tar.gz \
-    && tar --strip-components=1 -xzf lok.tar.gz \
-    && go build -o lok -ldflags "-s -w -X main.version=$LOK_COMMIT" ./cmd/lok \
-    # Verify installation.
-    && ./lok --version
+RUN apt-get update -qq \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/* \
+    # The script verifies the checksum, then runs lok --version.
+    && curl -fsSL "https://github.com/gotenberg/lok/releases/download/$LOK_VERSION/install.sh" \
+    | LOK_VERSION="$LOK_VERSION" LOK_INSTALL_DIR=/home sh
 
 # ----------------------------------------------
 # Gotenberg binary build stage
