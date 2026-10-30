@@ -16,12 +16,14 @@ import (
 	internalotel "github.com/gotenberg/gotenberg/v9/pkg/gotenberg/internal/otel"
 )
 
+// The formats of the standard logger, see [TelemetryConfig].
 const (
 	AutoLoggingFormat = "auto"
 	JsonLoggingFormat = "json"
 	TextLoggingFormat = "text"
 )
 
+// The logging levels, see [TelemetryConfig].
 const (
 	ErrorLoggingLevel = "error"
 	WarnLoggingLevel  = "warn"
@@ -29,6 +31,7 @@ const (
 	DebugLoggingLevel = "debug"
 )
 
+// The cases of the level the standard logger writes, see [TelemetryConfig].
 const (
 	LowerLevelCase = "lower"
 	UpperLevelCase = "upper"

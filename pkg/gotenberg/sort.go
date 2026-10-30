@@ -25,14 +25,18 @@ const (
 // https://github.com/gotenberg/gotenberg/issues/1287.
 type AlphanumericSort []string
 
+// Len implements [sort.Interface].
 func (s AlphanumericSort) Len() int {
 	return len(s)
 }
 
+// Swap implements [sort.Interface].
 func (s AlphanumericSort) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
+// Less implements [sort.Interface]. It orders by number first, see
+// [AlphanumericSort].
 func (s AlphanumericSort) Less(i, j int) bool {
 	numI, restI, locI := extractNumber(s[i])
 	numJ, restJ, locJ := extractNumber(s[j])

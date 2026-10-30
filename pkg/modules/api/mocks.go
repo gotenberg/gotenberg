@@ -109,6 +109,7 @@ type RouterMock struct {
 	RoutesMock func() ([]Route, error)
 }
 
+// Routes calls RoutesMock.
 func (router *RouterMock) Routes() ([]Route, error) {
 	return router.RoutesMock()
 }
@@ -118,6 +119,7 @@ type MiddlewareProviderMock struct {
 	MiddlewaresMock func() ([]Middleware, error)
 }
 
+// Middlewares calls MiddlewaresMock.
 func (provider *MiddlewareProviderMock) Middlewares() ([]Middleware, error) {
 	return provider.MiddlewaresMock()
 }
@@ -128,10 +130,12 @@ type HealthCheckerMock struct {
 	ReadyMock  func(ctx context.Context) error
 }
 
+// Checks calls ChecksMock.
 func (mod *HealthCheckerMock) Checks() ([]health.CheckerOption, error) {
 	return mod.ChecksMock()
 }
 
+// Ready calls ReadyMock.
 func (mod *HealthCheckerMock) Ready(ctx context.Context) error {
 	return mod.ReadyMock(ctx)
 }

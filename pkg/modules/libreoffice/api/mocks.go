@@ -14,10 +14,12 @@ type ApiMock struct {
 	ExtensionsMock func() []string
 }
 
+// Pdf calls PdfMock.
 func (api *ApiMock) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error {
 	return api.PdfMock(ctx, logger, inputPath, outputPath, options)
 }
 
+// Extensions calls ExtensionsMock.
 func (api *ApiMock) Extensions() []string {
 	return api.ExtensionsMock()
 }
@@ -27,6 +29,7 @@ type ProviderMock struct {
 	LibreOfficeMock func() (Converter, error)
 }
 
+// LibreOffice calls LibreOfficeMock.
 func (provider *ProviderMock) LibreOffice() (Converter, error) {
 	return provider.LibreOfficeMock()
 }

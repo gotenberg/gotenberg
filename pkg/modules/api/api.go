@@ -121,8 +121,12 @@ type MiddlewareProvider interface {
 type MiddlewareStack uint32
 
 const (
+	// DefaultStack runs the middleware after routing, on every route.
 	DefaultStack MiddlewareStack = iota
+	// PreRouterStack runs the middleware before routing, on every request.
 	PreRouterStack
+	// MultipartStack runs the middleware on the multipart/form-data routes
+	// only, after the [Context] is built.
 	MultipartStack
 )
 
@@ -130,6 +134,7 @@ const (
 // middlewares provided by the [MiddlewareProvider] modules in a stack.
 type MiddlewarePriority uint32
 
+// The priorities, from the last middleware of a stack to run to the first.
 const (
 	VeryLowPriority MiddlewarePriority = iota
 	LowPriority

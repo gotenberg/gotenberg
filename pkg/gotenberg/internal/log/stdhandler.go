@@ -49,12 +49,12 @@ func (h traceContextHandler) WithGroup(name string) slog.Handler {
 	return traceContextHandler{Handler: h.Handler.WithGroup(name)}
 }
 
-// NewStdHandler returns a [slog.Handler] instance for the standard output.
 // upperLevelCase is the value of the level-case setting that keeps the level
 // field uppercase in the standard output. It mirrors gotenberg.UpperLevelCase,
 // duplicated here because the internal log package cannot import gotenberg.
 const upperLevelCase = "upper"
 
+// NewStdHandler returns a [slog.Handler] instance for the standard output.
 func NewStdHandler(level slog.Level, format string, fieldsPrefix string, enableGcpFields bool, levelCase string) (slog.Handler, error) {
 	// #nosec: G115
 	isTerminal := term.IsTerminal(int(os.Stdout.Fd()))

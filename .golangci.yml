@@ -32,10 +32,26 @@ linters:
     - sloglint
     - usetesting
     - gocritic
+    - godoclint
     - wastedassign
     - whitespace
+  settings:
+    godoclint:
+      default: basic
+      enable:
+        - require-doc
+        - require-pkg-doc
+        - start-with-name
+      options:
+        require-doc:
+          ignore-unexported: true
   exclusions:
     generated: lax
+    rules:
+      # A verbatim copy of otelhttp's generated internal package.
+      - path: pkg/gotenberg/semconv/
+        linters:
+          - godoclint
     presets:
       - comments
       - common-false-positives
