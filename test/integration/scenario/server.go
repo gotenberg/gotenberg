@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"math/rand/v2"
-	"mime"
 	"net"
 	"net/http"
 	"os"
@@ -18,7 +17,6 @@ import (
 	"github.com/cucumber/godog"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
-	"github.com/mholt/archives"
 )
 
 // request is a request the helper server received, recorded once fully read.
@@ -143,79 +141,29 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 // storeWebhookOutput writes the output a webhook delivered into the working
 // directory of its request, and extracts it when it is a zip archive.
 func storeWebhookOutput(ctx context.Context, workdir string, rec *request) error {
-	cd := rec.header.Get("Content-Disposition")
-	if cd == "" {
-		return errors.New("no Content-Disposition header")
-	}
-
-	_, params, err := mime.ParseMediaType(cd)
+	filename, ok, err := outputFilename(rec.header.Get("Content-Disposition"))
 	if err != nil {
-		return fmt.Errorf("parse Content-Disposition header: %w", err)
+		return err
 	}
 
-	filename, ok := params["filename"]
+	contentType := rec.header.Get("Content-Type")
 	if !ok {
-		filename = uuid.NewString()
-		contentType := rec.header.Get("Content-Type")
+		if rec.header.Get("Content-Disposition") == "" {
+			return errors.New("no Content-Disposition header")
+		}
+
 		switch contentType {
 		case "application/zip":
-			filename = fmt.Sprintf("%s.zip", filename)
+			filename = uuid.NewString() + ".zip"
 		case "application/pdf":
-			filename = fmt.Sprintf("%s.pdf", filename)
+			filename = uuid.NewString() + ".pdf"
 		default:
 			return errors.New("no filename in Content-Disposition header")
 		}
 	}
 
 	dirPath := fmt.Sprintf("%s/%s", workdir, rec.header.Get("Gotenberg-Trace"))
-	// #nosec
-	err = os.MkdirAll(dirPath, 0o755)
-	if err != nil {
-		return fmt.Errorf("create working directory: %w", err)
-	}
-
-	fpath := fmt.Sprintf("%s/%s", dirPath, filename)
-	// #nosec
-	file, err := os.Create(fpath)
-	if err != nil {
-		return fmt.Errorf("create file %q: %w", fpath, err)
-	}
-	defer file.Close()
-
-	_, err = file.Write(rec.body)
-	if err != nil {
-		return fmt.Errorf("write file %q: %w", fpath, err)
-	}
-
-	if rec.header.Get("Content-Type") == "application/zip" {
-		var format archives.Zip
-		err = format.Extract(ctx, file, func(ctx context.Context, f archives.FileInfo) error {
-			source, err := f.Open()
-			if err != nil {
-				return fmt.Errorf("open file %q: %w", f.Name(), err)
-			}
-			defer source.Close()
-
-			targetPath := fmt.Sprintf("%s/%s", dirPath, f.Name())
-			target, err := os.Create(targetPath)
-			if err != nil {
-				return fmt.Errorf("create file %q: %w", targetPath, err)
-			}
-			defer target.Close()
-
-			_, err = io.Copy(target, source)
-			if err != nil {
-				return fmt.Errorf("copy file %q: %w", targetPath, err)
-			}
-
-			return nil
-		})
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return storeOutput(ctx, dirPath, filename, contentType, rec.body)
 }
 
 // recordRequest records r, whose body is not read, into *slot.
