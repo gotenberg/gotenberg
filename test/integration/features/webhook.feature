@@ -231,6 +231,23 @@ Feature: Webhook
       Forbidden
       """
 
+  # The helper server resolves to a non-public address: a private one on Linux,
+  # 0.250.250.254 on Docker Desktop.
+  Scenario: Webhook URL On A Private Address
+    Given I have a webhook server
+    Given I have a Gotenberg container with the following environment variable(s):
+      | WEBHOOK_ALLOW_LIST       |      |
+      | WEBHOOK_DENY_PRIVATE_IPS | true |
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
+      | files                        | testdata/page_1.pdf     | file   |
+      | Gotenberg-Webhook-Url        | {helper}/webhook        | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events | header |
+    Then the response status code should be 403
+    Then the response body should match string:
+      """
+      Forbidden
+      """
+
   Scenario: Missing Events URL
     Given I have a default Gotenberg container
     Given I have a webhook server
