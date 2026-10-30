@@ -495,6 +495,10 @@ func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, bodyLimi
 				return fmt.Errorf("build output file: %w", err)
 			}
 
+			for key, value := range ctx.OutputHeaders() {
+				c.Response().Header().Set(key, value)
+			}
+
 			// Send the output file.
 			err = c.Attachment(outputPath, ctx.OutputFilename(outputPath))
 			if err != nil {
