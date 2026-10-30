@@ -48,7 +48,7 @@ func convertRoute(libreOffice libreofficeapi.Converter, processor *pdf.Processor
 				Bool("landscape", &options.Landscape).
 				Inches("paperWidth", &options.PaperWidth).
 				Inches("paperHeight", &options.PaperHeight).
-				String("nativePageRanges", &options.PageRanges).
+				String("nativePages", &options.PageRanges).
 				Bool("updateIndexes", &options.UpdateIndexes).
 				Bool("exportFormFields", &options.ExportFormFields).
 				Bool("allowDuplicateFieldNames", &options.AllowDuplicateFieldNames).
@@ -168,7 +168,7 @@ func convertRoute(libreOffice libreofficeapi.Converter, processor *pdf.Processor
 					case errors.Is(err, libreofficeapi.ErrLoadFailed):
 						sentinel = api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("LibreOffice could not read the document '%s'. Ensure the file is not corrupted and that its extension matches its actual format.", filename))
 					case errors.Is(err, libreofficeapi.ErrSaveFailed) && options.PageRanges != "":
-						sentinel = api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("LibreOffice could not apply the page ranges '%s' to the document '%s'. Check the 'nativePageRanges' form field; valid values look like '1-4', '2' or '1,3,5-7'.", options.PageRanges, filename))
+						sentinel = api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("LibreOffice could not apply the pages '%s' to the document '%s'. Check the 'nativePages' form field; valid values look like '1-4', '2' or '1,3,5-7'.", options.PageRanges, filename))
 					case errors.Is(err, libreofficeapi.ErrSaveFailed), errors.Is(err, libreofficeapi.ErrCrashed):
 						sentinel = api.NewSentinelHttpError(http.StatusInternalServerError, fmt.Sprintf(unattributableFailureMessage, filename))
 					default:

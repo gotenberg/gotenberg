@@ -525,23 +525,23 @@ Feature: /forms/chromium/convert/url
     #      """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url              | {helper}/html/testdata/page-1-html/index.html | field |
-      | nativePageRanges | foo                                           | field |
+      | url         | {helper}/html/testdata/page-1-html/index.html | field |
+      | nativePages | foo                                           | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Chromium does not handle the page ranges 'foo' (nativePageRanges) syntax
+      Chromium cannot read the pages 'foo' of the form field 'nativePages'; valid values look like '1-4', '2' or '1,3,5-7'
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url              | {helper}/html/testdata/page-1-html/index.html | field |
-      | nativePageRanges | 2-3                                           | field |
+      | url         | {helper}/html/testdata/page-1-html/index.html | field |
+      | nativePages | 2-3                                           | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      The page ranges '2-3' (nativePageRanges) exceeds the page count
+      The pages '2-3' of the form field 'nativePages' exceed the page count
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
