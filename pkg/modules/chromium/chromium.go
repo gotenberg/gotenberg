@@ -179,9 +179,9 @@ type Options struct {
 	// converting it.
 	WaitDelay time.Duration
 
-	// WaitWindowStatus is the window.status value to wait for before
+	// WaitForWindowStatus is the window.status value to wait for before
 	// converting an HTML document.
-	WaitWindowStatus string
+	WaitForWindowStatus string
 
 	// WaitForExpression is the custom JavaScript expression to wait before
 	// converting an HTML document until it returns true
@@ -248,7 +248,7 @@ func DefaultOptions() Options {
 		FailOnConsoleExceptions:         false,
 		FailOnConsoleMessageTypes:       nil,
 		WaitDelay:                       0,
-		WaitWindowStatus:                "",
+		WaitForWindowStatus:             "",
 		WaitForExpression:               "",
 		WaitForSelector:                 "",
 		Cookies:                         nil,

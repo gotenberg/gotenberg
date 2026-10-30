@@ -512,8 +512,8 @@ Feature: /forms/libreoffice/convert
   Scenario: POST /forms/libreoffice/convert (Split Ranges)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
-      | files  | testdata/pages_3.docx           | file  |
-      | stages | [{"op":"split","ranges":"2,3"}] | field |
+      | files  | testdata/pages_3.docx               | file  |
+      | stages | [{"op":"split","ranges":["2","3"]}] | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
     Then there should be 2 PDF(s) in the response

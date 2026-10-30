@@ -16,23 +16,29 @@ func (*mergeStage) validate() error { return nil }
 func (*mergeStage) files() []string { return nil }
 
 // splitStage turns each current document into several. Every splits it into
-// chunks of that many pages; Ranges into one document per comma-separated
-// part, such as "1-3,4,5-6".
+// chunks of that many pages; Ranges into one document per page selection, such
+// as ["1-3","4","5,7"].
 type splitStage struct {
-	Every  int    `json:"every"`
-	Ranges string `json:"ranges"`
+	Every  int      `json:"every"`
+	Ranges []string `json:"ranges"`
 }
 
 func (*splitStage) op() string { return "split" }
 
 func (s *splitStage) validate() error {
 	switch {
-	case s.Every == 0 && s.Ranges == "":
+	case s.Every == 0 && len(s.Ranges) == 0:
 		return errors.New(`set "every" or "ranges"`)
-	case s.Every != 0 && s.Ranges != "":
+	case s.Every != 0 && len(s.Ranges) != 0:
 		return errors.New(`set "every" or "ranges", not both`)
 	case s.Every < 0:
 		return fmt.Errorf(`"every" must be a positive number of pages, got %d`, s.Every)
+	}
+
+	for i, r := range s.Ranges {
+		if strings.TrimSpace(r) == "" {
+			return fmt.Errorf(`"ranges" entry %d must select pages, such as "1-3"`, i)
+		}
 	}
 
 	return nil
@@ -172,34 +178,34 @@ func (s *stampImageStage) validate() error {
 
 func (s *stampImageStage) files() []string { return []string{s.Image} }
 
-// stampPdfStage draws a page of an uploaded PDF over the given pages, all of
-// them when Pages is empty.
+// stampPdfStage draws page SourcePage of the uploaded PDF Source over the
+// given pages, all of them when Pages is empty.
 type stampPdfStage struct {
-	Pdf      string  `json:"pdf"`
-	Page     int     `json:"page"`
-	Pages    string  `json:"pages"`
-	X        float64 `json:"x"`
-	Y        float64 `json:"y"`
-	Scale    float64 `json:"scale"`
-	Opacity  float64 `json:"opacity"`
-	Rotation float64 `json:"rotation"`
+	Source     string  `json:"source"`
+	SourcePage int     `json:"sourcePage"`
+	Pages      string  `json:"pages"`
+	X          float64 `json:"x"`
+	Y          float64 `json:"y"`
+	Scale      float64 `json:"scale"`
+	Opacity    float64 `json:"opacity"`
+	Rotation   float64 `json:"rotation"`
 }
 
 func (*stampPdfStage) op() string { return "stamp-pdf" }
 
 func (s *stampPdfStage) validate() error {
-	if s.Pdf == "" {
-		return errors.New(`"pdf" must name an uploaded PDF`)
+	if s.Source == "" {
+		return errors.New(`"source" must name an uploaded PDF`)
 	}
 
-	if s.Page < 0 {
-		return fmt.Errorf(`"page" must be a page number, got %d`, s.Page)
+	if s.SourcePage < 0 {
+		return fmt.Errorf(`"sourcePage" must be a page number, got %d`, s.SourcePage)
 	}
 
 	return validateOpacity(s.Opacity)
 }
 
-func (s *stampPdfStage) files() []string { return []string{s.Pdf} }
+func (s *stampPdfStage) files() []string { return []string{s.Source} }
 
 // setMetadataStage writes the document information. Empty fields are left
 // out.
@@ -475,17 +481,18 @@ func (s *remediateStage) files() []string {
 }
 
 // signStage signs the output with an uploaded PKCS#12 file, or a PEM
-// certificate and key. TimestampUrl embeds a timestamp from that authority.
+// certificate and key. CertificatePassword opens the PKCS#12 file.
+// TimestampUrl embeds a timestamp from that authority.
 type signStage struct {
-	Certificate  string `json:"certificate"`
-	Key          string `json:"key"`
-	Password     string `json:"password"`
-	Reason       string `json:"reason"`
-	Location     string `json:"location"`
-	ContactInfo  string `json:"contactInfo"`
-	Name         string `json:"name"`
-	Pades        bool   `json:"pades"`
-	TimestampUrl string `json:"timestampUrl"`
+	Certificate         string `json:"certificate"`
+	Key                 string `json:"key"`
+	CertificatePassword string `json:"certificatePassword"`
+	Reason              string `json:"reason"`
+	Location            string `json:"location"`
+	ContactInfo         string `json:"contactInfo"`
+	Name                string `json:"name"`
+	Pades               bool   `json:"pades"`
+	TimestampUrl        string `json:"timestampUrl"`
 }
 
 func (*signStage) op() string { return "sign" }
@@ -512,12 +519,14 @@ func (s *signStage) files() []string {
 
 // timestampStage adds a document timestamp from an RFC 3161 authority.
 type timestampStage struct {
-	Url string `json:"url"`
+	TimestampUrl string `json:"timestampUrl"`
 }
 
-func (*timestampStage) op() string        { return "timestamp" }
-func (s *timestampStage) validate() error { return validateHttpUrl("url", s.Url) }
-func (*timestampStage) files() []string   { return nil }
+func (*timestampStage) op() string { return "timestamp" }
+func (s *timestampStage) validate() error {
+	return validateHttpUrl("timestampUrl", s.TimestampUrl)
+}
+func (*timestampStage) files() []string { return nil }
 
 // renderStage draws the pages of each final document as images, and adds them
 // to the outputs next to the document. Pages lists the pages to draw, every

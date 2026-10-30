@@ -92,7 +92,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 			return nil
 		}).
 		Duration("waitDelay", &options.WaitDelay).
-		String("waitWindowStatus", &options.WaitWindowStatus).
+		String("waitForWindowStatus", &options.WaitForWindowStatus).
 		String("waitForExpression", &options.WaitForExpression).
 		String("waitForSelector", &options.WaitForSelector).
 		Custom("cookies", func(value string) error {
@@ -787,7 +787,7 @@ func handleChromiumError(err error, options Options) error {
 
 	if errors.Is(err, ErrInvalidEvaluationExpression) {
 		if options.WaitForExpression == "" {
-			// We do not expect the 'waitWindowStatus' form field to return
+			// We do not expect the 'waitForWindowStatus' form field to return
 			// an ErrInvalidEvaluationExpression error. In such a scenario,
 			// we return a 500.
 			return err

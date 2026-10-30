@@ -12,9 +12,9 @@ post {
 
 body:multipart-form {
   files: @file(../../test/integration/testdata/page_1.pdf)
-  pdf: page_2.pdf
+  source: page_2.pdf
   files: @file(../../test/integration/testdata/page_2.pdf)
-  ~page: 1
+  ~sourcePage: 1
   ~pages:
   ~x: 0
   ~y: 0

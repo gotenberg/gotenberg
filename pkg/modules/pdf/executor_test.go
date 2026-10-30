@@ -153,7 +153,7 @@ func TestRun(t *testing.T) {
 			name:      "split by ranges",
 			fixtures:  []string{"pages_12.pdf"},
 			inputs:    []string{"pages_12.pdf"},
-			stages:    `[{"op":"split","ranges":"1-3,last"}]`,
+			stages:    `[{"op":"split","ranges":["1-3","last"]}]`,
 			wantNames: []string{"pages_12_0.pdf", "pages_12_1.pdf"},
 			check: func(t *testing.T, outputs []string) {
 				if a, b := pageCount(t, outputs[0]), pageCount(t, outputs[1]); a != 3 || b != 1 {
@@ -177,7 +177,7 @@ func TestRun(t *testing.T) {
 			name:      "rotate and stamps",
 			fixtures:  []string{"pages_12.pdf", "watermark.png", "page_2.pdf"},
 			inputs:    []string{"pages_12.pdf"},
-			stages:    `[{"op":"rotate","angle":90,"pages":"1"},{"op":"stamp-text","text":"DRAFT","pages":"1","color":"#ff0000","opacity":0.5},{"op":"stamp-image","image":"watermark.png","width":50,"height":50},{"op":"stamp-pdf","pdf":"page_2.pdf","scale":0.5}]`,
+			stages:    `[{"op":"rotate","angle":90,"pages":"1"},{"op":"stamp-text","text":"DRAFT","pages":"1","color":"#ff0000","opacity":0.5},{"op":"stamp-image","image":"watermark.png","width":50,"height":50},{"op":"stamp-pdf","source":"page_2.pdf","scale":0.5}]`,
 			wantNames: []string{"pages_12.pdf"},
 			check: func(t *testing.T, outputs []string) {
 				page, err := openOutput(t, outputs[0]).Page(context.Background(), 1)
