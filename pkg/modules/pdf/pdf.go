@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"runtime/debug"
 	"time"
 
 	"github.com/dlclark/regexp2/v2"
@@ -104,11 +105,40 @@ func (mod *PDF) Validate() error {
 	return nil
 }
 
-// SystemMessages returns the module's settings.
-func (mod *PDF) SystemMessages() []string {
-	return []string{
-		fmt.Sprintf("max concurrency - %d", mod.maxConcurrency),
+// Report describes the litho version and the module's concurrency.
+func (mod *PDF) Report() gotenberg.Report {
+	return gotenberg.Report{
+		Name: "PDF",
+		Fields: []gotenberg.ReportField{
+			{Key: "litho_version", Value: lithoVersion(), Text: "litho " + lithoVersion()},
+			{Key: "max_concurrency", Value: mod.maxConcurrency, Text: fmt.Sprintf("max concurrency %d", mod.maxConcurrency)},
+		},
 	}
+}
+
+// lithoVersion returns the version of the litho module the binary embeds, or
+// "unknown" when the binary carries no build information.
+func lithoVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "unknown"
+	}
+
+	for _, dep := range info.Deps {
+		if dep.Path != "github.com/gotenberg/litho" {
+			continue
+		}
+		if dep.Replace != nil {
+			dep = dep.Replace
+		}
+		if dep.Version == "" {
+			return "(devel)"
+		}
+
+		return dep.Version
+	}
+
+	return "unknown"
 }
 
 // Processor returns the [Processor] that runs [Stages].
@@ -160,10 +190,10 @@ func (mod *PDF) Routes() ([]api.Route, error) {
 
 // Interface guards.
 var (
-	_ gotenberg.Module       = (*PDF)(nil)
-	_ gotenberg.Provisioner  = (*PDF)(nil)
-	_ gotenberg.Validator    = (*PDF)(nil)
-	_ gotenberg.SystemLogger = (*PDF)(nil)
-	_ Provider               = (*PDF)(nil)
-	_ api.Router             = (*PDF)(nil)
+	_ gotenberg.Module      = (*PDF)(nil)
+	_ gotenberg.Provisioner = (*PDF)(nil)
+	_ gotenberg.Validator   = (*PDF)(nil)
+	_ gotenberg.Reporter    = (*PDF)(nil)
+	_ Provider              = (*PDF)(nil)
+	_ api.Router            = (*PDF)(nil)
 )

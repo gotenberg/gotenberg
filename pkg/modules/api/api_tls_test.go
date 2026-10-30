@@ -181,6 +181,53 @@ func TestApi_Start_HonorsStartTimeout(t *testing.T) {
 	}
 }
 
+// Start returns once the server listens, so the summary that follows reports
+// a server that answers.
+func TestApi_Start_ReturnsOnceListening(t *testing.T) {
+	a := newTLSTestApi(t, "", "")
+
+	err := a.Start()
+	if err != nil {
+		t.Fatalf("expected no error from Start, got %v", err)
+	}
+	t.Cleanup(func() {
+		_ = a.Stop(context.Background())
+	})
+
+	resp, err := (&http.Client{Timeout: time.Second}).Get(fmt.Sprintf("http://127.0.0.1:%d/version", a.port))
+	if err != nil {
+		t.Fatalf("expected the server to answer right after Start, got %v", err)
+	}
+	_ = resp.Body.Close()
+
+	want := fmt.Sprintf("http://127.0.0.1:%d/", a.port)
+	if got := a.Report().Fields[0].Value; got != want {
+		t.Errorf("reported address = %v, want %q", got, want)
+	}
+}
+
+// A port in use must fail the startup, not leave a running process with no
+// listener.
+func TestApi_Start_PortInUse(t *testing.T) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { _ = l.Close() })
+
+	a := newTLSTestApi(t, "", "")
+	a.port = l.Addr().(*net.TCPAddr).Port
+
+	err = a.Start()
+	t.Cleanup(func() {
+		_ = a.Stop(context.Background())
+	})
+
+	if err == nil {
+		t.Fatal("expected an error from Start, got nil")
+	}
+}
+
 type asyncCounterStub struct{ count atomic.Int64 }
 
 func (s *asyncCounterStub) AsyncCount() int64 { return s.count.Load() }

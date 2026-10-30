@@ -3,30 +3,17 @@ package gotenbergcmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
 	flag "github.com/spf13/pflag"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
-
-// See https://patorjk.com/software/taag/#p=display&f=Small%20Slant&t=Gotenberg.
-// Credits: https://github.com/labstack/echo/blob/v4.3.0/echo.go#L240.
-const banner = `
-  _____     __           __               
- / ___/__  / /____ ___  / /  ___ _______ _
-/ (_ / _ \/ __/ -_) _ \/ _ \/ -_) __/ _ '/
-\___/\___/\__/\__/_//_/_.__/\__/_/  \_, / 
-                                   /___/
-
-A Docker-based API for converting documents to PDF.
-Version: %s
--------------------------------------------------------
-`
 
 // telemetryShutdownTimeout bounds the final flush of spans, metrics, and logs.
 const telemetryShutdownTimeout = 5 * time.Second
@@ -37,11 +24,12 @@ var Version = "snapshot"
 
 // Run starts the Gotenberg application. Call this in the main of your program.
 func Run() {
+	startedAt := time.Now()
 	gotenberg.Version = Version
 
 	// Create the root FlagSet and adds the modules flags to it.
 	fs := flag.NewFlagSet("gotenberg", flag.ExitOnError)
-	fs.Bool("gotenberg-hide-banner", false, "Hide the banner")
+	fs.Bool("gotenberg-hide-banner", false, "Hide the ASCII art banner above the startup summary")
 	fs.Duration("gotenberg-graceful-shutdown-duration", time.Duration(30)*time.Second, "Set the graceful shutdown duration")
 	fs.Bool("gotenberg-build-debug-data", true, "Set if build data is needed")
 
@@ -53,16 +41,14 @@ func Run() {
 	fs.String("log-std-level-case", gotenberg.LowerLevelCase, "Set the case of the level field in the standard output, either lower or upper")
 
 	descriptors := gotenberg.GetModuleDescriptors()
-	var modsInfo strings.Builder
 	for _, desc := range descriptors {
 		fs.AddFlagSet(desc.FlagSet)
-		modsInfo.WriteString(desc.ID + " ")
 	}
 
 	// Parse the flags.
 	err := fs.Parse(os.Args[1:])
 	if err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
@@ -70,7 +56,7 @@ func Run() {
 	// set.
 	err = gotenberg.ApplyEnvOverrides(fs)
 	if err != nil {
-		fmt.Printf("[FATAL] %v\n", err)
+		fmt.Fprintf(os.Stderr, "[FATAL] %v\n", err)
 		os.Exit(1)
 	}
 
@@ -97,64 +83,63 @@ func Run() {
 
 	err = telemetryCfg.Validate()
 	if err != nil {
-		fmt.Printf("[FATAL] invalid telemetry config: %s\n", err)
+		fmt.Fprintf(os.Stderr, "[FATAL] invalid telemetry config: %s\n", err)
 		os.Exit(1)
 	}
 
 	shutdownTelemetry, err := gotenberg.StartTelemetry(telemetryCfg)
 	if err != nil {
-		fmt.Printf("[FATAL] start telemetry: %s\n", err)
+		fmt.Fprintf(os.Stderr, "[FATAL] start telemetry: %s\n", err)
 		os.Exit(1)
 	}
 
-	if !hideBanner {
-		fmt.Printf(banner, Version)
+	logger := gotenberg.ProcessLogger()
+	bgCtx := context.Background()
+
+	fatal := func(msg string, err error) {
+		logger.ErrorContext(bgCtx, msg, slog.Any("error", err))
+		os.Exit(1)
 	}
-	fmt.Printf("[SYSTEM] modules: %s\n", modsInfo.String())
 
 	ctx := gotenberg.NewContext(parsedFlags, descriptors)
 
-	// Start application modules.
+	// Start application modules. The API waits for the others to be ready
+	// before it listens, so they start together.
 	apps, err := ctx.Modules(new(gotenberg.App))
 	if err != nil {
-		fmt.Printf("[FATAL] %s\n", err)
-		os.Exit(1)
+		fatal("load modules", err)
 	}
 
+	eg := new(errgroup.Group)
 	for _, a := range apps {
-		go func(app gotenberg.App) {
-			id := app.(gotenberg.Module).Descriptor().ID
-			err := app.Start()
+		eg.Go(func() error {
+			err := a.(gotenberg.App).Start()
 			if err != nil {
-				fmt.Printf("[FATAL] starting %s: %s\n", id, err)
-				os.Exit(1)
+				return fmt.Errorf("start %s: %w", a.(gotenberg.Module).Descriptor().ID, err)
 			}
 
-			startupMessage := app.StartupMessage()
-			if startupMessage == "" {
-				fmt.Printf("[SYSTEM] %s: application started\n", id)
-				return
-			}
-
-			fmt.Printf("[SYSTEM] %s: %s\n", id, startupMessage)
-		}(a.(gotenberg.App))
+			return nil
+		})
 	}
 
-	// Get modules that want to print system messages.
-	sysLoggers, err := ctx.Modules(new(gotenberg.SystemLogger))
+	err = eg.Wait()
 	if err != nil {
-		fmt.Printf("[FATAL] %s\n", err)
-		os.Exit(1)
+		fatal("start modules", err)
 	}
 
-	for _, l := range sysLoggers {
-		go func(logger gotenberg.SystemLogger) {
-			id := logger.(gotenberg.Module).Descriptor().ID
+	startup, err := gotenberg.NewStartup(ctx, Version, time.Since(startedAt))
+	if err != nil {
+		fatal("gather startup summary", err)
+	}
 
-			for _, message := range logger.SystemMessages() {
-				fmt.Printf("[SYSTEM] %s: %s\n", id, message)
-			}
-		}(l.(gotenberg.SystemLogger))
+	if telemetryCfg.Interactive() {
+		// See https://no-color.org.
+		err = startup.Write(os.Stdout, !hideBanner, os.Getenv("NO_COLOR") == "")
+		if err != nil {
+			fatal("print startup summary", err)
+		}
+	} else {
+		startup.Log(bgCtx, logger)
 	}
 
 	if parsedFlags.MustBool("gotenberg-build-debug-data") {
@@ -182,7 +167,7 @@ func Run() {
 		cancel()
 	}()
 
-	fmt.Printf("[SYSTEM] graceful shutdown of %s\n", gracefulShutdownDuration)
+	logger.InfoContext(bgCtx, "graceful shutdown", slog.String("duration", gracefulShutdownDuration.String()))
 
 	stoppable := make([]gotenberg.App, len(apps))
 	for i, a := range apps {
@@ -190,12 +175,11 @@ func Run() {
 	}
 
 	err = gotenberg.StopApps(gracefulShutdownCtx, stoppable, func(app gotenberg.App) {
-		fmt.Printf("[SYSTEM] %s: application stopped\n", app.(gotenberg.Module).Descriptor().ID)
+		logger.InfoContext(bgCtx, "module stopped", slog.String("module", app.(gotenberg.Module).Descriptor().ID))
 	})
 	if err != nil {
 		cancel()
-		fmt.Printf("[FATAL] %v\n", err)
-		os.Exit(1) //nolint:gocritic // defers are already called explicitly above
+		fatal("stop modules", err)
 	}
 
 	// Shutdown telemetry (flush spans, metrics, logs). The graceful shutdown's
@@ -207,7 +191,8 @@ func Run() {
 	err = shutdownTelemetry(telemetryCtx)
 	if err != nil {
 		cancel()
-		fmt.Printf("[FATAL] %v\n", err)
+		// The telemetry, logs included, is down: write to stderr.
+		fmt.Fprintf(os.Stderr, "[FATAL] shut down telemetry: %v\n", err)
 		os.Exit(1) //nolint:gocritic // defers are already called explicitly above
 	}
 

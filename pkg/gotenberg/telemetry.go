@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"sync"
 
 	"github.com/hashicorp/go-retryablehttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/term"
 
 	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg/internal/log"
 	internalotel "github.com/gotenberg/gotenberg/v9/pkg/gotenberg/internal/otel"
@@ -56,6 +58,14 @@ func (cfg TelemetryConfig) slogLevel() slog.Level {
 		return slog.LevelInfo
 	}
 	return level
+}
+
+// Interactive reports whether a person reads the standard output: it is a
+// terminal, and the log format is not JSON. The startup summary then prints
+// as text (see [Startup.Write]) rather than as a log record.
+func (cfg TelemetryConfig) Interactive() bool {
+	// #nosec: G115
+	return cfg.LogStdFormat != JsonLoggingFormat && term.IsTerminal(int(os.Stdout.Fd()))
 }
 
 // Validate validates the telemetry configuration.

@@ -506,13 +506,22 @@ func (a *Api) Start() error {
 	return nil
 }
 
-// StartupMessage returns a custom startup message.
-func (a *Api) StartupMessage() string {
-	if !a.autoStart {
-		return "LibreOffice ready to start"
+// Report describes the LibreOffice version, and when it starts.
+func (a *Api) Report() gotenberg.Report {
+	version := a.detectVersion()
+
+	start := gotenberg.ReportField{Key: "start", Value: "on_demand", Text: "starts on demand"}
+	if a.autoStart {
+		start = gotenberg.ReportField{Key: "start", Value: "auto", Text: "started"}
 	}
 
-	return "LibreOffice automatically started"
+	return gotenberg.Report{
+		Name: "LibreOffice",
+		Fields: []gotenberg.ReportField{
+			{Key: "version", Value: version, Text: gotenberg.VersionNumber(version)},
+			start,
+		},
+	}
 }
 
 // Stop stops the current LibreOffice instance. [gotenberg.StopApps] calls it
@@ -845,6 +854,7 @@ var (
 	_ gotenberg.Validator   = (*Api)(nil)
 	_ gotenberg.App         = (*Api)(nil)
 	_ gotenberg.Debuggable  = (*Api)(nil)
+	_ gotenberg.Reporter    = (*Api)(nil)
 	_ api.HealthChecker     = (*Api)(nil)
 	_ Converter             = (*Api)(nil)
 	_ Provider              = (*Api)(nil)

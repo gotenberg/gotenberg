@@ -665,13 +665,24 @@ func (mod *Chromium) Start() error {
 	return nil
 }
 
-// StartupMessage returns a custom startup message.
-func (mod *Chromium) StartupMessage() string {
-	if !mod.autoStart {
-		return "Chromium ready to start"
+// Report describes the Chromium version, when it starts, and the module's
+// concurrency.
+func (mod *Chromium) Report() gotenberg.Report {
+	version := mod.detectVersion()
+
+	start := gotenberg.ReportField{Key: "start", Value: "on_demand", Text: "starts on demand"}
+	if mod.autoStart {
+		start = gotenberg.ReportField{Key: "start", Value: "auto", Text: "started"}
 	}
 
-	return "Chromium automatically started"
+	return gotenberg.Report{
+		Name: "Chromium",
+		Fields: []gotenberg.ReportField{
+			{Key: "version", Value: version, Text: gotenberg.VersionNumber(version)},
+			start,
+			{Key: "max_concurrency", Value: mod.maxConcurrency, Text: fmt.Sprintf("max concurrency %d", mod.maxConcurrency)},
+		},
+	}
 }
 
 // Stop stops the current browser instance. [gotenberg.StopApps] calls it once
@@ -942,6 +953,7 @@ var (
 	_ gotenberg.Validator   = (*Chromium)(nil)
 	_ gotenberg.App         = (*Chromium)(nil)
 	_ gotenberg.Debuggable  = (*Chromium)(nil)
+	_ gotenberg.Reporter    = (*Chromium)(nil)
 	_ api.HealthChecker     = (*Chromium)(nil)
 	_ api.Router            = (*Chromium)(nil)
 	_ Api                   = (*Chromium)(nil)

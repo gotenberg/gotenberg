@@ -48,3 +48,16 @@ func BuildVersion(moduleID string) (string, bool) {
 
 	return version, true
 }
+
+// VersionNumber returns the first word of version that starts with a digit,
+// such as "148.0.7778.96" for "Chromium 148.0.7778.96 built on Debian", or
+// version itself when no word does.
+func VersionNumber(version string) string {
+	for word := range strings.FieldsSeq(version) {
+		if word[0] >= '0' && word[0] <= '9' {
+			return word
+		}
+	}
+
+	return version
+}
