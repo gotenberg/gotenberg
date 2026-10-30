@@ -179,4 +179,24 @@ func TestReadRoutes(t *testing.T) {
 	if got := report["page_1.pdf"]; got.Compliant || len(got.Violations) == 0 {
 		t.Fatalf("a plain PDF reported as PDF/A-2b compliant: %+v", got)
 	}
+	_, rec, err = serve(t, validateRoute(testProcessor()), map[string][]string{"profile": {"Factur-X"}}, "page_1.pdf")
+	if err != api.ErrNoOutputFile {
+		t.Fatalf("handler: %v", err)
+	}
+
+	report = nil
+	if err := json.Unmarshal(rec.Body.Bytes(), &report); err != nil {
+		t.Fatalf("decode %s: %v", rec.Body.String(), err)
+	}
+
+	got := report["page_1.pdf"]
+	if got.Compliant || len(got.Violations) == 0 {
+		t.Fatalf("a plain PDF reported as a Factur-X invoice: %+v", got)
+	}
+
+	for _, v := range got.Violations {
+		if v.Clause == "" || v.Severity == "" {
+			t.Fatalf("Factur-X violation without clause or severity: %+v", v)
+		}
+	}
 }
