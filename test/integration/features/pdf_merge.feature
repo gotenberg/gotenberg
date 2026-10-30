@@ -14,6 +14,14 @@ Feature: /forms/pdf/merge
     Then there should be the following file(s) in the response:
       | foo.pdf |
     Then the "foo.pdf" PDF should have 2 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "foo.pdf" PDF should have the following content at page 2:
+      """
+      Page 2
+      """
 
   # Inputs merge in the order of their filenames, numbers compared as numbers:
   # pages_3.pdf comes before pages_12.pdf.
