@@ -140,24 +140,24 @@ Feature: /forms/chromium/convert/markdown
     #      Chromium does not handle the provided settings; please check for aberrant form values
     #      """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files            | testdata/page-1-markdown/index.html | file  |
-      | files            | testdata/page-1-markdown/page_1.md  | file  |
-      | nativePageRanges | foo                                 | field |
+      | files       | testdata/page-1-markdown/index.html | file  |
+      | files       | testdata/page-1-markdown/page_1.md  | file  |
+      | nativePages | foo                                 | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Chromium does not handle the page ranges 'foo' (nativePageRanges) syntax
+      Chromium cannot read the pages 'foo' of the form field 'nativePages'; valid values look like '1-4', '2' or '1,3,5-7'
       """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
-      | files            | testdata/page-1-markdown/index.html | file  |
-      | files            | testdata/page-1-markdown/page_1.md  | file  |
-      | nativePageRanges | 2-3                                 | field |
+      | files       | testdata/page-1-markdown/index.html | file  |
+      | files       | testdata/page-1-markdown/page_1.md  | file  |
+      | nativePages | 2-3                                 | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      The page ranges '2-3' (nativePageRanges) exceeds the page count
+      The pages '2-3' of the form field 'nativePages' exceed the page count
       """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
       | files             | testdata/page-1-markdown/index.html | file  |

@@ -127,7 +127,7 @@ Feature: /forms/chromium/convert/html
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
       | files                     | testdata/pages-12-html/index.html | file   |
-      | nativePageRanges          | 2-3                               | field  |
+      | nativePages               | 2-3                               | field  |
       | Gotenberg-Output-Filename | foo                               | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
@@ -914,22 +914,22 @@ Feature: /forms/chromium/convert/html
     #      Chromium does not handle the provided settings; please check for aberrant form values
     #      """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
-      | files            | testdata/page-1-html/index.html | file  |
-      | nativePageRanges | foo                             | field |
+      | files       | testdata/page-1-html/index.html | file  |
+      | nativePages | foo                             | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Chromium does not handle the page ranges 'foo' (nativePageRanges) syntax
+      Chromium cannot read the pages 'foo' of the form field 'nativePages'; valid values look like '1-4', '2' or '1,3,5-7'
       """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
-      | files            | testdata/page-1-html/index.html | file  |
-      | nativePageRanges | 2-3                             | field |
+      | files       | testdata/page-1-html/index.html | file  |
+      | nativePages | 2-3                             | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      The page ranges '2-3' (nativePageRanges) exceeds the page count
+      The pages '2-3' of the form field 'nativePages' exceed the page count
       """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
       | files             | testdata/page-1-html/index.html | file  |

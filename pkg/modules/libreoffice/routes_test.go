@@ -122,10 +122,10 @@ func TestConvertRoute_FailureStatus(t *testing.T) {
 		{
 			name:       "malformed page ranges",
 			inputPath:  plain,
-			values:     map[string][]string{"nativePageRanges": {"foo"}},
+			values:     map[string][]string{"nativePages": {"foo"}},
 			err:        libreofficeapi.ErrSaveFailed,
 			wantStatus: http.StatusBadRequest,
-			wantBody:   "LibreOffice could not apply the page ranges 'foo' to the document 'page_1.docx'. Check the 'nativePageRanges' form field; valid values look like '1-4', '2' or '1,3,5-7'.",
+			wantBody:   "LibreOffice could not apply the pages 'foo' to the document 'page_1.docx'. Check the 'nativePages' form field; valid values look like '1-4', '2' or '1,3,5-7'.",
 		},
 		{
 			name:       "nothing implicated, save failed",
@@ -137,7 +137,7 @@ func TestConvertRoute_FailureStatus(t *testing.T) {
 		{
 			name:       "page ranges do not excuse a crash",
 			inputPath:  plain,
-			values:     map[string][]string{"nativePageRanges": {"1-2"}},
+			values:     map[string][]string{"nativePages": {"1-2"}},
 			err:        libreofficeapi.ErrCrashed,
 			wantStatus: http.StatusInternalServerError,
 			wantBody:   fmt.Sprintf(unattributableFailureMessage, "page_1.docx"),

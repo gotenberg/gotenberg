@@ -285,7 +285,7 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		Inches("marginBottom", &pdfOptions.MarginBottom).
 		Inches("marginLeft", &pdfOptions.MarginLeft).
 		Inches("marginRight", &pdfOptions.MarginRight).
-		String("nativePageRanges", &pdfOptions.PageRanges).
+		String("nativePages", &pdfOptions.PageRanges).
 		Content("header.html", &pdfOptions.HeaderTemplate).
 		Content("footer.html", &pdfOptions.FooterTemplate).
 		Bool("preferCssPageSize", &pdfOptions.PreferCssPageSize).
@@ -711,7 +711,7 @@ func convertUrl(ctx *api.Context, chromium Api, processor *pdf.Processor, url st
 				fmt.Errorf("convert to PDF: %w", err),
 				api.NewSentinelHttpError(
 					http.StatusBadRequest,
-					fmt.Sprintf("The page ranges '%s' (nativePageRanges) exceeds the page count", options.PageRanges),
+					fmt.Sprintf("The pages '%s' of the form field 'nativePages' exceed the page count", options.PageRanges),
 				),
 			)
 		}
@@ -721,7 +721,7 @@ func convertUrl(ctx *api.Context, chromium Api, processor *pdf.Processor, url st
 				fmt.Errorf("convert to PDF: %w", err),
 				api.NewSentinelHttpError(
 					http.StatusBadRequest,
-					fmt.Sprintf("Chromium does not handle the page ranges '%s' (nativePageRanges) syntax", options.PageRanges),
+					fmt.Sprintf("Chromium cannot read the pages '%s' of the form field 'nativePages'; valid values look like '1-4', '2' or '1,3,5-7'", options.PageRanges),
 				),
 			)
 		}

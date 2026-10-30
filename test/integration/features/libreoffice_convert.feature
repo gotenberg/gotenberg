@@ -165,7 +165,7 @@ Feature: /forms/libreoffice/convert
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
       | files                     | testdata/pages_3.docx | file   |
-      | nativePageRanges          | 2-3                   | field  |
+      | nativePages               | 2-3                   | field  |
       | Gotenberg-Output-Filename | foo                   | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
@@ -187,7 +187,7 @@ Feature: /forms/libreoffice/convert
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
       | files                     | testdata/pages_3.docx  | file   |
       | files                     | testdata/pages_12.docx | file   |
-      | nativePageRanges          | 2-3                    | field  |
+      | nativePages               | 2-3                    | field  |
       | Gotenberg-Output-Filename | foo                    | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
@@ -324,13 +324,13 @@ Feature: /forms/libreoffice/convert
       form field 'nativeMaxImageResolution' is invalid (got '10', resulting to value is not 75, 150, 300, 600 or 1200)
       """
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
-      | files            | testdata/page_1.docx | file  |
-      | nativePageRanges | foo                  | field |
+      | files       | testdata/page_1.docx | file  |
+      | nativePages | foo                  | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      LibreOffice could not apply the page ranges 'foo' to the document 'page_1.docx'. Check the 'nativePageRanges' form field; valid values look like '1-4', '2' or '1,3,5-7'.
+      LibreOffice could not apply the pages 'foo' to the document 'page_1.docx'. Check the 'nativePages' form field; valid values look like '1-4', '2' or '1,3,5-7'.
       """
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
       | files    | testdata/protected_page_1.docx | file  |
