@@ -171,6 +171,23 @@ func TestNewLokRequest_Paper(t *testing.T) {
 	}
 }
 
+// lok runs macros when enableMacros is true, so the request must say false
+// rather than rely on lok's default.
+func TestNewLokRequest_DisablesMacrosExplicitly(t *testing.T) {
+	req, err := newLokRequest("in.docx", "out.pdf", DefaultOptions())
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	b, err := json.Marshal(req)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+	if !strings.Contains(string(b), `"enableMacros":false`) {
+		t.Fatalf("expected an explicit enableMacros:false, got %s", b)
+	}
+}
+
 func TestLibreOfficeProcess_InvalidPdfFormats(t *testing.T) {
 	p := startFakeLok(t)
 

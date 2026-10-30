@@ -68,9 +68,12 @@ func newLibreOfficeProcess(arguments libreOfficeArguments) libreOffice {
 // lokRequest is a conversion request of lok's long-running mode. Every option
 // is sent, so lok's own defaults never apply.
 type lokRequest struct {
-	InputPath                       string `json:"inputPath"`
-	OutputPath                      string `json:"outputPath"`
-	Password                        string `json:"password,omitempty"` //nolint:gosec // document open password, sent to the local lok process only
+	InputPath  string `json:"inputPath"`
+	OutputPath string `json:"outputPath"`
+	Password   string `json:"password,omitempty"` //nolint:gosec // document open password, sent to the local lok process only
+	// EnableMacros stays false: a document's macros run code inside the
+	// container.
+	EnableMacros                    bool   `json:"enableMacros"`
 	Landscape                       bool   `json:"landscape"`
 	PaperFormat                     int    `json:"paperFormat"`
 	PaperWidth                      int    `json:"paperWidth"`
