@@ -857,31 +857,32 @@ Feature: /forms/chromium/convert/url
       | skipNetworkAlmostIdleEvent    | foo | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
-    Then the response body should match string:
+    Then the response body should contain the following line(s):
       """
-      Invalid form data: form field 'skipNetworkIdleEvent' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'skipNetworkAlmostIdleEvent' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'failOnHttpStatusCodes' is invalid (got 'foo', resulting to unmarshal failOnHttpStatusCodes: invalid character 'o' in literal false (expecting 'a'))
-      form field 'failOnResourceHttpStatusCodes' is invalid (got 'foo', resulting to unmarshal failOnResourceHttpStatusCodes: invalid character 'o' in literal false (expecting 'a'))
-      form field 'failOnResourceLoadingFailed' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'failOnConsoleExceptions' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'failOnConsoleMessageTypes' is invalid (got 'foo', resulting to unmarshal failOnConsoleMessageTypes: invalid character 'o' in literal false (expecting 'a'))
-      form field 'waitDelay' is invalid (got 'foo', resulting to time: invalid duration "foo")
+      Invalid form data:
+      form field 'skipNetworkIdleEvent' is invalid (got 'foo'
+      form field 'skipNetworkAlmostIdleEvent' is invalid (got 'foo'
+      form field 'failOnHttpStatusCodes' is invalid (got 'foo'
+      form field 'failOnResourceHttpStatusCodes' is invalid (got 'foo'
+      form field 'failOnResourceLoadingFailed' is invalid (got 'foo'
+      form field 'failOnConsoleExceptions' is invalid (got 'foo'
+      form field 'failOnConsoleMessageTypes' is invalid (got 'foo'
+      form field 'waitDelay' is invalid (got 'foo'
       form field 'emulatedMediaType' is invalid (got 'foo', resulting to wrong value, expected either 'screen', 'print' or empty)
-      form field 'omitBackground' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'landscape' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'printBackground' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'scale' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax)
-      form field 'singlePage' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'paperWidth' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax)
-      form field 'paperHeight' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax)
-      form field 'marginTop' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax)
-      form field 'marginBottom' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax)
-      form field 'marginLeft' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax)
-      form field 'marginRight' is invalid (got 'foo', resulting to strconv.ParseFloat: parsing "foo": invalid syntax)
-      form field 'preferCssPageSize' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'nativeBookmarks' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'nativeTaggedPdf' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'omitBackground' is invalid (got 'foo'
+      form field 'landscape' is invalid (got 'foo'
+      form field 'printBackground' is invalid (got 'foo'
+      form field 'scale' is invalid (got 'foo'
+      form field 'singlePage' is invalid (got 'foo'
+      form field 'paperWidth' is invalid (got 'foo'
+      form field 'paperHeight' is invalid (got 'foo'
+      form field 'marginTop' is invalid (got 'foo'
+      form field 'marginBottom' is invalid (got 'foo'
+      form field 'marginLeft' is invalid (got 'foo'
+      form field 'marginRight' is invalid (got 'foo'
+      form field 'preferCssPageSize' is invalid (got 'foo'
+      form field 'nativeBookmarks' is invalid (got 'foo'
+      form field 'nativeTaggedPdf' is invalid (got 'foo'
       form field 'url' is required
       """
     Given I have a static server

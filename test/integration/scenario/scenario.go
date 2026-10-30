@@ -903,6 +903,35 @@ func (s *scenario) theBodyShouldContainString(kind string, expectedDoc *godog.Do
 	return nil
 }
 
+// theBodyShouldContainTheFollowingLines checks that every line of the
+// docstring appears in the body, in any order, so that an assertion does not
+// depend on the order a route validates its fields in.
+func (s *scenario) theBodyShouldContainTheFollowingLines(kind string, expectedDoc *godog.DocString) error {
+	var actual string
+	if kind == "response" {
+		actual = s.resp.Body.String()
+	} else {
+		rec, err := s.received(kind)
+		if err != nil {
+			return err
+		}
+		actual = string(rec.body)
+	}
+
+	var missing []string
+	for _, line := range strings.Split(expectedDoc.Content, "\n") {
+		line = strings.TrimSpace(strings.ReplaceAll(line, "{version}", GotenbergVersion))
+		if line != "" && !strings.Contains(actual, line) {
+			missing = append(missing, line)
+		}
+	}
+
+	if len(missing) > 0 {
+		return fmt.Errorf("expected %s body to contain %q, but actual is: %q", kind, missing, actual)
+	}
+	return nil
+}
+
 func (s *scenario) theBodyShouldMatchJSON(kind string, expectedDoc *godog.DocString) error {
 	var body []byte
 	if kind == "response" {
@@ -1195,6 +1224,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the (response|webhook request|file request|server request) cookie "([^"]*)" should be "([^"]*)"$`, s.theCookieValueShouldBe)
 	ctx.Then(`^the (response|webhook request) body should match string:$`, s.theBodyShouldMatchString)
 	ctx.Then(`^the (response|webhook request) body should contain string:$`, s.theBodyShouldContainString)
+	ctx.Then(`^the (response|webhook request) body should contain the following line\(s\):$`, s.theBodyShouldContainTheFollowingLines)
 	ctx.Then(`^the (response|webhook request) body should match JSON:$`, s.theBodyShouldMatchJSON)
 	ctx.Then(`^the webhook event should match JSON:$`, s.theWebhookEventShouldMatchJSON)
 	ctx.Then(`^there should be (\d+) PDF\(s\) in the (response|webhook request)$`, s.thereShouldBePdfs)
