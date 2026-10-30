@@ -44,7 +44,7 @@ Available tags:
 
 - `I have a default Gotenberg container`
 - `I have a Gotenberg container with the following environment variable(s):` (table: key | value)
-- `I have a (webhook|static) server`
+- `I have a (webhook|static) server`: one helper server per scenario, whichever word is used; a second step reuses it
 
 ### When (action)
 
@@ -52,12 +52,15 @@ Available tags:
 - `I make a "(GET|HEAD)" request to Gotenberg at the "<endpoint>" endpoint with the following header(s):` (table: name | value)
 - `I make a "(POST)" request to Gotenberg at the "<endpoint>" endpoint with the following form data and header(s):` (table: name | value | kind, where kind is `file`, `field`, or `header`)
 - `I make <N> concurrent "(POST)" requests to Gotenberg at the "<endpoint>" endpoint with the following form data and header(s):` (same table format)
-- `I wait for the asynchronous request to the webhook`
+- `I make <N> sequential "(POST)" requests to Gotenberg at the "<endpoint>" endpoint, probing "<probe endpoint>" after each, with the following form data and header(s):` (same table format)
+- `I wait for the asynchronous request to the webhook` (fails after 90s)
+- `I stop the Gotenberg container` (SIGTERM, then expects a clean exit)
 
 ### Then (assertions)
 
 - `the response status code should be <code>`
-- `the (response|webhook request|file request|server request) header "<name>" should be "<value>"`
+- `the (response|webhook request|file request|server request) header "<name>" should be "<value>"` (the helper server's last request of that kind: `webhook request` is a webhook delivery, `file request` a file served from `/static`, `server request` a page served from `/html` or `/redirect-to-private`)
+- `the webhook request header "<name>" should carry trace id "<trace id>"` (a W3C `traceparent` header)
 - `the (response|webhook request|file request|server request) cookie "<name>" should be "<value>"`
 - `the (response|webhook request) body should match string:` (docstring)
 - `the (response|webhook request) body should contain string:` (docstring)
@@ -87,3 +90,8 @@ Available tags:
 - `the Gotenberg container (should|should NOT) log the following entries:` (table of log substrings)
 - `all concurrent response status codes should be <code>`
 - `all concurrent responses should have <N> PDF(s)`
+- `all sequential response status codes should be <code>`
+- `all probe response status codes should be <code>`
+- `the "<name>" image should be <width>x<height> pixels`
+- `the "<name>" image pixel at <x>,<y> should be "<color>"`
+- `the "<name>" file size should be (less|greater) than <N> KB`

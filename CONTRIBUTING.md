@@ -60,7 +60,7 @@ Run only the integration test tag(s) relevant to your change rather than the ful
 ```bash
 make test-integration TAGS=health
 make test-integration TAGS=chromium-convert-html
-make test-integration TAGS="merge,split"
+make test-integration TAGS="pdf-merge,pdf-split"
 ```
 
 ## Code conventions
