@@ -654,13 +654,13 @@ func (a *Api) Checks() ([]health.CheckerOption, error) {
 	}, nil
 }
 
-// Ready returns no error if the module is ready.
-func (a *Api) Ready() error {
+// Ready blocks until LibreOffice is ready, or until ctx is done.
+func (a *Api) Ready(ctx context.Context) error {
 	if !a.autoStart {
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), a.args.startTimeout)
+	ctx, cancel := context.WithTimeout(ctx, a.args.startTimeout)
 	defer cancel()
 
 	ticker := time.NewTicker(time.Duration(100) * time.Millisecond)

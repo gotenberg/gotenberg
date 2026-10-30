@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/alexliesenfeld/health"
@@ -124,15 +125,15 @@ func (provider *MiddlewareProviderMock) Middlewares() ([]Middleware, error) {
 // HealthCheckerMock is a mock for the [HealthChecker] interface.
 type HealthCheckerMock struct {
 	ChecksMock func() ([]health.CheckerOption, error)
-	ReadyMock  func() error
+	ReadyMock  func(ctx context.Context) error
 }
 
 func (mod *HealthCheckerMock) Checks() ([]health.CheckerOption, error) {
 	return mod.ChecksMock()
 }
 
-func (mod *HealthCheckerMock) Ready() error {
-	return mod.ReadyMock()
+func (mod *HealthCheckerMock) Ready(ctx context.Context) error {
+	return mod.ReadyMock(ctx)
 }
 
 // Interface guards.
