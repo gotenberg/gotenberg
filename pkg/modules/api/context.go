@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"mime"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -260,7 +262,8 @@ func newContext(echoCtx *echo.Context, logger *slog.Logger, fs *gotenberg.FileSy
 
 	ctx.linkOriginalFilenames()
 
-	ctx.Log().DebugContext(ctx, fmt.Sprintf("form fields: %+v", ctx.values))
+	// Names only: values carry secrets, such as a document password.
+	ctx.Log().DebugContext(ctx, fmt.Sprintf("form fields: %v", slices.Sorted(maps.Keys(ctx.values))))
 	ctx.Log().DebugContext(ctx, fmt.Sprintf("form files: %+v", ctx.files))
 	ctx.Log().DebugContext(ctx, fmt.Sprintf("total bytes: %d", budget.read.Load()))
 

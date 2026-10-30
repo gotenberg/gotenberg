@@ -139,6 +139,41 @@ func TestNewContext_RemovesMultipartTemporaryFiles(t *testing.T) {
 	}
 }
 
+// The debug log must name the form fields without leaking their values, such
+// as a document password.
+func TestNewContext_DebugLogOmitsFormValues(t *testing.T) {
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	err := writer.WriteField("password", "s3cr3t")
+	if err != nil {
+		t.Fatalf("write password field: %v", err)
+	}
+	err = writer.Close()
+	if err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/forms/pdf/encrypt", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	logs := new(bytes.Buffer)
+	logger := slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+
+	_, cancel, err := newContext(echo.New().NewContext(req, httptest.NewRecorder()), logger, fs, 10*time.Second, 0, downloadFromConfig{disable: true})
+	if err != nil {
+		t.Fatalf("newContext returned error: %v", err)
+	}
+	cancel()
+
+	if strings.Contains(logs.String(), "s3cr3t") {
+		t.Fatalf("the debug log leaks a form value: %s", logs.String())
+	}
+	if !strings.Contains(logs.String(), "password") {
+		t.Fatalf("the debug log should name the form fields: %s", logs.String())
+	}
+}
+
 // Concurrent downloadFrom entries must not race on the shared maps
 // (ctx.files, ctx.diskToOriginal). Run under -race
 // to catch the data race; without -race a sufficient number of entries
