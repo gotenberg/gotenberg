@@ -62,7 +62,7 @@ func TestForEachInputPath(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			err := forEachInputPath(new(api.Context), tc.inputPaths, tc.fn)
+			err := forEachInputPath(new(Processor), new(api.Context), tc.inputPaths, tc.fn)
 
 			if tc.expectErr == "" {
 				if err != nil {
@@ -93,7 +93,7 @@ func TestForEachInputPathRunsEveryPath(t *testing.T) {
 		seen = make(map[string]int)
 	)
 
-	err := forEachInputPath(new(api.Context), inputPaths, func(inputPath string) error {
+	err := forEachInputPath(new(Processor), new(api.Context), inputPaths, func(inputPath string) error {
 		mu.Lock()
 		defer mu.Unlock()
 		seen[inputPath]++
@@ -115,13 +115,9 @@ func TestForEachInputPathRunsEveryPath(t *testing.T) {
 }
 
 func TestForEachInputPathRespectsTheSlotCeiling(t *testing.T) {
-	previousSlots, previousMax := extraSlots, maxFileConcurrency
-	defer func() { extraSlots, maxFileConcurrency = previousSlots, previousMax }()
-
 	// One request may run its reserved unit plus ceiling-1 borrowed ones.
 	const ceiling = 3
-	maxFileConcurrency = ceiling
-	extraSlots = make(chan struct{}, ceiling-1)
+	p := &Processor{files: newFileConcurrency(ceiling)}
 
 	inputPaths := make([]string, 40)
 	for i := range inputPaths {
@@ -130,7 +126,7 @@ func TestForEachInputPathRespectsTheSlotCeiling(t *testing.T) {
 
 	var inFlight, peak atomic.Int64
 
-	err := forEachInputPath(new(api.Context), inputPaths, func(string) error {
+	err := forEachInputPath(p, new(api.Context), inputPaths, func(string) error {
 		current := inFlight.Add(1)
 		defer inFlight.Add(-1)
 
@@ -161,15 +157,11 @@ func TestForEachInputPathRespectsTheSlotCeiling(t *testing.T) {
 }
 
 func TestForEachInputPathHonorsCancellation(t *testing.T) {
-	previousSlots, previousMax := extraSlots, maxFileConcurrency
-	defer func() { extraSlots, maxFileConcurrency = previousSlots, previousMax }()
-
 	// Concurrent path, with the shared pool exhausted by another request, so
 	// only this request's reserved unit is available.
-	maxFileConcurrency = 3
-	extraSlots = make(chan struct{}, 2)
-	extraSlots <- struct{}{}
-	extraSlots <- struct{}{}
+	p := &Processor{files: newFileConcurrency(3)}
+	p.files.extraSlots <- struct{}{}
+	p.files.extraSlots <- struct{}{}
 
 	cancelledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -182,7 +174,7 @@ func TestForEachInputPathHonorsCancellation(t *testing.T) {
 	// given file waits at all depends on how fast the file before it finishes.
 	inUse := make(chan struct{}, 1)
 
-	release, err := acquireSlot(&api.Context{Context: cancelledCtx}, inUse)
+	release, err := p.acquireSlot(&api.Context{Context: cancelledCtx}, inUse)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context.Canceled but got: %v", err)
 	}
@@ -195,13 +187,13 @@ func TestForEachInputPathHonorsCancellation(t *testing.T) {
 	// rather than deciding on the coin flip a ready select would give.
 	inUse <- struct{}{}
 
-	_, err = acquireSlot(&api.Context{Context: cancelledCtx}, inUse)
+	_, err = p.acquireSlot(&api.Context{Context: cancelledCtx}, inUse)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context.Canceled with the reserved unit free but got: %v", err)
 	}
 
 	// Live request, free reserved unit: acquired and handed back.
-	release, err = acquireSlot(&api.Context{Context: context.Background()}, inUse)
+	release, err = p.acquireSlot(&api.Context{Context: context.Background()}, inUse)
 	if err != nil {
 		t.Fatalf("expected the reserved unit to be acquired but got: %v", err)
 	}
@@ -214,13 +206,9 @@ func TestForEachInputPathHonorsCancellation(t *testing.T) {
 }
 
 func TestForEachInputPathCompletesWithACancelledContext(t *testing.T) {
-	previousSlots, previousMax := extraSlots, maxFileConcurrency
-	defer func() { extraSlots, maxFileConcurrency = previousSlots, previousMax }()
-
-	maxFileConcurrency = 3
-	extraSlots = make(chan struct{}, 2)
-	extraSlots <- struct{}{}
-	extraSlots <- struct{}{}
+	p := &Processor{files: newFileConcurrency(3)}
+	p.files.extraSlots <- struct{}{}
+	p.files.extraSlots <- struct{}{}
 
 	cancelledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -229,7 +217,7 @@ func TestForEachInputPathCompletesWithACancelledContext(t *testing.T) {
 
 	go func() {
 		defer close(done)
-		_ = forEachInputPath(&api.Context{Context: cancelledCtx}, []string{"a.pdf", "b.pdf", "c.pdf"}, func(string) error {
+		_ = forEachInputPath(p, &api.Context{Context: cancelledCtx}, []string{"a.pdf", "b.pdf", "c.pdf"}, func(string) error {
 			return nil
 		})
 	}()
@@ -242,9 +230,6 @@ func TestForEachInputPathCompletesWithACancelledContext(t *testing.T) {
 }
 
 func TestForEachInputPathNeverThrottlesBelowOnePerRequest(t *testing.T) {
-	previousSlots, previousMax := extraSlots, maxFileConcurrency
-	defer func() { extraSlots, maxFileConcurrency = previousSlots, previousMax }()
-
 	// A small ceiling against far more concurrent requests than it covers.
 	// Before the shared pool existed each of these processed a document of its own, so
 	// the pool must not drop aggregate concurrency below one per request.
@@ -253,8 +238,7 @@ func TestForEachInputPathNeverThrottlesBelowOnePerRequest(t *testing.T) {
 		requests = 8
 	)
 
-	maxFileConcurrency = ceiling
-	extraSlots = make(chan struct{}, ceiling-1)
+	p := &Processor{files: newFileConcurrency(ceiling)}
 
 	// Every runner announces itself and then blocks, so the count of arrivals
 	// is the true simultaneous concurrency rather than whatever the scheduler
@@ -265,7 +249,7 @@ func TestForEachInputPathNeverThrottlesBelowOnePerRequest(t *testing.T) {
 	var wg sync.WaitGroup
 	for range requests {
 		wg.Go(func() {
-			_ = forEachInputPath(new(api.Context), []string{"a.pdf", "b.pdf", "c.pdf"}, func(string) error {
+			_ = forEachInputPath(p, new(api.Context), []string{"a.pdf", "b.pdf", "c.pdf"}, func(string) error {
 				arrived <- struct{}{}
 				<-release
 				return nil
@@ -293,18 +277,14 @@ func TestForEachInputPathIsSequentialAtTheDefaultCeiling(t *testing.T) {
 		t.Fatalf("this test pins the default as a no-op, but defaultMaxConcurrency is %d", defaultMaxConcurrency)
 	}
 
-	previousSlots, previousMax := extraSlots, maxFileConcurrency
-	defer func() { extraSlots, maxFileConcurrency = previousSlots, previousMax }()
-
-	maxFileConcurrency = defaultMaxConcurrency
-	extraSlots = make(chan struct{}, defaultMaxConcurrency-1)
+	p := &Processor{files: newFileConcurrency(0)}
 
 	// At the default the helper must behave exactly like the sequential loops
 	// it replaced: files in input order, and no file attempted once one has
 	// failed.
 	var order []string
 
-	err := forEachInputPath(new(api.Context), []string{"a.pdf", "b.pdf", "c.pdf", "d.pdf"}, func(inputPath string) error {
+	err := forEachInputPath(p, new(api.Context), []string{"a.pdf", "b.pdf", "c.pdf", "d.pdf"}, func(inputPath string) error {
 		order = append(order, inputPath)
 		if inputPath == "b.pdf" {
 			return errors.New("boom")
@@ -325,7 +305,7 @@ func TestForEachInputPathIndexed(t *testing.T) {
 	inputPaths := []string{"a.pdf", "b.pdf", "c.pdf", "d.pdf"}
 	collected := make([]string, len(inputPaths))
 
-	err := forEachInputPathIndexed(new(api.Context), inputPaths, func(i int, inputPath string) error {
+	err := new(Processor).forEachInputPathIndexed(new(api.Context), inputPaths, func(i int, inputPath string) error {
 		collected[i] = inputPath
 		return nil
 	})
@@ -342,8 +322,8 @@ func TestForEachInputPathIndexed(t *testing.T) {
 
 // forEachInputPath is [forEachInputPathIndexed] without the index, as most of
 // these tests need.
-func forEachInputPath(ctx *api.Context, inputPaths []string, fn func(inputPath string) error) error {
-	return forEachInputPathIndexed(ctx, inputPaths, func(_ int, inputPath string) error {
+func forEachInputPath(p *Processor, ctx *api.Context, inputPaths []string, fn func(inputPath string) error) error {
+	return p.forEachInputPathIndexed(ctx, inputPaths, func(_ int, inputPath string) error {
 		return fn(inputPath)
 	})
 }

@@ -113,7 +113,7 @@ func readRoute(processor *Processor, name string, read func(ctx context.Context,
 			// Collected per index, then folded into the map on this
 			// goroutine: a shared map cannot be written concurrently.
 			collected := make([]any, len(inputPaths))
-			err = forEachInputPathIndexed(ctx, inputPaths, func(i int, inputPath string) error {
+			err = processor.forEachInputPathIndexed(ctx, inputPaths, func(i int, inputPath string) error {
 				filename := ctx.OriginalFilename(inputPath)
 
 				r, err := processor.open(ctx, inputPath, password)
