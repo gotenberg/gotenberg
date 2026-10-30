@@ -64,6 +64,7 @@ Available tags:
 - `the (response|webhook request|file request|server request) cookie "<name>" should be "<value>"`
 - `the (response|webhook request) body should match string:` (docstring)
 - `the (response|webhook request) body should contain string:` (docstring)
+- `the (response|webhook request) body should contain the following line(s):` (docstring; each line must appear, in any order)
 - `the (response|webhook request) body should match JSON:` (docstring, use `"ignore"` for dynamic values)
 - `the webhook event should match JSON:` (docstring, use `"ignore"` for dynamic values; polls for up to 5s)
 - `there should be <N> PDF(s) in the (response|webhook request)`
