@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -1388,6 +1389,52 @@ func TestFormData_Path(t *testing.T) {
 
 			if tc.form.errors != nil {
 				t.Errorf("expected no error but got: %v", tc.form.errors)
+			}
+		})
+	}
+}
+
+// Path must not depend on map order when several uploads match a filename.
+func TestFormData_Path_CaseVariants(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		files       map[string]string
+		expect      string
+		expectError bool
+	}{
+		{
+			scenario: "the exact name wins over a case variant",
+			files:    map[string]string{"doc.pdf": "/exact", "doc.PDF": "/variant"},
+			expect:   "/exact",
+		},
+		{
+			scenario: "a single case variant matches",
+			files:    map[string]string{"doc.PDF": "/variant"},
+			expect:   "/variant",
+		},
+		{
+			scenario:    "several case variants are ambiguous",
+			files:       map[string]string{"doc.PDF": "/upper", "doc.Pdf": "/mixed"},
+			expectError: true,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			// Map order varies between iterations: repeat to catch a lucky pick.
+			for range 20 {
+				form := &FormData{files: tc.files}
+
+				var actual string
+				form.MandatoryPath("doc.pdf", &actual)
+
+				if actual != tc.expect {
+					t.Fatalf("expected '%s' but got '%s'", tc.expect, actual)
+				}
+				if tc.expectError != (form.errors != nil) {
+					t.Fatalf("expected error %t, got: %v", tc.expectError, form.errors)
+				}
+				if tc.expectError && strings.Contains(form.errors.Error(), "required") {
+					t.Fatalf("expected only the ambiguity error, got: %v", form.errors)
+				}
 			}
 		})
 	}

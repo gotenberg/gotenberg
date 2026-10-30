@@ -149,3 +149,35 @@ func TestFormDataChromiumPdfOptions_NativeFields(t *testing.T) {
 		t.Fatalf("options = %+v, want the outline and tagging from nativeBookmarks and nativeTaggedPdf", options)
 	}
 }
+
+// JSON objects are unordered: the form must bind them in a stable order.
+func TestFormDataChromiumOptions_SortsObjectFields(t *testing.T) {
+	ctx := &api.ContextMock{Context: new(api.Context)}
+	ctx.SetValues(map[string][]string{
+		"extraHttpHeaders":      {`{"X-C":"c","X-A":"a","X-B":"b"}`},
+		"emulatedMediaFeatures": {`{"prefers-reduced-motion":"reduce","color-gamut":"p3","prefers-color-scheme":"dark"}`},
+	})
+
+	for range 20 {
+		form, options := FormDataChromiumOptions(ctx.Context)
+		err := form.Validate()
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+
+		var headers, features []string
+		for _, h := range options.ExtraHttpHeaders {
+			headers = append(headers, h.Name)
+		}
+		for _, f := range options.EmulatedMediaFeatures {
+			features = append(features, f.Name)
+		}
+
+		if fmt.Sprint(headers) != "[X-A X-B X-C]" {
+			t.Fatalf("extra HTTP headers = %v, want them sorted by name", headers)
+		}
+		if fmt.Sprint(features) != "[color-gamut prefers-color-scheme prefers-reduced-motion]" {
+			t.Fatalf("emulated media features = %v, want them sorted by name", features)
+		}
+	}
+}
