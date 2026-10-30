@@ -662,19 +662,25 @@ func (s *scenario) allConcurrentResponsesShouldHavePdfs(expected int) error {
 	return nil
 }
 
+// webhookWaitTimeout bounds the wait for an asynchronous webhook: the
+// conversion, within --api-timeout (30s by default), then the delivery.
+const webhookWaitTimeout = 90 * time.Second
+
 func (s *scenario) iWaitForTheAsynchronousRequestToWebhook(ctx context.Context) error {
 	if s.server == nil {
 		return errors.New("server not initialized")
 	}
-	if s.server.req != nil {
-		return nil
+
+	return s.server.waitForWebhook(ctx, webhookWaitTimeout)
+}
+
+// received returns the last request of the given kind the helper server got.
+func (s *scenario) received(kind string) (*request, error) {
+	if s.server == nil {
+		return nil, errors.New("server not initialized")
 	}
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case err := <-s.server.errChan:
-		return err
-	}
+
+	return s.server.received(kind)
 }
 
 // iStopTheGotenbergContainer sends SIGTERM to Gotenberg and expects a graceful
@@ -753,15 +759,14 @@ func (s *scenario) theResponseStatusCodeShouldBe(expected int) error {
 
 func (s *scenario) theHeaderValueShouldBe(kind, name string, expected string) error {
 	var actual string
-	switch {
-	case kind == "response":
+	if kind == "response" {
 		actual = s.resp.Header().Get(name)
-	case s.server == nil:
-		return errors.New("server not initialized")
-	case s.server.req == nil:
-		return errors.New("no webhook request found")
-	default:
-		actual = s.server.req.Header.Get(name)
+	} else {
+		rec, err := s.received(kind)
+		if err != nil {
+			return err
+		}
+		actual = rec.header.Get(name)
 	}
 
 	expected = strings.ReplaceAll(expected, "{version}", GotenbergVersion)
@@ -772,14 +777,12 @@ func (s *scenario) theHeaderValueShouldBe(kind, name string, expected string) er
 }
 
 func (s *scenario) theWebhookRequestHeaderShouldCarryTraceID(name, expected string) error {
-	if s.server == nil {
-		return errors.New("server not initialized")
-	}
-	if s.server.req == nil {
-		return errors.New("no webhook request found")
+	rec, err := s.received("webhook request")
+	if err != nil {
+		return err
 	}
 
-	value := s.server.req.Header.Get(name)
+	value := rec.header.Get(name)
 	if value == "" {
 		return fmt.Errorf("expected webhook request header %q to be set, but it is empty", name)
 	}
@@ -798,15 +801,14 @@ func (s *scenario) theWebhookRequestHeaderShouldCarryTraceID(name, expected stri
 
 func (s *scenario) theCookieValueShouldBe(kind, name, expected string) error {
 	var cookies []*http.Cookie
-	switch {
-	case kind == "response":
+	if kind == "response" {
 		cookies = s.resp.Result().Cookies()
-	case s.server == nil:
-		return errors.New("server not initialized")
-	case s.server.req == nil:
-		return errors.New("no webhook request found")
-	default:
-		cookies = s.server.req.Cookies()
+	} else {
+		rec, err := s.received(kind)
+		if err != nil {
+			return err
+		}
+		cookies = rec.cookies
 	}
 
 	var actual *http.Cookie
@@ -833,15 +835,14 @@ func (s *scenario) theCookieValueShouldBe(kind, name, expected string) error {
 
 func (s *scenario) theBodyShouldMatchString(kind string, expectedDoc *godog.DocString) error {
 	var actual string
-	switch {
-	case kind == "response":
+	if kind == "response" {
 		actual = s.resp.Body.String()
-	case s.server == nil:
-		return errors.New("server not initialized")
-	case s.server.req == nil:
-		return errors.New("no webhook request found")
-	default:
-		actual = string(s.server.bodyCopy)
+	} else {
+		rec, err := s.received(kind)
+		if err != nil {
+			return err
+		}
+		actual = string(rec.body)
 	}
 
 	expected := strings.ReplaceAll(expectedDoc.Content, "{version}", GotenbergVersion)
@@ -854,15 +855,14 @@ func (s *scenario) theBodyShouldMatchString(kind string, expectedDoc *godog.DocS
 
 func (s *scenario) theBodyShouldContainString(kind string, expectedDoc *godog.DocString) error {
 	var actual string
-	switch {
-	case kind == "response":
+	if kind == "response" {
 		actual = s.resp.Body.String()
-	case s.server == nil:
-		return errors.New("server not initialized")
-	case s.server.req == nil:
-		return errors.New("no webhook request found")
-	default:
-		actual = string(s.server.bodyCopy)
+	} else {
+		rec, err := s.received(kind)
+		if err != nil {
+			return err
+		}
+		actual = string(rec.body)
 	}
 
 	expected := strings.ReplaceAll(expectedDoc.Content, "{version}", GotenbergVersion)
@@ -875,15 +875,14 @@ func (s *scenario) theBodyShouldContainString(kind string, expectedDoc *godog.Do
 
 func (s *scenario) theBodyShouldMatchJSON(kind string, expectedDoc *godog.DocString) error {
 	var body []byte
-	switch {
-	case kind == "response":
+	if kind == "response" {
 		body = s.resp.Body.Bytes()
-	case s.server == nil:
-		return errors.New("server not initialized")
-	case s.server.req == nil:
-		return errors.New("no webhook request found")
-	default:
-		body = s.server.bodyCopy
+	} else {
+		rec, err := s.received(kind)
+		if err != nil {
+			return err
+		}
+		body = rec.body
 	}
 
 	var expected, actual any
