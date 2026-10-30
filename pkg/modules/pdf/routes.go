@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/gotenberg/litho/pkg/models"
@@ -237,9 +238,7 @@ func validateRoute(processor *Processor) api.Route {
 		case profile == facturXProfile:
 			var report litho.FacturXReport
 			report, err = r.ValidateFacturXReport(ctx)
-			for _, v := range report.Violations {
-				found = append(found, litho.Violation{Specification: facturXProfile, Description: v.Error()})
-			}
+			found = report.Structured()
 		default:
 			return nil, api.NewSentinelHttpError(
 				http.StatusBadRequest,
@@ -251,7 +250,13 @@ func validateRoute(processor *Processor) api.Route {
 			return nil, fmt.Errorf("validate against %s: %w", profile, err)
 		}
 
-		res := validation{Profile: profile, Compliant: len(found) == 0, Violations: make([]violation, len(found))}
+		// A Factur-X report holds warnings too, soft Schematron findings that
+		// do not by themselves fail conformance.
+		res := validation{
+			Profile:    profile,
+			Compliant:  !slices.ContainsFunc(found, func(v litho.Violation) bool { return v.Severity == litho.SeverityFatal }),
+			Violations: make([]violation, len(found)),
+		}
 		for i, v := range found {
 			res.Violations[i] = violation{
 				Specification: v.Specification,
