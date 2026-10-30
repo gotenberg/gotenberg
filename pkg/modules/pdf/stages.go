@@ -273,8 +273,8 @@ func optionNames(s stage) map[string]bool {
 	t := reflect.TypeOf(s).Elem()
 	names := make(map[string]bool, t.NumField())
 
-	for i := range t.NumField() {
-		name, _, _ := strings.Cut(t.Field(i).Tag.Get("json"), ",")
+	for field := range t.Fields() {
+		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 		if name != "" {
 			names[name] = true
 		}

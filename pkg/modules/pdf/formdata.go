@@ -95,8 +95,7 @@ func stageFromForm(op string, form *api.FormData) (Stages, map[string]string, er
 	object := map[string]any{"op": op}
 	t := reflect.TypeOf(newStage()).Elem()
 
-	for i := range t.NumField() {
-		field := t.Field(i)
+	for field := range t.Fields() {
 		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 		if name == "" {
 			continue
