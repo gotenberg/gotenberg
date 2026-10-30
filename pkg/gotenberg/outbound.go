@@ -97,9 +97,24 @@ var nonPublicIPv6Prefixes = []netip.Prefix{
 //     and cluster networks, and Alibaba Cloud serves instance metadata from
 //     100.100.100.200.
 //   - 198.18.0.0/15 Benchmarking (RFC 2544). Never routed on the internet.
+//   - 0.0.0.0/8     "This network" (RFC 791, RFC 6890). [netip.Addr.IsUnspecified]
+//     only covers 0.0.0.0, while Docker Desktop answers its host gateway at
+//     0.250.250.254, which reaches the host.
+//   - 192.0.0.0/24  IETF protocol assignments (RFC 6890). Not globally
+//     reachable.
+//   - 192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24 Documentation (RFC 5737).
+//     Never routable, like 2001:db8::/32 above.
+//   - 240.0.0.0/4   Reserved (RFC 1112), including the limited broadcast
+//     255.255.255.255.
 var nonPublicIPv4Prefixes = []netip.Prefix{
 	netip.MustParsePrefix("100.64.0.0/10"),
 	netip.MustParsePrefix("198.18.0.0/15"),
+	netip.MustParsePrefix("0.0.0.0/8"),
+	netip.MustParsePrefix("192.0.0.0/24"),
+	netip.MustParsePrefix("192.0.2.0/24"),
+	netip.MustParsePrefix("198.51.100.0/24"),
+	netip.MustParsePrefix("203.0.113.0/24"),
+	netip.MustParsePrefix("240.0.0.0/4"),
 }
 
 // IsPublicIP reports whether addr is reachable on the public internet. It

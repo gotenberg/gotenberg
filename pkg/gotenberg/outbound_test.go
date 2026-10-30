@@ -53,6 +53,25 @@ func TestIsPublicIP(t *testing.T) {
 		{"198.18.0.1", false},
 		{"198.19.255.255", false},
 
+		// "This network" (RFC 791). Docker Desktop's host gateway.
+		{"0.250.250.254", false},
+		{"0.0.0.1", false},
+		{"::ffff:0.250.250.254", false},
+
+		// IETF protocol assignments, documentation, reserved and broadcast.
+		{"192.0.0.8", false},
+		{"192.0.2.1", false},
+		{"198.51.100.1", false},
+		{"203.0.113.1", false},
+		{"240.0.0.1", false},
+		{"255.255.255.255", false},
+
+		// Neighbors of the ranges above stay public.
+		{"1.0.0.1", true},
+		{"192.0.1.1", true},
+		{"203.0.114.1", true},
+		{"223.255.255.255", true},
+
 		// Adjacent to the ranges above, and public.
 		{"100.63.255.255", true},
 		{"100.128.0.0", true},
