@@ -93,6 +93,15 @@ func (p *Processor) run(ctx *api.Context, stages Stages, inputPaths []string, fi
 		}
 	}
 
+	// Render comes last, and writes no document: it draws the final ones.
+	var render *renderStage
+	if len(stages) > 0 {
+		if r, ok := stages[len(stages)-1].(*renderStage); ok {
+			render = r
+			stages = stages[:len(stages)-1]
+		}
+	}
+
 	var err error
 	for i := 0; i < len(stages); {
 		switch s := stages[i].(type) {
@@ -117,12 +126,41 @@ func (p *Processor) run(ctx *api.Context, stages Stages, inputPaths []string, fi
 		password = ""
 	}
 
-	paths := make([]string, len(docs))
+	var images []string
+	if render != nil {
+		images, err = p.render(ctx, render, docs, renderPassword(stages, password))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	paths := make([]string, len(docs), len(docs)+len(images))
 	for i, d := range docs {
 		paths[i] = d.path
 	}
 
-	return paths, nil
+	return append(paths, images...), nil
+}
+
+// renderPassword returns the password that opens the final documents: the
+// one of the encryption the stages apply, or, without stages, the one of the
+// inputs.
+func renderPassword(stages Stages, inputPassword string) string {
+	if len(stages) == 0 {
+		return inputPassword
+	}
+
+	for _, s := range stages {
+		if e, ok := s.(*encryptStage); ok {
+			if e.OwnerPassword != "" {
+				return e.OwnerPassword
+			}
+
+			return e.UserPassword
+		}
+	}
+
+	return ""
 }
 
 // runEnd returns the index after the run of stages starting at start. A run

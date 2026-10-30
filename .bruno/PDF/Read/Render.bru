@@ -1,0 +1,27 @@
+meta {
+  name: Render
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/forms/pdf/render
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  files: @file(../../test/integration/testdata/pages_3.pdf)
+  ~pages: 1-2
+  ~dpi: 150
+  ~format: jpeg
+  ~quality: 90
+}
+
+headers {
+  ~Gotenberg-Output-Filename: pages
+  ~Gotenberg-Webhook-Url: http://localhost:8080/webhook
+  ~Gotenberg-Webhook-Events-Url: http://localhost:8080/webhook/events
+  ~Gotenberg-Webhook-Method: POST
+  ~Gotenberg-Webhook-Extra-Http-Headers: {"X-Custom":"value"}
+}

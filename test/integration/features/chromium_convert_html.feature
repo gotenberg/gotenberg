@@ -1037,7 +1037,7 @@ Feature: /forms/chromium/convert/html
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Invalid form data: form field 'stages' is invalid: stage 1: "rotate" cannot follow "remediate": only encrypt, optimize, sign and timestamp may
+      Invalid form data: form field 'stages' is invalid: stage 1: "rotate" cannot follow "remediate": only encrypt, optimize, sign, timestamp and render may
       """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
       | files                     | testdata/page-1-html/index.html          | file   |
@@ -1215,6 +1215,21 @@ Feature: /forms/chromium/convert/html
       """
       Page 12
       """
+
+  # The images show the printed document: Letter pages, at 36 dpi.
+  @pdf-render
+  Scenario: POST /forms/chromium/convert/html (Render)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files  | testdata/pages-3-html/index.html | file  |
+      | stages | [{"op":"render","dpi":36}]       | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | *_1.png |
+      | *_2.png |
+      | *_3.png |
 
   @pdf-remediate
   Scenario: POST /forms/chromium/convert/html (PDF/A-1b)

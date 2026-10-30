@@ -182,6 +182,7 @@ KEEP_FAILED=
 # pdf-optimize
 # pdf-redact
 # pdf-colors
+# pdf-render
 # pdf-read
 # root
 # version

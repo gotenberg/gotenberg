@@ -519,6 +519,42 @@ func (*timestampStage) op() string        { return "timestamp" }
 func (s *timestampStage) validate() error { return validateHttpUrl("url", s.Url) }
 func (*timestampStage) files() []string   { return nil }
 
+// renderStage draws the pages of each final document as images, and adds them
+// to the outputs next to the document. Pages lists the pages to draw, every
+// page when empty. Dpi defaults to litho's [litho.DefaultRenderDPI], Format to
+// png, and Quality, for jpeg only, to 100.
+type renderStage struct {
+	Pages   string `json:"pages"`
+	Dpi     int    `json:"dpi"`
+	Format  string `json:"format"`
+	Quality int    `json:"quality"`
+}
+
+func (*renderStage) op() string { return "render" }
+
+func (s *renderStage) validate() error {
+	if s.Dpi < 0 {
+		return fmt.Errorf(`"dpi" must be positive, got %d`, s.Dpi)
+	}
+
+	switch s.Format {
+	case "", "png":
+		if s.Quality != 0 {
+			return errors.New(`"quality" only applies to the jpeg format`)
+		}
+	case "jpeg":
+		if s.Quality < 0 || s.Quality > 100 {
+			return fmt.Errorf(`"quality" must be between 1 and 100, got %d`, s.Quality)
+		}
+	default:
+		return fmt.Errorf(`"format" must be png or jpeg, got %q`, s.Format)
+	}
+
+	return nil
+}
+
+func (*renderStage) files() []string { return nil }
+
 // Interface guards.
 var (
 	_ stage = (*mergeStage)(nil)
@@ -546,4 +582,5 @@ var (
 	_ stage = (*remediateStage)(nil)
 	_ stage = (*signStage)(nil)
 	_ stage = (*timestampStage)(nil)
+	_ stage = (*renderStage)(nil)
 )
