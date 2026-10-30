@@ -75,6 +75,11 @@ func (s *scenario) responsePdfPaths() ([]string, error) {
 		return nil, fmt.Errorf("walk %q: %w", s.teststoreDir, err)
 	}
 
+	// An assertion over every PDF must not pass vacuously.
+	if len(paths) == 0 {
+		return nil, fmt.Errorf("no PDF in %q to check", s.teststoreDir)
+	}
+
 	return paths, nil
 }
 
