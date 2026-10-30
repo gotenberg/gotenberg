@@ -138,7 +138,8 @@ test-unit: ## Run unit tests
 	go test -race ./...
 
 PLATFORM=
-NO_CONCURRENCY=false
+# Number of scenarios run at once; 0 runs one per CPU.
+CONCURRENCY=0
 # Available tags:
 # chromium
 # api-limits
@@ -188,7 +189,7 @@ test-integration: ## Run integration tests (automatically retries failed scenari
 	--gotenberg-docker-repository=$(DOCKER_REPOSITORY) \
 	--gotenberg-version=$(GOTENBERG_VERSION) \
  	--gotenberg-container-platform=$(PLATFORM) \
- 	--no-concurrency=$(NO_CONCURRENCY) \
+ 	--concurrency=$(CONCURRENCY) \
  	--tags="$(TAGS)"
 
 # golangci-lint runs at a pinned version, so a Homebrew upgrade cannot move the

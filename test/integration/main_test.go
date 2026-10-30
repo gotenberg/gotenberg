@@ -27,7 +27,7 @@ func TestMain(m *testing.M) {
 	repository := flag.String("gotenberg-docker-repository", "", "")
 	version := flag.String("gotenberg-version", "", "")
 	platform := flag.String("gotenberg-container-platform", "", "")
-	noConcurrency := flag.Bool("no-concurrency", false, "")
+	concurrencyFlag := flag.Int("concurrency", 0, "")
 	tags := flag.String("tags", "", "")
 	flag.Parse()
 
@@ -44,9 +44,9 @@ func TestMain(m *testing.M) {
 	scenario.GotenbergVersion = *version
 	scenario.GotenbergContainerPlatform = *platform
 
-	concurrency := runtime.NumCPU()
-	if *noConcurrency {
-		concurrency = 0
+	concurrency := *concurrencyFlag
+	if concurrency <= 0 {
+		concurrency = runtime.NumCPU()
 	}
 
 	maxAttempts := 4 // 1 initial run + up to 3 retries

@@ -17,7 +17,7 @@ Run `make build` before `make test-integration`. Integration tests require a Doc
 make test-integration TAGS=health
 make test-integration TAGS=chromium-convert-html
 make test-integration TAGS="pdf-merge,pdf-split"
-make test-integration NO_CONCURRENCY=true  # disable parallel scenarios
+make test-integration CONCURRENCY=1        # one scenario at a time (0, the default, runs one per CPU)
 make test-integration PLATFORM=linux/arm64 # force a specific platform
 ```
 

@@ -72,7 +72,7 @@ run_cmd() {
   fi
 }
 
-cmd="make test-integration DOCKER_REPOSITORY=$repository GOTENBERG_VERSION=$version PLATFORM=$platform NO_CONCURRENCY=true"
+cmd="make test-integration DOCKER_REPOSITORY=$repository GOTENBERG_VERSION=$version PLATFORM=$platform CONCURRENCY=3"
 run_cmd "$cmd"
 
 echo "✅ Done!"
