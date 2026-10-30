@@ -71,7 +71,6 @@ type browserArguments struct {
 	disableWebSecurity       bool
 	allowFileAccessFromFiles bool
 	hostResolverRules        string
-	hostRules                hostResolverRules
 	proxyServer              string
 	enableEnvironmentProxy   bool
 	wsUrlReadTimeout         time.Duration
@@ -103,24 +102,6 @@ func (a browserArguments) restrictsNetwork() bool {
 	return false
 }
 
-// usesPinningProxy reports whether Chromium sends its traffic through the
-// pinning proxy. An operator egress proxy set with --chromium-proxy-server
-// takes its place.
-func (a browserArguments) usesPinningProxy() bool {
-	return a.proxyServer == ""
-}
-
-// hostMapping returns the --chromium-host-resolver-rules mapping that the
-// outbound checks apply, or nil. Chromium hands every destination to the
-// pinning proxy, so the rules must apply there. Behind the operator's proxy,
-// Chromium keeps applying them itself.
-func (a browserArguments) hostMapping() gotenberg.HostMapping {
-	if !a.usesPinningProxy() || (len(a.hostRules.maps) == 0 && len(a.hostRules.excludes) == 0) {
-		return nil
-	}
-	return a.hostRules.rewrite
-}
-
 type chromiumBrowser struct {
 	initialCtx         context.Context
 	ctx                context.Context
@@ -143,7 +124,7 @@ func newChromiumBrowser(arguments browserArguments) browser {
 		initialCtx:   context.Background(),
 		arguments:    arguments,
 		fs:           gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)),
-		pinningProxy: newPinningProxy(arguments.allowList, arguments.denyList, arguments.denyPrivateIPs, arguments.denyPublicIPs, arguments.enableEnvironmentProxy, arguments.hostMapping()),
+		pinningProxy: newPinningProxy(arguments.allowList, arguments.denyList, arguments.denyPrivateIPs, arguments.denyPublicIPs, arguments.enableEnvironmentProxy),
 	}
 	b.isStarted.Store(false)
 
@@ -231,10 +212,7 @@ func (b *chromiumBrowser) Start(ctx context.Context, logger *slog.Logger) (err e
 		opts = append(opts, chromedp.Flag("allow-file-access-from-files", true))
 	}
 
-	if b.arguments.hostResolverRules != "" && !b.arguments.usesPinningProxy() {
-		// Behind the pinning proxy, Chromium resolves nothing but the proxy
-		// itself, and would apply a rule such as "MAP * ~NOTFOUND" to its
-		// 127.0.0.1 address. The pinning proxy applies the rules instead.
+	if b.arguments.hostResolverRules != "" {
 		// See https://github.com/gotenberg/gotenberg/issues/488.
 		opts = append(opts, chromedp.Flag("host-resolver-rules", b.arguments.hostResolverRules))
 	}
@@ -251,19 +229,18 @@ func (b *chromiumBrowser) Start(ctx context.Context, logger *slog.Logger) (err e
 	// rebinding window between Gotenberg's validation and Chromium's
 	// connect.
 	//
-	// Skip when the operator has configured their own egress proxy: that
-	// proxy owns outbound safety, and routing through an internal proxy
-	// would override it. Custom host-resolver mappings keep the pinning
-	// proxy, which applies them, so that the outbound policy still covers
-	// WebSocket handshakes. Without it, nothing could block those.
-	if b.arguments.usesPinningProxy() {
+	// Skip when the operator has configured their own egress proxy or
+	// custom host-resolver mappings: those deployments take
+	// responsibility for outbound safety themselves and routing through
+	// an internal proxy would override their configuration.
+	if b.arguments.proxyServer == "" && b.arguments.hostResolverRules == "" {
 		err = b.pinningProxy.Start(logger)
 		if err != nil {
 			return fmt.Errorf("start pinning proxy: %w", err)
 		}
 		opts = append(opts, chromedp.ProxyServer(b.pinningProxy.URL()))
 
-		if b.arguments.restrictsNetwork() || b.arguments.hostMapping() != nil {
+		if b.arguments.restrictsNetwork() {
 			// Chromium implicitly bypasses the proxy for loopback and
 			// link-local destinations. A WebSocket handshake is never surfaced
 			// as a fetch.EventRequestPaused, so listenForEventRequestPaused
@@ -278,9 +255,7 @@ func (b *chromiumBrowser) Start(ctx context.Context, logger *slog.Logger) (err e
 			// Gated on a policy that can reject a network URL: without one,
 			// loopback is not restricted, and routing it through the proxy
 			// would only turn a refused loopback sub-resource into a 502
-			// response instead of a loading failure. Host-resolver mappings
-			// also need it, since a rule may send "localhost" elsewhere and
-			// only the proxy applies the rules.
+			// response instead of a loading failure.
 			opts = append(opts, chromedp.Flag("proxy-bypass-list", "<-loopback>"))
 		}
 	}
@@ -307,7 +282,8 @@ func (b *chromiumBrowser) Start(ctx context.Context, logger *slog.Logger) (err e
 		allocatorCancel()
 		// The pinning proxy started before chromedp; tear it down so a
 		// supervisor retry can re-bind. Stop is a no-op when the proxy
-		// was never started (operator-configured --chromium-proxy-server).
+		// was never started (operator-configured --chromium-proxy-server
+		// or --chromium-host-resolver-rules).
 		// See https://github.com/gotenberg/gotenberg/issues/1559.
 		stopErr := b.pinningProxy.Stop(logger)
 		if stopErr != nil {
@@ -575,7 +551,6 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 	err := gotenberg.FilterOutboundURL(ctx, url, b.arguments.allowList, b.arguments.denyList, deadline,
 		gotenberg.WithDenyPrivateIPs(b.arguments.denyPrivateIPs),
 		gotenberg.WithDenyPublicIPs(b.arguments.denyPublicIPs),
-		gotenberg.WithHostMapping(b.arguments.hostMapping()),
 	)
 	if err != nil {
 		return fmt.Errorf("filter URL: %w", err)
@@ -605,6 +580,18 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 	taskCtx, taskCancel := chromedp.NewContext(timeoutCtx, taskOpts...)
 	defer taskCancel()
 
+	failures := new(conversionFailures)
+	b.listen(taskCtx, taskCancel, logger, url, options, aggregate, failures)
+
+	runErr := chromedp.Run(taskCtx, tasks...)
+
+	return failures.err(runErr, b.ctx.Err() != nil, options.FailOnResourceLoadingFailed)
+}
+
+// listen registers the event listeners of one conversion on taskCtx. They
+// record what fails the conversion in failures, and some cancel taskCtx so
+// that the conversion stops at once.
+func (b *chromiumBrowser) listen(taskCtx context.Context, taskCancel context.CancelFunc, logger *slog.Logger, url string, options Options, aggregate *networkAggregate, failures *conversionFailures) {
 	// Accumulate per-conversion network activity for telemetry.
 	listenForNetworkActivity(taskCtx, aggregate)
 
@@ -617,7 +604,6 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 		denyList:            b.arguments.denyList,
 		denyPrivateIPs:      b.arguments.denyPrivateIPs,
 		denyPublicIPs:       b.arguments.denyPublicIPs,
-		hostMapping:         b.arguments.hostMapping(),
 		allowedFilePrefixes: options.AllowedFilePrefixes,
 		extraHttpHeaders:    options.ExtraHttpHeaders,
 	})
@@ -626,33 +612,19 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 	// listenForEventRequestPaused above cannot filter them. Validate them
 	// against the same allow / deny lists and IP-class policy.
 	// See https://github.com/gotenberg/gotenberg/issues/1011.
-	var (
-		webSocketDenied   error
-		webSocketDeniedMu sync.RWMutex
-	)
-
 	webSocketOptions := eventWebSocketCreatedOptions{
 		allowList:      b.arguments.allowList,
 		denyList:       b.arguments.denyList,
 		denyPrivateIPs: b.arguments.denyPrivateIPs,
 		denyPublicIPs:  b.arguments.denyPublicIPs,
-		hostMapping:    b.arguments.hostMapping(),
-		denied:         &webSocketDenied,
-		deniedMu:       &webSocketDeniedMu,
+		failures:       failures,
 		cancel:         taskCancel,
 	}
-	if b.arguments.usesPinningProxy() {
+	if b.arguments.proxyServer == "" && b.arguments.hostResolverRules == "" {
 		webSocketOptions.decideTunnel = b.pinningProxy.decideTunnel
 	}
 
 	listenForEventWebSocketCreated(taskCtx, logger, webSocketOptions)
-
-	var (
-		invalidHttpStatusCode           error
-		invalidHttpStatusCodeMu         sync.RWMutex
-		invalidResourceHttpStatusCode   error
-		invalidResourceHttpStatusCodeMu sync.RWMutex
-	)
 
 	// See:
 	// https://github.com/gotenberg/gotenberg/issues/613.
@@ -661,195 +633,40 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 		listenForEventResponseReceived(taskCtx, logger, eventResponseReceivedOptions{
 			mainPageUrl:                     url,
 			failOnHttpStatusCodes:           options.FailOnHttpStatusCodes,
-			invalidHttpStatusCode:           &invalidHttpStatusCode,
-			invalidHttpStatusCodeMu:         &invalidHttpStatusCodeMu,
 			failOnResourceOnHttpStatusCode:  options.FailOnResourceHttpStatusCodes,
 			ignoreResourceHttpStatusDomains: options.IgnoreResourceHttpStatusDomains,
-			invalidResourceHttpStatusCode:   &invalidResourceHttpStatusCode,
-			invalidResourceHttpStatusCodeMu: &invalidResourceHttpStatusCodeMu,
+			failures:                        failures,
 			cancelOnMainPageError:           taskCancel,
 		})
 	}
 
-	var (
-		consoleExceptions   error
-		consoleExceptionsMu sync.RWMutex
-	)
-
 	// See https://github.com/gotenberg/gotenberg/issues/262.
 	if options.FailOnConsoleExceptions && !b.arguments.disableJavaScript {
-		listenForEventExceptionThrown(taskCtx, logger, &consoleExceptions, &consoleExceptionsMu)
+		listenForEventExceptionThrown(taskCtx, logger, failures)
 	}
-
-	var (
-		consoleMessages        []string
-		droppedConsoleMessages int
-		consoleMessagesMu      sync.RWMutex
-	)
 
 	// See https://github.com/gotenberg/gotenberg/issues/1667.
 	if len(options.FailOnConsoleMessageTypes) != 0 && !b.arguments.disableJavaScript {
 		listenForEventConsoleAPICalled(taskCtx, logger, eventConsoleAPICalledOptions{
-			types:                  options.FailOnConsoleMessageTypes,
-			consoleMessages:        &consoleMessages,
-			droppedConsoleMessages: &droppedConsoleMessages,
-			consoleMessagesMu:      &consoleMessagesMu,
+			types:    options.FailOnConsoleMessageTypes,
+			failures: failures,
 		})
 	}
-
-	var (
-		loadingFailed           error
-		loadingFailedMu         sync.RWMutex
-		resourceLoadingFailed   error
-		resourceLoadingFailedMu sync.RWMutex
-	)
 
 	// See:
 	// https://github.com/gotenberg/gotenberg/issues/913.
 	// https://github.com/gotenberg/gotenberg/issues/959.
 	// https://github.com/gotenberg/gotenberg/issues/1021.
 	listenForEventLoadingFailed(taskCtx, logger, eventLoadingFailedOptions{
-		loadingFailed:           &loadingFailed,
-		loadingFailedMu:         &loadingFailedMu,
-		resourceLoadingFailed:   &resourceLoadingFailed,
-		resourceLoadingFailedMu: &resourceLoadingFailedMu,
-		cancelOnMainPageError:   taskCancel,
+		failures:              failures,
+		cancelOnMainPageError: taskCancel,
 	})
-
-	var (
-		crashed   error
-		crashedMu sync.RWMutex
-	)
 
 	// See https://github.com/gotenberg/gotenberg/issues/1640.
 	listenForEventTargetCrashed(taskCtx, logger, eventTargetCrashedOptions{
-		crashed:   &crashed,
-		crashedMu: &crashedMu,
-		cancel:    taskCancel,
+		failures: failures,
+		cancel:   taskCancel,
 	})
-
-	runErr := chromedp.Run(taskCtx, tasks...)
-
-	// A crashed renderer is the root cause of every other failure this
-	// conversion may have recorded, so check it first.
-	// See https://github.com/gotenberg/gotenberg/issues/1640.
-	crashedMu.RLock()
-	defer crashedMu.RUnlock()
-
-	if crashed != nil {
-		return fmt.Errorf("handle tasks: %w", crashed)
-	}
-
-	// A WebSocket the deny-list refuses cancels the conversion, so report the
-	// refusal rather than the cancellation it caused.
-	webSocketDeniedMu.RLock()
-	defer webSocketDeniedMu.RUnlock()
-
-	if webSocketDenied != nil {
-		return fmt.Errorf("handle tasks: %w", webSocketDenied)
-	}
-
-	// The browser context is only ever canceled when the browser process
-	// dies or is stopped, never on a request timeout. If the run failed
-	// and the browser context is done, the conversion failed because the
-	// browser went away mid-flight; fail fast with the same crash error
-	// instead of letting the error fall through as a generic context
-	// cancellation. The check is gated on runErr so a successful
-	// conversion is never discarded by a browser death that lands right
-	// after it.
-	// See https://github.com/gotenberg/gotenberg/issues/1640.
-	if runErr != nil {
-		if err := b.ctx.Err(); err != nil {
-			return fmt.Errorf("handle tasks: %w", ErrChromiumCrashed)
-		}
-	}
-
-	// Check event-driven errors first — they take priority over chromedp.Run
-	// errors because they carry the actual root cause (e.g., HTTP 500 from
-	// the main page). When we cancel taskCtx on a main page error,
-	// chromedp.Run returns a context error that is less informative.
-	// See https://github.com/gotenberg/gotenberg/issues/1492.
-
-	// See https://github.com/gotenberg/gotenberg/issues/613.
-	invalidHttpStatusCodeMu.RLock()
-	defer invalidHttpStatusCodeMu.RUnlock()
-
-	if invalidHttpStatusCode != nil {
-		return fmt.Errorf("%v: %w", invalidHttpStatusCode, ErrInvalidHttpStatusCode)
-	}
-
-	// See https://github.com/gotenberg/gotenberg/issues/1021.
-	invalidResourceHttpStatusCodeMu.RLock()
-	defer invalidResourceHttpStatusCodeMu.RUnlock()
-
-	if invalidResourceHttpStatusCode != nil {
-		return fmt.Errorf("%v: %w", invalidResourceHttpStatusCode, ErrInvalidResourceHttpStatusCode)
-	}
-
-	// See:
-	// https://github.com/gotenberg/gotenberg/issues/913.
-	// https://github.com/gotenberg/gotenberg/issues/959.
-	loadingFailedMu.RLock()
-	defer loadingFailedMu.RUnlock()
-
-	if loadingFailed != nil {
-		return fmt.Errorf("%v: %w", loadingFailed, ErrLoadingFailed)
-	}
-
-	if runErr != nil {
-		errMessage := runErr.Error()
-
-		if strings.Contains(errMessage, "Printing failed (-32000)") {
-			return ErrPrintingFailed
-		}
-
-		if isInvalidPrinterSettingsError(errMessage) {
-			return ErrInvalidPrinterSettings
-		}
-
-		if strings.Contains(errMessage, "Page range syntax error") {
-			return ErrPageRangesSyntaxError
-		}
-
-		if strings.Contains(errMessage, "Page range exceeds page count (-32000)") {
-			return ErrPageRangesExceedsPageCount
-		}
-
-		if strings.Contains(errMessage, "rpcc: message too large") {
-			return ErrRpccMessageTooLarge
-		}
-
-		return fmt.Errorf("handle tasks: %w", runErr)
-	}
-
-	// See https://github.com/gotenberg/gotenberg/issues/262.
-	consoleExceptionsMu.RLock()
-	defer consoleExceptionsMu.RUnlock()
-
-	if consoleExceptions != nil {
-		return fmt.Errorf("%v: %w", consoleExceptions, ErrConsoleExceptions)
-	}
-
-	// See https://github.com/gotenberg/gotenberg/issues/1667.
-	consoleMessagesMu.RLock()
-	defer consoleMessagesMu.RUnlock()
-
-	if len(consoleMessages) != 0 {
-		if droppedConsoleMessages != 0 {
-			consoleMessages = append(consoleMessages, fmt.Sprintf("(%d more console message(s) omitted)", droppedConsoleMessages))
-		}
-
-		return fmt.Errorf("%s: %w", strings.Join(consoleMessages, "\n"), ErrConsoleMessages)
-	}
-
-	// See https://github.com/gotenberg/gotenberg/issues/1021.
-	if options.FailOnResourceLoadingFailed {
-		if resourceLoadingFailed != nil {
-			return fmt.Errorf("%v: %w", resourceLoadingFailed, ErrResourceLoadingFailed)
-		}
-	}
-
-	return nil
 }
 
 // invalidPrinterSettingsMessages are the errors Chromium returns when it
