@@ -291,6 +291,17 @@ type Options struct {
 	PdfFormats PdfFormats
 }
 
+// String renders the options with the password masked, so that logging them
+// never leaks it.
+func (o Options) String() string {
+	// A distinct type drops the String method, avoiding infinite recursion.
+	type plain Options
+	if o.Password != "" {
+		o.Password = "***"
+	}
+	return fmt.Sprintf("%+v", plain(o))
+}
+
 // DefaultOptions returns the default values for Options.
 func DefaultOptions() Options {
 	return Options{
