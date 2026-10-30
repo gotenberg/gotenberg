@@ -30,6 +30,9 @@ Version: %s
 -------------------------------------------------------
 `
 
+// telemetryShutdownTimeout bounds the final flush of spans, metrics, and logs.
+const telemetryShutdownTimeout = 5 * time.Second
+
 // Version is the... version of the Gotenberg application. We set it at the
 // build stage of the Docker image.
 var Version = "snapshot"
@@ -230,8 +233,13 @@ func Run() {
 		os.Exit(1) //nolint:gocritic // defers are already called explicitly above
 	}
 
-	// Shutdown telemetry (flush spans, metrics, logs).
-	err = shutdownTelemetry(gracefulShutdownCtx)
+	// Shutdown telemetry (flush spans, metrics, logs). The graceful shutdown's
+	// context may already be done, by its deadline or by a module ending it
+	// early, so the flush gets its own.
+	telemetryCtx, telemetryCancel := context.WithTimeout(context.Background(), telemetryShutdownTimeout)
+	defer telemetryCancel()
+
+	err = shutdownTelemetry(telemetryCtx)
 	if err != nil {
 		cancel()
 		fmt.Printf("[FATAL] %v\n", err)
