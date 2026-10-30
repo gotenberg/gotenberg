@@ -320,7 +320,7 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 
 			return nil
 		}).
-		Int("quality", &screenshotOptions.Quality, api.Min(0), api.Max(100)).
+		Int("quality", &screenshotOptions.Quality, api.Min(1), api.Max(100)).
 		Bool("optimizeForSpeed", &screenshotOptions.OptimizeForSpeed).
 		Float64("deviceScaleFactor", &screenshotOptions.DeviceScaleFactor)
 
