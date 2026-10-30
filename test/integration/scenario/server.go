@@ -23,6 +23,7 @@ import (
 
 // request is a request the helper server received, recorded once fully read.
 type request struct {
+	method  string
 	header  http.Header
 	cookies []*http.Cookie
 	body    []byte
@@ -30,7 +31,7 @@ type request struct {
 
 // newRequest records r, whose body has already been read into body.
 func newRequest(r *http.Request, body []byte) *request {
-	return &request{header: r.Header.Clone(), cookies: r.Cookies(), body: body}
+	return &request{method: r.Method, header: r.Header.Clone(), cookies: r.Cookies(), body: body}
 }
 
 // server is the helper HTTP server a scenario points Gotenberg at. Handlers run
