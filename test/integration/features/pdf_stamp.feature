@@ -114,8 +114,8 @@ Feature: /forms/pdf/{stamp-text|stamp-image|stamp-pdf}
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/pdf/stamp-image" endpoint with the following form data and header(s):
-      | files        | testdata/page_1.pdf                                                      | file  |
-      | downloadFrom | [{"url":"http://host.docker.internal:%d/static/testdata/watermark.png"}] | field |
-      | image        | watermark.png                                                            | field |
+      | files        | testdata/page_1.pdf                                | file  |
+      | downloadFrom | [{"url":"{helper}/static/testdata/watermark.png"}] | field |
+      | image        | watermark.png                                      | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"

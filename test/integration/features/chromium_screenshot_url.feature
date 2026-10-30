@@ -6,8 +6,8 @@ Feature: /forms/chromium/screenshot/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/screenshot/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
-      | Gotenberg-Output-Filename | foo                                                                 | header |
+      | url                       | {helper}/html/testdata/page-1-html/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                           | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "image/png"
     Then there should be the following file(s) in the response:
@@ -17,9 +17,9 @@ Feature: /forms/chromium/screenshot/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/screenshot/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
-      | format                    | jpeg                                                                | field  |
-      | Gotenberg-Output-Filename | foo                                                                 | header |
+      | url                       | {helper}/html/testdata/page-1-html/index.html | field  |
+      | format                    | jpeg                                          | field  |
+      | Gotenberg-Output-Filename | foo                                           | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "image/jpeg"
     Then there should be the following file(s) in the response:
@@ -29,9 +29,9 @@ Feature: /forms/chromium/screenshot/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/screenshot/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
-      | format                    | webp                                                                | field  |
-      | Gotenberg-Output-Filename | foo                                                                 | header |
+      | url                       | {helper}/html/testdata/page-1-html/index.html | field  |
+      | format                    | webp                                          | field  |
+      | Gotenberg-Output-Filename | foo                                           | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "image/webp"
     Then there should be the following file(s) in the response:
@@ -86,10 +86,10 @@ Feature: /forms/chromium/screenshot/url
     Given I have a static server
     Given I have a webhook server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/screenshot/url" endpoint with the following form data and header(s):
-      | url                          | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
-      | Gotenberg-Output-Filename    | foo                                                                 | header |
-      | Gotenberg-Webhook-Url        | http://host.docker.internal:%d/webhook                              | header |
-      | Gotenberg-Webhook-Events-Url | http://host.docker.internal:%d/webhook/events                       | header |
+      | url                          | {helper}/html/testdata/page-1-html/index.html | field  |
+      | Gotenberg-Output-Filename    | foo                                           | header |
+      | Gotenberg-Webhook-Url        | {helper}/webhook                              | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events                       | header |
     Then the response status code should be 204
     When I wait for the asynchronous request to the webhook
     Then the webhook request header "Content-Type" should be "image/png"
@@ -103,7 +103,7 @@ Feature: /forms/chromium/screenshot/url
       | GOTENBERG_API_BASIC_AUTH_PASSWORD | bar  |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/screenshot/url" endpoint with the following form data and header(s):
-      | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+      | url | {helper}/html/testdata/page-1-html/index.html | field |
     Then the response status code should be 401
 
   Scenario: POST /foo/forms/chromium/screenshot/url (Root Path)
@@ -112,6 +112,6 @@ Feature: /forms/chromium/screenshot/url
       | API_ROOT_PATH          | /foo/ |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/foo/forms/chromium/screenshot/url" endpoint with the following form data and header(s):
-      | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+      | url | {helper}/html/testdata/page-1-html/index.html | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "image/png"

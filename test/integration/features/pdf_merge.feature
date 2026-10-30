@@ -82,8 +82,8 @@ Feature: /forms/pdf/merge
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/pdf/merge" endpoint with the following form data and header(s):
-      | downloadFrom              | [{"url":"http://host.docker.internal:%d/static/testdata/page_1.pdf"},{"url":"http://host.docker.internal:%d/static/testdata/page_2.pdf"}] | field  |
-      | Gotenberg-Output-Filename | foo                                                                                                                                       | header |
+      | downloadFrom              | [{"url":"{helper}/static/testdata/page_1.pdf"},{"url":"{helper}/static/testdata/page_2.pdf"}] | field  |
+      | Gotenberg-Output-Filename | foo                                                                                           | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then the "foo.pdf" PDF should have 2 page(s)
@@ -93,11 +93,11 @@ Feature: /forms/pdf/merge
     Given I have a default Gotenberg container
     Given I have a webhook server
     When I make a "POST" request to Gotenberg at the "/forms/pdf/merge" endpoint with the following form data and header(s):
-      | files                        | testdata/page_1.pdf                           | file   |
-      | files                        | testdata/page_2.pdf                           | file   |
-      | Gotenberg-Output-Filename    | foo                                           | header |
-      | Gotenberg-Webhook-Url        | http://host.docker.internal:%d/webhook        | header |
-      | Gotenberg-Webhook-Events-Url | http://host.docker.internal:%d/webhook/events | header |
+      | files                        | testdata/page_1.pdf     | file   |
+      | files                        | testdata/page_2.pdf     | file   |
+      | Gotenberg-Output-Filename    | foo                     | header |
+      | Gotenberg-Webhook-Url        | {helper}/webhook        | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events | header |
     Then the response status code should be 204
     When I wait for the asynchronous request to the webhook
     Then the webhook request header "Content-Type" should be "application/pdf"
