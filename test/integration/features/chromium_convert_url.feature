@@ -9,8 +9,8 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
-      | Gotenberg-Output-Filename | foo                                                                 | header |
+      | url                       | {helper}/html/testdata/page-1-html/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                           | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -26,9 +26,9 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
-      | paperSize                 | A4                                                                  | field  |
-      | Gotenberg-Output-Filename | foo                                                                 | header |
+      | url                       | {helper}/html/testdata/page-1-html/index.html | field  |
+      | paperSize                 | A4                                            | field  |
+      | Gotenberg-Output-Filename | foo                                           | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then the "foo.pdf" PDF first page should be 595.28x841.89 points
@@ -37,10 +37,10 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
-      | paperSize                 | A4                                                                  | field  |
-      | paperWidth                | 100mm                                                               | field  |
-      | Gotenberg-Output-Filename | foo                                                                 | header |
+      | url                       | {helper}/html/testdata/page-1-html/index.html | field  |
+      | paperSize                 | A4                                            | field  |
+      | paperWidth                | 100mm                                         | field  |
+      | Gotenberg-Output-Filename | foo                                           | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then the "foo.pdf" PDF first page should be 283.46x841.89 points
@@ -51,13 +51,13 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/local-storage-html/index.html | field  |
-      | Gotenberg-Output-Filename | foo                                                                        | header |
+      | url                       | {helper}/html/testdata/local-storage-html/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                  | header |
     Then the response status code should be 200
     Then the "foo.pdf" PDF should have content matching "localStorageCount=1" at page 1
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/local-storage-html/index.html | field  |
-      | Gotenberg-Output-Filename | foo                                                                        | header |
+      | url                       | {helper}/html/testdata/local-storage-html/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                  | header |
     Then the response status code should be 200
     Then the "foo.pdf" PDF should have content matching "localStorageCount=1" at page 1
 
@@ -70,13 +70,13 @@ Feature: /forms/chromium/convert/url
       | CHROMIUM_SHARED_BROWSER_CONTEXT | true |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/local-storage-html/index.html | field  |
-      | Gotenberg-Output-Filename | foo                                                                        | header |
+      | url                       | {helper}/html/testdata/local-storage-html/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                  | header |
     Then the response status code should be 200
     Then the "foo.pdf" PDF should have content matching "localStorageCount=1" at page 1
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/local-storage-html/index.html | field  |
-      | Gotenberg-Output-Filename | foo                                                                        | header |
+      | url                       | {helper}/html/testdata/local-storage-html/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                  | header |
     Then the response status code should be 200
     Then the "foo.pdf" PDF should have content matching "localStorageCount=2" at page 1
 
@@ -89,13 +89,13 @@ Feature: /forms/chromium/convert/url
       | CHROMIUM_CLEAR_STORAGE          | true |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/local-storage-html/index.html | field  |
-      | Gotenberg-Output-Filename | foo                                                                        | header |
+      | url                       | {helper}/html/testdata/local-storage-html/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                  | header |
     Then the response status code should be 200
     Then the "foo.pdf" PDF should have content matching "localStorageCount=1" at page 1
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/local-storage-html/index.html | field  |
-      | Gotenberg-Output-Filename | foo                                                                        | header |
+      | url                       | {helper}/html/testdata/local-storage-html/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                  | header |
     Then the response status code should be 200
     Then the "foo.pdf" PDF should have content matching "localStorageCount=1" at page 1
 
@@ -103,8 +103,8 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/pages-12-html/index.html | field  |
-      | Gotenberg-Output-Filename | foo                                                                   | header |
+      | url                       | {helper}/html/testdata/pages-12-html/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                             | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -121,9 +121,9 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/pages-12-html/index.html | field  |
-      | singlePage                | true                                                                  | field  |
-      | Gotenberg-Output-Filename | foo                                                                   | header |
+      | url                       | {helper}/html/testdata/pages-12-html/index.html | field  |
+      | singlePage                | true                                            | field  |
+      | Gotenberg-Output-Filename | foo                                             | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -146,8 +146,8 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
-      | Gotenberg-Output-Filename | foo                                                                 | header |
+      | url                       | {helper}/html/testdata/page-1-html/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                           | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -156,9 +156,9 @@ Feature: /forms/chromium/convert/url
     Then the "foo.pdf" PDF should NOT be set to landscape orientation
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
-      | landscape                 | true                                                                | field  |
-      | Gotenberg-Output-Filename | foo                                                                 | header |
+      | url                       | {helper}/html/testdata/page-1-html/index.html | field  |
+      | landscape                 | true                                          | field  |
+      | Gotenberg-Output-Filename | foo                                           | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -170,9 +170,9 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/pages-12-html/index.html | field  |
-      | nativePageRanges          | 2-3                                                                   | field  |
-      | Gotenberg-Output-Filename | foo                                                                   | header |
+      | url                       | {helper}/html/testdata/pages-12-html/index.html | field  |
+      | nativePageRanges          | 2-3                                             | field  |
+      | Gotenberg-Output-Filename | foo                                             | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -192,10 +192,10 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/pages-12-html/index.html | field  |
-      | files                     | testdata/header-footer-html/header.html                               | file   |
-      | files                     | testdata/header-footer-html/footer.html                               | file   |
-      | Gotenberg-Output-Filename | foo                                                                   | header |
+      | url                       | {helper}/html/testdata/pages-12-html/index.html | field  |
+      | files                     | testdata/header-footer-html/header.html         | file   |
+      | files                     | testdata/header-footer-html/footer.html         | file   |
+      | Gotenberg-Output-Filename | foo                                             | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -223,7 +223,7 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html                                                                                                                                          | field  |
+      | url                       | {helper}/html/testdata/page-1-html/index.html                                                                                                                                                                | field  |
       | userAgent                 | Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko)                                                                                                                                       | field  |
       | extraHttpHeaders          | {"X-Header":"foo","X-Scoped-Header-1":"bar;scope=https?:\\/\\/([a-zA-Z0-9-]+\\\\.)*domain\\\\.com\\/.*","X-Scoped-Header-2":"baz;scope=https?:\\/\\/([a-zA-Z0-9-]+\\\\.)*docker\\\\.internal:(\\\\d+)\\/.*"} | field  |
       | Gotenberg-Output-Filename | foo                                                                                                                                                                                                          | header |
@@ -241,9 +241,9 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html                                                            | field  |
-      | cookies                   | [{"name":"cookie_1","value":"foo","domain":"host.docker.internal:%d"},{"name":"cookie_2","value":"bar","domain":"domain.com"}] | field  |
-      | Gotenberg-Output-Filename | foo                                                                                                                            | header |
+      | url                       | {helper}/html/testdata/page-1-html/index.html                                                                        | field  |
+      | cookies                   | [{"name":"cookie_1","value":"foo","domain":"{helper-host}"},{"name":"cookie_2","value":"bar","domain":"domain.com"}] | field  |
+      | Gotenberg-Output-Filename | foo                                                                                                                  | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -257,12 +257,12 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url     | http://host.docker.internal:%d/html/testdata/page-1-html/index.html    | field |
-      | cookies | [{"name":"cookie_1","value":"foo","domain":"host.docker.internal:%d"}] | field |
+      | url     | {helper}/html/testdata/page-1-html/index.html                | field |
+      | cookies | [{"name":"cookie_1","value":"foo","domain":"{helper-host}"}] | field |
     Then the response status code should be 200
     Then the server request cookie "cookie_1" should be "foo"
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+      | url | {helper}/html/testdata/page-1-html/index.html | field |
     Then the response status code should be 200
     Then the server request cookie "cookie_1" should be ""
 
@@ -273,12 +273,12 @@ Feature: /forms/chromium/convert/url
       | CHROMIUM_SHARED_BROWSER_CONTEXT | true |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url     | http://host.docker.internal:%d/html/testdata/page-1-html/index.html    | field |
-      | cookies | [{"name":"cookie_1","value":"foo","domain":"host.docker.internal:%d"}] | field |
+      | url     | {helper}/html/testdata/page-1-html/index.html                | field |
+      | cookies | [{"name":"cookie_1","value":"foo","domain":"{helper-host}"}] | field |
     Then the response status code should be 200
     Then the server request cookie "cookie_1" should be "foo"
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+      | url | {helper}/html/testdata/page-1-html/index.html | field |
     Then the response status code should be 200
     Then the server request cookie "cookie_1" should be "foo"
 
@@ -287,9 +287,9 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html                                                                             | field  |
-      | cookies                   | [{"name":"cookie_1","value":"foo","domain":"host.docker.internal:%d"},{"name":"cookie_2","value":"bar","domain":"domain.com","sameSite":"lax"}] | field  |
-      | Gotenberg-Output-Filename | foo                                                                                                                                             | header |
+      | url                       | {helper}/html/testdata/page-1-html/index.html                                                                                         | field  |
+      | cookies                   | [{"name":"cookie_1","value":"foo","domain":"{helper-host}"},{"name":"cookie_2","value":"bar","domain":"domain.com","sameSite":"lax"}] | field  |
+      | Gotenberg-Output-Filename | foo                                                                                                                                   | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -302,8 +302,8 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field  |
-      | Gotenberg-Output-Filename | foo                                                                              | header |
+      | url                       | {helper}/html/testdata/feature-rich-html-remote/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                        | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -316,9 +316,9 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field  |
-      | waitDelay                 | 2.5s                                                                             | field  |
-      | Gotenberg-Output-Filename | foo                                                                              | header |
+      | url                       | {helper}/html/testdata/feature-rich-html-remote/index.html | field  |
+      | waitDelay                 | 2.5s                                                       | field  |
+      | Gotenberg-Output-Filename | foo                                                        | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -334,8 +334,8 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field  |
-      | Gotenberg-Output-Filename | foo                                                                              | header |
+      | url                       | {helper}/html/testdata/feature-rich-html-remote/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                        | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -348,9 +348,9 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field  |
-      | waitForExpression         | window.globalVar === 'ready'                                                     | field  |
-      | Gotenberg-Output-Filename | foo                                                                              | header |
+      | url                       | {helper}/html/testdata/feature-rich-html-remote/index.html | field  |
+      | waitForExpression         | window.globalVar === 'ready'                               | field  |
+      | Gotenberg-Output-Filename | foo                                                        | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -366,8 +366,8 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field  |
-      | Gotenberg-Output-Filename | foo                                                                              | header |
+      | url                       | {helper}/html/testdata/feature-rich-html-remote/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                        | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -380,9 +380,9 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field  |
-      | waitForSelector           | #wait-selector                                                                   | field  |
-      | Gotenberg-Output-Filename | foo                                                                              | header |
+      | url                       | {helper}/html/testdata/feature-rich-html-remote/index.html | field  |
+      | waitForSelector           | #wait-selector                                             | field  |
+      | Gotenberg-Output-Filename | foo                                                        | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -398,8 +398,8 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field  |
-      | Gotenberg-Output-Filename | foo                                                                              | header |
+      | url                       | {helper}/html/testdata/feature-rich-html-remote/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                        | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -416,9 +416,9 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field  |
-      | emulatedMediaType         | print                                                                            | field  |
-      | Gotenberg-Output-Filename | foo                                                                              | header |
+      | url                       | {helper}/html/testdata/feature-rich-html-remote/index.html | field  |
+      | emulatedMediaType         | print                                                      | field  |
+      | Gotenberg-Output-Filename | foo                                                        | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -435,9 +435,9 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field  |
-      | emulatedMediaType         | screen                                                                           | field  |
-      | Gotenberg-Output-Filename | foo                                                                              | header |
+      | url                       | {helper}/html/testdata/feature-rich-html-remote/index.html | field  |
+      | emulatedMediaType         | screen                                                     | field  |
+      | Gotenberg-Output-Filename | foo                                                        | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -457,8 +457,8 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field  |
-      | Gotenberg-Output-Filename | foo                                                                              | header |
+      | url                       | {helper}/html/testdata/feature-rich-html-remote/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                        | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -471,9 +471,9 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field  |
-      | emulatedMediaFeatures     | {"prefers-reduced-motion":"reduce"}                                              | field  |
-      | Gotenberg-Output-Filename | foo                                                                              | header |
+      | url                       | {helper}/html/testdata/feature-rich-html-remote/index.html | field  |
+      | emulatedMediaFeatures     | {"prefers-reduced-motion":"reduce"}                        | field  |
+      | Gotenberg-Output-Filename | foo                                                        | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -486,10 +486,10 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field  |
-      | emulatedMediaType         | screen                                                                           | field  |
-      | emulatedMediaFeatures     | {"prefers-reduced-motion":"reduce"}                                              | field  |
-      | Gotenberg-Output-Filename | foo                                                                              | header |
+      | url                       | {helper}/html/testdata/feature-rich-html-remote/index.html | field  |
+      | emulatedMediaType         | screen                                                     | field  |
+      | emulatedMediaFeatures     | {"prefers-reduced-motion":"reduce"}                        | field  |
+      | Gotenberg-Output-Filename | foo                                                        | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -510,10 +510,10 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field  |
-      | emulatedMediaType         | print                                                                            | field  |
-      | emulatedMediaFeatures     | {"prefers-reduced-motion":"reduce"}                                              | field  |
-      | Gotenberg-Output-Filename | foo                                                                              | header |
+      | url                       | {helper}/html/testdata/feature-rich-html-remote/index.html | field  |
+      | emulatedMediaType         | print                                                      | field  |
+      | emulatedMediaFeatures     | {"prefers-reduced-motion":"reduce"}                        | field  |
+      | Gotenberg-Output-Filename | foo                                                        | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -537,7 +537,7 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field |
+      | url | {helper}/html/testdata/feature-rich-html-remote/index.html | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -550,7 +550,7 @@ Feature: /forms/chromium/convert/url
       | CHROMIUM_ALLOW_LIST | ^file:(?!//\\/tmp/).* |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field |
+      | url | {helper}/html/testdata/feature-rich-html-remote/index.html | field |
     Then the response status code should be 403
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
@@ -564,7 +564,7 @@ Feature: /forms/chromium/convert/url
       | CHROMIUM_DENY_LIST  | ^http.* |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field |
+      | url | {helper}/html/testdata/feature-rich-html-remote/index.html | field |
     Then the response status code should be 403
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
@@ -577,7 +577,7 @@ Feature: /forms/chromium/convert/url
       | CHROMIUM_ALLOW_LIST | ^.* |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field |
+      | url | {helper}/html/testdata/feature-rich-html-remote/index.html | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -626,7 +626,7 @@ Feature: /forms/chromium/convert/url
       | CHROMIUM_ALLOW_LIST |  |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+      | url | {helper}/html/testdata/page-1-html/index.html | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -689,7 +689,7 @@ Feature: /forms/chromium/convert/url
       | CHROMIUM_ALLOW_LIST | ^https?://host\\.docker\\.internal(:[0-9]+)?/ |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url | http://host.docker.internal:%d/redirect-to-private | field |
+      | url | {helper}/redirect-to-private | field |
     Then the response status code should be 200
     Then the Gotenberg container should log the following entries:
       | 'http://127.0.0.1:9999/redirected' does not match any expression from the allowed list |
@@ -700,7 +700,7 @@ Feature: /forms/chromium/convert/url
       | CHROMIUM_DENY_PRIVATE_IPS | true |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+      | url | {helper}/html/testdata/page-1-html/index.html | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -709,8 +709,8 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field  |
-      | Gotenberg-Output-Filename | foo                                                                              | header |
+      | url                       | {helper}/html/testdata/feature-rich-html-remote/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                        | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -727,8 +727,8 @@ Feature: /forms/chromium/convert/url
       | CHROMIUM_DISABLE_JAVASCRIPT | true |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field  |
-      | Gotenberg-Output-Filename | foo                                                                              | header |
+      | url                       | {helper}/html/testdata/feature-rich-html-remote/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                        | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -744,9 +744,9 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                           | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field |
-      | failOnResourceHttpStatusCodes | [499,599]                                                                        | field |
-      | skipNetworkIdleEvent          | false                                                                            | field |
+      | url                           | {helper}/html/testdata/feature-rich-html-remote/index.html | field |
+      | failOnResourceHttpStatusCodes | [499,599]                                                  | field |
+      | skipNetworkIdleEvent          | false                                                      | field |
     Then the response status code should be 409
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should contain string:
@@ -766,8 +766,8 @@ Feature: /forms/chromium/convert/url
       | CHROMIUM_ALLOW_LIST |  |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                         | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field |
-      | failOnResourceLoadingFailed | true                                                                             | field |
+      | url                         | {helper}/html/testdata/feature-rich-html-remote/index.html | field |
+      | failOnResourceLoadingFailed | true                                                       | field |
     Then the response status code should be 409
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should contain string:
@@ -783,8 +783,8 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                     | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field |
-      | failOnConsoleExceptions | true                                                                             | field |
+      | url                     | {helper}/html/testdata/feature-rich-html-remote/index.html | field |
+      | failOnConsoleExceptions | true                                                       | field |
     Then the response status code should be 409
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should contain string:
@@ -804,8 +804,8 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field |
-      | failOnConsoleMessageTypes | ["error","warning"]                                                              | field |
+      | url                       | {helper}/html/testdata/feature-rich-html-remote/index.html | field |
+      | failOnConsoleMessageTypes | ["error","warning"]                                        | field |
     Then the response status code should be 409
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
@@ -819,8 +819,8 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/feature-rich-html-remote/index.html | field |
-      | failOnConsoleMessageTypes | ["warn"]                                                                         | field |
+      | url                       | {helper}/html/testdata/feature-rich-html-remote/index.html | field |
+      | failOnConsoleMessageTypes | ["warn"]                                                   | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
@@ -886,8 +886,8 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url            | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
-      | omitBackground | true                                                                | field |
+      | url            | {helper}/html/testdata/page-1-html/index.html | field |
+      | omitBackground | true                                          | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
@@ -898,7 +898,7 @@ Feature: /forms/chromium/convert/url
     # See: https://github.com/gotenberg/gotenberg/actions/runs/15384321883/job/43280184372.
     #    Given I have a static server
     #    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-    #      | url          | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+    #      | url          | {helper}/html/testdata/page-1-html/index.html | field |
     #      | paperWidth   | 0                                                                   | field |
     #      | paperHeight  | 0                                                                   | field |
     #      | marginTop    | 1000000                                                             | field |
@@ -913,8 +913,8 @@ Feature: /forms/chromium/convert/url
     #      """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url              | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
-      | nativePageRanges | foo                                                                 | field |
+      | url              | {helper}/html/testdata/page-1-html/index.html | field |
+      | nativePageRanges | foo                                           | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
@@ -923,8 +923,8 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url              | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
-      | nativePageRanges | 2-3                                                                 | field |
+      | url              | {helper}/html/testdata/page-1-html/index.html | field |
+      | nativePageRanges | 2-3                                           | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
@@ -933,8 +933,8 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url               | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
-      | waitForExpression | undefined                                                           | field |
+      | url               | {helper}/html/testdata/page-1-html/index.html | field |
+      | waitForExpression | undefined                                     | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
@@ -943,8 +943,8 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url     | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
-      | cookies | foo                                                                 | field |
+      | url     | {helper}/html/testdata/page-1-html/index.html | field |
+      | cookies | foo                                           | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
@@ -953,8 +953,8 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url     | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
-      | cookies | [{"name":"yummy_cookie","value":"choco"}]                           | field |
+      | url     | {helper}/html/testdata/page-1-html/index.html | field |
+      | cookies | [{"name":"yummy_cookie","value":"choco"}]     | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
@@ -963,8 +963,8 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url              | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
-      | extraHttpHeaders | foo                                                                 | field |
+      | url              | {helper}/html/testdata/page-1-html/index.html | field |
+      | extraHttpHeaders | foo                                           | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
@@ -973,8 +973,8 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url              | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
-      | extraHttpHeaders | {"foo":"bar;scope;;"}                                               | field |
+      | url              | {helper}/html/testdata/page-1-html/index.html | field |
+      | extraHttpHeaders | {"foo":"bar;scope;;"}                         | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
@@ -983,8 +983,8 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url              | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
-      | extraHttpHeaders | {"foo":"bar;scope=*."}                                              | field |
+      | url              | {helper}/html/testdata/page-1-html/index.html | field |
+      | extraHttpHeaders | {"foo":"bar;scope=*."}                        | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
@@ -993,8 +993,8 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                   | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
-      | emulatedMediaFeatures | foo                                                                 | field |
+      | url                   | {helper}/html/testdata/page-1-html/index.html | field |
+      | emulatedMediaFeatures | foo                                           | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
@@ -1003,8 +1003,8 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url    | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
-      | stages | foo                                                                 | field |
+      | url    | {helper}/html/testdata/page-1-html/index.html | field |
+      | stages | foo                                           | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
@@ -1013,8 +1013,8 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url    | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
-      | stages | [{"op":"shred"}]                                                    | field |
+      | url    | {helper}/html/testdata/page-1-html/index.html | field |
+      | stages | [{"op":"shred"}]                              | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
@@ -1023,8 +1023,8 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url    | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
-      | stages | [{"op":"split"}]                                                    | field |
+      | url    | {helper}/html/testdata/page-1-html/index.html | field |
+      | stages | [{"op":"split"}]                              | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
@@ -1033,8 +1033,8 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url    | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
-      | stages | [{"op":"remediate","profile":"foo"}]                                | field |
+      | url    | {helper}/html/testdata/page-1-html/index.html | field |
+      | stages | [{"op":"remediate","profile":"foo"}]          | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should contain string:
@@ -1043,7 +1043,7 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url    | http://host.docker.internal:%d/html/testdata/page-1-html/index.html  | field |
+      | url    | {helper}/html/testdata/page-1-html/index.html                        | field |
       | stages | [{"op":"remediate","profile":"PDF/A-2b"},{"op":"rotate","angle":90}] | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
@@ -1053,9 +1053,9 @@ Feature: /forms/chromium/convert/url
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
-      | stages                    | [{"op":"rotate","angle":90,"pages":"5"}]                            | field  |
-      | Gotenberg-Output-Filename | foo                                                                 | header |
+      | url                       | {helper}/html/testdata/page-1-html/index.html | field  |
+      | stages                    | [{"op":"rotate","angle":90,"pages":"5"}]      | field  |
+      | Gotenberg-Output-Filename | foo                                           | header |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should contain string:
@@ -1068,8 +1068,8 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url    | http://host.docker.internal:%d/html/testdata/pages-3-html/index.html | field |
-      | stages | [{"op":"split","every":2}]                                           | field |
+      | url    | {helper}/html/testdata/pages-3-html/index.html | field |
+      | stages | [{"op":"split","every":2}]                     | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
     Then there should be 2 PDF(s) in the response
@@ -1098,9 +1098,9 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/pages-3-html/index.html | field  |
-      | stages                    | [{"op":"split","every":2}]                                           | field  |
-      | Gotenberg-Output-Filename | foo                                                                  | header |
+      | url                       | {helper}/html/testdata/pages-3-html/index.html | field  |
+      | stages                    | [{"op":"split","every":2}]                     | field  |
+      | Gotenberg-Output-Filename | foo                                            | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
     Then there should be 2 PDF(s) in the response
@@ -1128,8 +1128,8 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url    | http://host.docker.internal:%d/html/testdata/pages-3-html/index.html | field |
-      | stages | [{"op":"split","ranges":"2,3"}]                                      | field |
+      | url    | {helper}/html/testdata/pages-3-html/index.html | field |
+      | stages | [{"op":"split","ranges":"2,3"}]                | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
     Then there should be 2 PDF(s) in the response
@@ -1152,9 +1152,9 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/pages-3-html/index.html | field  |
-      | stages                    | [{"op":"select","pages":"2-3"}]                                      | field  |
-      | Gotenberg-Output-Filename | foo                                                                  | header |
+      | url                       | {helper}/html/testdata/pages-3-html/index.html | field  |
+      | stages                    | [{"op":"select","pages":"2-3"}]                | field  |
+      | Gotenberg-Output-Filename | foo                                            | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -1175,8 +1175,8 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url    | http://host.docker.internal:%d/html/testdata/pages-12-html/index.html | field |
-      | stages | [{"op":"split","every":1}]                                            | field |
+      | url    | {helper}/html/testdata/pages-12-html/index.html | field |
+      | stages | [{"op":"split","every":1}]                      | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
     Then there should be 12 PDF(s) in the response
@@ -1209,8 +1209,8 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url    | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
-      | stages | [{"op":"remediate","profile":"PDF/A-1b"}]                           | field |
+      | url    | {helper}/html/testdata/page-1-html/index.html | field |
+      | stages | [{"op":"remediate","profile":"PDF/A-1b"}]     | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -1221,9 +1221,9 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url             | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
-      | nativeTaggedPdf | true                                                                | field |
-      | stages          | [{"op":"remediate","profile":"PDF/UA-1"}]                           | field |
+      | url             | {helper}/html/testdata/page-1-html/index.html | field |
+      | nativeTaggedPdf | true                                          | field |
+      | stages          | [{"op":"remediate","profile":"PDF/UA-1"}]     | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -1233,8 +1233,8 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url    | http://host.docker.internal:%d/html/testdata/pages-3-html/index.html | field |
-      | stages | [{"op":"split","every":2},{"op":"remediate","profile":"PDF/A-1b"}]   | field |
+      | url    | {helper}/html/testdata/pages-3-html/index.html                     | field |
+      | stages | [{"op":"split","every":2},{"op":"remediate","profile":"PDF/A-1b"}] | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
     Then there should be 2 PDF(s) in the response
@@ -1265,9 +1265,9 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/pages-3-html/index.html | field  |
-      | stages                    | [{"op":"split","every":2},{"op":"remediate","profile":"PDF/A-1b"}]   | field  |
-      | Gotenberg-Output-Filename | foo                                                                  | header |
+      | url                       | {helper}/html/testdata/pages-3-html/index.html                     | field  |
+      | stages                    | [{"op":"split","every":2},{"op":"remediate","profile":"PDF/A-1b"}] | field  |
+      | Gotenberg-Output-Filename | foo                                                                | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/zip"
     Then there should be 2 PDF(s) in the response
@@ -1296,7 +1296,7 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html                                                                                           | field  |
+      | url                       | {helper}/html/testdata/page-1-html/index.html                                                                                                                 | field  |
       | stages                    | [{"op":"set-metadata","title":"Sample","author":"Julien Neuhart","subject":"Sample","creator":"Gotenberg","producer":"Gotenberg","keywords":"first, second"}] | field  |
       | Gotenberg-Output-Filename | foo                                                                                                                                                           | header |
     Then the response status code should be 200
@@ -1315,8 +1315,8 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url    | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
-      | stages | [{"op":"flatten-form"}]                                             | field |
+      | url    | {helper}/html/testdata/page-1-html/index.html | field |
+      | stages | [{"op":"flatten-form"}]                       | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -1327,8 +1327,8 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url    | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
-      | stages | [{"op":"encrypt","userPassword":"foo"}]                             | field |
+      | url    | {helper}/html/testdata/page-1-html/index.html | field |
+      | stages | [{"op":"encrypt","userPassword":"foo"}]       | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -1339,8 +1339,8 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url    | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
-      | stages | [{"op":"encrypt","userPassword":"foo","ownerPassword":"bar"}]       | field |
+      | url    | {helper}/html/testdata/page-1-html/index.html                 | field |
+      | stages | [{"op":"encrypt","userPassword":"foo","ownerPassword":"bar"}] | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -1351,7 +1351,7 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html         | field  |
+      | url                       | {helper}/html/testdata/page-1-html/index.html                               | field  |
       | files                     | testdata/embed_1.xml                                                        | file   |
       | files                     | testdata/embed_2.xml                                                        | file   |
       | stages                    | [{"op":"attach","file":"embed_1.xml"},{"op":"attach","file":"embed_2.xml"}] | field  |
@@ -1373,7 +1373,7 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html                                                                                                                                                                                                                                                                               | field  |
+      | url                       | {helper}/html/testdata/page-1-html/index.html                                                                                                                                                                                                                                                                                                     | field  |
       | files                     | testdata/embed_1.xml                                                                                                                                                                                                                                                                                                                              | file   |
       | files                     | testdata/embed_2.xml                                                                                                                                                                                                                                                                                                                              | file   |
       | stages                    | [{"op":"set-metadata","title":"Sample","author":"Julien Neuhart","subject":"Sample","creator":"Gotenberg","producer":"Gotenberg","keywords":"first, second"},{"op":"flatten-form"},{"op":"attach","file":"embed_1.xml","relationship":"Data"},{"op":"attach","file":"embed_2.xml","relationship":"Data"},{"op":"remediate","profile":"PDF/A-3b"}] | field  |
@@ -1398,15 +1398,15 @@ Feature: /forms/chromium/convert/url
       | CHROMIUM_DISABLE_ROUTES | true |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+      | url | {helper}/html/testdata/page-1-html/index.html | field |
     Then the response status code should be 404
 
   Scenario: POST /forms/chromium/convert/url (Gotenberg Trace)
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url             | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
-      | Gotenberg-Trace | forms_chromium_convert_url                                          | header |
+      | url             | {helper}/html/testdata/page-1-html/index.html | field  |
+      | Gotenberg-Trace | forms_chromium_convert_url                    | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then the response header "Gotenberg-Trace" should be "forms_chromium_convert_url"
@@ -1418,10 +1418,10 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a webhook server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                          | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
-      | Gotenberg-Output-Filename    | foo                                                                 | header |
-      | Gotenberg-Webhook-Url        | http://host.docker.internal:%d/webhook                              | header |
-      | Gotenberg-Webhook-Events-Url | http://host.docker.internal:%d/webhook/events                       | header |
+      | url                          | {helper}/html/testdata/page-1-html/index.html | field  |
+      | Gotenberg-Output-Filename    | foo                                           | header |
+      | Gotenberg-Webhook-Url        | {helper}/webhook                              | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events                       | header |
     Then the response status code should be 204
     When I wait for the asynchronous request to the webhook
     Then the webhook request header "Content-Type" should be "application/pdf"
@@ -1441,7 +1441,7 @@ Feature: /forms/chromium/convert/url
       | GOTENBERG_API_BASIC_AUTH_PASSWORD | bar  |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+      | url | {helper}/html/testdata/page-1-html/index.html | field |
     Then the response status code should be 401
 
   Scenario: POST /foo/forms/chromium/convert/url (Root Path)
@@ -1450,7 +1450,7 @@ Feature: /forms/chromium/convert/url
       | API_ROOT_PATH          | /foo/ |
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/foo/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
+      | url | {helper}/html/testdata/page-1-html/index.html | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
 
@@ -1458,8 +1458,8 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url    | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field |
-      | stages | [{"op":"stamp-pdf","pdf":"/etc/hostname"}]                          | field |
+      | url    | {helper}/html/testdata/page-1-html/index.html | field |
+      | stages | [{"op":"stamp-pdf","pdf":"/etc/hostname"}]    | field |
     Then the response status code should be 400
     Then the response body should match string:
       """
@@ -1471,8 +1471,8 @@ Feature: /forms/chromium/convert/url
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
-      | url                       | http://host.docker.internal:%d/html/testdata/page-1-html/index.html | field  |
-      | Gotenberg-Output-Filename | foo                                                                 | header |
+      | url                       | {helper}/html/testdata/page-1-html/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                           | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response

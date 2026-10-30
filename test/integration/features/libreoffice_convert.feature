@@ -957,7 +957,7 @@ Feature: /forms/libreoffice/convert
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
-      | downloadFrom | [{"url":"http://host.docker.internal:%d/static/testdata/page_1.docx","extraHttpHeaders":{"X-Foo":"bar"}}] | field |
+      | downloadFrom | [{"url":"{helper}/static/testdata/page_1.docx","extraHttpHeaders":{"X-Foo":"bar"}}] | field |
     Then the response status code should be 200
     Then the file request header "X-Foo" should be "bar"
     Then the response header "Content-Type" should be "application/pdf"
@@ -967,10 +967,10 @@ Feature: /forms/libreoffice/convert
     Given I have a default Gotenberg container
     Given I have a webhook server
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
-      | files                        | testdata/page_1.docx                          | file   |
-      | Gotenberg-Output-Filename    | foo                                           | header |
-      | Gotenberg-Webhook-Url        | http://host.docker.internal:%d/webhook        | header |
-      | Gotenberg-Webhook-Events-Url | http://host.docker.internal:%d/webhook/events | header |
+      | files                        | testdata/page_1.docx    | file   |
+      | Gotenberg-Output-Filename    | foo                     | header |
+      | Gotenberg-Webhook-Url        | {helper}/webhook        | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events | header |
     Then the response status code should be 204
     When I wait for the asynchronous request to the webhook
     Then the webhook request header "Content-Type" should be "application/pdf"

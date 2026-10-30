@@ -8,9 +8,9 @@ Feature: Webhook
     Given I have a default Gotenberg container
     Given I have a webhook server
     When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
-      | files                        | testdata/page_1.pdf                           | file   |
-      | Gotenberg-Webhook-Url        | http://host.docker.internal:%d/webhook        | header |
-      | Gotenberg-Webhook-Events-Url | http://host.docker.internal:%d/webhook/events | header |
+      | files                        | testdata/page_1.pdf     | file   |
+      | Gotenberg-Webhook-Url        | {helper}/webhook        | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events | header |
     Then the response status code should be 204
     Then the response header "Gotenberg-Version" should be "{version}"
     When I wait for the asynchronous request to the webhook
@@ -23,8 +23,8 @@ Feature: Webhook
     Given I have a webhook server
     When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
       | files                                | testdata/page_1.pdf                            | file   |
-      | Gotenberg-Webhook-Url                | http://host.docker.internal:%d/webhook         | header |
-      | Gotenberg-Webhook-Events-Url         | http://host.docker.internal:%d/webhook/events  | header |
+      | Gotenberg-Webhook-Url                | {helper}/webhook                               | header |
+      | Gotenberg-Webhook-Events-Url         | {helper}/webhook/events                        | header |
       | Gotenberg-Webhook-Extra-Http-Headers | {"X-Foo":"bar","Content-Disposition":"inline"} | header |
     Then the response status code should be 204
     When I wait for the asynchronous request to the webhook
@@ -39,9 +39,9 @@ Feature: Webhook
       | WEBHOOK_ENABLE_SYNC_MODE | true |
     Given I have a webhook server
     When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
-      | files                        | testdata/page_1.pdf                           | file   |
-      | Gotenberg-Webhook-Url        | http://host.docker.internal:%d/webhook        | header |
-      | Gotenberg-Webhook-Events-Url | http://host.docker.internal:%d/webhook/events | header |
+      | files                        | testdata/page_1.pdf     | file   |
+      | Gotenberg-Webhook-Url        | {helper}/webhook        | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events | header |
     Then the response status code should be 204
     Then the webhook request header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the webhook request
@@ -50,9 +50,9 @@ Feature: Webhook
     Given I have a default Gotenberg container
     Given I have a webhook server
     When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
-      | files                        | testdata/page_1.pdf                           | file   |
-      | Gotenberg-Webhook-Url        | http://host.docker.internal:%d/webhook        | header |
-      | Gotenberg-Webhook-Events-Url | http://host.docker.internal:%d/webhook/events | header |
+      | files                        | testdata/page_1.pdf     | file   |
+      | Gotenberg-Webhook-Url        | {helper}/webhook        | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events | header |
     Then the response status code should be 204
     When I wait for the asynchronous request to the webhook
     Then the webhook request header "Content-Type" should be "application/pdf"
@@ -71,9 +71,9 @@ Feature: Webhook
       | WEBHOOK_ENABLE_SYNC_MODE | true |
     Given I have a webhook server
     When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
-      | files                        | testdata/page_1.pdf                           | file   |
-      | Gotenberg-Webhook-Url        | http://host.docker.internal:%d/webhook        | header |
-      | Gotenberg-Webhook-Events-Url | http://host.docker.internal:%d/webhook/events | header |
+      | files                        | testdata/page_1.pdf     | file   |
+      | Gotenberg-Webhook-Url        | {helper}/webhook        | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events | header |
     Then the response status code should be 204
     Then the webhook request header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the webhook request
@@ -91,8 +91,8 @@ Feature: Webhook
     Given I have a default Gotenberg container
     Given I have a webhook server
     When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
-      | Gotenberg-Webhook-Url        | http://host.docker.internal:%d/webhook        | header |
-      | Gotenberg-Webhook-Events-Url | http://host.docker.internal:%d/webhook/events | header |
+      | Gotenberg-Webhook-Url        | {helper}/webhook        | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events | header |
     Then the response status code should be 204
     Then the webhook event should match JSON:
       """
@@ -114,8 +114,8 @@ Feature: Webhook
       | WEBHOOK_ENABLE_SYNC_MODE | true |
     Given I have a webhook server
     When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
-      | Gotenberg-Webhook-Url        | http://host.docker.internal:%d/webhook        | header |
-      | Gotenberg-Webhook-Events-Url | http://host.docker.internal:%d/webhook/events | header |
+      | Gotenberg-Webhook-Url        | {helper}/webhook        | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events | header |
     Then the response status code should be 204
     Then the webhook event should match JSON:
       """
@@ -137,9 +137,9 @@ Feature: Webhook
       | WEBHOOK_ENABLE_SYNC_MODE | true |
     Given I have a webhook server
     When I make a "POST" request to Gotenberg at the "/forms/pdf/metadata" endpoint with the following form data and header(s):
-      | files                        | testdata/page_1.pdf                           | file   |
-      | Gotenberg-Webhook-Url        | http://host.docker.internal:%d/webhook        | header |
-      | Gotenberg-Webhook-Events-Url | http://host.docker.internal:%d/webhook/events | header |
+      | files                        | testdata/page_1.pdf     | file   |
+      | Gotenberg-Webhook-Url        | {helper}/webhook        | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events | header |
     Then the response status code should be 204
     Then the response body should match string:
       """
@@ -164,10 +164,10 @@ Feature: Webhook
     Given I have a default Gotenberg container
     Given I have a webhook server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
-      | files                        | testdata/page-1-html/index.html               | file   |
-      | waitDelay                    | 3s                                            | field  |
-      | Gotenberg-Webhook-Url        | http://host.docker.internal:%d/webhook        | header |
-      | Gotenberg-Webhook-Events-Url | http://host.docker.internal:%d/webhook/events | header |
+      | files                        | testdata/page-1-html/index.html | file   |
+      | waitDelay                    | 3s                              | field  |
+      | Gotenberg-Webhook-Url        | {helper}/webhook                | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events         | header |
     Then the response status code should be 204
     When I stop the Gotenberg container
     When I wait for the asynchronous request to the webhook
@@ -181,8 +181,8 @@ Feature: Webhook
     Given I have a default Gotenberg container
     Given I have a webhook server
     When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
-      | files                 | testdata/page_1.pdf                    | file   |
-      | Gotenberg-Webhook-Url | http://host.docker.internal:%d/webhook | header |
+      | files                 | testdata/page_1.pdf | file   |
+      | Gotenberg-Webhook-Url | {helper}/webhook    | header |
     Then the response status code should be 400
     Then the response body should match string:
       """
@@ -194,8 +194,8 @@ Feature: Webhook
     Given I have a webhook server
     When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
       | files                        | testdata/page_1.pdf                                     | file   |
-      | Gotenberg-Webhook-Url        | http://host.docker.internal:%d/webhook                  | header |
-      | Gotenberg-Webhook-Events-Url | http://host.docker.internal:%d/webhook/events           | header |
+      | Gotenberg-Webhook-Url        | {helper}/webhook                                        | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events                                 | header |
       | traceparent                  | 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01 | header |
     Then the response status code should be 204
     When I wait for the asynchronous request to the webhook

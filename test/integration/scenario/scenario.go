@@ -149,7 +149,11 @@ func (s *scenario) iHaveADefaultGotenbergContainer(ctx context.Context) error {
 func (s *scenario) iHaveAGotenbergContainerWithTheFollowingEnvironmentVariables(ctx context.Context, envTable *godog.Table) error {
 	env := make(map[string]string)
 	for _, row := range envTable.Rows {
-		env[row.Cells[0].Value] = row.Cells[1].Value
+		value, err := s.expand(row.Cells[1].Value)
+		if err != nil {
+			return err
+		}
+		env[row.Cells[0].Value] = value
 	}
 	c, err := startGotenbergContainer(ctx, env)
 	if err != nil {
@@ -179,6 +183,76 @@ func (s *scenario) iHaveAServer(ctx context.Context) error {
 	return nil
 }
 
+// expand replaces the helper server tokens of a table cell: {helper} with the
+// URL Gotenberg reaches the helper server at, and {helper-host} with its host
+// and port. A cell with a token needs the helper server started first, which
+// for an environment variable means before the Gotenberg container.
+func (s *scenario) expand(value string) (string, error) {
+	if !strings.Contains(value, "{helper") {
+		return value, nil
+	}
+
+	if s.server == nil {
+		return "", fmt.Errorf("%q needs the helper server: add \"I have a webhook server\" before this step", value)
+	}
+
+	host := fmt.Sprintf("host.docker.internal:%d", s.hostPort)
+	value = strings.ReplaceAll(value, "{helper-host}", host)
+	value = strings.ReplaceAll(value, "{helper}", "http://"+host)
+
+	return value, nil
+}
+
+// parseRequestTable reads a form data and header(s) table: rows of name,
+// value and kind, where kind is "field", "file" or "header". Values may carry
+// helper server tokens, see [scenario.expand]. A file path is relative to the
+// integration directory, or to the output directory of the previous request
+// when it starts with "teststore".
+func (s *scenario) parseRequestTable(dataTable *godog.Table) (fields, files map[string][]string, headers map[string]string, err error) {
+	fields = make(map[string][]string)
+	files = make(map[string][]string)
+	headers = make(map[string]string)
+
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("get current directory: %w", err)
+	}
+
+	for _, row := range dataTable.Rows {
+		name, kind := row.Cells[0].Value, row.Cells[2].Value
+
+		value, err := s.expand(row.Cells[1].Value)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		switch kind {
+		case "field":
+			fields[name] = append(fields[name], value)
+		case "file":
+			if strings.Contains(value, "teststore") {
+				if s.teststoreDir == "" {
+					return nil, nil, nil, errors.New("no teststore directory available from previous requests")
+				}
+				_, err := os.Stat(s.teststoreDir)
+				if os.IsNotExist(err) {
+					return nil, nil, nil, fmt.Errorf("directory %q does not exist", s.teststoreDir)
+				}
+				value = strings.ReplaceAll(value, "teststore", s.teststoreDir)
+			} else {
+				value = fmt.Sprintf("%s/%s", wd, value)
+			}
+			files[name] = append(files[name], value)
+		case "header":
+			headers[name] = value
+		default:
+			return nil, nil, nil, fmt.Errorf("unexpected %q %q", kind, value)
+		}
+	}
+
+	return fields, files, headers, nil
+}
+
 func (s *scenario) iMakeARequestToGotenberg(ctx context.Context, method, endpoint string) error {
 	return s.iMakeARequestToGotenbergWithTheFollowingHeaders(ctx, method, endpoint, nil)
 }
@@ -196,7 +270,11 @@ func (s *scenario) iMakeARequestToGotenbergWithTheFollowingHeaders(ctx context.C
 	headers := make(map[string]string)
 	if headersTable != nil {
 		for _, row := range headersTable.Rows {
-			headers[row.Cells[0].Value] = row.Cells[1].Value
+			value, err := s.expand(row.Cells[1].Value)
+			if err != nil {
+				return err
+			}
+			headers[row.Cells[0].Value] = value
 		}
 	}
 
@@ -231,49 +309,9 @@ func (s *scenario) iMakeARequestToGotenbergWithTheFollowingFormDataAndHeaders(ct
 		return errors.New("no Gotenberg container")
 	}
 
-	fields := make(map[string][]string)
-	files := make(map[string][]string)
-	headers := make(map[string]string)
-
-	for _, row := range dataTable.Rows {
-		name := row.Cells[0].Value
-		value := row.Cells[1].Value
-		kind := row.Cells[2].Value
-
-		switch kind {
-		case "field":
-			if name == "downloadFrom" || name == "url" || name == "cookies" {
-				fields[name] = append(fields[name], strings.ReplaceAll(value, "%d", fmt.Sprintf("%d", s.hostPort)))
-				continue
-			}
-			fields[name] = append(fields[name], value)
-		case "file":
-			if strings.Contains(value, "teststore") {
-				if s.teststoreDir == "" {
-					return errors.New("no teststore directory available from previous requests")
-				}
-				_, err := os.Stat(s.teststoreDir)
-				if os.IsNotExist(err) {
-					return fmt.Errorf("directory %q does not exist", s.teststoreDir)
-				}
-				value = strings.ReplaceAll(value, "teststore", s.teststoreDir)
-			} else {
-				wd, err := os.Getwd()
-				if err != nil {
-					return fmt.Errorf("get current directory: %w", err)
-				}
-				value = fmt.Sprintf("%s/%s", wd, value)
-			}
-			files[name] = append(files[name], value)
-		case "header":
-			if name == "Gotenberg-Webhook-Url" || name == "Gotenberg-Webhook-Events-Url" {
-				headers[name] = fmt.Sprintf(value, s.hostPort)
-				continue
-			}
-			headers[name] = value
-		default:
-			return fmt.Errorf("unexpected %q %q", kind, value)
-		}
+	fields, files, headers, err := s.parseRequestTable(dataTable)
+	if err != nil {
+		return err
 	}
 
 	base, err := containerHttpEndpoint(ctx, s.gotenbergContainer, "3000")
@@ -386,30 +424,9 @@ func (s *scenario) iMakeConcurrentRequestsToGotenberg(ctx context.Context, count
 		return errors.New("no Gotenberg container")
 	}
 
-	fields := make(map[string][]string)
-	files := make(map[string][]string)
-	headers := make(map[string]string)
-
-	for _, row := range dataTable.Rows {
-		name := row.Cells[0].Value
-		value := row.Cells[1].Value
-		kind := row.Cells[2].Value
-
-		switch kind {
-		case "field":
-			fields[name] = append(fields[name], value)
-		case "file":
-			wd, err := os.Getwd()
-			if err != nil {
-				return fmt.Errorf("get current directory: %w", err)
-			}
-			value = fmt.Sprintf("%s/%s", wd, value)
-			files[name] = append(files[name], value)
-		case "header":
-			headers[name] = value
-		default:
-			return fmt.Errorf("unexpected %q %q", kind, value)
-		}
+	fields, files, headers, err := s.parseRequestTable(dataTable)
+	if err != nil {
+		return err
 	}
 
 	base, err := containerHttpEndpoint(ctx, s.gotenbergContainer, "3000")
@@ -504,30 +521,9 @@ func (s *scenario) iMakeSequentialRequestsToGotenbergProbing(ctx context.Context
 		return errors.New("no Gotenberg container")
 	}
 
-	fields := make(map[string][]string)
-	files := make(map[string][]string)
-	headers := make(map[string]string)
-
-	for _, row := range dataTable.Rows {
-		name := row.Cells[0].Value
-		value := row.Cells[1].Value
-		kind := row.Cells[2].Value
-
-		switch kind {
-		case "field":
-			fields[name] = append(fields[name], value)
-		case "file":
-			wd, err := os.Getwd()
-			if err != nil {
-				return fmt.Errorf("get current directory: %w", err)
-			}
-			value = fmt.Sprintf("%s/%s", wd, value)
-			files[name] = append(files[name], value)
-		case "header":
-			headers[name] = value
-		default:
-			return fmt.Errorf("unexpected %q %q", kind, value)
-		}
+	fields, files, headers, err := s.parseRequestTable(dataTable)
+	if err != nil {
+		return err
 	}
 
 	base, err := containerHttpEndpoint(ctx, s.gotenbergContainer, "3000")

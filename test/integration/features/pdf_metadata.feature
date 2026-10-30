@@ -96,9 +96,9 @@ Feature: /forms/pdf/{set-metadata|metadata}
     Given I have a default Gotenberg container
     Given I have a webhook server
     When I make a "POST" request to Gotenberg at the "/forms/pdf/metadata" endpoint with the following form data and header(s):
-      | files                        | testdata/titled_alpha.pdf                     | file   |
-      | Gotenberg-Webhook-Url        | http://host.docker.internal:%d/webhook        | header |
-      | Gotenberg-Webhook-Events-Url | http://host.docker.internal:%d/webhook/events | header |
+      | files                        | testdata/titled_alpha.pdf | file   |
+      | Gotenberg-Webhook-Url        | {helper}/webhook          | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events   | header |
     Then the response status code should be 204
     Then the webhook event should match JSON:
       """

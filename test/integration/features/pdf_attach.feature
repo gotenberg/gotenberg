@@ -102,8 +102,8 @@ Feature: /forms/pdf/{attach|detach|attachments}
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/pdf/attach" endpoint with the following form data and header(s):
-      | files        | testdata/page_1.pdf                                                    | file  |
-      | downloadFrom | [{"url":"http://host.docker.internal:%d/static/testdata/embed_1.xml"}] | field |
-      | file         | embed_1.xml                                                            | field |
+      | files        | testdata/page_1.pdf                              | file  |
+      | downloadFrom | [{"url":"{helper}/static/testdata/embed_1.xml"}] | field |
+      | file         | embed_1.xml                                      | field |
     Then the response status code should be 200
     Then the response PDF(s) should have the "embed_1.xml" file embedded
