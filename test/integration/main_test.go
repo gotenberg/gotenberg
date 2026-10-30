@@ -26,6 +26,7 @@ const runTimeout = 38 * time.Minute
 func TestMain(m *testing.M) {
 	repository := flag.String("gotenberg-docker-repository", "", "")
 	version := flag.String("gotenberg-version", "", "")
+	variant := flag.String("gotenberg-variant", "", "")
 	platform := flag.String("gotenberg-container-platform", "", "")
 	concurrencyFlag := flag.Int("concurrency", 0, "")
 	tags := flag.String("tags", "", "")
@@ -42,6 +43,7 @@ func TestMain(m *testing.M) {
 
 	scenario.GotenbergDockerRepository = *repository
 	scenario.GotenbergVersion = *version
+	scenario.GotenbergVariant = *variant
 	scenario.GotenbergContainerPlatform = *platform
 
 	concurrency := *concurrencyFlag

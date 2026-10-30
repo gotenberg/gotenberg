@@ -138,6 +138,9 @@ test-unit: ## Run unit tests
 	go test -race ./...
 
 PLATFORM=
+# Variant image to test, such as chromium or libreoffice, tagged
+# GOTENBERG_VERSION-VARIANT. Empty tests the full image.
+VARIANT=
 # Number of scenarios run at once; 0 runs one per CPU.
 CONCURRENCY=0
 # Available tags:
@@ -188,6 +191,7 @@ test-integration: ## Run integration tests (automatically retries failed scenari
 	go test -timeout 40m -tags=integration -v github.com/gotenberg/gotenberg/v9/test/integration -args \
 	--gotenberg-docker-repository=$(DOCKER_REPOSITORY) \
 	--gotenberg-version=$(GOTENBERG_VERSION) \
+	--gotenberg-variant=$(VARIANT) \
  	--gotenberg-container-platform=$(PLATFORM) \
  	--concurrency=$(CONCURRENCY) \
  	--tags="$(TAGS)"
