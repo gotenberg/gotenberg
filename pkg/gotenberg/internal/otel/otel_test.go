@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"slices"
 	"testing"
 
 	"go.opentelemetry.io/otel"
@@ -197,5 +198,41 @@ func TestMeterProvider_TraceBasedExemplar(t *testing.T) {
 
 	if !found {
 		t.Error("expected a trace-based exemplar carrying the span trace id")
+	}
+}
+
+func TestTextMapPropagator(t *testing.T) {
+	for _, tc := range []struct {
+		scenario   string
+		value      string
+		wantFields []string
+		wantErr    bool
+	}{
+		{"unset keeps trace context and baggage", "", []string{"traceparent", "tracestate", "baggage"}, false},
+		{"b3 multiple headers", "b3multi", []string{"x-b3-traceid", "x-b3-spanid", "x-b3-sampled", "x-b3-flags"}, false},
+		{"padded list", " tracecontext , jaeger ", []string{"traceparent", "tracestate", "uber-trace-id"}, false},
+		{"unknown name fails", "tracecontext,b4", nil, true},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			t.Setenv(propagatorsEnvKey, tc.value)
+
+			propagator, err := textMapPropagator()
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("want an error, got none")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			fields := propagator.Fields()
+			for _, want := range tc.wantFields {
+				if !slices.Contains(fields, want) {
+					t.Errorf("fields %v, want %q among them", fields, want)
+				}
+			}
+		})
 	}
 }

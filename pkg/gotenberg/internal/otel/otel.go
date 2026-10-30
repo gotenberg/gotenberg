@@ -10,6 +10,7 @@ import (
 
 	"go.opentelemetry.io/contrib/bridges/otelslog"
 	"go.opentelemetry.io/contrib/exporters/autoexport"
+	"go.opentelemetry.io/contrib/propagators/autoprop"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/log"
@@ -117,12 +118,40 @@ func InitTracerProvider(logger *slog.Logger, serviceName, serviceVersion string)
 	traceProvider := trace.NewTracerProvider(traceOpts...)
 	otel.SetTracerProvider(traceProvider)
 
-	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
-		propagation.TraceContext{},
-		propagation.Baggage{},
-	))
+	propagator, err := textMapPropagator()
+	if err != nil {
+		return nil, err
+	}
+	otel.SetTextMapPropagator(propagator)
 
 	return traceProvider.Shutdown, nil
+}
+
+// propagatorsEnvKey selects the propagators, such as "b3multi" or "jaeger",
+// see [autoprop.TextMapPropagator].
+const propagatorsEnvKey = "OTEL_PROPAGATORS"
+
+// textMapPropagator returns the propagators OTEL_PROPAGATORS names, W3C Trace
+// Context and Baggage when it is unset. Unlike [autoprop.NewTextMapPropagator],
+// which logs an unknown name and drops it, it fails, so that a typo stops the
+// startup rather than silently breaking the traces across services.
+func textMapPropagator() (propagation.TextMapPropagator, error) {
+	raw := strings.TrimSpace(os.Getenv(propagatorsEnvKey))
+	if raw == "" {
+		return propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}), nil
+	}
+
+	names := strings.Split(raw, ",")
+	for i, name := range names {
+		names[i] = strings.TrimSpace(name)
+	}
+
+	propagator, err := autoprop.TextMapPropagator(names...)
+	if err != nil {
+		return nil, fmt.Errorf("%s=%q: %w (supported: tracecontext, baggage, b3, b3multi, jaeger, xray, ottrace, none)", propagatorsEnvKey, raw, err)
+	}
+
+	return propagator, nil
 }
 
 // InitMeterProvider initializes the OpenTelemetry meter provider.
