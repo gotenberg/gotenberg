@@ -50,3 +50,19 @@ func TestResolvePdfOptions(t *testing.T) {
 		})
 	}
 }
+
+func TestWindowStatusExpression(t *testing.T) {
+	for _, tc := range []struct {
+		status string
+		expect string
+	}{
+		{status: "", expect: ""},
+		{status: "ready", expect: `window.status === "ready"`},
+		{status: `x" || alert(1) || "`, expect: `window.status === "x\" || alert(1) || \""`},
+	} {
+		got := windowStatusExpression(tc.status)
+		if got != tc.expect {
+			t.Errorf("windowStatusExpression(%q) = %q, want %q", tc.status, got, tc.expect)
+		}
+	}
+}
