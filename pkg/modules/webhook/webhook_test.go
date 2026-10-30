@@ -113,13 +113,7 @@ func TestClient_VersionHeader(t *testing.T) {
 		{
 			scenario: "output file",
 			deliver: func(c client) error {
-				return c.send(context.Background(), strings.NewReader("%PDF-1.7"), nil, false)
-			},
-		},
-		{
-			scenario: "error details",
-			deliver: func(c client) error {
-				return c.send(context.Background(), strings.NewReader("{}"), nil, true)
+				return c.send(context.Background(), strings.NewReader("%PDF-1.7"), nil)
 			},
 		},
 		{
@@ -146,8 +140,6 @@ func TestClient_VersionHeader(t *testing.T) {
 			c := client{
 				url:              srv.URL,
 				method:           http.MethodPost,
-				errorUrl:         srv.URL,
-				errorMethod:      http.MethodPost,
 				eventsUrl:        srv.URL,
 				extraHttpHeaders: map[string]string{"Gotenberg-Version": "spoofed"},
 				startTime:        time.Now(),

@@ -244,7 +244,7 @@ func (s *scenario) iMakeARequestToGotenbergWithTheFollowingFormDataAndHeaders(ct
 			}
 			files[name] = append(files[name], value)
 		case "header":
-			if name == "Gotenberg-Webhook-Url" || name == "Gotenberg-Webhook-Error-Url" || name == "Gotenberg-Webhook-Events-Url" {
+			if name == "Gotenberg-Webhook-Url" || name == "Gotenberg-Webhook-Events-Url" {
 				headers[name] = fmt.Sprintf(value, s.hostPort)
 				continue
 			}

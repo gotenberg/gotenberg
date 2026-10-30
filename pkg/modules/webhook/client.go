@@ -25,8 +25,6 @@ import (
 type client struct {
 	url              string
 	method           string
-	errorUrl         string
-	errorMethod      string
 	eventsUrl        string
 	extraHttpHeaders map[string]string
 	startTime        time.Time
@@ -58,27 +56,10 @@ func (c client) deliveryContext(ctx context.Context) (context.Context, context.C
 	return context.WithTimeout(context.WithoutCancel(ctx), timeout)
 }
 
-// send call the webhook either to send the success response or the error response.
-func (c client) send(ctx context.Context, body io.Reader, headers map[string]string, errored bool) error {
-	url := c.url
-	if errored {
-		if c.errorUrl == "" {
-			// No error URL provided; error details will be sent
-			// via the events URL instead.
-			return nil
-		}
-		url = c.errorUrl
-	}
-
-	method := c.method
-	if errored {
-		method = c.errorMethod
-	}
-
+// send sends the output file to the webhook URL.
+func (c client) send(ctx context.Context, body io.Reader, headers map[string]string) error {
+	url, method := c.url, c.method
 	spanName := fmt.Sprintf("%s Webhook", method)
-	if errored {
-		spanName = fmt.Sprintf("%s Webhook Error", method)
-	}
 
 	ctx, cancel := c.deliveryContext(ctx)
 	defer cancel()
@@ -179,12 +160,6 @@ func (c client) send(ctx context.Context, body io.Reader, headers map[string]str
 		slog.Int64("bytes_out", req.ContentLength),
 	}
 
-	if errored {
-		c.logger.WarnContext(ctx, "request to webhook with error details handled", attrs...)
-		span.SetStatus(codes.Ok, "")
-		return nil
-	}
-
 	c.logger.InfoContext(ctx, "request to webhook handled", attrs...)
 	span.SetStatus(codes.Ok, "")
 
@@ -194,10 +169,6 @@ func (c client) send(ctx context.Context, body io.Reader, headers map[string]str
 // sendEvent sends a structured JSON event to the events URL. It is
 // fire-and-forget: failures are logged but do not propagate.
 func (c client) sendEvent(ctx context.Context, correlationIdHeader, correlationId string, event map[string]any) {
-	if c.eventsUrl == "" {
-		return
-	}
-
 	b, err := json.Marshal(event)
 	if err != nil {
 		c.logger.ErrorContext(ctx, fmt.Sprintf("marshal webhook event: %s", err))

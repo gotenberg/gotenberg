@@ -22,8 +22,6 @@ type Webhook struct {
 	enableSyncMode         bool
 	allowList              []*regexp2.Regexp
 	denyList               []*regexp2.Regexp
-	errorAllowList         []*regexp2.Regexp
-	errorDenyList          []*regexp2.Regexp
 	denyPrivateIPs         bool
 	denyPublicIPs          bool
 	enableEnvironmentProxy bool
@@ -48,18 +46,6 @@ func (w *Webhook) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Bool("webhook-deny-public-ips", false, "Reject webhook URLs whose host resolves to a public IP address. Enable on air-gapped or data-governed deployments to prevent callbacks from leaving a private network")
 			fs.Bool("webhook-enable-environment-proxy", false, "Route webhook callbacks through the proxy defined by the standard HTTP_PROXY, HTTPS_PROXY, and NO_PROXY variables, including credentials")
 			fs.Int("webhook-max-retry", 4, "Set the maximum number of retries for the webhook feature")
-
-			// Deprecated flags.
-			fs.StringSlice("webhook-error-allow-list", []string{}, `Set the allowed URLs in case of an error for the webhook feature using regular expressions - supports multiple values. A match bypasses --webhook-deny-private-ips (WEBHOOK_DENY_PRIVATE_IPS) and --webhook-deny-public-ips (WEBHOOK_DENY_PUBLIC_IPS), so terminate the host or the pattern also matches suffix hosts, for example ^https?://internal\.svc(:|/|$)`)
-			fs.StringSlice("webhook-error-deny-list", []string{}, "Set the denied URLs in case of an error for the webhook feature using regular expressions - supports multiple values")
-			err := fs.MarkDeprecated("webhook-error-allow-list", "use --webhook-allow-list instead")
-			if err != nil {
-				panic(err)
-			}
-			err = fs.MarkDeprecated("webhook-error-deny-list", "use --webhook-deny-list instead")
-			if err != nil {
-				panic(err)
-			}
 			fs.Duration("webhook-retry-min-wait", time.Duration(1)*time.Second, "Set the minimum duration to wait before trying to call the webhook again")
 			fs.Duration("webhook-retry-max-wait", time.Duration(30)*time.Second, "Set the maximum duration to wait before trying to call the webhook again")
 			fs.Duration("webhook-client-timeout", time.Duration(30)*time.Second, "Set the time limit for requests to the webhook")
@@ -77,8 +63,6 @@ func (w *Webhook) Provision(ctx *gotenberg.Context) error {
 	w.enableSyncMode = flags.MustBool("webhook-enable-sync-mode")
 	w.allowList = flags.MustRegexpSlice("webhook-allow-list")
 	w.denyList = flags.MustRegexpSlice("webhook-deny-list")
-	w.errorAllowList = flags.MustDeprecatedRegexpSlice("webhook-error-allow-list", "webhook-allow-list")
-	w.errorDenyList = flags.MustDeprecatedRegexpSlice("webhook-error-deny-list", "webhook-deny-list")
 	w.denyPrivateIPs = flags.MustBool("webhook-deny-private-ips")
 	w.denyPublicIPs = flags.MustBool("webhook-deny-public-ips")
 	w.enableEnvironmentProxy = flags.MustBool("webhook-enable-environment-proxy")

@@ -177,12 +177,12 @@ Feature: /forms/pdf/pipe
     Given I have a default Gotenberg container
     Given I have a webhook server
     When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
-      | files                       | testdata/page_1.pdf                          | file   |
-      | files                       | testdata/page_2.pdf                          | file   |
-      | stages                      | [{"op":"merge"}]                             | field  |
-      | Gotenberg-Output-Filename   | foo                                          | header |
-      | Gotenberg-Webhook-Url       | http://host.docker.internal:%d/webhook       | header |
-      | Gotenberg-Webhook-Error-Url | http://host.docker.internal:%d/webhook/error | header |
+      | files                        | testdata/page_1.pdf                           | file   |
+      | files                        | testdata/page_2.pdf                           | file   |
+      | stages                       | [{"op":"merge"}]                              | field  |
+      | Gotenberg-Output-Filename    | foo                                           | header |
+      | Gotenberg-Webhook-Url        | http://host.docker.internal:%d/webhook        | header |
+      | Gotenberg-Webhook-Events-Url | http://host.docker.internal:%d/webhook/events | header |
     Then the response status code should be 204
     When I wait for the asynchronous request to the webhook
     Then the webhook request header "Content-Type" should be "application/pdf"

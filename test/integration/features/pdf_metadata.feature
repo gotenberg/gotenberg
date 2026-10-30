@@ -96,17 +96,20 @@ Feature: /forms/pdf/{set-metadata|metadata}
     Given I have a default Gotenberg container
     Given I have a webhook server
     When I make a "POST" request to Gotenberg at the "/forms/pdf/metadata" endpoint with the following form data and header(s):
-      | files                       | testdata/titled_alpha.pdf                    | file   |
-      | Gotenberg-Webhook-Url       | http://host.docker.internal:%d/webhook       | header |
-      | Gotenberg-Webhook-Error-Url | http://host.docker.internal:%d/webhook/error | header |
+      | files                        | testdata/titled_alpha.pdf                     | file   |
+      | Gotenberg-Webhook-Url        | http://host.docker.internal:%d/webhook        | header |
+      | Gotenberg-Webhook-Events-Url | http://host.docker.internal:%d/webhook/events | header |
     Then the response status code should be 204
-    When I wait for the asynchronous request to the webhook
-    Then the webhook request header "Content-Type" should be "application/json"
-    Then the webhook request body should match JSON:
+    Then the webhook event should match JSON:
       """
       {
-        "status": 400,
-        "message": "The webhook middleware can only work with multipart/form-data routes that results in output files"
+        "event": "webhook.error",
+        "correlationId": "ignore",
+        "timestamp": "ignore",
+        "error": {
+          "status": 400,
+          "message": "The webhook middleware can only work with multipart/form-data routes that results in output files"
+        }
       }
       """
 

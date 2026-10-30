@@ -1452,10 +1452,10 @@ Feature: /forms/chromium/convert/html
     Given I have a default Gotenberg container
     Given I have a webhook server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
-      | files                       | testdata/page-1-html/index.html              | file   |
-      | Gotenberg-Output-Filename   | foo                                          | header |
-      | Gotenberg-Webhook-Url       | http://host.docker.internal:%d/webhook       | header |
-      | Gotenberg-Webhook-Error-Url | http://host.docker.internal:%d/webhook/error | header |
+      | files                        | testdata/page-1-html/index.html               | file   |
+      | Gotenberg-Output-Filename    | foo                                           | header |
+      | Gotenberg-Webhook-Url        | http://host.docker.internal:%d/webhook        | header |
+      | Gotenberg-Webhook-Events-Url | http://host.docker.internal:%d/webhook/events | header |
     Then the response status code should be 204
     When I wait for the asynchronous request to the webhook
     Then the webhook request header "Content-Type" should be "application/pdf"
