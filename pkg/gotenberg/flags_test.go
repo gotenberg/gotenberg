@@ -253,55 +253,6 @@ func TestParsedFlags_MustInt(t *testing.T) {
 	}
 }
 
-func TestParsedFlags_MustFloat64(t *testing.T) {
-	fs := flag.NewFlagSet("tests", flag.ContinueOnError)
-	fs.Float64("foo", 1.0, "")
-
-	err := fs.Parse([]string{"--foo=2.0"})
-	if err != nil {
-		t.Fatalf("expected no error but got: %v", err)
-	}
-
-	parsedFlags := ParsedFlags{FlagSet: fs}
-
-	for _, tc := range []struct {
-		scenario    string
-		name        string
-		expectPanic bool
-	}{
-		{
-			scenario:    "success",
-			name:        "foo",
-			expectPanic: false,
-		},
-		{
-			scenario:    "non-existing flag",
-			name:        "bar",
-			expectPanic: true,
-		},
-	} {
-		t.Run(tc.scenario, func(t *testing.T) {
-			if tc.expectPanic {
-				defer func() {
-					if r := recover(); r == nil {
-						t.Fatal("expected panic but got none")
-					}
-				}()
-			}
-
-			if !tc.expectPanic {
-				defer func() {
-					if r := recover(); r != nil {
-						t.Fatalf("expected no panic but got: %v", r)
-					}
-				}()
-			}
-
-			parsedFlags.MustFloat64(tc.name)
-		})
-	}
-}
-
 func TestParsedFlags_MustDuration(t *testing.T) {
 	fs := flag.NewFlagSet("tests", flag.ContinueOnError)
 	fs.Duration("foo", time.Duration(1)*time.Second, "")
@@ -403,56 +354,6 @@ func TestParsedFlags_MustHumanReadableBytes(t *testing.T) {
 			}
 
 			parsedFlags.MustHumanReadableBytes(tc.name)
-		})
-	}
-}
-
-func TestParsedFlags_MustRegexp(t *testing.T) {
-	fs := flag.NewFlagSet("tests", flag.ContinueOnError)
-	fs.String("foo", "", "")
-	fs.String("bar", "", "")
-
-	err := fs.Parse([]string{"--foo=", "--bar=*"})
-	if err != nil {
-		t.Fatalf("expected no error but got: %v", err)
-	}
-
-	parsedFlags := ParsedFlags{FlagSet: fs}
-
-	for _, tc := range []struct {
-		scenario    string
-		name        string
-		expectPanic bool
-	}{
-		{
-			scenario:    "success",
-			name:        "foo",
-			expectPanic: false,
-		},
-		{
-			scenario:    "non-existing flag",
-			name:        "bar",
-			expectPanic: true,
-		},
-	} {
-		t.Run(tc.scenario, func(t *testing.T) {
-			if tc.expectPanic {
-				defer func() {
-					if r := recover(); r == nil {
-						t.Fatal("expected panic but got none")
-					}
-				}()
-			}
-
-			if !tc.expectPanic {
-				defer func() {
-					if r := recover(); r != nil {
-						t.Fatalf("expected no panic but got: %v", r)
-					}
-				}()
-			}
-
-			parsedFlags.MustRegexp(tc.name)
 		})
 	}
 }
@@ -637,7 +538,6 @@ func TestParsedFlags_RegexpMatchTimeout(t *testing.T) {
 	// against a client-controlled string.
 	fs := flag.NewFlagSet("tests", flag.ContinueOnError)
 	fs.StringSlice("some-deny-list", []string{`^file:`, `^https?://`}, "")
-	fs.String("some-pattern", `^file:`, "")
 
 	err := fs.Parse(nil)
 	if err != nil {
@@ -655,9 +555,5 @@ func TestParsedFlags_RegexpMatchTimeout(t *testing.T) {
 		if re.MatchTimeout != PatternMatchTimeout {
 			t.Fatalf("pattern '%s' has MatchTimeout %s, expected %s", re.String(), re.MatchTimeout, PatternMatchTimeout)
 		}
-	}
-
-	if got := parsedFlags.MustRegexp("some-pattern").MatchTimeout; got != PatternMatchTimeout {
-		t.Fatalf("expected MustRegexp MatchTimeout %s but got %s", PatternMatchTimeout, got)
 	}
 }

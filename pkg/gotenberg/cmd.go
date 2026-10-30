@@ -3,24 +3,16 @@ package gotenberg
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"syscall"
-
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // Cmd wraps an [exec.Cmd].
 type Cmd struct {
-	ctx     context.Context
 	logger  *slog.Logger
 	process *exec.Cmd
 }
@@ -35,30 +27,9 @@ func Command(logger *slog.Logger, binPath string, args ...string) *Cmd {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	return &Cmd{
-		ctx:     nil,
 		logger:  logger.With(slog.String("logger", strings.ReplaceAll(binPath, "/", ""))),
 		process: cmd,
 	}
-}
-
-// CommandContext creates a [Cmd] with a context. It configures the internal
-// [exec.Cmd] of [Cmd] so that we may kill its unix process and all its
-// children without creating orphans.
-//
-// See https://medium.com/@felixge/killing-a-child-process-and-all-of-its-children-in-go-54079af94773.
-func CommandContext(ctx context.Context, logger *slog.Logger, binPath string, args ...string) (*Cmd, error) {
-	if ctx == nil {
-		return nil, errors.New("nil context")
-	}
-
-	cmd := exec.CommandContext(ctx, binPath, args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-
-	return &Cmd{
-		ctx:     ctx,
-		logger:  logger.With(slog.String("logger", strings.ReplaceAll(binPath, "/", ""))),
-		process: cmd,
-	}, nil
 }
 
 // SetEnv replaces the environment variables passed to the underlying
@@ -128,100 +99,6 @@ func (cmd *Cmd) Wait() error {
 	}
 
 	return nil
-}
-
-// Exec executes the command and waits for its completion or until the context
-// is done. In any case, it kills the unix process and all its children.
-//
-// When the context carries an active trace span, Exec records a
-// "process.exec" client span around the execution. It is the single
-// instrumentation point for every short-lived external binary, such as
-// soffice. The span is skipped when there is no active parent,
-// so process starts performed off the request path do not emit orphan roots.
-func (cmd *Cmd) Exec() (int, error) {
-	if cmd.ctx == nil {
-		return 10, errors.New("nil context")
-	}
-
-	var span trace.Span
-	if trace.SpanContextFromContext(cmd.ctx).IsValid() {
-		_, span = Tracer().Start(cmd.ctx, "process.exec",
-			trace.WithSpanKind(trace.SpanKindClient),
-			trace.WithAttributes(semconv.ProcessExecutableName(filepath.Base(cmd.process.Path))),
-		)
-		defer span.End()
-	}
-
-	code, err := cmd.exec()
-
-	if span != nil {
-		span.SetAttributes(attribute.Int("process.exit.code", code))
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			span.SetAttributes(semconv.ErrorTypeKey.String(execErrorType(cmd.ctx)))
-		} else {
-			span.SetStatus(codes.Ok, "")
-		}
-	}
-
-	return code, err
-}
-
-// exec runs the command and returns its exit code and error.
-func (cmd *Cmd) exec() (int, error) {
-	err := cmd.Start()
-	if err != nil {
-		if cmd.process.ProcessState == nil {
-			return 131, fmt.Errorf("start command: %w", err)
-		}
-
-		return cmd.process.ProcessState.ExitCode(), fmt.Errorf("start command: %w", err)
-	}
-
-	errChan := make(chan error, 1)
-
-	go func() {
-		errChan <- cmd.Wait()
-	}()
-
-	select {
-	case err = <-errChan:
-		errProc := cmd.Kill()
-		if errProc != nil {
-			cmd.logger.ErrorContext(context.Background(), errProc.Error())
-		}
-
-		if err == nil {
-			return 0, nil
-		}
-
-		if cmd.process.ProcessState == nil {
-			return 131, fmt.Errorf("unix process error: %w", err)
-		}
-
-		return cmd.process.ProcessState.ExitCode(), fmt.Errorf("unix process error: %w", err)
-	case <-cmd.ctx.Done():
-		errProc := cmd.Kill()
-		if errProc != nil {
-			cmd.logger.ErrorContext(context.Background(), errProc.Error())
-		}
-
-		return 62, fmt.Errorf("context done: %w", cmd.ctx.Err())
-	}
-}
-
-// execErrorType maps an execution failure to a bounded semconv error.type
-// value.
-func execErrorType(ctx context.Context) string {
-	switch {
-	case errors.Is(ctx.Err(), context.DeadlineExceeded):
-		return "context_deadline_exceeded"
-	case errors.Is(ctx.Err(), context.Canceled):
-		return "context_canceled"
-	default:
-		return "process_error"
-	}
 }
 
 // pipeOutput creates logs entries according to the process stdout and stderr.

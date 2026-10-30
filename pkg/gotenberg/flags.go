@@ -75,17 +75,6 @@ func (f *ParsedFlags) MustInt(name string) int {
 	return val
 }
 
-// MustFloat64 returns the float value of a flag given by name.
-// It panics if an error occurs.
-func (f *ParsedFlags) MustFloat64(name string) float64 {
-	val, err := f.GetFloat64(name)
-	if err != nil {
-		panic(err)
-	}
-
-	return val
-}
-
 // MustDuration returns the time.Duration value of a flag given by name.
 // It panics if an error occurs.
 func (f *ParsedFlags) MustDuration(name string) time.Duration {
@@ -138,23 +127,6 @@ func (f *ParsedFlags) MustHumanReadableBytes(name string) int64 {
 // regexp2 directly: a match that never approaches the ceiling still aborts if
 // the process loses the CPU at the wrong moment.
 const PatternMatchTimeout = 250 * time.Millisecond
-
-// MustRegexp returns the regular expression of a flag given by name.
-// It panics if an error occurs.
-//
-// The returned expression carries [PatternMatchTimeout] and is safe to match
-// on concurrently: callers must not compile a private copy per match.
-func (f *ParsedFlags) MustRegexp(name string) *regexp2.Regexp {
-	val, err := f.GetString(name)
-	if err != nil {
-		panic(err)
-	}
-
-	re := regexp2.MustCompile(val, regexp2.None)
-	re.MatchTimeout = PatternMatchTimeout
-
-	return re
-}
 
 // MustRegexpSlice returns a slice of compiled regular expressions from a
 // string-slice flag given by name. Empty strings are skipped.
