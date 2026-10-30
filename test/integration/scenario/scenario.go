@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/cucumber/godog"
-	"github.com/google/uuid"
 	"github.com/mholt/archives"
 	"github.com/testcontainers/testcontainers-go"
 )
@@ -161,6 +160,12 @@ func (s *scenario) iHaveAGotenbergContainerWithTheFollowingEnvironmentVariables(
 }
 
 func (s *scenario) iHaveAServer(ctx context.Context) error {
+	// One server serves every request of a scenario. Starting another would
+	// leak the first one's listener and goroutines.
+	if s.server != nil {
+		return nil
+	}
+
 	srv, err := newServer(ctx, s.workdir)
 	if err != nil {
 		return fmt.Errorf("create server: %s", err)
@@ -1133,15 +1138,13 @@ func (s *scenario) thePdfShouldHaveContentMatchingAtPage(ctx context.Context, na
 func InitializeScenario(ctx *godog.ScenarioContext) {
 	s := &scenario{}
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
-		wd, err := os.Getwd()
-		if err != nil {
-			return ctx, fmt.Errorf("get current directory: %w", err)
-		}
-		s.workdir = fmt.Sprintf("%s/teststore/%s", wd, uuid.NewString())
-		err = os.MkdirAll(s.workdir, 0o755)
+		// Outside the repository, so that an interrupted run leaves nothing
+		// behind in the working tree.
+		workdir, err := os.MkdirTemp("", "gotenberg-integration-")
 		if err != nil {
 			return ctx, fmt.Errorf("create working directory: %w", err)
 		}
+		s.workdir = workdir
 		return ctx, nil
 	})
 	ctx.Given(`^I have a default Gotenberg container$`, s.iHaveADefaultGotenbergContainer)
