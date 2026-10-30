@@ -212,6 +212,56 @@ func TestNewContext_DownloadFromConcurrentMapWrites(t *testing.T) {
 	}
 }
 
+// A failed download cancels the ones still in flight instead of letting them
+// run to --api-timeout (env API_TIMEOUT).
+func TestNewContext_DownloadFromFailureCancelsSiblings(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/fail" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		<-r.Context().Done()
+	}))
+	defer server.Close()
+
+	payload, err := json.Marshal([]downloadFrom{
+		{Url: server.URL + "/hang"},
+		{Url: server.URL + "/fail"},
+	})
+	if err != nil {
+		t.Fatalf("marshal downloadFrom payload: %v", err)
+	}
+
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	err = writer.WriteField("downloadFrom", string(payload))
+	if err != nil {
+		t.Fatalf("write downloadFrom field: %v", err)
+	}
+	err = writer.Close()
+	if err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	echoCtx := echo.New().NewContext(req, httptest.NewRecorder())
+	logger := slog.New(slog.DiscardHandler)
+	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+
+	start := time.Now()
+	_, cancel, err := newContext(echoCtx, logger, fs, 30*time.Second, 0, downloadFromConfig{})
+	defer cancel()
+
+	if err == nil {
+		t.Fatal("expected an error from newContext, got nil")
+	}
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
+		t.Fatalf("newContext returned after %s, want the hanging download canceled", elapsed)
+	}
+}
+
 // An oversized downloadFrom array must be rejected at the trust boundary with
 // a 400, before any download goroutine is spawned.
 // https://github.com/gotenberg/gotenberg/security/advisories/GHSA-6vqw-2jgm-4x88

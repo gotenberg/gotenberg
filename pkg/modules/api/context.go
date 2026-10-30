@@ -309,7 +309,9 @@ func newContext(echoCtx *echo.Context, logger *slog.Logger, fs *gotenberg.FileSy
 		}
 		results := make([]downloadFromResult, len(dls))
 
-		eg, _ := errgroup.WithContext(ctx)
+		// The group context cancels the remaining downloads as soon as one
+		// fails: the request fails anyway.
+		eg, groupCtx := errgroup.WithContext(ctx)
 		// Bound the number of in-flight downloads. Each entry allocates a
 		// retryable client, an outbound transport, a span, and logger state,
 		// so an unbounded array would otherwise exhaust process memory. A
@@ -336,12 +338,12 @@ func newContext(echoCtx *echo.Context, logger *slog.Logger, fs *gotenberg.FileSy
 					gotenberg.WithDenyPrivateIPs(downloadFromCfg.denyPrivateIPs),
 					gotenberg.WithDenyPublicIPs(downloadFromCfg.denyPublicIPs),
 				}
-				err := gotenberg.FilterOutboundURL(ctx, dl.Url, downloadFromCfg.allowList, downloadFromCfg.denyList, deadline, ipOpts...)
+				err := gotenberg.FilterOutboundURL(groupCtx, dl.Url, downloadFromCfg.allowList, downloadFromCfg.denyList, deadline, ipOpts...)
 				if err != nil {
 					return fmt.Errorf("filter URL: %w", err)
 				}
 
-				dlCtx, dlSpan := gotenberg.Tracer().Start(ctx, "GET Download From",
+				dlCtx, dlSpan := gotenberg.Tracer().Start(groupCtx, "GET Download From",
 					trace.WithSpanKind(trace.SpanKindClient),
 					trace.WithAttributes(semconv.ServerAddress(dl.Url)),
 				)
@@ -417,7 +419,7 @@ func newContext(echoCtx *echo.Context, logger *slog.Logger, fs *gotenberg.FileSy
 					}
 
 					return WrapError(
-						fmt.Errorf("download file from to '%s': %w", dl.Url, err),
+						fmt.Errorf("download file from '%s': %w", dl.Url, err),
 						NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Unable to download file from '%s': %s", dl.Url, err)),
 					)
 				}
@@ -429,7 +431,7 @@ func newContext(echoCtx *echo.Context, logger *slog.Logger, fs *gotenberg.FileSy
 				}()
 
 				if resp.StatusCode != http.StatusOK {
-					dlErr := fmt.Errorf("download file from to '%s': got status: '%s'", dl.Url, resp.Status)
+					dlErr := fmt.Errorf("download file from '%s': got status: '%s'", dl.Url, resp.Status)
 					dlSpan.RecordError(dlErr)
 					dlSpan.SetStatus(codes.Error, dlErr.Error())
 					dlSpan.End()
