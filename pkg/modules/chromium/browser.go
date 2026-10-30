@@ -367,7 +367,9 @@ func (b *chromiumBrowser) Stop(logger *slog.Logger) error {
 			}
 
 			// Also, remove Chromium-specific files in the temporary directory.
-			err = gotenberg.GarbageCollect(context.Background(), logger, os.TempDir(), []string{".org.chromium.Chromium", ".com.google.Chrome"}, expirationTime)
+			// Chromium names them org.chromium.Chromium.XXXXXX; older
+			// releases prefixed a dot.
+			err = gotenberg.GarbageCollect(context.Background(), logger, os.TempDir(), []string{"org.chromium.Chromium.*", ".org.chromium.Chromium.*", "com.google.Chrome.*", ".com.google.Chrome.*"}, expirationTime)
 			if err != nil {
 				logger.ErrorContext(context.Background(), err.Error())
 			}

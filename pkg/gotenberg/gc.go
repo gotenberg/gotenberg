@@ -6,49 +6,56 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
-// GarbageCollect scans the root path and deletes files or directories with
-// names containing specific substrings and before a given expiration time.
-func GarbageCollect(ctx context.Context, logger *slog.Logger, rootPath string, includeSubstr []string, expirationTime time.Time) error {
+// GarbageCollect deletes the entries directly under rootPath whose name
+// matches one of the [filepath.Match] patterns and whose modification time is
+// before expirationTime. It does not descend into directories.
+func GarbageCollect(ctx context.Context, logger *slog.Logger, rootPath string, patterns []string, expirationTime time.Time) error {
 	logger = logger.With(slog.String("logger", "gc"))
 
-	// To make sure that the next Walk method stays on
-	// the root level of the considered path, we have to
-	// return a filepath.SkipDir error if the current path
-	// is a directory.
-	skipDirOrNil := func(info os.FileInfo) error {
-		if info.IsDir() {
-			return filepath.SkipDir
-		}
-
-		return nil
+	entries, err := os.ReadDir(rootPath)
+	if err != nil {
+		return fmt.Errorf("read '%s': %w", rootPath, err)
 	}
 
-	return filepath.Walk(rootPath, func(path string, info os.FileInfo, pathErr error) error {
-		if pathErr != nil {
-			return pathErr
+	for _, entry := range entries {
+		if !matchesAny(entry.Name(), patterns) {
+			continue
 		}
 
-		if path == rootPath {
-			return nil
+		info, err := entry.Info()
+		if err != nil {
+			// The entry may have been removed since the directory was read.
+			continue
 		}
 
-		for _, substr := range includeSubstr {
-			if (strings.Contains(info.Name(), substr) || path == substr) && info.ModTime().Before(expirationTime) {
-				err := os.RemoveAll(path) //nolint:gosec // G122: rootPath is a trusted internal working directory
-				if err != nil {
-					return fmt.Errorf("garbage collect '%s': %w", path, err)
-				}
-
-				logger.DebugContext(ctx, fmt.Sprintf("'%s' removed", path))
-
-				return skipDirOrNil(info)
-			}
+		if !info.ModTime().Before(expirationTime) {
+			continue
 		}
 
-		return skipDirOrNil(info)
-	})
+		path := filepath.Join(rootPath, entry.Name())
+
+		err = os.RemoveAll(path) //nolint:gosec // G122: rootPath is a trusted internal working directory
+		if err != nil {
+			return fmt.Errorf("garbage collect '%s': %w", path, err)
+		}
+
+		logger.DebugContext(ctx, fmt.Sprintf("'%s' removed", path))
+	}
+
+	return nil
+}
+
+// matchesAny reports whether name matches one of the patterns.
+func matchesAny(name string, patterns []string) bool {
+	for _, pattern := range patterns {
+		ok, err := filepath.Match(pattern, name)
+		if err == nil && ok {
+			return true
+		}
+	}
+
+	return false
 }

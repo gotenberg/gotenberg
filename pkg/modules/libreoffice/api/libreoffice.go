@@ -421,8 +421,10 @@ func (p *libreOfficeProcess) Stop(logger *slog.Logger) error {
 				logger.DebugContext(context.Background(), fmt.Sprintf("'%s' LibreOffice's user profile directory removed", userProfileDirPath))
 			}
 
-			// Also, remove LibreOffice specific files in the temporary directory.
-			err = gotenberg.GarbageCollect(context.Background(), logger, os.TempDir(), []string{"OSL_PIPE", ".tmp", "lok-"}, expirationTime)
+			// Also, remove what LibreOffice and lok leave in the temporary
+			// directory: the single-instance pipe, LibreOffice's own temporary
+			// directories, and the copy lok makes for single-page sheets.
+			err = gotenberg.GarbageCollect(context.Background(), logger, os.TempDir(), []string{"OSL_PIPE_*", "lu*.tmp", "singlepagesheets-*"}, expirationTime)
 			if err != nil {
 				logger.ErrorContext(context.Background(), err.Error())
 			}

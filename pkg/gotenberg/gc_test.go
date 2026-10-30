@@ -2,100 +2,69 @@ package gotenberg
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
-	"path"
+	"path/filepath"
 	"testing"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 func TestGarbageCollect(t *testing.T) {
-	for _, tc := range []struct {
-		scenario        string
-		rootPath        string
-		includeSubstr   []string
-		expectError     bool
-		expectNotExists []string
-		expectExists    []string
-	}{
-		{
-			scenario:    "root path does not exist",
-			rootPath:    uuid.NewString(),
-			expectError: true,
-		},
-		{
-			scenario: "remove include substrings",
-			rootPath: func() string {
-				p := fmt.Sprintf("%s/a_directory", os.TempDir())
+	t.Run("root path does not exist", func(t *testing.T) {
+		err := GarbageCollect(context.Background(), slog.New(slog.DiscardHandler), filepath.Join(t.TempDir(), "missing"), []string{"*"}, time.Now())
+		if err == nil {
+			t.Fatal("expected error but got none")
+		}
+	})
 
-				err := os.MkdirAll(p, 0o755)
-				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
-				}
-
-				err = os.WriteFile(fmt.Sprintf("%s/a_foo_file", p), []byte{1}, 0o755)
-				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
-				}
-
-				err = os.WriteFile(fmt.Sprintf("%s/a_bar_file", p), []byte{1}, 0o755)
-				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
-				}
-
-				err = os.WriteFile(fmt.Sprintf("%s/a_baz_file", p), []byte{1}, 0o755)
-				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
-				}
-
-				return p
-			}(),
-			includeSubstr:   []string{"foo", path.Join(os.TempDir(), "/a_directory/a_bar_file")},
-			expectError:     false,
-			expectExists:    []string{"a_baz_file"},
-			expectNotExists: []string{"a_foo_file", "a_bar_file"},
-		},
-	} {
-		t.Run(tc.scenario, func(t *testing.T) {
-			defer func() {
-				err := os.RemoveAll(tc.rootPath)
-				if err != nil {
-					t.Fatalf("expected no error while cleaning up but got: %v", err)
-				}
-			}()
-
-			err := GarbageCollect(context.Background(), slog.New(slog.DiscardHandler), tc.rootPath, tc.includeSubstr, time.Now())
-
-			if !tc.expectError && err != nil {
-				t.Fatalf("expected no error but got: %v", err)
+	t.Run("remove the expired entries matching a pattern", func(t *testing.T) {
+		root := t.TempDir()
+		for _, name := range []string{"lu881b8swr.tmp", "OSL_PIPE_1001_SingleOfficeIPC_b2", "notes.tmp.txt", "upload.tmp", "a-request-dir"} {
+			err := os.Mkdir(filepath.Join(root, name), 0o755)
+			if err != nil {
+				t.Fatalf("create %s: %v", name, err)
 			}
+		}
 
-			if tc.expectError && err == nil {
-				t.Fatal("expected error but got none")
-			}
+		// Not expired: created after the expiration time.
+		expiration := time.Now()
+		fresh := filepath.Join(root, "lu999fresh.tmp")
+		err := os.Mkdir(fresh, 0o755)
+		if err != nil {
+			t.Fatalf("create fresh entry: %v", err)
+		}
+		future := expiration.Add(time.Minute)
+		err = os.Chtimes(fresh, future, future)
+		if err != nil {
+			t.Fatalf("touch fresh entry: %v", err)
+		}
 
-			if tc.expectError && err != nil {
-				return
+		past := expiration.Add(-time.Minute)
+		for _, name := range []string{"lu881b8swr.tmp", "OSL_PIPE_1001_SingleOfficeIPC_b2", "notes.tmp.txt", "upload.tmp", "a-request-dir"} {
+			err = os.Chtimes(filepath.Join(root, name), past, past)
+			if err != nil {
+				t.Fatalf("touch %s: %v", name, err)
 			}
+		}
 
-			for _, name := range tc.expectNotExists {
-				p := fmt.Sprintf("%s/%s", tc.rootPath, name)
-				_, err = os.Stat(p)
-				if !os.IsNotExist(err) {
-					t.Errorf("expected '%s' not to exist but it does: %v", p, err)
-				}
-			}
+		err = GarbageCollect(context.Background(), slog.New(slog.DiscardHandler), root, []string{"lu*.tmp", "OSL_PIPE_*"}, expiration)
+		if err != nil {
+			t.Fatalf("expected no error but got: %v", err)
+		}
 
-			for _, name := range tc.expectExists {
-				p := fmt.Sprintf("%s/%s", tc.rootPath, name)
-				_, err = os.Stat(p)
-				if os.IsNotExist(err) {
-					t.Errorf("expected '%s' to exist but it does not: %v", p, err)
-				}
+		for name, expectExists := range map[string]bool{
+			"lu881b8swr.tmp":                   false,
+			"OSL_PIPE_1001_SingleOfficeIPC_b2": false,
+			"lu999fresh.tmp":                   true,
+			// A substring match would have taken these.
+			"notes.tmp.txt": true,
+			"upload.tmp":    true,
+			"a-request-dir": true,
+		} {
+			_, err = os.Stat(filepath.Join(root, name))
+			if exists := err == nil; exists != expectExists {
+				t.Errorf("%s exists = %t, want %t", name, exists, expectExists)
 			}
-		})
-	}
+		}
+	})
 }
