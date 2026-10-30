@@ -91,9 +91,9 @@ func TestFormData_String(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			var actual string
+			actual := tc.defaultValue
 
-			tc.form.String("foo", &actual, tc.defaultValue)
+			tc.form.String("foo", &actual)
 
 			if actual != tc.expect {
 				t.Errorf("expected '%s' but got '%s'", tc.expect, actual)
@@ -227,9 +227,9 @@ func TestFormData_Bool(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			var actual bool
+			actual := tc.defaultValue
 
-			tc.form.Bool("foo", &actual, tc.defaultValue)
+			tc.form.Bool("foo", &actual)
 
 			if actual != tc.expect {
 				t.Errorf("expected %t but got %t", tc.expect, actual)
@@ -379,9 +379,9 @@ func TestFormData_Int(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			var actual int
+			actual := tc.defaultValue
 
-			tc.form.Int("foo", &actual, tc.defaultValue)
+			tc.form.Int("foo", &actual)
 
 			if actual != tc.expect {
 				t.Errorf("expected %d but got %d", tc.expect, actual)
@@ -570,9 +570,9 @@ func TestFormData_Float64(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			var actual float64
+			actual := tc.defaultValue
 
-			tc.form.Float64("foo", &actual, tc.defaultValue)
+			tc.form.Float64("foo", &actual)
 
 			if actual != tc.expect {
 				t.Errorf("expected %f but got %f", tc.expect, actual)
@@ -721,9 +721,9 @@ func TestFormData_Duration(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			var actual time.Duration
+			actual := tc.defaultValue
 
-			tc.form.Duration("foo", &actual, tc.defaultValue)
+			tc.form.Duration("foo", &actual)
 
 			if actual != tc.expect {
 				t.Errorf("expected '%s' but got '%s'", tc.expect, actual)
@@ -1003,9 +1003,9 @@ func TestFormData_Inches(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			var actual float64
+			actual := tc.defaultValue
 
-			tc.form.Inches("foo", &actual, tc.defaultValue)
+			tc.form.Inches("foo", &actual)
 
 			if fmt.Sprintf("%.1f", actual) != fmt.Sprintf("%.1f", tc.expect) {
 				t.Errorf("expected %.1f but got %.1f", tc.expect, actual)
@@ -1585,9 +1585,9 @@ func TestFormData_Content(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			var actual string
+			actual := tc.defaultValue
 
-			tc.form.Content(tc.filename, &actual, tc.defaultValue)
+			tc.form.Content(tc.filename, &actual)
 
 			if actual != tc.expect {
 				t.Errorf("expected '%s' but got '%s'", tc.expect, actual)
@@ -1840,33 +1840,6 @@ func TestFormData_append(t *testing.T) {
 	}
 }
 
-func TestFormData_mustValue(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic but got none")
-		}
-	}()
-
-	form := &FormData{}
-	defaultValue := []string{"foo"}
-
-	var target []string
-	form.mustValue("foo", &target, defaultValue)
-}
-
-func TestFormData_mustAssign(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic but got none")
-		}
-	}()
-
-	form := &FormData{}
-
-	var target []string
-	form.mustAssign("foo", "foo", &target)
-}
-
 func TestFormData_Strings(t *testing.T) {
 	form := &FormData{
 		values: map[string][]string{
@@ -1990,5 +1963,103 @@ func TestFormData_PaperSize(t *testing.T) {
 				t.Errorf("size = %gx%g, want %gx%g", width, height, tc.wantWidth, tc.wantHeight)
 			}
 		})
+	}
+}
+
+func TestFormData_Int_Checks(t *testing.T) {
+	for _, tc := range []struct {
+		scenario      string
+		value         string
+		checks        []func(int) error
+		expect        int
+		expectMessage string
+	}{
+		{scenario: "accepted by every check", value: "2", checks: []func(int) error{Min(1), Max(3)}, expect: 2},
+		{scenario: "below the minimum", value: "0", checks: []func(int) error{Min(1)}, expect: 7, expectMessage: "value is inferior to 1"},
+		{scenario: "above the maximum", value: "101", checks: []func(int) error{Min(1), Max(100)}, expect: 7, expectMessage: "value is superior to 100"},
+		{scenario: "not one of the values", value: "5", checks: []func(int) error{OneOf(0, 1, 2)}, expect: 7, expectMessage: "value is not 0, 1 or 2"},
+		{scenario: "not the only value", value: "5", checks: []func(int) error{OneOf(1)}, expect: 7, expectMessage: "value is not 1"},
+		{scenario: "one of the values", value: "1", checks: []func(int) error{OneOf(0, 1, 2)}, expect: 1},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			form := &FormData{values: map[string][]string{"foo": {tc.value}}}
+
+			actual := 7
+			form.Int("foo", &actual, tc.checks...)
+
+			if actual != tc.expect {
+				t.Errorf("expected %d but got %d", tc.expect, actual)
+			}
+
+			if tc.expectMessage == "" {
+				if form.errors != nil {
+					t.Fatalf("expected no error but got: %v", form.errors)
+				}
+				return
+			}
+
+			want := fmt.Sprintf("form field 'foo' is invalid (got '%s', resulting to %s)", tc.value, tc.expectMessage)
+			if form.errors == nil || form.errors.Error() != want {
+				t.Fatalf("expected error %q but got: %v", want, form.errors)
+			}
+		})
+	}
+}
+
+func TestJSON(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		form        *FormData
+		expect      []int
+		expectError bool
+	}{
+		{
+			scenario: "absent field keeps the current value",
+			form:     &FormData{},
+			expect:   []int{404},
+		},
+		{
+			scenario: "valid JSON",
+			form:     &FormData{values: map[string][]string{"foo": {"[500, 502]"}}},
+			expect:   []int{500, 502},
+		},
+		{
+			scenario:    "invalid JSON keeps the current value",
+			form:        &FormData{values: map[string][]string{"foo": {"[500"}}},
+			expect:      []int{404},
+			expectError: true,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			actual := []int{404}
+			JSON(tc.form, "foo", &actual)
+
+			if !reflect.DeepEqual(actual, tc.expect) {
+				t.Errorf("expected %v but got %v", tc.expect, actual)
+			}
+
+			if tc.expectError != (tc.form.errors != nil) {
+				t.Fatalf("expected error %t but got: %v", tc.expectError, tc.form.errors)
+			}
+		})
+	}
+}
+
+// Strings binds even after a previous field failed, and never aliases the
+// form's own values.
+func TestFormData_Strings_IndependentOfOtherFields(t *testing.T) {
+	form := &FormData{values: map[string][]string{"bad": {"foo"}, "foo": {"a", "b"}}}
+
+	var invalid bool
+	var actual []string
+	form.Bool("bad", &invalid).Strings("foo", &actual)
+
+	if !reflect.DeepEqual(actual, []string{"a", "b"}) {
+		t.Fatalf("expected [a b] but got %v", actual)
+	}
+
+	actual[0] = "changed"
+	if form.values["foo"][0] != "a" {
+		t.Fatal("Strings aliased the form values")
 	}
 }

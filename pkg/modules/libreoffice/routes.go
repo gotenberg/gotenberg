@@ -6,7 +6,6 @@ import (
 	"maps"
 	"net/http"
 	"slices"
-	"strconv"
 
 	"github.com/labstack/echo/v5"
 
@@ -29,288 +28,82 @@ func convertRoute(libreOffice libreofficeapi.Uno, processor *pdf.Processor) api.
 		IsMultipart: true,
 		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
-			defaultOptions := libreofficeapi.DefaultOptions()
-
 			form := ctx.FormData()
 			stages, files, err := pdf.FormDataStages(form)
 			if err != nil {
 				return err
 			}
 
-			var (
-				inputPaths                      []string
-				password                        string
-				landscape                       bool
-				paperWidth                      float64
-				paperHeight                     float64
-				nativePageRanges                string
-				updateIndexes                   bool
-				exportFormFields                bool
-				allowDuplicateFieldNames        bool
-				exportBookmarks                 bool
-				exportBookmarksToPdfDestination bool
-				exportPlaceholders              bool
-				exportNotes                     bool
-				exportNotesPages                bool
-				exportOnlyNotesPages            bool
-				exportNotesInMargin             bool
-				convertOooTargetToPdfTarget     bool
-				exportLinksRelativeFsys         bool
-				exportHiddenSlides              bool
-				skipEmptyPages                  bool
-				addOriginalDocumentAsStream     bool
-				singlePageSheets                bool
-				generateTaggedPdf               bool
-				losslessImageCompression        bool
-				quality                         int
-				reduceImageResolution           bool
-				maxImageResolution              int
-				nativeWatermarkText             string
-				nativeWatermarkColor            int
-				initialView                     int
-				initialPage                     int
-				magnification                   int
-				zoom                            int
-				pageLayout                      int
-				firstPageOnLeft                 bool
-				resizeWindowToInitialPage       bool
-				centerWindow                    bool
-				openInFullScreenMode            bool
-				displayPDFDocumentTitle         bool
-				hideViewerMenubar               bool
-				hideViewerToolbar               bool
-				hideViewerWindowControls        bool
-				useTransitionEffects            bool
-				openBookmarkLevels              int
-				nativeWatermarkFontHeight       int
-				nativeWatermarkRotateAngle      int
-				nativeWatermarkFontName         string
-				nativeTiledWatermarkText        string
-				pdfa                            string
-				pdfua                           bool
-			)
+			var inputPaths []string
+			options := libreofficeapi.DefaultOptions()
 
-			// A paper size sets the default width and height, which paperWidth
-			// and paperHeight then override one at a time. Without any, each
+			// A paper size sets the width and height, which paperWidth and
+			// paperHeight then override one at a time. Without any, each
 			// document keeps its own page size.
-			var defaultPaperWidth, defaultPaperHeight float64
-			form.PaperSize("paperSize", &defaultPaperWidth, &defaultPaperHeight)
+			form.PaperSize("paperSize", &options.PaperWidth, &options.PaperHeight)
 
 			err = form.
 				MandatoryPaths(libreOffice.Extensions(), &inputPaths).
-				String("password", &password, defaultOptions.Password).
-				Bool("landscape", &landscape, defaultOptions.Landscape).
-				Inches("paperWidth", &paperWidth, defaultPaperWidth).
-				Inches("paperHeight", &paperHeight, defaultPaperHeight).
-				String("nativePageRanges", &nativePageRanges, defaultOptions.PageRanges).
-				Bool("updateIndexes", &updateIndexes, defaultOptions.UpdateIndexes).
-				Bool("exportFormFields", &exportFormFields, defaultOptions.ExportFormFields).
-				Bool("allowDuplicateFieldNames", &allowDuplicateFieldNames, defaultOptions.AllowDuplicateFieldNames).
-				Bool("nativeBookmarks", &exportBookmarks, defaultOptions.ExportBookmarks).
-				Bool("exportBookmarksToPdfDestination", &exportBookmarksToPdfDestination, defaultOptions.ExportBookmarksToPdfDestination).
-				Bool("exportPlaceholders", &exportPlaceholders, defaultOptions.ExportPlaceholders).
-				Bool("exportNotes", &exportNotes, defaultOptions.ExportNotes).
-				Bool("exportNotesPages", &exportNotesPages, defaultOptions.ExportNotesPages).
-				Bool("exportOnlyNotesPages", &exportOnlyNotesPages, defaultOptions.ExportOnlyNotesPages).
-				Bool("exportNotesInMargin", &exportNotesInMargin, defaultOptions.ExportNotesInMargin).
-				Bool("convertOooTargetToPdfTarget", &convertOooTargetToPdfTarget, defaultOptions.ConvertOooTargetToPdfTarget).
-				Bool("exportLinksRelativeFsys", &exportLinksRelativeFsys, defaultOptions.ExportLinksRelativeFsys).
-				Bool("exportHiddenSlides", &exportHiddenSlides, defaultOptions.ExportHiddenSlides).
-				Bool("skipEmptyPages", &skipEmptyPages, defaultOptions.SkipEmptyPages).
-				Bool("addOriginalDocumentAsStream", &addOriginalDocumentAsStream, defaultOptions.AddOriginalDocumentAsStream).
-				Bool("singlePage", &singlePageSheets, defaultOptions.SinglePageSheets).
-				Bool("nativeTaggedPdf", &generateTaggedPdf, defaultOptions.GenerateTaggedPdf).
-				Custom("initialView", func(value string) error {
-					if value == "" {
-						initialView = defaultOptions.InitialView
-						return nil
-					}
-					intValue, err := strconv.Atoi(value)
-					if err != nil {
-						return err
-					}
-					if !slices.Contains([]int{0, 1, 2}, intValue) {
-						return errors.New("value is not 0, 1 or 2")
-					}
-					initialView = intValue
-					return nil
-				}).
-				Custom("initialPage", func(value string) error {
-					if value == "" {
-						initialPage = defaultOptions.InitialPage
-						return nil
-					}
-					intValue, err := strconv.Atoi(value)
-					if err != nil {
-						return err
-					}
-					if intValue < 1 {
-						return errors.New("value is inferior to 1")
-					}
-					initialPage = intValue
-					return nil
-				}).
-				Custom("magnification", func(value string) error {
-					if value == "" {
-						magnification = defaultOptions.Magnification
-						return nil
-					}
-					intValue, err := strconv.Atoi(value)
-					if err != nil {
-						return err
-					}
-					if !slices.Contains([]int{0, 1, 2, 3, 4}, intValue) {
-						return errors.New("value is not 0, 1, 2, 3 or 4")
-					}
-					magnification = intValue
-					return nil
-				}).
-				Custom("zoom", func(value string) error {
-					if value == "" {
-						zoom = defaultOptions.Zoom
-						return nil
-					}
-					intValue, err := strconv.Atoi(value)
-					if err != nil {
-						return err
-					}
-					if intValue < 1 {
-						return errors.New("value is inferior to 1")
-					}
-					zoom = intValue
-					return nil
-				}).
-				Custom("pageLayout", func(value string) error {
-					if value == "" {
-						pageLayout = defaultOptions.PageLayout
-						return nil
-					}
-					intValue, err := strconv.Atoi(value)
-					if err != nil {
-						return err
-					}
-					if !slices.Contains([]int{0, 1, 2, 3}, intValue) {
-						return errors.New("value is not 0, 1, 2 or 3")
-					}
-					pageLayout = intValue
-					return nil
-				}).
-				Bool("firstPageOnLeft", &firstPageOnLeft, defaultOptions.FirstPageOnLeft).
-				Bool("resizeWindowToInitialPage", &resizeWindowToInitialPage, defaultOptions.ResizeWindowToInitialPage).
-				Bool("centerWindow", &centerWindow, defaultOptions.CenterWindow).
-				Bool("openInFullScreenMode", &openInFullScreenMode, defaultOptions.OpenInFullScreenMode).
-				Bool("displayPDFDocumentTitle", &displayPDFDocumentTitle, defaultOptions.DisplayPDFDocumentTitle).
-				Bool("hideViewerMenubar", &hideViewerMenubar, defaultOptions.HideViewerMenubar).
-				Bool("hideViewerToolbar", &hideViewerToolbar, defaultOptions.HideViewerToolbar).
-				Bool("hideViewerWindowControls", &hideViewerWindowControls, defaultOptions.HideViewerWindowControls).
-				Bool("useTransitionEffects", &useTransitionEffects, defaultOptions.UseTransitionEffects).
-				Custom("openBookmarkLevels", func(value string) error {
-					if value == "" {
-						openBookmarkLevels = defaultOptions.OpenBookmarkLevels
-						return nil
-					}
-					intValue, err := strconv.Atoi(value)
-					if err != nil {
-						return err
-					}
-					if intValue != -1 && (intValue < 1 || intValue > 10) {
+				String("password", &options.Password).
+				Bool("landscape", &options.Landscape).
+				Inches("paperWidth", &options.PaperWidth).
+				Inches("paperHeight", &options.PaperHeight).
+				String("nativePageRanges", &options.PageRanges).
+				Bool("updateIndexes", &options.UpdateIndexes).
+				Bool("exportFormFields", &options.ExportFormFields).
+				Bool("allowDuplicateFieldNames", &options.AllowDuplicateFieldNames).
+				Bool("nativeBookmarks", &options.ExportBookmarks).
+				Bool("exportBookmarksToPdfDestination", &options.ExportBookmarksToPdfDestination).
+				Bool("exportPlaceholders", &options.ExportPlaceholders).
+				Bool("exportNotes", &options.ExportNotes).
+				Bool("exportNotesPages", &options.ExportNotesPages).
+				Bool("exportOnlyNotesPages", &options.ExportOnlyNotesPages).
+				Bool("exportNotesInMargin", &options.ExportNotesInMargin).
+				Bool("convertOooTargetToPdfTarget", &options.ConvertOooTargetToPdfTarget).
+				Bool("exportLinksRelativeFsys", &options.ExportLinksRelativeFsys).
+				Bool("exportHiddenSlides", &options.ExportHiddenSlides).
+				Bool("skipEmptyPages", &options.SkipEmptyPages).
+				Bool("addOriginalDocumentAsStream", &options.AddOriginalDocumentAsStream).
+				Bool("singlePage", &options.SinglePageSheets).
+				Bool("nativeTaggedPdf", &options.GenerateTaggedPdf).
+				Int("initialView", &options.InitialView, api.OneOf(0, 1, 2)).
+				Int("initialPage", &options.InitialPage, api.Min(1)).
+				Int("magnification", &options.Magnification, api.OneOf(0, 1, 2, 3, 4)).
+				Int("zoom", &options.Zoom, api.Min(1)).
+				Int("pageLayout", &options.PageLayout, api.OneOf(0, 1, 2, 3)).
+				Bool("firstPageOnLeft", &options.FirstPageOnLeft).
+				Bool("resizeWindowToInitialPage", &options.ResizeWindowToInitialPage).
+				Bool("centerWindow", &options.CenterWindow).
+				Bool("openInFullScreenMode", &options.OpenInFullScreenMode).
+				Bool("displayPDFDocumentTitle", &options.DisplayPDFDocumentTitle).
+				Bool("hideViewerMenubar", &options.HideViewerMenubar).
+				Bool("hideViewerToolbar", &options.HideViewerToolbar).
+				Bool("hideViewerWindowControls", &options.HideViewerWindowControls).
+				Bool("useTransitionEffects", &options.UseTransitionEffects).
+				Int("openBookmarkLevels", &options.OpenBookmarkLevels, func(value int) error {
+					if value != -1 && (value < 1 || value > 10) {
 						return errors.New("value is not -1 or between 1 and 10")
 					}
-					openBookmarkLevels = intValue
 					return nil
 				}).
-				Bool("nativeLosslessImageCompression", &losslessImageCompression, defaultOptions.LosslessImageCompression).
-				Custom("nativeQuality", func(value string) error {
-					if value == "" {
-						quality = defaultOptions.Quality
-						return nil
-					}
-
-					intValue, err := strconv.Atoi(value)
-					if err != nil {
-						return err
-					}
-
-					if intValue < 1 {
-						return errors.New("value is inferior to 1")
-					}
-
-					if intValue > 100 {
-						return errors.New("value is superior to 100")
-					}
-
-					quality = intValue
-					return nil
-				}).
-				Bool("nativeReduceImageResolution", &reduceImageResolution, defaultOptions.ReduceImageResolution).
-				Custom("nativeMaxImageResolution", func(value string) error {
-					if value == "" {
-						maxImageResolution = defaultOptions.MaxImageResolution
-						return nil
-					}
-
-					intValue, err := strconv.Atoi(value)
-					if err != nil {
-						return err
-					}
-
-					if !slices.Contains([]int{75, 150, 300, 600, 1200}, intValue) {
-						return errors.New("value is not 75, 150, 300, 600 or 1200")
-					}
-
-					maxImageResolution = intValue
-					return nil
-				}).
-				String("nativeWatermarkText", &nativeWatermarkText, defaultOptions.NativeWatermarkText).
-				Custom("nativeWatermarkColor", func(value string) error {
-					if value == "" {
-						nativeWatermarkColor = defaultOptions.NativeWatermarkColor
-						return nil
-					}
-					intValue, err := strconv.Atoi(value)
-					if err != nil {
-						return err
-					}
-					nativeWatermarkColor = intValue
-					return nil
-				}).
-				Custom("nativeWatermarkFontHeight", func(value string) error {
-					if value == "" {
-						nativeWatermarkFontHeight = defaultOptions.NativeWatermarkFontHeight
-						return nil
-					}
-					intValue, err := strconv.Atoi(value)
-					if err != nil {
-						return err
-					}
-					if intValue < 0 {
-						return errors.New("value is inferior to 0")
-					}
-					nativeWatermarkFontHeight = intValue
-					return nil
-				}).
-				Custom("nativeWatermarkRotateAngle", func(value string) error {
-					if value == "" {
-						nativeWatermarkRotateAngle = defaultOptions.NativeWatermarkRotateAngle
-						return nil
-					}
-					intValue, err := strconv.Atoi(value)
-					if err != nil {
-						return err
-					}
-					nativeWatermarkRotateAngle = intValue
-					return nil
-				}).
-				String("nativeWatermarkFontName", &nativeWatermarkFontName, defaultOptions.NativeWatermarkFontName).
-				String("nativeTiledWatermarkText", &nativeTiledWatermarkText, defaultOptions.NativeTiledWatermarkText).
-				String("nativePdfa", &pdfa, "").
-				Bool("nativePdfua", &pdfua, false).
+				Bool("nativeLosslessImageCompression", &options.LosslessImageCompression).
+				Int("nativeQuality", &options.Quality, api.Min(1), api.Max(100)).
+				Bool("nativeReduceImageResolution", &options.ReduceImageResolution).
+				Int("nativeMaxImageResolution", &options.MaxImageResolution, api.OneOf(75, 150, 300, 600, 1200)).
+				String("nativeWatermarkText", &options.NativeWatermarkText).
+				Int("nativeWatermarkColor", &options.NativeWatermarkColor).
+				Int("nativeWatermarkFontHeight", &options.NativeWatermarkFontHeight, api.Min(0)).
+				Int("nativeWatermarkRotateAngle", &options.NativeWatermarkRotateAngle).
+				String("nativeWatermarkFontName", &options.NativeWatermarkFontName).
+				String("nativeTiledWatermarkText", &options.NativeTiledWatermarkText).
+				String("nativePdfa", &options.PdfFormats.PdfA).
+				Bool("nativePdfua", &options.PdfFormats.PdfUa).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
 
-			if (paperWidth == 0) != (paperHeight == 0) {
+			if (options.PaperWidth == 0) != (options.PaperHeight == 0) {
 				return api.NewSentinelHttpError(
 					http.StatusBadRequest,
 					"Invalid form data: set 'paperSize', or both 'paperWidth' and 'paperHeight'",
@@ -330,14 +123,13 @@ func convertRoute(libreOffice libreofficeapi.Uno, processor *pdf.Processor) api.
 				)
 			}
 
-			pdfFormats := libreofficeapi.PdfFormats{PdfA: pdfa, PdfUa: pdfua}
-			err = pdfFormats.Validate()
+			err = options.PdfFormats.Validate()
 			if err != nil {
 				return api.WrapError(
 					fmt.Errorf("validate PDF formats: %w", err),
 					api.NewSentinelHttpError(
 						http.StatusBadRequest,
-						fmt.Sprintf("Invalid form data: form field 'nativePdfa' is invalid (got '%s', want PDF/A-1b, PDF/A-2b, PDF/A-3b or PDF/A-4).", pdfFormats.PdfA),
+						fmt.Sprintf("Invalid form data: form field 'nativePdfa' is invalid (got '%s', want PDF/A-1b, PDF/A-2b, PDF/A-3b or PDF/A-4).", options.PdfFormats.PdfA),
 					),
 				)
 			}
@@ -347,56 +139,6 @@ func convertRoute(libreOffice libreofficeapi.Uno, processor *pdf.Processor) api.
 				// document.docx -> document.docx.pdf, which names the output,
 				// or the archive entry, and the parts of a split.
 				outputPaths[i] = ctx.GeneratePathFromFilename(ctx.OriginalFilename(inputPath) + ".pdf")
-				options := libreofficeapi.Options{
-					Password:                        password,
-					Landscape:                       landscape,
-					PaperWidth:                      paperWidth,
-					PaperHeight:                     paperHeight,
-					PageRanges:                      nativePageRanges,
-					UpdateIndexes:                   updateIndexes,
-					ExportFormFields:                exportFormFields,
-					AllowDuplicateFieldNames:        allowDuplicateFieldNames,
-					ExportBookmarks:                 exportBookmarks,
-					ExportBookmarksToPdfDestination: exportBookmarksToPdfDestination,
-					ExportPlaceholders:              exportPlaceholders,
-					ExportNotes:                     exportNotes,
-					ExportNotesPages:                exportNotesPages,
-					ExportOnlyNotesPages:            exportOnlyNotesPages,
-					ExportNotesInMargin:             exportNotesInMargin,
-					ConvertOooTargetToPdfTarget:     convertOooTargetToPdfTarget,
-					ExportLinksRelativeFsys:         exportLinksRelativeFsys,
-					ExportHiddenSlides:              exportHiddenSlides,
-					SkipEmptyPages:                  skipEmptyPages,
-					AddOriginalDocumentAsStream:     addOriginalDocumentAsStream,
-					SinglePageSheets:                singlePageSheets,
-					InitialView:                     initialView,
-					InitialPage:                     initialPage,
-					Magnification:                   magnification,
-					Zoom:                            zoom,
-					PageLayout:                      pageLayout,
-					FirstPageOnLeft:                 firstPageOnLeft,
-					ResizeWindowToInitialPage:       resizeWindowToInitialPage,
-					CenterWindow:                    centerWindow,
-					OpenInFullScreenMode:            openInFullScreenMode,
-					DisplayPDFDocumentTitle:         displayPDFDocumentTitle,
-					HideViewerMenubar:               hideViewerMenubar,
-					HideViewerToolbar:               hideViewerToolbar,
-					HideViewerWindowControls:        hideViewerWindowControls,
-					UseTransitionEffects:            useTransitionEffects,
-					OpenBookmarkLevels:              openBookmarkLevels,
-					LosslessImageCompression:        losslessImageCompression,
-					Quality:                         quality,
-					ReduceImageResolution:           reduceImageResolution,
-					MaxImageResolution:              maxImageResolution,
-					NativeWatermarkText:             nativeWatermarkText,
-					NativeWatermarkColor:            nativeWatermarkColor,
-					NativeWatermarkFontHeight:       nativeWatermarkFontHeight,
-					NativeWatermarkRotateAngle:      nativeWatermarkRotateAngle,
-					NativeWatermarkFontName:         nativeWatermarkFontName,
-					NativeTiledWatermarkText:        nativeTiledWatermarkText,
-					GenerateTaggedPdf:               generateTaggedPdf,
-					PdfFormats:                      pdfFormats,
-				}
 
 				err = libreOffice.Pdf(ctx, ctx.Log(), inputPath, outputPaths[i], options)
 				if err != nil {

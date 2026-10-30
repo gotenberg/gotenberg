@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -59,101 +58,49 @@ var sameSiteRegexp = regexp2.MustCompile(
 // Domain filtering only applies to resource checks triggered by
 // "failOnResourceHttpStatusCodes".
 func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
-	defaultOptions := DefaultOptions()
+	options := DefaultOptions()
 
-	var (
-		skipNetworkIdleEvent            bool
-		skipNetworkAlmostIdleEvent      bool
-		failOnHttpStatusCodes           []int64
-		failOnResourceHttpStatusCodes   []int64
-		ignoreResourceHttpStatusDomains []string
-		failOnResourceLoadingFailed     bool
-		failOnConsoleExceptions         bool
-		failOnConsoleMessageTypes       []string
-		waitDelay                       time.Duration
-		waitWindowStatus                string
-		waitForExpression               string
-		waitForSelector                 string
-		cookies                         []Cookie
-		userAgent                       string
-		extraHttpHeaders                []ExtraHttpHeader
-		emulatedMediaType               string
-		emulatedMediaFeatures           []EmulatedMediaFeature
-		omitBackground                  bool
-	)
-
+	// The binding order is the order of the errors in a 400 response.
 	form := ctx.FormData().
-		Bool("skipNetworkIdleEvent", &skipNetworkIdleEvent, defaultOptions.SkipNetworkIdleEvent).
-		Bool("skipNetworkAlmostIdleEvent", &skipNetworkAlmostIdleEvent, defaultOptions.SkipNetworkAlmostIdleEvent).
-		Custom("failOnHttpStatusCodes", func(value string) error {
-			if value == "" {
-				failOnHttpStatusCodes = defaultOptions.FailOnHttpStatusCodes
-				return nil
-			}
+		Bool("skipNetworkIdleEvent", &options.SkipNetworkIdleEvent).
+		Bool("skipNetworkAlmostIdleEvent", &options.SkipNetworkAlmostIdleEvent)
+	api.JSON(form, "failOnHttpStatusCodes", &options.FailOnHttpStatusCodes)
+	api.JSON(form, "failOnResourceHttpStatusCodes", &options.FailOnResourceHttpStatusCodes)
+	api.JSON(form, "ignoreResourceHttpStatusDomains", &options.IgnoreResourceHttpStatusDomains)
 
-			err := json.Unmarshal([]byte(value), &failOnHttpStatusCodes)
-			if err != nil {
-				return fmt.Errorf("unmarshal failOnHttpStatusCodes: %w", err)
-			}
-
-			return nil
-		}).
-		Custom("failOnResourceHttpStatusCodes", func(value string) error {
-			if value == "" {
-				failOnResourceHttpStatusCodes = defaultOptions.FailOnResourceHttpStatusCodes
-				return nil
-			}
-
-			err := json.Unmarshal([]byte(value), &failOnResourceHttpStatusCodes)
-			if err != nil {
-				return fmt.Errorf("unmarshal failOnResourceHttpStatusCodes: %w", err)
-			}
-
-			return nil
-		}).
-		Custom("ignoreResourceHttpStatusDomains", func(value string) error {
-			if value == "" {
-				ignoreResourceHttpStatusDomains = defaultOptions.IgnoreResourceHttpStatusDomains
-				return nil
-			}
-
-			err := json.Unmarshal([]byte(value), &ignoreResourceHttpStatusDomains)
-			if err != nil {
-				return fmt.Errorf("unmarshal ignoreResourceHttpStatusDomains: %w", err)
-			}
-
-			return nil
-		}).
-		Bool("failOnResourceLoadingFailed", &failOnResourceLoadingFailed, defaultOptions.FailOnResourceLoadingFailed).
-		Bool("failOnConsoleExceptions", &failOnConsoleExceptions, defaultOptions.FailOnConsoleExceptions).
+	form.
+		Bool("failOnResourceLoadingFailed", &options.FailOnResourceLoadingFailed).
+		Bool("failOnConsoleExceptions", &options.FailOnConsoleExceptions).
 		Custom("failOnConsoleMessageTypes", func(value string) error {
 			if value == "" {
-				failOnConsoleMessageTypes = defaultOptions.FailOnConsoleMessageTypes
 				return nil
 			}
 
-			err := json.Unmarshal([]byte(value), &failOnConsoleMessageTypes)
+			var messageTypes []string
+			err := json.Unmarshal([]byte(value), &messageTypes)
 			if err != nil {
 				return fmt.Errorf("unmarshal failOnConsoleMessageTypes: %w", err)
 			}
 
-			for _, messageType := range failOnConsoleMessageTypes {
+			for _, messageType := range messageTypes {
 				if !slices.Contains(consoleMessageTypes, messageType) {
 					return fmt.Errorf("unknown console message type '%s', expected one or more of: %s", messageType, strings.Join(consoleMessageTypes, ", "))
 				}
 			}
 
+			options.FailOnConsoleMessageTypes = messageTypes
 			return nil
 		}).
-		Duration("waitDelay", &waitDelay, defaultOptions.WaitDelay).
-		String("waitWindowStatus", &waitWindowStatus, defaultOptions.WaitWindowStatus).
-		String("waitForExpression", &waitForExpression, defaultOptions.WaitForExpression).
-		String("waitForSelector", &waitForSelector, defaultOptions.WaitForSelector).
+		Duration("waitDelay", &options.WaitDelay).
+		String("waitWindowStatus", &options.WaitWindowStatus).
+		String("waitForExpression", &options.WaitForExpression).
+		String("waitForSelector", &options.WaitForSelector).
 		Custom("cookies", func(value string) error {
 			if value == "" {
-				cookies = defaultOptions.Cookies
 				return nil
 			}
+
+			var cookies []Cookie
 
 			// sameSite attribute from cookies must accept case-insensitive
 			// values.
@@ -189,14 +136,16 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 				}
 			}
 
+			options.Cookies = cookies
 			return err
 		}).
-		String("userAgent", &userAgent, defaultOptions.UserAgent).
+		String("userAgent", &options.UserAgent).
 		Custom("extraHttpHeaders", func(value string) error {
 			if value == "" {
-				extraHttpHeaders = defaultOptions.ExtraHttpHeaders
 				return nil
 			}
+
+			var extraHttpHeaders []ExtraHttpHeader
 
 			var headers map[string]string
 			err := json.Unmarshal([]byte(value), &headers)
@@ -264,11 +213,11 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 				return strings.Compare(a.Name, b.Name)
 			})
 
+			options.ExtraHttpHeaders = extraHttpHeaders
 			return err
 		}).
 		Custom("emulatedMediaType", func(value string) error {
 			if value == "" {
-				emulatedMediaType = defaultOptions.EmulatedMediaType
 				return nil
 			}
 
@@ -276,15 +225,16 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 				return errors.New("wrong value, expected either 'screen', 'print' or empty")
 			}
 
-			emulatedMediaType = value
+			options.EmulatedMediaType = value
 
 			return nil
 		}).
 		Custom("emulatedMediaFeatures", func(value string) error {
 			if value == "" {
-				emulatedMediaFeatures = defaultOptions.EmulatedMediaFeatures
 				return nil
 			}
+
+			var emulatedMediaFeatures []EmulatedMediaFeature
 
 			var features map[string]string
 			err := json.Unmarshal([]byte(value), &features)
@@ -305,30 +255,10 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 				return strings.Compare(a.Name, b.Name)
 			})
 
+			options.EmulatedMediaFeatures = emulatedMediaFeatures
 			return err
 		}).
-		Bool("omitBackground", &omitBackground, defaultOptions.OmitBackground)
-
-	options := Options{
-		SkipNetworkIdleEvent:            skipNetworkIdleEvent,
-		SkipNetworkAlmostIdleEvent:      skipNetworkAlmostIdleEvent,
-		FailOnHttpStatusCodes:           failOnHttpStatusCodes,
-		FailOnResourceHttpStatusCodes:   failOnResourceHttpStatusCodes,
-		IgnoreResourceHttpStatusDomains: ignoreResourceHttpStatusDomains,
-		FailOnResourceLoadingFailed:     failOnResourceLoadingFailed,
-		FailOnConsoleExceptions:         failOnConsoleExceptions,
-		FailOnConsoleMessageTypes:       failOnConsoleMessageTypes,
-		WaitDelay:                       waitDelay,
-		WaitWindowStatus:                waitWindowStatus,
-		WaitForExpression:               waitForExpression,
-		WaitForSelector:                 waitForSelector,
-		Cookies:                         cookies,
-		UserAgent:                       userAgent,
-		ExtraHttpHeaders:                extraHttpHeaders,
-		EmulatedMediaType:               emulatedMediaType,
-		EmulatedMediaFeatures:           emulatedMediaFeatures,
-		OmitBackground:                  omitBackground,
-	}
+		Bool("omitBackground", &options.OmitBackground)
 
 	return form, options
 }
@@ -337,61 +267,30 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 // the default value if the considered key is not present.
 func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 	form, options := FormDataChromiumOptions(ctx)
-	defaultPdfOptions := DefaultPdfOptions()
+	pdfOptions := DefaultPdfOptions()
+	pdfOptions.Options = options
 
-	var (
-		landscape, printBackground, singlePage           bool
-		scale, paperWidth, paperHeight                   float64
-		marginTop, marginBottom, marginLeft, marginRight float64
-		pageRanges                                       string
-		headerTemplate, footerTemplate                   string
-		preferCssPageSize                                bool
-		generateDocumentOutline                          bool
-		generateTaggedPdf                                bool
-	)
-
-	// A paper size sets the default width and height, which paperWidth and
-	// paperHeight then override one at a time.
-	defaultPaperWidth, defaultPaperHeight := defaultPdfOptions.PaperWidth, defaultPdfOptions.PaperHeight
-	form.PaperSize("paperSize", &defaultPaperWidth, &defaultPaperHeight)
+	// A paper size sets the width and height, which paperWidth and paperHeight
+	// then override one at a time.
+	form.PaperSize("paperSize", &pdfOptions.PaperWidth, &pdfOptions.PaperHeight)
 
 	form.
-		Bool("landscape", &landscape, defaultPdfOptions.Landscape).
-		Bool("printBackground", &printBackground, defaultPdfOptions.PrintBackground).
-		Float64("scale", &scale, defaultPdfOptions.Scale).
-		Bool("singlePage", &singlePage, defaultPdfOptions.SinglePage).
-		Inches("paperWidth", &paperWidth, defaultPaperWidth).
-		Inches("paperHeight", &paperHeight, defaultPaperHeight).
-		Inches("marginTop", &marginTop, defaultPdfOptions.MarginTop).
-		Inches("marginBottom", &marginBottom, defaultPdfOptions.MarginBottom).
-		Inches("marginLeft", &marginLeft, defaultPdfOptions.MarginLeft).
-		Inches("marginRight", &marginRight, defaultPdfOptions.MarginRight).
-		String("nativePageRanges", &pageRanges, defaultPdfOptions.PageRanges).
-		Content("header.html", &headerTemplate, defaultPdfOptions.HeaderTemplate).
-		Content("footer.html", &footerTemplate, defaultPdfOptions.FooterTemplate).
-		Bool("preferCssPageSize", &preferCssPageSize, defaultPdfOptions.PreferCssPageSize).
-		Bool("nativeBookmarks", &generateDocumentOutline, defaultPdfOptions.GenerateDocumentOutline).
-		Bool("nativeTaggedPdf", &generateTaggedPdf, defaultPdfOptions.GenerateTaggedPdf)
-
-	pdfOptions := PdfOptions{
-		Options:                 options,
-		Landscape:               landscape,
-		PrintBackground:         printBackground,
-		Scale:                   scale,
-		SinglePage:              singlePage,
-		PaperWidth:              paperWidth,
-		PaperHeight:             paperHeight,
-		MarginTop:               marginTop,
-		MarginBottom:            marginBottom,
-		MarginLeft:              marginLeft,
-		MarginRight:             marginRight,
-		PageRanges:              pageRanges,
-		HeaderTemplate:          headerTemplate,
-		FooterTemplate:          footerTemplate,
-		PreferCssPageSize:       preferCssPageSize,
-		GenerateDocumentOutline: generateDocumentOutline,
-		GenerateTaggedPdf:       generateTaggedPdf,
-	}
+		Bool("landscape", &pdfOptions.Landscape).
+		Bool("printBackground", &pdfOptions.PrintBackground).
+		Float64("scale", &pdfOptions.Scale).
+		Bool("singlePage", &pdfOptions.SinglePage).
+		Inches("paperWidth", &pdfOptions.PaperWidth).
+		Inches("paperHeight", &pdfOptions.PaperHeight).
+		Inches("marginTop", &pdfOptions.MarginTop).
+		Inches("marginBottom", &pdfOptions.MarginBottom).
+		Inches("marginLeft", &pdfOptions.MarginLeft).
+		Inches("marginRight", &pdfOptions.MarginRight).
+		String("nativePageRanges", &pdfOptions.PageRanges).
+		Content("header.html", &pdfOptions.HeaderTemplate).
+		Content("footer.html", &pdfOptions.FooterTemplate).
+		Bool("preferCssPageSize", &pdfOptions.PreferCssPageSize).
+		Bool("nativeBookmarks", &pdfOptions.GenerateDocumentOutline).
+		Bool("nativeTaggedPdf", &pdfOptions.GenerateTaggedPdf)
 
 	return form, pdfOptions
 }
@@ -400,26 +299,16 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 // data. Fallback to the default value if the considered key is not present.
 func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, ScreenshotOptions) {
 	form, options := FormDataChromiumOptions(ctx)
-	defaultScreenshotOptions := DefaultScreenshotOptions()
-
-	var (
-		width, height     int
-		clip              bool
-		selector          string
-		format            string
-		quality           int
-		optimizeForSpeed  bool
-		deviceScaleFactor float64
-	)
+	screenshotOptions := DefaultScreenshotOptions()
+	screenshotOptions.Options = options
 
 	form.
-		Int("width", &width, defaultScreenshotOptions.Width).
-		Int("height", &height, defaultScreenshotOptions.Height).
-		Bool("clip", &clip, defaultScreenshotOptions.Clip).
-		String("selector", &selector, defaultScreenshotOptions.Selector).
+		Int("width", &screenshotOptions.Width).
+		Int("height", &screenshotOptions.Height).
+		Bool("clip", &screenshotOptions.Clip).
+		String("selector", &screenshotOptions.Selector).
 		Custom("format", func(value string) error {
 			if value == "" {
-				format = defaultScreenshotOptions.Format
 				return nil
 			}
 
@@ -427,46 +316,13 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 				return fmt.Errorf("wrong value, expected either 'png', 'jpeg' or 'webp'")
 			}
 
-			format = value
+			screenshotOptions.Format = value
 
 			return nil
 		}).
-		Custom("quality", func(value string) error {
-			if value == "" {
-				quality = defaultScreenshotOptions.Quality
-				return nil
-			}
-
-			intValue, err := strconv.Atoi(value)
-			if err != nil {
-				return err
-			}
-
-			if intValue < 0 {
-				return errors.New("value is negative")
-			}
-
-			if intValue > 100 {
-				return errors.New("value is superior to 100")
-			}
-
-			quality = intValue
-			return nil
-		}).
-		Bool("optimizeForSpeed", &optimizeForSpeed, defaultScreenshotOptions.OptimizeForSpeed).
-		Float64("deviceScaleFactor", &deviceScaleFactor, defaultScreenshotOptions.DeviceScaleFactor)
-
-	screenshotOptions := ScreenshotOptions{
-		Options:           options,
-		Width:             width,
-		Height:            height,
-		Clip:              clip,
-		Selector:          selector,
-		Format:            format,
-		Quality:           quality,
-		OptimizeForSpeed:  optimizeForSpeed,
-		DeviceScaleFactor: deviceScaleFactor,
-	}
+		Int("quality", &screenshotOptions.Quality, api.Min(0), api.Max(100)).
+		Bool("optimizeForSpeed", &screenshotOptions.OptimizeForSpeed).
+		Float64("deviceScaleFactor", &screenshotOptions.DeviceScaleFactor)
 
 	return form, screenshotOptions
 }

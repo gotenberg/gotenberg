@@ -105,7 +105,7 @@ func readRoute(processor *Processor, name string, read func(ctx context.Context,
 			}
 
 			var password string
-			err = form.String("password", &password, "").Validate()
+			err = form.String("password", &password).Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
