@@ -104,6 +104,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the "([^"]*)" PDF should reuse (\d+) image XObject\(s\) across (\d+) page\(s\)$`, s.thePdfShouldReuseImageXObjects)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) be signed$`, s.thePdfsShouldBeSigned)
 	ctx.Then(`^the "([^"]*)" PDF should have the "([^"]*)" metadata set to "([^"]*)"$`, s.thePdfShouldHaveMetadata)
+	ctx.Then(`^the "([^"]*)" PDF should have the form field "([^"]*)" set to "([^"]*)"$`, s.thePdfShouldHaveFormField)
 	ctx.Then(`^the "([^"]*)" PDF page (\d+) should be rotated by (\d+) degrees$`, s.thePdfPageShouldBeRotatedBy)
 	ctx.Then(`^the "([^"]*)" PDF first page should be ([\d.]+)x([\d.]+) points$`, s.thePdfShouldHaveSize)
 	ctx.Then(`^the "([^"]*)" image should be (\d+)x(\d+) pixels$`, s.theImageShouldBePixels)

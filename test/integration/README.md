@@ -83,6 +83,7 @@ Available tags:
 - `the (response|webhook request) PDF(s) should declare Factur-X XMP with conformance level "<level>"`
 - `the (response|webhook request) PDF(s) (should|should NOT) be signed`
 - `the "<name>" PDF should have the "<key>" metadata set to "<value>"` (keys: `Title`, `Author`, `Subject`, `Keywords`, `Creator`, `Producer`)
+- `the "<name>" PDF should have the form field "<field>" set to "<value>"`
 - `the "<name>" PDF page <N> should be rotated by <angle> degrees`
 - `the "<name>" PDF first page should be <width>x<height> points` (one point of tolerance)
 - `the "<name>" PDF (should|should NOT) have a document outline`

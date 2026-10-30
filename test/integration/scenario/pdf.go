@@ -506,6 +506,26 @@ func (s *scenario) thePdfShouldHaveMetadata(ctx context.Context, name, key, expe
 	})
 }
 
+func (s *scenario) thePdfShouldHaveFormField(ctx context.Context, name, field, expected string) error {
+	return s.withNamedPdf(ctx, name, func(r *litho.Reader) error {
+		values, err := r.FormData(ctx)
+		if err != nil {
+			return fmt.Errorf("read form data: %w", err)
+		}
+
+		actual, ok := values[field]
+		if !ok {
+			return fmt.Errorf("no form field %q (all: %v)", field, values)
+		}
+
+		if actual != expected {
+			return fmt.Errorf("expected form field %q to be %q, but actual is %q", field, expected, actual)
+		}
+
+		return nil
+	})
+}
+
 func (s *scenario) thePdfPageShouldBeRotatedBy(ctx context.Context, name string, page, angle int) error {
 	return s.withNamedPdf(ctx, name, func(r *litho.Reader) error {
 		p, err := r.Page(ctx, page)

@@ -22,6 +22,16 @@ Feature: /forms/pdf/{flatten-form|set-form}
     Then there should be 2 PDF(s) in the response
     Then the response PDF(s) should be flatten
 
+  Scenario: POST /forms/pdf/set-form
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/set-form" endpoint with the following form data and header(s):
+      | files                     | testdata/form.pdf    | file   |
+      | fields                    | {"name":"Gotenberg"} | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then the "foo.pdf" PDF should have the form field "name" set to "Gotenberg"
+
   Scenario: POST /forms/pdf/set-form (Bad Request)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/set-form" endpoint with the following form data and header(s):
