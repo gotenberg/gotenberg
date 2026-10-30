@@ -18,7 +18,7 @@ Feature: /debug
         "version": "{version}",
         "timezone": "UTC",
         "architecture": "ignore",
-        "modules": ["api", "chromium", "libreoffice", "libreoffice-api", "pdf", "prometheus", "webhook"],
+        "modules": ["api", "chromium", "libreoffice", "libreoffice-api", "pdf", "webhook"],
         "modules_additional_data": {
           "chromium": {
             "version": "ignore"
@@ -99,12 +99,6 @@ Feature: /debug
           "pdf-max-embedded-file-bytes": "",
           "pdf-max-image-pixels": "0",
           "pdf-max-stream-bytes": "",
-          "prometheus-collect-interval": "1s",
-          "prometheus-disable-collect": "false",
-          "prometheus-disable-route-logging": "false",
-          "prometheus-disable-route-telemetry": "true",
-          "prometheus-namespace": "gotenberg",
-          "prometheus-metrics-path": "/prometheus/metrics",
           "webhook-allow-list": "[.+]",
           "webhook-client-timeout": "30s",
           "webhook-deny-list": "[]",
@@ -133,7 +127,7 @@ Feature: /debug
         "version": "{version}",
         "timezone": "America/New_York",
         "architecture": "ignore",
-        "modules": ["api", "chromium", "libreoffice", "libreoffice-api", "pdf", "prometheus", "webhook"],
+        "modules": ["api", "chromium", "libreoffice", "libreoffice-api", "pdf", "webhook"],
         "modules_additional_data": {
           "chromium": {
             "version": "ignore"
@@ -214,12 +208,6 @@ Feature: /debug
           "pdf-max-embedded-file-bytes": "",
           "pdf-max-image-pixels": "0",
           "pdf-max-stream-bytes": "",
-          "prometheus-collect-interval": "1s",
-          "prometheus-disable-collect": "false",
-          "prometheus-disable-route-logging": "false",
-          "prometheus-disable-route-telemetry": "true",
-          "prometheus-namespace": "gotenberg",
-          "prometheus-metrics-path": "/prometheus/metrics",
           "webhook-allow-list": "[.+]",
           "webhook-client-timeout": "30s",
           "webhook-deny-list": "[]",

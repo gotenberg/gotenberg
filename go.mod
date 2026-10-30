@@ -19,7 +19,6 @@ require (
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/moby/moby/api v1.56.1
 	github.com/moby/moby/client v0.6.2
-	github.com/prometheus/client_golang v1.25.0
 	github.com/shirou/gopsutil/v4 v4.26.9
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.12.1
@@ -111,6 +110,7 @@ require (
 	github.com/pandatix/go-abnf v0.5.1 // indirect
 	github.com/pierrec/lz4/v4 v4.1.33 // indirect
 	github.com/power-devops/perfstat v0.0.0-20260916203055-22a1a467d9f0 // indirect
+	github.com/prometheus/client_golang v1.25.0 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect
 	github.com/prometheus/common v0.73.0 // indirect
 	github.com/prometheus/otlptranslator v1.0.0 // indirect

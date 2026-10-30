@@ -28,7 +28,7 @@ Available tags:
 | Chromium    | `chromium`, `chromium-concurrent`, `chromium-convert-html`, `chromium-image-deduplication`, `chromium-convert-markdown`, `chromium-convert-url`, `chromium-screenshot-html`, `chromium-screenshot-markdown`, `chromium-screenshot-url`, `chromium-ssrf` |
 | LibreOffice | `libreoffice`, `libreoffice-convert`, `libreoffice-ssrf`                                                                                                                                                                                                |
 | PDF         | `pdf`, `pdf-pipe`, `pdf-merge`, `pdf-split`, `pdf-pages`, `pdf-rotate`, `pdf-stamp`, `pdf-metadata`, `pdf-bookmarks`, `pdf-form`, `pdf-attach`, `pdf-encrypt`, `pdf-remediate`, `factur-x`, `pdf-sign`, `pdf-optimize`, `pdf-read`                      |
-| Infra       | `health`, `debug`, `root`, `version`, `output-filename`, `prometheus-metrics`, `webhook`, `download-from`                                                                                                                                               |
+| Infra       | `health`, `debug`, `root`, `version`, `output-filename`, `webhook`, `download-from`                                                                                                                                                                     |
 
 ## Writing a new test
 
