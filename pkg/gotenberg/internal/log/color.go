@@ -1,8 +1,10 @@
 package log
 
 import (
+	"bytes"
 	"fmt"
-	"log/slog"
+	"io"
+	"strings"
 )
 
 // Foreground colors.
@@ -24,17 +26,57 @@ func (c color) Add(s string) string {
 	return fmt.Sprintf("\x1b[%dm%s\x1b[0m", uint8(c), s)
 }
 
-func levelToColor(l slog.Level) color {
-	switch l {
-	case slog.LevelDebug:
+// levelColor returns the color of a level as the text handler writes it,
+// slog's ("INFO", "WARN+2") or GCP's ("WARNING").
+func levelColor(level string) color {
+	switch {
+	case strings.HasPrefix(level, "DEBUG"):
 		return cyan
-	case slog.LevelInfo:
+	case strings.HasPrefix(level, "INFO"):
 		return blue
-	case slog.LevelWarn:
+	case strings.HasPrefix(level, "WARN"):
 		return yellow
-	case slog.LevelError:
-		return red
 	default:
 		return red
 	}
+}
+
+// levelKey precedes the level in a line of the text handler, which writes the
+// time first, then the level.
+var levelKey = []byte("level=")
+
+// levelColorWriter colors the level of each line a [slog.TextHandler] writes
+// to w. The handler quotes and escapes a value holding an escape sequence, so
+// the color goes in once it formatted the line. The handler writes a line per
+// call.
+type levelColorWriter struct {
+	w io.Writer
+}
+
+func (cw levelColorWriter) Write(p []byte) (int, error) {
+	start := bytes.Index(p, levelKey)
+	if start < 0 {
+		return cw.w.Write(p)
+	}
+	start += len(levelKey)
+
+	end := bytes.IndexByte(p[start:], ' ')
+	if end < 0 {
+		return cw.w.Write(p)
+	}
+	end += start
+
+	level := string(p[start:end])
+
+	line := make([]byte, 0, len(p)+len("\x1b[00m\x1b[0m"))
+	line = append(line, p[:start]...)
+	line = append(line, levelColor(level).Add(level)...)
+	line = append(line, p[end:]...)
+
+	_, err := cw.w.Write(line)
+	if err != nil {
+		return 0, err
+	}
+
+	return len(p), nil
 }

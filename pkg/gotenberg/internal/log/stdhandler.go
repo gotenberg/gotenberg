@@ -2,6 +2,7 @@ package log
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"os"
 	"strings"
@@ -78,10 +79,11 @@ func NewStdHandler(level slog.Level, format string, fieldsPrefix string, enableG
 			l := a.Value.Any().(slog.Level)
 			switch {
 			case format == textLoggingFormat && isTerminal:
+				// levelColorWriter colors it.
 				if enableGcpFields {
-					a.Value = slog.StringValue(gcpSeverityColorEncoder(l))
+					a.Value = slog.StringValue(gcpSeverity(l))
 				} else {
-					a.Value = slog.StringValue(levelToColor(l).Add(l.String()))
+					a.Value = slog.StringValue(l.String())
 				}
 			case enableGcpFields && format != textLoggingFormat:
 				a.Key = "severity"
@@ -122,16 +124,15 @@ func NewStdHandler(level slog.Level, format string, fieldsPrefix string, enableG
 
 	var handler slog.Handler
 	if format == textLoggingFormat {
-		handler = slog.NewTextHandler(os.Stderr, opts)
+		var w io.Writer = os.Stderr
+		// See https://no-color.org.
+		if isTerminal && os.Getenv("NO_COLOR") == "" {
+			w = levelColorWriter{w: w}
+		}
+		handler = slog.NewTextHandler(w, opts)
 	} else {
 		handler = slog.NewJSONHandler(os.Stderr, opts)
 	}
 
 	return traceContextHandler{Handler: handler}, nil
-}
-
-func gcpSeverityColorEncoder(l slog.Level) string {
-	severity := gcpSeverity(l)
-	c := levelToColor(l)
-	return c.Add(severity)
 }
