@@ -46,10 +46,25 @@ func PruneOrphanedNetworks(ctx context.Context) (int, error) {
 }
 
 var (
-	GotenbergDockerRepository  string
-	GotenbergVersion           string
+	GotenbergDockerRepository string
+	// GotenbergVersion is the version the image reports, such as in the
+	// Gotenberg-Version header.
+	GotenbergVersion string
+	// GotenbergVariant selects a variant image, such as "chromium", tagged
+	// <version>-<variant>. Empty selects the full image, tagged <version>.
+	GotenbergVariant           string
 	GotenbergContainerPlatform string
 )
+
+// gotenbergImage returns the image the containers run.
+func gotenbergImage() string {
+	tag := GotenbergVersion
+	if GotenbergVariant != "" {
+		tag += "-" + GotenbergVariant
+	}
+
+	return fmt.Sprintf("gotenberg/%s:%s", GotenbergDockerRepository, tag)
+}
 
 type noopLogger struct{}
 
@@ -116,7 +131,7 @@ func startGotenbergContainer(ctx context.Context, env map[string]string) (testco
 	}
 
 	req := testcontainers.ContainerRequest{
-		Image:         fmt.Sprintf("gotenberg/%s:%s", GotenbergDockerRepository, GotenbergVersion),
+		Image:         gotenbergImage(),
 		ImagePlatform: GotenbergContainerPlatform,
 		ExposedPorts:  []string{"3000/tcp"},
 		HostConfigModifier: func(hostConfig *container.HostConfig) {
