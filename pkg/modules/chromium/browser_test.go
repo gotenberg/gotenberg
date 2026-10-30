@@ -5,9 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/chromedp/cdproto"
 	"github.com/dlclark/regexp2/v2"
@@ -33,6 +36,34 @@ func TestChromiumBrowser_Start_honorsDoneContext(t *testing.T) {
 	}
 	if b.isStarted.Load() {
 		t.Fatal("expected the browser to stay not started")
+	}
+}
+
+// A failed start must not leave its user profile directory behind: every
+// supervisor retry creates a new one.
+func TestChromiumBrowser_Start_removesProfileOnFailure(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+
+	b := newChromiumBrowser(browserArguments{
+		binPath:           filepath.Join(t.TempDir(), "missing-chromium"),
+		hyphenDataDirPath: t.TempDir(),
+		wsUrlReadTimeout:  5 * time.Second,
+	}).(*chromiumBrowser)
+
+	err := b.Start(context.Background(), slog.New(slog.DiscardHandler))
+	if err == nil {
+		t.Fatal("expected an error from Start, got nil")
+	}
+
+	entries, err := os.ReadDir(b.fs.WorkingDirPath())
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("read working directory: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("expected no user profile directory left, got %d entries", len(entries))
+	}
+	if b.userProfileDirPath != "" {
+		t.Fatalf("expected the user profile directory path to be reset, got %q", b.userProfileDirPath)
 	}
 }
 
