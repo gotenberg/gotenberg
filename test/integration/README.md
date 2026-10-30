@@ -37,6 +37,7 @@ Available tags:
 3. For new tags, add them to both the `TAGS` comment block in the `Makefile` and the table above.
 4. For new step definitions, add the function to `scenario/scenario.go` (or `scenario/pdf.go` for PDF assertions), register it in `InitializeScenario`, and add the step pattern to the step reference below.
 5. Test data goes in `test/integration/testdata/`.
+6. `I have a default Gotenberg container` reuses a container an earlier scenario left, one scenario at a time. A scenario that reads the container's logs, stops it, or sends concurrent or sequential requests gets its own. Tag a scenario `@isolated` to give it its own container for another reason. A container with environment variables is never reused.
 
 ## Step reference
 
