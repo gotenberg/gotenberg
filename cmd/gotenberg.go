@@ -51,18 +51,6 @@ func Run() {
 	fs.Bool("log-std-enable-gcp-fields", false, "Use GCP-compatible field names in log output")
 	fs.String("log-std-level-case", gotenberg.LowerLevelCase, "Set the case of the level field in the standard output, either lower or upper")
 
-	// Deprecated logging flags.
-	fs.String("log-format", gotenberg.AutoLoggingFormat, "Set the log format")
-	fs.Bool("log-enable-gcp-fields", false, "Use GCP-compatible field names")
-
-	if err := errors.Join(
-		fs.MarkDeprecated("log-format", "use --log-std-format instead"),
-		fs.MarkDeprecated("log-enable-gcp-fields", "use --log-std-enable-gcp-fields instead"),
-	); err != nil {
-		fmt.Printf("[FATAL] mark deprecated flags: %s\n", err)
-		os.Exit(1)
-	}
-
 	descriptors := gotenberg.GetModuleDescriptors()
 	var modsInfo strings.Builder
 	for _, desc := range descriptors {
@@ -120,14 +108,12 @@ func Run() {
 	telemetryCfg := gotenberg.TelemetryConfig{
 		ServiceName:           serviceName,
 		ServiceVersion:        Version,
-		LogLevel:              parsedFlags.MustDeprecatedString("log-format", "log-std-format"),
+		LogLevel:              parsedFlags.MustString("log-level"),
 		LogFieldsPrefix:       parsedFlags.MustString("log-fields-prefix"),
-		LogStdFormat:          parsedFlags.MustDeprecatedString("log-format", "log-std-format"),
-		LogStdEnableGcpFields: parsedFlags.MustDeprecatedBool("log-enable-gcp-fields", "log-std-enable-gcp-fields"),
+		LogStdFormat:          parsedFlags.MustString("log-std-format"),
+		LogStdEnableGcpFields: parsedFlags.MustBool("log-std-enable-gcp-fields"),
 		LogStdLevelCase:       parsedFlags.MustString("log-std-level-case"),
 	}
-	// LogLevel uses its own flag, not the format flag.
-	telemetryCfg.LogLevel = parsedFlags.MustString("log-level")
 
 	err = telemetryCfg.Validate()
 	if err != nil {

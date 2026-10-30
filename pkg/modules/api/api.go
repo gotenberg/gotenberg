@@ -229,17 +229,6 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Bool("api-disable-version-route-telemetry", true, "Disable telemetry for the version route")
 			fs.Bool("api-enable-debug-route", false, "Enable the debug route")
 
-			// Deprecated flags.
-			fs.String("api-trace-header", "Gotenberg-Trace", "Set the header name to use for identifying requests")
-			fs.Bool("api-disable-health-check-logging", false, "Disable health check logging")
-
-			err := errors.Join(
-				fs.MarkDeprecated("api-trace-header", "use --api-correlation-id-header instead"),
-				fs.MarkDeprecated("api-disable-health-check-logging", "use --api-disable-health-check-route-telemetry instead"),
-			)
-			if err != nil {
-				panic(err)
-			}
 			return fs
 		}(),
 		New: func() gotenberg.Module { return new(Api) },
@@ -257,7 +246,7 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 	a.timeout = flags.MustDuration("api-timeout")
 	a.bodyLimit = flags.MustHumanReadableBytes("api-body-limit")
 	a.rootPath = flags.MustString("api-root-path")
-	a.correlationIdHeader = flags.MustDeprecatedString("api-trace-header", "api-correlation-id-header")
+	a.correlationIdHeader = flags.MustString("api-correlation-id-header")
 	a.downloadFromCfg = downloadFromConfig{
 		allowList:              flags.MustRegexpSlice("api-download-from-allow-list"),
 		denyList:               flags.MustRegexpSlice("api-download-from-deny-list"),
@@ -269,7 +258,7 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 		maxEntries:             flags.MustInt("api-download-from-max-entries"),
 		disable:                flags.MustBool("api-disable-download-from"),
 	}
-	a.disableHealthCheckRouteTelemetry = flags.MustDeprecatedBool("api-disable-health-check-logging", "api-disable-health-check-route-telemetry")
+	a.disableHealthCheckRouteTelemetry = flags.MustBool("api-disable-health-check-route-telemetry")
 	a.disableRootRouteTelemetry = flags.MustBool("api-disable-root-route-telemetry")
 	a.disableDebugRouteTelemetry = flags.MustBool("api-disable-debug-route-telemetry")
 	a.disableVersionRouteTelemetry = flags.MustBool("api-disable-version-route-telemetry")
