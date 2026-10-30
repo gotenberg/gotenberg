@@ -449,7 +449,7 @@ func oidcAuthMiddleware(verifier *oidc.IDTokenVerifier) echo.MiddlewareFunc {
 //
 //	ctx := c.Get("context").(*api.Context)
 //	cancel := c.Get("cancel").(context.CancelFunc)
-func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig) echo.MiddlewareFunc {
+func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig, archiveCfg archiveConfig) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
 			logger, _ := c.Get("logger").(*slog.Logger)
@@ -459,7 +459,7 @@ func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, bodyLimi
 
 			// We create a context with a timeout so that underlying processes are
 			// able to stop early and correctly handle a timeout scenario.
-			ctx, cancel, err := newContext(c, logger, fs, timeout, bodyLimit, downloadFromCfg)
+			ctx, cancel, err := newContext(c, logger, fs, timeout, bodyLimit, downloadFromCfg, archiveCfg)
 			if err != nil {
 				cancel()
 

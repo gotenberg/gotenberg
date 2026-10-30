@@ -9,7 +9,7 @@ import (
 
 func TestApi_Validate_Auth(t *testing.T) {
 	base := func() *Api {
-		return &Api{port: 3000, rootPath: "/", correlationIdHeader: "Gotenberg-Trace"}
+		return &Api{port: 3000, rootPath: "/", correlationIdHeader: "Gotenberg-Trace", archiveCfg: archiveConfig{maxEntries: 10000, maxRatio: 100}}
 	}
 
 	for _, tc := range []struct {

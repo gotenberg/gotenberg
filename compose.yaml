@@ -26,6 +26,8 @@ services:
       - "--api-start-timeout=${API_START_TIMEOUT}"
       - "--api-timeout=${API_TIMEOUT}"
       - "--api-body-limit=${API_BODY_LIMIT}"
+      - "--api-archive-max-entries=${API_ARCHIVE_MAX_ENTRIES}"
+      - "--api-archive-max-ratio=${API_ARCHIVE_MAX_RATIO}"
       - "--api-root-path=${API_ROOT_PATH}"
       - "--api-correlation-id-header=${API_CORRELATION_ID_HEADER}"
       - "--api-enable-basic-auth=${API_ENABLE_BASIC_AUTH}"
