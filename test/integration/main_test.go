@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/cucumber/godog"
 	"github.com/cucumber/godog/colors"
@@ -17,6 +18,10 @@ import (
 
 	"github.com/gotenberg/gotenberg/v9/test/integration/scenario"
 )
+
+// runTimeout bounds a whole run, retries included. It stays below the go test
+// timeout of the Makefile.
+const runTimeout = 38 * time.Minute
 
 func TestMain(m *testing.M) {
 	repository := flag.String("gotenberg-docker-repository", "", "")
@@ -47,6 +52,12 @@ func TestMain(m *testing.M) {
 	maxAttempts := 4 // 1 initial run + up to 3 retries
 	paths := []string{"features"}
 
+	// Steps run on this context: a step that waits on it fails before the go
+	// test timeout (-timeout 40m in the Makefile) panics, which would skip the
+	// retries and the report.
+	runCtx, cancelRun := context.WithTimeout(context.Background(), runTimeout)
+	defer cancelRun()
+
 	// Scenarios that failed at least once: reported when they pass on a retry.
 	var flaky []string
 
@@ -66,11 +77,12 @@ func TestMain(m *testing.M) {
 			Name:                "integration",
 			ScenarioInitializer: scenario.InitializeScenario,
 			Options: &godog.Options{
-				Format:      "pretty",
-				Paths:       paths,
-				Output:      colors.Colored(os.Stdout),
-				Concurrency: concurrency,
-				Tags:        *tags,
+				Format:         "pretty",
+				Paths:          paths,
+				Output:         colors.Colored(os.Stdout),
+				Concurrency:    concurrency,
+				Tags:           *tags,
+				DefaultContext: runCtx,
 			},
 		}.Run()
 
