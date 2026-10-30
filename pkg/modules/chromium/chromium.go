@@ -455,6 +455,16 @@ type ExtraHttpHeader struct {
 	Scope *regexp2.Regexp
 }
 
+// String renders the header with its value masked: values often carry
+// credentials, such as an Authorization header, that must never reach the logs.
+func (h ExtraHttpHeader) String() string {
+	scope := "<nil>"
+	if h.Scope != nil {
+		scope = h.Scope.String()
+	}
+	return fmt.Sprintf("{Name:%s Value:*** Scope:%s}", h.Name, scope)
+}
+
 // Api helps to interact with Chromium for converting HTML documents to PDF.
 type Api interface {
 	Pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error
