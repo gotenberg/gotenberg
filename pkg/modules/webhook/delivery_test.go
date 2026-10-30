@@ -81,6 +81,7 @@ func TestWebhookMiddleware_AsyncDeliversTheOutput(t *testing.T) {
 		if err != nil {
 			return err
 		}
+		ctx.SetOutputHeader("Gotenberg-Remediation-Residual", "2")
 		return ctx.AddOutputPaths(outputPath)
 	}
 
@@ -102,6 +103,8 @@ func TestWebhookMiddleware_AsyncDeliversTheOutput(t *testing.T) {
 			"Content-Type":    "application/pdf",
 			"X-Foo":           "bar",
 			"Gotenberg-Trace": "abc-123",
+			// Set by the route, such as a remediation outcome.
+			"Gotenberg-Remediation-Residual": "2",
 		} {
 			if got := d.headers.Get(key); got != want {
 				t.Errorf("header %s = %q, want %q", key, got, want)

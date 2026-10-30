@@ -70,11 +70,13 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						return
 					}
 
-					headers := map[string]string{
-						echo.HeaderContentType:     http.DetectContentType(fileHeader),
-						echo.HeaderContentLength:   strconv.FormatInt(fileStat.Size(), 10),
-						params.correlationIdHeader: params.correlationId,
+					headers := params.ctx.OutputHeaders()
+					if headers == nil {
+						headers = make(map[string]string)
 					}
+					headers[echo.HeaderContentType] = http.DetectContentType(fileHeader)
+					headers[echo.HeaderContentLength] = strconv.FormatInt(fileStat.Size(), 10)
+					headers[params.correlationIdHeader] = params.correlationId
 					_, ok := params.extraHttpHeaders[echo.HeaderContentDisposition]
 					if !ok {
 						headers[echo.HeaderContentDisposition] = fmt.Sprintf("attachment; filename=%q", params.ctx.OutputFilename(params.outputPath))

@@ -50,6 +50,7 @@ type Context struct {
 	files          map[string]string
 	diskToOriginal map[string]string
 	outputPaths    []string
+	outputHeaders  map[string]string
 	cancelled      bool
 
 	// fileOrder records the order files were received in, keyed by disk path.
@@ -730,6 +731,23 @@ func (ctx *Context) AddOutputPaths(paths ...string) error {
 	}
 
 	return nil
+}
+
+// SetOutputHeader sets a header that describes the output, such as the
+// outcome of a remediation. It goes with the output file, on the response or
+// on the webhook request. Like [Context.AddOutputPaths], it is not safe for
+// concurrent use.
+func (ctx *Context) SetOutputHeader(key, value string) {
+	if ctx.outputHeaders == nil {
+		ctx.outputHeaders = make(map[string]string)
+	}
+
+	ctx.outputHeaders[key] = value
+}
+
+// OutputHeaders returns a copy of the headers [Context.SetOutputHeader] set.
+func (ctx *Context) OutputHeaders() map[string]string {
+	return maps.Clone(ctx.outputHeaders)
 }
 
 // Log returns the context [slog.Logger].
