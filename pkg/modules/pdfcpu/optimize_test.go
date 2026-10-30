@@ -5,39 +5,43 @@ import "testing"
 const sampleImagesList = `pages: all
 
 /tmp/multi.pdf:
-4 images available (8.9 MB)
+5 images available (6.2 MB)
 Page │ Obj# │ Id  │ Type  SoftMask ImgMask │ Width │ Height │ ColorSpace Comp bpc Interp │   Size │ Filters
 ━━━━━┿━━━━━━┿━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━┿━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━┿━━━━━━━━━━━━
    1 │    6 │  X6 │ image                  │  2400 │   1800 │   ICCBased    3   8        │ 5.5 MB │ FlateDecode
      │    8 │  X8 │ image    *             │  1400 │   1000 │   ICCBased    3   8        │  63 KB │ FlateDecode
      │    9 │  X9 │ image                  │  2400 │   1800 │   ICCBased    3   8        │ 194 KB │ DCTDecode
      │   10 │ X10 │ image                  │   120 │     90 │ DeviceCMYK    4   8        │  14 KB │ FlateDecode
+━━━━━┿━━━━━━┿━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━┿━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━┿━━━━━━━━━━━━
+   2 │   14 │  X6 │ image                  │   800 │    500 │   ICCBased    3   8        │ 426 KB │ FlateDecode
 `
 
 func TestParseImagesList(t *testing.T) {
 	images := parseImagesList(sampleImagesList)
 
-	if len(images) != 4 {
-		t.Fatalf("expected 4 images, got %d", len(images))
+	if len(images) != 5 {
+		t.Fatalf("expected 5 images, got %d", len(images))
 	}
 
 	for _, tc := range []struct {
 		index  int
+		page   int
 		obj    int
 		id     string
 		masked bool
 		comp   int
 		filter string
 	}{
-		{0, 6, "X6", false, 3, "FlateDecode"},
-		{1, 8, "X8", true, 3, "FlateDecode"},
-		{2, 9, "X9", false, 3, "DCTDecode"},
-		{3, 10, "X10", false, 4, "FlateDecode"},
+		{0, 1, 6, "X6", false, 3, "FlateDecode"},
+		{1, 1, 8, "X8", true, 3, "FlateDecode"},
+		{2, 1, 9, "X9", false, 3, "DCTDecode"},
+		{3, 1, 10, "X10", false, 4, "FlateDecode"},
+		{4, 2, 14, "X6", false, 3, "FlateDecode"},
 	} {
 		img := images[tc.index]
-		if img.obj != tc.obj || img.id != tc.id || img.masked != tc.masked || img.comp != tc.comp || img.filter != tc.filter {
-			t.Errorf("image %d = %+v, want obj=%d id=%s masked=%v comp=%d filter=%s",
-				tc.index, img, tc.obj, tc.id, tc.masked, tc.comp, tc.filter)
+		if img.page != tc.page || img.obj != tc.obj || img.id != tc.id || img.masked != tc.masked || img.comp != tc.comp || img.filter != tc.filter {
+			t.Errorf("image %d = %+v, want page=%d obj=%d id=%s masked=%v comp=%d filter=%s",
+				tc.index, img, tc.page, tc.obj, tc.id, tc.masked, tc.comp, tc.filter)
 		}
 	}
 }
@@ -78,6 +82,24 @@ func TestOptimizableImage(t *testing.T) {
 	} {
 		if got := optimizableImage(tc.mutate(base)); got != tc.want {
 			t.Errorf("%s: optimizableImage = %v, want %v", tc.scenario, got, tc.want)
+		}
+	}
+}
+
+func TestParseExtractedImageName(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		want pdfcpuImageRef
+		ok   bool
+	}{
+		{"7be0c3ca-4e38-4c2e-a5fd-eaa314038dd0_1_X5.png", pdfcpuImageRef{page: 1, id: "X5"}, true},
+		{"7be0c3ca-4e38-4c2e-a5fd-eaa314038dd0_2_X5.png", pdfcpuImageRef{page: 2, id: "X5"}, true},
+		{"7be0c3ca-4e38-4c2e-a5fd-eaa314038dd0_01_X5.png", pdfcpuImageRef{page: 1, id: "X5"}, true},
+		{"7be0c3ca-4e38-4c2e-a5fd-eaa314038dd0_1_Im0.png", pdfcpuImageRef{}, false},
+	} {
+		got, ok := parseExtractedImageName(tc.name)
+		if got != tc.want || ok != tc.ok {
+			t.Errorf("parseExtractedImageName(%q) = %+v, %v, want %+v, %v", tc.name, got, ok, tc.want, tc.ok)
 		}
 	}
 }
