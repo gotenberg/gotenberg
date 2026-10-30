@@ -1,6 +1,3 @@
-# TODO:
-# 1. Other HTTP Methods
-
 @webhook
 Feature: Webhook
 
@@ -176,6 +173,63 @@ Feature: Webhook
     Then the Gotenberg container should log the following entries:
       | api: application stopped      |
       | chromium: application stopped |
+
+  Scenario: Webhook Method
+    Given I have a default Gotenberg container
+    Given I have a webhook server
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
+      | files                        | testdata/page_1.pdf     | file   |
+      | Gotenberg-Webhook-Url        | {helper}/webhook        | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events | header |
+      | Gotenberg-Webhook-Method     | PUT                     | header |
+    Then the response status code should be 204
+    When I wait for the asynchronous request to the webhook
+    Then the webhook request method should be "PUT"
+    Then there should be 1 PDF(s) in the webhook request
+
+  Scenario: Invalid Webhook Method
+    Given I have a default Gotenberg container
+    Given I have a webhook server
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
+      | files                        | testdata/page_1.pdf     | file   |
+      | Gotenberg-Webhook-Url        | {helper}/webhook        | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events | header |
+      | Gotenberg-Webhook-Method     | GET                     | header |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid 'Gotenberg-Webhook-Method' header value: expected 'POST', 'PATCH' or 'PUT', but got 'GET'
+      """
+
+  Scenario: Invalid Webhook Extra HTTP Headers
+    Given I have a default Gotenberg container
+    Given I have a webhook server
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
+      | files                                | testdata/page_1.pdf     | file   |
+      | Gotenberg-Webhook-Url                | {helper}/webhook        | header |
+      | Gotenberg-Webhook-Events-Url         | {helper}/webhook/events | header |
+      | Gotenberg-Webhook-Extra-Http-Headers | {"X-Foo":               | header |
+    Then the response status code should be 400
+    Then the response body should contain string:
+      """
+      Invalid 'Gotenberg-Webhook-Extra-Http-Headers' header value
+      """
+
+  # The outbound filter refuses a webhook URL the deny-list names, even when
+  # the allow-list matches every URL. A refusal stays generic for the client.
+  Scenario: Webhook URL In The Deny-List
+    Given I have a webhook server
+    Given I have a Gotenberg container with the following environment variable(s):
+      | WEBHOOK_DENY_LIST | ^{helper}/webhook$ |
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
+      | files                        | testdata/page_1.pdf     | file   |
+      | Gotenberg-Webhook-Url        | {helper}/webhook        | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events | header |
+    Then the response status code should be 403
+    Then the response body should match string:
+      """
+      Forbidden
+      """
 
   Scenario: Missing Events URL
     Given I have a default Gotenberg container
