@@ -3,6 +3,7 @@ package chromium
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -731,6 +732,23 @@ func waitForExpressionBeforePrintActionFunc(logger *slog.Logger, disableJavaScri
 			}
 		}
 	}
+}
+
+// windowStatusExpression returns the expression that holds once window.status
+// equals status, or "" when there is nothing to wait for. status is encoded as
+// a string literal, so it cannot alter the expression.
+func windowStatusExpression(status string) string {
+	if status == "" {
+		return ""
+	}
+
+	literal, err := json.Marshal(status)
+	if err != nil {
+		// Unreachable: encoding a string cannot fail.
+		return ""
+	}
+
+	return fmt.Sprintf("window.status === %s", literal)
 }
 
 func waitForSelectorVisibleBeforePrintActionFunc(logger *slog.Logger, selector string) chromedp.ActionFunc {
