@@ -67,6 +67,28 @@ jobs:
       - name: Run tests
         run: make test-unit
 
+  # Pull requests run the integration tests through the snapshot jobs below. A
+  # push to main runs them too, without Docker Hub credentials: the action then
+  # builds and tests the images but neither logs in nor pushes anything.
+  integration_amd64:
+    if: github.event_name == 'push'
+    needs:
+      - test-unit
+    name: Integration linux/amd64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v7
+
+      - name: Build and test
+        uses: ./.github/actions/build-test-push
+        with:
+          # No credentials: nothing is pushed.
+          docker_hub_username: ""
+          docker_hub_password: ""
+          version: ${{ github.sha }}
+          platform: linux/amd64
+
   snapshot_amd64:
     if: github.event_name == 'pull_request'
     needs:
