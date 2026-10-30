@@ -363,7 +363,8 @@ func (form *FormData) MandatoryCustom(key string, assign func(value string) erro
 //
 //	ctx.FormData().Path("foo.txt", &path)
 func (form *FormData) Path(filename string, target *string) *FormData {
-	return form.path(filename, target)
+	form.path(filename, target)
+	return form
 }
 
 // MandatoryPath binds the absolute path of a form data file to a string
@@ -598,26 +599,43 @@ func (form *FormData) mustAssign(key, value string, target any) *FormData {
 	return form
 }
 
-// path binds the absolute path of a form data file to a string variable.
-func (form *FormData) path(filename string, target *string) *FormData {
+// path binds the absolute path of a form data file to a string variable. It
+// reports whether the filename was found: an ambiguous one populates an
+// error instead.
+func (form *FormData) path(filename string, target *string) bool {
+	path, ok := form.files[filename]
+	if ok {
+		*target = path
+		return true
+	}
+
+	// See https://github.com/gotenberg/gotenberg/issues/228.
+	var matches []string
 	for name, path := range form.files {
-		// See https://github.com/gotenberg/gotenberg/issues/228.
 		nameLowerExt := strings.TrimSuffix(name, filepath.Ext(name)) + strings.ToLower(filepath.Ext(name))
-		if name == filename || nameLowerExt == filename {
-			*target = path
-			return form
+		if nameLowerExt == filename {
+			matches = append(matches, path)
 		}
 	}
 
-	return form
+	switch len(matches) {
+	case 0:
+		return false
+	case 1:
+		*target = matches[0]
+		return true
+	default:
+		form.append(
+			fmt.Errorf("form file '%s' is ambiguous: %d files differ only by the case of their extension", filename, len(matches)),
+		)
+		return true
+	}
 }
 
 // mandatoryPath binds the absolute path of a form data file to a string
 // variable. It populates an error if the file does not exist.
 func (form *FormData) mandatoryPath(filename string, target *string) *FormData {
-	form.path(filename, target)
-
-	if *target != "" {
+	if form.path(filename, target) {
 		return form
 	}
 

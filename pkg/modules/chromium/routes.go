@@ -258,6 +258,12 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 				})
 			}
 
+			// JSON objects are unordered, and so is a map: sort for a stable
+			// order across requests.
+			slices.SortFunc(extraHttpHeaders, func(a, b ExtraHttpHeader) int {
+				return strings.Compare(a.Name, b.Name)
+			})
+
 			return err
 		}).
 		Custom("emulatedMediaType", func(value string) error {
@@ -292,6 +298,12 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 					Value: v,
 				})
 			}
+
+			// JSON objects are unordered, and so is a map: sort for a stable
+			// order across requests.
+			slices.SortFunc(emulatedMediaFeatures, func(a, b EmulatedMediaFeature) int {
+				return strings.Compare(a.Name, b.Name)
+			})
 
 			return err
 		}).
