@@ -137,3 +137,12 @@ Feature: /forms/pdf/remediate
       """
       Invalid form data: remediate: "xml", "level" and "documentType" only apply to the Factur-X profile
       """
+
+  Scenario: POST /forms/pdf/autotag
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/autotag" endpoint with the following form data and header(s):
+      | files                     | testdata/pages_3.pdf | file   |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then the "foo.pdf" PDF should be tagged
