@@ -469,6 +469,12 @@ func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password st
 			return document{}, err
 		}
 
+		// litho fills the form at write, whatever stage comes last: name the
+		// one that asked, and the fields the PDF has instead.
+		if errors.Is(err, litho.ErrFormFieldNotFound) {
+			return document{}, &stageError{op: "set-form", filename: d.filename, err: formFieldError(ctx, r, run, err)}
+		}
+
 		return document{}, &stageError{op: run[len(run)-1].op(), filename: d.filename, err: err}
 	}
 
@@ -481,6 +487,69 @@ func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password st
 	}
 
 	return out, nil
+}
+
+// maxFormFieldsInMessage bounds the field names an unknown field's message
+// lists.
+const maxFormFieldsInMessage = 20
+
+// formFieldError words err, a [litho.ErrFormFieldNotFound] of a set-form
+// stage of run on the document r reads, for the client: the fields the stages
+// name that the PDF lacks, and the fields it has.
+func formFieldError(ctx context.Context, r *litho.Reader, run Stages, err error) error {
+	fields, readErr := r.FormFields(ctx)
+	if readErr != nil {
+		return fmt.Errorf("%w; read the form fields: %w", err, readErr)
+	}
+
+	var names []string
+	for _, f := range fields {
+		if !slices.Contains(names, f.Name) {
+			names = append(names, f.Name)
+		}
+	}
+
+	// litho names the first field it misses, in the stages' order: every
+	// one the PDF lacks helps more.
+	var missing []string
+	for _, s := range run {
+		set, ok := s.(*setFormStage)
+		if !ok {
+			continue
+		}
+
+		for _, name := range sortedKeys(set.Fields) {
+			if !slices.Contains(names, name) && !slices.Contains(missing, name) {
+				missing = append(missing, name)
+			}
+		}
+	}
+
+	quoted := make([]string, len(missing))
+	for i, name := range missing {
+		quoted[i] = strconv.Quote(name)
+	}
+
+	var message string
+	switch len(quoted) {
+	case 0:
+		message = "a form field the stage names was not found"
+	case 1:
+		message = fmt.Sprintf("form field %s not found", quoted[0])
+	default:
+		message = fmt.Sprintf("form fields %s not found", strings.Join(quoted, ", "))
+	}
+
+	switch {
+	case len(names) == 0:
+		message += "; the PDF has no form fields"
+	case len(names) > maxFormFieldsInMessage:
+		message += fmt.Sprintf("; the PDF's fields are: %s, and %d more", strings.Join(names[:maxFormFieldsInMessage], ", "), len(names)-maxFormFieldsInMessage)
+	default:
+		message += "; the PDF's fields are: " + strings.Join(names, ", ")
+	}
+
+	return &stageInputError{message: message, err: err}
 }
 
 // ResidualHeader is the output header counting the violations remediation

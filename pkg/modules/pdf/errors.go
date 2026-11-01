@@ -14,14 +14,24 @@ import (
 )
 
 // stageInputError is a stage failure the request causes that litho does not
-// classify, such as detaching a file the document does not embed. Its message
-// reaches the client.
+// classify, such as detaching a file the document does not embed, or one
+// whose litho message Gotenberg words for the client. Its message reaches the
+// client, and err, when set, the logs.
 type stageInputError struct {
 	message string
+	err     error
 }
 
 func (e *stageInputError) Error() string {
-	return e.message
+	if e.err == nil {
+		return e.message
+	}
+
+	return fmt.Sprintf("%s: %s", e.message, e.err)
+}
+
+func (e *stageInputError) Unwrap() error {
+	return e.err
 }
 
 // isInvalidInput reports whether the request caused err.
@@ -50,6 +60,11 @@ var lithoStep = regexp.MustCompile(`^applying (?:staged )?mutation \d+(?: before
 // [litho.PipelineStageError]'s and those of [lithoStep]. The full chain stays
 // in the logs.
 func clientMessage(err error) string {
+	var inputErr *stageInputError
+	if errors.As(err, &inputErr) {
+		return inputErr.message
+	}
+
 	var stageErr *litho.PipelineStageError
 	if errors.As(err, &stageErr) && stageErr.Err != nil {
 		err = stageErr.Err

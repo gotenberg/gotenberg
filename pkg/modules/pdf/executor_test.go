@@ -800,3 +800,60 @@ func TestRunOptimize(t *testing.T) {
 		})
 	}
 }
+
+// set-form with a field the PDF does not have answers 400 naming it, and the
+// fields the PDF has, whatever stage comes last in the run.
+func TestRunSetFormUnknownField(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		fixture string
+		stages  string
+		wantErr string
+	}{
+		{
+			name:    "form",
+			fixture: "form.pdf",
+			stages:  `[{"op":"set-form","fields":{"nope":"x"}}]`,
+			wantErr: `Stage 'set-form' failed on 'form.pdf': form field "nope" not found; the PDF's fields are: name`,
+		},
+		{
+			name:    "form, a known field and two unknown ones",
+			fixture: "form.pdf",
+			stages:  `[{"op":"set-form","fields":{"name":"Gotenberg","zed":"z","nope":"x"}},{"op":"rotate","angle":90}]`,
+			wantErr: `Stage 'set-form' failed on 'form.pdf': form fields "nope", "zed" not found; the PDF's fields are: name`,
+		},
+		{
+			name:    "no form",
+			fixture: "page_1.pdf",
+			stages:  `[{"op":"set-form","fields":{"nope":"x"}}]`,
+			wantErr: `Stage 'set-form' failed on 'page_1.pdf': form field "nope" not found; the PDF has no form fields`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, paths := testContext(t, tc.fixture)
+
+			_, err := testProcessor().Run(ctx, mustStages(t, tc.stages), []string{paths[tc.fixture]}, nil)
+
+			status, message := api.ParseError(err)
+			if status != http.StatusBadRequest || message != tc.wantErr {
+				t.Fatalf("got %d %q, want 400 %q", status, message, tc.wantErr)
+			}
+
+			if !errors.Is(err, litho.ErrFormFieldNotFound) {
+				t.Fatalf("the logged error lost litho's: %v", err)
+			}
+		})
+	}
+
+	// The known field still fills.
+	ctx, paths := testContext(t, "form.pdf")
+	outputs, err := testProcessor().Run(ctx, mustStages(t, `[{"op":"set-form","fields":{"name":"Gotenberg"}}]`), []string{paths["form.pdf"]}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	values, err := openOutput(t, outputs[0]).FormData(context.Background())
+	if err != nil || values["name"] != "Gotenberg" {
+		t.Fatalf("form data = %v, %v, want name filled", values, err)
+	}
+}

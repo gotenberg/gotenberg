@@ -32,6 +32,28 @@ Feature: /forms/pdf/{flatten-form|set-form}
     Then the response header "Content-Type" should be "application/pdf"
     Then the "foo.pdf" PDF should have the form field "name" set to "Gotenberg"
 
+  # A field the PDF does not have is the client's mistake: the answer lists the
+  # fields it has.
+  Scenario: POST /forms/pdf/set-form (Unknown Field)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/set-form" endpoint with the following form data and header(s):
+      | files  | testdata/form.pdf | file  |
+      | fields | {"nope":"x"}      | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Stage 'set-form' failed on 'form.pdf': form field "nope" not found; the PDF's fields are: name
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/set-form" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.pdf | file  |
+      | fields | {"nope":"x"}        | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'set-form' failed on 'page_1.pdf': form field "nope" not found; the PDF has no form fields
+      """
+
   Scenario: POST /forms/pdf/set-form (Bad Request)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/set-form" endpoint with the following form data and header(s):
