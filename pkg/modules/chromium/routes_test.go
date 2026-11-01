@@ -301,3 +301,31 @@ func TestFormFieldHints(t *testing.T) {
 		})
 	}
 }
+
+// TestIsLocalPage pins the one URL the user lists do not govern: the exact
+// page a route wrote, not another file of its directory.
+func TestIsLocalPage(t *testing.T) {
+	const local = "file:///tmp/work/request/page.html"
+
+	for _, tc := range []struct {
+		name  string
+		url   string
+		local string
+		want  bool
+	}{
+		{name: "the page", url: local, local: local, want: true},
+		{name: "the page, re-encoded", url: "file:///tmp/work/request/%70age.html", local: local, want: true},
+		{name: "another file of the directory", url: "file:///tmp/work/request/image.png", local: local, want: false},
+		{name: "another directory", url: "file:///tmp/other/page.html", local: local, want: false},
+		{name: "the page with a query", url: local + "?x=1", local: local, want: false},
+		{name: "a host", url: "file://host/tmp/work/request/page.html", local: local, want: false},
+		{name: "http", url: "http://tmp/work/request/page.html", local: local, want: false},
+		{name: "no local page", url: local, local: "", want: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isLocalPage(tc.url, tc.local); got != tc.want {
+				t.Errorf("isLocalPage(%q, %q) = %t, want %t", tc.url, tc.local, got, tc.want)
+			}
+		})
+	}
+}

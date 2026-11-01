@@ -548,12 +548,16 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 
 	// We validate the "main" URL against our allowed / deny lists, and
 	// against the IP-based outbound URL guard. See [gotenberg.FilterOutboundURL].
-	err := gotenberg.FilterOutboundURL(ctx, url, b.arguments.allowList, b.arguments.denyList, deadline,
-		gotenberg.WithDenyPrivateIPs(b.arguments.denyPrivateIPs),
-		gotenberg.WithDenyPublicIPs(b.arguments.denyPublicIPs),
-	)
-	if err != nil {
-		return fmt.Errorf("filter URL: %w", err)
+	// The page the HTML and Markdown routes wrote is Gotenberg's own: the lists
+	// govern what it loads, not the page.
+	if !isLocalPage(url, options.LocalPage) {
+		err := gotenberg.FilterOutboundURL(ctx, url, b.arguments.allowList, b.arguments.denyList, deadline,
+			gotenberg.WithDenyPrivateIPs(b.arguments.denyPrivateIPs),
+			gotenberg.WithDenyPublicIPs(b.arguments.denyPublicIPs),
+		)
+		if err != nil {
+			return fmt.Errorf("filter URL: %w", err)
+		}
 	}
 
 	b.ctxMu.RLock()
@@ -622,6 +626,7 @@ func (b *chromiumBrowser) listen(requestCtx, taskCtx context.Context, taskCancel
 	// See https://github.com/gotenberg/gotenberg/issues/1011.
 	listenForEventRequestPaused(taskCtx, logger, eventRequestPausedOptions{
 		requestCtx:          requestCtx,
+		localPage:           options.LocalPage,
 		allowList:           b.arguments.allowList,
 		denyList:            b.arguments.denyList,
 		denyPrivateIPs:      b.arguments.denyPrivateIPs,

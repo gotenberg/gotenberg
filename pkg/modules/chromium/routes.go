@@ -529,6 +529,7 @@ func convertHtmlRoute(chromium Api, processor *pdf.Processor) api.Route {
 
 			url := fmt.Sprintf("file://%s", inputPath)
 			options.AllowedFilePrefixes = []string{ctx.DirPath()}
+			options.LocalPage = url
 			err = convertUrl(ctx, chromium, processor, url, options, stages, files)
 			if err != nil {
 				return fmt.Errorf("convert HTML to PDF: %w", err)
@@ -561,6 +562,7 @@ func screenshotHtmlRoute(chromium Api) api.Route {
 
 			url := fmt.Sprintf("file://%s", inputPath)
 			options.AllowedFilePrefixes = []string{ctx.DirPath()}
+			options.LocalPage = url
 			err = screenshotUrl(ctx, chromium, url, options)
 			if err != nil {
 				return fmt.Errorf("HTML screenshot: %w", err)
@@ -606,6 +608,7 @@ func convertMarkdownRoute(chromium Api, processor *pdf.Processor) api.Route {
 			}
 
 			options.AllowedFilePrefixes = []string{ctx.DirPath()}
+			options.LocalPage = url
 			err = convertUrl(ctx, chromium, processor, url, options, stages, files)
 			if err != nil {
 				return fmt.Errorf("convert markdown to PDF: %w", err)
@@ -647,6 +650,7 @@ func screenshotMarkdownRoute(chromium Api) api.Route {
 			}
 
 			options.AllowedFilePrefixes = []string{ctx.DirPath()}
+			options.LocalPage = url
 			err = screenshotUrl(ctx, chromium, url, options)
 			if err != nil {
 				return fmt.Errorf("markdown screenshot: %w", err)

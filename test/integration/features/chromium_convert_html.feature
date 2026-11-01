@@ -683,31 +683,6 @@ Feature: /forms/chromium/convert/html
     Then the Gotenberg container should log the following entries:
       | "url":"http://127.0.0.1:9999/sse","rule":"private-ip" |
 
-  Scenario: POST /forms/chromium/convert/html (Main URL does NOT match allowed list)
-    Given I have a Gotenberg container with the following environment variable(s):
-      | CHROMIUM_ALLOW_LIST | ^file:(?!//\\/tmp/).* |
-    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
-      | files | testdata/feature-rich-html/index.html | file |
-    Then the response status code should be 403
-    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
-    Then the response body should match string:
-      """
-      Forbidden
-      """
-
-  Scenario: POST /forms/chromium/convert/html (Main URL does match denied list)
-    Given I have a Gotenberg container with the following environment variable(s):
-      | CHROMIUM_ALLOW_LIST |                |
-      | CHROMIUM_DENY_LIST  | ^file:///tmp.* |
-    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
-      | files | testdata/feature-rich-html/index.html | file |
-    Then the response status code should be 403
-    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
-    Then the response body should match string:
-      """
-      Forbidden
-      """
-
   Scenario: POST /forms/chromium/convert/html (Request does not match the allowed list)
     Given I have a Gotenberg container with the following environment variable(s):
       | CHROMIUM_ALLOW_LIST | ^file:///tmp.* |
@@ -778,6 +753,34 @@ Feature: /forms/chromium/convert/html
       | "url":"https://gotenberg.dev/img/logo.png","rule":"deny-list"                                                         |
     Then the Gotenberg container should NOT log the following entries:
       | token=secret |
+
+  # The page the route writes is Gotenberg's own: an allow-list, or a deny-list
+  # of file URLs, governs what the page loads, not the page itself.
+  Scenario: POST /forms/chromium/convert/html (Allow-List Governs Sub-resources Only)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST | ^https?://internal\\.example/ |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files           | testdata/html-with-asset/index.html | file   |
+      | files           | testdata/html-with-asset/image.png  | file   |
+      | Gotenberg-Trace | allow-list-page                     | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then the Gotenberg container should log the following entries:
+      | "msg":"outbound request blocked by the Chromium filters","log_type":"application","correlation_id":"allow-list-page" |
+      | /image.png","rule":"allow-list"                                                                                      |
+
+  Scenario: POST /forms/chromium/convert/html (File Deny-List Governs Sub-resources Only)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_DENY_LIST | ^file:.* |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files           | testdata/html-with-asset/index.html | file   |
+      | files           | testdata/html-with-asset/image.png  | file   |
+      | Gotenberg-Trace | deny-list-page                      | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then the Gotenberg container should log the following entries:
+      | "msg":"outbound request blocked by the Chromium filters","log_type":"application","correlation_id":"deny-list-page" |
+      | /image.png","rule":"deny-list"                                                                                      |
 
   Scenario: POST /forms/chromium/convert/html (Fail On Resource HTTP Status Codes)
     Given I have a default Gotenberg container

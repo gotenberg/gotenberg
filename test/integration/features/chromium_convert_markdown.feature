@@ -62,6 +62,28 @@ Feature: /forms/chromium/convert/markdown
       form field 'pdfa' is unknown to this route; Gotenberg 9 moved it to a stage: add {"op":"remediate","profile":"PDF/A-2b"} to 'stages'
       """
 
+  # The page the route writes is Gotenberg's own: an allow-list, or a deny-list
+  # of file URLs, governs what the page loads, not the page itself.
+  Scenario: POST /forms/chromium/convert/markdown (Allow-List Governs Sub-resources Only)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST | ^https?://internal\\.example/ |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
+      | files | testdata/page-1-markdown/index.html | file |
+      | files | testdata/page-1-markdown/page_1.md  | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
+  Scenario: POST /forms/chromium/convert/markdown (File Deny-List Governs Sub-resources Only)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_DENY_LIST | ^file:.* |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
+      | files | testdata/page-1-markdown/index.html | file |
+      | files | testdata/page-1-markdown/page_1.md  | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
   Scenario: POST /forms/chromium/convert/markdown (Bad Request)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):

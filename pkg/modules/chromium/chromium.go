@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -226,6 +227,35 @@ type Options struct {
 	// request working directory while routes that navigate remote URLs
 	// leave it empty. Set internally by route handlers, not via form data.
 	AllowedFilePrefixes []string
+
+	// LocalPage is the file:// URL of the page the HTML and Markdown routes
+	// navigate to, in the request's working directory. Gotenberg wrote it, so
+	// the --chromium-allow-list (CHROMIUM_ALLOW_LIST) and --chromium-deny-list
+	// (CHROMIUM_DENY_LIST) expressions do not apply to that exact URL: they
+	// still govern what the page loads, with AllowedFilePrefixes. Set
+	// internally by route handlers, not via form data.
+	LocalPage string
+}
+
+// isLocalPage reports whether rawURL is local, the page a route wrote into
+// the request's working directory. It compares the file paths, as Chromium may
+// re-encode the URL it requests.
+func isLocalPage(rawURL, local string) bool {
+	if local == "" {
+		return false
+	}
+
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Scheme != "file" || u.Host != "" {
+		return false
+	}
+
+	l, err := url.Parse(local)
+	if err != nil {
+		return false
+	}
+
+	return u.Path == l.Path && u.RawQuery == "" && u.Fragment == ""
 }
 
 // EmulatedMediaFeature gathers the available entries for emulating a media
