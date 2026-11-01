@@ -35,11 +35,13 @@ type outboundProxyOptions struct {
 // filters that protect chromium and webhook fetches also apply to
 // LibreOffice's own libcurl-driven fetches.
 //
-// LibreOffice triggers an outbound request whenever a document references
-// external content (OOXML images via TargetMode="External", RTF
-// INCLUDEPICTURE, ODT linked images). Without a filtering proxy in the
-// path those fetches bypass every Go-side SSRF guard because they
-// originate inside the lok subprocess.
+// The profile ([profileConfigTmpl]) keeps LibreOffice from loading the
+// images and other content an uploaded document links to. What still reaches
+// the proxy: the style sheets an HTML document links (<link
+// rel="stylesheet">), and what a document's macros fetch when
+// --libreoffice-enable-macros (LIBREOFFICE_ENABLE_MACROS) runs them. Without a
+// filtering proxy in the path those requests would bypass every Go-side SSRF
+// guard, because they originate inside the lok subprocess.
 type libreOfficeProxy struct {
 	listener net.Listener
 	server   *http.Server
@@ -291,7 +293,10 @@ var hopByHopHeaders = []string{
 // (file:///etc/...) or any URL is loaded from the per-request temp dir,
 // which is never a trusted location, so LibreOffice drops the linked content
 // instead of resolving it. Embedded content (stored inside the document)
-// is unaffected.
+// is unaffected. The HTML import still requests the style sheets a page links,
+// and a document's macros, once --libreoffice-enable-macros
+// (LIBREOFFICE_ENABLE_MACROS) runs them, may open URLs: those requests go
+// through the proxy.
 //
 // The %s placeholders accept the proxy host and port respectively (host
 // first, port second, repeated for HTTP and HTTPS).

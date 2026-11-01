@@ -376,6 +376,11 @@ type Provider interface {
 	LibreOffice() (Converter, error)
 }
 
+// outboundScope tells what the LibreOffice outbound filter flags cover. The
+// profile keeps LibreOffice from loading linked content: see
+// [libreOfficeProxy].
+const outboundScope = "LibreOffice requests only the style sheets an HTML document links, and the URLs a document's macros open once --libreoffice-enable-macros (LIBREOFFICE_ENABLE_MACROS) runs them; the images and other content an uploaded document links to never load"
+
 // Descriptor returns a [Api]'s module descriptor.
 func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 	return gotenberg.ModuleDescriptor{
@@ -387,10 +392,10 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Duration("libreoffice-idle-shutdown-timeout", 0, "Shutdown LibreOffice after being idle for the given duration. Set to 0 to disable this feature")
 			fs.Bool("libreoffice-auto-start", false, "Automatically launch LibreOffice upon initialization if set to true; otherwise, LibreOffice will start at the time of the first conversion")
 			fs.Duration("libreoffice-start-timeout", time.Duration(20)*time.Second, "Maximum duration to wait for LibreOffice to start or restart")
-			fs.StringSlice("libreoffice-allow-list", []string{}, `Set the allowed URLs for LibreOffice outbound fetches (embedded images, linked content) using regular expressions - supports multiple values. A match bypasses --libreoffice-deny-private-ips (LIBREOFFICE_DENY_PRIVATE_IPS) and --libreoffice-deny-public-ips (LIBREOFFICE_DENY_PUBLIC_IPS), so terminate the host or the pattern also matches suffix hosts, for example ^https?://internal\.svc(:|/|$)`)
-			fs.StringSlice("libreoffice-deny-list", []string{}, "Set the denied URLs for LibreOffice outbound fetches using regular expressions - supports multiple values")
-			fs.Bool("libreoffice-deny-private-ips", false, "Reject LibreOffice outbound URLs whose host resolves to a non-public IP address (loopback, RFC1918, link-local, unique-local). Enable on deployments that accept untrusted documents to mitigate SSRF against internal services")
-			fs.Bool("libreoffice-deny-public-ips", false, "Reject LibreOffice outbound URLs whose host resolves to a public IP address. Enable on air-gapped or data-governed deployments to prevent outbound traffic from leaving a private network")
+			fs.StringSlice("libreoffice-allow-list", []string{}, `Set the allowed URLs for the requests LibreOffice sends, using regular expressions - supports multiple values. `+outboundScope+`. A match bypasses --libreoffice-deny-private-ips (LIBREOFFICE_DENY_PRIVATE_IPS) and --libreoffice-deny-public-ips (LIBREOFFICE_DENY_PUBLIC_IPS), so terminate the host or the pattern also matches suffix hosts, for example ^https?://internal\.svc(:|/|$)`)
+			fs.StringSlice("libreoffice-deny-list", []string{}, "Set the denied URLs for the requests LibreOffice sends, using regular expressions - supports multiple values. "+outboundScope)
+			fs.Bool("libreoffice-deny-private-ips", false, "Reject the requests LibreOffice sends whose host resolves to a non-public IP address (loopback, RFC1918, link-local, unique-local). "+outboundScope+". Enable on deployments that accept untrusted documents to mitigate SSRF against internal services")
+			fs.Bool("libreoffice-deny-public-ips", false, "Reject the requests LibreOffice sends whose host resolves to a public IP address. "+outboundScope+". Enable on air-gapped or data-governed deployments to prevent outbound traffic from leaving a private network")
 			fs.Bool("libreoffice-enable-macros", false, "Run the macros of the converted documents, including the ones bound to document events such as load. Macros run code inside the container: enable it only for trusted documents")
 			fs.Bool("libreoffice-enable-environment-proxy", false, "Route LibreOffice outbound fetches through the proxy defined by the standard HTTP_PROXY, HTTPS_PROXY, and NO_PROXY variables, including credentials")
 
