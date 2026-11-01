@@ -429,6 +429,12 @@ func TestDecideOutbound_UnresolvableHostFailsClosed(t *testing.T) {
 	if !errors.Is(err, ErrUnresolvableHost) {
 		t.Fatalf("expected ErrUnresolvableHost, got: %v", err)
 	}
+
+	// Callers name the host to the client: it reveals nothing of the filters.
+	var unresolvable *UnresolvableHostError
+	if !errors.As(err, &unresolvable) || unresolvable.Host != "2130706433" {
+		t.Fatalf("expected an UnresolvableHostError for 2130706433, got: %v", err)
+	}
 }
 
 func TestDecideOutbound_ResolverCancellationNotFiltered(t *testing.T) {

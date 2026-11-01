@@ -441,6 +441,16 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 		gotenberg.WithDenyPublicIPs(cfg.denyPublicIPs),
 	}
 	err = gotenberg.FilterOutboundURL(groupCtx, dl.Url, cfg.allowList, cfg.denyList, deadline, ipOpts...)
+	// A host that does not resolve reveals nothing of the filters: name it,
+	// rather than the generic 403 of a policy refusal. The answer wraps the
+	// resolver's error alone, so that its 400 is not read as a filtered URL's.
+	var unresolvable *gotenberg.UnresolvableHostError
+	if errors.As(err, &unresolvable) {
+		return "", "", WrapError(
+			fmt.Errorf("resolve host %q: %w", unresolvable.Host, unresolvable.Err),
+			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'downloadFrom' form field entry %d: the host '%s' does not resolve", i, unresolvable.Host)),
+		)
+	}
 	if err != nil {
 		return "", "", fmt.Errorf("filter URL: %w", err)
 	}

@@ -88,6 +88,21 @@ Feature: /forms/pdf/merge
     Then the response header "Content-Type" should be "application/pdf"
     Then the "foo.pdf" PDF should have 2 page(s)
 
+  # A host that does not resolve is the client's mistake, and says nothing of
+  # the filters. An allow-list match skips the lookup: none here.
+  @download-from
+  Scenario: POST /forms/pdf/merge (Download From An Unresolvable Host)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | API_DOWNLOAD_FROM_ALLOW_LIST |  |
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/merge" endpoint with the following form data and header(s):
+      | files        | testdata/page_1.pdf                        | file  |
+      | downloadFrom | [{"url":"http://nope.invalid/page_2.pdf"}] | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid 'downloadFrom' form field entry 0: the host 'nope.invalid' does not resolve
+      """
+
   @webhook
   Scenario: POST /forms/pdf/merge (Webhook)
     Given I have a default Gotenberg container

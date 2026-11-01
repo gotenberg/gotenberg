@@ -159,6 +159,26 @@ func TestWebhookMiddleware_RejectsInvalidRequests(t *testing.T) {
 			expectMessage: "'Gotenberg-Webhook-Extra-Http-Headers'",
 		},
 		{
+			// A host that does not resolve is the client's mistake, and says
+			// nothing of the filters.
+			scenario: "unresolvable webhook URL",
+			headers: map[string]string{
+				"Gotenberg-Webhook-Url":        "http://storage.example.invalid/upload",
+				"Gotenberg-Webhook-Events-Url": "http://127.0.0.1/events",
+			},
+			expectStatus:  http.StatusBadRequest,
+			expectMessage: "Invalid 'Gotenberg-Webhook-Url' header: the host 'storage.example.invalid' does not resolve",
+		},
+		{
+			scenario: "unresolvable webhook events URL",
+			headers: map[string]string{
+				"Gotenberg-Webhook-Url":        "http://127.0.0.1/webhook",
+				"Gotenberg-Webhook-Events-Url": "http://events.example.invalid/events",
+			},
+			expectStatus:  http.StatusBadRequest,
+			expectMessage: "Invalid 'Gotenberg-Webhook-Events-Url' header: the host 'events.example.invalid' does not resolve",
+		},
+		{
 			// A filtered URL stays generic for the client.
 			scenario: "denied webhook URL",
 			headers: map[string]string{

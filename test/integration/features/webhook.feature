@@ -248,6 +248,31 @@ Feature: Webhook
       Forbidden
       """
 
+  # A host that does not resolve is the client's mistake, and says nothing of
+  # the filters. An allow-list match skips the lookup: none here.
+  Scenario: Webhook URL With An Unresolvable Host
+    Given I have a webhook server
+    Given I have a Gotenberg container with the following environment variable(s):
+      | WEBHOOK_ALLOW_LIST |  |
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
+      | files                        | testdata/page_1.pdf                   | file   |
+      | Gotenberg-Webhook-Url        | http://storage.example.invalid/upload | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events               | header |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid 'Gotenberg-Webhook-Url' header: the host 'storage.example.invalid' does not resolve
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
+      | files                        | testdata/page_1.pdf                  | file   |
+      | Gotenberg-Webhook-Url        | {helper}/webhook                     | header |
+      | Gotenberg-Webhook-Events-Url | http://events.example.invalid/events | header |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid 'Gotenberg-Webhook-Events-Url' header: the host 'events.example.invalid' does not resolve
+      """
+
   Scenario: Missing Events URL
     Given I have a default Gotenberg container
     Given I have a webhook server

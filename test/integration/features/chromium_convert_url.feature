@@ -355,6 +355,19 @@ Feature: /forms/chromium/convert/url
       | javascript:alert(1)                           |
       | data:text/html,foo                            |
 
+  # A host that does not resolve is the client's mistake, and says nothing of
+  # the filters. An allow-list match skips the lookup: none here.
+  Scenario: POST /forms/chromium/convert/url (Main URL With An Unresolvable Host)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST |  |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url | http://nope.invalid/ | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'url' is invalid: the host 'nope.invalid' does not resolve
+      """
+
   Scenario: POST /forms/chromium/convert/url (Main URL resolves to a non-public IP, permissive default)
     Given I have a Gotenberg container with the following environment variable(s):
       | CHROMIUM_ALLOW_LIST |  |

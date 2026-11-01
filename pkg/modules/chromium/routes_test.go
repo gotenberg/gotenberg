@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 )
 
@@ -132,6 +133,35 @@ func TestHandleChromiumError_Wait(t *testing.T) {
 				t.Errorf("got %d %q, want %d %q", status, message, tc.wantStatus, tc.wantBody)
 			}
 		})
+	}
+}
+
+// TestHandleChromiumError_UnresolvableHost pins the answer of a URL whose host
+// does not resolve, a 400 naming it, while a policy refusal stays a generic
+// 403.
+func TestHandleChromiumError_UnresolvableHost(t *testing.T) {
+	unresolvable := fmt.Errorf("filter URL: validate 'https://nope.invalid/' host: %w", &gotenberg.UnresolvableHostError{Host: "nope.invalid", Err: errors.New("no such host")})
+
+	status, message := api.ParseError(handleChromiumError(unresolvable, Options{}))
+	want := "Invalid form data: form field 'url' is invalid: the host 'nope.invalid' does not resolve"
+	if status != http.StatusBadRequest || message != want {
+		t.Errorf("unresolvable: got %d %q, want 400 %q", status, message, want)
+	}
+
+	status, message = api.ParseError(handleChromiumError(fmt.Errorf("filter URL: %w", gotenberg.ErrFiltered), Options{}))
+	if status != http.StatusForbidden || message != http.StatusText(http.StatusForbidden) {
+		t.Errorf("filtered: got %d %q, want the generic 403", status, message)
+	}
+
+	// Chromium reads these hosts as IPv4 addresses: they stay refused as
+	// filtered.
+	for _, host := range []string{"2130706433", "0x7f000001", "127.1", "0x7f.1.", "10.0.0.010"} {
+		err := fmt.Errorf("filter URL: %w", &gotenberg.UnresolvableHostError{Host: host, Err: errors.New("no such host")})
+
+		status, message := api.ParseError(handleChromiumError(err, Options{}))
+		if status != http.StatusForbidden || message != http.StatusText(http.StatusForbidden) {
+			t.Errorf("%s: got %d %q, want the generic 403", host, status, message)
+		}
 	}
 }
 

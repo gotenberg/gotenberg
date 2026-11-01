@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/microcosm-cc/bluemonday"
 
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/pdf"
 )
@@ -833,6 +835,22 @@ func screenshotUrl(ctx *api.Context, chromium Api, url string, options Screensho
 	return nil
 }
 
+// ipv4Part matches the last label of a host the WHATWG URL Standard parses
+// as an IPv4 address: digits, or a 0x-prefixed hexadecimal number.
+var ipv4Part = regexp.MustCompile(`^(?:[0-9]+|0[xX][0-9a-fA-F]*)$`)
+
+// endsInANumber reports whether Chromium reads host as an IPv4 address, in
+// any of the forms the WHATWG URL Standard accepts, such as 2130706433 or
+// 0x7f.1 (see its "ends in a number checker").
+func endsInANumber(host string) bool {
+	labels := strings.Split(host, ".")
+	if len(labels) > 1 && labels[len(labels)-1] == "" {
+		labels = labels[:len(labels)-1]
+	}
+
+	return ipv4Part.MatchString(labels[len(labels)-1])
+}
+
 func handleChromiumError(err error, options Options) error {
 	if err == nil {
 		return nil
@@ -845,6 +863,20 @@ func handleChromiumError(err error, options Options) error {
 				http.StatusServiceUnavailable,
 				"Chromium crashed while processing the request. Retry, or reduce the workload if the problem persists.",
 			),
+		)
+	}
+
+	// A URL whose host does not resolve reveals nothing of the filters: name
+	// the host, rather than the generic 403 of a policy refusal. The answer
+	// wraps the resolver's error alone, so that its 400 is not read as a
+	// filtered URL's. Only the URL routes navigate to a host. A host Chromium
+	// reads as an IPv4 address, such as 2130706433 for 127.0.0.1, is no DNS
+	// failure but a way around the IP checks: it keeps the generic 403.
+	var unresolvable *gotenberg.UnresolvableHostError
+	if errors.As(err, &unresolvable) && !endsInANumber(unresolvable.Host) {
+		return api.WrapError(
+			fmt.Errorf("resolve host %q: %w", unresolvable.Host, unresolvable.Err),
+			api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid form data: form field 'url' is invalid: the host '%s' does not resolve", unresolvable.Host)),
 		)
 	}
 

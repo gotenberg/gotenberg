@@ -129,7 +129,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 					}
 					err := gotenberg.FilterOutboundURL(ctx, webhookUrl, w.allowList, w.denyList, deadline, ipOpts...)
 					if err != nil {
-						return fmt.Errorf("filter webhook URL: %w", err)
+						return fmt.Errorf("filter webhook URL: %w", unresolvableHostError("Gotenberg-Webhook-Url", err))
 					}
 
 					// Let's check the HTTP methods for calling the webhook URLs.
@@ -181,7 +181,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 
 					err = gotenberg.FilterOutboundURL(ctx, webhookEventsUrl, w.allowList, w.denyList, deadline, ipOpts...)
 					if err != nil {
-						return fmt.Errorf("filter webhook events URL: %w", err)
+						return fmt.Errorf("filter webhook events URL: %w", unresolvableHostError("Gotenberg-Webhook-Events-Url", err))
 					}
 
 					// Retrieve values from [echo.Context] before it gets recycled.
@@ -308,4 +308,21 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 			}
 		}(),
 	}
+}
+
+// unresolvableHostError answers a URL of header whose host does not resolve
+// with a 400 naming both, as a resolution failure reveals nothing of the
+// filters. It returns any other error, a policy refusal among them, as is: the
+// client gets a generic 403 for those. The answer wraps the resolver's error
+// alone, so that its 400 is not read as a filtered URL's 403.
+func unresolvableHostError(header string, err error) error {
+	var unresolvable *gotenberg.UnresolvableHostError
+	if !errors.As(err, &unresolvable) {
+		return err
+	}
+
+	return api.WrapError(
+		fmt.Errorf("resolve host %q: %w", unresolvable.Host, unresolvable.Err),
+		api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid '%s' header: the host '%s' does not resolve", header, unresolvable.Host)),
+	)
 }

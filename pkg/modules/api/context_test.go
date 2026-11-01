@@ -1078,3 +1078,41 @@ func TestNewContext_BodyLimitBoundsIngress(t *testing.T) {
 		})
 	}
 }
+
+// A downloadFrom host that does not resolve answers 400 naming the entry and
+// the host: unlike a policy refusal, it says nothing of the filters.
+func TestNewContext_DownloadFromUnresolvableHost(t *testing.T) {
+	payload, err := json.Marshal([]downloadFrom{{Url: "http://nope.invalid/file.txt"}})
+	if err != nil {
+		t.Fatalf("marshal downloadFrom payload: %v", err)
+	}
+
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	err = writer.WriteField("downloadFrom", string(payload))
+	if err != nil {
+		t.Fatalf("write downloadFrom field: %v", err)
+	}
+	err = writer.Close()
+	if err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	echoCtx := echo.New().NewContext(req, httptest.NewRecorder())
+	logger := slog.New(slog.DiscardHandler)
+	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+
+	_, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromConfig{maxRetry: 0}, archiveConfig{})
+	if cancel != nil {
+		defer cancel()
+	}
+
+	status, message := ParseError(err)
+	want := "Invalid 'downloadFrom' form field entry 0: the host 'nope.invalid' does not resolve"
+	if status != http.StatusBadRequest || message != want {
+		t.Fatalf("got %d %q, want 400 %q", status, message, want)
+	}
+}

@@ -34,9 +34,36 @@ var ErrNonPublicIP = errors.New("non-public IP")
 var ErrFiltered = errors.New("value filtered")
 
 // ErrUnresolvableHost happens when the host of an outbound URL cannot be
-// resolved. [DecideOutbound] wraps it together with [ErrFiltered], so callers
-// that only match the latter still fail closed.
+// resolved. [DecideOutbound] returns it as an [UnresolvableHostError], which
+// also matches [ErrFiltered], so callers that only match the latter still
+// fail closed.
 var ErrUnresolvableHost = errors.New("unresolvable host")
+
+// UnresolvableHostError is the error of an outbound URL whose host does not
+// resolve. Unlike a policy refusal, it reveals nothing of the allow-list, the
+// deny-list or the IP policy: callers may name the host to the client. It
+// matches [ErrUnresolvableHost] and [ErrFiltered].
+type UnresolvableHostError struct {
+	// Host is the host of the URL, as [url.URL.Hostname] reads it.
+	Host string
+	// Err is the resolver's error.
+	Err error
+}
+
+// Error returns the host and the resolver's error.
+func (e *UnresolvableHostError) Error() string {
+	return fmt.Sprintf("resolve %q: %v", e.Host, e.Err)
+}
+
+// Is reports whether target is [ErrUnresolvableHost] or [ErrFiltered].
+func (e *UnresolvableHostError) Is(target error) bool {
+	return target == ErrUnresolvableHost || target == ErrFiltered
+}
+
+// Unwrap returns the resolver's error.
+func (e *UnresolvableHostError) Unwrap() error {
+	return e.Err
+}
 
 // ErrPublicIP indicates that an outbound URL targets an IP address that is
 // reachable on the public internet. It is returned when a caller opts
@@ -461,7 +488,7 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 			// generic 403 rather than a 500. This also denies alternate IP
 			// encodings such as http://2130706433/ that the resolver rejects
 			// as a hostname but Chromium would read as a private IP.
-			return OutboundDecision{}, fmt.Errorf("validate '%s' host: %v: %w: %w", normalized, err, ErrUnresolvableHost, ErrFiltered)
+			return OutboundDecision{}, fmt.Errorf("validate '%s' host: %w", normalized, &UnresolvableHostError{Host: host, Err: err})
 		}
 	}
 
