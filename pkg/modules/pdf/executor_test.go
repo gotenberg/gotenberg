@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
@@ -900,5 +901,73 @@ func TestRefusalLogging(t *testing.T) {
 	_, _ = refusalLogging{base: failing, logger: logger}.RoundTrip(req)
 	if buf.Len() != 0 {
 		t.Errorf("logged %s for a transport error", buf.String())
+	}
+}
+
+// A stage that rewrites a signed PDF would drop its signatures: it answers
+// 400, while an incremental edit keeps them.
+func TestRunSignedInput(t *testing.T) {
+	const signedMessage = "the PDF is signed, and this stage rewrites it, which would remove its signatures"
+
+	for _, tc := range []struct {
+		name     string
+		stages   string
+		fixtures []string
+		wantOp   string
+	}{
+		{name: "select", stages: `[{"op":"select","pages":"1"}]`, wantOp: "select"},
+		{name: "delete", stages: `[{"op":"delete","pages":"1"}]`, wantOp: "delete"},
+		{name: "insert", stages: `[{"op":"insert","source":"page_2.pdf"}]`, fixtures: []string{"page_2.pdf"}, wantOp: "insert"},
+		{name: "encrypt", stages: `[{"op":"encrypt","userPassword":"u"}]`, wantOp: "encrypt"},
+		{name: "flatten-form", stages: `[{"op":"flatten-form"}]`, wantOp: "flatten-form"},
+		{name: "redact", stages: `[{"op":"redact","regions":[{"page":1,"x":0,"y":0,"width":10,"height":10}]}]`, wantOp: "redact"},
+		{name: "remediate", stages: `[{"op":"remediate","profile":"PDF/A-2b"}]`, wantOp: "remediate"},
+		{name: "convert-colors", stages: `[{"op":"convert-colors","target":"gray"}]`, wantOp: "convert-colors"},
+		{name: "flatten-transparency", stages: `[{"op":"flatten-transparency"}]`, wantOp: "flatten-transparency"},
+		{name: "split", stages: `[{"op":"split","every":1}]`, wantOp: "split"},
+		{name: "merge", stages: `[{"op":"merge"}]`, fixtures: []string{"page_2.pdf"}, wantOp: "merge"},
+		{name: "an incremental edit, then a rewrite", stages: `[{"op":"stamp-text","text":"DRAFT"},{"op":"select","pages":"1"}]`, wantOp: "select"},
+		{name: "stamp-text", stages: `[{"op":"stamp-text","text":"DRAFT"}]`},
+		{name: "set-metadata", stages: `[{"op":"set-metadata","title":"Signed"}]`},
+		{name: "rotate", stages: `[{"op":"rotate","angle":90}]`},
+		{name: "attach", stages: `[{"op":"attach","file":"embed_1.xml"}]`, fixtures: []string{"embed_1.xml"}},
+		{name: "autotag", stages: `[{"op":"autotag"}]`},
+		{name: "set-bookmarks", stages: `[{"op":"set-bookmarks","bookmarks":[{"title":"One","pageNumber":1}]}]`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			processor := testProcessor()
+			ctx, paths := testContext(t, append([]string{"page_1.pdf", "pem/cert.pem", "pem/key.pem"}, tc.fixtures...)...)
+			files := make(map[string]string, len(paths))
+			maps.Copy(files, paths)
+
+			signed, err := processor.Run(ctx, mustStages(t, `[{"op":"sign","certificate":"cert.pem","key":"key.pem"}]`), []string{paths["page_1.pdf"]}, files)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			inputs := signed
+			if tc.name == "merge" {
+				inputs = append(inputs, paths["page_2.pdf"])
+			}
+
+			outputs, err := processor.Run(ctx, mustStages(t, tc.stages), inputs, files)
+			if tc.wantOp != "" {
+				status, message := api.ParseError(err)
+				want := fmt.Sprintf("Stage '%s' failed on 'page_1.pdf': %s", tc.wantOp, signedMessage)
+				if status != http.StatusBadRequest || message != want {
+					t.Fatalf("got %d %q, want 400 %q", status, message, want)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("err = %v, want none", err)
+			}
+
+			signatures, err := openOutput(t, outputs[0]).ExtractSignatures(context.Background())
+			if err != nil || len(signatures) != 1 {
+				t.Fatalf("signatures = %v, %v, want the input's", signatures, err)
+			}
+		})
 	}
 }

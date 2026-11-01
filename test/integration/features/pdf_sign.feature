@@ -37,6 +37,41 @@ Feature: /forms/pdf/sign
     Then the response status code should be 200
     Then the response PDF(s) should NOT be signed
 
+  # A stage that rewrites a signed PDF would drop its signatures, even after an
+  # incremental edit; an incremental edit alone keeps them.
+  Scenario: POST /forms/pdf/pipe (Signed PDF)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/sign" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf   | file   |
+      | files                     | testdata/pem/cert.pem | file   |
+      | files                     | testdata/pem/key.pem  | file   |
+      | certificate               | cert.pem              | field  |
+      | key                       | key.pem               | field  |
+      | Gotenberg-Output-Filename | foo                   | header |
+    Then the response status code should be 200
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
+      | files  | teststore/foo.pdf                                                | file  |
+      | stages | [{"op":"stamp-text","text":"DRAFT"},{"op":"select","pages":"1"}] | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'select' failed on 'foo.pdf': the PDF is signed, and this stage rewrites it, which would remove its signatures
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
+      | files   | teststore/foo.pdf | file  |
+      | profile | PDF/A-2b          | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'remediate' failed on 'foo.pdf': the PDF is signed, and this stage rewrites it, which would remove its signatures
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
+      | files                     | teststore/foo.pdf                    | file   |
+      | stages                    | [{"op":"stamp-text","text":"DRAFT"}] | field  |
+      | Gotenberg-Output-Filename | bar                                  | header |
+    Then the response status code should be 200
+    Then the response PDF(s) should be signed
+
   Scenario: POST /forms/pdf/sign (Bad Request)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/sign" endpoint with the following form data and header(s):
