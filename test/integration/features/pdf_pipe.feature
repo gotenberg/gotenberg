@@ -78,7 +78,7 @@ Feature: /forms/pdf/pipe
       | files  | testdata/page_1.pdf | file  |
       | stages | {"op":"merge"}      | field |
     Then the response status code should be 400
-    Then the response body should contain string:
+    Then the response body should match string:
       """
       Invalid form data: form field 'stages' is invalid: stages must be a JSON array of objects
       """
@@ -97,6 +97,22 @@ Feature: /forms/pdf/pipe
     Then the response body should contain string:
       """
       Invalid form data: form field 'stages' is invalid: stage 0: rotate: unknown option "degrees"
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.pdf           | file  |
+      | stages | [{"op":"rotate","angle":"x"}] | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'stages' is invalid: stage 0: rotate: "angle" is invalid (got "x", want an integer)
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
+      | files  | testdata/form.pdf                           | file  |
+      | stages | [{"op":"set-form","fields":{"agree":true}}] | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'stages' is invalid: stage 0: set-form: "fields" values must be strings; a check box takes its state name, such as "Yes" or "Off"
       """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
       | files  | testdata/page_1.pdf                                                  | file  |

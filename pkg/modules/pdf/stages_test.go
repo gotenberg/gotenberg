@@ -21,12 +21,20 @@ func TestParseStages(t *testing.T) {
 			raw:     `[{"op":"decrypt","password":"x"},{"op":"merge"},{"op":"select","pages":"1"},{"op":"rotate","angle":90},{"op":"stamp-text","text":"t","color":"#ff0000","font":"Courier"},{"op":"set-metadata","title":"T"},{"op":"remediate","profile":"PDF/UA-1"},{"op":"encrypt","userPassword":"u"},{"op":"optimize"}]`,
 			wantOps: []string{"decrypt", "merge", "select", "rotate", "stamp-text", "set-metadata", "remediate", "encrypt", "optimize"},
 		},
-		{name: "not an array", raw: `{"op":"merge"}`, wantErr: "JSON array"},
+		{name: "not an array", raw: `{"op":"merge"}`, wantErr: "stages must be a JSON array of objects"},
+		{name: "not an object", raw: `[1]`, wantErr: "stage 0: must be a JSON object"},
+		{name: "null stage", raw: `[null]`, wantErr: "stage 0: must be a JSON object"},
 		{name: "missing op", raw: `[{"angle":90}]`, wantErr: `"op" must name an operation`},
 		{name: "unknown op", raw: `[{"op":"shred"}]`, wantErr: `unknown operation "shred"`},
 		{name: "unknown option", raw: `[{"op":"rotate","angle":90,"degrees":90}]`, wantErr: `rotate: unknown option "degrees"`},
 		{name: "option names are exact", raw: `[{"op":"set-metadata","Title":"T"}]`, wantErr: `set-metadata: unknown option "Title"`},
-		{name: "wrong option type", raw: `[{"op":"rotate","angle":"ninety"}]`, wantErr: "rotate"},
+		{name: "wrong option type", raw: `[{"op":"rotate","angle":"ninety"}]`, wantErr: `stage 0: rotate: "angle" is invalid (got "ninety", want an integer)`},
+		{name: "fraction for an integer", raw: `[{"op":"rotate","angle":90.5}]`, wantErr: `rotate: "angle" is invalid (got 90.5, want an integer)`},
+		{name: "bool for a string", raw: `[{"op":"set-metadata","title":true}]`, wantErr: `set-metadata: "title" is invalid (got true, want a string)`},
+		{name: "string for a bool", raw: `[{"op":"optimize","dedup":"yes"}]`, wantErr: `optimize: "dedup" is invalid (got "yes", want true or false)`},
+		{name: "object for a list", raw: `[{"op":"set-bookmarks","bookmarks":{"title":"A"}}]`, wantErr: `set-bookmarks: "bookmarks" is invalid (got {"title":"A"}, want a JSON array)`},
+		{name: "nested option type", raw: `[{"op":"redact","regions":[{"page":"1","x":0,"y":0,"width":1,"height":1}]}]`, wantErr: `redact: "regions.0.page" is invalid (got a string, want an integer)`},
+		{name: "check box state as a bool", raw: `[{"op":"set-form","fields":{"agree":true}}]`, wantErr: `set-form: "fields" values must be strings; a check box takes its state name, such as "Yes" or "Off"`},
 		{name: "invalid angle", raw: `[{"op":"rotate","angle":45}]`, wantErr: "multiple of 90"},
 		{name: "missing pages", raw: `[{"op":"select"}]`, wantErr: `"pages" must not be empty`},
 		{name: "split needs one mode", raw: `[{"op":"split"}]`, wantErr: `set "every" or "ranges"`},
@@ -40,7 +48,7 @@ func TestParseStages(t *testing.T) {
 		{name: "factur-x options on pdf/a", raw: `[{"op":"remediate","profile":"PDF/A-2b","level":"BASIC"}]`, wantErr: "only apply to the Factur-X"},
 		{name: "encrypt needs a password", raw: `[{"op":"encrypt"}]`, wantErr: "userPassword"},
 		{name: "bad algorithm", raw: `[{"op":"encrypt","userPassword":"u","algorithm":"des"}]`, wantErr: "aes256"},
-		{name: "split range not a list", raw: `[{"op":"split","ranges":"1-3,4"}]`, wantErr: "ranges"},
+		{name: "split range not a list", raw: `[{"op":"split","ranges":"1-3,4"}]`, wantErr: `split: "ranges" is invalid (got "1-3,4", want a JSON array of strings)`},
 		{name: "empty split range", raw: `[{"op":"split","ranges":["1-3",""]}]`, wantErr: `"ranges" entry 1 must select pages`},
 		{name: "timestamp url scheme", raw: `[{"op":"timestamp","timestampUrl":"file:///etc/passwd"}]`, wantErr: "http:// or https://"},
 		{name: "decrypt not first", raw: `[{"op":"merge"},{"op":"decrypt","password":"x"}]`, wantErr: "must be the first stage"},
@@ -76,6 +84,10 @@ func TestParseStages(t *testing.T) {
 				}
 				if !strings.Contains(err.Error(), tc.wantErr) {
 					t.Fatalf("err = %v, want it to contain %q", err, tc.wantErr)
+				}
+				// The client reads the message: no Go type or field.
+				if strings.Contains(err.Error(), "Go ") || strings.Contains(err.Error(), "Stage.") {
+					t.Fatalf("err = %v, names a Go type", err)
 				}
 				return
 			}

@@ -78,6 +78,11 @@ func ParseStages(raw string) (Stages, error) {
 
 	var objects []json.RawMessage
 	err := json.Unmarshal([]byte(raw), &objects)
+	var typeErr *json.UnmarshalTypeError
+	if errors.As(err, &typeErr) {
+		// The decoder would name the Go type it decodes into.
+		return nil, fmt.Errorf("%w: stages must be a JSON array of objects", ErrInvalidStages)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("%w: stages must be a JSON array of objects: %w", ErrInvalidStages, err)
 	}
@@ -105,8 +110,10 @@ func ParseStages(raw string) (Stages, error) {
 func decodeStage(object json.RawMessage) (stage, error) {
 	var fields map[string]json.RawMessage
 	err := json.Unmarshal(object, &fields)
-	if err != nil {
-		return nil, fmt.Errorf("must be a JSON object: %w", err)
+	if err != nil || fields == nil {
+		// The array decoded, so only the element's kind can be wrong, and the
+		// decoder would name the Go type it decodes into.
+		return nil, errors.New("must be a JSON object")
 	}
 
 	var op string
@@ -142,7 +149,7 @@ func decodeStage(object json.RawMessage) (stage, error) {
 	decoder.DisallowUnknownFields()
 	err = decoder.Decode(s)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, optionError(op, fields, err))
 	}
 
 	err = s.validate()
@@ -332,6 +339,86 @@ var facturXLevels = map[string]models.FacturXLevel{
 	string(models.FacturXEN16931):   models.FacturXEN16931,
 	string(models.FacturXExtended):  models.FacturXExtended,
 	string(models.FacturXXRechnung): models.FacturXXRechnung,
+}
+
+// maxOptionValueInMessage bounds the option value an error message quotes.
+const maxOptionValueInMessage = 64
+
+// optionError rewords an error decoding the options of the stage op, whose
+// JSON fields are fields, in the client's terms: encoding/json names the Go
+// types and fields of the stages, which mean nothing to a client.
+func optionError(op string, fields map[string]json.RawMessage, err error) error {
+	var typeErr *json.UnmarshalTypeError
+	if !errors.As(err, &typeErr) || typeErr.Field == "" {
+		return err
+	}
+
+	name, _, isNested := strings.Cut(typeErr.Field, ".")
+
+	if op == "set-form" && name == "fields" && isNested {
+		return errors.New(`"fields" values must be strings; a check box takes its state name, such as "Yes" or "Off"`)
+	}
+
+	want := wantedJSON(typeErr.Type)
+
+	// A nested option's value is not at hand: its JSON kind stands for it.
+	if isNested {
+		return fmt.Errorf("%q is invalid (got %s, want %s)", typeErr.Field, sentJSON(typeErr.Value), want)
+	}
+
+	got := strings.TrimSpace(string(fields[name]))
+	if len(got) > maxOptionValueInMessage {
+		got = got[:maxOptionValueInMessage] + "..."
+	}
+
+	return fmt.Errorf("%q is invalid (got %s, want %s)", name, got, want)
+}
+
+// sentJSON describes the JSON value [json.UnmarshalTypeError.Value] names,
+// such as "string" or "number 1.5".
+func sentJSON(value string) string {
+	if number, ok := strings.CutPrefix(value, "number "); ok {
+		return number
+	}
+
+	switch value {
+	case "string", "number":
+		return "a " + value
+	case "object", "array":
+		return "an " + value
+	case "bool":
+		return "a boolean"
+	default:
+		return value
+	}
+}
+
+// wantedJSON describes the JSON value an option of type t takes.
+func wantedJSON(t reflect.Type) string {
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+
+	kind := t.Kind()
+
+	switch {
+	case kind == reflect.Bool:
+		return "true or false"
+	case kind >= reflect.Int && kind <= reflect.Uint64:
+		return "an integer"
+	case kind == reflect.Float32 || kind == reflect.Float64:
+		return "a number"
+	case kind == reflect.String:
+		return "a string"
+	case (kind == reflect.Slice || kind == reflect.Array) && t.Elem().Kind() == reflect.String:
+		return "a JSON array of strings"
+	case kind == reflect.Slice || kind == reflect.Array:
+		return "a JSON array"
+	case kind == reflect.Map || kind == reflect.Struct:
+		return "a JSON object"
+	default:
+		return "another JSON value"
+	}
 }
 
 // optionNames returns the JSON names of a stage's options.
