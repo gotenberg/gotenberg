@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -223,5 +225,119 @@ func TestReadRoutes(t *testing.T) {
 		if v.Clause == "" || v.Severity == "" {
 			t.Fatalf("Factur-X violation without clause or severity: %+v", v)
 		}
+	}
+}
+
+// jsonNames returns the JSON names of the fields of v's struct type, in order.
+func jsonNames(v any) []string {
+	typ := reflect.TypeOf(v)
+	names := make([]string, typ.NumField())
+	for i := range names {
+		name, _, _ := strings.Cut(typ.Field(i).Tag.Get("json"), ",")
+		names[i] = name
+	}
+
+	return names
+}
+
+// The metadata route answers the options of the set-metadata stage, so that an
+// answer feeds the stage as it is.
+func TestDocumentMetadataMatchesSetMetadata(t *testing.T) {
+	got, want := jsonNames(documentMetadata{}), jsonNames(setMetadataStage{})
+	if !slices.Equal(got, want) {
+		t.Fatalf("documentMetadata keys = %v, want the set-metadata options %v", got, want)
+	}
+}
+
+// readMetadata answers the metadata route on the PDF at path.
+func readMetadata(t *testing.T, processor *Processor, path string) documentMetadata {
+	t.Helper()
+
+	ctx, _ := testContext(t)
+	(&api.ContextMock{Context: ctx}).SetFiles(map[string]string{"doc.pdf": path})
+
+	rec := httptest.NewRecorder()
+	c := echo.New().NewContext(httptest.NewRequest(http.MethodPost, "/forms/pdf/metadata", nil), rec)
+	c.Set("context", ctx)
+
+	err := metadataRoute(processor).Handler(c)
+	if err != api.ErrNoOutputFile {
+		t.Fatalf("handler: %v, want ErrNoOutputFile after writing JSON", err)
+	}
+
+	var answer map[string]documentMetadata
+	err = json.Unmarshal(rec.Body.Bytes(), &answer)
+	if err != nil || len(answer) != 1 {
+		t.Fatalf("decode %s: %v, want the answer for one PDF", rec.Body.String(), err)
+	}
+
+	// The answer is keyed by the PDF's filename on disk.
+	for _, metadata := range answer {
+		return metadata
+	}
+
+	return documentMetadata{}
+}
+
+// setMetadata runs the set-metadata stage, its options raw, on a copy of
+// pages_12.pdf, which carries no metadata, and returns the output's path.
+func setMetadata(t *testing.T, processor *Processor, raw []byte) string {
+	t.Helper()
+
+	var options map[string]any
+	err := json.Unmarshal(raw, &options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	options["op"] = "set-metadata"
+
+	stages, err := json.Marshal([]any{options})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, paths := testContext(t, "pages_12.pdf")
+	outputs, err := processor.Run(ctx, mustStages(t, string(stages)), []string{paths["pages_12.pdf"]}, nil)
+	if err != nil {
+		t.Fatalf("set-metadata %s: %v", stages, err)
+	}
+
+	return outputs[0]
+}
+
+// Reading the metadata, feeding the answer to set-metadata and reading again
+// gives the same answer.
+func TestMetadataRoundTrip(t *testing.T) {
+	processor := testProcessor()
+
+	want := documentMetadata{
+		Title:        "Title",
+		Author:       "Author",
+		Subject:      "Subject",
+		Keywords:     "first, second",
+		Creator:      "Creator",
+		Producer:     "Producer",
+		CreationDate: "D:20250101120000Z",
+		ModDate:      "D:20250102120000Z",
+	}
+
+	options, err := json.Marshal(want)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	first := readMetadata(t, processor, setMetadata(t, processor, options))
+	if first != want {
+		t.Fatalf("first read = %+v, want %+v", first, want)
+	}
+
+	answer, err := json.Marshal(first)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	second := readMetadata(t, processor, setMetadata(t, processor, answer))
+	if second != first {
+		t.Fatalf("second read = %+v, want %+v", second, first)
 	}
 }

@@ -26,12 +26,12 @@ Feature: /forms/pdf/{set-metadata|metadata}
       """
       {
         "foo.pdf": {
-          "Title": "Sample",
-          "Author": "Julien Neuhart",
-          "Subject": "Sample",
-          "Keywords": "first, second",
-          "Creator": "Gotenberg",
-          "Producer": "Gotenberg"
+          "title": "Sample",
+          "author": "Julien Neuhart",
+          "subject": "Sample",
+          "keywords": "first, second",
+          "creator": "Gotenberg",
+          "producer": "Gotenberg"
         }
       }
       """
@@ -47,7 +47,7 @@ Feature: /forms/pdf/{set-metadata|metadata}
       """
       {
         "titled_alpha.pdf": {
-          "Title": "Alpha"
+          "title": "Alpha"
         },
         "titled_bravo.pdf": "ignore"
       }

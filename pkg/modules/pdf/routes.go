@@ -159,20 +159,46 @@ func readRoute(processor *Processor, name string, read func(ctx context.Context,
 	}
 }
 
+// documentMetadata is the JSON answer of the metadata route. Its keys are the
+// options of the set-metadata stage, so that an answer feeds the stage as it
+// is. A field the document does not carry is left out.
+type documentMetadata struct {
+	Title        string `json:"title,omitempty"`
+	Author       string `json:"author,omitempty"`
+	Subject      string `json:"subject,omitempty"`
+	Keywords     string `json:"keywords,omitempty"`
+	Creator      string `json:"creator,omitempty"`
+	Producer     string `json:"producer,omitempty"`
+	CreationDate string `json:"creationDate,omitempty"`
+	ModDate      string `json:"modDate,omitempty"`
+}
+
 func metadataRoute(processor *Processor) api.Route {
 	return readRoute(processor, "metadata", func(ctx context.Context, r *litho.Reader, _ *api.FormData) (any, error) {
 		metadata, err := r.Metadata(ctx)
 		// A document without an /Info dictionary or an XMP packet is valid,
 		// and has no metadata to answer.
 		if errors.Is(err, litho.ErrNoMetadata) {
-			return map[string]string{}, nil
+			return documentMetadata{}, nil
 		}
 
 		if err != nil {
 			return nil, fmt.Errorf("read metadata: %w", err)
 		}
 
-		return metadata, nil
+		// litho names the fields after the /Info keys (ISO 32000-1, Table
+		// 317). It also reads the catalog's /Lang and the XMP rights, which
+		// the set-metadata stage cannot write: they are left out.
+		return documentMetadata{
+			Title:        metadata["Title"],
+			Author:       metadata["Author"],
+			Subject:      metadata["Subject"],
+			Keywords:     metadata["Keywords"],
+			Creator:      metadata["Creator"],
+			Producer:     metadata["Producer"],
+			CreationDate: metadata["CreationDate"],
+			ModDate:      metadata["ModDate"],
+		}, nil
 	})
 }
 
