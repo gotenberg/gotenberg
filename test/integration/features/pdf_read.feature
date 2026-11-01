@@ -113,6 +113,29 @@ Feature: /forms/pdf/{info|validate}
       Invalid form data: no form file found for extensions: [.pdf]
       """
 
+  # A field the route does not read answers 400; the validate route reads its
+  # profile.
+  Scenario: POST /forms/pdf/{info|validate} (Unknown Form Fields)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/info" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.pdf     | file  |
+      | stages | [{"op":"flatten-form"}] | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'stages' is unknown to this route; this route takes no 'stages': send them to /forms/pdf/pipe
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/validate" endpoint with the following form data and header(s):
+      | files   | testdata/page_1.pdf | file  |
+      | profile | PDF/A-2b            | field |
+      | strict  | true                | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'strict' is unknown to this route
+      """
+
   Scenario: POST /forms/pdf/info (Basic Auth)
     Given I have a Gotenberg container with the following environment variable(s):
       | API_ENABLE_BASIC_AUTH             | true |

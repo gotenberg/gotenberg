@@ -408,3 +408,68 @@ func TestConvertRoute_Watermark(t *testing.T) {
 		})
 	}
 }
+
+// TestConvertRoute_UnknownFields checks that the route answers 400 for a field
+// it does not read, and points a Gotenberg 8 one to its replacement, before
+// LibreOffice runs.
+func TestConvertRoute_UnknownFields(t *testing.T) {
+	dir := t.TempDir()
+
+	for _, tc := range []struct {
+		name       string
+		values     map[string][]string
+		fileFields []string
+		wantBody   string
+	}{
+		{
+			name:     "misspelled field",
+			values:   map[string][]string{"landscpae": {"true"}},
+			wantBody: "Invalid form data: form field 'landscpae' is unknown to this route",
+		},
+		{
+			name:     "renamed field",
+			values:   map[string][]string{"pdfa": {"PDF/A-2b"}},
+			wantBody: `Invalid form data: form field 'pdfa' is unknown to this route; Gotenberg 9 renamed it 'nativePdfa', or add {"op":"remediate","profile":"PDF/A-2b"} to 'stages'`,
+		},
+		{
+			name:     "removed field",
+			values:   map[string][]string{"firstPageOnLeft": {"true"}},
+			wantBody: "Invalid form data: form field 'firstPageOnLeft' is unknown to this route; Gotenberg 9 removed it: LibreOffice ignores it",
+		},
+		{
+			name:     "post-processing field",
+			values:   map[string][]string{"merge": {"true"}},
+			wantBody: `Invalid form data: form field 'merge' is unknown to this route; Gotenberg 9 moved it to a stage: add {"op":"merge"} to 'stages'`,
+		},
+		{
+			name:       "Gotenberg 8 file field",
+			fileFields: []string{"files", "embeds"},
+			wantBody:   `Invalid form data: form file field 'embeds' is unknown to this route; Gotenberg 9 reads every file from 'files': upload it there, and add {"op":"attach","file":"data.xml"} to 'stages'`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := &api.ContextMock{Context: &api.Context{Context: context.Background()}}
+			ctx.SetDirPath(dir)
+			ctx.SetFiles(map[string]string{"page_1.docx": zipPackage(t, dir, "page_1.docx")})
+			ctx.SetValues(tc.values)
+			ctx.SetFileFields(tc.fileFields...)
+			ctx.SetLogger(slog.New(slog.DiscardHandler))
+
+			converter := &libreofficeapi.ApiMock{
+				ExtensionsMock: func() []string { return []string{".docx"} },
+				PdfMock: func(_ context.Context, _ *slog.Logger, _, _ string, _ libreofficeapi.Options) error {
+					t.Fatal("LibreOffice ran with an unknown form field")
+					return nil
+				},
+			}
+
+			c := echo.New().NewContext(httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", nil), httptest.NewRecorder())
+			c.Set("context", ctx.Context)
+
+			status, message := api.ParseError(convertRoute(converter, new(pdf.Processor)).Handler(c))
+			if status != http.StatusBadRequest || message != tc.wantBody {
+				t.Fatalf("got %d %q, want 400 %q", status, message, tc.wantBody)
+			}
+		})
+	}
+}

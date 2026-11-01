@@ -55,9 +55,13 @@ func stageFiles(form *api.FormData, stages Stages) map[string]string {
 }
 
 // inputPDFs returns the uploaded PDFs no stage reads, in upload-name order.
+// The routes have bound every field they take by then: it rejects the others.
 func inputPDFs(form *api.FormData, files map[string]string) ([]string, error) {
 	var all []string
-	err := form.MandatoryPaths([]string{".pdf"}, &all).Validate()
+	err := form.
+		MandatoryPaths([]string{".pdf"}, &all).
+		RejectUnknown(FormFieldHint).
+		Validate()
 	if err != nil {
 		return nil, fmt.Errorf("validate form data: %w", err)
 	}
@@ -87,7 +91,8 @@ func inputPDFs(form *api.FormData, files map[string]string) ([]string, error) {
 // stageFromForm builds a single stage named op from the flat form fields of a
 // single-operation route. Each field carries one option under its JSON name:
 // strings and numbers as is, booleans as true or false, and lists or objects
-// as JSON. Fields the stage does not know are ignored.
+// as JSON. It reads only the fields the stage knows: [inputPDFs] rejects the
+// others.
 func stageFromForm(op string, form *api.FormData) (Stages, map[string]string, error) {
 	newStage, ok := stageFactories[op]
 	if !ok {
@@ -189,4 +194,80 @@ func formValue(t reflect.Type, value string) (any, error) {
 	}
 
 	return nil, errors.New("want JSON")
+}
+
+// stagesHint is the fix of a Gotenberg 8 field whose work a stage does now.
+func stagesHint(stage string) string {
+	return fmt.Sprintf("Gotenberg 9 moved it to a stage: add %s to 'stages'", stage)
+}
+
+// filesHint is the fix of a Gotenberg 8 file field: Gotenberg 9 reads every
+// file from 'files', and a stage names the ones it reads.
+func filesHint(stage string) string {
+	return fmt.Sprintf("Gotenberg 9 reads every file from 'files': upload it there, and add %s to 'stages'", stage)
+}
+
+// gotenberg8Fields maps the Gotenberg 8 post-processing form fields to the
+// stage that does their work now. See the upgrade guide.
+var gotenberg8Fields = map[string]string{
+	"merge":          stagesHint(`{"op":"merge"}`),
+	"splitMode":      stagesHint(`{"op":"split","every":2} or {"op":"split","ranges":["1","2-3"]}`),
+	"splitSpan":      stagesHint(`{"op":"split","every":2} or {"op":"split","ranges":["1","2-3"]}`),
+	"splitUnify":     stagesHint(`{"op":"select","pages":"1-3"}`),
+	"pdfa":           stagesHint(`{"op":"remediate","profile":"PDF/A-2b"}`),
+	"pdfua":          stagesHint(`{"op":"remediate","profile":"PDF/UA-1"}`),
+	"metadata":       stagesHint(`{"op":"set-metadata","title":"My title"}`),
+	"userPassword":   stagesHint(`{"op":"encrypt","userPassword":"secret"}`),
+	"ownerPassword":  stagesHint(`{"op":"encrypt","ownerPassword":"secret"}`),
+	"embedsMetadata": stagesHint(`{"op":"attach","file":"data.xml"}`),
+	"rotateAngle":    stagesHint(`{"op":"rotate","angle":90,"pages":"1"}`),
+	"rotatePages":    stagesHint(`{"op":"rotate","angle":90,"pages":"1"}`),
+	"flatten":        stagesHint(`{"op":"flatten-form"}`),
+	"optimizeImages": stagesHint(`{"op":"optimize"}`),
+	"imageQuality":   stagesHint(`{"op":"optimize"}`),
+}
+
+// gotenberg8FieldPrefixes maps the prefixes of Gotenberg 8 field families to
+// the stage that does their work now.
+var gotenberg8FieldPrefixes = map[string]string{
+	"allow":     stagesHint(`{"op":"encrypt","userPassword":"secret","permissions":{"print":false}}`),
+	"watermark": stagesHint(`a stamp-text, stamp-image or stamp-pdf stage`),
+	"stamp":     stagesHint(`a stamp-text, stamp-image or stamp-pdf stage`),
+	"facturx":   stagesHint(`{"op":"remediate","profile":"Factur-X","xml":"invoice.xml"}`),
+}
+
+// gotenberg8FileFields maps the Gotenberg 8 file fields to the stage that
+// reads their files now. Other file fields are free-form.
+var gotenberg8FileFields = map[string]string{
+	"embeds":     filesHint(`{"op":"attach","file":"data.xml"}`),
+	"watermark":  filesHint(`{"op":"stamp-pdf","source":"annex.pdf"} or {"op":"stamp-image","image":"logo.png"}`),
+	"stamp":      filesHint(`{"op":"stamp-pdf","source":"annex.pdf"} or {"op":"stamp-image","image":"logo.png"}`),
+	"facturxXml": filesHint(`{"op":"remediate","profile":"Factur-X","xml":"invoice.xml"}`),
+}
+
+// FormFieldHint is the [api.FormData.RejectUnknown] hint of the routes that
+// run stages: it points a Gotenberg 8 post-processing field, or file field, to
+// the stage that replaced it. "stages" is only unknown to the /forms/pdf
+// routes but /forms/pdf/pipe.
+func FormFieldHint(field string, file bool) string {
+	if file {
+		return gotenberg8FileFields[field]
+	}
+
+	if field == StagesFormField {
+		return "this route takes no 'stages': send them to /forms/pdf/pipe"
+	}
+
+	hint, ok := gotenberg8Fields[field]
+	if ok {
+		return hint
+	}
+
+	for _, prefix := range sortedKeys(gotenberg8FieldPrefixes) {
+		if strings.HasPrefix(field, prefix) {
+			return gotenberg8FieldPrefixes[prefix]
+		}
+	}
+
+	return ""
 }

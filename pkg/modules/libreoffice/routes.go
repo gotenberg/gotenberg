@@ -107,6 +107,7 @@ func convertRoute(libreOffice libreofficeapi.Converter, processor *pdf.Processor
 
 					return nil
 				}).
+				RejectUnknown(formFieldHint).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)

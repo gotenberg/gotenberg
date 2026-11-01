@@ -18,6 +18,21 @@ Feature: /forms/chromium/screenshot/html
       | 'ws://127.0.0.1:9999/ssrf-websocket' targets a non-public address |
       | CONNECT blocked for '127.0.0.1:9999'                              |
 
+  # A field the route does not read answers 400; screenshots run no stage.
+  Scenario: POST /forms/chromium/screenshot/html (Unknown Form Fields)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/screenshot/html" endpoint with the following form data and header(s):
+      | files            | testdata/page-1-html/index.html | file  |
+      | stages           | [{"op":"merge"}]                | field |
+      | waitWindowStatus | ready                           | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'stages' is unknown to this route; screenshots take no 'stages'
+      form field 'waitWindowStatus' is unknown to this route; Gotenberg 9 renamed it 'waitForWindowStatus'
+      """
+
   Scenario: POST /forms/chromium/screenshot/html (Default)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/screenshot/html" endpoint with the following form data and header(s):

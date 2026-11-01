@@ -2135,3 +2135,94 @@ func TestFormData_Strings_IndependentOfOtherFields(t *testing.T) {
 		t.Fatal("Strings aliased the form values")
 	}
 }
+
+func TestFormData_RejectUnknown(t *testing.T) {
+	hint := func(field string, file bool) string {
+		switch {
+		case field == "merge" && !file:
+			return "use the merge stage"
+		case field == "watermark" && file:
+			return "upload it under files"
+		default:
+			return ""
+		}
+	}
+
+	for _, tc := range []struct {
+		scenario   string
+		values     map[string][]string
+		fileFields []string
+		read       func(form *FormData)
+		hint       func(field string, file bool) string
+		want       string
+	}{
+		{
+			scenario: "every field read",
+			values:   map[string][]string{"foo": {"a"}, "bar": {"b"}},
+			read:     func(form *FormData) { form.String("foo", new(string)).Strings("bar", new([]string)) },
+			hint:     hint,
+		},
+		{
+			scenario: "a field read but empty",
+			values:   map[string][]string{"foo": {""}},
+			read:     func(form *FormData) { form.Bool("foo", new(bool)) },
+			hint:     hint,
+		},
+		{
+			scenario: "downloadFrom",
+			values:   map[string][]string{"downloadFrom": {"[]"}},
+			read:     func(*FormData) {},
+			hint:     hint,
+		},
+		{
+			scenario: "unknown fields, in order",
+			values:   map[string][]string{"foo": {"a"}, "zed": {"z"}, "bar": {"b"}},
+			read:     func(form *FormData) { form.String("foo", new(string)) },
+			hint:     hint,
+			want:     "form field 'bar' is unknown to this route\nform field 'zed' is unknown to this route",
+		},
+		{
+			scenario: "unknown field with a hint",
+			values:   map[string][]string{"merge": {"true"}},
+			read:     func(*FormData) {},
+			hint:     hint,
+			want:     "form field 'merge' is unknown to this route; use the merge stage",
+		},
+		{
+			scenario:   "file field with a hint",
+			fileFields: []string{"files", "watermark", "anything"},
+			read:       func(*FormData) {},
+			hint:       hint,
+			want:       "form file field 'watermark' is unknown to this route; upload it under files",
+		},
+		{
+			scenario:   "no hint",
+			values:     map[string][]string{"merge": {"true"}},
+			fileFields: []string{"watermark"},
+			read:       func(*FormData) {},
+			want:       "form field 'merge' is unknown to this route",
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			mock := &ContextMock{Context: new(Context)}
+			mock.SetValues(tc.values)
+			mock.SetFileFields(tc.fileFields...)
+
+			// The fields a route reads through one FormData count for the
+			// others of the request.
+			tc.read(mock.FormData())
+			form := mock.FormData().RejectUnknown(tc.hint)
+
+			if tc.want == "" {
+				if form.errors != nil {
+					t.Fatalf("expected no error but got: %v", form.errors)
+				}
+				return
+			}
+
+			if form.errors == nil || form.errors.Error() != tc.want {
+				t.Fatalf("expected error %q but got: %v", tc.want, form.errors)
+			}
+		})
+	}
+}

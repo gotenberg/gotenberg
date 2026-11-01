@@ -100,7 +100,11 @@ func runStages(ctx *api.Context, form *api.FormData, processor *Processor, stage
 // readRoute returns the [api.Route] /forms/pdf/{name}, which answers, for
 // every uploaded PDF, the JSON value read returns, keyed by filename. A
 // "password" form field opens encrypted PDFs.
-func readRoute(processor *Processor, name string, read func(ctx context.Context, r *litho.Reader, form *api.FormData) (any, error)) api.Route {
+//
+// newRead binds the route's own form fields, which readRoute validates with
+// the others before it opens a PDF, and returns the read of one PDF. It runs
+// once per request.
+func readRoute(processor *Processor, name string, newRead func(form *api.FormData) readFunc) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
 		Path:        "/forms/pdf/" + name,
@@ -116,7 +120,9 @@ func readRoute(processor *Processor, name string, read func(ctx context.Context,
 			}
 
 			var password string
-			err = form.String("password", &password).Validate()
+			form.String("password", &password)
+			read := newRead(form)
+			err = form.RejectUnknown(FormFieldHint).Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
@@ -133,7 +139,7 @@ func readRoute(processor *Processor, name string, read func(ctx context.Context,
 				}
 				defer func() { _ = r.Close() }()
 
-				collected[i], err = read(ctx, r, form)
+				collected[i], err = read(ctx, r)
 				if err != nil {
 					return &stageError{op: name, filename: filename, err: err}
 				}
@@ -159,6 +165,14 @@ func readRoute(processor *Processor, name string, read func(ctx context.Context,
 	}
 }
 
+// readFunc reads one PDF for a read route, and returns its JSON answer.
+type readFunc func(ctx context.Context, r *litho.Reader) (any, error)
+
+// noFields is the newRead of a read route that takes no field of its own.
+func noFields(read readFunc) func(form *api.FormData) readFunc {
+	return func(*api.FormData) readFunc { return read }
+}
+
 // documentMetadata is the JSON answer of the metadata route. Its keys are the
 // options of the set-metadata stage, so that an answer feeds the stage as it
 // is. A field the document does not carry is left out.
@@ -174,7 +188,7 @@ type documentMetadata struct {
 }
 
 func metadataRoute(processor *Processor) api.Route {
-	return readRoute(processor, "metadata", func(ctx context.Context, r *litho.Reader, _ *api.FormData) (any, error) {
+	return readRoute(processor, "metadata", noFields(func(ctx context.Context, r *litho.Reader) (any, error) {
 		metadata, err := r.Metadata(ctx)
 		// A document without an /Info dictionary or an XMP packet is valid,
 		// and has no metadata to answer.
@@ -199,18 +213,18 @@ func metadataRoute(processor *Processor) api.Route {
 			CreationDate: metadata["CreationDate"],
 			ModDate:      metadata["ModDate"],
 		}, nil
-	})
+	}))
 }
 
 func bookmarksRoute(processor *Processor) api.Route {
-	return readRoute(processor, "bookmarks", func(ctx context.Context, r *litho.Reader, _ *api.FormData) (any, error) {
+	return readRoute(processor, "bookmarks", noFields(func(ctx context.Context, r *litho.Reader) (any, error) {
 		bookmarks, err := r.Bookmarks(ctx)
 		if bookmarks == nil {
 			bookmarks = []models.Bookmark{}
 		}
 
 		return bookmarks, err
-	})
+	}))
 }
 
 // documentInfo is the JSON answer of the info route.
@@ -224,7 +238,7 @@ type documentInfo struct {
 }
 
 func infoRoute(processor *Processor) api.Route {
-	return readRoute(processor, "info", func(ctx context.Context, r *litho.Reader, _ *api.FormData) (any, error) {
+	return readRoute(processor, "info", noFields(func(ctx context.Context, r *litho.Reader) (any, error) {
 		pages, err := r.PageCount(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("count pages: %w", err)
@@ -248,7 +262,7 @@ func infoRoute(processor *Processor) api.Route {
 			Linearized: r.IsLinearized(),
 			FormFields: formFields,
 		}, nil
-	})
+	}))
 }
 
 // violation is one conformance failure in the validate route's answer.
@@ -269,63 +283,71 @@ type validation struct {
 }
 
 func validateRoute(processor *Processor) api.Route {
-	return readRoute(processor, "validate", func(ctx context.Context, r *litho.Reader, form *api.FormData) (any, error) {
+	return readRoute(processor, "validate", func(form *api.FormData) readFunc {
 		var profile string
-		err := form.MandatoryString("profile", &profile).Validate()
-		if err != nil {
-			return nil, fmt.Errorf("validate form data: %w", err)
-		}
+		form.MandatoryString("profile", &profile)
 
-		var found []litho.Violation
-		switch {
-		case pdfaProfiles[profile] != "":
-			found, err = r.ValidatePDFAReport(ctx, pdfaProfiles[profile])
-		case pdfuaProfiles[profile] != "":
-			found, err = r.ValidatePDFUAReport(ctx, pdfuaProfiles[profile])
-		case profile == facturXProfile:
-			var report litho.FacturXReport
-			report, err = r.ValidateFacturXReport(ctx)
-			found = report.Structured()
-		default:
-			return nil, api.NewSentinelHttpError(
-				http.StatusBadRequest,
-				fmt.Sprintf("Invalid form data: form field 'profile' must be one of %s, PDF/UA-1, PDF/UA-2 or %s", strings.Join(sortedKeys(pdfaProfiles), ", "), facturXProfile),
-			)
+		return func(ctx context.Context, r *litho.Reader) (any, error) {
+			return validatePDF(ctx, r, profile)
 		}
-
-		if err != nil {
-			return nil, fmt.Errorf("validate against %s: %w", profile, err)
-		}
-
-		// A Factur-X report holds warnings too, soft Schematron findings that
-		// do not by themselves fail conformance.
-		res := validation{
-			Profile:    profile,
-			Compliant:  !slices.ContainsFunc(found, func(v litho.Violation) bool { return v.Severity == litho.SeverityFatal }),
-			Violations: make([]violation, len(found)),
-		}
-		for i, v := range found {
-			res.Violations[i] = violation{
-				Specification: v.Specification,
-				Clause:        v.Clause,
-				TestNumber:    v.TestNumber,
-				Description:   v.Description,
-				Context:       v.Context,
-				Severity:      v.Severity.String(),
-			}
-		}
-
-		return res, nil
 	})
 }
 
+// validatePDF validates the PDF r reads against profile.
+func validatePDF(ctx context.Context, r *litho.Reader, profile string) (any, error) {
+	var (
+		found []litho.Violation
+		err   error
+	)
+
+	switch {
+	case pdfaProfiles[profile] != "":
+		found, err = r.ValidatePDFAReport(ctx, pdfaProfiles[profile])
+	case pdfuaProfiles[profile] != "":
+		found, err = r.ValidatePDFUAReport(ctx, pdfuaProfiles[profile])
+	case profile == facturXProfile:
+		var report litho.FacturXReport
+		report, err = r.ValidateFacturXReport(ctx)
+		found = report.Structured()
+	default:
+		return nil, api.NewSentinelHttpError(
+			http.StatusBadRequest,
+			fmt.Sprintf("Invalid form data: form field 'profile' must be one of %s, PDF/UA-1, PDF/UA-2 or %s", strings.Join(sortedKeys(pdfaProfiles), ", "), facturXProfile),
+		)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("validate against %s: %w", profile, err)
+	}
+
+	// A Factur-X report holds warnings too, soft Schematron findings that
+	// do not by themselves fail conformance.
+	res := validation{
+		Profile:    profile,
+		Compliant:  !slices.ContainsFunc(found, func(v litho.Violation) bool { return v.Severity == litho.SeverityFatal }),
+		Violations: make([]violation, len(found)),
+	}
+	for i, v := range found {
+		res.Violations[i] = violation{
+			Specification: v.Specification,
+			Clause:        v.Clause,
+			TestNumber:    v.TestNumber,
+			Description:   v.Description,
+			Context:       v.Context,
+			Severity:      v.Severity.String(),
+		}
+	}
+
+	return res, nil
+}
+
 func attachmentsRoute(processor *Processor) api.Route {
-	return readRoute(processor, "attachments", func(ctx context.Context, r *litho.Reader, _ *api.FormData) (any, error) {
+	return readRoute(processor, "attachments", noFields(func(ctx context.Context, r *litho.Reader) (any, error) {
 		files, err := r.EmbeddedFiles(ctx)
 		if files == nil {
 			files = []models.EmbeddedFile{}
 		}
 
 		return files, err
-	})
+	}))
 }

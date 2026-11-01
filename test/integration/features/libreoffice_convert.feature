@@ -259,6 +259,26 @@ Feature: /forms/libreoffice/convert
     Then there should be 1 PDF(s) in the response
     Then the "foo.pdf" PDF first page should be 288x432 points
 
+  # A field the route does not read answers 400, and a Gotenberg 8 one says what
+  # replaced it, a file field included.
+  Scenario: POST /forms/libreoffice/convert (Unknown Form Fields)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files     | testdata/page_1.docx | file  |
+      | embeds    | testdata/embed_1.xml | file  |
+      | landscpae | true                 | field |
+      | pdfa      | PDF/A-2b             | field |
+      | merge     | true                 | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'landscpae' is unknown to this route
+      form field 'merge' is unknown to this route; Gotenberg 9 moved it to a stage: add {"op":"merge"} to 'stages'
+      form field 'pdfa' is unknown to this route; Gotenberg 9 renamed it 'nativePdfa', or add {"op":"remediate","profile":"PDF/A-2b"} to 'stages'
+      form file field 'embeds' is unknown to this route; Gotenberg 9 reads every file from 'files': upload it there, and add {"op":"attach","file":"data.xml"} to 'stages'
+      """
+
   Scenario: POST /forms/libreoffice/convert (Bad Request)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):

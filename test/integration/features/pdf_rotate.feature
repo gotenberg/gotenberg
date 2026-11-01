@@ -74,6 +74,23 @@ Feature: /forms/pdf/rotate
       Stage 'rotate' failed on 'page_1.pdf': invalid page range: page 2 out of range [1, 1]
       """
 
+  # A Gotenberg 8 watermark file is not one more PDF to rotate, and a field the
+  # route does not read answers 400.
+  Scenario: POST /forms/pdf/rotate (Unknown Form Fields)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/rotate" endpoint with the following form data and header(s):
+      | files       | testdata/page_1.pdf | file  |
+      | watermark   | testdata/page_2.pdf | file  |
+      | angle       | 90                  | field |
+      | rotateAngle | 90                  | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'rotateAngle' is unknown to this route; Gotenberg 9 moved it to a stage: add {"op":"rotate","angle":90,"pages":"1"} to 'stages'
+      form file field 'watermark' is unknown to this route; Gotenberg 9 reads every file from 'files': upload it there, and add {"op":"stamp-pdf","source":"annex.pdf"} or {"op":"stamp-image","image":"logo.png"} to 'stages'
+      """
+
   Scenario: POST /forms/pdf/rotate (Gotenberg Trace)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/rotate" endpoint with the following form data and header(s):

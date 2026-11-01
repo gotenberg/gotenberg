@@ -261,3 +261,19 @@ Feature: /forms/pdf/pipe
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
+
+  # A field the route does not read answers 400, and a Gotenberg 8 one says what
+  # replaced it.
+  Scenario: POST /forms/pdf/pipe (Unknown Form Fields)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.pdf          | file  |
+      | files  | testdata/page_2.pdf          | file  |
+      | stages | [{"op":"rotate","angle":90}] | field |
+      | merge  | true                         | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'merge' is unknown to this route; Gotenberg 9 moved it to a stage: add {"op":"merge"} to 'stages'
+      """

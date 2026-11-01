@@ -341,3 +341,94 @@ func TestMetadataRoundTrip(t *testing.T) {
 		t.Fatalf("second read = %+v, want %+v", second, first)
 	}
 }
+
+// TestUnknownFields checks that the /forms/pdf routes answer 400 for a field
+// they do not read, and point a Gotenberg 8 one to its stage.
+func TestUnknownFields(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		route      api.Route
+		values     map[string][]string
+		fileFields []string
+		fixtures   []string
+		wantBody   string
+	}{
+		{
+			name:     "stage route",
+			route:    stageRoute(testProcessor(), "rotate"),
+			values:   map[string][]string{"angle": {"90"}, "degrees": {"90"}},
+			fixtures: []string{"page_1.pdf"},
+			wantBody: "Invalid form data: form field 'degrees' is unknown to this route",
+		},
+		{
+			name:     "stages on a stage route",
+			route:    stageRoute(testProcessor(), "rotate"),
+			values:   map[string][]string{"angle": {"90"}, "stages": {`[{"op":"merge"}]`}},
+			fixtures: []string{"page_1.pdf"},
+			wantBody: "Invalid form data: form field 'stages' is unknown to this route; this route takes no 'stages': send them to /forms/pdf/pipe",
+		},
+		{
+			name:       "Gotenberg 8 file field",
+			route:      stageRoute(testProcessor(), "rotate"),
+			values:     map[string][]string{"angle": {"90"}},
+			fileFields: []string{"files", "watermark"},
+			fixtures:   []string{"page_1.pdf", "page_2.pdf"},
+			wantBody:   `Invalid form data: form file field 'watermark' is unknown to this route; Gotenberg 9 reads every file from 'files': upload it there, and add {"op":"stamp-pdf","source":"annex.pdf"} or {"op":"stamp-image","image":"logo.png"} to 'stages'`,
+		},
+		{
+			name:     "Gotenberg 8 field on the pipe",
+			route:    pipeRoute(testProcessor()),
+			values:   map[string][]string{"stages": {`[{"op":"rotate","angle":90}]`}, "merge": {"true"}},
+			fixtures: []string{"page_1.pdf"},
+			wantBody: `Invalid form data: form field 'merge' is unknown to this route; Gotenberg 9 moved it to a stage: add {"op":"merge"} to 'stages'`,
+		},
+		{
+			name:     "Gotenberg 8 field family",
+			route:    pipeRoute(testProcessor()),
+			values:   map[string][]string{"stages": {`[{"op":"rotate","angle":90}]`}, "watermarkSource": {"text"}},
+			fixtures: []string{"page_1.pdf"},
+			wantBody: "Invalid form data: form field 'watermarkSource' is unknown to this route; Gotenberg 9 moved it to a stage: add a stamp-text, stamp-image or stamp-pdf stage to 'stages'",
+		},
+		{
+			name:     "read route",
+			route:    infoRoute(testProcessor()),
+			values:   map[string][]string{"pages": {"1"}},
+			fixtures: []string{"page_1.pdf"},
+			wantBody: "Invalid form data: form field 'pages' is unknown to this route",
+		},
+		{
+			name:     "read route with its own field",
+			route:    validateRoute(testProcessor()),
+			values:   map[string][]string{"profile": {"PDF/A-2b"}, "flavour": {"strict"}},
+			fixtures: []string{"page_1.pdf"},
+			wantBody: "Invalid form data: form field 'flavour' is unknown to this route",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, _ := testContext(t, tc.fixtures...)
+			mock := &api.ContextMock{Context: ctx}
+			mock.SetValues(tc.values)
+			mock.SetFileFields(tc.fileFields...)
+
+			c := echo.New().NewContext(httptest.NewRequest(http.MethodPost, tc.route.Path, nil), httptest.NewRecorder())
+			c.Set("context", ctx)
+
+			status, message := api.ParseError(tc.route.Handler(c))
+			if status != http.StatusBadRequest || message != tc.wantBody {
+				t.Fatalf("got %d %q, want 400 %q", status, message, tc.wantBody)
+			}
+		})
+	}
+
+	// The fields a route reads are not unknown: password on a read route,
+	// profile on the validate route, the stage's options on a stage route.
+	_, _, err := serve(t, validateRoute(testProcessor()), map[string][]string{"profile": {"PDF/A-2b"}, "password": {""}}, "page_1.pdf")
+	if err != api.ErrNoOutputFile {
+		t.Fatalf("validate: %v", err)
+	}
+
+	_, _, err = serve(t, stageRoute(testProcessor(), "rotate"), map[string][]string{"angle": {"90"}, "pages": {"1"}}, "page_1.pdf")
+	if err != nil {
+		t.Fatalf("rotate: %v", err)
+	}
+}

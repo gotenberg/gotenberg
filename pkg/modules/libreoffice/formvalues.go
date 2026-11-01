@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
+	"github.com/gotenberg/gotenberg/v9/pkg/modules/pdf"
 )
 
 // The form fields take the values the /forms/pdf stages take for the same
@@ -114,4 +115,42 @@ func intoPointer(target **int, parse func(string) (int, error)) func(string) err
 
 		return nil
 	}
+}
+
+// renamedHint is the fix of a Gotenberg 8 field that Gotenberg 9 renamed.
+func renamedHint(field string) string {
+	return fmt.Sprintf("Gotenberg 9 renamed it '%s'", field)
+}
+
+// gotenberg8Fields maps the Gotenberg 8 LibreOffice fields that Gotenberg 9
+// renamed or removed to their fix. See the upgrade guide.
+var gotenberg8Fields = map[string]string{
+	"nativePageRanges":           renamedHint("nativePages"),
+	"exportBookmarks":            renamedHint("nativeBookmarks"),
+	"generateTaggedPdf":          renamedHint("nativeTaggedPdf"),
+	"singlePageSheets":           renamedHint("singlePage"),
+	"quality":                    renamedHint("nativeQuality"),
+	"losslessImageCompression":   renamedHint("nativeLosslessImageCompression"),
+	"reduceImageResolution":      renamedHint("nativeReduceImageResolution"),
+	"maxImageResolution":         renamedHint("nativeMaxImageResolution"),
+	"nativeWatermarkFontHeight":  renamedHint("nativeWatermarkFontSize"),
+	"nativeWatermarkFontName":    renamedHint("nativeWatermarkFont"),
+	"nativeWatermarkRotateAngle": renamedHint("nativeWatermarkRotation") + ", in degrees",
+	"pdfa":                       renamedHint("nativePdfa") + `, or add {"op":"remediate","profile":"PDF/A-2b"} to 'stages'`,
+	"pdfua":                      renamedHint("nativePdfua") + ", which takes the string " + pdfuaProfile,
+	"firstPageOnLeft":            "Gotenberg 9 removed it: LibreOffice ignores it",
+	"nativePdfFormats":           "Gotenberg 9 removed it: 'nativePdfa' and 'nativePdfua' always apply natively",
+}
+
+// formFieldHint is the [api.FormData.RejectUnknown] hint of the LibreOffice
+// route: a renamed or removed field, or the stage that replaced a
+// post-processing field.
+func formFieldHint(field string, file bool) string {
+	if !file {
+		if hint, ok := gotenberg8Fields[field]; ok {
+			return hint
+		}
+	}
+
+	return pdf.FormFieldHint(field, file)
 }

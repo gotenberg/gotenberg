@@ -56,6 +56,17 @@ func (ctx *ContextMock) SetFiles(files map[string]string) {
 	ctx.files = files
 }
 
+// SetFileFields sets the multipart fields the files arrived under.
+//
+//	ctx := &api.ContextMock{Context: &api.Context{}}
+//	ctx.SetFileFields("files", "watermark")
+func (ctx *ContextMock) SetFileFields(fields ...string) {
+	ctx.fileFields = make(map[string]bool, len(fields))
+	for _, field := range fields {
+		ctx.fileFields[field] = true
+	}
+}
+
 // SetCancelled sets if the context is canceled or not.
 //
 //	ctx := &api.ContextMock{Context: &api.Context{}}

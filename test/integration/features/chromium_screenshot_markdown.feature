@@ -44,6 +44,22 @@ Feature: /forms/chromium/screenshot/markdown
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
 
+  # A field the route does not read answers 400; screenshots run no stage.
+  Scenario: POST /forms/chromium/screenshot/markdown (Unknown Form Fields)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/screenshot/markdown" endpoint with the following form data and header(s):
+      | files            | testdata/page-1-markdown/index.html | file  |
+      | files            | testdata/page-1-markdown/page_1.md  | file  |
+      | stages           | [{"op":"merge"}]                    | field |
+      | waitWindowStatus | ready                               | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'stages' is unknown to this route; screenshots take no 'stages'
+      form field 'waitWindowStatus' is unknown to this route; Gotenberg 9 renamed it 'waitForWindowStatus'
+      """
+
   @webhook
   Scenario: POST /forms/chromium/screenshot/markdown (Webhook)
     Given I have a default Gotenberg container

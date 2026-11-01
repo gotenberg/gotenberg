@@ -64,6 +64,12 @@ type Context struct {
 	// twin rather than wherever its numbered name would land.
 	fileBase map[string]string
 
+	// fields records the value form fields the route reads, and fileFields
+	// the multipart fields files arrived under, so that
+	// [FormData.RejectUnknown] tells the fields the route does not know.
+	fields     *formFields
+	fileFields map[string]bool
+
 	// outputFilename is the sanitized Gotenberg-Output-Filename header,
 	// snapshotted while the [echo.Context] is still live. Echo returns that
 	// context to a pool as soon as the handler returns, and an asynchronous
@@ -240,10 +246,12 @@ func newContext(echoCtx *echo.Context, logger *slog.Logger, fs *gotenberg.FileSy
 	ctx.values = form.Value
 	ctx.files = make(map[string]string)
 	ctx.diskToOriginal = make(map[string]string)
+	ctx.fields = newFormFields()
+	ctx.fileFields = make(map[string]bool, len(form.File))
 
 	// First, try to download files listed in the "downloadFrom" form field, if
 	// any.
-	raw, ok := ctx.values["downloadFrom"]
+	raw, ok := ctx.values[DownloadFromFormField]
 	if !downloadFromCfg.disable && ok {
 		err = ctx.downloadFrom(raw[0], downloadFromCfg, budget)
 		if err != nil {
@@ -253,6 +261,8 @@ func newContext(echoCtx *echo.Context, logger *slog.Logger, fs *gotenberg.FileSy
 
 	// Then, copy the form files, if any, and unpack the archives.
 	for field, files := range form.File {
+		ctx.fileFields[field] = true
+
 		for _, fh := range files {
 			if field == ArchivesFormField {
 				err = ctx.extractArchive(fh, archiveCfg, budget)
@@ -641,14 +651,21 @@ func (ctx *Context) Request() *http.Request {
 	return ctx.echoCtx.Request()
 }
 
-// FormData return a [FormData].
+// FormData return a [FormData]. Every [FormData] of a request records the
+// fields it reads in the same set, which [FormData.RejectUnknown] checks.
 func (ctx *Context) FormData() *FormData {
+	if ctx.fields == nil {
+		ctx.fields = newFormFields()
+	}
+
 	return &FormData{
 		values:         ctx.values,
 		files:          ctx.files,
 		diskToOriginal: ctx.diskToOriginal,
 		fileOrder:      ctx.fileOrder,
 		fileBase:       ctx.fileBase,
+		fields:         ctx.fields,
+		fileFields:     ctx.fileFields,
 		errors:         nil,
 	}
 }

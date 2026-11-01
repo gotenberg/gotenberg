@@ -478,6 +478,23 @@ Feature: /forms/chromium/convert/url
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
 
+  # A field the route does not read answers 400, and a Gotenberg 8 one says what
+  # replaced it.
+  Scenario: POST /forms/chromium/convert/url (Unknown Form Fields)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url       | {helper}/html/testdata/page-1-html/index.html | field |
+      | landscpae | true                                          | field |
+      | pdfa      | PDF/A-2b                                      | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'landscpae' is unknown to this route
+      form field 'pdfa' is unknown to this route; Gotenberg 9 moved it to a stage: add {"op":"remediate","profile":"PDF/A-2b"} to 'stages'
+      """
+
   Scenario: POST /forms/chromium/convert/url (Bad Request)
     Given I have a default Gotenberg container
     Given I have a static server

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"net/http"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
@@ -27,7 +29,98 @@ type FormData struct {
 	diskToOriginal map[string]string
 	fileOrder      map[string]int
 	fileBase       map[string]string
+	fields         *formFields
+	fileFields     map[string]bool
 	errors         error
+}
+
+// DownloadFromFormField is the form field listing the files to download. The
+// API reads it before the route runs.
+const DownloadFromFormField = "downloadFrom"
+
+// formFields records the value form fields a request's routes read. A read
+// route may bind fields from concurrent goroutines.
+type formFields struct {
+	mu   sync.Mutex
+	read map[string]bool
+}
+
+func newFormFields() *formFields {
+	return &formFields{read: make(map[string]bool)}
+}
+
+// markRead records that a route read key. A nil set records nothing.
+func (f *formFields) markRead(key string) {
+	if f == nil {
+		return
+	}
+
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.read[key] = true
+}
+
+// wasRead reports whether a route read key.
+func (f *formFields) wasRead(key string) bool {
+	if f == nil {
+		return false
+	}
+
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	return f.read[key]
+}
+
+// RejectUnknown populates an error for every value form field no binding of
+// the request read so far, so that a misspelled or removed field answers 400
+// rather than being ignored. Call it last, once the route has bound every
+// field it takes, then call [FormData.Validate]. downloadFrom, which the API
+// reads before the route runs, is never unknown.
+//
+// hint returns how to fix a field, such as the field or the stage that
+// replaced one of an earlier major version, or "" for none. file tells a file
+// field, the multipart field files arrived under, from a value field. Routes
+// read files by filename, whatever field they arrive under, so a file field
+// is rejected only when hint returns a fix for it. A nil hint gives none, and
+// rejects no file field.
+//
+//	err := form.
+//	  MandatoryString("url", &url).
+//	  RejectUnknown(nil).
+//	  Validate()
+func (form *FormData) RejectUnknown(hint func(field string, file bool) string) *FormData {
+	fix := func(field string, file bool) string {
+		if hint == nil {
+			return ""
+		}
+
+		return hint(field, file)
+	}
+
+	for _, key := range slices.Sorted(maps.Keys(form.values)) {
+		if key == DownloadFromFormField || form.fields.wasRead(key) {
+			continue
+		}
+
+		message := fmt.Sprintf("form field '%s' is unknown to this route", key)
+		if h := fix(key, false); h != "" {
+			message += "; " + h
+		}
+
+		form.append(errors.New(message))
+	}
+
+	for _, field := range slices.Sorted(maps.Keys(form.fileFields)) {
+		h := fix(field, true)
+		if h == "" {
+			continue
+		}
+
+		form.append(fmt.Errorf("form file field '%s' is unknown to this route; %s", field, h))
+	}
+
+	return form
 }
 
 // Validate returns nil or an error related to the [FormData] values, with a
@@ -533,6 +626,8 @@ func (form *FormData) MandatoryPaths(extensions []string, target *[]string) *For
 // repeated in the multipart body (e.g. multiple "stampSource") contributes one
 // entry per occurrence, which lets a route read parallel field arrays.
 func (form *FormData) Strings(key string, target *[]string) *FormData {
+	form.fields.markRead(key)
+
 	if values, ok := form.values[key]; ok {
 		*target = slices.Clone(values)
 	}
@@ -603,8 +698,11 @@ func (form *FormData) append(err error) {
 	form.errors = errors.Join(form.errors, err)
 }
 
-// value returns the first value of a form field, or "" if absent.
+// value returns the first value of a form field, or "" if absent, and
+// records that the route reads it.
 func (form *FormData) value(key string) string {
+	form.fields.markRead(key)
+
 	val, ok := form.values[key]
 	if !ok {
 		return ""

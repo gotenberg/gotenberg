@@ -42,6 +42,57 @@ var sameSiteRegexp = regexp2.MustCompile(
 	regexp2.None,
 )
 
+// renamedHint is the fix of a Gotenberg 8 field that Gotenberg 9 renamed.
+func renamedHint(field string) string {
+	return fmt.Sprintf("Gotenberg 9 renamed it '%s'", field)
+}
+
+// renamedFields maps the Gotenberg 8 Chromium fields every route took to the
+// Gotenberg 9 name.
+var renamedFields = map[string]string{
+	"waitWindowStatus": renamedHint("waitForWindowStatus"),
+}
+
+// renamedPdfFields maps the Gotenberg 8 Chromium fields the PDF routes took to
+// the Gotenberg 9 name.
+var renamedPdfFields = map[string]string{
+	"nativePageRanges":        renamedHint("nativePages"),
+	"generateDocumentOutline": renamedHint("nativeBookmarks"),
+	"generateTaggedPdf":       renamedHint("nativeTaggedPdf"),
+}
+
+// convertFormFieldHint is the [api.FormData.RejectUnknown] hint of the
+// Chromium PDF routes: a renamed field, or the stage that replaced a
+// post-processing field.
+func convertFormFieldHint(field string, file bool) string {
+	if !file {
+		if hint, ok := renamedFields[field]; ok {
+			return hint
+		}
+
+		if hint, ok := renamedPdfFields[field]; ok {
+			return hint
+		}
+	}
+
+	return pdf.FormFieldHint(field, file)
+}
+
+// screenshotFormFieldHint is the [api.FormData.RejectUnknown] hint of the
+// Chromium screenshot routes, which run no stage. Their file fields are
+// free-form.
+func screenshotFormFieldHint(field string, file bool) string {
+	if file {
+		return ""
+	}
+
+	if field == pdf.StagesFormField {
+		return "screenshots take no 'stages'"
+	}
+
+	return renamedFields[field]
+}
+
 // FormDataChromiumOptions creates [Options] from the form data.
 //
 // It falls back to the default value if the considered key is not present.
@@ -394,6 +445,7 @@ func convertUrlRoute(chromium Api, processor *pdf.Processor) api.Route {
 			var url string
 			err = form.
 				MandatoryString("url", &url).
+				RejectUnknown(convertFormFieldHint).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -428,6 +480,7 @@ func screenshotUrlRoute(chromium Api) api.Route {
 			var url string
 			err := form.
 				MandatoryString("url", &url).
+				RejectUnknown(screenshotFormFieldHint).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -466,6 +519,7 @@ func convertHtmlRoute(chromium Api, processor *pdf.Processor) api.Route {
 			var inputPath string
 			err = form.
 				MandatoryPath("index.html", &inputPath).
+				RejectUnknown(convertFormFieldHint).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -497,6 +551,7 @@ func screenshotHtmlRoute(chromium Api) api.Route {
 			var inputPath string
 			err := form.
 				MandatoryPath("index.html", &inputPath).
+				RejectUnknown(screenshotFormFieldHint).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -537,6 +592,7 @@ func convertMarkdownRoute(chromium Api, processor *pdf.Processor) api.Route {
 			err = form.
 				MandatoryPath("index.html", &inputPath).
 				MandatoryPaths([]string{".md"}, &markdownPaths).
+				RejectUnknown(convertFormFieldHint).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -577,6 +633,7 @@ func screenshotMarkdownRoute(chromium Api) api.Route {
 			err := form.
 				MandatoryPath("index.html", &inputPath).
 				MandatoryPaths([]string{".md"}, &markdownPaths).
+				RejectUnknown(screenshotFormFieldHint).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
