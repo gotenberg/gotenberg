@@ -161,7 +161,17 @@ func TestPipeRoute(t *testing.T) {
 }
 
 func TestReadRoutes(t *testing.T) {
-	_, rec, err := serve(t, infoRoute(testProcessor()), nil, "pages_12.pdf")
+	// pages_12.pdf carries neither an /Info dictionary nor an XMP packet.
+	_, rec, err := serve(t, metadataRoute(testProcessor()), nil, "pages_12.pdf")
+	if err != api.ErrNoOutputFile {
+		t.Fatalf("handler: %v, want ErrNoOutputFile after writing JSON", err)
+	}
+
+	if got := strings.TrimSpace(rec.Body.String()); got != `{"pages_12.pdf":{}}` {
+		t.Fatalf("metadata = %s, want an empty object for a PDF without metadata", got)
+	}
+
+	_, rec, err = serve(t, infoRoute(testProcessor()), nil, "pages_12.pdf")
 	if err != api.ErrNoOutputFile {
 		t.Fatalf("handler: %v, want ErrNoOutputFile after writing JSON", err)
 	}

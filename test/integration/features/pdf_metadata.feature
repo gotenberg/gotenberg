@@ -53,6 +53,20 @@ Feature: /forms/pdf/{set-metadata|metadata}
       }
       """
 
+  # A PDF without an /Info dictionary or an XMP packet answers an empty object.
+  # The expected string is not a whole JSON document, which Prettier would
+  # reformat.
+  Scenario: POST /forms/pdf/metadata (No Metadata)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/metadata" endpoint with the following form data and header(s):
+      | files | testdata/form.pdf | file |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/json"
+    Then the response body should contain string:
+      """
+      "form.pdf":{}
+      """
+
   Scenario: POST /forms/pdf/pipe (Metadata After Merge)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):

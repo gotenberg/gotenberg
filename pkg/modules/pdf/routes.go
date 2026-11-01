@@ -2,6 +2,7 @@ package pdf
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"path/filepath"
@@ -160,7 +161,18 @@ func readRoute(processor *Processor, name string, read func(ctx context.Context,
 
 func metadataRoute(processor *Processor) api.Route {
 	return readRoute(processor, "metadata", func(ctx context.Context, r *litho.Reader, _ *api.FormData) (any, error) {
-		return r.Metadata(ctx)
+		metadata, err := r.Metadata(ctx)
+		// A document without an /Info dictionary or an XMP packet is valid,
+		// and has no metadata to answer.
+		if errors.Is(err, litho.ErrNoMetadata) {
+			return map[string]string{}, nil
+		}
+
+		if err != nil {
+			return nil, fmt.Errorf("read metadata: %w", err)
+		}
+
+		return metadata, nil
 	})
 }
 
