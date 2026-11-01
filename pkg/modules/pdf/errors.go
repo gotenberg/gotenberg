@@ -12,9 +12,27 @@ import (
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 )
 
+// stageInputError is a stage failure the request causes that litho does not
+// classify, such as detaching a file the document does not embed. Its message
+// reaches the client.
+type stageInputError struct {
+	message string
+}
+
+func (e *stageInputError) Error() string {
+	return e.message
+}
+
+// isInvalidInput reports whether the request caused err.
+func isInvalidInput(err error) bool {
+	var inputErr *stageInputError
+
+	return litho.IsInvalidInput(err) || errors.As(err, &inputErr)
+}
+
 // errorType classifies a stage failure for the error.type of its span.
 func errorType(err error) string {
-	if litho.IsInvalidInput(err) {
+	if isInvalidInput(err) {
 		return gotenberg.ErrorTypeInvalidInput
 	}
 
@@ -54,7 +72,7 @@ func handleError(err error, dirPath string) error {
 
 	// litho classifies its own errors, so a new litho error never reaches the
 	// client as a 500 by omission.
-	if litho.IsInvalidInput(err) {
+	if isInvalidInput(err) {
 		message := strings.ReplaceAll(se.err.Error(), dirPath+"/", "")
 
 		return api.WrapError(err, api.NewSentinelHttpError(

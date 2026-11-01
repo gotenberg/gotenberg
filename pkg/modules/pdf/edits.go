@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	litho "github.com/gotenberg/litho/pkg/pdf"
 )
@@ -240,6 +242,8 @@ func (s *attachStage) edit(_ context.Context, w *litho.Writer, env *runEnv) erro
 		mimeType = mimeTypeOf(name)
 	}
 
+	env.attachments = append(env.attachments, attachmentChange{name: name, added: true})
+
 	if s.Relationship == "" {
 		w.AddAttachment(name, data, mimeType)
 
@@ -256,7 +260,23 @@ func (s *attachStage) edit(_ context.Context, w *litho.Writer, env *runEnv) erro
 	return nil
 }
 
-func (s *detachStage) edit(_ context.Context, w *litho.Writer, _ *runEnv) error {
+// edit removes the named file. litho leaves a document without it untouched,
+// which would answer the client's mistake with an unchanged PDF.
+func (s *detachStage) edit(ctx context.Context, w *litho.Writer, env *runEnv) error {
+	names, err := env.attachmentNames(ctx)
+	if err != nil {
+		return err
+	}
+
+	if !slices.Contains(names, s.Name) {
+		if len(names) == 0 {
+			return &stageInputError{message: fmt.Sprintf("no attachment named %q; the PDF has none", s.Name)}
+		}
+
+		return &stageInputError{message: fmt.Sprintf("no attachment named %q; the PDF's attachments are: %s", s.Name, strings.Join(names, ", "))}
+	}
+
+	env.attachments = append(env.attachments, attachmentChange{name: s.Name})
 	w.RemoveAttachment(s.Name)
 
 	return nil

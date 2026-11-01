@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -392,7 +393,7 @@ func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password st
 		return document{}, &stageError{op: run[0].op(), filename: d.filename, err: fmt.Errorf("count pages: %w", err)}
 	}
 
-	env := &runEnv{processor: p, pageCount: pageCount, files: files}
+	env := &runEnv{processor: p, pageCount: pageCount, files: files, source: r}
 	defer env.close()
 
 	pipeline := litho.NewPipeline().Open(r)
@@ -525,6 +526,43 @@ type runEnv struct {
 	readers   []*litho.Reader
 	// report is what the remediation of the document said, if any.
 	report *litho.RemediationReport
+	// source is the document the run edits, and attachments the attach and
+	// detach stages the run applied to it so far, in order.
+	source      *litho.Reader
+	attachments []attachmentChange
+}
+
+// attachmentChange is a file an attach stage embeds, or a detach stage
+// removes.
+type attachmentChange struct {
+	name  string
+	added bool
+}
+
+// attachmentNames returns the names of the files the document embeds as the
+// run has staged it: the source's, with the run's attach and detach stages so
+// far applied. The writer stages them, so the source alone is out of date.
+func (env *runEnv) attachmentNames(ctx context.Context) ([]string, error) {
+	files, err := env.source.EmbeddedFiles(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read the embedded files: %w", err)
+	}
+
+	var names []string
+	for _, f := range files {
+		if !slices.Contains(names, f.Name) {
+			names = append(names, f.Name)
+		}
+	}
+
+	for _, change := range env.attachments {
+		names = slices.DeleteFunc(names, func(name string) bool { return name == change.name })
+		if change.added {
+			names = append(names, change.name)
+		}
+	}
+
+	return names, nil
 }
 
 // pages resolves an optional page range specification. Empty means every page,

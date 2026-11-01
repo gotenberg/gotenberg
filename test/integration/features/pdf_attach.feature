@@ -70,6 +70,32 @@ Feature: /forms/pdf/{attach|detach|attachments}
     Then the response status code should be 200
     Then the response PDF(s) should NOT have the "embed_1.xml" file embedded
 
+  # A name the PDF does not embed is the client's mistake, not a no-op.
+  Scenario: POST /forms/pdf/detach (Missing Attachment)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/attach" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf  | file   |
+      | files                     | testdata/embed_1.xml | file   |
+      | file                      | embed_1.xml          | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/detach" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file  |
+      | name  | nope.xml          | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'detach' failed on 'foo.pdf': no attachment named "nope.xml"; the PDF's attachments are: embed_1.xml
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/detach" endpoint with the following form data and header(s):
+      | files | testdata/page_1.pdf | file  |
+      | name  | nope.xml            | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'detach' failed on 'page_1.pdf': no attachment named "nope.xml"; the PDF has none
+      """
+
   Scenario: POST /forms/pdf/{attach|detach} (Bad Request)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/attach" endpoint with the following form data and header(s):

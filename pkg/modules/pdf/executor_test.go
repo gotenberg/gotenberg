@@ -585,3 +585,79 @@ func TestRunAsksForNonEmbeddedFonts(t *testing.T) {
 		})
 	}
 }
+
+// Detaching a file the PDF does not embed is the client's mistake: it answers
+// 400 with the names the PDF has, rather than the PDF unchanged.
+func TestRunDetach(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		stages   string
+		attached bool
+		wantErr  string
+	}{
+		{
+			name:    "no attachment",
+			stages:  `[{"op":"detach","name":"nope.xml"}]`,
+			wantErr: `Stage 'detach' failed on 'page_1.pdf': no attachment named "nope.xml"; the PDF has none`,
+		},
+		{
+			name:     "another attachment",
+			stages:   `[{"op":"detach","name":"nope.xml"}]`,
+			attached: true,
+			wantErr:  `Stage 'detach' failed on 'page_1.pdf': no attachment named "nope.xml"; the PDF's attachments are: embed_1.xml`,
+		},
+		{
+			name:    "an attachment of the same run",
+			stages:  `[{"op":"attach","file":"embed_2.xml"},{"op":"detach","name":"nope.xml"}]`,
+			wantErr: `Stage 'detach' failed on 'page_1.pdf': no attachment named "nope.xml"; the PDF's attachments are: embed_2.xml`,
+		},
+		{
+			name:    "already detached by the same run",
+			stages:  `[{"op":"attach","file":"embed_2.xml"},{"op":"detach","name":"embed_2.xml"},{"op":"detach","name":"embed_2.xml"}]`,
+			wantErr: `Stage 'detach' failed on 'page_1.pdf': no attachment named "embed_2.xml"; the PDF has none`,
+		},
+		{
+			name:     "the attachment",
+			stages:   `[{"op":"detach","name":"embed_1.xml"}]`,
+			attached: true,
+		},
+		{
+			name:   "attached then detached by the same run",
+			stages: `[{"op":"attach","file":"embed_2.xml"},{"op":"detach","name":"embed_2.xml"}]`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			processor := testProcessor()
+			ctx, paths := testContext(t, "page_1.pdf", "embed_1.xml", "embed_2.xml")
+			files := map[string]string{"embed_1.xml": paths["embed_1.xml"], "embed_2.xml": paths["embed_2.xml"]}
+
+			inputs := []string{paths["page_1.pdf"]}
+			if tc.attached {
+				var err error
+				inputs, err = processor.Run(ctx, mustStages(t, `[{"op":"attach","file":"embed_1.xml"}]`), inputs, files)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			outputs, err := processor.Run(ctx, mustStages(t, tc.stages), inputs, files)
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("err = %v, want none", err)
+				}
+
+				files, err := openOutput(t, outputs[0]).EmbeddedFiles(context.Background())
+				if err != nil || len(files) != 0 {
+					t.Fatalf("embedded files = %v, %v, want none", files, err)
+				}
+
+				return
+			}
+
+			status, message := api.ParseError(err)
+			if status != http.StatusBadRequest || message != tc.wantErr {
+				t.Fatalf("got %d %q, want 400 %q", status, message, tc.wantErr)
+			}
+		})
+	}
+}
