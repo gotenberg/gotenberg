@@ -523,6 +523,11 @@ func TestFormRoute(t *testing.T) {
 				`{"name":"tags","type":"list","value":["a","c"],"pages":[1],"options":["a","b","c"],"multiSelect":true}]}`,
 		},
 		{
+			name:     "a name only the XFA data gives is left out",
+			fixture:  "xfa.pdf",
+			wantBody: `{"xfa.pdf":[{"name":"name","type":"text","value":"","pages":[1]}]}`,
+		},
+		{
 			name:     "fields on a selected page",
 			fixture:  "multi.pdf",
 			values:   map[string][]string{"pages": {"1"}},
@@ -583,7 +588,7 @@ func readFormFields(t *testing.T, processor *Processor, path string) []formField
 func TestFormRoundTrip(t *testing.T) {
 	processor := testProcessor()
 
-	for _, fixture := range []string{"form.pdf", "fields.pdf"} {
+	for _, fixture := range []string{"form.pdf", "fields.pdf", "multi.pdf", "xfa.pdf"} {
 		t.Run(fixture, func(t *testing.T) {
 			ctx, paths := testContext(t, fixture)
 			first := readFormFields(t, processor, paths[fixture])

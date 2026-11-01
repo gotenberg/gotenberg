@@ -161,7 +161,12 @@ func (s *setBookmarksStage) edit(_ context.Context, w *litho.Writer, _ *runEnv) 
 
 func (s *setFormStage) edit(_ context.Context, w *litho.Writer, _ *runEnv) error {
 	for _, name := range sortedKeys(s.Fields) {
-		w.SetFormField(name, s.Fields[name])
+		if selections, ok := s.selections[name]; ok {
+			w.SetFormFieldValues(name, selections)
+			continue
+		}
+
+		w.SetFormField(name, s.texts[name])
 	}
 
 	return nil

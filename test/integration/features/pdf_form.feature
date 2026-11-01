@@ -54,6 +54,49 @@ Feature: /forms/pdf/{flatten-form|set-form|form}
       Stage 'set-form' failed on 'page_1.pdf': form field "nope" not found; the PDF has no form fields
       """
 
+  # A value the field cannot hold is the client's mistake: the answer says what
+  # the field takes. A list box that selects several takes an array.
+  Scenario: POST /forms/pdf/set-form (Field Values)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/set-form" endpoint with the following form data and header(s):
+      | files  | testdata/fields.pdf | file  |
+      | fields | {"agree":"true"}    | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'set-form' failed on 'fields.pdf': value the form field cannot hold: "true" for field "agree": no widget shows that state; it takes Off or one of Yes
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/set-form" endpoint with the following form data and header(s):
+      | files  | testdata/fields.pdf | file  |
+      | fields | {"color":"Blue"}    | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'set-form' failed on 'fields.pdf': value the form field cannot hold: "Blue" for field "color": "Blue" is none of its options: Red, Green
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/set-form" endpoint with the following form data and header(s):
+      | files                     | testdata/multi.pdf | file   |
+      | fields                    | {"tags":["b","c"]} | field  |
+      | Gotenberg-Output-Filename | foo                | header |
+    Then the response status code should be 200
+    Then the "foo.pdf" PDF should have the form field "tags" set to "b, c"
+
+  # Setting a radio button group draws the state on its widget and Off on the
+  # others: the S, M and L widgets of multi.pdf sit on page 2, at x 72, 112 and
+  # 152 points, and fill their center when on.
+  Scenario: POST /forms/pdf/pipe (Set A Radio Button Group)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
+      | files  | testdata/multi.pdf                                                             | file  |
+      | stages | [{"op":"set-form","fields":{"size":"M"}},{"op":"render","pages":"2","dpi":72}] | field |
+    Then the response status code should be 200
+    Then there should be the following file(s) in the response:
+      | multi.pdf   |
+      | multi_2.png |
+    Then the "multi_2.png" image pixel at 82,182 should be "#ffffff"
+    Then the "multi_2.png" image pixel at 122,182 should be "#000000"
+    Then the "multi_2.png" image pixel at 162,182 should be "#ffffff"
+
   Scenario: POST /forms/pdf/set-form (Bad Request)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/set-form" endpoint with the following form data and header(s):

@@ -112,7 +112,7 @@ Feature: /forms/pdf/pipe
     Then the response status code should be 400
     Then the response body should match string:
       """
-      Invalid form data: form field 'stages' is invalid: stage 0: set-form: "fields" values must be strings; a check box takes its state name, such as "Yes" or "Off"
+      Invalid form data: form field 'stages' is invalid: stage 0: set-form: "fields" values must be strings, or arrays of strings for a list that selects several; a check box takes its state name, such as "Yes" or "Off"
       """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
       | files  | testdata/page_1.pdf                                                  | file  |

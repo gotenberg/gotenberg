@@ -878,6 +878,12 @@ func TestRunSetFormUnknownField(t *testing.T) {
 			stages:  `[{"op":"set-form","fields":{"nope":"x"}}]`,
 			wantErr: `Stage 'set-form' failed on 'page_1.pdf': form field "nope" not found; the PDF has no form fields`,
 		},
+		{
+			name:    "a name only the XFA data gives is not a field set-form fills",
+			fixture: "xfa.pdf",
+			stages:  `[{"op":"set-form","fields":{"nope":"x"}}]`,
+			wantErr: `Stage 'set-form' failed on 'xfa.pdf': form field "nope" not found; the PDF's fields are: name`,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx, paths := testContext(t, tc.fixture)
@@ -1014,5 +1020,110 @@ func TestRunSignedInput(t *testing.T) {
 				t.Fatalf("signatures = %v, %v, want the input's", signatures, err)
 			}
 		})
+	}
+}
+
+// set-form refuses a value the field cannot hold with litho's message, which
+// names the field and what it takes, under the set-form stage whatever stage
+// applies the edit.
+func TestRunSetFormValues(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		fixture string
+		stages  string
+		wantErr string
+	}{
+		{
+			name:    "a check box state no widget shows",
+			fixture: "fields.pdf",
+			stages:  `[{"op":"set-form","fields":{"agree":"true"}}]`,
+			wantErr: `Stage 'set-form' failed on 'fields.pdf': value the form field cannot hold: "true" for field "agree": no widget shows that state; it takes Off or one of Yes`,
+		},
+		{
+			name:    "a combo box value outside its options, then rotate",
+			fixture: "fields.pdf",
+			stages:  `[{"op":"set-form","fields":{"color":"Blue"}},{"op":"rotate","angle":90}]`,
+			wantErr: `Stage 'set-form' failed on 'fields.pdf': value the form field cannot hold: "Blue" for field "color": "Blue" is none of its options: Red, Green`,
+		},
+		{
+			name:    "several values for a field that selects one",
+			fixture: "multi.pdf",
+			stages:  `[{"op":"set-form","fields":{"country":["FR","DE"]}}]`,
+			wantErr: `Stage 'set-form' failed on 'multi.pdf': value the form field cannot hold: ["FR" "DE"] for field "country": only a list box that allows several selections takes several`,
+		},
+		{
+			name:    "a signature field",
+			fixture: "multi.pdf",
+			stages:  `[{"op":"set-form","fields":{"sig":"x"}}]`,
+			wantErr: `Stage 'set-form' failed on 'multi.pdf': value the form field cannot hold: "x" for field "sig": a signature field takes a signature, not a value`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, paths := testContext(t, tc.fixture)
+
+			_, err := testProcessor().Run(ctx, mustStages(t, tc.stages), []string{paths[tc.fixture]}, nil)
+
+			status, message := api.ParseError(handleError(err, ctx.DirPath()))
+			if status != http.StatusBadRequest || message != tc.wantErr {
+				t.Fatalf("got %d %q, want 400 %q", status, message, tc.wantErr)
+			}
+
+			if !errors.Is(err, litho.ErrFormFieldValue) {
+				t.Fatalf("the logged error lost litho's: %v", err)
+			}
+		})
+	}
+
+	// An array selects several items of a list box that allows it.
+	ctx, paths := testContext(t, "multi.pdf")
+	outputs, err := testProcessor().Run(ctx, mustStages(t, `[{"op":"set-form","fields":{"tags":["b","c"]}}]`), []string{paths["multi.pdf"]}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fields, err := openOutput(t, outputs[0]).FormFields(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	i := slices.IndexFunc(fields, func(f models.FormField) bool { return f.Name == "tags" })
+	if i < 0 || !slices.Equal(fields[i].Values, []string{"b", "c"}) {
+		t.Fatalf("tags = %+v, want b and c selected", fields)
+	}
+}
+
+// Setting a radio button group draws the state on its widget and Off on the
+// others. multi.pdf's "size" group has S, M and L widgets on page 2, whose on
+// appearance fills their center and whose Off appearance does not.
+func TestRunSetFormRadio(t *testing.T) {
+	ctx, paths := testContext(t, "multi.pdf")
+	path := paths["multi.pdf"]
+
+	for _, tc := range []struct {
+		state string
+		want  map[string]bool
+	}{
+		{state: "M", want: map[string]bool{"S": false, "M": true, "L": false}},
+		{state: "L", want: map[string]bool{"S": false, "M": false, "L": true}},
+	} {
+		outputs, err := testProcessor().Run(ctx, mustStages(t, `[{"op":"set-form","fields":{"size":"`+tc.state+`"}}]`), []string{path}, nil)
+		if err != nil {
+			t.Fatalf("set size to %s: %v", tc.state, err)
+		}
+		path = outputs[0]
+
+		img, err := openOutput(t, path).RenderPage(context.Background(), 2, litho.WithRenderDPI(72))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// At 72 DPI a pixel is a point; the widgets sit at x 72, 112 and 152,
+		// y 600 to 620, from the bottom of the 792-point page.
+		for state, x := range map[string]int{"S": 82, "M": 122, "L": 162} {
+			r, g, b, _ := img.At(x, 792-610).RGBA()
+			if filled := r == 0 && g == 0 && b == 0; filled != tc.want[state] {
+				t.Errorf("after setting %s, widget %s filled = %t, want %t", tc.state, state, filled, tc.want[state])
+			}
+		}
 	}
 }

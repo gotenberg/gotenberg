@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/gotenberg/litho/pkg/models"
 	litho "github.com/gotenberg/litho/pkg/pdf"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -592,6 +593,12 @@ func formFieldError(ctx context.Context, r *litho.Reader, run Stages, err error)
 
 	var names []string
 	for _, f := range fields {
+		// An XFA form names its fields in its own template, which set-form
+		// does not fill.
+		if f.Type == models.FormFieldXFA {
+			continue
+		}
+
 		if !slices.Contains(names, f.Name) {
 			names = append(names, f.Name)
 		}

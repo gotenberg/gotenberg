@@ -366,10 +366,6 @@ func optionError(op string, fields map[string]json.RawMessage, err error) error 
 
 	name, _, isNested := strings.Cut(typeErr.Field, ".")
 
-	if op == "set-form" && name == "fields" && isNested {
-		return errors.New(`"fields" values must be strings; a check box takes its state name, such as "Yes" or "Off"`)
-	}
-
 	want := wantedJSON(typeErr.Type)
 
 	// A nested option's value is not at hand: its JSON kind stands for it.

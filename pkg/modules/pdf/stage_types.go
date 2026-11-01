@@ -1,6 +1,7 @@
 package pdf
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -233,9 +234,15 @@ func (*setBookmarksStage) op() string      { return "set-bookmarks" }
 func (*setBookmarksStage) validate() error { return nil }
 func (*setBookmarksStage) files() []string { return nil }
 
-// setFormStage fills form fields, keyed by their fully qualified name.
+// setFormStage fills form fields, keyed by their fully qualified name. A value
+// is a string, or, for a list box that selects several, an array of strings.
 type setFormStage struct {
-	Fields map[string]string `json:"fields"`
+	Fields map[string]json.RawMessage `json:"fields"`
+
+	// texts and selections hold the values of Fields, once validate decoded
+	// them: the strings, and the arrays.
+	texts      map[string]string
+	selections map[string][]string
 }
 
 func (*setFormStage) op() string { return "set-form" }
@@ -243,6 +250,24 @@ func (*setFormStage) op() string { return "set-form" }
 func (s *setFormStage) validate() error {
 	if len(s.Fields) == 0 {
 		return errors.New(`"fields" must map at least one field name to a value`)
+	}
+
+	s.texts = make(map[string]string, len(s.Fields))
+	s.selections = make(map[string][]string)
+
+	for name, raw := range s.Fields {
+		var text string
+		if json.Unmarshal(raw, &text) == nil {
+			s.texts[name] = text
+			continue
+		}
+
+		var selections []string
+		if json.Unmarshal(raw, &selections) != nil {
+			return errors.New(`"fields" values must be strings, or arrays of strings for a list that selects several; a check box takes its state name, such as "Yes" or "Off"`)
+		}
+
+		s.selections[name] = selections
 	}
 
 	return nil
