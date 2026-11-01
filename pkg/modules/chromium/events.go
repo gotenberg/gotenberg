@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -388,7 +389,7 @@ func listenForEventResponseReceived(
 				logger.DebugContext(ctx, fmt.Sprintf("event EventResponseReceived fired for main page: %+v", ev.Response))
 
 				if slices.Contains(options.failOnHttpStatusCodes, ev.Response.Status) {
-					options.failures.failMainPageStatus(fmt.Errorf("%d: %s", ev.Response.Status, ev.Response.StatusText))
+					options.failures.failMainPageStatus(errors.New(statusLine(ev.Response.Status, ev.Response.StatusText)))
 
 					// Cancel the task context so that any in-flight wait
 					// operations (waitForSelector, waitForExpression, etc.)
@@ -419,11 +420,27 @@ func listenForEventResponseReceived(
 				}
 
 				options.failures.failResourceStatus(
-					fmt.Errorf("%s - %d: %s", ev.Response.URL, ev.Response.Status, http.StatusText(int(ev.Response.Status))),
+					fmt.Errorf("%s - %s", ev.Response.URL, statusLine(ev.Response.Status, ev.Response.StatusText)),
 				)
 			}
 		}
 	})
+}
+
+// statusLine returns an HTTP status code with its reason phrase: the standard
+// one, else the one the server sent, else none. HTTP/2 carries no reason
+// phrase, so Chromium reports an empty one over it.
+func statusLine(code int64, reported string) string {
+	text := http.StatusText(int(code))
+	if text == "" {
+		text = strings.TrimSpace(reported)
+	}
+
+	if text == "" {
+		return strconv.FormatInt(code, 10)
+	}
+
+	return fmt.Sprintf("%d: %s", code, text)
 }
 
 // isMainPageResponse reports whether ev answers a document of the main frame

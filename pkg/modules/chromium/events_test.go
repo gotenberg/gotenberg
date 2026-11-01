@@ -228,3 +228,27 @@ func TestIsMainPageResponse(t *testing.T) {
 		})
 	}
 }
+
+// TestStatusLine pins the status of a failing response: never a trailing
+// ": ", which an empty reason phrase over HTTP/2 used to leave.
+func TestStatusLine(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		code     int64
+		reported string
+		want     string
+	}{
+		{name: "standard code over HTTP/1.1", code: 404, reported: "Not Found", want: "404: Not Found"},
+		{name: "standard code over HTTP/2", code: 404, reported: "", want: "404: Not Found"},
+		{name: "standard code with a custom phrase", code: 503, reported: "Down For Maintenance", want: "503: Service Unavailable"},
+		{name: "non-standard code with a phrase", code: 599, reported: "Network Connect Timeout", want: "599: Network Connect Timeout"},
+		{name: "non-standard code without a phrase", code: 599, reported: "", want: "599"},
+		{name: "non-standard code with a blank phrase", code: 499, reported: "  ", want: "499"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := statusLine(tc.code, tc.reported); got != tc.want {
+				t.Errorf("statusLine(%d, %q) = %q, want %q", tc.code, tc.reported, got, tc.want)
+			}
+		})
+	}
+}
