@@ -104,6 +104,32 @@ Feature: Webhook
       }
       """
 
+  # An upload that fails for good says what the webhook URL answered, and after
+  # how many attempts.
+  Scenario: Webhook URL Failing Every Upload
+    Given I have a webhook server
+    Given I have a Gotenberg container with the following environment variable(s):
+      | WEBHOOK_MAX_RETRY      | 2     |
+      | WEBHOOK_RETRY_MIN_WAIT | 100ms |
+      | WEBHOOK_RETRY_MAX_WAIT | 200ms |
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
+      | files                        | testdata/page_1.pdf      | file   |
+      | Gotenberg-Webhook-Url        | {helper}/failing-webhook | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events  | header |
+    Then the response status code should be 204
+    Then the webhook event should match JSON:
+      """
+      {
+        "event": "webhook.error",
+        "correlationId": "ignore",
+        "timestamp": "ignore",
+        "error": {
+          "status": 500,
+          "message": "The webhook URL answered 500 Internal Server Error after 3 attempts"
+        }
+      }
+      """
+
   # A failed conversion in sync mode still answers 204: the outcome goes to the
   # events URL, as in async mode.
   Scenario: Webhook Events URL (Synchronous Error)

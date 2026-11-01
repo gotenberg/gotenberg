@@ -208,7 +208,8 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 							// Not DefaultBackoff: it returns a remote Retry-After
 							// verbatim, ignoring --webhook-retry-max-wait (env
 							// WEBHOOK_RETRY_MAX_WAIT).
-							Backoff: gotenberg.ClampedBackoff,
+							Backoff:      gotenberg.ClampedBackoff,
+							ErrorHandler: giveUp,
 						},
 						logger: ctx.Log(),
 					}

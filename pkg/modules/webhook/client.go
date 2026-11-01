@@ -2,12 +2,17 @@ package webhook
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -19,6 +24,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 )
 
 // client gathers all the data required to send a request to a webhook.
@@ -125,7 +131,7 @@ func (c client) send(ctx context.Context, body io.Reader, headers map[string]str
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return fmt.Errorf("send '%s' request to '%s': %w", method, url, err)
+		return deliveryFailure(fmt.Errorf("send '%s' request to '%s': %w", method, url, err))
 	}
 
 	// Registered before the status check below. [retryablehttp.Client.Do] hands
@@ -141,11 +147,13 @@ func (c client) send(ctx context.Context, body io.Reader, headers map[string]str
 		}
 	}()
 
+	// A status the client does not retry, such as a 4xx, comes back as a
+	// response. The attempts before it are not known here.
 	if resp.StatusCode >= http.StatusBadRequest {
-		err := fmt.Errorf("send '%s' request to '%s': got status: '%s'", method, url, resp.Status)
+		err := fmt.Errorf("send '%s' request to '%s': %w", method, url, &deliveryError{status: resp.Status})
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return err
+		return deliveryFailure(err)
 	}
 
 	// Last piece for calculating the latency.
@@ -164,6 +172,115 @@ func (c client) send(ctx context.Context, body io.Reader, headers map[string]str
 	span.SetStatus(codes.Ok, "")
 
 	return nil
+}
+
+// deliveryError is a request to a webhook URL that failed for good.
+type deliveryError struct {
+	// attempts counts the requests sent, 0 when unknown.
+	attempts int
+	// status is the last response's status, such as "500 Internal Server
+	// Error", or empty when the URL could not be reached.
+	status string
+	// err is the last transport error, when the URL could not be reached.
+	err error
+}
+
+func (e *deliveryError) Error() string {
+	switch {
+	case e.status != "" && e.attempts == 0:
+		return fmt.Sprintf("got status '%s'", e.status)
+	case e.status != "":
+		return fmt.Sprintf("got status '%s' after %d attempt(s)", e.status, e.attempts)
+	default:
+		return fmt.Sprintf("giving up after %d attempt(s): %v", e.attempts, e.err)
+	}
+}
+
+func (e *deliveryError) Unwrap() error {
+	return e.err
+}
+
+// message returns the client message of the failure, which names what
+// happened without the transport's internals, such as addresses.
+func (e *deliveryError) message() string {
+	after := ""
+	switch {
+	case e.attempts == 1:
+		after = " after 1 attempt"
+	case e.attempts > 1:
+		after = fmt.Sprintf(" after %d attempts", e.attempts)
+	}
+
+	if e.status != "" {
+		return fmt.Sprintf("The webhook URL answered %s%s", e.status, after)
+	}
+
+	reason := unreachableReason(e.err)
+	if reason == "" {
+		return fmt.Sprintf("The webhook URL could not be reached%s", after)
+	}
+
+	return fmt.Sprintf("The webhook URL could not be reached%s: %s", after, reason)
+}
+
+// unreachableReason names why a webhook URL could not be reached, or returns
+// "" when the reason would only expose internals, a policy refusal among
+// them.
+func unreachableReason(err error) string {
+	var (
+		unresolvable *gotenberg.UnresolvableHostError
+		dnsErr       *net.DNSError
+		netErr       net.Error
+		certErr      *tls.CertificateVerificationError
+		unknownCA    x509.UnknownAuthorityError
+		hostnameErr  x509.HostnameError
+	)
+
+	switch {
+	case errors.As(err, &unresolvable):
+		return fmt.Sprintf("the host '%s' does not resolve", unresolvable.Host)
+	case errors.Is(err, gotenberg.ErrFiltered):
+		return ""
+	case errors.As(err, &dnsErr) && dnsErr.IsNotFound:
+		return fmt.Sprintf("the host '%s' does not resolve", dnsErr.Name)
+	case errors.Is(err, syscall.ECONNREFUSED):
+		return "the connection was refused"
+	case errors.Is(err, syscall.ECONNRESET):
+		return "the connection was reset"
+	case errors.As(err, &certErr), errors.As(err, &unknownCA), errors.As(err, &hostnameErr):
+		return "its TLS certificate is not trusted"
+	case errors.Is(err, context.DeadlineExceeded), errors.As(err, &netErr) && netErr.Timeout():
+		return "the request timed out"
+	default:
+		return ""
+	}
+}
+
+// giveUp is the [retryablehttp.ErrorHandler] of the webhook client: once the
+// last attempt failed, it returns a [deliveryError] counting the attempts and
+// naming the last status, which the default handler leaves out.
+func giveUp(resp *http.Response, err error, attempts int) (*http.Response, error) {
+	status := ""
+	if resp != nil {
+		status = resp.Status
+		// Drained so that the connection may be reused.
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
+		_ = resp.Body.Close()
+	}
+
+	return nil, &deliveryError{attempts: attempts, status: status, err: err}
+}
+
+// deliveryFailure gives err, the failure of a delivery, the client message of
+// its [deliveryError] while keeping the status the API answers it with: 500,
+// or that of a timeout or a filtered URL, which take precedence.
+func deliveryFailure(err error) error {
+	var delivery *deliveryError
+	if !errors.As(err, &delivery) {
+		return err
+	}
+
+	return api.WrapError(err, api.NewSentinelHttpError(http.StatusInternalServerError, delivery.message()))
 }
 
 // sendEvent sends a structured JSON event to the events URL. It is

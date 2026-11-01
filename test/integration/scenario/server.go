@@ -107,6 +107,16 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 	}
 	srv.POST("/webhook/events", webhookEventsHandler)
 
+	// A webhook URL that fails every upload.
+	srv.POST("/failing-webhook", func(c *echo.Context) error {
+		_, err := io.Copy(io.Discard, c.Request().Body)
+		if err != nil {
+			return c.String(http.StatusInternalServerError, err.Error())
+		}
+
+		return c.String(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
+	})
+
 	tsa, err := newTimestampAuthority()
 	if err != nil {
 		return nil, fmt.Errorf("create timestamp authority: %w", err)
