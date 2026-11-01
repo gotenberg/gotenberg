@@ -108,6 +108,18 @@ Feature: /forms/pdf/{stamp-text|stamp-image|stamp-pdf}
       """
       Invalid form data: no PDF to process; every uploaded PDF is read by a stage
       """
+    # litho reports the failure from its write: the message keeps its cause
+    # only.
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/stamp-pdf" endpoint with the following form data and header(s):
+      | files      | testdata/page_1.pdf | file  |
+      | files      | testdata/page_2.pdf | file  |
+      | source     | page_2.pdf          | field |
+      | sourcePage | 9                   | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'stamp-pdf' failed on 'page_1.pdf': pdf stamp: source page 9: page number out of bounds (source has 1 pages)
+      """
 
   @download-from
   Scenario: POST /forms/pdf/stamp-image (Download From)

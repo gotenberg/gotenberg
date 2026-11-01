@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 
 	litho "github.com/gotenberg/litho/pkg/pdf"
@@ -37,6 +38,38 @@ func errorType(err error) string {
 	}
 
 	return gotenberg.ClassifyError(err)
+}
+
+// lithoStep matches the prefixes litho's pipeline puts on an edit's error, as
+// in "pipeline stage 1 (write): applying mutation 0: page number out of
+// bounds": they locate the failure among litho's own steps, which mean nothing
+// to a client.
+var lithoStep = regexp.MustCompile(`^applying (?:staged )?mutation \d+(?: before [a-z ]+)?$`)
+
+// clientMessage returns the message of err without litho's step prefixes,
+// [litho.PipelineStageError]'s and those of [lithoStep]. The full chain stays
+// in the logs.
+func clientMessage(err error) string {
+	var stageErr *litho.PipelineStageError
+	if errors.As(err, &stageErr) && stageErr.Err != nil {
+		err = stageErr.Err
+	}
+
+	for {
+		inner := errors.Unwrap(err)
+		if inner == nil {
+			break
+		}
+
+		prefix, ok := strings.CutSuffix(err.Error(), ": "+inner.Error())
+		if !ok || !lithoStep.MatchString(prefix) {
+			break
+		}
+
+		err = inner
+	}
+
+	return err.Error()
 }
 
 // handleError turns a stage failure the request caused into a 400 response
@@ -73,7 +106,7 @@ func handleError(err error, dirPath string) error {
 	// litho classifies its own errors, so a new litho error never reaches the
 	// client as a 500 by omission.
 	if isInvalidInput(err) {
-		message := strings.ReplaceAll(se.err.Error(), dirPath+"/", "")
+		message := strings.ReplaceAll(clientMessage(se.err), dirPath+"/", "")
 
 		return api.WrapError(err, api.NewSentinelHttpError(
 			http.StatusBadRequest,
