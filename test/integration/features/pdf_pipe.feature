@@ -115,6 +115,30 @@ Feature: /forms/pdf/pipe
       Invalid form data: form field 'stages' is invalid: "PDF/A-2b" cannot be encrypted: PDF/A forbids encryption
       """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.pdf                                                           | file  |
+      | stages | [{"op":"encrypt","userPassword":"foo"},{"op":"encrypt","userPassword":"bar"}] | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'stages' is invalid: stage 1: only one "encrypt" stage is allowed
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.pdf                                                                             | file  |
+      | stages | [{"op":"encrypt","userPassword":"foo"},{"op":"timestamp","timestampUrl":"https://tsa.example"}] | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'stages' is invalid: "encrypt" cannot be combined with "sign" or "timestamp": a signature covers the written bytes
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.pdf                                                | file  |
+      | stages | [{"op":"encrypt","userPassword":"foo"},{"op":"rotate","angle":90}] | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'stages' is invalid: stage 1: "rotate" cannot follow "encrypt": only optimize and render may
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
       | files  | testdata/page_1.pdf                            | file  |
       | stages | [{"op":"stamp-image","image":"watermark.png"}] | field |
     Then the response status code should be 400

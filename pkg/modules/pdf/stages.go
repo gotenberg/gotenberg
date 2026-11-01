@@ -174,56 +174,110 @@ func (stages Stages) Files() []string {
 // validateOrder checks the constraints that span stages. litho refuses an edit
 // after a remediation, the output of a signature must not be rewritten, and
 // encryption applies to the final write only.
+//
+// It checks the stages in three passes, so that a list breaking several rules
+// gets the most precise message: the positions and duplicates first, then the
+// combinations no order allows, then what may follow what.
 func (stages Stages) validateOrder() error {
-	remediated, encrypted, signed := -1, -1, -1
+	err := stages.validatePositions()
+	if err != nil {
+		return err
+	}
+
+	err = stages.validateCombinations()
+	if err != nil {
+		return err
+	}
+
+	return stages.validateSequence()
+}
+
+// validatePositions checks the stages bound to a position, and the stages
+// that may appear once.
+func (stages Stages) validatePositions() error {
+	seen := make(map[string]bool)
 
 	for i, s := range stages {
 		op := s.op()
 
+		switch {
+		case op == "decrypt" && i != 0:
+			return fmt.Errorf("stage %d: \"decrypt\" must be the first stage", i)
 		// Render draws the final documents, and writes none.
-		if op == "render" && i != len(stages)-1 {
+		case op == "render" && i != len(stages)-1:
 			return fmt.Errorf("stage %d: \"render\" must be the last stage", i)
+		case (op == "remediate" || op == "encrypt") && seen[op]:
+			return fmt.Errorf("stage %d: only one %q stage is allowed", i, op)
 		}
+
+		seen[op] = true
+	}
+
+	return nil
+}
+
+// validateCombinations checks the stages that no order allows together.
+func (stages Stages) validateCombinations() error {
+	remediated, encrypted, signed := -1, -1, false
+
+	for i, s := range stages {
+		switch s.op() {
+		case "remediate":
+			remediated = i
+		case "encrypt":
+			encrypted = i
+		case "sign", "timestamp":
+			signed = true
+		}
+	}
+
+	if encrypted < 0 {
+		return nil
+	}
+
+	if signed {
+		return errors.New(`"encrypt" cannot be combined with "sign" or "timestamp": a signature covers the written bytes`)
+	}
+
+	if remediated >= 0 {
+		profile := stages[remediated].(*remediateStage).Profile
+		switch {
+		case profile == facturXProfile:
+			return fmt.Errorf("%q cannot be encrypted: Factur-X is PDF/A-3, which forbids encryption", profile)
+		case strings.HasPrefix(profile, "PDF/A"):
+			return fmt.Errorf("%q cannot be encrypted: PDF/A forbids encryption", profile)
+		}
+	}
+
+	return nil
+}
+
+// validateSequence checks what may follow a signature, an encryption and a
+// remediation.
+func (stages Stages) validateSequence() error {
+	remediated, encrypted, signed := false, false, -1
+
+	for i, s := range stages {
+		op := s.op()
 
 		switch {
 		case signed >= 0 && op != "sign" && op != "timestamp" && op != "render":
-			return fmt.Errorf("stage %d: %q cannot follow %q, which must come last", i, op, stages[signed].op())
-		case encrypted >= 0 && op != "optimize" && op != "render":
-			return fmt.Errorf("stage %d: %q cannot follow \"encrypt\", which must come last", i, op)
-		case remediated >= 0 && !afterRemediation(op):
+			return fmt.Errorf("stage %d: %q cannot follow %q: only sign, timestamp and render may", i, op, stages[signed].op())
+		case encrypted && op != "optimize" && op != "render":
+			return fmt.Errorf("stage %d: %q cannot follow \"encrypt\": only optimize and render may", i, op)
+		case remediated && !afterRemediation(op):
 			return fmt.Errorf("stage %d: %q cannot follow \"remediate\": only encrypt, optimize, sign, timestamp and render may", i, op)
 		}
 
 		switch op {
-		case "decrypt":
-			if i != 0 {
-				return fmt.Errorf("stage %d: \"decrypt\" must be the first stage", i)
-			}
 		case "remediate":
-			if remediated >= 0 {
-				return fmt.Errorf("stage %d: only one \"remediate\" stage is allowed", i)
-			}
-			remediated = i
+			remediated = true
 		case "encrypt":
-			if encrypted >= 0 {
-				return fmt.Errorf("stage %d: only one \"encrypt\" stage is allowed", i)
-			}
-			encrypted = i
+			encrypted = true
 		case "sign", "timestamp":
 			if signed < 0 {
 				signed = i
 			}
-		}
-	}
-
-	if encrypted >= 0 && signed >= 0 {
-		return errors.New(`"encrypt" cannot be combined with "sign" or "timestamp": a signature covers the written bytes`)
-	}
-
-	if encrypted >= 0 && remediated >= 0 {
-		profile := stages[remediated].(*remediateStage).Profile
-		if strings.HasPrefix(profile, "PDF/A") || profile == facturXProfile {
-			return fmt.Errorf("%q cannot be encrypted: PDF/A forbids encryption", profile)
 		}
 	}
 
