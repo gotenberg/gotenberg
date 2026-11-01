@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
+	libreofficeapi "github.com/gotenberg/gotenberg/v9/pkg/modules/libreoffice/api"
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/pdf"
 )
 
@@ -136,21 +137,43 @@ var gotenberg8Fields = map[string]string{
 	"nativeWatermarkFontHeight":  renamedHint("nativeWatermarkFontSize"),
 	"nativeWatermarkFontName":    renamedHint("nativeWatermarkFont"),
 	"nativeWatermarkRotateAngle": renamedHint("nativeWatermarkRotation") + ", in degrees",
-	"pdfa":                       renamedHint("nativePdfa") + `, or add {"op":"remediate","profile":"PDF/A-2b"} to 'stages'`,
 	"pdfua":                      renamedHint("nativePdfua") + ", which takes the string " + pdfuaProfile,
 	"firstPageOnLeft":            "Gotenberg 9 removed it: LibreOffice ignores it",
 	"nativePdfFormats":           "Gotenberg 9 removed it: 'nativePdfa' and 'nativePdfua' always apply natively",
+	"optimizeImages":             imageQualityHint,
+	"imageQuality":               imageQualityHint,
+}
+
+// imageQualityHint is the fix of the Gotenberg 8 fields that lowered image
+// quality: LibreOffice does at export, while the optimize stage is lossless.
+const imageQualityHint = `Gotenberg 9 lowers image quality at export: use 'nativeQuality' or 'nativeReduceImageResolution'; {"op":"optimize"} is lossless`
+
+// pdfaHint is the fix of the Gotenberg 8 'pdfa' field, given the profile it
+// sent: 'nativePdfa' writes four PDF/A profiles, a remediate stage the others.
+func pdfaHint(profile string) string {
+	stage := pdf.PdfaRemediateStage(profile)
+	native := libreofficeapi.PdfFormats{PdfA: profile}
+
+	if profile != "" && native.Validate() == nil {
+		return fmt.Sprintf("%s, or add %s to 'stages'", renamedHint("nativePdfa"), stage)
+	}
+
+	return fmt.Sprintf("%s, which takes PDF/A-1b, PDF/A-2b, PDF/A-3b or PDF/A-4, or add %s to 'stages'", renamedHint("nativePdfa"), stage)
 }
 
 // formFieldHint is the [api.FormData.RejectUnknown] hint of the LibreOffice
 // route: a renamed or removed field, or the stage that replaced a
 // post-processing field.
-func formFieldHint(field string, file bool) string {
+func formFieldHint(field, value string, file bool) string {
 	if !file {
+		if field == "pdfa" {
+			return pdfaHint(value)
+		}
+
 		if hint, ok := gotenberg8Fields[field]; ok {
 			return hint
 		}
 	}
 
-	return pdf.FormFieldHint(field, file)
+	return pdf.FormFieldHint(field, value, file)
 }

@@ -929,13 +929,13 @@ Feature: /forms/chromium/convert/html
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
       | files     | testdata/page-1-html/index.html | file  |
       | landscpae | true                            | field |
-      | pdfa      | PDF/A-2b                        | field |
+      | pdfa      | PDF/A-3b                        | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
       Invalid form data: form field 'landscpae' is unknown to this route
-      form field 'pdfa' is unknown to this route; Gotenberg 9 moved it to a stage: add {"op":"remediate","profile":"PDF/A-2b"} to 'stages'
+      form field 'pdfa' is unknown to this route; Gotenberg 9 moved it to a stage: add {"op":"remediate","profile":"PDF/A-3b"} to 'stages'
       """
 
   Scenario: POST /forms/chromium/convert/html (Bad Request)

@@ -79,8 +79,10 @@ func (f *formFields) wasRead(key string) bool {
 // reads before the route runs, is never unknown.
 //
 // hint returns how to fix a field, such as the field or the stage that
-// replaced one of an earlier major version, or "" for none. file tells a file
-// field, the multipart field files arrived under, from a value field. Routes
+// replaced one of an earlier major version, or "" for none. value is the
+// field's first value, which the fix may name, and "" for a file field. file
+// tells a file field, the multipart field files arrived under, from a value
+// field. Routes
 // read files by filename, whatever field they arrive under, so a file field
 // is rejected only when hint returns a fix for it. A nil hint gives none, and
 // rejects no file field.
@@ -89,13 +91,13 @@ func (f *formFields) wasRead(key string) bool {
 //	  MandatoryString("url", &url).
 //	  RejectUnknown(nil).
 //	  Validate()
-func (form *FormData) RejectUnknown(hint func(field string, file bool) string) *FormData {
-	fix := func(field string, file bool) string {
+func (form *FormData) RejectUnknown(hint func(field, value string, file bool) string) *FormData {
+	fix := func(field, value string, file bool) string {
 		if hint == nil {
 			return ""
 		}
 
-		return hint(field, file)
+		return hint(field, value, file)
 	}
 
 	for _, key := range slices.Sorted(maps.Keys(form.values)) {
@@ -103,8 +105,13 @@ func (form *FormData) RejectUnknown(hint func(field string, file bool) string) *
 			continue
 		}
 
+		var value string
+		if values := form.values[key]; len(values) > 0 {
+			value = values[0]
+		}
+
 		message := fmt.Sprintf("form field '%s' is unknown to this route", key)
-		if h := fix(key, false); h != "" {
+		if h := fix(key, value, false); h != "" {
 			message += "; " + h
 		}
 
@@ -112,7 +119,7 @@ func (form *FormData) RejectUnknown(hint func(field string, file bool) string) *
 	}
 
 	for _, field := range slices.Sorted(maps.Keys(form.fileFields)) {
-		h := fix(field, true)
+		h := fix(field, "", true)
 		if h == "" {
 			continue
 		}

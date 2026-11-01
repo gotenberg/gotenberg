@@ -214,7 +214,6 @@ var gotenberg8Fields = map[string]string{
 	"splitMode":      stagesHint(`{"op":"split","every":2} or {"op":"split","ranges":["1","2-3"]}`),
 	"splitSpan":      stagesHint(`{"op":"split","every":2} or {"op":"split","ranges":["1","2-3"]}`),
 	"splitUnify":     stagesHint(`{"op":"select","pages":"1-3"}`),
-	"pdfa":           stagesHint(`{"op":"remediate","profile":"PDF/A-2b"}`),
 	"pdfua":          stagesHint(`{"op":"remediate","profile":"PDF/UA-1"}`),
 	"metadata":       stagesHint(`{"op":"set-metadata","title":"My title"}`),
 	"userPassword":   stagesHint(`{"op":"encrypt","userPassword":"secret"}`),
@@ -223,8 +222,23 @@ var gotenberg8Fields = map[string]string{
 	"rotateAngle":    stagesHint(`{"op":"rotate","angle":90,"pages":"1"}`),
 	"rotatePages":    stagesHint(`{"op":"rotate","angle":90,"pages":"1"}`),
 	"flatten":        stagesHint(`{"op":"flatten-form"}`),
-	"optimizeImages": stagesHint(`{"op":"optimize"}`),
-	"imageQuality":   stagesHint(`{"op":"optimize"}`),
+	"optimizeImages": imageQualityHint,
+	"imageQuality":   imageQualityHint,
+}
+
+// imageQualityHint is the fix of the Gotenberg 8 fields that lowered image
+// quality: no stage does, so the hint must not pass optimize off as one.
+const imageQualityHint = `Gotenberg 9 never lowers image quality: {"op":"optimize"} is lossless; lower the quality where the PDF is made`
+
+// PdfaRemediateStage returns the remediate stage, as JSON, that makes the
+// PDF/A profile a Gotenberg 8 'pdfa' field sent, or PDF/A-2b when no remediate
+// profile matches it.
+func PdfaRemediateStage(profile string) string {
+	if _, ok := pdfaProfiles[profile]; !ok {
+		profile = "PDF/A-2b"
+	}
+
+	return fmt.Sprintf(`{"op":"remediate","profile":"%s"}`, profile)
 }
 
 // gotenberg8FieldPrefixes maps the prefixes of Gotenberg 8 field families to
@@ -249,13 +263,17 @@ var gotenberg8FileFields = map[string]string{
 // run stages: it points a Gotenberg 8 post-processing field, or file field, to
 // the stage that replaced it. "stages" is only unknown to the /forms/pdf
 // routes but /forms/pdf/pipe.
-func FormFieldHint(field string, file bool) string {
+func FormFieldHint(field, value string, file bool) string {
 	if file {
 		return gotenberg8FileFields[field]
 	}
 
 	if field == StagesFormField {
 		return "this route takes no 'stages': send them to /forms/pdf/pipe"
+	}
+
+	if field == "pdfa" {
+		return stagesHint(PdfaRemediateStage(value))
 	}
 
 	hint, ok := gotenberg8Fields[field]

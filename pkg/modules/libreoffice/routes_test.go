@@ -432,6 +432,16 @@ func TestConvertRoute_UnknownFields(t *testing.T) {
 			wantBody: `Invalid form data: form field 'pdfa' is unknown to this route; Gotenberg 9 renamed it 'nativePdfa', or add {"op":"remediate","profile":"PDF/A-2b"} to 'stages'`,
 		},
 		{
+			name:     "PDF/A profile LibreOffice does not write",
+			values:   map[string][]string{"pdfa": {"PDF/A-1a"}},
+			wantBody: `Invalid form data: form field 'pdfa' is unknown to this route; Gotenberg 9 renamed it 'nativePdfa', which takes PDF/A-1b, PDF/A-2b, PDF/A-3b or PDF/A-4, or add {"op":"remediate","profile":"PDF/A-1a"} to 'stages'`,
+		},
+		{
+			name:     "image quality",
+			values:   map[string][]string{"imageQuality": {"50"}},
+			wantBody: `Invalid form data: form field 'imageQuality' is unknown to this route; Gotenberg 9 lowers image quality at export: use 'nativeQuality' or 'nativeReduceImageResolution'; {"op":"optimize"} is lossless`,
+		},
+		{
 			name:     "removed field",
 			values:   map[string][]string{"firstPageOnLeft": {"true"}},
 			wantBody: "Invalid form data: form field 'firstPageOnLeft' is unknown to this route; Gotenberg 9 removed it: LibreOffice ignores it",

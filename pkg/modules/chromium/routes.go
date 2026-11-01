@@ -66,7 +66,7 @@ var renamedPdfFields = map[string]string{
 // convertFormFieldHint is the [api.FormData.RejectUnknown] hint of the
 // Chromium PDF routes: a renamed field, or the stage that replaced a
 // post-processing field.
-func convertFormFieldHint(field string, file bool) string {
+func convertFormFieldHint(field, value string, file bool) string {
 	if !file {
 		if hint, ok := renamedFields[field]; ok {
 			return hint
@@ -77,13 +77,13 @@ func convertFormFieldHint(field string, file bool) string {
 		}
 	}
 
-	return pdf.FormFieldHint(field, file)
+	return pdf.FormFieldHint(field, value, file)
 }
 
 // screenshotFormFieldHint is the [api.FormData.RejectUnknown] hint of the
 // Chromium screenshot routes, which run no stage. Their file fields are
 // free-form.
-func screenshotFormFieldHint(field string, file bool) string {
+func screenshotFormFieldHint(field, _ string, file bool) string {
 	if file {
 		return ""
 	}

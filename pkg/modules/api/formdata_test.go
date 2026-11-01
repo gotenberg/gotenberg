@@ -2137,10 +2137,12 @@ func TestFormData_Strings_IndependentOfOtherFields(t *testing.T) {
 }
 
 func TestFormData_RejectUnknown(t *testing.T) {
-	hint := func(field string, file bool) string {
+	hint := func(field, value string, file bool) string {
 		switch {
 		case field == "merge" && !file:
 			return "use the merge stage"
+		case field == "pdfa" && !file:
+			return "use the remediate stage with " + value
 		case field == "watermark" && file:
 			return "upload it under files"
 		default:
@@ -2153,7 +2155,7 @@ func TestFormData_RejectUnknown(t *testing.T) {
 		values     map[string][]string
 		fileFields []string
 		read       func(form *FormData)
-		hint       func(field string, file bool) string
+		hint       func(field, value string, file bool) string
 		want       string
 	}{
 		{
@@ -2187,6 +2189,13 @@ func TestFormData_RejectUnknown(t *testing.T) {
 			read:     func(*FormData) {},
 			hint:     hint,
 			want:     "form field 'merge' is unknown to this route; use the merge stage",
+		},
+		{
+			scenario: "unknown field with a hint naming its value",
+			values:   map[string][]string{"pdfa": {"PDF/A-1b", "PDF/A-2b"}},
+			read:     func(*FormData) {},
+			hint:     hint,
+			want:     "form field 'pdfa' is unknown to this route; use the remediate stage with PDF/A-1b",
 		},
 		{
 			scenario:   "file field with a hint",
