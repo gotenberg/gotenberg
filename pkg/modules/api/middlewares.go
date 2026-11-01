@@ -107,6 +107,28 @@ func httpErrorHandler() echo.HTTPErrorHandler {
 	}
 }
 
+// AnswersDirectlyKey is the [echo.Context] key that marks the request of a
+// route that answers directly. See [Route.AnswersDirectly].
+const AnswersDirectlyKey = "answersDirectly"
+
+// answersDirectlyMiddleware marks the request of a route that answers
+// directly. See [Route.AnswersDirectly].
+func answersDirectlyMiddleware() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c *echo.Context) error {
+			c.Set(AnswersDirectlyKey, true)
+			return next(c)
+		}
+	}
+}
+
+// RouteAnswersDirectly reports whether the route of c writes its response
+// itself rather than producing output files. See [Route.AnswersDirectly].
+func RouteAnswersDirectly(c *echo.Context) bool {
+	answers, _ := c.Get(AnswersDirectlyKey).(bool)
+	return answers
+}
+
 // latencyMiddleware sets the start time in the [echo.Context] under
 // "startTime". Its value will be used later to calculate request latency.
 //

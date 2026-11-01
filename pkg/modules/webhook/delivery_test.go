@@ -227,3 +227,25 @@ func TestWebhook_Validate(t *testing.T) {
 		t.Fatalf("expected an error naming the flag and HTTPS_PROXY, got: %v", err)
 	}
 }
+
+// A route that answers JSON directly has no output file to deliver: the
+// request is refused up front rather than answered 204.
+func TestWebhookMiddleware_RejectsRoutesAnsweringDirectly(t *testing.T) {
+	c, _, cancel := newWebhookContext(t, map[string]string{
+		"Gotenberg-Webhook-Url":        "http://127.0.0.1/webhook",
+		"Gotenberg-Webhook-Events-Url": "http://127.0.0.1/events",
+	})
+	defer cancel()
+	c.Set(api.AnswersDirectlyKey, true)
+
+	next := func(*echo.Context) error {
+		t.Fatal("the route ran for a webhook it cannot serve")
+		return nil
+	}
+
+	status, message := api.ParseError(webhookMiddleware(&Webhook{clientTimeout: time.Second}).Handler(next)(c))
+	want := "The 'Gotenberg-Webhook-Url' and 'Gotenberg-Webhook-Events-Url' headers do not apply to this route: it answers JSON directly, which a webhook cannot deliver. Send the request without them"
+	if status != http.StatusBadRequest || message != want {
+		t.Fatalf("got %d %q, want 400 %q", status, message, want)
+	}
+}

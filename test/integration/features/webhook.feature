@@ -153,8 +153,8 @@ Feature: Webhook
       }
       """
 
-  # Routes answering with JSON have no output file to deliver. The asynchronous
-  # case lives in pdf_metadata.feature.
+  # Routes answering with JSON have no output file to deliver: the request is
+  # refused up front, in sync mode as in async mode (see pdf_metadata.feature).
   Scenario: Route Without Output File (Synchronous)
     Given I have a Gotenberg container with the following environment variable(s):
       | WEBHOOK_ENABLE_SYNC_MODE | true |
@@ -163,22 +163,10 @@ Feature: Webhook
       | files                        | testdata/page_1.pdf     | file   |
       | Gotenberg-Webhook-Url        | {helper}/webhook        | header |
       | Gotenberg-Webhook-Events-Url | {helper}/webhook/events | header |
-    Then the response status code should be 204
+    Then the response status code should be 400
     Then the response body should match string:
       """
-
-      """
-    Then the webhook event should match JSON:
-      """
-      {
-        "event": "webhook.error",
-        "correlationId": "ignore",
-        "timestamp": "ignore",
-        "error": {
-          "status": 400,
-          "message": "The webhook middleware can only work with multipart/form-data routes that results in output files"
-        }
-      }
+      The 'Gotenberg-Webhook-Url' and 'Gotenberg-Webhook-Events-Url' headers do not apply to this route: it answers JSON directly, which a webhook cannot deliver. Send the request without them
       """
 
   # A graceful shutdown stops taking requests, then lets the asynchronous ones

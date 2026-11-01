@@ -113,18 +113,10 @@ Feature: /forms/pdf/{set-metadata|metadata}
       | files                        | testdata/titled_alpha.pdf | file   |
       | Gotenberg-Webhook-Url        | {helper}/webhook          | header |
       | Gotenberg-Webhook-Events-Url | {helper}/webhook/events   | header |
-    Then the response status code should be 204
-    Then the webhook event should match JSON:
+    Then the response status code should be 400
+    Then the response body should match string:
       """
-      {
-        "event": "webhook.error",
-        "correlationId": "ignore",
-        "timestamp": "ignore",
-        "error": {
-          "status": 400,
-          "message": "The webhook middleware can only work with multipart/form-data routes that results in output files"
-        }
-      }
+      The 'Gotenberg-Webhook-Url' and 'Gotenberg-Webhook-Events-Url' headers do not apply to this route: it answers JSON directly, which a webhook cannot deliver. Send the request without them
       """
 
   # See: https://github.com/gotenberg/gotenberg/issues/1500.

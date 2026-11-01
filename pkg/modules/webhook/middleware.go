@@ -103,6 +103,19 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						return next(c)
 					}
 
+					// A route that answers JSON directly has no output file to
+					// deliver: refuse the request rather than answer 204 and
+					// report the failure to the events URL.
+					if api.RouteAnswersDirectly(c) {
+						return api.WrapError(
+							errors.New("webhook on a route without output files"),
+							api.NewSentinelHttpError(
+								http.StatusBadRequest,
+								"The 'Gotenberg-Webhook-Url' and 'Gotenberg-Webhook-Events-Url' headers do not apply to this route: it answers JSON directly, which a webhook cannot deliver. Send the request without them",
+							),
+						)
+					}
+
 					ctx := c.Get("context").(*api.Context)
 					cancel := c.Get("cancel").(context.CancelFunc)
 

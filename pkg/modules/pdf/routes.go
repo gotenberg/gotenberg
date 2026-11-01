@@ -106,9 +106,10 @@ func runStages(ctx *api.Context, form *api.FormData, processor *Processor, stage
 // once per request.
 func readRoute(processor *Processor, name string, newRead func(form *api.FormData) readFunc) api.Route {
 	return api.Route{
-		Method:      http.MethodPost,
-		Path:        "/forms/pdf/" + name,
-		IsMultipart: true,
+		Method:          http.MethodPost,
+		Path:            "/forms/pdf/" + name,
+		IsMultipart:     true,
+		AnswersDirectly: true,
 		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 			form := ctx.FormData()

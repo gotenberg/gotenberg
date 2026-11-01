@@ -116,6 +116,13 @@ type Route struct {
 	// Optional.
 	DisableTelemetry bool
 
+	// AnswersDirectly tells that a multipart route writes its response
+	// itself, such as JSON, rather than producing output files. Middlewares
+	// that deliver output files elsewhere, such as the webhook, read it with
+	// [RouteAnswersDirectly] to refuse the request before it runs.
+	// Optional.
+	AnswersDirectly bool
+
 	// Handler is the function that handles the request.
 	// Required.
 	Handler echo.HandlerFunc
@@ -672,6 +679,10 @@ func (a *Api) Start() error {
 		middlewares = append(middlewares, securityMiddleware, versionHeader)
 
 		if route.IsMultipart {
+			if route.AnswersDirectly {
+				middlewares = append(middlewares, answersDirectlyMiddleware())
+			}
+
 			middlewares = append(middlewares, contextMiddleware(a.fs, a.timeout, a.bodyLimit, a.downloadFromCfg, a.archiveCfg))
 
 			for _, externalMultipartMiddleware := range externalMultipartMiddlewares {
