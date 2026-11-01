@@ -11,10 +11,10 @@ post {
 }
 
 body:multipart-form {
-  files: @file(../../test/integration/testdata/pages_3.pdf)
+  files: @file(../test/integration/testdata/pages_3.pdf)
   ~pages: 1-2
   ~dpi: 150
-  ~format: jpeg
+  format: jpeg
   ~quality: 90
 }
 

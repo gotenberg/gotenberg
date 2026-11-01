@@ -11,11 +11,11 @@ post {
 }
 
 body:multipart-form {
-  files: @file(../../test/integration/testdata/page_1.pdf)
+  files: @file(../test/integration/testdata/page_1.pdf)
   certificate: cert.pem
-  files: @file(../../test/integration/testdata/pem/cert.pem)
+  files: @file(../test/integration/testdata/pem/cert.pem)
   key: key.pem
-  files: @file(../../test/integration/testdata/pem/key.pem)
+  files: @file(../test/integration/testdata/pem/key.pem)
   ~certificatePassword:
   ~reason: Approved
   ~location: Paris

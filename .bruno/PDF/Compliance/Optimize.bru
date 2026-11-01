@@ -11,7 +11,7 @@ post {
 }
 
 body:multipart-form {
-  files: @file(../../test/integration/testdata/image-heavy.pdf)
+  files: @file(../test/integration/testdata/image-heavy.pdf)
   ~objectStreams: true
   ~dedup: true
   ~recompressImages: true

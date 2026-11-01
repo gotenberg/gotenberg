@@ -11,8 +11,8 @@ post {
 }
 
 body:multipart-form {
-  files: @file(../../test/integration/testdata/page_1.pdf)
-  files: @file(../../test/integration/testdata/page_2.pdf)
+  files: @file(../test/integration/testdata/page_1.pdf)
+  files: @file(../test/integration/testdata/page_2.pdf)
   stages: [{"op":"merge"},{"op":"rotate","angle":90,"pages":"1"},{"op":"set-metadata","title":"Merged"}]
 }
 

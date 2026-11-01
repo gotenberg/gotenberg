@@ -34,7 +34,7 @@ post {
 }
 
 body:multipart-form {
-  files: @file(../../test/integration/testdata/<file>)
+  files: @file(../test/integration/testdata/<file>)
   <mandatoryField>: <value>
   ~<optionalField>: <value>
 }
@@ -51,7 +51,8 @@ headers {
 ## Conventions
 
 - Mandatory fields have no prefix. Optional fields use `~` (disabled by default in Bruno).
-- File references use relative paths to `test/integration/testdata/`.
+- File references point at `test/integration/testdata/`. Bruno resolves `@file(...)` against the collection root, `.bruno/`, not against the request's folder: write `@file(../test/integration/testdata/<file>)` at any folder depth.
+- Optional fields that only apply together, or only with another field's value, say so in a `docs { }` block, so that enabling one alone does not look like a bug.
 - Webhook and output filename headers appear on every POST route as optional (`~`).
 - One `.bru` file per request. The `/forms/pdf` single-operation routes take the stage's JSON options as flat form fields; files a stage reads (stamp images, attachments, certificates) are uploaded under `files` and referenced by filename.
 
