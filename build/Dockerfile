@@ -273,7 +273,7 @@ RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/so
     && apt-get update -qq \
     && apt-get upgrade -yqq \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
-        python3 python3-distutils-extra \
+        python3 \
         # Install Hyphenation for LibreOffice.
         # Credits: https://wiki.archlinux.org/title/LibreOffice.
         hyphen-af hyphen-as hyphen-be hyphen-bg hyphen-bn hyphen-ca hyphen-cs hyphen-da hyphen-de hyphen-el \
@@ -400,7 +400,7 @@ RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/so
     && apt-get update -qq \
     && apt-get upgrade -yqq \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
-        python3 python3-distutils-extra \
+        python3 \
         # Install Hyphenation for LibreOffice.
         # Credits: https://wiki.archlinux.org/title/LibreOffice.
         hyphen-af hyphen-as hyphen-be hyphen-bg hyphen-bn hyphen-ca hyphen-cs hyphen-da hyphen-de hyphen-el \
