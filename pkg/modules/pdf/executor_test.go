@@ -8,6 +8,7 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"log/slog"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -657,6 +658,144 @@ func TestRunDetach(t *testing.T) {
 			status, message := api.ParseError(err)
 			if status != http.StatusBadRequest || message != tc.wantErr {
 				t.Fatalf("got %d %q, want 400 %q", status, message, tc.wantErr)
+			}
+		})
+	}
+}
+
+// fileSize returns the size of the file at path.
+func fileSize(t *testing.T, path string) int64 {
+	t.Helper()
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return info.Size()
+}
+
+// hasObjectStreams reports whether the PDF at path packs objects into object
+// streams.
+func hasObjectStreams(t *testing.T, path string) bool {
+	t.Helper()
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return bytes.Contains(data, []byte("/ObjStm"))
+}
+
+// optimize rewrites the document whole, since litho compacts on a rewrite
+// only, but refuses to drop what a rewrite cannot keep.
+func TestRunOptimize(t *testing.T) {
+	t.Run("alone, it compacts", func(t *testing.T) {
+		ctx, paths := testContext(t, "pages_12.pdf")
+
+		outputs, err := testProcessor().Run(ctx, mustStages(t, `[{"op":"optimize"}]`), []string{paths["pages_12.pdf"]}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if fileSize(t, outputs[0]) >= fileSize(t, paths["pages_12.pdf"]) || !hasObjectStreams(t, outputs[0]) {
+			t.Fatalf("optimized %d bytes from %d, with object streams %t: want smaller and packed", fileSize(t, outputs[0]), fileSize(t, paths["pages_12.pdf"]), hasObjectStreams(t, outputs[0]))
+		}
+	})
+
+	t.Run("after select, it compacts", func(t *testing.T) {
+		ctx, paths := testContext(t, "pages_12.pdf")
+
+		outputs, err := testProcessor().Run(ctx, mustStages(t, `[{"op":"select","pages":"1-6"},{"op":"optimize"}]`), []string{paths["pages_12.pdf"]}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if pageCount(t, outputs[0]) != 6 || !hasObjectStreams(t, outputs[0]) {
+			t.Fatalf("want 6 packed pages, got %d, packed %t", pageCount(t, outputs[0]), hasObjectStreams(t, outputs[0]))
+		}
+	})
+
+	t.Run("a declared PDF/A-1 keeps its cross-reference table", func(t *testing.T) {
+		processor := testProcessor()
+		ctx, paths := testContext(t, "page_1.pdf")
+
+		pdfa, err := processor.Run(ctx, mustStages(t, `[{"op":"remediate","profile":"PDF/A-1b"}]`), []string{paths["page_1.pdf"]}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		outputs, err := processor.Run(ctx, mustStages(t, `[{"op":"optimize"}]`), pdfa, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		part, err := openOutput(t, outputs[0]).DeclaredPDFAPart(context.Background())
+		if err != nil || part != 1 || hasObjectStreams(t, outputs[0]) {
+			t.Fatalf("part = %d, %v, packed %t: want PDF/A-1 unpacked", part, err, hasObjectStreams(t, outputs[0]))
+		}
+	})
+
+	for _, tc := range []struct {
+		name      string
+		prepare   string
+		fixtures  []string
+		stages    string
+		wantErr   string
+		encrypted bool
+	}{
+		{
+			name:     "signed",
+			prepare:  `[{"op":"sign","certificate":"cert.pem","key":"key.pem"}]`,
+			fixtures: []string{"pem/cert.pem", "pem/key.pem"},
+			stages:   `[{"op":"optimize"}]`,
+			wantErr:  "Stage 'optimize' failed on 'page_1.pdf': the PDF is signed, and optimizing would remove its signatures",
+		},
+		{
+			name:    "encrypted",
+			prepare: `[{"op":"encrypt","ownerPassword":"owner"}]`,
+			stages:  `[{"op":"optimize"}]`,
+			wantErr: `Stage 'optimize' failed on 'page_1.pdf': the PDF is encrypted, and optimizing would write it decrypted: on /forms/pdf/pipe, add a "decrypt" stage before "optimize" to remove the encryption, or an "encrypt" stage to keep one`,
+		},
+		{
+			name:    "encrypted, then decrypted",
+			prepare: `[{"op":"encrypt","ownerPassword":"owner"}]`,
+			stages:  `[{"op":"decrypt","password":"owner"},{"op":"optimize"}]`,
+		},
+		{
+			name:      "encrypted, then encrypted again",
+			prepare:   `[{"op":"encrypt","ownerPassword":"owner"}]`,
+			stages:    `[{"op":"optimize"},{"op":"encrypt","ownerPassword":"other"}]`,
+			encrypted: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			processor := testProcessor()
+			ctx, paths := testContext(t, append([]string{"page_1.pdf"}, tc.fixtures...)...)
+			files := make(map[string]string, len(paths))
+			maps.Copy(files, paths)
+
+			inputs, err := processor.Run(ctx, mustStages(t, tc.prepare), []string{paths["page_1.pdf"]}, files)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			outputs, err := processor.Run(ctx, mustStages(t, tc.stages), inputs, nil)
+			if tc.wantErr != "" {
+				status, message := api.ParseError(err)
+				if status != http.StatusBadRequest || message != tc.wantErr {
+					t.Fatalf("got %d %q, want 400 %q", status, message, tc.wantErr)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if encrypted := openOutput(t, outputs[0], litho.WithPassword("other")).IsEncrypted(); encrypted != tc.encrypted {
+				t.Fatalf("encrypted = %t, want %t", encrypted, tc.encrypted)
 			}
 		})
 	}

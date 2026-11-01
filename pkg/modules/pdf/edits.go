@@ -401,9 +401,18 @@ func (s *timestampStage) edit(_ context.Context, w *litho.Writer, _ *runEnv) err
 }
 
 func (s *optimizeStage) writeOptions() ([]litho.WriteOption, error) {
-	var opts []litho.WriteOption
+	return s.compaction(true), nil
+}
 
-	if boolOr(s.ObjectStreams, true) {
+// compaction returns the write options of the passes the stage selects. litho
+// compacts on a full rewrite only: on a document no other stage rewrites, it
+// appends an update or copies the source byte for byte, and the stage would
+// change nothing. packObjectStreams false leaves object streams out whatever
+// the stage asks.
+func (s *optimizeStage) compaction(packObjectStreams bool) []litho.WriteOption {
+	opts := []litho.WriteOption{litho.WithFullRewrite()}
+
+	if packObjectStreams && boolOr(s.ObjectStreams, true) {
 		opts = append(opts, litho.WithObjectStreams())
 	}
 
@@ -419,7 +428,40 @@ func (s *optimizeStage) writeOptions() ([]litho.WriteOption, error) {
 		opts = append(opts, litho.WithFontSubsetting())
 	}
 
-	return opts, nil
+	return opts
+}
+
+// guardedWriteOptions returns the write options of the stage on the document
+// r reads, and refuses a rewrite that would silently lose what the document
+// carries. encryptionHandled tells that the stages remove the encryption on
+// purpose, with decrypt, or apply one of their own, with encrypt.
+func (s *optimizeStage) guardedWriteOptions(ctx context.Context, r *litho.Reader, encryptionHandled bool) ([]litho.WriteOption, error) {
+	// A signature's digest covers the bytes of the file it was made in (ISO
+	// 32000-1, 12.8.1): no rewrite keeps it.
+	signatures, err := r.ExtractSignatures(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read the signatures: %w", err)
+	}
+
+	if len(signatures) > 0 {
+		return nil, &stageInputError{message: "the PDF is signed, and optimizing would remove its signatures"}
+	}
+
+	// A rewrite writes the document decrypted.
+	if r.IsEncrypted() && !encryptionHandled {
+		return nil, &stageInputError{message: `the PDF is encrypted, and optimizing would write it decrypted: on /forms/pdf/pipe, add a "decrypt" stage before "optimize" to remove the encryption, or an "encrypt" stage to keep one`}
+	}
+
+	// ISO 19005-1, 6.1.4 forbids the cross-reference stream that object
+	// streams need: a PDF/A-1 document keeps its claim with the other passes.
+	// A declaration litho cannot read counts as none, as a document without
+	// XMP does.
+	part, err := r.DeclaredPDFAPart(ctx)
+	if err != nil {
+		part = 0
+	}
+
+	return s.compaction(part != 1), nil
 }
 
 func (s *encryptStage) writeOptions() ([]litho.WriteOption, error) {

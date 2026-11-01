@@ -107,6 +107,10 @@ func (p *Processor) run(ctx *api.Context, stages Stages, inputPaths []string, fi
 		}
 	}
 
+	// optimize rewrites a document decrypted: only decrypt, which removes the
+	// encryption on purpose, or encrypt, which applies one, make that safe.
+	encryptionHandled := password != "" || slices.ContainsFunc(stages, func(s stage) bool { return s.op() == "encrypt" })
+
 	var err error
 	for i := 0; i < len(stages); {
 		switch s := stages[i].(type) {
@@ -118,7 +122,7 @@ func (p *Processor) run(ctx *api.Context, stages Stages, inputPaths []string, fi
 			i++
 		default:
 			end := runEnd(stages, i)
-			docs, err = p.runEach(ctx, stages[i:end], docs, password, files, outcome)
+			docs, err = p.runEach(ctx, stages[i:end], docs, password, encryptionHandled, files, outcome)
 			i = end
 		}
 
@@ -363,12 +367,12 @@ func splitGroups(s *splitStage, pageCount int) ([][]int, error) {
 }
 
 // runEach runs a run of stages on every document.
-func (p *Processor) runEach(ctx *api.Context, run Stages, docs []document, password string, files map[string]string, outcome *remediationOutcome) ([]document, error) {
+func (p *Processor) runEach(ctx *api.Context, run Stages, docs []document, password string, encryptionHandled bool, files map[string]string, outcome *remediationOutcome) ([]document, error) {
 	out := make([]document, len(docs))
 
 	err := p.forEachInputPathIndexed(ctx, documentPaths(docs), func(i int, _ string) error {
 		var err error
-		out[i], err = p.runOne(ctx, run, docs[i], password, files, outcome)
+		out[i], err = p.runOne(ctx, run, docs[i], password, encryptionHandled, files, outcome)
 
 		return err
 	})
@@ -380,8 +384,8 @@ func (p *Processor) runEach(ctx *api.Context, run Stages, docs []document, passw
 }
 
 // runOne runs a run of stages on one document through a single litho
-// pipeline.
-func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password string, files map[string]string, outcome *remediationOutcome) (document, error) {
+// pipeline. encryptionHandled tells that the stages decrypt or encrypt.
+func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password string, encryptionHandled bool, files map[string]string, outcome *remediationOutcome) (document, error) {
 	r, err := p.open(ctx, d.path, password)
 	if err != nil {
 		return document{}, &stageError{op: run[0].op(), filename: d.filename, err: err}
@@ -397,7 +401,11 @@ func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password st
 	defer env.close()
 
 	pipeline := litho.NewPipeline().Open(r)
-	var writeOpts []litho.WriteOption
+	var (
+		writeOpts         []litho.WriteOption
+		optimizing        bool
+		compactionSkipped bool
+	)
 
 	for _, s := range run {
 		switch s := s.(type) {
@@ -409,7 +417,21 @@ func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password st
 
 			pipeline.Split(pages)
 		case writeOptioner:
-			opts, err := s.writeOptions()
+			var (
+				opts []litho.WriteOption
+				err  error
+			)
+
+			// optimize rewrites the document, which only the reader tells
+			// is safe.
+			if o, ok := s.(*optimizeStage); ok {
+				opts, err = o.guardedWriteOptions(ctx, r, encryptionHandled)
+				opts = append(opts, litho.WithCompactionSkipped(&compactionSkipped))
+				optimizing = true
+			} else {
+				opts, err = s.writeOptions()
+			}
+
 			if err != nil {
 				return document{}, &stageError{op: s.op(), filename: d.filename, err: err}
 			}
@@ -448,6 +470,10 @@ func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password st
 		}
 
 		return document{}, &stageError{op: run[len(run)-1].op(), filename: d.filename, err: err}
+	}
+
+	if optimizing && compactionSkipped {
+		ctx.Log().WarnContext(ctx, fmt.Sprintf("optimize wrote '%s' without compacting it: litho appended an update to the document rather than rewriting it", d.filename))
 	}
 
 	if env.report != nil {
