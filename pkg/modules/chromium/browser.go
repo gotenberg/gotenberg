@@ -585,7 +585,7 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 	defer taskCancel()
 
 	failures := new(conversionFailures)
-	b.listen(taskCtx, taskCancel, logger, options, aggregate, failures)
+	b.listen(ctx, taskCtx, taskCancel, logger, options, aggregate, failures)
 
 	runErr := chromedp.Run(taskCtx, tasks...)
 
@@ -610,8 +610,9 @@ func requestError(ctx context.Context, runErr error) error {
 
 // listen registers the event listeners of one conversion on taskCtx. They
 // record what fails the conversion in failures, and some cancel taskCtx so
-// that the conversion stops at once.
-func (b *chromiumBrowser) listen(taskCtx context.Context, taskCancel context.CancelFunc, logger *slog.Logger, options Options, aggregate *networkAggregate, failures *conversionFailures) {
+// that the conversion stops at once. Their log records about the page carry
+// requestCtx, the client request's, for its trace.
+func (b *chromiumBrowser) listen(requestCtx, taskCtx context.Context, taskCancel context.CancelFunc, logger *slog.Logger, options Options, aggregate *networkAggregate, failures *conversionFailures) {
 	// Accumulate per-conversion network activity for telemetry.
 	listenForNetworkActivity(taskCtx, aggregate)
 
@@ -620,6 +621,7 @@ func (b *chromiumBrowser) listen(taskCtx context.Context, taskCancel context.Can
 	// the extra HTTP headers, if any.
 	// See https://github.com/gotenberg/gotenberg/issues/1011.
 	listenForEventRequestPaused(taskCtx, logger, eventRequestPausedOptions{
+		requestCtx:          requestCtx,
 		allowList:           b.arguments.allowList,
 		denyList:            b.arguments.denyList,
 		denyPrivateIPs:      b.arguments.denyPrivateIPs,

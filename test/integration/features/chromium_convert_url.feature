@@ -277,7 +277,7 @@ Feature: /forms/chromium/convert/url
     Then there should be 1 PDF(s) in the response
     Then the Gotenberg container should NOT log the following entries:
       # Modern browsers block file URIs from being loaded into iframes when the parent page is served over HTTP/HTTPS.
-      | 'file:///etc/passwd' matches the expression from the denied list |
+      | "url":"file:///etc/passwd","rule":"deny-list" |
 
   Scenario: POST /forms/chromium/convert/url (Main URL does NOT match allowed list)
     Given I have a Gotenberg container with the following environment variable(s):
@@ -317,7 +317,7 @@ Feature: /forms/chromium/convert/url
     Then there should be 1 PDF(s) in the response
     Then the Gotenberg container should NOT log the following entries:
       # Modern browsers block file URIs from being loaded into iframes when the parent page is served over HTTP/HTTPS.
-      | 'file:///etc/passwd' does not match any expression from the allowed list |
+      | "url":"file:///etc/passwd","rule":"allow-list" |
 
   Scenario: POST /forms/chromium/convert/url (file:// scheme rejected at route layer)
     Given I have a default Gotenberg container
@@ -439,7 +439,7 @@ Feature: /forms/chromium/convert/url
       | url | {helper}/redirect-to-private | field |
     Then the response status code should be 200
     Then the Gotenberg container should log the following entries:
-      | 'http://127.0.0.1:9999/redirected' does not match any expression from the allowed list |
+      | "url":"http://127.0.0.1:9999/redirected","rule":"allow-list" |
 
   Scenario: POST /forms/chromium/convert/url (Main URL resolves to a non-public IP, deny-private-ips on with allow-list bypass)
     Given I have a Gotenberg container with the following environment variable(s):

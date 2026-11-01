@@ -3,6 +3,7 @@ package pdf
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"runtime/debug"
 	"time"
@@ -23,6 +24,7 @@ func init() {
 // and LibreOffice routes through [Provider], and exposes the /forms/pdf
 // routes.
 type PDF struct {
+	logger         *slog.Logger
 	processor      *Processor
 	maxConcurrency int
 	disableRoutes  bool
@@ -67,6 +69,7 @@ func (mod *PDF) Descriptor() gotenberg.ModuleDescriptor {
 // Provision sets the module properties.
 func (mod *PDF) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
+	mod.logger = gotenberg.Logger(mod)
 	mod.maxConcurrency = flags.MustInt("pdf-max-concurrency")
 	mod.disableRoutes = flags.MustBool("pdf-disable-routes")
 	mod.allowList = flags.MustRegexpSlice("pdf-allow-list")
@@ -158,7 +161,7 @@ func (mod *PDF) httpClient(ctx context.Context) *http.Client {
 		timeout = time.Until(deadline)
 	}
 
-	return gotenberg.NewOutboundHttpClient(
+	client := gotenberg.NewOutboundHttpClient(
 		timeout,
 		mod.allowList,
 		mod.denyList,
@@ -166,6 +169,38 @@ func (mod *PDF) httpClient(ctx context.Context) *http.Client {
 		gotenberg.WithDenyPrivateIPs(mod.denyPrivateIPs),
 		gotenberg.WithDenyPublicIPs(mod.denyPublicIPs),
 	)
+
+	// The client only learns that the timestamp authority could not be
+	// reached: the request's logger records which rule refused it.
+	logger := mod.logger
+	if apiCtx, ok := ctx.(*api.Context); ok {
+		logger = apiCtx.Log()
+	}
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
+
+	client.Transport = refusalLogging{base: client.Transport, logger: logger}
+
+	return client
+}
+
+// refusalLogging logs the requests to a timestamp authority the outbound
+// filters refuse, with the request's context, so that the record carries its
+// trace.
+type refusalLogging struct {
+	base   http.RoundTripper
+	logger *slog.Logger
+}
+
+// RoundTrip sends req through the base transport, and logs a refusal.
+func (t refusalLogging) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := t.base.RoundTrip(req)
+	if err != nil && gotenberg.FilterRule(err) != "" {
+		gotenberg.LogOutboundRefusal(req.Context(), t.logger, "outbound request blocked by the PDF filters", req.URL.String(), err)
+	}
+
+	return resp, err
 }
 
 // Routes returns the HTTP routes.

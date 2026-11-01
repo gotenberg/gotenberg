@@ -373,3 +373,73 @@ func TestProxyEnv_OverridesExisting(t *testing.T) {
 		}
 	}
 }
+
+// recordingHandler keeps the records a logger writes, with the attributes
+// the logger carries.
+type recordingHandler struct {
+	attrs   []slog.Attr
+	records *[]map[string]string
+}
+
+func (h recordingHandler) Enabled(context.Context, slog.Level) bool { return true }
+
+func (h recordingHandler) Handle(_ context.Context, r slog.Record) error {
+	record := map[string]string{"level": r.Level.String(), "msg": r.Message}
+	for _, a := range h.attrs {
+		record[a.Key] = a.Value.String()
+	}
+	r.Attrs(func(a slog.Attr) bool {
+		record[a.Key] = a.Value.String()
+		return true
+	})
+	*h.records = append(*h.records, record)
+
+	return nil
+}
+
+func (h recordingHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return recordingHandler{attrs: append(append([]slog.Attr{}, h.attrs...), attrs...), records: h.records}
+}
+
+func (h recordingHandler) WithGroup(string) slog.Handler { return h }
+
+// A request the filters refuse during a conversion is logged with the
+// conversion's logger, which carries the client request's correlation ID.
+func TestLibreOfficeProxy_LogsRefusalsWithTheConversion(t *testing.T) {
+	p := startProxy(t, outboundProxyOptions{
+		denyList: compileRegexes(t, `^http://styles\.example\.com/`),
+	})
+
+	var records []map[string]string
+	logger := slog.New(recordingHandler{records: &records}).With(slog.String("correlation_id", "foo"))
+
+	detach := p.attach(context.Background(), logger)
+	defer detach()
+
+	proxyURL, _ := url.Parse("http://" + p.Addr())
+	client := &http.Client{
+		Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)},
+		Timeout:   5 * time.Second,
+	}
+
+	resp, err := client.Get("http://styles.example.com/style.css?token=secret")
+	if err != nil {
+		t.Fatalf("client.Get: %v", err)
+	}
+	_ = resp.Body.Close()
+
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("status: got %d, want %d", resp.StatusCode, http.StatusForbidden)
+	}
+
+	want := map[string]string{
+		"level":          "WARN",
+		"msg":            "outbound request blocked by the LibreOffice filters",
+		"correlation_id": "foo",
+		"url":            "http://styles.example.com/style.css",
+		"rule":           "deny-list",
+	}
+	if len(records) != 1 || fmt.Sprint(records[0]) != fmt.Sprint(want) {
+		t.Fatalf("records = %v, want %v", records, want)
+	}
+}

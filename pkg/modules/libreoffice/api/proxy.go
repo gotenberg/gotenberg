@@ -55,7 +55,51 @@ type libreOfficeProxy struct {
 	// environment honoring. See https://github.com/gotenberg/gotenberg/issues/1592.
 	upstreamProxy func(*url.URL) (*url.URL, error)
 
+	// conversionMu guards conversion, the client request lok converts a
+	// document for: the proxy logs its refusals with it. See [attach].
+	conversionMu sync.Mutex
+	conversion   *proxyConversion
+
 	stopOnce sync.Once
+}
+
+// proxyConversion is the client request a conversion runs for.
+type proxyConversion struct {
+	ctx    context.Context
+	logger *slog.Logger
+}
+
+// attach makes the proxy log its refusals with ctx and logger, the client
+// request's, so that the records carry its correlation ID and trace, until
+// the returned function runs. lok converts one document at a time, so the
+// requests the proxy sees meanwhile are that conversion's.
+func (p *libreOfficeProxy) attach(ctx context.Context, logger *slog.Logger) func() {
+	p.conversionMu.Lock()
+	defer p.conversionMu.Unlock()
+
+	p.conversion = &proxyConversion{ctx: ctx, logger: logger}
+
+	return func() {
+		p.conversionMu.Lock()
+		defer p.conversionMu.Unlock()
+
+		p.conversion = nil
+	}
+}
+
+// logRefusal records a request to rawURL the filters refused, with the
+// attached conversion's context and logger, or fallback and the proxy's own
+// logger outside a conversion.
+func (p *libreOfficeProxy) logRefusal(fallback context.Context, rawURL string, err error) {
+	ctx, logger := fallback, p.logger
+
+	p.conversionMu.Lock()
+	if p.conversion != nil {
+		ctx, logger = p.conversion.ctx, p.conversion.logger
+	}
+	p.conversionMu.Unlock()
+
+	gotenberg.LogOutboundRefusal(ctx, logger, "outbound request blocked by the LibreOffice filters", rawURL, err)
 }
 
 // newLibreOfficeProxy binds a proxy listener to a free local port and
@@ -145,7 +189,11 @@ func (p *libreOfficeProxy) handleHttp(w http.ResponseWriter, r *http.Request) {
 	// http.Client returned by NewOutboundHttpClient validates and pins it.
 	resp, err := p.client.Do(outReq) //nolint:gosec
 	if err != nil {
-		p.logger.WarnContext(r.Context(), fmt.Sprintf("LibreOffice proxy rejected forward to '%s': %s", r.URL.String(), err))
+		if gotenberg.FilterRule(err) != "" {
+			p.logRefusal(r.Context(), r.URL.String(), err)
+		} else {
+			p.logger.WarnContext(r.Context(), fmt.Sprintf("LibreOffice proxy rejected forward to '%s': %s", gotenberg.RedactURL(r.URL.String()), err))
+		}
 		http.Error(w, "proxy: destination rejected", http.StatusForbidden)
 		return
 	}
@@ -192,7 +240,11 @@ func (p *libreOfficeProxy) handleConnect(w http.ResponseWriter, r *http.Request)
 		gotenberg.WithDenyPublicIPs(p.opts.denyPublicIPs),
 	)
 	if err != nil {
-		p.logger.WarnContext(r.Context(), fmt.Sprintf("LibreOffice proxy rejected CONNECT to '%s': %s", rawURL, err))
+		if gotenberg.FilterRule(err) != "" {
+			p.logRefusal(r.Context(), rawURL, err)
+		} else {
+			p.logger.WarnContext(r.Context(), fmt.Sprintf("LibreOffice proxy rejected CONNECT to '%s': %s", rawURL, err))
+		}
 		http.Error(w, "proxy: destination rejected", http.StatusForbidden)
 		return
 	}

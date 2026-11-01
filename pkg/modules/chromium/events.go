@@ -162,6 +162,9 @@ func webSocketHostPort(rawURL string) (string, bool) {
 }
 
 type eventRequestPausedOptions struct {
+	// requestCtx is the client request's context, which the record of a
+	// refused request carries, for its trace.
+	requestCtx          context.Context
 	allowList, denyList []*regexp2.Regexp
 	denyPrivateIPs      bool
 	denyPublicIPs       bool
@@ -169,6 +172,16 @@ type eventRequestPausedOptions struct {
 	hostMapping         gotenberg.HostMapping
 	allowedFilePrefixes []string
 	extraHttpHeaders    []ExtraHttpHeader
+}
+
+// logContext returns the context a log record of the listener carries: the
+// client request's, or fallback without one.
+func (o eventRequestPausedOptions) logContext(fallback context.Context) context.Context {
+	if o.requestCtx != nil {
+		return o.requestCtx
+	}
+
+	return fallback
 }
 
 // listenForEventRequestPaused listens for requests to check if they are
@@ -205,7 +218,10 @@ func listenForEventRequestPaused(ctx context.Context, logger *slog.Logger, optio
 					gotenberg.WithHostMapping(options.hostMapping),
 				)
 				if err != nil {
-					logger.WarnContext(ctx, err.Error())
+					// The page renders without the request: only the logs
+					// tell. The main URL never gets here refused, as the
+					// route answers 403 for it before navigating.
+					gotenberg.LogOutboundRefusal(options.logContext(ctx), logger, "outbound request blocked by the Chromium filters", e.Request.URL, err)
 					allow = false
 				}
 
@@ -228,7 +244,10 @@ func listenForEventRequestPaused(ctx context.Context, logger *slog.Logger, optio
 				// exempts /tmp/) still cannot read the working
 				// directories of other in-flight conversions.
 				if allow && strings.HasPrefix(e.Request.URL, "file://") && !isAllowedFileSubResource(e.Request.URL, options.allowedFilePrefixes) {
-					logger.WarnContext(ctx, fmt.Sprintf("'%s' is not within any allowed file prefix", e.Request.URL))
+					logger.WarnContext(options.logContext(ctx), "outbound request blocked by the Chromium filters",
+						slog.String("url", gotenberg.RedactURL(e.Request.URL)),
+						slog.String("rule", "file-prefix"),
+					)
 					allow = false
 				}
 

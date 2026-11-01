@@ -493,12 +493,19 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *slog.Logger, input
 	defer p.convMu.Unlock()
 
 	p.cfgMu.RLock()
-	cmd, stdin, stdout, exited := p.cmd, p.stdin, p.stdout, p.exited
+	cmd, stdin, stdout, exited, proxy := p.cmd, p.stdin, p.stdout, p.exited, p.proxy
 	p.cfgMu.RUnlock()
 
 	// A stop may have run between the isStarted check and the lock.
 	if cmd == nil || stdin == nil {
 		return errors.New("LibreOffice not started, cannot handle PDF conversion")
+	}
+
+	// The requests LibreOffice sends meanwhile are this conversion's: the
+	// proxy logs a refusal with the client request's context.
+	if proxy != nil {
+		detach := proxy.attach(ctx, logger)
+		defer detach()
 	}
 
 	// Sending a request on behalf of a request that gave up would only get

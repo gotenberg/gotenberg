@@ -3,6 +3,7 @@ package gotenberg
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/netip"
 	"strings"
@@ -866,116 +867,88 @@ func TestDecideOutboundBoundsCatastrophicPatterns(t *testing.T) {
 	}
 }
 
-func TestDecideOutbound_HostMapping(t *testing.T) {
+func TestFilterRule(t *testing.T) {
 	withStubResolver(t, func(host string) ([]netip.Addr, error) {
 		switch host {
-		case "public.example", "mapped.example":
-			return mustAddrs(t, "1.1.1.1"), nil
+		case "internal.example.com":
+			return mustAddrs(t, "10.0.0.1"), nil
+		case "public.example.com":
+			return mustAddrs(t, "93.184.216.34"), nil
+		default:
+			return nil, errors.New("no such host")
 		}
-		t.Fatalf("unexpected DNS lookup for %q", host)
-		return nil, nil
 	})
 
-	mapping := func(host, port string) (string, string, error) {
-		switch host {
-		case "unrelated.invalid":
-			return "127.0.0.1", port, nil
-		case "public.example":
-			return "10.0.0.5", "8080", nil
-		case "renamed.example":
-			return "mapped.example", port, nil
-		case "gone.example":
-			return "", "", errors.New("mapped to ^NOTFOUND")
-		}
-		return host, port, nil
-	}
-
-	allowRenamed := regexp2.MustCompile(`^https://renamed\.example/`, regexp2.None)
-	denyPublic := regexp2.MustCompile(`^https://public\.example/`, regexp2.None)
+	deadline := time.Now().Add(5 * time.Second)
 
 	for _, tc := range []struct {
-		scenario     string
-		url          string
-		allowList    []*regexp2.Regexp
-		denyList     []*regexp2.Regexp
-		expectErr    bool
-		expectTarget string
-		expectPinned string
-		expectBypass bool
+		name  string
+		url   string
+		allow []*regexp2.Regexp
+		deny  []*regexp2.Regexp
+		opts  []DecideOption
+		want  string
 	}{
-		{
-			// The advisory's case: an unrelated rule must not open a
-			// private destination that the policy refuses.
-			scenario:  "a private literal stays refused",
-			url:       "ws://10.0.0.1/ws",
-			expectErr: true,
-		},
-		{
-			scenario:  "a mapping to a private address is refused",
-			url:       "https://public.example/",
-			expectErr: true,
-		},
-		{
-			scenario:     "the IP-class checks judge the mapped host",
-			url:          "https://renamed.example/",
-			expectTarget: "mapped.example:443",
-			expectPinned: "1.1.1.1",
-		},
-		{
-			scenario:     "the default port reaches the mapping",
-			url:          "ws://renamed.example/ws",
-			expectTarget: "mapped.example:80",
-			expectPinned: "1.1.1.1",
-		},
-		{
-			scenario:     "an untouched host has no target",
-			url:          "https://1.1.1.1/",
-			expectPinned: "1.1.1.1",
-		},
-		{
-			scenario:  "the deny-list matches the URL, not the mapped host",
-			url:       "https://public.example/",
-			denyList:  []*regexp2.Regexp{denyPublic},
-			expectErr: true,
-		},
-		{
-			scenario:     "the allow-list matches the URL and bypasses to the target",
-			url:          "https://renamed.example/",
-			allowList:    []*regexp2.Regexp{allowRenamed},
-			expectTarget: "mapped.example:443",
-			expectBypass: true,
-		},
-		{
-			scenario:  "a host mapped to nowhere is filtered",
-			url:       "https://gone.example/",
-			expectErr: true,
-		},
+		{name: "deny-list", url: "https://public.example.com/logo.png", deny: []*regexp2.Regexp{regexp2.MustCompile(`^https://public\.example\.com/`, regexp2.None)}, want: FilterRuleDenyList},
+		{name: "allow-list", url: "https://public.example.com/logo.png", allow: []*regexp2.Regexp{regexp2.MustCompile(`^https://cdn\.example\.com/`, regexp2.None)}, want: FilterRuleAllowList},
+		{name: "private IP", url: "https://internal.example.com/", opts: []DecideOption{WithDenyPrivateIPs(true)}, want: FilterRulePrivateIP},
+		{name: "public IP", url: "https://public.example.com/", opts: []DecideOption{WithDenyPublicIPs(true)}, want: FilterRulePublicIP},
+		{name: "unresolvable host", url: "https://nope.invalid/", want: FilterRuleUnresolvableHost},
+		{name: "allowed", url: "https://public.example.com/", want: ""},
 	} {
-		t.Run(tc.scenario, func(t *testing.T) {
-			decision, err := DecideOutbound(context.Background(), tc.url, tc.allowList, tc.denyList, time.Now().Add(5*time.Second),
-				WithDenyPrivateIPs(true),
-				WithHostMapping(mapping),
-			)
-
-			if tc.expectErr {
-				if !errors.Is(err, ErrFiltered) {
-					t.Fatalf("expected ErrFiltered, got: %v", err)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := DecideOutbound(context.Background(), tc.url, tc.allow, tc.deny, deadline, tc.opts...)
+			if got := FilterRule(err); got != tc.want {
+				t.Fatalf("FilterRule(%v) = %q, want %q", err, got, tc.want)
 			}
 
-			if decision.Target != tc.expectTarget {
-				t.Errorf("expected target %q, got %q", tc.expectTarget, decision.Target)
-			}
-			if decision.Bypass != tc.expectBypass {
-				t.Errorf("expected bypass %t, got %t", tc.expectBypass, decision.Bypass)
-			}
-			if tc.expectPinned != "" && (len(decision.Pinned) != 1 || decision.Pinned[0].String() != tc.expectPinned) {
-				t.Errorf("expected pinned [%s], got %v", tc.expectPinned, decision.Pinned)
+			if tc.want != "" && !errors.Is(err, ErrFiltered) {
+				t.Fatalf("err = %v, want it to match ErrFiltered", err)
 			}
 		})
+	}
+}
+
+// recordingHandler keeps the records a logger writes.
+type recordingHandler struct {
+	records *[]slog.Record
+}
+
+func (h recordingHandler) Enabled(context.Context, slog.Level) bool { return true }
+func (h recordingHandler) Handle(_ context.Context, r slog.Record) error {
+	*h.records = append(*h.records, r)
+	return nil
+}
+func (h recordingHandler) WithAttrs([]slog.Attr) slog.Handler { return h }
+func (h recordingHandler) WithGroup(string) slog.Handler      { return h }
+
+// A refused request is logged at warn level with its URL, without the secrets
+// its credentials, query or fragment may hold, and the rule that refused it.
+func TestLogOutboundRefusal(t *testing.T) {
+	var records []slog.Record
+	logger := slog.New(recordingHandler{records: &records})
+
+	_, err := DecideOutbound(context.Background(), "https://user:secret@cdn.example.com/logo.png?token=secret#top", nil,
+		[]*regexp2.Regexp{regexp2.MustCompile(`^https://cdn\.example\.com/`, regexp2.None)}, time.Now().Add(5*time.Second))
+
+	LogOutboundRefusal(context.Background(), logger, "outbound request blocked", "https://user:secret@cdn.example.com/logo.png?token=secret#top", err)
+
+	if len(records) != 1 {
+		t.Fatalf("%d records, want 1", len(records))
+	}
+
+	record := records[0]
+	attrs := map[string]string{}
+	record.Attrs(func(a slog.Attr) bool {
+		attrs[a.Key] = a.Value.String()
+		return true
+	})
+
+	if record.Level != slog.LevelWarn || record.Message != "outbound request blocked" {
+		t.Fatalf("record = %v %q, want a warn record", record.Level, record.Message)
+	}
+
+	if attrs["url"] != "https://cdn.example.com/logo.png" || attrs["rule"] != FilterRuleDenyList {
+		t.Fatalf("attrs = %v, want the redacted URL and the deny-list rule", attrs)
 	}
 }

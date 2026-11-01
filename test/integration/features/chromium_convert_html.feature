@@ -549,7 +549,7 @@ Feature: /forms/chromium/convert/html
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
     Then the Gotenberg container should log the following entries:
-      | 'file:///etc/passwd' matches the expression from the denied list |
+      | "url":"file:///etc/passwd","rule":"deny-list" |
 
   # Control for the WebSocket scenario below. An ordinary fetch to a loopback
   # address is surfaced as a Fetch.requestPaused event, so it is blocked by
@@ -565,7 +565,7 @@ Feature: /forms/chromium/convert/html
       | waitDelay | 1s                                  | field |
     Then the response status code should be 200
     Then the Gotenberg container should log the following entries:
-      | 'http://127.0.0.1:9999/ssrf-fetch' targets a non-public address |
+      | "url":"http://127.0.0.1:9999/ssrf-fetch","rule":"private-ip" |
 
   # A WebSocket handshake is never surfaced as a Fetch.requestPaused event, so
   # it escapes the filter in listenForEventRequestPaused. The page opens
@@ -681,7 +681,7 @@ Feature: /forms/chromium/convert/html
       | waitDelay | 1s                                        | field |
     Then the response status code should be 200
     Then the Gotenberg container should log the following entries:
-      | 'http://127.0.0.1:9999/sse' targets a non-public address |
+      | "url":"http://127.0.0.1:9999/sse","rule":"private-ip" |
 
   Scenario: POST /forms/chromium/convert/html (Main URL does NOT match allowed list)
     Given I have a Gotenberg container with the following environment variable(s):
@@ -717,7 +717,7 @@ Feature: /forms/chromium/convert/html
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
     Then the Gotenberg container should log the following entries:
-      | 'file:///etc/passwd' does not match any expression from the allowed list |
+      | "url":"file:///etc/passwd","rule":"allow-list" |
 
   Scenario: POST /forms/chromium/convert/html (JavaScript Enabled)
     Given I have a default Gotenberg container
@@ -762,6 +762,22 @@ Feature: /forms/chromium/convert/html
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
+
+  # A sub-resource the outbound filters block is left out of the page without
+  # failing the request: a warn record names it, without its query, and the
+  # rule, with the request's correlation ID.
+  Scenario: POST /forms/chromium/convert/html (Blocked Sub-resource Is Logged)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_DENY_LIST | ^https://gotenberg\\.dev/.* |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files           | testdata/blocked-resource-html/index.html | file   |
+      | Gotenberg-Trace | blocked-resource                          | header |
+    Then the response status code should be 200
+    Then the Gotenberg container should log the following entries:
+      | "msg":"outbound request blocked by the Chromium filters","log_type":"application","correlation_id":"blocked-resource" |
+      | "url":"https://gotenberg.dev/img/logo.png","rule":"deny-list"                                                         |
+    Then the Gotenberg container should NOT log the following entries:
+      | token=secret |
 
   Scenario: POST /forms/chromium/convert/html (Fail On Resource HTTP Status Codes)
     Given I have a default Gotenberg container

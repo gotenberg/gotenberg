@@ -1136,6 +1136,22 @@ Feature: /forms/libreoffice/convert
     Then there should be 1 PDF(s) in the response
     Then the "foo.pdf" PDF should have 1 image(s)
 
+  # LibreOffice requests the style sheets an HTML document links: a request the
+  # outbound filters refuse is logged with the request's correlation ID, the URL
+  # without its query, and the rule.
+  Scenario: POST /forms/libreoffice/convert (Refused Linked Style Sheet Is Logged)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | LIBREOFFICE_DENY_LIST | ^http://styles\\.example\\.com/ |
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files           | testdata/libreoffice-linked-stylesheet.html | file   |
+      | Gotenberg-Trace | blocked-stylesheet                          | header |
+    Then the response status code should be 200
+    Then the Gotenberg container should log the following entries:
+      | "msg":"outbound request blocked by the LibreOffice filters","log_type":"application","correlation_id":"blocked-stylesheet" |
+      | "url":"http://styles.example.com/style.css","rule":"deny-list"                                                             |
+    Then the Gotenberg container should NOT log the following entries:
+      | token=secret |
+
   # An uploaded document always loads from an untrusted location, so LibreOffice
   # refuses to resolve any content it links (absolute file:// path or external
   # URL). Closes the SSRF and local-file-read vector.

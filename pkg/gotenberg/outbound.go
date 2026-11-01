@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/netip"
@@ -63,6 +64,80 @@ func (e *UnresolvableHostError) Is(target error) bool {
 // Unwrap returns the resolver's error.
 func (e *UnresolvableHostError) Unwrap() error {
 	return e.Err
+}
+
+// The rules [FilterRule] names.
+const (
+	// FilterRuleDenyList refuses a URL a deny-list expression matches.
+	FilterRuleDenyList = "deny-list"
+	// FilterRuleAllowList refuses a URL no allow-list expression matches.
+	FilterRuleAllowList = "allow-list"
+	// FilterRulePrivateIP refuses a host that resolves to a non-public
+	// address, with [WithDenyPrivateIPs].
+	FilterRulePrivateIP = "private-ip"
+	// FilterRulePublicIP refuses a host that resolves to a public address,
+	// with [WithDenyPublicIPs].
+	FilterRulePublicIP = "public-ip"
+	// FilterRuleUnresolvableHost refuses a host that does not resolve.
+	FilterRuleUnresolvableHost = "unresolvable-host"
+	// FilterRuleInvalidURL refuses a URL that does not parse, or has no host.
+	FilterRuleInvalidURL = "invalid-url"
+	// FilterRulePattern refuses a URL a list expression cannot be evaluated
+	// against, failing closed.
+	FilterRulePattern = "pattern-error"
+)
+
+// refusalError is an outbound URL a filter refused. It matches [ErrFiltered],
+// and its message ends as a wrapped [ErrFiltered] would.
+type refusalError struct {
+	rule    string
+	message string
+}
+
+func (e *refusalError) Error() string {
+	return e.message + ": " + ErrFiltered.Error()
+}
+
+func (e *refusalError) Is(target error) bool {
+	return target == ErrFiltered
+}
+
+// refuse returns the refusal of an outbound URL by rule.
+func refuse(rule, format string, args ...any) error {
+	return &refusalError{rule: rule, message: fmt.Sprintf(format, args...)}
+}
+
+// FilterRule names the rule that refused an outbound URL, one of the
+// FilterRule constants, or returns "" when err is no refusal.
+func FilterRule(err error) string {
+	var (
+		refusal      *refusalError
+		unresolvable *UnresolvableHostError
+	)
+
+	switch {
+	case errors.As(err, &refusal):
+		return refusal.rule
+	case errors.As(err, &unresolvable):
+		return FilterRuleUnresolvableHost
+	case errors.Is(err, ErrFiltered):
+		return FilterRuleInvalidURL
+	default:
+		return ""
+	}
+}
+
+// LogOutboundRefusal records, at warn level, an outbound request err tells
+// the filters refused: the URL, without its credentials, query and fragment
+// ([RedactURL]), which may hold secrets such as the signature of a presigned
+// URL, and the rule ([FilterRule]). ctx is the client request's, so that the
+// record carries its trace. The refusal reaches the logs only: the client
+// never learns the policy.
+func LogOutboundRefusal(ctx context.Context, logger *slog.Logger, message, rawURL string, err error) {
+	logger.WarnContext(ctx, message,
+		slog.String("url", RedactURL(rawURL)),
+		slog.String("rule", FilterRule(err)),
+	)
 }
 
 // ErrPublicIP indicates that an outbound URL targets an IP address that is
@@ -419,7 +494,7 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 				// cleared for the IP-check bypass an allow-list match grants.
 				// Fail closed like an unresolvable host does below, so the
 				// client gets a generic 403 rather than a 500.
-				return OutboundDecision{}, fmt.Errorf("'%s' cannot handle '%s': %v: %w", pattern.String(), normalized, err, ErrFiltered)
+				return OutboundDecision{}, refuse(FilterRulePattern, "'%s' cannot handle '%s': %v", pattern.String(), normalized, err)
 			}
 
 			if ok {
@@ -429,7 +504,7 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 		}
 
 		if !allowMatched {
-			return OutboundDecision{}, fmt.Errorf("'%s' does not match any expression from the allowed list: %w", normalized, ErrFiltered)
+			return OutboundDecision{}, refuse(FilterRuleAllowList, "'%s' does not match any expression from the allowed list", normalized)
 		}
 	}
 
@@ -467,16 +542,16 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 	}
 
 	if host == "" {
-		return OutboundDecision{}, fmt.Errorf("URL %q has no host: %w", rawURL, ErrFiltered)
+		return OutboundDecision{}, refuse(FilterRuleInvalidURL, "URL %q has no host", rawURL)
 	}
 
 	addrs, err := resolveHost(ctx, host, cfg.denyPrivateIPs, cfg.denyPublicIPs)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrNonPublicIP):
-			return OutboundDecision{}, fmt.Errorf("'%s' targets a non-public address: %w", normalized, ErrFiltered)
+			return OutboundDecision{}, refuse(FilterRulePrivateIP, "'%s' targets a non-public address", normalized)
 		case errors.Is(err, ErrPublicIP):
-			return OutboundDecision{}, fmt.Errorf("'%s' targets a public address: %w", normalized, ErrFiltered)
+			return OutboundDecision{}, refuse(FilterRulePublicIP, "'%s' targets a public address", normalized)
 		case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 			// A cancellation or timeout is not a policy decision; surface it
 			// as-is so callers do not report it as a filtered request.
@@ -510,7 +585,7 @@ func defaultPort(scheme string) string {
 func normalizeOutboundURL(rawURL string) (*url.URL, string, error) {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
-		return nil, "", fmt.Errorf("parse URL %q: %w", rawURL, ErrFiltered)
+		return nil, "", refuse(FilterRuleInvalidURL, "parse URL %q", rawURL)
 	}
 	parsed.Scheme = strings.ToLower(parsed.Scheme)
 	parsed.Host = strings.ToLower(parsed.Host)
@@ -543,11 +618,11 @@ func matchDenyList(normalized string, denyList []*regexp2.Regexp, deadline time.
 			// The pattern could not be evaluated, so the URL cannot be proven
 			// to fall outside the deny-list. Fail closed rather than letting a
 			// deny-list that never ran pass the request through.
-			return fmt.Errorf("'%s' cannot handle '%s': %v: %w", pattern.String(), normalized, err, ErrFiltered)
+			return refuse(FilterRulePattern, "'%s' cannot handle '%s': %v", pattern.String(), normalized, err)
 		}
 
 		if ok {
-			return fmt.Errorf("'%s' matches the expression from the denied list: %w", normalized, ErrFiltered)
+			return refuse(FilterRuleDenyList, "'%s' matches the expression from the denied list", normalized)
 		}
 	}
 

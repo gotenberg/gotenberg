@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"maps"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
@@ -17,10 +18,13 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/dlclark/regexp2/v2"
 	"github.com/gotenberg/litho/pkg/models"
 	litho "github.com/gotenberg/litho/pkg/pdf"
 
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 )
 
@@ -855,5 +859,46 @@ func TestRunSetFormUnknownField(t *testing.T) {
 	values, err := openOutput(t, outputs[0]).FormData(context.Background())
 	if err != nil || values["name"] != "Gotenberg" {
 		t.Fatalf("form data = %v, %v, want name filled", values, err)
+	}
+}
+
+// roundTripFunc adapts a function to an [http.RoundTripper].
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }
+
+// A timestamp authority the outbound filters refuse is logged with its URL,
+// without its query, and the rule, while the client only learns it could not
+// be reached.
+func TestRefusalLogging(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
+
+	refused := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return nil, gotenberg.FilterOutboundURL(req.Context(), req.URL.String(), nil, []*regexp2.Regexp{regexp2.MustCompile(`^https://tsa\.example\.com/`, regexp2.None)}, time.Now().Add(time.Second))
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "https://tsa.example.com/stamp?key=secret", nil)
+	_, err := refusalLogging{base: refused, logger: logger}.RoundTrip(req)
+	if !errors.Is(err, gotenberg.ErrFiltered) {
+		t.Fatalf("err = %v, want the refusal", err)
+	}
+
+	record := buf.String()
+	for _, want := range []string{`"level":"WARN"`, `"msg":"outbound request blocked by the PDF filters"`, `"url":"https://tsa.example.com/stamp"`, `"rule":"deny-list"`} {
+		if !strings.Contains(record, want) {
+			t.Errorf("record %s lacks %s", record, want)
+		}
+	}
+	if strings.Contains(record, "secret") {
+		t.Errorf("record %s leaks the query", record)
+	}
+
+	// A transport error that is no refusal is the caller's to report.
+	buf.Reset()
+	failing := roundTripFunc(func(*http.Request) (*http.Response, error) { return nil, errors.New("connection refused") })
+	_, _ = refusalLogging{base: failing, logger: logger}.RoundTrip(req)
+	if buf.Len() != 0 {
+		t.Errorf("logged %s for a transport error", buf.String())
 	}
 }

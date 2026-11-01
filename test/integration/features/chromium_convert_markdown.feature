@@ -31,7 +31,7 @@ Feature: /forms/chromium/convert/markdown
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
     Then the Gotenberg container should log the following entries:
-      | 'file:///etc/passwd' matches the expression from the denied list |
+      | "url":"file:///etc/passwd","rule":"deny-list" |
 
   Scenario: POST /forms/chromium/convert/markdown (Request does not match the allowed list)
     Given I have a Gotenberg container with the following environment variable(s):
@@ -43,7 +43,7 @@ Feature: /forms/chromium/convert/markdown
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
     Then the Gotenberg container should log the following entries:
-      | 'file:///etc/passwd' does not match any expression from the allowed list |
+      | "url":"file:///etc/passwd","rule":"allow-list" |
 
   # A field the route does not read answers 400, and a Gotenberg 8 one says what
   # replaced it.
