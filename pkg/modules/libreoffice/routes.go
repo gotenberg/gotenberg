@@ -92,7 +92,7 @@ func convertRoute(libreOffice libreofficeapi.Converter, processor *pdf.Processor
 				String("nativeWatermarkText", &options.NativeWatermarkText).
 				Custom("nativeWatermarkColor", into(&options.NativeWatermarkColor, parseColor)).
 				Int("nativeWatermarkFontSize", &options.NativeWatermarkFontHeight, api.Min(0)).
-				Custom("nativeWatermarkRotation", into(&options.NativeWatermarkRotateAngle, parseRotation)).
+				Custom("nativeWatermarkRotation", intoPointer(&options.NativeWatermarkRotateAngle, parseRotation)).
 				String("nativeWatermarkFont", &options.NativeWatermarkFontName).
 				String("nativeTiledWatermarkText", &options.NativeTiledWatermarkText).
 				String("nativePdfa", &options.PdfFormats.PdfA).
@@ -116,6 +116,15 @@ func convertRoute(libreOffice libreofficeapi.Converter, processor *pdf.Processor
 				return api.NewSentinelHttpError(
 					http.StatusBadRequest,
 					"Invalid form data: set 'paperSize', or both 'paperWidth' and 'paperHeight'",
+				)
+			}
+
+			// LibreOffice draws the tiled watermark only when the plain
+			// watermark text is empty, so it would silently drop one of them.
+			if options.NativeWatermarkText != "" && options.NativeTiledWatermarkText != "" {
+				return api.NewSentinelHttpError(
+					http.StatusBadRequest,
+					"Invalid form data: set 'nativeWatermarkText' or 'nativeTiledWatermarkText', not both",
 				)
 			}
 

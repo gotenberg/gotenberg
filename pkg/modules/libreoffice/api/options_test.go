@@ -24,3 +24,23 @@ func TestOptions_String_MasksPassword(t *testing.T) {
 		t.Errorf("String must not modify the options, got password %q", options.Password)
 	}
 }
+
+func TestOptions_String_ShowsWatermarkRotation(t *testing.T) {
+	options := DefaultOptions()
+
+	got := fmt.Sprintf("%v", options)
+	if !strings.Contains(got, "NativeWatermarkRotateAngle:<nil>") {
+		t.Errorf("an unset rotation should read <nil>, got: %s", got)
+	}
+
+	options.NativeWatermarkRotateAngle = new(450)
+
+	got = fmt.Sprintf("%v", options)
+	if !strings.Contains(got, "NativeWatermarkRotateAngle:450") || strings.Contains(got, "0x") {
+		t.Errorf("a set rotation should read its value, not its address, got: %s", got)
+	}
+
+	if options.NativeWatermarkRotateAngle == nil || *options.NativeWatermarkRotateAngle != 450 {
+		t.Errorf("String must not modify the options, got rotation %v", options.NativeWatermarkRotateAngle)
+	}
+}

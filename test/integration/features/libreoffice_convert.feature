@@ -797,6 +797,37 @@ Feature: /forms/libreoffice/convert
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
 
+  # 0 draws the watermark horizontally, rather than leaving the angle to
+  # LibreOffice.
+  Scenario: POST /forms/libreoffice/convert (Native Watermark - Rotation 0)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.docx | file   |
+      | nativeWatermarkText       | DRAFT                | field  |
+      | nativeWatermarkRotation   | 0                    | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      DRAFT
+      """
+
+  # LibreOffice draws the tiled watermark only without the plain one.
+  Scenario: POST /forms/libreoffice/convert (Native Watermark - Plain And Tiled)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                    | testdata/page_1.docx | file  |
+      | nativeWatermarkText      | DRAFT                | field |
+      | nativeTiledWatermarkText | CONFIDENTIAL         | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: set 'nativeWatermarkText' or 'nativeTiledWatermarkText', not both
+      """
+
   # Files a stage reads are uploaded like the documents, and are not converted.
   @pdf-attach
   Scenario: POST /forms/libreoffice/convert (Attach)

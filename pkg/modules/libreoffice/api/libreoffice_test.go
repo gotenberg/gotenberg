@@ -193,6 +193,46 @@ func TestNewLokRequest_DisablesMacrosExplicitly(t *testing.T) {
 	}
 }
 
+// The request leaves the watermark rotation out when the client sets none, so
+// that LibreOffice picks the angle, and sends any angle set, 0 included.
+func TestNewLokRequest_WatermarkRotation(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		angle *int
+		want  string
+	}{
+		{name: "unset", angle: nil, want: ""},
+		{name: "horizontal", angle: new(0), want: `"nativeWatermarkRotateAngle":0`},
+		{name: "45 degrees", angle: new(450), want: `"nativeWatermarkRotateAngle":450`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			options := DefaultOptions()
+			options.NativeWatermarkRotateAngle = tc.angle
+
+			req, err := newLokRequest("in.docx", "out.pdf", options)
+			if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+
+			b, err := json.Marshal(req)
+			if err != nil {
+				t.Fatalf("marshal request: %v", err)
+			}
+
+			if tc.want == "" {
+				if strings.Contains(string(b), "nativeWatermarkRotateAngle") {
+					t.Fatalf("expected no nativeWatermarkRotateAngle, got %s", b)
+				}
+				return
+			}
+
+			if !strings.Contains(string(b), tc.want) {
+				t.Fatalf("expected %s, got %s", tc.want, b)
+			}
+		})
+	}
+}
+
 // A lok that answers office_destroyed or panic is still running, but unusable:
 // the conversion must be retried on a restarted lok.
 func TestLibreOfficeProcess_UnusableLokIsTerminated(t *testing.T) {

@@ -265,8 +265,9 @@ type Options struct {
 	NativeWatermarkFontHeight int
 
 	// NativeWatermarkRotateAngle specifies the rotation angle for the watermark
-	// text in tenths of a degree (e.g., 450 = 45°).
-	NativeWatermarkRotateAngle int
+	// text in tenths of a degree, counter-clockwise (e.g., 450 = 45°). nil
+	// leaves the angle to LibreOffice, while 0 draws the text horizontally.
+	NativeWatermarkRotateAngle *int
 
 	// NativeWatermarkFontName specifies the font name for the watermark text.
 	// Default is "Helvetica".
@@ -285,14 +286,23 @@ type Options struct {
 }
 
 // String renders the options with the password masked, so that logging them
-// never leaks it.
+// never leaks it, and the watermark rotation by its value rather than its
+// address.
 func (o Options) String() string {
 	// A distinct type drops the String method, avoiding infinite recursion.
 	type plain Options
 	if o.Password != "" {
 		o.Password = "***"
 	}
-	return fmt.Sprintf("%+v", plain(o))
+
+	angle := o.NativeWatermarkRotateAngle
+	o.NativeWatermarkRotateAngle = nil
+	s := fmt.Sprintf("%+v", plain(o))
+	if angle == nil {
+		return s
+	}
+
+	return strings.Replace(s, "NativeWatermarkRotateAngle:<nil>", fmt.Sprintf("NativeWatermarkRotateAngle:%d", *angle), 1)
 }
 
 // DefaultOptions returns the default values for Options.
@@ -338,7 +348,7 @@ func DefaultOptions() Options {
 		NativeWatermarkText:             "",
 		NativeWatermarkColor:            8388223,
 		NativeWatermarkFontHeight:       0,
-		NativeWatermarkRotateAngle:      0,
+		NativeWatermarkRotateAngle:      nil,
 		NativeWatermarkFontName:         "Helvetica",
 		NativeTiledWatermarkText:        "",
 		GenerateTaggedPdf:               false,

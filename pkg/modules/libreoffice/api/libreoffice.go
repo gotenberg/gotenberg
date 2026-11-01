@@ -69,7 +69,8 @@ func newLibreOfficeProcess(arguments libreOfficeArguments) libreOffice {
 }
 
 // lokRequest is a conversion request of lok's long-running mode. Every option
-// is sent, so lok's own defaults never apply.
+// is sent, so lok's own defaults never apply, but the watermark rotation: left
+// out when the client sets none, so that LibreOffice picks the angle.
 type lokRequest struct {
 	InputPath  string `json:"inputPath"`
 	OutputPath string `json:"outputPath"`
@@ -120,7 +121,7 @@ type lokRequest struct {
 	NativeWatermarkText             string `json:"nativeWatermarkText"`
 	NativeWatermarkColor            int    `json:"nativeWatermarkColor"`
 	NativeWatermarkFontHeight       int    `json:"nativeWatermarkFontHeight"`
-	NativeWatermarkRotateAngle      int    `json:"nativeWatermarkRotateAngle"`
+	NativeWatermarkRotateAngle      *int   `json:"nativeWatermarkRotateAngle,omitempty"`
 	NativeWatermarkFontName         string `json:"nativeWatermarkFontName"`
 	NativeTiledWatermarkText        string `json:"nativeTiledWatermarkText"`
 	PdfVersion                      int    `json:"pdfVersion"`

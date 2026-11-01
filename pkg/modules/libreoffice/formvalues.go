@@ -88,3 +88,23 @@ func into(target *int, parse func(string) (int, error)) func(string) error {
 		return nil
 	}
 }
+
+// intoPointer returns a [api.FormData.Custom] binding that parses a value into
+// a new int target points to, and keeps target nil when the field is empty, so
+// that a value the client sets, 0 included, tells from none.
+func intoPointer(target **int, parse func(string) (int, error)) func(string) error {
+	return func(value string) error {
+		if value == "" {
+			return nil
+		}
+
+		n, err := parse(value)
+		if err != nil {
+			return err
+		}
+
+		*target = &n
+
+		return nil
+	}
+}

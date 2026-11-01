@@ -342,3 +342,69 @@ func TestConvertRoute_InvalidNativePdfa(t *testing.T) {
 		t.Fatalf("got %d %q, want a 400 naming 'nativePdfa'", status, message)
 	}
 }
+
+// TestConvertRoute_Watermark checks that the rotation stays unset unless the
+// client sets one, 0 included, and that the plain and tiled watermarks exclude
+// each other, as LibreOffice draws the tiled one only without the plain one.
+func TestConvertRoute_Watermark(t *testing.T) {
+	dir := t.TempDir()
+
+	for _, tc := range []struct {
+		name      string
+		values    map[string][]string
+		wantAngle *int
+		wantErr   string
+	}{
+		{name: "rotation unset", values: map[string][]string{"nativeWatermarkText": {"DRAFT"}}},
+		{name: "rotation 0", values: map[string][]string{"nativeWatermarkRotation": {"0"}}, wantAngle: new(0)},
+		{name: "rotation 360", values: map[string][]string{"nativeWatermarkRotation": {"360"}}, wantAngle: new(0)},
+		{name: "rotation 45", values: map[string][]string{"nativeWatermarkRotation": {"45"}}, wantAngle: new(450)},
+		{
+			name:    "plain and tiled watermarks",
+			values:  map[string][]string{"nativeWatermarkText": {"DRAFT"}, "nativeTiledWatermarkText": {"DRAFT"}},
+			wantErr: "Invalid form data: set 'nativeWatermarkText' or 'nativeTiledWatermarkText', not both",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := &api.ContextMock{Context: &api.Context{Context: context.Background()}}
+			ctx.SetDirPath(dir)
+			ctx.SetFiles(map[string]string{"page_1.docx": zipPackage(t, dir, "page_1.docx")})
+			ctx.SetValues(tc.values)
+			ctx.SetLogger(slog.New(slog.DiscardHandler))
+
+			var got libreofficeapi.Options
+			converter := &libreofficeapi.ApiMock{
+				ExtensionsMock: func() []string { return []string{".docx"} },
+				PdfMock: func(_ context.Context, _ *slog.Logger, _, _ string, options libreofficeapi.Options) error {
+					got = options
+					return nil
+				},
+			}
+
+			c := echo.New().NewContext(httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", nil), httptest.NewRecorder())
+			c.Set("context", ctx.Context)
+
+			err := convertRoute(converter, new(pdf.Processor)).Handler(c)
+			if tc.wantErr != "" {
+				status, message := api.ParseError(err)
+				if status != http.StatusBadRequest || message != tc.wantErr {
+					t.Fatalf("got %d %q, want 400 %q", status, message, tc.wantErr)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("handler: %v", err)
+			}
+
+			switch {
+			case tc.wantAngle == nil && got.NativeWatermarkRotateAngle != nil:
+				t.Errorf("rotation = %d, want unset", *got.NativeWatermarkRotateAngle)
+			case tc.wantAngle != nil && got.NativeWatermarkRotateAngle == nil:
+				t.Errorf("rotation unset, want %d", *tc.wantAngle)
+			case tc.wantAngle != nil && *got.NativeWatermarkRotateAngle != *tc.wantAngle:
+				t.Errorf("rotation = %d, want %d", *got.NativeWatermarkRotateAngle, *tc.wantAngle)
+			}
+		})
+	}
+}
