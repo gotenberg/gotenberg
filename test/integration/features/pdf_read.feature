@@ -38,6 +38,17 @@ Feature: /forms/pdf/{info|validate}
       | files    | teststore/foo.pdf | file  |
       | password | foo               | field |
     Then the response status code should be 200
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/info" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Reading 'foo.pdf' failed: the PDF is encrypted, and the 'password' form field is missing or wrong
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/info" endpoint with the following form data and header(s):
+      | files    | teststore/foo.pdf | file  |
+      | password | foo               | field |
+    Then the response status code should be 200
     Then the response body should match JSON:
       """
       {

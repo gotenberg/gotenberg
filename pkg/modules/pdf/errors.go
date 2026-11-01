@@ -118,6 +118,18 @@ func handleError(err error, dirPath string) error {
 		))
 	}
 
+	// Only a decrypt stage, the first, opens an encrypted PDF: the routes of
+	// the other stages take no password. The read routes take a "password"
+	// form field.
+	if errors.Is(err, litho.ErrInvalidPassword) && se.op != "decrypt" {
+		message := fmt.Sprintf(`Stage '%s' failed on '%s': the PDF is encrypted; open it with a "decrypt" stage first, such as [{"op":"decrypt","password":"..."},{"op":"%s"}] on /forms/pdf/pipe`, se.op, se.filename, se.op)
+		if _, ok := stageFactories[se.op]; !ok {
+			message = fmt.Sprintf("Reading '%s' failed: the PDF is encrypted, and the 'password' form field is missing or wrong", se.filename)
+		}
+
+		return api.WrapError(err, api.NewSentinelHttpError(http.StatusBadRequest, message))
+	}
+
 	// litho classifies its own errors, so a new litho error never reaches the
 	// client as a 500 by omission.
 	if isInvalidInput(err) {

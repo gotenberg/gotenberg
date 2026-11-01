@@ -72,9 +72,9 @@ Feature: /forms/pdf/{encrypt|decrypt}
       | files | teststore/foo.pdf | file  |
       | angle | 90                | field |
     Then the response status code should be 400
-    Then the response body should contain string:
+    Then the response body should match string:
       """
-      Stage 'rotate' failed on 'foo.pdf': open PDF:
+      Stage 'rotate' failed on 'foo.pdf': the PDF is encrypted; open it with a "decrypt" stage first, such as [{"op":"decrypt","password":"..."},{"op":"rotate"}] on /forms/pdf/pipe
       """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/decrypt" endpoint with the following form data and header(s):
       | files    | teststore/foo.pdf | file  |

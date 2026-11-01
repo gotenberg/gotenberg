@@ -31,7 +31,8 @@ func TestHandleError_Status(t *testing.T) {
 			if status != tc.expect {
 				t.Fatalf("status = %d, want %d (%s)", status, tc.expect, message)
 			}
-			if tc.expect == http.StatusBadRequest && message != fmt.Sprintf("Stage 'rotate' failed on 'doc.pdf': doc.pdf: %s", tc.err) {
+			// TestHandleError_EncryptedInput pins the message of a password.
+			if tc.expect == http.StatusBadRequest && !errors.Is(tc.err, litho.ErrInvalidPassword) && message != fmt.Sprintf("Stage 'rotate' failed on 'doc.pdf': doc.pdf: %s", tc.err) {
 				t.Errorf("message = %q, want the stage, the file and no working directory", message)
 			}
 		})
@@ -72,5 +73,28 @@ func TestHandleError_LithoSteps(t *testing.T) {
 	err := handleError(&stageError{op: "rotate", filename: "doc.pdf", err: fmt.Errorf("applying the rotation: %w", litho.ErrInvalidPageNumber)}, "/tmp/work")
 	if _, message := api.ParseError(err); message != fmt.Sprintf("Stage 'rotate' failed on 'doc.pdf': applying the rotation: %s", litho.ErrInvalidPageNumber) {
 		t.Fatalf("message = %q, want it whole", message)
+	}
+}
+
+// An encrypted PDF opens with a decrypt stage first, or the password field of
+// a read route.
+func TestHandleError_EncryptedInput(t *testing.T) {
+	for _, tc := range []struct {
+		op   string
+		want string
+	}{
+		{op: "rotate", want: `Stage 'rotate' failed on 'doc.pdf': the PDF is encrypted; open it with a "decrypt" stage first, such as [{"op":"decrypt","password":"..."},{"op":"rotate"}] on /forms/pdf/pipe`},
+		{op: "merge", want: `Stage 'merge' failed on 'doc.pdf': the PDF is encrypted; open it with a "decrypt" stage first, such as [{"op":"decrypt","password":"..."},{"op":"merge"}] on /forms/pdf/pipe`},
+		{op: "metadata", want: "Reading 'doc.pdf' failed: the PDF is encrypted, and the 'password' form field is missing or wrong"},
+		{op: "decrypt", want: fmt.Sprintf("Stage 'decrypt' failed on 'doc.pdf': open PDF: %s", litho.ErrInvalidPassword)},
+	} {
+		t.Run(tc.op, func(t *testing.T) {
+			err := &stageError{op: tc.op, filename: "doc.pdf", err: fmt.Errorf("open PDF: %w", litho.ErrInvalidPassword)}
+
+			status, message := api.ParseError(handleError(err, "/tmp/work"))
+			if status != http.StatusBadRequest || message != tc.want {
+				t.Fatalf("got %d %q, want 400 %q", status, message, tc.want)
+			}
+		})
 	}
 }
