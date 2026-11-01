@@ -50,9 +50,9 @@ func (mod *PDF) Descriptor() gotenberg.ModuleDescriptor {
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("pdf", flag.ExitOnError)
 			fs.Int("pdf-max-concurrency", defaultMaxConcurrency, "Set the maximum number of PDF documents a request processes concurrently, across all requests - raising it trades memory and CPU for speed on multi-document requests")
-			fs.String("pdf-max-stream-bytes", "", "Set the maximum size a PDF stream may decode to - it accepts values like 256MB, 1GB, etc; empty keeps litho's default")
-			fs.String("pdf-max-embedded-file-bytes", "", "Set the maximum size of an embedded file read for validation - it accepts values like 50MB, 1GB, etc; empty keeps litho's default")
-			fs.Int64("pdf-max-image-pixels", 0, "Set the maximum number of pixels an image may hold - 0 keeps litho's default")
+			fs.String("pdf-max-stream-bytes", "", "Set the maximum size a PDF stream may decode to - it accepts values like 256MB, 1GB, etc; empty keeps litho's default, 256 MiB")
+			fs.String("pdf-max-embedded-file-bytes", "", "Set the maximum size of an embedded file read for validation - it accepts values like 50MB, 1GB, etc; empty keeps litho's default, 50 MiB")
+			fs.Int64("pdf-max-image-pixels", 0, "Set the maximum number of pixels an image may hold - 0 keeps litho's default, 100000000 (100 million)")
 			fs.StringSlice("pdf-allow-list", []string{}, `Set the allowed timestamp authority URLs for the sign and timestamp stages using regular expressions - supports multiple values. A match bypasses --pdf-deny-private-ips (PDF_DENY_PRIVATE_IPS) and --pdf-deny-public-ips (PDF_DENY_PUBLIC_IPS), so terminate the host or the pattern also matches suffix hosts, for example ^https?://tsa\.example\.com(:|/|$)`)
 			fs.StringSlice("pdf-deny-list", []string{}, "Set the denied timestamp authority URLs for the sign and timestamp stages using regular expressions - supports multiple values")
 			fs.Bool("pdf-deny-private-ips", false, "Reject timestamp authority URLs whose host resolves to a non-public IP address (loopback, RFC1918, link-local, unique-local). Enable on deployments that accept untrusted requests to mitigate SSRF against internal services")
