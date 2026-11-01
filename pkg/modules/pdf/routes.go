@@ -353,6 +353,106 @@ func attachmentsRoute(processor *Processor) api.Route {
 	}))
 }
 
+// formField is one field of the form route's answer. Its name and value feed
+// the set-form stage as they are.
+type formField struct {
+	Name  string `json:"name"`
+	Type  string `json:"type"`
+	Value any    `json:"value"`
+	// Pages lists the pages the field's widgets sit on, none for a field no
+	// page shows.
+	Pages []int `json:"pages"`
+	// Options lists the export values of a choice field, the values set-form
+	// takes, without their display labels.
+	Options     []string `json:"options,omitempty"`
+	States      []string `json:"states,omitempty"`
+	ReadOnly    bool     `json:"readOnly,omitempty"`
+	Required    bool     `json:"required,omitempty"`
+	MultiSelect bool     `json:"multiSelect,omitempty"`
+	Editable    bool     `json:"editable,omitempty"`
+	MaxLength   int      `json:"maxLength,omitempty"`
+}
+
+func formRoute(processor *Processor) api.Route {
+	return readRoute(processor, "form", func(form *api.FormData) readFunc {
+		var pages string
+		form.String("pages", &pages)
+
+		return func(ctx context.Context, r *litho.Reader) (any, error) {
+			return readForm(ctx, r, pages)
+		}
+	})
+}
+
+// readForm lists the fields of the form r reads, in field-tree order. A
+// non-empty pages, a page selection, keeps the fields with a widget on a
+// selected page.
+func readForm(ctx context.Context, r *litho.Reader, pages string) ([]formField, error) {
+	var selected []int
+	if pages != "" {
+		count, err := r.PageCount(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("count pages: %w", err)
+		}
+
+		selected, err = litho.ParsePageRanges(pages, count)
+		if err != nil {
+			return nil, fmt.Errorf("form field 'pages': %w", err)
+		}
+	}
+
+	fields, err := r.FormFields(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read form fields: %w", err)
+	}
+
+	res := []formField{}
+	for _, f := range fields {
+		// An XFA form names its fields in its own template, which set-form
+		// does not fill. A field that states no type is malformed.
+		if f.Type == models.FormFieldXFA || f.Type == "" {
+			continue
+		}
+
+		field := formField{
+			Name:        f.Name,
+			Type:        string(f.Type),
+			Value:       f.Value,
+			Pages:       []int{},
+			States:      f.States,
+			ReadOnly:    f.ReadOnly,
+			Required:    f.Required,
+			MultiSelect: f.MultiSelect,
+			Editable:    f.Editable,
+			MaxLength:   f.MaxLen,
+		}
+
+		// set-form takes the selections of such a list as an array.
+		if f.MultiSelect {
+			field.Value = append([]string{}, f.Values...)
+		}
+
+		for _, o := range f.Options {
+			field.Options = append(field.Options, o.Value)
+		}
+
+		for _, w := range f.Widgets {
+			if w.PageNumber > 0 && !slices.Contains(field.Pages, w.PageNumber) {
+				field.Pages = append(field.Pages, w.PageNumber)
+			}
+		}
+		slices.Sort(field.Pages)
+
+		if selected != nil && !slices.ContainsFunc(field.Pages, func(page int) bool { return slices.Contains(selected, page) }) {
+			continue
+		}
+
+		res = append(res, field)
+	}
+
+	return res, nil
+}
+
 // gotenberg8Routes maps the /forms/pdfengines routes of Gotenberg 8 to the
 // /forms/pdf routes that replaced them. See the upgrade guide.
 var gotenberg8Routes = map[string]string{

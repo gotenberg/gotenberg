@@ -404,6 +404,13 @@ func TestUnknownFields(t *testing.T) {
 			fixtures: []string{"page_1.pdf"},
 			wantBody: "Invalid form data: form field 'flavour' is unknown to this route",
 		},
+		{
+			name:     "form route",
+			route:    formRoute(testProcessor()),
+			values:   map[string][]string{"pages": {"1"}, "fields": {`{"name":"x"}`}},
+			fixtures: []string{"form.pdf"},
+			wantBody: "Invalid form data: form field 'fields' is unknown to this route",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx, _ := testContext(t, tc.fixtures...)
@@ -479,5 +486,131 @@ func TestGotenberg8RoutesExist(t *testing.T) {
 				t.Errorf("/forms/pdfengines/%s points to %s, which is not a /forms/pdf route", name, match[0])
 			}
 		}
+	}
+}
+
+func TestFormRoute(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		fixture  string
+		values   map[string][]string
+		wantBody string
+	}{
+		{
+			name:     "one text field",
+			fixture:  "form.pdf",
+			wantBody: `{"form.pdf":[{"name":"name","type":"text","value":"","pages":[1]}]}`,
+		},
+		{
+			name:     "no form",
+			fixture:  "page_1.pdf",
+			wantBody: `{"page_1.pdf":[]}`,
+		},
+		{
+			name:     "check box and combo box",
+			fixture:  "fields.pdf",
+			wantBody: `{"fields.pdf":[{"name":"agree","type":"checkbox","value":"Off","pages":[1],"states":["Yes"]},{"name":"color","type":"combo","value":"Red","pages":[1],"options":["Red","Green"]}]}`,
+		},
+		{
+			name:    "every kind",
+			fixture: "multi.pdf",
+			wantBody: `{"multi.pdf":[` +
+				`{"name":"total","type":"text","value":"42","pages":[1,2],"readOnly":true},` +
+				`{"name":"size","type":"radio","value":"Off","pages":[2],"states":["S","M","L"],"required":true},` +
+				`{"name":"calc","type":"text","value":"7","pages":[]},` +
+				`{"name":"country","type":"combo","value":"FR","pages":[],"options":["FR","DE"]},` +
+				`{"name":"sig","type":"signature","value":"","pages":[2]},` +
+				`{"name":"tags","type":"list","value":["a","c"],"pages":[1],"options":["a","b","c"],"multiSelect":true}]}`,
+		},
+		{
+			name:     "fields on a selected page",
+			fixture:  "multi.pdf",
+			values:   map[string][]string{"pages": {"1"}},
+			wantBody: `{"multi.pdf":[{"name":"total","type":"text","value":"42","pages":[1,2],"readOnly":true},{"name":"tags","type":"list","value":["a","c"],"pages":[1],"options":["a","b","c"],"multiSelect":true}]}`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, rec, err := serve(t, formRoute(testProcessor()), tc.values, tc.fixture)
+			if err != api.ErrNoOutputFile {
+				t.Fatalf("handler: %v, want ErrNoOutputFile after writing JSON", err)
+			}
+
+			if got := strings.TrimSpace(rec.Body.String()); got != tc.wantBody {
+				t.Fatalf("form =\n%s\nwant\n%s", got, tc.wantBody)
+			}
+		})
+	}
+
+	// A selection past the last page is the client's mistake, as on rotate.
+	_, _, err := serve(t, formRoute(testProcessor()), map[string][]string{"pages": {"3"}}, "multi.pdf")
+	status, message := api.ParseError(err)
+	if status != http.StatusBadRequest || !strings.HasPrefix(message, "Stage 'form' failed on 'multi.pdf': form field 'pages': ") {
+		t.Fatalf("bad selection: got %d %q", status, message)
+	}
+}
+
+// readFormFields answers the form route on the PDF at path.
+func readFormFields(t *testing.T, processor *Processor, path string) []formField {
+	t.Helper()
+
+	ctx, _ := testContext(t)
+	(&api.ContextMock{Context: ctx}).SetFiles(map[string]string{"doc.pdf": path})
+
+	rec := httptest.NewRecorder()
+	c := echo.New().NewContext(httptest.NewRequest(http.MethodPost, "/forms/pdf/form", nil), rec)
+	c.Set("context", ctx)
+
+	err := formRoute(processor).Handler(c)
+	if err != api.ErrNoOutputFile {
+		t.Fatalf("handler: %v, want ErrNoOutputFile after writing JSON", err)
+	}
+
+	var answer map[string][]formField
+	err = json.Unmarshal(rec.Body.Bytes(), &answer)
+	if err != nil || len(answer) != 1 {
+		t.Fatalf("decode %s: %v, want the answer for one PDF", rec.Body.String(), err)
+	}
+
+	for _, fields := range answer {
+		return fields
+	}
+
+	return nil
+}
+
+// Each name and value the form route answers feeds the set-form stage as it
+// is: setting every field to the value read leaves the answer unchanged.
+func TestFormRoundTrip(t *testing.T) {
+	processor := testProcessor()
+
+	for _, fixture := range []string{"form.pdf", "fields.pdf"} {
+		t.Run(fixture, func(t *testing.T) {
+			ctx, paths := testContext(t, fixture)
+			first := readFormFields(t, processor, paths[fixture])
+
+			// A push button or a signature field holds no value set-form
+			// sets.
+			values := make(map[string]any)
+			for _, f := range first {
+				if f.Type != "button" && f.Type != "signature" {
+					values[f.Name] = f.Value
+				}
+			}
+
+			stages, err := json.Marshal([]any{map[string]any{"op": "set-form", "fields": values}})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			outputs, err := processor.Run(ctx, mustStages(t, string(stages)), []string{paths[fixture]}, nil)
+			if err != nil {
+				t.Fatalf("set-form %s: %v", stages, err)
+			}
+
+			second := readFormFields(t, processor, outputs[0])
+			if !reflect.DeepEqual(second, first) {
+				t.Fatalf("second read = %+v, want %+v", second, first)
+			}
+		})
 	}
 }

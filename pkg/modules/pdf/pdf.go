@@ -217,6 +217,7 @@ func (mod *PDF) Routes() ([]api.Route, error) {
 		infoRoute(mod.processor),
 		validateRoute(mod.processor),
 		attachmentsRoute(mod.processor),
+		formRoute(mod.processor),
 	}
 
 	for _, op := range sortedKeys(stageFactories) {

@@ -1,0 +1,96 @@
+%PDF-1.7
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R /AcroForm << /Fields [5 0 R 8 0 R 12 0 R 13 0 R 14 0 R 15 0 R] /DA (/Helv 12 Tf 0 g) /DR << /Font << /Helv 20 0 R >> >> >> >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << >> /Annots [6 0 R 15 0 R] /Contents 21 0 R >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << >> /Annots [7 0 R 9 0 R 10 0 R 11 0 R 14 0 R] /Contents 21 0 R >>
+endobj
+5 0 obj
+<< /FT /Tx /T (total) /V (42) /Ff 1 /Kids [6 0 R 7 0 R] /DA (/Helv 12 Tf 0 g) >>
+endobj
+6 0 obj
+<< /Type /Annot /Subtype /Widget /Parent 5 0 R /Rect [72 700 272 720] /P 3 0 R /F 4 >>
+endobj
+7 0 obj
+<< /Type /Annot /Subtype /Widget /Parent 5 0 R /Rect [72 50 272 70] /P 4 0 R /F 4 >>
+endobj
+8 0 obj
+<< /FT /Btn /Ff 49154 /T (size) /V /Off /Kids [9 0 R 10 0 R 11 0 R] >>
+endobj
+9 0 obj
+<< /Type /Annot /Subtype /Widget /Parent 8 0 R /Rect [72 600 92 620] /P 4 0 R /F 4 /AS /Off /AP << /N << /S 16 0 R /Off 17 0 R >> >> >>
+endobj
+10 0 obj
+<< /Type /Annot /Subtype /Widget /Parent 8 0 R /Rect [112 600 132 620] /P 4 0 R /F 4 /AS /Off /AP << /N << /M 16 0 R /Off 17 0 R >> >> >>
+endobj
+11 0 obj
+<< /Type /Annot /Subtype /Widget /Parent 8 0 R /Rect [152 600 172 620] /P 4 0 R /F 4 /AS /Off /AP << /N << /L 16 0 R /Off 17 0 R >> >> >>
+endobj
+12 0 obj
+<< /FT /Tx /T (calc) /V (7) >>
+endobj
+13 0 obj
+<< /FT /Ch /Ff 131072 /T (country) /Opt [[(FR) (France)] [(DE) (Germany)]] /V (FR) >>
+endobj
+14 0 obj
+<< /Type /Annot /Subtype /Widget /FT /Sig /T (sig) /Rect [300 50 500 100] /P 4 0 R /F 4 >>
+endobj
+15 0 obj
+<< /Type /Annot /Subtype /Widget /FT /Ch /Ff 2097152 /T (tags) /Opt [(a) (b) (c)] /V [(a) (c)] /Rect [72 500 272 560] /P 3 0 R /F 4 >>
+endobj
+16 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 20 20] /Length 18 >>
+stream
+0 g 5 5 10 10 re f
+endstream
+endobj
+17 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 20 20] /Length 15 >>
+stream
+0 0 20 20 re S
+endstream
+endobj
+20 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+21 0 obj
+<< /Length 0 >>
+stream
+
+endstream
+endobj
+xref
+0 22
+0000000000 65535 f 
+0000000009 00000 n 
+0000000181 00000 n 
+0000000244 00000 n 
+0000000372 00000 n 
+0000000520 00000 n 
+0000000616 00000 n 
+0000000718 00000 n 
+0000000818 00000 n 
+0000000904 00000 n 
+0000001055 00000 n 
+0000001209 00000 n 
+0000001363 00000 n 
+0000001410 00000 n 
+0000001512 00000 n 
+0000001619 00000 n 
+0000001770 00000 n 
+0000001887 00000 n 
+0000000000 65535 f 
+0000000000 65535 f 
+0000002000 00000 n 
+0000002098 00000 n 
+trailer
+<< /Size 22 /Root 1 0 R >>
+startxref
+2148
+%%EOF
