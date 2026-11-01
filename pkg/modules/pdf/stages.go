@@ -226,7 +226,7 @@ func (stages Stages) validatePositions() error {
 
 // validateCombinations checks the stages that no order allows together.
 func (stages Stages) validateCombinations() error {
-	remediated, encrypted, signed := -1, -1, false
+	remediated, encrypted, decrypted, signed := -1, -1, false, false
 
 	for i, s := range stages {
 		switch s.op() {
@@ -234,9 +234,19 @@ func (stages Stages) validateCombinations() error {
 			remediated = i
 		case "encrypt":
 			encrypted = i
+		case "decrypt":
+			decrypted = true
 		case "sign", "timestamp":
 			signed = true
 		}
+	}
+
+	// litho signs in an incremental update of the bytes it read, and the
+	// signature of an encrypted PDF belongs in its encrypted bytes, which litho
+	// cannot write: it refuses to sign a PDF it reads encrypted, even once
+	// decrypted in the same run (litho.ErrSignFullRewriteIncompatible).
+	if decrypted && signed {
+		return errors.New(`"decrypt" cannot be combined with "sign" or "timestamp": litho cannot sign a PDF it reads encrypted; decrypt it in a request of its own, then sign the result`)
 	}
 
 	if encrypted < 0 {

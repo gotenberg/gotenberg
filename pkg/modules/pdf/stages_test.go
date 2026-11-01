@@ -63,6 +63,8 @@ func TestParseStages(t *testing.T) {
 		{name: "edit after sign", raw: `[{"op":"sign","certificate":"c.p12"},{"op":"rotate","angle":90}]`, wantErr: `stage 1: "rotate" cannot follow "sign": only sign, timestamp and render may`},
 		{name: "edit after timestamp", raw: `[{"op":"timestamp","timestampUrl":"https://tsa.example.com"},{"op":"optimize"}]`, wantErr: `stage 1: "optimize" cannot follow "timestamp": only sign, timestamp and render may`},
 		{name: "encrypt after sign", raw: `[{"op":"sign","certificate":"c.p12"},{"op":"encrypt","userPassword":"u"}]`, wantErr: `"encrypt" cannot be combined with "sign" or "timestamp"`},
+		{name: "decrypt then sign", raw: `[{"op":"decrypt","password":"x"},{"op":"sign","certificate":"c.p12"}]`, wantErr: `"decrypt" cannot be combined with "sign" or "timestamp": litho cannot sign a PDF it reads encrypted; decrypt it in a request of its own, then sign the result`},
+		{name: "decrypt then timestamp", raw: `[{"op":"decrypt","password":"x"},{"op":"rotate","angle":90},{"op":"timestamp","timestampUrl":"https://tsa.example.com"}]`, wantErr: `"decrypt" cannot be combined with "sign" or "timestamp"`},
 		{name: "encrypt before timestamp", raw: `[{"op":"encrypt","userPassword":"u"},{"op":"timestamp","timestampUrl":"https://tsa.example.com"}]`, wantErr: `"encrypt" cannot be combined with "sign" or "timestamp"`},
 		{name: "encrypted pdf/a", raw: `[{"op":"remediate","profile":"PDF/A-2b"},{"op":"encrypt","userPassword":"u"}]`, wantErr: `"PDF/A-2b" cannot be encrypted: PDF/A forbids encryption`},
 		{name: "encrypted factur-x", raw: `[{"op":"remediate","profile":"Factur-X","xml":"i.xml","level":"BASIC"},{"op":"encrypt","userPassword":"u"}]`, wantErr: `"Factur-X" cannot be encrypted: Factur-X is PDF/A-3, which forbids encryption`},

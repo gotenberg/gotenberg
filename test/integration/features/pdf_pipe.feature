@@ -147,6 +147,14 @@ Feature: /forms/pdf/pipe
       Invalid form data: form field 'stages' is invalid: stage 1: only one "timestamp" stage is allowed
       """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.pdf                                                                         | file  |
+      | stages | [{"op":"decrypt","password":"foo"},{"op":"timestamp","timestampUrl":"https://tsa.example"}] | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'stages' is invalid: "decrypt" cannot be combined with "sign" or "timestamp": litho cannot sign a PDF it reads encrypted; decrypt it in a request of its own, then sign the result
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
       | files  | testdata/page_1.pdf                                                                             | file  |
       | stages | [{"op":"encrypt","userPassword":"foo"},{"op":"timestamp","timestampUrl":"https://tsa.example"}] | field |
     Then the response status code should be 400
