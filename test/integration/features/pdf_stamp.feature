@@ -100,6 +100,23 @@ Feature: /forms/pdf/{stamp-text|stamp-image|stamp-pdf}
       """
       Invalid form data: stamp-image: "image" must be a .png, .jpg or .jpeg file, got "logo.gif"
       """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/stamp-image" endpoint with the following form data and header(s):
+      | files | testdata/page_1.pdf | file  |
+      | files | testdata/broken.png | file  |
+      | image | broken.png          | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'stamp-image' failed on 'page_1.pdf': invalid image data: PNG: png: invalid format: not a PNG file; send a valid PNG or JPEG image, its extension naming its format (.png, .jpg or .jpeg)
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/stamp-text" endpoint with the following form data and header(s):
+      | files | testdata/page_1.pdf | file  |
+      | text  | 日本                  | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'stamp-text' failed on 'page_1.pdf': the standard fonts draw Latin-1 text only; stamp other text with a stamp-pdf stage and a page Chromium renders, or with nativeWatermarkText on LibreOffice
+      """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/stamp-pdf" endpoint with the following form data and header(s):
       | files  | testdata/page_1.pdf | file  |
       | source | page_1.pdf          | field |

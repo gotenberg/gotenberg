@@ -81,6 +81,14 @@ Feature: /forms/pdf/{select|delete|insert}
       """
       Stage 'delete' failed on 'pages_3.pdf': invalid page range: page 4 out of range [1, 3]
       """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/delete" endpoint with the following form data and header(s):
+      | files | testdata/pages_3.pdf | file  |
+      | pages | 1-3                  | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'delete' failed on 'pages_3.pdf': cannot delete all pages: the deletion leaves none of 3; leave at least one page out of 'pages'
+      """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/insert" endpoint with the following form data and header(s):
       | files | testdata/pages_3.pdf | file |
     Then the response status code should be 400

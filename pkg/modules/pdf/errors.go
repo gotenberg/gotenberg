@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"regexp"
 	"strings"
 
 	litho "github.com/gotenberg/litho/pkg/pdf"
@@ -50,41 +49,67 @@ func errorType(err error) string {
 	return gotenberg.ClassifyError(err)
 }
 
-// lithoStep matches the prefixes litho's pipeline puts on an edit's error, as
-// in "pipeline stage 1 (write): applying mutation 0: page number out of
-// bounds": they locate the failure among litho's own steps, which mean nothing
-// to a client.
-var lithoStep = regexp.MustCompile(`^applying (?:staged )?mutation \d+(?: before [a-z ]+)?$`)
+// editError returns the innermost [litho.EditError] of err, the edit that
+// failed, or nil. An edit litho applies for another, such as a signature
+// applying the edits queued before it, wraps that one's error.
+func editError(err error) *litho.EditError {
+	var found *litho.EditError
+	for {
+		var e *litho.EditError
+		if !errors.As(err, &e) || e.Err == nil {
+			return found
+		}
 
-// clientMessage returns the message of err without litho's step prefixes,
-// [litho.PipelineStageError]'s and those of [lithoStep]. The full chain stays
-// in the logs.
+		found = e
+		err = e.Err
+	}
+}
+
+// clientMessage returns the message of err without the steps litho reports it
+// from, such as the pipeline stage or the Writer method that queued the edit,
+// which mean nothing to a client. The full chain stays in the logs.
 func clientMessage(err error) string {
 	var inputErr *stageInputError
 	if errors.As(err, &inputErr) {
 		return inputErr.message
 	}
 
-	var stageErr *litho.PipelineStageError
-	if errors.As(err, &stageErr) && stageErr.Err != nil {
-		err = stageErr.Err
+	if e := editError(err); e != nil {
+		return e.Err.Error()
 	}
 
-	for {
-		inner := errors.Unwrap(err)
-		if inner == nil {
-			break
-		}
-
-		prefix, ok := strings.CutSuffix(err.Error(), ": "+inner.Error())
-		if !ok || !lithoStep.MatchString(prefix) {
-			break
-		}
-
-		err = inner
+	var stageErr *litho.PipelineStageError
+	if errors.As(err, &stageErr) && stageErr.Err != nil {
+		return stageErr.Err.Error()
 	}
 
 	return err.Error()
+}
+
+// lithoFixes words the fix of the litho errors whose message alone leaves the
+// client without one.
+var lithoFixes = []struct {
+	err error
+	fix func(message string) string
+}{
+	{
+		err: litho.ErrTextNotEncodable,
+		fix: func(string) string {
+			return "the standard fonts draw Latin-1 text only; stamp other text with a stamp-pdf stage and a page Chromium renders, or with nativeWatermarkText on LibreOffice"
+		},
+	},
+	{
+		err: litho.ErrInvalidImage,
+		fix: func(message string) string {
+			return message + "; send a valid PNG or JPEG image, its extension naming its format (.png, .jpg or .jpeg)"
+		},
+	},
+	{
+		err: litho.ErrNoPageLeft,
+		fix: func(message string) string {
+			return message + "; leave at least one page out of 'pages'"
+		},
+	},
 }
 
 // handleError turns a stage failure the request caused into a 400 response
@@ -134,6 +159,12 @@ func handleError(err error, dirPath string) error {
 	// client as a 500 by omission.
 	if isInvalidInput(err) {
 		message := strings.ReplaceAll(clientMessage(se.err), dirPath+"/", "")
+		for _, f := range lithoFixes {
+			if errors.Is(err, f.err) {
+				message = f.fix(message)
+				break
+			}
+		}
 
 		return api.WrapError(err, api.NewSentinelHttpError(
 			http.StatusBadRequest,

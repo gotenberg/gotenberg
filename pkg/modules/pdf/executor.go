@@ -431,9 +431,12 @@ func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password st
 		writeOpts         = []litho.WriteOption{litho.WithDroppedSignatures(&dropped)}
 		optimizing        bool
 		compactionSkipped bool
+		// litho applies most edits when a later stage or the write runs: a
+		// label per editor names the stage that queued a failed edit.
+		labels = make(map[string]stage, len(run))
 	)
 
-	for _, s := range run {
+	for i, s := range run {
 		switch s := s.(type) {
 		case *selectStage:
 			pages, err := litho.ParsePageRanges(s.Pages, pageCount)
@@ -464,6 +467,9 @@ func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password st
 
 			writeOpts = append(writeOpts, opts...)
 		case editor:
+			label := strconv.Itoa(i)
+			labels[label] = s
+
 			pipeline.Apply(func(ctx context.Context, w *litho.Writer) (err error) {
 				ctx, span := gotenberg.Tracer().Start(ctx, "pdf."+s.op())
 				defer func() {
@@ -477,7 +483,7 @@ func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password st
 				}
 
 				return nil
-			})
+			}, litho.WithEditLabel(label))
 		default:
 			return document{}, fmt.Errorf("stage %q has no executor", s.op())
 		}
@@ -490,6 +496,18 @@ func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password st
 
 	out, err := p.write(ctx, pipeline, ops, d.filename, writeOpts...)
 	if err != nil {
+		// The stage that applied a failed edit, whose error wraps it, is not
+		// the one that queued it.
+		if e := editError(err); e != nil {
+			if s, ok := labels[e.Label]; ok {
+				if errors.Is(err, litho.ErrFormFieldNotFound) {
+					err = formFieldError(ctx, r, Stages{s}, err)
+				}
+
+				return document{}, &stageError{op: s.op(), filename: d.filename, err: err}
+			}
+		}
+
 		var se *stageError
 		if errors.As(err, &se) {
 			return document{}, err

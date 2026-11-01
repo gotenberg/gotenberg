@@ -40,17 +40,28 @@ func TestHandleError_Status(t *testing.T) {
 }
 
 // TestHandleError_LithoSteps pins the client message of a failure litho
-// reports from its own steps: without the pipeline stage and the mutation it
-// locates the failure in, while the logged error keeps them.
+// reports from its own steps: without the pipeline stage, the stage that
+// applied the edit and the Writer method that queued it, while the logged
+// error keeps them.
 func TestHandleError_LithoSteps(t *testing.T) {
 	cause := fmt.Errorf("pdf stamp: source page 9: %w", litho.ErrInvalidPageNumber)
+	stamp := &litho.EditError{Label: "0", Method: "StampPDF", Err: cause}
 
 	for _, tc := range []struct {
 		name string
 		err  error
 	}{
-		{name: "mutation at write", err: &litho.PipelineStageError{Index: 1, Name: "write", Err: fmt.Errorf("applying mutation 0: %w", cause)}},
-		{name: "staged mutation", err: &litho.PipelineStageError{Index: 2, Name: "apply", Err: fmt.Errorf("applying staged mutation 3 before redaction: %w", cause)}},
+		{name: "edit at write", err: &litho.PipelineStageError{Index: 1, Name: "write", Err: stamp}},
+		{
+			name: "edit a later stage applied",
+			err: &litho.PipelineStageError{Index: 2, Name: "apply", Err: &stageError{
+				op: "redact", filename: "doc.pdf", err: fmt.Errorf("writing the document the redaction pixel check compares against: %w", stamp),
+			}},
+		},
+		{
+			name: "edit a signature applied",
+			err:  &litho.PipelineStageError{Index: 2, Name: "write", Err: &litho.EditError{Label: "1", Method: "Sign", Err: fmt.Errorf("applying mutation: %w", stamp)}},
+		},
 		{name: "pipeline stage only", err: &litho.PipelineStageError{Index: 1, Name: "write", Err: cause}},
 		{name: "no litho step", err: cause},
 	} {
@@ -92,6 +103,39 @@ func TestHandleError_EncryptedInput(t *testing.T) {
 			err := &stageError{op: tc.op, filename: "doc.pdf", err: fmt.Errorf("open PDF: %w", litho.ErrInvalidPassword)}
 
 			status, message := api.ParseError(handleError(err, "/tmp/work"))
+			if status != http.StatusBadRequest || message != tc.want {
+				t.Fatalf("got %d %q, want 400 %q", status, message, tc.want)
+			}
+		})
+	}
+}
+
+// TestHandleError_LithoFixes pins the fix the client message of some litho
+// errors adds.
+func TestHandleError_LithoFixes(t *testing.T) {
+	for _, tc := range []struct {
+		op   string
+		err  error
+		want string
+	}{
+		{
+			op:   "stamp-text",
+			err:  fmt.Errorf(`text cannot be encoded in WinAnsiEncoding, which the standard fonts use: "日本": %w`, litho.ErrTextNotEncodable),
+			want: "Stage 'stamp-text' failed on 'doc.pdf': the standard fonts draw Latin-1 text only; stamp other text with a stamp-pdf stage and a page Chromium renders, or with nativeWatermarkText on LibreOffice",
+		},
+		{
+			op:   "stamp-image",
+			err:  fmt.Errorf("%w: PNG: unexpected EOF", litho.ErrInvalidImage),
+			want: fmt.Sprintf("Stage 'stamp-image' failed on 'doc.pdf': %s: PNG: unexpected EOF; send a valid PNG or JPEG image, its extension naming its format (.png, .jpg or .jpeg)", litho.ErrInvalidImage),
+		},
+		{
+			op:   "delete",
+			err:  &litho.EditError{Label: "0", Method: "DeletePages", Err: fmt.Errorf("%w: the deletion leaves none of 3", litho.ErrNoPageLeft)},
+			want: fmt.Sprintf("Stage 'delete' failed on 'doc.pdf': %s: the deletion leaves none of 3; leave at least one page out of 'pages'", litho.ErrNoPageLeft),
+		},
+	} {
+		t.Run(tc.op, func(t *testing.T) {
+			status, message := api.ParseError(handleError(&stageError{op: tc.op, filename: "doc.pdf", err: tc.err}, "/tmp/work"))
 			if status != http.StatusBadRequest || message != tc.want {
 				t.Fatalf("got %d %q, want 400 %q", status, message, tc.want)
 			}

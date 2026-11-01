@@ -345,6 +345,51 @@ func TestRunClientErrors(t *testing.T) {
 	}
 }
 
+// TestRunEditAttribution pins the stage a failed edit is reported under:
+// litho applies a queued edit when a later stage or the write runs, and the
+// error names the stage that queued it, not the one that applied it.
+func TestRunEditAttribution(t *testing.T) {
+	const stamp = `{"op":"stamp-pdf","source":"page_2.pdf","sourcePage":9}`
+
+	for _, tc := range []struct {
+		name  string
+		after string
+	}{
+		{name: "alone"},
+		{name: "rotate", after: `,{"op":"rotate","angle":90}`},
+		{name: "select", after: `,{"op":"select","pages":"1-2"}`},
+		{name: "delete", after: `,{"op":"delete","pages":"1"}`},
+		{name: "redact", after: `,{"op":"redact","regions":[{"page":1,"x":0,"y":0,"width":10,"height":10}]}`},
+		{name: "convert-colors", after: `,{"op":"convert-colors","target":"gray"}`},
+		{name: "flatten-transparency", after: `,{"op":"flatten-transparency"}`},
+		{name: "remediate", after: `,{"op":"remediate","profile":"PDF/A-2b"}`},
+		{name: "optimize", after: `,{"op":"optimize"}`},
+		{name: "set-metadata, then attach", after: `,{"op":"set-metadata","title":"T"},{"op":"attach","file":"embed_1.xml"}`},
+		{name: "sign", after: `,{"op":"sign","certificate":"cert.pem","key":"key.pem"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, paths := testContext(t, "pages_3.pdf", "page_2.pdf", "embed_1.xml", "pem/cert.pem", "pem/key.pem")
+			files := map[string]string{
+				"page_2.pdf":  paths["page_2.pdf"],
+				"embed_1.xml": paths["embed_1.xml"],
+				"cert.pem":    paths["cert.pem"],
+				"key.pem":     paths["key.pem"],
+			}
+
+			_, err := testProcessor().Run(ctx, mustStages(t, "["+stamp+tc.after+"]"), []string{paths["pages_3.pdf"]}, files)
+			if err == nil {
+				t.Fatal("a source page past the end must fail")
+			}
+
+			status, message := api.ParseError(handleError(err, ctx.DirPath()))
+			want := "Stage 'stamp-pdf' failed on 'pages_3.pdf': pdf stamp: source page 9: page number out of bounds (source has 1 pages)"
+			if status != http.StatusBadRequest || message != want {
+				t.Fatalf("got %d %q, want 400 %q (error: %v)", status, message, want, err)
+			}
+		})
+	}
+}
+
 // render returns the pixels of a page rendered at a low resolution.
 func render(t *testing.T, path string, page int) []uint8 {
 	t.Helper()

@@ -194,6 +194,29 @@ Feature: /forms/pdf/pipe
       Stage 'rotate' failed on 'page_1.pdf': invalid page range: page 3 out of range [1, 1]
       """
 
+  # litho applies a stamp when a later stage or the write runs: the failure
+  # names the stage that asked for it.
+  Scenario: POST /forms/pdf/pipe (Failed Edit Applied By A Later Stage)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.pdf                                                                  | file  |
+      | files  | testdata/page_2.pdf                                                                  | file  |
+      | stages | [{"op":"stamp-pdf","source":"page_2.pdf","sourcePage":9},{"op":"rotate","angle":90}] | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'stamp-pdf' failed on 'page_1.pdf': pdf stamp: source page 9: page number out of bounds (source has 1 pages)
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.pdf                                                                                                                 | file  |
+      | files  | testdata/page_2.pdf                                                                                                                 | file  |
+      | stages | [{"op":"stamp-pdf","source":"page_2.pdf","sourcePage":9},{"op":"redact","regions":[{"page":1,"x":0,"y":0,"width":10,"height":10}]}] | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'stamp-pdf' failed on 'page_1.pdf': pdf stamp: source page 9: page number out of bounds (source has 1 pages)
+      """
+
   Scenario: POST /forms/pdf/pipe (Routes Disabled)
     Given I have a Gotenberg container with the following environment variable(s):
       | PDF_DISABLE_ROUTES | true |
