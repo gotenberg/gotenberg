@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -541,6 +542,41 @@ func (s *scenario) thePdfShouldHavePageLayout(_ context.Context, name, should, l
 	}
 
 	return nil
+}
+
+// thePdfTextShouldRunAt checks the direction text advances along on a page,
+// in degrees counter-clockwise from the page's horizontal, as litho reads it
+// from the glyphs, within a degree. text must be the characters of
+// consecutive glyphs.
+func (s *scenario) thePdfTextShouldRunAt(ctx context.Context, name, text string, page int, degrees float64) error {
+	return s.withNamedPdf(ctx, name, func(r *litho.Reader) error {
+		elements, err := r.ExtractTextElements(ctx, page)
+		if err != nil {
+			return fmt.Errorf("extract the text elements of page %d: %w", page, err)
+		}
+
+		for i := range elements {
+			var run strings.Builder
+			for j := i; j < len(elements) && run.Len() < len(text); j++ {
+				run.WriteString(elements[j].Text)
+			}
+
+			if run.String() != text {
+				continue
+			}
+
+			actual := elements[i].Angle * 180 / math.Pi
+			// The difference, folded into (-180, 180].
+			diff := math.Mod(actual-degrees+540, 360) - 180
+			if math.Abs(diff) > 1 {
+				return fmt.Errorf("expected %q to run at %g degrees, but actual is %g", text, degrees, actual)
+			}
+
+			return nil
+		}
+
+		return fmt.Errorf("no text %q at page %d", text, page)
+	})
 }
 
 func (s *scenario) thePdfShouldHaveFormField(ctx context.Context, name, field, expected string) error {

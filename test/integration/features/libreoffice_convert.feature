@@ -818,7 +818,7 @@ Feature: /forms/libreoffice/convert
     Then there should be 1 PDF(s) in the response
 
   # 0 draws the watermark horizontally, rather than leaving the angle to
-  # LibreOffice.
+  # LibreOffice, which runs it down a portrait page.
   Scenario: POST /forms/libreoffice/convert (Native Watermark - Rotation 0)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
@@ -833,6 +833,13 @@ Feature: /forms/libreoffice/convert
       """
       DRAFT
       """
+    Then the "foo.pdf" PDF text "DRAFT" at page 1 should run at 0 degrees
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.docx | file   |
+      | nativeWatermarkText       | DRAFT                | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then the "foo.pdf" PDF text "DRAFT" at page 1 should run at -90 degrees
 
   # LibreOffice draws the tiled watermark only without the plain one.
   Scenario: POST /forms/libreoffice/convert (Native Watermark - Plain And Tiled)
