@@ -692,6 +692,17 @@ Feature: /forms/chromium/convert/html
       JavaScript is enabled.
       """
 
+  # Chromium names the lifecycle event networkAlmostIdle; waiting for it must
+  # not run out the time limit.
+  Scenario: POST /forms/chromium/convert/html (Network Almost Idle)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                      | testdata/page-1-html/index.html | file  |
+      | skipNetworkAlmostIdleEvent | false                           | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
   Scenario: POST /forms/chromium/convert/html (Fail On Resource HTTP Status Codes)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):

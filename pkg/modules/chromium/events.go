@@ -809,15 +809,17 @@ func waitForEventNetworkIdle(ctx context.Context, logger *slog.Logger) func() er
 	}
 }
 
-// waitForEventNetworkAlmostIdle registers a listener for the networkIdle2
-// lifecycle event and returns a waiter that blocks until the event fires
-// or ctx is done. See [waitForEventDomContentEventFired] for the
-// rationale on registering at call time rather than inside the waiter.
+// waitForEventNetworkAlmostIdle registers a listener for the
+// networkAlmostIdle lifecycle event and returns a waiter that blocks until the
+// event fires or ctx is done. Chromium names it networkAlmostIdle, while
+// Puppeteer's option for it is networkidle2. See
+// [waitForEventDomContentEventFired] for the rationale on registering at call
+// time rather than inside the waiter.
 func waitForEventNetworkAlmostIdle(ctx context.Context, logger *slog.Logger) func() error {
 	ch := make(chan struct{})
 	cctx, cancel := context.WithCancel(ctx)
 	chromedp.ListenTarget(cctx, func(ev any) {
-		if e, ok := ev.(*page.EventLifecycleEvent); ok && e.Name == "networkIdle2" {
+		if e, ok := ev.(*page.EventLifecycleEvent); ok && e.Name == "networkAlmostIdle" {
 			cancel()
 			close(ch)
 		}

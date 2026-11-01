@@ -439,6 +439,18 @@ Feature: /forms/chromium/convert/url
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
 
+  # Chromium names the lifecycle event networkAlmostIdle; waiting for it must
+  # not run out the time limit.
+  Scenario: POST /forms/chromium/convert/url (Network Almost Idle)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                        | {helper}/html/testdata/page-1-html/index.html | field |
+      | skipNetworkAlmostIdleEvent | false                                         | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+
   # The main page is the main frame's document, whatever its URL: Chromium
   # requests a path-less URL with a trailing slash, and only the target of a
   # redirect answers. A framed page is a resource.
