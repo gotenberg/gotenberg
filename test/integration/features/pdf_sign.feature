@@ -78,6 +78,16 @@ Feature: /forms/pdf/sign
       """
       Invalid form data: form field 'stages' is invalid: "encrypt" cannot be combined with "sign" or "timestamp": a signature covers the written bytes
       """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.pdf                                                                                                                                | file  |
+      | files  | testdata/pem/cert.pem                                                                                                                              | file  |
+      | files  | testdata/pem/key.pem                                                                                                                               | file  |
+      | stages | [{"op":"sign","certificate":"cert.pem","key":"key.pem","reason":"First"},{"op":"sign","certificate":"cert.pem","key":"key.pem","reason":"Second"}] | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'stages' is invalid: stage 1: only one "sign" stage is allowed
+      """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/timestamp" endpoint with the following form data and header(s):
       | files        | testdata/page_1.pdf | file  |
       | timestampUrl | ftp://tsa.example   | field |

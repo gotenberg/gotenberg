@@ -200,7 +200,8 @@ func (stages Stages) validateOrder() error {
 }
 
 // validatePositions checks the stages bound to a position, and the stages
-// that may appear once.
+// that may appear once. litho's writer keeps one signer, so a second sign or
+// timestamp stage would replace the first rather than add a signature.
 func (stages Stages) validatePositions() error {
 	seen := make(map[string]bool)
 
@@ -213,7 +214,7 @@ func (stages Stages) validatePositions() error {
 		// Render draws the final documents, and writes none.
 		case op == "render" && i != len(stages)-1:
 			return fmt.Errorf("stage %d: \"render\" must be the last stage", i)
-		case (op == "remediate" || op == "encrypt") && seen[op]:
+		case (op == "remediate" || op == "encrypt" || op == "sign" || op == "timestamp") && seen[op]:
 			return fmt.Errorf("stage %d: only one %q stage is allowed", i, op)
 		}
 

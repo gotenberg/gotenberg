@@ -56,6 +56,8 @@ func TestParseStages(t *testing.T) {
 		{name: "decrypt after encrypt", raw: `[{"op":"encrypt","userPassword":"u"},{"op":"decrypt","password":"x"}]`, wantErr: `stage 1: "decrypt" must be the first stage`},
 		{name: "two remediations", raw: `[{"op":"remediate","profile":"PDF/UA-1"},{"op":"remediate","profile":"PDF/UA-1"}]`, wantErr: `stage 1: only one "remediate" stage is allowed`},
 		{name: "two encryptions", raw: `[{"op":"encrypt","userPassword":"u"},{"op":"encrypt","userPassword":"v"}]`, wantErr: `stage 1: only one "encrypt" stage is allowed`},
+		{name: "two signatures", raw: `[{"op":"sign","certificate":"c.p12"},{"op":"sign","certificate":"d.p12"}]`, wantErr: `stage 1: only one "sign" stage is allowed`},
+		{name: "two timestamps", raw: `[{"op":"sign","certificate":"c.p12"},{"op":"timestamp","timestampUrl":"https://tsa.example.com"},{"op":"timestamp","timestampUrl":"https://tsa.example.com"}]`, wantErr: `stage 2: only one "timestamp" stage is allowed`},
 		{name: "edit after encrypt", raw: `[{"op":"encrypt","userPassword":"u"},{"op":"rotate","angle":90}]`, wantErr: `stage 1: "rotate" cannot follow "encrypt": only optimize and render may`},
 		{name: "remediate after encrypt", raw: `[{"op":"encrypt","userPassword":"u"},{"op":"remediate","profile":"PDF/UA-1"}]`, wantErr: `stage 1: "remediate" cannot follow "encrypt": only optimize and render may`},
 		{name: "edit after sign", raw: `[{"op":"sign","certificate":"c.p12"},{"op":"rotate","angle":90}]`, wantErr: `stage 1: "rotate" cannot follow "sign": only sign, timestamp and render may`},
