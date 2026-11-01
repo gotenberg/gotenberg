@@ -201,7 +201,7 @@ Feature: /forms/pdf/remediate
     Then the response status code should be 400
     Then the response body should match string:
       """
-      Invalid form data: form field 'aggressive' is invalid: must be true or false, got "foo"
+      Invalid form data: form field 'aggressive' is invalid (got 'foo', want true or false)
       """
 
   Scenario: POST /forms/pdf/autotag

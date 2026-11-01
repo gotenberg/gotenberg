@@ -67,7 +67,7 @@ func TestStageRoute(t *testing.T) {
 			values:     map[string][]string{"angle": {"ninety"}},
 			fixtures:   []string{"page_1.pdf"},
 			wantStatus: http.StatusBadRequest,
-			wantBody:   "Invalid form data: form field 'angle' is invalid: must be a number",
+			wantBody:   "Invalid form data: form field 'angle' is invalid (got 'ninety', want an integer)",
 		},
 		{
 			name:       "invalid option",

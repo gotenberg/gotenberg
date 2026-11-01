@@ -303,41 +303,41 @@ Feature: /forms/libreoffice/convert
     Then the response body should match string:
       """
       Invalid form data: no form file found for extensions: [.123 .602 .abw .bib .bmp .cdr .cgm .cmx .csv .cwk .dbf .dif .doc .docm .docx .dot .dotm .dotx .dxf .emf .eps .epub .fodg .fodp .fods .fodt .fopd .gif .htm .html .hwp .jpeg .jpg .key .ltx .lwp .mcw .met .mml .mw .numbers .odd .odg .odm .odp .ods .odt .otg .oth .otp .ots .ott .pages .pbm .pcd .pct .pcx .pdb .pdf .pgm .png .pot .potm .potx .ppm .pps .ppsm .ppsx .ppt .pptm .pptx .psd .psw .pub .pwp .pxl .ras .rtf .sda .sdc .sdd .sdp .sdw .sgl .slk .smf .stc .std .sti .stw .svg .svm .swf .sxc .sxd .sxg .sxi .sxm .sxw .tga .tif .tiff .txt .uof .uop .uos .uot .vdx .vor .vsd .vsdm .vsdx .wb2 .wk1 .wks .wmf .wpd .wpg .wps .xbm .xhtml .xls .xlsb .xlsm .xlsx .xlt .xltm .xltx .xlw .xml .xpm .zabw]
-      form field 'landscape' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'exportFormFields' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'allowDuplicateFieldNames' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'nativeBookmarks' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'exportBookmarksToPdfDestination' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'exportPlaceholders' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'exportNotes' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'exportNotesPages' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'exportOnlyNotesPages' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'exportNotesInMargin' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'convertOooTargetToPdfTarget' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'exportLinksRelativeFsys' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'exportHiddenSlides' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'skipEmptyPages' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'addOriginalDocumentAsStream' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'singlePage' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'nativeTaggedPdf' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'initialView' is invalid (got 'foo', resulting to must be one of default, outline, thumbnails, got "foo")
-      form field 'initialPage' is invalid (got '-1', resulting to value is inferior to 1)
-      form field 'magnification' is invalid (got 'foo', resulting to must be one of default, fitWindow, fitWidth, fitVisible, zoom, got "foo")
-      form field 'zoom' is invalid (got '-1', resulting to value is inferior to 1)
-      form field 'pageLayout' is invalid (got 'foo', resulting to must be one of default, singlePage, oneColumn, twoColumnRight, got "foo")
-      form field 'resizeWindowToInitialPage' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'centerWindow' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'openInFullScreenMode' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'displayPDFDocumentTitle' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'hideViewerMenubar' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'hideViewerToolbar' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'hideViewerWindowControls' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'useTransitionEffects' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'openBookmarkLevels' is invalid (got '15', resulting to value is not -1 or between 1 and 10)
-      form field 'nativeLosslessImageCompression' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'nativeQuality' is invalid (got '-1', resulting to value is inferior to 1)
-      form field 'nativeReduceImageResolution' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
-      form field 'nativeMaxImageResolution' is invalid (got '10', resulting to value is not 75, 150, 300, 600 or 1200)
+      form field 'landscape' is invalid (got 'foo', want true or false)
+      form field 'exportFormFields' is invalid (got 'foo', want true or false)
+      form field 'allowDuplicateFieldNames' is invalid (got 'foo', want true or false)
+      form field 'nativeBookmarks' is invalid (got 'foo', want true or false)
+      form field 'exportBookmarksToPdfDestination' is invalid (got 'foo', want true or false)
+      form field 'exportPlaceholders' is invalid (got 'foo', want true or false)
+      form field 'exportNotes' is invalid (got 'foo', want true or false)
+      form field 'exportNotesPages' is invalid (got 'foo', want true or false)
+      form field 'exportOnlyNotesPages' is invalid (got 'foo', want true or false)
+      form field 'exportNotesInMargin' is invalid (got 'foo', want true or false)
+      form field 'convertOooTargetToPdfTarget' is invalid (got 'foo', want true or false)
+      form field 'exportLinksRelativeFsys' is invalid (got 'foo', want true or false)
+      form field 'exportHiddenSlides' is invalid (got 'foo', want true or false)
+      form field 'skipEmptyPages' is invalid (got 'foo', want true or false)
+      form field 'addOriginalDocumentAsStream' is invalid (got 'foo', want true or false)
+      form field 'singlePage' is invalid (got 'foo', want true or false)
+      form field 'nativeTaggedPdf' is invalid (got 'foo', want true or false)
+      form field 'initialView' is invalid (got 'foo', want default, outline or thumbnails)
+      form field 'initialPage' is invalid (got '-1', want 1 or more)
+      form field 'magnification' is invalid (got 'foo', want default, fitWindow, fitWidth, fitVisible or zoom)
+      form field 'zoom' is invalid (got '-1', want 1 or more)
+      form field 'pageLayout' is invalid (got 'foo', want default, singlePage, oneColumn or twoColumnRight)
+      form field 'resizeWindowToInitialPage' is invalid (got 'foo', want true or false)
+      form field 'centerWindow' is invalid (got 'foo', want true or false)
+      form field 'openInFullScreenMode' is invalid (got 'foo', want true or false)
+      form field 'displayPDFDocumentTitle' is invalid (got 'foo', want true or false)
+      form field 'hideViewerMenubar' is invalid (got 'foo', want true or false)
+      form field 'hideViewerToolbar' is invalid (got 'foo', want true or false)
+      form field 'hideViewerWindowControls' is invalid (got 'foo', want true or false)
+      form field 'useTransitionEffects' is invalid (got 'foo', want true or false)
+      form field 'openBookmarkLevels' is invalid (got '15', want -1, or 1 to 10)
+      form field 'nativeLosslessImageCompression' is invalid (got 'foo', want true or false)
+      form field 'nativeQuality' is invalid (got '-1', want 1 or more)
+      form field 'nativeReduceImageResolution' is invalid (got 'foo', want true or false)
+      form field 'nativeMaxImageResolution' is invalid (got '10', want 75, 150, 300, 600 or 1200)
       """
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
       | files       | testdata/page_1.docx | file  |
@@ -373,7 +373,7 @@ Feature: /forms/libreoffice/convert
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Invalid form data: form field 'nativePdfua' is invalid (got 'foo', resulting to must be PDF/UA-1, got "foo")
+      Invalid form data: form field 'nativePdfua' is invalid (got 'foo', want PDF/UA-1; for PDF/UA-2, add a remediate stage)
       """
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
       | files      | testdata/page_1.docx | file  |
@@ -382,7 +382,7 @@ Feature: /forms/libreoffice/convert
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Invalid form data: form field 'pageLayout' is invalid (got 'twoColumnLeft', resulting to must be one of default, singlePage, oneColumn, twoColumnRight, got "twoColumnLeft")
+      Invalid form data: form field 'pageLayout' is invalid (got 'twoColumnLeft', want default, singlePage, oneColumn or twoColumnRight)
       """
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
       | files      | testdata/page_1.docx | file  |

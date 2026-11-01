@@ -38,5 +38,5 @@ Feature: /forms/pdf/optimize
     Then the response status code should be 400
     Then the response body should match string:
       """
-      Invalid form data: form field 'dedup' is invalid: must be true or false, got "maybe"
+      Invalid form data: form field 'dedup' is invalid (got 'maybe', want true or false)
       """

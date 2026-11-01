@@ -55,7 +55,7 @@ Feature: /forms/pdf/rotate
     Then the response status code should be 400
     Then the response body should match string:
       """
-      Invalid form data: form field 'angle' is invalid: must be a number, got "ninety"
+      Invalid form data: form field 'angle' is invalid (got 'ninety', want an integer)
       """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/rotate" endpoint with the following form data and header(s):
       | angle | 90 | field |

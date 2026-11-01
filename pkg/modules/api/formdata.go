@@ -78,7 +78,7 @@ func (form *FormData) MandatoryString(key string, target *string) *FormData {
 //
 //	ctx.FormData().Bool("foo", &foo)
 func (form *FormData) Bool(key string, target *bool) *FormData {
-	return bind(form, key, target, false, strconv.ParseBool)
+	return bind(form, key, target, false, parseBool)
 }
 
 // MandatoryBool binds a form field to a bool variable. It populates an error
@@ -88,7 +88,7 @@ func (form *FormData) Bool(key string, target *bool) *FormData {
 //
 //	ctx.FormData().MandatoryBool("foo", &foo)
 func (form *FormData) MandatoryBool(key string, target *bool) *FormData {
-	return bind(form, key, target, true, strconv.ParseBool)
+	return bind(form, key, target, true, parseBool)
 }
 
 // Int binds a form field to an int variable. It populates an error if the
@@ -118,7 +118,7 @@ func parseCheckedInt(checks []func(int) error) func(string) (int, error) {
 	return func(value string) (int, error) {
 		val, err := strconv.Atoi(value)
 		if err != nil {
-			return 0, err
+			return 0, errors.New("want an integer")
 		}
 
 		for _, check := range checks {
@@ -143,11 +143,8 @@ func OneOf(values ...int) func(int) error {
 		for i, v := range values {
 			names[i] = strconv.Itoa(v)
 		}
-		if len(names) == 1 {
-			return fmt.Errorf("value is not %s", names[0])
-		}
 
-		return fmt.Errorf("value is not %s or %s", strings.Join(names[:len(names)-1], ", "), names[len(names)-1])
+		return fmt.Errorf("want %s", OrList(names))
 	}
 }
 
@@ -155,7 +152,7 @@ func OneOf(values ...int) func(int) error {
 func Min(minimum int) func(int) error {
 	return func(val int) error {
 		if val < minimum {
-			return fmt.Errorf("value is inferior to %d", minimum)
+			return fmt.Errorf("want %d or more", minimum)
 		}
 
 		return nil
@@ -166,11 +163,20 @@ func Min(minimum int) func(int) error {
 func Max(maximum int) func(int) error {
 	return func(val int) error {
 		if val > maximum {
-			return fmt.Errorf("value is superior to %d", maximum)
+			return fmt.Errorf("want %d or less", maximum)
 		}
 
 		return nil
 	}
+}
+
+// OrList joins values for an error message: "a", "a or b", "a, b or c".
+func OrList(values []string) string {
+	if len(values) <= 1 {
+		return strings.Join(values, "")
+	}
+
+	return strings.Join(values[:len(values)-1], ", ") + " or " + values[len(values)-1]
 }
 
 // Float64 binds a form field to a float64 variable. It populates an error if
@@ -203,7 +209,7 @@ func (form *FormData) MandatoryFloat64(key string, target *float64) *FormData {
 //
 //	ctx.FormData().Duration("foo", &foo)
 func (form *FormData) Duration(key string, target *time.Duration) *FormData {
-	return bind(form, key, target, false, time.ParseDuration)
+	return bind(form, key, target, false, parseDuration)
 }
 
 // MandatoryDuration binds a form field to a time.Duration variable. It
@@ -214,22 +220,22 @@ func (form *FormData) Duration(key string, target *time.Duration) *FormData {
 //
 //	ctx.FormData().MandatoryDuration("foo", &foo)
 func (form *FormData) MandatoryDuration(key string, target *time.Duration) *FormData {
-	return bind(form, key, target, true, time.ParseDuration)
+	return bind(form, key, target, true, parseDuration)
 }
 
 // JSON binds a JSON form field to a variable. It populates an error if the
-// value does not unmarshal into it. An absent or empty field keeps the
-// variable's current value.
+// value does not unmarshal into it, which want describes the expected value
+// for. An absent or empty field keeps the variable's current value.
 //
 //	foo := []int{404}
 //
-//	api.JSON(ctx.FormData(), "foo", &foo)
-func JSON[T any](form *FormData, key string, target *T) *FormData {
+//	api.JSON(ctx.FormData(), "foo", &foo, "a JSON array of status codes, such as [499,599]")
+func JSON[T any](form *FormData, key string, target *T, want string) *FormData {
 	return bind(form, key, target, false, func(value string) (T, error) {
 		var v T
 		err := json.Unmarshal([]byte(value), &v)
 		if err != nil {
-			return v, fmt.Errorf("unmarshal %s: %w", key, err)
+			return v, fmt.Errorf("want %s", want)
 		}
 		return v, nil
 	})
@@ -309,40 +315,60 @@ var inchesPerUnit = map[string]float64{
 	"pc": 1.0 / 6.0,
 }
 
+// errWantLength happens when a length form field is not a number, optionally
+// suffixed by a unit.
+var errWantLength = errors.New("want a number, optionally followed by pt, px, in, mm, cm or pc")
+
 // parseInches converts a length, optionally suffixed by a unit, to inches.
 // A bare number is in inches. The units do not suffix one another, so the
 // map order does not matter.
 func parseInches(value string) (float64, error) {
-	for unit, ratio := range inchesPerUnit {
-		number, ok := strings.CutSuffix(value, unit)
-		if !ok {
-			continue
+	number, ratio := value, 1.0
+	for unit, r := range inchesPerUnit {
+		n, ok := strings.CutSuffix(value, unit)
+		if ok {
+			number, ratio = n, r
+			break
 		}
-
-		val, err := parseFiniteFloat(number)
-		if err != nil {
-			return 0, err
-		}
-
-		return val * ratio, nil
 	}
 
-	return parseFiniteFloat(value)
+	val, err := parseFiniteFloat(number)
+	if err != nil {
+		return 0, errWantLength
+	}
+
+	return val * ratio, nil
 }
 
-// errNotFinite happens when a number form field is NaN or infinite, which
-// [strconv.ParseFloat] accepts.
-var errNotFinite = errors.New("not a finite number")
+// errWantNumber happens when a number form field is not a finite number. NaN
+// and infinities, which [strconv.ParseFloat] accepts, are not.
+var errWantNumber = errors.New("want a number")
 
 // parseFiniteFloat parses value as a finite float64.
 func parseFiniteFloat(value string) (float64, error) {
 	val, err := strconv.ParseFloat(value, 64)
-	if err != nil {
-		return 0, err
+	if err != nil || math.IsNaN(val) || math.IsInf(val, 0) {
+		return 0, errWantNumber
 	}
 
-	if math.IsNaN(val) || math.IsInf(val, 0) {
-		return 0, errNotFinite
+	return val, nil
+}
+
+// parseBool parses value as a bool.
+func parseBool(value string) (bool, error) {
+	val, err := strconv.ParseBool(value)
+	if err != nil {
+		return false, errors.New("want true or false")
+	}
+
+	return val, nil
+}
+
+// parseDuration parses value as a duration.
+func parseDuration(value string) (time.Duration, error) {
+	val, err := time.ParseDuration(value)
+	if err != nil {
+		return 0, errors.New("want a duration such as 500ms or 2s")
 	}
 
 	return val, nil
@@ -353,20 +379,23 @@ func parseString(value string) (string, error) {
 	return value, nil
 }
 
-// Custom helps to define a custom binding function for a form field.
+// Custom helps to define a custom binding function for a form field. The
+// error assign returns follows the value in the message, as in "form field
+// 'foo' is invalid (got 'bar', want a JSON object)": it states what the field
+// wants, or why the value is wrong.
 //
 //	var foo map[string]string
 //
 //	ctx.FormData().Custom("foo", func(value string) error {
 //	  if value == "" {
-//	    foo = "bar"
+//	    foo = map[string]string{"bar": "baz"}
 //
 //	    return nil
 //	  }
 //
 //	  err := json.Unmarshal([]byte(value), &foo)
 //	  if err != nil {
-//	    return fmt.Errorf("unmarshal foo: %w", err)
+//	    return errors.New("want a JSON object")
 //	  }
 //
 //	  return nil
@@ -377,7 +406,7 @@ func (form *FormData) Custom(key string, assign func(value string) error) *FormD
 	err := assign(value)
 	if err != nil {
 		form.append(
-			fmt.Errorf("form field '%s' is invalid (got '%s', resulting to %w)", key, value, err),
+			fmt.Errorf("form field '%s' is invalid (got '%s', %w)", key, value, err),
 		)
 	}
 
@@ -385,14 +414,15 @@ func (form *FormData) Custom(key string, assign func(value string) error) *FormD
 }
 
 // MandatoryCustom helps to define a custom binding function for a form field.
-// It populates an error if the value is empty or the "key" does not exist.
+// It populates an error if the value is empty or the "key" does not exist. The
+// error assign returns follows the value in the message, as with [FormData.Custom].
 //
 //	var foo map[string]string
 //
 //	ctx.FormData().MandatoryCustom("foo", func(value string) error {
 //	  err := json.Unmarshal([]byte(value), &foo)
 //	  if err != nil {
-//	    return fmt.Errorf("unmarshal foo: %w", err)
+//	    return errors.New("want a JSON object")
 //	  }
 //
 //	  return nil
@@ -407,7 +437,7 @@ func (form *FormData) MandatoryCustom(key string, assign func(value string) erro
 	err := assign(value)
 	if err != nil {
 		form.append(
-			fmt.Errorf("form field '%s' is invalid (got '%s', resulting to %w)", key, value, err),
+			fmt.Errorf("form field '%s' is invalid (got '%s', %w)", key, value, err),
 		)
 	}
 
@@ -600,7 +630,7 @@ func bind[T any](form *FormData, key string, target *T, mandatory bool, parse fu
 	parsed, err := parse(value)
 	if err != nil {
 		form.append(
-			fmt.Errorf("form field '%s' is invalid (got '%s', resulting to %w)", key, value, err),
+			fmt.Errorf("form field '%s' is invalid (got '%s', %w)", key, value, err),
 		)
 
 		return form

@@ -64,9 +64,9 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 	form := ctx.FormData().
 		Bool("skipNetworkIdleEvent", &options.SkipNetworkIdleEvent).
 		Bool("skipNetworkAlmostIdleEvent", &options.SkipNetworkAlmostIdleEvent)
-	api.JSON(form, "failOnHttpStatusCodes", &options.FailOnHttpStatusCodes)
-	api.JSON(form, "failOnResourceHttpStatusCodes", &options.FailOnResourceHttpStatusCodes)
-	api.JSON(form, "ignoreResourceHttpStatusDomains", &options.IgnoreResourceHttpStatusDomains)
+	api.JSON(form, "failOnHttpStatusCodes", &options.FailOnHttpStatusCodes, "a JSON array of status codes, such as [499,599]")
+	api.JSON(form, "failOnResourceHttpStatusCodes", &options.FailOnResourceHttpStatusCodes, "a JSON array of status codes, such as [499,599]")
+	api.JSON(form, "ignoreResourceHttpStatusDomains", &options.IgnoreResourceHttpStatusDomains, `a JSON array of domains, such as ["sentry.io"]`)
 
 	form.
 		Bool("failOnResourceLoadingFailed", &options.FailOnResourceLoadingFailed).
@@ -76,15 +76,17 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 				return nil
 			}
 
+			want := fmt.Errorf("want a JSON array of %s", api.OrList(consoleMessageTypes))
+
 			var messageTypes []string
 			err := json.Unmarshal([]byte(value), &messageTypes)
 			if err != nil {
-				return fmt.Errorf("unmarshal failOnConsoleMessageTypes: %w", err)
+				return want
 			}
 
 			for _, messageType := range messageTypes {
 				if !slices.Contains(consoleMessageTypes, messageType) {
-					return fmt.Errorf("unknown console message type '%s', expected one or more of: %s", messageType, strings.Join(consoleMessageTypes, ", "))
+					return want
 				}
 			}
 
@@ -125,9 +127,11 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 				return fmt.Errorf("normalize sameSite from cookies: %w", err)
 			}
 
+			// The decoder's reason, such as the character it stopped at, is
+			// the most precise hint for a JSON array of cookies.
 			err = json.Unmarshal([]byte(normalized), &cookies)
 			if err != nil {
-				return fmt.Errorf("unmarshal cookies: %w", err)
+				return err
 			}
 
 			for i, cookie := range cookies {
@@ -147,10 +151,12 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 
 			var extraHttpHeaders []ExtraHttpHeader
 
+			// The decoder's reason, such as the character it stopped at, is
+			// the most precise hint for a JSON object of headers.
 			var headers map[string]string
 			err := json.Unmarshal([]byte(value), &headers)
 			if err != nil {
-				return fmt.Errorf("unmarshal extraHttpHeaders: %w", err)
+				return err
 			}
 
 			if len(headers) > maxExtraHttpHeaders {
@@ -222,7 +228,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 			}
 
 			if value != "screen" && value != "print" {
-				return errors.New("wrong value, expected either 'screen', 'print' or empty")
+				return errors.New("want screen or print")
 			}
 
 			options.EmulatedMediaType = value
@@ -239,7 +245,7 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 			var features map[string]string
 			err := json.Unmarshal([]byte(value), &features)
 			if err != nil {
-				return fmt.Errorf("unmarshal emulatedMediaFeatures: %w", err)
+				return errors.New(`want a JSON object of media features, such as {"prefers-color-scheme":"dark"}`)
 			}
 
 			for k, v := range features {
@@ -313,7 +319,7 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 			}
 
 			if value != "png" && value != "jpeg" && value != "webp" {
-				return fmt.Errorf("wrong value, expected either 'png', 'jpeg' or 'webp'")
+				return errors.New("want png, jpeg or webp")
 			}
 
 			screenshotOptions.Format = value

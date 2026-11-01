@@ -1,29 +1,36 @@
 package libreoffice
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 )
 
 // The form fields take the values the /forms/pdf stages take for the same
 // feature, such as a #rrggbb color or an angle in degrees, and the names the
 // PDF specification gives the viewer preferences. LibreOffice wants its own
-// encodings: these functions convert to them.
+// encodings: these functions convert to them. Their errors state what the
+// field wants, as [api.FormData.Custom] reports them.
+
+// errWantColor happens when a color form field is not a #rrggbb color.
+var errWantColor = errors.New("want a #rrggbb color")
 
 // parseColor converts a #rrggbb color to the decimal RGB value LibreOffice
 // reads, such as 8388223 for #7ffe7f.
 func parseColor(value string) (int, error) {
 	hex, ok := strings.CutPrefix(value, "#")
 	if !ok || len(hex) != 6 {
-		return 0, fmt.Errorf("must be a #rrggbb hexadecimal color, got %q", value)
+		return 0, errWantColor
 	}
 
 	rgb, err := strconv.ParseUint(hex, 16, 32)
 	if err != nil {
-		return 0, fmt.Errorf("must be a #rrggbb hexadecimal color, got %q", value)
+		return 0, errWantColor
 	}
 
 	return int(rgb), nil
@@ -34,7 +41,7 @@ func parseColor(value string) (int, error) {
 func parseRotation(value string) (int, error) {
 	degrees, err := strconv.ParseFloat(value, 64)
 	if err != nil || math.IsNaN(degrees) || math.IsInf(degrees, 0) {
-		return 0, fmt.Errorf("must be an angle in degrees, got %q", value)
+		return 0, errors.New("want an angle in degrees")
 	}
 
 	return int(math.Round(math.Mod(degrees, 360) * 10)), nil
@@ -47,7 +54,7 @@ type enum []string
 func (e enum) parse(value string) (int, error) {
 	i := slices.Index(e, value)
 	if i < 0 {
-		return 0, fmt.Errorf("must be one of %s, got %q", strings.Join(e, ", "), value)
+		return 0, fmt.Errorf("want %s", api.OrList(e))
 	}
 
 	return i, nil

@@ -1975,10 +1975,10 @@ func TestFormData_Int_Checks(t *testing.T) {
 		expectMessage string
 	}{
 		{scenario: "accepted by every check", value: "2", checks: []func(int) error{Min(1), Max(3)}, expect: 2},
-		{scenario: "below the minimum", value: "0", checks: []func(int) error{Min(1)}, expect: 7, expectMessage: "value is inferior to 1"},
-		{scenario: "above the maximum", value: "101", checks: []func(int) error{Min(1), Max(100)}, expect: 7, expectMessage: "value is superior to 100"},
-		{scenario: "not one of the values", value: "5", checks: []func(int) error{OneOf(0, 1, 2)}, expect: 7, expectMessage: "value is not 0, 1 or 2"},
-		{scenario: "not the only value", value: "5", checks: []func(int) error{OneOf(1)}, expect: 7, expectMessage: "value is not 1"},
+		{scenario: "below the minimum", value: "0", checks: []func(int) error{Min(1)}, expect: 7, expectMessage: "want 1 or more"},
+		{scenario: "above the maximum", value: "101", checks: []func(int) error{Min(1), Max(100)}, expect: 7, expectMessage: "want 100 or less"},
+		{scenario: "not one of the values", value: "5", checks: []func(int) error{OneOf(0, 1, 2)}, expect: 7, expectMessage: "want 0, 1 or 2"},
+		{scenario: "not the only value", value: "5", checks: []func(int) error{OneOf(1)}, expect: 7, expectMessage: "want 1"},
 		{scenario: "one of the values", value: "1", checks: []func(int) error{OneOf(0, 1, 2)}, expect: 1},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
@@ -1998,7 +1998,79 @@ func TestFormData_Int_Checks(t *testing.T) {
 				return
 			}
 
-			want := fmt.Sprintf("form field 'foo' is invalid (got '%s', resulting to %s)", tc.value, tc.expectMessage)
+			want := fmt.Sprintf("form field 'foo' is invalid (got '%s', %s)", tc.value, tc.expectMessage)
+			if form.errors == nil || form.errors.Error() != want {
+				t.Fatalf("expected error %q but got: %v", want, form.errors)
+			}
+		})
+	}
+}
+
+// TestFormData_Messages pins the client message of each kind of field: the
+// value the client sent, then what the field wants.
+func TestFormData_Messages(t *testing.T) {
+	for _, tc := range []struct {
+		scenario string
+		value    string
+		bind     func(form *FormData)
+		want     string
+	}{
+		{
+			scenario: "bool",
+			value:    "yes please",
+			bind:     func(form *FormData) { form.Bool("foo", new(bool)) },
+			want:     "want true or false",
+		},
+		{
+			scenario: "integer",
+			value:    "1.5",
+			bind:     func(form *FormData) { form.Int("foo", new(int)) },
+			want:     "want an integer",
+		},
+		{
+			scenario: "number",
+			value:    "NaN",
+			bind:     func(form *FormData) { form.Float64("foo", new(float64)) },
+			want:     "want a number",
+		},
+		{
+			scenario: "length",
+			value:    "8inches",
+			bind:     func(form *FormData) { form.Inches("foo", new(float64)) },
+			want:     "want a number, optionally followed by pt, px, in, mm, cm or pc",
+		},
+		{
+			scenario: "length with a unit",
+			value:    "eightmm",
+			bind:     func(form *FormData) { form.Inches("foo", new(float64)) },
+			want:     "want a number, optionally followed by pt, px, in, mm, cm or pc",
+		},
+		{
+			scenario: "duration",
+			value:    "2",
+			bind:     func(form *FormData) { form.Duration("foo", new(time.Duration)) },
+			want:     "want a duration such as 500ms or 2s",
+		},
+		{
+			scenario: "JSON",
+			value:    "[499",
+			bind:     func(form *FormData) { JSON(form, "foo", new([]int), "a JSON array of status codes, such as [499,599]") },
+			want:     "want a JSON array of status codes, such as [499,599]",
+		},
+		{
+			scenario: "custom",
+			value:    "bar",
+			bind: func(form *FormData) {
+				form.Custom("foo", func(string) error { return errors.New("want baz") })
+			},
+			want: "want baz",
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			form := &FormData{values: map[string][]string{"foo": {tc.value}}}
+			tc.bind(form)
+
+			want := fmt.Sprintf("form field 'foo' is invalid (got '%s', %s)", tc.value, tc.want)
 			if form.errors == nil || form.errors.Error() != want {
 				t.Fatalf("expected error %q but got: %v", want, form.errors)
 			}
@@ -2032,7 +2104,7 @@ func TestJSON(t *testing.T) {
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			actual := []int{404}
-			JSON(tc.form, "foo", &actual)
+			JSON(tc.form, "foo", &actual, "a JSON array of status codes")
 
 			if !reflect.DeepEqual(actual, tc.expect) {
 				t.Errorf("expected %v but got %v", tc.expect, actual)

@@ -110,7 +110,7 @@ Feature: /forms/pdf/{encrypt|decrypt}
     Then the response status code should be 400
     Then the response body should match string:
       """
-      Invalid form data: form field 'permissions' is invalid: must be valid JSON, got "foo"
+      Invalid form data: form field 'permissions' is invalid (got 'foo', want a JSON object)
       """
 
   Scenario: POST /forms/pdf/encrypt (Routes Disabled)

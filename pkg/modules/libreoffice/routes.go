@@ -81,7 +81,7 @@ func convertRoute(libreOffice libreofficeapi.Converter, processor *pdf.Processor
 				Bool("useTransitionEffects", &options.UseTransitionEffects).
 				Int("openBookmarkLevels", &options.OpenBookmarkLevels, func(value int) error {
 					if value != -1 && (value < 1 || value > 10) {
-						return errors.New("value is not -1 or between 1 and 10")
+						return errors.New("want -1, or 1 to 10")
 					}
 					return nil
 				}).
@@ -102,7 +102,7 @@ func convertRoute(libreOffice libreofficeapi.Converter, processor *pdf.Processor
 					case pdfuaProfile:
 						options.PdfFormats.PdfUa = true
 					default:
-						return fmt.Errorf("must be %s, got %q", pdfuaProfile, value)
+						return fmt.Errorf("want %s; for PDF/UA-2, add a remediate stage", pdfuaProfile)
 					}
 
 					return nil

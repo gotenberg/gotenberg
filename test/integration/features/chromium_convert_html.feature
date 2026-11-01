@@ -821,7 +821,7 @@ Feature: /forms/chromium/convert/html
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Invalid form data: form field 'failOnConsoleMessageTypes' is invalid (got '["warn"]', resulting to unknown console message type 'warn', expected one or more of: log, debug, info, warning, error, assert)
+      Invalid form data: form field 'failOnConsoleMessageTypes' is invalid (got '["warn"]', want a JSON array of log, debug, info, warning, error or assert)
       """
 
   Scenario: POST /forms/chromium/convert/html (Document Outline)
@@ -882,7 +882,7 @@ Feature: /forms/chromium/convert/html
       form field 'failOnConsoleExceptions' is invalid (got 'foo'
       form field 'failOnConsoleMessageTypes' is invalid (got 'foo'
       form field 'waitDelay' is invalid (got 'foo'
-      form field 'emulatedMediaType' is invalid (got 'foo', resulting to wrong value, expected either 'screen', 'print' or empty)
+      form field 'emulatedMediaType' is invalid (got 'foo', want screen or print)
       form field 'omitBackground' is invalid (got 'foo'
       form field 'landscape' is invalid (got 'foo'
       form field 'printBackground' is invalid (got 'foo'
@@ -958,7 +958,7 @@ Feature: /forms/chromium/convert/html
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Invalid form data: form field 'cookies' is invalid (got 'foo', resulting to unmarshal cookies: invalid character 'o' in literal false (expecting 'a'))
+      Invalid form data: form field 'cookies' is invalid (got 'foo', invalid character 'o' in literal false (expecting 'a'))
       """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
       | files   | testdata/page-1-html/index.html           | file  |
@@ -967,7 +967,7 @@ Feature: /forms/chromium/convert/html
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Invalid form data: form field 'cookies' is invalid (got '[{"name":"yummy_cookie","value":"choco"}]', resulting to cookie 0 must have its name, value and domain set)
+      Invalid form data: form field 'cookies' is invalid (got '[{"name":"yummy_cookie","value":"choco"}]', cookie 0 must have its name, value and domain set)
       """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
       | files            | testdata/page-1-html/index.html | file  |
@@ -976,7 +976,7 @@ Feature: /forms/chromium/convert/html
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Invalid form data: form field 'extraHttpHeaders' is invalid (got 'foo', resulting to unmarshal extraHttpHeaders: invalid character 'o' in literal false (expecting 'a'))
+      Invalid form data: form field 'extraHttpHeaders' is invalid (got 'foo', invalid character 'o' in literal false (expecting 'a'))
       """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
       | files            | testdata/page-1-html/index.html | file  |
@@ -985,7 +985,7 @@ Feature: /forms/chromium/convert/html
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Invalid form data: form field 'extraHttpHeaders' is invalid (got '{"foo":"bar;scope;;"}', resulting to invalid scope '' for header 'foo')
+      Invalid form data: form field 'extraHttpHeaders' is invalid (got '{"foo":"bar;scope;;"}', invalid scope '' for header 'foo')
       """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
       | files            | testdata/page-1-html/index.html | file  |
@@ -994,7 +994,7 @@ Feature: /forms/chromium/convert/html
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Invalid form data: form field 'extraHttpHeaders' is invalid (got '{"foo":"bar;scope=*."}', resulting to invalid scope regex pattern for header 'foo': error parsing regexp: missing argument to repetition operator in `*.`)
+      Invalid form data: form field 'extraHttpHeaders' is invalid (got '{"foo":"bar;scope=*."}', invalid scope regex pattern for header 'foo': error parsing regexp: missing argument to repetition operator in `*.`)
       """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
       | files                 | testdata/page-1-html/index.html | file  |
@@ -1003,7 +1003,7 @@ Feature: /forms/chromium/convert/html
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Invalid form data: form field 'emulatedMediaFeatures' is invalid (got 'foo', resulting to unmarshal emulatedMediaFeatures: invalid character 'o' in literal false (expecting 'a'))
+      Invalid form data: form field 'emulatedMediaFeatures' is invalid (got 'foo', want a JSON object of media features, such as {"prefers-color-scheme":"dark"})
       """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
       | files  | testdata/page-1-html/index.html | file  |

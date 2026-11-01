@@ -98,7 +98,7 @@ Feature: /forms/pdf/split
     Then the response status code should be 400
     Then the response body should match string:
       """
-      Invalid form data: form field 'every' is invalid: must be a number, got "foo"
+      Invalid form data: form field 'every' is invalid (got 'foo', want an integer)
       """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/split" endpoint with the following form data and header(s):
       | files  | testdata/pages_3.pdf | file  |

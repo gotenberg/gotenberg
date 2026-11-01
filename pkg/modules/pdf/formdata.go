@@ -2,7 +2,9 @@ package pdf
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"reflect"
 	"slices"
@@ -111,7 +113,7 @@ func stageFromForm(op string, form *api.FormData) (Stages, map[string]string, er
 		if err != nil {
 			return nil, nil, api.WrapError(err, api.NewSentinelHttpError(
 				http.StatusBadRequest,
-				fmt.Sprintf("Invalid form data: form field '%s' is invalid: %s", name, err),
+				fmt.Sprintf("Invalid form data: form field '%s' is invalid (got '%s', %s)", name, values[0], err),
 			))
 		}
 
@@ -135,9 +137,9 @@ func stageFromForm(op string, form *api.FormData) (Stages, map[string]string, er
 }
 
 // formValue converts a form field to the JSON value of a stage option of type
-// t.
+// t. Its error states what the option wants.
 func formValue(t reflect.Type, value string) (any, error) {
-	if t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.Bool {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 
@@ -150,24 +152,41 @@ func formValue(t reflect.Type, value string) (any, error) {
 	if kind == reflect.Bool {
 		b, err := strconv.ParseBool(value)
 		if err != nil {
-			return nil, fmt.Errorf("must be true or false, got %q", value)
+			return nil, errors.New("want true or false")
 		}
 
 		return b, nil
 	}
 
-	if kind == reflect.Int || kind == reflect.Float64 {
-		n, err := strconv.ParseFloat(value, 64)
+	if kind == reflect.Int {
+		n, err := strconv.Atoi(value)
 		if err != nil {
-			return nil, fmt.Errorf("must be a number, got %q", value)
+			return nil, errors.New("want an integer")
 		}
 
 		return n, nil
 	}
 
-	if !json.Valid([]byte(value)) {
-		return nil, fmt.Errorf("must be valid JSON, got %q", value)
+	if kind == reflect.Float64 {
+		n, err := strconv.ParseFloat(value, 64)
+		if err != nil || math.IsNaN(n) || math.IsInf(n, 0) {
+			return nil, errors.New("want a number")
+		}
+
+		return n, nil
 	}
 
-	return json.RawMessage(value), nil
+	if json.Valid([]byte(value)) {
+		return json.RawMessage(value), nil
+	}
+
+	if kind == reflect.Slice {
+		return nil, errors.New("want a JSON array")
+	}
+
+	if kind == reflect.Map || kind == reflect.Struct {
+		return nil, errors.New("want a JSON object")
+	}
+
+	return nil, errors.New("want JSON")
 }

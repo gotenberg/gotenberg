@@ -82,5 +82,5 @@ Feature: /forms/pdf/{set-bookmarks|bookmarks}
     Then the response status code should be 400
     Then the response body should contain string:
       """
-      Invalid form data: form field 'bookmarks' is invalid: must be valid JSON, got "foo"
+      Invalid form data: form field 'bookmarks' is invalid (got 'foo', want a JSON array)
       """
