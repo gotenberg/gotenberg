@@ -171,8 +171,8 @@ Feature: Webhook
     Then the webhook request header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the webhook request
     Then the Gotenberg container should log the following entries:
-      | api: application stopped      |
-      | chromium: application stopped |
+      | "msg":"module stopped","logger":"gotenberg","module":"api"      |
+      | "msg":"module stopped","logger":"gotenberg","module":"chromium" |
 
   Scenario: Webhook Method
     Given I have a default Gotenberg container
