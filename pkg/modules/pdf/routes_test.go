@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -430,5 +431,53 @@ func TestUnknownFields(t *testing.T) {
 	_, _, err = serve(t, stageRoute(testProcessor(), "rotate"), map[string][]string{"angle": {"90"}, "pages": {"1"}}, "page_1.pdf")
 	if err != nil {
 		t.Fatalf("rotate: %v", err)
+	}
+}
+
+func TestGotenberg8Route(t *testing.T) {
+	route := gotenberg8Route()
+
+	for _, tc := range []struct {
+		path        string
+		wantMessage string
+	}{
+		{path: "/forms/pdfengines/merge", wantMessage: "Gotenberg 9 replaced /forms/pdfengines/merge with /forms/pdf/merge"},
+		{path: "/forms/pdfengines/metadata/write", wantMessage: "Gotenberg 9 replaced /forms/pdfengines/metadata/write with /forms/pdf/set-metadata"},
+		{path: "/forms/pdfengines/watermark", wantMessage: "Gotenberg 9 replaced /forms/pdfengines/watermark with /forms/pdf/stamp-text, /forms/pdf/stamp-image or /forms/pdf/stamp-pdf"},
+		{path: "/forms/pdfengines/foo", wantMessage: "Gotenberg 9 replaced the /forms/pdfengines routes with the /forms/pdf routes"},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			var err error
+			srv := echo.New()
+			srv.Add(route.Method, route.Path, func(c *echo.Context) error {
+				err = route.Handler(c)
+				return nil
+			})
+			srv.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(route.Method, tc.path, nil))
+
+			status, message := api.ParseError(err)
+			if status != http.StatusNotFound {
+				t.Errorf("expected status %d, got %d", http.StatusNotFound, status)
+			}
+			if message != tc.wantMessage {
+				t.Errorf("expected message %q, got %q", tc.wantMessage, message)
+			}
+		})
+	}
+}
+
+// TestGotenberg8RoutesExist guards the upgrade hints against a renamed
+// /forms/pdf route.
+func TestGotenberg8RoutesExist(t *testing.T) {
+	readRoutes := []string{"metadata", "bookmarks"}
+	routePattern := regexp.MustCompile(`/forms/pdf/([a-z-]+)`)
+
+	for name, replacement := range gotenberg8Routes {
+		for _, match := range routePattern.FindAllStringSubmatch(replacement, -1) {
+			_, isStage := stageFactories[match[1]]
+			if !isStage && !slices.Contains(readRoutes, match[1]) {
+				t.Errorf("/forms/pdfengines/%s points to %s, which is not a /forms/pdf route", name, match[0])
+			}
+		}
 	}
 }

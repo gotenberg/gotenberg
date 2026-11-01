@@ -352,3 +352,45 @@ func attachmentsRoute(processor *Processor) api.Route {
 		return files, err
 	}))
 }
+
+// gotenberg8Routes maps the /forms/pdfengines routes of Gotenberg 8 to the
+// /forms/pdf routes that replaced them. See the upgrade guide.
+var gotenberg8Routes = map[string]string{
+	"merge":           "/forms/pdf/merge",
+	"split":           "/forms/pdf/split, or /forms/pdf/select for splitUnify",
+	"flatten":         "/forms/pdf/flatten-form",
+	"optimize":        "/forms/pdf/optimize",
+	"convert":         "/forms/pdf/remediate",
+	"metadata/read":   "/forms/pdf/metadata",
+	"metadata/write":  "/forms/pdf/set-metadata",
+	"bookmarks/read":  "/forms/pdf/bookmarks",
+	"bookmarks/write": "/forms/pdf/set-bookmarks",
+	"encrypt":         "/forms/pdf/encrypt",
+	"embed":           "/forms/pdf/attach",
+	"watermark":       "/forms/pdf/stamp-text, /forms/pdf/stamp-image or /forms/pdf/stamp-pdf",
+	"stamp":           "/forms/pdf/stamp-text, /forms/pdf/stamp-image or /forms/pdf/stamp-pdf",
+	"rotate":          "/forms/pdf/rotate",
+	"factur-x":        "/forms/pdf/remediate and profile=Factur-X",
+}
+
+// gotenberg8Route returns the [api.Route] that answers the removed
+// /forms/pdfengines routes with a 404 naming the route that replaced each.
+func gotenberg8Route() api.Route {
+	return api.Route{
+		Method: http.MethodPost,
+		Path:   "/forms/pdfengines/*",
+		Handler: func(c *echo.Context) error {
+			name := strings.Trim(c.Param("*"), "/")
+
+			message := "Gotenberg 9 replaced the /forms/pdfengines routes with the /forms/pdf routes"
+			if replacement, ok := gotenberg8Routes[name]; ok {
+				message = fmt.Sprintf("Gotenberg 9 replaced /forms/pdfengines/%s with %s", name, replacement)
+			}
+
+			return api.WrapError(
+				fmt.Errorf("removed route /forms/pdfengines/%s", name),
+				api.NewSentinelHttpError(http.StatusNotFound, message),
+			)
+		},
+	}
+}

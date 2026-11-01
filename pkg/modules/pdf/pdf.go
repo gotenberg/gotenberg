@@ -210,6 +210,7 @@ func (mod *PDF) Routes() ([]api.Route, error) {
 	}
 
 	routes := []api.Route{
+		gotenberg8Route(),
 		pipeRoute(mod.processor),
 		metadataRoute(mod.processor),
 		bookmarksRoute(mod.processor),

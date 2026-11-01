@@ -293,3 +293,28 @@ Feature: /forms/pdf/pipe
       """
       Invalid form data: form field 'merge' is unknown to this route; Gotenberg 9 moved it to a stage: add {"op":"merge"} to 'stages'
       """
+
+  # The Gotenberg 8 routes answer 404 with the route that replaced each.
+  Scenario: POST /forms/pdfengines/* (Gotenberg 8 Routes)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/merge" endpoint with the following form data and header(s):
+      | files | testdata/page_1.pdf | file |
+    Then the response status code should be 404
+    Then the response body should match string:
+      """
+      Gotenberg 9 replaced /forms/pdfengines/merge with /forms/pdf/merge
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/metadata/write" endpoint with the following form data and header(s):
+      | files | testdata/page_1.pdf | file |
+    Then the response status code should be 404
+    Then the response body should match string:
+      """
+      Gotenberg 9 replaced /forms/pdfengines/metadata/write with /forms/pdf/set-metadata
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/foo" endpoint with the following form data and header(s):
+      | files | testdata/page_1.pdf | file |
+    Then the response status code should be 404
+    Then the response body should match string:
+      """
+      Gotenberg 9 replaced the /forms/pdfengines routes with the /forms/pdf routes
+      """
