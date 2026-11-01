@@ -104,7 +104,6 @@ type lokRequest struct {
 	Magnification                   int    `json:"magnification"`
 	Zoom                            int    `json:"zoom"`
 	PageLayout                      int    `json:"pageLayout"`
-	FirstPageOnLeft                 bool   `json:"firstPageOnLeft"`
 	ResizeWindowToInitialPage       bool   `json:"resizeWindowToInitialPage"`
 	CenterWindow                    bool   `json:"centerWindow"`
 	OpenInFullScreenMode            bool   `json:"openInFullScreenMode"`
@@ -225,7 +224,6 @@ func newLokRequest(inputPath, outputPath string, options Options) (lokRequest, e
 		Magnification:                   options.Magnification,
 		Zoom:                            options.Zoom,
 		PageLayout:                      options.PageLayout,
-		FirstPageOnLeft:                 options.FirstPageOnLeft,
 		ResizeWindowToInitialPage:       options.ResizeWindowToInitialPage,
 		CenterWindow:                    options.CenterWindow,
 		OpenInFullScreenMode:            options.OpenInFullScreenMode,

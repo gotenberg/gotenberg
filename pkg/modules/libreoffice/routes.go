@@ -71,7 +71,6 @@ func convertRoute(libreOffice libreofficeapi.Converter, processor *pdf.Processor
 				Custom("magnification", into(&options.Magnification, magnifications.parse)).
 				Int("zoom", &options.Zoom, api.Min(1)).
 				Custom("pageLayout", into(&options.PageLayout, pageLayouts.parse)).
-				Bool("firstPageOnLeft", &options.FirstPageOnLeft).
 				Bool("resizeWindowToInitialPage", &options.ResizeWindowToInitialPage).
 				Bool("centerWindow", &options.CenterWindow).
 				Bool("openInFullScreenMode", &options.OpenInFullScreenMode).

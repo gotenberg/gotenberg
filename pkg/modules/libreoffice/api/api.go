@@ -195,12 +195,10 @@ type Options struct {
 	Zoom int
 
 	// PageLayout specifies the page layout when the document is opened.
-	// 0 = default, 1 = single page, 2 = one column, 3 = two columns.
+	// 0 = default, 1 = single page, 2 = one column, 3 = two columns with the
+	// first page on the right. LibreOffice writes no two columns layout with
+	// the first page on the left.
 	PageLayout int
-
-	// FirstPageOnLeft is used with PageLayout value 3. If true, the first
-	// page is displayed on the left side.
-	FirstPageOnLeft bool
 
 	// ResizeWindowToInitialPage specifies that the PDF viewer window is
 	// resized to show the whole initial page.
@@ -324,7 +322,6 @@ func DefaultOptions() Options {
 		Magnification:                   0,
 		Zoom:                            100,
 		PageLayout:                      0,
-		FirstPageOnLeft:                 false,
 		ResizeWindowToInitialPage:       false,
 		CenterWindow:                    false,
 		OpenInFullScreenMode:            false,

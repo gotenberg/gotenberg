@@ -88,6 +88,7 @@ Available tags:
 - `the (response|webhook request) PDF(s) (should|should NOT) be signed`
 - `the "<name>" PDF should have the "<key>" metadata set to "<value>"` (keys: `Title`, `Author`, `Subject`, `Keywords`, `Creator`, `Producer`)
 - `the "<name>" PDF should have the form field "<field>" set to "<value>"`
+- `the "<name>" PDF (should|should NOT) have the page layout "<layout>"` (the catalog's `/PageLayout` name, such as `SinglePage`, read from the raw bytes; a PDF without the entry has none)
 - `the "<name>" PDF page <N> should be rotated by <angle> degrees`
 - `the "<name>" PDF first page should be <width>x<height> points` (one point of tolerance)
 - `the "<name>" PDF (should|should NOT) have a document outline`

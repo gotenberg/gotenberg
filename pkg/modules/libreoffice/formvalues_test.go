@@ -22,7 +22,9 @@ func TestFormValues(t *testing.T) {
 		{"rotation not a number", parseRotation, "45deg", 0, true},
 		{"initial view", initialViews.parse, "outline", 1, false},
 		{"magnification", magnifications.parse, "zoom", 4, false},
-		{"page layout", pageLayouts.parse, "twoColumnRight", 4, false},
+		{"page layout", pageLayouts.parse, "twoColumnRight", 3, false},
+		{"one column page layout", pageLayouts.parse, "oneColumn", 2, false},
+		{"page layout LibreOffice cannot write", pageLayouts.parse, "twoColumnLeft", 0, true},
 		{"page layout number", pageLayouts.parse, "2", 0, true},
 		{"case matters", initialViews.parse, "Outline", 0, true},
 	} {

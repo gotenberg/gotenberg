@@ -506,6 +506,43 @@ func (s *scenario) thePdfShouldHaveMetadata(ctx context.Context, name, key, expe
 	})
 }
 
+// pageLayoutEntry matches the catalog's /PageLayout entry (ISO 32000-1, Table
+// 28) and captures its name.
+var pageLayoutEntry = regexp.MustCompile(`/PageLayout\s*/([A-Za-z]+)`)
+
+// thePdfShouldHavePageLayout reads the /PageLayout of the named PDF from its
+// raw bytes, which holds only while the catalog is not in a compressed object
+// stream, as LibreOffice writes it. A PDF without the entry has no page
+// layout, rather than the viewer's default.
+func (s *scenario) thePdfShouldHavePageLayout(_ context.Context, name, should, layout string) error {
+	path, err := s.pdfPath(name)
+	if err != nil {
+		return err
+	}
+
+	data, err := os.ReadFile(path) //nolint:gosec // path is built from test-controlled values.
+	if err != nil {
+		return fmt.Errorf("read PDF %q: %w", path, err)
+	}
+
+	// The last entry wins, as an incremental update supersedes the earlier
+	// catalogs.
+	var actual string
+	for _, match := range pageLayoutEntry.FindAllSubmatch(data, -1) {
+		actual = string(match[1])
+	}
+
+	if should == "should" && actual != layout {
+		return fmt.Errorf("expected the page layout to be %q, but actual is %q", layout, actual)
+	}
+
+	if should == "should NOT" && actual == layout {
+		return fmt.Errorf("expected the page layout NOT to be %q", layout)
+	}
+
+	return nil
+}
+
 func (s *scenario) thePdfShouldHaveFormField(ctx context.Context, name, field, expected string) error {
 	return s.withNamedPdf(ctx, name, func(r *litho.Reader) error {
 		values, err := r.FormData(ctx)

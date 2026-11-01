@@ -59,7 +59,12 @@ func (e enum) parse(value string) (int, error) {
 var (
 	initialViews   = enum{"default", "outline", "thumbnails"}
 	magnifications = enum{"default", "fitWindow", "fitWidth", "fitVisible", "zoom"}
-	pageLayouts    = enum{"default", "singlePage", "oneColumn", "twoColumnLeft", "twoColumnRight"}
+	// LibreOffice's PageLayout is 0 for the viewer's default, 1 for
+	// /SinglePage, 2 for /OneColumn and 3 for /TwoColumnRight. It writes no
+	// /TwoColumnLeft, and discards its FirstPageOnLeft setting, so the two
+	// column layouts always open with the first page on the right (see
+	// filter/source/pdf/pdfexport.cxx).
+	pageLayouts = enum{"default", "singlePage", "oneColumn", "twoColumnRight"}
 )
 
 // pdfuaProfile is the only PDF/UA profile LibreOffice writes.

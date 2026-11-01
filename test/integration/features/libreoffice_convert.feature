@@ -161,6 +161,24 @@ Feature: /forms/libreoffice/convert
       | foo.pdf |
     Then the "foo.pdf" PDF should be tagged
 
+  # LibreOffice writes no /PageLayout for the default, and no /TwoColumnLeft.
+  Scenario Outline: POST /forms/libreoffice/convert (Page Layout <pageLayout>)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.docx | file   |
+      | pageLayout                | <pageLayout>         | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF <should> have the page layout "<layout>"
+
+    Examples:
+      | pageLayout     | should     | layout         |
+      | default        | should NOT | SinglePage     |
+      | singlePage     | should     | SinglePage     |
+      | oneColumn      | should     | OneColumn      |
+      | twoColumnRight | should     | TwoColumnRight |
+
   Scenario: POST /forms/libreoffice/convert (Native Page Ranges - Single Document)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
@@ -266,7 +284,6 @@ Feature: /forms/libreoffice/convert
       | magnification                   | foo | field |
       | zoom                            | -1  | field |
       | pageLayout                      | foo | field |
-      | firstPageOnLeft                 | foo | field |
       | resizeWindowToInitialPage       | foo | field |
       | centerWindow                    | foo | field |
       | openInFullScreenMode            | foo | field |
@@ -307,8 +324,7 @@ Feature: /forms/libreoffice/convert
       form field 'initialPage' is invalid (got '-1', resulting to value is inferior to 1)
       form field 'magnification' is invalid (got 'foo', resulting to must be one of default, fitWindow, fitWidth, fitVisible, zoom, got "foo")
       form field 'zoom' is invalid (got '-1', resulting to value is inferior to 1)
-      form field 'pageLayout' is invalid (got 'foo', resulting to must be one of default, singlePage, oneColumn, twoColumnLeft, twoColumnRight, got "foo")
-      form field 'firstPageOnLeft' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
+      form field 'pageLayout' is invalid (got 'foo', resulting to must be one of default, singlePage, oneColumn, twoColumnRight, got "foo")
       form field 'resizeWindowToInitialPage' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
       form field 'centerWindow' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
       form field 'openInFullScreenMode' is invalid (got 'foo', resulting to strconv.ParseBool: parsing "foo": invalid syntax)
@@ -358,6 +374,15 @@ Feature: /forms/libreoffice/convert
     Then the response body should match string:
       """
       Invalid form data: form field 'nativePdfua' is invalid (got 'foo', resulting to must be PDF/UA-1, got "foo")
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files      | testdata/page_1.docx | file  |
+      | pageLayout | twoColumnLeft        | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'pageLayout' is invalid (got 'twoColumnLeft', resulting to must be one of default, singlePage, oneColumn, twoColumnRight, got "twoColumnLeft")
       """
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
       | files      | testdata/page_1.docx | file  |
