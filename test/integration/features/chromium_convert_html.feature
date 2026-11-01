@@ -319,6 +319,66 @@ Feature: /forms/chromium/convert/html
       io-fired
       """
 
+  # A wait still running when the request runs out of time answers the API's
+  # timeout status, naming the field and its value, a promise that never
+  # settles included. A value that throws stays the client's error.
+  Scenario: POST /forms/chromium/convert/html (Wait Timeout)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | API_TIMEOUT | 5s |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files           | testdata/page-1-html/index.html | file  |
+      | waitForSelector | #never                          | field |
+    Then the response status code should be 503
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      The selector '#never' (waitForSelector) did not become visible within the time limit. Increase it with --api-timeout (API_TIMEOUT), or check the selector.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files             | testdata/page-1-html/index.html | file  |
+      | waitForExpression | window.never === true           | field |
+    Then the response status code should be 503
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      The expression 'window.never === true' (waitForExpression) did not become true within the time limit. Increase it with --api-timeout (API_TIMEOUT), or check the expression.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files             | testdata/page-1-html/index.html | file  |
+      | waitForExpression | new Promise(() => {})           | field |
+    Then the response status code should be 503
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      The expression 'new Promise(() => {})' (waitForExpression) did not become true within the time limit. Increase it with --api-timeout (API_TIMEOUT), or check the expression.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files               | testdata/page-1-html/index.html | file  |
+      | waitForWindowStatus | never                           | field |
+    Then the response status code should be 503
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      The window status 'never' (waitForWindowStatus) was not reached within the time limit. Increase it with --api-timeout (API_TIMEOUT), or check that the page sets it.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/screenshot/html" endpoint with the following form data and header(s):
+      | files           | testdata/page-1-html/index.html | file  |
+      | waitForSelector | #never                          | field |
+    Then the response status code should be 503
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      The selector '#never' (waitForSelector) did not become visible within the time limit. Increase it with --api-timeout (API_TIMEOUT), or check the selector.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files             | testdata/page-1-html/index.html | file  |
+      | waitForExpression | window.nope.x                   | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      The expression 'window.nope.x' (waitForExpression) returned an exception or undefined
+      """
+
   Scenario: POST /forms/chromium/convert/html (Wait For Selector)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):

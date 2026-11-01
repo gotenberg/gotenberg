@@ -686,6 +686,8 @@ func waitDelayBeforePrintActionFunc(logger *slog.Logger, disableJavaScript bool,
 	}
 }
 
+// waitForExpressionBeforePrintActionFunc waits until expression, the
+// waitForExpression form field, evaluates to true.
 func waitForExpressionBeforePrintActionFunc(logger *slog.Logger, disableJavaScript bool, expression string) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		if disableJavaScript {
@@ -698,37 +700,68 @@ func waitForExpressionBeforePrintActionFunc(logger *slog.Logger, disableJavaScri
 			return nil
 		}
 
-		// We wait until the evaluation of the expression is true or
-		// until the context is done.
-		logger.DebugContext(ctx, fmt.Sprintf("wait until '%s' is true before print", expression))
-		ticker := time.NewTicker(time.Duration(100) * time.Millisecond)
+		return waitForExpression(ctx, logger, "waitForExpression", expression, expression)
+	}
+}
 
-		for {
-			select {
-			case <-ctx.Done():
-				ticker.Stop()
-				return fmt.Errorf("context done while evaluating '%s': %w", expression, ctx.Err())
-			case <-ticker.C:
-				var ok bool
-				// Await the result so a thenable expression (an async function
-				// returning a Promise) resolves before its value is read. A
-				// non-promise result is unaffected.
-				// See https://github.com/gotenberg/gotenberg/pull/1617.
-				evaluate := chromedp.Evaluate(expression, &ok, func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
-					return p.WithAwaitPromise(true)
-				})
+// waitForWindowStatusBeforePrintActionFunc waits until window.status equals
+// status, the waitForWindowStatus form field.
+func waitForWindowStatusBeforePrintActionFunc(logger *slog.Logger, disableJavaScript bool, status string) chromedp.ActionFunc {
+	return func(ctx context.Context) error {
+		if disableJavaScript {
+			logger.DebugContext(ctx, "JavaScript disabled, skipping wait window status")
+			return nil
+		}
 
-				err := evaluate.Do(ctx)
-				if err != nil {
-					return fmt.Errorf("evaluate: %v: %w", err, ErrInvalidEvaluationExpression)
+		expression := windowStatusExpression(status)
+		if expression == "" {
+			logger.DebugContext(ctx, "no wait window status")
+			return nil
+		}
+
+		return waitForExpression(ctx, logger, "waitForWindowStatus", status, expression)
+	}
+}
+
+// waitForExpression evaluates expression until it is true, or until ctx is
+// done. A wait the request's time limit ends returns a [ErrWaitTimeout] naming
+// field and value, the form field and the value the client sent.
+func waitForExpression(ctx context.Context, logger *slog.Logger, field, value, expression string) error {
+	logger.DebugContext(ctx, fmt.Sprintf("wait until '%s' is true before print", expression))
+	ticker := time.NewTicker(time.Duration(100) * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			if timedOut(ctx) {
+				return &waitTimeoutError{field: field, value: value}
+			}
+
+			return fmt.Errorf("context done while evaluating '%s': %w", expression, ctx.Err())
+		case <-ticker.C:
+			var ok bool
+			// Await the result so a thenable expression (an async function
+			// returning a Promise) resolves before its value is read. A
+			// non-promise result is unaffected.
+			// See https://github.com/gotenberg/gotenberg/pull/1617.
+			evaluate := chromedp.Evaluate(expression, &ok, func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
+				return p.WithAwaitPromise(true)
+			})
+
+			err := evaluate.Do(ctx)
+			if err != nil {
+				// A pending evaluation, such as a promise that never
+				// settles, fails once the request runs out of time.
+				if timedOut(ctx) {
+					return &waitTimeoutError{field: field, value: value}
 				}
 
-				if ok {
-					ticker.Stop()
-					return nil
-				}
+				return fmt.Errorf("evaluate: %v: %w", err, ErrInvalidEvaluationExpression)
+			}
 
-				continue
+			if ok {
+				return nil
 			}
 		}
 	}
@@ -761,8 +794,52 @@ func waitForSelectorVisibleBeforePrintActionFunc(logger *slog.Logger, selector s
 		logger.DebugContext(ctx, fmt.Sprintf("wait until '%s' is visible before print", selector))
 		err := chromedp.WaitVisible(selector, chromedp.ByQuery, chromedp.RetryInterval(time.Duration(100)*time.Millisecond)).Do(ctx)
 		if err != nil {
+			// chromedp retries until the element shows, so a selector that
+			// matches nothing waits until the request runs out of time.
+			if timedOut(ctx) {
+				return &waitTimeoutError{field: "waitForSelector", value: selector}
+			}
+
 			return fmt.Errorf("wait visible: %v: %w", err, ErrInvalidSelectorQuery)
 		}
 		return nil
+	}
+}
+
+// timedOut reports whether ctx ended because the request ran out of time.
+// The tab's context is canceled when the request ends, so its error is
+// [context.Canceled] either way: its cause, the request's own error, tells a
+// deadline from a client that went away. See [chromiumBrowser.do].
+func timedOut(ctx context.Context) bool {
+	return ctx.Err() != nil && errors.Is(context.Cause(ctx), context.DeadlineExceeded)
+}
+
+// waitTimeoutError is a wait form field, such as waitForSelector, still
+// waiting when the request ran out of time. It matches [ErrWaitTimeout].
+type waitTimeoutError struct {
+	field string
+	value string
+}
+
+func (e *waitTimeoutError) Error() string {
+	return fmt.Sprintf("%s '%s': %s", e.field, e.value, ErrWaitTimeout)
+}
+
+func (e *waitTimeoutError) Is(target error) bool {
+	return target == ErrWaitTimeout
+}
+
+// message returns the client message of the wait, naming the form field and
+// the value waited for.
+func (e *waitTimeoutError) message() string {
+	const remedy = "Increase it with --api-timeout (API_TIMEOUT)"
+
+	switch e.field {
+	case "waitForWindowStatus":
+		return fmt.Sprintf("The window status '%s' (waitForWindowStatus) was not reached within the time limit. %s, or check that the page sets it.", e.value, remedy)
+	case "waitForExpression":
+		return fmt.Sprintf("The expression '%s' (waitForExpression) did not become true within the time limit. %s, or check the expression.", e.value, remedy)
+	default:
+		return fmt.Sprintf("The selector '%s' (waitForSelector) did not become visible within the time limit. %s, or check the selector.", e.value, remedy)
 	}
 }

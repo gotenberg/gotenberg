@@ -848,6 +848,16 @@ func handleChromiumError(err error, options Options) error {
 		)
 	}
 
+	// A wait the request's time limit ended did not fail on its value: it
+	// answers the API's timeout status, naming the field and the value.
+	var waitTimeout *waitTimeoutError
+	if errors.As(err, &waitTimeout) {
+		return api.WrapError(
+			err,
+			api.NewSentinelHttpError(http.StatusServiceUnavailable, waitTimeout.message()),
+		)
+	}
+
 	if errors.Is(err, ErrInvalidEvaluationExpression) {
 		if options.WaitForExpression == "" {
 			// We do not expect the 'waitForWindowStatus' form field to return

@@ -447,7 +447,7 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *slog.Logger, url, out
 		hideDefaultWhiteBackgroundActionFunc(logger, options.OmitBackground, options.PrintBackground),
 		forceExactColorsActionFunc(logger, options.PrintBackground),
 		emulateMediaTypeActionFunc(logger, options.EmulatedMediaType, options.EmulatedMediaFeatures),
-		waitForExpressionBeforePrintActionFunc(logger, b.arguments.disableJavaScript, windowStatusExpression(options.WaitForWindowStatus)),
+		waitForWindowStatusBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitForWindowStatus),
 		waitForExpressionBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitForExpression),
 		waitForSelectorVisibleBeforePrintActionFunc(logger, options.WaitForSelector),
 		waitDelayBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitDelay),
@@ -475,7 +475,7 @@ func (b *chromiumBrowser) screenshot(ctx context.Context, logger *slog.Logger, u
 		hideDefaultWhiteBackgroundActionFunc(logger, options.OmitBackground, true),
 		forceExactColorsActionFunc(logger, true),
 		emulateMediaTypeActionFunc(logger, options.EmulatedMediaType, options.EmulatedMediaFeatures),
-		waitForExpressionBeforePrintActionFunc(logger, b.arguments.disableJavaScript, windowStatusExpression(options.WaitForWindowStatus)),
+		waitForWindowStatusBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitForWindowStatus),
 		waitForExpressionBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitForExpression),
 		waitForSelectorVisibleBeforePrintActionFunc(logger, options.WaitForSelector),
 		waitDelayBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitDelay),
@@ -561,10 +561,14 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 
 	// The tab derives from the browser, not from the request, but must not
 	// outlive it: the supervisor holds the request's slot until do returns.
-	timeoutCtx, timeoutCancel := context.WithTimeout(b.ctx, time.Until(deadline))
-	defer timeoutCancel()
-	stopCancelOnRequest := context.AfterFunc(ctx, timeoutCancel)
+	// It ends with the request's own cause, so that a wait tells a deadline
+	// from a client that went away.
+	requestCtx, requestCancel := context.WithCancelCause(b.ctx)
+	defer requestCancel(nil)
+	stopCancelOnRequest := context.AfterFunc(ctx, func() { requestCancel(context.Cause(ctx)) })
 	defer stopCancelOnRequest()
+	timeoutCtx, timeoutCancel := context.WithDeadline(requestCtx, deadline)
+	defer timeoutCancel()
 
 	var taskOpts []chromedp.ContextOption
 	if !b.arguments.sharedBrowserContext {
@@ -585,15 +589,23 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 
 	runErr := chromedp.Run(taskCtx, tasks...)
 
-	// The tab is canceled when the request ends, so the run reports
-	// context.Canceled even when the request ran out of time. Report the
-	// request's own error, so that a deadline still maps to a 503 and a client
-	// that went away to a 499.
-	if runErr != nil && ctx.Err() != nil {
-		runErr = fmt.Errorf("%w: %w", ctx.Err(), runErr)
-	}
+	runErr = requestError(ctx, runErr)
 
 	return failures.err(runErr, b.ctx.Err() != nil, options.FailOnResourceLoadingFailed)
+}
+
+// requestError returns the error of a run that ctx, the request's context,
+// may have ended. The tab is canceled when the request ends, so the run
+// reports context.Canceled even when the request ran out of time: the
+// request's own error then comes first, so that a deadline still maps to a 503
+// and a client that went away to a 499. A wait that ran out of time already
+// says so, and names its form field.
+func requestError(ctx context.Context, runErr error) error {
+	if runErr == nil || ctx.Err() == nil || errors.Is(runErr, ErrWaitTimeout) {
+		return runErr
+	}
+
+	return fmt.Errorf("%w: %w", ctx.Err(), runErr)
 }
 
 // listen registers the event listeners of one conversion on taskCtx. They

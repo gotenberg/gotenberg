@@ -1,10 +1,13 @@
 package chromium
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 )
@@ -69,6 +72,66 @@ func TestHandleChromiumError_ConsoleMessages(t *testing.T) {
 	want := "Chromium console messages:\n[warning] foo\n[error] bar"
 	if message != want {
 		t.Errorf("message = %q, want %q", message, want)
+	}
+}
+
+// TestHandleChromiumError_Wait pins the answer of a wait that fails: a 503
+// naming the field and its value when the request's time limit ends it, as the
+// API answers its own timeout, and a 400 when the value throws.
+func TestHandleChromiumError_Wait(t *testing.T) {
+	expired, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+
+	// Mirror [chromiumBrowser.do] and [runError].
+	run := func(waitErr error) error {
+		return fmt.Errorf("handle tasks: %w", requestError(expired, waitErr))
+	}
+
+	options := Options{WaitForExpression: "window.nope.x"}
+
+	for _, tc := range []struct {
+		name       string
+		err        error
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:       "selector out of time",
+			err:        run(&waitTimeoutError{field: "waitForSelector", value: "#never"}),
+			wantStatus: http.StatusServiceUnavailable,
+			wantBody:   "The selector '#never' (waitForSelector) did not become visible within the time limit. Increase it with --api-timeout (API_TIMEOUT), or check the selector.",
+		},
+		{
+			name:       "expression out of time",
+			err:        run(&waitTimeoutError{field: "waitForExpression", value: "window.ready === true"}),
+			wantStatus: http.StatusServiceUnavailable,
+			wantBody:   "The expression 'window.ready === true' (waitForExpression) did not become true within the time limit. Increase it with --api-timeout (API_TIMEOUT), or check the expression.",
+		},
+		{
+			name:       "window status out of time",
+			err:        run(&waitTimeoutError{field: "waitForWindowStatus", value: "ready"}),
+			wantStatus: http.StatusServiceUnavailable,
+			wantBody:   "The window status 'ready' (waitForWindowStatus) was not reached within the time limit. Increase it with --api-timeout (API_TIMEOUT), or check that the page sets it.",
+		},
+		{
+			name:       "expression throws",
+			err:        fmt.Errorf("handle tasks: %w", fmt.Errorf("evaluate: %v: %w", errors.New("TypeError"), ErrInvalidEvaluationExpression)),
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "The expression 'window.nope.x' (waitForExpression) returned an exception or undefined",
+		},
+		{
+			name:       "out of time outside a wait",
+			err:        run(fmt.Errorf("wait delay: %w", context.Canceled)),
+			wantStatus: http.StatusServiceUnavailable,
+			wantBody:   "The request exceeded the time limit. Increase it with --api-timeout, or reduce the workload.",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			status, message := api.ParseError(handleChromiumError(tc.err, options))
+			if status != tc.wantStatus || message != tc.wantBody {
+				t.Errorf("got %d %q, want %d %q", status, message, tc.wantStatus, tc.wantBody)
+			}
+		})
 	}
 }
 

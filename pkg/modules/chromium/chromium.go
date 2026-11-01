@@ -43,6 +43,11 @@ var (
 	// or undefined.
 	ErrInvalidSelectorQuery = errors.New("invalid selector query")
 
+	// ErrWaitTimeout happens if waitForWindowStatus, waitForExpression or
+	// waitForSelector is still waiting when the request runs out of time. The
+	// error names the form field and its value.
+	ErrWaitTimeout = errors.New("still waiting when the request ran out of time")
+
 	// ErrScreenshotSelectorNotFound happens when the CSS selector of a
 	// screenshot matches no element with a rendered box.
 	ErrScreenshotSelectorNotFound = errors.New("screenshot selector not found")
@@ -932,6 +937,8 @@ func conversionInputAttrs(ctx context.Context, url string) []attribute.KeyValue 
 // [gotenberg.ClassifyError].
 func chromiumErrorType(err error) string {
 	switch {
+	case errors.Is(err, ErrWaitTimeout):
+		return gotenberg.ErrorTypeTimeout
 	case errors.Is(err, ErrInvalidHttpStatusCode),
 		errors.Is(err, ErrInvalidResourceHttpStatusCode),
 		errors.Is(err, ErrLoadingFailed),

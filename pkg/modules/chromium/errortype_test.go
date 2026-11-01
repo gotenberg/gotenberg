@@ -15,6 +15,7 @@ func TestChromiumErrorType(t *testing.T) {
 		want string
 	}{
 		{"deadline", context.DeadlineExceeded, "timeout"},
+		{"wait out of time", &waitTimeoutError{field: "waitForSelector", value: "#never"}, "timeout"},
 		{"canceled", context.Canceled, "context_cancelled"},
 		{"invalid http status", ErrInvalidHttpStatusCode, "invalid_input"},
 		{"invalid resource http status", ErrInvalidResourceHttpStatusCode, "invalid_input"},
