@@ -5,7 +5,10 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"github.com/chromedp/cdproto/cdp"
+	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/runtime"
+	"github.com/chromedp/cdproto/target"
 )
 
 func TestNormalizeDomain(t *testing.T) {
@@ -186,6 +189,41 @@ func TestWebSocketHostPort(t *testing.T) {
 			got, ok := webSocketHostPort(tc.url)
 			if got != tc.want || ok != tc.ok {
 				t.Fatalf("webSocketHostPort(%q) = %q, %t; want %q, %t", tc.url, got, ok, tc.want, tc.ok)
+			}
+		})
+	}
+}
+
+// TestIsMainPageResponse pins how a response is told to be the main page's: by
+// the frame that loads it, the main frame's ID being the target's, and never
+// by its URL, which Chromium normalizes and redirects change.
+func TestIsMainPageResponse(t *testing.T) {
+	const tab target.ID = "TAB"
+
+	response := func(resourceType network.ResourceType, frameID cdp.FrameID, url string) *network.EventResponseReceived {
+		return &network.EventResponseReceived{
+			Type:     resourceType,
+			FrameID:  frameID,
+			Response: &network.Response{URL: url, Status: 404},
+		}
+	}
+
+	for _, tc := range []struct {
+		name     string
+		ev       *network.EventResponseReceived
+		targetID target.ID
+		want     bool
+	}{
+		{name: "main frame document", ev: response(network.ResourceTypeDocument, "TAB", "https://example.com/"), targetID: tab, want: true},
+		{name: "main frame document after a redirect", ev: response(network.ResourceTypeDocument, "TAB", "https://www.example.com/target"), targetID: tab, want: true},
+		{name: "iframe document", ev: response(network.ResourceTypeDocument, "IFRAME", "https://example.com/missing"), targetID: tab, want: false},
+		{name: "main frame script", ev: response(network.ResourceTypeScript, "TAB", "https://example.com/app.js"), targetID: tab, want: false},
+		{name: "main frame image", ev: response(network.ResourceTypeImage, "TAB", "https://example.com/logo.png"), targetID: tab, want: false},
+		{name: "unknown target", ev: response(network.ResourceTypeDocument, "", "https://example.com/"), targetID: "", want: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isMainPageResponse(tc.ev, tc.targetID); got != tc.want {
+				t.Errorf("isMainPageResponse() = %t, want %t", got, tc.want)
 			}
 		})
 	}

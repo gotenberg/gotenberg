@@ -19,6 +19,7 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
+	"github.com/chromedp/cdproto/target"
 	"github.com/chromedp/chromedp"
 	"github.com/dlclark/regexp2/v2"
 	"golang.org/x/sync/errgroup"
@@ -341,7 +342,6 @@ func listenForEventRequestPaused(ctx context.Context, logger *slog.Logger, optio
 }
 
 type eventResponseReceivedOptions struct {
-	mainPageUrl                     string
 	failOnHttpStatusCodes           []int64
 	failOnResourceOnHttpStatusCode  []int64
 	ignoreResourceHttpStatusDomains []string
@@ -377,7 +377,14 @@ func listenForEventResponseReceived(
 
 	chromedp.ListenTarget(ctx, func(ev any) {
 		if ev, ok := ev.(*network.EventResponseReceived); ok {
-			if ev.Response.URL == options.mainPageUrl {
+			// chromedp sets the target before it dispatches the target's
+			// events, so the target is known here.
+			var targetID target.ID
+			if c := chromedp.FromContext(ctx); c != nil && c.Target != nil {
+				targetID = c.Target.TargetID
+			}
+
+			if isMainPageResponse(ev, targetID) {
 				logger.DebugContext(ctx, fmt.Sprintf("event EventResponseReceived fired for main page: %+v", ev.Response))
 
 				if slices.Contains(options.failOnHttpStatusCodes, ev.Response.Status) {
@@ -417,6 +424,16 @@ func listenForEventResponseReceived(
 			}
 		}
 	})
+}
+
+// isMainPageResponse reports whether ev answers a document of the main frame
+// of the tab targetID names, whose frame ID is the target ID. That is the page
+// the route asked for, after any redirect, whatever form its URL takes, or a
+// page the main frame's scripts navigate to. An iframe's document has a frame
+// of its own, and is a resource. A redirect fires no response, only its
+// target does.
+func isMainPageResponse(ev *network.EventResponseReceived, targetID target.ID) bool {
+	return ev.Type == network.ResourceTypeDocument && targetID != "" && ev.FrameID == cdp.FrameID(targetID)
 }
 
 // isAllowedFileSubResource reports whether a file:// sub-resource URL is

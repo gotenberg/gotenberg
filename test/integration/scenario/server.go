@@ -134,6 +134,23 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 		}
 		return c.HTML(http.StatusOK, string(b))
 	})
+	// failOnHttpStatusCodes tells the main page by its frame: a path-less URL
+	// Chromium requests with a trailing slash, and a redirect, both reach a
+	// missing page, while a framed missing page is a resource.
+	missing := func(c *echo.Context) error {
+		s.recordRequest(&s.page, c.Request())
+		return c.HTML(http.StatusNotFound, "<html><body><p>Missing</p></body></html>")
+	}
+	srv.GET("/", missing)
+	srv.GET("/missing", missing)
+	srv.GET("/redirect-to-missing", func(c *echo.Context) error {
+		s.recordRequest(&s.page, c.Request())
+		return c.Redirect(http.StatusFound, "/missing")
+	})
+	srv.GET("/iframe-missing", func(c *echo.Context) error {
+		s.recordRequest(&s.page, c.Request())
+		return c.HTML(http.StatusOK, `<html><body><p>Framed</p><iframe src="/missing"></iframe></body></html>`)
+	})
 	srv.GET("/redirect-to-private", func(c *echo.Context) error {
 		s.recordRequest(&s.page, c.Request())
 		// Redirect the browser to a non-public address so the outbound filter

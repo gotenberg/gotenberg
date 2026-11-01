@@ -80,6 +80,33 @@ Feature: /forms/chromium/screenshot/url
       | javascript:alert(1)                           |
       | data:text/html,foo                            |
 
+  # The main page is the main frame's document, whatever its URL: Chromium
+  # requests a path-less URL with a trailing slash, and only the target of a
+  # redirect answers. A framed page is a resource.
+  Scenario: POST /forms/chromium/screenshot/url (Fail On HTTP Status Codes)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/screenshot/url" endpoint with the following form data and header(s):
+      | url | {helper} | field |
+    Then the response status code should be 409
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid HTTP status code from the main page: 404: Not Found
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/screenshot/url" endpoint with the following form data and header(s):
+      | url                           | {helper}/redirect-to-missing | field |
+      | failOnResourceHttpStatusCodes | [499,599]                    | field |
+    Then the response status code should be 409
+    Then the response body should match string:
+      """
+      Invalid HTTP status code from the main page: 404: Not Found
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/screenshot/url" endpoint with the following form data and header(s):
+      | url | {helper}/iframe-missing | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "image/png"
+
   @webhook
   Scenario: POST /forms/chromium/screenshot/url (Webhook)
     Given I have a default Gotenberg container

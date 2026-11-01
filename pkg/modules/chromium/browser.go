@@ -581,7 +581,7 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 	defer taskCancel()
 
 	failures := new(conversionFailures)
-	b.listen(taskCtx, taskCancel, logger, url, options, aggregate, failures)
+	b.listen(taskCtx, taskCancel, logger, options, aggregate, failures)
 
 	runErr := chromedp.Run(taskCtx, tasks...)
 
@@ -599,7 +599,7 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 // listen registers the event listeners of one conversion on taskCtx. They
 // record what fails the conversion in failures, and some cancel taskCtx so
 // that the conversion stops at once.
-func (b *chromiumBrowser) listen(taskCtx context.Context, taskCancel context.CancelFunc, logger *slog.Logger, url string, options Options, aggregate *networkAggregate, failures *conversionFailures) {
+func (b *chromiumBrowser) listen(taskCtx context.Context, taskCancel context.CancelFunc, logger *slog.Logger, options Options, aggregate *networkAggregate, failures *conversionFailures) {
 	// Accumulate per-conversion network activity for telemetry.
 	listenForNetworkActivity(taskCtx, aggregate)
 
@@ -639,7 +639,6 @@ func (b *chromiumBrowser) listen(taskCtx context.Context, taskCancel context.Can
 	// https://github.com/gotenberg/gotenberg/issues/1021.
 	if len(options.FailOnHttpStatusCodes) != 0 || len(options.FailOnResourceHttpStatusCodes) != 0 {
 		listenForEventResponseReceived(taskCtx, logger, eventResponseReceivedOptions{
-			mainPageUrl:                     url,
 			failOnHttpStatusCodes:           options.FailOnHttpStatusCodes,
 			failOnResourceOnHttpStatusCode:  options.FailOnResourceHttpStatusCodes,
 			ignoreResourceHttpStatusDomains: options.IgnoreResourceHttpStatusDomains,
