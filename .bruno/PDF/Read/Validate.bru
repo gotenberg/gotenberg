@@ -15,10 +15,3 @@ body:multipart-form {
   profile: PDF/A-2b
   ~password:
 }
-
-headers {
-  ~Gotenberg-Webhook-Url: http://localhost:8080/webhook
-  ~Gotenberg-Webhook-Events-Url: http://localhost:8080/webhook/events
-  ~Gotenberg-Webhook-Method: POST
-  ~Gotenberg-Webhook-Extra-Http-Headers: {"X-Custom":"value"}
-}
