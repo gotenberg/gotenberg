@@ -196,7 +196,7 @@ func (s *convertColorsStage) edit(ctx context.Context, w *litho.Writer, _ *runEn
 	return err
 }
 
-func (s *redactStage) edit(ctx context.Context, w *litho.Writer, _ *runEnv) error {
+func (s *redactStage) edit(ctx context.Context, w *litho.Writer, env *runEnv) error {
 	regions := make([]litho.RedactRegion, len(s.Regions))
 	for i, r := range s.Regions {
 		regions[i] = litho.RedactRegion{
@@ -205,7 +205,15 @@ func (s *redactStage) edit(ctx context.Context, w *litho.Writer, _ *runEnv) erro
 		}
 	}
 
-	_, err := w.Redact(ctx, regions)
+	// A glyph of a font the document does not embed keeps its advance box
+	// unless the redaction has the substitute render draws it with, whose
+	// outline may reach past that box.
+	var opts []litho.RedactOption
+	if env.processor.renderFonts != nil {
+		opts = append(opts, litho.WithRedactionGlyphOutlines(env.processor.renderFonts))
+	}
+
+	_, err := w.Redact(ctx, regions, opts...)
 
 	return err
 }

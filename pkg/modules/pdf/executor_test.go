@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/gotenberg/litho/pkg/models"
@@ -62,8 +63,9 @@ func testContext(t *testing.T, fixtures ...string) (*api.Context, map[string]str
 
 func testProcessor() *Processor {
 	return &Processor{
-		fonts:      litho.WithSystemFonts(),
-		httpClient: func(context.Context) *http.Client { return http.DefaultClient },
+		fonts:       litho.WithSystemFonts(),
+		renderFonts: litho.WithRenderSystemFonts(),
+		httpClient:  func(context.Context) *http.Client { return http.DefaultClient },
 	}
 }
 
@@ -513,6 +515,72 @@ func TestRunRender(t *testing.T) {
 				if cfg.Width != 224 || cfg.Height != 316 {
 					t.Errorf("%s: %dx%d, want a page drawn at 36 dpi", ctx.OriginalFilename(path), cfg.Width, cfg.Height)
 				}
+			}
+		})
+	}
+}
+
+// recordingFonts returns a font provider that supplies no program, and the
+// /BaseFont names it was asked for.
+func recordingFonts() (litho.FontProvider, func() []string) {
+	var (
+		mu    sync.Mutex
+		asked []string
+	)
+
+	provider := litho.FontProviderFunc(func(_ context.Context, req litho.FontRequest) ([]byte, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		asked = append(asked, req.BaseFont)
+
+		return nil, nil
+	})
+
+	return provider, func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+
+		return slices.Clone(asked)
+	}
+}
+
+// A stamped text uses a standard font the document does not embed: render and
+// redact ask the processor's fonts for it, rather than drawing boxes. The stamp
+// is written by a run of its own: on the Writer that stamps, a redaction does
+// not bound the stamp's glyphs by their outlines.
+func TestRunAsksForNonEmbeddedFonts(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		stages string
+	}{
+		{
+			name:   "render",
+			stages: `[{"op":"render","dpi":36}]`,
+		},
+		{
+			name:   "redact",
+			stages: `[{"op":"redact","regions":[{"page":1,"x":40,"y":290,"width":100,"height":60}]}]`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, paths := testContext(t, "page_1.pdf")
+
+			stamped, err := testProcessor().Run(ctx, mustStages(t, `[{"op":"stamp-text","text":"HELLO","x":50,"y":300,"fontSize":48}]`), []string{paths["page_1.pdf"]}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			provider, asked := recordingFonts()
+			processor := testProcessor()
+			processor.renderFonts = litho.WithRenderFontProvider(provider)
+
+			_, err = processor.Run(ctx, mustStages(t, tc.stages), stamped, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !slices.Contains(asked(), "Helvetica") {
+				t.Fatalf("fonts asked = %v, want Helvetica", asked())
 			}
 		})
 	}

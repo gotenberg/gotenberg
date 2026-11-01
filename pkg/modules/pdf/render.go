@@ -73,6 +73,9 @@ func (p *Processor) renderOne(ctx *api.Context, s *renderStage, d document, pass
 	span.SetAttributes(attribute.Int("gotenberg.pdf.render.pages", len(pages)))
 
 	opts := []litho.RenderOption{litho.WithRenderDPI(float64(s.dpi()))}
+	if p.renderFonts != nil {
+		opts = append(opts, p.renderFonts)
+	}
 	base := strings.TrimSuffix(d.filename, filepath.Ext(d.filename))
 	paths := make([]string, 0, len(pages))
 

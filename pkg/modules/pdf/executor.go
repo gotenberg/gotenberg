@@ -23,12 +23,16 @@ import (
 
 // Processor runs [Stages] on PDF documents with litho. It is safe for
 // concurrent use. The zero value uses litho's default limits and HTTP client,
-// and remediates without the system's fonts.
+// and remediates, renders and redacts without the system's fonts.
 type Processor struct {
-	limits     litho.Limits
-	fonts      litho.RemediateOption
-	httpClient func(ctx context.Context) *http.Client
-	files      fileConcurrency
+	limits litho.Limits
+	fonts  litho.RemediateOption
+	// renderFonts draws the fonts a document does not embed, and bounds their
+	// glyphs for a redaction. litho bundles no font program: without it, such
+	// a font renders as boxes.
+	renderFonts litho.RenderOption
+	httpClient  func(ctx context.Context) *http.Client
+	files       fileConcurrency
 }
 
 // stageError locates a failure to a stage and a document, for the client.

@@ -101,6 +101,9 @@ RUN apt-get update -qq \
         fonts-noto-color-emoji \
         # Tofu prevention.
         fonts-noto-core \
+        # Symbol and ZapfDingbats substitutes (Standard Symbols PS, D050000L) for
+        # the PDF stages, which draw form check marks with them.
+        fonts-urw-base35 \
     # See https://github.com/nextcloud/docker/issues/380.
     && mkdir -p /usr/share/man/man1 \
     # Cleanup.

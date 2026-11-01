@@ -45,6 +45,21 @@ Feature: /forms/pdf/render
       | page_1_1.png |
       | page_1_4.png |
 
+  # litho ships no font: a font the document does not embed, such as the
+  # Helvetica of a stamped text, draws with the system's. The placeholder box
+  # drawn without one would leave the inside of the H's left stem white.
+  Scenario: POST /forms/pdf/pipe (Render Non-Embedded Fonts)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.pdf                                                                      | file  |
+      | stages | [{"op":"stamp-text","text":"H","x":100,"y":300,"fontSize":200},{"op":"render","dpi":72}] | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be the following file(s) in the response:
+      | page_1.pdf   |
+      | page_1_1.png |
+    Then the "page_1_1.png" image pixel at 125,300 should be "#000000"
+
   Scenario: POST /forms/pdf/render (Bad Request)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/render" endpoint with the following form data and header(s):

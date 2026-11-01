@@ -81,11 +81,13 @@ func (mod *PDF) Provision(ctx *gotenberg.Context) error {
 			MaxEmbeddedFileBytes: flags.MustHumanReadableBytes("pdf-max-embedded-file-bytes"),
 			MaxImagePixels:       flags.MustInt64("pdf-max-image-pixels"),
 		},
-		// Remediation embeds the fonts a document shows without embedding them.
-		// Built once, so the font directories are indexed once per process.
-		fonts:      litho.WithSystemFonts(),
-		httpClient: mod.httpClient,
-		files:      newFileConcurrency(mod.maxConcurrency),
+		// Remediation embeds the fonts a document shows without embedding them,
+		// and render and redact draw them. Each built once, so the font
+		// directories are indexed once per process.
+		fonts:       litho.WithSystemFonts(),
+		renderFonts: litho.WithRenderSystemFonts(),
+		httpClient:  mod.httpClient,
+		files:       newFileConcurrency(mod.maxConcurrency),
 	}
 
 	return nil
