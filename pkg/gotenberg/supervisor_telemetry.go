@@ -8,10 +8,17 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
-// Run statuses, reported as the status attribute of the run metrics.
+// conversionStatusKey is the attribute of the run metrics that holds the run
+// status. OpenTelemetry defines no attribute for the outcome of an operation:
+// error.type only marks a failure, and is absent on success.
+const conversionStatusKey = attribute.Key("gotenberg.conversion.status")
+
+// Run statuses, reported as the gotenberg.conversion.status attribute of the
+// run metrics.
 const (
 	runStatusSuccess  = "success"
 	runStatusError    = "error"
@@ -38,8 +45,8 @@ func newRunMetrics(s *processSupervisor) (runMetrics, error) {
 		suffix, description, unit string
 		observe                   func() int64
 	}{
-		{"requests.active", "Current number of active %s requests", "{request}", s.ActiveTasksCount},
-		{"requests.queue_size", "Current number of %s requests waiting to be treated", "{request}", s.ReqQueueSize},
+		{"request.active", "Current number of active %s requests", "{request}", s.ActiveTasksCount},
+		{"queue.size", "Current number of %s requests waiting to be treated", "{request}", s.ReqQueueSize},
 	}
 	for _, g := range gauges {
 		_, err := meter.Int64ObservableGauge(
@@ -114,7 +121,8 @@ func newRunMetrics(s *processSupervisor) (runMetrics, error) {
 	return m, nil
 }
 
-// runStatus maps the outcome of a run to its status attribute.
+// runStatus maps the outcome of a run to its gotenberg.conversion.status
+// attribute.
 func runStatus(err error) string {
 	switch {
 	case err == nil:
@@ -155,12 +163,14 @@ func (m *runMeasure) taskStarted() {
 // records its whole duration as queue wait.
 func (m *runMeasure) end(ctx context.Context, err error) {
 	end := time.Now()
-	status := metric.WithAttributes(attribute.String("status", runStatus(err)))
+	status := metric.WithAttributes(conversionStatusKey.String(runStatus(err)))
 
 	m.s.metrics.requests.Add(ctx, 1, status)
 
 	if err != nil {
-		m.s.metrics.errors.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", m.s.errorType(err))))
+		// The same error.type as the span of the run, so that a metric data
+		// point and a span of one failure share a value.
+		m.s.metrics.errors.Add(ctx, 1, metric.WithAttributes(semconv.ErrorTypeKey.String(m.s.errorType(err))))
 	}
 
 	if m.taskStart.IsZero() {

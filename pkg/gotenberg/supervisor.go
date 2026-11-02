@@ -99,8 +99,8 @@ type SupervisorOptions struct {
 	// 0 keeps it running.
 	IdleShutdownTimeout time.Duration
 
-	// ErrorType maps the error of a failed run to the bounded reason of the
-	// gotenberg.<engine>.errors metric. It defaults to [ClassifyError].
+	// ErrorType maps the error of a failed run to the error.type attribute of
+	// the gotenberg.<engine>.errors metric. It defaults to [ClassifyError].
 	ErrorType func(error) string
 }
 

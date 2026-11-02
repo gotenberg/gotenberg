@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"reflect"
+	"slices"
 	"testing"
 
 	"go.opentelemetry.io/otel"
@@ -106,11 +108,11 @@ func TestProcessSupervisor_Run_Metrics(t *testing.T) {
 
 			_ = ps.Run(context.Background(), slog.New(slog.DiscardHandler), func() error { return tc.taskErr })
 
-			if got := metricPoints(t, reader, "gotenberg.test.requests", "status"); got[tc.expectStatus] != 1 || len(got) != 1 {
+			if got := metricPoints(t, reader, "gotenberg.test.requests", "gotenberg.conversion.status"); got[tc.expectStatus] != 1 || len(got) != 1 {
 				t.Errorf("gotenberg.test.requests = %v, want one %q", got, tc.expectStatus)
 			}
 
-			errs := metricPoints(t, reader, "gotenberg.test.errors", "reason")
+			errs := metricPoints(t, reader, "gotenberg.test.errors", "error.type")
 			if tc.expectReason == "" && len(errs) != 0 {
 				t.Errorf("gotenberg.test.errors = %v, want none", errs)
 			}
@@ -118,11 +120,11 @@ func TestProcessSupervisor_Run_Metrics(t *testing.T) {
 				t.Errorf("gotenberg.test.errors = %v, want one %q", errs, tc.expectReason)
 			}
 
-			if got := metricPoints(t, reader, "gotenberg.test.queue.wait.duration", "status"); got[tc.expectStatus] != 1 {
+			if got := metricPoints(t, reader, "gotenberg.test.queue.wait.duration", "gotenberg.conversion.status"); got[tc.expectStatus] != 1 {
 				t.Errorf("gotenberg.test.queue.wait.duration = %v, want one %q", got, tc.expectStatus)
 			}
 
-			durations := metricPoints(t, reader, "gotenberg.test.conversion.duration", "status")
+			durations := metricPoints(t, reader, "gotenberg.test.conversion.duration", "gotenberg.conversion.status")
 			if tc.expectDuration != (durations[tc.expectStatus] == 1) {
 				t.Errorf("gotenberg.test.conversion.duration = %v, want recorded: %t", durations, tc.expectDuration)
 			}
@@ -130,8 +132,9 @@ func TestProcessSupervisor_Run_Metrics(t *testing.T) {
 	}
 }
 
-// TestProcessSupervisor_MetricNames pins the instrument names, which dashboards
-// and alerts key on. The Prometheus exporter derives its names from them.
+// TestProcessSupervisor_MetricNames pins the instrument names and their
+// attribute keys, which dashboards and alerts key on. The Prometheus exporter
+// derives its names from them.
 func TestProcessSupervisor_MetricNames(t *testing.T) {
 	reader := newTestMetricReader(t)
 
@@ -154,30 +157,64 @@ func TestProcessSupervisor_MetricNames(t *testing.T) {
 		t.Fatalf("collect: %v", err)
 	}
 
-	got := make(map[string]bool)
+	got := make(map[string][]attribute.Key)
 	for _, sm := range rm.ScopeMetrics {
 		for _, m := range sm.Metrics {
-			got[m.Name] = true
+			got[m.Name] = metricAttributeKeys(t, m)
 		}
 	}
 
-	want := []string{
-		"gotenberg.test.requests.active",
-		"gotenberg.test.requests.queue_size",
-		"gotenberg.test.process.restarts",
-		"gotenberg.test.requests",
-		"gotenberg.test.errors",
-		"gotenberg.test.conversion.duration",
-		"gotenberg.test.queue.wait.duration",
+	want := map[string][]attribute.Key{
+		"gotenberg.test.request.active":      {},
+		"gotenberg.test.queue.size":          {},
+		"gotenberg.test.process.restarts":    {},
+		"gotenberg.test.requests":            {"gotenberg.conversion.status"},
+		"gotenberg.test.errors":              {"error.type"},
+		"gotenberg.test.conversion.duration": {"gotenberg.conversion.status"},
+		"gotenberg.test.queue.wait.duration": {"gotenberg.conversion.status"},
 	}
-	for _, name := range want {
-		if !got[name] {
-			t.Errorf("metric %q not recorded", name)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("recorded metrics and attribute keys = %v, want %v", got, want)
+	}
+}
+
+// metricAttributeKeys returns the sorted attribute keys of the data points of
+// m.
+func metricAttributeKeys(t *testing.T, m metricdata.Metrics) []attribute.Key {
+	t.Helper()
+
+	var sets []attribute.Set
+	switch data := m.Data.(type) {
+	case metricdata.Gauge[int64]:
+		for _, dp := range data.DataPoints {
+			sets = append(sets, dp.Attributes)
+		}
+	case metricdata.Sum[int64]:
+		for _, dp := range data.DataPoints {
+			sets = append(sets, dp.Attributes)
+		}
+	case metricdata.Histogram[float64]:
+		for _, dp := range data.DataPoints {
+			sets = append(sets, dp.Attributes)
+		}
+	default:
+		t.Fatalf("metric %q has unexpected data %T", m.Name, m.Data)
+	}
+
+	keys := make(map[attribute.Key]bool)
+	for _, set := range sets {
+		for _, kv := range set.ToSlice() {
+			keys[kv.Key] = true
 		}
 	}
-	if len(got) != len(want) {
-		t.Errorf("recorded metrics = %v, want exactly %v", got, want)
+
+	sorted := make([]attribute.Key, 0, len(keys))
+	for key := range keys {
+		sorted = append(sorted, key)
 	}
+	slices.Sort(sorted)
+
+	return sorted
 }
 
 func TestProcessSupervisor_Run_AnnotatesCallerSpan(t *testing.T) {

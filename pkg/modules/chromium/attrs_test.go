@@ -7,7 +7,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/chromedp/cdproto/network"
 	"go.opentelemetry.io/otel/attribute"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 )
@@ -84,4 +89,61 @@ func TestConversionInputAttrs(t *testing.T) {
 			t.Error("expected files.count for an api context")
 		}
 	})
+}
+
+// TestRecordNetwork_Names pins the names recordNetwork records, which
+// dashboards and alerts key on.
+func TestRecordNetwork_Names(t *testing.T) {
+	reader := sdkmetric.NewManualReader()
+	meter := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader)).Meter("test")
+
+	mod := new(Chromium)
+	var err error
+	mod.networkRequestsCounter, err = meter.Int64Counter("gotenberg.chromium.network.requests")
+	if err != nil {
+		t.Fatalf("create counter: %v", err)
+	}
+	mod.networkBytesCounter, err = meter.Int64Histogram("gotenberg.chromium.network.response.size")
+	if err != nil {
+		t.Fatalf("create histogram: %v", err)
+	}
+
+	aggregate := newNetworkAggregate()
+	aggregate.onResponseReceived(&network.EventResponseReceived{
+		RequestID: "1",
+		Response:  &network.Response{URL: "https://cdn.example.com/logo.png?token=secret"},
+	})
+	aggregate.onLoadingFinished(&network.EventLoadingFinished{RequestID: "1", EncodedDataLength: 900})
+	aggregate.onLoadingFailed(&network.EventLoadingFailed{RequestID: "2"})
+
+	recorder := tracetest.NewSpanRecorder()
+	tracer := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder)).Tracer("test")
+	ctx, span := tracer.Start(context.Background(), "chromium.Pdf")
+	mod.recordNetwork(ctx, span, aggregate)
+	span.End()
+
+	var rm metricdata.ResourceMetrics
+	err = reader.Collect(context.Background(), &rm)
+	if err != nil {
+		t.Fatalf("collect: %v", err)
+	}
+
+	outcomes := make(map[string]int64)
+	for _, sm := range rm.ScopeMetrics {
+		for _, m := range sm.Metrics {
+			if m.Name != "gotenberg.chromium.network.requests" {
+				continue
+			}
+			for _, dp := range m.Data.(metricdata.Sum[int64]).DataPoints {
+				if dp.Attributes.Len() != 1 {
+					t.Errorf("data point attributes = %v, want only the outcome", dp.Attributes.ToSlice())
+				}
+				v, _ := dp.Attributes.Value("gotenberg.chromium.network.request.outcome")
+				outcomes[v.AsString()] += dp.Value
+			}
+		}
+	}
+	if outcomes["ok"] != 1 || outcomes["failed"] != 1 || len(outcomes) != 2 {
+		t.Errorf("gotenberg.chromium.network.requests by outcome = %v, want one ok and one failed", outcomes)
+	}
 }

@@ -11,20 +11,21 @@ import (
 
 // Engine-agnostic, low-cardinality error.type values shared by the conversion
 // engines. They are safe to use both as the semconv error.type span attribute
-// and as bounded metric label values.
+// and as bounded metric label values. [ErrorTypeOther] is the fallback value
+// the semconv defines for an error the instrumentation does not classify.
 const (
 	ErrorTypeTimeout           = "timeout"
 	ErrorTypeContextCancelled  = "context_cancelled"
 	ErrorTypeQueueSizeExceeded = "queue_size_exceeded"
 	ErrorTypeProcessRestarting = "process_restarting"
 	ErrorTypeInvalidInput      = "invalid_input"
-	ErrorTypeUnknown           = "unknown"
+	ErrorTypeOther             = "_OTHER"
 )
 
 // ClassifyError maps err to a bounded, engine-agnostic error.type value. It
 // recognizes the failure modes shared by every engine: deadline, cancellation,
 // queue saturation, and process restart. It returns an empty string for a nil
-// error and [ErrorTypeUnknown] for anything it does not recognize, leaving
+// error and [ErrorTypeOther] for anything it does not recognize, leaving
 // engine-specific refinement (such as [ErrorTypeInvalidInput]) to the caller.
 func ClassifyError(err error) string {
 	switch {
@@ -39,7 +40,7 @@ func ClassifyError(err error) string {
 	case errors.Is(err, ErrProcessAlreadyRestarting):
 		return ErrorTypeProcessRestarting
 	default:
-		return ErrorTypeUnknown
+		return ErrorTypeOther
 	}
 }
 

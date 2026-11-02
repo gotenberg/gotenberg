@@ -23,7 +23,7 @@ func TestLibreofficeErrorType(t *testing.T) {
 		{"crashed", ErrCrashed, "libreoffice_exception"},
 		{"queue size exceeded", gotenberg.ErrMaximumQueueSizeExceeded, "libreoffice_unavailable"},
 		{"process restarting", gotenberg.ErrProcessAlreadyRestarting, "libreoffice_unavailable"},
-		{"unknown", errors.New("boom"), "unknown"},
+		{"unclassified", errors.New("boom"), "_OTHER"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := libreofficeErrorType(tc.err); got != tc.want {

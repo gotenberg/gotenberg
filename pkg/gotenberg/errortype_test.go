@@ -22,7 +22,7 @@ func TestClassifyError(t *testing.T) {
 		{"process restarting", ErrProcessAlreadyRestarting, ErrorTypeProcessRestarting},
 		{"wrapped deadline", fmt.Errorf("convert: %w", context.DeadlineExceeded), ErrorTypeTimeout},
 		{"joined queue", errors.Join(errors.New("attempt"), ErrMaximumQueueSizeExceeded), ErrorTypeQueueSizeExceeded},
-		{"arbitrary", errors.New("boom"), ErrorTypeUnknown},
+		{"arbitrary", errors.New("boom"), ErrorTypeOther},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := ClassifyError(tc.err); got != tc.want {

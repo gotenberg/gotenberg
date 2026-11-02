@@ -34,7 +34,7 @@ func TestChromiumErrorType(t *testing.T) {
 		{"page ranges exceed count", ErrPageRangesExceedsPageCount, "invalid_input"},
 		{"queue", gotenberg.ErrMaximumQueueSizeExceeded, "chromium_unavailable"},
 		{"restarting", gotenberg.ErrProcessAlreadyRestarting, "chromium_unavailable"},
-		{"unknown", errors.New("boom"), "unknown"},
+		{"unclassified", errors.New("boom"), "_OTHER"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := chromiumErrorType(tc.err); got != tc.want {

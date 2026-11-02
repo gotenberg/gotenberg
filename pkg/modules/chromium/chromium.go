@@ -906,6 +906,10 @@ func recordOutputSize(ctx context.Context, span trace.Span, outputSize metric.In
 	span.SetAttributes(attribute.Int64("gotenberg.conversion.output.bytes", info.Size()))
 }
 
+// networkRequestOutcomeKey splits the gotenberg.chromium.network.requests
+// counter between the requests that completed and those that failed.
+const networkRequestOutcomeKey = attribute.Key("gotenberg.chromium.network.request.outcome")
+
 // recordNetwork lifts per-conversion network aggregates onto the span and the
 // network metrics. Counts are dimensioned by outcome and bytes feed a
 // histogram; both are recorded with the conversion context so the SDK attaches
@@ -933,10 +937,10 @@ func (mod *Chromium) recordNetwork(ctx context.Context, span trace.Span, aggrega
 	}
 
 	if ok := stats.requestCount - stats.failedCount; ok > 0 {
-		mod.networkRequestsCounter.Add(ctx, ok, metric.WithAttributes(attribute.String("outcome", "ok")))
+		mod.networkRequestsCounter.Add(ctx, ok, metric.WithAttributes(networkRequestOutcomeKey.String("ok")))
 	}
 	if stats.failedCount > 0 {
-		mod.networkRequestsCounter.Add(ctx, stats.failedCount, metric.WithAttributes(attribute.String("outcome", "failed")))
+		mod.networkRequestsCounter.Add(ctx, stats.failedCount, metric.WithAttributes(networkRequestOutcomeKey.String("failed")))
 	}
 
 	mod.networkBytesCounter.Record(ctx, stats.bytesTotal)
@@ -962,9 +966,9 @@ func conversionInputAttrs(ctx context.Context, url string) []attribute.KeyValue 
 	return attrs
 }
 
-// chromiumErrorType maps a conversion error to chromium's bounded reason value,
-// reused as the span error.type. Generic failures fall back to
-// [gotenberg.ClassifyError].
+// chromiumErrorType maps a conversion error to its bounded error.type value,
+// shared by the conversion span and the gotenberg.chromium.errors metric.
+// Generic failures fall back to [gotenberg.ClassifyError].
 func chromiumErrorType(err error) string {
 	switch {
 	case errors.Is(err, ErrWaitTimeout):
