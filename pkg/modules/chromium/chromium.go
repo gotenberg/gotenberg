@@ -630,39 +630,39 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 	meter := gotenberg.Meter()
 
 	mod.pdfOutputSizeCounter, err = meter.Int64Histogram(
-		"chromium.pdf.output.size",
+		"gotenberg.chromium.pdf.output.size",
 		metric.WithDescription("Size of PDF output from Chromium conversions"),
 		metric.WithUnit("By"),
 	)
 	if err != nil {
-		return fmt.Errorf("create chromium.pdf.output.size histogram: %w", err)
+		return fmt.Errorf("create gotenberg.chromium.pdf.output.size histogram: %w", err)
 	}
 
 	mod.imageOutputSizeCounter, err = meter.Int64Histogram(
-		"chromium.image.output.size",
+		"gotenberg.chromium.image.output.size",
 		metric.WithDescription("Size of image output from Chromium screenshots"),
 		metric.WithUnit("By"),
 	)
 	if err != nil {
-		return fmt.Errorf("create chromium.image.output.size histogram: %w", err)
+		return fmt.Errorf("create gotenberg.chromium.image.output.size histogram: %w", err)
 	}
 
 	mod.networkRequestsCounter, err = meter.Int64Counter(
-		"chromium.network.requests.total",
+		"gotenberg.chromium.network.requests",
 		metric.WithDescription("Total number of network requests made during Chromium conversions"),
 		metric.WithUnit("{request}"),
 	)
 	if err != nil {
-		return fmt.Errorf("create chromium.network.requests.total counter: %w", err)
+		return fmt.Errorf("create gotenberg.chromium.network.requests counter: %w", err)
 	}
 
 	mod.networkBytesCounter, err = meter.Int64Histogram(
-		"chromium.network.bytes",
-		metric.WithDescription("Bytes fetched over the network during a Chromium conversion"),
+		"gotenberg.chromium.network.response.size",
+		metric.WithDescription("Total size of the network responses Chromium received during one conversion"),
 		metric.WithUnit("By"),
 	)
 	if err != nil {
-		return fmt.Errorf("create chromium.network.bytes histogram: %w", err)
+		return fmt.Errorf("create gotenberg.chromium.network.response.size histogram: %w", err)
 	}
 
 	return nil

@@ -47,8 +47,8 @@ func TestApi_Pdf_CrashRetryCap(t *testing.T) {
 
 	a := &Api{supervisor: supervisor}
 	meter := gotenberg.Meter()
-	a.pdfOutputSizeCounter, _ = meter.Int64Histogram("libreoffice.pdf.output.size")
-	a.crashRetriesCounter, _ = meter.Int64Counter("libreoffice.conversion.retries.total")
+	a.pdfOutputSizeCounter, _ = meter.Int64Histogram("gotenberg.libreoffice.pdf.output.size")
+	a.crashRetriesCounter, _ = meter.Int64Counter("gotenberg.libreoffice.conversion.retries")
 
 	err := a.Pdf(context.Background(), slog.New(slog.DiscardHandler), "/nonexistent/in.docx", "/tmp/out.pdf", Options{})
 	if err == nil {
@@ -68,7 +68,7 @@ func TestApi_Pdf_CrashRetryCap(t *testing.T) {
 		t.Fatalf("collect: %v", err)
 	}
 
-	if retries := sumInt64Counter(rm, "libreoffice.conversion.retries.total"); retries != 10 {
+	if retries := sumInt64Counter(rm, "gotenberg.libreoffice.conversion.retries"); retries != 10 {
 		t.Errorf("retries counter = %d, want 10", retries)
 	}
 }

@@ -106,27 +106,77 @@ func TestProcessSupervisor_Run_Metrics(t *testing.T) {
 
 			_ = ps.Run(context.Background(), slog.New(slog.DiscardHandler), func() error { return tc.taskErr })
 
-			if got := metricPoints(t, reader, "test.requests.total", "status"); got[tc.expectStatus] != 1 || len(got) != 1 {
-				t.Errorf("test.requests.total = %v, want one %q", got, tc.expectStatus)
+			if got := metricPoints(t, reader, "gotenberg.test.requests", "status"); got[tc.expectStatus] != 1 || len(got) != 1 {
+				t.Errorf("gotenberg.test.requests = %v, want one %q", got, tc.expectStatus)
 			}
 
-			errs := metricPoints(t, reader, "test.errors.total", "reason")
+			errs := metricPoints(t, reader, "gotenberg.test.errors", "reason")
 			if tc.expectReason == "" && len(errs) != 0 {
-				t.Errorf("test.errors.total = %v, want none", errs)
+				t.Errorf("gotenberg.test.errors = %v, want none", errs)
 			}
 			if tc.expectReason != "" && (errs[tc.expectReason] != 1 || len(errs) != 1) {
-				t.Errorf("test.errors.total = %v, want one %q", errs, tc.expectReason)
+				t.Errorf("gotenberg.test.errors = %v, want one %q", errs, tc.expectReason)
 			}
 
-			if got := metricPoints(t, reader, "test.queue.wait.duration", "status"); got[tc.expectStatus] != 1 {
-				t.Errorf("test.queue.wait.duration = %v, want one %q", got, tc.expectStatus)
+			if got := metricPoints(t, reader, "gotenberg.test.queue.wait.duration", "status"); got[tc.expectStatus] != 1 {
+				t.Errorf("gotenberg.test.queue.wait.duration = %v, want one %q", got, tc.expectStatus)
 			}
 
-			durations := metricPoints(t, reader, "test.conversion.duration", "status")
+			durations := metricPoints(t, reader, "gotenberg.test.conversion.duration", "status")
 			if tc.expectDuration != (durations[tc.expectStatus] == 1) {
-				t.Errorf("test.conversion.duration = %v, want recorded: %t", durations, tc.expectDuration)
+				t.Errorf("gotenberg.test.conversion.duration = %v, want recorded: %t", durations, tc.expectDuration)
 			}
 		})
+	}
+}
+
+// TestProcessSupervisor_MetricNames pins the instrument names, which dashboards
+// and alerts key on. The Prometheus exporter derives its names from them.
+func TestProcessSupervisor_MetricNames(t *testing.T) {
+	reader := newTestMetricReader(t)
+
+	process := &ProcessMock{
+		StartMock:   func(context.Context, *slog.Logger) error { return nil },
+		StopMock:    func(*slog.Logger) error { return nil },
+		HealthyMock: func(*slog.Logger) bool { return true },
+	}
+	ps, err := NewProcessSupervisor(slog.New(slog.DiscardHandler), "test", process, SupervisorOptions{})
+	if err != nil {
+		t.Fatalf("create supervisor: %v", err)
+	}
+
+	// A failed run feeds every instrument, the errors counter included.
+	_ = ps.Run(context.Background(), slog.New(slog.DiscardHandler), func() error { return errors.New("boom") })
+
+	var rm metricdata.ResourceMetrics
+	err = reader.Collect(context.Background(), &rm)
+	if err != nil {
+		t.Fatalf("collect: %v", err)
+	}
+
+	got := make(map[string]bool)
+	for _, sm := range rm.ScopeMetrics {
+		for _, m := range sm.Metrics {
+			got[m.Name] = true
+		}
+	}
+
+	want := []string{
+		"gotenberg.test.requests.active",
+		"gotenberg.test.requests.queue_size",
+		"gotenberg.test.process.restarts",
+		"gotenberg.test.requests",
+		"gotenberg.test.errors",
+		"gotenberg.test.conversion.duration",
+		"gotenberg.test.queue.wait.duration",
+	}
+	for _, name := range want {
+		if !got[name] {
+			t.Errorf("metric %q not recorded", name)
+		}
+	}
+	if len(got) != len(want) {
+		t.Errorf("recorded metrics = %v, want exactly %v", got, want)
 	}
 }
 

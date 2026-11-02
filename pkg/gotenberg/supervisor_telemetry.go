@@ -19,7 +19,8 @@ const (
 	runStatusCanceled = "canceled"
 )
 
-// runMetrics are the <engine>.* instruments a [ProcessSupervisor] records.
+// runMetrics are the gotenberg.<engine>.* instruments a [ProcessSupervisor]
+// records.
 type runMetrics struct {
 	requests  metric.Int64Counter
 	errors    metric.Int64Counter
@@ -31,7 +32,7 @@ type runMetrics struct {
 // state.
 func newRunMetrics(s *processSupervisor) (runMetrics, error) {
 	meter := Meter()
-	name := func(suffix string) string { return s.engine + "." + suffix }
+	name := func(suffix string) string { return "gotenberg." + s.engine + "." + suffix }
 
 	gauges := []struct {
 		suffix, description, unit string
@@ -56,7 +57,7 @@ func newRunMetrics(s *processSupervisor) (runMetrics, error) {
 	}
 
 	_, err := meter.Int64ObservableCounter(
-		name("process.restarts.total"),
+		name("process.restarts"),
 		metric.WithDescription(fmt.Sprintf("Current number of %s restarts", s.engine)),
 		metric.WithUnit("{restart}"),
 		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
@@ -65,27 +66,27 @@ func newRunMetrics(s *processSupervisor) (runMetrics, error) {
 		}),
 	)
 	if err != nil {
-		return runMetrics{}, fmt.Errorf("create %s counter: %w", name("process.restarts.total"), err)
+		return runMetrics{}, fmt.Errorf("create %s counter: %w", name("process.restarts"), err)
 	}
 
 	var m runMetrics
 
 	m.requests, err = meter.Int64Counter(
-		name("requests.total"),
+		name("requests"),
 		metric.WithDescription(fmt.Sprintf("Total number of %s requests", s.engine)),
 		metric.WithUnit("{request}"),
 	)
 	if err != nil {
-		return runMetrics{}, fmt.Errorf("create %s counter: %w", name("requests.total"), err)
+		return runMetrics{}, fmt.Errorf("create %s counter: %w", name("requests"), err)
 	}
 
 	m.errors, err = meter.Int64Counter(
-		name("errors.total"),
+		name("errors"),
 		metric.WithDescription(fmt.Sprintf("Total number of %s errors", s.engine)),
 		metric.WithUnit("{error}"),
 	)
 	if err != nil {
-		return runMetrics{}, fmt.Errorf("create %s counter: %w", name("errors.total"), err)
+		return runMetrics{}, fmt.Errorf("create %s counter: %w", name("errors"), err)
 	}
 
 	durationBuckets := metric.WithExplicitBucketBoundaries(0.5, 1, 2, 5, 10, 30, 60)

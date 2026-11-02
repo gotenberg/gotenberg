@@ -458,21 +458,21 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 	meter := gotenberg.Meter()
 
 	a.pdfOutputSizeCounter, err = meter.Int64Histogram(
-		"libreoffice.pdf.output.size",
+		"gotenberg.libreoffice.pdf.output.size",
 		metric.WithDescription("Size of PDF output from LibreOffice conversions"),
 		metric.WithUnit("By"),
 	)
 	if err != nil {
-		return fmt.Errorf("create libreoffice.pdf.output.size histogram: %w", err)
+		return fmt.Errorf("create gotenberg.libreoffice.pdf.output.size histogram: %w", err)
 	}
 
 	a.crashRetriesCounter, err = meter.Int64Counter(
-		"libreoffice.conversion.retries.total",
+		"gotenberg.libreoffice.conversion.retries",
 		metric.WithDescription("Total number of LibreOffice conversion retries after a LibreOffice crash"),
 		metric.WithUnit("{retry}"),
 	)
 	if err != nil {
-		return fmt.Errorf("create libreoffice.conversion.retries.total counter: %w", err)
+		return fmt.Errorf("create gotenberg.libreoffice.conversion.retries counter: %w", err)
 	}
 
 	return nil
