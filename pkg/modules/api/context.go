@@ -25,7 +25,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
-	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/text/unicode/norm"
@@ -457,7 +456,7 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 
 	dlCtx, dlSpan := gotenberg.Tracer().Start(groupCtx, "GET Download From",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(dl.Url)),
+		trace.WithAttributes(gotenberg.OutboundURLAttrs(dl.Url)...),
 	)
 	defer func() {
 		if err != nil {

@@ -18,6 +18,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 
@@ -324,11 +325,17 @@ func telemetryMiddleware(logger *slog.Logger, serverName, correlationIdHeader st
 					status = parsedStatus
 				}
 
-				span.SetAttributes(attribute.String("error", err.Error()))
 				c.Echo().HTTPErrorHandler(c, err)
 			}
 
-			span.SetStatus(semconvSrv.Status(status))
+			// The semconv puts the error message in the status description,
+			// not in an attribute of the error.* namespace, and does not
+			// repeat the status code there.
+			code, description := semconvSrv.Status(status)
+			if err != nil && code == codes.Error {
+				description = err.Error()
+			}
+			span.SetStatus(code, description)
 			span.SetAttributes(semconvSrv.ResponseTraceAttrs(semconvutil.ResponseTelemetry{
 				StatusCode: status,
 				WriteBytes: response.Size,

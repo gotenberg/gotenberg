@@ -20,7 +20,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
-	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
@@ -73,7 +72,7 @@ func (c client) send(ctx context.Context, body io.Reader, headers map[string]str
 	tracer := gotenberg.Tracer()
 	ctx, span := tracer.Start(ctx, spanName,
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(url)),
+		trace.WithAttributes(gotenberg.OutboundURLAttrs(url)...),
 	)
 	defer span.End()
 
@@ -298,7 +297,7 @@ func (c client) sendEvent(ctx context.Context, correlationIdHeader, correlationI
 	tracer := gotenberg.Tracer()
 	ctx, span := tracer.Start(ctx, "POST Webhook Event",
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(semconv.ServerAddress(c.eventsUrl)),
+		trace.WithAttributes(gotenberg.OutboundURLAttrs(c.eventsUrl)...),
 	)
 	defer span.End()
 

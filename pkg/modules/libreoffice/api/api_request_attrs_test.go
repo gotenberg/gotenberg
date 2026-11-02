@@ -36,7 +36,7 @@ func TestConversionRequestAttributes(t *testing.T) {
 	if got["gotenberg.conversion.has_page_ranges"] != true {
 		t.Errorf("has_page_ranges = %v, want true", got["gotenberg.conversion.has_page_ranges"])
 	}
-	if got["gotenberg.conversion.input.bytes"] != int64(len(content)) {
-		t.Errorf("input.bytes = %v, want %d", got["gotenberg.conversion.input.bytes"], len(content))
+	if got["gotenberg.conversion.input.size"] != int64(len(content)) {
+		t.Errorf("input.size = %v, want %d", got["gotenberg.conversion.input.size"], len(content))
 	}
 }

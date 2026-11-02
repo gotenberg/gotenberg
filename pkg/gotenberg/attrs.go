@@ -3,6 +3,9 @@ package gotenberg
 import (
 	"net/url"
 	"slices"
+
+	"go.opentelemetry.io/otel/attribute"
+	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
 )
 
 // maxAttrRunes bounds the length of a string span attribute to keep payload
@@ -40,6 +43,21 @@ func RedactURL(raw string) string {
 	parsed.RawFragment = ""
 
 	return CapAttr(parsed.String())
+}
+
+// OutboundURLAttrs returns the server.address and url.full attributes of a
+// client span that targets raw: the host alone, and the URL redacted with
+// [RedactURL]. It returns nil when raw cannot be parsed or has no host.
+func OutboundURLAttrs(raw string) []attribute.KeyValue {
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Hostname() == "" {
+		return nil
+	}
+
+	return []attribute.KeyValue{
+		semconv.ServerAddress(parsed.Hostname()),
+		semconv.URLFull(RedactURL(raw)),
+	}
 }
 
 // MapEnum returns value when it belongs to allowed, otherwise "other". It keeps

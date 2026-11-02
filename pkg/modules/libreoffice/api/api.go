@@ -665,8 +665,8 @@ func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPat
 		}
 
 		logger.DebugContext(ctx, fmt.Sprintf("got a '%s' error, retry conversion (attempt %d)", err, attempt+1))
-		span.AddEvent("conversion.retry", trace.WithAttributes(
-			attribute.Int("attempt", attempt+1),
+		span.AddEvent("gotenberg.conversion.retry", trace.WithAttributes(
+			attribute.Int("gotenberg.conversion.retry.attempt", attempt+1),
 		))
 		a.crashRetriesCounter.Add(ctx, 1)
 	}
@@ -678,7 +678,7 @@ func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPat
 	stat, statErr := os.Stat(outputPath)
 	if statErr == nil {
 		a.pdfOutputSizeCounter.Record(ctx, stat.Size())
-		span.SetAttributes(attribute.Int64("gotenberg.conversion.output.bytes", stat.Size()))
+		span.SetAttributes(attribute.Int64("gotenberg.conversion.output.size", stat.Size()))
 	}
 
 	return gotenberg.SetSpanStatus(span, nil, "")
@@ -696,7 +696,7 @@ func conversionRequestAttributes(inputPath string, options Options) []attribute.
 	}
 
 	if info, err := os.Stat(inputPath); err == nil {
-		attrs = append(attrs, attribute.Int64("gotenberg.conversion.input.bytes", info.Size()))
+		attrs = append(attrs, attribute.Int64("gotenberg.conversion.input.size", info.Size()))
 	}
 
 	return attrs

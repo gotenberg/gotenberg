@@ -903,7 +903,7 @@ func recordOutputSize(ctx context.Context, span trace.Span, outputSize metric.In
 	}
 
 	outputSize.Record(ctx, info.Size())
-	span.SetAttributes(attribute.Int64("gotenberg.conversion.output.bytes", info.Size()))
+	span.SetAttributes(attribute.Int64("gotenberg.conversion.output.size", info.Size()))
 }
 
 // networkRequestOutcomeKey splits the gotenberg.chromium.network.requests
@@ -911,10 +911,11 @@ func recordOutputSize(ctx context.Context, span trace.Span, outputSize metric.In
 const networkRequestOutcomeKey = attribute.Key("gotenberg.chromium.network.request.outcome")
 
 // recordNetwork lifts per-conversion network aggregates onto the span and the
-// network metrics. Counts are dimensioned by outcome and bytes feed a
-// histogram; both are recorded with the conversion context so the SDK attaches
-// trace exemplars. The heaviest resource URL is redacted before it lands on the
-// span event.
+// network metrics. Counts are dimensioned by outcome and the response size
+// feeds a histogram; both are recorded with the conversion context so the SDK
+// attaches trace exemplars. The span attributes live in the namespace of the
+// metrics, and the response size carries the name of the histogram it feeds.
+// The heaviest resource URL is redacted before it lands on the span event.
 func (mod *Chromium) recordNetwork(ctx context.Context, span trace.Span, aggregate *networkAggregate) {
 	if aggregate == nil {
 		return
@@ -923,16 +924,16 @@ func (mod *Chromium) recordNetwork(ctx context.Context, span trace.Span, aggrega
 	stats := aggregate.snapshot()
 
 	span.SetAttributes(
-		attribute.Int64("gotenberg.chromium.resources.count", stats.requestCount),
-		attribute.Int64("gotenberg.chromium.resources.bytes_total", stats.bytesTotal),
-		attribute.Int64("gotenberg.chromium.resources.failed_count", stats.failedCount),
-		attribute.Int64("gotenberg.chromium.resources.unique_origins", stats.uniqueOrigins),
+		attribute.Int64("gotenberg.chromium.network.request.count", stats.requestCount),
+		attribute.Int64("gotenberg.chromium.network.request.failed.count", stats.failedCount),
+		attribute.Int64("gotenberg.chromium.network.response.size", stats.bytesTotal),
+		attribute.Int64("gotenberg.chromium.network.origin.count", stats.uniqueOrigins),
 	)
 
 	if stats.heaviestURL != "" {
-		span.AddEvent("chromium.heaviest_resource", trace.WithAttributes(
-			attribute.String("url", gotenberg.RedactURL(stats.heaviestURL)),
-			attribute.Int64("bytes", stats.heaviestBytes),
+		span.AddEvent("gotenberg.chromium.heaviest_resource", trace.WithAttributes(
+			semconv.URLFull(gotenberg.RedactURL(stats.heaviestURL)),
+			attribute.Int64("gotenberg.chromium.heaviest_resource.size", stats.heaviestBytes),
 		))
 	}
 
@@ -949,17 +950,17 @@ func (mod *Chromium) recordNetwork(ctx context.Context, span trace.Span, aggrega
 // conversionInputAttrs derives low-cardinality input attributes for a
 // conversion span: the number of received files (when ctx is an [api.Context])
 // and the size of the local HTML input (when url is a file:// URL). Remote URL
-// conversions yield no html.bytes.
+// conversions yield no html.size.
 func conversionInputAttrs(ctx context.Context, url string) []attribute.KeyValue {
 	var attrs []attribute.KeyValue
 
 	if apiCtx, ok := ctx.(*api.Context); ok {
-		attrs = append(attrs, attribute.Int("gotenberg.conversion.input.files.count", apiCtx.FileCount()))
+		attrs = append(attrs, attribute.Int("gotenberg.conversion.input.file.count", apiCtx.FileCount()))
 	}
 
 	if after, ok := strings.CutPrefix(url, "file://"); ok {
 		if info, err := os.Stat(after); err == nil {
-			attrs = append(attrs, attribute.Int64("gotenberg.conversion.input.html.bytes", info.Size()))
+			attrs = append(attrs, attribute.Int64("gotenberg.conversion.input.html.size", info.Size()))
 		}
 	}
 

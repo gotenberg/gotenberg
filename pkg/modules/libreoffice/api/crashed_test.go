@@ -9,6 +9,8 @@ import (
 	"go.opentelemetry.io/otel"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
 	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
@@ -36,6 +38,11 @@ func TestApi_Pdf_CrashRetryCap(t *testing.T) {
 	previous := otel.GetMeterProvider()
 	otel.SetMeterProvider(provider)
 	t.Cleanup(func() { otel.SetMeterProvider(previous) })
+
+	recorder := tracetest.NewSpanRecorder()
+	previousTracer := otel.GetTracerProvider()
+	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder)))
+	t.Cleanup(func() { otel.SetTracerProvider(previousTracer) })
 
 	var runCalls int
 	supervisor := &gotenberg.ProcessSupervisorMock{
@@ -70,5 +77,28 @@ func TestApi_Pdf_CrashRetryCap(t *testing.T) {
 
 	if retries := sumInt64Counter(rm, "gotenberg.libreoffice.conversion.retries"); retries != 10 {
 		t.Errorf("retries counter = %d, want 10", retries)
+	}
+
+	ended := recorder.Ended()
+	if len(ended) != 1 {
+		t.Fatalf("ended spans = %d, want 1", len(ended))
+	}
+	// The final failure adds an exception event after the retries.
+	var retries []sdktrace.Event
+	for _, event := range ended[0].Events() {
+		if event.Name != "exception" {
+			retries = append(retries, event)
+		}
+	}
+	if len(retries) != 10 {
+		t.Fatalf("retry events = %d, want 10", len(retries))
+	}
+	for i, event := range retries {
+		if event.Name != "gotenberg.conversion.retry" {
+			t.Errorf("event %d name = %q, want gotenberg.conversion.retry", i, event.Name)
+		}
+		if len(event.Attributes) != 1 || event.Attributes[0].Key != "gotenberg.conversion.retry.attempt" || event.Attributes[0].Value.AsInt64() != int64(i+1) {
+			t.Errorf("event %d attributes = %v, want gotenberg.conversion.retry.attempt=%d", i, event.Attributes, i+1)
+		}
 	}
 }

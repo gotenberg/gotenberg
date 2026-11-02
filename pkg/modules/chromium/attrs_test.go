@@ -2,6 +2,7 @@ package chromium
 
 import (
 	"context"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -59,34 +60,34 @@ func TestConversionInputAttrs(t *testing.T) {
 			got[string(kv.Key)] = kv.Value.AsInt64()
 		}
 
-		if _, ok := got["gotenberg.conversion.input.files.count"]; ok {
-			t.Error("did not expect files.count for a non-api context")
+		if _, ok := got["gotenberg.conversion.input.file.count"]; ok {
+			t.Error("did not expect file.count for a non-api context")
 		}
-		if got["gotenberg.conversion.input.html.bytes"] != int64(len(content)) {
-			t.Errorf("expected html.bytes=%d, got %d", len(content), got["gotenberg.conversion.input.html.bytes"])
+		if got["gotenberg.conversion.input.html.size"] != int64(len(content)) {
+			t.Errorf("expected html.size=%d, got %d", len(content), got["gotenberg.conversion.input.html.size"])
 		}
 	})
 
-	t.Run("remote URL yields no html.bytes", func(t *testing.T) {
+	t.Run("remote URL yields no html.size", func(t *testing.T) {
 		for _, kv := range conversionInputAttrs(context.Background(), "https://example.com") {
-			if string(kv.Key) == "gotenberg.conversion.input.html.bytes" {
-				t.Error("did not expect html.bytes for a remote URL")
+			if string(kv.Key) == "gotenberg.conversion.input.html.size" {
+				t.Error("did not expect html.size for a remote URL")
 			}
 		}
 	})
 
-	t.Run("api context yields files.count", func(t *testing.T) {
+	t.Run("api context yields file.count", func(t *testing.T) {
 		var found bool
 		for _, kv := range conversionInputAttrs(&api.Context{}, "https://example.com") {
-			if string(kv.Key) == "gotenberg.conversion.input.files.count" {
+			if string(kv.Key) == "gotenberg.conversion.input.file.count" {
 				found = true
 				if kv.Value.AsInt64() != 0 {
-					t.Errorf("expected files.count=0, got %d", kv.Value.AsInt64())
+					t.Errorf("expected file.count=0, got %d", kv.Value.AsInt64())
 				}
 			}
 		}
 		if !found {
-			t.Error("expected files.count for an api context")
+			t.Error("expected file.count for an api context")
 		}
 	})
 }
@@ -145,5 +146,40 @@ func TestRecordNetwork_Names(t *testing.T) {
 	}
 	if outcomes["ok"] != 1 || outcomes["failed"] != 1 || len(outcomes) != 2 {
 		t.Errorf("gotenberg.chromium.network.requests by outcome = %v, want one ok and one failed", outcomes)
+	}
+
+	ended := recorder.Ended()
+	if len(ended) != 1 {
+		t.Fatalf("ended spans = %d, want 1", len(ended))
+	}
+
+	attrs := make(map[string]int64)
+	for _, kv := range ended[0].Attributes() {
+		attrs[string(kv.Key)] = kv.Value.AsInt64()
+	}
+	wantAttrs := map[string]int64{
+		"gotenberg.chromium.network.request.count":        2,
+		"gotenberg.chromium.network.request.failed.count": 1,
+		"gotenberg.chromium.network.response.size":        900,
+		"gotenberg.chromium.network.origin.count":         1,
+	}
+	if !maps.Equal(attrs, wantAttrs) {
+		t.Errorf("span attributes = %v, want %v", attrs, wantAttrs)
+	}
+
+	events := ended[0].Events()
+	if len(events) != 1 || events[0].Name != "gotenberg.chromium.heaviest_resource" {
+		t.Fatalf("span events = %v, want one gotenberg.chromium.heaviest_resource", events)
+	}
+	eventAttrs := make(map[string]string)
+	for _, kv := range events[0].Attributes {
+		eventAttrs[string(kv.Key)] = kv.Value.Emit()
+	}
+	wantEventAttrs := map[string]string{
+		"url.full": "https://cdn.example.com/logo.png",
+		"gotenberg.chromium.heaviest_resource.size": "900",
+	}
+	if !maps.Equal(eventAttrs, wantEventAttrs) {
+		t.Errorf("event attributes = %v, want %v", eventAttrs, wantEventAttrs)
 	}
 }

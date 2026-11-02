@@ -19,6 +19,10 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/coreos/go-oidc/v3/oidc/oidctest"
 	"github.com/labstack/echo/v5"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
 	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
@@ -191,6 +195,70 @@ func TestVersionHeaderMiddleware(t *testing.T) {
 			}
 			if got := rec.Header().Get("Gotenberg-Version"); got != tc.wantHeader {
 				t.Errorf("Gotenberg-Version = %q, want %q", got, tc.wantHeader)
+			}
+		})
+	}
+}
+
+// TestTelemetryMiddleware_SpanStatus pins where the server span records a
+// failure: its status description carries the error message, and no attribute
+// does, since the error.* namespace belongs to OpenTelemetry.
+func TestTelemetryMiddleware_SpanStatus(t *testing.T) {
+	recorder := tracetest.NewSpanRecorder()
+	previous := otel.GetTracerProvider()
+	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder)))
+	t.Cleanup(func() { otel.SetTracerProvider(previous) })
+
+	for _, tc := range []struct {
+		name            string
+		handler         echo.HandlerFunc
+		wantCode        codes.Code
+		wantDescription string
+	}{
+		{
+			name:     "success",
+			handler:  func(c *echo.Context) error { return c.NoContent(http.StatusOK) },
+			wantCode: codes.Ok,
+		},
+		{
+			name:            "client error",
+			handler:         func(*echo.Context) error { return NewSentinelHttpError(http.StatusBadRequest, "Invalid form data") },
+			wantCode:        codes.Error,
+			wantDescription: "Invalid form data",
+		},
+		{
+			name:            "internal error",
+			handler:         func(*echo.Context) error { return fmt.Errorf("convert to PDF: %w", errors.New("boom")) },
+			wantCode:        codes.Error,
+			wantDescription: "convert to PDF: boom",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder.Reset()
+
+			srv := newEchoServer()
+			srv.Pre(
+				latencyMiddleware(),
+				rootPathMiddleware("/"),
+				telemetryMiddleware(slog.New(slog.DiscardHandler), "localhost:3000", "Gotenberg-Trace", nil),
+			)
+			srv.POST("/forms/test", tc.handler)
+
+			srv.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/forms/test", nil))
+
+			ended := recorder.Ended()
+			if len(ended) != 1 {
+				t.Fatalf("ended spans = %d, want 1", len(ended))
+			}
+			span := ended[0]
+
+			if got := span.Status(); got.Code != tc.wantCode || got.Description != tc.wantDescription {
+				t.Errorf("span status = %v %q, want %v %q", got.Code, got.Description, tc.wantCode, tc.wantDescription)
+			}
+			for _, kv := range span.Attributes() {
+				if kv.Key == "error" || kv.Key == "error.message" {
+					t.Errorf("span carries the %q attribute", kv.Key)
+				}
 			}
 		})
 	}
