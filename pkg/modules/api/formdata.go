@@ -130,6 +130,19 @@ func (form *FormData) RejectUnknown(hint func(field, value string, file bool) st
 	return form
 }
 
+// Sent returns the first value of the value form field key as the client sent
+// it, or "" when absent, without binding it: [FormData.RejectUnknown] still
+// rejects a field only Sent read. A hint reads the other fields its fix
+// depends on with it.
+func (form *FormData) Sent(key string) string {
+	values := form.values[key]
+	if len(values) == 0 {
+		return ""
+	}
+
+	return values[0]
+}
+
 // Validate returns nil or an error related to the [FormData] values, with a
 // [SentinelHttpError] (status code 400, errors' details as a message) wrapped
 // inside.

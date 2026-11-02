@@ -96,6 +96,56 @@ Feature: /forms/pdf/{info|validate}
       }
       """
 
+  # A pair of profiles, the field repeated, answers one object per file:
+  # compliant when the PDF conforms to both, with the violations of both.
+  Scenario: POST /forms/pdf/validate (PDF/A-2b & PDF/UA-1)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/validate" endpoint with the following form data and header(s):
+      | files   | testdata/page_1.pdf | file  |
+      | profile | PDF/A-2b            | field |
+      | profile | PDF/UA-1            | field |
+    Then the response status code should be 200
+    Then the response body should match JSON:
+      """
+      {
+        "page_1.pdf": {
+          "profile": ["PDF/A-2b", "PDF/UA-1"],
+          "compliant": false,
+          "violations": "ignore"
+        }
+      }
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf | file   |
+      | profile                   | PDF/A-2b            | field  |
+      | profile                   | PDF/UA-1            | field  |
+      | Gotenberg-Output-Filename | foo                 | header |
+    Then the response status code should be 200
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/validate" endpoint with the following form data and header(s):
+      | files   | teststore/foo.pdf | file  |
+      | profile | PDF/A-2b          | field |
+      | profile | PDF/UA-1          | field |
+    Then the response status code should be 200
+    Then the response body should match JSON:
+      """
+      {
+        "foo.pdf": {
+          "profile": ["PDF/A-2b", "PDF/UA-1"],
+          "compliant": true,
+          "violations": []
+        }
+      }
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/validate" endpoint with the following form data and header(s):
+      | files   | testdata/page_1.pdf | file  |
+      | profile | PDF/A-4             | field |
+      | profile | PDF/UA-1            | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'profile' pairs a PDF/A profile with the PDF/UA profile of its PDF version: PDF/A-1a, PDF/A-1b, PDF/A-2a, PDF/A-2b, PDF/A-2u, PDF/A-3a, PDF/A-3b, PDF/A-3u or Factur-X with PDF/UA-1, and PDF/A-4, PDF/A-4e or PDF/A-4f with PDF/UA-2; got ["PDF/A-4","PDF/UA-1"]
+      """
+
   Scenario: POST /forms/pdf/validate (Bad Request)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/validate" endpoint with the following form data and header(s):

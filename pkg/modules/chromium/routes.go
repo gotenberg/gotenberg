@@ -63,21 +63,25 @@ var renamedPdfFields = map[string]string{
 	"generateTaggedPdf":       renamedHint("nativeTaggedPdf"),
 }
 
-// convertFormFieldHint is the [api.FormData.RejectUnknown] hint of the
-// Chromium PDF routes: a renamed field, or the stage that replaced a
-// post-processing field.
-func convertFormFieldHint(field, value string, file bool) string {
-	if !file {
-		if hint, ok := renamedFields[field]; ok {
-			return hint
+// convertFormFieldHint returns the [api.FormData.RejectUnknown] hint of the
+// Chromium PDF routes reading form: a renamed field, or the stage that
+// replaced a post-processing field.
+func convertFormFieldHint(form *api.FormData) func(field, value string, file bool) string {
+	hint := pdf.FormFieldHintOf(form)
+
+	return func(field, value string, file bool) string {
+		if !file {
+			if hint, ok := renamedFields[field]; ok {
+				return hint
+			}
+
+			if hint, ok := renamedPdfFields[field]; ok {
+				return hint
+			}
 		}
 
-		if hint, ok := renamedPdfFields[field]; ok {
-			return hint
-		}
+		return hint(field, value, file)
 	}
-
-	return pdf.FormFieldHint(field, value, file)
 }
 
 // screenshotFormFieldHint is the [api.FormData.RejectUnknown] hint of the
@@ -447,7 +451,7 @@ func convertUrlRoute(chromium Api, processor *pdf.Processor) api.Route {
 			var url string
 			err = form.
 				MandatoryString("url", &url).
-				RejectUnknown(convertFormFieldHint).
+				RejectUnknown(convertFormFieldHint(form)).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -521,7 +525,7 @@ func convertHtmlRoute(chromium Api, processor *pdf.Processor) api.Route {
 			var inputPath string
 			err = form.
 				MandatoryPath("index.html", &inputPath).
-				RejectUnknown(convertFormFieldHint).
+				RejectUnknown(convertFormFieldHint(form)).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -596,7 +600,7 @@ func convertMarkdownRoute(chromium Api, processor *pdf.Processor) api.Route {
 			err = form.
 				MandatoryPath("index.html", &inputPath).
 				MandatoryPaths([]string{".md"}, &markdownPaths).
-				RejectUnknown(convertFormFieldHint).
+				RejectUnknown(convertFormFieldHint(form)).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)

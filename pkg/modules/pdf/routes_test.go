@@ -110,6 +110,36 @@ func TestStageRoute(t *testing.T) {
 			wantBody:   "Stage 'render' failed on 'page_1.pdf'",
 		},
 		{
+			name:     "a pair of profiles as the field repeated",
+			op:       "remediate",
+			values:   map[string][]string{"profile": {"PDF/A-2b", "PDF/UA-1"}},
+			fixtures: []string{"page_1.pdf"},
+			wantOut:  1,
+		},
+		{
+			name:     "a pair of profiles as a JSON array",
+			op:       "remediate",
+			values:   map[string][]string{"profile": {`["PDF/UA-2","PDF/A-4"]`}},
+			fixtures: []string{"page_1.pdf"},
+			wantOut:  1,
+		},
+		{
+			name:       "an impossible pair of profiles",
+			op:         "remediate",
+			values:     map[string][]string{"profile": {"PDF/A-2b", "PDF/UA-2"}},
+			fixtures:   []string{"page_1.pdf"},
+			wantStatus: http.StatusBadRequest,
+			wantBody:   `Invalid form data: remediate: "profile" pairs a PDF/A profile with the PDF/UA profile of its PDF version: PDF/A-1a, PDF/A-1b, PDF/A-2a, PDF/A-2b, PDF/A-2u, PDF/A-3a, PDF/A-3b, PDF/A-3u or Factur-X with PDF/UA-1, and PDF/A-4, PDF/A-4e or PDF/A-4f with PDF/UA-2; got ["PDF/A-2b","PDF/UA-2"]`,
+		},
+		{
+			name:       "a malformed JSON array of profiles",
+			op:         "remediate",
+			values:     map[string][]string{"profile": {`["PDF/A-2b",`}},
+			fixtures:   []string{"page_1.pdf"},
+			wantStatus: http.StatusBadRequest,
+			wantBody:   `Invalid form data: form field 'profile' is invalid (got '["PDF/A-2b",', want a profile, or the field repeated for a pair)`,
+		},
+		{
 			name:       "page past the end",
 			op:         "rotate",
 			values:     map[string][]string{"angle": {"90"}, "pages": {"3"}},
@@ -226,6 +256,63 @@ func TestReadRoutes(t *testing.T) {
 		if v.Clause == "" || v.Severity == "" {
 			t.Fatalf("Factur-X violation without clause or severity: %+v", v)
 		}
+	}
+}
+
+// TestValidateRoutePair pins the validate route's answer to a pair of
+// profiles, sent as the 'profile' field repeated: one object per file, its
+// profile the pair as sent, compliant only when the PDF conforms to both, and
+// the violations of both, each naming its standard. An impossible pair answers
+// 400 with the pairs.
+func TestValidateRoutePair(t *testing.T) {
+	_, rec, err := serve(t, validateRoute(testProcessor()), map[string][]string{"profile": {"PDF/A-2b", "PDF/UA-1"}}, "page_1.pdf")
+	if err != api.ErrNoOutputFile {
+		t.Fatalf("handler: %v", err)
+	}
+
+	var raw map[string]map[string]json.RawMessage
+	if err := json.Unmarshal(rec.Body.Bytes(), &raw); err != nil {
+		t.Fatalf("decode %s: %v", rec.Body.String(), err)
+	}
+
+	if got := string(raw["page_1.pdf"]["profile"]); got != `["PDF/A-2b","PDF/UA-1"]` {
+		t.Fatalf("profile = %s, want the pair as sent", got)
+	}
+
+	var report map[string]validation
+	if err := json.Unmarshal(rec.Body.Bytes(), &report); err != nil {
+		t.Fatalf("decode %s: %v", rec.Body.String(), err)
+	}
+
+	got := report["page_1.pdf"]
+	specs := make(map[string]bool)
+	for _, v := range got.Violations {
+		specs[v.Specification] = true
+	}
+
+	if got.Compliant || !specs["ISO_19005_2"] || !specs["ISO_14289_1"] {
+		t.Fatalf("a plain PDF against PDF/A-2b and PDF/UA-1: compliant %t, specifications %v, want violations of both", got.Compliant, specs)
+	}
+
+	_, rec, err = serve(t, validateRoute(testProcessor()), map[string][]string{"profile": {"PDF/UA-1"}}, "page_1.pdf")
+	if err != api.ErrNoOutputFile {
+		t.Fatalf("handler: %v", err)
+	}
+
+	raw = nil
+	if err := json.Unmarshal(rec.Body.Bytes(), &raw); err != nil {
+		t.Fatalf("decode %s: %v", rec.Body.String(), err)
+	}
+
+	if got := string(raw["page_1.pdf"]["profile"]); got != `"PDF/UA-1"` {
+		t.Fatalf("profile = %s, want the string sent", got)
+	}
+
+	_, _, err = serve(t, validateRoute(testProcessor()), map[string][]string{"profile": {"PDF/A-4", "PDF/UA-1"}}, "page_1.pdf")
+	status, message := api.ParseError(err)
+	want := `Invalid form data: form field 'profile' pairs a PDF/A profile with the PDF/UA profile of its PDF version: PDF/A-1a, PDF/A-1b, PDF/A-2a, PDF/A-2b, PDF/A-2u, PDF/A-3a, PDF/A-3b, PDF/A-3u or Factur-X with PDF/UA-1, and PDF/A-4, PDF/A-4e or PDF/A-4f with PDF/UA-2; got ["PDF/A-4","PDF/UA-1"]`
+	if status != http.StatusBadRequest || message != want {
+		t.Fatalf("impossible pair: got %d %q, want 400 %q", status, message, want)
 	}
 }
 
@@ -382,6 +469,14 @@ func TestUnknownFields(t *testing.T) {
 			values:   map[string][]string{"stages": {`[{"op":"rotate","angle":90}]`}, "merge": {"true"}},
 			fixtures: []string{"page_1.pdf"},
 			wantBody: `Invalid form data: form field 'merge' is unknown to this route; Gotenberg 9 moved it to a stage: add {"op":"merge"} to 'stages'`,
+		},
+		{
+			name:     "Gotenberg 8 pdfa and pdfua fields",
+			route:    pipeRoute(testProcessor()),
+			values:   map[string][]string{"stages": {`[{"op":"merge"}]`}, "pdfa": {"PDF/A-1b"}, "pdfua": {"true"}},
+			fixtures: []string{"page_1.pdf"},
+			wantBody: `Invalid form data: form field 'pdfa' is unknown to this route; Gotenberg 9 moved it to a stage: add {"op":"remediate","profile":["PDF/A-1b","PDF/UA-1"]} to 'stages'` + "\n" +
+				`form field 'pdfua' is unknown to this route; Gotenberg 9 moved it to a stage: add {"op":"remediate","profile":["PDF/A-1b","PDF/UA-1"]} to 'stages'`,
 		},
 		{
 			name:     "Gotenberg 8 field family",

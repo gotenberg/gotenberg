@@ -74,4 +74,6 @@ headers {
 
 docs {
   Enable `paperWidth` and `paperHeight` together, or `paperSize` alone: one side without the other answers 400.
+
+  `nativePdfa` PDF/A-4 with `nativePdfua` answers 400: LibreOffice claims PDF/UA-2 without meeting it. Use a `remediate` stage with the pair instead, such as `[{"op":"remediate","profile":["PDF/A-4","PDF/UA-2"]}]`.
 }

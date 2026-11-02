@@ -668,6 +668,41 @@ Feature: /forms/libreoffice/convert
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be valid "PDF/A-4" with a tolerance of 0 failed rule(s)
 
+  @pdf-remediate
+  Scenario: POST /forms/libreoffice/convert (Remediate PDF/A-2b & PDF/UA-1)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.docx                                   | file  |
+      | stages | [{"op":"remediate","profile":["PDF/A-2b","PDF/UA-1"]}] | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then the response header "Gotenberg-Remediation-Residual" should be "0"
+    Then the response PDF(s) should be valid "PDF/A-2b" with a tolerance of 0 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 0 failed rule(s)
+
+  # LibreOffice exports PDF/A-4 with PDF/UA as a PDF/UA-2 file that fails
+  # PDF/UA-2: the remediate stage pairs them.
+  @pdf-remediate
+  Scenario: POST /forms/libreoffice/convert (Native PDF/A-4 & PDF/UA)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files       | testdata/page_1.docx | file  |
+      | nativePdfa  | PDF/A-4              | field |
+      | nativePdfua | PDF/UA-1             | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'nativePdfa' PDF/A-4 cannot be combined with 'nativePdfua': LibreOffice then claims PDF/UA-2 without meeting it; remove both and add {"op":"remediate","profile":["PDF/A-4","PDF/UA-2"]} to 'stages'
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.docx                                  | file  |
+      | stages | [{"op":"remediate","profile":["PDF/A-4","PDF/UA-2"]}] | field |
+    Then the response status code should be 200
+    Then the response header "Gotenberg-Remediation-Residual" should be "0"
+    Then the response PDF(s) should be valid "PDF/A-4" with a tolerance of 0 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-2" with a tolerance of 0 failed rule(s)
+
   # Merging builds a new document, which loses the conformance of each one:
   # remediate the merged document instead.
   @pdf-merge

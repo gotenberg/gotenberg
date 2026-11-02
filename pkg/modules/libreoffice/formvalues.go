@@ -161,19 +161,47 @@ func pdfaHint(profile string) string {
 	return fmt.Sprintf("%s, which takes PDF/A-1b, PDF/A-2b, PDF/A-3b or PDF/A-4, or add %s to 'stages'", renamedHint("nativePdfa"), stage)
 }
 
-// formFieldHint is the [api.FormData.RejectUnknown] hint of the LibreOffice
-// route: a renamed or removed field, or the stage that replaced a
-// post-processing field.
-func formFieldHint(field, value string, file bool) string {
-	if !file {
-		if field == "pdfa" {
-			return pdfaHint(value)
-		}
-
-		if hint, ok := gotenberg8Fields[field]; ok {
-			return hint
-		}
+// pdfaPdfuaHint is the fix of the Gotenberg 8 'pdfa' and 'pdfua' fields sent
+// together in form: 'nativePdfa' and 'nativePdfua' for a profile LibreOffice
+// writes with PDF/UA, a remediate stage that pairs them for the others; ok is
+// false when form does not hold both. LibreOffice claims PDF/UA-2 for PDF/A-4
+// without meeting it, so the route refuses that pair.
+func pdfaPdfuaHint(form *api.FormData) (hint string, ok bool) {
+	stage, ok := pdf.PdfaPdfuaRemediateStage(form)
+	if !ok {
+		return "", false
 	}
 
-	return pdf.FormFieldHint(field, value, file)
+	pdfa := form.Sent("pdfa")
+	native := libreofficeapi.PdfFormats{PdfA: pdfa}
+	if pdfa != libreofficeapi.PdfA4 && native.Validate() == nil {
+		return fmt.Sprintf("Gotenberg 9 renamed 'pdfa' and 'pdfua' 'nativePdfa' and 'nativePdfua', which takes the string %s, or add %s to 'stages'", pdfuaProfile, stage), true
+	}
+
+	return fmt.Sprintf("Gotenberg 9 makes %s with PDF/UA with a remediate stage: add %s to 'stages'", pdfa, stage), true
+}
+
+// formFieldHint returns the [api.FormData.RejectUnknown] hint of the
+// LibreOffice route reading form: a renamed or removed field, or the stage
+// that replaced a post-processing field.
+func formFieldHint(form *api.FormData) func(field, value string, file bool) string {
+	return func(field, value string, file bool) string {
+		if !file {
+			if field == "pdfa" || field == "pdfua" {
+				if hint, ok := pdfaPdfuaHint(form); ok {
+					return hint
+				}
+			}
+
+			if field == "pdfa" {
+				return pdfaHint(value)
+			}
+
+			if hint, ok := gotenberg8Fields[field]; ok {
+				return hint
+			}
+		}
+
+		return pdf.FormFieldHint(field, value, file)
+	}
 }

@@ -2235,3 +2235,24 @@ func TestFormData_RejectUnknown(t *testing.T) {
 		})
 	}
 }
+
+// TestFormData_Sent pins that Sent reads a field without binding it: a field
+// only Sent read is still unknown to the route.
+func TestFormData_Sent(t *testing.T) {
+	mock := &ContextMock{Context: new(Context)}
+	mock.SetValues(map[string][]string{"pdfua": {"true", "false"}})
+	form := mock.FormData()
+
+	if got := form.Sent("pdfua"); got != "true" {
+		t.Errorf("Sent(%q) = %q, want the first value", "pdfua", got)
+	}
+
+	if got := form.Sent("pdfa"); got != "" {
+		t.Errorf("Sent(%q) = %q, want none", "pdfa", got)
+	}
+
+	form.RejectUnknown(nil)
+	if form.errors == nil || form.errors.Error() != "form field 'pdfua' is unknown to this route" {
+		t.Fatalf("expected 'pdfua' to stay unknown, got: %v", form.errors)
+	}
+}

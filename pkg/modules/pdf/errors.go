@@ -110,6 +110,12 @@ var lithoFixes = []struct {
 			return message + "; leave at least one page out of 'pages'"
 		},
 	},
+	{
+		err: litho.ErrIncompatibleProfiles,
+		fix: func(message string) string {
+			return message + "; the pairs are " + validPairs()
+		},
+	},
 }
 
 // handleError turns a stage failure the request caused into a 400 response

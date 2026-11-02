@@ -343,6 +343,59 @@ func TestConvertRoute_InvalidNativePdfa(t *testing.T) {
 	}
 }
 
+// TestConvertRoute_NativePdfa4AndPdfua checks that PDF/A-4 with PDF/UA is
+// refused before LibreOffice runs: it exports the pair as a PDF/UA-2 file that
+// fails PDF/UA-2, and a remediate stage writes one that conforms to both. The
+// other PDF/A profiles still pair with PDF/UA natively.
+func TestConvertRoute_NativePdfa4AndPdfua(t *testing.T) {
+	dir := t.TempDir()
+
+	for _, tc := range []struct {
+		name    string
+		pdfa    string
+		wantErr string
+	}{
+		{name: "PDF/A-4", pdfa: "PDF/A-4", wantErr: `Invalid form data: form field 'nativePdfa' PDF/A-4 cannot be combined with 'nativePdfua': LibreOffice then claims PDF/UA-2 without meeting it; remove both and add {"op":"remediate","profile":["PDF/A-4","PDF/UA-2"]} to 'stages'`},
+		{name: "PDF/A-2b", pdfa: "PDF/A-2b"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := &api.ContextMock{Context: &api.Context{Context: context.Background()}}
+			ctx.SetDirPath(dir)
+			ctx.SetFiles(map[string]string{"page_1.docx": zipPackage(t, dir, "page_1.docx")})
+			ctx.SetValues(map[string][]string{"nativePdfa": {tc.pdfa}, "nativePdfua": {"PDF/UA-1"}})
+			ctx.SetLogger(slog.New(slog.DiscardHandler))
+
+			ran := false
+			converter := &libreofficeapi.ApiMock{
+				ExtensionsMock: func() []string { return []string{".docx"} },
+				PdfMock: func(_ context.Context, _ *slog.Logger, _, _ string, _ libreofficeapi.Options) error {
+					ran = true
+					return nil
+				},
+			}
+
+			c := echo.New().NewContext(httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", nil), httptest.NewRecorder())
+			c.Set("context", ctx.Context)
+
+			err := convertRoute(converter, new(pdf.Processor)).Handler(c)
+			if tc.wantErr == "" {
+				if !ran {
+					t.Fatalf("LibreOffice did not run: %v", err)
+				}
+				return
+			}
+
+			status, message := api.ParseError(err)
+			if status != http.StatusBadRequest || message != tc.wantErr {
+				t.Fatalf("got %d %q, want 400 %q", status, message, tc.wantErr)
+			}
+			if ran {
+				t.Error("LibreOffice ran with PDF/A-4 and PDF/UA")
+			}
+		})
+	}
+}
+
 // TestConvertRoute_Watermark checks that the rotation stays unset unless the
 // client sets one, 0 included, and that the plain and tiled watermarks exclude
 // each other, as LibreOffice draws the tiled one only without the plain one.
@@ -435,6 +488,18 @@ func TestConvertRoute_UnknownFields(t *testing.T) {
 			name:     "PDF/A profile LibreOffice does not write",
 			values:   map[string][]string{"pdfa": {"PDF/A-1a"}},
 			wantBody: `Invalid form data: form field 'pdfa' is unknown to this route; Gotenberg 9 renamed it 'nativePdfa', which takes PDF/A-1b, PDF/A-2b, PDF/A-3b or PDF/A-4, or add {"op":"remediate","profile":"PDF/A-1a"} to 'stages'`,
+		},
+		{
+			name:   "pdfa and pdfua together",
+			values: map[string][]string{"pdfa": {"PDF/A-2b"}, "pdfua": {"true"}},
+			wantBody: `Invalid form data: form field 'pdfa' is unknown to this route; Gotenberg 9 renamed 'pdfa' and 'pdfua' 'nativePdfa' and 'nativePdfua', which takes the string PDF/UA-1, or add {"op":"remediate","profile":["PDF/A-2b","PDF/UA-1"]} to 'stages'` + "\n" +
+				`form field 'pdfua' is unknown to this route; Gotenberg 9 renamed 'pdfa' and 'pdfua' 'nativePdfa' and 'nativePdfua', which takes the string PDF/UA-1, or add {"op":"remediate","profile":["PDF/A-2b","PDF/UA-1"]} to 'stages'`,
+		},
+		{
+			name:   "PDF/A-4 and pdfua together",
+			values: map[string][]string{"pdfa": {"PDF/A-4"}, "pdfua": {"true"}},
+			wantBody: `Invalid form data: form field 'pdfa' is unknown to this route; Gotenberg 9 makes PDF/A-4 with PDF/UA with a remediate stage: add {"op":"remediate","profile":["PDF/A-4","PDF/UA-2"]} to 'stages'` + "\n" +
+				`form field 'pdfua' is unknown to this route; Gotenberg 9 makes PDF/A-4 with PDF/UA with a remediate stage: add {"op":"remediate","profile":["PDF/A-4","PDF/UA-2"]} to 'stages'`,
 		},
 		{
 			name:     "image quality",

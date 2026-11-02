@@ -278,27 +278,37 @@ func TestFormDataChromiumOptions_SortsObjectFields(t *testing.T) {
 // TestFormFieldHints pins the fixes the Chromium routes give a Gotenberg 8
 // field: the PDF routes know the stages, the screenshot routes run none.
 func TestFormFieldHints(t *testing.T) {
+	screenshot := func(*api.FormData) func(field, value string, file bool) string { return screenshotFormFieldHint }
+
 	for _, tc := range []struct {
-		name  string
-		hint  func(field, value string, file bool) string
-		field string
-		value string
-		file  bool
-		want  string
+		name   string
+		hint   func(form *api.FormData) func(field, value string, file bool) string
+		values map[string][]string
+		field  string
+		value  string
+		file   bool
+		want   string
 	}{
 		{name: "renamed on a PDF route", hint: convertFormFieldHint, field: "nativePageRanges", want: "Gotenberg 9 renamed it 'nativePages'"},
-		{name: "renamed on every route", hint: screenshotFormFieldHint, field: "waitWindowStatus", want: "Gotenberg 9 renamed it 'waitForWindowStatus'"},
-		{name: "PDF field on a screenshot route", hint: screenshotFormFieldHint, field: "nativePageRanges", want: ""},
+		{name: "renamed on every route", hint: screenshot, field: "waitWindowStatus", want: "Gotenberg 9 renamed it 'waitForWindowStatus'"},
+		{name: "PDF field on a screenshot route", hint: screenshot, field: "nativePageRanges", want: ""},
 		{name: "stage on a PDF route", hint: convertFormFieldHint, field: "pdfa", value: "PDF/A-1a", want: `Gotenberg 9 moved it to a stage: add {"op":"remediate","profile":"PDF/A-1a"} to 'stages'`},
 		{name: "stage on a PDF route, unknown profile", hint: convertFormFieldHint, field: "pdfa", value: "PDF/A-9", want: `Gotenberg 9 moved it to a stage: add {"op":"remediate","profile":"PDF/A-2b"} to 'stages'`},
+		{name: "pdfa and pdfua together, pdfa", hint: convertFormFieldHint, values: map[string][]string{"pdfa": {"PDF/A-3b"}, "pdfua": {"true"}}, field: "pdfa", value: "PDF/A-3b", want: `Gotenberg 9 moved it to a stage: add {"op":"remediate","profile":["PDF/A-3b","PDF/UA-1"]} to 'stages'`},
+		{name: "pdfa and pdfua together, pdfua", hint: convertFormFieldHint, values: map[string][]string{"pdfa": {"PDF/A-3b"}, "pdfua": {"true"}}, field: "pdfua", value: "true", want: `Gotenberg 9 moved it to a stage: add {"op":"remediate","profile":["PDF/A-3b","PDF/UA-1"]} to 'stages'`},
+		{name: "pdfua alone", hint: convertFormFieldHint, values: map[string][]string{"pdfua": {"true"}}, field: "pdfua", value: "true", want: `Gotenberg 9 moved it to a stage: add {"op":"remediate","profile":"PDF/UA-1"} to 'stages'`},
+		{name: "pdfua false beside pdfa", hint: convertFormFieldHint, values: map[string][]string{"pdfa": {"PDF/A-1b"}, "pdfua": {"false"}}, field: "pdfa", value: "PDF/A-1b", want: `Gotenberg 9 moved it to a stage: add {"op":"remediate","profile":"PDF/A-1b"} to 'stages'`},
 		{name: "image quality on a PDF route", hint: convertFormFieldHint, field: "imageQuality", value: "50", want: `Gotenberg 9 never lowers image quality: {"op":"optimize"} is lossless; lower the quality where the PDF is made`},
-		{name: "stages on a screenshot route", hint: screenshotFormFieldHint, field: "stages", want: "screenshots take no 'stages'"},
+		{name: "stages on a screenshot route", hint: screenshot, field: "stages", want: "screenshots take no 'stages'"},
 		{name: "Gotenberg 8 file field on a PDF route", hint: convertFormFieldHint, field: "facturxXml", file: true, want: `Gotenberg 9 reads every file from 'files': upload it there, and add {"op":"remediate","profile":"Factur-X","xml":"invoice.xml"} to 'stages'`},
-		{name: "file fields are free-form on a screenshot route", hint: screenshotFormFieldHint, field: "watermark", file: true, want: ""},
+		{name: "file fields are free-form on a screenshot route", hint: screenshot, field: "watermark", file: true, want: ""},
 		{name: "free-form file field", hint: convertFormFieldHint, field: "assets", file: true, want: ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := tc.hint(tc.field, tc.value, tc.file); got != tc.want {
+			ctx := &api.ContextMock{Context: new(api.Context)}
+			ctx.SetValues(tc.values)
+
+			if got := tc.hint(ctx.FormData())(tc.field, tc.value, tc.file); got != tc.want {
 				t.Errorf("hint(%q, %q, %t) = %q, want %q", tc.field, tc.value, tc.file, got, tc.want)
 			}
 		})

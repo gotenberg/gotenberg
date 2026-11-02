@@ -123,7 +123,7 @@ func readRoute(processor *Processor, name string, newRead func(form *api.FormDat
 			var password string
 			form.String("password", &password)
 			read := newRead(form)
-			err = form.RejectUnknown(FormFieldHint).Validate()
+			err = form.RejectUnknown(FormFieldHintOf(form)).Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
 			}
@@ -276,55 +276,68 @@ type violation struct {
 	Severity      string `json:"severity,omitempty"`
 }
 
-// validation is the JSON answer of the validate route.
+// validation is the JSON answer of the validate route. Profile is what the
+// client sent: a string for one profile, an array for a pair.
 type validation struct {
-	Profile    string      `json:"profile"`
+	Profile    profileSet  `json:"profile"`
 	Compliant  bool        `json:"compliant"`
 	Violations []violation `json:"violations"`
 }
 
 func validateRoute(processor *Processor) api.Route {
 	return readRoute(processor, "validate", func(form *api.FormData) readFunc {
-		var profile string
-		form.MandatoryString("profile", &profile)
+		// The field is repeated for a pair: -F profile=PDF/A-2b -F
+		// profile=PDF/UA-1.
+		var values []string
+		form.MandatoryCustom("profile", func(string) error { return nil })
+		form.Strings("profile", &values)
 
 		return func(ctx context.Context, r *litho.Reader) (any, error) {
-			return validatePDF(ctx, r, profile)
+			return validatePDF(ctx, r, values)
 		}
 	})
 }
 
-// validatePDF validates the PDF r reads against profile.
-func validatePDF(ctx context.Context, r *litho.Reader, profile string) (any, error) {
-	var (
-		found []litho.Violation
-		err   error
-	)
-
-	switch {
-	case pdfaProfiles[profile] != "":
-		found, err = r.ValidatePDFAReport(ctx, pdfaProfiles[profile])
-	case pdfuaProfiles[profile] != "":
-		found, err = r.ValidatePDFUAReport(ctx, pdfuaProfiles[profile])
-	case profile == facturXProfile:
-		var report litho.FacturXReport
-		report, err = r.ValidateFacturXReport(ctx)
-		found = report.Structured()
-	default:
-		return nil, api.NewSentinelHttpError(
+// validatePDF validates the PDF r reads against the profile, or the pair of
+// profiles, the values of the 'profile' form field name.
+func validatePDF(ctx context.Context, r *litho.Reader, values []string) (any, error) {
+	profiles, err := profileSetOf(values)
+	if err != nil {
+		return nil, api.WrapError(err, api.NewSentinelHttpError(
 			http.StatusBadRequest,
-			fmt.Sprintf("Invalid form data: form field 'profile' must be one of %s, PDF/UA-1, PDF/UA-2 or %s", strings.Join(sortedKeys(pdfaProfiles), ", "), facturXProfile),
-		)
+			"Invalid form data: form field 'profile' is invalid (want a profile, or the field repeated for a pair)",
+		))
+	}
+
+	_, _, err = profiles.split()
+	var profileErr *profileError
+	if errors.As(err, &profileErr) {
+		return nil, api.WrapError(err, api.NewSentinelHttpError(
+			http.StatusBadRequest,
+			"Invalid form data: form field 'profile' "+profileErr.detail,
+		))
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("validate against %s: %w", profile, err)
+		return nil, fmt.Errorf("read profiles: %w", err)
+	}
+
+	// The violations follow the profiles in the order the client sent them.
+	var found []litho.Violation
+	for _, profile := range profiles {
+		violations, err := validateProfile(ctx, r, profile)
+		if err != nil {
+			return nil, fmt.Errorf("validate against %s: %w", profile, err)
+		}
+
+		found = append(found, violations...)
 	}
 
 	// A Factur-X report holds warnings too, soft Schematron findings that
-	// do not by themselves fail conformance.
+	// do not by themselves fail conformance. A pair is compliant when the
+	// document conforms to both profiles.
 	res := validation{
-		Profile:    profile,
+		Profile:    profiles,
 		Compliant:  !slices.ContainsFunc(found, func(v litho.Violation) bool { return v.Severity == litho.SeverityFatal }),
 		Violations: make([]violation, len(found)),
 	}
@@ -340,6 +353,21 @@ func validatePDF(ctx context.Context, r *litho.Reader, profile string) (any, err
 	}
 
 	return res, nil
+}
+
+// validateProfile validates the PDF r reads against profile, one the
+// remediate stage takes.
+func validateProfile(ctx context.Context, r *litho.Reader, profile string) ([]litho.Violation, error) {
+	switch {
+	case pdfaProfiles[profile] != "":
+		return r.ValidatePDFAReport(ctx, pdfaProfiles[profile])
+	case pdfuaProfiles[profile] != "":
+		return r.ValidatePDFUAReport(ctx, pdfuaProfiles[profile])
+	default:
+		report, err := r.ValidateFacturXReport(ctx)
+
+		return report.Structured(), err
+	}
 }
 
 func attachmentsRoute(processor *Processor) api.Route {

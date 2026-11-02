@@ -454,47 +454,185 @@ func (*decryptStage) files() []string { return nil }
 // remediateStage repairs the document to a conformance profile: a PDF/A or
 // PDF/UA one, or Factur-X, which embeds the invoice XML into a PDF/A-3
 // document. Without the XML, Factur-X repairs the invoice the document
-// already carries, a Factur-X or ZUGFeRD one, leaving its XML as is. Aggressive allows the fixes that may change how pages look, and
-// FigureAltText fills the alternate text of the figures that lack one.
+// already carries, a Factur-X or ZUGFeRD one, leaving its XML as is. Profile
+// may also pair a PDF/A profile, or Factur-X, with the PDF/UA profile of its
+// PDF version, and the document then conforms to both. Aggressive allows the
+// fixes that may change how pages look, and FigureAltText fills the alternate
+// text of the figures that lack one.
 type remediateStage struct {
-	Profile       string `json:"profile"`
-	Language      string `json:"language"`
-	Aggressive    bool   `json:"aggressive"`
-	FigureAltText string `json:"figureAltText"`
-	Xml           string `json:"xml"`
-	Level         string `json:"level"`
-	DocumentType  string `json:"documentType"`
+	Profile       profileSet `json:"profile"`
+	Language      string     `json:"language"`
+	Aggressive    bool       `json:"aggressive"`
+	FigureAltText string     `json:"figureAltText"`
+	Xml           string     `json:"xml"`
+	Level         string     `json:"level"`
+	DocumentType  string     `json:"documentType"`
 }
 
 func (*remediateStage) op() string { return "remediate" }
 
 func (s *remediateStage) validate() error {
-	_, isPdfa := pdfaProfiles[s.Profile]
-	_, isPdfua := pdfuaProfiles[s.Profile]
+	target, _, err := s.Profile.split()
+	if err != nil {
+		return err
+	}
 
-	switch {
-	case isPdfa || isPdfua:
+	if target != facturXProfile {
 		if s.Xml != "" || s.Level != "" || s.DocumentType != "" {
 			return errors.New(`"xml", "level" and "documentType" only apply to the Factur-X profile`)
 		}
-	case s.Profile == facturXProfile:
-		if s.Xml == "" {
-			if s.Level != "" || s.DocumentType != "" {
-				return errors.New(`"level" and "documentType" need "xml", the uploaded Factur-X invoice XML to embed; without "xml", the remediation repairs the invoice the PDF already carries`)
-			}
 
-			return nil
+		return nil
+	}
+
+	if s.Xml == "" {
+		if s.Level != "" || s.DocumentType != "" {
+			return errors.New(`"level" and "documentType" need "xml", the uploaded Factur-X invoice XML to embed; without "xml", the remediation repairs the invoice the PDF already carries`)
 		}
 
-		_, ok := facturXLevels[s.Level]
-		if !ok {
-			return fmt.Errorf(`"level" must be one of %s, got %q`, strings.Join(sortedKeys(facturXLevels), ", "), s.Level)
-		}
-	default:
-		return fmt.Errorf(`"profile" must be one of %s, PDF/UA-1, PDF/UA-2 or %s, got %q`, strings.Join(sortedKeys(pdfaProfiles), ", "), facturXProfile, s.Profile)
+		return nil
+	}
+
+	_, ok := facturXLevels[s.Level]
+	if !ok {
+		return fmt.Errorf(`"level" must be one of %s, got %q`, strings.Join(sortedKeys(facturXLevels), ", "), s.Level)
 	}
 
 	return nil
+}
+
+// profileSet is the "profile" option of the remediate stage and of the validate
+// route: one profile, sent as a JSON string, or a PDF/A profile, or Factur-X,
+// paired with the PDF/UA profile of its PDF version, sent as a JSON array of
+// the two in any order.
+type profileSet []string
+
+// UnmarshalJSON decodes a JSON string as one profile, and a JSON array of
+// strings as several.
+func (p *profileSet) UnmarshalJSON(data []byte) error {
+	var one string
+	if json.Unmarshal(data, &one) == nil {
+		*p = profileSet{one}
+
+		return nil
+	}
+
+	var many []string
+	if json.Unmarshal(data, &many) != nil {
+		return errors.New(`"profile" must be a string, or a JSON array of two strings that pair a PDF/A profile with a PDF/UA one`)
+	}
+
+	*p = many
+
+	return nil
+}
+
+// MarshalJSON encodes one profile as a JSON string and a pair as a JSON array,
+// the way the client sent them.
+func (p profileSet) MarshalJSON() ([]byte, error) {
+	if len(p) == 1 {
+		return json.Marshal(p[0])
+	}
+
+	return json.Marshal([]string(p))
+}
+
+// String returns p as JSON: a quoted profile, an array of them, or "" for
+// none.
+func (p profileSet) String() string {
+	if len(p) == 0 {
+		return `""`
+	}
+
+	b, err := p.MarshalJSON()
+	if err != nil {
+		return fmt.Sprint([]string(p))
+	}
+
+	return string(b)
+}
+
+// split returns the PDF/A-based profile p names, a PDF/A one or Factur-X, and
+// its PDF/UA one, "" for none. A profile no stage takes, or a pair litho
+// cannot remediate or validate together, returns an error that lists the
+// profiles and the pairs.
+func (p profileSet) split() (target, pdfua string, err error) {
+	switch len(p) {
+	case 1:
+		switch {
+		case pdfaProfiles[p[0]] != "", p[0] == facturXProfile:
+			return p[0], "", nil
+		case pdfuaProfiles[p[0]] != "":
+			return "", p[0], nil
+		}
+	case 2:
+		a, ua := p[0], p[1]
+		if pdfuaProfiles[a] != "" {
+			a, ua = ua, a
+		}
+
+		if pdfuaProfiles[ua] != "" && pairedPdfua(a) == ua {
+			return a, ua, nil
+		}
+
+		return "", "", &profileError{detail: fmt.Sprintf("pairs a PDF/A profile with the PDF/UA profile of its PDF version: %s; got %s", validPairs(), p)}
+	}
+
+	return "", "", &profileError{detail: fmt.Sprintf("must be one of %s, PDF/UA-1, PDF/UA-2 or %s, or a pair of a PDF/A profile and a PDF/UA one: %s; got %s", strings.Join(sortedKeys(pdfaProfiles), ", "), facturXProfile, validPairs(), p)}
+}
+
+// profileError refuses a profile, or a pair of profiles. Its detail follows
+// the name of the option or the form field that sent them.
+type profileError struct {
+	detail string
+}
+
+func (e *profileError) Error() string {
+	return `"profile" ` + e.detail
+}
+
+// pairedPdfua returns the PDF/UA profile the PDF/A profile, or Factur-X,
+// pairs with, "" for any other profile. PDF/UA-1 requires a PDF version from
+// 1.0 to 1.7 (ISO 14289-1, 6.1), the versions PDF/A-1 to PDF/A-3 build on,
+// Factur-X being PDF/A-3. PDF/UA-2 requires PDF 2.0 (ISO 14289-2, 6.1), and
+// PDF/A-4 a PDF 2.x version (ISO 19005-4, 6.1.2).
+func pairedPdfua(profile string) string {
+	switch {
+	case profile == facturXProfile:
+		return "PDF/UA-1"
+	case pdfaProfiles[profile] == "":
+		return ""
+	case strings.HasPrefix(profile, "PDF/A-4"):
+		return "PDF/UA-2"
+	default:
+		return "PDF/UA-1"
+	}
+}
+
+// validPairs lists, for a client, the PDF/A profiles, and Factur-X, each
+// PDF/UA profile pairs with.
+func validPairs() string {
+	var withUa1, withUa2 []string
+	for _, profile := range sortedKeys(pdfaProfiles) {
+		if pairedPdfua(profile) == "PDF/UA-2" {
+			withUa2 = append(withUa2, profile)
+		} else {
+			withUa1 = append(withUa1, profile)
+		}
+	}
+
+	withUa1 = append(withUa1, facturXProfile)
+
+	return fmt.Sprintf("%s with PDF/UA-1, and %s with PDF/UA-2", joinOr(withUa1), joinOr(withUa2))
+}
+
+// joinOr joins items as "a, b or c".
+func joinOr(items []string) string {
+	if len(items) < 2 {
+		return strings.Join(items, "")
+	}
+
+	return strings.Join(items[:len(items)-1], ", ") + " or " + items[len(items)-1]
 }
 
 func (s *remediateStage) files() []string {

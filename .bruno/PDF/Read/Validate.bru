@@ -13,5 +13,10 @@ post {
 body:multipart-form {
   files: @file(../test/integration/testdata/page_1.pdf)
   profile: PDF/A-2b
+  ~profile: PDF/UA-1
   ~password:
+}
+
+docs {
+  Enable the second `profile` to validate against a PDF/A profile and a PDF/UA one together: `compliant` is true when the PDF conforms to both. PDF/A-1, PDF/A-2 and PDF/A-3 profiles and `Factur-X` pair with `PDF/UA-1`, PDF/A-4 profiles with `PDF/UA-2`; any other pair answers 400.
 }

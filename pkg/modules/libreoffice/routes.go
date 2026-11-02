@@ -107,7 +107,7 @@ func convertRoute(libreOffice libreofficeapi.Converter, processor *pdf.Processor
 
 					return nil
 				}).
-				RejectUnknown(formFieldHint).
+				RejectUnknown(formFieldHint(form)).
 				Validate()
 			if err != nil {
 				return fmt.Errorf("validate form data: %w", err)
@@ -150,6 +150,16 @@ func convertRoute(libreOffice libreofficeapi.Converter, processor *pdf.Processor
 						http.StatusBadRequest,
 						fmt.Sprintf("Invalid form data: form field 'nativePdfa' is invalid (got '%s', want PDF/A-1b, PDF/A-2b, PDF/A-3b or PDF/A-4).", options.PdfFormats.PdfA),
 					),
+				)
+			}
+
+			// LibreOffice exports PDF/A-4 with PDF/UA as a PDF/UA-2 file
+			// that fails PDF/UA-2, while a remediate stage writes one that
+			// conforms to both.
+			if options.PdfFormats.PdfA == libreofficeapi.PdfA4 && options.PdfFormats.PdfUa {
+				return api.NewSentinelHttpError(
+					http.StatusBadRequest,
+					`Invalid form data: form field 'nativePdfa' PDF/A-4 cannot be combined with 'nativePdfua': LibreOffice then claims PDF/UA-2 without meeting it; remove both and add {"op":"remediate","profile":["PDF/A-4","PDF/UA-2"]} to 'stages'`,
 				)
 			}
 

@@ -311,16 +311,25 @@ func (s *remediateStage) edit(ctx context.Context, w *litho.Writer, env *runEnv)
 		opts = append(opts, litho.WithFigureAltText(s.FigureAltText))
 	}
 
-	var (
-		report *litho.RemediationReport
-		err    error
-	)
+	// The stage was validated when parsed.
+	target, pdfua, err := s.Profile.split()
+	if err != nil {
+		return err
+	}
+
+	// litho remediates a pair in one run, the PDF/UA engine and the PDF/A one
+	// taking turns, and judges every round against both profiles.
+	if target != "" && pdfua != "" {
+		opts = append(opts, litho.WithPDFUA(pdfuaProfiles[pdfua]))
+	}
+
+	var report *litho.RemediationReport
 
 	switch {
-	case pdfaProfiles[s.Profile] != "":
-		report, err = w.RemediatePDFA(ctx, pdfaProfiles[s.Profile], opts...)
-	case pdfuaProfiles[s.Profile] != "":
-		report, err = w.RemediatePDFUA(ctx, pdfuaProfiles[s.Profile], opts...)
+	case pdfaProfiles[target] != "":
+		report, err = w.RemediatePDFA(ctx, pdfaProfiles[target], opts...)
+	case target == "":
+		report, err = w.RemediatePDFUA(ctx, pdfuaProfiles[pdfua], opts...)
 	case s.Xml == "":
 		report, err = w.RepairFacturX(ctx, opts...)
 	default:
@@ -344,6 +353,7 @@ func (s *remediateStage) edit(ctx context.Context, w *litho.Writer, env *runEnv)
 	}
 
 	env.report = report
+	env.reportProfiles = remediatedProfiles{target: target, pdfua: pdfua}
 
 	return nil
 }

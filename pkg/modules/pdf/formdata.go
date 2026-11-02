@@ -60,7 +60,7 @@ func inputPDFs(form *api.FormData, files map[string]string) ([]string, error) {
 	var all []string
 	err := form.
 		MandatoryPaths([]string{".pdf"}, &all).
-		RejectUnknown(FormFieldHint).
+		RejectUnknown(FormFieldHintOf(form)).
 		Validate()
 	if err != nil {
 		return nil, fmt.Errorf("validate form data: %w", err)
@@ -114,6 +114,22 @@ func stageFromForm(op string, form *api.FormData) (Stages, map[string]string, er
 			continue
 		}
 
+		// A pair of profiles arrives as the field repeated, such as
+		// -F profile=PDF/A-2b -F profile=PDF/UA-1.
+		if field.Type == reflect.TypeFor[profileSet]() {
+			profiles, err := profileSetOf(values)
+			if err != nil {
+				return nil, nil, api.WrapError(err, api.NewSentinelHttpError(
+					http.StatusBadRequest,
+					fmt.Sprintf("Invalid form data: form field '%s' is invalid (got '%s', want a profile, or the field repeated for a pair)", name, values[0]),
+				))
+			}
+
+			object[name] = profiles
+
+			continue
+		}
+
 		value, err := formValue(field.Type, values[0])
 		if err != nil {
 			return nil, nil, api.WrapError(err, api.NewSentinelHttpError(
@@ -139,6 +155,27 @@ func stageFromForm(op string, form *api.FormData) (Stages, map[string]string, er
 	}
 
 	return stages, stageFiles(form, stages), nil
+}
+
+// profileSetOf returns the profiles the values of a 'profile' form field name:
+// the values when the field is repeated, and otherwise its value, or the JSON
+// array its value holds.
+func profileSetOf(values []string) (profileSet, error) {
+	if len(values) != 1 {
+		return profileSet(values), nil
+	}
+
+	if !strings.HasPrefix(strings.TrimSpace(values[0]), "[") {
+		return profileSet{values[0]}, nil
+	}
+
+	var profiles profileSet
+	err := json.Unmarshal([]byte(values[0]), &profiles)
+	if err != nil {
+		return nil, fmt.Errorf("decode the profiles: %w", err)
+	}
+
+	return profiles, nil
 }
 
 // formValue converts a form field to the JSON value of a stage option of type
@@ -239,6 +276,40 @@ func PdfaRemediateStage(profile string) string {
 	}
 
 	return fmt.Sprintf(`{"op":"remediate","profile":"%s"}`, profile)
+}
+
+// PdfaPdfuaRemediateStage returns the remediate stage, as JSON, that makes the
+// PDF/A profile a Gotenberg 8 'pdfa' field sent, PDF/A-2b when no remediate
+// profile matches it, and the PDF/UA profile of its PDF version together, when
+// form also holds a Gotenberg 8 'pdfua' field set to true; ok is false
+// otherwise.
+func PdfaPdfuaRemediateStage(form *api.FormData) (stage string, ok bool) {
+	pdfa := form.Sent("pdfa")
+	pdfua, err := strconv.ParseBool(form.Sent("pdfua"))
+	if pdfa == "" || err != nil || !pdfua {
+		return "", false
+	}
+
+	if _, ok := pdfaProfiles[pdfa]; !ok {
+		pdfa = "PDF/A-2b"
+	}
+
+	return fmt.Sprintf(`{"op":"remediate","profile":["%s","%s"]}`, pdfa, pairedPdfua(pdfa)), true
+}
+
+// FormFieldHintOf returns [FormFieldHint] for the routes reading form: the
+// Gotenberg 8 'pdfa' and 'pdfua' fields, sent together, both point to the
+// remediate stage that pairs their profiles (see [PdfaPdfuaRemediateStage]).
+func FormFieldHintOf(form *api.FormData) func(field, value string, file bool) string {
+	return func(field, value string, file bool) string {
+		if !file && (field == "pdfa" || field == "pdfua") {
+			if stage, ok := PdfaPdfuaRemediateStage(form); ok {
+				return stagesHint(stage)
+			}
+		}
+
+		return FormFieldHint(field, value, file)
+	}
 }
 
 // gotenberg8FieldPrefixes maps the prefixes of Gotenberg 8 field families to

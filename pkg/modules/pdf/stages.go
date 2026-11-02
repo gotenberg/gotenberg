@@ -203,10 +203,11 @@ func (stages Stages) validateOrder() error {
 // that may appear once. litho's writer keeps one signer, so a second sign or
 // timestamp stage would replace the first rather than add a signature.
 func (stages Stages) validatePositions() error {
-	seen := make(map[string]bool)
+	seen := make(map[string]int)
 
 	for i, s := range stages {
 		op := s.op()
+		_, again := seen[op]
 
 		switch {
 		case op == "decrypt" && i != 0:
@@ -214,14 +215,35 @@ func (stages Stages) validatePositions() error {
 		// Render draws the final documents, and writes none.
 		case op == "render" && i != len(stages)-1:
 			return fmt.Errorf("stage %d: \"render\" must be the last stage", i)
-		case (op == "remediate" || op == "encrypt" || op == "sign" || op == "timestamp") && seen[op]:
+		// litho remediates once, a pair of profiles included.
+		case op == "remediate" && again:
+			return fmt.Errorf("stage %d: only one \"remediate\" stage is allowed; to remediate to a PDF/A profile and a PDF/UA one together, give one stage both, such as %s", i, pairStage(stages[seen[op]].(*remediateStage), s.(*remediateStage)))
+		case (op == "encrypt" || op == "sign" || op == "timestamp") && again:
 			return fmt.Errorf("stage %d: only one %q stage is allowed", i, op)
 		}
 
-		seen[op] = true
+		if !again {
+			seen[op] = i
+		}
 	}
 
 	return nil
+}
+
+// pairStage returns, as JSON, the remediate stage that pairs the profiles of
+// the stages first and second, when each names one and they form a pair, or
+// an example pair otherwise.
+func pairStage(first, second *remediateStage) string {
+	pair := profileSet{"PDF/A-2b", "PDF/UA-1"}
+
+	if len(first.Profile) == 1 && len(second.Profile) == 1 {
+		candidate := profileSet{first.Profile[0], second.Profile[0]}
+		if target, pdfua, err := candidate.split(); err == nil {
+			pair = profileSet{target, pdfua}
+		}
+	}
+
+	return fmt.Sprintf(`{"op":"remediate","profile":%s}`, pair)
 }
 
 // validateCombinations checks the stages that no order allows together.
@@ -257,13 +279,19 @@ func (stages Stages) validateCombinations() error {
 		return errors.New(`"encrypt" cannot be combined with "sign" or "timestamp": a signature covers the written bytes`)
 	}
 
+	// The PDF/A side of a pair forbids encryption as it does alone.
 	if remediated >= 0 {
 		profile := stages[remediated].(*remediateStage).Profile
+		// The stage validated its profile when decoded.
+		target, _, err := profile.split()
+		if err != nil {
+			return fmt.Errorf("stage %d: %w", remediated, err)
+		}
 		switch {
-		case profile == facturXProfile:
-			return fmt.Errorf("%q cannot be encrypted: Factur-X is PDF/A-3, which forbids encryption", profile)
-		case strings.HasPrefix(profile, "PDF/A"):
-			return fmt.Errorf("%q cannot be encrypted: PDF/A forbids encryption", profile)
+		case target == facturXProfile:
+			return fmt.Errorf("%s cannot be encrypted: Factur-X is PDF/A-3, which forbids encryption", profile)
+		case strings.HasPrefix(target, "PDF/A"):
+			return fmt.Errorf("%s cannot be encrypted: PDF/A forbids encryption", profile)
 		}
 	}
 

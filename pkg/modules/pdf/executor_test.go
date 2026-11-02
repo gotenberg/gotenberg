@@ -448,6 +448,169 @@ func TestRunRemediationHeaders(t *testing.T) {
 	}
 }
 
+// TestRunRemediatePair pins that a remediate stage given a pair of profiles
+// writes a PDF that conforms to both, its residual header 0 when it does.
+func TestRunRemediatePair(t *testing.T) {
+	for _, tc := range []struct {
+		stages string
+		pdfa   models.PDFAProfile
+		pdfua  models.PDFUAProfile
+	}{
+		{stages: `[{"op":"remediate","profile":["PDF/A-2b","PDF/UA-1"]}]`, pdfa: models.PDFA2b, pdfua: models.PDFUA1},
+		{stages: `[{"op":"remediate","profile":["PDF/UA-2","PDF/A-4"]}]`, pdfa: models.PDFA4, pdfua: models.PDFUA2},
+	} {
+		t.Run(string(tc.pdfa)+" and "+string(tc.pdfua), func(t *testing.T) {
+			ctx, paths := testContext(t, "page_1.pdf")
+
+			outputs, err := testProcessor().Run(ctx, mustStages(t, tc.stages), []string{paths["page_1.pdf"]}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if got := ctx.OutputHeaders()[ResidualHeader]; got != "0" {
+				t.Errorf("header %s = %q, want 0", ResidualHeader, got)
+			}
+
+			r := openOutput(t, outputs[0])
+			pdfa, err := r.ValidatePDFAReport(context.Background(), tc.pdfa)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			pdfua, err := r.ValidatePDFUAReport(context.Background(), tc.pdfua)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			for _, v := range slices.Concat(pdfa, pdfua) {
+				t.Errorf("the output fails %s %s", v.Specification, v.Error())
+			}
+		})
+	}
+}
+
+// recordingHandler keeps the records a logger writes.
+type recordingHandler struct {
+	mu      sync.Mutex
+	records []slog.Record
+}
+
+func (h *recordingHandler) Enabled(context.Context, slog.Level) bool { return true }
+
+func (h *recordingHandler) Handle(_ context.Context, r slog.Record) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.records = append(h.records, r.Clone())
+
+	return nil
+}
+
+func (h *recordingHandler) WithAttrs([]slog.Attr) slog.Handler { return h }
+func (h *recordingHandler) WithGroup(string) slog.Handler      { return h }
+
+// TestRunRemediatePairLogsResidualByProfile pins that the warning of a pair
+// that falls short groups its residual by profile, and that the residual
+// header counts the violations of both. Without the system's fonts, the
+// standard font stays unembedded, which PDF/A-2b and PDF/UA-1 both forbid.
+func TestRunRemediatePairLogsResidualByProfile(t *testing.T) {
+	ctx, _ := testContext(t)
+	handler := new(recordingHandler)
+	mock := &api.ContextMock{Context: ctx}
+	mock.SetLogger(slog.New(handler))
+
+	input := filepath.Join(ctx.DirPath(), "helvetica.pdf")
+	if err := os.WriteFile(input, unembeddedFontPDF(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	processor := testProcessor()
+	processor.fonts = nil
+
+	_, err := processor.Run(ctx, mustStages(t, `[{"op":"remediate","profile":["PDF/A-2b","PDF/UA-1"]}]`), []string{input}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var residual map[string][]string
+	for _, r := range handler.records {
+		if r.Message != "remediation incomplete" {
+			continue
+		}
+
+		r.Attrs(func(a slog.Attr) bool {
+			if a.Key == "residual" {
+				residual, _ = a.Value.Any().(map[string][]string)
+			}
+
+			return true
+		})
+	}
+
+	if len(residual["PDF/A-2b"]) == 0 || len(residual["PDF/UA-1"]) == 0 || len(residual) != 2 {
+		t.Fatalf("residual = %v, want the violations of PDF/A-2b and of PDF/UA-1", residual)
+	}
+
+	total := len(residual["PDF/A-2b"]) + len(residual["PDF/UA-1"])
+	if got := ctx.OutputHeaders()[ResidualHeader]; got != strconv.Itoa(total) {
+		t.Errorf("header %s = %q, want %d, the violations of both", ResidualHeader, got, total)
+	}
+}
+
+// unembeddedFontPDF is a one-page PDF drawing text in Helvetica, which it
+// does not embed.
+func unembeddedFontPDF() []byte {
+	const content = "BT /F1 24 Tf 72 700 Td (Hello) Tj ET\n"
+
+	objects := []string{
+		"<< /Type /Catalog /Pages 2 0 R >>",
+		"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+		"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+		fmt.Sprintf("<< /Length %d >>\nstream\n%sendstream", len(content), content),
+		"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+	}
+
+	var buf bytes.Buffer
+	buf.WriteString("%PDF-1.7\n")
+
+	offsets := make([]int, len(objects))
+	for i, o := range objects {
+		offsets[i] = buf.Len()
+		fmt.Fprintf(&buf, "%d 0 obj\n%s\nendobj\n", i+1, o)
+	}
+
+	xref := buf.Len()
+	fmt.Fprintf(&buf, "xref\n0 %d\n0000000000 65535 f\r\n", len(objects)+1)
+	for _, offset := range offsets {
+		fmt.Fprintf(&buf, "%010d 00000 n\r\n", offset)
+	}
+
+	fmt.Fprintf(&buf, "trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n", len(objects)+1, xref)
+
+	return buf.Bytes()
+}
+
+func TestRemediatedProfilesOf(t *testing.T) {
+	pair := remediatedProfiles{target: "PDF/A-4", pdfua: "PDF/UA-2"}
+	for spec, want := range map[string]string{
+		"ISO_19005_4":    "PDF/A-4",
+		"ISO_14289_2":    "PDF/UA-2",
+		"ISO_32005":      "PDF/UA-2",
+		"HYBRID_INVOICE": "PDF/A-4",
+	} {
+		if got := pair.of(spec); got != want {
+			t.Errorf("of(%q) = %q, want %q", spec, got, want)
+		}
+	}
+
+	if got := (remediatedProfiles{pdfua: "PDF/UA-1"}).of("ISO_32000_1"); got != "PDF/UA-1" {
+		t.Errorf("a PDF/UA remediation files %q under %q", "ISO_32000_1", got)
+	}
+
+	if got := (remediatedProfiles{target: "PDF/A-2b"}).of("ISO_14289_1"); got != "PDF/A-2b" {
+		t.Errorf("a PDF/A remediation files %q under %q", "ISO_14289_1", got)
+	}
+}
+
 func TestRunRepairFacturX(t *testing.T) {
 	ctx, paths := testContext(t, "page_1.pdf", "embed_1.xml")
 

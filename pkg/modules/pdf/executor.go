@@ -534,7 +534,7 @@ func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password st
 	}
 
 	if env.report != nil {
-		outcome.add(ctx, d.filename, env.report)
+		outcome.add(ctx, d.filename, env.report, env.reportProfiles)
 	}
 
 	return out, nil
@@ -648,8 +648,9 @@ func formFieldError(ctx context.Context, r *litho.Reader, run Stages, err error)
 }
 
 // ResidualHeader is the output header counting the violations remediation
-// could not fix. The output still claims the profile: a non-zero count means
-// it does not conform.
+// could not fix, over every profile it remediated to. The output still claims
+// each profile: a non-zero count means it does not conform to one of them at
+// least.
 const ResidualHeader = "Gotenberg-Remediation-Residual"
 
 // RolledBackHeader is the output header counting the fixes remediation
@@ -663,17 +664,38 @@ type remediationOutcome struct {
 	rolledBack int
 }
 
-// add sums report, and logs what it says of the document named filename: a
-// warning when the output falls short of the profile.
-func (o *remediationOutcome) add(ctx *api.Context, filename string, report *litho.RemediationReport) {
+// remediatedProfiles names the profiles a remediation targets: target, the
+// PDF/A one or Factur-X, and pdfua, the PDF/UA one, each "" for none.
+type remediatedProfiles struct {
+	target string
+	pdfua  string
+}
+
+// of returns the profile a residual violation of the standard spec, a
+// [litho.Violation] Specification, belongs to. ISO 14289 states the PDF/UA
+// requirements, and ISO 32005 the structure rules PDF/UA-2 applies; every
+// other standard belongs to the PDF/A side, the Factur-X rules included.
+func (p remediatedProfiles) of(spec string) string {
+	if p.target == "" || p.pdfua != "" && (strings.HasPrefix(spec, "ISO_14289") || spec == "ISO_32005") {
+		return p.pdfua
+	}
+
+	return p.target
+}
+
+// add sums report, and logs what it says of the document named filename,
+// remediated to profiles: a warning when the output falls short of a profile,
+// its residual grouped by profile.
+func (o *remediationOutcome) add(ctx *api.Context, filename string, report *litho.RemediationReport, profiles remediatedProfiles) {
 	o.mu.Lock()
 	o.residual += len(report.Residual)
 	o.rolledBack += len(report.RolledBack)
 	o.mu.Unlock()
 
-	residual := make([]string, len(report.Residual))
-	for i, err := range report.Residual {
-		residual[i] = err.Error()
+	residual := make(map[string][]string)
+	for _, v := range report.ResidualViolations() {
+		profile := profiles.of(v.Specification)
+		residual[profile] = append(residual[profile], v.Error())
 	}
 
 	fonts := make([]string, len(report.FontRefusals))
@@ -714,8 +736,10 @@ type runEnv struct {
 	pageCount int
 	files     map[string]string
 	readers   []*litho.Reader
-	// report is what the remediation of the document said, if any.
-	report *litho.RemediationReport
+	// report is what the remediation of the document said, if any, and
+	// reportProfiles the profiles it remediated to.
+	report         *litho.RemediationReport
+	reportProfiles remediatedProfiles
 	// source is the document the run edits, and attachments the attach and
 	// detach stages the run applied to it so far, in order.
 	source      *litho.Reader

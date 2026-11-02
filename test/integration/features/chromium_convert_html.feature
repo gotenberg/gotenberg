@@ -1360,6 +1360,19 @@ Feature: /forms/chromium/convert/html
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 0 failed rule(s)
 
+  # Chromium writes no structure tree here: the PDF/UA engine tags the pages.
+  @pdf-remediate
+  Scenario: POST /forms/chromium/convert/html (PDF/A-2b & PDF/UA-1)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files  | testdata/page-1-html/index.html                        | file  |
+      | stages | [{"op":"remediate","profile":["PDF/A-2b","PDF/UA-1"]}] | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then the response header "Gotenberg-Remediation-Residual" should be "0"
+    Then the response PDF(s) should be valid "PDF/A-2b" with a tolerance of 0 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 0 failed rule(s)
+
   @pdf-remediate
   @pdf-split
   Scenario: POST /forms/chromium/convert/html (Split & PDF/A-1b)

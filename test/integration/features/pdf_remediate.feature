@@ -151,6 +151,71 @@ Feature: /forms/pdf/remediate
       Stage 'remediate' failed on 'page_1.pdf': no hybrid invoice attachment found
       """
 
+  # A pair of profiles, the field repeated, writes a PDF that conforms to both,
+  # and the residual header counts what either leaves.
+  Scenario: POST /forms/pdf/remediate (PDF/A-2b & PDF/UA-1)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
+      | files   | testdata/page_1.pdf | file  |
+      | profile | PDF/A-2b            | field |
+      | profile | PDF/UA-1            | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then the response header "Gotenberg-Remediation-Residual" should be "0"
+    Then the response header "Gotenberg-Remediation-Rolled-Back" should be "0"
+    Then the response PDF(s) should be valid "PDF/A-2b" with a tolerance of 0 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 0 failed rule(s)
+
+  Scenario: POST /forms/pdf/pipe (PDF/A-4 & PDF/UA-2)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
+      | files  | testdata/pages_3.pdf                                  | file  |
+      | stages | [{"op":"remediate","profile":["PDF/A-4","PDF/UA-2"]}] | field |
+    Then the response status code should be 200
+    Then the response header "Gotenberg-Remediation-Residual" should be "0"
+    Then the response PDF(s) should be valid "PDF/A-4" with a tolerance of 0 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-2" with a tolerance of 0 failed rule(s)
+
+  @factur-x
+  Scenario: POST /forms/pdf/remediate (Factur-X & PDF/UA-1)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf  | file   |
+      | files                     | testdata/embed_1.xml | file   |
+      | profile                   | Factur-X             | field  |
+      | profile                   | PDF/UA-1             | field  |
+      | xml                       | embed_1.xml          | field  |
+      | level                     | EN 16931             | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then the response header "Gotenberg-Remediation-Residual" should be "0"
+    Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 0 failed rule(s)
+    Then the response PDF(s) should be valid "PDF/UA-1" with a tolerance of 0 failed rule(s)
+    Then the response PDF(s) should have the "factur-x.xml" file embedded with relationship "Alternative"
+    Then the response PDF(s) should declare Factur-X XMP with conformance level "EN 16931"
+
+  # A PDF/A profile pairs with the PDF/UA profile of its PDF version alone, and
+  # a list remediates once.
+  Scenario: POST /forms/pdf/remediate (Impossible Pair)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
+      | files   | testdata/page_1.pdf | file  |
+      | profile | PDF/A-2b            | field |
+      | profile | PDF/UA-2            | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: remediate: "profile" pairs a PDF/A profile with the PDF/UA profile of its PDF version: PDF/A-1a, PDF/A-1b, PDF/A-2a, PDF/A-2b, PDF/A-2u, PDF/A-3a, PDF/A-3b, PDF/A-3u or Factur-X with PDF/UA-1, and PDF/A-4, PDF/A-4e or PDF/A-4f with PDF/UA-2; got ["PDF/A-2b","PDF/UA-2"]
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.pdf                                                               | file  |
+      | stages | [{"op":"remediate","profile":"PDF/A-2b"},{"op":"remediate","profile":"PDF/UA-1"}] | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'stages' is invalid: stage 1: only one "remediate" stage is allowed; to remediate to a PDF/A profile and a PDF/UA one together, give one stage both, such as {"op":"remediate","profile":["PDF/A-2b","PDF/UA-1"]}
+      """
+
   @webhook
   Scenario: POST /forms/pdf/remediate (Webhook)
     Given I have a default Gotenberg container
