@@ -65,6 +65,7 @@ Available tags:
 
 - `the response status code should be <code>`
 - `the (response|webhook request|file request|server request) header "<name>" should be "<value>"` (the helper server's last request of that kind: `webhook request` is a webhook delivery, `file request` a file served from `/static`, `server request` a page served from `/html` or `/redirect-to-private`)
+- `the (response|webhook request|file request|server request) header "<name>" should contain "<value>"`
 - `the webhook request header "<name>" should carry trace id "<trace id>"` (a W3C `traceparent` header)
 - `the (response|webhook request|file request|server request) cookie "<name>" should be "<value>"`
 - `the (response|webhook request) body should match string:` (docstring)

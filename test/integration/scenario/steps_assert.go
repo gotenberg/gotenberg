@@ -201,6 +201,24 @@ func (s *scenario) theHeaderValueShouldBe(kind, name string, expected string) er
 	return nil
 }
 
+func (s *scenario) theHeaderValueShouldContain(kind, name string, expected string) error {
+	var actual string
+	if kind == "response" {
+		actual = s.resp.Header().Get(name)
+	} else {
+		rec, err := s.received(kind)
+		if err != nil {
+			return err
+		}
+		actual = rec.header.Get(name)
+	}
+
+	if !strings.Contains(actual, expected) {
+		return fmt.Errorf("expected %s header %q to contain: %q, but actual is: %q", kind, name, expected, actual)
+	}
+	return nil
+}
+
 func (s *scenario) theWebhookRequestHeaderShouldCarryTraceID(name, expected string) error {
 	rec, err := s.received("webhook request")
 	if err != nil {

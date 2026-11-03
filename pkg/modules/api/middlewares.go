@@ -571,7 +571,8 @@ func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, bodyLimi
 			}
 
 			// Send the output file.
-			err = c.Attachment(outputPath, ctx.OutputFilename(outputPath))
+			c.Response().Header().Set(echo.HeaderContentDisposition, ContentDisposition(ctx.OutputFilename(outputPath)))
+			err = c.File(outputPath)
 			if err != nil {
 				return fmt.Errorf("send response: %w", err)
 			}

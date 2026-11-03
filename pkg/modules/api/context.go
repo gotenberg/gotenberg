@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-retryablehttp"
@@ -893,6 +894,50 @@ func (ctx *Context) OutputFilename(outputPath string) string {
 	filename := ctx.outputFilename
 
 	return fmt.Sprintf("%s%s", filename, filepath.Ext(outputPath))
+}
+
+// ContentDisposition returns the Content-Disposition header value of an
+// attachment named filename. A name with non-ASCII characters also travels in
+// the "filename*" parameter, percent-encoded in UTF-8, beside an ASCII
+// "filename" fallback for the clients that read only that one. See RFC 6266,
+// section 4.3, and RFC 8187, section 3.2.
+func ContentDisposition(filename string) string {
+	var fallback strings.Builder
+	ascii := true
+	for _, r := range filename {
+		if r < utf8.RuneSelf && r >= ' ' && r != 0x7f {
+			fallback.WriteRune(r)
+			continue
+		}
+		ascii = false
+		fallback.WriteByte('_')
+	}
+
+	value := fmt.Sprintf(`attachment; filename="%s"`, strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(fallback.String()))
+	if ascii {
+		return value
+	}
+
+	var encoded strings.Builder
+	for _, b := range []byte(filename) {
+		if isAttrChar(b) {
+			encoded.WriteByte(b)
+			continue
+		}
+		fmt.Fprintf(&encoded, "%%%02X", b)
+	}
+
+	return fmt.Sprintf("%s; filename*=UTF-8''%s", value, encoded.String())
+}
+
+// isAttrChar reports whether b is an attr-char of RFC 8187, section 3.2.1: the
+// bytes that stay as they are in an extended parameter value.
+func isAttrChar(b byte) bool {
+	switch {
+	case b >= 'a' && b <= 'z', b >= 'A' && b <= 'Z', b >= '0' && b <= '9':
+		return true
+	}
+	return strings.IndexByte("!#$&+-.^_`|~", b) >= 0
 }
 
 // maxDiskExtLength bounds the extension copied onto a UUID-based disk name.

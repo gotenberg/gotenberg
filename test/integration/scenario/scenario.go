@@ -141,6 +141,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^all sequential response status codes should be (\d+)$`, s.allSequentialResponseStatusCodesShouldBe)
 	ctx.Then(`^all concurrent responses should have (\d+) PDF\(s\)$`, s.allConcurrentResponsesShouldHavePdfs)
 	ctx.Then(`^the (response|webhook request|file request|server request) header "([^"]*)" should be "([^"]*)"$`, s.theHeaderValueShouldBe)
+	ctx.Then(`^the (response|webhook request|file request|server request) header "([^"]*)" should contain "([^"]*)"$`, s.theHeaderValueShouldContain)
 	ctx.Then(`^the webhook request header "([^"]*)" should carry trace id "([^"]*)"$`, s.theWebhookRequestHeaderShouldCarryTraceID)
 	ctx.Then(`^the (response|webhook request|file request|server request) cookie "([^"]*)" should be "([^"]*)"$`, s.theCookieValueShouldBe)
 	ctx.Then(`^the (response|webhook request) body should match string:$`, s.theBodyShouldMatchString)

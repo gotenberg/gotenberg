@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"mime"
 	"maps"
 	"mime/multipart"
 	"net/http"
@@ -1309,6 +1310,38 @@ func TestGiveUpDownload(t *testing.T) {
 			}
 			if err == nil || err.Error() != tc.want {
 				t.Errorf("giveUpDownload() error = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestContentDisposition(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		filename string
+		want     string
+	}{
+		{name: "ASCII", filename: "foo.pdf", want: `attachment; filename="foo.pdf"`},
+		{name: "space", filename: "my report.pdf", want: `attachment; filename="my report.pdf"`},
+		{name: "quote", filename: `quo"te.pdf`, want: `attachment; filename="quo\"te.pdf"`},
+		{name: "backslash", filename: `a\b.pdf`, want: `attachment; filename="a\\b.pdf"`},
+		{name: "extension kept", filename: "report.pdf.pdf", want: `attachment; filename="report.pdf.pdf"`},
+		{name: "non-ASCII", filename: "é日本.pdf", want: `attachment; filename="___.pdf"; filename*=UTF-8''%C3%A9%E6%97%A5%E6%9C%AC.pdf`},
+		{name: "non-ASCII with a quote and a semicolon", filename: `é";a=b.pdf`, want: `attachment; filename="_\";a=b.pdf"; filename*=UTF-8''%C3%A9%22%3Ba%3Db.pdf`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ContentDisposition(tc.filename)
+			if got != tc.want {
+				t.Fatalf("got %s, want %s", got, tc.want)
+			}
+
+			// A client must read the name back.
+			_, params, err := mime.ParseMediaType(got)
+			if err != nil {
+				t.Fatalf("parse media type: %v", err)
+			}
+			if params["filename"] != tc.filename {
+				t.Errorf("parsed filename = %q, want %q", params["filename"], tc.filename)
 			}
 		})
 	}

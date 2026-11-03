@@ -79,7 +79,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 					headers[params.correlationIdHeader] = params.correlationId
 					_, ok := params.extraHttpHeaders[echo.HeaderContentDisposition]
 					if !ok {
-						headers[echo.HeaderContentDisposition] = fmt.Sprintf("attachment; filename=%q", params.ctx.OutputFilename(params.outputPath))
+						headers[echo.HeaderContentDisposition] = api.ContentDisposition(params.ctx.OutputFilename(params.outputPath))
 					}
 
 					err = params.client.send(params.ctx, bufio.NewReader(outputFile), headers)
