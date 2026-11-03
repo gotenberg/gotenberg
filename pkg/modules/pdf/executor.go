@@ -109,8 +109,10 @@ func (p *Processor) run(ctx *api.Context, stages Stages, inputPaths []string, fi
 	}
 
 	// optimize rewrites a document decrypted: only decrypt, which removes the
-	// encryption on purpose, or encrypt, which applies one, make that safe.
-	encryptionHandled := password != "" || slices.ContainsFunc(stages, func(s stage) bool { return s.op() == "encrypt" })
+	// encryption on purpose, or encrypt, which applies one, make that safe. A
+	// decrypt stage without a password counts: an owner-password-only PDF
+	// opens with an empty user password.
+	encryptionHandled := slices.ContainsFunc(stages, func(s stage) bool { return s.op() == "encrypt" || s.op() == "decrypt" })
 
 	var err error
 	for i := 0; i < len(stages); {

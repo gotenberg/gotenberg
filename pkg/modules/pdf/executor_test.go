@@ -977,6 +977,11 @@ func TestRunOptimize(t *testing.T) {
 			stages:  `[{"op":"decrypt","password":"owner"},{"op":"optimize"}]`,
 		},
 		{
+			name:    "encrypted with an owner password only, then decrypted without password",
+			prepare: `[{"op":"encrypt","ownerPassword":"owner"}]`,
+			stages:  `[{"op":"decrypt"},{"op":"optimize"}]`,
+		},
+		{
 			name:      "encrypted, then encrypted again",
 			prepare:   `[{"op":"encrypt","ownerPassword":"owner"}]`,
 			stages:    `[{"op":"optimize"},{"op":"encrypt","ownerPassword":"other"}]`,

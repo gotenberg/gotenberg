@@ -61,6 +61,19 @@ Feature: /forms/pdf/{encrypt|decrypt}
     Then the response status code should be 200
     Then the response PDF(s) should NOT be encrypted
 
+  Scenario: POST /forms/pdf/pipe (Decrypt Without Password, Then Optimize)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/encrypt" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf | file   |
+      | ownerPassword             | own                 | field  |
+      | Gotenberg-Output-Filename | foo                 | header |
+    Then the response status code should be 200
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
+      | files  | teststore/foo.pdf                    | file  |
+      | stages | [{"op":"decrypt"},{"op":"optimize"}] | field |
+    Then the response status code should be 200
+    Then the response PDF(s) should NOT be encrypted
+
   Scenario: POST /forms/pdf/rotate (Encrypted Input)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/encrypt" endpoint with the following form data and header(s):
