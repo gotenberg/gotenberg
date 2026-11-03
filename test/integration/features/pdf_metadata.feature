@@ -136,3 +136,38 @@ Feature: /forms/pdf/{set-metadata|metadata}
       """
       Stage 'metadata' failed on 'truncated.pdf': open PDF:
       """
+
+  Scenario: POST /forms/pdf/set-metadata (Invalid Dates)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/set-metadata" endpoint with the following form data and header(s):
+      | files        | testdata/page_1.pdf | file  |
+      | creationDate | 2026-10-01          | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: set-metadata: "creationDate" must be a PDF date, such as "D:20261001090000Z" (D: then the year, month, day, hours, minutes and seconds, and Z for UTC), got "2026-10-01"
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/set-metadata" endpoint with the following form data and header(s):
+      | files   | testdata/page_1.pdf | file  |
+      | modDate | D:20261301          | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: set-metadata: "modDate" must be a PDF date, such as "D:20261001090000Z" (D: then the year, month, day, hours, minutes and seconds, and Z for UTC), got "D:20261301"
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/set-metadata" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf | file   |
+      | creationDate              | D:20261001090000Z   | field  |
+      | Gotenberg-Output-Filename | foo                 | header |
+    Then the response status code should be 200
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/metadata" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file |
+    Then the response status code should be 200
+    Then the response body should match JSON:
+      """
+      {
+        "foo.pdf": {
+          "creationDate": "D:20261001090000Z"
+        }
+      }
+      """

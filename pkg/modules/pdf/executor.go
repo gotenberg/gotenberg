@@ -375,10 +375,12 @@ func (p *Processor) splitOne(ctx *api.Context, s *splitStage, d document, passwo
 func splitGroups(s *splitStage, pageCount int) ([][]int, error) {
 	var groups [][]int
 
-	if s.Every > 0 {
-		for start := 1; start <= pageCount; start += s.Every {
+	if s.Every != nil {
+		every := *s.Every
+
+		for start := 1; start <= pageCount; start += every {
 			var pages []int
-			for page := start; page < start+s.Every && page <= pageCount; page++ {
+			for page := start; page < start+every && page <= pageCount; page++ {
 				pages = append(pages, page)
 			}
 
@@ -389,7 +391,7 @@ func splitGroups(s *splitStage, pageCount int) ([][]int, error) {
 	}
 
 	for _, part := range s.Ranges {
-		pages, err := litho.ParsePageRanges(part, pageCount)
+		pages, err := parsePages(part, pageCount)
 		if err != nil {
 			return nil, err
 		}
@@ -463,7 +465,7 @@ func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password st
 	for i, s := range run {
 		switch s := s.(type) {
 		case *selectStage:
-			pages, err := litho.ParsePageRanges(s.Pages, pageCount)
+			pages, err := parsePages(s.Pages, pageCount)
 			if err != nil {
 				return document{}, &stageError{op: s.op(), filename: d.filename, err: err}
 			}
@@ -809,7 +811,7 @@ func (env *runEnv) pages(spec string) ([]int, error) {
 		return nil, nil
 	}
 
-	return litho.ParsePageRanges(spec, env.pageCount)
+	return parsePages(spec, env.pageCount)
 }
 
 // read returns the content of an uploaded file.

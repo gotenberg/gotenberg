@@ -104,7 +104,7 @@ func (p *Processor) renderOne(ctx *api.Context, s *renderStage, d document, pass
 // empty.
 func renderPages(spec string, pageCount int) ([]int, error) {
 	if strings.TrimSpace(spec) != "" {
-		return litho.ParsePageRanges(spec, pageCount)
+		return parsePages(spec, pageCount)
 	}
 
 	pages := make([]int, pageCount)
@@ -148,11 +148,11 @@ func writeImage(path string, img image.Image, s *renderStage) error {
 
 // dpi returns the resolution, litho's default when unset.
 func (s *renderStage) dpi() int {
-	if s.Dpi == 0 {
+	if s.Dpi == nil {
 		return litho.DefaultRenderDPI
 	}
 
-	return s.Dpi
+	return *s.Dpi
 }
 
 // format returns the image format, png when unset.
@@ -166,9 +166,9 @@ func (s *renderStage) format() string {
 
 // quality returns the jpeg quality, 100 when unset.
 func (s *renderStage) quality() int {
-	if s.Quality == 0 {
+	if s.Quality == nil {
 		return 100
 	}
 
-	return s.Quality
+	return *s.Quality
 }

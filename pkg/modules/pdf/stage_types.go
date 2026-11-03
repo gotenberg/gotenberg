@@ -20,7 +20,7 @@ func (*mergeStage) files() []string { return nil }
 // chunks of that many pages; Ranges into one document per page selection, such
 // as ["1-3","4","5,7"].
 type splitStage struct {
-	Every  int      `json:"every"`
+	Every  *int     `json:"every"`
 	Ranges []string `json:"ranges"`
 }
 
@@ -28,12 +28,12 @@ func (*splitStage) op() string { return "split" }
 
 func (s *splitStage) validate() error {
 	switch {
-	case s.Every == 0 && len(s.Ranges) == 0:
+	case s.Every == nil && len(s.Ranges) == 0:
 		return errors.New(`set "every" or "ranges"`)
-	case s.Every != 0 && len(s.Ranges) != 0:
+	case s.Every != nil && len(s.Ranges) != 0:
 		return errors.New(`set "every" or "ranges", not both`)
-	case s.Every < 0:
-		return fmt.Errorf(`"every" must be a positive number of pages, got %d`, s.Every)
+	case s.Every != nil && *s.Every < 1:
+		return fmt.Errorf(`"every" must be at least 1, got %d`, *s.Every)
 	}
 
 	for i, r := range s.Ranges {
@@ -93,15 +93,19 @@ func (s *insertStage) files() []string { return []string{s.Source} }
 // rotateStage sets the rotation of the given pages, all of them when Pages is
 // empty.
 type rotateStage struct {
-	Angle int    `json:"angle"`
+	Angle *int   `json:"angle"`
 	Pages string `json:"pages"`
 }
 
 func (*rotateStage) op() string { return "rotate" }
 
 func (s *rotateStage) validate() error {
-	if s.Angle%90 != 0 {
-		return fmt.Errorf(`"angle" must be a multiple of 90, got %d`, s.Angle)
+	if s.Angle == nil {
+		return errors.New(`"angle" is required, a multiple of 90 such as 90, 180 or 270`)
+	}
+
+	if *s.Angle%90 != 0 {
+		return fmt.Errorf(`"angle" must be a multiple of 90, got %d`, *s.Angle)
 	}
 
 	return nil
@@ -112,15 +116,15 @@ func (*rotateStage) files() []string { return nil }
 // stampTextStage draws a line of text over the given pages, all of them when
 // Pages is empty. Coordinates are in points from the bottom-left corner.
 type stampTextStage struct {
-	Text     string  `json:"text"`
-	Pages    string  `json:"pages"`
-	X        float64 `json:"x"`
-	Y        float64 `json:"y"`
-	FontSize float64 `json:"fontSize"`
-	Font     string  `json:"font"`
-	Color    string  `json:"color"`
-	Opacity  float64 `json:"opacity"`
-	Rotation float64 `json:"rotation"`
+	Text     string   `json:"text"`
+	Pages    string   `json:"pages"`
+	X        float64  `json:"x"`
+	Y        float64  `json:"y"`
+	FontSize *float64 `json:"fontSize"`
+	Font     string   `json:"font"`
+	Color    string   `json:"color"`
+	Opacity  float64  `json:"opacity"`
+	Rotation float64  `json:"rotation"`
 }
 
 func (*stampTextStage) op() string { return "stamp-text" }
@@ -128,6 +132,10 @@ func (*stampTextStage) op() string { return "stamp-text" }
 func (s *stampTextStage) validate() error {
 	if s.Text == "" {
 		return errors.New(`"text" must not be empty`)
+	}
+
+	if s.FontSize != nil && *s.FontSize <= 0 {
+		return fmt.Errorf(`"fontSize" must be greater than 0, got %g`, *s.FontSize)
 	}
 
 	if s.Font != "" {
@@ -182,14 +190,14 @@ func (s *stampImageStage) files() []string { return []string{s.Image} }
 // stampPdfStage draws page SourcePage of the uploaded PDF Source over the
 // given pages, all of them when Pages is empty.
 type stampPdfStage struct {
-	Source     string  `json:"source"`
-	SourcePage int     `json:"sourcePage"`
-	Pages      string  `json:"pages"`
-	X          float64 `json:"x"`
-	Y          float64 `json:"y"`
-	Scale      float64 `json:"scale"`
-	Opacity    float64 `json:"opacity"`
-	Rotation   float64 `json:"rotation"`
+	Source     string   `json:"source"`
+	SourcePage int      `json:"sourcePage"`
+	Pages      string   `json:"pages"`
+	X          float64  `json:"x"`
+	Y          float64  `json:"y"`
+	Scale      *float64 `json:"scale"`
+	Opacity    float64  `json:"opacity"`
+	Rotation   float64  `json:"rotation"`
 }
 
 func (*stampPdfStage) op() string { return "stamp-pdf" }
@@ -201,6 +209,10 @@ func (s *stampPdfStage) validate() error {
 
 	if s.SourcePage < 0 {
 		return fmt.Errorf(`"sourcePage" must be a page number, got %d`, s.SourcePage)
+	}
+
+	if s.Scale != nil && *s.Scale <= 0 {
+		return fmt.Errorf(`"scale" must be greater than 0, got %g`, *s.Scale)
 	}
 
 	return validateOpacity(s.Opacity)
@@ -221,8 +233,17 @@ type setMetadataStage struct {
 	ModDate      string `json:"modDate"`
 }
 
-func (*setMetadataStage) op() string      { return "set-metadata" }
-func (*setMetadataStage) validate() error { return nil }
+func (*setMetadataStage) op() string { return "set-metadata" }
+
+func (s *setMetadataStage) validate() error {
+	err := validatePDFDate("creationDate", s.CreationDate)
+	if err != nil {
+		return err
+	}
+
+	return validatePDFDate("modDate", s.ModDate)
+}
+
 func (*setMetadataStage) files() []string { return nil }
 
 // setBookmarksStage replaces the outline.
@@ -747,26 +768,26 @@ func (*timestampStage) files() []string { return nil }
 // png, and Quality, for jpeg only, to 100.
 type renderStage struct {
 	Pages   string `json:"pages"`
-	Dpi     int    `json:"dpi"`
+	Dpi     *int   `json:"dpi"`
 	Format  string `json:"format"`
-	Quality int    `json:"quality"`
+	Quality *int   `json:"quality"`
 }
 
 func (*renderStage) op() string { return "render" }
 
 func (s *renderStage) validate() error {
-	if s.Dpi < 0 {
-		return fmt.Errorf(`"dpi" must be positive, got %d`, s.Dpi)
+	if s.Dpi != nil && *s.Dpi < 1 {
+		return fmt.Errorf(`"dpi" must be at least 1, got %d`, *s.Dpi)
 	}
 
 	switch s.Format {
 	case "", "png":
-		if s.Quality != 0 {
+		if s.Quality != nil {
 			return errors.New(`"quality" only applies to the jpeg format`)
 		}
 	case "jpeg":
-		if s.Quality < 0 || s.Quality > 100 {
-			return fmt.Errorf(`"quality" must be between 1 and 100, got %d`, s.Quality)
+		if s.Quality != nil && (*s.Quality < 1 || *s.Quality > 100) {
+			return fmt.Errorf(`"quality" must be between 1 and 100, got %d`, *s.Quality)
 		}
 	default:
 		return fmt.Errorf(`"format" must be png or jpeg, got %q`, s.Format)

@@ -144,3 +144,13 @@ Feature: /forms/pdf/rotate
       """
       Stage 'rotate' failed on 'truncated.pdf': open PDF:
       """
+
+  Scenario: POST /forms/pdf/rotate (Missing Angle)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/rotate" endpoint with the following form data and header(s):
+      | files | testdata/page_1.pdf | file |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: rotate: "angle" is required, a multiple of 90 such as 90, 180 or 270
+      """

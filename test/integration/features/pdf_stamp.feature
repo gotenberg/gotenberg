@@ -148,3 +148,34 @@ Feature: /forms/pdf/{stamp-text|stamp-image|stamp-pdf}
       | image        | watermark.png                                      | field |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
+
+  Scenario: POST /forms/pdf/{stamp-text|stamp-pdf} (Invalid Numbers)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/stamp-text" endpoint with the following form data and header(s):
+      | files    | testdata/page_1.pdf | file  |
+      | text     | DRAFT               | field |
+      | fontSize | -4                  | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: stamp-text: "fontSize" must be greater than 0, got -4
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/stamp-text" endpoint with the following form data and header(s):
+      | files    | testdata/page_1.pdf | file  |
+      | text     | DRAFT               | field |
+      | fontSize | 0                   | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: stamp-text: "fontSize" must be greater than 0, got 0
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/stamp-pdf" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.pdf | file  |
+      | files  | testdata/page_2.pdf | file  |
+      | source | page_2.pdf          | field |
+      | scale  | -1                  | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: stamp-pdf: "scale" must be greater than 0, got -1
+      """

@@ -104,3 +104,20 @@ Feature: /forms/pdf/{select|delete|insert}
       """
       Invalid form data: no PDF to process; every uploaded PDF is read by a stage
       """
+
+  Scenario: POST /forms/pdf/{select|delete} (All Pages)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/select" endpoint with the following form data and header(s):
+      | files                     | testdata/pages_3.pdf | file   |
+      | pages                     | all                  | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then the "foo.pdf" PDF should have 3 page(s)
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/delete" endpoint with the following form data and header(s):
+      | files | testdata/pages_3.pdf | file  |
+      | pages | all                  | field |
+    Then the response status code should be 400
+    Then the response body should contain string:
+      """
+      Stage 'delete' failed on 'pages_3.pdf':
+      """

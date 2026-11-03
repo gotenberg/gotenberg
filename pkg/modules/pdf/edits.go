@@ -36,7 +36,7 @@ func (s *insertStage) edit(ctx context.Context, w *litho.Writer, env *runEnv) er
 			return fmt.Errorf("count the pages of %q: %w", s.Source, err)
 		}
 
-		sourcePages, err = litho.ParsePageRanges(s.SourcePages, count)
+		sourcePages, err = parsePages(s.SourcePages, count)
 		if err != nil {
 			return err
 		}
@@ -51,7 +51,7 @@ func (s *rotateStage) edit(_ context.Context, w *litho.Writer, env *runEnv) erro
 		return err
 	}
 
-	return w.RotatePages(s.Angle, pages...)
+	return w.RotatePages(*s.Angle, pages...)
 }
 
 func (s *stampTextStage) edit(_ context.Context, w *litho.Writer, env *runEnv) error {
@@ -64,7 +64,7 @@ func (s *stampTextStage) edit(_ context.Context, w *litho.Writer, env *runEnv) e
 		Text:     s.Text,
 		X:        s.X,
 		Y:        s.Y,
-		FontSize: s.FontSize,
+		FontSize: derefOr(s.FontSize, 0),
 		Opacity:  s.Opacity,
 		Rotation: s.Rotation,
 	}
@@ -132,7 +132,7 @@ func (s *stampPdfStage) edit(ctx context.Context, w *litho.Writer, env *runEnv) 
 		Page:     page,
 		X:        s.X,
 		Y:        s.Y,
-		Scale:    s.Scale,
+		Scale:    derefOr(s.Scale, 0),
 		Opacity:  s.Opacity,
 		Rotation: s.Rotation,
 	}, pages...)

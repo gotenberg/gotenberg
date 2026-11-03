@@ -99,3 +99,40 @@ Feature: /forms/pdf/render
     Then the response status code should be 204
     When I wait for the asynchronous request to the webhook
     Then the webhook request header "Content-Type" should be "application/zip"
+
+  Scenario: POST /forms/pdf/render (Invalid Numbers)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/render" endpoint with the following form data and header(s):
+      | files   | testdata/page_1.pdf | file  |
+      | format  | jpeg                | field |
+      | quality | 0                   | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: render: "quality" must be between 1 and 100, got 0
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/render" endpoint with the following form data and header(s):
+      | files   | testdata/page_1.pdf | file  |
+      | format  | jpeg                | field |
+      | quality | 101                 | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: render: "quality" must be between 1 and 100, got 101
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/render" endpoint with the following form data and header(s):
+      | files | testdata/page_1.pdf | file  |
+      | dpi   | 0                   | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: render: "dpi" must be at least 1, got 0
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/render" endpoint with the following form data and header(s):
+      | files | testdata/page_1.pdf | file  |
+      | dpi   | -72                 | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: render: "dpi" must be at least 1, got -72
+      """

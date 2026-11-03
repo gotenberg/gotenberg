@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -120,4 +121,71 @@ func boolOr(b *bool, fallback bool) bool {
 	}
 
 	return *b
+}
+
+// derefOr returns *v, or fallback when v is nil.
+func derefOr[T any](v *T, fallback T) T {
+	if v == nil {
+		return fallback
+	}
+
+	return *v
+}
+
+// parsePages resolves a page range specification against a document of
+// pageCount pages: litho's, plus "all" on its own, every page.
+func parsePages(spec string, pageCount int) ([]int, error) {
+	if !strings.EqualFold(strings.TrimSpace(spec), "all") {
+		return litho.ParsePageRanges(spec, pageCount)
+	}
+
+	pages := make([]int, pageCount)
+	for i := range pages {
+		pages[i] = i + 1
+	}
+
+	return pages, nil
+}
+
+// pdfDatePattern matches a PDF date, D:YYYYMMDDHHmmSSOHH'mm (ISO 32000-1,
+// 7.9.4): the year is mandatory and each field after it is optional, the time
+// zone included.
+var pdfDatePattern = regexp.MustCompile(`^D:(\d{4})(\d{2})?(\d{2})?(\d{2})?(\d{2})?(\d{2})?(Z|[+-]\d{2})?(?:'?(\d{2})'?)?$`)
+
+// validatePDFDate checks that value, the option named field, is a PDF date.
+// An empty value leaves the field out, and passes.
+func validatePDFDate(field, value string) error {
+	if value == "" {
+		return nil
+	}
+
+	invalid := fmt.Errorf(`"%s" must be a PDF date, such as "D:20261001090000Z" (D: then the year, month, day, hours, minutes and seconds, and Z for UTC), got %q`, field, value)
+
+	m := pdfDatePattern.FindStringSubmatch(value)
+	if m == nil {
+		return invalid
+	}
+
+	// Month, day, hours, minutes, seconds: the largest value each takes.
+	limits := [...]struct{ min, max int }{{1, 12}, {1, 31}, {0, 23}, {0, 59}, {0, 59}}
+	for i, limit := range limits {
+		if m[i+2] == "" {
+			continue
+		}
+
+		n, err := strconv.Atoi(m[i+2])
+		if err != nil || n < limit.min || n > limit.max {
+			return invalid
+		}
+	}
+
+	// The minutes of the offset come after its hours.
+	if m[8] != "" {
+		n, err := strconv.Atoi(m[8])
+		if m[7] == "" || err != nil || n > 59 {
+			return invalid
+		}
+	}
+
+	return nil
 }

@@ -123,3 +123,22 @@ Feature: /forms/pdf/split
     When I wait for the asynchronous request to the webhook
     Then the webhook request header "Content-Type" should be "application/zip"
     Then there should be 2 PDF(s) in the webhook request
+
+  Scenario: POST /forms/pdf/split (Every Below 1)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/split" endpoint with the following form data and header(s):
+      | files | testdata/page_1.pdf | file  |
+      | every | 0                   | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: split: "every" must be at least 1, got 0
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/split" endpoint with the following form data and header(s):
+      | files | testdata/page_1.pdf | file  |
+      | every | -1                  | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: split: "every" must be at least 1, got -1
+      """

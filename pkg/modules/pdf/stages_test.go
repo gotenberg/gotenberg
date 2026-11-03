@@ -79,7 +79,23 @@ func TestParseStages(t *testing.T) {
 		{name: "bad render format", raw: `[{"op":"render","format":"webp"}]`, wantErr: "png or jpeg"},
 		{name: "quality on png", raw: `[{"op":"render","quality":80}]`, wantErr: "only applies to the jpeg"},
 		{name: "bad render quality", raw: `[{"op":"render","format":"jpeg","quality":101}]`, wantErr: "between 1 and 100"},
-		{name: "negative dpi", raw: `[{"op":"render","dpi":-1}]`, wantErr: `"dpi" must be positive`},
+		{name: "negative dpi", raw: `[{"op":"render","dpi":-1}]`, wantErr: `"dpi" must be at least 1, got -1`},
+		{name: "zero dpi", raw: `[{"op":"render","dpi":0}]`, wantErr: `"dpi" must be at least 1, got 0`},
+		{name: "zero jpeg quality", raw: `[{"op":"render","format":"jpeg","quality":0}]`, wantErr: `"quality" must be between 1 and 100, got 0`},
+		{name: "zero png quality", raw: `[{"op":"render","quality":0}]`, wantErr: `"quality" only applies to the jpeg format`},
+		{name: "jpeg quality", raw: `[{"op":"render","format":"jpeg","quality":1}]`, wantOps: []string{"render"}},
+		{name: "rotate without angle", raw: `[{"op":"rotate"}]`, wantErr: `rotate: "angle" is required, a multiple of 90 such as 90, 180 or 270`},
+		{name: "rotate by zero", raw: `[{"op":"rotate","angle":0}]`, wantOps: []string{"rotate"}},
+		{name: "zero font size", raw: `[{"op":"stamp-text","text":"t","fontSize":0}]`, wantErr: `stamp-text: "fontSize" must be greater than 0, got 0`},
+		{name: "negative font size", raw: `[{"op":"stamp-text","text":"t","fontSize":-4}]`, wantErr: `stamp-text: "fontSize" must be greater than 0, got -4`},
+		{name: "negative scale", raw: `[{"op":"stamp-pdf","source":"a.pdf","scale":-1}]`, wantErr: `stamp-pdf: "scale" must be greater than 0, got -1`},
+		{name: "zero scale", raw: `[{"op":"stamp-pdf","source":"a.pdf","scale":0}]`, wantErr: `stamp-pdf: "scale" must be greater than 0, got 0`},
+		{name: "split every zero", raw: `[{"op":"split","every":0}]`, wantErr: `split: "every" must be at least 1, got 0`},
+		{name: "split every negative", raw: `[{"op":"split","every":-1}]`, wantErr: `split: "every" must be at least 1, got -1`},
+		{name: "creation date in ISO form", raw: `[{"op":"set-metadata","creationDate":"2026-10-01"}]`, wantErr: `set-metadata: "creationDate" must be a PDF date, such as "D:20261001090000Z"`},
+		{name: "mod date month 13", raw: `[{"op":"set-metadata","modDate":"D:20261301"}]`, wantErr: `set-metadata: "modDate" must be a PDF date`},
+		{name: "PDF dates", raw: `[{"op":"set-metadata","creationDate":"D:20261001090000Z","modDate":"D:20261001090000+02'00'"}]`, wantOps: []string{"set-metadata"}},
+		{name: "PDF date to the day", raw: `[{"op":"set-metadata","creationDate":"D:20261001"}]`, wantOps: []string{"set-metadata"}},
 		{name: "render after sign", raw: `[{"op":"sign","certificate":"c.p12"},{"op":"render"}]`, wantOps: []string{"sign", "render"}},
 		{name: "render after remediate and encrypt", raw: `[{"op":"remediate","profile":"PDF/UA-1"},{"op":"encrypt","userPassword":"u"},{"op":"render"}]`, wantOps: []string{"remediate", "encrypt", "render"}},
 		{name: "sign then timestamp", raw: `[{"op":"sign","certificate":"c.p12"},{"op":"timestamp","timestampUrl":"https://tsa.example.com"}]`, wantOps: []string{"sign", "timestamp"}},
@@ -184,7 +200,7 @@ func TestRunEnd(t *testing.T) {
 }
 
 func TestSplitGroups(t *testing.T) {
-	groups, err := splitGroups(&splitStage{Every: 2}, 5)
+	groups, err := splitGroups(&splitStage{Every: new(2)}, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,5 +218,31 @@ func TestSplitGroups(t *testing.T) {
 
 	if _, err := splitGroups(&splitStage{Ranges: []string{"1", "9"}}, 5); err == nil {
 		t.Fatal("a range past the last page must fail")
+	}
+}
+
+func TestParsePages(t *testing.T) {
+	for _, tc := range []struct {
+		spec    string
+		want    []int
+		wantErr bool
+	}{
+		{spec: "all", want: []int{1, 2, 3}},
+		{spec: " ALL ", want: []int{1, 2, 3}},
+		{spec: "2-3", want: []int{2, 3}},
+		{spec: "last", want: []int{3}},
+		{spec: "all,1", wantErr: true},
+		{spec: "4", wantErr: true},
+	} {
+		t.Run(tc.spec, func(t *testing.T) {
+			got, err := parsePages(tc.spec, 3)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("err = %v, want error %t", err, tc.wantErr)
+			}
+
+			if !tc.wantErr && !slices.Equal(got, tc.want) {
+				t.Fatalf("pages = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }

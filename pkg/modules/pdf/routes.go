@@ -423,7 +423,7 @@ func readForm(ctx context.Context, r *litho.Reader, pages string) ([]formField, 
 			return nil, fmt.Errorf("count pages: %w", err)
 		}
 
-		selected, err = litho.ParsePageRanges(pages, count)
+		selected, err = parsePages(pages, count)
 		if err != nil {
 			return nil, fmt.Errorf("form field 'pages': %w", err)
 		}
