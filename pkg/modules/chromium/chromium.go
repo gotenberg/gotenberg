@@ -968,8 +968,9 @@ func conversionInputAttrs(ctx context.Context, url string) []attribute.KeyValue 
 }
 
 // chromiumErrorType maps a conversion error to its bounded error.type value,
-// shared by the conversion span and the gotenberg.chromium.errors metric.
-// Generic failures fall back to [gotenberg.ClassifyError].
+// shared by the conversion span and the gotenberg.chromium.* run metrics.
+// Generic failures, a deadline or a cancellation among them, fall back to
+// [gotenberg.ClassifyError].
 func chromiumErrorType(err error) string {
 	switch {
 	case errors.Is(err, ErrWaitTimeout):

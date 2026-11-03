@@ -703,8 +703,9 @@ func conversionRequestAttributes(inputPath string, options Options) []attribute.
 }
 
 // libreofficeErrorType maps a conversion error to its bounded error.type value,
-// shared by the conversion span and the gotenberg.libreoffice.errors metric.
-// Generic failures fall back to [gotenberg.ClassifyError].
+// shared by the conversion span and the gotenberg.libreoffice.* run metrics.
+// Generic failures, a deadline or a cancellation among them, fall back to
+// [gotenberg.ClassifyError].
 func libreofficeErrorType(err error) string {
 	switch {
 	case errors.Is(err, ErrInvalidPdfFormats),

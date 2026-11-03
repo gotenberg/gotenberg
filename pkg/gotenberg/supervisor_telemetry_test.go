@@ -25,7 +25,8 @@ func newTestMetricReader(t *testing.T) *sdkmetric.ManualReader {
 }
 
 // metricPoints returns, per attribute value of key, the sum of a counter or
-// the count of a histogram named name.
+// the count of a histogram named name. A data point without key counts under
+// "".
 func metricPoints(t *testing.T, reader *sdkmetric.ManualReader, name string, key attribute.Key) map[string]int64 {
 	t.Helper()
 
@@ -67,21 +68,20 @@ func TestProcessSupervisor_Run_Metrics(t *testing.T) {
 		maxQueueSize   int64
 		queued         int64
 		taskErr        error
-		expectStatus   string
-		expectReason   string
+		expectType     string
 		expectDuration bool
 	}{
-		{scenario: "success", expectStatus: "success", expectDuration: true},
-		{scenario: "error", taskErr: errBoom, expectStatus: "error", expectReason: "boom_reason", expectDuration: true},
-		{scenario: "timeout", taskErr: context.DeadlineExceeded, expectStatus: "timeout", expectReason: "timeout", expectDuration: true},
-		{scenario: "canceled", taskErr: context.Canceled, expectStatus: "canceled", expectReason: "context_cancelled", expectDuration: true},
+		// A success carries no error.type.
+		{scenario: "success", expectDuration: true},
+		{scenario: "error", taskErr: errBoom, expectType: "boom_reason", expectDuration: true},
+		{scenario: "timeout", taskErr: context.DeadlineExceeded, expectType: "timeout", expectDuration: true},
+		{scenario: "canceled", taskErr: context.Canceled, expectType: "context_cancelled", expectDuration: true},
 		{
 			// The run never starts, but its wait is still recorded.
 			scenario:     "queue full",
 			maxQueueSize: 1,
 			queued:       1,
-			expectStatus: "error",
-			expectReason: "queue_size_exceeded",
+			expectType:   "queue_size_exceeded",
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
@@ -108,24 +108,16 @@ func TestProcessSupervisor_Run_Metrics(t *testing.T) {
 
 			_ = ps.Run(context.Background(), slog.New(slog.DiscardHandler), func() error { return tc.taskErr })
 
-			if got := metricPoints(t, reader, "gotenberg.test.requests", "gotenberg.conversion.status"); got[tc.expectStatus] != 1 || len(got) != 1 {
-				t.Errorf("gotenberg.test.requests = %v, want one %q", got, tc.expectStatus)
+			if got := metricPoints(t, reader, "gotenberg.test.requests", "error.type"); got[tc.expectType] != 1 || len(got) != 1 {
+				t.Errorf("gotenberg.test.requests = %v, want one %q", got, tc.expectType)
 			}
 
-			errs := metricPoints(t, reader, "gotenberg.test.errors", "error.type")
-			if tc.expectReason == "" && len(errs) != 0 {
-				t.Errorf("gotenberg.test.errors = %v, want none", errs)
-			}
-			if tc.expectReason != "" && (errs[tc.expectReason] != 1 || len(errs) != 1) {
-				t.Errorf("gotenberg.test.errors = %v, want one %q", errs, tc.expectReason)
+			if got := metricPoints(t, reader, "gotenberg.test.queue.wait.duration", "error.type"); got[tc.expectType] != 1 || len(got) != 1 {
+				t.Errorf("gotenberg.test.queue.wait.duration = %v, want one %q", got, tc.expectType)
 			}
 
-			if got := metricPoints(t, reader, "gotenberg.test.queue.wait.duration", "gotenberg.conversion.status"); got[tc.expectStatus] != 1 {
-				t.Errorf("gotenberg.test.queue.wait.duration = %v, want one %q", got, tc.expectStatus)
-			}
-
-			durations := metricPoints(t, reader, "gotenberg.test.conversion.duration", "gotenberg.conversion.status")
-			if tc.expectDuration != (durations[tc.expectStatus] == 1) {
+			durations := metricPoints(t, reader, "gotenberg.test.conversion.duration", "error.type")
+			if tc.expectDuration != (durations[tc.expectType] == 1) {
 				t.Errorf("gotenberg.test.conversion.duration = %v, want recorded: %t", durations, tc.expectDuration)
 			}
 		})
@@ -148,8 +140,10 @@ func TestProcessSupervisor_MetricNames(t *testing.T) {
 		t.Fatalf("create supervisor: %v", err)
 	}
 
-	// A failed run feeds every instrument, the errors counter included.
+	// A failed run feeds every instrument with its error.type, and a
+	// successful one feeds them without it.
 	_ = ps.Run(context.Background(), slog.New(slog.DiscardHandler), func() error { return errors.New("boom") })
+	_ = ps.Run(context.Background(), slog.New(slog.DiscardHandler), func() error { return nil })
 
 	var rm metricdata.ResourceMetrics
 	err = reader.Collect(context.Background(), &rm)
@@ -168,10 +162,9 @@ func TestProcessSupervisor_MetricNames(t *testing.T) {
 		"gotenberg.test.request.active":      {},
 		"gotenberg.test.queue.size":          {},
 		"gotenberg.test.process.restarts":    {},
-		"gotenberg.test.requests":            {"gotenberg.conversion.status"},
-		"gotenberg.test.errors":              {"error.type"},
-		"gotenberg.test.conversion.duration": {"gotenberg.conversion.status"},
-		"gotenberg.test.queue.wait.duration": {"gotenberg.conversion.status"},
+		"gotenberg.test.requests":            {"error.type"},
+		"gotenberg.test.conversion.duration": {"error.type"},
+		"gotenberg.test.queue.wait.duration": {"error.type"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("recorded metrics and attribute keys = %v, want %v", got, want)

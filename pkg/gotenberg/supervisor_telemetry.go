@@ -2,7 +2,6 @@ package gotenberg
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -12,25 +11,10 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// conversionStatusKey is the attribute of the run metrics that holds the run
-// status. OpenTelemetry defines no attribute for the outcome of an operation:
-// error.type only marks a failure, and is absent on success.
-const conversionStatusKey = attribute.Key("gotenberg.conversion.status")
-
-// Run statuses, reported as the gotenberg.conversion.status attribute of the
-// run metrics.
-const (
-	runStatusSuccess  = "success"
-	runStatusError    = "error"
-	runStatusTimeout  = "timeout"
-	runStatusCanceled = "canceled"
-)
-
 // runMetrics are the gotenberg.<engine>.* instruments a [ProcessSupervisor]
 // records.
 type runMetrics struct {
 	requests  metric.Int64Counter
-	errors    metric.Int64Counter
 	queueWait metric.Float64Histogram
 	duration  metric.Float64Histogram
 }
@@ -87,15 +71,6 @@ func newRunMetrics(s *processSupervisor) (runMetrics, error) {
 		return runMetrics{}, fmt.Errorf("create %s counter: %w", name("requests"), err)
 	}
 
-	m.errors, err = meter.Int64Counter(
-		name("errors"),
-		metric.WithDescription(fmt.Sprintf("Total number of %s errors", s.engine)),
-		metric.WithUnit("{error}"),
-	)
-	if err != nil {
-		return runMetrics{}, fmt.Errorf("create %s counter: %w", name("errors"), err)
-	}
-
 	durationBuckets := metric.WithExplicitBucketBoundaries(0.5, 1, 2, 5, 10, 30, 60)
 
 	m.duration, err = meter.Float64Histogram(
@@ -119,21 +94,6 @@ func newRunMetrics(s *processSupervisor) (runMetrics, error) {
 	}
 
 	return m, nil
-}
-
-// runStatus maps the outcome of a run to its gotenberg.conversion.status
-// attribute.
-func runStatus(err error) string {
-	switch {
-	case err == nil:
-		return runStatusSuccess
-	case errors.Is(err, context.DeadlineExceeded):
-		return runStatusTimeout
-	case errors.Is(err, context.Canceled):
-		return runStatusCanceled
-	default:
-		return runStatusError
-	}
 }
 
 // runMeasure follows one run, from its arrival to its outcome.
@@ -163,21 +123,24 @@ func (m *runMeasure) taskStarted() {
 // records its whole duration as queue wait.
 func (m *runMeasure) end(ctx context.Context, err error) {
 	end := time.Now()
-	status := metric.WithAttributes(conversionStatusKey.String(runStatus(err)))
 
-	m.s.metrics.requests.Add(ctx, 1, status)
-
+	// Per the semconv, a failure carries an error.type and a success no
+	// attribute, so the failed runs are the requests with an error.type. It
+	// is the same value as on the span of the run, so that a metric data
+	// point and a span of one failure share it.
+	var attrs []attribute.KeyValue
 	if err != nil {
-		// The same error.type as the span of the run, so that a metric data
-		// point and a span of one failure share a value.
-		m.s.metrics.errors.Add(ctx, 1, metric.WithAttributes(semconv.ErrorTypeKey.String(m.s.errorType(err))))
+		attrs = append(attrs, semconv.ErrorTypeKey.String(m.s.errorType(err)))
 	}
+	outcome := metric.WithAttributes(attrs...)
+
+	m.s.metrics.requests.Add(ctx, 1, outcome)
 
 	if m.taskStart.IsZero() {
-		m.s.metrics.queueWait.Record(ctx, end.Sub(m.arrival).Seconds(), status)
+		m.s.metrics.queueWait.Record(ctx, end.Sub(m.arrival).Seconds(), outcome)
 		return
 	}
 
-	m.s.metrics.queueWait.Record(ctx, m.taskStart.Sub(m.arrival).Seconds(), status)
-	m.s.metrics.duration.Record(ctx, end.Sub(m.taskStart).Seconds(), status)
+	m.s.metrics.queueWait.Record(ctx, m.taskStart.Sub(m.arrival).Seconds(), outcome)
+	m.s.metrics.duration.Record(ctx, end.Sub(m.taskStart).Seconds(), outcome)
 }

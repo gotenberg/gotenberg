@@ -3,6 +3,7 @@ package chromium
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
@@ -17,6 +18,9 @@ func TestChromiumErrorType(t *testing.T) {
 		{"deadline", context.DeadlineExceeded, "timeout"},
 		{"wait out of time", &waitTimeoutError{field: "waitForSelector", value: "#never"}, "timeout"},
 		{"canceled", context.Canceled, "context_cancelled"},
+		{"wrapped deadline", fmt.Errorf("handle tasks: %w", context.DeadlineExceeded), "timeout"},
+		{"wrapped canceled", fmt.Errorf("handle tasks: %w", context.Canceled), "context_cancelled"},
+		{"unresolvable host", fmt.Errorf("navigate: %w", &gotenberg.UnresolvableHostError{Host: "gotenberg.invalid", Err: errors.New("no such host")}), "invalid_input"},
 		{"invalid http status", ErrInvalidHttpStatusCode, "invalid_input"},
 		{"invalid resource http status", ErrInvalidResourceHttpStatusCode, "invalid_input"},
 		{"loading failed", ErrLoadingFailed, "invalid_input"},
