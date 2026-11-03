@@ -205,3 +205,13 @@ Feature: /forms/pdf/{info|validate}
     When I make a "POST" request to Gotenberg at the "/forms/pdf/info" endpoint with the following form data and header(s):
       | files | testdata/page_1.pdf | file |
     Then the response status code should be 401
+
+  Scenario: POST /forms/pdf/info (Truncated PDF)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/info" endpoint with the following form data and header(s):
+      | files | testdata/truncated.pdf | file |
+    Then the response status code should be 400
+    Then the response body should contain string:
+      """
+      Stage 'info' failed on 'truncated.pdf': open PDF:
+      """

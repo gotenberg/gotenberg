@@ -133,3 +133,14 @@ Feature: /forms/pdf/rotate
       | files | testdata/page_1.pdf | file  |
       | angle | 90                  | field |
     Then the response status code should be 401
+
+  Scenario: POST /forms/pdf/rotate (Truncated PDF)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/rotate" endpoint with the following form data and header(s):
+      | files | testdata/truncated.pdf | file  |
+      | angle | 90                     | field |
+    Then the response status code should be 400
+    Then the response body should contain string:
+      """
+      Stage 'rotate' failed on 'truncated.pdf': open PDF:
+      """

@@ -714,3 +714,35 @@ func TestFormRoundTrip(t *testing.T) {
 		})
 	}
 }
+
+// A truncated PDF fails every route that reads it, and names the file. Until
+// litho classifies such a parse error as an invalid input, the status is a
+// 500: the integration scenarios hold the 400.
+func TestTruncatedPDF(t *testing.T) {
+	const fixture = "truncated.pdf"
+
+	processor := testProcessor()
+
+	for name, route := range map[string]api.Route{
+		"info":     infoRoute(processor),
+		"metadata": metadataRoute(processor),
+		"merge":    stageRoute(processor, "merge"),
+		"rotate":   stageRoute(processor, "rotate"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			values := map[string][]string{}
+			if name == "rotate" {
+				values["angle"] = []string{"90"}
+			}
+
+			_, _, err := serve(t, route, values, fixture)
+			if err == nil {
+				t.Fatal("a truncated PDF must fail")
+			}
+
+			if !strings.Contains(err.Error(), fixture) {
+				t.Fatalf("err = %v, want it to name %q", err, fixture)
+			}
+		})
+	}
+}

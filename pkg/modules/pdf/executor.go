@@ -195,7 +195,10 @@ func runEnd(stages Stages, start int) int {
 	return end
 }
 
-// open opens the PDF at path with the processor's limits.
+// open opens the PDF at path with the processor's limits, and reads its page
+// tree: litho opens a truncated or corrupt file lazily, and a route that never
+// reads the pages, such as metadata, or a merge of one file, would answer a
+// document it cannot read as if it were fine.
 func (p *Processor) open(ctx context.Context, path, password string) (*litho.Reader, error) {
 	opts := []litho.OpenOption{litho.WithLimits(p.limits)}
 	if password != "" {
@@ -205,6 +208,13 @@ func (p *Processor) open(ctx context.Context, path, password string) (*litho.Rea
 	r, err := litho.OpenFile(ctx, path, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("open PDF: %w", err)
+	}
+
+	_, err = r.PageCount(ctx)
+	if err != nil {
+		_ = r.Close()
+
+		return nil, fmt.Errorf("open PDF: count pages: %w", err)
 	}
 
 	return r, nil
@@ -253,6 +263,17 @@ func (p *Processor) write(ctx *api.Context, pipeline *litho.Pipeline, ops []stri
 
 // merge appends every document, in order, into one named after the first.
 func (p *Processor) merge(ctx *api.Context, docs []document, password string) ([]document, error) {
+	// A single document is not rewritten, but it is read all the same: merge
+	// must not hand back a file the other routes refuse.
+	if len(docs) == 1 {
+		r, err := p.open(ctx, docs[0].path, password)
+		if err != nil {
+			return nil, &stageError{op: "merge", filename: docs[0].filename, err: err}
+		}
+
+		_ = r.Close()
+	}
+
 	if len(docs) < 2 {
 		return docs, nil
 	}

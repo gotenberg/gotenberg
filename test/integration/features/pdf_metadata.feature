@@ -126,3 +126,13 @@ Feature: /forms/pdf/{set-metadata|metadata}
       | files | testdata/Longitudinell_jämförelse_mellan_laserkirurgi_och_strålbehandling_gällande_röstkvalitet_och_självskattad_kommunikation_upp_till_två_år_efter_tidig_stämbandscancer_i_ett_randomiserat_kontrollerat_försök.pdf | file |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/json"
+
+  Scenario: POST /forms/pdf/metadata (Truncated PDF)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/metadata" endpoint with the following form data and header(s):
+      | files | testdata/truncated.pdf | file |
+    Then the response status code should be 400
+    Then the response body should contain string:
+      """
+      Stage 'metadata' failed on 'truncated.pdf': open PDF:
+      """

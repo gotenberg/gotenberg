@@ -174,3 +174,13 @@ Feature: /forms/pdf/merge
     Then there should be the following file(s) in the webhook request:
       | foo.pdf |
     Then the "foo.pdf" PDF should have 2 page(s)
+
+  Scenario: POST /forms/pdf/merge (Truncated PDF)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/merge" endpoint with the following form data and header(s):
+      | files | testdata/truncated.pdf | file |
+    Then the response status code should be 400
+    Then the response body should contain string:
+      """
+      Stage 'merge' failed on 'truncated.pdf': open PDF:
+      """
