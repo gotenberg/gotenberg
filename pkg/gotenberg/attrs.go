@@ -5,7 +5,7 @@ import (
 	"slices"
 
 	"go.opentelemetry.io/otel/attribute"
-	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 )
 
 // maxAttrRunes bounds the length of a string span attribute to keep payload
