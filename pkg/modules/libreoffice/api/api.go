@@ -64,6 +64,9 @@ type Api struct {
 	version     string
 	versionOnce sync.Once
 
+	lokVersion     string
+	lokVersionOnce sync.Once
+
 	pdfOutputSizeCounter metric.Int64Histogram
 	crashRetriesCounter  metric.Int64Counter
 }
@@ -549,7 +552,35 @@ func (a *Api) Stop(_ context.Context) error {
 
 // Debug returns additional debug data.
 func (a *Api) Debug() map[string]any {
-	return map[string]any{"version": a.detectVersion()}
+	return map[string]any{
+		"version":     a.detectVersion(),
+		"lok_version": a.detectLokVersion(),
+	}
+}
+
+// detectLokVersion resolves the lok version once, preferring the value
+// captured at image build time. It falls back to running lok --version for
+// local or non-Docker builds.
+func (a *Api) detectLokVersion() string {
+	a.lokVersionOnce.Do(func() {
+		if v, ok := gotenberg.BuildVersion("lok"); ok {
+			a.lokVersion = v
+			return
+		}
+
+		cmd := exec.Command(a.args.lokBinPath, "--version") //nolint:gosec
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+		output, err := cmd.Output()
+		if err != nil {
+			a.lokVersion = err.Error()
+			return
+		}
+
+		a.lokVersion = strings.TrimSpace(string(output))
+	})
+
+	return a.lokVersion
 }
 
 // detectVersion resolves the LibreOffice version once, preferring the value

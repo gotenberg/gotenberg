@@ -216,9 +216,10 @@ ENV CHROMIUM_HYPHEN_DATA_DIR_PATH=/opt/gotenberg/chromium-hyphen-data
 ENV LIBREOFFICE_BIN_PATH=/usr/lib/libreoffice/program/soffice.bin
 ENV LOK_BIN_PATH=/usr/bin/lok
 
-# Capture Chromium and LibreOffice versions now that both are installed.
+# Capture Chromium, LibreOffice and lok versions now that they are installed.
 RUN bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" chromium "$CHROMIUM_BIN_PATH" --version \
-    && bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" libreoffice-api "$LIBREOFFICE_BIN_PATH" --version
+    && bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" libreoffice-api "$LIBREOFFICE_BIN_PATH" --version \
+    && bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" lok "$LOK_BIN_PATH" --version
 
 USER gotenberg
 WORKDIR /home/gotenberg
@@ -332,8 +333,9 @@ COPY --link --from=lok-binary-stage /home/lok /usr/bin/lok
 ENV LIBREOFFICE_BIN_PATH=/usr/lib/libreoffice/program/soffice.bin
 ENV LOK_BIN_PATH=/usr/bin/lok
 
-# Capture the LibreOffice version now that it is installed.
-RUN bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" libreoffice-api "$LIBREOFFICE_BIN_PATH" --version
+# Capture the LibreOffice and lok versions now that they are installed.
+RUN bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" libreoffice-api "$LIBREOFFICE_BIN_PATH" --version \
+    && bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" lok "$LOK_BIN_PATH" --version
 
 USER gotenberg
 WORKDIR /home/gotenberg
