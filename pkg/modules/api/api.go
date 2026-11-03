@@ -639,13 +639,14 @@ func (a *Api) Start() error {
 	}
 
 	serverName := spanServerName(a.bindIp, a.port)
+	listenAddress := net.JoinHostPort(a.bindIp, strconv.Itoa(a.port))
 
 	// Add the API middlewares.
 	a.srv.Pre(
 		latencyMiddleware(),
 		rootPathMiddleware(a.rootPath),
 		outputFilenameMiddleware(),
-		telemetryMiddleware(a.logger, serverName, a.correlationIdHeader, disableTelemetryForPaths),
+		telemetryMiddleware(a.logger, serverName, listenAddress, a.correlationIdHeader, disableTelemetryForPaths),
 	)
 
 	// Add the modules' middlewares in their respective stacks.
@@ -805,7 +806,7 @@ func (a *Api) Start() error {
 	}
 
 	startConfig := echo.StartConfig{
-		Address:    net.JoinHostPort(a.bindIp, strconv.Itoa(a.port)),
+		Address:    listenAddress,
 		HideBanner: true,
 		HidePort:   true,
 		ListenerAddrFunc: func(addr net.Addr) {

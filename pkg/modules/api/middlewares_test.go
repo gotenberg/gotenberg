@@ -22,6 +22,8 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
@@ -252,7 +254,7 @@ func TestTelemetryMiddleware_SpanStatus(t *testing.T) {
 				rootPathMiddleware("/"),
 				// No primary server name, as with the default --api-bind-ip
 				// (env API_BIND_IP): server.address comes from the Host.
-				telemetryMiddleware(slog.New(slog.DiscardHandler), "", "Gotenberg-Trace", nil),
+				telemetryMiddleware(slog.New(slog.DiscardHandler), "", ":3000", "Gotenberg-Trace", nil),
 			)
 			srv.POST("/forms/test", tc.handler)
 
@@ -283,6 +285,83 @@ func TestTelemetryMiddleware_SpanStatus(t *testing.T) {
 			}
 			if got := attrs["server.port"].AsInt64(); got != 3000 {
 				t.Errorf("server.port = %d, want 3000", got)
+			}
+		})
+	}
+}
+
+// TestTelemetryMiddleware_Route pins the route of the server span and of the
+// metrics: the route the request matched, or none, so that a path or a Host
+// a client makes up never starts a new span name or time series.
+func TestTelemetryMiddleware_Route(t *testing.T) {
+	recorder := tracetest.NewSpanRecorder()
+	previousTracer := otel.GetTracerProvider()
+	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder)))
+	t.Cleanup(func() { otel.SetTracerProvider(previousTracer) })
+
+	for _, tc := range []struct {
+		name      string
+		method    string
+		path      string
+		wantSpan  string
+		wantRoute string
+	}{
+		{name: "matched", method: http.MethodPost, path: "/forms/test", wantSpan: "POST /forms/test", wantRoute: "/forms/test"},
+		{name: "not found", method: http.MethodPost, path: "/forms/made-up", wantSpan: "POST"},
+		{name: "unknown method", method: "MADEUP", path: "/forms/made-up", wantSpan: "HTTP"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder.Reset()
+
+			reader := sdkmetric.NewManualReader()
+			previousMeter := otel.GetMeterProvider()
+			otel.SetMeterProvider(sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader)))
+			t.Cleanup(func() { otel.SetMeterProvider(previousMeter) })
+
+			srv := newEchoServer()
+			srv.Pre(
+				latencyMiddleware(),
+				rootPathMiddleware("/"),
+				telemetryMiddleware(slog.New(slog.DiscardHandler), "", ":3000", "Gotenberg-Trace", nil),
+			)
+			srv.POST("/forms/test", func(c *echo.Context) error { return c.NoContent(http.StatusOK) })
+
+			srv.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(tc.method, "http://made-up.example:3000"+tc.path, nil))
+
+			ended := recorder.Ended()
+			if len(ended) != 1 {
+				t.Fatalf("ended spans = %d, want 1", len(ended))
+			}
+			if got := ended[0].Name(); got != tc.wantSpan {
+				t.Errorf("span name = %q, want %q", got, tc.wantSpan)
+			}
+			spanAttrs := attribute.NewSet(ended[0].Attributes()...)
+			if got, _ := spanAttrs.Value("http.route"); got.AsString() != tc.wantRoute {
+				t.Errorf("span http.route = %q, want %q", got.AsString(), tc.wantRoute)
+			}
+
+			var rm metricdata.ResourceMetrics
+			err := reader.Collect(context.Background(), &rm)
+			if err != nil {
+				t.Fatalf("collect metrics: %v", err)
+			}
+
+			var points []metricdata.HistogramDataPoint[float64]
+			for _, sm := range rm.ScopeMetrics {
+				for _, m := range sm.Metrics {
+					if hist, ok := m.Data.(metricdata.Histogram[float64]); ok && m.Name == "http.server.request.duration" {
+						points = append(points, hist.DataPoints...)
+					}
+				}
+			}
+			if len(points) != 1 {
+				t.Fatalf("http.server.request.duration points = %d, want 1", len(points))
+			}
+			if got, _ := points[0].Attributes.Value("http.route"); got.AsString() != tc.wantRoute {
+				t.Errorf("metric http.route = %q, want %q", got.AsString(), tc.wantRoute)
+			}
+			if got, _ := points[0].Attributes.Value("server.address"); got.AsString() != "" {
+				t.Errorf("metric server.address = %q, want none from the Host", got.AsString())
 			}
 		})
 	}

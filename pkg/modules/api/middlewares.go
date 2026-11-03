@@ -216,7 +216,11 @@ func versionHeaderMiddleware() echo.MiddlewareFunc {
 //
 //	correlationIdHeader := c.Get("correlationIdHeader").(string)
 //	correlationId := c.Get("correlationId").(string)
-func telemetryMiddleware(logger *slog.Logger, serverName, correlationIdHeader string, disableTelemetryForPaths []string) echo.MiddlewareFunc {
+//
+// serverName is the server address of the spans, and metricServerName that
+// of the metrics, which must not come from the request: a client picks its
+// Host header, and each new value would start new time series.
+func telemetryMiddleware(logger *slog.Logger, serverName, metricServerName, correlationIdHeader string, disableTelemetryForPaths []string) echo.MiddlewareFunc {
 	meter := gotenberg.Meter()
 	semconvSrv := semconvutil.NewHTTPServer(meter)
 
@@ -240,15 +244,10 @@ func telemetryMiddleware(logger *slog.Logger, serverName, correlationIdHeader st
 				c.SetRequest(request)
 			}()
 
-			routePath := func() string {
-				path := c.Request().URL.Path
-
-				if path == "" {
-					path = "/"
-				}
-
-				return path
-			}()
+			path := c.Request().URL.Path
+			if path == "" {
+				path = "/"
+			}
 
 			// Evaluate if we should skip telemetry for this path.
 			skipTelemetry := false
@@ -279,18 +278,17 @@ func telemetryMiddleware(logger *slog.Logger, serverName, correlationIdHeader st
 
 			ctx := otel.GetTextMapPropagator().Extract(savedCtx, propagation.HeaderCarrier(request.Header))
 
-			rAttr := semconvSrv.Route(routePath)
 			opts := []trace.SpanStartOption{
 				trace.WithAttributes(
 					semconvSrv.RequestTraceAttrs(serverName, request, semconvutil.RequestTraceAttrsOpts{})...,
 				),
 				trace.WithSpanKind(trace.SpanKindServer),
-				trace.WithAttributes(rAttr),
 			}
-			spanName := strings.ToUpper(c.Request().Method) + " " + routePath
 
+			// The router runs after this middleware: the span starts with the
+			// method alone, and gets its route once the request is routed.
 			tracer := gotenberg.Tracer()
-			ctx, span := tracer.Start(ctx, spanName, opts...)
+			ctx, span := tracer.Start(ctx, semconvSrv.SpanName(request), opts...)
 			defer span.End()
 
 			otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(c.Response().Header()))
@@ -313,6 +311,16 @@ func telemetryMiddleware(logger *slog.Logger, serverName, correlationIdHeader st
 			// Call the next middleware in the chain.
 			err := next(c)
 			finishTime := time.Now()
+
+			// The router sets the pattern of the route it matched on the
+			// request. A request that matches none keeps an empty one, so that
+			// a path a client makes up never reaches the span name, http.route
+			// or the metrics.
+			routed := c.Request()
+			span.SetName(semconvSrv.SpanName(routed))
+			if routed.Pattern != "" {
+				span.SetAttributes(semconvSrv.Route(routed.Pattern))
+			}
 
 			status := response.Status
 			canceled := false
@@ -376,7 +384,7 @@ func telemetryMiddleware(logger *slog.Logger, serverName, correlationIdHeader st
 				slog.String("host", c.Request().Host),
 				slog.String("uri", c.Request().RequestURI),
 				slog.String("method", c.Request().Method),
-				slog.String("path", routePath),
+				slog.String("path", path),
 				slog.String("referer", c.Request().Referer()),
 				slog.String("user_agent", c.Request().UserAgent()),
 				slog.Int("status", response.Status),
@@ -387,11 +395,11 @@ func telemetryMiddleware(logger *slog.Logger, serverName, correlationIdHeader st
 			)
 
 			semconvSrv.RecordMetrics(ctx, semconvutil.ServerMetricData{
-				ServerName:      serverName,
+				ServerName:      metricServerName,
 				ResponseSize:    response.Size,
 				Req:             request,
 				StatusCode:      status,
-				Route:           routePath,
+				Route:           routed.Pattern,
 				RequestSize:     request.ContentLength,
 				RequestDuration: time.Since(startTime),
 			})
