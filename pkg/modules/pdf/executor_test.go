@@ -612,9 +612,18 @@ func TestRemediatedProfilesOf(t *testing.T) {
 }
 
 func TestRunRepairFacturX(t *testing.T) {
-	ctx, paths := testContext(t, "page_1.pdf", "embed_1.xml")
+	ctx, paths := testContext(t, "page_1.pdf", "embed_1.xml", "invoice-en16931.xml")
 
-	embedded, err := testProcessor().Run(ctx, mustStages(t, `[{"op":"remediate","profile":"Factur-X","xml":"embed_1.xml","level":"EN 16931"}]`), []string{paths["page_1.pdf"]}, map[string]string{"embed_1.xml": paths["embed_1.xml"]})
+	_, err := testProcessor().Run(ctx, mustStages(t, `[{"op":"remediate","profile":"Factur-X","xml":"embed_1.xml","level":"EN 16931"}]`), []string{paths["page_1.pdf"]}, map[string]string{"embed_1.xml": paths["embed_1.xml"]})
+	if err == nil {
+		t.Fatal("embedding an XML that is no Cross-Industry Invoice must fail")
+	}
+
+	if !isInvalidInput(err) {
+		t.Fatalf("embedding an XML that is no Cross-Industry Invoice: got %v, want an invalid input", err)
+	}
+
+	embedded, err := testProcessor().Run(ctx, mustStages(t, `[{"op":"remediate","profile":"Factur-X","xml":"invoice-en16931.xml","level":"EN 16931"}]`), []string{paths["page_1.pdf"]}, map[string]string{"invoice-en16931.xml": paths["invoice-en16931.xml"]})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -624,8 +633,8 @@ func TestRunRepairFacturX(t *testing.T) {
 		t.Fatalf("repair an embedded invoice: %v", err)
 	}
 
-	// embed_1.xml is no CII invoice, and a repair leaves the XML as it is: it
-	// must not add a violation to the ones the XML causes.
+	// A repair leaves the XML as it is: it must not add a violation to the
+	// ones the document already had.
 	fatals := func(path string) []string {
 		report, err := openOutput(t, path).ValidateFacturXReport(context.Background())
 		if err != nil {
