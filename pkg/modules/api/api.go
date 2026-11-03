@@ -805,7 +805,7 @@ func (a *Api) Start() error {
 	}
 
 	startConfig := echo.StartConfig{
-		Address:    fmt.Sprintf("%s:%d", a.bindIp, a.port),
+		Address:    net.JoinHostPort(a.bindIp, strconv.Itoa(a.port)),
 		HideBanner: true,
 		HidePort:   true,
 		ListenerAddrFunc: func(addr net.Addr) {

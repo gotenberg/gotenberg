@@ -206,6 +206,39 @@ func TestApi_Start_ReturnsOnceListening(t *testing.T) {
 	}
 }
 
+// An IPv6 bind IP needs brackets in the listen address.
+func TestApi_Start_IPv6BindIp(t *testing.T) {
+	l, err := net.Listen("tcp6", "[::1]:0")
+	if err != nil {
+		t.Skipf("no IPv6 loopback: %v", err)
+	}
+	port := l.Addr().(*net.TCPAddr).Port
+	_ = l.Close()
+
+	a := newTLSTestApi(t, "", "")
+	a.bindIp = "::1"
+	a.port = port
+
+	err = a.Start()
+	if err != nil {
+		t.Fatalf("expected no error from Start, got %v", err)
+	}
+	t.Cleanup(func() {
+		_ = a.Stop(context.Background())
+	})
+
+	address := fmt.Sprintf("http://[::1]:%d/", port)
+	resp, err := (&http.Client{Timeout: time.Second}).Get(address + "version")
+	if err != nil {
+		t.Fatalf("expected the server to answer on %s, got %v", address, err)
+	}
+	_ = resp.Body.Close()
+
+	if got := a.Report().Fields[0].Value; got != address {
+		t.Errorf("reported address = %v, want %q", got, address)
+	}
+}
+
 // A port in use must fail the startup, not leave a running process with no
 // listener.
 func TestApi_Start_PortInUse(t *testing.T) {
