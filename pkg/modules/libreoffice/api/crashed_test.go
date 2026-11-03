@@ -83,6 +83,9 @@ func TestApi_Pdf_CrashRetryCap(t *testing.T) {
 	if len(ended) != 1 {
 		t.Fatalf("ended spans = %d, want 1", len(ended))
 	}
+	if ended[0].Name() != "libreoffice.pdf" {
+		t.Errorf("span name = %q, want libreoffice.pdf", ended[0].Name())
+	}
 	// The final failure adds an exception event after the retries.
 	var retries []sdktrace.Event
 	for _, event := range ended[0].Events() {

@@ -21,7 +21,7 @@ import (
 // The server span ends as soon as that handler returns, so its span context is
 // re-seated as a remote, non-recording parent: the asynchronous worker keeps
 // the same trace without recording into a span that is about to end. A
-// worker-root [webhook.Async] span is then opened, linked back to the
+// worker-root webhook.async span is then opened, linked back to the
 // originating request span, and stays open for the whole delivery so downstream
 // conversion and webhook spans have a live parent in the caller's trace.
 //
@@ -50,7 +50,7 @@ func detachAsyncContext(ctx *api.Context, cancel context.CancelFunc) context.Can
 		startOpts = append(startOpts, trace.WithLinks(trace.Link{SpanContext: serverSpanCtx}))
 	}
 
-	workerCtx, workerSpan := gotenberg.Tracer().Start(detachedCtx, "webhook.Async", startOpts...)
+	workerCtx, workerSpan := gotenberg.Tracer().Start(detachedCtx, "webhook.async", startOpts...)
 	ctx.Context = workerCtx
 
 	originalCancel := cancel

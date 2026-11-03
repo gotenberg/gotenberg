@@ -853,14 +853,14 @@ func (mod *Chromium) Routes() ([]api.Route, error) {
 
 // Pdf converts a URL to PDF.
 func (mod *Chromium) Pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error {
-	return mod.convert(ctx, logger, "chromium.Pdf", url, outputPath, mod.pdfOutputSizeCounter, func(ctx context.Context, aggregate *networkAggregate) error {
+	return mod.convert(ctx, logger, "chromium.pdf", url, outputPath, mod.pdfOutputSizeCounter, func(ctx context.Context, aggregate *networkAggregate) error {
 		return mod.browser.pdf(ctx, logger, url, outputPath, options, aggregate)
 	})
 }
 
 // Screenshot captures a screenshot from a URL.
 func (mod *Chromium) Screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions) error {
-	return mod.convert(ctx, logger, "chromium.Screenshot", url, outputPath, mod.imageOutputSizeCounter, func(ctx context.Context, aggregate *networkAggregate) error {
+	return mod.convert(ctx, logger, "chromium.screenshot", url, outputPath, mod.imageOutputSizeCounter, func(ctx context.Context, aggregate *networkAggregate) error {
 		return mod.browser.screenshot(ctx, logger, url, outputPath, options, aggregate)
 	})
 }

@@ -2,19 +2,24 @@ package chromium
 
 import (
 	"context"
+	"log/slog"
 	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/chromedp/cdproto/network"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric/noop"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 )
 
@@ -119,7 +124,7 @@ func TestRecordNetwork_Names(t *testing.T) {
 
 	recorder := tracetest.NewSpanRecorder()
 	tracer := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder)).Tracer("test")
-	ctx, span := tracer.Start(context.Background(), "chromium.Pdf")
+	ctx, span := tracer.Start(context.Background(), "chromium.pdf")
 	mod.recordNetwork(ctx, span, aggregate)
 	span.End()
 
@@ -181,5 +186,43 @@ func TestRecordNetwork_Names(t *testing.T) {
 	}
 	if !maps.Equal(eventAttrs, wantEventAttrs) {
 		t.Errorf("event attributes = %v, want %v", eventAttrs, wantEventAttrs)
+	}
+}
+
+// TestChromium_SpanNames pins the names of the conversion spans, which
+// dashboards and alerts key on.
+func TestChromium_SpanNames(t *testing.T) {
+	recorder := tracetest.NewSpanRecorder()
+	previous := otel.GetTracerProvider()
+	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder)))
+	t.Cleanup(func() { otel.SetTracerProvider(previous) })
+
+	meter := noop.NewMeterProvider().Meter("test")
+	mod := &Chromium{
+		args: browserArguments{binPath: "/nonexistent/chromium"},
+		supervisor: &gotenberg.ProcessSupervisorMock{
+			RunMock: func(context.Context, *slog.Logger, func() error) error { return nil },
+		},
+	}
+	mod.networkBytesCounter, _ = meter.Int64Histogram("gotenberg.chromium.network.response.size")
+
+	outputPath := filepath.Join(t.TempDir(), "out")
+	logger := slog.New(slog.DiscardHandler)
+
+	err := mod.Pdf(context.Background(), logger, "https://example.com", outputPath, DefaultPdfOptions())
+	if err != nil {
+		t.Fatalf("pdf: %v", err)
+	}
+	err = mod.Screenshot(context.Background(), logger, "https://example.com", outputPath, DefaultScreenshotOptions())
+	if err != nil {
+		t.Fatalf("screenshot: %v", err)
+	}
+
+	var names []string
+	for _, span := range recorder.Ended() {
+		names = append(names, span.Name())
+	}
+	if want := []string{"chromium.pdf", "chromium.screenshot"}; !slices.Equal(names, want) {
+		t.Errorf("span names = %v, want %v", names, want)
 	}
 }

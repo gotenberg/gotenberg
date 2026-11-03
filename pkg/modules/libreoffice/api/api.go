@@ -642,7 +642,7 @@ func (a *Api) LibreOffice() (Converter, error) {
 
 // Pdf converts a document to PDF.
 func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error {
-	ctx, span := gotenberg.Tracer().Start(ctx, "libreoffice.Pdf",
+	ctx, span := gotenberg.Tracer().Start(ctx, "libreoffice.pdf",
 		trace.WithSpanKind(trace.SpanKindClient),
 		trace.WithAttributes(a.spanAttrs()...),
 	)
