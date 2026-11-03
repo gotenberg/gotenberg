@@ -8,6 +8,7 @@ help: ## Show the help
 build: ## Build the Gotenberg's Docker image (use TARGET=gotenberg-chromium or TARGET=gotenberg-libreoffice for variants)
 	docker build \
 	--target $(TARGET) \
+	--build-arg GOTENBERG_VERSION=$(GOTENBERG_VERSION) \
 	-t $(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
 	-f $(DOCKERFILE) $(DOCKER_BUILD_CONTEXT)
 
