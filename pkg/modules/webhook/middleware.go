@@ -128,6 +128,18 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						)
 					}
 
+					// The filters let non-HTTP schemes through, for Chromium's sake.
+					// A webhook only speaks HTTP.
+					err := requireWebURL("Gotenberg-Webhook-Url", webhookUrl)
+					if err != nil {
+						return err
+					}
+
+					err = requireWebURL("Gotenberg-Webhook-Events-Url", webhookEventsUrl)
+					if err != nil {
+						return err
+					}
+
 					deadline, ok := ctx.Deadline()
 					if !ok {
 						return errors.New("context has no deadline")
@@ -140,7 +152,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						gotenberg.WithDenyPrivateIPs(w.denyPrivateIPs),
 						gotenberg.WithDenyPublicIPs(w.denyPublicIPs),
 					}
-					err := gotenberg.FilterOutboundURL(ctx, webhookUrl, w.allowList, w.denyList, deadline, ipOpts...)
+					err = gotenberg.FilterOutboundURL(ctx, webhookUrl, w.allowList, w.denyList, deadline, ipOpts...)
 					if err != nil {
 						return fmt.Errorf("filter webhook URL: %w", unresolvableHostError("Gotenberg-Webhook-Url", err))
 					}
@@ -342,5 +354,23 @@ func unresolvableHostError(header string, err error) error {
 	return api.WrapError(
 		fmt.Errorf("resolve host %q: %w", unresolvable.Host, unresolvable.Err),
 		api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid '%s' header: the host '%s' does not resolve", header, unresolvable.Host)),
+	)
+}
+
+// requireWebURL answers a URL of header that is no absolute http or https URL
+// with a host with a 400 naming both. Neither the filters nor the URL, which
+// may hold credentials, appear in it.
+func requireWebURL(header, rawURL string) error {
+	err := gotenberg.RequireWebURL(rawURL)
+	if err == nil {
+		return nil
+	}
+
+	return api.WrapError(
+		fmt.Errorf("check %s: %w", header, err),
+		api.NewSentinelHttpError(
+			http.StatusBadRequest,
+			fmt.Sprintf("Invalid '%s' header: want an absolute URL with an http or https scheme and a host, such as https://example.com/upload", header),
+		),
 	)
 }

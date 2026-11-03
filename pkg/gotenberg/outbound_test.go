@@ -952,3 +952,38 @@ func TestLogOutboundRefusal(t *testing.T) {
 		t.Fatalf("attrs = %v, want the redacted URL and the deny-list rule", attrs)
 	}
 }
+
+func TestRequireWebURL(t *testing.T) {
+	for _, tc := range []struct {
+		url     string
+		wantErr bool
+	}{
+		{url: "http://example.com/a"},
+		{url: "HTTPS://example.com:8443/a?b=c"},
+		{url: "https://user:pass@example.com/"},
+		{url: "http://[::1]:3000/"},
+		{url: "not a url", wantErr: true},
+		{url: "", wantErr: true},
+		{url: "example.com/a", wantErr: true},
+		{url: "ftp://x/y", wantErr: true},
+		{url: "javascript:alert(1)", wantErr: true},
+		{url: "file:///etc/passwd", wantErr: true},
+		{url: "data:text/html,hi", wantErr: true},
+		{url: "http:///path", wantErr: true},
+		{url: "https://", wantErr: true},
+		{url: "http://exa mple.com", wantErr: true},
+	} {
+		t.Run(tc.url, func(t *testing.T) {
+			err := RequireWebURL(tc.url)
+			if tc.wantErr {
+				if !errors.Is(err, ErrNotWebURL) {
+					t.Fatalf("expected ErrNotWebURL, got: %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("expected no error, got: %v", err)
+			}
+		})
+	}
+}

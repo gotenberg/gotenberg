@@ -98,3 +98,61 @@ func TestWebhookMiddleware_SyncModeAnswersOnce(t *testing.T) {
 		})
 	}
 }
+
+func TestWebhookMiddleware_RejectsInvalidHeaders(t *testing.T) {
+	for _, tc := range []struct {
+		scenario   string
+		webhookUrl string
+		eventsUrl  string
+		want       string
+	}{
+		{
+			scenario:   "webhook URL without a scheme",
+			webhookUrl: "not a url",
+			eventsUrl:  "http://example.com/events",
+			want:       "Invalid 'Gotenberg-Webhook-Url' header: want an absolute URL with an http or https scheme and a host, such as https://example.com/upload",
+		},
+		{
+			scenario:   "webhook URL with a script scheme",
+			webhookUrl: "javascript:alert(1)",
+			eventsUrl:  "http://example.com/events",
+			want:       "Invalid 'Gotenberg-Webhook-Url' header: want an absolute URL with an http or https scheme and a host, such as https://example.com/upload",
+		},
+		{
+			scenario:   "events URL with an FTP scheme",
+			webhookUrl: "http://example.com/upload",
+			eventsUrl:  "ftp://x/y",
+			want:       "Invalid 'Gotenberg-Webhook-Events-Url' header: want an absolute URL with an http or https scheme and a host, such as https://example.com/upload",
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			reqCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
+			ctx := &api.ContextMock{Context: &api.Context{Context: reqCtx}}
+			ctx.SetLogger(slog.New(slog.DiscardHandler))
+
+			req := httptest.NewRequest(http.MethodPost, "/", nil)
+			if tc.webhookUrl != "" {
+				req.Header.Set("Gotenberg-Webhook-Url", tc.webhookUrl)
+			}
+			req.Header.Set("Gotenberg-Webhook-Events-Url", tc.eventsUrl)
+			c := echo.New().NewContext(req, httptest.NewRecorder())
+			c.Set("context", ctx.Context)
+			c.Set("cancel", context.CancelFunc(cancel))
+
+			handler := webhookMiddleware(&Webhook{}).Handler(func(_ *echo.Context) error {
+				t.Fatal("the next handler must not run")
+				return nil
+			})
+
+			status, message := api.ParseError(handler(c))
+			if status != http.StatusBadRequest {
+				t.Errorf("expected status %d, got %d", http.StatusBadRequest, status)
+			}
+			if message != tc.want {
+				t.Errorf("expected message %q, got %q", tc.want, message)
+			}
+		})
+	}
+}

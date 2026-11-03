@@ -103,6 +103,18 @@ Feature: /forms/pdf/merge
       Invalid 'downloadFrom' form field entry 0: the host 'nope.invalid' does not resolve
       """
 
+  @download-from
+  Scenario: POST /forms/pdf/merge (Download From A Non-HTTP URL)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/merge" endpoint with the following form data and header(s):
+      | files        | testdata/page_1.pdf                  | file  |
+      | downloadFrom | [{"url":"ftp://example.com/a.pdf"}]  | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid 'downloadFrom' form field entry 0: want an absolute URL with an http or https scheme and a host, such as https://example.com/file.pdf
+      """
+
   @webhook
   Scenario: POST /forms/pdf/merge (Webhook)
     Given I have a default Gotenberg container

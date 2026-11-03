@@ -287,6 +287,35 @@ Feature: Webhook
       Invalid 'Gotenberg-Webhook-Events-Url' header: the host 'events.example.invalid' does not resolve
       """
 
+  # Chromium needs file: and data: URLs to pass the outbound filter, so a
+  # webhook URL must be checked for its scheme apart from it.
+  Scenario: Webhook URL Without An HTTP Scheme
+    Given I have a default Gotenberg container
+    Given I have a webhook server
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
+      | files                        | testdata/page_1.pdf     | file   |
+      | Gotenberg-Webhook-Url        | not a url               | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events | header |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid 'Gotenberg-Webhook-Url' header: want an absolute URL with an http or https scheme and a host, such as https://example.com/upload
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
+      | files                        | testdata/page_1.pdf     | file   |
+      | Gotenberg-Webhook-Url        | javascript:alert(1)     | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events | header |
+    Then the response status code should be 400
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
+      | files                        | testdata/page_1.pdf | file   |
+      | Gotenberg-Webhook-Url        | {helper}/webhook    | header |
+      | Gotenberg-Webhook-Events-Url | ftp://x/y           | header |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid 'Gotenberg-Webhook-Events-Url' header: want an absolute URL with an http or https scheme and a host, such as https://example.com/upload
+      """
+
   Scenario: Missing Events URL
     Given I have a default Gotenberg container
     Given I have a webhook server

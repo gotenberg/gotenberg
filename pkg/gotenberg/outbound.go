@@ -436,6 +436,35 @@ func httpLikeScheme(scheme string) bool {
 	return false
 }
 
+// ErrNotWebURL happens when [RequireWebURL] refuses a URL that is not an
+// absolute http or https URL with a host.
+var ErrNotWebURL = errors.New("not an absolute http or https URL with a host")
+
+// RequireWebURL returns an error wrapping [ErrNotWebURL] unless rawURL is an
+// absolute http or https URL with a host.
+//
+// [DecideOutbound] accepts any other scheme, as Chromium needs file: and data:
+// URLs to pass. Callers that only ever send an HTTP request, such as the
+// webhook and the download from features, must call this first, as such a
+// request fails on a scheme that [DecideOutbound] let through.
+func RequireWebURL(rawURL string) error {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("parse URL: %w", ErrNotWebURL)
+	}
+
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return fmt.Errorf("scheme %q: %w", scheme, ErrNotWebURL)
+	}
+
+	if parsed.Hostname() == "" {
+		return fmt.Errorf("no host: %w", ErrNotWebURL)
+	}
+
+	return nil
+}
+
 // DecideOutbound parses rawURL, runs the regex allow/deny lists against
 // the normalized form, and (when no allow-list match) resolves the host
 // and applies the IP-class checks selected by opts. It returns the

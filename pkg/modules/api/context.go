@@ -433,6 +433,16 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 		)
 	}
 
+	// The filters let non-HTTP schemes through, for Chromium's sake. A
+	// download only speaks HTTP.
+	err = gotenberg.RequireWebURL(dl.Url)
+	if err != nil {
+		return "", "", WrapError(
+			fmt.Errorf("check URL: %w", err),
+			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'downloadFrom' form field entry %d: want an absolute URL with an http or https scheme and a host, such as https://example.com/file.pdf", i)),
+		)
+	}
+
 	// Errors and logs name the URL without its credentials, query and
 	// fragment, which may hold a token. The client's own messages keep it
 	// whole.

@@ -1127,6 +1127,47 @@ func TestNewContext_DownloadFromUnresolvableHost(t *testing.T) {
 	}
 }
 
+// A downloadFrom URL that is no absolute http or https URL with a host answers
+// 400 naming the entry, before any request.
+func TestNewContext_DownloadFromNonWebURL(t *testing.T) {
+	for _, rawURL := range []string{"ftp://example.com/a.pdf", "not a url", "file:///etc/passwd", "http:///a.pdf"} {
+		t.Run(rawURL, func(t *testing.T) {
+			payload, err := json.Marshal([]downloadFrom{{Url: rawURL}})
+			if err != nil {
+				t.Fatalf("marshal downloadFrom payload: %v", err)
+			}
+
+			body := new(bytes.Buffer)
+			writer := multipart.NewWriter(body)
+			err = writer.WriteField("downloadFrom", string(payload))
+			if err != nil {
+				t.Fatalf("write downloadFrom field: %v", err)
+			}
+			err = writer.Close()
+			if err != nil {
+				t.Fatalf("close multipart writer: %v", err)
+			}
+
+			req := httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", body)
+			req.Header.Set("Content-Type", writer.FormDataContentType())
+
+			echoCtx := echo.New().NewContext(req, httptest.NewRecorder())
+			fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+
+			_, cancel, err := newContext(echoCtx, slog.New(slog.DiscardHandler), fs, 10*time.Second, 0, downloadFromConfig{maxRetry: 0}, archiveConfig{})
+			if cancel != nil {
+				defer cancel()
+			}
+
+			status, message := ParseError(err)
+			want := "Invalid 'downloadFrom' form field entry 0: want an absolute URL with an http or https scheme and a host, such as https://example.com/file.pdf"
+			if status != http.StatusBadRequest || message != want {
+				t.Fatalf("got %d %q, want 400 %q", status, message, want)
+			}
+		})
+	}
+}
+
 // TestNewContext_DownloadFromSpans pins the spans of a download: an internal
 // api.download span over the whole download, with a redacted url.full, and an
 // HTTP client span per attempt under it, which the origin sees as its parent.
