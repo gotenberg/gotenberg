@@ -749,7 +749,6 @@ func (a *Api) Extensions() []string {
 		".dxf",
 		".emf",
 		".eps",
-		".epub",
 		".fodg",
 		".fodp",
 		".fods",
