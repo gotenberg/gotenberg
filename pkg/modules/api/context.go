@@ -22,9 +22,7 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/labstack/echo/v5"
 	"github.com/mholt/archives"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/propagation"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/text/unicode/norm"
@@ -454,15 +452,15 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 		return "", "", fmt.Errorf("filter URL: %w", err)
 	}
 
-	dlCtx, dlSpan := gotenberg.Tracer().Start(groupCtx, "GET Download From",
-		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(gotenberg.OutboundURLAttrs(dl.Url)...),
+	// The span of the whole download covers its attempts and the waits
+	// between them. Each attempt gets its own HTTP client span from the
+	// transport, under this one.
+	dlCtx, dlSpan := gotenberg.Tracer().Start(groupCtx, "api.download",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(semconv.URLFull(gotenberg.RedactURL(dl.Url))),
 	)
 	defer func() {
-		if err != nil {
-			dlSpan.RecordError(err)
-			dlSpan.SetStatus(codes.Error, err.Error())
-		}
+		_ = gotenberg.SetSpanStatus(dlSpan, err, gotenberg.ClassifyError(err))
 		dlSpan.End()
 	}()
 
@@ -482,9 +480,6 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 		req.Header.Set(key, value)
 	}
 
-	// Inject OTEL trace context into outbound request.
-	otel.GetTextMapPropagator().Inject(dlCtx, propagation.HeaderCarrier(req.Header))
-
 	// Propagate correlation ID header.
 	if correlationIdHeader, ok := ctx.echoCtx.Get("correlationIdHeader").(string); ok {
 		if correlationId, ok := ctx.echoCtx.Get("correlationId").(string); ok {
@@ -500,8 +495,11 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 		return "", "", fmt.Errorf("download file from '%s': %w", dl.Url, context.DeadlineExceeded)
 	}
 
+	httpClient := gotenberg.NewOutboundHttpClient(remaining, cfg.allowList, cfg.denyList, cfg.enableEnvironmentProxy, ipOpts...)
+	httpClient.Transport = gotenberg.NewTracingTransport(httpClient.Transport)
+
 	client := &retryablehttp.Client{
-		HTTPClient:   gotenberg.NewOutboundHttpClient(remaining, cfg.allowList, cfg.denyList, cfg.enableEnvironmentProxy, ipOpts...),
+		HTTPClient:   httpClient,
 		RetryMax:     cfg.maxRetry,
 		RetryWaitMin: time.Duration(1) * time.Second,
 		RetryWaitMax: remaining,

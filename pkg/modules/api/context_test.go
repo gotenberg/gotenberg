@@ -8,12 +8,14 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -22,6 +24,13 @@ import (
 
 	"github.com/dlclark/regexp2/v2"
 	"github.com/labstack/echo/v5"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
@@ -1114,5 +1123,117 @@ func TestNewContext_DownloadFromUnresolvableHost(t *testing.T) {
 	want := "Invalid 'downloadFrom' form field entry 0: the host 'nope.invalid' does not resolve"
 	if status != http.StatusBadRequest || message != want {
 		t.Fatalf("got %d %q, want 400 %q", status, message, want)
+	}
+}
+
+// TestNewContext_DownloadFromSpans pins the spans of a download: an internal
+// api.download span over the whole download, with a redacted url.full, and an
+// HTTP client span per attempt under it, which the origin sees as its parent.
+func TestNewContext_DownloadFromSpans(t *testing.T) {
+	recorder := tracetest.NewSpanRecorder()
+	previous := otel.GetTracerProvider()
+	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder)))
+	t.Cleanup(func() { otel.SetTracerProvider(previous) })
+
+	previousPropagator := otel.GetTextMapPropagator()
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+	t.Cleanup(func() { otel.SetTextMapPropagator(previousPropagator) })
+
+	for _, tc := range []struct {
+		name          string
+		path          string
+		wantCode      codes.Code
+		wantErrorType string
+	}{
+		{name: "success", path: "/file", wantCode: codes.Unset},
+		{name: "error status", path: "/missing", wantCode: codes.Error, wantErrorType: "404"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder.Reset()
+
+			var traceparent string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				traceparent = r.Header.Get("traceparent")
+				if r.URL.Path != "/file" {
+					w.WriteHeader(http.StatusNotFound)
+					return
+				}
+				w.Header().Set("Content-Disposition", `attachment; filename="file.txt"`)
+				_, _ = w.Write([]byte("downloaded"))
+			}))
+			defer server.Close()
+
+			payload, err := json.Marshal([]downloadFrom{{Url: server.URL + tc.path + "?token=secret"}})
+			if err != nil {
+				t.Fatalf("marshal downloadFrom payload: %v", err)
+			}
+
+			body := new(bytes.Buffer)
+			writer := multipart.NewWriter(body)
+			err = writer.WriteField("downloadFrom", string(payload))
+			if err != nil {
+				t.Fatalf("write downloadFrom field: %v", err)
+			}
+			err = writer.Close()
+			if err != nil {
+				t.Fatalf("close multipart writer: %v", err)
+			}
+
+			req := httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", body)
+			req.Header.Set("Content-Type", writer.FormDataContentType())
+
+			echoCtx := echo.New().NewContext(req, httptest.NewRecorder())
+			fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+
+			_, cancel, err := newContext(echoCtx, slog.New(slog.DiscardHandler), fs, 10*time.Second, 0, downloadFromConfig{}, archiveConfig{})
+			defer cancel()
+			if (err != nil) != (tc.wantCode == codes.Error) {
+				t.Fatalf("newContext error = %v", err)
+			}
+
+			spans := make(map[string]sdktrace.ReadOnlySpan)
+			for _, span := range recorder.Ended() {
+				spans[span.Name()] = span
+			}
+
+			download, attempt := spans["api.download"], spans[http.MethodGet]
+			if download == nil || attempt == nil {
+				t.Fatalf("spans = %v, want api.download and GET", slices.Collect(maps.Keys(spans)))
+			}
+			if download.SpanKind() != trace.SpanKindInternal || attempt.SpanKind() != trace.SpanKindClient {
+				t.Errorf("span kinds = %v and %v, want internal and client", download.SpanKind(), attempt.SpanKind())
+			}
+			if attempt.Parent().SpanID() != download.SpanContext().SpanID() {
+				t.Errorf("GET parent = %s, want api.download", attempt.Parent().SpanID())
+			}
+			if want := fmt.Sprintf("00-%s-%s-01", attempt.SpanContext().TraceID(), attempt.SpanContext().SpanID()); traceparent != want {
+				t.Errorf("traceparent = %q, want %q", traceparent, want)
+			}
+
+			wantURL := attribute.String("url.full", server.URL+tc.path)
+			for _, span := range []sdktrace.ReadOnlySpan{download, attempt} {
+				if !slices.Contains(span.Attributes(), wantURL) {
+					t.Errorf("%s attributes = %v, want %v", span.Name(), span.Attributes(), wantURL)
+				}
+			}
+			for _, kv := range download.Attributes() {
+				if kv.Key == "server.address" || kv.Key == "http.response.status_code" {
+					t.Errorf("api.download carries the HTTP attribute %q", kv.Key)
+				}
+			}
+
+			if download.Status().Code != tc.wantCode || attempt.Status().Code != tc.wantCode {
+				t.Errorf("statuses = %v and %v, want %v", download.Status().Code, attempt.Status().Code, tc.wantCode)
+			}
+			if tc.wantErrorType == "" {
+				return
+			}
+			if want := attribute.String("error.type", tc.wantErrorType); !slices.Contains(attempt.Attributes(), want) {
+				t.Errorf("GET attributes = %v, want %v", attempt.Attributes(), want)
+			}
+			if want := attribute.String("error.type", gotenberg.ErrorTypeOther); !slices.Contains(download.Attributes(), want) {
+				t.Errorf("api.download attributes = %v, want %v", download.Attributes(), want)
+			}
+		})
 	}
 }

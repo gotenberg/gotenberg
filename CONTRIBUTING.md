@@ -102,7 +102,7 @@ Use `gotenberg.Logger(mod)` to get the module's slog logger during `Provision()`
 
 ### Telemetry
 
-External tool calls (Chromium, LibreOffice, webhooks, downloads) must create OTEL spans with `trace.SpanKindClient` and `semconv.ServerAddress("toolname")`. HTTP calls set `gotenberg.OutboundURLAttrs(url)` instead: the host as `server.address`, the redacted URL as `url.full`. Use `gotenberg.Tracer()` and `gotenberg.Meter()` for traces and metrics.
+External tool calls (Chromium, LibreOffice) must create OTEL spans with `trace.SpanKindClient` and `semconv.ServerAddress("toolname")`. HTTP calls (webhooks, downloads) wrap their client's transport with `gotenberg.NewTracingTransport`, which creates one HTTP client span per attempt, redacts its `url.full`, and injects the trace context. The span over the whole call, retries included, is `trace.SpanKindInternal` and carries the redacted URL as `url.full`. A success leaves the span status unset; a failure sets it to Error with an `error.type`, through `gotenberg.SetSpanStatus`. Use `gotenberg.Tracer()` and `gotenberg.Meter()` for traces and metrics.
 
 Names follow the [OpenTelemetry naming guidelines](https://opentelemetry.io/docs/specs/semconv/general/naming/). Use a [standard attribute](https://opentelemetry.io/docs/specs/semconv/registry/attributes/) when one has the same meaning, such as `error.type` or `url.full`. Prefix every other metric, attribute and event with `gotenberg.`, keep namespaces singular, and put units in the instrument, not in the name.
 

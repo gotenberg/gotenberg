@@ -203,6 +203,10 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 					correlationIdHeader := c.Get("correlationIdHeader").(string)
 					correlationId := c.Get("correlationId").(string)
 
+					// Each attempt of a delivery gets its own HTTP client span.
+					httpClient := gotenberg.NewOutboundHttpClient(w.clientTimeout, w.allowList, w.denyList, w.enableEnvironmentProxy, ipOpts...)
+					httpClient.Transport = gotenberg.NewTracingTransport(httpClient.Transport)
+
 					client := &client{
 						url:              webhookUrl,
 						method:           webhookMethod,
@@ -212,7 +216,7 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 						deliveryTimeout:  w.deliveryTimeout(),
 
 						client: &retryablehttp.Client{
-							HTTPClient:   gotenberg.NewOutboundHttpClient(w.clientTimeout, w.allowList, w.denyList, w.enableEnvironmentProxy, ipOpts...),
+							HTTPClient:   httpClient,
 							RetryMax:     w.maxRetry,
 							RetryWaitMin: w.retryMinWait,
 							RetryWaitMax: w.retryMaxWait,

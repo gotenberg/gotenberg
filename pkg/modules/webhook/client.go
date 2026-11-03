@@ -17,9 +17,7 @@ import (
 
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/labstack/echo/v5"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/propagation"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
@@ -61,33 +59,36 @@ func (c client) deliveryContext(ctx context.Context) (context.Context, context.C
 	return context.WithTimeout(context.WithoutCancel(ctx), timeout)
 }
 
+// startDeliverySpan starts the span of one delivery to rawURL, which covers
+// its attempts and the waits between them. Each attempt gets its own HTTP
+// client span from the transport, under this one.
+func startDeliverySpan(ctx context.Context, name, rawURL string) (context.Context, trace.Span) {
+	return gotenberg.Tracer().Start(ctx, name,
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(semconv.URLFull(gotenberg.RedactURL(rawURL))),
+	)
+}
+
 // send sends the output file to the webhook URL.
-func (c client) send(ctx context.Context, body io.Reader, headers map[string]string) error {
+func (c client) send(ctx context.Context, body io.Reader, headers map[string]string) (err error) {
 	url, method := c.url, c.method
-	spanName := fmt.Sprintf("%s Webhook", method)
 
 	ctx, cancel := c.deliveryContext(ctx)
 	defer cancel()
 
-	tracer := gotenberg.Tracer()
-	ctx, span := tracer.Start(ctx, spanName,
-		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(gotenberg.OutboundURLAttrs(url)...),
-	)
-	defer span.End()
+	ctx, span := startDeliverySpan(ctx, "webhook.send", url)
+	defer func() {
+		_ = gotenberg.SetSpanStatus(span, err, gotenberg.ClassifyError(err))
+		span.End()
+	}()
 
 	// The request must carry ctx: retryablehttp.NewRequest builds on
 	// [context.Background], and its wait between attempts is a select on the
 	// request context, so a contextless request cannot be interrupted.
 	req, err := retryablehttp.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("create '%s' request to '%s': %w", method, url, err)
 	}
-
-	// Inject trace context into outbound request headers.
-	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 
 	req.Header.Set("User-Agent", "Gotenberg")
 
@@ -110,8 +111,6 @@ func (c client) send(ctx context.Context, body io.Reader, headers map[string]str
 
 		bodySize, err := strconv.ParseInt(contentLength, 10, 64)
 		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
 			return fmt.Errorf("parse content length entry: %w", err)
 		}
 
@@ -128,8 +127,6 @@ func (c client) send(ctx context.Context, body io.Reader, headers map[string]str
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
 		return deliveryFailure(fmt.Errorf("send '%s' request to '%s': %w", method, url, err))
 	}
 
@@ -149,10 +146,7 @@ func (c client) send(ctx context.Context, body io.Reader, headers map[string]str
 	// A status the client does not retry, such as a 4xx, comes back as a
 	// response. The attempts before it are not known here.
 	if resp.StatusCode >= http.StatusBadRequest {
-		err := fmt.Errorf("send '%s' request to '%s': %w", method, url, &deliveryError{status: resp.Status})
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return deliveryFailure(err)
+		return deliveryFailure(fmt.Errorf("send '%s' request to '%s': %w", method, url, &deliveryError{status: resp.Status}))
 	}
 
 	// Last piece for calculating the latency.
@@ -293,22 +287,15 @@ func (c client) sendEvent(ctx context.Context, correlationIdHeader, correlationI
 	ctx, cancel := c.deliveryContext(ctx)
 	defer cancel()
 
-	tracer := gotenberg.Tracer()
-	ctx, span := tracer.Start(ctx, "POST Webhook Event",
-		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(gotenberg.OutboundURLAttrs(c.eventsUrl)...),
-	)
+	ctx, span := startDeliverySpan(ctx, "webhook.send_event", c.eventsUrl)
 	defer span.End()
 
 	req, err := retryablehttp.NewRequestWithContext(ctx, http.MethodPost, c.eventsUrl, b)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		_ = gotenberg.SetSpanStatus(span, err, gotenberg.ClassifyError(err))
 		c.logger.ErrorContext(ctx, fmt.Sprintf("create webhook event request: %s", err))
 		return
 	}
-
-	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 
 	req.Header.Set("User-Agent", "Gotenberg")
 	for key, value := range c.extraHttpHeaders {
@@ -320,8 +307,7 @@ func (c client) sendEvent(ctx context.Context, correlationIdHeader, correlationI
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		_ = gotenberg.SetSpanStatus(span, err, gotenberg.ClassifyError(err))
 		c.logger.ErrorContext(ctx, fmt.Sprintf("send webhook event to '%s': %s", c.eventsUrl, err))
 		return
 	}
@@ -334,8 +320,8 @@ func (c client) sendEvent(ctx context.Context, correlationIdHeader, correlationI
 	}()
 
 	if resp.StatusCode >= http.StatusBadRequest {
-		span.RecordError(fmt.Errorf("webhook event: got status '%s'", resp.Status))
-		span.SetStatus(codes.Error, resp.Status)
+		err := fmt.Errorf("webhook event: got status '%s'", resp.Status)
+		_ = gotenberg.SetSpanStatus(span, err, gotenberg.ClassifyError(err))
 		c.logger.ErrorContext(ctx, fmt.Sprintf("send webhook event to '%s': got status '%s'", c.eventsUrl, resp.Status))
 		return
 	}

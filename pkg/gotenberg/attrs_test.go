@@ -1,7 +1,6 @@
 package gotenberg
 
 import (
-	"maps"
 	"strings"
 	"testing"
 )
@@ -20,32 +19,6 @@ func TestRedactURL(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := RedactURL(tc.raw); got != tc.want {
 				t.Errorf("RedactURL(%q) = %q, want %q", tc.raw, got, tc.want)
-			}
-		})
-	}
-}
-
-func TestOutboundURLAttrs(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		raw  string
-		want map[string]string
-	}{
-		{
-			"host and redacted URL",
-			"https://user:pass@example.com:8443/hook?sig=secret",
-			map[string]string{"server.address": "example.com", "url.full": "https://example.com:8443/hook"},
-		},
-		{"no host", "/relative/path", map[string]string{}},
-		{"parse error", "http://example.com/%zz", map[string]string{}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			got := make(map[string]string)
-			for _, kv := range OutboundURLAttrs(tc.raw) {
-				got[string(kv.Key)] = kv.Value.AsString()
-			}
-			if !maps.Equal(got, tc.want) {
-				t.Errorf("OutboundURLAttrs(%q) = %v, want %v", tc.raw, got, tc.want)
 			}
 		})
 	}
