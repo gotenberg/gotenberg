@@ -960,6 +960,31 @@ Feature: /forms/chromium/convert/html
       form field 'pdfa' is unknown to this route; Gotenberg 9 moved it to a stage: add {"op":"remediate","profile":"PDF/A-3b"} to 'stages'
       """
 
+  # Chromium answers a generic error for these, so Gotenberg names the field.
+  Scenario: POST /forms/chromium/convert/html (Out Of Range Values)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files      | testdata/page-1-html/index.html | file  |
+      | scale      | 3                               | field |
+      | marginTop  | -1cm                            | field |
+      | paperWidth | -8.5in                          | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'scale' is invalid (got '3', want a number from 0.1 to 2)
+      form field 'paperWidth' is invalid (got '-8.5in', want a length of 0 or more)
+      form field 'marginTop' is invalid (got '-1cm', want a length of 0 or more)
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files | testdata/page-1-html/index.html | file  |
+      | scale | 0.05                            | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'scale' is invalid (got '0.05', want a number from 0.1 to 2)
+      """
+
   Scenario: POST /forms/chromium/convert/html (Bad Request)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):

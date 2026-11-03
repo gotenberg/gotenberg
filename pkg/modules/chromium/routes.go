@@ -341,13 +341,34 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		Bool("landscape", &pdfOptions.Landscape).
 		Bool("printBackground", &pdfOptions.PrintBackground).
 		Float64("scale", &pdfOptions.Scale).
+		Custom("scale", func(value string) error {
+			return checkScale(value, pdfOptions.Scale)
+		}).
 		Bool("singlePage", &pdfOptions.SinglePage).
 		Inches("paperWidth", &pdfOptions.PaperWidth).
+		Custom("paperWidth", func(value string) error {
+			return checkLength(value, pdfOptions.PaperWidth)
+		}).
 		Inches("paperHeight", &pdfOptions.PaperHeight).
+		Custom("paperHeight", func(value string) error {
+			return checkLength(value, pdfOptions.PaperHeight)
+		}).
 		Inches("marginTop", &pdfOptions.MarginTop).
+		Custom("marginTop", func(value string) error {
+			return checkLength(value, pdfOptions.MarginTop)
+		}).
 		Inches("marginBottom", &pdfOptions.MarginBottom).
+		Custom("marginBottom", func(value string) error {
+			return checkLength(value, pdfOptions.MarginBottom)
+		}).
 		Inches("marginLeft", &pdfOptions.MarginLeft).
+		Custom("marginLeft", func(value string) error {
+			return checkLength(value, pdfOptions.MarginLeft)
+		}).
 		Inches("marginRight", &pdfOptions.MarginRight).
+		Custom("marginRight", func(value string) error {
+			return checkLength(value, pdfOptions.MarginRight)
+		}).
 		String("nativePages", &pdfOptions.PageRanges).
 		Content("header.html", &pdfOptions.HeaderTemplate).
 		Content("footer.html", &pdfOptions.FooterTemplate).
@@ -356,6 +377,34 @@ func FormDataChromiumPdfOptions(ctx *api.Context) (*api.FormData, PdfOptions) {
 		Bool("nativeTaggedPdf", &pdfOptions.GenerateTaggedPdf)
 
 	return form, pdfOptions
+}
+
+// Chromium's documented range for the print scale.
+const (
+	minScale = 0.1
+	maxScale = 2.0
+)
+
+// checkScale rejects a scale outside Chromium's range, which Chromium only
+// reports as a generic printer settings error. An empty value, or one the
+// binding rejected, leaves the default scale and passes.
+func checkScale(value string, scale float64) error {
+	if value == "" || (scale >= minScale && scale <= maxScale) {
+		return nil
+	}
+
+	return fmt.Errorf("want a number from %g to %g", minScale, maxScale)
+}
+
+// checkLength rejects a negative paper dimension or margin, which Chromium
+// only reports as a generic printer settings error. inches is the value the
+// binding parsed, or the default when it rejected the field.
+func checkLength(value string, inches float64) error {
+	if value == "" || inches >= 0 {
+		return nil
+	}
+
+	return errors.New("want a length of 0 or more")
 }
 
 // FormDataChromiumScreenshotOptions creates [ScreenshotOptions] from the form

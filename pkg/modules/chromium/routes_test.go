@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -228,6 +229,46 @@ func TestFormDataChromiumPdfOptions_PaperSize(t *testing.T) {
 
 			if math.Abs(options.PaperWidth-tc.wantWidth) > 1e-9 || math.Abs(options.PaperHeight-tc.wantHeight) > 1e-9 {
 				t.Errorf("paper = %gx%g, want %gx%g", options.PaperWidth, options.PaperHeight, tc.wantWidth, tc.wantHeight)
+			}
+		})
+	}
+}
+
+func TestFormDataChromiumPdfOptions_Ranges(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		values  map[string][]string
+		wantErr string
+	}{
+		{name: "scale in range", values: map[string][]string{"scale": {"0.1"}}},
+		{name: "scale upper bound", values: map[string][]string{"scale": {"2"}}},
+		{name: "zero margin", values: map[string][]string{"marginTop": {"0"}}},
+		{name: "scale too high", values: map[string][]string{"scale": {"3"}}, wantErr: "form field 'scale' is invalid (got '3', want a number from 0.1 to 2)"},
+		{name: "scale too low", values: map[string][]string{"scale": {"0.05"}}, wantErr: "form field 'scale' is invalid (got '0.05', want a number from 0.1 to 2)"},
+		{name: "scale not a number reported once", values: map[string][]string{"scale": {"foo"}}, wantErr: "form field 'scale' is invalid (got 'foo', want a number)"},
+		{name: "negative margin", values: map[string][]string{"marginTop": {"-1cm"}}, wantErr: "form field 'marginTop' is invalid (got '-1cm', want a length of 0 or more)"},
+		{name: "negative paper width", values: map[string][]string{"paperWidth": {"-1"}}, wantErr: "form field 'paperWidth' is invalid (got '-1', want a length of 0 or more)"},
+		{name: "negative paper height", values: map[string][]string{"paperHeight": {"-1in"}}, wantErr: "form field 'paperHeight' is invalid (got '-1in', want a length of 0 or more)"},
+		{name: "margin not a length reported once", values: map[string][]string{"marginLeft": {"foo"}}, wantErr: "form field 'marginLeft' is invalid (got 'foo', want a number, optionally followed by pt, px, in, mm, cm or pc)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := &api.ContextMock{Context: new(api.Context)}
+			ctx.SetValues(tc.values)
+
+			form, _ := FormDataChromiumPdfOptions(ctx.Context)
+			err := form.Validate()
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("validate: %v", err)
+				}
+				return
+			}
+
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("validate = %v, want %q", err, tc.wantErr)
+			}
+			if strings.Count(err.Error(), "form field") != 1 {
+				t.Fatalf("validate = %v, want a single field error", err)
 			}
 		})
 	}
