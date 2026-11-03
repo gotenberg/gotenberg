@@ -630,6 +630,10 @@ func (s *scenario) thePdfsShouldBeSigned(ctx context.Context, _, should string) 
 }
 
 func (s *scenario) thePdfShouldHaveSize(ctx context.Context, name, width, height string) error {
+	return s.thePdfPageShouldHaveSize(ctx, name, 1, width, height)
+}
+
+func (s *scenario) thePdfPageShouldHaveSize(ctx context.Context, name string, number int, width, height string) error {
 	w, err := strconv.ParseFloat(width, 64)
 	if err != nil {
 		return fmt.Errorf("parse width %q: %w", width, err)
@@ -641,14 +645,14 @@ func (s *scenario) thePdfShouldHaveSize(ctx context.Context, name, width, height
 	}
 
 	return s.withNamedPdf(ctx, name, func(r *litho.Reader) error {
-		page, err := r.Page(ctx, 1)
+		page, err := r.Page(ctx, number)
 		if err != nil {
-			return fmt.Errorf("read the first page: %w", err)
+			return fmt.Errorf("read page %d: %w", number, err)
 		}
 
 		// One point of tolerance absorbs the rounding of millimeter sizes.
 		if abs(page.Width-w) > 1 || abs(page.Height-h) > 1 {
-			return fmt.Errorf("expected the first page to be %gx%g points, but actual is %gx%g", w, h, page.Width, page.Height)
+			return fmt.Errorf("expected page %d to be %gx%g points, but actual is %gx%g", number, w, h, page.Width, page.Height)
 		}
 
 		return nil

@@ -5,7 +5,7 @@ Gherkin (BDD) via [Godog](https://github.com/cucumber/godog), with `testcontaine
 - Feature files: `test/integration/features/*.feature`, one per endpoint or capability.
 - Step definitions: `test/integration/scenario/` (container management, HTTP helpers, PDF validation).
 - Entry point: `test/integration/main_test.go` (build tag: `integration`).
-- Test data: `test/integration/testdata/`.
+- Test data: `test/integration/testdata/`. The release QA corpus sits in `testdata/corpus/` (see its `MANIFEST.md`) and backs `corpus.feature`.
 
 Each scenario spins up a fresh Gotenberg Docker container via testcontainers. The PDF assertions read the produced documents with [litho](https://github.com/gotenberg/litho), in process: page count, size, text, tagging, bookmarks, metadata, attachments, permissions, signatures, and PDF/A and PDF/UA conformance.
 
@@ -31,6 +31,7 @@ Available tags:
 | Chromium    | `chromium`, `chromium-concurrent`, `chromium-convert-html`, `chromium-image-deduplication`, `chromium-convert-markdown`, `chromium-convert-url`, `chromium-screenshot-html`, `chromium-screenshot-markdown`, `chromium-screenshot-url`, `chromium-ssrf`                      |
 | LibreOffice | `libreoffice`, `libreoffice-convert`, `libreoffice-ssrf`                                                                                                                                                                                                                     |
 | PDF         | `pdf`, `pdf-pipe`, `pdf-merge`, `pdf-split`, `pdf-pages`, `pdf-rotate`, `pdf-stamp`, `pdf-metadata`, `pdf-bookmarks`, `pdf-form`, `pdf-attach`, `pdf-encrypt`, `pdf-remediate`, `factur-x`, `pdf-sign`, `pdf-optimize`, `pdf-redact`, `pdf-colors`, `pdf-render`, `pdf-read` |
+| Corpus      | `corpus`, `corpus-chromium`, `corpus-libreoffice`, `corpus-pdf`                                                                                                                                                                                                              |
 | Infra       | `health`, `debug`, `root`, `version`, `output-filename`, `webhook`, `download-from`, `api-limits`, `api-archives`                                                                                                                                                            |
 
 ## Writing a new test
@@ -91,6 +92,7 @@ Available tags:
 - `the "<name>" PDF (should|should NOT) have the page layout "<layout>"` (the catalog's `/PageLayout` name, such as `SinglePage`, read from the raw bytes; a PDF without the entry has none)
 - `the "<name>" PDF text "<text>" at page <N> should run at <degrees> degrees` (the direction the glyphs advance along, counter-clockwise from the page's horizontal, within a degree; the text must be consecutive glyphs)
 - `the "<name>" PDF page <N> should be rotated by <angle> degrees`
+- `the "<name>" PDF page <N> should be <width>x<height> points` (one point of tolerance)
 - `the "<name>" PDF first page should be <width>x<height> points` (one point of tolerance)
 - `the "<name>" PDF (should|should NOT) have a document outline`
 - `the "<name>" PDF should have <N> image(s)`

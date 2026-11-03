@@ -164,6 +164,10 @@ KEEP_FAILED=
 # chromium-screenshot-markdown
 # chromium-screenshot-url
 # chromium-ssrf
+# corpus
+# corpus-chromium
+# corpus-libreoffice
+# corpus-pdf
 # debug
 # health
 # libreoffice

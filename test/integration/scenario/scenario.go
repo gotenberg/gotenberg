@@ -171,6 +171,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have the page layout "([^"]*)"$`, s.thePdfShouldHavePageLayout)
 	ctx.Then(`^the "([^"]*)" PDF text "([^"]*)" at page (\d+) should run at (-?[\d.]+) degrees$`, s.thePdfTextShouldRunAt)
 	ctx.Then(`^the "([^"]*)" PDF page (\d+) should be rotated by (\d+) degrees$`, s.thePdfPageShouldBeRotatedBy)
+	ctx.Then(`^the "([^"]*)" PDF page (\d+) should be ([\d.]+)x([\d.]+) points$`, s.thePdfPageShouldHaveSize)
 	ctx.Then(`^the "([^"]*)" PDF first page should be ([\d.]+)x([\d.]+) points$`, s.thePdfShouldHaveSize)
 	ctx.Then(`^the "([^"]*)" image should be (\d+)x(\d+) pixels$`, s.theImageShouldBePixels)
 	ctx.Then(`^the "([^"]*)" image pixel at (\d+),(\d+) should be "([^"]*)"$`, s.theImagePixelShouldBe)
