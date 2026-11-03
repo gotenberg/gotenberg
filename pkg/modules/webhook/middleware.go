@@ -99,6 +99,15 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 				return func(c *echo.Context) error {
 					webhookUrl := c.Request().Header.Get("Gotenberg-Webhook-Url")
 					if webhookUrl == "" {
+						// An events URL alone would be ignored, and the client
+						// would get the output in the response instead.
+						if c.Request().Header.Get("Gotenberg-Webhook-Events-Url") != "" {
+							return api.WrapError(
+								errors.New("empty webhook URL"),
+								api.NewSentinelHttpError(http.StatusBadRequest, "The 'Gotenberg-Webhook-Url' header is required with 'Gotenberg-Webhook-Events-Url'"),
+							)
+						}
+
 						// No webhook URL, call the next middleware in the chain.
 						return next(c)
 					}

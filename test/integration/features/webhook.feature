@@ -316,6 +316,18 @@ Feature: Webhook
       Invalid 'Gotenberg-Webhook-Events-Url' header: want an absolute URL with an http or https scheme and a host, such as https://example.com/upload
       """
 
+  Scenario: Missing Webhook URL
+    Given I have a default Gotenberg container
+    Given I have a webhook server
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
+      | files                        | testdata/page_1.pdf     | file   |
+      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events | header |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      The 'Gotenberg-Webhook-Url' header is required with 'Gotenberg-Webhook-Events-Url'
+      """
+
   Scenario: Missing Events URL
     Given I have a default Gotenberg container
     Given I have a webhook server

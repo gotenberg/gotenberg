@@ -124,6 +124,11 @@ func TestWebhookMiddleware_RejectsInvalidHeaders(t *testing.T) {
 			eventsUrl:  "ftp://x/y",
 			want:       "Invalid 'Gotenberg-Webhook-Events-Url' header: want an absolute URL with an http or https scheme and a host, such as https://example.com/upload",
 		},
+		{
+			scenario:  "events URL alone",
+			eventsUrl: "http://example.com/events",
+			want:      "The 'Gotenberg-Webhook-Url' header is required with 'Gotenberg-Webhook-Events-Url'",
+		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			reqCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
