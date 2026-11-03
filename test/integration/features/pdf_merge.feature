@@ -100,19 +100,62 @@ Feature: /forms/pdf/merge
     Then the response status code should be 400
     Then the response body should match string:
       """
-      Invalid 'downloadFrom' form field entry 0: the host 'nope.invalid' does not resolve
+      Invalid form data: form field 'downloadFrom' entry 0 is invalid (the host 'nope.invalid' does not resolve)
       """
 
   @download-from
   Scenario: POST /forms/pdf/merge (Download From A Non-HTTP URL)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/merge" endpoint with the following form data and header(s):
-      | files        | testdata/page_1.pdf                  | file  |
-      | downloadFrom | [{"url":"ftp://example.com/a.pdf"}]  | field |
+      | files        | testdata/page_1.pdf                 | file  |
+      | downloadFrom | [{"url":"ftp://example.com/a.pdf"}] | field |
     Then the response status code should be 400
     Then the response body should match string:
       """
-      Invalid 'downloadFrom' form field entry 0: want an absolute URL with an http or https scheme and a host, such as https://example.com/file.pdf
+      Invalid form data: form field 'downloadFrom' entry 0 is invalid (want an absolute URL with an http or https scheme and a host, such as https://example.com/file.pdf)
+      """
+
+  @download-from
+  Scenario: POST /forms/pdf/merge (Download From Invalid Value)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/merge" endpoint with the following form data and header(s):
+      | downloadFrom | [{"url":"   "}] | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'downloadFrom' entry 0 is invalid (URL must be set)
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/merge" endpoint with the following form data and header(s):
+      | downloadFrom | [{"url": | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'downloadFrom' is invalid (want a JSON array such as [{"url":"https://example.com/file.pdf"}]: unexpected EOF)
+      """
+
+  @download-from
+  Scenario: POST /forms/pdf/merge (Download From A Response Without Content-Disposition)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/merge" endpoint with the following form data and header(s):
+      | downloadFrom | [{"url":"{helper}/html/testdata/page-1-html/index.html"}] | field |
+    Then the response status code should be 400
+    Then the response body should contain string:
+      """
+      has no 'Content-Disposition' header. Make the server send one with a filename, such as 'attachment; filename="file.pdf"'
+      """
+
+  # The message names no address: the one the container resolved is internal.
+  @download-from
+  Scenario: POST /forms/pdf/merge (Download From An Unreachable Host)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | API_DOWNLOAD_FROM_MAX_RETRY | 0 |
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/merge" endpoint with the following form data and header(s):
+      | downloadFrom | [{"url":"http://127.0.0.1:1/a.pdf"}] | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Unable to download file from 'http://127.0.0.1:1/a.pdf': the host could not be reached
       """
 
   @webhook

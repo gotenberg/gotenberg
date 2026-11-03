@@ -28,7 +28,7 @@ Feature: Output Filename
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
       | files                     | testdata/page_1.pdf | file   |
-      | Gotenberg-Output-Filename | é日本               | header |
+      | Gotenberg-Output-Filename | é日本                 | header |
     Then the response status code should be 200
     Then the response header "Content-Disposition" should contain "___.pdf"
     Then the response header "Content-Disposition" should contain "filename*=UTF-8''%C3%A9%E6%97%A5%E6%9C%AC.pdf"

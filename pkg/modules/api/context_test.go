@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"mime"
 	"maps"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -1122,7 +1122,7 @@ func TestNewContext_DownloadFromUnresolvableHost(t *testing.T) {
 	}
 
 	status, message := ParseError(err)
-	want := "Invalid 'downloadFrom' form field entry 0: the host 'nope.invalid' does not resolve"
+	want := "Invalid form data: form field 'downloadFrom' entry 0 is invalid (the host 'nope.invalid' does not resolve)"
 	if status != http.StatusBadRequest || message != want {
 		t.Fatalf("got %d %q, want 400 %q", status, message, want)
 	}
@@ -1161,7 +1161,7 @@ func TestNewContext_DownloadFromNonWebURL(t *testing.T) {
 			}
 
 			status, message := ParseError(err)
-			want := "Invalid 'downloadFrom' form field entry 0: want an absolute URL with an http or https scheme and a host, such as https://example.com/file.pdf"
+			want := "Invalid form data: form field 'downloadFrom' entry 0 is invalid (want an absolute URL with an http or https scheme and a host, such as https://example.com/file.pdf)"
 			if status != http.StatusBadRequest || message != want {
 				t.Fatalf("got %d %q, want 400 %q", status, message, want)
 			}
@@ -1342,6 +1342,76 @@ func TestContentDisposition(t *testing.T) {
 			}
 			if params["filename"] != tc.filename {
 				t.Errorf("parsed filename = %q, want %q", params["filename"], tc.filename)
+			}
+		})
+	}
+}
+
+// A download that fails answers 400 with a message the client can act on: it
+// uses the prefix of the other form field errors, tells what a response must
+// carry, and names no address the container resolved.
+func TestNewContext_DownloadFromErrorWording(t *testing.T) {
+	plain := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("no disposition"))
+	}))
+	defer plain.Close()
+
+	closed := httptest.NewServer(http.NotFoundHandler())
+	closedURL := closed.URL
+	closed.Close()
+
+	for _, tc := range []struct {
+		name string
+		raw  string
+		want string
+	}{
+		{
+			name: "not JSON",
+			raw:  `[{"url":`,
+			want: `Invalid form data: form field 'downloadFrom' is invalid (want a JSON array such as [{"url":"https://example.com/file.pdf"}]: unexpected EOF)`,
+		},
+		{
+			name: "empty URL",
+			raw:  `[{"url":" "}]`,
+			want: "Invalid form data: form field 'downloadFrom' entry 0 is invalid (URL must be set)",
+		},
+		{
+			name: "no Content-Disposition",
+			raw:  fmt.Sprintf(`[{"url":%q}]`, plain.URL),
+			want: fmt.Sprintf(`Unable to download file from '%s': the response has no 'Content-Disposition' header. Make the server send one with a filename, such as 'attachment; filename="file.pdf"'`, plain.URL),
+		},
+		{
+			name: "unreachable host",
+			raw:  fmt.Sprintf(`[{"url":%q}]`, closedURL),
+			want: fmt.Sprintf("Unable to download file from '%s': the host could not be reached", closedURL),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body := new(bytes.Buffer)
+			writer := multipart.NewWriter(body)
+			err := writer.WriteField("downloadFrom", tc.raw)
+			if err != nil {
+				t.Fatalf("write downloadFrom field: %v", err)
+			}
+			err = writer.Close()
+			if err != nil {
+				t.Fatalf("close multipart writer: %v", err)
+			}
+
+			req := httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", body)
+			req.Header.Set("Content-Type", writer.FormDataContentType())
+
+			echoCtx := echo.New().NewContext(req, httptest.NewRecorder())
+			fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+
+			_, cancel, err := newContext(echoCtx, slog.New(slog.DiscardHandler), fs, 10*time.Second, 0, downloadFromConfig{maxRetry: 0}, archiveConfig{})
+			if cancel != nil {
+				defer cancel()
+			}
+
+			status, message := ParseError(err)
+			if status != http.StatusBadRequest || message != tc.want {
+				t.Fatalf("got %d %q, want 400 %q", status, message, tc.want)
 			}
 		})
 	}

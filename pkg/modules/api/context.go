@@ -10,6 +10,7 @@ import (
 	"maps"
 	"mime"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -367,13 +368,13 @@ func (ctx *Context) downloadFrom(raw string, cfg downloadFromConfig, budget *bod
 	if errors.Is(err, errTooManyDownloadFromEntries) {
 		return WrapError(
 			fmt.Errorf("decode downloadFrom: %w", err),
-			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'downloadFrom' form field value: too many entries, the maximum is %d", cfg.maxEntries)),
+			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid form data: form field 'downloadFrom' is invalid (too many entries, the maximum is %d)", cfg.maxEntries)),
 		)
 	}
 	if err != nil {
 		return WrapError(
 			fmt.Errorf("unmarshal json: %w", err),
-			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'downloadFrom' form field value: %s", err)),
+			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf(`Invalid form data: form field 'downloadFrom' is invalid (want a JSON array such as [{"url":"https://example.com/file.pdf"}]: %s)`, err)),
 		)
 	}
 
@@ -435,7 +436,7 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 	if strings.TrimSpace(dl.Url) == "" {
 		return "", "", WrapError(
 			errors.New("empty download from URL"),
-			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'downloadFrom' form field entry %d: URL must be set", i)),
+			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid form data: form field 'downloadFrom' entry %d is invalid (URL must be set)", i)),
 		)
 	}
 
@@ -445,7 +446,7 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 	if err != nil {
 		return "", "", WrapError(
 			fmt.Errorf("check URL: %w", err),
-			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'downloadFrom' form field entry %d: want an absolute URL with an http or https scheme and a host, such as https://example.com/file.pdf", i)),
+			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid form data: form field 'downloadFrom' entry %d is invalid (want an absolute URL with an http or https scheme and a host, such as https://example.com/file.pdf)", i)),
 		)
 	}
 
@@ -466,7 +467,7 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 	if errors.As(err, &unresolvable) {
 		return "", "", WrapError(
 			fmt.Errorf("resolve host %q: %w", unresolvable.Host, unresolvable.Err),
-			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'downloadFrom' form field entry %d: the host '%s' does not resolve", i, unresolvable.Host)),
+			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid form data: form field 'downloadFrom' entry %d is invalid (the host '%s' does not resolve)", i, unresolvable.Host)),
 		)
 	}
 	if err != nil {
@@ -545,7 +546,7 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 
 		return "", "", WrapError(
 			fmt.Errorf("download file from '%s': %w", redactedURL, err),
-			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Unable to download file from '%s': %s", dl.Url, err)),
+			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Unable to download file from '%s': %s", dl.Url, downloadFailure(err))),
 		)
 	}
 	defer func() {
@@ -566,7 +567,7 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 	if contentDisposition == "" {
 		return "", "", WrapError(
 			fmt.Errorf("no 'Content-Disposition' header from '%s'", redactedURL),
-			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("No 'Content-Disposition' header from '%s'", dl.Url)),
+			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf(`Unable to download file from '%s': the response has no 'Content-Disposition' header. Make the server send one with a filename, such as 'attachment; filename="file.pdf"'`, dl.Url)),
 		)
 	}
 
@@ -597,6 +598,21 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 	}
 
 	return filename, path, nil
+}
+
+// downloadFailure words the failure of a download for the client. A network
+// error names the address the container resolved and dialed, which is internal,
+// so the message says only that the host could not be reached.
+func downloadFailure(err error) string {
+	var (
+		opErr  *net.OpError
+		dnsErr *net.DNSError
+	)
+	if errors.As(err, &opErr) || errors.As(err, &dnsErr) {
+		return "the host could not be reached"
+	}
+
+	return err.Error()
 }
 
 // giveUpDownload is the [retryablehttp.ErrorHandler] of a download. The
