@@ -12,12 +12,14 @@ Feature: API limits
       The request body exceeds the configured size limit. Increase it with --api-body-limit, or send a smaller request.
       """
 
+  # A waitDelay longer than the timeout answers 400 up front, so the page
+  # itself has to outlast the timeout.
   Scenario: Request Timeout
     Given I have a Gotenberg container with the following environment variable(s):
       | API_TIMEOUT | 5s |
-    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
-      | files     | testdata/page-1-html/index.html | file  |
-      | waitDelay | 10s                             | field |
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url | {helper}/slow | field |
     Then the response status code should be 503
     Then the response body should match string:
       """

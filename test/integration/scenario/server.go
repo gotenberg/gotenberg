@@ -167,6 +167,13 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 		// is exercised on the redirected request rather than on this URL.
 		return c.Redirect(http.StatusFound, "http://127.0.0.1:9999/redirected")
 	})
+	// A page that never answers: a request that loads it runs into the API
+	// timeout itself, not into a wait of its own, which names itself.
+	srv.GET("/slow", func(c *echo.Context) error {
+		s.recordRequest(&s.page, c.Request())
+		<-c.Request().Context().Done()
+		return nil
+	})
 
 	return s, nil
 }

@@ -49,7 +49,7 @@ Available tags:
 
 - `I have a default Gotenberg container`
 - `I have a Gotenberg container with the following environment variable(s):` (table: key | value)
-- `I have a (webhook|static) server`: one helper server per scenario, whichever word is used; a second step reuses it. Besides the webhook and file routes, it answers RFC 3161 timestamp requests at `{helper}/tsa`
+- `I have a (webhook|static) server`: one helper server per scenario, whichever word is used; a second step reuses it. Besides the webhook and file routes, it answers RFC 3161 timestamp requests at `{helper}/tsa`, and never answers `{helper}/slow`, for timeouts
 
 ### When (action)
 
