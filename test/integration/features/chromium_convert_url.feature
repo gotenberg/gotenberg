@@ -94,6 +94,15 @@ Feature: /forms/chromium/convert/url
     Then the server request header "X-Scoped-Header-1" should be ""
     Then the server request header "X-Scoped-Header-2" should be "baz"
 
+  Scenario: POST /forms/chromium/convert/url (Custom HTTP Header Value Starting With Scope)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url              | {helper}/html/testdata/page-1-html/index.html | field |
+      | extraHttpHeaders | {"X-Mode":"scoped;scope=.*"}                  | field |
+    Then the response status code should be 200
+    Then the server request header "X-Mode" should be "scoped"
+
   Scenario: POST /forms/chromium/convert/url (Cookies)
     Given I have a default Gotenberg container
     Given I have a static server

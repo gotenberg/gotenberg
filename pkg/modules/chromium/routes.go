@@ -227,11 +227,14 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 
 				tokens := strings.SplitSeq(v, ";")
 				for token := range tokens {
-					if strings.HasPrefix(strings.ToLower(strings.TrimSpace(token)), "scope") {
+					// Only the exact key "scope" is special: a value such as
+					// "scoped" is a plain token.
+					key, _, _ := strings.Cut(token, "=")
+					if strings.EqualFold(strings.TrimSpace(key), "scope") {
 						tokenNoSpaces := strings.Join(strings.Fields(token), "")
 						parts := strings.SplitN(tokenNoSpaces, "=", 2)
 
-						if len(parts) == 2 && strings.ToLower(parts[0]) == "scope" && parts[1] != "" {
+						if len(parts) == 2 && parts[1] != "" {
 							scope = parts[1]
 						} else {
 							err = errors.Join(err, fmt.Errorf("invalid scope '%s' for header '%s'", scope, k))

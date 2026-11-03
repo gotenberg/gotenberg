@@ -2,6 +2,7 @@ package chromium
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -379,6 +380,54 @@ func TestIsLocalPage(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := isLocalPage(tc.url, tc.local); got != tc.want {
 				t.Errorf("isLocalPage(%q, %q) = %t, want %t", tc.url, tc.local, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestFormDataChromiumOptions_ExtraHttpHeaderScope(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		value     string
+		wantValue string
+		wantScope bool
+		wantErr   bool
+	}{
+		{name: "value starting with scope", value: `scoped;scope=https://x`, wantValue: "scoped", wantScope: true},
+		{name: "scoped alone", value: `scoped`, wantValue: "scoped"},
+		{name: "scope alone", value: `scope=https://x`, wantValue: "", wantScope: true},
+		{name: "spaced key", value: `foo; Scope = https://x`, wantValue: "foo", wantScope: true},
+		{name: "bare scope key", value: `foo;scope`, wantErr: true},
+		{name: "quoted token with semicolon", value: `a="x;y"`, wantValue: `a="x; y"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := &api.ContextMock{Context: new(api.Context)}
+			headers, err := json.Marshal(map[string]string{"X-Test": tc.value})
+			if err != nil {
+				t.Fatalf("marshal headers: %v", err)
+			}
+			ctx.SetValues(map[string][]string{"extraHttpHeaders": {string(headers)}})
+
+			form, options := FormDataChromiumOptions(ctx.Context)
+			err = form.Validate()
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("expected an error, got none")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("expected no error, got: %v", err)
+			}
+			if len(options.ExtraHttpHeaders) != 1 {
+				t.Fatalf("got %d headers, want 1", len(options.ExtraHttpHeaders))
+			}
+			h := options.ExtraHttpHeaders[0]
+			if h.Value != tc.wantValue {
+				t.Errorf("value = %q, want %q", h.Value, tc.wantValue)
+			}
+			if (h.Scope != nil) != tc.wantScope {
+				t.Errorf("scope set = %v, want %v", h.Scope != nil, tc.wantScope)
 			}
 		})
 	}
