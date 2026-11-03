@@ -153,7 +153,13 @@ func (s *setMetadataStage) edit(_ context.Context, w *litho.Writer, _ *runEnv) e
 	return nil
 }
 
-func (s *setBookmarksStage) edit(_ context.Context, w *litho.Writer, _ *runEnv) error {
+func (s *setBookmarksStage) edit(_ context.Context, w *litho.Writer, env *runEnv) error {
+	// litho writes a bookmark to a page the document lacks as a dead one.
+	err := validateBookmarkPages(s.Bookmarks, "bookmarks", env.pageCount)
+	if err != nil {
+		return err
+	}
+
 	w.SetBookmarks(s.Bookmarks)
 
 	return nil

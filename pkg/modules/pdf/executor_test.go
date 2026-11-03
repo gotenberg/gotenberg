@@ -1295,3 +1295,49 @@ func TestRunSetFormRadio(t *testing.T) {
 		}
 	}
 }
+
+func TestRunBookmarkPages(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		stages  string
+		wantErr string
+	}{
+		{
+			name:   "a page of the document",
+			stages: `[{"op":"set-bookmarks","bookmarks":[{"title":"A","pageNumber":1,"children":[{"title":"B","pageNumber":1}]}]}]`,
+		},
+		{
+			name:    "past the last page",
+			stages:  `[{"op":"set-bookmarks","bookmarks":[{"title":"A","pageNumber":2}]}]`,
+			wantErr: "Stage 'set-bookmarks' failed on 'page_1.pdf': bookmarks[0].pageNumber 2 is past the last page 1",
+		},
+		{
+			name:    "page zero",
+			stages:  `[{"op":"set-bookmarks","bookmarks":[{"title":"A"}]}]`,
+			wantErr: "Stage 'set-bookmarks' failed on 'page_1.pdf': bookmarks[0].pageNumber must be a page from 1 to 1, got 0",
+		},
+		{
+			name:    "a child past the last page",
+			stages:  `[{"op":"set-bookmarks","bookmarks":[{"title":"A","pageNumber":1,"children":[{"title":"B","pageNumber":1},{"title":"C","pageNumber":7}]}]}]`,
+			wantErr: "Stage 'set-bookmarks' failed on 'page_1.pdf': bookmarks[0].children[1].pageNumber 7 is past the last page 1",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, paths := testContext(t, "page_1.pdf")
+
+			_, err := testProcessor().Run(ctx, mustStages(t, tc.stages), []string{paths["page_1.pdf"]}, nil)
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				return
+			}
+
+			status, message := api.ParseError(err)
+			if status != http.StatusBadRequest || message != tc.wantErr {
+				t.Fatalf("got %d %q, want 400 %q", status, message, tc.wantErr)
+			}
+		})
+	}
+}

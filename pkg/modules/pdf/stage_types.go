@@ -230,9 +230,59 @@ type setBookmarksStage struct {
 	Bookmarks []models.Bookmark `json:"bookmarks"`
 }
 
-func (*setBookmarksStage) op() string      { return "set-bookmarks" }
-func (*setBookmarksStage) validate() error { return nil }
+func (*setBookmarksStage) op() string { return "set-bookmarks" }
+
+func (s *setBookmarksStage) validate() error {
+	if len(s.Bookmarks) == 0 {
+		return errors.New(`"bookmarks" must list at least one bookmark, such as [{"title":"Intro","pageNumber":1}]`)
+	}
+
+	return validateBookmarkTitles(s.Bookmarks, "bookmarks")
+}
+
 func (*setBookmarksStage) files() []string { return nil }
+
+// validateBookmarkTitles checks that every bookmark, children included, has a
+// title. path names the list in the message, such as "bookmarks[1].children".
+func validateBookmarkTitles(bookmarks []models.Bookmark, path string) error {
+	for i, b := range bookmarks {
+		at := fmt.Sprintf("%s[%d]", path, i)
+
+		if strings.TrimSpace(b.Title) == "" {
+			return fmt.Errorf(`%s.title is required`, at)
+		}
+
+		err := validateBookmarkTitles(b.Children, at+".children")
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// validateBookmarkPages checks that every bookmark, children included, leads
+// to a page of a document of pageCount pages. path names the list in the
+// message, such as "bookmarks[1].children".
+func validateBookmarkPages(bookmarks []models.Bookmark, path string, pageCount int) error {
+	for i, b := range bookmarks {
+		at := fmt.Sprintf("%s[%d]", path, i)
+
+		switch {
+		case b.PageNumber > pageCount:
+			return &stageInputError{message: fmt.Sprintf("%s.pageNumber %d is past the last page %d", at, b.PageNumber, pageCount)}
+		case b.PageNumber < 1:
+			return &stageInputError{message: fmt.Sprintf("%s.pageNumber must be a page from 1 to %d, got %d", at, pageCount, b.PageNumber)}
+		}
+
+		err := validateBookmarkPages(b.Children, at+".children", pageCount)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 
 // setFormStage fills form fields, keyed by their fully qualified name. A value
 // is a string, or, for a list box that selects several, an array of strings.

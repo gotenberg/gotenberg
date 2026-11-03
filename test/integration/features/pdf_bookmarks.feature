@@ -84,3 +84,53 @@ Feature: /forms/pdf/{set-bookmarks|bookmarks}
       """
       Invalid form data: form field 'bookmarks' is invalid (got 'foo', want a JSON array)
       """
+
+  Scenario: POST /forms/pdf/set-bookmarks (Invalid Bookmarks)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/set-bookmarks" endpoint with the following form data and header(s):
+      | files | testdata/page_1.pdf | file |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: set-bookmarks: "bookmarks" must list at least one bookmark, such as [{"title":"Intro","pageNumber":1}]
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/set-bookmarks" endpoint with the following form data and header(s):
+      | files     | testdata/page_1.pdf | file  |
+      | bookmarks | []                  | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: set-bookmarks: "bookmarks" must list at least one bookmark, such as [{"title":"Intro","pageNumber":1}]
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/set-bookmarks" endpoint with the following form data and header(s):
+      | files     | testdata/page_1.pdf                                              | file  |
+      | bookmarks | [{"title":"Index","pageNumber":1,"children":[{"pageNumber":1}]}] | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: set-bookmarks: bookmarks[0].children[0].title is required
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/set-bookmarks" endpoint with the following form data and header(s):
+      | files     | testdata/page_1.pdf                | file  |
+      | bookmarks | [{"title":"Index","pageNumber":4}] | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'set-bookmarks' failed on 'page_1.pdf': bookmarks[0].pageNumber 4 is past the last page 1
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/set-bookmarks" endpoint with the following form data and header(s):
+      | files     | testdata/page_1.pdf                | file  |
+      | bookmarks | [{"title":"Index","pageNumber":0}] | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'set-bookmarks' failed on 'page_1.pdf': bookmarks[0].pageNumber must be a page from 1 to 1, got 0
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/set-bookmarks" endpoint with the following form data and header(s):
+      | files     | testdata/page_1.pdf                                                            | file  |
+      | bookmarks | [{"title":"Index","pageNumber":1,"children":[{"title":"Sub","pageNumber":9}]}] | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'set-bookmarks' failed on 'page_1.pdf': bookmarks[0].children[0].pageNumber 9 is past the last page 1
+      """
