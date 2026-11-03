@@ -131,7 +131,7 @@ Feature: /forms/pdf/sign
     Then the response status code should be 400
     Then the response body should match string:
       """
-      Invalid form data: form field 'stages' is invalid: "decrypt" cannot be combined with "sign" or "timestamp": litho cannot sign a PDF it reads encrypted; decrypt it in a request of its own, then sign the result
+      Invalid form data: form field 'stages' is invalid: "decrypt" cannot be combined with "sign" or "timestamp": a PDF that was encrypted cannot be signed in the request that decrypts it; decrypt it in a request of its own, then sign the result
       """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/timestamp" endpoint with the following form data and header(s):
       | files        | testdata/page_1.pdf | file  |
@@ -168,3 +168,47 @@ Feature: /forms/pdf/sign
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be signed
+
+  Scenario: POST /forms/pdf/sign (PKCS #12 Store)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/sign" endpoint with the following form data and header(s):
+      | files               | testdata/page_1.pdf   | file  |
+      | files               | testdata/pem/cert.p12 | file  |
+      | certificate         | cert.p12              | field |
+      | certificatePassword | secret                | field |
+    Then the response status code should be 200
+    Then the response PDF(s) should be signed
+
+  Scenario: POST /forms/pdf/sign (PKCS #12 Wrong Password)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/sign" endpoint with the following form data and header(s):
+      | files               | testdata/page_1.pdf   | file  |
+      | files               | testdata/pem/cert.p12 | file  |
+      | certificate         | cert.p12              | field |
+      | certificatePassword | nope                  | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'sign' failed on 'page_1.pdf': the PKCS #12 certificate "cert.p12" did not open: "certificatePassword" is missing or wrong
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/sign" endpoint with the following form data and header(s):
+      | files       | testdata/page_1.pdf   | file  |
+      | files       | testdata/pem/cert.p12 | file  |
+      | certificate | cert.p12              | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'sign' failed on 'page_1.pdf': the PKCS #12 certificate "cert.p12" did not open: "certificatePassword" is missing or wrong
+      """
+
+  Scenario: POST /forms/pdf/sign (PEM Certificate Without Key)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/sign" endpoint with the following form data and header(s):
+      | files       | testdata/page_1.pdf   | file  |
+      | files       | testdata/pem/cert.pem | file  |
+      | certificate | cert.pem              | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'sign' failed on 'page_1.pdf': "certificate" "cert.pem" is a PEM file: "key" is required, the PEM private key that goes with it
+      """

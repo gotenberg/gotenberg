@@ -124,7 +124,7 @@ func decodeStage(object json.RawMessage) (stage, error) {
 
 	newStage, ok := stageFactories[op]
 	if !ok {
-		return nil, fmt.Errorf("unknown operation %q", op)
+		return nil, fmt.Errorf("unknown operation %q; the operations are %s", op, strings.Join(sortedKeys(stageFactories), ", "))
 	}
 
 	delete(fields, "op")
@@ -268,7 +268,7 @@ func (stages Stages) validateCombinations() error {
 	// cannot write: it refuses to sign a PDF it reads encrypted, even once
 	// decrypted in the same run (litho.ErrSignFullRewriteIncompatible).
 	if decrypted && signed {
-		return errors.New(`"decrypt" cannot be combined with "sign" or "timestamp": litho cannot sign a PDF it reads encrypted; decrypt it in a request of its own, then sign the result`)
+		return errors.New(`"decrypt" cannot be combined with "sign" or "timestamp": a PDF that was encrypted cannot be signed in the request that decrypts it; decrypt it in a request of its own, then sign the result`)
 	}
 
 	if encrypted < 0 {

@@ -12,3 +12,9 @@ Check a certificate:
 ```bash
 openssl x509 -in cert.pem -text
 ```
+
+Bundle them into a PKCS #12 store, `cert.p12`, with the password `secret`:
+
+```bash
+openssl pkcs12 -export -inkey key.pem -in cert.pem -out cert.p12 -passout pass:secret
+```

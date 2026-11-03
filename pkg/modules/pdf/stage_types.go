@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/gotenberg/litho/pkg/models"
@@ -487,6 +488,29 @@ type permissions struct {
 	Assemble          *bool `json:"assemble"`
 }
 
+// permissionNames are the keys of [permissions], in the order it declares them.
+var permissionNames = []string{"print", "printHighQuality", "modifyContent", "extractText", "modifyAnnotations", "fillForms", "assemble"}
+
+// UnmarshalJSON decodes the permissions, and names the valid keys when one is
+// unknown: encoding/json would quote its own text, which lists none.
+func (p *permissions) UnmarshalJSON(data []byte) error {
+	var keys map[string]json.RawMessage
+	err := json.Unmarshal(data, &keys)
+	if err != nil {
+		return err
+	}
+
+	for _, key := range sortedKeys(keys) {
+		if !slices.Contains(permissionNames, key) {
+			return fmt.Errorf(`"permissions" has an unknown key %q; the keys are %s`, key, joinAnd(permissionNames))
+		}
+	}
+
+	type plain permissions
+
+	return json.Unmarshal(data, (*plain)(p))
+}
+
 // encryptStage protects the output with passwords.
 type encryptStage struct {
 	UserPassword  string       `json:"userPassword"`
@@ -695,6 +719,15 @@ func validPairs() string {
 	withUa1 = append(withUa1, facturXProfile)
 
 	return fmt.Sprintf("%s with PDF/UA-1, and %s with PDF/UA-2", joinOr(withUa1), joinOr(withUa2))
+}
+
+// joinAnd joins items as "a, b and c".
+func joinAnd(items []string) string {
+	if len(items) < 2 {
+		return strings.Join(items, "")
+	}
+
+	return strings.Join(items[:len(items)-1], ", ") + " and " + items[len(items)-1]
 }
 
 // joinOr joins items as "a, b or c".

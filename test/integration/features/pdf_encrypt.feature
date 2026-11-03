@@ -93,9 +93,16 @@ Feature: /forms/pdf/{encrypt|decrypt}
       | files    | teststore/foo.pdf | file  |
       | password | wrong             | field |
     Then the response status code should be 400
-    Then the response body should contain string:
+    Then the response body should match string:
       """
-      Stage 'decrypt' failed on 'foo.pdf':
+      Stage 'decrypt' failed on 'foo.pdf': the PDF is encrypted, and the 'password' is missing or wrong
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/decrypt" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'decrypt' failed on 'foo.pdf': the PDF is encrypted, and the 'password' is missing or wrong
       """
 
   Scenario: POST /forms/pdf/encrypt (Bad Request)
@@ -124,6 +131,18 @@ Feature: /forms/pdf/{encrypt|decrypt}
     Then the response body should match string:
       """
       Invalid form data: form field 'permissions' is invalid (got 'foo', want a JSON object)
+      """
+
+  Scenario: POST /forms/pdf/encrypt (Unknown Permission)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/encrypt" endpoint with the following form data and header(s):
+      | files        | testdata/page_1.pdf | file  |
+      | userPassword | foo                 | field |
+      | permissions  | {"printt":false}    | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: encrypt: "permissions" has an unknown key "printt"; the keys are print, printHighQuality, modifyContent, extractText, modifyAnnotations, fillForms and assemble
       """
 
   Scenario: POST /forms/pdf/encrypt (Routes Disabled)

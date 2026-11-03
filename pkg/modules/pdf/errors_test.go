@@ -97,7 +97,7 @@ func TestHandleError_EncryptedInput(t *testing.T) {
 		{op: "rotate", want: `Stage 'rotate' failed on 'doc.pdf': the PDF is encrypted; open it with a "decrypt" stage first, such as [{"op":"decrypt","password":"..."},{"op":"rotate"}] on /forms/pdf/pipe`},
 		{op: "merge", want: `Stage 'merge' failed on 'doc.pdf': the PDF is encrypted; open it with a "decrypt" stage first, such as [{"op":"decrypt","password":"..."},{"op":"merge"}] on /forms/pdf/pipe`},
 		{op: "metadata", want: "Reading 'doc.pdf' failed: the PDF is encrypted, and the 'password' form field is missing or wrong"},
-		{op: "decrypt", want: fmt.Sprintf("Stage 'decrypt' failed on 'doc.pdf': open PDF: %s", litho.ErrInvalidPassword)},
+		{op: "decrypt", want: "Stage 'decrypt' failed on 'doc.pdf': the PDF is encrypted, and the 'password' is missing or wrong"},
 	} {
 		t.Run(tc.op, func(t *testing.T) {
 			err := &stageError{op: tc.op, filename: "doc.pdf", err: fmt.Errorf("open PDF: %w", litho.ErrInvalidPassword)}
@@ -121,7 +121,7 @@ func TestHandleError_LithoFixes(t *testing.T) {
 		{
 			op:   "stamp-text",
 			err:  fmt.Errorf(`text cannot be encoded in WinAnsiEncoding, which the standard fonts use: "日本": %w`, litho.ErrTextNotEncodable),
-			want: "Stage 'stamp-text' failed on 'doc.pdf': the standard fonts draw Latin-1 text only; stamp other text with a stamp-pdf stage and a page Chromium renders, or with nativeWatermarkText on LibreOffice",
+			want: "Stage 'stamp-text' failed on 'doc.pdf': the standard fonts draw Windows-1252 text only (Latin letters with their accents, the euro sign and the usual punctuation); stamp other text with a stamp-pdf stage and a page Chromium renders, or with nativeWatermarkText on LibreOffice",
 		},
 		{
 			op:   "stamp-image",

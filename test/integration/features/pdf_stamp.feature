@@ -115,7 +115,7 @@ Feature: /forms/pdf/{stamp-text|stamp-image|stamp-pdf}
     Then the response status code should be 400
     Then the response body should match string:
       """
-      Stage 'stamp-text' failed on 'page_1.pdf': the standard fonts draw Latin-1 text only; stamp other text with a stamp-pdf stage and a page Chromium renders, or with nativeWatermarkText on LibreOffice
+      Stage 'stamp-text' failed on 'page_1.pdf': the standard fonts draw Windows-1252 text only (Latin letters with their accents, the euro sign and the usual punctuation); stamp other text with a stamp-pdf stage and a page Chromium renders, or with nativeWatermarkText on LibreOffice
       """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/stamp-pdf" endpoint with the following form data and header(s):
       | files  | testdata/page_1.pdf | file  |

@@ -95,7 +95,7 @@ var lithoFixes = []struct {
 	{
 		err: litho.ErrTextNotEncodable,
 		fix: func(string) string {
-			return "the standard fonts draw Latin-1 text only; stamp other text with a stamp-pdf stage and a page Chromium renders, or with nativeWatermarkText on LibreOffice"
+			return "the standard fonts draw Windows-1252 text only (Latin letters with their accents, the euro sign and the usual punctuation); stamp other text with a stamp-pdf stage and a page Chromium renders, or with nativeWatermarkText on LibreOffice"
 		},
 	},
 	{
@@ -159,6 +159,15 @@ func handleError(err error, dirPath string) error {
 		}
 
 		return api.WrapError(err, api.NewSentinelHttpError(http.StatusBadRequest, message))
+	}
+
+	// The decrypt stage is where the password goes: name it as the read
+	// routes do.
+	if errors.Is(err, litho.ErrInvalidPassword) && se.op == "decrypt" {
+		return api.WrapError(err, api.NewSentinelHttpError(
+			http.StatusBadRequest,
+			fmt.Sprintf("Stage 'decrypt' failed on '%s': the PDF is encrypted, and the 'password' is missing or wrong", se.filename),
+		))
 	}
 
 	// litho classifies its own errors, so a new litho error never reaches the

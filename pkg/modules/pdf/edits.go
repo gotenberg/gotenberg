@@ -1,7 +1,9 @@
 package pdf
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -372,7 +374,16 @@ func (s *signStage) edit(_ context.Context, w *litho.Writer, env *runEnv) error 
 
 	var signer litho.Signer
 	if s.Key == "" {
+		// A PEM certificate alone is not a PKCS #12 store: litho would report
+		// a malformed one.
+		if bytes.Contains(certificate, []byte("-----BEGIN")) {
+			return &stageInputError{message: fmt.Sprintf(`"certificate" %q is a PEM file: "key" is required, the PEM private key that goes with it`, s.Certificate)}
+		}
+
 		signer, err = litho.ParseSignerPKCS12(certificate, s.CertificatePassword)
+		if errors.Is(err, litho.ErrSignerPKCS12Password) {
+			return &stageInputError{message: fmt.Sprintf(`the PKCS #12 certificate %q did not open: "certificatePassword" is missing or wrong`, s.Certificate), err: err}
+		}
 	} else {
 		var key []byte
 		key, err = env.read(s.Key)

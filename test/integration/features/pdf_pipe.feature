@@ -88,7 +88,7 @@ Feature: /forms/pdf/pipe
     Then the response status code should be 400
     Then the response body should match string:
       """
-      Invalid form data: form field 'stages' is invalid: stage 0: unknown operation "shred"
+      Invalid form data: form field 'stages' is invalid: stage 0: unknown operation "shred"; the operations are attach, autotag, convert-colors, decrypt, delete, detach, encrypt, flatten-form, flatten-transparency, insert, merge, optimize, redact, remediate, render, rotate, select, set-bookmarks, set-form, set-metadata, sign, split, stamp-image, stamp-pdf, stamp-text, timestamp
       """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
       | files  | testdata/page_1.pdf                       | file  |
@@ -152,7 +152,7 @@ Feature: /forms/pdf/pipe
     Then the response status code should be 400
     Then the response body should match string:
       """
-      Invalid form data: form field 'stages' is invalid: "decrypt" cannot be combined with "sign" or "timestamp": litho cannot sign a PDF it reads encrypted; decrypt it in a request of its own, then sign the result
+      Invalid form data: form field 'stages' is invalid: "decrypt" cannot be combined with "sign" or "timestamp": a PDF that was encrypted cannot be signed in the request that decrypts it; decrypt it in a request of its own, then sign the result
       """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
       | files  | testdata/page_1.pdf                                                                             | file  |

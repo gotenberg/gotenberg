@@ -1341,3 +1341,48 @@ func TestRunBookmarkPages(t *testing.T) {
 		})
 	}
 }
+
+func TestRunSignErrors(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		stages   string
+		fixtures []string
+		wantErr  string
+	}{
+		{
+			name:     "a PEM certificate without its key",
+			stages:   `[{"op":"sign","certificate":"cert.pem"}]`,
+			fixtures: []string{"pem/cert.pem"},
+			wantErr:  `Stage 'sign' failed on 'page_1.pdf': "certificate" "cert.pem" is a PEM file: "key" is required, the PEM private key that goes with it`,
+		},
+		{
+			name:     "a PKCS #12 store with a wrong password",
+			stages:   `[{"op":"sign","certificate":"cert.p12","certificatePassword":"nope"}]`,
+			fixtures: []string{"pem/cert.p12"},
+			wantErr:  `Stage 'sign' failed on 'page_1.pdf': the PKCS #12 certificate "cert.p12" did not open: "certificatePassword" is missing or wrong`,
+		},
+		{
+			name:     "a PKCS #12 store",
+			stages:   `[{"op":"sign","certificate":"cert.p12","certificatePassword":"secret"}]`,
+			fixtures: []string{"pem/cert.p12"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, paths := testContext(t, append([]string{"page_1.pdf"}, tc.fixtures...)...)
+
+			_, err := testProcessor().Run(ctx, mustStages(t, tc.stages), []string{paths["page_1.pdf"]}, paths)
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				return
+			}
+
+			status, message := api.ParseError(err)
+			if status != http.StatusBadRequest || message != tc.wantErr {
+				t.Fatalf("got %d %q, want 400 %q", status, message, tc.wantErr)
+			}
+		})
+	}
+}
