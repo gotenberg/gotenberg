@@ -89,7 +89,7 @@ func listenForEventWebSocketCreated(ctx context.Context, logger *slog.Logger, op
 		}
 
 		go func() {
-			logger.DebugContext(ctx, fmt.Sprintf("event EventWebSocketCreated fired for '%s'", e.URL))
+			logger.DebugContext(ctx, fmt.Sprintf("event EventWebSocketCreated fired for '%s'", gotenberg.RedactURL(e.URL)))
 
 			deadline, ok := ctx.Deadline()
 			if !ok {
@@ -190,7 +190,7 @@ func listenForEventRequestPaused(ctx context.Context, logger *slog.Logger, optio
 	if len(options.extraHttpHeaders) == 0 {
 		logger.DebugContext(ctx, "no extra HTTP headers")
 	} else {
-		logger.DebugContext(ctx, fmt.Sprintf("extra HTTP headers: %+v", options.extraHttpHeaders))
+		logger.DebugContext(ctx, fmt.Sprintf("extra HTTP headers: %s", extraHttpHeaderNames(options.extraHttpHeaders)))
 	}
 
 	// Shared by every scope match of this conversion, across all paused
@@ -201,7 +201,10 @@ func listenForEventRequestPaused(ctx context.Context, logger *slog.Logger, optio
 	chromedp.ListenTarget(ctx, func(ev any) {
 		if e, ok := ev.(*fetch.EventRequestPaused); ok {
 			go func() {
-				logger.DebugContext(ctx, fmt.Sprintf("event EventRequestPaused fired for '%s'", e.Request.URL))
+				// The logs name the URL without its credentials, query and
+				// fragment, which may hold a token.
+				requestURL := gotenberg.RedactURL(e.Request.URL)
+				logger.DebugContext(ctx, fmt.Sprintf("event EventRequestPaused fired for '%s'", requestURL))
 				allow := true
 
 				deadline, ok := ctx.Deadline()
@@ -291,7 +294,7 @@ func listenForEventRequestPaused(ctx context.Context, logger *slog.Logger, optio
 
 						if header.Scope == nil {
 							// Non-scoped header.
-							logger.DebugContext(ctx, fmt.Sprintf("extra HTTP header '%s' will be set for request URL '%s'", header.Name, e.Request.URL))
+							logger.DebugContext(ctx, fmt.Sprintf("extra HTTP header '%s' will be set for request URL '%s'", header.Name, requestURL))
 							extraHttpHeadersToSet = append(extraHttpHeadersToSet, header)
 							continue
 						}
@@ -310,18 +313,18 @@ func listenForEventRequestPaused(ctx context.Context, logger *slog.Logger, optio
 
 						switch {
 						case err != nil:
-							logger.ErrorContext(ctx, fmt.Sprintf("fail to match extra HTTP header '%s' scope with URL '%s': %s", header.Name, e.Request.URL, err))
+							logger.ErrorContext(ctx, fmt.Sprintf("fail to match extra HTTP header '%s' scope with URL '%s': %s", header.Name, requestURL, err))
 						case ok:
-							logger.DebugContext(ctx, fmt.Sprintf("extra HTTP header '%s' (scoped) will be set for request URL '%s'", header.Name, e.Request.URL))
+							logger.DebugContext(ctx, fmt.Sprintf("extra HTTP header '%s' (scoped) will be set for request URL '%s'", header.Name, requestURL))
 							extraHttpHeadersToSet = append(extraHttpHeadersToSet, header)
 						default:
-							logger.DebugContext(ctx, fmt.Sprintf("scoped extra HTTP header '%s' (scoped) will not be set for request URL '%s'", header.Name, e.Request.URL))
+							logger.DebugContext(ctx, fmt.Sprintf("scoped extra HTTP header '%s' (scoped) will not be set for request URL '%s'", header.Name, requestURL))
 						}
 					}
 				}
 
 				if len(extraHttpHeadersToSet) > 0 {
-					logger.DebugContext(ctx, fmt.Sprintf("setting extra HTTP headers for request URL '%s': %+v", e.Request.URL, extraHttpHeadersToSet))
+					logger.DebugContext(ctx, fmt.Sprintf("setting extra HTTP headers for request URL '%s': %s", requestURL, extraHttpHeaderNames(extraHttpHeadersToSet)))
 
 					originalHeaders := e.Request.Headers
 					headers := make(map[string]string)
@@ -331,7 +334,7 @@ func listenForEventRequestPaused(ctx context.Context, logger *slog.Logger, optio
 						if ok {
 							headers[key] = strValue
 						} else {
-							logger.ErrorContext(ctx, fmt.Sprintf("ignoring header '%s' for URL '%s' since it cannot be cast to a string", key, e.Request.URL))
+							logger.ErrorContext(ctx, fmt.Sprintf("ignoring header '%s' for URL '%s' since it cannot be cast to a string", key, requestURL))
 						}
 					}
 
@@ -405,7 +408,7 @@ func listenForEventResponseReceived(
 			}
 
 			if isMainPageResponse(ev, targetID) {
-				logger.DebugContext(ctx, fmt.Sprintf("event EventResponseReceived fired for main page: %+v", ev.Response))
+				logger.DebugContext(ctx, fmt.Sprintf("event EventResponseReceived fired for main page '%s': %s", gotenberg.RedactURL(ev.Response.URL), statusLine(ev.Response.Status, ev.Response.StatusText)))
 
 				if slices.Contains(options.failOnHttpStatusCodes, ev.Response.Status) {
 					options.failures.failMainPageStatus(errors.New(statusLine(ev.Response.Status, ev.Response.StatusText)))
@@ -422,28 +425,41 @@ func listenForEventResponseReceived(
 				return
 			}
 
-			// Formatting the whole response is the most expensive thing this
-			// listener does, and it runs per sub-resource on chromedp's single
-			// per-target event goroutine while that goroutine holds the mutex
-			// it also takes to dispatch command responses. At the default log
-			// level the result is discarded, so gate it on the level rather
+			// Redacting the URL parses it, per sub-resource, on chromedp's
+			// single per-target event goroutine while that goroutine holds the
+			// mutex it also takes to dispatch command responses. At the default
+			// log level the result is discarded, so gate it on the level rather
 			// than let slog drop it after the fact.
 			if logger.Enabled(ctx, slog.LevelDebug) {
-				logger.DebugContext(ctx, fmt.Sprintf("event EventResponseReceived fired for a resource: %+v", ev.Response))
+				logger.DebugContext(ctx, fmt.Sprintf("event EventResponseReceived fired for resource '%s': %s", gotenberg.RedactURL(ev.Response.URL), statusLine(ev.Response.Status, ev.Response.StatusText)))
 			}
 
 			if slices.Contains(options.failOnResourceOnHttpStatusCode, ev.Response.Status) {
 				if !shouldCheckResourceHttpStatusCode(ev.Response.URL, normalizedIgnoreDomains) {
-					logger.DebugContext(ctx, fmt.Sprintf("skip resource HTTP status code check for '%s' due to domain filtering", ev.Response.URL))
+					logger.DebugContext(ctx, fmt.Sprintf("skip resource HTTP status code check for '%s' due to domain filtering", gotenberg.RedactURL(ev.Response.URL)))
 					return
 				}
 
+				// The client's message and the logs share this error: both
+				// name the resource without its query.
 				options.failures.failResourceStatus(
-					fmt.Errorf("%s - %s", ev.Response.URL, statusLine(ev.Response.Status, ev.Response.StatusText)),
+					fmt.Errorf("%s - %s", gotenberg.RedactURL(ev.Response.URL), statusLine(ev.Response.Status, ev.Response.StatusText)),
 				)
 			}
 		}
 	})
+}
+
+// extraHttpHeaderNames returns the names of headers, for the logs, which
+// leave the values out: they may hold credentials, such as an Authorization
+// header's.
+func extraHttpHeaderNames(headers []ExtraHttpHeader) string {
+	names := make([]string, len(headers))
+	for i, header := range headers {
+		names[i] = header.Name
+	}
+
+	return strings.Join(names, ", ")
 }
 
 // statusLine returns an HTTP status code with its reason phrase: the standard

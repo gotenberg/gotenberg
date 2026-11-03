@@ -524,9 +524,9 @@ func (p *pinningProxy) handleForward(w http.ResponseWriter, req *http.Request) {
 	decision, err := p.decide(req.Context(), req.URL.String(), p.allowList, p.denyList, deadline)
 	if err != nil {
 		if isClientCancellation(req.Context(), err) {
-			p.logger.DebugContext(req.Context(), fmt.Sprintf("forward abandoned by client for '%s': %s", req.URL, err))
+			p.logger.DebugContext(req.Context(), fmt.Sprintf("forward abandoned by client for '%s': %s", gotenberg.RedactURL(req.URL.String()), err))
 		} else {
-			p.logger.WarnContext(req.Context(), fmt.Sprintf("forward blocked for '%s': %s", req.URL, err))
+			p.logger.WarnContext(req.Context(), fmt.Sprintf("forward blocked for '%s': %s", gotenberg.RedactURL(req.URL.String()), err))
 		}
 		http.Error(w, "request blocked", http.StatusForbidden)
 		return
@@ -536,7 +536,7 @@ func (p *pinningProxy) handleForward(w http.ResponseWriter, req *http.Request) {
 	if p.upstreamProxy != nil {
 		proxyURL, err = p.upstreamProxy(req.URL)
 		if err != nil {
-			p.logger.WarnContext(req.Context(), fmt.Sprintf("resolve upstream proxy for '%s': %s", req.URL.Redacted(), err))
+			p.logger.WarnContext(req.Context(), fmt.Sprintf("resolve upstream proxy for '%s': %s", gotenberg.RedactURL(req.URL.String()), err))
 			http.Error(w, "upstream proxy error", http.StatusBadGateway)
 			return
 		}
@@ -585,9 +585,9 @@ func (p *pinningProxy) handleForward(w http.ResponseWriter, req *http.Request) {
 	resp, err := transport.RoundTrip(outReq)
 	if err != nil {
 		if isClientCancellation(req.Context(), err) {
-			p.logger.DebugContext(req.Context(), fmt.Sprintf("forward RoundTrip abandoned by client for '%s': %s", req.URL, err))
+			p.logger.DebugContext(req.Context(), fmt.Sprintf("forward RoundTrip abandoned by client for '%s': %s", gotenberg.RedactURL(req.URL.String()), err))
 		} else {
-			p.logger.WarnContext(req.Context(), fmt.Sprintf("forward RoundTrip failed for '%s': %s", req.URL, err))
+			p.logger.WarnContext(req.Context(), fmt.Sprintf("forward RoundTrip failed for '%s': %s", gotenberg.RedactURL(req.URL.String()), err))
 		}
 		resetClient(w)
 		return

@@ -406,9 +406,13 @@ func FormDataChromiumScreenshotOptions(ctx *api.Context) (*api.FormData, Screens
 func validateUrlScheme(rawURL string) error {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
+		// The client's message names its URL whole; the logged error, through
+		// [gotenberg.RedactURLError], does not.
+		message := fmt.Sprintf("Invalid URL: %s", err)
+
 		return api.WrapError(
-			fmt.Errorf("parse URL: %w", err),
-			api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid URL: %s", err)),
+			fmt.Errorf("parse URL: %w", gotenberg.RedactURLError(err)),
+			api.NewSentinelHttpError(http.StatusBadRequest, message),
 		)
 	}
 

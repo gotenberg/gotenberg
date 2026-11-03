@@ -1310,3 +1310,66 @@ func TestPinningProxy_StopClosesTunnels(t *testing.T) {
 		_ = conn.Close()
 	}
 }
+
+// TestPinningProxy_Forward_RedactsURLInLogs pins that the logs of a forward
+// the policy blocks, or that fails, name the URL without its query, which may
+// hold a token.
+func TestPinningProxy_Forward_RedactsURLInLogs(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		decide func(context.Context, string, []*regexp2.Regexp, []*regexp2.Regexp, time.Time) (gotenberg.OutboundDecision, error)
+		want   string
+	}{
+		{
+			name: "blocked",
+			decide: func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
+				return gotenberg.OutboundDecision{}, fmt.Errorf("nope: %w", gotenberg.ErrFiltered)
+			},
+			want: "forward blocked for 'http://blocked.example/report'",
+		},
+		{
+			name: "failed",
+			decide: func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
+				return gotenberg.OutboundDecision{Bypass: true}, nil
+			},
+			want: "forward RoundTrip failed for 'http://blocked.example/report'",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := &recordingHandler{}
+			p := newPinningProxy(nil, nil, false, false, false)
+			p.decide = tc.decide
+			p.dialBypass = func(context.Context, string, string) (net.Conn, error) {
+				return nil, errors.New("connection refused")
+			}
+
+			err := p.Start(slog.New(rec))
+			if err != nil {
+				t.Fatalf("start pinning proxy: %v", err)
+			}
+			t.Cleanup(func() { _ = p.Stop(slog.New(rec)) })
+
+			client := &http.Client{
+				Transport: &http.Transport{Proxy: http.ProxyURL(mustParseURL(t, p.URL()))},
+				Timeout:   5 * time.Second,
+			}
+			resp, err := client.Get("http://blocked.example/report?token=secret")
+			if err == nil {
+				_ = resp.Body.Close()
+			}
+
+			var found bool
+			for _, r := range rec.snapshot() {
+				if strings.Contains(r.Message, "secret") {
+					t.Errorf("token in %q", r.Message)
+				}
+				if strings.Contains(r.Message, tc.want) {
+					found = true
+				}
+			}
+			if !found {
+				t.Errorf("expected a record containing %q", tc.want)
+			}
+		})
+	}
+}

@@ -252,3 +252,13 @@ func TestStatusLine(t *testing.T) {
 		})
 	}
 }
+
+func TestExtraHttpHeaderNames(t *testing.T) {
+	got := extraHttpHeaderNames([]ExtraHttpHeader{
+		{Name: "Authorization", Value: "Bearer secret"},
+		{Name: "X-Tenant", Value: "acme"},
+	})
+	if got != "Authorization, X-Tenant" {
+		t.Errorf("extraHttpHeaderNames() = %q, want %q", got, "Authorization, X-Tenant")
+	}
+}
