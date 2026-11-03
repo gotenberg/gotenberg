@@ -99,12 +99,35 @@ func httpErrorHandler() echo.HTTPErrorHandler {
 		}
 
 		status, message := ParseError(err)
+		if echo.StatusCode(err) == status {
+			message = routingErrorMessage(c, status, message)
+		}
 		c.Response().Header().Add(echo.HeaderContentType, echo.MIMETextPlainCharsetUTF8)
 
 		err = c.String(status, message)
 		if err != nil {
 			logger.ErrorContext(c.Request().Context(), fmt.Sprintf("send error response: %s", err.Error()))
 		}
+	}
+}
+
+// routingErrorMessage words the answer to a request that matches no route, or
+// no method of its route, so that it names what to fix rather than repeating
+// the status text. It returns message for any other status.
+func routingErrorMessage(c *echo.Context, status int, message string) string {
+	path := c.Request().URL.EscapedPath()
+
+	switch status {
+	case http.StatusNotFound:
+		return fmt.Sprintf("The route '%s' does not exist. Check the path, and that this image includes the module that serves it", path)
+	case http.StatusMethodNotAllowed:
+		allow := c.Response().Header().Get(echo.HeaderAllow)
+		if allow == "" {
+			return fmt.Sprintf("The route '%s' does not accept the %s method", path, c.Request().Method)
+		}
+		return fmt.Sprintf("The route '%s' does not accept the %s method. Use one of: %s", path, c.Request().Method, allow)
+	default:
+		return message
 	}
 }
 
@@ -197,9 +220,10 @@ func outputFilenameMiddleware() echo.MiddlewareFunc {
 
 // versionHeaderMiddleware sets the Gotenberg-Version response header, so that
 // clients learn which version handled a request without calling the version
-// route. It runs after authentication, so it discloses nothing the version
-// route does not. It sets the header before the handler runs, so error
-// responses carry it too.
+// route. Run it after authentication, so that it discloses nothing the version
+// route does not, or before the router when no authentication is configured, so
+// that the answers to an unknown route and a wrong method carry it too. It sets
+// the header before the handler runs, so error responses carry it too.
 // See https://github.com/gotenberg/gotenberg/issues/1693.
 func versionHeaderMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -261,6 +285,16 @@ func telemetryMiddleware(logger *slog.Logger, serverName, metricServerName, corr
 
 			if skipTelemetry {
 				c.Set("logger", slog.New(slog.DiscardHandler))
+
+				// The route is neither logged nor traced, but its answer still
+				// carries the correlation ID.
+				correlationId := request.Header.Get(correlationIdHeader)
+				if correlationId == "" {
+					correlationId = uuid.NewString()
+				}
+				c.Set("correlationIdHeader", correlationIdHeader)
+				c.Set("correlationId", correlationId)
+				c.Response().Header().Set(correlationIdHeader, correlationId)
 
 				err := next(c)
 				if err != nil {

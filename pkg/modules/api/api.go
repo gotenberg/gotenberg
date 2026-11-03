@@ -649,6 +649,13 @@ func (a *Api) Start() error {
 		telemetryMiddleware(a.logger, serverName, listenAddress, a.correlationIdHeader, disableTelemetryForPaths),
 	)
 
+	// Without authentication, the version is public: every answer carries it,
+	// the 404 and 405 of the router included. With authentication, only the
+	// authenticated routes advertise it.
+	if a.basicAuthUsername == "" && !a.oidcEnabled {
+		a.srv.Pre(versionHeaderMiddleware())
+	}
+
 	// Add the modules' middlewares in their respective stacks.
 	var externalMultipartMiddlewares []Middleware
 	for _, externalMiddleware := range a.externalMiddlewares {

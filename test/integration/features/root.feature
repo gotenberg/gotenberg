@@ -21,6 +21,28 @@ Feature: /
     Then the Gotenberg container should log the following entries:
       | "correlation_id":"root" |
 
+  # Every answer carries both headers, the system routes and the errors
+  # included, even though the root route logs and traces nothing by default.
+  Scenario: GET / (Headers)
+    Given I have a default Gotenberg container
+    When I make a "GET" request to Gotenberg at the "/" endpoint with the following header(s):
+      | Gotenberg-Trace | root-headers |
+    Then the response status code should be 200
+    Then the response header "Gotenberg-Trace" should be "root-headers"
+    Then the response header "Gotenberg-Version" should be "{version}"
+
+  Scenario: GET /nope (Not Found)
+    Given I have a default Gotenberg container
+    When I make a "GET" request to Gotenberg at the "/nope" endpoint with the following header(s):
+      | Gotenberg-Trace | not-found |
+    Then the response status code should be 404
+    Then the response header "Gotenberg-Trace" should be "not-found"
+    Then the response header "Gotenberg-Version" should be "{version}"
+    Then the response body should match string:
+      """
+      The route '/nope' does not exist. Check the path, and that this image includes the module that serves it
+      """
+
   Scenario: GET / (Basic Auth)
     Given I have a Gotenberg container with the following environment variable(s):
       | API_ENABLE_BASIC_AUTH             | true |

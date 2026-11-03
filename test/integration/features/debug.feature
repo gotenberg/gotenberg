@@ -241,6 +241,15 @@ Feature: /debug
     Then the Gotenberg container should log the following entries:
       | "correlation_id":"debug" |
 
+  Scenario: GET /debug (Headers)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | API_ENABLE_DEBUG_ROUTE | true |
+    When I make a "GET" request to Gotenberg at the "/debug" endpoint with the following header(s):
+      | Gotenberg-Trace | debug-headers |
+    Then the response status code should be 200
+    Then the response header "Gotenberg-Trace" should be "debug-headers"
+    Then the response header "Gotenberg-Version" should be "{version}"
+
   Scenario: GET /debug (Basic Auth)
     Given I have a Gotenberg container with the following environment variable(s):
       | API_ENABLE_DEBUG_ROUTE            | true |

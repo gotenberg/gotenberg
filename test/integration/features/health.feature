@@ -47,6 +47,19 @@ Feature: /health
     Then the Gotenberg container should log the following entries:
       | "correlation_id":"get_health" |
 
+  Scenario: POST /health (Method Not Allowed)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/health" endpoint with the following form data and header(s):
+      | foo             | bar         | field  |
+      | Gotenberg-Trace | post_health | header |
+    Then the response status code should be 405
+    Then the response header "Gotenberg-Trace" should be "post_health"
+    Then the response header "Gotenberg-Version" should be "{version}"
+    Then the response body should match string:
+      """
+      The route '/health' does not accept the POST method. Use one of: OPTIONS, GET, HEAD
+      """
+
   Scenario: GET /health (Basic Auth)
     Given I have a Gotenberg container with the following environment variable(s):
       | API_ENABLE_BASIC_AUTH             | true |

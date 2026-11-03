@@ -617,3 +617,58 @@ func TestNewEchoServer_AttachmentServesAbsolutePath(t *testing.T) {
 		t.Fatalf("Content-Disposition = %q, want it to carry filename=\"output.pdf\"", got)
 	}
 }
+
+// Every answer carries the correlation ID and the version: the answers to an
+// unknown route, a wrong method and a route that skips telemetry included. The
+// 404 and the 405 name the path and the method rather than the status text.
+func TestServer_EveryAnswerCarriesTraceAndVersion(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		method      string
+		path        string
+		wantStatus  int
+		wantBody    string
+		wantVersion bool
+	}{
+		{name: "matched", method: http.MethodGet, path: "/health", wantStatus: http.StatusOK, wantVersion: true},
+		{name: "route without telemetry", method: http.MethodGet, path: "/version", wantStatus: http.StatusOK, wantVersion: true},
+		{
+			name: "not found", method: http.MethodGet, path: "/nope", wantStatus: http.StatusNotFound, wantVersion: true,
+			wantBody: "The route '/nope' does not exist. Check the path, and that this image includes the module that serves it",
+		},
+		{
+			name: "method not allowed", method: http.MethodPost, path: "/health", wantStatus: http.StatusMethodNotAllowed, wantVersion: true,
+			wantBody: "The route '/health' does not accept the POST method. Use one of: OPTIONS, GET",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := newEchoServer()
+			srv.Pre(
+				latencyMiddleware(),
+				rootPathMiddleware("/"),
+				telemetryMiddleware(slog.New(slog.DiscardHandler), "", ":3000", "Gotenberg-Trace", []string{"version"}),
+				versionHeaderMiddleware(),
+			)
+			srv.GET("/health", func(c *echo.Context) error { return c.NoContent(http.StatusOK) })
+			srv.GET("/version", func(c *echo.Context) error { return c.NoContent(http.StatusOK) })
+
+			req := httptest.NewRequest(tc.method, tc.path, nil)
+			req.Header.Set("Gotenberg-Trace", "my-trace")
+			rec := httptest.NewRecorder()
+			srv.ServeHTTP(rec, req)
+
+			if rec.Code != tc.wantStatus {
+				t.Errorf("status = %d, want %d", rec.Code, tc.wantStatus)
+			}
+			if got := rec.Header().Get("Gotenberg-Trace"); got != "my-trace" {
+				t.Errorf("Gotenberg-Trace = %q, want %q", got, "my-trace")
+			}
+			if got := rec.Header().Get("Gotenberg-Version"); (got != "") != tc.wantVersion {
+				t.Errorf("Gotenberg-Version = %q, want set: %v", got, tc.wantVersion)
+			}
+			if tc.wantBody != "" && rec.Body.String() != tc.wantBody {
+				t.Errorf("body = %q, want %q", rec.Body.String(), tc.wantBody)
+			}
+		})
+	}
+}
