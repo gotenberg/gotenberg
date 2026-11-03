@@ -72,6 +72,9 @@ func startDeliverySpan(ctx context.Context, name, rawURL string) (context.Contex
 // send sends the output file to the webhook URL.
 func (c client) send(ctx context.Context, body io.Reader, headers map[string]string) (err error) {
 	url, method := c.url, c.method
+	// Messages and logs name the URL without its credentials, query and
+	// fragment, which may hold a token.
+	redactedURL := gotenberg.RedactURL(url)
 
 	ctx, cancel := c.deliveryContext(ctx)
 	defer cancel()
@@ -87,7 +90,7 @@ func (c client) send(ctx context.Context, body io.Reader, headers map[string]str
 	// request context, so a contextless request cannot be interrupted.
 	req, err := retryablehttp.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
-		return fmt.Errorf("create '%s' request to '%s': %w", method, url, err)
+		return fmt.Errorf("create '%s' request to '%s': %w", method, redactedURL, gotenberg.RedactURLError(err))
 	}
 
 	req.Header.Set("User-Agent", "Gotenberg")
@@ -127,7 +130,7 @@ func (c client) send(ctx context.Context, body io.Reader, headers map[string]str
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return deliveryFailure(fmt.Errorf("send '%s' request to '%s': %w", method, url, err))
+		return deliveryFailure(fmt.Errorf("send '%s' request to '%s': %w", method, redactedURL, err))
 	}
 
 	// Registered before the status check below. [retryablehttp.Client.Do] hands
@@ -139,14 +142,14 @@ func (c client) send(ctx context.Context, body io.Reader, headers map[string]str
 	defer func() {
 		err := resp.Body.Close()
 		if err != nil {
-			c.logger.ErrorContext(ctx, fmt.Sprintf("close response body from '%s': %s", url, err))
+			c.logger.ErrorContext(ctx, fmt.Sprintf("close response body from '%s': %s", redactedURL, err))
 		}
 	}()
 
 	// A status the client does not retry, such as a 4xx, comes back as a
 	// response. The attempts before it are not known here.
 	if resp.StatusCode >= http.StatusBadRequest {
-		return deliveryFailure(fmt.Errorf("send '%s' request to '%s': %w", method, url, &deliveryError{status: resp.Status}))
+		return deliveryFailure(fmt.Errorf("send '%s' request to '%s': %w", method, redactedURL, &deliveryError{status: resp.Status}))
 	}
 
 	// Last piece for calculating the latency.
@@ -154,7 +157,7 @@ func (c client) send(ctx context.Context, body io.Reader, headers map[string]str
 
 	// Now let's log!
 	attrs := []any{
-		slog.String("webhook_url", url),
+		slog.String("webhook_url", redactedURL),
 		slog.String("method", method),
 		slog.Int64("latency", int64(finishTime.Sub(c.startTime))),
 		slog.String("latency_human", finishTime.Sub(c.startTime).String()),
@@ -260,7 +263,8 @@ func giveUp(resp *http.Response, err error, attempts int) (*http.Response, error
 		_ = resp.Body.Close()
 	}
 
-	return nil, &deliveryError{attempts: attempts, status: status, err: err}
+	// The transport error names the URL whole: redacted, as the messages do.
+	return nil, &deliveryError{attempts: attempts, status: status, err: gotenberg.RedactURLError(err)}
 }
 
 // deliveryFailure gives err, the failure of a delivery, the client message of
@@ -284,6 +288,8 @@ func (c client) sendEvent(ctx context.Context, correlationIdHeader, correlationI
 		return
 	}
 
+	eventsURL := gotenberg.RedactURL(c.eventsUrl)
+
 	ctx, cancel := c.deliveryContext(ctx)
 	defer cancel()
 
@@ -292,6 +298,7 @@ func (c client) sendEvent(ctx context.Context, correlationIdHeader, correlationI
 
 	req, err := retryablehttp.NewRequestWithContext(ctx, http.MethodPost, c.eventsUrl, b)
 	if err != nil {
+		err = gotenberg.RedactURLError(err)
 		_ = gotenberg.SetSpanStatus(span, err, gotenberg.ClassifyError(err))
 		c.logger.ErrorContext(ctx, fmt.Sprintf("create webhook event request: %s", err))
 		return
@@ -308,23 +315,23 @@ func (c client) sendEvent(ctx context.Context, correlationIdHeader, correlationI
 	resp, err := c.client.Do(req)
 	if err != nil {
 		_ = gotenberg.SetSpanStatus(span, err, gotenberg.ClassifyError(err))
-		c.logger.ErrorContext(ctx, fmt.Sprintf("send webhook event to '%s': %s", c.eventsUrl, err))
+		c.logger.ErrorContext(ctx, fmt.Sprintf("send webhook event to '%s': %s", eventsURL, err))
 		return
 	}
 
 	defer func() {
 		err := resp.Body.Close()
 		if err != nil {
-			c.logger.ErrorContext(ctx, fmt.Sprintf("close response body from '%s': %s", c.eventsUrl, err))
+			c.logger.ErrorContext(ctx, fmt.Sprintf("close response body from '%s': %s", eventsURL, err))
 		}
 	}()
 
 	if resp.StatusCode >= http.StatusBadRequest {
 		err := fmt.Errorf("webhook event: got status '%s'", resp.Status)
 		_ = gotenberg.SetSpanStatus(span, err, gotenberg.ClassifyError(err))
-		c.logger.ErrorContext(ctx, fmt.Sprintf("send webhook event to '%s': got status '%s'", c.eventsUrl, resp.Status))
+		c.logger.ErrorContext(ctx, fmt.Sprintf("send webhook event to '%s': got status '%s'", eventsURL, resp.Status))
 		return
 	}
 
-	c.logger.InfoContext(ctx, fmt.Sprintf("webhook event sent to '%s'", c.eventsUrl))
+	c.logger.InfoContext(ctx, fmt.Sprintf("webhook event sent to '%s'", eventsURL))
 }

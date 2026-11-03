@@ -1,6 +1,7 @@
 package webhook
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -238,6 +239,91 @@ func TestClient_Spans(t *testing.T) {
 				if errorType.AsString() != tc.wantErrorType || attempt.Status().Code != tc.wantCode {
 					t.Errorf("attempt %d: status %v, error.type %q, want %v and %q", i, attempt.Status().Code, errorType.AsString(), tc.wantCode, tc.wantErrorType)
 				}
+			}
+		})
+	}
+}
+
+// TestClient_RedactsURLs pins that a token in the query of a webhook URL
+// reaches neither the error, the logs nor the traces of a delivery.
+func TestClient_RedactsURLs(t *testing.T) {
+	recorder := tracetest.NewSpanRecorder()
+	previous := otel.GetTracerProvider()
+	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder)))
+	t.Cleanup(func() { otel.SetTracerProvider(previous) })
+
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	t.Cleanup(srv.Close)
+
+	// A listener closed at once: nothing accepts a connection on its port.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	refused := "http://" + ln.Addr().String() + "/webhook"
+	_ = ln.Close()
+
+	for _, tc := range []struct {
+		name    string
+		url     string
+		wantErr bool
+	}{
+		{name: "delivered", url: srv.URL + "/webhook"},
+		{name: "unreachable", url: refused, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder.Reset()
+
+			var logs bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+			target := tc.url + "?token=secret"
+			c := client{
+				url:             target,
+				method:          http.MethodPost,
+				eventsUrl:       target,
+				deliveryTimeout: 10 * time.Second,
+				client: &retryablehttp.Client{
+					HTTPClient:   &http.Client{Transport: gotenberg.NewTracingTransport(http.DefaultTransport)},
+					RetryMax:     1,
+					RetryWaitMin: time.Millisecond,
+					RetryWaitMax: time.Millisecond,
+					Logger:       gotenberg.NewLeveledLogger(logger),
+					CheckRetry:   retryablehttp.DefaultRetryPolicy,
+					Backoff:      retryablehttp.DefaultBackoff,
+					ErrorHandler: giveUp,
+				},
+				logger: logger,
+			}
+
+			err := c.send(context.Background(), strings.NewReader("%PDF-1.7"), map[string]string{})
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("send() error = %v, want an error: %t", err, tc.wantErr)
+			}
+			c.sendEvent(context.Background(), "Gotenberg-Trace", "id", map[string]any{"event": "test"})
+
+			seen := []string{logs.String()}
+			if err != nil {
+				seen = append(seen, err.Error())
+			}
+			for _, span := range recorder.Ended() {
+				seen = append(seen, span.Status().Description)
+				for _, attr := range span.Attributes() {
+					seen = append(seen, attr.Value.Emit())
+				}
+				for _, event := range span.Events() {
+					for _, attr := range event.Attributes {
+						seen = append(seen, attr.Value.Emit())
+					}
+				}
+			}
+
+			for _, s := range seen {
+				if strings.Contains(s, "secret") {
+					t.Errorf("token in %q", s)
+				}
+			}
+			if !strings.Contains(logs.String(), tc.url) {
+				t.Errorf("expected the redacted URL %q in the logs %q", tc.url, logs.String())
 			}
 		})
 	}

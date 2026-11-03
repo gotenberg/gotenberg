@@ -12,6 +12,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"regexp"
 	"runtime"
@@ -1233,6 +1234,40 @@ func TestNewContext_DownloadFromSpans(t *testing.T) {
 			}
 			if want := attribute.String("error.type", gotenberg.ErrorTypeOther); !slices.Contains(download.Attributes(), want) {
 				t.Errorf("api.download attributes = %v, want %v", download.Attributes(), want)
+			}
+		})
+	}
+}
+
+func TestGiveUpDownload(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		resp *http.Response
+		err  error
+		want string
+	}{
+		{
+			name: "transport error",
+			err:  &url.Error{Op: "Get", URL: "https://example.com/file.pdf?X-Amz-Signature=secret", Err: errors.New("connection refused")},
+			want: `giving up after 3 attempt(s): Get "https://example.com/file.pdf": connection refused`,
+		},
+		{
+			name: "error status",
+			resp: &http.Response{Status: "503 Service Unavailable", Body: io.NopCloser(strings.NewReader(""))},
+			want: "got status '503 Service Unavailable' after 3 attempt(s)",
+		},
+		{
+			name: "no reason",
+			want: "giving up after 3 attempt(s)",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := giveUpDownload(tc.resp, tc.err, 3)
+			if resp != nil {
+				t.Errorf("expected no response, got %v", resp)
+			}
+			if err == nil || err.Error() != tc.want {
+				t.Errorf("giveUpDownload() error = %v, want %q", err, tc.want)
 			}
 		})
 	}

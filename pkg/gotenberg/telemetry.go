@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
+	"strings"
 	"sync"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -242,22 +244,48 @@ func (leveled LeveledLogger) WithContext(ctx context.Context) *LeveledLogger {
 
 // Error logs a message at the error level using the wrapped slog.Logger.
 func (leveled LeveledLogger) Error(msg string, keysAndValues ...any) {
-	leveled.logger.ErrorContext(leveled.ctx, fmt.Sprintf("%s: %+v", msg, keysAndValues))
+	leveled.logger.ErrorContext(leveled.ctx, fmt.Sprintf("%s: %+v", msg, redactRetryLog(keysAndValues)))
 }
 
 // Warn logs a message at the warning level using the wrapped slog.Logger.
 func (leveled LeveledLogger) Warn(msg string, keysAndValues ...any) {
-	leveled.logger.WarnContext(leveled.ctx, fmt.Sprintf("%s: %+v", msg, keysAndValues))
+	leveled.logger.WarnContext(leveled.ctx, fmt.Sprintf("%s: %+v", msg, redactRetryLog(keysAndValues)))
 }
 
 // Info logs a message at the info level using the wrapped slog.Logger.
 func (leveled LeveledLogger) Info(msg string, keysAndValues ...any) {
-	leveled.logger.InfoContext(leveled.ctx, fmt.Sprintf("%s: %+v", msg, keysAndValues))
+	leveled.logger.InfoContext(leveled.ctx, fmt.Sprintf("%s: %+v", msg, redactRetryLog(keysAndValues)))
 }
 
 // Debug logs a message at the debug level using the wrapped slog.Logger.
 func (leveled LeveledLogger) Debug(msg string, keysAndValues ...any) {
-	leveled.logger.DebugContext(leveled.ctx, fmt.Sprintf("%s: %+v", msg, keysAndValues))
+	leveled.logger.DebugContext(leveled.ctx, fmt.Sprintf("%s: %+v", msg, redactRetryLog(keysAndValues)))
+}
+
+// redactRetryLog redacts, as [RedactURL] does, the URLs among the key-value
+// pairs a [retryablehttp.Client] logs: the "url" value, the "request" one,
+// which is the method followed by the URL, and the URL of an "error".
+func redactRetryLog(keysAndValues []any) []any {
+	redacted := slices.Clone(keysAndValues)
+
+	for i := 0; i+1 < len(redacted); i += 2 {
+		switch value := redacted[i+1].(type) {
+		case string:
+			switch redacted[i] {
+			case "url":
+				redacted[i+1] = RedactURL(value)
+			case "request":
+				method, rawURL, ok := strings.Cut(value, " ")
+				if ok {
+					redacted[i+1] = method + " " + RedactURL(rawURL)
+				}
+			}
+		case error:
+			redacted[i+1] = RedactURLError(value)
+		}
+	}
+
+	return redacted
 }
 
 // Interface guards.

@@ -433,6 +433,11 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 		)
 	}
 
+	// Errors and logs name the URL without its credentials, query and
+	// fragment, which may hold a token. The client's own messages keep it
+	// whole.
+	redactedURL := gotenberg.RedactURL(dl.Url)
+
 	ipOpts := []gotenberg.DecideOption{
 		gotenberg.WithDenyPrivateIPs(cfg.denyPrivateIPs),
 		gotenberg.WithDenyPublicIPs(cfg.denyPublicIPs),
@@ -457,14 +462,14 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 	// transport, under this one.
 	dlCtx, dlSpan := gotenberg.Tracer().Start(groupCtx, "api.download",
 		trace.WithSpanKind(trace.SpanKindInternal),
-		trace.WithAttributes(semconv.URLFull(gotenberg.RedactURL(dl.Url))),
+		trace.WithAttributes(semconv.URLFull(redactedURL)),
 	)
 	defer func() {
 		_ = gotenberg.SetSpanStatus(dlSpan, err, gotenberg.ClassifyError(err))
 		dlSpan.End()
 	}()
 
-	ctx.logger.DebugContext(dlCtx, fmt.Sprintf("download file from '%s'", dl.Url))
+	ctx.logger.DebugContext(dlCtx, fmt.Sprintf("download file from '%s'", redactedURL))
 
 	// The request must carry dlCtx: retryablehttp.NewRequest builds on
 	// context.Background(), and its wait between attempts is a select on the
@@ -472,7 +477,7 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 	// --api-timeout (env API_TIMEOUT) or by the caller going away.
 	req, err := retryablehttp.NewRequestWithContext(dlCtx, http.MethodGet, dl.Url, nil)
 	if err != nil {
-		return "", "", fmt.Errorf("create request to '%s': %w", dl.Url, err)
+		return "", "", fmt.Errorf("create request to '%s': %w", redactedURL, gotenberg.RedactURLError(err))
 	}
 
 	req.Header.Set("User-Agent", "Gotenberg")
@@ -492,7 +497,7 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 	// non-positive timeout, which [http.Client] reads as no deadline at all.
 	remaining := time.Until(deadline)
 	if remaining <= 0 {
-		return "", "", fmt.Errorf("download file from '%s': %w", dl.Url, context.DeadlineExceeded)
+		return "", "", fmt.Errorf("download file from '%s': %w", redactedURL, context.DeadlineExceeded)
 	}
 
 	httpClient := gotenberg.NewOutboundHttpClient(remaining, cfg.allowList, cfg.denyList, cfg.enableEnvironmentProxy, ipOpts...)
@@ -507,7 +512,8 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 		CheckRetry:   retryablehttp.DefaultRetryPolicy,
 		// Not DefaultBackoff: it hands a hostile origin control of the wait
 		// via Retry-After.
-		Backoff: gotenberg.ClampedBackoff,
+		Backoff:      gotenberg.ClampedBackoff,
+		ErrorHandler: giveUpDownload,
 	}
 
 	resp, err := client.Do(req)
@@ -518,24 +524,24 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 		// generic 403, and a later hop must not describe the allow-list, the
 		// deny-list or the IP policy instead.
 		if errors.Is(err, gotenberg.ErrFiltered) {
-			return "", "", fmt.Errorf("download file from '%s': %w", dl.Url, err)
+			return "", "", fmt.Errorf("download file from '%s': %w", redactedURL, err)
 		}
 
 		return "", "", WrapError(
-			fmt.Errorf("download file from '%s': %w", dl.Url, err),
+			fmt.Errorf("download file from '%s': %w", redactedURL, err),
 			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Unable to download file from '%s': %s", dl.Url, err)),
 		)
 	}
 	defer func() {
 		err := resp.Body.Close()
 		if err != nil {
-			ctx.logger.ErrorContext(ctx, fmt.Sprintf("close response body from '%s': %s", dl.Url, err))
+			ctx.logger.ErrorContext(ctx, fmt.Sprintf("close response body from '%s': %s", redactedURL, err))
 		}
 	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", "", WrapError(
-			fmt.Errorf("download file from '%s': got status: '%s'", dl.Url, resp.Status),
+			fmt.Errorf("download file from '%s': got status: '%s'", redactedURL, resp.Status),
 			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Unable to download file from '%s': got status: '%s'", dl.Url, resp.Status)),
 		)
 	}
@@ -543,7 +549,7 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 	contentDisposition := resp.Header.Get("Content-Disposition")
 	if contentDisposition == "" {
 		return "", "", WrapError(
-			fmt.Errorf("no 'Content-Disposition' header from '%s'", dl.Url),
+			fmt.Errorf("no 'Content-Disposition' header from '%s'", redactedURL),
 			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("No 'Content-Disposition' header from '%s'", dl.Url)),
 		)
 	}
@@ -554,7 +560,7 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 	_, params, err := mime.ParseMediaType(contentDisposition)
 	if err != nil {
 		return "", "", WrapError(
-			fmt.Errorf("parse 'Content-Disposition' header '%s' from '%s': %w", contentDisposition, dl.Url, err),
+			fmt.Errorf("parse 'Content-Disposition' header '%s' from '%s': %w", contentDisposition, redactedURL, err),
 			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'Content-Disposition' header '%s' from '%s': %s", contentDisposition, dl.Url, err)),
 		)
 	}
@@ -562,7 +568,7 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 	filename, ok = params["filename"]
 	if !ok {
 		return "", "", WrapError(
-			fmt.Errorf("get filename from 'Content-Disposition' header '%s' from '%s'", contentDisposition, dl.Url),
+			fmt.Errorf("get filename from 'Content-Disposition' header '%s' from '%s'", contentDisposition, redactedURL),
 			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'Content-Disposition' header '%s' from '%s': no filename", contentDisposition, dl.Url)),
 		)
 	}
@@ -571,10 +577,33 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 
 	path, err = ctx.writeToDisk(filename, resp.Body, budget)
 	if err != nil {
-		return "", "", fmt.Errorf("write downloaded file from '%s': %w", dl.Url, err)
+		return "", "", fmt.Errorf("write downloaded file from '%s': %w", redactedURL, err)
 	}
 
 	return filename, path, nil
+}
+
+// giveUpDownload is the [retryablehttp.ErrorHandler] of a download. The
+// default handler names the URL whole in its error; this one redacts the URL
+// of the last transport error ([gotenberg.RedactURLError]) and names the last
+// status, which the default one leaves out.
+func giveUpDownload(resp *http.Response, err error, attempts int) (*http.Response, error) {
+	status := ""
+	if resp != nil {
+		status = resp.Status
+		if resp.Body != nil {
+			_ = resp.Body.Close()
+		}
+	}
+
+	switch {
+	case err != nil:
+		return nil, fmt.Errorf("giving up after %d attempt(s): %w", attempts, gotenberg.RedactURLError(err))
+	case status != "":
+		return nil, fmt.Errorf("got status '%s' after %d attempt(s)", status, attempts)
+	default:
+		return nil, fmt.Errorf("giving up after %d attempt(s)", attempts)
+	}
 }
 
 // copyToDisk copies an uploaded file into the working directory.

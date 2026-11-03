@@ -1,6 +1,7 @@
 package gotenberg
 
 import (
+	"errors"
 	"net/url"
 	"slices"
 )
@@ -40,6 +41,20 @@ func RedactURL(raw string) string {
 	parsed.RawFragment = ""
 
 	return CapAttr(parsed.String())
+}
+
+// RedactURLError redacts, as [RedactURL] does, the URL of the first
+// [url.Error] in err's chain, such as the one an [http.Client] returns, so
+// that err may reach logs and traces. It changes that [url.Error] in place
+// and returns err. Call it before wrapping err: [fmt.Errorf] formats its
+// message once, so a change made afterward does not reach it.
+func RedactURLError(err error) error {
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		urlErr.URL = RedactURL(urlErr.URL)
+	}
+
+	return err
 }
 
 // MapEnum returns value when it belongs to allowed, otherwise "other". It keeps

@@ -509,7 +509,7 @@ func userAgentOverride(logger *slog.Logger, userAgent string) chromedp.ActionFun
 
 func navigateActionFunc(logger *slog.Logger, url string, skipNetworkIdleEvent, skipNetworkAlmostIdleEvent bool) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
-		logger.DebugContext(ctx, fmt.Sprintf("navigate to '%s'", url))
+		logger.DebugContext(ctx, fmt.Sprintf("navigate to '%s'", gotenberg.RedactURL(url)))
 
 		// Register lifecycle listeners before issuing Page.navigate. For
 		// fast loads (typically file:// pages with no external
@@ -538,7 +538,7 @@ func navigateActionFunc(logger *slog.Logger, url string, skipNetworkIdleEvent, s
 
 		_, _, _, _, err := page.Navigate(url).Do(ctx)
 		if err != nil {
-			return fmt.Errorf("navigate to '%s': %w", url, err)
+			return fmt.Errorf("navigate to '%s': %w", gotenberg.RedactURL(url), err)
 		}
 
 		err = runBatch(

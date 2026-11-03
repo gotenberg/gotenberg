@@ -1,6 +1,9 @@
 package gotenberg
 
 import (
+	"errors"
+	"fmt"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -31,6 +34,47 @@ func TestRedactURL_Caps(t *testing.T) {
 		t.Errorf("expected capped length %d, got %d", maxAttrRunes, n)
 	}
 }
+
+func TestRedactURLError(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"nil", nil, ""},
+		{"no url error", errors.New("boom"), "boom"},
+		{
+			"url error",
+			&url.Error{Op: "Post", URL: "https://user:pass@example.com/hook?token=secret#frag", Err: errors.New("connection refused")},
+			`Post "https://example.com/hook": connection refused`,
+		},
+		{
+			"url error under a wrapper that formats on demand",
+			&wrappedForTest{err: &url.Error{Op: "Post", URL: "https://example.com/hook?token=secret", Err: errors.New("connection refused")}},
+			`send request: Post "https://example.com/hook": connection refused`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := RedactURLError(tc.err)
+			if got != tc.err {
+				t.Fatal("expected the same error back")
+			}
+			if got == nil {
+				return
+			}
+			if got.Error() != tc.want {
+				t.Errorf("RedactURLError() = %q, want %q", got.Error(), tc.want)
+			}
+		})
+	}
+}
+
+// wrappedForTest formats its message from err each time, as a
+// [fmt.Errorf] wrapper does not.
+type wrappedForTest struct{ err error }
+
+func (w *wrappedForTest) Error() string { return fmt.Sprintf("send request: %v", w.err) }
+func (w *wrappedForTest) Unwrap() error { return w.err }
 
 func TestCapAttr(t *testing.T) {
 	t.Run("short unchanged", func(t *testing.T) {

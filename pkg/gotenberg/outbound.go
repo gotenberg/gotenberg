@@ -494,7 +494,7 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 				// cleared for the IP-check bypass an allow-list match grants.
 				// Fail closed like an unresolvable host does below, so the
 				// client gets a generic 403 rather than a 500.
-				return OutboundDecision{}, refuse(FilterRulePattern, "'%s' cannot handle '%s': %v", pattern.String(), normalized, err)
+				return OutboundDecision{}, refuse(FilterRulePattern, "'%s' cannot handle '%s': %v", pattern.String(), RedactURL(normalized), err)
 			}
 
 			if ok {
@@ -504,7 +504,7 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 		}
 
 		if !allowMatched {
-			return OutboundDecision{}, refuse(FilterRuleAllowList, "'%s' does not match any expression from the allowed list", normalized)
+			return OutboundDecision{}, refuse(FilterRuleAllowList, "'%s' does not match any expression from the allowed list", RedactURL(normalized))
 		}
 	}
 
@@ -542,20 +542,20 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 	}
 
 	if host == "" {
-		return OutboundDecision{}, refuse(FilterRuleInvalidURL, "URL %q has no host", rawURL)
+		return OutboundDecision{}, refuse(FilterRuleInvalidURL, "URL %q has no host", RedactURL(rawURL))
 	}
 
 	addrs, err := resolveHost(ctx, host, cfg.denyPrivateIPs, cfg.denyPublicIPs)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrNonPublicIP):
-			return OutboundDecision{}, refuse(FilterRulePrivateIP, "'%s' targets a non-public address", normalized)
+			return OutboundDecision{}, refuse(FilterRulePrivateIP, "'%s' targets a non-public address", RedactURL(normalized))
 		case errors.Is(err, ErrPublicIP):
-			return OutboundDecision{}, refuse(FilterRulePublicIP, "'%s' targets a public address", normalized)
+			return OutboundDecision{}, refuse(FilterRulePublicIP, "'%s' targets a public address", RedactURL(normalized))
 		case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 			// A cancellation or timeout is not a policy decision; surface it
 			// as-is so callers do not report it as a filtered request.
-			return OutboundDecision{}, fmt.Errorf("validate '%s' host: %w", normalized, err)
+			return OutboundDecision{}, fmt.Errorf("validate '%s' host: %w", RedactURL(normalized), err)
 		default:
 			// The host could not be resolved, so its address class cannot be
 			// verified. Fail closed and treat it as filtered, the same as a
@@ -563,7 +563,7 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 			// generic 403 rather than a 500. This also denies alternate IP
 			// encodings such as http://2130706433/ that the resolver rejects
 			// as a hostname but Chromium would read as a private IP.
-			return OutboundDecision{}, fmt.Errorf("validate '%s' host: %w", normalized, &UnresolvableHostError{Host: host, Err: err})
+			return OutboundDecision{}, fmt.Errorf("validate '%s' host: %w", RedactURL(normalized), &UnresolvableHostError{Host: host, Err: err})
 		}
 	}
 
@@ -585,7 +585,9 @@ func defaultPort(scheme string) string {
 func normalizeOutboundURL(rawURL string) (*url.URL, string, error) {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
-		return nil, "", refuse(FilterRuleInvalidURL, "parse URL %q", rawURL)
+		// [RedactURL] cannot strip the query of a URL that does not parse,
+		// so the message leaves the URL out.
+		return nil, "", refuse(FilterRuleInvalidURL, "URL cannot be parsed")
 	}
 	parsed.Scheme = strings.ToLower(parsed.Scheme)
 	parsed.Host = strings.ToLower(parsed.Host)
@@ -597,8 +599,8 @@ func normalizeOutboundURL(rawURL string) (*url.URL, string, error) {
 	// http://trusted.example.com@10.0.0.1/ satisfies an allow-list anchored on
 	// trusted\.example\.com. The host checks in [DecideOutbound] already read
 	// [url.URL.Hostname], which ignores userinfo, so only the regex layer was
-	// affected. Dropping the credentials here also keeps them out of the error
-	// strings, which reach operator logs and any OTEL log exporter.
+	// affected. The error strings, which reach operator logs and traces, name
+	// the URL through [RedactURL] instead, which also drops its query.
 	matchable := *parsed
 	matchable.User = nil
 
@@ -618,11 +620,11 @@ func matchDenyList(normalized string, denyList []*regexp2.Regexp, deadline time.
 			// The pattern could not be evaluated, so the URL cannot be proven
 			// to fall outside the deny-list. Fail closed rather than letting a
 			// deny-list that never ran pass the request through.
-			return refuse(FilterRulePattern, "'%s' cannot handle '%s': %v", pattern.String(), normalized, err)
+			return refuse(FilterRulePattern, "'%s' cannot handle '%s': %v", pattern.String(), RedactURL(normalized), err)
 		}
 
 		if ok {
-			return refuse(FilterRuleDenyList, "'%s' matches the expression from the denied list", normalized)
+			return refuse(FilterRuleDenyList, "'%s' matches the expression from the denied list", RedactURL(normalized))
 		}
 	}
 
