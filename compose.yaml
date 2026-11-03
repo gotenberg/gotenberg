@@ -65,6 +65,7 @@ services:
       - "--chromium-shared-browser-context=${CHROMIUM_SHARED_BROWSER_CONTEXT}"
       - "--chromium-clear-cache=${CHROMIUM_CLEAR_CACHE}"
       - "--chromium-clear-cookies=${CHROMIUM_CLEAR_COOKIES}"
+      - "--chromium-clear-storage=${CHROMIUM_CLEAR_STORAGE}"
       - "--chromium-disable-javascript=${CHROMIUM_DISABLE_JAVASCRIPT}"
       - "--chromium-disable-routes=${CHROMIUM_DISABLE_ROUTES}"
       - "--libreoffice-restart-after=${LIBREOFFICE_RESTART_AFTER}"
