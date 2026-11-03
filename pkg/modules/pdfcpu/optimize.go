@@ -56,9 +56,10 @@ type pdfcpuImage struct {
 //
 // Only lossless (FlateDecode), non-CMYK, non-masked images at or above
 // [minOptimizeImageSize] are touched. Already-compressed, transparent, CMYK and
-// small images are skipped so the pass never enlarges a file or corrupts
-// transparency. It never fails the conversion for a single unreadable image; it
-// logs and moves on, and returns the input unchanged when nothing qualifies.
+// small images are skipped, and a replacement is only kept when it makes the
+// file smaller, so the pass never enlarges a file or corrupts transparency. It
+// never fails the conversion for a single unreadable image; it logs and moves
+// on, and returns the input unchanged when nothing qualifies.
 func (engine *PdfCpu) OptimizeImages(ctx context.Context, logger *slog.Logger, imageQuality int, inputPath string) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "pdfcpu.OptimizeImages",
 		trace.WithSpanKind(trace.SpanKindClient),
@@ -104,12 +105,17 @@ func (engine *PdfCpu) OptimizeImages(ctx context.Context, logger *slog.Logger, i
 		return fail(fmt.Errorf("optimize PDF images with pdfcpu: %w", err))
 	}
 
+	info, err := os.Stat(inputPath)
+	if err != nil {
+		return fail(fmt.Errorf("optimize PDF images with pdfcpu: stat input: %w", err))
+	}
+
 	// Chain one update per image. Each update writes a fresh file; current holds
-	// the latest successful output, so a single failed image is skipped without
+	// the latest kept output, so a failed or rejected image is skipped without
 	// discarding the ones already done. The input is only replaced on success.
-	current := inputPath
+	current, currentSize := inputPath, info.Size()
 	optimized := 0
-	for _, img := range targets {
+	for i, img := range targets {
 		src, ok := extracted[pdfcpuImageRef{page: img.page, id: img.id}]
 		if !ok {
 			logger.WarnContext(ctx, fmt.Sprintf("optimize images: image %s was not extracted, leaving it as is", img.id))
@@ -123,14 +129,30 @@ func (engine *PdfCpu) OptimizeImages(ctx context.Context, logger *slog.Logger, i
 			continue
 		}
 
-		next := filepath.Join(workDir, fmt.Sprintf("optimized-%d.pdf", optimized))
+		next := filepath.Join(workDir, fmt.Sprintf("optimized-%d.pdf", i))
 		err = engine.updateImage(ctx, logger, current, reencoded, next, img.obj)
 		if err != nil {
 			logger.WarnContext(ctx, fmt.Sprintf("optimize images: update %s: %v; leaving it as is", img.id, err))
 			continue
 		}
 
-		current = next
+		info, err = os.Stat(next)
+		if err != nil {
+			logger.WarnContext(ctx, fmt.Sprintf("optimize images: stat update of %s: %v; leaving it as is", img.id, err))
+			continue
+		}
+
+		// Charts and other flat-color images often take more space as JPEG than
+		// in their lossless stream. Compare what pdfcpu wrote rather than the
+		// JPEG above, as pdfcpu re-encodes gray images itself. The first update
+		// also rewrites the rest of the file, so on a long document it may keep
+		// a replacement that grew.
+		if info.Size() >= currentSize {
+			logger.DebugContext(ctx, fmt.Sprintf("optimize images: %s as JPEG takes the file from %d to %d bytes; leaving it as is", img.id, currentSize, info.Size()))
+			continue
+		}
+
+		current, currentSize = next, info.Size()
 		optimized++
 	}
 
