@@ -88,3 +88,33 @@ func TestRunSpansInvalidInput(t *testing.T) {
 		t.Fatal("no span recorded")
 	}
 }
+
+// TestRenderSpan asserts that a pdf.render span counts the pages it renders.
+func TestRenderSpan(t *testing.T) {
+	recorder := tracetest.NewSpanRecorder()
+	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
+
+	previous := otel.GetTracerProvider()
+	otel.SetTracerProvider(provider)
+	t.Cleanup(func() { otel.SetTracerProvider(previous) })
+
+	ctx, paths := testContext(t, "pages_3.pdf")
+
+	_, err := testProcessor().Run(ctx, mustStages(t, `[{"op":"render","pages":"1,3","dpi":36}]`), []string{paths["pages_3.pdf"]}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := attribute.Int("gotenberg.pdf.render.page.count", 2)
+	for _, s := range recorder.Ended() {
+		if s.Name() != "pdf.render" {
+			continue
+		}
+		if !slices.Contains(s.Attributes(), want) {
+			t.Errorf("pdf.render attributes = %v, want %v", s.Attributes(), want)
+		}
+		return
+	}
+
+	t.Fatal("no pdf.render span recorded")
+}

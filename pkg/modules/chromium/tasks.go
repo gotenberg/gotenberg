@@ -180,7 +180,7 @@ func printToPdfActionFunc(reqCtx context.Context, logger *slog.Logger, outputPat
 // to avoid leaking document content and exploding cardinality.
 func printToPdfAttrs(options PdfOptions) []attribute.KeyValue {
 	return []attribute.KeyValue{
-		attribute.Bool("gotenberg.chromium.print.landscape", options.Landscape),
+		attribute.Bool("gotenberg.conversion.landscape", options.Landscape),
 		attribute.Bool("gotenberg.chromium.print.print_background", options.PrintBackground),
 		attribute.Float64("gotenberg.chromium.print.scale", options.Scale),
 		attribute.Float64("gotenberg.chromium.print.paper_width", options.PaperWidth),
@@ -188,7 +188,7 @@ func printToPdfAttrs(options PdfOptions) []attribute.KeyValue {
 		attribute.Bool("gotenberg.chromium.print.single_page", options.SinglePage),
 		attribute.Bool("gotenberg.chromium.print.prefer_css_page_size", options.PreferCssPageSize),
 		attribute.Bool("gotenberg.chromium.print.generate_tagged_pdf", options.GenerateTaggedPdf),
-		attribute.Bool("gotenberg.chromium.print.has_page_ranges", options.PageRanges != ""),
+		attribute.Bool("gotenberg.conversion.has_page_ranges", options.PageRanges != ""),
 		attribute.Bool("gotenberg.chromium.print.has_header", options.HeaderTemplate != DefaultPdfOptions().HeaderTemplate),
 		attribute.Bool("gotenberg.chromium.print.has_footer", options.FooterTemplate != DefaultPdfOptions().FooterTemplate),
 	}

@@ -107,8 +107,8 @@ type runMeasure struct {
 // starts measuring the run.
 func (s *processSupervisor) measureRun(ctx context.Context) *runMeasure {
 	trace.SpanFromContext(ctx).SetAttributes(
-		attribute.Int64("gotenberg.queue.depth_at_arrival", s.ReqQueueSize()),
-		attribute.Int64("gotenberg.conversions_since_last_restart", s.ConversionsSinceRestart()),
+		attribute.Int64("gotenberg.queue.size", s.ReqQueueSize()),
+		attribute.Int64("gotenberg.process.conversion.count", s.ConversionsSinceRestart()),
 	)
 
 	return &runMeasure{s: s, arrival: time.Now()}

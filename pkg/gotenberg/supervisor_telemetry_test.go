@@ -236,7 +236,7 @@ func TestProcessSupervisor_Run_AnnotatesCallerSpan(t *testing.T) {
 	for _, kv := range caller.Attributes() {
 		found[kv.Key] = true
 	}
-	for _, key := range []attribute.Key{"gotenberg.queue.depth_at_arrival", "gotenberg.conversions_since_last_restart"} {
+	for _, key := range []attribute.Key{"gotenberg.queue.size", "gotenberg.process.conversion.count"} {
 		if !found[key] {
 			t.Errorf("caller span misses %q", key)
 		}

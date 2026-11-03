@@ -39,4 +39,11 @@ func TestConversionRequestAttributes(t *testing.T) {
 	if got["gotenberg.conversion.input.size"] != int64(len(content)) {
 		t.Errorf("input.size = %v, want %d", got["gotenberg.conversion.input.size"], len(content))
 	}
+
+	// Without a PDF/A format, no empty pdf_a attribute.
+	for _, kv := range conversionRequestAttributes(tmp, Options{}) {
+		if kv.Key == "gotenberg.libreoffice.pdf_a" {
+			t.Errorf("pdf_a = %q, want no attribute", kv.Value.AsString())
+		}
+	}
 }

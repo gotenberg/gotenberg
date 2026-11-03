@@ -70,7 +70,7 @@ func (p *Processor) renderOne(ctx *api.Context, s *renderStage, d document, pass
 		return nil, err
 	}
 
-	span.SetAttributes(attribute.Int("gotenberg.pdf.render.pages", len(pages)))
+	span.SetAttributes(attribute.Int("gotenberg.pdf.render.page.count", len(pages)))
 
 	opts := []litho.RenderOption{litho.WithRenderDPI(float64(s.dpi()))}
 	if p.renderFonts != nil {

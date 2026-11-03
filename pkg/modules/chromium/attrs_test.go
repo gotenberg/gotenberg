@@ -38,10 +38,10 @@ func TestPrintToPdfAttrs(t *testing.T) {
 		}
 	}
 
-	if !got["gotenberg.chromium.print.landscape"].AsBool() {
+	if !got["gotenberg.conversion.landscape"].AsBool() {
 		t.Error("expected landscape=true")
 	}
-	if !got["gotenberg.chromium.print.has_page_ranges"].AsBool() {
+	if !got["gotenberg.conversion.has_page_ranges"].AsBool() {
 		t.Error("expected has_page_ranges=true")
 	}
 	if !got["gotenberg.chromium.print.has_header"].AsBool() {

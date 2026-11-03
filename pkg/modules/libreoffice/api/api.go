@@ -689,10 +689,13 @@ func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPat
 // options.
 func conversionRequestAttributes(inputPath string, options Options) []attribute.KeyValue {
 	attrs := []attribute.KeyValue{
-		attribute.String("gotenberg.libreoffice.pdf_a", options.PdfFormats.PdfA),
 		attribute.Bool("gotenberg.libreoffice.pdf_ua", options.PdfFormats.PdfUa),
 		attribute.Bool("gotenberg.conversion.landscape", options.Landscape),
 		attribute.Bool("gotenberg.conversion.has_page_ranges", options.PageRanges != ""),
+	}
+
+	if options.PdfFormats.PdfA != "" {
+		attrs = append(attrs, attribute.String("gotenberg.libreoffice.pdf_a", options.PdfFormats.PdfA))
 	}
 
 	if info, err := os.Stat(inputPath); err == nil {
