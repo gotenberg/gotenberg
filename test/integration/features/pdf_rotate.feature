@@ -140,9 +140,9 @@ Feature: /forms/pdf/rotate
       | files | testdata/truncated.pdf | file  |
       | angle | 90                     | field |
     Then the response status code should be 400
-    Then the response body should contain string:
+    Then the response body should match string:
       """
-      Stage 'rotate' failed on 'truncated.pdf': open PDF:
+      Stage 'rotate' failed on 'truncated.pdf': not a valid PDF document: trailer missing /Root
       """
 
   Scenario: POST /forms/pdf/rotate (Missing Angle)

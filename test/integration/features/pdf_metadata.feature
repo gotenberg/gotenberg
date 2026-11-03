@@ -132,9 +132,9 @@ Feature: /forms/pdf/{set-metadata|metadata}
     When I make a "POST" request to Gotenberg at the "/forms/pdf/metadata" endpoint with the following form data and header(s):
       | files | testdata/truncated.pdf | file |
     Then the response status code should be 400
-    Then the response body should contain string:
+    Then the response body should match string:
       """
-      Stage 'metadata' failed on 'truncated.pdf': open PDF:
+      Stage 'metadata' failed on 'truncated.pdf': not a valid PDF document: trailer missing /Root
       """
 
   Scenario: POST /forms/pdf/set-metadata (Invalid Dates)

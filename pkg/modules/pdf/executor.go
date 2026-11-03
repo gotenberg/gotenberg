@@ -207,17 +207,29 @@ func (p *Processor) open(ctx context.Context, path, password string) (*litho.Rea
 
 	r, err := litho.OpenFile(ctx, path, opts...)
 	if err != nil {
-		return nil, fmt.Errorf("open PDF: %w", err)
+		return nil, openError("open PDF", err)
 	}
 
 	_, err = r.PageCount(ctx)
 	if err != nil {
 		_ = r.Close()
 
-		return nil, fmt.Errorf("open PDF: count pages: %w", err)
+		return nil, openError("open PDF: count pages", err)
 	}
 
 	return r, nil
+}
+
+// openError wraps a failure to open a document with the step it failed at. A
+// document litho refuses as invalid input, such as a malformed one, keeps
+// litho's own message for the client, since the step means nothing to it.
+func openError(step string, err error) error {
+	wrapped := fmt.Errorf("%s: %w", step, err)
+	if litho.IsInvalidInput(err) {
+		return &stageInputError{message: err.Error(), err: wrapped}
+	}
+
+	return wrapped
 }
 
 // write runs pipeline, the stages ops, into a new file named filename and
