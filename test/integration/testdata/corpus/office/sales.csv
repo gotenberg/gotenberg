@@ -1,0 +1,26 @@
+id,date,customer,product,qty,unit_price,total,comment
+1,2026-01-10,Straße GmbH,Widget 1,2,11.36,22.72,ok
+2,2026-01-19,Élodie & Fils,Widget 2,3,12.73,38.19,ok
+3,2026-01-28,Northwind Traders,Widget 3,4,14.1,56.4,"Note, with comma #3"
+4,2026-02-06,Contoso Ltd,Widget 4,5,15.47,77.35,ok
+5,2026-02-15,Café Müller,Widget 5,6,16.84,101.04,ok
+6,2026-02-24,Straße GmbH,Widget 6,7,18.21,127.47,"Note, with comma #6"
+7,2026-03-05,Élodie & Fils,Widget 7,1,19.58,19.58,ok
+8,2026-03-14,Northwind Traders,Widget 8,2,20.95,41.9,ok
+9,2026-03-23,Contoso Ltd,Widget 9,3,22.32,66.96,"Note, with comma #9"
+10,2026-04-01,Café Müller,Widget 10,4,23.69,94.76,ok
+11,2026-04-10,Straße GmbH,Widget 11,5,25.06,125.3,ok
+12,2026-04-19,Élodie & Fils,Widget 12,6,26.43,158.58,"Note, with comma #12"
+13,2026-04-28,Northwind Traders,Widget 13,7,27.8,194.6,ok
+14,2026-05-07,Contoso Ltd,Widget 14,1,29.17,29.17,ok
+15,2026-05-16,Café Müller,Widget 15,2,30.54,61.08,"Note, with comma #15"
+16,2026-05-25,Straße GmbH,Widget 16,3,31.91,95.73,ok
+17,2026-06-03,Élodie & Fils,Widget 17,4,33.28,133.12,ok
+18,2026-06-12,Northwind Traders,Widget 18,5,34.65,173.25,"Note, with comma #18"
+19,2026-06-21,Contoso Ltd,Widget 19,6,36.02,216.12,ok
+20,2026-06-30,Café Müller,Widget 20,7,37.39,261.73,ok
+21,2026-07-09,Straße GmbH,Widget 21,1,38.76,38.76,"Note, with comma #21"
+22,2026-07-18,Élodie & Fils,Widget 22,2,40.13,80.26,ok
+23,2026-07-27,Northwind Traders,Widget 23,3,41.5,124.5,ok
+24,2026-08-05,Contoso Ltd,Widget 24,4,42.87,171.48,"Note, with comma #24"
+25,2026-08-14,Café Müller,Widget 25,5,44.24,221.2,ok

@@ -1,0 +1,4 @@
+@page { size: A5; margin: 15mm }
+h2 { break-before: page }
+@media print { nav { display: none } }
+body{font-family:Georgia,serif}

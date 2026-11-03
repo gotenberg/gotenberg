@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0" xmlns:number="urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:form="urn:oasis:names:tc:opendocument:xmlns:form:1.0" xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0" xmlns:script="urn:oasis:names:tc:opendocument:xmlns:script:1.0" xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0" xmlns:of="urn:oasis:names:tc:opendocument:xmlns:of:1.2" xmlns:calcext="urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+<office:automatic-styles><number:date-style style:name="D1"><number:year number:style="long"/><number:text>-</number:text><number:month number:style="long"/><number:text>-</number:text><number:day number:style="long"/></number:date-style>
+<style:style style:name="ceD" style:family="table-cell" style:data-style-name="D1"/></office:automatic-styles>
+<office:body><office:spreadsheet>
+<table:table table:name="Revenue">
+<table:table-row><table:table-cell office:value-type="string"><text:p>Month</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>Amount</text:p></table:table-cell></table:table-row>
+<table:table-row><table:table-cell table:style-name="ceD" office:value-type="date" office:date-value="2026-01-31"><text:p>2026-01-31</text:p></table:table-cell><table:table-cell office:value-type="float" office:value="1000"><text:p>1000</text:p></table:table-cell></table:table-row>
+<table:table-row><table:table-cell table:style-name="ceD" office:value-type="date" office:date-value="2026-02-28"><text:p>2026-02-28</text:p></table:table-cell><table:table-cell office:value-type="float" office:value="2500.5"><text:p>2500.5</text:p></table:table-cell></table:table-row>
+<table:table-row><table:table-cell office:value-type="string"><text:p>REVENUE-SHEET-MARKER</text:p></table:table-cell><table:table-cell table:formula="of:=SUM([.B2:.B3])" office:value-type="float" office:value="3500.5"><text:p>3500.5</text:p></table:table-cell></table:table-row>
+</table:table>
+<table:table table:name="Costs">
+<table:table-row><table:table-cell office:value-type="string"><text:p>Item</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>Cost</text:p></table:table-cell></table:table-row>
+<table:table-row><table:table-cell office:value-type="string"><text:p>COSTS-SHEET-MARKER</text:p></table:table-cell><table:table-cell office:value-type="float" office:value="700"><text:p>700</text:p></table:table-cell></table:table-row>
+<table:table-row><table:table-cell office:value-type="string"><text:p>Total</text:p></table:table-cell><table:table-cell table:formula="of:=SUM([.B2:.B2])" office:value-type="float" office:value="700"><text:p>700</text:p></table:table-cell></table:table-row>
+</table:table>
+</office:spreadsheet></office:body></office:document>

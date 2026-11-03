@@ -1,0 +1,8 @@
+@page { size: A4; margin: 15mm }
+body{font-family:Helvetica,Arial,sans-serif;font-size:11pt;color:#222}
+h1{color:#143272}h2{border-bottom:1px solid #143272;padding-bottom:2px}
+table{border-collapse:collapse;width:100%}
+th{background-color:#143272;color:#fff;text-align:left;padding:6px}
+td{padding:6px;border-bottom:1px solid #ddd}.r{text-align:right}
+.total{font-weight:bold;font-size:14pt}
+h2.terms{break-before:page}

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0" xmlns:number="urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:form="urn:oasis:names:tc:opendocument:xmlns:form:1.0" xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0" xmlns:script="urn:oasis:names:tc:opendocument:xmlns:script:1.0" xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0" xmlns:of="urn:oasis:names:tc:opendocument:xmlns:of:1.2" xmlns:calcext="urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
+<office:meta><dc:title>Q4 Memo</dc:title><meta:initial-creator>Jane Doe</meta:initial-creator><dc:creator>Jane Doe</dc:creator></office:meta>
+<office:styles>
+<style:style style:name="Standard" style:family="paragraph"/>
+<style:style style:name="Heading_20_1" style:display-name="Heading 1" style:family="paragraph" style:default-outline-level="1"><style:text-properties fo:font-size="18pt" fo:font-weight="bold"/></style:style>
+<style:style style:name="Heading_20_2" style:display-name="Heading 2" style:family="paragraph" style:default-outline-level="2"><style:text-properties fo:font-size="14pt" fo:font-weight="bold"/></style:style>
+<style:style style:name="Header" style:family="paragraph"/><style:style style:name="Footer" style:family="paragraph"/>
+</office:styles>
+<office:automatic-styles>
+<style:style style:name="Bold" style:family="text"><style:text-properties fo:font-weight="bold"/></style:style>
+<style:style style:name="Ital" style:family="text"><style:text-properties fo:font-style="italic"/></style:style>
+<style:style style:name="Tbl" style:family="table"><style:table-properties style:width="16cm" table:align="left"/></style:style>
+<style:style style:name="Cell" style:family="table-cell"><style:table-cell-properties fo:border="0.5pt solid #000000" fo:padding="0.1cm"/></style:style>
+<style:page-layout style:name="pm1"><style:page-layout-properties fo:page-width="21cm" fo:page-height="29.7cm" fo:margin-left="2cm" fo:margin-right="2cm" fo:margin-top="2cm" fo:margin-bottom="2cm"/><style:header-style/><style:footer-style/></style:page-layout>
+</office:automatic-styles>
+<office:master-styles><style:master-page style:name="Standard" style:page-layout-name="pm1">
+<style:header><text:p text:style-name="Header">Northwind internal</text:p></style:header>
+<style:footer><text:p text:style-name="Footer">Page <text:page-number text:select-page="current">1</text:page-number></text:p></style:footer>
+</style:master-page></office:master-styles>
+<office:body><office:text>
+<text:h text:style-name="Heading_20_1" text:outline-level="1">Purpose</text:h>
+<text:p text:style-name="Standard">This memo records the Q4 decisions. It has <text:span text:style-name="Bold">bold text</text:span> and <text:span text:style-name="Ital">italic text</text:span> and a footnote.<text:note text:id="ftn1" text:note-class="footnote"><text:note-citation>1</text:note-citation><text:note-body><text:p text:style-name="Standard">FOOTNOTE-MARKER text.</text:p></text:note-body></text:note></text:p>
+<text:h text:style-name="Heading_20_1" text:outline-level="1">Decisions</text:h>
+<text:h text:style-name="Heading_20_2" text:outline-level="2">Budget</text:h>
+<text:p text:style-name="Standard">Budget approved for Q1.</text:p>
+<text:h text:style-name="Heading_20_2" text:outline-level="2">Hiring</text:h>
+<text:p text:style-name="Standard">Two engineers will be hired.</text:p>
+<table:table table:name="T1" table:style-name="Tbl"><table:table-column table:number-columns-repeated="3"/>
+<table:table-row>
+<table:table-cell table:style-name="Cell" office:value-type="string"><text:p>R1C1</text:p></table:table-cell>
+<table:table-cell table:style-name="Cell" office:value-type="string"><text:p>R1C2</text:p></table:table-cell>
+<table:table-cell table:style-name="Cell" office:value-type="string"><text:p>R1C3</text:p></table:table-cell>
+</table:table-row>
+<table:table-row>
+<table:table-cell table:style-name="Cell" office:value-type="string"><text:p>R2C1</text:p></table:table-cell>
+<table:table-cell table:style-name="Cell" office:value-type="string"><text:p>R2C2</text:p></table:table-cell>
+<table:table-cell table:style-name="Cell" office:value-type="string"><text:p>R2C3</text:p></table:table-cell>
+</table:table-row>
+<table:table-row>
+<table:table-cell table:style-name="Cell" office:value-type="string"><text:p>R3C1</text:p></table:table-cell>
+<table:table-cell table:style-name="Cell" office:value-type="string"><text:p>R3C2</text:p></table:table-cell>
+<table:table-cell table:style-name="Cell" office:value-type="string"><text:p>R3C3</text:p></table:table-cell>
+</table:table-row>
+</table:table>
+<text:p text:style-name="Standard">MEMO-END-MARKER</text:p>
+</office:text></office:body></office:document>
