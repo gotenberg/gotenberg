@@ -607,7 +607,6 @@ func (s *processSupervisor) tracedLaunch(ctx context.Context, reason string, lau
 		return err
 	}
 
-	span.SetStatus(codes.Ok, "")
 	return nil
 }
 

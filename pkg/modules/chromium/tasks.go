@@ -166,12 +166,9 @@ func printToPdfActionFunc(reqCtx context.Context, logger *slog.Logger, outputPat
 
 			return nil
 		}()
-
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-		} else {
-			span.SetStatus(codes.Ok, "")
 		}
 
 		return err

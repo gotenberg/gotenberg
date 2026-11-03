@@ -462,8 +462,6 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 		if err != nil {
 			dlSpan.RecordError(err)
 			dlSpan.SetStatus(codes.Error, err.Error())
-		} else {
-			dlSpan.SetStatus(codes.Ok, "")
 		}
 		dlSpan.End()
 	}()

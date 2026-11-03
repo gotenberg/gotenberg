@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"testing"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 func TestClassifyError(t *testing.T) {
@@ -58,5 +61,36 @@ func TestSpanErrorType(t *testing.T) {
 	}
 	if count != 1 {
 		t.Errorf("expected exactly one error.type attribute, got %d", count)
+	}
+}
+
+func TestSetSpanStatus(t *testing.T) {
+	recorder := newTestSpanRecorder(t)
+
+	_, success := otel.Tracer("test").Start(context.Background(), "engine.success")
+	if err := SetSpanStatus(success, nil, ""); err != nil {
+		t.Errorf("SetSpanStatus(nil) = %v, want nil", err)
+	}
+	success.End()
+
+	errBoom := errors.New("boom")
+	_, failure := otel.Tracer("test").Start(context.Background(), "engine.failure")
+	if err := SetSpanStatus(failure, errBoom, ErrorTypeInvalidInput); !errors.Is(err, errBoom) {
+		t.Errorf("SetSpanStatus(boom) = %v, want boom", err)
+	}
+	failure.End()
+
+	// A success leaves the status unset, per the semconv.
+	got := findSpan(recorder, "engine.success")
+	if got.Status().Code != codes.Unset || len(got.Attributes()) != 0 {
+		t.Errorf("success: status %v, attributes %v, want unset and none", got.Status(), got.Attributes())
+	}
+
+	got = findSpan(recorder, "engine.failure")
+	if got.Status().Code != codes.Error || got.Status().Description != "boom" {
+		t.Errorf("failure: status %v, want error boom", got.Status())
+	}
+	if want := attribute.String("error.type", ErrorTypeInvalidInput); !slices.Contains(got.Attributes(), want) {
+		t.Errorf("failure: attributes %v, want %v", got.Attributes(), want)
 	}
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc/oidctest"
 	"github.com/labstack/echo/v5"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
@@ -200,9 +201,10 @@ func TestVersionHeaderMiddleware(t *testing.T) {
 	}
 }
 
-// TestTelemetryMiddleware_SpanStatus pins where the server span records a
-// failure: its status description carries the error message, and no attribute
-// does, since the error.* namespace belongs to OpenTelemetry.
+// TestTelemetryMiddleware_SpanStatus pins the status of the server span, per
+// the HTTP semconv: unset on a success and on a 4xx, an error typed with its
+// status code on a 5xx. The status description carries the error message,
+// and no attribute does, since the error.* namespace belongs to OpenTelemetry.
 func TestTelemetryMiddleware_SpanStatus(t *testing.T) {
 	recorder := tracetest.NewSpanRecorder()
 	previous := otel.GetTracerProvider()
@@ -214,23 +216,31 @@ func TestTelemetryMiddleware_SpanStatus(t *testing.T) {
 		handler         echo.HandlerFunc
 		wantCode        codes.Code
 		wantDescription string
+		wantErrorType   string
 	}{
 		{
 			name:     "success",
 			handler:  func(c *echo.Context) error { return c.NoContent(http.StatusOK) },
-			wantCode: codes.Ok,
+			wantCode: codes.Unset,
 		},
 		{
-			name:            "client error",
-			handler:         func(*echo.Context) error { return NewSentinelHttpError(http.StatusBadRequest, "Invalid form data") },
-			wantCode:        codes.Error,
-			wantDescription: "Invalid form data",
+			name:     "client error",
+			handler:  func(*echo.Context) error { return NewSentinelHttpError(http.StatusBadRequest, "Invalid form data") },
+			wantCode: codes.Unset,
 		},
 		{
 			name:            "internal error",
 			handler:         func(*echo.Context) error { return fmt.Errorf("convert to PDF: %w", errors.New("boom")) },
 			wantCode:        codes.Error,
 			wantDescription: "convert to PDF: boom",
+			wantErrorType:   "500",
+		},
+		{
+			name:            "timeout",
+			handler:         func(*echo.Context) error { return fmt.Errorf("convert to PDF: %w", context.DeadlineExceeded) },
+			wantCode:        codes.Error,
+			wantDescription: "convert to PDF: context deadline exceeded",
+			wantErrorType:   "503",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -240,11 +250,13 @@ func TestTelemetryMiddleware_SpanStatus(t *testing.T) {
 			srv.Pre(
 				latencyMiddleware(),
 				rootPathMiddleware("/"),
-				telemetryMiddleware(slog.New(slog.DiscardHandler), "localhost:3000", "Gotenberg-Trace", nil),
+				// No primary server name, as with the default --api-bind-ip
+				// (env API_BIND_IP): server.address comes from the Host.
+				telemetryMiddleware(slog.New(slog.DiscardHandler), "", "Gotenberg-Trace", nil),
 			)
 			srv.POST("/forms/test", tc.handler)
 
-			srv.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/forms/test", nil))
+			srv.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "http://gotenberg.example:3000/forms/test", nil))
 
 			ended := recorder.Ended()
 			if len(ended) != 1 {
@@ -255,10 +267,22 @@ func TestTelemetryMiddleware_SpanStatus(t *testing.T) {
 			if got := span.Status(); got.Code != tc.wantCode || got.Description != tc.wantDescription {
 				t.Errorf("span status = %v %q, want %v %q", got.Code, got.Description, tc.wantCode, tc.wantDescription)
 			}
+
+			attrs := make(map[attribute.Key]attribute.Value)
 			for _, kv := range span.Attributes() {
 				if kv.Key == "error" || kv.Key == "error.message" {
 					t.Errorf("span carries the %q attribute", kv.Key)
 				}
+				attrs[kv.Key] = kv.Value
+			}
+			if got := attrs["error.type"].AsString(); got != tc.wantErrorType {
+				t.Errorf("error.type = %q, want %q", got, tc.wantErrorType)
+			}
+			if got := attrs["server.address"].AsString(); got != "gotenberg.example" {
+				t.Errorf("server.address = %q, want gotenberg.example", got)
+			}
+			if got := attrs["server.port"].AsInt64(); got != 3000 {
+				t.Errorf("server.port = %d, want 3000", got)
 			}
 		})
 	}

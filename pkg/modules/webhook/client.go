@@ -168,7 +168,6 @@ func (c client) send(ctx context.Context, body io.Reader, headers map[string]str
 	}
 
 	c.logger.InfoContext(ctx, "request to webhook handled", attrs...)
-	span.SetStatus(codes.Ok, "")
 
 	return nil
 }
@@ -341,6 +340,5 @@ func (c client) sendEvent(ctx context.Context, correlationIdHeader, correlationI
 		return
 	}
 
-	span.SetStatus(codes.Ok, "")
 	c.logger.InfoContext(ctx, fmt.Sprintf("webhook event sent to '%s'", c.eventsUrl))
 }

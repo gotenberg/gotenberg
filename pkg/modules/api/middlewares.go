@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,7 +18,6 @@ import (
 	"github.com/labstack/echo/v5/middleware"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
@@ -328,12 +328,16 @@ func telemetryMiddleware(logger *slog.Logger, serverName, correlationIdHeader st
 				c.Echo().HTTPErrorHandler(c, err)
 			}
 
-			// The semconv puts the error message in the status description,
-			// not in an attribute of the error.* namespace, and does not
-			// repeat the status code there.
+			// Per the HTTP semconv, a server span fails on a 5xx alone, and
+			// its error.type is the status code. A 4xx leaves the status
+			// unset, without a description. The error message goes in the
+			// description, not in an attribute of the error.* namespace.
 			code, description := semconvSrv.Status(status)
-			if err != nil && code == codes.Error {
-				description = err.Error()
+			if code == codes.Error {
+				gotenberg.SpanErrorType(span, strconv.Itoa(status))
+				if err != nil {
+					description = err.Error()
+				}
 			}
 			span.SetStatus(code, description)
 			span.SetAttributes(semconvSrv.ResponseTraceAttrs(semconvutil.ResponseTelemetry{
@@ -382,18 +386,14 @@ func telemetryMiddleware(logger *slog.Logger, serverName, correlationIdHeader st
 				slog.Int64("bytes_out", response.Size),
 			)
 
-			additionalAttributes := []attribute.KeyValue{
-				semconvSrv.Route(routePath),
-			}
-
 			semconvSrv.RecordMetrics(ctx, semconvutil.ServerMetricData{
-				ServerName:           serverName,
-				ResponseSize:         response.Size,
-				Req:                  request,
-				StatusCode:           status,
-				AdditionalAttributes: additionalAttributes,
-				RequestSize:          request.ContentLength,
-				ElapsedTime:          float64(time.Since(startTime)) / float64(time.Millisecond),
+				ServerName:      serverName,
+				ResponseSize:    response.Size,
+				Req:             request,
+				StatusCode:      status,
+				Route:           routePath,
+				RequestSize:     request.ContentLength,
+				RequestDuration: time.Since(startTime),
 			})
 
 			return nil

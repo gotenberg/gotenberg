@@ -58,10 +58,10 @@ func SpanErrorType(span trace.Span, errorType string) {
 }
 
 // SetSpanStatus sets the status of span from the outcome of the operation it
-// traces, with errorType as its error.type on failure, and returns err.
+// traces, with errorType as its error.type on failure, and returns err. A
+// success leaves the status unset, as the semconv recommends.
 func SetSpanStatus(span trace.Span, err error, errorType string) error {
 	if err == nil {
-		span.SetStatus(codes.Ok, "")
 		return nil
 	}
 
