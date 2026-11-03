@@ -68,6 +68,7 @@ services:
       - "--chromium-clear-storage=${CHROMIUM_CLEAR_STORAGE}"
       - "--chromium-disable-javascript=${CHROMIUM_DISABLE_JAVASCRIPT}"
       - "--chromium-disable-routes=${CHROMIUM_DISABLE_ROUTES}"
+      - "--chromium-debug-protocol=${CHROMIUM_DEBUG_PROTOCOL}"
       - "--libreoffice-restart-after=${LIBREOFFICE_RESTART_AFTER}"
       - "--libreoffice-max-queue-size=${LIBREOFFICE_MAX_QUEUE_SIZE}"
       - "--libreoffice-idle-shutdown-timeout=${LIBREOFFICE_IDLE_SHUTDOWN_TIMEOUT}"

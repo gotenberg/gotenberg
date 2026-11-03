@@ -551,6 +551,28 @@ Feature: /forms/chromium/convert/html
     Then the Gotenberg container should log the following entries:
       | "url":"file:///etc/passwd","rule":"deny-list" |
 
+  # The DevTools Protocol messages carry URLs, cookies and header values
+  # whole, so the debug level leaves them out unless an operator asks.
+  Scenario: POST /forms/chromium/convert/html (DevTools Protocol messages stay out of the debug logs)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | LOG_LEVEL | debug |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files | testdata/page-1-html/index.html | file |
+    Then the response status code should be 200
+    Then the Gotenberg container should NOT log the following entries:
+      | Page.printToPDF |
+
+  Scenario: POST /forms/chromium/convert/html (--chromium-debug-protocol logs the DevTools Protocol messages)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | LOG_LEVEL               | debug |
+      | CHROMIUM_DEBUG_PROTOCOL | true  |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files | testdata/page-1-html/index.html | file |
+    Then the response status code should be 200
+    Then the Gotenberg container should log the following entries:
+      | Page.printToPDF                                                         |
+      | --chromium-debug-protocol (CHROMIUM_DEBUG_PROTOCOL) logs every DevTools |
+
   # Control for the WebSocket scenario below. An ordinary fetch to a loopback
   # address is surfaced as a Fetch.requestPaused event, so it is blocked by
   # CHROMIUM_DENY_PRIVATE_IPS and the block is logged. The allow-list is

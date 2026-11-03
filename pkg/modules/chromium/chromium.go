@@ -541,6 +541,7 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Bool("chromium-clear-storage", false, "Clear Chromium local storage between each conversion - only applies with --chromium-shared-browser-context")
 			fs.Bool("chromium-disable-javascript", false, "Disable JavaScript")
 			fs.Bool("chromium-disable-routes", false, "Disable the routes")
+			fs.Bool("chromium-debug-protocol", false, "Log every DevTools Protocol message between Gotenberg and Chromium at the debug level of --log-level (LOG_LEVEL). The messages carry URLs, cookies and header values whole, credentials included: enable it only to troubleshoot")
 
 			return fs
 		}(),
@@ -578,6 +579,7 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 		enableEnvironmentProxy:   flags.MustBool("chromium-enable-environment-proxy"),
 		wsUrlReadTimeout:         flags.MustDuration("chromium-start-timeout"),
 		hyphenDataDirPath:        hyphenDataDirPath,
+		debugProtocol:            flags.MustBool("chromium-debug-protocol"),
 
 		allowList:            flags.MustRegexpSlice("chromium-allow-list"),
 		denyList:             flags.MustRegexpSlice("chromium-deny-list"),
@@ -592,17 +594,11 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 		disableJavaScript: flags.MustBool("chromium-disable-javascript"),
 	}
 
-	hostRules, err := parseHostResolverRules(mod.args.hostResolverRules)
-	if err != nil {
-		return fmt.Errorf("parse --chromium-host-resolver-rules (env CHROMIUM_HOST_RESOLVER_RULES): %w", err)
-	}
-	mod.args.hostRules = hostRules
-
 	// Logger.
 	mod.logger = gotenberg.Logger(mod).With(slog.String("logger", "browser"))
 
-	if !mod.args.usesPinningProxy() && mod.args.restrictsNetwork() {
-		mod.logger.WarnContext(context.Background(), "--chromium-proxy-server (env CHROMIUM_PROXY_SERVER) replaces Gotenberg's pinning proxy, so WebSocket handshakes reach that proxy without Chromium's outbound policy; enforce the policy on that proxy")
+	if mod.args.debugProtocol {
+		mod.logger.WarnContext(context.Background(), "--chromium-debug-protocol (CHROMIUM_DEBUG_PROTOCOL) logs every DevTools Protocol message whole at the debug level, credentials included; disable it once done troubleshooting")
 	}
 
 	// Process.

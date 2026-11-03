@@ -75,6 +75,9 @@ type browserArguments struct {
 	enableEnvironmentProxy   bool
 	wsUrlReadTimeout         time.Duration
 	hyphenDataDirPath        string
+	// debugProtocol logs every DevTools Protocol message, which carries URLs,
+	// cookies and header values whole.
+	debugProtocol bool
 
 	// Tasks specific.
 	allowList            []*regexp2.Regexp
@@ -266,7 +269,11 @@ func (b *chromiumBrowser) Start(ctx context.Context, logger *slog.Logger) (err e
 	// The browser outlives the start, so its context derives from initialCtx.
 	// Until the start succeeds, ctx may still abort it.
 	allocatorCtx, allocatorCancel := chromedp.NewExecAllocator(b.initialCtx, opts...)
-	browserCtx, cancel := chromedp.NewContext(allocatorCtx, chromedp.WithDebugf(debug.Printf))
+	var contextOpts []chromedp.ContextOption
+	if b.arguments.debugProtocol {
+		contextOpts = append(contextOpts, chromedp.WithDebugf(debug.Printf))
+	}
+	browserCtx, cancel := chromedp.NewContext(allocatorCtx, contextOpts...)
 	abortStart := context.AfterFunc(ctx, func() {
 		cancel()
 		allocatorCancel()
