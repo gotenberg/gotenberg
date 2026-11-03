@@ -132,3 +132,22 @@ func TestApi_warnInsecureDebugRoute_NilLoggerDoesNotPanic(t *testing.T) {
 	api := Api{enableDebugRoute: true}
 	api.warnInsecureDebugRoute()
 }
+
+func TestSpanServerName(t *testing.T) {
+	for _, tc := range []struct {
+		bindIp string
+		want   string
+	}{
+		{"", ""},
+		{"0.0.0.0", ""},
+		{"::", ""},
+		{"127.0.0.1", "127.0.0.1:3000"},
+		{"::1", "[::1]:3000"},
+	} {
+		t.Run(tc.bindIp, func(t *testing.T) {
+			if got := spanServerName(tc.bindIp, 3000); got != tc.want {
+				t.Errorf("spanServerName(%q, 3000) = %q, want %q", tc.bindIp, got, tc.want)
+			}
+		})
+	}
+}

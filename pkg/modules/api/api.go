@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -596,6 +597,19 @@ func newEchoServer() *echo.Echo {
 	return srv
 }
 
+// spanServerName returns the primary server name of the server spans: the bind
+// IP and the port. An empty or unspecified bind IP, such as 0.0.0.0 or ::,
+// names no host, so it returns "" and the spans read the request's Host
+// instead.
+func spanServerName(bindIp string, port int) string {
+	ip := net.ParseIP(bindIp)
+	if ip == nil || ip.IsUnspecified() {
+		return ""
+	}
+
+	return net.JoinHostPort(bindIp, strconv.Itoa(port))
+}
+
 // Start starts the HTTP server.
 func (a *Api) Start() error {
 	a.srv = newEchoServer()
@@ -624,7 +638,7 @@ func (a *Api) Start() error {
 		disableTelemetryForPaths = append(disableTelemetryForPaths, "version")
 	}
 
-	serverName := fmt.Sprintf("%s:%d", a.bindIp, a.port)
+	serverName := spanServerName(a.bindIp, a.port)
 
 	// Add the API middlewares.
 	a.srv.Pre(
