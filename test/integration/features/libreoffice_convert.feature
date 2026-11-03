@@ -917,10 +917,10 @@ Feature: /forms/libreoffice/convert
   Scenario: POST /forms/libreoffice/convert (Factur-X / ZUGFeRD)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
-      | files                     | testdata/page_1.docx                                                             | file   |
-      | files                     | testdata/embed_1.xml                                                             | file   |
-      | stages                    | [{"op":"remediate","profile":"Factur-X","xml":"embed_1.xml","level":"EN 16931"}] | field  |
-      | Gotenberg-Output-Filename | foo                                                                              | header |
+      | files                     | testdata/page_1.docx                                                                     | file   |
+      | files                     | testdata/invoice-en16931.xml                                                             | file   |
+      | stages                    | [{"op":"remediate","profile":"Factur-X","xml":"invoice-en16931.xml","level":"EN 16931"}] | field  |
+      | Gotenberg-Output-Filename | foo                                                                                      | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -939,13 +939,13 @@ Feature: /forms/libreoffice/convert
       | Gotenberg-Output-Filename | base                 | header |
     Then the response status code should be 200
     When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
-      | files                     | teststore/base.pdf   | file   |
-      | files                     | testdata/embed_1.xml | file   |
-      | profile                   | Factur-X             | field  |
-      | xml                       | embed_1.xml          | field  |
-      | level                     | BASIC                | field  |
-      | documentType              | ORDER                | field  |
-      | Gotenberg-Output-Filename | foo                  | header |
+      | files                     | teststore/base.pdf         | file   |
+      | files                     | testdata/invoice-basic.xml | file   |
+      | profile                   | Factur-X                   | field  |
+      | xml                       | invoice-basic.xml          | field  |
+      | level                     | BASIC                      | field  |
+      | documentType              | ORDER                      | field  |
+      | Gotenberg-Output-Filename | foo                        | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
@@ -963,12 +963,12 @@ Feature: /forms/libreoffice/convert
       | Gotenberg-Output-Filename | plain                | header |
     Then the response status code should be 200
     When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
-      | files                     | teststore/plain.pdf  | file   |
-      | files                     | testdata/embed_1.xml | file   |
-      | profile                   | Factur-X             | field  |
-      | xml                       | embed_1.xml          | field  |
-      | level                     | EN 16931             | field  |
-      | Gotenberg-Output-Filename | foo                  | header |
+      | files                     | teststore/plain.pdf          | file   |
+      | files                     | testdata/invoice-en16931.xml | file   |
+      | profile                   | Factur-X                     | field  |
+      | xml                       | invoice-en16931.xml          | field  |
+      | level                     | EN 16931                     | field  |
+      | Gotenberg-Output-Filename | foo                          | header |
     Then the response status code should be 200
     Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 0 failed rule(s)
     Then the response PDF(s) should have the "factur-x.xml" file embedded with relationship "Alternative"
@@ -984,12 +984,12 @@ Feature: /forms/libreoffice/convert
       | Gotenberg-Output-Filename | base                 | header |
     Then the response status code should be 200
     When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
-      | files                     | teststore/base.pdf   | file   |
-      | files                     | testdata/embed_1.xml | file   |
-      | profile                   | Factur-X             | field  |
-      | xml                       | embed_1.xml          | field  |
-      | level                     | XRECHNUNG            | field  |
-      | Gotenberg-Output-Filename | foo                  | header |
+      | files                     | teststore/base.pdf             | file   |
+      | files                     | testdata/invoice-xrechnung.xml | file   |
+      | profile                   | Factur-X                       | field  |
+      | xml                       | invoice-xrechnung.xml          | field  |
+      | level                     | XRECHNUNG                      | field  |
+      | Gotenberg-Output-Filename | foo                            | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response

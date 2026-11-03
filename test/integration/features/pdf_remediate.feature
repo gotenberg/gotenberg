@@ -75,12 +75,12 @@ Feature: /forms/pdf/remediate
   Scenario: POST /forms/pdf/remediate (Factur-X)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
-      | files                     | testdata/page_1.pdf  | file   |
-      | files                     | testdata/embed_1.xml | file   |
-      | profile                   | Factur-X             | field  |
-      | xml                       | embed_1.xml          | field  |
-      | level                     | EN 16931             | field  |
-      | Gotenberg-Output-Filename | foo                  | header |
+      | files                     | testdata/page_1.pdf          | file   |
+      | files                     | testdata/invoice-en16931.xml | file   |
+      | profile                   | Factur-X                     | field  |
+      | xml                       | invoice-en16931.xml          | field  |
+      | level                     | EN 16931                     | field  |
+      | Gotenberg-Output-Filename | foo                          | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 0 failed rule(s)
@@ -93,12 +93,12 @@ Feature: /forms/pdf/remediate
   Scenario: POST /forms/pdf/remediate (Factur-X XRECHNUNG)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
-      | files                     | testdata/page_1.pdf  | file   |
-      | files                     | testdata/embed_1.xml | file   |
-      | profile                   | Factur-X             | field  |
-      | xml                       | embed_1.xml          | field  |
-      | level                     | XRECHNUNG            | field  |
-      | Gotenberg-Output-Filename | foo                  | header |
+      | files                     | testdata/page_1.pdf            | file   |
+      | files                     | testdata/invoice-xrechnung.xml | file   |
+      | profile                   | Factur-X                       | field  |
+      | xml                       | invoice-xrechnung.xml          | field  |
+      | level                     | XRECHNUNG                      | field  |
+      | Gotenberg-Output-Filename | foo                            | header |
     Then the response status code should be 200
     Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 0 failed rule(s)
     Then the response PDF(s) should have the "xrechnung.xml" file embedded with relationship "Alternative"
@@ -111,12 +111,12 @@ Feature: /forms/pdf/remediate
   Scenario: POST /forms/pdf/remediate (Factur-X MINIMUM)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
-      | files                     | testdata/page_1.pdf  | file   |
-      | files                     | testdata/embed_1.xml | file   |
-      | profile                   | Factur-X             | field  |
-      | xml                       | embed_1.xml          | field  |
-      | level                     | MINIMUM              | field  |
-      | Gotenberg-Output-Filename | foo                  | header |
+      | files                     | testdata/page_1.pdf          | file   |
+      | files                     | testdata/invoice-minimum.xml | file   |
+      | profile                   | Factur-X                     | field  |
+      | xml                       | invoice-minimum.xml          | field  |
+      | level                     | MINIMUM                      | field  |
+      | Gotenberg-Output-Filename | foo                          | header |
     Then the response status code should be 200
     Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 0 failed rule(s)
     Then the response PDF(s) should have the "factur-x.xml" file embedded with relationship "Data"
@@ -128,12 +128,12 @@ Feature: /forms/pdf/remediate
   Scenario: POST /forms/pdf/remediate (Factur-X Repair)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
-      | files                     | testdata/page_1.pdf  | file   |
-      | files                     | testdata/embed_1.xml | file   |
-      | profile                   | Factur-X             | field  |
-      | xml                       | embed_1.xml          | field  |
-      | level                     | EN 16931             | field  |
-      | Gotenberg-Output-Filename | foo                  | header |
+      | files                     | testdata/page_1.pdf          | file   |
+      | files                     | testdata/invoice-en16931.xml | file   |
+      | profile                   | Factur-X                     | field  |
+      | xml                       | invoice-en16931.xml          | field  |
+      | level                     | EN 16931                     | field  |
+      | Gotenberg-Output-Filename | foo                          | header |
     Then the response status code should be 200
     When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
       | files   | teststore/foo.pdf | file  |
@@ -149,6 +149,33 @@ Feature: /forms/pdf/remediate
     Then the response body should match string:
       """
       Stage 'remediate' failed on 'page_1.pdf': no hybrid invoice attachment found
+      """
+
+  # The invoice XML must be a Cross-Industry Invoice of the declared level.
+  @factur-x
+  Scenario: POST /forms/pdf/remediate (Factur-X Invalid Invoice)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
+      | files   | testdata/page_1.pdf          | file  |
+      | files   | testdata/invoice-en16931.xml | file  |
+      | profile | Factur-X                     | field |
+      | xml     | invoice-en16931.xml          | field |
+      | level   | MINIMUM                      | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'remediate' failed on 'page_1.pdf': factur-x conformance level does not match the invoice XML: level "MINIMUM" given, but the invoice XML declares "EN 16931" (guideline ID "urn:cen.eu:en16931:2017")
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
+      | files   | testdata/page_1.pdf  | file  |
+      | files   | testdata/embed_1.xml | file  |
+      | profile | Factur-X             | field |
+      | xml     | embed_1.xml          | field |
+      | level   | EN 16931             | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'remediate' failed on 'page_1.pdf': factur-x invoice XML is not a Cross-Industry Invoice: the root element is not CrossIndustryInvoice in namespace "urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"
       """
 
   # A pair of profiles, the field repeated, writes a PDF that conforms to both,
@@ -180,13 +207,13 @@ Feature: /forms/pdf/remediate
   Scenario: POST /forms/pdf/remediate (Factur-X & PDF/UA-1)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
-      | files                     | testdata/page_1.pdf  | file   |
-      | files                     | testdata/embed_1.xml | file   |
-      | profile                   | Factur-X             | field  |
-      | profile                   | PDF/UA-1             | field  |
-      | xml                       | embed_1.xml          | field  |
-      | level                     | EN 16931             | field  |
-      | Gotenberg-Output-Filename | foo                  | header |
+      | files                     | testdata/page_1.pdf          | file   |
+      | files                     | testdata/invoice-en16931.xml | file   |
+      | profile                   | Factur-X                     | field  |
+      | profile                   | PDF/UA-1                     | field  |
+      | xml                       | invoice-en16931.xml          | field  |
+      | level                     | EN 16931                     | field  |
+      | Gotenberg-Output-Filename | foo                          | header |
     Then the response status code should be 200
     Then the response header "Gotenberg-Remediation-Residual" should be "0"
     Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 0 failed rule(s)
