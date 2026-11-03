@@ -26,6 +26,9 @@ Feature: /debug
           "libreoffice-api": {
             "version": "ignore",
             "lok_version": "ignore"
+          },
+          "pdf": {
+            "litho_version": "ignore"
           }
         },
         "flags": {
@@ -129,6 +132,9 @@ Feature: /debug
           "libreoffice-api": {
             "version": "ignore",
             "lok_version": "ignore"
+          },
+          "pdf": {
+            "litho_version": "ignore"
           }
         },
         "flags": {

@@ -121,6 +121,12 @@ func (mod *PDF) Report() gotenberg.Report {
 	}
 }
 
+// Debug returns additional debug data: the version of litho, which does the
+// PDF work.
+func (mod *PDF) Debug() map[string]any {
+	return map[string]any{"litho_version": lithoVersion()}
+}
+
 // lithoVersion returns the version of the litho module the binary embeds, or
 // "unknown" when the binary carries no build information.
 func lithoVersion() string {
@@ -233,6 +239,7 @@ var (
 	_ gotenberg.Provisioner = (*PDF)(nil)
 	_ gotenberg.Validator   = (*PDF)(nil)
 	_ gotenberg.Reporter    = (*PDF)(nil)
+	_ gotenberg.Debuggable  = (*PDF)(nil)
 	_ Provider              = (*PDF)(nil)
 	_ api.Router            = (*PDF)(nil)
 )
