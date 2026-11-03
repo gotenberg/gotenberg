@@ -22,6 +22,8 @@ func TestClassifyError(t *testing.T) {
 		{"process restarting", ErrProcessAlreadyRestarting, ErrorTypeProcessRestarting},
 		{"wrapped deadline", fmt.Errorf("convert: %w", context.DeadlineExceeded), ErrorTypeTimeout},
 		{"joined queue", errors.Join(errors.New("attempt"), ErrMaximumQueueSizeExceeded), ErrorTypeQueueSizeExceeded},
+		{"filtered", fmt.Errorf("filter URL: %w", refuse(FilterRuleDenyList, "deny-list match")), ErrorTypeInvalidInput},
+		{"unresolvable host", fmt.Errorf("navigate: %w", &UnresolvableHostError{Host: "gotenberg.invalid", Err: errors.New("no such host")}), ErrorTypeInvalidInput},
 		{"arbitrary", errors.New("boom"), ErrorTypeOther},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

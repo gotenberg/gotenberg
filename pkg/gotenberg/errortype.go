@@ -24,9 +24,10 @@ const (
 
 // ClassifyError maps err to a bounded, engine-agnostic error.type value. It
 // recognizes the failure modes shared by every engine: deadline, cancellation,
-// queue saturation, and process restart. It returns an empty string for a nil
-// error and [ErrorTypeOther] for anything it does not recognize, leaving
-// engine-specific refinement (such as [ErrorTypeInvalidInput]) to the caller.
+// queue saturation, process restart, and an outbound URL that is filtered or
+// does not resolve, which is [ErrorTypeInvalidInput]. It returns an empty
+// string for a nil error and [ErrorTypeOther] for anything it does not
+// recognize, leaving engine-specific refinement to the caller.
 func ClassifyError(err error) string {
 	switch {
 	case err == nil:
@@ -39,6 +40,9 @@ func ClassifyError(err error) string {
 		return ErrorTypeQueueSizeExceeded
 	case errors.Is(err, ErrProcessAlreadyRestarting):
 		return ErrorTypeProcessRestarting
+	case errors.Is(err, ErrFiltered):
+		// An [UnresolvableHostError] matches it too.
+		return ErrorTypeInvalidInput
 	default:
 		return ErrorTypeOther
 	}
