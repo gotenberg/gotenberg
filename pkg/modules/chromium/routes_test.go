@@ -432,3 +432,45 @@ func TestFormDataChromiumOptions_ExtraHttpHeaderScope(t *testing.T) {
 		})
 	}
 }
+
+func TestFormDataChromiumOptions_WaitDelay(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		value     string
+		timeout   time.Duration
+		want      time.Duration
+		wantError string
+	}{
+		{name: "within the timeout", value: "2s", timeout: 30 * time.Second, want: 2 * time.Second},
+		{name: "unknown timeout", value: "2m", want: 2 * time.Minute},
+		{name: "absent", timeout: 30 * time.Second},
+		{name: "beyond the timeout", value: "40s", timeout: 30 * time.Second, wantError: "form field 'waitDelay' is invalid (got '40s', must be shorter than the API timeout of 30s: raise --api-timeout (API_TIMEOUT) or lower the delay)"},
+		{name: "equal to the timeout", value: "30s", timeout: 30 * time.Second, wantError: "must be shorter than the API timeout of 30s"},
+		{name: "not a duration", value: "40", timeout: 30 * time.Second, wantError: "form field 'waitDelay' is invalid (got '40', want a duration such as 500ms or 2s)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := &api.ContextMock{Context: new(api.Context)}
+			ctx.SetTimeout(tc.timeout)
+			values := map[string][]string{}
+			if tc.value != "" {
+				values["waitDelay"] = []string{tc.value}
+			}
+			ctx.SetValues(values)
+
+			form, options := FormDataChromiumOptions(ctx.Context)
+			err := form.Validate()
+			if tc.wantError != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantError) {
+					t.Fatalf("expected an error containing %q, got: %v", tc.wantError, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("expected no error, got: %v", err)
+			}
+			if options.WaitDelay != tc.want {
+				t.Errorf("WaitDelay = %s, want %s", options.WaitDelay, tc.want)
+			}
+		})
+	}
+}

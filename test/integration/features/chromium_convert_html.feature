@@ -985,6 +985,20 @@ Feature: /forms/chromium/convert/html
       Invalid form data: form field 'scale' is invalid (got '0.05', want a number from 0.1 to 2)
       """
 
+  # A wait that cannot end before the request times out would hold the
+  # connection for the whole limit and answer a 503 naming nothing.
+  Scenario: POST /forms/chromium/convert/html (Wait Delay Beyond The Timeout)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | API_TIMEOUT | 5s |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/page-1-html/index.html | file  |
+      | waitDelay | 10s                             | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'waitDelay' is invalid (got '10s', must be shorter than the API timeout of 5s: raise --api-timeout (API_TIMEOUT) or lower the delay)
+      """
+
   Scenario: POST /forms/chromium/convert/html (Bad Request)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):

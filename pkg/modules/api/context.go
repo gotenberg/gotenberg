@@ -67,6 +67,10 @@ type Context struct {
 	fields     *formFields
 	fileFields map[string]bool
 
+	// timeout is the time limit of the request, as --api-timeout (env
+	// API_TIMEOUT) sets it. It is zero when unknown.
+	timeout time.Duration
+
 	// outputFilename is the sanitized Gotenberg-Output-Filename header,
 	// snapshotted while the [echo.Context] is still live. Echo returns that
 	// context to a pool as soon as the handler returns, and an asynchronous
@@ -190,6 +194,7 @@ func newContext(echoCtx *echo.Context, logger *slog.Logger, fs *gotenberg.FileSy
 		outputPaths:    make([]string, 0),
 		cancelled:      false,
 		outputFilename: outputFilename,
+		timeout:        timeout,
 		logger:         logger,
 		echoCtx:        echoCtx,
 		mkdirAll:       new(gotenberg.OsMkdirAll),
@@ -688,6 +693,13 @@ func (ctx *Context) linkOriginalFilenames() {
 			ctx.logger.DebugContext(context.Background(), fmt.Sprintf("skip symlink for '%s': %s", originalName, err))
 		}
 	}
+}
+
+// Timeout returns the time limit of the request, that is --api-timeout (env
+// API_TIMEOUT), or zero when it is unknown. Routes use it to refuse a value,
+// such as a delay, that cannot fit in it.
+func (ctx *Context) Timeout() time.Duration {
+	return ctx.timeout
 }
 
 // Request returns the [http.Request].

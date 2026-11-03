@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/alexliesenfeld/health"
 	"github.com/labstack/echo/v5"
@@ -81,6 +82,14 @@ func (ctx *ContextMock) SetCancelled(cancelled bool) {
 //	outputPaths := ctx.OutputPaths()
 func (ctx *ContextMock) OutputPaths() []string {
 	return ctx.outputPaths
+}
+
+// SetTimeout sets the time limit of the request.
+//
+//	ctx := &api.ContextMock{Context: &api.Context{}}
+//	ctx.SetTimeout(30 * time.Second)
+func (ctx *ContextMock) SetTimeout(timeout time.Duration) {
+	ctx.timeout = timeout
 }
 
 // SetLogger sets the logger.

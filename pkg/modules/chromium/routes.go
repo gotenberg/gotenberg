@@ -150,7 +150,25 @@ func FormDataChromiumOptions(ctx *api.Context) (*api.FormData, Options) {
 			options.FailOnConsoleMessageTypes = messageTypes
 			return nil
 		}).
-		Duration("waitDelay", &options.WaitDelay).
+		Custom("waitDelay", func(value string) error {
+			if value == "" {
+				return nil
+			}
+
+			delay, err := time.ParseDuration(value)
+			if err != nil {
+				return errors.New("want a duration such as 500ms or 2s")
+			}
+
+			// The wait cannot end before the request times out: refuse it
+			// now rather than hold the connection for the whole limit.
+			if timeout := ctx.Timeout(); timeout > 0 && delay >= timeout {
+				return fmt.Errorf("must be shorter than the API timeout of %s: raise --api-timeout (API_TIMEOUT) or lower the delay", timeout)
+			}
+
+			options.WaitDelay = delay
+			return nil
+		}).
 		String("waitForWindowStatus", &options.WaitForWindowStatus).
 		String("waitForExpression", &options.WaitForExpression).
 		String("waitForSelector", &options.WaitForSelector).
