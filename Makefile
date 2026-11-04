@@ -164,10 +164,6 @@ KEEP_FAILED=
 # chromium-screenshot-markdown
 # chromium-screenshot-url
 # chromium-ssrf
-# corpus
-# corpus-chromium
-# corpus-libreoffice
-# corpus-pdf
 # debug
 # health
 # libreoffice
@@ -203,6 +199,19 @@ TAGS=
 .PHONY: test-integration
 test-integration: ## Run integration tests (automatically retries failed scenarios up to 3 times)
 	go test -timeout 40m -tags=integration -v github.com/gotenberg/gotenberg/v9/test/integration -args \
+	--gotenberg-docker-repository=$(DOCKER_REPOSITORY) \
+	--gotenberg-version=$(GOTENBERG_VERSION) \
+	--gotenberg-variant=$(VARIANT) \
+ 	--gotenberg-container-platform=$(PLATFORM) \
+ 	--concurrency=$(CONCURRENCY) \
+ 	--keep-failed="$(KEEP_FAILED)" \
+ 	--tags="$(TAGS)"
+
+# Tags of the corpus suite: chromium, libreoffice, pdf. TAGS selects among them
+# for test-corpus, as it does among the integration tags for test-integration.
+.PHONY: test-corpus
+test-corpus: ## Run the release QA corpus (realistic documents, automatically retries failed scenarios up to 3 times)
+	go test -timeout 40m -tags=corpus -v github.com/gotenberg/gotenberg/v9/test/corpus -args \
 	--gotenberg-docker-repository=$(DOCKER_REPOSITORY) \
 	--gotenberg-version=$(GOTENBERG_VERSION) \
 	--gotenberg-variant=$(VARIANT) \

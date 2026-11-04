@@ -82,5 +82,9 @@ run_cmd "$cmd"
 cmd="make test-integration DOCKER_REPOSITORY=$repository GOTENBERG_VERSION=$version PLATFORM=$platform CONCURRENCY=3 VARIANT=libreoffice TAGS=libreoffice"
 run_cmd "$cmd"
 
+# The corpus runs realistic documents against the full image only.
+cmd="make test-corpus DOCKER_REPOSITORY=$repository GOTENBERG_VERSION=$version PLATFORM=$platform CONCURRENCY=3"
+run_cmd "$cmd"
+
 echo "✅ Done!"
 exit 0

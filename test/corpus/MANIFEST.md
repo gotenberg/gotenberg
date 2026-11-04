@@ -1,6 +1,6 @@
 # Gotenberg v9 QA corpus manifest
 
-Root: `test/integration/testdata/corpus`. Generators in `generators/` (see its README). Page counts marked "(LO)" were measured by converting with the LibreOffice in the gotenberg:snapshot image and `pdfinfo`; "expected" counts were not measured.
+Root: `test/corpus/testdata`; the file paths below are relative to it. Generators in `generators/` (see its README). Page counts marked "(LO)" were measured by converting with the LibreOffice in the gotenberg:snapshot image and `pdfinfo`; "expected" counts were not measured.
 
 ## web/ (Chromium routes)
 

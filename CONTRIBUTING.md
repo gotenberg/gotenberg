@@ -29,6 +29,7 @@ pkg/gotenberg/       -> Core module system, interfaces, utilities, mocks.
 pkg/modules/         -> Feature modules (api, chromium, libreoffice, pdf, etc.).
 pkg/standard/        -> Wires all standard modules together via imports.
 test/integration/    -> Gherkin feature files + Go test infrastructure.
+test/corpus/         -> Release QA corpus: realistic documents, one feature file per engine.
 build/               -> Dockerfile, fonts, Chromium config.
 .bruno/              -> Bruno API collection (mirrors every route).
 ```
@@ -50,6 +51,7 @@ All build and verification tasks go through the Makefile. Do not run `go` comman
 | `make lint-todo`        | Find TODOs in Go code                            | Before committing                                                        |
 | `make test-unit`        | Run unit tests                                   | Before committing                                                        |
 | `make test-integration` | Run all integration tests (40 min timeout)       | Before committing                                                        |
+| `make test-corpus`      | Run the release QA corpus (40 min timeout)       | When a change can alter how real documents come out                      |
 | `make godoc`            | Serve GoDoc at `localhost:6060`                  | To verify documentation                                                  |
 | `make run`              | Run a Gotenberg container via `docker compose`   | Manual testing. Flags configured via Makefile variables and compose.yaml |
 | `make telemetry`        | Start an OpenTelemetry collector and OpenObserve | When testing telemetry locally                                           |
@@ -155,6 +157,8 @@ Gherkin (BDD) via Godog with `testcontainers-go` for Docker orchestration. Featu
 
 `make build` is required before running integration tests. The full suite has a 40-minute timeout, so run only the tag(s) relevant to your change.
 
+The release QA corpus is a separate suite, `make test-corpus`, that runs realistic documents with recorded facts; see `test/corpus/README.md`.
+
 ## Pull requests
 
 ### Commits
@@ -180,4 +184,5 @@ Before opening the PR, confirm:
 ## Further reading
 
 - [`test/integration/README.md`](test/integration/README.md) — Gherkin step reference, available tags, writing new tests.
+- [`test/corpus/README.md`](test/corpus/README.md) — release QA corpus: realistic documents, their manifest, how to add a fixture.
 - [`.bruno/README.md`](.bruno/README.md) — `.bru` file format, conventions, route update checklist.

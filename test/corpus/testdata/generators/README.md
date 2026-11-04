@@ -2,7 +2,7 @@
 
 These scripts are the provenance of the corpus fixtures one directory up. Run them only to regenerate a fixture; the generated files are checked in.
 
-Run them in this order, with `C` set to a scratch copy of the corpus root and `B` to a scratch directory. The font paths are macOS paths (`/System/Library/Fonts/Supplemental/Arial*.ttf`); change them on another system.
+Run them in this order, with `C` set to a scratch copy of `testdata/` and `B` to a scratch directory. The font paths are macOS paths (`/System/Library/Fonts/Supplemental/Arial*.ttf`); change them on another system.
 
 ```bash
 export C=/tmp/corpus B=/tmp/corpus-build
