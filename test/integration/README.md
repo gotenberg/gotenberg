@@ -5,7 +5,7 @@ Gherkin (BDD) via [Godog](https://github.com/cucumber/godog), with `testcontaine
 - Feature files: `test/integration/features/*.feature`, one per endpoint or capability.
 - Step definitions: `test/integration/scenario/` (container management, HTTP helpers, PDF validation).
 - Entry point: `test/integration/main_test.go` (build tag: `integration`).
-- Test data: `test/integration/testdata/`. The release QA corpus sits in `testdata/corpus/` (see its `MANIFEST.md`) and backs `corpus.feature`.
+- Test data: `test/integration/testdata/`. The release QA corpus sits in `testdata/corpus/` and backs `corpus.feature`: its [`README.md`](testdata/corpus/README.md) says why it exists and how to extend it, its `MANIFEST.md` what each file contains.
 
 Each scenario spins up a fresh Gotenberg Docker container via testcontainers. The PDF assertions read the produced documents with [litho](https://github.com/gotenberg/litho), in process: page count, size, text, tagging, bookmarks, metadata, attachments, permissions, signatures, and PDF/A and PDF/UA conformance.
 

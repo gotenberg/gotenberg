@@ -1,2 +1,8 @@
 build
-test/integration/testdata/corpus
+# The corpus fixtures keep the bytes their generators wrote: the manifest records their sizes.
+test/integration/testdata/corpus/web
+test/integration/testdata/corpus/office
+test/integration/testdata/corpus/pdf
+test/integration/testdata/corpus/generators/i18n.json
+# Its tables hold cells of several hundred characters, which Prettier would pad onto every row.
+test/integration/testdata/corpus/MANIFEST.md
