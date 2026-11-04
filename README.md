@@ -50,6 +50,12 @@ curl \
 
 See the [full documentation](https://gotenberg.dev/docs/getting-started/introduction).
 
+## One-Click Deploy
+
+<a href="https://repocloud.io/details/Gotenberg/"><img src="https://d16t0pc4846x52.cloudfront.net/deploylobe.svg" alt="Deploy on RepoCloud" height="42"></a>
+<a href="https://railway.com/deploy/gotenberg"><img src="https://railway.com/button.svg" alt="Deploy on Railway" height="42"></a>
+<a href="https://elest.io/open-source/gotenberg"><img src="https://elest.io/images/logos/deploy-to-elestio-btn.png" alt="Deploy on Elestio" height="42"></a>
+
 ## Contributing
 
 - Contributing guide: [CONTRIBUTING.md](CONTRIBUTING.md)
