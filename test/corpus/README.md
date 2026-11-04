@@ -35,6 +35,10 @@ make test-corpus TAGS=pdf KEEP_FAILED=/tmp/failed
 
 A scenario asserts what the image produces, and the manifest says when that differs from the document's intent: `readme.txt` paginates to 4 pages, a spreadsheet cell clips its text to `REVENUE-SH`, the deleted text of a tracked change is absent. When a fix changes such an outcome, update the manifest and the scenario together.
 
+## When it fails in CI
+
+CI runs this suite on every push and pull request, on the full image, after the integration scenarios. A failure after a dependency bump, such as Chromium, LibreOffice, litho, lok or a font, means a real document comes out differently. Rerun the tag with `KEEP_FAILED` and look at the output. A regression gets fixed. An acceptable change gets its new fact in the manifest and in the scenario, in the same pull request, with a note in the manifest saying what moved and why. Don't loosen an assertion to pass: change the fact, or fix the engine.
+
 ## How to add a fixture
 
 1. Generate the document with a script in `generators/`, so its facts are known by construction, and check in the script with the file. A file made once by hand, such as an encrypted copy or a certificate, goes in the "Not scripted" list of `generators/README.md` with the command that made it.
