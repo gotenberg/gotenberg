@@ -65,7 +65,7 @@ Root: `test/integration/testdata/corpus`. Generators in `generators/` (see its R
 | pdf/black.png | PNG | 1x1 black | 1x1, 69 bytes |
 | pdf/stamp.jpg | JPEG | red "CONFIDENTIAL" on white | 600x200 |
 | pdf/attachment.csv | CSV | 5 lines | `id,name,amount` + alpha/beta/gamma/delta rows |
-| pdf/invoice-cii.xml | XML | hand-written CII invoice (no existing CII file in the repo; embed_1.xml in testdata is a dummy `<xml>`) | declares `urn:cen.eu:en16931:2017` -> Factur-X level `EN 16931`; invoice INV-2026-0042, type code 380, seller Northwind Traders, buyer Contoso Ltd, EUR, net 3850.00, VAT 770.00, grand total 4620.00. Schema-plausible but not validated against the official XSD/Schematron |
+| pdf/invoice-cii.xml | XML | hand-written CII invoice (no existing CII file in the repo; embed_1.xml in testdata is a dummy `<xml>`) | declares `urn:cen.eu:en16931:2017` -> Factur-X level `EN 16931`; invoice INV-2026-0042, type code 380, seller Northwind Traders, buyer Contoso Ltd, EUR, net 3850.00, VAT 770.00, grand total 4620.00. Passes litho's EN 16931 Schematron: `remediate` with `profile=Factur-X` answers `Gotenberg-Remediation-Residual: 0` |
 
 ## Left out (use the existing `test/integration/testdata/` file)
 
@@ -82,5 +82,5 @@ Root: `test/integration/testdata/corpus`. Generators in `generators/` (see its R
 
 - Nothing listed was skipped. Deviations: form.fodt/form.odt are LO-generated from an HTML form (see above) because hand-written `office:forms` XML was dropped by LO on import.
 - Chromium page counts (invoice 2, handbook 4+) are expected values, not measured; no Chromium render was run.
-- No existing Factur-X CII file existed in the repo, so pdf/invoice-cii.xml is hand-written.
+- No Factur-X CII file existed in the repo when the corpus was made, so pdf/invoice-cii.xml is hand-written; `testdata/invoice-{minimum,basic,en16931,xrechnung}.xml` arrived later for the per-level scenarios of `pdf_remediate.feature` and `libreoffice_convert.feature`.
 - Extra files not in the brief: none in corpus/ except those listed (build scratch is outside corpus).

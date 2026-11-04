@@ -789,6 +789,7 @@ Feature: Release QA corpus
       | level                     | EN 16931                            | field  |
       | Gotenberg-Output-Filename | foo                                 | header |
     Then the response status code should be 200
+    Then the response header "Gotenberg-Remediation-Residual" should be "0"
     Then the "foo.pdf" PDF should have 3 page(s)
     Then the "foo.pdf" PDF should have the "Title" metadata set to "Quarterly Report"
     Then the response PDF(s) should be valid "PDF/A-3b" with a tolerance of 0 failed rule(s)
