@@ -211,6 +211,17 @@ COPY --link --from=lok-binary-stage /home/lok /usr/bin/lok
 # See https://github.com/gotenberg/gotenberg/issues/1293.
 COPY --link --chown="$GOTENBERG_USER_UID:$GOTENBERG_USER_GID" build/chromium-hyphen-data /opt/gotenberg/chromium-hyphen-data
 
+# Distrust the roots behind the compromised eMudhra intermediates from the
+# first request. Chromium's root store still trusts emSign ECC Root CA - G3,
+# and only rejects the chains once its component updater fetches a CRLSet,
+# about two minutes after each start, or never without access to Google.
+# The policy lists, by SHA-256 fingerprint:
+#   - emSign ECC Root CA - G3 86A1ECBA089C4A8D3BBE2734C612BA341D813E043CF9E8A862CD5C57A36BBE6B
+#   - emSign Root TLS CA - G3 7DD78D5F4F13459A83DFF9ABBBA62EDBAF6F2D102BF257FD712F4D9F2746ED8D
+#   - AAA Certificate Services D7A7A0FB5D7E2731D771E9484EBCDEF71D5F0C3E0A2948782BC83EE0EA699EF4
+# See https://emudhra.we-have-a-problem.com.
+COPY --link build/chromium-policies /etc/chromium/policies/managed
+
 ENV CHROMIUM_BIN_PATH=/usr/bin/chromium
 ENV CHROMIUM_HYPHEN_DATA_DIR_PATH=/opt/gotenberg/chromium-hyphen-data
 ENV LIBREOFFICE_BIN_PATH=/usr/lib/libreoffice/program/soffice.bin
@@ -275,6 +286,17 @@ COPY --link --from=gotenberg-binary-stage /home/gotenberg-chromium /usr/bin/gote
 # Copy dictionnaries so that hyphens work on Chromium.
 # See https://github.com/gotenberg/gotenberg/issues/1293.
 COPY --link --chown="$GOTENBERG_USER_UID:$GOTENBERG_USER_GID" build/chromium-hyphen-data /opt/gotenberg/chromium-hyphen-data
+
+# Distrust the roots behind the compromised eMudhra intermediates from the
+# first request. Chromium's root store still trusts emSign ECC Root CA - G3,
+# and only rejects the chains once its component updater fetches a CRLSet,
+# about two minutes after each start, or never without access to Google.
+# The policy lists, by SHA-256 fingerprint:
+#   - emSign ECC Root CA - G3 86A1ECBA089C4A8D3BBE2734C612BA341D813E043CF9E8A862CD5C57A36BBE6B
+#   - emSign Root TLS CA - G3 7DD78D5F4F13459A83DFF9ABBBA62EDBAF6F2D102BF257FD712F4D9F2746ED8D
+#   - AAA Certificate Services D7A7A0FB5D7E2731D771E9484EBCDEF71D5F0C3E0A2948782BC83EE0EA699EF4
+# See https://emudhra.we-have-a-problem.com.
+COPY --link build/chromium-policies /etc/chromium/policies/managed
 
 ENV CHROMIUM_BIN_PATH=/usr/bin/chromium
 ENV CHROMIUM_HYPHEN_DATA_DIR_PATH=/opt/gotenberg/chromium-hyphen-data
