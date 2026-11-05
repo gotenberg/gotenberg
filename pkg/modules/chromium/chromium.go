@@ -558,8 +558,18 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 		disableJavaScript: flags.MustBool("chromium-disable-javascript"),
 	}
 
+	hostRules, err := parseHostResolverRules(mod.args.hostResolverRules)
+	if err != nil {
+		return fmt.Errorf("parse --chromium-host-resolver-rules (env CHROMIUM_HOST_RESOLVER_RULES): %w", err)
+	}
+	mod.args.hostRules = hostRules
+
 	// Logger.
 	mod.logger = gotenberg.Logger(mod).With(slog.String("logger", "browser"))
+
+	if !mod.args.usesPinningProxy() && mod.args.restrictsNetwork() {
+		mod.logger.WarnContext(context.Background(), "--chromium-proxy-server (env CHROMIUM_PROXY_SERVER) replaces Gotenberg's pinning proxy, so WebSocket handshakes reach that proxy without Chromium's outbound policy; enforce the policy on that proxy")
+	}
 
 	// Process.
 	mod.browser = newChromiumBrowser(mod.args)

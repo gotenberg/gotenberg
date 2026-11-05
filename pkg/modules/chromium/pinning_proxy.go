@@ -77,11 +77,12 @@ type pinningProxy struct {
 }
 
 // newPinningProxy returns a pinning proxy configured with the given
-// allow/deny lists and IP-class policy. The policy bools are applied via
-// [gotenberg.DecideOutbound] on every request the proxy sees, so
-// Chromium inherits whatever posture the operator selected. The
-// returned proxy is not yet listening; call Start.
-func newPinningProxy(allowList, denyList []*regexp2.Regexp, denyPrivateIPs, denyPublicIPs, enableEnvironmentProxy bool) *pinningProxy {
+// allow/deny lists, IP-class policy, and host mapping, which may be nil. They
+// are applied via [gotenberg.DecideOutbound] on every request the proxy sees,
+// so Chromium inherits whatever posture the operator selected, and connects
+// where the mapping sends it. The returned proxy is not yet listening; call
+// Start.
+func newPinningProxy(allowList, denyList []*regexp2.Regexp, denyPrivateIPs, denyPublicIPs, enableEnvironmentProxy bool, hostMapping gotenberg.HostMapping) *pinningProxy {
 	p := &pinningProxy{
 		allowList: allowList,
 		denyList:  denyList,
@@ -89,6 +90,7 @@ func newPinningProxy(allowList, denyList []*regexp2.Regexp, denyPrivateIPs, deny
 			return gotenberg.DecideOutbound(ctx, rawURL, allow, deny, deadline,
 				gotenberg.WithDenyPrivateIPs(denyPrivateIPs),
 				gotenberg.WithDenyPublicIPs(denyPublicIPs),
+				gotenberg.WithHostMapping(hostMapping),
 			)
 		},
 		dialPinned: gotenberg.DialPinned,
@@ -261,12 +263,25 @@ func (p *pinningProxy) handleConnect(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	// A host-resolver rule may send the tunnel to another host and port. An
+	// upstream proxy still receives the original host, as Chromium itself
+	// leaves name resolution to the proxy it talks to.
+	target := req.Host
+	if decision.Target != "" {
+		target = decision.Target
+		_, port, err = net.SplitHostPort(target)
+		if err != nil {
+			http.Error(w, "bad CONNECT target", http.StatusBadGateway)
+			return
+		}
+	}
+
 	var upstream net.Conn
 	switch {
 	case proxyURL != nil:
 		upstream, err = p.dialThroughUpstreamProxy(req.Context(), proxyURL, req.Host)
 	case decision.Bypass:
-		upstream, err = p.dialBypass(req.Context(), "tcp", req.Host)
+		upstream, err = p.dialBypass(req.Context(), "tcp", target)
 	case len(decision.Pinned) > 0:
 		upstream, err = p.dialPinned(req.Context(), "tcp", decision.Pinned, port)
 	default:
@@ -547,6 +562,11 @@ func (p *pinningProxy) handleForward(w http.ResponseWriter, req *http.Request) {
 	} else {
 		transport.Proxy = nil
 		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			// A host-resolver rule may send the request to another host and
+			// port; the request itself keeps its URL and Host header.
+			if decision.Target != "" {
+				addr = decision.Target
+			}
 			_, port, splitErr := net.SplitHostPort(addr)
 			if splitErr != nil {
 				return nil, fmt.Errorf("split forward addr %q: %w", addr, splitErr)

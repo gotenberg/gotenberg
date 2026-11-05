@@ -51,6 +51,8 @@ type eventWebSocketCreatedOptions struct {
 	allowList, denyList []*regexp2.Regexp
 	denyPrivateIPs      bool
 	denyPublicIPs       bool
+	// hostMapping applies --chromium-host-resolver-rules, or is nil.
+	hostMapping gotenberg.HostMapping
 
 	// decideTunnel is the pinning proxy's CONNECT verdict, or nil when the
 	// pinning proxy is not in use.
@@ -71,10 +73,10 @@ type eventWebSocketCreatedOptions struct {
 // The connection itself is severed by the pinning proxy, which every
 // WebSocket handshake traverses once the implicit loopback / link-local proxy
 // bypass is removed (see the "<-loopback>" flag in browser.go). When the
-// operator configures a custom proxy or host-resolver mappings, the pinning
-// proxy is not started; the WebSocket then follows the operator's egress path
-// and this warning is the remaining safeguard, since a WebSocket handshake
-// cannot be aborted through the CDP Network domain.
+// operator configures a custom proxy, the pinning proxy is not started; the
+// WebSocket then follows the operator's egress path and this warning is the
+// remaining safeguard, since a WebSocket handshake cannot be aborted through
+// the CDP Network domain.
 //
 // The pinning proxy only sees the host and port of the tunnel, so a deny-list
 // rule that names a path, such as "^wss://host/ws", cannot sever it. When the
@@ -100,6 +102,7 @@ func listenForEventWebSocketCreated(ctx context.Context, logger *slog.Logger, op
 			err := gotenberg.FilterOutboundURL(ctx, e.URL, options.allowList, options.denyList, deadline,
 				gotenberg.WithDenyPrivateIPs(options.denyPrivateIPs),
 				gotenberg.WithDenyPublicIPs(options.denyPublicIPs),
+				gotenberg.WithHostMapping(options.hostMapping),
 			)
 			if err == nil {
 				return
@@ -168,6 +171,8 @@ type eventRequestPausedOptions struct {
 	allowList, denyList []*regexp2.Regexp
 	denyPrivateIPs      bool
 	denyPublicIPs       bool
+	// hostMapping applies --chromium-host-resolver-rules, or is nil.
+	hostMapping         gotenberg.HostMapping
 	allowedFilePrefixes []string
 	extraHttpHeaders    []ExtraHttpHeader
 }
@@ -203,6 +208,7 @@ func listenForEventRequestPaused(ctx context.Context, logger *slog.Logger, optio
 				err := gotenberg.FilterOutboundURL(ctx, e.Request.URL, options.allowList, options.denyList, deadline,
 					gotenberg.WithDenyPrivateIPs(options.denyPrivateIPs),
 					gotenberg.WithDenyPublicIPs(options.denyPublicIPs),
+					gotenberg.WithHostMapping(options.hostMapping),
 				)
 				if err != nil {
 					logger.WarnContext(ctx, err.Error())

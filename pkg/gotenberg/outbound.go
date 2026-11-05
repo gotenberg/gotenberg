@@ -250,6 +250,12 @@ type OutboundDecision struct {
 	// dial one of these via [DialPinned] to prevent DNS rebinding between
 	// validation and connect.
 	Pinned []netip.Addr
+
+	// Target is the host and port a [WithHostMapping] rule sent the request
+	// to, or empty when no rule applied. The caller connects there instead
+	// of the URL's host and port: by name when Bypass is true, on its port
+	// through Pinned otherwise.
+	Target string
 }
 
 // outboundDecisionKey is the context key under which an [OutboundDecision]
@@ -267,6 +273,7 @@ type outboundProxiedKey struct{}
 type decideConfig struct {
 	denyPrivateIPs bool
 	denyPublicIPs  bool
+	hostMapping    HostMapping
 }
 
 // DecideOption customizes how [DecideOutbound] and [FilterOutboundURL]
@@ -296,6 +303,21 @@ func WithDenyPublicIPs(deny bool) DecideOption {
 	return func(c *decideConfig) { c.denyPublicIPs = deny }
 }
 
+// HostMapping rewrites the host and port a request connects to, the way
+// Chromium's --host-resolver-rules do: the URL keeps its host, so the
+// allow-list, the deny-list, the Host header and TLS still see it. It returns
+// host and port unchanged when no rule applies, and an error when a rule
+// leaves the host without an address.
+type HostMapping func(host, port string) (string, string, error)
+
+// WithHostMapping applies mapping to the host of an http, https, ws, or wss
+// URL after the allow-list and deny-list ran, so that the IP-class checks and
+// the returned [OutboundDecision] concern the address the request connects
+// to. A nil mapping changes nothing.
+func WithHostMapping(mapping HostMapping) DecideOption {
+	return func(c *decideConfig) { c.hostMapping = mapping }
+}
+
 // httpLikeScheme reports whether scheme is one of http, https, ws, or wss.
 // Only these schemes go through the IP-based address check; data, blob,
 // file, and other schemes are filtered by the regex layer alone.
@@ -322,8 +344,9 @@ func httpLikeScheme(scheme string) bool {
 //     credentials.
 //  2. allowList and denyList apply against the normalized form with OR
 //     semantics. The deny-list always applies.
-//  3. For http, https, ws, and wss, the host is resolved and every
-//     resolved address must satisfy the enabled IP-class checks
+//  3. For http, https, ws, and wss, the host, after [WithHostMapping]
+//     rewrote it, is resolved and every resolved address must satisfy the
+//     enabled IP-class checks
 //     ([WithDenyPrivateIPs], [WithDenyPublicIPs]). An allow-list match
 //     bypasses the IP-class checks and the returned decision carries
 //     Bypass true. Otherwise the decision carries Pinned with the
@@ -383,15 +406,34 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 		return OutboundDecision{}, err
 	}
 
-	if allowMatched {
-		return OutboundDecision{Bypass: true}, nil
-	}
-
 	if !httpLikeScheme(parsed.Scheme) {
-		return OutboundDecision{}, nil
+		return OutboundDecision{Bypass: allowMatched}, nil
 	}
 
 	host := parsed.Hostname()
+
+	var target string
+	if cfg.hostMapping != nil && host != "" {
+		port := parsed.Port()
+		if port == "" {
+			port = defaultPort(parsed.Scheme)
+		}
+
+		mappedHost, mappedPort, err := cfg.hostMapping(host, port)
+		if err != nil {
+			return OutboundDecision{}, fmt.Errorf("map '%s' host: %v: %w", normalized, err, ErrFiltered)
+		}
+
+		if mappedHost != host || mappedPort != port {
+			host = mappedHost
+			target = net.JoinHostPort(mappedHost, mappedPort)
+		}
+	}
+
+	if allowMatched {
+		return OutboundDecision{Bypass: true, Target: target}, nil
+	}
+
 	if host == "" {
 		return OutboundDecision{}, fmt.Errorf("URL %q has no host: %w", rawURL, ErrFiltered)
 	}
@@ -418,7 +460,16 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 		}
 	}
 
-	return OutboundDecision{Pinned: addrs}, nil
+	return OutboundDecision{Pinned: addrs, Target: target}, nil
+}
+
+// defaultPort returns the port an http, https, ws, or wss URL without an
+// explicit port connects to.
+func defaultPort(scheme string) string {
+	if scheme == "https" || scheme == "wss" {
+		return "443"
+	}
+	return "80"
 }
 
 // normalizeOutboundURL parses rawURL and returns it along with the form the

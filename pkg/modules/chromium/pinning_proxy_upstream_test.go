@@ -38,7 +38,7 @@ func TestPinningProxy_Forward_ThroughUpstreamProxy(t *testing.T) {
 	upstreamURL := mustParseURL(t, upstream.URL)
 	upstreamURL.User = url.UserPassword("bob", "pw")
 
-	p := newPinningProxy(nil, nil, false, false, true)
+	p := newPinningProxy(nil, nil, false, false, true, nil)
 	// Force every destination through our stub upstream proxy.
 	p.upstreamProxy = func(_ *url.URL) (*url.URL, error) { return upstreamURL, nil }
 	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {

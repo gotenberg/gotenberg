@@ -22,6 +22,26 @@ Feature: /forms/chromium/convert/url
       Page 1
       """
 
+  # The outbound checks and the pinning proxy apply the host-resolver rules, so
+  # a host only a rule knows still reaches its target while the URL keeps its
+  # own host. The allow-list is cleared, as a match would skip resolution.
+  Scenario: POST /forms/chromium/convert/url (Host-resolver rules)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST          |                                      |
+      | CHROMIUM_HOST_RESOLVER_RULES | MAP mapped.test host.docker.internal |
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url                       | http://mapped.test:%d/html/testdata/page-1-html/index.html | field  |
+      | Gotenberg-Output-Filename | foo                                                        | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+
   # Each conversion runs in its own browser context, so localStorage never
   # carries over.
   Scenario: POST /forms/chromium/convert/url (localStorage isolated per conversion)
