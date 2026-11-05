@@ -1584,6 +1584,51 @@ func (s *scenario) thePdfsShouldBeEncrypted(ctx context.Context, kind string, sh
 	return nil
 }
 
+// thePdfsShouldOpenWithUserPassword asserts that every response PDF opens with
+// exactly the given user password.
+func (s *scenario) thePdfsShouldOpenWithUserPassword(ctx context.Context, kind, password string) error {
+	dirPath := s.teststoreDir
+
+	_, err := os.Stat(dirPath)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("directory %q does not exist", dirPath)
+	}
+
+	var paths []string
+	err = filepath.Walk(dirPath, func(path string, info os.FileInfo, pathErr error) error {
+		if pathErr != nil {
+			return pathErr
+		}
+		if strings.EqualFold(filepath.Ext(info.Name()), ".pdf") {
+			paths = append(paths, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("walk %q: %w", dirPath, err)
+	}
+
+	for _, path := range paths {
+		cmd := []string{
+			"pdfinfo",
+			"-upw",
+			password,
+			filepath.Base(path),
+		}
+
+		output, err := execCommandInIntegrationToolsContainer(ctx, cmd, path)
+		if err != nil {
+			return fmt.Errorf("exec %q: %w", cmd, err)
+		}
+
+		if !strings.Contains(output, "Encrypted:") {
+			return fmt.Errorf("PDF %q does not open with the user password %q: %q", path, password, output)
+		}
+	}
+
+	return nil
+}
+
 func (s *scenario) thePdfsShouldHaveEmbeddedFile(ctx context.Context, kind, should, embed string) error {
 	dirPath := s.teststoreDir
 
@@ -1792,6 +1837,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the (response|webhook request) PDF\(s\) should be valid "([^"]*)" with a tolerance of (\d+) failed rule\(s\)$`, s.thePdfsShouldBeValidWithAToleranceOf)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) be flatten$`, s.thePdfsShouldBeFlatten)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) be encrypted`, s.thePdfsShouldBeEncrypted)
+	ctx.Then(`^the (response|webhook request) PDF\(s\) should open with the user password "([^"]*)"$`, s.thePdfsShouldOpenWithUserPassword)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) allow "([^"]*)"$`, s.thePdfsShouldAllowAction)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) have the "([^"]*)" file embedded$`, s.thePdfsShouldHaveEmbeddedFile)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) should have the "([^"]*)" file embedded with relationship "([^"]*)"$`, s.thePdfsShouldHaveEmbeddedFileWithRelationship)

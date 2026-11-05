@@ -400,6 +400,23 @@ func qpdfPermissionArgs(p gotenberg.PdfPermissions) []string {
 	}
 }
 
+// qpdfEncryptArgs returns the QPDF --encrypt section for 256-bit AES. The
+// passwords come from the client and travel as option values, never as
+// positional arguments: QPDF reads any argument that starts with "@" as a file
+// of further arguments, so "@/proc/self/cmdline" with newlines in the other
+// password would let a client inject options such as --add-attachment and
+// read local files. An empty user password is omitted, which QPDF treats as
+// an empty one.
+func qpdfEncryptArgs(userPassword, ownerPassword string, p gotenberg.PdfPermissions) []string {
+	args := []string{"--encrypt"}
+	if userPassword != "" {
+		args = append(args, "--user-password="+userPassword)
+	}
+	args = append(args, "--owner-password="+ownerPassword, "--bits=256")
+	args = append(args, qpdfPermissionArgs(p)...)
+	return append(args, "--")
+}
+
 func (engine *QPdf) Encrypt(ctx context.Context, logger *slog.Logger, inputPath string, opts gotenberg.EncryptOptions) error {
 	ctx, span := gotenberg.Tracer().Start(ctx, "qpdf.Encrypt",
 		trace.WithSpanKind(trace.SpanKindClient),
@@ -420,13 +437,11 @@ func (engine *QPdf) Encrypt(ctx context.Context, logger *slog.Logger, inputPath 
 		return err
 	}
 
-	args := make([]string, 0, 14+len(engine.globalArgs))
+	args := make([]string, 0, 13+len(engine.globalArgs))
 	args = append(args, inputPath)
 	args = append(args, engine.globalArgs...)
 	args = append(args, "--replace-input")
-	args = append(args, "--encrypt", opts.UserPassword, ownerPassword, "256")
-	args = append(args, qpdfPermissionArgs(opts.Permissions)...)
-	args = append(args, "--")
+	args = append(args, qpdfEncryptArgs(opts.UserPassword, ownerPassword, opts.Permissions)...)
 
 	cmd, err := gotenberg.CommandContext(ctx, logger, engine.binPath, args...)
 	if err != nil {

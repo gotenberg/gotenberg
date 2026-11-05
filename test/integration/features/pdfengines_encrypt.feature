@@ -48,6 +48,21 @@ Feature: /forms/pdfengines/encrypt
     Then there should be 1 PDF(s) in the response
     Then the response PDF(s) should be encrypted
 
+  # QPDF reads an argument that starts with "@" as a file of further
+  # arguments. The passwords must reach it as literal values.
+  Scenario: POST /forms/pdfengines/encrypt (QPDF - passwords that look like argument files)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PDFENGINES_ENCRYPT_ENGINES | qpdf |
+    When I make a "POST" request to Gotenberg at the "/forms/pdfengines/encrypt" endpoint with the following form data and header(s):
+      | files         | testdata/page_1.pdf | file  |
+      | userPassword  | @/etc/passwd        | field |
+      | ownerPassword | @/proc/self/cmdline | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the response PDF(s) should be encrypted
+    Then the response PDF(s) should open with the user password "@/etc/passwd"
+
   Scenario: POST /forms/pdfengines/encrypt (PDFtk - user password only)
     Given I have a Gotenberg container with the following environment variable(s):
       | PDFENGINES_ENCRYPT_ENGINES | pdftk |
