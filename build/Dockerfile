@@ -154,6 +154,10 @@ ARG GOTENBERG_VERSION=snapshot
 ARG GOTENBERG_USER_GID=1001
 ARG GOTENBERG_USER_UID=1001
 ARG TMP_CHROMIUM_VERSION_PPC64EL="146.0.7680.80-1~deb13u1"
+# The SHA-1 of each package file, which snapshot.debian.org serves it by.
+# Dependabot does not follow these pins: bump them with the version.
+ARG TMP_CHROMIUM_COMMON_SHA1_PPC64EL="e3bc88870a8cb119869cf71fa611aec63489962f"
+ARG TMP_CHROMIUM_SHA1_PPC64EL="9f571bfed6f6e3f2d1d84feb346de93b94fa5f93"
 
 LABEL org.opencontainers.image.title="Gotenberg" \
     org.opencontainers.image.description="A Docker-based API for converting documents to PDF." \
@@ -164,17 +168,20 @@ LABEL org.opencontainers.image.title="Gotenberg" \
 
 # Install Chromium.
 # On ppc64el, the latest Chromium is broken, so we pin a known working
-# version from snapshot.debian.org via debsnap.
+# version, fetched from snapshot.debian.org's file store by the SHA-1 of each
+# package. The store serves a file by its hash and holds up where the package
+# metadata API, which debsnap queries, answers 503 for hours at a time.
 RUN /bin/bash -c \
     'set -e &&\
     if [[ "$(dpkg --print-architecture)" == "ppc64el" ]]; then \
       apt-get update -qq &&\
-      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends devscripts &&\
-      debsnap chromium-common "$TMP_CHROMIUM_VERSION_PPC64EL" -v --force --binary --architecture ppc64el &&\
-      debsnap chromium "$TMP_CHROMIUM_VERSION_PPC64EL" -v --force --binary --architecture ppc64el &&\
-      DEBIAN_FRONTEND=noninteractive apt-get install --fix-broken -y -qq --no-install-recommends "./binary-chromium-common/chromium-common_${TMP_CHROMIUM_VERSION_PPC64EL}_ppc64el.deb" "./binary-chromium/chromium_${TMP_CHROMIUM_VERSION_PPC64EL}_ppc64el.deb" &&\
-      DEBIAN_FRONTEND=noninteractive apt-get purge -y -qq devscripts &&\
-      rm -rf ./binary-chromium-common/* ./binary-chromium/*; \
+      for pkg in "chromium-common:$TMP_CHROMIUM_COMMON_SHA1_PPC64EL" "chromium:$TMP_CHROMIUM_SHA1_PPC64EL"; do \
+        name="${pkg%%:*}" && sha1="${pkg##*:}" &&\
+        curl -fsSL --retry 10 --retry-delay 30 --retry-all-errors -o "/tmp/${name}.deb" "https://snapshot.debian.org/file/${sha1}" &&\
+        echo "${sha1}  /tmp/${name}.deb" | sha1sum -c -; \
+      done &&\
+      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends /tmp/chromium-common.deb /tmp/chromium.deb &&\
+      rm -f /tmp/chromium-common.deb /tmp/chromium.deb; \
     else \
       apt-get update -qq &&\
       apt-get upgrade -yqq &&\
@@ -250,6 +257,10 @@ ARG GOTENBERG_VERSION=snapshot
 ARG GOTENBERG_USER_GID=1001
 ARG GOTENBERG_USER_UID=1001
 ARG TMP_CHROMIUM_VERSION_PPC64EL="146.0.7680.80-1~deb13u1"
+# The SHA-1 of each package file, which snapshot.debian.org serves it by.
+# Dependabot does not follow these pins: bump them with the version.
+ARG TMP_CHROMIUM_COMMON_SHA1_PPC64EL="e3bc88870a8cb119869cf71fa611aec63489962f"
+ARG TMP_CHROMIUM_SHA1_PPC64EL="9f571bfed6f6e3f2d1d84feb346de93b94fa5f93"
 
 LABEL org.opencontainers.image.title="Gotenberg (Chromium)" \
     org.opencontainers.image.description="A Docker-based API for converting documents to PDF — Chromium variant." \
@@ -260,17 +271,20 @@ LABEL org.opencontainers.image.title="Gotenberg (Chromium)" \
 
 # Install Chromium.
 # On ppc64el, the latest Chromium is broken, so we pin a known working
-# version from snapshot.debian.org via debsnap.
+# version, fetched from snapshot.debian.org's file store by the SHA-1 of each
+# package. The store serves a file by its hash and holds up where the package
+# metadata API, which debsnap queries, answers 503 for hours at a time.
 RUN /bin/bash -c \
     'set -e &&\
     if [[ "$(dpkg --print-architecture)" == "ppc64el" ]]; then \
       apt-get update -qq &&\
-      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends devscripts &&\
-      debsnap chromium-common "$TMP_CHROMIUM_VERSION_PPC64EL" -v --force --binary --architecture ppc64el &&\
-      debsnap chromium "$TMP_CHROMIUM_VERSION_PPC64EL" -v --force --binary --architecture ppc64el &&\
-      DEBIAN_FRONTEND=noninteractive apt-get install --fix-broken -y -qq --no-install-recommends "./binary-chromium-common/chromium-common_${TMP_CHROMIUM_VERSION_PPC64EL}_ppc64el.deb" "./binary-chromium/chromium_${TMP_CHROMIUM_VERSION_PPC64EL}_ppc64el.deb" &&\
-      DEBIAN_FRONTEND=noninteractive apt-get purge -y -qq devscripts &&\
-      rm -rf ./binary-chromium-common/* ./binary-chromium/*; \
+      for pkg in "chromium-common:$TMP_CHROMIUM_COMMON_SHA1_PPC64EL" "chromium:$TMP_CHROMIUM_SHA1_PPC64EL"; do \
+        name="${pkg%%:*}" && sha1="${pkg##*:}" &&\
+        curl -fsSL --retry 10 --retry-delay 30 --retry-all-errors -o "/tmp/${name}.deb" "https://snapshot.debian.org/file/${sha1}" &&\
+        echo "${sha1}  /tmp/${name}.deb" | sha1sum -c -; \
+      done &&\
+      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends /tmp/chromium-common.deb /tmp/chromium.deb &&\
+      rm -f /tmp/chromium-common.deb /tmp/chromium.deb; \
     else \
       apt-get update -qq &&\
       apt-get upgrade -yqq &&\
