@@ -123,14 +123,7 @@ func startGotenbergContainer(ctx context.Context, env map[string]string) (testco
 		ExposedPorts:  []string{"3000/tcp"},
 		HostConfigModifier: func(hostConfig *container.HostConfig) {
 			hostConfig.ExtraHosts = []string{"host.docker.internal:host-gateway"}
-			// Docker 29.4 and later deny socketcall on i386 in their default
-			// seccomp profile, to block the AF_ALG sockets of CVE-2026-31431, and
-			// Go's linux/386 port opens every socket through it: Gotenberg would
-			// fail to listen. Users of the 386 image need the same option.
-			// See https://github.com/moby/moby/pull/52494.
-			if GotenbergContainerPlatform == "linux/386" {
-				hostConfig.SecurityOpt = append(hostConfig.SecurityOpt, "seccomp=unconfined")
-			}
+			allowSocketcall(hostConfig)
 		},
 		WaitingFor: wait.ForHTTP(healthPath),
 		Env:        env,
@@ -163,6 +156,18 @@ func startGotenbergContainer(ctx context.Context, env map[string]string) (testco
 	return c, nil
 }
 
+// allowSocketcall lifts Docker's default seccomp profile from a linux/386
+// container. Docker 29.4 and later deny socketcall on i386 there, to block the
+// AF_ALG sockets of CVE-2026-31431, and Go's linux/386 port opens every socket
+// through it: Gotenberg fails to listen, and veraPDF in the integration tools
+// fails too. Users of the 386 image need the same option.
+// See https://github.com/moby/moby/pull/52494.
+func allowSocketcall(hostConfig *container.HostConfig) {
+	if GotenbergContainerPlatform == "linux/386" {
+		hostConfig.SecurityOpt = append(hostConfig.SecurityOpt, "seccomp=unconfined")
+	}
+}
+
 func execCommandInIntegrationToolsContainer(ctx context.Context, cmd []string, path string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
@@ -177,7 +182,8 @@ func execCommandInIntegrationToolsContainer(ctx context.Context, cmd []string, p
 				FileMode:          0o700,
 			},
 		},
-		Cmd: []string{"tail", "-f", "/dev/null"}, // Keeps container running indefinitely.
+		Cmd:                []string{"tail", "-f", "/dev/null"}, // Keeps container running indefinitely.
+		HostConfigModifier: allowSocketcall,
 	}
 
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
