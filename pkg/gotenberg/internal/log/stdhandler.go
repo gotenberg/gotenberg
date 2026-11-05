@@ -18,7 +18,7 @@ const (
 )
 
 // traceContextHandler is an internal wrapper that specifically injects
-// trace_id and span_id into the log record before they are written to the standard output.
+// trace_id and span_id into the log record before they are written to the standard error.
 type traceContextHandler struct {
 	slog.Handler
 }
@@ -51,11 +51,11 @@ func (h traceContextHandler) WithGroup(name string) slog.Handler {
 }
 
 // upperLevelCase is the value of the level-case setting that keeps the level
-// field uppercase in the standard output. It mirrors gotenberg.UpperLevelCase,
+// field uppercase in the standard error. It mirrors gotenberg.UpperLevelCase,
 // duplicated here because the internal log package cannot import gotenberg.
 const upperLevelCase = "upper"
 
-// NewStdHandler returns a [slog.Handler] instance for the standard output.
+// NewStdHandler returns a [slog.Handler] instance that writes to the standard error.
 func NewStdHandler(level slog.Level, format string, fieldsPrefix string, enableGcpFields bool, levelCase string) (slog.Handler, error) {
 	// #nosec: G115
 	isTerminal := term.IsTerminal(int(os.Stdout.Fd()))

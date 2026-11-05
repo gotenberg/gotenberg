@@ -36,9 +36,9 @@ func Run() {
 	// Logging & telemetry flags.
 	fs.String("log-level", gotenberg.InfoLoggingLevel, "Set the log level")
 	fs.String("log-fields-prefix", "", "Prepend a specified prefix to each log field key")
-	fs.String("log-std-format", gotenberg.AutoLoggingFormat, "Set the log format for standard output")
+	fs.String("log-std-format", gotenberg.AutoLoggingFormat, "Set the format of the logs Gotenberg writes to standard error")
 	fs.Bool("log-std-enable-gcp-fields", false, "Use GCP-compatible field names in log output")
-	fs.String("log-std-level-case", gotenberg.LowerLevelCase, "Set the case of the level field in the standard output, either lower or upper")
+	fs.String("log-std-level-case", gotenberg.LowerLevelCase, "Set the case of the level field in the logs Gotenberg writes to standard error, either lower or upper")
 
 	descriptors := gotenberg.GetModuleDescriptors()
 	for _, desc := range descriptors {
