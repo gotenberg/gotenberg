@@ -63,8 +63,11 @@ var outboundDialer = &net.Dialer{
 //
 //   - 2002::/16    6to4 (RFC 3056, deprecated by RFC 7526). Bits 16-47
 //     embed an IPv4 destination, including private ones.
-//   - 2001::/32    Teredo (RFC 4380). Bits 96-127 embed an IPv4
-//     destination, including private ones.
+//   - 2001::/23    IETF protocol assignments (RFC 2928, RFC 6890). Includes
+//     Teredo 2001::/32 (RFC 4380), whose bits 96-127 embed an IPv4
+//     destination, including private ones, and benchmarking 2001:2::/48
+//     (RFC 5180), the twin of 198.18.0.0/15 below. Rejected wholesale, like
+//     192.0.0.0/24.
 //   - 64:ff9b::/96 NAT64 well-known prefix (RFC 6052). Low 32 bits
 //     embed an IPv4 destination translated by a NAT64 gateway.
 //   - 64:ff9b:1::/48 NAT64 local-use prefix (RFC 8215). Same risk.
@@ -74,15 +77,25 @@ var outboundDialer = &net.Dialer{
 //     destination and is not handled by [netip.Addr.Unmap].
 //   - 2001:db8::/32 Documentation range (RFC 3849). Never routable.
 //   - 100::/64     Discard prefix (RFC 6666).
+//   - 100:0:0:1::/64 Dummy prefix (RFC 9780). Never routable.
+//   - 3fff::/20    Documentation range (RFC 9637). Never routable.
+//   - 5f00::/16    Segment Routing (SRv6) SIDs (RFC 9602). Not globally
+//     reachable.
+//
+// Together with the [netip.Addr] helpers, these cover every block of the IANA
+// IPv6 Special-Purpose Address Registry that is not globally reachable.
 var nonPublicIPv6Prefixes = []netip.Prefix{
 	netip.MustParsePrefix("2002::/16"),
-	netip.MustParsePrefix("2001::/32"),
+	netip.MustParsePrefix("2001::/23"),
 	netip.MustParsePrefix("64:ff9b::/96"),
 	netip.MustParsePrefix("64:ff9b:1::/48"),
 	netip.MustParsePrefix("fec0::/10"),
 	netip.MustParsePrefix("::/96"),
 	netip.MustParsePrefix("2001:db8::/32"),
 	netip.MustParsePrefix("100::/64"),
+	netip.MustParsePrefix("100:0:0:1::/64"),
+	netip.MustParsePrefix("3fff::/20"),
+	netip.MustParsePrefix("5f00::/16"),
 }
 
 // nonPublicIPv4Prefixes lists IPv4 ranges that the [netip.Addr] helpers do
@@ -99,8 +112,13 @@ var nonPublicIPv6Prefixes = []netip.Prefix{
 //     reachable.
 //   - 192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24 Documentation (RFC 5737).
 //     Never routable, like 2001:db8::/32 above.
+//   - 192.88.99.0/24 Deprecated 6to4 relay anycast (RFC 7526), including the
+//     6a44 relay 192.88.99.2 (RFC 6751).
 //   - 240.0.0.0/4   Reserved (RFC 1112), including the limited broadcast
 //     255.255.255.255.
+//
+// Together with the [netip.Addr] helpers, these cover every block of the IANA
+// IPv4 Special-Purpose Address Registry that is not globally reachable.
 var nonPublicIPv4Prefixes = []netip.Prefix{
 	netip.MustParsePrefix("100.64.0.0/10"),
 	netip.MustParsePrefix("198.18.0.0/15"),
@@ -109,6 +127,7 @@ var nonPublicIPv4Prefixes = []netip.Prefix{
 	netip.MustParsePrefix("192.0.2.0/24"),
 	netip.MustParsePrefix("198.51.100.0/24"),
 	netip.MustParsePrefix("203.0.113.0/24"),
+	netip.MustParsePrefix("192.88.99.0/24"),
 	netip.MustParsePrefix("240.0.0.0/4"),
 }
 

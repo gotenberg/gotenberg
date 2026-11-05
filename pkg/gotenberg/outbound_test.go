@@ -66,6 +66,10 @@ func TestIsPublicIP(t *testing.T) {
 		{"240.0.0.1", false},
 		{"255.255.255.255", false},
 
+		// Deprecated 6to4 relay anycast and the 6a44 relay (RFC 7526).
+		{"192.88.99.1", false},
+		{"192.88.99.2", false},
+
 		// Neighbors of the ranges above stay public.
 		{"1.0.0.1", true},
 		{"192.0.1.1", true},
@@ -123,6 +127,30 @@ func TestIsPublicIP(t *testing.T) {
 		// Discard prefix (RFC 6666).
 		{"100::1", false},
 
+		// Dummy prefix (RFC 9780).
+		{"100:0:0:1::1", false},
+
+		// IETF protocol assignments (RFC 2928): benchmarking (RFC 5180),
+		// the IPv6 twin of 198.18.0.0/15, ORCHID, and the rest of the block.
+		{"2001:2::1", false},
+		{"2001:2:0:ffff::1", false},
+		{"2001:10::1", false},
+		{"2001:1ff:ffff:ffff:ffff:ffff:ffff:ffff", false},
+
+		// Documentation prefix (RFC 9637).
+		{"3fff::1", false},
+		{"3fff:fff:ffff:ffff:ffff:ffff:ffff:ffff", false},
+
+		// Segment Routing SIDs (RFC 9602).
+		{"5f00::1", false},
+
+		// Neighbors of the IPv6 ranges above stay public.
+		{"2001:200::1", true},
+		{"3ffe:ffff:ffff:ffff:ffff:ffff:ffff:ffff", true},
+		{"4000::1", true},
+		{"5f01::1", true},
+		{"2606:4700:4700::1111", true},
+
 		// A zone identifier must not change the classification.
 		{"::%1", false},
 		{"::%lo", false},
@@ -138,6 +166,9 @@ func TestIsPublicIP(t *testing.T) {
 		{"::a9fe:a9fe%1", false},
 		{"2001:db8::1%1", false},
 		{"100::1%1", false},
+		{"2001:2::1%1", false},
+		{"3fff::1%1", false},
+		{"5f00::1%1", false},
 		{"2606:4700:4700::1111%1", true},
 	} {
 		t.Run(tc.addr, func(t *testing.T) {
