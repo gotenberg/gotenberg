@@ -71,6 +71,7 @@ type browserArguments struct {
 	disableWebSecurity       bool
 	allowFileAccessFromFiles bool
 	hostResolverRules        string
+	hostRules                hostResolverRules
 	proxyServer              string
 	enableEnvironmentProxy   bool
 	wsUrlReadTimeout         time.Duration
@@ -105,6 +106,24 @@ func (a browserArguments) restrictsNetwork() bool {
 	return false
 }
 
+// usesPinningProxy reports whether Chromium sends its traffic through the
+// pinning proxy. An operator egress proxy set with --chromium-proxy-server
+// takes its place.
+func (a browserArguments) usesPinningProxy() bool {
+	return a.proxyServer == ""
+}
+
+// hostMapping returns the --chromium-host-resolver-rules mapping that the
+// outbound checks apply, or nil. Chromium hands every destination to the
+// pinning proxy, so the rules must apply there. Behind the operator's proxy,
+// Chromium keeps applying them itself.
+func (a browserArguments) hostMapping() gotenberg.HostMapping {
+	if !a.usesPinningProxy() || (len(a.hostRules.maps) == 0 && len(a.hostRules.excludes) == 0) {
+		return nil
+	}
+	return a.hostRules.rewrite
+}
+
 type chromiumBrowser struct {
 	initialCtx         context.Context
 	ctx                context.Context
@@ -127,7 +146,7 @@ func newChromiumBrowser(arguments browserArguments) browser {
 		initialCtx:   context.Background(),
 		arguments:    arguments,
 		fs:           gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)),
-		pinningProxy: newPinningProxy(arguments.allowList, arguments.denyList, arguments.denyPrivateIPs, arguments.denyPublicIPs, arguments.enableEnvironmentProxy),
+		pinningProxy: newPinningProxy(arguments.allowList, arguments.denyList, arguments.denyPrivateIPs, arguments.denyPublicIPs, arguments.enableEnvironmentProxy, arguments.hostMapping()),
 	}
 	b.isStarted.Store(false)
 
@@ -215,7 +234,10 @@ func (b *chromiumBrowser) Start(ctx context.Context, logger *slog.Logger) (err e
 		opts = append(opts, chromedp.Flag("allow-file-access-from-files", true))
 	}
 
-	if b.arguments.hostResolverRules != "" {
+	if b.arguments.hostResolverRules != "" && !b.arguments.usesPinningProxy() {
+		// Behind the pinning proxy, Chromium resolves nothing but the proxy
+		// itself, and would apply a rule such as "MAP * ~NOTFOUND" to its
+		// 127.0.0.1 address. The pinning proxy applies the rules instead.
 		// See https://github.com/gotenberg/gotenberg/issues/488.
 		opts = append(opts, chromedp.Flag("host-resolver-rules", b.arguments.hostResolverRules))
 	}
@@ -232,18 +254,19 @@ func (b *chromiumBrowser) Start(ctx context.Context, logger *slog.Logger) (err e
 	// rebinding window between Gotenberg's validation and Chromium's
 	// connect.
 	//
-	// Skip when the operator has configured their own egress proxy or
-	// custom host-resolver mappings: those deployments take
-	// responsibility for outbound safety themselves and routing through
-	// an internal proxy would override their configuration.
-	if b.arguments.proxyServer == "" && b.arguments.hostResolverRules == "" {
+	// Skip when the operator has configured their own egress proxy: that
+	// proxy owns outbound safety, and routing through an internal proxy
+	// would override it. Custom host-resolver mappings keep the pinning
+	// proxy, which applies them, so that the outbound policy still covers
+	// WebSocket handshakes. Without it, nothing could block those.
+	if b.arguments.usesPinningProxy() {
 		err = b.pinningProxy.Start(logger)
 		if err != nil {
 			return fmt.Errorf("start pinning proxy: %w", err)
 		}
 		opts = append(opts, chromedp.ProxyServer(b.pinningProxy.URL()))
 
-		if b.arguments.restrictsNetwork() {
+		if b.arguments.restrictsNetwork() || b.arguments.hostMapping() != nil {
 			// Chromium implicitly bypasses the proxy for loopback and
 			// link-local destinations. A WebSocket handshake is never surfaced
 			// as a fetch.EventRequestPaused, so listenForEventRequestPaused
@@ -258,7 +281,9 @@ func (b *chromiumBrowser) Start(ctx context.Context, logger *slog.Logger) (err e
 			// Gated on a policy that can reject a network URL: without one,
 			// loopback is not restricted, and routing it through the proxy
 			// would only turn a refused loopback sub-resource into a 502
-			// response instead of a loading failure.
+			// response instead of a loading failure. Host-resolver mappings
+			// also need it, since a rule may send "localhost" elsewhere and
+			// only the proxy applies the rules.
 			opts = append(opts, chromedp.Flag("proxy-bypass-list", "<-loopback>"))
 		}
 	}
@@ -289,8 +314,7 @@ func (b *chromiumBrowser) Start(ctx context.Context, logger *slog.Logger) (err e
 		allocatorCancel()
 		// The pinning proxy started before chromedp; tear it down so a
 		// supervisor retry can re-bind. Stop is a no-op when the proxy
-		// was never started (operator-configured --chromium-proxy-server
-		// or --chromium-host-resolver-rules).
+		// was never started (operator-configured --chromium-proxy-server).
 		// See https://github.com/gotenberg/gotenberg/issues/1559.
 		stopErr := b.pinningProxy.Stop(logger)
 		if stopErr != nil {
@@ -561,6 +585,7 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 		err := gotenberg.FilterOutboundURL(ctx, url, b.arguments.allowList, b.arguments.denyList, deadline,
 			gotenberg.WithDenyPrivateIPs(b.arguments.denyPrivateIPs),
 			gotenberg.WithDenyPublicIPs(b.arguments.denyPublicIPs),
+			gotenberg.WithHostMapping(b.arguments.hostMapping()),
 		)
 		if err != nil {
 			return fmt.Errorf("filter URL: %w", err)
@@ -638,6 +663,7 @@ func (b *chromiumBrowser) listen(requestCtx, taskCtx context.Context, taskCancel
 		denyList:            b.arguments.denyList,
 		denyPrivateIPs:      b.arguments.denyPrivateIPs,
 		denyPublicIPs:       b.arguments.denyPublicIPs,
+		hostMapping:         b.arguments.hostMapping(),
 		allowedFilePrefixes: options.AllowedFilePrefixes,
 		extraHttpHeaders:    options.ExtraHttpHeaders,
 	})
@@ -651,10 +677,11 @@ func (b *chromiumBrowser) listen(requestCtx, taskCtx context.Context, taskCancel
 		denyList:       b.arguments.denyList,
 		denyPrivateIPs: b.arguments.denyPrivateIPs,
 		denyPublicIPs:  b.arguments.denyPublicIPs,
+		hostMapping:    b.arguments.hostMapping(),
 		failures:       failures,
 		cancel:         taskCancel,
 	}
-	if b.arguments.proxyServer == "" && b.arguments.hostResolverRules == "" {
+	if b.arguments.usesPinningProxy() {
 		webSocketOptions.decideTunnel = b.pinningProxy.decideTunnel
 	}
 

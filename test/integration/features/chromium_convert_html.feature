@@ -625,6 +625,37 @@ Feature: /forms/chromium/convert/html
     Then the Gotenberg container should log the following entries:
       | CONNECT blocked for '127.0.0.1:9999' |
 
+  # Host-resolver rules used to turn the pinning proxy off, and with it the
+  # only layer that refuses a WebSocket handshake: even an unrelated rule left
+  # the private-IP policy logging the handshake without blocking it. The
+  # pinning proxy now applies the rules itself and stays on.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/html (WebSocket to a non-public address is filtered with host-resolver rules)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST          |                                 |
+      | CHROMIUM_DENY_PRIVATE_IPS    | true                            |
+      | CHROMIUM_HOST_RESOLVER_RULES | MAP unrelated.invalid 127.0.0.1 |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/ssrf-websocket-html/index.html | file  |
+      | waitDelay | 1s                                      | field |
+    Then the response status code should be 200
+    Then the Gotenberg container should log the following entries:
+      | 'ws://127.0.0.1:9999/ssrf-websocket' targets a non-public address |
+      | CONNECT blocked for '127.0.0.1:9999'                              |
+
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/html (WebSocket from a Web Worker is filtered with host-resolver rules)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST          |                                 |
+      | CHROMIUM_DENY_PRIVATE_IPS    | true                            |
+      | CHROMIUM_HOST_RESOLVER_RULES | MAP unrelated.invalid 127.0.0.1 |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/ssrf-websocket-worker-html/index.html | file  |
+      | waitDelay | 1s                                             | field |
+    Then the response status code should be 200
+    Then the Gotenberg container should log the following entries:
+      | CONNECT blocked for '127.0.0.1:9999' |
+
   # wss:// (TLS) handshakes tunnel through the proxy via CONNECT, the same path
   # as ws://, and must be filtered identically.
   @chromium-ssrf

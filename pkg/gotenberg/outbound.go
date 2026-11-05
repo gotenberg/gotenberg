@@ -557,7 +557,9 @@ func DecideOutbound(ctx context.Context, rawURL string, allowList, denyList []*r
 
 		mappedHost, mappedPort, err := cfg.hostMapping(host, port)
 		if err != nil {
-			return OutboundDecision{}, fmt.Errorf("map '%s' host: %v: %w", normalized, err, ErrFiltered)
+			// A rule that maps the host to nowhere answers like a host that
+			// does not resolve.
+			return OutboundDecision{}, fmt.Errorf("map '%s' host: %w", RedactURL(normalized), &UnresolvableHostError{Host: host, Err: err})
 		}
 
 		if mappedHost != host || mappedPort != port {
