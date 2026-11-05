@@ -33,8 +33,11 @@ type Processor struct {
 	// glyphs for a redaction. litho bundles no font program: without it, such
 	// a font renders as boxes.
 	renderFonts litho.RenderOption
-	httpClient  func(ctx context.Context) *http.Client
-	files       fileConcurrency
+	// textFonts draws the text the standard fonts cannot, outside Windows-1252:
+	// a stamp's, or a form value flatten-form draws into the page.
+	textFonts  litho.FontSource
+	httpClient func(ctx context.Context) *http.Client
+	files      fileConcurrency
 }
 
 // stageError locates a failure to a stage and a document, for the client.

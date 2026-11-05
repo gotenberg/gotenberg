@@ -85,10 +85,12 @@ func (mod *PDF) Provision(ctx *gotenberg.Context) error {
 			MaxImagePixels:       flags.MustInt64("pdf-max-image-pixels"),
 		},
 		// Remediation embeds the fonts a document shows without embedding them,
-		// and render and redact draw them. Each built once, so the font
-		// directories are indexed once per process.
+		// render and redact draw them, and stamp-text and flatten-form draw the
+		// text the standard fonts cannot with them. Each built once, so the
+		// font directories are indexed once per process.
 		fonts:       litho.WithSystemFonts(),
 		renderFonts: litho.WithRenderSystemFonts(),
+		textFonts:   litho.NewSystemFontSource(),
 		httpClient:  mod.httpClient,
 		files:       newFileConcurrency(mod.maxConcurrency),
 	}

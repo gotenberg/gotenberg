@@ -74,6 +74,9 @@ func (s *stampTextStage) edit(_ context.Context, w *litho.Writer, env *runEnv) e
 	if s.Font != "" {
 		stamp.Font = stampFonts[s.Font]
 	}
+	// A standard font draws Windows-1252 only: other text takes a font
+	// installed in the image, matched to the standard font's family.
+	stamp.Fonts = env.processor.textFonts
 
 	if s.Color != "" {
 		stamp.Color, err = parseColor(s.Color)
@@ -180,8 +183,10 @@ func (s *setFormStage) edit(_ context.Context, w *litho.Writer, _ *runEnv) error
 	return nil
 }
 
-func (*flattenFormStage) edit(_ context.Context, w *litho.Writer, _ *runEnv) error {
-	w.FlattenForm()
+func (*flattenFormStage) edit(_ context.Context, w *litho.Writer, env *runEnv) error {
+	// A value without a stored appearance is drawn into the page; one outside
+	// Windows-1252 takes a font installed in the image.
+	w.FlattenForm(litho.WithFlattenFonts(env.processor.textFonts))
 
 	return nil
 }

@@ -22,6 +22,24 @@ Feature: /forms/pdf/{flatten-form|set-form|form}
     Then there should be 2 PDF(s) in the response
     Then the response PDF(s) should be flatten
 
+  # A value the form's own font cannot draw, outside Windows-1252, is drawn
+  # with a font installed in the image, and an empty field's border is drawn
+  # too, so nothing of the form outlives the flatten.
+  Scenario: POST /forms/pdf/pipe (Set Form, Then Flatten Other Scripts)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
+      | files                     | testdata/form.pdf                                                              | file   |
+      | stages                    | [{"op":"set-form","fields":{"name":"Иван Петров 山田太郎"}},{"op":"flatten-form"}] | field  |
+      | Gotenberg-Output-Filename | foo                                                                            | header |
+    Then the response status code should be 200
+    Then the response PDF(s) should be flatten
+    Then the "foo.pdf" PDF should have content matching "Иван Петров 山田太郎" at page 1
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
+      | files                     | testdata/form.pdf | file   |
+      | Gotenberg-Output-Filename | foo               | header |
+    Then the response status code should be 200
+    Then the response PDF(s) should be flatten
+
   Scenario: POST /forms/pdf/set-form
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/set-form" endpoint with the following form data and header(s):

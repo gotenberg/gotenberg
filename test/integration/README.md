@@ -78,7 +78,7 @@ Available tags:
 - `the "<name>" PDF (should|should NOT) be set to landscape orientation`
 - `the "<name>" PDF (should|should NOT) be tagged`
 - `the "<name>" PDF (should|should NOT) have the following content at page <N>:` (docstring)
-- `the "<name>" PDF (should|should NOT) have content matching "<regexp>" at page <N>`
+- `the "<name>" PDF (should|should NOT) have content matching "<regexp>" at page <N>` (append `, artifacts included` to match a stamp or another artifact)
 - `the (response|webhook request) PDF(s) should be valid "<standard>" with a tolerance of <N> failed rule(s)` (standards: `PDF/A-1b`, `PDF/A-2b`, `PDF/A-3b`, `PDF/A-4`, `PDF/UA-1`, `PDF/UA-2`; counts distinct failed rules, as veraPDF does)
 - `the (response|webhook request) PDF(s) (should|should NOT) be flatten`
 - `the (response|webhook request) PDF(s) (should|should NOT) be encrypted`

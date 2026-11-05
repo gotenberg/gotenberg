@@ -109,13 +109,19 @@ Feature: /forms/pdf/{stamp-text|stamp-image|stamp-pdf}
       """
       Stage 'stamp-image' failed on 'page_1.pdf': invalid image data: PNG: png: invalid format: not a PNG file; send a valid PNG or JPEG image, its extension naming its format (.png, .jpg or .jpeg)
       """
+    # The fonts installed in the image draw the text a standard font cannot.
     When I make a "POST" request to Gotenberg at the "/forms/pdf/stamp-text" endpoint with the following form data and header(s):
       | files | testdata/page_1.pdf | file  |
-      | text  | 日本                  | field |
+      | text  | 日本 Кириллица        | field |
+    Then the response status code should be 200
+    Then the "page_1.pdf" PDF should have content matching "日本 Кириллица" at page 1, artifacts included
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/stamp-text" endpoint with the following form data and header(s):
+      | files | testdata/page_1.pdf | file  |
+      | text  | ͸                   | field |
     Then the response status code should be 400
     Then the response body should match string:
       """
-      Stage 'stamp-text' failed on 'page_1.pdf': the standard fonts draw Windows-1252 text only (Latin letters with their accents, the euro sign and the usual punctuation); stamp other text with a stamp-pdf stage and a page Chromium renders, or with nativeWatermarkText on LibreOffice
+      Stage 'stamp-text' failed on 'page_1.pdf': no font covers the text: no font has '\u0378'; the fonts installed in the image draw Latin, Greek, Cyrillic, Chinese, Japanese and Korean text, among others: install a font that has these characters, see https://gotenberg.dev/docs/troubleshooting#install-fonts
       """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/stamp-pdf" endpoint with the following form data and header(s):
       | files  | testdata/page_1.pdf | file  |

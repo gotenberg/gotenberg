@@ -311,13 +311,19 @@ func (s *scenario) thePdfShouldHaveADocumentOutline(ctx context.Context, name, k
 
 // pdfPageText extracts the text of a single page of the named PDF. Some
 // fixtures carry their only text in annotation appearances (e.g., page_1.pdf),
-// so the extraction includes it.
-func (s *scenario) pdfPageText(ctx context.Context, name string, page int) (string, error) {
+// so the extraction includes it. A stamp is an artifact, as the header and
+// footer of a converted document are, so artifacts are left out unless the
+// step asks for them.
+func (s *scenario) pdfPageText(ctx context.Context, name string, page int, artifacts bool) (string, error) {
 	var text string
 
 	err := s.withNamedPdf(ctx, name, func(r *litho.Reader) error {
 		var err error
-		text, err = r.ExtractText(ctx, page, litho.WithAnnotationText())
+		if artifacts {
+			text, err = r.ExtractText(ctx, page, litho.WithAnnotationText(), litho.WithArtifacts())
+		} else {
+			text, err = r.ExtractText(ctx, page, litho.WithAnnotationText())
+		}
 		if err != nil {
 			return fmt.Errorf("extract the text of page %d: %w", page, err)
 		}

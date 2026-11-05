@@ -560,7 +560,7 @@ func (s *scenario) theFileSizeShouldBe(_ context.Context, name, comparator strin
 }
 
 func (s *scenario) thePdfShouldHaveTheFollowingContentAtPage(ctx context.Context, name, kind string, page int, expected *godog.DocString) error {
-	output, err := s.pdfPageText(ctx, name, page)
+	output, err := s.pdfPageText(ctx, name, page, false)
 	if err != nil {
 		return err
 	}
@@ -578,8 +578,11 @@ func (s *scenario) thePdfShouldHaveTheFollowingContentAtPage(ctx context.Context
 	return nil
 }
 
-func (s *scenario) thePdfShouldHaveContentMatchingAtPage(ctx context.Context, name, kind, pattern string, page int) error {
-	output, err := s.pdfPageText(ctx, name, page)
+// thePdfShouldHaveContentMatchingAtPage matches pattern against the text of
+// the page. The ", artifacts included" suffix, given as artifacts, adds the
+// text of the page's artifacts, which a stamp is.
+func (s *scenario) thePdfShouldHaveContentMatchingAtPage(ctx context.Context, name, kind, pattern string, page int, artifacts string) error {
+	output, err := s.pdfPageText(ctx, name, page, artifacts != "")
 	if err != nil {
 		return err
 	}

@@ -163,7 +163,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) be tagged$`, s.thePdfShouldBeTagged)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have a document outline$`, s.thePdfShouldHaveADocumentOutline)
 	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have the following content at page (\d+):$`, s.thePdfShouldHaveTheFollowingContentAtPage)
-	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have content matching "([^"]*)" at page (\d+)$`, s.thePdfShouldHaveContentMatchingAtPage)
+	ctx.Then(`^the "([^"]*)" PDF (should|should NOT) have content matching "([^"]*)" at page (\d+)(, artifacts included)?$`, s.thePdfShouldHaveContentMatchingAtPage)
 	ctx.Then(`^the "([^"]*)" PDF should have (\d+) image\(s\)$`, s.thePdfShouldHaveImages)
 	ctx.Then(`^the "([^"]*)" PDF should reuse (\d+) image XObject\(s\) across (\d+) page\(s\)$`, s.thePdfShouldReuseImageXObjects)
 	ctx.Then(`^the (response|webhook request) PDF\(s\) (should|should NOT) be signed$`, s.thePdfsShouldBeSigned)

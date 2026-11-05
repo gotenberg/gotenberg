@@ -99,6 +99,12 @@ var lithoFixes = []struct {
 		},
 	},
 	{
+		err: litho.ErrNoFontCovers,
+		fix: func(message string) string {
+			return message + "; the fonts installed in the image draw Latin, Greek, Cyrillic, Chinese, Japanese and Korean text, among others: install a font that has these characters, see https://gotenberg.dev/docs/troubleshooting#install-fonts"
+		},
+	},
+	{
 		err: litho.ErrInvalidImage,
 		fix: func(message string) string {
 			return message + "; send a valid PNG or JPEG image, its extension naming its format (.png, .jpg or .jpeg)"
