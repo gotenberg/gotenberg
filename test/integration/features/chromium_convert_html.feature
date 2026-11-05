@@ -1355,6 +1355,22 @@ Feature: /forms/chromium/convert/html
     Then the response header "Content-Type" should be "application/pdf"
     Then the "foo.pdf" file size should be less than 300 KB
 
+  # The chart of optimize-chart-html takes twice as much space as JPEG and is
+  # left as is, while the image of optimize-image-html after it is still
+  # re-encoded. The page is ~753 KB without optimization, ~138 KB with both
+  # images re-encoded and ~94 KB with the chart left as is.
+  Scenario: POST /forms/chromium/convert/html (Optimize Images With a Chart)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/optimize-chart-html/index.html | file   |
+      | files                     | testdata/optimize-chart-html/chart.png  | file   |
+      | files                     | testdata/optimize-image-html/image.png  | file   |
+      | optimizeImages            | true                                    | field  |
+      | Gotenberg-Output-Filename | foo                                     | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then the "foo.pdf" file size should be less than 120 KB
+
   @encrypt
   Scenario: POST /forms/chromium/convert/html (Encrypt - user password only)
     Given I have a default Gotenberg container
