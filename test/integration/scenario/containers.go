@@ -123,6 +123,14 @@ func startGotenbergContainer(ctx context.Context, env map[string]string) (testco
 		ExposedPorts:  []string{"3000/tcp"},
 		HostConfigModifier: func(hostConfig *container.HostConfig) {
 			hostConfig.ExtraHosts = []string{"host.docker.internal:host-gateway"}
+			// Docker 29.4 and later deny socketcall on i386 in their default
+			// seccomp profile, to block the AF_ALG sockets of CVE-2026-31431, and
+			// Go's linux/386 port opens every socket through it: Gotenberg would
+			// fail to listen. Users of the 386 image need the same option.
+			// See https://github.com/moby/moby/pull/52494.
+			if GotenbergContainerPlatform == "linux/386" {
+				hostConfig.SecurityOpt = append(hostConfig.SecurityOpt, "seccomp=unconfined")
+			}
 		},
 		WaitingFor: wait.ForHTTP(healthPath),
 		Env:        env,
