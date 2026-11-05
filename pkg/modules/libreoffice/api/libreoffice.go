@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -55,11 +56,6 @@ func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 		return errors.New("LibreOffice is already started")
 	}
 
-	port, err := freePort(logger)
-	if err != nil {
-		return fmt.Errorf("get free port: %w", err)
-	}
-
 	proxy, err := newLibreOfficeProxy(logger, p.arguments.proxyOptions)
 	if err != nil {
 		return fmt.Errorf("create LibreOffice outbound proxy: %w", err)
@@ -69,6 +65,7 @@ func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 	userProfileDirPath := p.fs.NewDirPath()
 
 	var (
+		port    int
 		cmd     *gotenberg.Cmd
 		success bool
 	)
@@ -120,6 +117,15 @@ func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 
 		logger.DebugContext(context.Background(), fmt.Sprintf("'%s' LibreOffice's user profile directory removed", userProfileDirPath))
 	}()
+
+	// Picked once the proxy listens. freePort binds a port and releases it, so
+	// a proxy started afterward could get that same port from the kernel and
+	// answer on LibreOffice's socket address.
+	// See https://github.com/gotenberg/gotenberg/issues/1713.
+	port, err = freePort(logger)
+	if err != nil {
+		return fmt.Errorf("get free port: %w", err)
+	}
 
 	// LibreOffice fetches external content (OOXML images via
 	// TargetMode=External, RTF INCLUDEPICTURE, ODT linked images) inside
@@ -190,17 +196,12 @@ func (p *libreOfficeProcess) Start(logger *slog.Logger) error {
 				break
 			}
 
-			conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), time.Duration(1)*time.Second)
+			err := dialUno(logger, port, time.Duration(1)*time.Second)
 			if err != nil {
 				continue
 			}
 
 			connChan <- nil
-			err = conn.Close()
-			if err != nil {
-				logger.DebugContext(context.Background(), fmt.Sprintf("close connection after health checking the LibreOffice: %v", err))
-			}
-
 			break
 		}
 	}()
@@ -288,17 +289,52 @@ func (p *libreOfficeProcess) Healthy(logger *slog.Logger) bool {
 	p.cfgMu.RLock()
 	defer p.cfgMu.RUnlock()
 
-	conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", p.socketPort), time.Duration(10)*time.Second)
-	if err == nil {
-		err = conn.Close()
-		if err != nil {
-			logger.DebugContext(context.Background(), fmt.Sprintf("close connection after health checking LibreOffice: %v", err))
-		}
+	return dialUno(logger, p.socketPort, time.Duration(10)*time.Second) == nil
+}
 
-		return true
+// unoGreeting is the interface LibreOffice's URP bridge names in the protocol
+// negotiation it sends on every new connection, before the client writes
+// anything.
+const unoGreeting = "com.sun.star.bridge.XProtocolProperties"
+
+// dialUno connects to LibreOffice's socket on port and waits for the URP
+// greeting. An accepted connection alone proves nothing: when another listener
+// takes the port before LibreOffice binds it, LibreOffice keeps running
+// without a socket and every check would reach that listener instead, which
+// never sends the greeting.
+// See https://github.com/gotenberg/gotenberg/issues/1713.
+func dialUno(logger *slog.Logger, port int, timeout time.Duration) error {
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), timeout)
+	if err != nil {
+		return fmt.Errorf("dial LibreOffice socket: %w", err)
+	}
+	defer func() {
+		err := conn.Close()
+		if err != nil {
+			logger.DebugContext(context.Background(), fmt.Sprintf("close connection after checking the LibreOffice socket: %v", err))
+		}
+	}()
+
+	err = conn.SetReadDeadline(time.Now().Add(timeout))
+	if err != nil {
+		return fmt.Errorf("set read deadline on LibreOffice socket: %w", err)
 	}
 
-	return false
+	// The greeting comes first and is about a hundred bytes long; reading
+	// further would only wait on a listener that streams something else.
+	received := make([]byte, 0, 512)
+	for len(received) < cap(received) {
+		n, err := conn.Read(received[len(received):cap(received)])
+		received = received[:len(received)+n]
+		if bytes.Contains(received, []byte(unoGreeting)) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("read the URP greeting from port %d: %w", port, err)
+		}
+	}
+
+	return fmt.Errorf("port %d does not answer with the URP greeting", port)
 }
 
 func (p *libreOfficeProcess) pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error {
