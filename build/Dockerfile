@@ -12,7 +12,7 @@ ARG GOLANG_VERSION=1.27.3
 FROM debian:13-slim AS lok-binary-stage
 
 # See https://github.com/gotenberg/lok/releases.
-ARG LOK_VERSION=v0.0.5
+ARG LOK_VERSION=v0.0.6
 
 RUN apt-get update -qq \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends ca-certificates curl \
