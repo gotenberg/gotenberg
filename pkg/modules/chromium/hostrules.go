@@ -95,8 +95,8 @@ func parseReplacement(value string) (string, string, error) {
 		port = strconv.FormatUint(number, 10)
 	}
 
-	if strings.HasPrefix(host, "[") {
-		inner := strings.TrimSuffix(strings.TrimPrefix(host, "["), "]")
+	if after, ok := strings.CutPrefix(host, "["); ok {
+		inner := strings.TrimSuffix(after, "]")
 		addr, err := netip.ParseAddr(inner)
 		if !strings.HasSuffix(host, "]") || err != nil || !addr.Is6() {
 			return "", "", fmt.Errorf("replacement '%s' has an invalid IPv6 literal", value)
