@@ -327,3 +327,33 @@ func forEachInputPath(p *Processor, ctx *api.Context, inputPaths []string, fn fu
 		return fn(inputPath)
 	})
 }
+
+// TestRunConcurrentFiles runs the stages that name their outputs on several
+// documents at once: under -race, it catches an unguarded write to the
+// request's filename map.
+func TestRunConcurrentFiles(t *testing.T) {
+	for _, raw := range []string{
+		`[{"op":"rotate","angle":90}]`,
+		`[{"op":"split","every":1}]`,
+		`[{"op":"render","dpi":10}]`,
+	} {
+		t.Run(raw, func(t *testing.T) {
+			processor := testProcessor()
+			processor.files = newFileConcurrency(4)
+
+			ctx, paths := testContext(t, "page_1.pdf", "page_2.pdf", "pages_3.pdf", "pages_12.pdf")
+			inputs := []string{paths["page_1.pdf"], paths["page_2.pdf"], paths["pages_3.pdf"], paths["pages_12.pdf"]}
+
+			outputs, err := processor.Run(ctx, mustStages(t, raw), inputs, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			for _, path := range outputs {
+				if ctx.OriginalFilename(path) == "" {
+					t.Fatalf("%s has no filename", path)
+				}
+			}
+		})
+	}
+}

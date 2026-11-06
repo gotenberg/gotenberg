@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
@@ -44,13 +45,18 @@ var (
 
 // Context is the request context for a "multipart/form-data" request.
 type Context struct {
-	dirPath        string
-	values         map[string][]string
-	files          map[string]string
-	diskToOriginal map[string]string
-	outputPaths    []string
-	outputHeaders  map[string]string
-	cancelled      bool
+	dirPath string
+	values  map[string][]string
+	files   map[string]string
+	// diskToOriginal maps a disk path to the filename it answers under.
+	// Request parsing fills it before the handler runs; afterwards, handlers
+	// register outputs from concurrent goroutines, so every access after
+	// parsing goes through diskToOriginalMu.
+	diskToOriginal   map[string]string
+	diskToOriginalMu sync.RWMutex
+	outputPaths      []string
+	outputHeaders    map[string]string
+	cancelled        bool
 
 	// fileOrder records the order files were received in, keyed by disk path.
 	// It breaks ties when two uploads share an original filename, so that
@@ -751,15 +757,23 @@ func (ctx *Context) FileCount() int {
 // OriginalFilename returns the original filename associated with a disk path.
 // If no mapping exists, it falls back to [filepath.Base].
 func (ctx *Context) OriginalFilename(diskPath string) string {
-	if original, ok := ctx.diskToOriginal[diskPath]; ok {
+	ctx.diskToOriginalMu.RLock()
+	original, ok := ctx.diskToOriginal[diskPath]
+	ctx.diskToOriginalMu.RUnlock()
+
+	if ok {
 		return original
 	}
 	return filepath.Base(diskPath)
 }
 
 // RegisterDiskPath associates a disk path with an original filename so that
-// [Context.OriginalFilename] can resolve it later.
+// [Context.OriginalFilename] can resolve it later. It is safe for concurrent
+// use.
 func (ctx *Context) RegisterDiskPath(diskPath, originalFilename string) {
+	ctx.diskToOriginalMu.Lock()
+	defer ctx.diskToOriginalMu.Unlock()
+
 	if ctx.diskToOriginal == nil {
 		ctx.diskToOriginal = make(map[string]string)
 	}

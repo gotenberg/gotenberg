@@ -42,9 +42,8 @@ func (p *Processor) extractAttachments(ctx *api.Context, s *extractAttachmentsSt
 		return nil, err
 	}
 
-	// Registered here rather than per document: the request's filename map
-	// is not safe for concurrent writes, and the names must be unique across
-	// documents.
+	// Named here rather than per document: the names must be unique across
+	// documents, and numbered in document order whichever finishes first.
 	var paths []string
 	taken := make(map[string]bool)
 
