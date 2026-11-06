@@ -153,11 +153,6 @@ FROM common-stage AS gotenberg
 ARG GOTENBERG_VERSION=snapshot
 ARG GOTENBERG_USER_GID=1001
 ARG GOTENBERG_USER_UID=1001
-ARG TMP_CHROMIUM_VERSION_PPC64EL="146.0.7680.80-1~deb13u1"
-# The SHA-1 of each package file, which snapshot.debian.org serves it by.
-# Dependabot does not follow these pins: bump them with the version.
-ARG TMP_CHROMIUM_COMMON_SHA1_PPC64EL="e3bc88870a8cb119869cf71fa611aec63489962f"
-ARG TMP_CHROMIUM_SHA1_PPC64EL="9f571bfed6f6e3f2d1d84feb346de93b94fa5f93"
 
 LABEL org.opencontainers.image.title="Gotenberg" \
     org.opencontainers.image.description="A Docker-based API for converting documents to PDF." \
@@ -167,26 +162,9 @@ LABEL org.opencontainers.image.title="Gotenberg" \
     org.opencontainers.image.source="https://github.com/gotenberg/gotenberg"
 
 # Install Chromium.
-# On ppc64el, the latest Chromium is broken, so we pin a known working
-# version, fetched from snapshot.debian.org's file store by the SHA-1 of each
-# package. The store serves a file by its hash and holds up where the package
-# metadata API, which debsnap queries, answers 503 for hours at a time.
-RUN /bin/bash -c \
-    'set -e &&\
-    if [[ "$(dpkg --print-architecture)" == "ppc64el" ]]; then \
-      apt-get update -qq &&\
-      for pkg in "chromium-common:$TMP_CHROMIUM_COMMON_SHA1_PPC64EL" "chromium:$TMP_CHROMIUM_SHA1_PPC64EL"; do \
-        name="${pkg%%:*}" && sha1="${pkg##*:}" &&\
-        curl -fsSL --retry 10 --retry-delay 30 --retry-all-errors -o "/tmp/${name}.deb" "https://snapshot.debian.org/file/${sha1}" &&\
-        echo "${sha1}  /tmp/${name}.deb" | sha1sum -c -; \
-      done &&\
-      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends /tmp/chromium-common.deb /tmp/chromium.deb &&\
-      rm -f /tmp/chromium-common.deb /tmp/chromium.deb; \
-    else \
-      apt-get update -qq &&\
-      apt-get upgrade -yqq &&\
-      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium; \
-    fi' \
+RUN apt-get update -qq \
+    && apt-get upgrade -yqq \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Install LibreOffice.
@@ -256,11 +234,6 @@ FROM common-stage AS gotenberg-chromium
 ARG GOTENBERG_VERSION=snapshot
 ARG GOTENBERG_USER_GID=1001
 ARG GOTENBERG_USER_UID=1001
-ARG TMP_CHROMIUM_VERSION_PPC64EL="146.0.7680.80-1~deb13u1"
-# The SHA-1 of each package file, which snapshot.debian.org serves it by.
-# Dependabot does not follow these pins: bump them with the version.
-ARG TMP_CHROMIUM_COMMON_SHA1_PPC64EL="e3bc88870a8cb119869cf71fa611aec63489962f"
-ARG TMP_CHROMIUM_SHA1_PPC64EL="9f571bfed6f6e3f2d1d84feb346de93b94fa5f93"
 
 LABEL org.opencontainers.image.title="Gotenberg (Chromium)" \
     org.opencontainers.image.description="A Docker-based API for converting documents to PDF — Chromium variant." \
@@ -270,26 +243,9 @@ LABEL org.opencontainers.image.title="Gotenberg (Chromium)" \
     org.opencontainers.image.source="https://github.com/gotenberg/gotenberg"
 
 # Install Chromium.
-# On ppc64el, the latest Chromium is broken, so we pin a known working
-# version, fetched from snapshot.debian.org's file store by the SHA-1 of each
-# package. The store serves a file by its hash and holds up where the package
-# metadata API, which debsnap queries, answers 503 for hours at a time.
-RUN /bin/bash -c \
-    'set -e &&\
-    if [[ "$(dpkg --print-architecture)" == "ppc64el" ]]; then \
-      apt-get update -qq &&\
-      for pkg in "chromium-common:$TMP_CHROMIUM_COMMON_SHA1_PPC64EL" "chromium:$TMP_CHROMIUM_SHA1_PPC64EL"; do \
-        name="${pkg%%:*}" && sha1="${pkg##*:}" &&\
-        curl -fsSL --retry 10 --retry-delay 30 --retry-all-errors -o "/tmp/${name}.deb" "https://snapshot.debian.org/file/${sha1}" &&\
-        echo "${sha1}  /tmp/${name}.deb" | sha1sum -c -; \
-      done &&\
-      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends /tmp/chromium-common.deb /tmp/chromium.deb &&\
-      rm -f /tmp/chromium-common.deb /tmp/chromium.deb; \
-    else \
-      apt-get update -qq &&\
-      apt-get upgrade -yqq &&\
-      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium; \
-    fi' \
+RUN apt-get update -qq \
+    && apt-get upgrade -yqq \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends chromium \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # COPY instructions last to maximize cache reuse.
