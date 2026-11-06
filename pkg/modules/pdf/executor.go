@@ -102,8 +102,8 @@ func (p *Processor) run(ctx *api.Context, stages Stages, inputPaths []string, fi
 		}
 	}
 
-	// Render and extract-attachments come last, and write no document: they
-	// read the final ones.
+	// Render and the extractions come last, and write no document: they read
+	// the final ones.
 	var final stage
 	if len(stages) > 0 && readsFinal(stages[len(stages)-1].op()) {
 		final = stages[len(stages)-1]
@@ -146,6 +146,8 @@ func (p *Processor) run(ctx *api.Context, stages Stages, inputPaths []string, fi
 		read, err = p.render(ctx, s, docs, finalPassword(stages, password))
 	case *extractAttachmentsStage:
 		read, err = p.extractAttachments(ctx, s, docs, finalPassword(stages, password))
+	case *extractTextStage:
+		read, err = p.extractText(ctx, s, docs, finalPassword(stages, password))
 	}
 	if err != nil {
 		return nil, err

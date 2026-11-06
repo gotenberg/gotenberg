@@ -730,7 +730,7 @@ Feature: /forms/chromium/convert/url
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Invalid form data: form field 'stages' is invalid: stage 0: unknown operation "shred"; the operations are attach, autotag, convert-colors, decrypt, delete, detach, encrypt, extract-attachments, flatten-form, flatten-transparency, insert, merge, optimize, redact, remediate, render, rotate, select, set-bookmarks, set-form, set-metadata, sign, split, stamp-image, stamp-pdf, stamp-text, timestamp
+      Invalid form data: form field 'stages' is invalid: stage 0: unknown operation "shred"; the operations are attach, autotag, convert-colors, decrypt, delete, detach, encrypt, extract-attachments, extract-text, flatten-form, flatten-transparency, insert, merge, optimize, redact, remediate, render, rotate, select, set-bookmarks, set-form, set-metadata, sign, split, stamp-image, stamp-pdf, stamp-text, timestamp
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
@@ -760,7 +760,7 @@ Feature: /forms/chromium/convert/url
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Invalid form data: form field 'stages' is invalid: stage 1: "rotate" cannot follow "remediate": only encrypt, optimize, sign, timestamp, render and extract-attachments may
+      Invalid form data: form field 'stages' is invalid: stage 1: "rotate" cannot follow "remediate": only encrypt, optimize, sign, timestamp, render, extract-attachments and extract-text may
       """
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):

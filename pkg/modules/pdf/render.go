@@ -65,7 +65,7 @@ func (p *Processor) renderOne(ctx *api.Context, s *renderStage, d document, pass
 		return nil, fmt.Errorf("count pages: %w", err)
 	}
 
-	pages, err := renderPages(s.Pages, pageCount)
+	pages, err := selectedPages(s.Pages, pageCount)
 	if err != nil {
 		return nil, err
 	}
@@ -98,21 +98,6 @@ func (p *Processor) renderOne(ctx *api.Context, s *renderStage, d document, pass
 	}
 
 	return paths, nil
-}
-
-// renderPages resolves the pages to draw: spec, or every page when it is
-// empty.
-func renderPages(spec string, pageCount int) ([]int, error) {
-	if strings.TrimSpace(spec) != "" {
-		return parsePages(spec, pageCount)
-	}
-
-	pages := make([]int, pageCount)
-	for i := range pages {
-		pages[i] = i + 1
-	}
-
-	return pages, nil
 }
 
 // writeImage encodes img into a new file at path, in the format s selects.

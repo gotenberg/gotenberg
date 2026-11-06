@@ -544,8 +544,11 @@ func (s *scenario) theFileShouldMatchString(_ context.Context, name string, expe
 		return fmt.Errorf("read %q: %w", path, err)
 	}
 
-	if string(actual) != expectedDoc.Content {
-		return fmt.Errorf("expected %s to be: %q, but actual is: %q", name, expectedDoc.Content, actual)
+	// A form feed would be invisible in a feature file: \f stands for it.
+	expected := strings.ReplaceAll(expectedDoc.Content, `\f`, "\f")
+
+	if string(actual) != expected {
+		return fmt.Errorf("expected %s to be: %q, but actual is: %q", name, expected, actual)
 	}
 
 	return nil

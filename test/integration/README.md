@@ -26,12 +26,12 @@ The scenarios work in a temporary directory the run removes when it ends, on an 
 
 Available tags:
 
-| Group       | Tags                                                                                                                                                                                                                                                                                                    |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Chromium    | `chromium`, `chromium-concurrent`, `chromium-convert-html`, `chromium-image-deduplication`, `chromium-convert-markdown`, `chromium-convert-url`, `chromium-screenshot-html`, `chromium-screenshot-markdown`, `chromium-screenshot-url`, `chromium-ssrf`                                                 |
-| LibreOffice | `libreoffice`, `libreoffice-convert`, `libreoffice-ssrf`                                                                                                                                                                                                                                                |
-| PDF         | `pdf`, `pdf-pipe`, `pdf-merge`, `pdf-split`, `pdf-pages`, `pdf-rotate`, `pdf-stamp`, `pdf-metadata`, `pdf-bookmarks`, `pdf-form`, `pdf-attach`, `pdf-extract-attachments`, `pdf-encrypt`, `pdf-remediate`, `factur-x`, `pdf-sign`, `pdf-optimize`, `pdf-redact`, `pdf-colors`, `pdf-render`, `pdf-read` |
-| Infra       | `health`, `debug`, `root`, `version`, `output-filename`, `webhook`, `download-from`, `api-limits`, `api-archives`                                                                                                                                                                                       |
+| Group       | Tags                                                                                                                                                                                                                                                                                                                        |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chromium    | `chromium`, `chromium-concurrent`, `chromium-convert-html`, `chromium-image-deduplication`, `chromium-convert-markdown`, `chromium-convert-url`, `chromium-screenshot-html`, `chromium-screenshot-markdown`, `chromium-screenshot-url`, `chromium-ssrf`                                                                     |
+| LibreOffice | `libreoffice`, `libreoffice-convert`, `libreoffice-ssrf`                                                                                                                                                                                                                                                                    |
+| PDF         | `pdf`, `pdf-pipe`, `pdf-merge`, `pdf-split`, `pdf-pages`, `pdf-rotate`, `pdf-stamp`, `pdf-metadata`, `pdf-bookmarks`, `pdf-form`, `pdf-attach`, `pdf-extract-attachments`, `pdf-extract-text`, `pdf-encrypt`, `pdf-remediate`, `factur-x`, `pdf-sign`, `pdf-optimize`, `pdf-redact`, `pdf-colors`, `pdf-render`, `pdf-read` |
+| Infra       | `health`, `debug`, `root`, `version`, `output-filename`, `webhook`, `download-from`, `api-limits`, `api-archives`                                                                                                                                                                                                           |
 
 ## Writing a new test
 
@@ -107,4 +107,4 @@ Available tags:
 - `the "<name>" image should be <width>x<height> pixels`
 - `the "<name>" image pixel at <x>,<y> should be "<color>"`
 - `the "<name>" file size should be (less|greater) than <N> KB`
-- `the "<name>" file should match string:` (doc string, exact bytes)
+- `the "<name>" file should match string:` (doc string, exact bytes; `\f` stands for a form feed)

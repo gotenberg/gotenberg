@@ -477,6 +477,25 @@ func (*extractAttachmentsStage) validate() error { return nil }
 
 func (*extractAttachmentsStage) files() []string { return nil }
 
+// extractTextStage writes the text each final document shows as a .txt file
+// next to the outputs, its pages joined by a form feed. Pages lists the pages
+// to read, every page when empty. Invisible adds the text a searchable scan
+// carries under its image, Artifacts the headers, footers and page numbers,
+// and Annotations the text annotations show. It comes last, and writes no
+// document.
+type extractTextStage struct {
+	Pages       string `json:"pages"`
+	Invisible   bool   `json:"invisible"`
+	Artifacts   bool   `json:"artifacts"`
+	Annotations bool   `json:"annotations"`
+}
+
+func (*extractTextStage) op() string { return "extract-text" }
+
+func (*extractTextStage) validate() error { return nil }
+
+func (*extractTextStage) files() []string { return nil }
+
 // optimizeStage shrinks the output. Every option defaults to true.
 type optimizeStage struct {
 	ObjectStreams    *bool `json:"objectStreams"`
@@ -873,4 +892,5 @@ var (
 	_ stage = (*timestampStage)(nil)
 	_ stage = (*renderStage)(nil)
 	_ stage = (*extractAttachmentsStage)(nil)
+	_ stage = (*extractTextStage)(nil)
 )

@@ -132,6 +132,21 @@ func derefOr[T any](v *T, fallback T) T {
 	return *v
 }
 
+// selectedPages resolves the pages a stage reads: spec, or every page when it
+// is empty.
+func selectedPages(spec string, pageCount int) ([]int, error) {
+	if strings.TrimSpace(spec) != "" {
+		return parsePages(spec, pageCount)
+	}
+
+	pages := make([]int, pageCount)
+	for i := range pages {
+		pages[i] = i + 1
+	}
+
+	return pages, nil
+}
+
 // parsePages resolves a page range specification against a document of
 // pageCount pages: litho's, plus "all" on its own, every page.
 func parsePages(spec string, pageCount int) ([]int, error) {

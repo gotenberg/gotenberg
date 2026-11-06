@@ -124,6 +124,13 @@ func TestStageRoute(t *testing.T) {
 			wantBody:   `no attachment named "nope.xml"; the PDF's attachments are: embed_1.xml`,
 		},
 		{
+			name:     "extract-text answers the text only",
+			op:       "extract-text",
+			values:   map[string][]string{"annotations": {"true"}},
+			fixtures: []string{"page_1.pdf", "pages_3.pdf"},
+			wantOut:  2,
+		},
+		{
 			name:     "a pair of profiles as the field repeated",
 			op:       "remediate",
 			values:   map[string][]string{"profile": {"PDF/A-2b", "PDF/UA-1"}},

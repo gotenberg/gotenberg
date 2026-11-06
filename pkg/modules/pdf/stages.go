@@ -64,6 +64,7 @@ var stageFactories = map[string]func() stage{
 	"timestamp":            func() stage { return new(timestampStage) },
 	"render":               func() stage { return new(renderStage) },
 	"extract-attachments":  func() stage { return new(extractAttachmentsStage) },
+	"extract-text":         func() stage { return new(extractTextStage) },
 }
 
 // ParseStages decodes and validates a JSON array of stages, such as:
@@ -213,8 +214,8 @@ func (stages Stages) validatePositions() error {
 		switch {
 		case op == "decrypt" && i != 0:
 			return fmt.Errorf("stage %d: \"decrypt\" must be the first stage", i)
-		// Render and extract-attachments read the final documents, and
-		// write none.
+		// Render and the extractions read the final documents, and write
+		// none.
 		case readsFinal(op) && i != len(stages)-1:
 			return fmt.Errorf("stage %d: %q must be the last stage", i, op)
 		// litho remediates once, a pair of profiles included.
@@ -310,11 +311,11 @@ func (stages Stages) validateSequence() error {
 
 		switch {
 		case signed >= 0 && op != "sign" && op != "timestamp" && !readsFinal(op):
-			return fmt.Errorf("stage %d: %q cannot follow %q: only sign, timestamp, render and extract-attachments may", i, op, stages[signed].op())
+			return fmt.Errorf("stage %d: %q cannot follow %q: only sign, timestamp, render, extract-attachments and extract-text may", i, op, stages[signed].op())
 		case encrypted && op != "optimize" && !readsFinal(op):
-			return fmt.Errorf("stage %d: %q cannot follow \"encrypt\": only optimize, render and extract-attachments may", i, op)
+			return fmt.Errorf("stage %d: %q cannot follow \"encrypt\": only optimize, render, extract-attachments and extract-text may", i, op)
 		case remediated && !afterRemediation(op):
-			return fmt.Errorf("stage %d: %q cannot follow \"remediate\": only encrypt, optimize, sign, timestamp, render and extract-attachments may", i, op)
+			return fmt.Errorf("stage %d: %q cannot follow \"remediate\": only encrypt, optimize, sign, timestamp, render, extract-attachments and extract-text may", i, op)
 		}
 
 		switch op {
@@ -350,7 +351,7 @@ func afterRemediation(op string) bool {
 // readsFinal reports whether op reads the final documents rather than writes
 // one: it may follow any stage, and comes last.
 func readsFinal(op string) bool {
-	return op == "render" || op == "extract-attachments"
+	return op == "render" || op == "extract-attachments" || op == "extract-text"
 }
 
 // pdfaProfiles maps the remediate profiles to litho's PDF/A profiles.

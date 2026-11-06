@@ -182,6 +182,7 @@ KEEP_FAILED=
 # pdf-form
 # pdf-attach
 # pdf-extract-attachments
+# pdf-extract-text
 # pdf-encrypt
 # pdf-remediate
 # factur-x
