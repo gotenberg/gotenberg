@@ -63,6 +63,7 @@ var stageFactories = map[string]func() stage{
 	"sign":                 func() stage { return new(signStage) },
 	"timestamp":            func() stage { return new(timestampStage) },
 	"render":               func() stage { return new(renderStage) },
+	"extract-attachments":  func() stage { return new(extractAttachmentsStage) },
 }
 
 // ParseStages decodes and validates a JSON array of stages, such as:
@@ -212,9 +213,10 @@ func (stages Stages) validatePositions() error {
 		switch {
 		case op == "decrypt" && i != 0:
 			return fmt.Errorf("stage %d: \"decrypt\" must be the first stage", i)
-		// Render draws the final documents, and writes none.
-		case op == "render" && i != len(stages)-1:
-			return fmt.Errorf("stage %d: \"render\" must be the last stage", i)
+		// Render and extract-attachments read the final documents, and
+		// write none.
+		case readsFinal(op) && i != len(stages)-1:
+			return fmt.Errorf("stage %d: %q must be the last stage", i, op)
 		// litho remediates once, a pair of profiles included.
 		case op == "remediate" && again:
 			return fmt.Errorf("stage %d: only one \"remediate\" stage is allowed; to remediate to a PDF/A profile and a PDF/UA one together, give one stage both, such as %s", i, pairStage(stages[seen[op]].(*remediateStage), s.(*remediateStage)))
@@ -307,12 +309,12 @@ func (stages Stages) validateSequence() error {
 		op := s.op()
 
 		switch {
-		case signed >= 0 && op != "sign" && op != "timestamp" && op != "render":
-			return fmt.Errorf("stage %d: %q cannot follow %q: only sign, timestamp and render may", i, op, stages[signed].op())
-		case encrypted && op != "optimize" && op != "render":
-			return fmt.Errorf("stage %d: %q cannot follow \"encrypt\": only optimize and render may", i, op)
+		case signed >= 0 && op != "sign" && op != "timestamp" && !readsFinal(op):
+			return fmt.Errorf("stage %d: %q cannot follow %q: only sign, timestamp, render and extract-attachments may", i, op, stages[signed].op())
+		case encrypted && op != "optimize" && !readsFinal(op):
+			return fmt.Errorf("stage %d: %q cannot follow \"encrypt\": only optimize, render and extract-attachments may", i, op)
 		case remediated && !afterRemediation(op):
-			return fmt.Errorf("stage %d: %q cannot follow \"remediate\": only encrypt, optimize, sign, timestamp and render may", i, op)
+			return fmt.Errorf("stage %d: %q cannot follow \"remediate\": only encrypt, optimize, sign, timestamp, render and extract-attachments may", i, op)
 		}
 
 		switch op {
@@ -338,11 +340,17 @@ func (stages Stages) remediates() bool {
 // afterRemediation reports whether op may follow a remediation.
 func afterRemediation(op string) bool {
 	switch op {
-	case "encrypt", "optimize", "sign", "timestamp", "render":
+	case "encrypt", "optimize", "sign", "timestamp":
 		return true
 	default:
-		return false
+		return readsFinal(op)
 	}
+}
+
+// readsFinal reports whether op reads the final documents rather than writes
+// one: it may follow any stage, and comes last.
+func readsFinal(op string) bool {
+	return op == "render" || op == "extract-attachments"
 }
 
 // pdfaProfiles maps the remediate profiles to litho's PDF/A profiles.

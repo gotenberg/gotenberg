@@ -464,6 +464,19 @@ func (s *detachStage) validate() error {
 
 func (*detachStage) files() []string { return nil }
 
+// extractAttachmentsStage writes the files each final document embeds, every
+// one or the one Name gives, next to the outputs. It comes last, and writes
+// no document.
+type extractAttachmentsStage struct {
+	Name string `json:"name"`
+}
+
+func (*extractAttachmentsStage) op() string { return "extract-attachments" }
+
+func (*extractAttachmentsStage) validate() error { return nil }
+
+func (*extractAttachmentsStage) files() []string { return nil }
+
 // optimizeStage shrinks the output. Every option defaults to true.
 type optimizeStage struct {
 	ObjectStreams    *bool `json:"objectStreams"`
@@ -859,4 +872,5 @@ var (
 	_ stage = (*signStage)(nil)
 	_ stage = (*timestampStage)(nil)
 	_ stage = (*renderStage)(nil)
+	_ stage = (*extractAttachmentsStage)(nil)
 )

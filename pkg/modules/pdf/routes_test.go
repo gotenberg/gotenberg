@@ -110,6 +110,20 @@ func TestStageRoute(t *testing.T) {
 			wantBody:   "Stage 'render' failed on 'page_1.pdf'",
 		},
 		{
+			name:     "extract-attachments answers the attachments only",
+			op:       "extract-attachments",
+			fixtures: []string{"page_1_with_attachment.pdf"},
+			wantOut:  1,
+		},
+		{
+			name:       "extract-attachments a missing attachment",
+			op:         "extract-attachments",
+			values:     map[string][]string{"name": {"nope.xml"}},
+			fixtures:   []string{"page_1_with_attachment.pdf"},
+			wantStatus: http.StatusBadRequest,
+			wantBody:   `no attachment named "nope.xml"; the PDF's attachments are: embed_1.xml`,
+		},
+		{
 			name:     "a pair of profiles as the field repeated",
 			op:       "remediate",
 			values:   map[string][]string{"profile": {"PDF/A-2b", "PDF/UA-1"}},

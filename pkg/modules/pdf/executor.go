@@ -102,13 +102,12 @@ func (p *Processor) run(ctx *api.Context, stages Stages, inputPaths []string, fi
 		}
 	}
 
-	// Render comes last, and writes no document: it draws the final ones.
-	var render *renderStage
-	if len(stages) > 0 {
-		if r, ok := stages[len(stages)-1].(*renderStage); ok {
-			render = r
-			stages = stages[:len(stages)-1]
-		}
+	// Render and extract-attachments come last, and write no document: they
+	// read the final ones.
+	var final stage
+	if len(stages) > 0 && readsFinal(stages[len(stages)-1].op()) {
+		final = stages[len(stages)-1]
+		stages = stages[:len(stages)-1]
 	}
 
 	// optimize rewrites a document decrypted: only decrypt, which removes the
@@ -141,26 +140,29 @@ func (p *Processor) run(ctx *api.Context, stages Stages, inputPaths []string, fi
 		password = ""
 	}
 
-	var images []string
-	if render != nil {
-		images, err = p.render(ctx, render, docs, renderPassword(stages, password))
-		if err != nil {
-			return nil, err
-		}
+	var read []string
+	switch s := final.(type) {
+	case *renderStage:
+		read, err = p.render(ctx, s, docs, finalPassword(stages, password))
+	case *extractAttachmentsStage:
+		read, err = p.extractAttachments(ctx, s, docs, finalPassword(stages, password))
+	}
+	if err != nil {
+		return nil, err
 	}
 
-	paths := make([]string, len(docs), len(docs)+len(images))
+	paths := make([]string, len(docs), len(docs)+len(read))
 	for i, d := range docs {
 		paths[i] = d.path
 	}
 
-	return append(paths, images...), nil
+	return append(paths, read...), nil
 }
 
-// renderPassword returns the password that opens the final documents: the
+// finalPassword returns the password that opens the final documents: the
 // one of the encryption the stages apply, or, without stages, the one of the
 // inputs.
-func renderPassword(stages Stages, inputPassword string) string {
+func finalPassword(stages Stages, inputPassword string) string {
 	if len(stages) == 0 {
 		return inputPassword
 	}

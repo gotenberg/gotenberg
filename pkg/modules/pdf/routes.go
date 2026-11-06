@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -81,11 +80,12 @@ func runStages(ctx *api.Context, form *api.FormData, processor *Processor, stage
 		return fmt.Errorf("run stages: %w", err)
 	}
 
-	// A render alone leaves the uploaded PDFs as they are: answer the images
-	// only.
-	if len(stages) == 1 && stages[0].op() == "render" {
+	// A render or an extraction alone leaves the uploaded PDFs as they are:
+	// answer the images or the attachments only. Matched by path, not by
+	// extension, since an attachment may be a PDF.
+	if len(stages) == 1 && readsFinal(stages[0].op()) {
 		outputPaths = slices.DeleteFunc(outputPaths, func(path string) bool {
-			return strings.EqualFold(filepath.Ext(path), ".pdf")
+			return slices.Contains(inputPaths, path)
 		})
 	}
 

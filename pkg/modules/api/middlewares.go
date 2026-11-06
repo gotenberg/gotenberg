@@ -209,7 +209,7 @@ func outputFilenameMiddleware() echo.MiddlewareFunc {
 			// names. Use the same sanitizer as the other caller-supplied
 			// filenames.
 			if filename != "" {
-				filename = sanitizeFilename(filename)
+				filename = SanitizeFilename(filename)
 			}
 			c.Set("outputFilename", filename)
 			// Call the next middleware in the chain.

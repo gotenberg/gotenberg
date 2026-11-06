@@ -536,6 +536,21 @@ func (s *scenario) theImagePixelShouldBe(_ context.Context, name string, x, y in
 	return nil
 }
 
+func (s *scenario) theFileShouldMatchString(_ context.Context, name string, expectedDoc *godog.DocString) error {
+	path := fmt.Sprintf("%s/%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"), name)
+
+	actual, err := os.ReadFile(path) //nolint:gosec // path is built from test-controlled values.
+	if err != nil {
+		return fmt.Errorf("read %q: %w", path, err)
+	}
+
+	if string(actual) != expectedDoc.Content {
+		return fmt.Errorf("expected %s to be: %q, but actual is: %q", name, expectedDoc.Content, actual)
+	}
+
+	return nil
+}
+
 func (s *scenario) theFileSizeShouldBe(_ context.Context, name, comparator string, sizeKB int) error {
 	path := fmt.Sprintf("%s/%s/%s", s.workdir, s.resp.Header().Get("Gotenberg-Trace"), name)
 

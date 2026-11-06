@@ -287,11 +287,7 @@ func (s *detachStage) edit(ctx context.Context, w *litho.Writer, env *runEnv) er
 	}
 
 	if !slices.Contains(names, s.Name) {
-		if len(names) == 0 {
-			return &stageInputError{message: fmt.Sprintf("no attachment named %q; the PDF has none", s.Name)}
-		}
-
-		return &stageInputError{message: fmt.Sprintf("no attachment named %q; the PDF's attachments are: %s", s.Name, strings.Join(names, ", "))}
+		return missingAttachmentError(s.Name, names)
 	}
 
 	env.attachments = append(env.attachments, attachmentChange{name: s.Name})
@@ -522,6 +518,16 @@ func (s *encryptStage) writeOptions() ([]litho.WriteOption, error) {
 		Algorithm:     encryptAlgorithms[s.Algorithm],
 		Permissions:   permissions,
 	})}, nil
+}
+
+// missingAttachmentError reports that the document embeds no file named name,
+// and lists the names it does embed.
+func missingAttachmentError(name string, names []string) error {
+	if len(names) == 0 {
+		return &stageInputError{message: fmt.Sprintf("no attachment named %q; the PDF has none", name)}
+	}
+
+	return &stageInputError{message: fmt.Sprintf("no attachment named %q; the PDF's attachments are: %s", name, strings.Join(names, ", "))}
 }
 
 // Interface guards.

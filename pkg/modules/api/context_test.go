@@ -488,9 +488,9 @@ func TestSanitizeFilename(t *testing.T) {
 		},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
-			got := sanitizeFilename(tc.input)
+			got := SanitizeFilename(tc.input)
 			if got != tc.expect {
-				t.Errorf("sanitizeFilename(%q) = %q, want %q", tc.input, got, tc.expect)
+				t.Errorf("SanitizeFilename(%q) = %q, want %q", tc.input, got, tc.expect)
 			}
 		})
 	}
@@ -1414,5 +1414,25 @@ func TestNewContext_DownloadFromErrorWording(t *testing.T) {
 				t.Fatalf("got %d %q, want 400 %q", status, message, tc.want)
 			}
 		})
+	}
+}
+
+func TestContext_GeneratePath(t *testing.T) {
+	ctx := &Context{dirPath: "/tmp/req"}
+
+	for _, tc := range []struct {
+		extension string
+		want      string
+	}{
+		{extension: ".pdf", want: ".pdf"},
+		{extension: "", want: ""},
+		{extension: "." + strings.Repeat("x", maxDiskExtLength-1), want: "." + strings.Repeat("x", maxDiskExtLength-1)},
+		{extension: "." + strings.Repeat("x", maxDiskExtLength), want: ""},
+	} {
+		path := ctx.GeneratePath(tc.extension)
+		// A UUID stem is 36 characters.
+		if got := strings.TrimPrefix(path, "/tmp/req/")[36:]; got != tc.want {
+			t.Errorf("GeneratePath(%q) ends with %q, want %q", tc.extension, got, tc.want)
+		}
 	}
 }

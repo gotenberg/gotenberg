@@ -27,7 +27,7 @@ func (ctx *Context) extractArchive(fh *multipart.FileHeader, cfg archiveConfig, 
 	invalid := func(err error, reason string) error {
 		return WrapError(err, NewSentinelHttpError(
 			http.StatusBadRequest,
-			fmt.Sprintf("Invalid form data: form field '%s' is invalid: '%s' %s", ArchivesFormField, sanitizeFilename(fh.Filename), reason),
+			fmt.Sprintf("Invalid form data: form field '%s' is invalid: '%s' %s", ArchivesFormField, SanitizeFilename(fh.Filename), reason),
 		))
 	}
 
@@ -58,7 +58,7 @@ func (ctx *Context) extractArchive(fh *multipart.FileHeader, cfg archiveConfig, 
 			continue
 		}
 
-		filename := sanitizeFilename(f.Name)
+		filename := SanitizeFilename(f.Name)
 		if filename == "" {
 			continue
 		}

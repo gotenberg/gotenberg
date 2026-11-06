@@ -590,7 +590,7 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 		)
 	}
 
-	filename = sanitizeFilename(filename)
+	filename = SanitizeFilename(filename)
 
 	path, err = ctx.writeToDisk(filename, resp.Body, budget)
 	if err != nil {
@@ -651,7 +651,7 @@ func (ctx *Context) copyToDisk(fh *multipart.FileHeader, budget *bodyBudget) err
 		}
 	}()
 
-	filename := sanitizeFilename(fh.Filename)
+	filename := SanitizeFilename(fh.Filename)
 
 	path, err := ctx.writeToDisk(filename, in, budget)
 	if err != nil {
@@ -773,8 +773,13 @@ func (ctx *Context) DirPath() string {
 }
 
 // GeneratePath generates a path within the context's working directory.
-// It generates a new UUID-based filename. It does not create a file.
+// It generates a new UUID-based filename, which drops an extension longer
+// than 32 characters. It does not create a file.
 func (ctx *Context) GeneratePath(extension string) string {
+	if len(extension) > maxDiskExtLength {
+		extension = ""
+	}
+
 	return fmt.Sprintf("%s/%s%s", ctx.dirPath, uuid.New().String(), extension)
 }
 
@@ -1013,12 +1018,12 @@ func (ctx *Context) trackFileOrder(path, base string) {
 	ctx.fileBase[path] = base
 }
 
-// sanitizeFilename strips path separators (including backslashes, which
+// SanitizeFilename strips path separators (including backslashes, which
 // [filepath.Base] ignores on Linux) and control characters from a
 // caller-supplied filename, then NFC-normalizes the result. This prevents a
 // Windows-side Zip Slip when an output zip is extracted by a permissive
 // extractor that interprets '\' as a path separator.
-func sanitizeFilename(name string) string {
+func SanitizeFilename(name string) string {
 	if i := strings.LastIndexAny(name, `/\`); i >= 0 {
 		name = name[i+1:]
 	}

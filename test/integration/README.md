@@ -107,3 +107,4 @@ Available tags:
 - `the "<name>" image should be <width>x<height> pixels`
 - `the "<name>" image pixel at <x>,<y> should be "<color>"`
 - `the "<name>" file size should be (less|greater) than <N> KB`
+- `the "<name>" file should match string:` (doc string, exact bytes)

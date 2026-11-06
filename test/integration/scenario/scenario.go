@@ -175,6 +175,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the "([^"]*)" PDF page (\d+) should be ([\d.]+)x([\d.]+) points$`, s.thePdfPageShouldHaveSize)
 	ctx.Then(`^the "([^"]*)" PDF first page should be ([\d.]+)x([\d.]+) points$`, s.thePdfShouldHaveSize)
 	ctx.Then(`^the "([^"]*)" image should be (\d+)x(\d+) pixels$`, s.theImageShouldBePixels)
+	ctx.Then(`^the "([^"]*)" file should match string:$`, s.theFileShouldMatchString)
 	ctx.Then(`^the "([^"]*)" image pixel at (\d+),(\d+) should be "([^"]*)"$`, s.theImagePixelShouldBe)
 	ctx.Then(`^the "([^"]*)" file size should be (less|greater) than (\d+) KB$`, s.theFileSizeShouldBe)
 	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
