@@ -181,6 +181,7 @@ KEEP_FAILED=
 # pdf-bookmarks
 # pdf-form
 # pdf-attach
+# pdf-extract-attachments
 # pdf-encrypt
 # pdf-remediate
 # factur-x
