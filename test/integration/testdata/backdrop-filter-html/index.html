@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Backdrop filter</title>
+    <style>
+      @page {
+        size: 400px 300px;
+        margin: 0;
+      }
+
+      body {
+        margin: 0;
+        background: #ffffff;
+      }
+
+      /* Chromium 145 and 146 clipped an element with a backdrop filter to a
+         strip when printing, and dropped the heading below it
+         (issues.chromium.org/489633238). */
+      .card {
+        position: absolute;
+        top: 50px;
+        left: 50px;
+        width: 300px;
+        height: 200px;
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        background: rgba(255, 255, 255, 0.22);
+      }
+
+      h1 {
+        position: absolute;
+        top: 150px;
+        left: 50px;
+        margin: 0;
+        font: 24px sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Glass card</h1>
+    </div>
+  </body>
+</html>

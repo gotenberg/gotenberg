@@ -541,6 +541,23 @@ Feature: /forms/chromium/convert/html
       Emulated media type is 'screen'.
       """
 
+  # Chromium 145 and 146 printed an element with a backdrop filter clipped to
+  # a strip, dropping what it holds below. See
+  # https://github.com/gotenberg/gotenberg/issues/1491.
+  Scenario: POST /forms/chromium/convert/html (Backdrop Filter)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/backdrop-filter-html/index.html | file   |
+      | printBackground           | true                                     | field  |
+      | preferCssPageSize         | true                                     | field  |
+      | Gotenberg-Output-Filename | foo                                      | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Glass card
+      """
+
   Scenario: POST /forms/chromium/convert/html (Default Allow / Deny Lists)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
