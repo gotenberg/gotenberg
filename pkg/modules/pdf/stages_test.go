@@ -242,6 +242,12 @@ func TestParsePages(t *testing.T) {
 		{spec: "last", want: []int{3}},
 		{spec: "all,1", wantErr: true},
 		{spec: "4", wantErr: true},
+		{spec: "!1", want: []int{2, 3}},
+		{spec: "2-", want: []int{2, 3}},
+		{spec: "-2", want: []int{1, 2}},
+		{spec: "odd,!1", want: []int{3}},
+		{spec: "!1-3", wantErr: true},
+		{spec: "all,!1", wantErr: true},
 	} {
 		t.Run(tc.spec, func(t *testing.T) {
 			got, err := parsePages(tc.spec, 3)

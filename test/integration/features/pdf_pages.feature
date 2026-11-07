@@ -64,6 +64,33 @@ Feature: /forms/pdf/{select|delete|insert}
     Then there should be 1 PDF(s) in the response
     Then the "foo.pdf" PDF should have 6 page(s)
 
+  Scenario: POST /forms/pdf/{select|delete} (Exclusions & Open Ranges)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/select" endpoint with the following form data and header(s):
+      | files                     | testdata/pages_3.pdf | file   |
+      | pages                     | !2                   | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then the "foo.pdf" PDF should have 2 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+    Then the "foo.pdf" PDF should have the following content at page 2:
+      """
+      Page 3
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/delete" endpoint with the following form data and header(s):
+      | files                     | testdata/pages_3.pdf | file   |
+      | pages                     | 2-                   | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then the "foo.pdf" PDF should have 1 page(s)
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Page 1
+      """
+
   Scenario: POST /forms/pdf/{select|delete|insert} (Bad Request)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/select" endpoint with the following form data and header(s):
@@ -88,6 +115,14 @@ Feature: /forms/pdf/{select|delete|insert}
     Then the response body should match string:
       """
       Stage 'delete' failed on 'pages_3.pdf': cannot delete all pages: the deletion leaves none of 3; leave at least one page out of 'pages'
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/delete" endpoint with the following form data and header(s):
+      | files | testdata/page_1.pdf | file  |
+      | pages | !1                  | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'delete' failed on 'page_1.pdf': invalid page range: "!1" selects no pages in a 1-page document
       """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/insert" endpoint with the following form data and header(s):
       | files | testdata/pages_3.pdf | file |
