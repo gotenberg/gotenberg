@@ -2,9 +2,13 @@ package pdf
 
 import (
 	"errors"
+	"math"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 )
 
 func TestParseStages(t *testing.T) {
@@ -45,7 +49,7 @@ func TestParseStages(t *testing.T) {
 		{name: "nested bookmark without title", raw: `[{"op":"set-bookmarks","bookmarks":[{"title":"A","pageNumber":1,"children":[{"title":" ","pageNumber":1}]}]}]`, wantErr: `set-bookmarks: bookmarks[0].children[0].title is required`},
 		{name: "unknown permission", raw: `[{"op":"encrypt","userPassword":"u","permissions":{"printt":false}}]`, wantErr: `encrypt: "permissions" has an unknown key "printt"; the keys are print, printHighQuality, modifyContent, extractText, modifyAnnotations, fillForms and assemble`},
 		{name: "permissions", raw: `[{"op":"encrypt","userPassword":"u","permissions":{"print":false,"assemble":true}}]`, wantOps: []string{"encrypt"}},
-		{name: "unknown op lists the operations", raw: `[{"op":"explode"}]`, wantErr: `unknown operation "explode"; the operations are attach, autotag, convert-colors, decrypt, delete,`},
+		{name: "unknown op lists the operations", raw: `[{"op":"explode"}]`, wantErr: `unknown operation "explode"; the operations are attach, autotag, compose, convert-colors, decrypt, delete,`},
 		{name: "missing pages", raw: `[{"op":"select"}]`, wantErr: `"pages" must not be empty`},
 		{name: "split needs one mode", raw: `[{"op":"split"}]`, wantErr: `set "every" or "ranges"`},
 		{name: "split modes exclusive", raw: `[{"op":"split","every":2,"ranges":["1"]}]`, wantErr: "not both"},
@@ -259,5 +263,115 @@ func TestParsePages(t *testing.T) {
 				t.Fatalf("pages = %v, want %v", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestComposeStage(t *testing.T) {
+	const placements = `"placements":[{"x":0,"y":0}]`
+
+	for _, tc := range []struct {
+		name                  string
+		raw                   string
+		wantWidth, wantHeight float64
+		wantErr               string
+	}{
+		{name: "paper size", raw: `[{"op":"compose","paperSize":"A4",` + placements + `}]`, wantWidth: 210 / 25.4 * 72, wantHeight: 297 / 25.4 * 72},
+		{name: "paper size in any case", raw: `[{"op":"compose","paperSize":"letter",` + placements + `}]`, wantWidth: 612, wantHeight: 792},
+		{name: "width and height", raw: `[{"op":"compose","paperWidth":"6in","paperHeight":"5in",` + placements + `}]`, wantWidth: 432, wantHeight: 360},
+		{name: "a bare number is inches", raw: `[{"op":"compose","paperWidth":"6","paperHeight":"360pt",` + placements + `}]`, wantWidth: 432, wantHeight: 360},
+		{name: "a width overrides the paper size", raw: `[{"op":"compose","paperSize":"Letter","paperWidth":"15.24cm",` + placements + `}]`, wantWidth: 432, wantHeight: 792},
+		{name: "a height overrides the paper size", raw: `[{"op":"compose","paperSize":"Letter","paperHeight":"127mm",` + placements + `}]`, wantWidth: 612, wantHeight: 360},
+		{name: "no size", raw: `[{"op":"compose",` + placements + `}]`, wantErr: `stage 0: compose: set "paperSize", or "paperWidth" and "paperHeight"`},
+		{name: "a width alone", raw: `[{"op":"compose","paperWidth":"6in",` + placements + `}]`, wantErr: `compose: set "paperSize", or "paperWidth" and "paperHeight"`},
+		{name: "a height alone", raw: `[{"op":"compose","paperHeight":"5in",` + placements + `}]`, wantErr: `compose: set "paperSize", or "paperWidth" and "paperHeight"`},
+		{name: "unknown paper size", raw: `[{"op":"compose","paperSize":"A0",` + placements + `}]`, wantErr: `compose: "paperSize" must be A3, A4, A5, B4, B5, Letter, Legal or Tabloid, got "A0"`},
+		{name: "width not a length", raw: `[{"op":"compose","paperWidth":"wide","paperHeight":"5in",` + placements + `}]`, wantErr: `compose: "paperWidth" must be a length such as "6in", "15cm" or "432pt", got "wide"`},
+		{name: "height not a length", raw: `[{"op":"compose","paperWidth":"6in","paperHeight":"5ft",` + placements + `}]`, wantErr: `compose: "paperHeight" must be a length such as "6in", "15cm" or "432pt", got "5ft"`},
+		{name: "zero width", raw: `[{"op":"compose","paperWidth":"0in","paperHeight":"5in",` + placements + `}]`, wantErr: `compose: "paperWidth" must be greater than 0, got "0in"`},
+		{name: "negative height", raw: `[{"op":"compose","paperSize":"A4","paperHeight":"-5",` + placements + `}]`, wantErr: `compose: "paperHeight" must be greater than 0, got "-5"`},
+		{name: "a number for a width", raw: `[{"op":"compose","paperWidth":6,"paperHeight":"5in",` + placements + `}]`, wantErr: `compose: "paperWidth" is invalid (got 6, want a string)`},
+		{name: "no placements", raw: `[{"op":"compose","paperSize":"A4"}]`, wantErr: `compose: "placements" must list at least one placement`},
+		{name: "empty placements", raw: `[{"op":"compose","paperSize":"A4","placements":[]}]`, wantErr: `compose: "placements" must list at least one placement`},
+		{name: "negative source page", raw: `[{"op":"compose","paperSize":"A4","placements":[{},{"sourcePage":-1}]}]`, wantErr: `compose: "placements" entry 1: "sourcePage" must be a page number, got -1`},
+		{name: "negative page", raw: `[{"op":"compose","paperSize":"A4","placements":[{"page":-2}]}]`, wantErr: `compose: "placements" entry 0: "page" must be a page number, got -2`},
+		{name: "zero scale", raw: `[{"op":"compose","paperSize":"A4","placements":[{"scale":0}]}]`, wantErr: `compose: "placements" entry 0: "scale" must be greater than 0, got 0`},
+		{name: "negative scale", raw: `[{"op":"compose","paperSize":"A4","placements":[{"scale":-0.5}]}]`, wantErr: `compose: "placements" entry 0: "scale" must be greater than 0, got -0.5`},
+		{name: "unknown placement key", raw: `[{"op":"compose","paperSize":"A4","placements":[{"pages":"1"}]}]`, wantErr: `compose: json: unknown field "pages"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stages, err := ParseStages(tc.raw)
+
+			if tc.wantErr != "" {
+				if !errors.Is(err, ErrInvalidStages) || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("err = %v, want it to wrap ErrInvalidStages and contain %q", err, tc.wantErr)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("err = %v, want none", err)
+			}
+
+			s := stages[0].(*composeStage)
+			if width, height := s.width*pointsPerInch, s.height*pointsPerInch; math.Abs(width-tc.wantWidth) > 1e-9 || math.Abs(height-tc.wantHeight) > 1e-9 {
+				t.Fatalf("size = %gx%g points, want %gx%g", width, height, tc.wantWidth, tc.wantHeight)
+			}
+		})
+	}
+}
+
+func TestComposeStagePlacements(t *testing.T) {
+	stages := mustStages(t, `[{"op":"compose","paperSize":"A4","placements":[{"source":"a.pdf","sourcePage":2,"page":3,"x":36,"y":72.5,"scale":0.5,"rotation":90},{"x":1}]}]`)
+
+	s := stages[0].(*composeStage)
+	scale := 0.5
+	want := []placement{
+		{Source: "a.pdf", SourcePage: 2, Page: 3, X: 36, Y: 72.5, Scale: &scale, Rotation: 90},
+		{X: 1},
+	}
+
+	if !reflect.DeepEqual(s.Placements, want) {
+		t.Fatalf("placements = %+v, want %+v", s.Placements, want)
+	}
+
+	// The placements name the current documents, not files the stage reads.
+	if files := stages.Files(); len(files) != 0 {
+		t.Fatalf("Files() = %v, want none", files)
+	}
+
+	// A compose reshapes the list of documents: it runs alone.
+	stages = mustStages(t, `[{"op":"rotate","angle":90},{"op":"compose","paperSize":"A4","placements":[{}]},{"op":"set-metadata","title":"T"}]`)
+	for _, tc := range []struct{ start, want int }{{0, 1}, {2, 3}} {
+		if got := runEnd(stages, tc.start); got != tc.want {
+			t.Errorf("runEnd(%d) = %d, want %d", tc.start, got, tc.want)
+		}
+	}
+}
+
+func TestComposeStageFromForm(t *testing.T) {
+	ctx, _ := testContext(t, "pages_12.pdf")
+	mock := &api.ContextMock{Context: ctx}
+	mock.SetValues(map[string][]string{
+		"paperWidth":  {"6in"},
+		"paperHeight": {"5in"},
+		"placements":  {`[{"source":"pages_12.pdf","sourcePage":2,"x":0,"y":180,"scale":0.25}]`},
+	})
+
+	stages, files, err := stageFromForm("compose", ctx.FormData())
+	if err != nil {
+		t.Fatalf("stageFromForm: %v", err)
+	}
+
+	if len(files) != 0 {
+		t.Fatalf("files = %v, want none", files)
+	}
+
+	s := stages[0].(*composeStage)
+	if s.width*pointsPerInch != 432 || s.height*pointsPerInch != 360 {
+		t.Fatalf("size = %gx%g points, want 432x360", s.width*pointsPerInch, s.height*pointsPerInch)
+	}
+
+	if len(s.Placements) != 1 || s.Placements[0].Source != "pages_12.pdf" || s.Placements[0].SourcePage != 2 || s.Placements[0].Y != 180 || derefOr(s.Placements[0].Scale, 0) != 0.25 {
+		t.Fatalf("placements = %+v", s.Placements)
 	}
 }

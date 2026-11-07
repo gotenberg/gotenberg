@@ -1966,6 +1966,61 @@ func TestFormData_PaperSize(t *testing.T) {
 	}
 }
 
+func TestPaperSizeInches(t *testing.T) {
+	for _, tc := range []struct {
+		name                  string
+		wantWidth, wantHeight float64
+		wantOk                bool
+	}{
+		{name: "A4", wantWidth: 210 / 25.4, wantHeight: 297 / 25.4, wantOk: true},
+		{name: "letter", wantWidth: 8.5, wantHeight: 11, wantOk: true},
+		{name: "LEGAL", wantWidth: 8.5, wantHeight: 14, wantOk: true},
+		{name: "A0"},
+		{name: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			width, height, ok := PaperSizeInches(tc.name)
+			if ok != tc.wantOk {
+				t.Fatalf("ok = %t, want %t", ok, tc.wantOk)
+			}
+
+			if math.Abs(width-tc.wantWidth) > 1e-9 || math.Abs(height-tc.wantHeight) > 1e-9 {
+				t.Errorf("size = %gx%g, want %gx%g", width, height, tc.wantWidth, tc.wantHeight)
+			}
+		})
+	}
+}
+
+func TestParseInches(t *testing.T) {
+	for _, tc := range []struct {
+		value   string
+		want    float64
+		wantErr bool
+	}{
+		{value: "6", want: 6},
+		{value: "6in", want: 6},
+		{value: "432pt", want: 6},
+		{value: "15.24cm", want: 6},
+		{value: "152.4mm", want: 6},
+		{value: "576px", want: 6},
+		{value: "36pc", want: 6},
+		{value: "six inches", wantErr: true},
+		{value: "NaN", wantErr: true},
+		{value: "", wantErr: true},
+	} {
+		t.Run(tc.value, func(t *testing.T) {
+			got, err := ParseInches(tc.value)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("err = %v, wantErr %t", err, tc.wantErr)
+			}
+
+			if math.Abs(got-tc.want) > 1e-9 {
+				t.Errorf("ParseInches(%q) = %g, want %g", tc.value, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestFormData_Int_Checks(t *testing.T) {
 	for _, tc := range []struct {
 		scenario      string

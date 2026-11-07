@@ -175,6 +175,7 @@ KEEP_FAILED=
 # pdf-merge
 # pdf-split
 # pdf-pages
+# pdf-compose
 # pdf-rotate
 # pdf-stamp
 # pdf-metadata

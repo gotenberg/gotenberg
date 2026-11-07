@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/gotenberg/litho/pkg/models"
+
+	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 )
 
 // mergeStage appends every current document, in order, into one.
@@ -220,6 +222,99 @@ func (s *stampPdfStage) validate() error {
 }
 
 func (s *stampPdfStage) files() []string { return []string{s.Source} }
+
+// composeStage draws pages of the current documents on new pages of a chosen
+// size, and replaces them with that one document.
+type composeStage struct {
+	PaperSize   string      `json:"paperSize"`
+	PaperWidth  string      `json:"paperWidth"`
+	PaperHeight string      `json:"paperHeight"`
+	Placements  []placement `json:"placements"`
+
+	// width and height hold the page size, in inches, once validate resolved
+	// it.
+	width  float64
+	height float64
+}
+
+// placement draws a page of one of the current documents on a composed page.
+type placement struct {
+	Source     string   `json:"source"`
+	SourcePage int      `json:"sourcePage"`
+	Page       int      `json:"page"`
+	X          float64  `json:"x"`
+	Y          float64  `json:"y"`
+	Scale      *float64 `json:"scale"`
+	Rotation   float64  `json:"rotation"`
+}
+
+func (*composeStage) op() string { return "compose" }
+
+// validate resolves the page size: PaperSize sets both sides, and PaperWidth
+// or PaperHeight then override one at a time, as on the conversion routes. It
+// leaves the range litho allows, 3 to 14,400 points a side, to litho.
+func (s *composeStage) validate() error {
+	s.width, s.height = 0, 0
+
+	if s.PaperSize != "" {
+		width, height, ok := api.PaperSizeInches(s.PaperSize)
+		if !ok {
+			return fmt.Errorf(`"paperSize" must be A3, A4, A5, B4, B5, Letter, Legal or Tabloid, got %q`, s.PaperSize)
+		}
+
+		s.width, s.height = width, height
+	}
+
+	for _, side := range []struct {
+		name   string
+		value  string
+		target *float64
+	}{
+		{name: "paperWidth", value: s.PaperWidth, target: &s.width},
+		{name: "paperHeight", value: s.PaperHeight, target: &s.height},
+	} {
+		if side.value == "" {
+			continue
+		}
+
+		inches, err := api.ParseInches(side.value)
+		if err != nil {
+			return fmt.Errorf(`%q must be a length such as "6in", "15cm" or "432pt", got %q`, side.name, side.value)
+		}
+
+		if inches <= 0 {
+			return fmt.Errorf(`%q must be greater than 0, got %q`, side.name, side.value)
+		}
+
+		*side.target = inches
+	}
+
+	if s.width == 0 || s.height == 0 {
+		return errors.New(`set "paperSize", or "paperWidth" and "paperHeight"`)
+	}
+
+	if len(s.Placements) == 0 {
+		return errors.New(`"placements" must list at least one placement`)
+	}
+
+	for i, pl := range s.Placements {
+		switch {
+		case pl.SourcePage < 0:
+			return fmt.Errorf(`"placements" entry %d: "sourcePage" must be a page number, got %d`, i, pl.SourcePage)
+		case pl.Page < 0:
+			return fmt.Errorf(`"placements" entry %d: "page" must be a page number, got %d`, i, pl.Page)
+		case pl.Scale != nil && *pl.Scale <= 0:
+			return fmt.Errorf(`"placements" entry %d: "scale" must be greater than 0, got %g`, i, *pl.Scale)
+		}
+	}
+
+	return nil
+}
+
+// files returns nil: the placements name the current documents, which stay
+// the PDFs to process, where a stamp-pdf or insert source is an upload the
+// stage consumes.
+func (*composeStage) files() []string { return nil }
 
 // setMetadataStage writes the document information. Empty fields are left
 // out.
@@ -874,6 +969,7 @@ var (
 	_ stage = (*stampTextStage)(nil)
 	_ stage = (*stampImageStage)(nil)
 	_ stage = (*stampPdfStage)(nil)
+	_ stage = (*composeStage)(nil)
 	_ stage = (*setMetadataStage)(nil)
 	_ stage = (*setBookmarksStage)(nil)
 	_ stage = (*setFormStage)(nil)

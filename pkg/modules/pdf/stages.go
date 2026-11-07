@@ -46,6 +46,7 @@ var stageFactories = map[string]func() stage{
 	"stamp-text":           func() stage { return new(stampTextStage) },
 	"stamp-image":          func() stage { return new(stampImageStage) },
 	"stamp-pdf":            func() stage { return new(stampPdfStage) },
+	"compose":              func() stage { return new(composeStage) },
 	"set-metadata":         func() stage { return new(setMetadataStage) },
 	"set-bookmarks":        func() stage { return new(setBookmarksStage) },
 	"set-form":             func() stage { return new(setFormStage) },

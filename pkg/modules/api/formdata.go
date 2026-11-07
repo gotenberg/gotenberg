@@ -381,7 +381,7 @@ func (form *FormData) PaperSize(key string, width, height *float64) *FormData {
 		return form
 	}
 
-	size, ok := paperSizes[strings.ToLower(value)]
+	w, h, ok := PaperSizeInches(value)
 	if !ok {
 		form.append(
 			fmt.Errorf("form field '%s' is invalid (got '%s', want A3, A4, A5, B4, B5, Letter, Legal or Tabloid)", key, value),
@@ -389,10 +389,22 @@ func (form *FormData) PaperSize(key string, width, height *float64) *FormData {
 		return form
 	}
 
-	*width = size[0] / 25.4
-	*height = size[1] / 25.4
+	*width = w
+	*height = h
 
 	return form
+}
+
+// PaperSizeInches returns the width and height, in inches, portrait, of the
+// paper size name: A3, A4, A5, B4, B5, Letter, Legal or Tabloid, in any case.
+// ok is false for any other name.
+func PaperSizeInches(name string) (width, height float64, ok bool) {
+	size, ok := paperSizes[strings.ToLower(name)]
+	if !ok {
+		return 0, 0, false
+	}
+
+	return size[0] / 25.4, size[1] / 25.4, true
 }
 
 // Inches binds a form field to a float64 variable, in inches. The value is
@@ -451,6 +463,13 @@ func parseInches(value string) (float64, error) {
 	}
 
 	return val * ratio, nil
+}
+
+// ParseInches converts a length to inches: a number, optionally followed by
+// a unit, pt, px, in, mm, cm or pc, a bare number being in inches. It is the
+// parser of [FormData.Inches].
+func ParseInches(value string) (float64, error) {
+	return parseInches(value)
 }
 
 // errWantNumber happens when a number form field is not a finite number. NaN

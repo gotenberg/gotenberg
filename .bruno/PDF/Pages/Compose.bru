@@ -1,0 +1,32 @@
+meta {
+  name: Compose
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/forms/pdf/compose
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  files: @file(../test/integration/testdata/pages_3.pdf)
+  files: @file(../test/integration/testdata/pages_12.pdf)
+  paperWidth: 6in
+  paperHeight: 5in
+  placements: [{"source":"pages_3.pdf","x":0,"y":180,"scale":0.25},{"source":"pages_12.pdf","sourcePage":2,"x":0,"y":0,"scale":0.25}]
+  ~paperSize: A4
+}
+
+headers {
+  ~Gotenberg-Output-Filename: composed
+  ~Gotenberg-Webhook-Url: http://localhost:8080/webhook
+  ~Gotenberg-Webhook-Events-Url: http://localhost:8080/webhook/events
+  ~Gotenberg-Webhook-Method: POST
+  ~Gotenberg-Webhook-Extra-Http-Headers: {"X-Custom":"value"}
+}
+
+docs {
+  `paperWidth` and `paperHeight` override the sides `paperSize` sets: disable both before enabling `paperSize` to compose on A4 pages.
+}

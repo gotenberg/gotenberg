@@ -64,8 +64,9 @@ type document struct {
 // of the resulting PDFs. files maps the uploaded filenames the stages read to
 // their paths on disk.
 //
-// A document keeps its filename through the stages. "merge" names its output
-// after the first document, and "split" numbers its outputs. Without stages,
+// A document keeps its filename through the stages. "merge" and "compose"
+// name their output after the first document, and "split" numbers its
+// outputs. Without stages,
 // Run returns inputPaths.
 //
 // A failure the request causes, such as a page range past the last page or a
@@ -125,6 +126,9 @@ func (p *Processor) run(ctx *api.Context, stages Stages, inputPaths []string, fi
 		case *splitStage:
 			docs, err = p.split(ctx, s, docs, password)
 			i++
+		case *composeStage:
+			docs, err = p.compose(ctx, s, docs, password)
+			i++
 		default:
 			end := runEnd(stages, i)
 			docs, err = p.runEach(ctx, stages[i:end], docs, password, encryptionHandled, files, outcome)
@@ -183,14 +187,15 @@ func finalPassword(stages Stages, inputPassword string) string {
 }
 
 // runEnd returns the index after the run of stages starting at start. A run
-// shares one litho pipeline, so it stops before a merge or a split, which
-// reshape the list of documents, and after a stage that changes the page
+// shares one litho pipeline, so it stops before a merge, a split or a
+// compose, which reshape the list of documents, and after a stage that
+// changes the page
 // count, so that every page range in a run counts the same pages.
 func runEnd(stages Stages, start int) int {
 	end := start
 	for end < len(stages) {
 		switch stages[end].(type) {
-		case *mergeStage, *splitStage:
+		case *mergeStage, *splitStage, *composeStage:
 			return end
 		case *selectStage, *deleteStage, *insertStage:
 			return end + 1
@@ -326,6 +331,116 @@ func (p *Processor) merge(ctx *api.Context, docs []document, password string) ([
 	}
 
 	return []document{merged}, nil
+}
+
+// compose draws the pages the placements of s name, each from the document
+// its source names, on new pages, and returns that one document, named after
+// the first.
+func (p *Processor) compose(ctx *api.Context, s *composeStage, docs []document, password string) ([]document, error) {
+	if len(docs) == 0 {
+		return docs, nil
+	}
+
+	failed := func(err error) error {
+		return &stageError{op: "compose", filename: docs[0].filename, err: err}
+	}
+
+	sources := make([]int, len(s.Placements))
+	placed := make([]bool, len(docs))
+
+	for i, pl := range s.Placements {
+		source, err := composeSource(pl.Source, docs)
+		if err != nil {
+			return nil, failed(err)
+		}
+
+		sources[i] = source
+		placed[source] = true
+	}
+
+	for i, ok := range placed {
+		if !ok {
+			return nil, failed(&stageInputError{message: fmt.Sprintf(`"placements" must place every uploaded PDF: %q is not placed`, docs[i].filename)})
+		}
+	}
+
+	readers := make([]*litho.Reader, 0, len(docs))
+	defer func() {
+		for _, r := range readers {
+			_ = r.Close()
+		}
+	}()
+
+	for _, d := range docs {
+		r, err := p.open(ctx, d.path, password)
+		if err != nil {
+			return nil, &stageError{op: "compose", filename: d.filename, err: err}
+		}
+
+		readers = append(readers, r)
+
+		// The composed document is a new file: no signature survives.
+		err = refuseSigned(ctx, r)
+		if err != nil {
+			return nil, &stageError{op: "compose", filename: d.filename, err: err}
+		}
+	}
+
+	placements := make([]litho.Placement, len(s.Placements))
+	for i, pl := range s.Placements {
+		placements[i] = litho.Placement{
+			Source:     readers[sources[i]],
+			Page:       pl.SourcePage,
+			TargetPage: pl.Page,
+			X:          pl.X,
+			Y:          pl.Y,
+			Scale:      derefOr(pl.Scale, 0),
+			Rotation:   pl.Rotation,
+		}
+	}
+
+	pipeline := litho.NewPipeline().Compose(s.width*pointsPerInch, s.height*pointsPerInch, placements)
+
+	composed, err := p.write(ctx, pipeline, []string{"compose"}, docs[0].filename)
+	if err != nil {
+		return nil, failed(err)
+	}
+
+	return []document{composed}, nil
+}
+
+// pointsPerInch converts the inches of a compose stage's page size to the
+// points litho takes.
+const pointsPerInch = 72
+
+// composeSource returns the index, in docs, of the document a placement's
+// source names: the only one when name is empty.
+func composeSource(name string, docs []document) (int, error) {
+	if name == "" {
+		if len(docs) == 1 {
+			return 0, nil
+		}
+
+		return 0, &stageInputError{message: fmt.Sprintf(`"source" must name one of the uploaded PDFs when several are uploaded: %s`, documentNames(docs))}
+	}
+
+	for i, d := range docs {
+		if d.filename == name {
+			return i, nil
+		}
+	}
+
+	return 0, &stageInputError{message: fmt.Sprintf(`"source" must name an uploaded PDF, got %q; the uploaded PDFs are %s`, name, documentNames(docs))}
+}
+
+// documentNames lists the filenames of docs, in order, for a client.
+func documentNames(docs []document) string {
+	names := make([]string, len(docs))
+	for i, d := range docs {
+		names[i] = d.filename
+	}
+
+	return strings.Join(names, ", ")
 }
 
 // split turns each document into several, numbered from 0 after it.
@@ -606,16 +721,16 @@ func refuseSigned(ctx context.Context, r *litho.Reader) error {
 }
 
 // rewrites reports whether stage s rewrites the document whole, which drops
-// its signatures (litho's Writer.DroppedSignatures lists those edits): select
-// and delete build a new file, as merge and split do, and insert, encryption,
-// decryption, form flattening, redaction, remediation, color conversion and
-// transparency flattening rewrite it. The other edits append an incremental
-// update, which keeps them. optimize, which forces a rewrite, has a guard of
-// its own.
+// its signatures (litho's Writer.DroppedSignatures lists those edits): select,
+// delete and compose build a new file, as merge and split do, and insert,
+// encryption, decryption, form flattening, redaction, remediation, color
+// conversion and transparency flattening rewrite it. The other edits append
+// an incremental update, which keeps them. optimize, which forces a rewrite,
+// has a guard of its own.
 func rewrites(s stage) bool {
 	switch s.(type) {
 	case *selectStage, *deleteStage, *insertStage, *encryptStage, *decryptStage, *flattenFormStage,
-		*redactStage, *remediateStage, *convertColorsStage, *flattenTransparencyStage:
+		*redactStage, *remediateStage, *convertColorsStage, *flattenTransparencyStage, *composeStage:
 		return true
 	default:
 		return false

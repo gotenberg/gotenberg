@@ -10,6 +10,7 @@ import (
 	_ "image/png"
 	"log/slog"
 	"maps"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -135,6 +136,54 @@ func TestRun(t *testing.T) {
 			check: func(t *testing.T, outputs []string) {
 				if n := pageCount(t, outputs[0]); n != 14 {
 					t.Fatalf("merged page count = %d, want 14", n)
+				}
+			},
+		},
+		{
+			name:      "compose two documents on one page, named after the first",
+			fixtures:  []string{"page_1.pdf", "page_2.pdf"},
+			inputs:    []string{"page_1.pdf", "page_2.pdf"},
+			stages:    `[{"op":"compose","paperWidth":"432pt","paperHeight":"360pt","placements":[{"source":"page_1.pdf","x":0,"y":180,"scale":0.25},{"source":"page_2.pdf","x":216,"y":0,"scale":0.25}]}]`,
+			wantNames: []string{"page_1.pdf"},
+			check: func(t *testing.T, outputs []string) {
+				if n := pageCount(t, outputs[0]); n != 1 {
+					t.Fatalf("composed page count = %d, want 1", n)
+				}
+
+				page, err := openOutput(t, outputs[0]).Page(context.Background(), 1)
+				if err != nil || page.Width != 432 || page.Height != 360 {
+					t.Fatalf("page = %+v, %v, want 432x360 points", page, err)
+				}
+			},
+		},
+		{
+			name:      "compose on several pages",
+			fixtures:  []string{"pages_12.pdf"},
+			inputs:    []string{"pages_12.pdf"},
+			stages:    `[{"op":"compose","paperSize":"A4","placements":[{"scale":0.5},{"sourcePage":2,"page":2,"x":10,"y":10,"scale":0.5}]},{"op":"set-metadata","title":"Composed"}]`,
+			wantNames: []string{"pages_12.pdf"},
+			check: func(t *testing.T, outputs []string) {
+				r := openOutput(t, outputs[0])
+
+				if n := pageCount(t, outputs[0]); n != 2 {
+					t.Fatalf("composed page count = %d, want 2", n)
+				}
+
+				for i, want := range []string{"Page 1", "Page 2"} {
+					page, err := r.Page(context.Background(), i+1)
+					if err != nil || math.Abs(page.Width-595.28) > 0.01 || math.Abs(page.Height-841.89) > 0.01 {
+						t.Fatalf("page %d = %+v, %v, want A4", i+1, page, err)
+					}
+
+					text, err := r.ExtractText(context.Background(), i+1)
+					if err != nil || !strings.Contains(text, want) {
+						t.Fatalf("page %d text = %q, %v, want it to contain %q", i+1, text, err, want)
+					}
+				}
+
+				meta, err := r.Metadata(context.Background())
+				if err != nil || meta["Title"] != "Composed" {
+					t.Fatalf("metadata = %v, %v, want the title set after the compose", meta, err)
 				}
 			},
 		},
@@ -342,6 +391,65 @@ func TestRunClientErrors(t *testing.T) {
 
 	if !strings.Contains(message, `Stage 'rotate' failed on 'page_1.pdf'`) || strings.Contains(message, ctx.DirPath()) {
 		t.Fatalf("message = %q, want the stage and filename without disk paths", message)
+	}
+}
+
+func TestRunComposeClientErrors(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		inputs []string
+		stages string
+		want   string
+	}{
+		{
+			name:   "unknown source",
+			inputs: []string{"page_1.pdf", "page_2.pdf"},
+			stages: `[{"op":"compose","paperSize":"A4","placements":[{"source":"nope.pdf"}]}]`,
+			want:   `Stage 'compose' failed on 'page_1.pdf': "source" must name an uploaded PDF, got "nope.pdf"; the uploaded PDFs are page_1.pdf, page_2.pdf`,
+		},
+		{
+			name:   "no source with several documents",
+			inputs: []string{"page_1.pdf", "page_2.pdf"},
+			stages: `[{"op":"compose","paperSize":"A4","placements":[{}]}]`,
+			want:   `Stage 'compose' failed on 'page_1.pdf': "source" must name one of the uploaded PDFs when several are uploaded: page_1.pdf, page_2.pdf`,
+		},
+		{
+			name:   "a document not placed",
+			inputs: []string{"page_1.pdf", "page_2.pdf"},
+			stages: `[{"op":"compose","paperSize":"A4","placements":[{"source":"page_2.pdf"}]}]`,
+			want:   `Stage 'compose' failed on 'page_1.pdf': "placements" must place every uploaded PDF: "page_1.pdf" is not placed`,
+		},
+		{
+			name:   "a source page past the end",
+			inputs: []string{"pages_3.pdf"},
+			stages: `[{"op":"compose","paperSize":"A4","placements":[{"sourcePage":9}]}]`,
+			want:   `Stage 'compose' failed on 'pages_3.pdf': invalid placement: placement 0: page 9 lies outside its source's 3 pages`,
+		},
+		{
+			name:   "a page too small",
+			inputs: []string{"pages_3.pdf"},
+			stages: `[{"op":"compose","paperWidth":"2pt","paperHeight":"5in","placements":[{}]}]`,
+			want:   `Stage 'compose' failed on 'pages_3.pdf': invalid page size: 2 by 360, each side must lie between 3 and 14400`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, paths := testContext(t, tc.inputs...)
+
+			inputs := make([]string, len(tc.inputs))
+			for i, name := range tc.inputs {
+				inputs[i] = paths[name]
+			}
+
+			_, err := testProcessor().Run(ctx, mustStages(t, tc.stages), inputs, nil)
+			if err == nil {
+				t.Fatal("Run: want an error")
+			}
+
+			status, message := api.ParseError(err)
+			if status != http.StatusBadRequest || message != tc.want {
+				t.Fatalf("got %d %q, want 400 %q", status, message, tc.want)
+			}
+		})
 	}
 }
 
