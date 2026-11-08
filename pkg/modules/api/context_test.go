@@ -1376,9 +1376,14 @@ func TestNewContext_DownloadFromErrorWording(t *testing.T) {
 			want: "Invalid form data: form field 'downloadFrom' entry 0 is invalid (URL must be set)",
 		},
 		{
-			name: "no Content-Disposition",
+			name: "nothing names the file",
 			raw:  fmt.Sprintf(`[{"url":%q}]`, plain.URL),
-			want: fmt.Sprintf(`Unable to download file from '%s': the response has no 'Content-Disposition' header. Make the server send one with a filename, such as 'attachment; filename="file.pdf"'`, plain.URL),
+			want: fmt.Sprintf(`Unable to download file from '%s': nothing names the file. Set 'filename' on the entry, such as [{"url":"https://example.com/file","filename":"file.pdf"}], or make the server send a 'Content-Disposition' header with a filename`, plain.URL),
+		},
+		{
+			name: "blank filename",
+			raw:  fmt.Sprintf(`[{"url":%q,"filename":"/\u0001 "}]`, plain.URL),
+			want: "Invalid form data: form field 'downloadFrom' entry 0 is invalid (filename must hold a name, such as 'file.pdf', or be omitted)",
 		},
 		{
 			name: "unreachable host",
@@ -1412,6 +1417,91 @@ func TestNewContext_DownloadFromErrorWording(t *testing.T) {
 			status, message := ParseError(err)
 			if status != http.StatusBadRequest || message != tc.want {
 				t.Fatalf("got %d %q, want 400 %q", status, message, tc.want)
+			}
+		})
+	}
+}
+
+func TestDownloadFilename(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		dl          downloadFrom
+		disposition string
+		want        string
+	}{
+		{
+			name:        "entry filename wins over the header",
+			dl:          downloadFrom{Url: "https://example.com/a.docx", Filename: "report.docx"},
+			disposition: `attachment; filename="other.pdf"`,
+			want:        "report.docx",
+		},
+		{
+			name: "entry filename is sanitized",
+			dl:   downloadFrom{Url: "https://example.com/a", Filename: `..\..\report.docx`},
+			want: "report.docx",
+		},
+		{
+			name:        "header filename wins over the URL",
+			dl:          downloadFrom{Url: "https://example.com/a.docx"},
+			disposition: `attachment; filename="report.pdf"`,
+			want:        "report.pdf",
+		},
+		{
+			name:        "header filename is sanitized",
+			dl:          downloadFrom{Url: "https://example.com/a"},
+			disposition: `attachment; filename="../report.pdf"`,
+			want:        "report.pdf",
+		},
+		{
+			name: "URL path without the header",
+			dl:   downloadFrom{Url: "https://bucket.s3.amazonaws.com/docs/2-page.docx?X-Amz-Signature=abc#frag"},
+			want: "2-page.docx",
+		},
+		{
+			name: "URL path is unescaped",
+			dl:   downloadFrom{Url: "https://example.com/my%20report.docx"},
+			want: "my report.docx",
+		},
+		{
+			name:        "header without a filename falls back to the URL",
+			dl:          downloadFrom{Url: "https://example.com/report.docx"},
+			disposition: "attachment",
+			want:        "report.docx",
+		},
+		{
+			name:        "unparsable header falls back to the URL",
+			dl:          downloadFrom{Url: "https://example.com/report.docx"},
+			disposition: `; filename="x.pdf"`,
+			want:        "report.docx",
+		},
+		{
+			name: "URL path without an extension",
+			dl:   downloadFrom{Url: "https://example.com/download?id=42"},
+		},
+		{
+			name: "URL path ending with a dot",
+			dl:   downloadFrom{Url: "https://example.com/report."},
+		},
+		{
+			name: "URL path that is only an extension",
+			dl:   downloadFrom{Url: "https://example.com/.docx"},
+		},
+		{
+			name: "URL without a path",
+			dl:   downloadFrom{Url: "https://example.com"},
+		},
+		{
+			name: "URL path ending with a slash",
+			dl:   downloadFrom{Url: "https://example.com/docs/"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			header := http.Header{}
+			if tc.disposition != "" {
+				header.Set("Content-Disposition", tc.disposition)
+			}
+			if got := downloadFilename(tc.dl, header); got != tc.want {
+				t.Errorf("downloadFilename() = %q, want %q", got, tc.want)
 			}
 		})
 	}

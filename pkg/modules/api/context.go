@@ -12,7 +12,9 @@ import (
 	"mime/multipart"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -163,6 +165,10 @@ type downloadFrom struct {
 
 	// ExtraHttpHeaders are the HTTP headers to send alongside.
 	ExtraHttpHeaders map[string]string `json:"extraHttpHeaders"`
+
+	// Filename names the downloaded file. It wins over the filename the
+	// response carries. Optional.
+	Filename string `json:"filename"`
 }
 
 // bodyBudget counts the bytes a request reads against --api-body-limit (env
@@ -446,6 +452,13 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 		)
 	}
 
+	if dl.Filename != "" && strings.TrimSpace(SanitizeFilename(dl.Filename)) == "" {
+		return "", "", WrapError(
+			errors.New("empty download from filename"),
+			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid form data: form field 'downloadFrom' entry %d is invalid (filename must hold a name, such as 'file.pdf', or be omitted)", i)),
+		)
+	}
+
 	// The filters let non-HTTP schemes through, for Chromium's sake. A
 	// download only speaks HTTP.
 	err = gotenberg.RequireWebURL(dl.Url)
@@ -569,34 +582,13 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 		)
 	}
 
-	contentDisposition := resp.Header.Get("Content-Disposition")
-	if contentDisposition == "" {
+	filename = downloadFilename(dl, resp.Header)
+	if filename == "" {
 		return "", "", WrapError(
-			fmt.Errorf("no 'Content-Disposition' header from '%s'", redactedURL),
-			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf(`Unable to download file from '%s': the response has no 'Content-Disposition' header. Make the server send one with a filename, such as 'attachment; filename="file.pdf"'`, dl.Url)),
+			fmt.Errorf("no filename for the download from '%s'", redactedURL),
+			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf(`Unable to download file from '%s': nothing names the file. Set 'filename' on the entry, such as [{"url":"https://example.com/file","filename":"file.pdf"}], or make the server send a 'Content-Disposition' header with a filename`, dl.Url)),
 		)
 	}
-
-	// FIXME: the implementation of this method might not be complete, as it
-	//  fails to parse an empty mediatype.
-	//  See: https://github.com/golang/go/issues/69551.
-	_, params, err := mime.ParseMediaType(contentDisposition)
-	if err != nil {
-		return "", "", WrapError(
-			fmt.Errorf("parse 'Content-Disposition' header '%s' from '%s': %w", contentDisposition, redactedURL, err),
-			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'Content-Disposition' header '%s' from '%s': %s", contentDisposition, dl.Url, err)),
-		)
-	}
-
-	filename, ok = params["filename"]
-	if !ok {
-		return "", "", WrapError(
-			fmt.Errorf("get filename from 'Content-Disposition' header '%s' from '%s'", contentDisposition, redactedURL),
-			NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid 'Content-Disposition' header '%s' from '%s': no filename", contentDisposition, dl.Url)),
-		)
-	}
-
-	filename = SanitizeFilename(filename)
 
 	path, err = ctx.writeToDisk(filename, resp.Body, budget)
 	if err != nil {
@@ -604,6 +596,42 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 	}
 
 	return filename, path, nil
+}
+
+// downloadFilename returns the sanitized filename of a download, or "" when
+// nothing names it. The entry's filename comes first, as the caller knows what
+// it sends. Then comes the filename of the Content-Disposition header, then the
+// last segment of the URL path when it has an extension: object stores such as
+// S3 often serve files without the header, under keys that end with their
+// filename. The URL is the one the caller gave, not a redirect target, which
+// may be a CDN path or a blob ID.
+func downloadFilename(dl downloadFrom, header http.Header) string {
+	if dl.Filename != "" {
+		return SanitizeFilename(dl.Filename)
+	}
+
+	// FIXME: the implementation of this method might not be complete, as it
+	//  fails to parse an empty mediatype.
+	//  See: https://github.com/golang/go/issues/69551.
+	_, params, err := mime.ParseMediaType(header.Get("Content-Disposition"))
+	if err == nil {
+		filename := SanitizeFilename(params["filename"])
+		if strings.TrimSpace(filename) != "" {
+			return filename
+		}
+	}
+
+	u, err := url.Parse(dl.Url)
+	if err != nil {
+		return ""
+	}
+	filename := SanitizeFilename(path.Base(u.Path))
+	ext := path.Ext(filename)
+	if len(ext) < 2 || ext == filename {
+		return ""
+	}
+
+	return filename
 }
 
 // downloadFailure words the failure of a download for the client. A network

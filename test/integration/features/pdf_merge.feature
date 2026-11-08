@@ -133,16 +133,31 @@ Feature: /forms/pdf/merge
       Invalid form data: form field 'downloadFrom' is invalid (want a JSON array such as [{"url":"https://example.com/file.pdf"}]: unexpected EOF)
       """
 
+  # Object stores such as S3 often serve files without a Content-Disposition
+  # header: the URL path names the file, or the entry does.
   @download-from
   Scenario: POST /forms/pdf/merge (Download From A Response Without Content-Disposition)
     Given I have a default Gotenberg container
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/pdf/merge" endpoint with the following form data and header(s):
-      | downloadFrom | [{"url":"{helper}/html/testdata/page-1-html/index.html"}] | field |
+      | downloadFrom              | [{"url":"{helper}/raw/testdata/page_1.pdf"},{"url":"{helper}/unnamed?path=testdata/page_2.pdf","filename":"page_2.pdf"}] | field  |
+      | Gotenberg-Output-Filename | foo                                                                                                                       | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then the "foo.pdf" PDF should have 2 page(s)
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/merge" endpoint with the following form data and header(s):
+      | downloadFrom | [{"url":"{helper}/unnamed?path=testdata/page_1.pdf"}] | field |
     Then the response status code should be 400
     Then the response body should contain string:
       """
-      has no 'Content-Disposition' header. Make the server send one with a filename, such as 'attachment; filename="file.pdf"'
+      nothing names the file. Set 'filename' on the entry, such as [{"url":"https://example.com/file","filename":"file.pdf"}], or make the server send a 'Content-Disposition' header with a filename
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/merge" endpoint with the following form data and header(s):
+      | downloadFrom | [{"url":"{helper}/raw/testdata/page_1.pdf","filename":" "}] | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'downloadFrom' entry 0 is invalid (filename must hold a name, such as 'file.pdf', or be omitted)
       """
 
   # The message names no address: the one the container resolved is internal.

@@ -130,6 +130,17 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 		}
 		return c.Attachment(fmt.Sprintf("%s/%s", wd, path), filepath.Base(path))
 	})
+	// Files served without a Content-Disposition header, as object stores
+	// such as S3 often do: under their path, which ends with their filename,
+	// or under a path that names nothing, the file given by the query.
+	srv.GET("/raw/:path", func(c *echo.Context) error {
+		s.recordRequest(&s.file, c.Request())
+		return c.File(fmt.Sprintf("%s/%s", wd, c.Param("path")))
+	})
+	srv.GET("/unnamed", func(c *echo.Context) error {
+		s.recordRequest(&s.file, c.Request())
+		return c.File(fmt.Sprintf("%s/%s", wd, c.QueryParam("path")))
+	})
 	srv.GET("/html/:path", func(c *echo.Context) error {
 		s.recordRequest(&s.page, c.Request())
 		path := fmt.Sprintf("%s/%s", wd, c.Param("path"))
