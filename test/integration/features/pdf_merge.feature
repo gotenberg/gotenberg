@@ -141,7 +141,7 @@ Feature: /forms/pdf/merge
     Given I have a static server
     When I make a "POST" request to Gotenberg at the "/forms/pdf/merge" endpoint with the following form data and header(s):
       | downloadFrom              | [{"url":"{helper}/raw/testdata/page_1.pdf"},{"url":"{helper}/unnamed?path=testdata/page_2.pdf","filename":"page_2.pdf"}] | field  |
-      | Gotenberg-Output-Filename | foo                                                                                                                       | header |
+      | Gotenberg-Output-Filename | foo                                                                                                                      | header |
     Then the response status code should be 200
     Then the response header "Content-Type" should be "application/pdf"
     Then the "foo.pdf" PDF should have 2 page(s)
