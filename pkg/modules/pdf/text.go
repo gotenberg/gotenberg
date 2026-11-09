@@ -85,7 +85,7 @@ func (p *Processor) extractTextOne(ctx *api.Context, s *extractTextStage, d docu
 			texts[i], err = "", nil
 		}
 		if err != nil {
-			return extractedFile{}, fmt.Errorf("extract the text of page %d: %w", page, err)
+			return extractedFile{}, inputError(fmt.Sprintf("extract the text of page %d", page), err)
 		}
 	}
 

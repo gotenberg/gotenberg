@@ -120,7 +120,7 @@ Feature: /forms/pdf/{stamp-text|stamp-image|stamp-pdf}
     Then the response status code should be 400
     Then the response body should match string:
       """
-      Stage 'stamp-image' failed on 'page_1.pdf': invalid image data: PNG: png: invalid format: not a PNG file; send a valid PNG or JPEG image, its extension naming its format (.png, .jpg or .jpeg)
+      Stage 'stamp-image' failed on 'page_1.pdf': invalid image data: png: invalid format: not a PNG file; send a valid PNG or JPEG image, its extension naming its format (.png, .jpg or .jpeg)
       """
     # The fonts installed in the image draw the text a standard font cannot.
     When I make a "POST" request to Gotenberg at the "/forms/pdf/stamp-text" endpoint with the following form data and header(s):
