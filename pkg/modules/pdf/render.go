@@ -83,7 +83,7 @@ func (p *Processor) renderOne(ctx *api.Context, s *renderStage, d document, pass
 	for _, page := range pages {
 		img, err := r.RenderPage(spanCtx, page, opts...)
 		if err != nil {
-			return nil, fmt.Errorf("render page %d: %w", page, err)
+			return nil, inputError(fmt.Sprintf("render page %d", page), err)
 		}
 
 		path := ctx.GeneratePath("." + s.format())

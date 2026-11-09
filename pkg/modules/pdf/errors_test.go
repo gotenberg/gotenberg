@@ -135,7 +135,7 @@ func TestHandleError_LithoFixes(t *testing.T) {
 		},
 		{
 			op:   "render",
-			err:  fmt.Errorf("page 1: %w: surface size out of bounds: 5100x6600 exceeds 10000000 pixels", litho.ErrRenderTooLarge),
+			err:  inputError("render page 1", fmt.Errorf("page 1: %w: surface size out of bounds: 5100x6600 exceeds 10000000 pixels", litho.ErrRenderTooLarge)),
 			want: fmt.Sprintf("Stage 'render' failed on 'doc.pdf': page 1: %s: surface size out of bounds: 5100x6600 exceeds 10000000 pixels; draw at a lower 'dpi', or raise --pdf-max-render-pixels (env PDF_MAX_RENDER_PIXELS)", litho.ErrRenderTooLarge),
 		},
 		{

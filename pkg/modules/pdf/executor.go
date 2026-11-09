@@ -219,23 +219,24 @@ func (p *Processor) open(ctx context.Context, path, password string) (*litho.Rea
 
 	r, err := litho.OpenFile(ctx, path, opts...)
 	if err != nil {
-		return nil, openError("open PDF", err)
+		return nil, inputError("open PDF", err)
 	}
 
 	_, err = r.PageCount(ctx)
 	if err != nil {
 		_ = r.Close()
 
-		return nil, openError("open PDF: count pages", err)
+		return nil, inputError("open PDF: count pages", err)
 	}
 
 	return r, nil
 }
 
-// openError wraps a failure to open a document with the step it failed at. A
-// document litho refuses as invalid input, such as a malformed one, keeps
-// litho's own message for the client, since the step means nothing to it.
-func openError(step string, err error) error {
+// inputError wraps a litho failure with the step it failed at, for the logs.
+// One litho refuses as invalid input, such as a malformed document, keeps
+// litho's own message for the client: the step means nothing to it, and
+// litho's message already names what failed, such as the page.
+func inputError(step string, err error) error {
 	wrapped := fmt.Errorf("%s: %w", step, err)
 	if litho.IsInvalidInput(err) {
 		return &stageInputError{message: err.Error(), err: wrapped}

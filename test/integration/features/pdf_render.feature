@@ -95,7 +95,7 @@ Feature: /forms/pdf/render
     Then the response status code should be 400
     Then the response body should contain string:
       """
-      Stage 'render' failed on 'page_1.pdf'
+      Stage 'render' failed on 'page_1.pdf': page 1: page render exceeds its budget
       """
     Then the response body should contain string:
       """
