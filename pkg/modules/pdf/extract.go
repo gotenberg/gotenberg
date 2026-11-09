@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gotenberg/litho/pkg/models"
+	litho "github.com/gotenberg/litho/pkg/pdf"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
@@ -165,6 +166,11 @@ func writeAttachment(ctx context.Context, path string, f models.EmbeddedFile) er
 	}
 
 	in, err := f.Open(ctx)
+	if litho.IsInvalidInput(err) {
+		// The client knows the attachment by its name, not by the step.
+		return &stageInputError{message: fmt.Sprintf("attachment %q: %s", f.Name, err), err: err}
+	}
+
 	if err != nil {
 		return fmt.Errorf("open: %w", err)
 	}

@@ -90,6 +90,13 @@ Feature: /forms/pdf/extract-attachments
       """
       Stage 'extract-attachments' failed on 'page_1.pdf': the PDF has no attachments
       """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/extract-attachments" endpoint with the following form data and header(s):
+      | files | testdata/damaged_attachment.pdf | file |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Stage 'extract-attachments' failed on 'damaged_attachment.pdf': attachment "a.xml": stream data is damaged: zlib: invalid header
+      """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
       | files  | testdata/page_1_with_attachment.pdf                       | file  |
       | stages | [{"op":"extract-attachments"},{"op":"rotate","angle":90}] | field |
