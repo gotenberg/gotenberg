@@ -90,6 +90,7 @@ services:
       - "--pdf-max-stream-bytes=${PDF_MAX_STREAM_BYTES}"
       - "--pdf-max-embedded-file-bytes=${PDF_MAX_EMBEDDED_FILE_BYTES}"
       - "--pdf-max-image-pixels=${PDF_MAX_IMAGE_PIXELS}"
+      - "--pdf-max-render-pixels=${PDF_MAX_RENDER_PIXELS}"
       - "--pdf-allow-list=${PDF_ALLOW_LIST}"
       - "--pdf-deny-list=${PDF_DENY_LIST}"
       - "--pdf-deny-private-ips=${PDF_DENY_PRIVATE_IPS}"

@@ -87,6 +87,26 @@ Feature: /forms/pdf/render
       Invalid form data: form field 'stages' is invalid: stage 0: "render" must be the last stage
       """
 
+  Scenario: POST /forms/pdf/render (Max Render Pixels)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PDF_MAX_RENDER_PIXELS | 500000 |
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/render" endpoint with the following form data and header(s):
+      | files | testdata/page_1.pdf | file |
+    Then the response status code should be 400
+    Then the response body should contain string:
+      """
+      Stage 'render' failed on 'page_1.pdf'
+      """
+    Then the response body should contain string:
+      """
+      exceeds 500000 pixels; draw at a lower 'dpi', or raise --pdf-max-render-pixels (env PDF_MAX_RENDER_PIXELS)
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/render" endpoint with the following form data and header(s):
+      | files | testdata/page_1.pdf | file  |
+      | dpi   | 72                  | field |
+    Then the response status code should be 200
+    Then the "page_1_1.png" image should be 447x632 pixels
+
   @webhook
   Scenario: POST /forms/pdf/render (Webhook)
     Given I have a default Gotenberg container

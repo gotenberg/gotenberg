@@ -53,6 +53,7 @@ func (mod *PDF) Descriptor() gotenberg.ModuleDescriptor {
 			fs.String("pdf-max-stream-bytes", "", "Set the maximum size a PDF stream may decode to - it accepts values like 256MB, 1GB, etc; empty keeps litho's default, 256 MiB")
 			fs.String("pdf-max-embedded-file-bytes", "", "Set the maximum size of an embedded file read for validation - it accepts values like 50MB, 1GB, etc; empty keeps litho's default, 50 MiB")
 			fs.Int64("pdf-max-image-pixels", 0, "Set the maximum number of pixels an image may hold - 0 keeps litho's default, 100000000 (100 million)")
+			fs.Int64("pdf-max-render-pixels", 0, "Set the maximum number of pixels a page drawn as an image may hold, at 16 bytes of memory each - 0 keeps litho's default, 50000000 (50 million), a Letter or A4 page at 600 dpi. The render stage refuses a larger page; flatten-transparency composites at a lower resolution to fit")
 			fs.StringSlice("pdf-allow-list", []string{}, `Set the allowed timestamp authority URLs for the sign and timestamp stages using regular expressions - supports multiple values. A match bypasses --pdf-deny-private-ips (PDF_DENY_PRIVATE_IPS) and --pdf-deny-public-ips (PDF_DENY_PUBLIC_IPS), so terminate the host or the pattern also matches suffix hosts, for example ^https?://tsa\.example\.com(:|/|$)`)
 			fs.StringSlice("pdf-deny-list", []string{}, "Set the denied timestamp authority URLs for the sign and timestamp stages using regular expressions - supports multiple values")
 			fs.Bool("pdf-deny-private-ips", false, "Reject timestamp authority URLs whose host resolves to a non-public IP address (loopback, RFC1918, link-local, unique-local). Enable on deployments that accept untrusted requests to mitigate SSRF against internal services")
@@ -83,6 +84,7 @@ func (mod *PDF) Provision(ctx *gotenberg.Context) error {
 			MaxStreamBytes:       flags.MustHumanReadableBytes("pdf-max-stream-bytes"),
 			MaxEmbeddedFileBytes: flags.MustHumanReadableBytes("pdf-max-embedded-file-bytes"),
 			MaxImagePixels:       flags.MustInt64("pdf-max-image-pixels"),
+			MaxRenderPixels:      flags.MustInt64("pdf-max-render-pixels"),
 		},
 		// Remediation embeds the fonts a document shows without embedding them,
 		// render and redact draw them, and stamp-text and flatten-form draw the
@@ -106,7 +108,7 @@ func (mod *PDF) Validate() error {
 
 	err := mod.processor.limits.Validate()
 	if err != nil {
-		return fmt.Errorf("invalid PDF limits; check --pdf-max-stream-bytes (env PDF_MAX_STREAM_BYTES), --pdf-max-embedded-file-bytes (env PDF_MAX_EMBEDDED_FILE_BYTES) and --pdf-max-image-pixels (env PDF_MAX_IMAGE_PIXELS): %w", err)
+		return fmt.Errorf("invalid PDF limits; check --pdf-max-stream-bytes (env PDF_MAX_STREAM_BYTES), --pdf-max-embedded-file-bytes (env PDF_MAX_EMBEDDED_FILE_BYTES), --pdf-max-image-pixels (env PDF_MAX_IMAGE_PIXELS) and --pdf-max-render-pixels (env PDF_MAX_RENDER_PIXELS): %w", err)
 	}
 
 	return nil

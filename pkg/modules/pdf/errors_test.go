@@ -134,6 +134,11 @@ func TestHandleError_LithoFixes(t *testing.T) {
 			want: fmt.Sprintf("Stage 'delete' failed on 'doc.pdf': %s: the deletion leaves none of 3; leave at least one page out of 'pages'", litho.ErrNoPageLeft),
 		},
 		{
+			op:   "render",
+			err:  fmt.Errorf("page 1: %w: surface size out of bounds: 5100x6600 exceeds 10000000 pixels", litho.ErrRenderTooLarge),
+			want: fmt.Sprintf("Stage 'render' failed on 'doc.pdf': page 1: %s: surface size out of bounds: 5100x6600 exceeds 10000000 pixels; draw at a lower 'dpi', or raise --pdf-max-render-pixels (env PDF_MAX_RENDER_PIXELS)", litho.ErrRenderTooLarge),
+		},
+		{
 			op:   "remediate",
 			err:  fmt.Errorf("%w: PDF/A-4 requires PDF/UA-2, not PDF/UA-1", litho.ErrIncompatibleProfiles),
 			want: fmt.Sprintf("Stage 'remediate' failed on 'doc.pdf': %s: PDF/A-4 requires PDF/UA-2, not PDF/UA-1; the pairs are PDF/A-1a, PDF/A-1b, PDF/A-2a, PDF/A-2b, PDF/A-2u, PDF/A-3a, PDF/A-3b, PDF/A-3u or Factur-X with PDF/UA-1, and PDF/A-4, PDF/A-4e or PDF/A-4f with PDF/UA-2", litho.ErrIncompatibleProfiles),

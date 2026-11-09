@@ -117,6 +117,12 @@ var lithoFixes = []struct {
 		},
 	},
 	{
+		err: litho.ErrRenderTooLarge,
+		fix: func(message string) string {
+			return message + "; draw at a lower 'dpi', or raise --pdf-max-render-pixels (env PDF_MAX_RENDER_PIXELS)"
+		},
+	},
+	{
 		err: litho.ErrIncompatibleProfiles,
 		fix: func(message string) string {
 			return message + "; the pairs are " + validPairs()
