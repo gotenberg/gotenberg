@@ -1215,3 +1215,16 @@ Feature: /forms/libreoffice/convert
     Then the response status code should be 200
     Then there should be 1 PDF(s) in the response
     Then the "foo.pdf" PDF should have content matching "Meteor" at page 1
+
+  # See: https://github.com/gotenberg/gotenberg/issues/1722.
+  Scenario: POST /forms/libreoffice/convert (Stages Disabled)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PDF_DISABLE_STAGES | true |
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.docx | file  |
+      | stages | [{"op":"merge"}]     | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'stages' is disabled on this instance; send the request without it
+      """

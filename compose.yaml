@@ -97,6 +97,7 @@ services:
       - "--pdf-deny-public-ips=${PDF_DENY_PUBLIC_IPS}"
       - "--pdf-enable-environment-proxy=${PDF_ENABLE_ENVIRONMENT_PROXY}"
       - "--pdf-disable-routes=${PDF_DISABLE_ROUTES}"
+      - "--pdf-disable-stages=${PDF_DISABLE_STAGES}"
       - "--webhook-enable-sync-mode=${WEBHOOK_ENABLE_SYNC_MODE}"
       - "--webhook-allow-list=${WEBHOOK_ALLOW_LIST}"
       - "--webhook-deny-list=${WEBHOOK_DENY_LIST}"

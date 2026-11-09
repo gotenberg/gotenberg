@@ -38,6 +38,8 @@ type Processor struct {
 	textFonts  litho.FontSource
 	httpClient func(ctx context.Context) *http.Client
 	files      fileConcurrency
+	// disableStages refuses the "stages" field of the conversion routes.
+	disableStages bool
 }
 
 // stageError locates a failure to a stage and a document, for the client.

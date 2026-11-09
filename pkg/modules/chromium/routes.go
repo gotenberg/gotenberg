@@ -517,7 +517,7 @@ func convertUrlRoute(chromium Api, processor *pdf.Processor) api.Route {
 		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPdfOptions(ctx)
-			stages, files, err := pdf.FormDataStages(form)
+			stages, files, err := processor.FormDataStages(form)
 			if err != nil {
 				return err
 			}
@@ -591,7 +591,7 @@ func convertHtmlRoute(chromium Api, processor *pdf.Processor) api.Route {
 		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPdfOptions(ctx)
-			stages, files, err := pdf.FormDataStages(form)
+			stages, files, err := processor.FormDataStages(form)
 			if err != nil {
 				return err
 			}
@@ -661,7 +661,7 @@ func convertMarkdownRoute(chromium Api, processor *pdf.Processor) api.Route {
 		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 			form, options := FormDataChromiumPdfOptions(ctx)
-			stages, files, err := pdf.FormDataStages(form)
+			stages, files, err := processor.FormDataStages(form)
 			if err != nil {
 				return err
 			}

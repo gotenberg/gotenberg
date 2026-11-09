@@ -27,7 +27,7 @@ func pipeRoute(processor *Processor) api.Route {
 
 			form := ctx.FormData()
 
-			stages, files, err := FormDataStages(form)
+			stages, files, err := formDataStages(form)
 			if err != nil {
 				return err
 			}

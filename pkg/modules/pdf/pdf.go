@@ -60,6 +60,7 @@ func (mod *PDF) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Bool("pdf-deny-public-ips", false, "Reject timestamp authority URLs whose host resolves to a public IP address. Enable on air-gapped or data-governed deployments")
 			fs.Bool("pdf-enable-environment-proxy", false, "Route timestamp authority requests through the proxy defined by the standard HTTP_PROXY, HTTPS_PROXY, and NO_PROXY variables, including credentials")
 			fs.Bool("pdf-disable-routes", false, "Disable the routes")
+			fs.Bool("pdf-disable-stages", false, "Refuse the stages field of the Chromium and LibreOffice conversion routes, so that they only convert - with --pdf-disable-routes (PDF_DISABLE_ROUTES), no request runs PDF processing")
 
 			return fs
 		}(),
@@ -90,11 +91,12 @@ func (mod *PDF) Provision(ctx *gotenberg.Context) error {
 		// render and redact draw them, and stamp-text and flatten-form draw the
 		// text the standard fonts cannot with them. Each built once, so the
 		// font directories are indexed once per process.
-		fonts:       litho.WithSystemFonts(),
-		renderFonts: litho.WithRenderSystemFonts(),
-		textFonts:   litho.NewSystemFontSource(),
-		httpClient:  mod.httpClient,
-		files:       newFileConcurrency(mod.maxConcurrency),
+		fonts:         litho.WithSystemFonts(),
+		renderFonts:   litho.WithRenderSystemFonts(),
+		textFonts:     litho.NewSystemFontSource(),
+		httpClient:    mod.httpClient,
+		files:         newFileConcurrency(mod.maxConcurrency),
+		disableStages: flags.MustBool("pdf-disable-stages"),
 	}
 
 	return nil

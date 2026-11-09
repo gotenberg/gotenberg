@@ -1784,6 +1784,28 @@ Feature: /forms/chromium/convert/html
       Invalid form data: form file '/etc/hostname' is required
       """
 
+  # See: https://github.com/gotenberg/gotenberg/issues/1722.
+  Scenario: POST /forms/chromium/convert/html (Stages Disabled)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | PDF_DISABLE_STAGES | true |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files  | testdata/page-1-html/index.html | file  |
+      | stages | [{"op":"render"}]               | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'stages' is disabled on this instance; send the request without it
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files | testdata/page-1-html/index.html | file |
+    Then the response status code should be 200
+    Then there should be 1 PDF(s) in the response
+    # --pdf-disable-routes governs the PDF routes, stages included.
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.pdf          | file  |
+      | stages | [{"op":"rotate","angle":90}] | field |
+    Then the response status code should be 200
+
   # See: https://github.com/gotenberg/gotenberg/issues/1500.
   Scenario: POST /forms/chromium/convert/html (Long Filename)
     Given I have a default Gotenberg container

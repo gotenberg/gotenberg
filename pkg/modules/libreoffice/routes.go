@@ -29,7 +29,7 @@ func convertRoute(libreOffice libreofficeapi.Converter, processor *pdf.Processor
 		Handler: func(c *echo.Context) error {
 			ctx := c.Get("context").(*api.Context)
 			form := ctx.FormData()
-			stages, files, err := pdf.FormDataStages(form)
+			stages, files, err := processor.FormDataStages(form)
 			if err != nil {
 				return err
 			}

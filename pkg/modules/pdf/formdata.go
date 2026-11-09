@@ -17,26 +17,45 @@ import (
 // StagesFormField is the form field holding the JSON array of stages.
 const StagesFormField = "stages"
 
-// FormDataStages parses the optional "stages" form field and resolves the
-// uploaded files the stages read. An invalid "stages" field returns a 400
-// error right away. A missing file is recorded on the form instead, so that
-// the route's own [api.FormData.Validate] reports it with the other form
-// errors.
-func FormDataStages(form *api.FormData) (Stages, map[string]string, error) {
-	var values []string
-	form.Strings(StagesFormField, &values)
-
-	raw := ""
-	if len(values) > 0 {
-		raw = values[0]
+// FormDataStages parses the optional "stages" form field of a conversion
+// route and resolves the uploaded files the stages read. An invalid "stages"
+// field returns a 400 error right away, and so does any "stages" field when
+// --pdf-disable-stages is set. A missing file is recorded on the form instead,
+// so that the route's own [api.FormData.Validate] reports it with the other
+// form errors.
+func (p *Processor) FormDataStages(form *api.FormData) (Stages, map[string]string, error) {
+	if p.disableStages && strings.TrimSpace(stagesField(form)) != "" {
+		return nil, nil, api.NewSentinelHttpError(
+			http.StatusBadRequest,
+			"Invalid form data: form field 'stages' is disabled on this instance; send the request without it",
+		)
 	}
 
-	stages, err := ParseStages(raw)
+	return formDataStages(form)
+}
+
+// formDataStages parses the "stages" form field and resolves the uploaded
+// files the stages read, whatever --pdf-disable-stages says: the PDF routes
+// answer to --pdf-disable-routes instead.
+func formDataStages(form *api.FormData) (Stages, map[string]string, error) {
+	stages, err := ParseStages(stagesField(form))
 	if err != nil {
 		return nil, nil, handleError(err, "")
 	}
 
 	return stages, stageFiles(form, stages), nil
+}
+
+// stagesField returns the raw "stages" form field, empty when absent.
+func stagesField(form *api.FormData) string {
+	var values []string
+	form.Strings(StagesFormField, &values)
+
+	if len(values) == 0 {
+		return ""
+	}
+
+	return values[0]
 }
 
 // stageFiles resolves the uploaded files stages read to their paths on disk.
