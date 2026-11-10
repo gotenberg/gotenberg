@@ -192,6 +192,13 @@ COPY --link --from=gotenberg-binary-stage /home/gotenberg /usr/bin/
 # Copy lok.
 COPY --link --from=lok-binary-stage /home/lok /usr/bin/lok
 
+# Keep the system locale empty, as soffice leaves it. LibreOfficeKit sets it
+# to en-US at startup, which makes Letter the fallback page size of documents
+# that set none, such as spreadsheets, CSV and TXT files. Empty, the image's
+# paper size applies: A4, as in Gotenberg 8.
+# See https://github.com/gotenberg/gotenberg/issues/1723.
+COPY --link build/libreoffice-system-locale.xcd /usr/lib/libreoffice/share/registry/gotenberg-system-locale.xcd
+
 # Copy dictionnaries so that hyphens work on Chromium.
 # See https://github.com/gotenberg/gotenberg/issues/1293.
 COPY --link --chown="$GOTENBERG_USER_UID:$GOTENBERG_USER_GID" build/chromium-hyphen-data /opt/gotenberg/chromium-hyphen-data
@@ -321,6 +328,13 @@ COPY --link --from=gotenberg-binary-stage /home/gotenberg-libreoffice /usr/bin/g
 
 # Copy lok.
 COPY --link --from=lok-binary-stage /home/lok /usr/bin/lok
+
+# Keep the system locale empty, as soffice leaves it. LibreOfficeKit sets it
+# to en-US at startup, which makes Letter the fallback page size of documents
+# that set none, such as spreadsheets, CSV and TXT files. Empty, the image's
+# paper size applies: A4, as in Gotenberg 8.
+# See https://github.com/gotenberg/gotenberg/issues/1723.
+COPY --link build/libreoffice-system-locale.xcd /usr/lib/libreoffice/share/registry/gotenberg-system-locale.xcd
 
 ENV LIBREOFFICE_BIN_PATH=/usr/lib/libreoffice/program/soffice.bin
 ENV LOK_BIN_PATH=/usr/bin/lok

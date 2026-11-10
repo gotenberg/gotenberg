@@ -73,7 +73,6 @@ Root: `test/corpus/testdata`; the file paths below are relative to it. Generator
 
 ## Measured on the current image (differs from the text above)
 
-- `office/readme.txt` converts to 4 pages, not 3.
 - `office/tracked.docx` renders the inserted text only: the deleted text is absent from the PDF.
 - Cells clip long text in the PDF: "Cloud host" for "Cloud hosting", "REVENUE-SH" and "COSTS-SHEE" for the sheet markers, "Budget not" for "Budget notes".
 - A header repeated on each page counts as one image use per page (`contract.docx`: 10 uses of the logo).

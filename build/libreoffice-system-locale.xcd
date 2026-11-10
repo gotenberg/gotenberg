@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<oor:data xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:oor="http://openoffice.org/2001/registry">
+<oor:component-data oor:package="org.openoffice" oor:name="Setup">
+<node oor:name="L10N">
+<prop oor:name="ooSetupSystemLocale" oor:finalized="true"><value></value></prop>
+</node>
+</oor:component-data>
+</oor:data>

@@ -233,8 +233,17 @@ Feature: /forms/libreoffice/convert
       Page 3
       """
 
+  # A document that sets no page size, such as a CSV, falls back to the image's
+  # paper size, A4, and not to the Letter of LibreOfficeKit's en-US locale.
+  # See https://github.com/gotenberg/gotenberg/issues/1723.
   Scenario: POST /forms/libreoffice/convert (Paper Size)
     Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/sheet.csv | file   |
+      | Gotenberg-Output-Filename | foo                | header |
+    Then the response status code should be 200
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF first page should be 595.3x841.9 points
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
       | files                     | testdata/page_1.docx | file   |
       | paperSize                 | A4                   | field  |

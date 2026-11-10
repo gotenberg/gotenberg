@@ -192,19 +192,18 @@ Feature: LibreOffice corpus
       FORM-DOC-MARKER
       """
 
-  # The manifest counted 3 pages with another LibreOffice build; the image gives 4.
   Scenario: Plain text paginates
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
       | files                     | testdata/office/readme.txt | file   |
       | Gotenberg-Output-Filename | foo                        | header |
     Then the response status code should be 200
-    Then the "foo.pdf" PDF should have 4 page(s)
+    Then the "foo.pdf" PDF should have 3 page(s)
     Then the "foo.pdf" PDF should have the following content at page 1:
       """
       Line 01:
       """
-    Then the "foo.pdf" PDF should have the following content at page 4:
+    Then the "foo.pdf" PDF should have the following content at page 3:
       """
       Line 60:
       """
