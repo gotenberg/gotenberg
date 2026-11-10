@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -183,5 +185,55 @@ func TestRequestError(t *testing.T) {
 
 	if err := requestError(context.Background(), canceled); err != canceled {
 		t.Errorf("run error of a live request = %v, want it unchanged", err)
+	}
+}
+
+// cookieExecutor answers every DevTools command with err.
+type cookieExecutor struct{ err error }
+
+func (e cookieExecutor) Execute(context.Context, string, any, any) error { return e.err }
+
+// TestSetCookiesActionFuncKeepsValuesOutOfLogsAndErrors pins that a cookie's
+// value, often a session, appears neither in the debug log of a cookie set nor
+// in the error of one Chromium refuses, which the access log writes at the
+// error level. See GHSA-g85v-3gpx-4gw5.
+func TestSetCookiesActionFuncKeepsValuesOutOfLogsAndErrors(t *testing.T) {
+	const secret = "COOKIE_SECRET_SENTINEL"
+	cookies := []Cookie{{Name: "session", Value: secret, Domain: "example.invalid"}}
+
+	for _, tc := range []struct {
+		scenario string
+		err      error
+	}{
+		{scenario: "cookie set", err: nil},
+		{scenario: "cookie refused", err: errors.New("Sanitizing cookie failed (-32602)")},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			handler := &recordingHandler{}
+			logger := slog.New(handler)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+			ctx = cdp.WithExecutor(ctx, cookieExecutor{err: tc.err})
+
+			err := setCookiesActionFunc(logger, cookies)(ctx)
+			if tc.err != nil && err == nil {
+				t.Fatal("expected an error, got none")
+			}
+			if tc.err == nil && err != nil {
+				t.Fatalf("expected no error, got: %v", err)
+			}
+			if err != nil && strings.Contains(err.Error(), secret) {
+				t.Errorf("the error holds the cookie value: %v", err)
+			}
+			records := handler.snapshot()
+			for _, r := range records {
+				if strings.Contains(r.Message, secret) {
+					t.Errorf("a log message holds the cookie value: %s", r.Message)
+				}
+			}
+			if tc.err == nil && !slices.ContainsFunc(records, func(r slog.Record) bool { return strings.Contains(r.Message, "Name: 'session'") }) {
+				t.Errorf("no log message names the cookie set")
+			}
+		})
 	}
 }

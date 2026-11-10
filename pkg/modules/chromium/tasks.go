@@ -426,11 +426,13 @@ func setCookiesActionFunc(logger *slog.Logger, cookies []Cookie) chromedp.Action
 		}
 		epochTime := cdp.TimeSinceEpoch(deadline)
 
+		// The value stays out: a cookie often carries a session, and the
+		// error reaches the access log at the error level, whatever
+		// --log-level (LOG_LEVEL) is.
 		cookiePretty := func(c *network.SetCookieParams) string {
 			return fmt.Sprintf(
-				"Name: '%s', Value: '%s', Domain: '%s', Path: '%s', Secure: %t, HTTPOnly: %t, SameSite: '%s', Expires: %s",
+				"Name: '%s', Domain: '%s', Path: '%s', Secure: %t, HTTPOnly: %t, SameSite: '%s', Expires: %s",
 				c.Name,
-				c.Value,
 				c.Domain,
 				c.Path,
 				c.Secure,
