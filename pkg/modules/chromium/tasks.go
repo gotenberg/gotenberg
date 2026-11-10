@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/chromedp/cdproto"
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/network"
@@ -442,7 +443,7 @@ func setCookiesActionFunc(logger *slog.Logger, cookies []Cookie) chromedp.Action
 			)
 		}
 
-		for _, cookie := range cookies {
+		for i, cookie := range cookies {
 			cookieParams := network.
 				SetCookie(cookie.Name, cookie.Value).
 				WithDomain(cookie.Domain).
@@ -454,6 +455,14 @@ func setCookiesActionFunc(logger *slog.Logger, cookies []Cookie) chromedp.Action
 
 			err := cookieParams.Do(ctx)
 			if err != nil {
+				// Chromium answers invalid params to a cookie its rules
+				// refuse: the caller's mistake, unlike a crash or a
+				// cancellation.
+				var cdpErr *cdproto.Error
+				if errors.As(err, &cdpErr) && cdpErr.Code == cdpInvalidParams {
+					return &cookieRefusedError{index: i, name: cookie.Name, err: err}
+				}
+
 				return fmt.Errorf("set cookie %s: %w", cookiePretty(cookieParams), err)
 			}
 
@@ -815,6 +824,32 @@ func timedOut(ctx context.Context) bool {
 
 // waitTimeoutError is a wait form field, such as waitForSelector, still
 // waiting when the request ran out of time. It matches [ErrWaitTimeout].
+// cdpInvalidParams is the JSON-RPC code of a DevTools command whose params
+// Chromium refuses.
+const cdpInvalidParams = -32602
+
+// cookieRefusedError is a cookie Chromium refuses to set, such as one whose
+// path does not start with a slash, or a __Host- cookie, which may not name
+// a domain. It names the cookie by its index and name, never its value.
+type cookieRefusedError struct {
+	index int
+	name  string
+	err   error
+}
+
+func (e *cookieRefusedError) Error() string {
+	return fmt.Sprintf("set cookie %d '%s': %s", e.index, e.name, e.err)
+}
+
+func (e *cookieRefusedError) Unwrap() error {
+	return e.err
+}
+
+// message returns the client message of the refusal.
+func (e *cookieRefusedError) message() string {
+	return fmt.Sprintf("Invalid form data: form field 'cookies' is invalid: Chromium refused cookie %d ('%s'); check the characters of its name and value, that its path starts with '/', and the rules of a __Secure- or __Host- name", e.index, e.name)
+}
+
 type waitTimeoutError struct {
 	field string
 	value string

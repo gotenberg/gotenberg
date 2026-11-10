@@ -962,6 +962,14 @@ func handleChromiumError(err error, options Options) error {
 		)
 	}
 
+	var cookieRefused *cookieRefusedError
+	if errors.As(err, &cookieRefused) {
+		return api.WrapError(
+			err,
+			api.NewSentinelHttpError(http.StatusBadRequest, cookieRefused.message()),
+		)
+	}
+
 	// A wait the request's time limit ended did not fail on its value: it
 	// answers the API's timeout status, naming the field and the value.
 	var waitTimeout *waitTimeoutError

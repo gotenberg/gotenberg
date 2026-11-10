@@ -978,7 +978,11 @@ func conversionInputAttrs(ctx context.Context, url string) []attribute.KeyValue 
 // Generic failures, a deadline or a cancellation among them, fall back to
 // [gotenberg.ClassifyError].
 func chromiumErrorType(err error) string {
+	var cookieRefused *cookieRefusedError
+
 	switch {
+	case errors.As(err, &cookieRefused):
+		return gotenberg.ErrorTypeInvalidInput
 	case errors.Is(err, ErrWaitTimeout):
 		return gotenberg.ErrorTypeTimeout
 	case errors.Is(err, ErrInvalidHttpStatusCode),

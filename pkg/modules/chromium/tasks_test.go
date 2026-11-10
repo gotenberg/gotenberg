@@ -3,14 +3,20 @@ package chromium
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
+	"net/http"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/chromedp/cdproto"
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/chromedp"
+
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
+	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 )
 
 func TestResolvePdfOptions(t *testing.T) {
@@ -202,11 +208,13 @@ func TestSetCookiesActionFuncKeepsValuesOutOfLogsAndErrors(t *testing.T) {
 	cookies := []Cookie{{Name: "session", Value: secret, Domain: "example.invalid"}}
 
 	for _, tc := range []struct {
-		scenario string
-		err      error
+		scenario    string
+		err         error
+		wantRefused bool
 	}{
 		{scenario: "cookie set", err: nil},
-		{scenario: "cookie refused", err: errors.New("Sanitizing cookie failed (-32602)")},
+		{scenario: "cookie refused", err: &cdproto.Error{Code: cdpInvalidParams, Message: "Sanitizing cookie failed"}, wantRefused: true},
+		{scenario: "target gone", err: errors.New("target closed")},
 	} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			handler := &recordingHandler{}
@@ -225,6 +233,10 @@ func TestSetCookiesActionFuncKeepsValuesOutOfLogsAndErrors(t *testing.T) {
 			if err != nil && strings.Contains(err.Error(), secret) {
 				t.Errorf("the error holds the cookie value: %v", err)
 			}
+			var refused *cookieRefusedError
+			if errors.As(err, &refused) != tc.wantRefused {
+				t.Errorf("refused = %t, want %t: %v", !tc.wantRefused, tc.wantRefused, err)
+			}
 			records := handler.snapshot()
 			for _, r := range records {
 				if strings.Contains(r.Message, secret) {
@@ -235,5 +247,31 @@ func TestSetCookiesActionFuncKeepsValuesOutOfLogsAndErrors(t *testing.T) {
 				t.Errorf("no log message names the cookie set")
 			}
 		})
+	}
+}
+
+// TestHandleChromiumErrorAnswersARefusedCookieWith400 pins that a cookie
+// Chromium refuses answers 400, naming the cookie by its index and name, and
+// not its value.
+func TestHandleChromiumErrorAnswersARefusedCookieWith400(t *testing.T) {
+	err := handleChromiumError(fmt.Errorf("handle tasks: %w", &cookieRefusedError{
+		index: 1,
+		name:  "session",
+		err:   &cdproto.Error{Code: cdpInvalidParams, Message: "Sanitizing cookie failed"},
+	}), Options{})
+
+	var httpErr api.HttpError
+	if !errors.As(err, &httpErr) {
+		t.Fatalf("expected an HTTP error, got: %v", err)
+	}
+	status, message := httpErr.HttpError()
+	if status != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", status)
+	}
+	if !strings.Contains(message, "Chromium refused cookie 1 ('session')") {
+		t.Errorf("expected the message to name the cookie, got %q", message)
+	}
+	if got := chromiumErrorType(err); got != gotenberg.ErrorTypeInvalidInput {
+		t.Errorf("expected error type %q, got %q", gotenberg.ErrorTypeInvalidInput, got)
 	}
 }

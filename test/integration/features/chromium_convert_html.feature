@@ -1173,6 +1173,16 @@ Feature: /forms/chromium/convert/html
       """
       Invalid form data: form field 'cookies' is invalid (got '[{"name":"yummy_cookie","value":"choco"}]', cookie 0 must have its name, value and domain set)
       """
+    # Chromium refuses a cookie whose path does not start with a slash.
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files   | testdata/page-1-html/index.html                                                      | file  |
+      | cookies | [{"name":"yummy_cookie","value":"choco","domain":"example.invalid","path":"nopath"}] | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: form field 'cookies' is invalid: Chromium refused cookie 0 ('yummy_cookie'); check the characters of its name and value, that its path starts with '/', and the rules of a __Secure- or __Host- name
+      """
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
       | files            | testdata/page-1-html/index.html | file  |
       | extraHttpHeaders | foo                             | field |
