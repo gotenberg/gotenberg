@@ -427,7 +427,10 @@ func (s *processSupervisor) Run(ctx context.Context, logger *slog.Logger, task f
 			measure.taskStarted()
 			err := task()
 
-			if s.maybeRestartAfterTask(logger) {
+			switch {
+			case s.maybeRestartAfterTask(logger):
+				semaphoreOwned = false
+			case err != nil && s.maybeRestartAfterFailure(logger):
 				semaphoreOwned = false
 			}
 
@@ -616,13 +619,17 @@ func (s *processSupervisor) tracedLaunch(ctx context.Context, reason string, lau
 // synchronous restart if the process is unhealthy. Skips the check if a
 // restart is already in progress.
 func (s *processSupervisor) ensureHealthy(ctx context.Context) error {
+	// Read before the probe: a restart that lands after it replaced the
+	// process this probe found unhealthy (see [processSupervisor.doRestart]).
+	generation := s.restartsCounter.Load()
+
 	if s.isRestarting.Load() || s.process.Healthy(s.logger) {
 		return nil
 	}
 
 	s.logger.DebugContext(context.Background(), "process is unhealthy, cannot handle task, restarting...")
 
-	if err := s.doRestart(ctx, restartReasonUnhealthy); err != nil {
+	if err := s.doRestart(ctx, restartReasonUnhealthy, generation); err != nil {
 		return fmt.Errorf("process restart before task: %w", err)
 	}
 
@@ -663,17 +670,70 @@ func (s *processSupervisor) maybeRestartAfterTask(logger *slog.Logger) bool {
 
 // doRestart coordinates a process restart, draining all active concurrent
 // tasks before stopping and restarting the process.
-func (s *processSupervisor) doRestart(ctx context.Context, reason string) error {
+//
+// generation is the restart count read before the probe that found the
+// process unhealthy. Concurrent tasks may all have found it unhealthy: the
+// first one through the lock restarts it, and the others find the count moved
+// on. Probing again here instead cost a hung process a second probe timeout,
+// 5 seconds for Chromium, which with the first spent a 10-second request
+// before the restart began. See https://github.com/gotenberg/gotenberg/issues/1726.
+func (s *processSupervisor) doRestart(ctx context.Context, reason string, generation int64) error {
 	s.restartMutex.Lock()
 	defer s.restartMutex.Unlock()
 
-	// Concurrent tasks may all have found the process unhealthy: the first one
-	// through the lock restarts it, the others find it healthy again.
-	if s.process.Healthy(s.logger) {
+	if s.restartsCounter.Load() != generation {
 		return nil
 	}
 
 	return s.doRestartLocked(ctx, reason)
+}
+
+// maybeRestartAfterFailure checks the process after a task that failed, and
+// restarts it when it is unhealthy, in the background: a process that died
+// during the task, such as LibreOffice killed after a cancellation, comes back
+// before the next request, and /health stops reporting it down meanwhile. It
+// takes ownership of the caller's semaphore slot, so no task runs during the
+// check, and returns true; the caller must not release the slot. A healthy
+// process is left alone. See https://github.com/gotenberg/gotenberg/issues/1726.
+func (s *processSupervisor) maybeRestartAfterFailure(logger *slog.Logger) bool {
+	if s.isRestarting.Load() {
+		return false
+	}
+
+	generation := s.restartsCounter.Load()
+
+	go func() {
+		defer func() {
+			logger.DebugContext(context.Background(), "process lock released")
+			<-s.semaphore
+		}()
+
+		if s.process.Healthy(s.logger) {
+			return
+		}
+
+		if !s.restartMutex.TryLock() {
+			// A restart is under way.
+			return
+		}
+		defer s.restartMutex.Unlock()
+
+		if s.restartsCounter.Load() != generation {
+			return
+		}
+
+		s.logger.DebugContext(context.Background(), "process is unhealthy after a failed task, restarting...")
+
+		ctx, cancel := context.WithTimeout(context.Background(), s.eagerRestartTimeout)
+		defer cancel()
+
+		err := s.doRestartLocked(ctx, restartReasonUnhealthy)
+		if err != nil {
+			s.logger.ErrorContext(context.Background(), fmt.Sprintf("process restart after a failed task: %v", err))
+		}
+	}()
+
+	return true
 }
 
 // doRestartLocked performs the restart drain logic. The caller must hold restartMutex.

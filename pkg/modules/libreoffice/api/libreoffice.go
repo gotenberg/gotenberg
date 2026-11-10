@@ -521,12 +521,12 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *slog.Logger, input
 	if err != nil {
 		if ctx.Err() != nil {
 			// LibreOfficeKit calls cannot be cancelled: kill lok so that its
-			// late answer never reaches the next request. The process is then
-			// unhealthy, and the supervisor restarts it.
-			killErr := cmd.Kill()
-			if killErr != nil {
-				logger.ErrorContext(ctx, fmt.Sprintf("kill lok after cancellation: %s", killErr))
-			}
+			// late answer never reaches the next request. Waiting for it to
+			// be reaped makes it unhealthy before this task returns, so the
+			// supervisor's check after the failed task restarts it right away
+			// rather than on the next request.
+			// See https://github.com/gotenberg/gotenberg/issues/1726.
+			terminate(ctx, logger, cmd, exited)
 
 			return ctx.Err()
 		}

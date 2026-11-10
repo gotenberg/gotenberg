@@ -617,7 +617,7 @@ func TestProcessSupervisor_Run(t *testing.T) {
 			tasksToRun:           1,
 			expectError:          false,
 			expectedStartCalls:   1,
-			expectedHealthyCalls: 2, // ensureHealthy, then doRestart re-checks under the lock.
+			expectedHealthyCalls: 1, // ensureHealthy alone: doRestart reads the restart count.
 			expectedStopCalls:    1,
 		},
 		{
@@ -630,7 +630,7 @@ func TestProcessSupervisor_Run(t *testing.T) {
 			tasksToRun:           1,
 			expectError:          true,
 			expectedStartCalls:   1,
-			expectedHealthyCalls: 2, // ensureHealthy, then doRestart re-checks under the lock.
+			expectedHealthyCalls: 1, // ensureHealthy alone: doRestart reads the restart count.
 			expectedStopCalls:    1,
 		},
 		{
@@ -678,7 +678,7 @@ func TestProcessSupervisor_Run(t *testing.T) {
 			taskError:            errors.New("task error"),
 			expectError:          true,
 			expectedStartCalls:   0,
-			expectedHealthyCalls: 1,
+			expectedHealthyCalls: 2, // ensureHealthy, then the check after the failed task.
 			expectedStopCalls:    0,
 		},
 		{
@@ -892,9 +892,10 @@ func TestProcessSupervisor_IdleShutdown_SkippedWhileSlotHeld(t *testing.T) {
 	}
 }
 
-// TestProcessSupervisor_doRestart_SkipsHealthyProcess checks that tasks which
-// all found the process unhealthy restart it once, not once each.
-func TestProcessSupervisor_doRestart_SkipsHealthyProcess(t *testing.T) {
+// TestProcessSupervisor_doRestart_SkipsRestartedProcess checks that tasks
+// which all found the process unhealthy restart it once, not once each: the
+// later ones find the restart count moved on since their probe.
+func TestProcessSupervisor_doRestart_SkipsRestartedProcess(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 
 	var stopCalls atomic.Int64
@@ -909,13 +910,109 @@ func TestProcessSupervisor_doRestart_SkipsHealthyProcess(t *testing.T) {
 	ps := newTestSupervisor(t, logger, process, 0, 0, 1, 0)
 	ps.firstStart.Store(true)
 
-	err := ps.doRestart(context.Background(), restartReasonUnhealthy)
+	generation := ps.restartsCounter.Load()
+	ps.restartsCounter.Add(1)
+
+	err := ps.doRestart(context.Background(), restartReasonUnhealthy, generation)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if stopCalls.Load() != 0 {
 		t.Fatal("expected no restart of a process another task already restarted")
+	}
+}
+
+// TestProcessSupervisor_ensureHealthy_ProbesOnce checks that a task finding
+// the process unhealthy restarts it after one probe. A second probe cost a
+// hung Chromium another 5 seconds, which spent the request's time limit
+// before the restart began. See https://github.com/gotenberg/gotenberg/issues/1726.
+func TestProcessSupervisor_ensureHealthy_ProbesOnce(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	var healthyCalls, stopCalls atomic.Int64
+	process := &ProcessMock{
+		StartMock: func(_ context.Context, logger *slog.Logger) error { return nil },
+		StopMock: func(logger *slog.Logger) error {
+			stopCalls.Add(1)
+			return nil
+		},
+		HealthyMock: func(logger *slog.Logger) bool {
+			healthyCalls.Add(1)
+			return false
+		},
+	}
+	ps := newTestSupervisor(t, logger, process, 0, 0, 1, 0)
+	ps.firstStart.Store(true)
+
+	err := ps.ensureHealthy(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if healthyCalls.Load() != 1 {
+		t.Errorf("expected one probe, got %d", healthyCalls.Load())
+	}
+	if stopCalls.Load() != 1 {
+		t.Errorf("expected one restart, got %d", stopCalls.Load())
+	}
+}
+
+// TestProcessSupervisor_Run_RestartsAfterFailure checks that a process found
+// unhealthy after a failed task restarts in the background, before any other
+// task, and that a healthy one is left alone. Either way, the slot comes back.
+// See https://github.com/gotenberg/gotenberg/issues/1726.
+func TestProcessSupervisor_Run_RestartsAfterFailure(t *testing.T) {
+	for _, tc := range []struct {
+		scenario    string
+		healthy     bool
+		wantRestart bool
+	}{
+		{scenario: "process died during the task", healthy: false, wantRestart: true},
+		{scenario: "process survived the task", healthy: true, wantRestart: false},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			logger := slog.New(slog.DiscardHandler)
+
+			var dead atomic.Bool
+			var stopCalls atomic.Int64
+			process := &ProcessMock{
+				StartMock: func(_ context.Context, logger *slog.Logger) error {
+					dead.Store(false)
+					return nil
+				},
+				StopMock: func(logger *slog.Logger) error {
+					stopCalls.Add(1)
+					return nil
+				},
+				HealthyMock: func(logger *slog.Logger) bool { return !dead.Load() },
+			}
+			ps := newTestSupervisor(t, logger, process, 0, 0, 1, 0)
+
+			taskErr := errors.New("task failed")
+			err := ps.Run(context.Background(), logger, func() error {
+				dead.Store(!tc.healthy)
+				return taskErr
+			})
+			if !errors.Is(err, taskErr) {
+				t.Fatalf("expected the task's error, got: %v", err)
+			}
+
+			deadline := time.Now().Add(2 * time.Second)
+			for len(ps.semaphore) != 0 && time.Now().Before(deadline) {
+				time.Sleep(5 * time.Millisecond)
+			}
+			if len(ps.semaphore) != 0 {
+				t.Fatal("expected the slot back after the check")
+			}
+
+			if restarted := stopCalls.Load() == 1; restarted != tc.wantRestart {
+				t.Errorf("restarted = %t, want %t", restarted, tc.wantRestart)
+			}
+			if !ps.Healthy() {
+				t.Error("expected the supervisor to report healthy after the check")
+			}
+		})
 	}
 }
 
