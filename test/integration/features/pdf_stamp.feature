@@ -76,8 +76,8 @@ Feature: /forms/pdf/{stamp-text|stamp-image|stamp-pdf}
   Scenario: POST /forms/pdf/stamp-image (Position)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
-      | files  | testdata/page_1.pdf                                                                                                        | file  |
-      | files  | testdata/watermark.png                                                                                                     | file  |
+      | files  | testdata/page_1.pdf                                                                                                              | file  |
+      | files  | testdata/watermark.png                                                                                                           | file  |
       | stages | [{"op":"stamp-image","image":"watermark.png","width":100,"height":100,"position":"center"},{"op":"render","pages":"1","dpi":72}] | field |
     Then the response status code should be 200
     Then there should be the following file(s) in the response:
@@ -94,8 +94,8 @@ Feature: /forms/pdf/{stamp-text|stamp-image|stamp-pdf}
   Scenario: POST /forms/pdf/pipe (Stamp Position On A Rotated Page)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
-      | files  | testdata/page_1.pdf                                                                                                                                        | file  |
-      | files  | testdata/watermark.png                                                                                                                                     | file  |
+      | files  | testdata/page_1.pdf                                                                                                                                          | file  |
+      | files  | testdata/watermark.png                                                                                                                                       | file  |
       | stages | [{"op":"rotate","angle":90},{"op":"stamp-image","image":"watermark.png","width":100,"height":50,"position":"top-left"},{"op":"render","pages":"1","dpi":72}] | field |
     Then the response status code should be 200
     Then the "page_1_1.png" image should be 632x447 pixels
@@ -109,7 +109,7 @@ Feature: /forms/pdf/{stamp-text|stamp-image|stamp-pdf}
   Scenario: POST /forms/pdf/stamp-text (Position)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
-      | files  | testdata/page_1.pdf                                                                                                                         | file  |
+      | files  | testdata/page_1.pdf                                                                                                                      | file  |
       | stages | [{"op":"stamp-text","text":"I","fontSize":200,"color":"#ff0000","position":"center","rotation":45},{"op":"render","pages":"1","dpi":72}] | field |
     Then the response status code should be 200
     Then the "page_1_1.png" image pixel at 223,315 should be "#ff0000"
