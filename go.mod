@@ -11,7 +11,7 @@ require (
 	github.com/dlclark/regexp2/v2 v2.12.0
 	github.com/gomarkdown/markdown v0.0.0-20261105214116-27ca101938a9
 	github.com/google/uuid v1.6.0
-	github.com/gotenberg/litho v0.0.9
+	github.com/gotenberg/litho v0.0.10
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/labstack/echo/v5 v5.4.4
 	github.com/labstack/gommon v0.5.0

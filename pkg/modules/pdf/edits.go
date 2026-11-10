@@ -62,10 +62,16 @@ func (s *stampTextStage) edit(_ context.Context, w *litho.Writer, env *runEnv) e
 		return err
 	}
 
+	position, err := parsePosition(s.Position)
+	if err != nil {
+		return err
+	}
+
 	stamp := litho.TextStamp{
 		Text:     s.Text,
 		X:        s.X,
 		Y:        s.Y,
+		Position: position,
 		FontSize: derefOr(s.FontSize, 0),
 		Opacity:  s.Opacity,
 		Rotation: s.Rotation,
@@ -104,11 +110,17 @@ func (s *stampImageStage) edit(_ context.Context, w *litho.Writer, env *runEnv) 
 		return err
 	}
 
+	position, err := parsePosition(s.Position)
+	if err != nil {
+		return err
+	}
+
 	return w.StampImage(litho.ImageStamp{
 		Data:     data,
 		MimeType: mimeType,
 		X:        s.X,
 		Y:        s.Y,
+		Position: position,
 		Width:    s.Width,
 		Height:   s.Height,
 		Opacity:  s.Opacity,
@@ -132,11 +144,17 @@ func (s *stampPdfStage) edit(ctx context.Context, w *litho.Writer, env *runEnv) 
 		page = 1
 	}
 
+	position, err := parsePosition(s.Position)
+	if err != nil {
+		return err
+	}
+
 	return w.StampPDF(litho.PDFStamp{
 		Source:   source,
 		Page:     page,
 		X:        s.X,
 		Y:        s.Y,
+		Position: position,
 		Scale:    derefOr(s.Scale, 0),
 		Opacity:  s.Opacity,
 		Rotation: s.Rotation,

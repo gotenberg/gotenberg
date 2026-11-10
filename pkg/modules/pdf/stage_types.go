@@ -117,12 +117,14 @@ func (s *rotateStage) validate() error {
 func (*rotateStage) files() []string { return nil }
 
 // stampTextStage draws a line of text over the given pages, all of them when
-// Pages is empty. Coordinates are in points from the bottom-left corner.
+// Pages is empty. Coordinates are in points from the bottom-left corner, or
+// offsets from Position when it is set.
 type stampTextStage struct {
 	Text     string   `json:"text"`
 	Pages    string   `json:"pages"`
 	X        float64  `json:"x"`
 	Y        float64  `json:"y"`
+	Position string   `json:"position"`
 	FontSize *float64 `json:"fontSize"`
 	Font     string   `json:"font"`
 	Color    string   `json:"color"`
@@ -155,6 +157,11 @@ func (s *stampTextStage) validate() error {
 		}
 	}
 
+	_, err := parsePosition(s.Position)
+	if err != nil {
+		return err
+	}
+
 	return validateOpacity(s.Opacity)
 }
 
@@ -167,6 +174,7 @@ type stampImageStage struct {
 	Pages    string  `json:"pages"`
 	X        float64 `json:"x"`
 	Y        float64 `json:"y"`
+	Position string  `json:"position"`
 	Width    float64 `json:"width"`
 	Height   float64 `json:"height"`
 	Opacity  float64 `json:"opacity"`
@@ -185,6 +193,11 @@ func (s *stampImageStage) validate() error {
 		return err
 	}
 
+	_, err = parsePosition(s.Position)
+	if err != nil {
+		return err
+	}
+
 	return validateOpacity(s.Opacity)
 }
 
@@ -198,6 +211,7 @@ type stampPdfStage struct {
 	Pages      string   `json:"pages"`
 	X          float64  `json:"x"`
 	Y          float64  `json:"y"`
+	Position   string   `json:"position"`
 	Scale      *float64 `json:"scale"`
 	Opacity    float64  `json:"opacity"`
 	Rotation   float64  `json:"rotation"`
@@ -216,6 +230,11 @@ func (s *stampPdfStage) validate() error {
 
 	if s.Scale != nil && *s.Scale <= 0 {
 		return fmt.Errorf(`"scale" must be greater than 0, got %g`, *s.Scale)
+	}
+
+	_, err := parsePosition(s.Position)
+	if err != nil {
+		return err
 	}
 
 	return validateOpacity(s.Opacity)

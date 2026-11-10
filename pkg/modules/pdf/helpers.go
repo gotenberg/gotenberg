@@ -60,6 +60,18 @@ func validateOpacity(opacity float64) error {
 	return nil
 }
 
+// parsePosition returns the stamp position a "position" option names: the
+// page's center, the middle of an edge, or a corner. Empty places the stamp
+// by "x" and "y" alone.
+func parsePosition(position string) (litho.StampPosition, error) {
+	p, err := litho.ParseStampPosition(position)
+	if err != nil {
+		return litho.PositionNone, fmt.Errorf(`"position" must be center, top-left, top, top-right, left, right, bottom-left, bottom or bottom-right, got %q`, position)
+	}
+
+	return p, nil
+}
+
 // parseColor parses a "#rrggbb" color into RGB components between 0 and 1.
 func parseColor(color string) ([3]float64, error) {
 	hex := strings.TrimPrefix(color, "#")

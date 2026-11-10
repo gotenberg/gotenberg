@@ -22,7 +22,7 @@ func TestParseStages(t *testing.T) {
 		{name: "empty array", raw: "[]", wantOps: []string{}},
 		{
 			name:    "every operation",
-			raw:     `[{"op":"decrypt","password":"x"},{"op":"merge"},{"op":"select","pages":"1"},{"op":"rotate","angle":90},{"op":"stamp-text","text":"t","color":"#ff0000","font":"Courier"},{"op":"set-metadata","title":"T"},{"op":"remediate","profile":"PDF/UA-1"},{"op":"encrypt","userPassword":"u"},{"op":"optimize"}]`,
+			raw:     `[{"op":"decrypt","password":"x"},{"op":"merge"},{"op":"select","pages":"1"},{"op":"rotate","angle":90},{"op":"stamp-text","text":"t","color":"#ff0000","font":"Courier","position":"center"},{"op":"set-metadata","title":"T"},{"op":"remediate","profile":"PDF/UA-1"},{"op":"encrypt","userPassword":"u"},{"op":"optimize"}]`,
 			wantOps: []string{"decrypt", "merge", "select", "rotate", "stamp-text", "set-metadata", "remediate", "encrypt", "optimize"},
 		},
 		{name: "not an array", raw: `{"op":"merge"}`, wantErr: "stages must be a JSON array of objects"},
@@ -101,6 +101,9 @@ func TestParseStages(t *testing.T) {
 		{name: "rotate by zero", raw: `[{"op":"rotate","angle":0}]`, wantOps: []string{"rotate"}},
 		{name: "zero font size", raw: `[{"op":"stamp-text","text":"t","fontSize":0}]`, wantErr: `stamp-text: "fontSize" must be greater than 0, got 0`},
 		{name: "negative font size", raw: `[{"op":"stamp-text","text":"t","fontSize":-4}]`, wantErr: `stamp-text: "fontSize" must be greater than 0, got -4`},
+		{name: "bad text position", raw: `[{"op":"stamp-text","text":"t","position":"middle"}]`, wantErr: `stamp-text: "position" must be center, top-left, top, top-right, left, right, bottom-left, bottom or bottom-right, got "middle"`},
+		{name: "bad image position", raw: `[{"op":"stamp-image","image":"logo.png","position":"Center"}]`, wantErr: `stamp-image: "position" must be center`},
+		{name: "bad pdf position", raw: `[{"op":"stamp-pdf","source":"a.pdf","position":"top-center"}]`, wantErr: `stamp-pdf: "position" must be center`},
 		{name: "negative scale", raw: `[{"op":"stamp-pdf","source":"a.pdf","scale":-1}]`, wantErr: `stamp-pdf: "scale" must be greater than 0, got -1`},
 		{name: "zero scale", raw: `[{"op":"stamp-pdf","source":"a.pdf","scale":0}]`, wantErr: `stamp-pdf: "scale" must be greater than 0, got 0`},
 		{name: "split every zero", raw: `[{"op":"split","every":0}]`, wantErr: `split: "every" must be at least 1, got 0`},
