@@ -265,10 +265,10 @@ func TestFormDataChromiumPdfOptions_Ranges(t *testing.T) {
 				return
 			}
 
-			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+			if err == nil || !strings.Contains(clientMessage(err), tc.wantErr) {
 				t.Fatalf("validate = %v, want %q", err, tc.wantErr)
 			}
-			if strings.Count(err.Error(), "form field") != 1 {
+			if strings.Count(clientMessage(err), "form field") != 1 {
 				t.Fatalf("validate = %v, want a single field error", err)
 			}
 		})
@@ -460,7 +460,7 @@ func TestFormDataChromiumOptions_WaitDelay(t *testing.T) {
 			form, options := FormDataChromiumOptions(ctx.Context)
 			err := form.Validate()
 			if tc.wantError != "" {
-				if err == nil || !strings.Contains(err.Error(), tc.wantError) {
+				if err == nil || !strings.Contains(clientMessage(err), tc.wantError) {
 					t.Fatalf("expected an error containing %q, got: %v", tc.wantError, err)
 				}
 				return
@@ -473,4 +473,14 @@ func TestFormDataChromiumOptions_WaitDelay(t *testing.T) {
 			}
 		})
 	}
+}
+
+// clientMessage returns the message of the 400 err answers.
+func clientMessage(err error) string {
+	var httpErr api.HttpError
+	if !errors.As(err, &httpErr) {
+		return err.Error()
+	}
+	_, message := httpErr.HttpError()
+	return message
 }

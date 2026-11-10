@@ -152,6 +152,9 @@ func (form *FormData) Sent(key string) string {
 //	err := ctx.FormData().
 //	   MandatoryString("foo", &foo).
 //	   Validate()
+//
+// The message names each invalid value, which the caller sent. The error it
+// wraps leaves the values out (see [invalidFieldError]).
 func (form *FormData) Validate() error {
 	if form.errors == nil {
 		return nil
@@ -159,8 +162,56 @@ func (form *FormData) Validate() error {
 
 	return WrapError(
 		form.errors,
-		NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid form data: %s", form.errors)),
+		NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("Invalid form data: %s", clientMessage(form.errors))),
 	)
+}
+
+// invalidFieldError is a form field whose value does not bind: its key, the
+// value sent, and why it does not bind.
+//
+// Its error leaves the value out, since the access log writes the error of a
+// request at the error level, whatever --log-level (LOG_LEVEL) is, and a value
+// may carry a credential: a cookie, an Authorization header, a password in a
+// list of stages. The 400 the caller receives names the value (see
+// [invalidFieldError.clientMessage]). See GHSA-g85v-3gpx-4gw5.
+type invalidFieldError struct {
+	key   string
+	value string
+	err   error
+}
+
+func (e *invalidFieldError) Error() string {
+	return fmt.Sprintf("form field '%s' is invalid (%s)", e.key, e.err)
+}
+
+func (e *invalidFieldError) Unwrap() error {
+	return e.err
+}
+
+// clientMessage returns the error with the value, for the caller who sent it.
+func (e *invalidFieldError) clientMessage() string {
+	return fmt.Sprintf("form field '%s' is invalid (got '%s', %s)", e.key, e.value, e.err)
+}
+
+// clientMessage returns the message of err for the caller: as its error, but
+// with the value of each invalid form field it joins.
+func clientMessage(err error) string {
+	var field *invalidFieldError
+	if errors.As(err, &field) && err == error(field) {
+		return field.clientMessage()
+	}
+
+	joined, ok := err.(interface{ Unwrap() []error })
+	if !ok {
+		return err.Error()
+	}
+
+	messages := make([]string, 0, len(joined.Unwrap()))
+	for _, e := range joined.Unwrap() {
+		messages = append(messages, clientMessage(e))
+	}
+
+	return strings.Join(messages, "\n")
 }
 
 // String binds a form field to a string variable. An absent or empty field
@@ -383,9 +434,7 @@ func (form *FormData) PaperSize(key string, width, height *float64) *FormData {
 
 	w, h, ok := PaperSizeInches(value)
 	if !ok {
-		form.append(
-			fmt.Errorf("form field '%s' is invalid (got '%s', want A3, A4, A5, B4, B5, Letter, Legal or Tabloid)", key, value),
-		)
+		form.append(&invalidFieldError{key: key, value: value, err: errors.New("want A3, A4, A5, B4, B5, Letter, Legal or Tabloid")})
 		return form
 	}
 
@@ -537,9 +586,7 @@ func (form *FormData) Custom(key string, assign func(value string) error) *FormD
 
 	err := assign(value)
 	if err != nil {
-		form.append(
-			fmt.Errorf("form field '%s' is invalid (got '%s', %w)", key, value, err),
-		)
+		form.append(&invalidFieldError{key: key, value: value, err: err})
 	}
 
 	return form
@@ -568,9 +615,7 @@ func (form *FormData) MandatoryCustom(key string, assign func(value string) erro
 
 	err := assign(value)
 	if err != nil {
-		form.append(
-			fmt.Errorf("form field '%s' is invalid (got '%s', %w)", key, value, err),
-		)
+		form.append(&invalidFieldError{key: key, value: value, err: err})
 	}
 
 	return form
@@ -766,9 +811,7 @@ func bind[T any](form *FormData, key string, target *T, mandatory bool, parse fu
 
 	parsed, err := parse(value)
 	if err != nil {
-		form.append(
-			fmt.Errorf("form field '%s' is invalid (got '%s', %w)", key, value, err),
-		)
+		form.append(&invalidFieldError{key: key, value: value, err: err})
 
 		return form
 	}

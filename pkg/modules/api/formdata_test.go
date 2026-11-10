@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/http"
 	"reflect"
 	"strings"
 	"testing"
@@ -2054,7 +2055,7 @@ func TestFormData_Int_Checks(t *testing.T) {
 			}
 
 			want := fmt.Sprintf("form field 'foo' is invalid (got '%s', %s)", tc.value, tc.expectMessage)
-			if form.errors == nil || form.errors.Error() != want {
+			if form.errors == nil || clientMessage(form.errors) != want {
 				t.Fatalf("expected error %q but got: %v", want, form.errors)
 			}
 		})
@@ -2126,7 +2127,7 @@ func TestFormData_Messages(t *testing.T) {
 			tc.bind(form)
 
 			want := fmt.Sprintf("form field 'foo' is invalid (got '%s', %s)", tc.value, tc.want)
-			if form.errors == nil || form.errors.Error() != want {
+			if form.errors == nil || clientMessage(form.errors) != want {
 				t.Fatalf("expected error %q but got: %v", want, form.errors)
 			}
 		})
@@ -2309,5 +2310,40 @@ func TestFormData_Sent(t *testing.T) {
 	form.RejectUnknown(nil)
 	if form.errors == nil || form.errors.Error() != "form field 'pdfua' is unknown to this route" {
 		t.Fatalf("expected 'pdfua' to stay unknown, got: %v", form.errors)
+	}
+}
+
+// TestValidateKeepsValuesOutOfTheLoggedError pins that the error Validate
+// wraps, which the access log writes at the error level, leaves out the value
+// of an invalid form field, and that the 400 the caller receives names it. A
+// value may carry a credential. See GHSA-g85v-3gpx-4gw5.
+func TestValidateKeepsValuesOutOfTheLoggedError(t *testing.T) {
+	const secret = "COOKIE_SECRET_SENTINEL"
+	form := &FormData{values: map[string][]string{
+		"cookies":   {`[{"name":"s","value":"` + secret + `"}]`},
+		"waitDelay": {"soon"},
+	}}
+	form.Custom("cookies", func(string) error { return errors.New("cookie 0 must have its name, value and domain set") })
+	form.Duration("waitDelay", new(time.Duration))
+
+	err := form.Validate()
+	if err == nil {
+		t.Fatal("expected an error, got none")
+	}
+	if strings.Contains(err.Error(), secret) {
+		t.Errorf("the logged error holds the value: %v", err)
+	}
+
+	var httpErr HttpError
+	if !errors.As(err, &httpErr) {
+		t.Fatalf("expected an HTTP error, got: %v", err)
+	}
+	status, message := httpErr.HttpError()
+	if status != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", status)
+	}
+	want := "Invalid form data: form field 'cookies' is invalid (got '[{\"name\":\"s\",\"value\":\"" + secret + "\"}]', cookie 0 must have its name, value and domain set)\nform field 'waitDelay' is invalid (got 'soon', "
+	if !strings.HasPrefix(message, want) {
+		t.Errorf("expected the message to start with %q, got %q", want, message)
 	}
 }
