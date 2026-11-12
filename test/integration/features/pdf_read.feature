@@ -18,11 +18,35 @@ Feature: /forms/pdf/{info|validate}
           "encrypted": false,
           "tagged": false,
           "linearized": false,
-          "formFields": false
+          "formFields": false,
+          "signed": false
         },
         "page_1.pdf": {
           "pages": 1,
           "encrypted": false
+        }
+      }
+      """
+
+  Scenario: POST /forms/pdf/info (Signed PDF)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/sign" endpoint with the following form data and header(s):
+      | files                     | testdata/page_1.pdf   | file   |
+      | files                     | testdata/pem/cert.pem | file   |
+      | files                     | testdata/pem/key.pem  | file   |
+      | certificate               | cert.pem              | field  |
+      | key                       | key.pem               | field  |
+      | Gotenberg-Output-Filename | foo                   | header |
+    Then the response status code should be 200
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/info" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file |
+    Then the response status code should be 200
+    Then the response body should match JSON:
+      """
+      {
+        "foo.pdf": {
+          "pages": 1,
+          "signed": true
         }
       }
       """

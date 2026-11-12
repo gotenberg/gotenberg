@@ -236,6 +236,7 @@ type documentInfo struct {
 	Tagged     bool   `json:"tagged"`
 	Linearized bool   `json:"linearized"`
 	FormFields bool   `json:"formFields"`
+	Signed     bool   `json:"signed"`
 }
 
 func infoRoute(processor *Processor) api.Route {
@@ -255,6 +256,11 @@ func infoRoute(processor *Processor) api.Route {
 			return nil, fmt.Errorf("read form fields: %w", err)
 		}
 
+		signed, err := r.HasSignatures(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("read signatures: %w", err)
+		}
+
 		return documentInfo{
 			Pages:      pages,
 			Version:    r.Version(),
@@ -262,6 +268,7 @@ func infoRoute(processor *Processor) api.Route {
 			Tagged:     tagged,
 			Linearized: r.IsLinearized(),
 			FormFields: formFields,
+			Signed:     signed,
 		}, nil
 	}))
 }

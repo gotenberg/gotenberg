@@ -17,7 +17,8 @@ Feature: PDF corpus
           "encrypted": false,
           "tagged": false,
           "linearized": false,
-          "formFields": false
+          "formFields": false,
+          "signed": false
         }
       }
       """

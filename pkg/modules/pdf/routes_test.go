@@ -266,8 +266,8 @@ func TestReadRoutes(t *testing.T) {
 		t.Fatalf("decode %s: %v", rec.Body.String(), err)
 	}
 
-	if info["pages_12.pdf"].Pages != 12 {
-		t.Fatalf("info = %+v, want 12 pages", info)
+	if info["pages_12.pdf"].Pages != 12 || info["pages_12.pdf"].Signed {
+		t.Fatalf("info = %+v, want 12 pages, unsigned", info)
 	}
 
 	_, _, err = serve(t, validateRoute(testProcessor()), map[string][]string{"profile": {"PDF/X-4"}}, "page_1.pdf")
