@@ -739,6 +739,27 @@ Feature: /forms/chromium/convert/html
     Then the Gotenberg container should log the following entries:
       | 'wss://127.0.0.1:9999/wss-test' matches the expression from the denied list |
 
+  # --chromium-proxy-server replaces the pinning proxy, the only layer that
+  # severs a WebSocket handshake. The handshake cannot be aborted through CDP,
+  # so a WebSocket the policy refuses fails the conversion with a generic 403.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/html (WebSocket to a non-public address fails the conversion with a proxy server)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST       |                       |
+      | CHROMIUM_DENY_PRIVATE_IPS | true                  |
+      | CHROMIUM_PROXY_SERVER     | http://127.0.0.1:9998 |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files     | testdata/ssrf-websocket-html/index.html | file  |
+      | waitDelay | 1s                                      | field |
+    Then the response status code should be 403
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Forbidden
+      """
+    Then the Gotenberg container should log the following entries:
+      | 'ws://127.0.0.1:9999/ssrf-websocket' targets a non-public address |
+
   # EventSource issues an ordinary HTTP GET, so unlike a WebSocket it IS surfaced
   # as a fetch.EventRequestPaused and blocked by listenForEventRequestPaused.
   @chromium-ssrf

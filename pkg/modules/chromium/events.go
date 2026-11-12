@@ -73,10 +73,12 @@ type eventWebSocketCreatedOptions struct {
 // The connection itself is severed by the pinning proxy, which every
 // WebSocket handshake traverses once the implicit loopback / link-local proxy
 // bypass is removed (see the "<-loopback>" flag in browser.go). When the
-// operator configures a custom proxy, the pinning proxy is not started; the
-// WebSocket then follows the operator's egress path and this warning is the
-// remaining safeguard, since a WebSocket handshake cannot be aborted through
-// the CDP Network domain.
+// operator configures a custom proxy, the pinning proxy is not started and
+// the WebSocket follows the operator's egress path. A handshake cannot be
+// aborted through the CDP Network domain, so the listener fails the
+// conversion instead: nothing the page read through the WebSocket reaches
+// the client. A Web Worker is a separate target this listener does
+// not observe: only the operator's proxy can refuse its WebSockets.
 //
 // The pinning proxy only sees the host and port of the tunnel, so a deny-list
 // rule that names a path, such as "^wss://host/ws", cannot sever it. When the
@@ -111,6 +113,9 @@ func listenForEventWebSocketCreated(ctx context.Context, logger *slog.Logger, op
 			logger.WarnContext(ctx, err.Error())
 
 			if options.decideTunnel == nil {
+				// No pinning proxy can sever the handshake.
+				options.failures.denyWebSocket(err)
+				options.cancel()
 				return
 			}
 

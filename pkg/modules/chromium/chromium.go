@@ -608,7 +608,7 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 	}
 
 	if !mod.args.usesPinningProxy() && mod.args.restrictsNetwork() {
-		mod.logger.WarnContext(context.Background(), "--chromium-proxy-server (env CHROMIUM_PROXY_SERVER) replaces Gotenberg's pinning proxy, so WebSocket handshakes reach that proxy without Chromium's outbound policy; enforce the policy on that proxy")
+		mod.logger.WarnContext(context.Background(), "--chromium-proxy-server (env CHROMIUM_PROXY_SERVER) replaces Gotenberg's pinning proxy: a page's WebSocket the outbound policy refuses fails the conversion, but a Web Worker's WebSocket reaches that proxy unchecked; enforce the policy on that proxy")
 	}
 
 	// Process.
