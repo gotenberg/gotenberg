@@ -8,7 +8,7 @@ require (
 	github.com/chromedp/chromedp v0.14.2 // pinned: v0.15.x breaks the headless print-mode paint pipeline (rAF / ResizeObserver / IntersectionObserver stop firing, blank charts). See https://github.com/gotenberg/gotenberg/issues/1535.
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/cucumber/godog v0.16.0
-	github.com/dlclark/regexp2/v2 v2.12.0
+	github.com/dlclark/regexp2/v2 v2.13.0
 	github.com/gomarkdown/markdown v0.0.0-20261105214116-27ca101938a9
 	github.com/google/uuid v1.6.0
 	github.com/gotenberg/litho v0.0.11
