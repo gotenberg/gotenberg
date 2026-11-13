@@ -1949,7 +1949,8 @@ func TestFormData_PaperSize(t *testing.T) {
 		{value: "A4", wantWidth: 210 / 25.4, wantHeight: 297 / 25.4},
 		{value: "letter", wantWidth: 8.5, wantHeight: 11},
 		{value: "Tabloid", wantWidth: 11, wantHeight: 17},
-		{value: "A0", wantWidth: -1, wantHeight: -1, wantErr: true},
+		{value: "a0", wantWidth: 841 / 25.4, wantHeight: 1189 / 25.4},
+		{value: "A7", wantWidth: -1, wantHeight: -1, wantErr: true},
 	} {
 		t.Run(tc.value, func(t *testing.T) {
 			form := &FormData{values: map[string][]string{"paperSize": {tc.value}}}
@@ -1976,7 +1977,10 @@ func TestPaperSizeInches(t *testing.T) {
 		{name: "A4", wantWidth: 210 / 25.4, wantHeight: 297 / 25.4, wantOk: true},
 		{name: "letter", wantWidth: 8.5, wantHeight: 11, wantOk: true},
 		{name: "LEGAL", wantWidth: 8.5, wantHeight: 14, wantOk: true},
-		{name: "A0"},
+		{name: "A0", wantWidth: 841 / 25.4, wantHeight: 1189 / 25.4, wantOk: true},
+		{name: "A1", wantWidth: 594 / 25.4, wantHeight: 841 / 25.4, wantOk: true},
+		{name: "a2", wantWidth: 420 / 25.4, wantHeight: 594 / 25.4, wantOk: true},
+		{name: "A7"},
 		{name: ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

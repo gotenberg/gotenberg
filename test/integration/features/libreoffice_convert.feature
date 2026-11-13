@@ -426,12 +426,12 @@ Feature: /forms/libreoffice/convert
       """
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
       | files     | testdata/page_1.docx | file  |
-      | paperSize | A0                   | field |
+      | paperSize | A7                   | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response body should match string:
       """
-      Invalid form data: form field 'paperSize' is invalid (got 'A0', want A3, A4, A5, B4, B5, Letter, Legal or Tabloid)
+      Invalid form data: form field 'paperSize' is invalid (got 'A7', want A0, A1, A2, A3, A4, A5, B4, B5, Letter, Legal or Tabloid)
       """
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
       | files  | testdata/page_1.docx | file  |

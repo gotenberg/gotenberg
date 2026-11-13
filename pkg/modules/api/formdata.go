@@ -405,9 +405,16 @@ func JSON[T any](form *FormData, key string, target *T, want string) *FormData {
 	})
 }
 
+// PaperSizeNames lists the paper size names [FormData.PaperSize] and
+// [PaperSizeInches] accept, as error messages write them.
+const PaperSizeNames = "A0, A1, A2, A3, A4, A5, B4, B5, Letter, Legal or Tabloid"
+
 // paperSizes maps the paper size names to their width and height in
 // millimeters, portrait.
 var paperSizes = map[string][2]float64{
+	"a0":      {841, 1189},
+	"a1":      {594, 841},
+	"a2":      {420, 594},
 	"a3":      {297, 420},
 	"a4":      {210, 297},
 	"a5":      {148, 210},
@@ -419,9 +426,9 @@ var paperSizes = map[string][2]float64{
 }
 
 // PaperSize binds the width and height, in inches, of the paper size a form
-// field names: A3, A4, A5, B4, B5, Letter, Legal or Tabloid, in any case. It
-// leaves the targets untouched when the field is empty, and populates an
-// error for an unknown name.
+// field names: one of [PaperSizeNames], in any case. It leaves the targets
+// untouched when the field is empty, and populates an error for an unknown
+// name.
 //
 //	var width, height float64
 //
@@ -434,7 +441,7 @@ func (form *FormData) PaperSize(key string, width, height *float64) *FormData {
 
 	w, h, ok := PaperSizeInches(value)
 	if !ok {
-		form.append(&invalidFieldError{key: key, value: value, err: errors.New("want A3, A4, A5, B4, B5, Letter, Legal or Tabloid")})
+		form.append(&invalidFieldError{key: key, value: value, err: errors.New("want " + PaperSizeNames)})
 		return form
 	}
 
@@ -445,8 +452,8 @@ func (form *FormData) PaperSize(key string, width, height *float64) *FormData {
 }
 
 // PaperSizeInches returns the width and height, in inches, portrait, of the
-// paper size name: A3, A4, A5, B4, B5, Letter, Legal or Tabloid, in any case.
-// ok is false for any other name.
+// paper size name: one of [PaperSizeNames], in any case. ok is false for any
+// other name.
 func PaperSizeInches(name string) (width, height float64, ok bool) {
 	size, ok := paperSizes[strings.ToLower(name)]
 	if !ok {

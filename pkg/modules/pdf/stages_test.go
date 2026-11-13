@@ -287,7 +287,7 @@ func TestComposeStage(t *testing.T) {
 		{name: "no size", raw: `[{"op":"compose",` + placements + `}]`, wantErr: `stage 0: compose: set "paperSize", or "paperWidth" and "paperHeight"`},
 		{name: "a width alone", raw: `[{"op":"compose","paperWidth":"6in",` + placements + `}]`, wantErr: `compose: set "paperSize", or "paperWidth" and "paperHeight"`},
 		{name: "a height alone", raw: `[{"op":"compose","paperHeight":"5in",` + placements + `}]`, wantErr: `compose: set "paperSize", or "paperWidth" and "paperHeight"`},
-		{name: "unknown paper size", raw: `[{"op":"compose","paperSize":"A0",` + placements + `}]`, wantErr: `compose: "paperSize" must be A3, A4, A5, B4, B5, Letter, Legal or Tabloid, got "A0"`},
+		{name: "unknown paper size", raw: `[{"op":"compose","paperSize":"A7",` + placements + `}]`, wantErr: `compose: "paperSize" must be A0, A1, A2, A3, A4, A5, B4, B5, Letter, Legal or Tabloid, got "A7"`},
 		{name: "width not a length", raw: `[{"op":"compose","paperWidth":"wide","paperHeight":"5in",` + placements + `}]`, wantErr: `compose: "paperWidth" must be a length such as "6in", "15cm" or "432pt", got "wide"`},
 		{name: "height not a length", raw: `[{"op":"compose","paperWidth":"6in","paperHeight":"5ft",` + placements + `}]`, wantErr: `compose: "paperHeight" must be a length such as "6in", "15cm" or "432pt", got "5ft"`},
 		{name: "zero width", raw: `[{"op":"compose","paperWidth":"0in","paperHeight":"5in",` + placements + `}]`, wantErr: `compose: "paperWidth" must be greater than 0, got "0in"`},

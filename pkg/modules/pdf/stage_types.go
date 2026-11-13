@@ -278,7 +278,7 @@ func (s *composeStage) validate() error {
 	if s.PaperSize != "" {
 		width, height, ok := api.PaperSizeInches(s.PaperSize)
 		if !ok {
-			return fmt.Errorf(`"paperSize" must be A3, A4, A5, B4, B5, Letter, Legal or Tabloid, got %q`, s.PaperSize)
+			return fmt.Errorf(`"paperSize" must be %s, got %q`, api.PaperSizeNames, s.PaperSize)
 		}
 
 		s.width, s.height = width, height
