@@ -58,18 +58,18 @@ Feature: /forms/pdf/sign
       """
       Stage 'select' failed on 'foo.pdf': the PDF is signed, and this stage rewrites it, which would remove its signatures; set "dropSignatures" to true to remove them
       """
-    When I make a "POST" request to Gotenberg at the "/forms/pdf/split" endpoint with the following form data and header(s):
-      | files          | teststore/foo.pdf | file  |
-      | every          | 1                 | field |
-      | dropSignatures | true              | field |
-    Then the response status code should be 200
-    Then the response PDF(s) should NOT be signed
     When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
       | files                     | teststore/foo.pdf                    | file   |
       | stages                    | [{"op":"stamp-text","text":"DRAFT"}] | field  |
       | Gotenberg-Output-Filename | bar                                  | header |
     Then the response status code should be 200
     Then the response PDF(s) should be signed
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/split" endpoint with the following form data and header(s):
+      | files          | teststore/bar.pdf | file  |
+      | every          | 1                 | field |
+      | dropSignatures | true              | field |
+    Then the response status code should be 200
+    Then the response PDF(s) should NOT be signed
 
   Scenario: POST /forms/pdf/sign (Bad Request)
     Given I have a default Gotenberg container
