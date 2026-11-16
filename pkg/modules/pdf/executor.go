@@ -123,7 +123,7 @@ func (p *Processor) run(ctx *api.Context, stages Stages, inputPaths []string, fi
 	for i := 0; i < len(stages); {
 		switch s := stages[i].(type) {
 		case *mergeStage:
-			docs, err = p.merge(ctx, docs, password)
+			docs, err = p.merge(ctx, s, docs, password)
 			i++
 		case *splitStage:
 			docs, err = p.split(ctx, s, docs, password)
@@ -272,7 +272,8 @@ func (p *Processor) write(ctx *api.Context, pipeline *litho.Pipeline, ops []stri
 	}
 
 	writeCtx := litho.ContextWithHTTPClient(spanCtx, client)
-	_, err = pipeline.WriteTo(writeCtx, out, append(opts, litho.WithPipelineTempDir(ctx.DirPath()))...)
+	var dropped []litho.DroppedSignature
+	_, err = pipeline.WriteTo(writeCtx, out, append(opts, litho.WithPipelineTempDir(ctx.DirPath()), litho.WithDroppedSignatures(&dropped))...)
 
 	closeErr := out.Close()
 	if err != nil {
@@ -283,13 +284,17 @@ func (p *Processor) write(ctx *api.Context, pipeline *litho.Pipeline, ops []stri
 		return document{}, fmt.Errorf("close output file: %w", closeErr)
 	}
 
+	if len(dropped) > 0 {
+		ctx.Log().InfoContext(ctx, fmt.Sprintf("%s removed %d signature(s) to write '%s'", strings.Join(ops, ", "), len(dropped), filename))
+	}
+
 	ctx.RegisterDiskPath(path, filename)
 
 	return document{path: path, filename: filename}, nil
 }
 
 // merge appends every document, in order, into one named after the first.
-func (p *Processor) merge(ctx *api.Context, docs []document, password string) ([]document, error) {
+func (p *Processor) merge(ctx *api.Context, s *mergeStage, docs []document, password string) ([]document, error) {
 	// A single document is not rewritten, but it is read all the same: merge
 	// must not hand back a file the other routes refuse.
 	if len(docs) == 1 {
@@ -319,16 +324,11 @@ func (p *Processor) merge(ctx *api.Context, docs []document, password string) ([
 		}
 
 		readers = append(readers, r)
-
-		err = refuseSigned(ctx, r)
-		if err != nil {
-			return nil, &stageError{op: "merge", filename: d.filename, err: err}
-		}
 	}
 
 	pipeline := litho.NewPipeline().Open(readers[0]).Merge(readers[1:])
 
-	merged, err := p.write(ctx, pipeline, []string{"merge"}, docs[0].filename)
+	merged, err := p.write(ctx, pipeline, []string{"merge"}, docs[0].filename, signatureRemoval(s)...)
 	if err != nil {
 		return nil, &stageError{op: "merge", filename: docs[0].filename, err: err}
 	}
@@ -381,12 +381,6 @@ func (p *Processor) compose(ctx *api.Context, s *composeStage, docs []document, 
 		}
 
 		readers = append(readers, r)
-
-		// The composed document is a new file: no signature survives.
-		err = refuseSigned(ctx, r)
-		if err != nil {
-			return nil, &stageError{op: "compose", filename: d.filename, err: err}
-		}
 	}
 
 	placements := make([]litho.Placement, len(s.Placements))
@@ -404,7 +398,7 @@ func (p *Processor) compose(ctx *api.Context, s *composeStage, docs []document, 
 
 	pipeline := litho.NewPipeline().Compose(s.width*pointsPerInch, s.height*pointsPerInch, placements)
 
-	composed, err := p.write(ctx, pipeline, []string{"compose"}, docs[0].filename)
+	composed, err := p.write(ctx, pipeline, []string{"compose"}, docs[0].filename, signatureRemoval(s)...)
 	if err != nil {
 		return nil, failed(err)
 	}
@@ -478,11 +472,6 @@ func (p *Processor) splitOne(ctx *api.Context, s *splitStage, d document, passwo
 	}
 	defer func() { _ = r.Close() }()
 
-	err = refuseSigned(ctx, r)
-	if err != nil {
-		return nil, err
-	}
-
 	pageCount, err := r.PageCount(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("count pages: %w", err)
@@ -497,7 +486,7 @@ func (p *Processor) splitOne(ctx *api.Context, s *splitStage, d document, passwo
 	parts := make([]document, 0, len(groups))
 
 	for i, pages := range groups {
-		part, err := p.write(ctx, litho.NewPipeline().Open(r).Split(pages), []string{"split"}, fmt.Sprintf("%s_%d.pdf", base, i))
+		part, err := p.write(ctx, litho.NewPipeline().Open(r).Split(pages), []string{"split"}, fmt.Sprintf("%s_%d.pdf", base, i), signatureRemoval(s)...)
 		if err != nil {
 			return nil, err
 		}
@@ -570,19 +559,14 @@ func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password st
 		return document{}, &stageError{op: run[0].op(), filename: d.filename, err: fmt.Errorf("count pages: %w", err)}
 	}
 
-	// A rewrite drops the signatures of the PDF: refuse it before running.
-	// optimize has a guard of its own.
+	// The first rewrite drops the signatures of the PDF, which the edits
+	// before it keep: it decides whether litho may.
+	var firstRewrite rewriter
 	for _, s := range run {
-		if !rewrites(s) {
-			continue
+		if rw, ok := s.(rewriter); ok {
+			firstRewrite = rw
+			break
 		}
-
-		err = refuseSigned(ctx, r)
-		if err != nil {
-			return document{}, &stageError{op: s.op(), filename: d.filename, err: err}
-		}
-
-		break
 	}
 
 	env := &runEnv{processor: p, pageCount: pageCount, files: files, source: r}
@@ -590,8 +574,7 @@ func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password st
 
 	pipeline := litho.NewPipeline().Open(r)
 	var (
-		dropped           []litho.DroppedSignature
-		writeOpts         = []litho.WriteOption{litho.WithDroppedSignatures(&dropped)}
+		writeOpts         []litho.WriteOption
 		optimizing        bool
 		compactionSkipped bool
 		// litho applies most edits when a later stage or the write runs: a
@@ -657,8 +640,23 @@ func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password st
 		ops[i] = s.op()
 	}
 
+	if firstRewrite != nil {
+		writeOpts = append(writeOpts, signatureRemoval(firstRewrite)...)
+	}
+
 	out, err := p.write(ctx, pipeline, ops, d.filename, writeOpts...)
 	if err != nil {
+		// litho refuses the rewrite that would drop the signatures: the first
+		// rewriting stage decides. Without one, any edit rewrites a PDF litho
+		// repaired on reading, and no stage can allow it.
+		if errors.Is(err, litho.ErrSignaturesDropped) {
+			if firstRewrite != nil {
+				return document{}, &stageError{op: firstRewrite.op(), filename: d.filename, err: err}
+			}
+
+			return document{}, &stageError{op: run[len(run)-1].op(), filename: d.filename, err: &stageInputError{message: "the PDF is signed and damaged, and any edit rewrites it while repairing it, which would remove its signatures"}}
+		}
+
 		// The stage that applied a failed edit, whose error wraps it, is not
 		// the one that queued it.
 		if e := editError(err); e != nil {
@@ -685,12 +683,6 @@ func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password st
 		return document{}, &stageError{op: run[len(run)-1].op(), filename: d.filename, err: err}
 	}
 
-	// Any edit rewrites a PDF litho repaired on reading: the stages above
-	// cannot tell it before running.
-	if len(dropped) > 0 {
-		return document{}, &stageError{op: run[len(run)-1].op(), filename: d.filename, err: errSignedRewrite()}
-	}
-
 	if optimizing && compactionSkipped {
 		ctx.Log().WarnContext(ctx, fmt.Sprintf("optimize wrote '%s' without compacting it: litho appended an update to the document rather than rewriting it", d.filename))
 	}
@@ -702,42 +694,15 @@ func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password st
 	return out, nil
 }
 
-// errSignedRewrite is the refusal of a stage that would rewrite a signed PDF.
-func errSignedRewrite() error {
-	return &stageInputError{message: "the PDF is signed, and this stage rewrites it, which would remove its signatures"}
-}
-
-// refuseSigned returns [errSignedRewrite] when the PDF r reads is signed: a
-// signature's digest covers the bytes of the file it was made in (ISO
-// 32000-1, 12.8.1), so no rewrite keeps it.
-func refuseSigned(ctx context.Context, r *litho.Reader) error {
-	signatures, err := r.ExtractSignatures(ctx)
-	if err != nil {
-		return fmt.Errorf("read the signatures: %w", err)
+// signatureRemoval returns the write options that let litho drop the
+// signatures of the PDF the rewrite s writes, when s allows it: litho refuses
+// it otherwise (see [litho.ErrSignaturesDropped]).
+func signatureRemoval(s rewriter) []litho.WriteOption {
+	if !s.dropsSignatures() {
+		return nil
 	}
 
-	if len(signatures) > 0 {
-		return errSignedRewrite()
-	}
-
-	return nil
-}
-
-// rewrites reports whether stage s rewrites the document whole, which drops
-// its signatures (litho's Writer.DroppedSignatures lists those edits): select,
-// delete and compose build a new file, as merge and split do, and insert,
-// encryption, decryption, form flattening, redaction, remediation, color
-// conversion and transparency flattening rewrite it. The other edits append
-// an incremental update, which keeps them. optimize, which forces a rewrite,
-// has a guard of its own.
-func rewrites(s stage) bool {
-	switch s.(type) {
-	case *selectStage, *deleteStage, *insertStage, *encryptStage, *decryptStage, *flattenFormStage,
-		*redactStage, *remediateStage, *convertColorsStage, *flattenTransparencyStage, *composeStage:
-		return true
-	default:
-		return false
-	}
+	return []litho.WriteOption{litho.WithSignatureRemoval()}
 }
 
 // maxFormFieldsInMessage bounds the field names an unknown field's message

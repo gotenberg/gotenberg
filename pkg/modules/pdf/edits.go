@@ -487,17 +487,6 @@ func (s *optimizeStage) compaction(packObjectStreams bool) []litho.WriteOption {
 // carries. encryptionHandled tells that the stages remove the encryption on
 // purpose, with decrypt, or apply one of their own, with encrypt.
 func (s *optimizeStage) guardedWriteOptions(ctx context.Context, r *litho.Reader, encryptionHandled bool) ([]litho.WriteOption, error) {
-	// A signature's digest covers the bytes of the file it was made in (ISO
-	// 32000-1, 12.8.1): no rewrite keeps it.
-	signatures, err := r.ExtractSignatures(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("read the signatures: %w", err)
-	}
-
-	if len(signatures) > 0 {
-		return nil, &stageInputError{message: "the PDF is signed, and optimizing would remove its signatures"}
-	}
-
 	// A rewrite writes the document decrypted.
 	if r.IsEncrypted() && !encryptionHandled {
 		return nil, &stageInputError{message: `the PDF is encrypted, and optimizing would write it decrypted: on /forms/pdf/pipe, add a "decrypt" stage before "optimize" to remove the encryption, or an "encrypt" stage to keep one`}

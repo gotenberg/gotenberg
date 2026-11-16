@@ -31,6 +31,8 @@ func TestParseStages(t *testing.T) {
 		{name: "missing op", raw: `[{"angle":90}]`, wantErr: `"op" must name an operation`},
 		{name: "unknown op", raw: `[{"op":"shred"}]`, wantErr: `unknown operation "shred"`},
 		{name: "unknown option", raw: `[{"op":"rotate","angle":90,"degrees":90}]`, wantErr: `rotate: unknown option "degrees"`},
+		{name: "dropSignatures on a rewrite", raw: `[{"op":"split","every":1,"dropSignatures":true}]`, wantOps: []string{"split"}},
+		{name: "dropSignatures on an incremental edit", raw: `[{"op":"rotate","angle":90,"dropSignatures":true}]`, wantErr: `rotate: unknown option "dropSignatures"`},
 		{name: "option names are exact", raw: `[{"op":"set-metadata","Title":"T"}]`, wantErr: `set-metadata: unknown option "Title"`},
 		{name: "wrong option type", raw: `[{"op":"rotate","angle":"ninety"}]`, wantErr: `stage 0: rotate: "angle" is invalid (got "ninety", want an integer)`},
 		{name: "fraction for an integer", raw: `[{"op":"rotate","angle":90.5}]`, wantErr: `rotate: "angle" is invalid (got 90.5, want an integer)`},
@@ -376,5 +378,25 @@ func TestComposeStageFromForm(t *testing.T) {
 
 	if len(s.Placements) != 1 || s.Placements[0].Source != "pages_12.pdf" || s.Placements[0].SourcePage != 2 || s.Placements[0].Y != 180 || derefOr(s.Placements[0].Scale, 0) != 0.25 {
 		t.Fatalf("placements = %+v", s.Placements)
+	}
+}
+
+// A rewriting stage reads dropSignatures from its flat form field, as its own
+// options.
+func TestSplitStageFromFormDropSignatures(t *testing.T) {
+	ctx, _ := testContext(t, "pages_3.pdf")
+	mock := &api.ContextMock{Context: ctx}
+	mock.SetValues(map[string][]string{
+		"every":          {"1"},
+		"dropSignatures": {"true"},
+	})
+
+	stages, _, err := stageFromForm("split", ctx.FormData())
+	if err != nil {
+		t.Fatalf("stageFromForm: %v", err)
+	}
+
+	if s := stages[0].(*splitStage); !s.DropSignatures || s.Every == nil || *s.Every != 1 {
+		t.Fatalf("stage = %+v, want every 1 and dropSignatures", s)
 	}
 }

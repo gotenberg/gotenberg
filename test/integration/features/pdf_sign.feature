@@ -38,7 +38,8 @@ Feature: /forms/pdf/sign
     Then the response PDF(s) should NOT be signed
 
   # A stage that rewrites a signed PDF would drop its signatures, even after an
-  # incremental edit; an incremental edit alone keeps them.
+  # incremental edit, unless it sets dropSignatures; an incremental edit alone
+  # keeps them.
   Scenario: POST /forms/pdf/pipe (Signed PDF)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/sign" endpoint with the following form data and header(s):
@@ -55,16 +56,14 @@ Feature: /forms/pdf/sign
     Then the response status code should be 400
     Then the response body should match string:
       """
-      Stage 'select' failed on 'foo.pdf': the PDF is signed, and this stage rewrites it, which would remove its signatures
+      Stage 'select' failed on 'foo.pdf': the PDF is signed, and this stage rewrites it, which would remove its signatures; set "dropSignatures" to true to remove them
       """
-    When I make a "POST" request to Gotenberg at the "/forms/pdf/remediate" endpoint with the following form data and header(s):
-      | files   | teststore/foo.pdf | file  |
-      | profile | PDF/A-2b          | field |
-    Then the response status code should be 400
-    Then the response body should match string:
-      """
-      Stage 'remediate' failed on 'foo.pdf': the PDF is signed, and this stage rewrites it, which would remove its signatures
-      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/split" endpoint with the following form data and header(s):
+      | files          | teststore/foo.pdf | file  |
+      | every          | 1                 | field |
+      | dropSignatures | true              | field |
+    Then the response status code should be 200
+    Then the response PDF(s) should NOT be signed
     When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
       | files                     | teststore/foo.pdf                    | file   |
       | stages                    | [{"op":"stamp-text","text":"DRAFT"}] | field  |

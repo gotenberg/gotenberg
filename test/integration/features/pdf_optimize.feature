@@ -47,7 +47,7 @@ Feature: /forms/pdf/optimize
     Then the response status code should be 400
     Then the response body should match string:
       """
-      Stage 'optimize' failed on 'foo.pdf': the PDF is signed, and optimizing would remove its signatures
+      Stage 'optimize' failed on 'foo.pdf': the PDF is signed, and this stage rewrites it, which would remove its signatures; set "dropSignatures" to true to remove them
       """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/encrypt" endpoint with the following form data and header(s):
       | files                     | testdata/page_1.pdf | file   |

@@ -1080,7 +1080,7 @@ func TestRunOptimize(t *testing.T) {
 			prepare:  `[{"op":"sign","certificate":"cert.pem","key":"key.pem"}]`,
 			fixtures: []string{"pem/cert.pem", "pem/key.pem"},
 			stages:   `[{"op":"optimize"}]`,
-			wantErr:  "Stage 'optimize' failed on 'page_1.pdf': the PDF is signed, and optimizing would remove its signatures",
+			wantErr:  `Stage 'optimize' failed on 'page_1.pdf': the PDF is signed, and this stage rewrites it, which would remove its signatures; set "dropSignatures" to true to remove them`,
 		},
 		{
 			name:    "encrypted",
@@ -1241,9 +1241,9 @@ func TestRefusalLogging(t *testing.T) {
 }
 
 // A stage that rewrites a signed PDF would drop its signatures: it answers
-// 400, while an incremental edit keeps them.
+// 400 unless it sets dropSignatures, while an incremental edit keeps them.
 func TestRunSignedInput(t *testing.T) {
-	const signedMessage = "the PDF is signed, and this stage rewrites it, which would remove its signatures"
+	const signedMessage = `the PDF is signed, and this stage rewrites it, which would remove its signatures; set "dropSignatures" to true to remove them`
 
 	for _, tc := range []struct {
 		name     string
@@ -1256,12 +1256,14 @@ func TestRunSignedInput(t *testing.T) {
 		{name: "insert", stages: `[{"op":"insert","source":"page_2.pdf"}]`, fixtures: []string{"page_2.pdf"}, wantOp: "insert"},
 		{name: "encrypt", stages: `[{"op":"encrypt","userPassword":"u"}]`, wantOp: "encrypt"},
 		{name: "flatten-form", stages: `[{"op":"flatten-form"}]`, wantOp: "flatten-form"},
-		{name: "redact", stages: `[{"op":"redact","regions":[{"page":1,"x":0,"y":0,"width":10,"height":10}]}]`, wantOp: "redact"},
+		{name: "redact", stages: `[{"op":"redact","regions":[{"page":1,"x":0,"y":0,"width":612,"height":792}]}]`, wantOp: "redact"},
 		{name: "remediate", stages: `[{"op":"remediate","profile":"PDF/A-2b"}]`, wantOp: "remediate"},
 		{name: "convert-colors", stages: `[{"op":"convert-colors","target":"gray"}]`, wantOp: "convert-colors"},
 		{name: "flatten-transparency", stages: `[{"op":"flatten-transparency"}]`, wantOp: "flatten-transparency"},
 		{name: "split", stages: `[{"op":"split","every":1}]`, wantOp: "split"},
 		{name: "merge", stages: `[{"op":"merge"}]`, fixtures: []string{"page_2.pdf"}, wantOp: "merge"},
+		{name: "compose", stages: `[{"op":"compose","paperSize":"A4","placements":[{"page":1,"x":0,"y":0}]}]`, wantOp: "compose"},
+		{name: "optimize", stages: `[{"op":"optimize"}]`, wantOp: "optimize"},
 		{name: "an incremental edit, then a rewrite", stages: `[{"op":"stamp-text","text":"DRAFT"},{"op":"select","pages":"1"}]`, wantOp: "select"},
 		{name: "stamp-text", stages: `[{"op":"stamp-text","text":"DRAFT"}]`},
 		{name: "set-metadata", stages: `[{"op":"set-metadata","title":"Signed"}]`},
@@ -1272,11 +1274,11 @@ func TestRunSignedInput(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			processor := testProcessor()
-			ctx, paths := testContext(t, append([]string{"page_1.pdf", "pem/cert.pem", "pem/key.pem"}, tc.fixtures...)...)
+			ctx, paths := testContext(t, append([]string{"pages_3.pdf", "pem/cert.pem", "pem/key.pem"}, tc.fixtures...)...)
 			files := make(map[string]string, len(paths))
 			maps.Copy(files, paths)
 
-			signed, err := processor.Run(ctx, mustStages(t, `[{"op":"sign","certificate":"cert.pem","key":"key.pem"}]`), []string{paths["page_1.pdf"]}, files)
+			signed, err := processor.Run(ctx, mustStages(t, `[{"op":"sign","certificate":"cert.pem","key":"key.pem"}]`), []string{paths["pages_3.pdf"]}, files)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1289,10 +1291,27 @@ func TestRunSignedInput(t *testing.T) {
 			outputs, err := processor.Run(ctx, mustStages(t, tc.stages), inputs, files)
 			if tc.wantOp != "" {
 				status, message := api.ParseError(err)
-				want := fmt.Sprintf("Stage '%s' failed on 'page_1.pdf': %s", tc.wantOp, signedMessage)
+				want := fmt.Sprintf("Stage '%s' failed on 'pages_3.pdf': %s", tc.wantOp, signedMessage)
 				if status != http.StatusBadRequest || message != want {
-					t.Fatalf("got %d %q, want 400 %q", status, message, want)
+					t.Fatalf("got %d %q (%v), want 400 %q", status, message, err, want)
 				}
+
+				// The same stage, allowed to drop the signatures, writes the
+				// PDF without them.
+				allowed := strings.Replace(tc.stages, `{"op":"`+tc.wantOp+`"`, `{"op":"`+tc.wantOp+`","dropSignatures":true`, 1)
+				outputs, err = processor.Run(ctx, mustStages(t, allowed), inputs, files)
+				if err != nil {
+					t.Fatalf("with dropSignatures: %v", err)
+				}
+
+				for _, output := range outputs {
+					// encrypt writes the PDF for its user password.
+					signatures, err := openOutput(t, output, litho.WithPassword("u")).ExtractSignatures(context.Background())
+					if err != nil || len(signatures) != 0 {
+						t.Fatalf("with dropSignatures: signatures = %v, %v, want none", signatures, err)
+					}
+				}
+
 				return
 			}
 

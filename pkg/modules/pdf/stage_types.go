@@ -12,8 +12,33 @@ import (
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 )
 
+// signatureDrop is the option of the stages that rewrite a PDF whole, or
+// build a new one from it. A signature's digest covers the bytes of the file
+// it was made in (ISO 32000-1, 12.8.1), so no such output keeps it: litho
+// leaves each signature out and draws its visible appearance into the page.
+// litho refuses such an output unless DropSignatures allows it (see
+// [litho.ErrSignaturesDropped]); a stage that ends up appending an update to
+// the PDF keeps its signatures and needs none.
+type signatureDrop struct {
+	DropSignatures bool `json:"dropSignatures"`
+}
+
+func (s signatureDrop) dropsSignatures() bool { return s.DropSignatures }
+
+// rewriter is a stage that rewrites a PDF whole, or builds a new one from it:
+// merge, split, select, delete, insert, compose, flatten-form,
+// flatten-transparency, convert-colors, redact, optimize, encrypt, decrypt and
+// remediate. The other edits append an incremental update, which keeps the
+// signatures.
+type rewriter interface {
+	stage
+	dropsSignatures() bool
+}
+
 // mergeStage appends every current document, in order, into one.
-type mergeStage struct{}
+type mergeStage struct {
+	signatureDrop
+}
 
 func (*mergeStage) op() string      { return "merge" }
 func (*mergeStage) validate() error { return nil }
@@ -25,6 +50,8 @@ func (*mergeStage) files() []string { return nil }
 type splitStage struct {
 	Every  *int     `json:"every"`
 	Ranges []string `json:"ranges"`
+
+	signatureDrop
 }
 
 func (*splitStage) op() string { return "split" }
@@ -53,6 +80,8 @@ func (*splitStage) files() []string { return nil }
 // selectStage keeps the given pages, in the given order.
 type selectStage struct {
 	Pages string `json:"pages"`
+
+	signatureDrop
 }
 
 func (*selectStage) op() string        { return "select" }
@@ -62,6 +91,8 @@ func (*selectStage) files() []string   { return nil }
 // deleteStage removes the given pages.
 type deleteStage struct {
 	Pages string `json:"pages"`
+
+	signatureDrop
 }
 
 func (*deleteStage) op() string        { return "delete" }
@@ -75,6 +106,8 @@ type insertStage struct {
 	Source      string `json:"source"`
 	At          int    `json:"at"`
 	SourcePages string `json:"sourcePages"`
+
+	signatureDrop
 }
 
 func (*insertStage) op() string { return "insert" }
@@ -254,6 +287,8 @@ type composeStage struct {
 	// it.
 	width  float64
 	height float64
+
+	signatureDrop
 }
 
 // placement draws a page of one of the current documents on a composed page.
@@ -462,14 +497,18 @@ func (s *setFormStage) validate() error {
 func (*setFormStage) files() []string { return nil }
 
 // flattenFormStage burns the form fields into the page content.
-type flattenFormStage struct{}
+type flattenFormStage struct {
+	signatureDrop
+}
 
 func (*flattenFormStage) op() string      { return "flatten-form" }
 func (*flattenFormStage) validate() error { return nil }
 func (*flattenFormStage) files() []string { return nil }
 
 // flattenTransparencyStage replaces transparent content with opaque content.
-type flattenTransparencyStage struct{}
+type flattenTransparencyStage struct {
+	signatureDrop
+}
 
 func (*flattenTransparencyStage) op() string      { return "flatten-transparency" }
 func (*flattenTransparencyStage) validate() error { return nil }
@@ -479,6 +518,8 @@ func (*flattenTransparencyStage) files() []string { return nil }
 // "gray", or "output-intent" for the document's own output intent.
 type convertColorsStage struct {
 	Target string `json:"target"`
+
+	signatureDrop
 }
 
 func (*convertColorsStage) op() string { return "convert-colors" }
@@ -507,6 +548,8 @@ type redactRegion struct {
 // redactStage removes the content under the given regions.
 type redactStage struct {
 	Regions []redactRegion `json:"regions"`
+
+	signatureDrop
 }
 
 func (*redactStage) op() string { return "redact" }
@@ -616,6 +659,8 @@ type optimizeStage struct {
 	Dedup            *bool `json:"dedup"`
 	RecompressImages *bool `json:"recompressImages"`
 	SubsetFonts      *bool `json:"subsetFonts"`
+
+	signatureDrop
 }
 
 func (*optimizeStage) op() string      { return "optimize" }
@@ -663,6 +708,8 @@ type encryptStage struct {
 	OwnerPassword string       `json:"ownerPassword"`
 	Algorithm     string       `json:"algorithm"`
 	Permissions   *permissions `json:"permissions"`
+
+	signatureDrop
 }
 
 func (*encryptStage) op() string { return "encrypt" }
@@ -686,6 +733,8 @@ func (*encryptStage) files() []string { return nil }
 // encryption.
 type decryptStage struct {
 	Password string `json:"password"`
+
+	signatureDrop
 }
 
 func (*decryptStage) op() string      { return "decrypt" }
@@ -708,6 +757,8 @@ type remediateStage struct {
 	Xml           string     `json:"xml"`
 	Level         string     `json:"level"`
 	DocumentType  string     `json:"documentType"`
+
+	signatureDrop
 }
 
 func (*remediateStage) op() string { return "remediate" }

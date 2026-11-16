@@ -123,6 +123,12 @@ var lithoFixes = []struct {
 		},
 	},
 	{
+		err: litho.ErrSignaturesDropped,
+		fix: func(string) string {
+			return `the PDF is signed, and this stage rewrites it, which would remove its signatures; set "dropSignatures" to true to remove them`
+		},
+	},
+	{
 		err: litho.ErrIncompatibleProfiles,
 		fix: func(message string) string {
 			return message + "; the pairs are " + validPairs()
