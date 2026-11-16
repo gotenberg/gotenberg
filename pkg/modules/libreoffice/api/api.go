@@ -50,6 +50,11 @@ var (
 	// conversion often succeeds once LibreOffice restarts.
 	// See https://github.com/gotenberg/gotenberg/issues/639.
 	ErrCrashed = errors.New("LibreOffice crashed")
+
+	// ErrMemoryLimitExceeded happens when LibreOffice holds more memory than
+	// --libreoffice-max-memory (env LIBREOFFICE_MAX_MEMORY) allows during a
+	// conversion. Gotenberg kills it, and a retry would exceed it again.
+	ErrMemoryLimitExceeded = errors.New("LibreOffice exceeded its memory limit")
 )
 
 // Api is a module that provides a [Converter] backed by LibreOffice.
@@ -392,6 +397,7 @@ func (a *Api) Descriptor() gotenberg.ModuleDescriptor {
 			fs := flag.NewFlagSet("api", flag.ExitOnError)
 			fs.Int64("libreoffice-restart-after", 10, "Number of conversions after which LibreOffice will automatically restart. Set to 0 to disable this feature")
 			fs.Int64("libreoffice-max-queue-size", 0, "Maximum request queue size for LibreOffice. Set to 0 to disable this feature")
+			fs.String("libreoffice-max-memory", "", "Set the anonymous resident memory LibreOffice may hold during a conversion - it accepts values like 900MB, 1GB, etc. Over it, Gotenberg kills LibreOffice, answers 422 and restarts it. Keep it under the container's memory limit, so that a runaway conversion fails alone rather than getting the container OOM-killed. Empty disables this feature")
 			fs.Duration("libreoffice-idle-shutdown-timeout", 0, "Shutdown LibreOffice after being idle for the given duration. Set to 0 to disable this feature")
 			fs.Bool("libreoffice-auto-start", false, "Automatically launch LibreOffice upon initialization if set to true; otherwise, LibreOffice will start at the time of the first conversion")
 			fs.Duration("libreoffice-start-timeout", time.Duration(20)*time.Second, "Maximum duration to wait for LibreOffice to start or restart")
@@ -427,6 +433,7 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 		binPath:      libreOfficeBinPath,
 		lokBinPath:   lokBinPath,
 		startTimeout: flags.MustDuration("libreoffice-start-timeout"),
+		maxMemory:    uint64(max(flags.MustHumanReadableBytes("libreoffice-max-memory"), 0)),
 		enableMacros: flags.MustBool("libreoffice-enable-macros"),
 		proxyOptions: outboundProxyOptions{
 			allowList:              flags.MustRegexpSlice("libreoffice-allow-list"),
@@ -746,6 +753,8 @@ func libreofficeErrorType(err error) string {
 		errors.Is(err, ErrLoadFailed),
 		errors.Is(err, ErrInvalidPassword):
 		return gotenberg.ErrorTypeInvalidInput
+	case errors.Is(err, ErrMemoryLimitExceeded):
+		return "libreoffice_memory_limit"
 	case errors.Is(err, ErrSaveFailed), errors.Is(err, ErrCrashed):
 		return "libreoffice_exception"
 	case errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded), errors.Is(err, gotenberg.ErrProcessAlreadyRestarting):

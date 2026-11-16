@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	cdprotobrowser "github.com/chromedp/cdproto/browser"
@@ -65,7 +66,10 @@ type browser interface {
 
 type browserArguments struct {
 	// Executor args.
-	binPath                  string
+	binPath string
+	// maxMemory is the anonymous resident memory, in bytes, Chromium may
+	// hold while it converts, 0 for no limit (see --chromium-max-memory).
+	maxMemory                uint64
 	allowInsecureLocalhost   bool
 	ignoreCertificateErrors  bool
 	disableWebSecurity       bool
@@ -139,6 +143,18 @@ type chromiumBrowser struct {
 	arguments    browserArguments
 	fs           *gotenberg.FileSystem
 	pinningProxy *pinningProxy
+
+	// pid is the browser process, which the memory watch reads with its
+	// descendants, the renderers. Set by Start, under ctxMu.
+	pid int
+	// watchMu guards inFlight and stopWatching: the memory of Chromium is
+	// watched while at least one conversion runs.
+	watchMu      sync.Mutex
+	inFlight     int
+	stopWatching context.CancelFunc
+	// memoryExceeded holds the memory Chromium held when the watch killed
+	// it, 0 until then. Start resets it.
+	memoryExceeded atomic.Uint64
 }
 
 func newChromiumBrowser(arguments browserArguments) browser {
@@ -333,6 +349,11 @@ func (b *chromiumBrowser) Start(ctx context.Context, logger *slog.Logger) (err e
 		cancel()
 		allocatorCancel()
 	}
+	b.pid = 0
+	if c := chromedp.FromContext(browserCtx); c != nil && c.Browser != nil && c.Browser.Process() != nil {
+		b.pid = c.Browser.Process().Pid
+	}
+	b.memoryExceeded.Store(0)
 	b.isStarted.Store(true)
 
 	return nil
@@ -567,7 +588,7 @@ func (b *chromiumBrowser) disposeBrowserContext(logger *slog.Logger, browserCont
 	}
 }
 
-func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url string, options Options, aggregate *networkAggregate, tasks chromedp.Tasks) error {
+func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url string, options Options, aggregate *networkAggregate, tasks chromedp.Tasks) (err error) {
 	if !b.isStarted.Load() {
 		return errors.New("browser not started, cannot handle tasks")
 	}
@@ -594,6 +615,16 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 
 	b.ctxMu.RLock()
 	defer b.ctxMu.RUnlock()
+
+	defer b.watchMemory(logger)()
+
+	// Killed for its memory, Chromium fails the conversion wherever it was,
+	// creating the tab included.
+	defer func() {
+		if used := b.memoryExceeded.Load(); err != nil && used > 0 {
+			err = fmt.Errorf("handle tasks: %w: %s held, %s allowed: %w", ErrChromiumMemoryLimitExceeded, gotenberg.FormatMemory(used), gotenberg.FormatMemory(b.arguments.maxMemory), err)
+		}
+	}()
 
 	// The tab derives from the browser, not from the request, but must not
 	// outlive it: the supervisor holds the request's slot until do returns.
@@ -628,6 +659,53 @@ func (b *chromiumBrowser) do(ctx context.Context, logger *slog.Logger, url strin
 	runErr = requestError(ctx, runErr)
 
 	return failures.err(runErr, b.ctx.Err() != nil, options.FailOnResourceLoadingFailed)
+}
+
+// watchMemory counts a conversion in flight, and watches the memory of
+// Chromium while one is: a page that never stops allocating would get the
+// container OOM-killed, Gotenberg with it, since on cgroup v2 Kubernetes kills
+// every process of the container together. Killing Chromium first fails the
+// conversions in flight alone, and the supervisor restarts it before the next
+// one. An idle Chromium is not watched, so that a limit under its idle memory
+// fails conversions rather than restarting it forever. The caller holds ctxMu
+// for reading, and calls the returned function once the conversion ends.
+func (b *chromiumBrowser) watchMemory(logger *slog.Logger) func() {
+	if b.arguments.maxMemory == 0 || b.pid == 0 {
+		return func() {}
+	}
+
+	b.watchMu.Lock()
+	defer b.watchMu.Unlock()
+
+	b.inFlight++
+	if b.inFlight == 1 {
+		ctx, cancel := context.WithCancel(context.Background())
+		b.stopWatching = cancel
+		pid := b.pid
+
+		go gotenberg.WatchMemory(ctx, logger, pid, b.arguments.maxMemory, func(used uint64) {
+			b.memoryExceeded.Store(used)
+			logger.WarnContext(ctx, fmt.Sprintf("Chromium holds %s of memory, over the %s of --chromium-max-memory (env CHROMIUM_MAX_MEMORY): kill it", gotenberg.FormatMemory(used), gotenberg.FormatMemory(b.arguments.maxMemory)))
+
+			// The renderers exit with the browser, and Stop kills any that
+			// linger when the supervisor restarts it.
+			err := syscall.Kill(pid, syscall.SIGKILL)
+			if err != nil && !errors.Is(err, syscall.ESRCH) {
+				logger.ErrorContext(ctx, fmt.Sprintf("kill Chromium: %s", err))
+			}
+		})
+	}
+
+	return func() {
+		b.watchMu.Lock()
+		defer b.watchMu.Unlock()
+
+		b.inFlight--
+		if b.inFlight == 0 {
+			b.stopWatching()
+			b.stopWatching = nil
+		}
+	}
 }
 
 // requestError returns the error of a run that ctx, the request's context,

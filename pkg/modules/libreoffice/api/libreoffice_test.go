@@ -9,9 +9,12 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
 
 // fakeLokEnv makes the test binary act as lok's long-running mode, so the
@@ -29,7 +32,8 @@ func TestMain(m *testing.M) {
 
 // fakeLok answers each request according to the input filename: "ok" writes
 // the output, "badpass", "unreadable", "destroyed" and "panic" fail with lok's
-// codes, "hang" never answers, and "crash" exits. It records its arguments next to its profile.
+// codes, "hang" never answers, "hog" allocates until it is killed, and "crash"
+// exits. It records its arguments next to its profile.
 func fakeLok() {
 	for i, arg := range os.Args {
 		if arg == "--user-profile-path" && i+1 < len(os.Args) {
@@ -68,6 +72,16 @@ func fakeLok() {
 			time.Sleep(time.Hour)
 		case "crash":
 			os.Exit(3)
+		case "hog":
+			var held [][]byte
+			for {
+				chunk := make([]byte, 16<<20)
+				for i := 0; i < len(chunk); i += 4096 {
+					chunk[i] = 1
+				}
+				held = append(held, chunk)
+				time.Sleep(10 * time.Millisecond)
+			}
 		case "destroyed":
 			_ = out.Encode(lokResponse{Code: lokCodeOfficeDestroyed, Error: "office destroyed"})
 		case "panic":
@@ -328,5 +342,53 @@ func TestLibreOfficeProcess_Crash(t *testing.T) {
 
 	if p.Healthy(logger) {
 		t.Fatal("a crashed lok reports healthy")
+	}
+}
+
+func TestLibreOfficeProcess_MemoryLimit(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the memory limit reads /proc")
+	}
+
+	p := startFakeLok(t)
+	p.arguments.maxMemory = 64 << 20
+	logger := slog.New(slog.DiscardHandler)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	err := p.pdf(ctx, logger, "hog.docx", "out.pdf", DefaultOptions())
+	if !errors.Is(err, ErrMemoryLimitExceeded) {
+		t.Fatalf("pdf = %v, want ErrMemoryLimitExceeded", err)
+	}
+
+	if errors.Is(err, ErrCrashed) {
+		t.Fatal("a conversion over the memory limit reads as a crash, which the API retries")
+	}
+
+	if p.Healthy(logger) {
+		t.Fatal("a lok killed for its memory reports healthy")
+	}
+
+	if got := libreofficeErrorType(err); got != "libreoffice_memory_limit" {
+		t.Errorf("error type = %q, want libreoffice_memory_limit", got)
+	}
+}
+
+// A lok whose idle memory is over the limit is not killed between
+// conversions: only a conversion is watched.
+func TestLibreOfficeProcess_MemoryLimitWatchesConversionsOnly(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the memory limit reads /proc")
+	}
+
+	p := startFakeLok(t)
+	p.arguments.maxMemory = 1
+	logger := slog.New(slog.DiscardHandler)
+
+	time.Sleep(5 * gotenberg.MemoryWatchInterval)
+
+	if !p.Healthy(logger) {
+		t.Fatal("an idle lok was killed")
 	}
 }

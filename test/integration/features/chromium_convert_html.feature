@@ -1847,3 +1847,20 @@ Feature: /forms/chromium/convert/html
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
     Then the "foo.pdf" PDF should have 1 page(s)
+
+  # Over --chromium-max-memory, Gotenberg restarts Chromium, which fails every
+  # conversion in flight with a 503: it cannot tell which page held the memory.
+  # 1MB sits under Chromium's own memory, so any conversion exceeds it.
+  Scenario: POST /forms/chromium/convert/html (Memory Limit)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_MAX_MEMORY | 1MB |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files | testdata/page-1-html/index.html | file |
+    Then the response status code should be 503
+    Then the response body should match string:
+      """
+      Chromium exceeded its memory limit while processing the request, and Gotenberg restarted it. Retry; if the request alone exceeds it, reduce the page, or raise --chromium-max-memory (env CHROMIUM_MAX_MEMORY) on the server.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files | testdata/page-1-html/index.html | file |
+    Then the response status code should be 503

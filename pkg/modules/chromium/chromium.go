@@ -85,6 +85,12 @@ var (
 	// conversion.
 	ErrChromiumCrashed = errors.New("chromium crashed")
 
+	// ErrChromiumMemoryLimitExceeded happens when Chromium holds more memory
+	// than --chromium-max-memory (env CHROMIUM_MAX_MEMORY) allows while it
+	// converts. Gotenberg kills it, which fails every conversion in flight:
+	// it cannot tell which page holds the memory.
+	ErrChromiumMemoryLimitExceeded = errors.New("chromium exceeded its memory limit")
+
 	// PDF specific.
 
 	// ErrOmitBackgroundWithoutPrintBackground happens if
@@ -522,6 +528,7 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Int64("chromium-max-queue-size", 0, "Maximum request queue size for Chromium. Set to 0 to disable this feature")
 			fs.Duration("chromium-idle-shutdown-timeout", 0, "Shutdown Chromium after being idle for the given duration. Set to 0 to disable this feature")
 			fs.Int64("chromium-max-concurrency", 6, "Maximum number of concurrent conversions. Chromium supports up to 6")
+			fs.String("chromium-max-memory", "", "Set the anonymous resident memory Chromium, all its processes together, may hold while it converts - it accepts values like 1500MB, 2GB, etc. Over it, Gotenberg kills Chromium, which fails every conversion in flight with a 503, and restarts it. Keep it under the container's memory limit, so that a runaway page does not get the container OOM-killed. Empty disables this feature")
 			fs.Bool("chromium-auto-start", false, "Automatically launch Chromium upon initialization if set to true; otherwise, Chromium will start at the time of the first conversion")
 			fs.Duration("chromium-start-timeout", time.Duration(20)*time.Second, "Maximum duration to wait for Chromium to start or restart")
 			fs.Bool("chromium-allow-insecure-localhost", false, "Ignore TLS/SSL errors on localhost")
@@ -578,6 +585,7 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 		proxyServer:              flags.MustString("chromium-proxy-server"),
 		enableEnvironmentProxy:   flags.MustBool("chromium-enable-environment-proxy"),
 		wsUrlReadTimeout:         flags.MustDuration("chromium-start-timeout"),
+		maxMemory:                uint64(max(flags.MustHumanReadableBytes("chromium-max-memory"), 0)),
 		hyphenDataDirPath:        hyphenDataDirPath,
 		debugProtocol:            flags.MustBool("chromium-debug-protocol"),
 
@@ -1000,6 +1008,8 @@ func chromiumErrorType(err error) string {
 		errors.Is(err, ErrPageRangesSyntaxError),
 		errors.Is(err, ErrPageRangesExceedsPageCount):
 		return gotenberg.ErrorTypeInvalidInput
+	case errors.Is(err, ErrChromiumMemoryLimitExceeded):
+		return "chromium_memory_limit"
 	case errors.Is(err, ErrChromiumCrashed),
 		errors.Is(err, gotenberg.ErrMaximumQueueSizeExceeded),
 		errors.Is(err, gotenberg.ErrProcessAlreadyRestarting):

@@ -30,6 +30,9 @@ type libreOfficeArguments struct {
 	binPath      string
 	lokBinPath   string
 	startTimeout time.Duration
+	// maxMemory is the anonymous resident memory, in bytes, lok may hold
+	// during a conversion, 0 for no limit (see --libreoffice-max-memory).
+	maxMemory uint64
 	// enableMacros lets lok run the documents' macros. Off by default: a
 	// macro runs code inside the container.
 	enableMacros bool
@@ -517,7 +520,43 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *slog.Logger, input
 
 	logger.DebugContext(ctx, fmt.Sprintf("print to PDF with: %+v", options))
 
+	// A conversion that never stops allocating would get the container
+	// OOM-killed, Gotenberg with it: on cgroup v2, Kubernetes kills every
+	// process of the container together. Killing lok first fails this
+	// conversion alone. Only a conversion is watched, so that a limit under
+	// lok's idle memory fails conversions rather than restarting lok forever.
+	var exceeded atomic.Uint64
+	watchCtx, cancelWatch := context.WithCancel(ctx)
+	watched := make(chan struct{})
+	// Waiting for the watch to end means a kill it decided reads as the
+	// memory limit, and none lands once this conversion returns.
+	stopWatching := func() {
+		cancelWatch()
+		<-watched
+	}
+	defer cancelWatch()
+	go func() {
+		defer close(watched)
+		gotenberg.WatchMemory(watchCtx, logger, cmd.Pid(), p.arguments.maxMemory, func(used uint64) {
+			exceeded.Store(used)
+			logger.WarnContext(ctx, fmt.Sprintf("LibreOffice holds %s of memory, over the %s of --libreoffice-max-memory (env LIBREOFFICE_MAX_MEMORY): kill it", gotenberg.FormatMemory(used), gotenberg.FormatMemory(p.arguments.maxMemory)))
+
+			killErr := cmd.Kill()
+			if killErr != nil {
+				logger.ErrorContext(ctx, fmt.Sprintf("kill lok: %s", killErr))
+			}
+		})
+	}()
+
 	resp, err := exchange(ctx, stdin, stdout, exited, req)
+	stopWatching()
+
+	if used := exceeded.Load(); used > 0 {
+		terminate(ctx, logger, cmd, exited)
+
+		return fmt.Errorf("%w: %s held, %s allowed", ErrMemoryLimitExceeded, gotenberg.FormatMemory(used), gotenberg.FormatMemory(p.arguments.maxMemory))
+	}
+
 	if err != nil {
 		if ctx.Err() != nil {
 			// LibreOfficeKit calls cannot be cancelled: kill lok so that its

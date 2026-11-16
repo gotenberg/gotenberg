@@ -188,6 +188,10 @@ func convertRoute(libreOffice libreofficeapi.Converter, processor *pdf.Processor
 						sentinel = api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("LibreOffice could not read the document '%s'. Ensure the file is not corrupted and that its extension matches its actual format.", filename))
 					case errors.Is(err, libreofficeapi.ErrSaveFailed) && options.PageRanges != "":
 						sentinel = api.NewSentinelHttpError(http.StatusBadRequest, fmt.Sprintf("LibreOffice could not apply the pages '%s' to the document '%s'. Check the 'nativePages' form field; valid values look like '1-4', '2' or '1,3,5-7'.", options.PageRanges, filename))
+					case errors.Is(err, libreofficeapi.ErrMemoryLimitExceeded):
+						// The same document exceeds the limit again: a 4xx
+						// tells the client not to retry it as is.
+						sentinel = api.NewSentinelHttpError(http.StatusUnprocessableEntity, fmt.Sprintf("LibreOffice exceeded its memory limit converting the document '%s'. Reduce the document, or raise --libreoffice-max-memory (env LIBREOFFICE_MAX_MEMORY) on the server.", filename))
 					case errors.Is(err, libreofficeapi.ErrSaveFailed), errors.Is(err, libreofficeapi.ErrCrashed):
 						sentinel = api.NewSentinelHttpError(http.StatusInternalServerError, fmt.Sprintf(unattributableFailureMessage, filename))
 					default:

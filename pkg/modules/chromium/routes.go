@@ -938,6 +938,18 @@ func handleChromiumError(err error, options Options) error {
 		return nil
 	}
 
+	// Gotenberg cannot tell which page held the memory: every conversion in
+	// flight fails, and each may succeed once retried on its own.
+	if errors.Is(err, ErrChromiumMemoryLimitExceeded) {
+		return api.WrapError(
+			err,
+			api.NewSentinelHttpError(
+				http.StatusServiceUnavailable,
+				"Chromium exceeded its memory limit while processing the request, and Gotenberg restarted it. Retry; if the request alone exceeds it, reduce the page, or raise --chromium-max-memory (env CHROMIUM_MAX_MEMORY) on the server.",
+			),
+		)
+	}
+
 	if errors.Is(err, ErrChromiumCrashed) {
 		return api.WrapError(
 			err,

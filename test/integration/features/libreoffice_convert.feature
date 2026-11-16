@@ -1237,3 +1237,21 @@ Feature: /forms/libreoffice/convert
       """
       Invalid form data: form field 'stages' is disabled on this instance; send the request without it
       """
+
+  # A conversion over --libreoffice-max-memory fails alone with a 422, which
+  # tells the client not to retry it as is, and LibreOffice restarts for the
+  # next one. 1MB sits under LibreOffice's own memory, so any conversion
+  # exceeds it.
+  Scenario: POST /forms/libreoffice/convert (Memory Limit)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | LIBREOFFICE_MAX_MEMORY | 1MB |
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files | testdata/page_1.docx | file |
+    Then the response status code should be 422
+    Then the response body should match string:
+      """
+      LibreOffice exceeded its memory limit converting the document 'page_1.docx'. Reduce the document, or raise --libreoffice-max-memory (env LIBREOFFICE_MAX_MEMORY) on the server.
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files | testdata/page_1.docx | file |
+    Then the response status code should be 422

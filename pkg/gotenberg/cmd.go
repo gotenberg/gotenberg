@@ -150,6 +150,15 @@ func (cmd *Cmd) Kill() error {
 	return fmt.Errorf("kill unix process: %w", err)
 }
 
+// Pid returns the process ID of the started process, 0 before it starts.
+func (cmd *Cmd) Pid() int {
+	if cmd.process == nil || cmd.process.Process == nil {
+		return 0
+	}
+
+	return cmd.process.Process.Pid
+}
+
 // logCommandOutput creates log entries from the lines of a process output.
 func logCommandOutput(logger *slog.Logger, reader io.ReadCloser) {
 	r := bufio.NewReader(reader)
