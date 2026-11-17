@@ -14,6 +14,7 @@ body:multipart-form {
   files: @file(../test/integration/testdata/page_1.pdf)
   files: @file(../test/integration/testdata/page_2.pdf)
   ~archives: @file(../test/integration/testdata/pages_1_2.zip)
+  ~fileBookmarks: {"label":["title","filename"],"labels":{"page_2.pdf":"Annex"}}
 }
 
 headers {
