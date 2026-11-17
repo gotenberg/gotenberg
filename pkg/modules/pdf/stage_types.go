@@ -36,13 +36,69 @@ type rewriter interface {
 }
 
 // mergeStage appends every current document, in order, into one.
+// FileBookmarks, when set, adds one top-level bookmark per document, leading
+// to its first page, with the document's own outline nested under it.
 type mergeStage struct {
+	FileBookmarks *fileBookmarks `json:"fileBookmarks"`
+
 	signatureDrop
 }
 
-func (*mergeStage) op() string      { return "merge" }
-func (*mergeStage) validate() error { return nil }
+func (*mergeStage) op() string { return "merge" }
+
+func (s *mergeStage) validate() error {
+	if s.FileBookmarks == nil {
+		return nil
+	}
+
+	return s.FileBookmarks.validate()
+}
+
 func (*mergeStage) files() []string { return nil }
+
+// fileBookmarks labels the bookmark merge adds for each document. Labels
+// gives the label of the documents it names by filename. Every other document
+// takes the first non-blank label of the sources Label lists, in order:
+// "title", the document's title metadata, and "filename", its filename
+// without the extension. filename ends every list, so each document gets a
+// label, and Label defaults to ["title","filename"].
+type fileBookmarks struct {
+	Label  []string          `json:"label"`
+	Labels map[string]string `json:"labels"`
+}
+
+// labelSources are the values of [fileBookmarks.Label].
+var labelSources = []string{"title", "filename"}
+
+func (b *fileBookmarks) validate() error {
+	for _, source := range b.Label {
+		if !slices.Contains(labelSources, source) {
+			return fmt.Errorf(`"fileBookmarks.label" must list label sources among %s, got %q`, strings.Join(labelSources, ", "), source)
+		}
+	}
+
+	for _, name := range sortedKeys(b.Labels) {
+		if strings.TrimSpace(b.Labels[name]) == "" {
+			return fmt.Errorf(`"fileBookmarks.labels" must give %q a non-blank label`, name)
+		}
+	}
+
+	return nil
+}
+
+// sources returns the label sources to try, in order: Label, or the default,
+// with "filename" last when Label leaves it out.
+func (b *fileBookmarks) sources() []string {
+	if len(b.Label) == 0 {
+		return labelSources
+	}
+
+	if slices.Contains(b.Label, "filename") {
+		return b.Label
+	}
+
+	return append(slices.Clone(b.Label), "filename")
+}
 
 // splitStage turns each current document into several. Every splits it into
 // chunks of that many pages; Ranges into one document per page selection, such

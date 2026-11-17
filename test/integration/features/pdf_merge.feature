@@ -59,6 +59,81 @@ Feature: /forms/pdf/merge
     Then the response status code should be 200
     Then the "foo.pdf" PDF should have 3 page(s)
 
+  # fileBookmarks adds a top-level bookmark per merged PDF, labeled by its title
+  # metadata, falling back to its filename, at its first page, with its own
+  # outline nested underneath. See https://github.com/gotenberg/gotenberg/issues/1736.
+  Scenario: POST /forms/pdf/merge (File Bookmarks)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/merge" endpoint with the following form data and header(s):
+      | files                     | testdata/titled_alpha.pdf   | file   |
+      | files                     | testdata/titled_bravo.pdf   | file   |
+      | files                     | testdata/untitled_gamma.pdf | file   |
+      | fileBookmarks             | {}                          | field  |
+      | Gotenberg-Output-Filename | foo                         | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/bookmarks" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file |
+    Then the response status code should be 200
+    Then the response body should match JSON:
+      """
+      {
+        "foo.pdf": [
+          {
+            "title": "Alpha",
+            "pageNumber": 1,
+            "children": [
+              { "title": "A1", "pageNumber": 1 },
+              { "title": "A2", "pageNumber": 2 }
+            ]
+          },
+          { "title": "Bravo", "pageNumber": 3 },
+          { "title": "untitled_gamma", "pageNumber": 4 }
+        ]
+      }
+      """
+
+  Scenario: POST /forms/pdf/pipe (File Bookmarks Labels)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
+      | files                     | testdata/titled_alpha.pdf                                                                       | file   |
+      | files                     | testdata/titled_bravo.pdf                                                                       | file   |
+      | stages                    | [{"op":"merge","fileBookmarks":{"label":["filename"],"labels":{"titled_bravo.pdf":"Annex B"}}}] | field  |
+      | Gotenberg-Output-Filename | foo                                                                                             | header |
+    Then the response status code should be 200
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/bookmarks" endpoint with the following form data and header(s):
+      | files | teststore/foo.pdf | file |
+    Then the response status code should be 200
+    Then the response body should match JSON:
+      """
+      {
+        "foo.pdf": [
+          {
+            "title": "titled_alpha",
+            "pageNumber": 1,
+            "children": [
+              { "title": "A1", "pageNumber": 1 },
+              { "title": "A2", "pageNumber": 2 }
+            ]
+          },
+          { "title": "Annex B", "pageNumber": 3 }
+        ]
+      }
+      """
+
+  Scenario: POST /forms/pdf/merge (File Bookmarks Unknown Label)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/merge" endpoint with the following form data and header(s):
+      | files         | testdata/page_1.pdf         | file  |
+      | files         | testdata/page_2.pdf         | file  |
+      | fileBookmarks | {"labels":{"nope.pdf":"N"}} | field |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Stage 'merge' failed on 'page_1.pdf': "fileBookmarks.labels" must name an uploaded PDF, got "nope.pdf"; the uploaded PDFs are page_1.pdf, page_2.pdf
+      """
+
   Scenario: POST /forms/pdf/merge (Bad Request)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/merge" endpoint with the following form data and header(s):

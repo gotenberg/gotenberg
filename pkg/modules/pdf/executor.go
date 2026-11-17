@@ -294,19 +294,31 @@ func (p *Processor) write(ctx *api.Context, pipeline *litho.Pipeline, ops []stri
 }
 
 // merge appends every document, in order, into one named after the first.
+// With file bookmarks, each document gets a top-level bookmark at its first
+// page, its own outline nested under it, even when it is the only one.
 func (p *Processor) merge(ctx *api.Context, s *mergeStage, docs []document, password string) ([]document, error) {
-	// A single document is not rewritten, but it is read all the same: merge
-	// must not hand back a file the other routes refuse.
-	if len(docs) == 1 {
+	if len(docs) == 0 {
+		return docs, nil
+	}
+
+	if s.FileBookmarks != nil {
+		err := checkLabelNames(s.FileBookmarks, docs)
+		if err != nil {
+			return nil, &stageError{op: "merge", filename: docs[0].filename, err: err}
+		}
+	}
+
+	// A single document without file bookmarks is not rewritten, but it is
+	// read all the same: merge must not hand back a file the other routes
+	// refuse.
+	if len(docs) == 1 && s.FileBookmarks == nil {
 		r, err := p.open(ctx, docs[0].path, password)
 		if err != nil {
 			return nil, &stageError{op: "merge", filename: docs[0].filename, err: err}
 		}
 
 		_ = r.Close()
-	}
 
-	if len(docs) < 2 {
 		return docs, nil
 	}
 
@@ -326,7 +338,36 @@ func (p *Processor) merge(ctx *api.Context, s *mergeStage, docs []document, pass
 		readers = append(readers, r)
 	}
 
-	pipeline := litho.NewPipeline().Open(readers[0]).Merge(readers[1:])
+	var pipeline *litho.Pipeline
+
+	switch {
+	case s.FileBookmarks == nil:
+		pipeline = litho.NewPipeline().Open(readers[0]).Merge(readers[1:])
+	case len(readers) == 1:
+		// litho merges two documents or more. One document keeps its pages
+		// and gains the bookmark in an update, as set-bookmarks does.
+		outline, err := readers[0].Bookmarks(ctx)
+		if err != nil {
+			return nil, &stageError{op: "merge", filename: docs[0].filename, err: err}
+		}
+
+		bookmarks := []models.Bookmark{{
+			Title:      fileBookmarkLabels(ctx, s.FileBookmarks, readers, docs)[0],
+			PageNumber: 1,
+			Children:   outline,
+		}}
+
+		pipeline = litho.NewPipeline().Open(readers[0]).Apply(func(_ context.Context, w *litho.Writer) error {
+			w.SetBookmarks(bookmarks)
+			return nil
+		})
+	default:
+		pipeline = litho.NewPipeline().Open(readers[0]).Merge(readers[1:], litho.WithBookmarks(litho.BookmarkOptions{
+			Handling:       litho.BookmarkUpdate,
+			WrapEachSource: true,
+			SourceLabels:   fileBookmarkLabels(ctx, s.FileBookmarks, readers, docs),
+		}))
+	}
 
 	merged, err := p.write(ctx, pipeline, []string{"merge"}, docs[0].filename, signatureRemoval(s)...)
 	if err != nil {
@@ -334,6 +375,57 @@ func (p *Processor) merge(ctx *api.Context, s *mergeStage, docs []document, pass
 	}
 
 	return []document{merged}, nil
+}
+
+// checkLabelNames refuses a label of b for a filename no document has.
+func checkLabelNames(b *fileBookmarks, docs []document) error {
+	for _, name := range sortedKeys(b.Labels) {
+		if !slices.ContainsFunc(docs, func(d document) bool { return d.filename == name }) {
+			return &stageInputError{message: fmt.Sprintf(`"fileBookmarks.labels" must name an uploaded PDF, got %q; the uploaded PDFs are %s`, name, documentNames(docs))}
+		}
+	}
+
+	return nil
+}
+
+// fileBookmarkLabels returns the label of each document's bookmark, in order
+// (see [fileBookmarks]). A title that cannot be read is skipped, with a
+// warning.
+func fileBookmarkLabels(ctx *api.Context, b *fileBookmarks, readers []*litho.Reader, docs []document) []string {
+	labels := make([]string, len(docs))
+
+	for i, d := range docs {
+		if label, ok := b.Labels[d.filename]; ok {
+			labels[i] = label
+			continue
+		}
+
+		for _, source := range b.sources() {
+			switch source {
+			case "title":
+				metadata, err := readers[i].Metadata(ctx)
+				if err != nil {
+					ctx.Log().WarnContext(ctx, fmt.Sprintf("read the title of '%s' for its bookmark: %s", d.filename, err))
+					continue
+				}
+
+				if title := metadata["Title"]; strings.TrimSpace(title) != "" {
+					labels[i] = title
+				}
+			case "filename":
+				labels[i] = strings.TrimSuffix(d.filename, filepath.Ext(d.filename))
+				if strings.TrimSpace(labels[i]) == "" {
+					labels[i] = d.filename
+				}
+			}
+
+			if labels[i] != "" {
+				break
+			}
+		}
+	}
+
+	return labels
 }
 
 // compose draws the pages the placements of s name, each from the document

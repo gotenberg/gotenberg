@@ -15,6 +15,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -1520,5 +1521,108 @@ func TestRunSignErrors(t *testing.T) {
 				t.Fatalf("got %d %q, want 400 %q", status, message, tc.wantErr)
 			}
 		})
+	}
+}
+
+// TestRunMergeFileBookmarks pins the bookmark merge adds per document with
+// fileBookmarks: at the document's first page, its own outline nested under
+// it, labeled by an explicit label, its title, or its filename.
+func TestRunMergeFileBookmarks(t *testing.T) {
+	alpha := models.Bookmark{Title: "Alpha", PageNumber: 1, Children: []models.Bookmark{
+		{Title: "A1", PageNumber: 1},
+		{Title: "A2", PageNumber: 2},
+	}}
+
+	for _, tc := range []struct {
+		name   string
+		inputs []string
+		stages string
+		want   []models.Bookmark
+	}{
+		{
+			name:   "title, then filename",
+			inputs: []string{"titled_alpha.pdf", "titled_bravo.pdf", "untitled_gamma.pdf"},
+			stages: `[{"op":"merge","fileBookmarks":{}}]`,
+			want: []models.Bookmark{
+				alpha,
+				{Title: "Bravo", PageNumber: 3},
+				{Title: "untitled_gamma", PageNumber: 4},
+			},
+		},
+		{
+			name:   "filename only",
+			inputs: []string{"titled_alpha.pdf", "untitled_gamma.pdf"},
+			stages: `[{"op":"merge","fileBookmarks":{"label":["filename"]}}]`,
+			want: []models.Bookmark{
+				{Title: "titled_alpha", PageNumber: 1, Children: alpha.Children},
+				{Title: "untitled_gamma", PageNumber: 3},
+			},
+		},
+		{
+			name:   "title, with filename implied last",
+			inputs: []string{"titled_bravo.pdf", "untitled_gamma.pdf"},
+			stages: `[{"op":"merge","fileBookmarks":{"label":["title"]}}]`,
+			want: []models.Bookmark{
+				{Title: "Bravo", PageNumber: 1},
+				{Title: "untitled_gamma", PageNumber: 2},
+			},
+		},
+		{
+			name:   "an explicit label wins",
+			inputs: []string{"titled_alpha.pdf", "titled_bravo.pdf"},
+			stages: `[{"op":"merge","fileBookmarks":{"labels":{"titled_bravo.pdf":"Annex B"}}}]`,
+			want:   []models.Bookmark{alpha, {Title: "Annex B", PageNumber: 3}},
+		},
+		{
+			name:   "a single document",
+			inputs: []string{"titled_alpha.pdf"},
+			stages: `[{"op":"merge","fileBookmarks":{}}]`,
+			want:   []models.Bookmark{alpha},
+		},
+		{
+			name:   "without fileBookmarks, the outlines are concatenated",
+			inputs: []string{"titled_alpha.pdf", "titled_bravo.pdf"},
+			stages: `[{"op":"merge"}]`,
+			want:   alpha.Children,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, paths := testContext(t, tc.inputs...)
+
+			inputs := make([]string, len(tc.inputs))
+			for i, name := range tc.inputs {
+				inputs[i] = paths[name]
+			}
+
+			outputs, err := testProcessor().Run(ctx, mustStages(t, tc.stages), inputs, nil)
+			if err != nil {
+				t.Fatalf("Run: %v", err)
+			}
+
+			got, err := openOutput(t, outputs[0]).Bookmarks(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("outline = %+v, want %+v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestRunMergeFileBookmarksUnknownLabel(t *testing.T) {
+	ctx, paths := testContext(t, "page_1.pdf", "page_2.pdf")
+
+	_, err := testProcessor().Run(ctx, mustStages(t, `[{"op":"merge","fileBookmarks":{"labels":{"nope.pdf":"N"}}}]`), []string{paths["page_1.pdf"], paths["page_2.pdf"]}, nil)
+	if err == nil {
+		t.Fatal("Run: want an error")
+	}
+
+	want := `Stage 'merge' failed on 'page_1.pdf': "fileBookmarks.labels" must name an uploaded PDF, got "nope.pdf"; the uploaded PDFs are page_1.pdf, page_2.pdf`
+
+	status, message := api.ParseError(err)
+	if status != http.StatusBadRequest || message != want {
+		t.Fatalf("got %d %q, want 400 %q", status, message, want)
 	}
 }
