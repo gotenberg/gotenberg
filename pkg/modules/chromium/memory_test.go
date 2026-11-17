@@ -37,19 +37,26 @@ func TestChromiumBrowser_WatchMemory(t *testing.T) {
 	}
 
 	t.Run("idle, not watched", func(t *testing.T) {
-		cmd, exited := start(t)
-		b := &chromiumBrowser{arguments: browserArguments{maxMemory: 1}, pid: cmd.Process.Pid}
+		// A conversion runs between the watch and its release, so the watch
+		// may read, and kill, the first process before the release: that is
+		// the in-flight case. The browser the supervisor runs next, idle,
+		// must not be watched.
+		first, _ := start(t)
+		b := &chromiumBrowser{arguments: browserArguments{maxMemory: 1}, pid: first.Process.Pid}
 
 		b.watchMemory(logger)()
+
+		if b.inFlight != 0 || b.stopWatching != nil {
+			t.Fatalf("inFlight = %d, stopWatching set = %t, want no watch once released", b.inFlight, b.stopWatching != nil)
+		}
+
+		next, exited := start(t)
+		b.pid = next.Process.Pid
 
 		select {
 		case <-exited:
 			t.Fatal("the watch killed the browser once no conversion was in flight")
 		case <-time.After(5 * gotenberg.MemoryWatchInterval):
-		}
-
-		if b.memoryExceeded.Load() != 0 {
-			t.Fatal("memoryExceeded set without a conversion in flight")
 		}
 	})
 

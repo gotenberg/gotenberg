@@ -153,7 +153,9 @@ func WatchMemory(ctx context.Context, logger *slog.Logger, pid int, limit uint64
 			return
 		}
 
-		if used > limit {
+		// ctx may have ended while the tree was read: the work it watched is
+		// over, and so is the reason to call exceeded.
+		if used > limit && ctx.Err() == nil {
 			exceeded(used)
 			return
 		}
