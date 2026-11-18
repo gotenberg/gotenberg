@@ -63,4 +63,4 @@ headers {
 3. For file uploads, use `@file(...)` with a suitable test file.
 4. Verify the URL path matches the route's `Path` field exactly.
 5. For new module folders, keep the naming consistent (e.g., `PDF/Pages/`).
-6. Regenerate `openapi.yaml` too: see [OpenAPI description](../CONTRIBUTING.md#openapi-description).
+6. Update the OpenAPI description too: see [OpenAPI description](../CONTRIBUTING.md#openapi-description).

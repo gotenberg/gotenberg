@@ -19,7 +19,7 @@ For non-trivial changes, open an issue or a draft PR first. Describe what needs 
 
 One thing per PR. Keep features, bug fixes, and refactoring in separate PRs.
 
-When adding a feature or route, write the Gherkin scenario before the Go code, and plan to update the Bruno collection (`.bruno/`) and the OpenAPI description (`openapi.yaml`) if a route changes.
+When adding a feature or route, write the Gherkin scenario before the Go code, and plan to update the Bruno collection (`.bruno/`) and the OpenAPI description if a route changes.
 
 ## Project layout
 
@@ -32,7 +32,6 @@ test/integration/    -> Gherkin feature files + Go test infrastructure.
 test/corpus/         -> Release QA corpus: realistic documents, one feature file per engine.
 build/               -> Dockerfile, fonts, Chromium config.
 .bruno/              -> Bruno API collection (mirrors every route).
-openapi.yaml         -> OpenAPI description, generated from gotenberg.dev's reference data.
 ```
 
 Key interfaces live in `pkg/gotenberg/`: `Module`, `Provisioner`, `Validator`, `Debuggable`. Every module implements `Descriptor()` and self-registers via `init()`.
@@ -162,15 +161,13 @@ The release QA corpus is a separate suite, `make test-corpus`, that runs realist
 
 ## OpenAPI description
 
-`openapi.yaml` describes every route in OpenAPI 3.1, with the names and descriptions of [gotenberg.dev](https://gotenberg.dev). Don't edit it by hand: [gotenberg.dev](https://github.com/gotenberg/gotenberg.dev) generates it from its reference data (`src/data/routes.json`, `src/data/stages.json`), so the spec and the docs say the same thing.
+[gotenberg.dev](https://github.com/gotenberg/gotenberg.dev) serves the OpenAPI description of every route at [gotenberg.dev/openapi.yaml](https://gotenberg.dev/openapi.yaml). It generates it from its reference data (`src/data/routes.json`, `src/data/stages.json`), so the spec and the docs say the same thing.
 
 When a route, a form field, a header or a status changes:
 
 1. Update the reference data in gotenberg.dev, next to this checkout.
-2. Run `npm run sync:openapi` there. It writes `openapi.yaml` here and the copy the site serves.
-3. Run `npm run check:api` there: it checks the data against this checkout, and both copies against the data.
-
-`TestOpenAPIListsEveryRoute` (`pkg/standard`) fails when a route the modules register is missing from `openapi.yaml`, or the other way round.
+2. Run `npm run sync:openapi` there to regenerate `static/openapi.yaml`.
+3. Run `npm run check:api` there: it checks the data against this checkout, and the spec against the data.
 
 ## Pull requests
 
