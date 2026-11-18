@@ -1,6 +1,6 @@
 # Bruno API Collection
 
-[Bruno](https://www.usebruno.com/) collection mirroring every Gotenberg route. Update the collection when adding or modifying a route.
+[Bruno](https://www.usebruno.com/) collection mirroring every Gotenberg route. Update the collection, and the OpenAPI description, when adding or modifying a route.
 
 ## Structure
 
@@ -63,3 +63,4 @@ headers {
 3. For file uploads, use `@file(...)` with a suitable test file.
 4. Verify the URL path matches the route's `Path` field exactly.
 5. For new module folders, keep the naming consistent (e.g., `PDF/Pages/`).
+6. Regenerate `openapi.yaml` too: see [OpenAPI description](../CONTRIBUTING.md#openapi-description).
