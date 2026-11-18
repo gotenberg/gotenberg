@@ -91,6 +91,8 @@ func TestParseStages(t *testing.T) {
 		{name: "extract-attachments not last", raw: `[{"op":"extract-attachments"},{"op":"rotate","angle":90}]`, wantErr: `stage 0: "extract-attachments" must be the last stage`},
 		{name: "extract-attachments before render", raw: `[{"op":"extract-attachments"},{"op":"render"}]`, wantErr: `stage 0: "extract-attachments" must be the last stage`},
 		{name: "extract-text not last", raw: `[{"op":"extract-text"},{"op":"extract-attachments"}]`, wantErr: `stage 0: "extract-text" must be the last stage`},
+		{name: "extract-text as markdown", raw: `[{"op":"extract-text","format":"markdown"}]`, wantOps: []string{"extract-text"}},
+		{name: "extract-text in an unknown format", raw: `[{"op":"extract-text","format":"html"}]`, wantErr: `stage 0: extract-text: "format" must be "text" or "markdown", got "html"`},
 		{name: "extract-text after sign", raw: `[{"op":"sign","certificate":"c.p12"},{"op":"extract-text","pages":"1","artifacts":true}]`, wantOps: []string{"sign", "extract-text"}},
 		{name: "extract-attachments after sign", raw: `[{"op":"sign","certificate":"c.p12"},{"op":"extract-attachments"}]`, wantOps: []string{"sign", "extract-attachments"}},
 		{name: "extract-attachments after remediate and encrypt", raw: `[{"op":"remediate","profile":"PDF/UA-1"},{"op":"encrypt","userPassword":"u"},{"op":"extract-attachments","name":"factur-x.xml"}]`, wantOps: []string{"remediate", "encrypt", "extract-attachments"}},
@@ -401,5 +403,21 @@ func TestSplitStageFromFormDropSignatures(t *testing.T) {
 
 	if s := stages[0].(*splitStage); !s.DropSignatures || s.Every == nil || *s.Every != 1 {
 		t.Fatalf("stage = %+v, want every 1 and dropSignatures", s)
+	}
+}
+
+func TestStagesExtractsMarkdown(t *testing.T) {
+	for _, tc := range []struct {
+		raw  string
+		want bool
+	}{
+		{raw: `[]`, want: false},
+		{raw: `[{"op":"extract-text"}]`, want: false},
+		{raw: `[{"op":"extract-text","format":"text"}]`, want: false},
+		{raw: `[{"op":"rotate","angle":90},{"op":"extract-text","format":"markdown"}]`, want: true},
+	} {
+		if got := mustStages(t, tc.raw).ExtractsMarkdown(); got != tc.want {
+			t.Errorf("ExtractsMarkdown(%s) = %t, want %t", tc.raw, got, tc.want)
+		}
 	}
 }

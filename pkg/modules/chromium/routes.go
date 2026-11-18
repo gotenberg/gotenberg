@@ -814,7 +814,19 @@ func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) 
 	return fmt.Sprintf("file://%s", inputPath), nil
 }
 
+// convertUrl prints url to PDF with Chromium and runs stages on the result.
+//
+// When the stages extract the text as Markdown, Chromium prints a tagged PDF
+// whatever nativeTaggedPdf says: Markdown reads its headings, lists and tables
+// from the structure tree, and an untagged print gives it only the layout,
+// where Chromium sets each styled run of text apart and draws list bullets as
+// shapes.
 func convertUrl(ctx *api.Context, chromium Api, processor *pdf.Processor, url string, options PdfOptions, stages pdf.Stages, files map[string]string) error {
+	if stages.ExtractsMarkdown() && !options.GenerateTaggedPdf {
+		ctx.Log().DebugContext(ctx, "Markdown extraction requested, enabling tagged PDF because Markdown reads the structure tree")
+		options.GenerateTaggedPdf = true
+	}
+
 	outputPath := ctx.GeneratePath(".pdf")
 	// See https://github.com/gotenberg/gotenberg/issues/1130.
 	filename := ctx.OutputFilename(outputPath)

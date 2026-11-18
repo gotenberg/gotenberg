@@ -80,6 +80,41 @@ Feature: /forms/pdf/extract-text
       Page 1
       """
 
+  # Markdown reads the PDF's structure tree, or its layout when it has none:
+  # pages_3.pdf is untagged, and each page holds a line of body text.
+  Scenario: POST /forms/pdf/extract-text (Markdown)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/extract-text" endpoint with the following form data and header(s):
+      | files  | testdata/pages_3.pdf | file  |
+      | format | markdown             | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should contain "text/markdown"
+    Then there should be 0 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | pages_3.md |
+    Then the "pages_3.md" file should match string:
+      """
+      Page 1
+
+      Page 2
+
+      Page 3
+
+      """
+    # Markdown reads the pages in document order.
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/extract-text" endpoint with the following form data and header(s):
+      | files  | testdata/pages_3.pdf | file  |
+      | format | markdown             | field |
+      | pages  | 3,1                  | field |
+    Then the response status code should be 200
+    Then the "pages_3.md" file should match string:
+      """
+      Page 1
+
+      Page 3
+
+      """
+
   # stamp-text marks its stamp as an artifact, which only artifacts reads.
   Scenario: POST /forms/pdf/pipe (Extract Text)
     Given I have a default Gotenberg container
@@ -116,6 +151,14 @@ Feature: /forms/pdf/extract-text
     Then the response body should match string:
       """
       Invalid form data: form field 'annotations' is invalid (got 'yes', want true or false)
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/extract-text" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.pdf | file  |
+      | format | html                | field |
+    Then the response status code should be 400
+    Then the response body should contain string:
+      """
+      "format" must be "text" or "markdown", got "html"
       """
     When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
       | files  | testdata/pages_3.pdf                               | file  |

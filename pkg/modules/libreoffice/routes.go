@@ -20,7 +20,8 @@ import (
 const unattributableFailureMessage = "LibreOffice failed to convert the document '%s'. This is usually a resource issue: increase the container's memory and CPU, or reduce the document's size. The request is valid and may be retried."
 
 // convertRoute returns an [api.Route] which can convert LibreOffice documents
-// to PDF.
+// to PDF. When the stages extract the text as Markdown, LibreOffice exports a
+// tagged PDF whatever nativeTaggedPdf says.
 func convertRoute(libreOffice libreofficeapi.Converter, processor *pdf.Processor) api.Route {
 	return api.Route{
 		Method:      http.MethodPost,
@@ -161,6 +162,14 @@ func convertRoute(libreOffice libreofficeapi.Converter, processor *pdf.Processor
 					http.StatusBadRequest,
 					`Invalid form data: form field 'nativePdfa' PDF/A-4 cannot be combined with 'nativePdfua': LibreOffice then claims PDF/UA-2 without meeting it; remove both and add {"op":"remediate","profile":["PDF/A-4","PDF/UA-2"]} to 'stages'`,
 				)
+			}
+
+			// Markdown reads its headings, lists and tables from the structure
+			// tree, which LibreOffice writes into a tagged PDF only: without
+			// it, Markdown has the layout alone to read.
+			if stages.ExtractsMarkdown() && !options.GenerateTaggedPdf {
+				ctx.Log().DebugContext(ctx, "Markdown extraction requested, enabling tagged PDF because Markdown reads the structure tree")
+				options.GenerateTaggedPdf = true
 			}
 
 			outputPaths := make([]string, len(inputPaths))

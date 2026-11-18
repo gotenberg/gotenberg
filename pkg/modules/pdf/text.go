@@ -1,6 +1,7 @@
 package pdf
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -18,8 +19,8 @@ import (
 const pageSeparator = "\f"
 
 // extractText writes the text of the pages s selects of each document, and
-// returns the paths of the .txt files, one per document: invoice.pdf gives
-// invoice.txt.
+// returns the paths of the files, one per document: invoice.pdf gives
+// invoice.txt, or invoice.md for Markdown.
 func (p *Processor) extractText(ctx *api.Context, s *extractTextStage, docs []document, password string) ([]string, error) {
 	extracted := make([]extractedFile, len(docs))
 
@@ -72,33 +73,66 @@ func (p *Processor) extractTextOne(ctx *api.Context, s *extractTextStage, d docu
 		return extractedFile{}, err
 	}
 
-	span.SetAttributes(attribute.Int("gotenberg.pdf.page.count", len(pages)))
+	span.SetAttributes(
+		attribute.Int("gotenberg.pdf.page.count", len(pages)),
+		attribute.String("gotenberg.pdf.text.format", s.formatName()),
+	)
 
-	opts := s.options()
-	texts := make([]string, len(pages))
-
-	for i, page := range pages {
-		texts[i], err = r.ExtractText(spanCtx, page, opts...)
-		// A scanned page holds an image, not text, and Gotenberg recognizes
-		// none: it reads as empty rather than failing the document.
-		if errors.Is(err, litho.ErrRequiresOCR) {
-			texts[i], err = "", nil
-		}
+	var text, ext string
+	if s.markdown() {
+		ext = ".md"
+		text, err = r.ExtractMarkdown(spanCtx, pages, s.options()...)
 		if err != nil {
-			return extractedFile{}, inputError(fmt.Sprintf("extract the text of page %d", page), err)
+			return extractedFile{}, inputError("extract the text as Markdown", err)
+		}
+	} else {
+		ext = ".txt"
+		text, err = plainText(spanCtx, r, pages, s.options())
+		if err != nil {
+			return extractedFile{}, err
 		}
 	}
 
-	path := ctx.GeneratePath(".txt")
+	path := ctx.GeneratePath(ext)
 
-	err = os.WriteFile(path, []byte(strings.Join(texts, pageSeparator)), 0o600)
+	err = os.WriteFile(path, []byte(text), 0o600)
 	if err != nil {
 		return extractedFile{}, fmt.Errorf("write text: %w", err)
 	}
 
 	base := strings.TrimSuffix(d.filename, filepath.Ext(d.filename))
 
-	return extractedFile{path: path, name: base + ".txt"}, nil
+	return extractedFile{path: path, name: base + ext}, nil
+}
+
+// plainText returns the text of pages, in the order given, joined by
+// [pageSeparator].
+func plainText(ctx context.Context, r *litho.Reader, pages []int, opts []litho.ExtractTextOption) (string, error) {
+	texts := make([]string, len(pages))
+
+	for i, page := range pages {
+		var err error
+		texts[i], err = r.ExtractText(ctx, page, opts...)
+		// A scanned page holds an image, not text, and Gotenberg recognizes
+		// none: it reads as empty rather than failing the document.
+		if errors.Is(err, litho.ErrRequiresOCR) {
+			texts[i], err = "", nil
+		}
+		if err != nil {
+			return "", inputError(fmt.Sprintf("extract the text of page %d", page), err)
+		}
+	}
+
+	return strings.Join(texts, pageSeparator), nil
+}
+
+// formatName returns the format s writes, its default named.
+func (s *extractTextStage) formatName() string {
+	if s.Format == "" {
+		return textFormatText
+	}
+
+	return s.Format
 }
 
 // options returns the litho options of the text s reads besides what the page

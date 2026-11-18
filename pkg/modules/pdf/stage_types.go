@@ -690,22 +690,43 @@ func (*extractAttachmentsStage) validate() error { return nil }
 
 func (*extractAttachmentsStage) files() []string { return nil }
 
-// extractTextStage writes the text each final document shows as a .txt file
-// next to the outputs, its pages joined by a form feed. Pages lists the pages
-// to read, every page when empty. Invisible adds the text a searchable scan
-// carries under its image, Artifacts the headers, footers and page numbers,
-// and Annotations the text annotations show. It comes last, and writes no
-// document.
+// extractTextStage writes the text each final document shows next to the
+// outputs. Format "text", the default, writes a .txt file, its pages joined by
+// a form feed. Format "markdown" writes a .md file whose structure, headings,
+// lists, tables and links, comes from the PDF's structure tree when it is
+// tagged and from its layout otherwise; the Chromium and LibreOffice routes
+// print a tagged PDF for it ([Stages.ExtractsMarkdown]). Pages lists the pages to read, every
+// page when empty; Markdown reads them in document order. Invisible adds the
+// text a searchable scan carries under its image, Artifacts the headers,
+// footers and page numbers, and Annotations the text annotations show. It
+// comes last, and writes no document.
 type extractTextStage struct {
 	Pages       string `json:"pages"`
+	Format      string `json:"format"`
 	Invisible   bool   `json:"invisible"`
 	Artifacts   bool   `json:"artifacts"`
 	Annotations bool   `json:"annotations"`
 }
 
+// The formats extract-text writes.
+const (
+	textFormatText     = "text"
+	textFormatMarkdown = "markdown"
+)
+
 func (*extractTextStage) op() string { return "extract-text" }
 
-func (*extractTextStage) validate() error { return nil }
+func (s *extractTextStage) validate() error {
+	switch s.Format {
+	case "", textFormatText, textFormatMarkdown:
+		return nil
+	}
+
+	return fmt.Errorf(`"format" must be "text" or "markdown", got %q`, s.Format)
+}
+
+// markdown reports whether s writes Markdown.
+func (s *extractTextStage) markdown() bool { return s.Format == textFormatMarkdown }
 
 func (*extractTextStage) files() []string { return nil }
 

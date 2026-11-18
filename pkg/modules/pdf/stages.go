@@ -181,6 +181,19 @@ func (stages Stages) Files() []string {
 	return names
 }
 
+// ExtractsMarkdown reports whether a stage extracts the text as Markdown.
+// Markdown reads its headings, lists and tables from a tagged PDF's structure
+// tree, so a route that prints the PDF prints it tagged when this holds.
+func (stages Stages) ExtractsMarkdown() bool {
+	for _, s := range stages {
+		if t, ok := s.(*extractTextStage); ok && t.markdown() {
+			return true
+		}
+	}
+
+	return false
+}
+
 // validateOrder checks the constraints that span stages. litho refuses an edit
 // after a remediation, the output of a signature must not be rewritten, and
 // encryption applies to the final write only.

@@ -13,6 +13,7 @@ post {
 body:multipart-form {
   files: @file(../test/integration/testdata/pages_3.pdf)
   ~pages: 1-2
+  ~format: markdown
   ~invisible: true
   ~artifacts: true
   ~annotations: true

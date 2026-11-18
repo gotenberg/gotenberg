@@ -489,6 +489,27 @@ Feature: /forms/libreoffice/convert
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
 
+  # Markdown reads its headings, lists and tables from the structure tree:
+  # Gotenberg exports a tagged PDF for it, nativeTaggedPdf left unset.
+  @pdf-extract-text
+  Scenario: POST /forms/libreoffice/convert (Markdown)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files  | testdata/page_1.docx                        | file  |
+      | stages | [{"op":"extract-text","format":"markdown"}] | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | page_1.docx.pdf |
+      | page_1.docx.md  |
+    Then the "page_1.docx.pdf" PDF should be tagged
+    Then the "page_1.docx.md" file should match string:
+      """
+      Page 1
+
+      """
+
   @pdf-merge
   Scenario: POST /forms/libreoffice/convert (Merge)
     Given I have a default Gotenberg container

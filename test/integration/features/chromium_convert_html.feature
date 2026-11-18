@@ -1477,6 +1477,37 @@ Feature: /forms/chromium/convert/html
       | *_2.png |
       | *_3.png |
 
+  # Markdown reads its headings, lists and tables from the structure tree:
+  # Gotenberg prints a tagged PDF for it, nativeTaggedPdf left unset.
+  @pdf-extract-text
+  Scenario: POST /forms/chromium/convert/html (Markdown)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/structure-html/index.html          | file   |
+      | stages                    | [{"op":"extract-text","format":"markdown"}] | field  |
+      | Gotenberg-Output-Filename | foo                                         | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be 1 PDF(s) in the response
+    Then there should be the following file(s) in the response:
+      | foo.pdf |
+      | foo.md  |
+    Then the "foo.pdf" PDF should be tagged
+    Then the "foo.md" file should match string:
+      """
+      # Report
+
+      A **bold** word and a [link](https://gotenberg.dev/docs).
+
+      - One
+      - Two
+
+      | Name | Value |
+      | --- | --- |
+      | a | 1 |
+
+      """
+
   @pdf-remediate
   Scenario: POST /forms/chromium/convert/html (PDF/A-1b)
     Given I have a default Gotenberg container

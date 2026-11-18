@@ -53,6 +53,24 @@ func TestExtractText(t *testing.T) {
 			want:     map[string]string{"pages_3.txt": "Page 2"},
 		},
 		{
+			name:     "markdown, every page",
+			stages:   `[{"op":"extract-text","format":"markdown"}]`,
+			fixtures: []string{"pages_3.pdf"},
+			want:     map[string]string{"pages_3.md": "Page 1\n\nPage 2\n\nPage 3\n"},
+		},
+		{
+			name:     "markdown, selected pages in document order",
+			stages:   `[{"op":"extract-text","format":"markdown","pages":"3,1"}]`,
+			fixtures: []string{"pages_3.pdf"},
+			want:     map[string]string{"pages_3.md": "Page 1\n\nPage 3\n"},
+		},
+		{
+			name:     "markdown, a scanned page reads as empty",
+			stages:   `[{"op":"extract-text","format":"markdown"}]`,
+			fixtures: []string{"scanned.pdf"},
+			want:     map[string]string{"scanned.md": ""},
+		},
+		{
 			name:     "a page past the end",
 			stages:   `[{"op":"extract-text","pages":"4"}]`,
 			fixtures: []string{"pages_3.pdf"},
