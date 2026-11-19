@@ -475,6 +475,10 @@ func (s *optimizeStage) compaction(packObjectStreams bool) []litho.WriteOption {
 		opts = append(opts, litho.WithImageRecompression())
 	}
 
+	if boolOr(s.CompressStreams, true) {
+		opts = append(opts, litho.WithStreamCompression())
+	}
+
 	if boolOr(s.SubsetFonts, true) {
 		opts = append(opts, litho.WithFontSubsetting())
 	}

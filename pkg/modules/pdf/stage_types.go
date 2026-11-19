@@ -735,6 +735,7 @@ type optimizeStage struct {
 	ObjectStreams    *bool `json:"objectStreams"`
 	Dedup            *bool `json:"dedup"`
 	RecompressImages *bool `json:"recompressImages"`
+	CompressStreams  *bool `json:"compressStreams"`
 	SubsetFonts      *bool `json:"subsetFonts"`
 
 	signatureDrop

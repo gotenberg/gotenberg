@@ -18,6 +18,7 @@ Feature: /forms/pdf/optimize
     When I make a "POST" request to Gotenberg at the "/forms/pdf/optimize" endpoint with the following form data and header(s):
       | files            | testdata/pages_12.pdf | file  |
       | recompressImages | false                 | field |
+      | compressStreams  | false                 | field |
       | subsetFonts      | false                 | field |
     Then the response status code should be 200
     Then the "pages_12.pdf" PDF should have 12 page(s)
