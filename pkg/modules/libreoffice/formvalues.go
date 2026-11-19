@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -49,6 +50,21 @@ func parseRotation(value string) (int, error) {
 	return int(math.Round(math.Mod(degrees, 360) * 10)), nil
 }
 
+// localePattern matches the BCP 47 language tags lok accepts: a language, an
+// optional script and an optional region, such as fr, en-AU, es-419 or
+// zh-Hans-CN. lok passes the tag to LibreOffice among comma-separated load
+// options, so nothing else may get through.
+var localePattern = regexp.MustCompile(`^[A-Za-z]{2,3}(-[A-Za-z]{4})?(-(?:[A-Za-z]{2}|[0-9]{3}))?$`)
+
+// parseLocale checks a BCP 47 language tag.
+func parseLocale(value string) (string, error) {
+	if !localePattern.MatchString(value) {
+		return "", errors.New("want a BCP 47 language tag, such as en-AU or de-DE")
+	}
+
+	return value, nil
+}
+
 // enum maps the names of a form field's values to the numbers LibreOffice
 // reads, in the order of those numbers.
 type enum []string
@@ -81,7 +97,7 @@ const pdfuaProfile = "PDF/UA-1"
 
 // into returns a [api.FormData.Custom] binding that parses a value into
 // target, and keeps target's default when the field is empty.
-func into(target *int, parse func(string) (int, error)) func(string) error {
+func into[T any](target *T, parse func(string) (T, error)) func(string) error {
 	return func(value string) error {
 		if value == "" {
 			return nil

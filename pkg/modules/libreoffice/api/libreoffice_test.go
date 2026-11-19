@@ -190,6 +190,32 @@ func TestNewLokRequest_Paper(t *testing.T) {
 	}
 }
 
+// The request sends the locale only when the client sets one, so that lok
+// keeps the system locale otherwise.
+func TestNewLokRequest_Locale(t *testing.T) {
+	options := DefaultOptions()
+
+	req, err := newLokRequest("in.xlsx", "out.pdf", options)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	b, err := json.Marshal(req)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+	if strings.Contains(string(b), `"locale"`) {
+		t.Fatalf("expected no locale, got %s", b)
+	}
+
+	options.Locale = "en-AU"
+
+	req, err = newLokRequest("in.xlsx", "out.pdf", options)
+	if err != nil || req.Locale != "en-AU" {
+		t.Fatalf("en-AU: %+v, %v, want locale en-AU", req, err)
+	}
+}
+
 // lok runs macros when enableMacros is true, so the request must say false
 // rather than rely on lok's default.
 func TestNewLokRequest_DisablesMacrosExplicitly(t *testing.T) {

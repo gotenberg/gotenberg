@@ -46,6 +46,7 @@ func convertRoute(libreOffice libreofficeapi.Converter, processor *pdf.Processor
 			err = form.
 				MandatoryPaths(libreOffice.Extensions(), &inputPaths).
 				String("password", &options.Password).
+				Custom("locale", into(&options.Locale, parseLocale)).
 				Bool("landscape", &options.Landscape).
 				Inches("paperWidth", &options.PaperWidth).
 				Inches("paperHeight", &options.PaperHeight).

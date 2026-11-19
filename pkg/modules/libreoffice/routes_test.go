@@ -548,3 +548,55 @@ func TestConvertRoute_UnknownFields(t *testing.T) {
 		})
 	}
 }
+
+// TestConvertRoute_Locale checks that a language tag reaches LibreOffice, and
+// that anything else, such as a value that would add a load option, answers
+// 400 before LibreOffice runs.
+func TestConvertRoute_Locale(t *testing.T) {
+	for _, tc := range []struct {
+		value string
+		want  string
+	}{
+		{"", ""},
+		{"en-AU", "en-AU"},
+		{"zh-Hans-CN", "zh-Hans-CN"},
+		{"en_AU", "400"},
+		{"en-AU,Batch=false", "400"},
+	} {
+		t.Run(tc.value, func(t *testing.T) {
+			dir := t.TempDir()
+
+			ctx := &api.ContextMock{Context: &api.Context{Context: context.Background()}}
+			ctx.SetDirPath(dir)
+			ctx.SetFiles(map[string]string{"page_1.docx": zipPackage(t, dir, "page_1.docx")})
+			ctx.SetValues(map[string][]string{"locale": {tc.value}})
+			ctx.SetLogger(slog.New(slog.DiscardHandler))
+
+			got := "400"
+			converter := &libreofficeapi.ApiMock{
+				ExtensionsMock: func() []string { return []string{".docx"} },
+				PdfMock: func(_ context.Context, _ *slog.Logger, _, _ string, options libreofficeapi.Options) error {
+					got = options.Locale
+					return nil
+				},
+			}
+
+			c := echo.New().NewContext(httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", nil), httptest.NewRecorder())
+			c.Set("context", ctx.Context)
+
+			err := convertRoute(converter, new(pdf.Processor)).Handler(c)
+			if tc.want == "400" {
+				status, message := api.ParseError(err)
+				if status != http.StatusBadRequest || !strings.Contains(message, "'locale'") {
+					t.Fatalf("got %d %q, want a 400 naming 'locale'", status, message)
+				}
+
+				return
+			}
+
+			if got != tc.want {
+				t.Fatalf("LibreOffice got locale %q, want %q (err %v)", got, tc.want, err)
+			}
+		})
+	}
+}

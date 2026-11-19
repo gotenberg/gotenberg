@@ -106,6 +106,12 @@ type Options struct {
 	// Password specifies the password for opening the source file.
 	Password string // #nosec
 
+	// Locale is a BCP 47 language tag, such as en-AU, that formats the
+	// document's locale-dependent content: built-in date, number and currency
+	// formats, date fields, and the fallback paper size of a document that
+	// sets none. Empty follows the system locale.
+	Locale string
+
 	// Landscape allows changing the orientation of the resulting PDF.
 	Landscape bool
 

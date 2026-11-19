@@ -78,6 +78,7 @@ type lokRequest struct {
 	InputPath  string `json:"inputPath"`
 	OutputPath string `json:"outputPath"`
 	Password   string `json:"password,omitempty"` //nolint:gosec // document open password, sent to the local lok process only
+	Locale     string `json:"locale,omitempty"`
 	// EnableMacros is always sent, so lok's own default never applies. See
 	// --libreoffice-enable-macros.
 	EnableMacros                    bool   `json:"enableMacros"`
@@ -194,6 +195,7 @@ func newLokRequest(inputPath, outputPath string, options Options) (lokRequest, e
 		InputPath:   inputPath,
 		OutputPath:  outputPath,
 		Password:    options.Password,
+		Locale:      options.Locale,
 		Landscape:   options.Landscape,
 		PaperFormat: paperFormat,
 		PaperWidth:  paperWidth,

@@ -268,6 +268,63 @@ Feature: /forms/libreoffice/convert
     Then there should be 1 PDF(s) in the response
     Then the "foo.pdf" PDF first page should be 288x432 points
 
+  # The locale formats Excel's locale-dependent formats, here a short date, a
+  # system long date, a number and a currency, and picks the fallback paper
+  # size. A conversion without one follows the system locale, whatever an
+  # earlier conversion set: LibreOfficeKit keeps the language of a load.
+  # See https://github.com/gotenberg/gotenberg/issues/1737.
+  Scenario: POST /forms/libreoffice/convert (Locale)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/locale.xlsx | file   |
+      | locale                    | de-DE                | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF first page should be 595.3x841.9 points
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      08.01.2026
+      """
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Donnerstag, 8. Januar 2026
+      """
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      1.234.567,89 €
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/locale.xlsx | file   |
+      | locale                    | en-US                | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF first page should be 612x792 points
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/locale.xlsx | file   |
+      | locale                    | de-DE                | field  |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/locale.xlsx | file   |
+      | Gotenberg-Output-Filename | foo                  | header |
+    Then the response status code should be 200
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF first page should be 595.3x841.9 points
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      1/8/2026
+      """
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Thursday, January 8, 2026
+      """
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      $1,234,567.89
+      """
+
   # A field the route does not read answers 400, and a Gotenberg 8 one says what
   # replaced it, a file field included.
   Scenario: POST /forms/libreoffice/convert (Unknown Form Fields)
@@ -293,47 +350,49 @@ Feature: /forms/libreoffice/convert
   Scenario: POST /forms/libreoffice/convert (Bad Request)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
-      | landscape                       | foo | field |
-      | exportFormFields                | foo | field |
-      | allowDuplicateFieldNames        | foo | field |
-      | nativeBookmarks                 | foo | field |
-      | exportBookmarksToPdfDestination | foo | field |
-      | exportPlaceholders              | foo | field |
-      | exportNotes                     | foo | field |
-      | exportNotesPages                | foo | field |
-      | exportOnlyNotesPages            | foo | field |
-      | exportNotesInMargin             | foo | field |
-      | convertOooTargetToPdfTarget     | foo | field |
-      | exportLinksRelativeFsys         | foo | field |
-      | exportHiddenSlides              | foo | field |
-      | skipEmptyPages                  | foo | field |
-      | addOriginalDocumentAsStream     | foo | field |
-      | singlePage                      | foo | field |
-      | nativeTaggedPdf                 | foo | field |
-      | initialView                     | foo | field |
-      | initialPage                     | -1  | field |
-      | magnification                   | foo | field |
-      | zoom                            | -1  | field |
-      | pageLayout                      | foo | field |
-      | resizeWindowToInitialPage       | foo | field |
-      | centerWindow                    | foo | field |
-      | openInFullScreenMode            | foo | field |
-      | displayPDFDocumentTitle         | foo | field |
-      | hideViewerMenubar               | foo | field |
-      | hideViewerToolbar               | foo | field |
-      | hideViewerWindowControls        | foo | field |
-      | useTransitionEffects            | foo | field |
-      | openBookmarkLevels              | 15  | field |
-      | nativeLosslessImageCompression  | foo | field |
-      | nativeQuality                   | -1  | field |
-      | nativeReduceImageResolution     | foo | field |
-      | nativeMaxImageResolution        | 10  | field |
+      | locale                          | en_AU | field |
+      | landscape                       | foo   | field |
+      | exportFormFields                | foo   | field |
+      | allowDuplicateFieldNames        | foo   | field |
+      | nativeBookmarks                 | foo   | field |
+      | exportBookmarksToPdfDestination | foo   | field |
+      | exportPlaceholders              | foo   | field |
+      | exportNotes                     | foo   | field |
+      | exportNotesPages                | foo   | field |
+      | exportOnlyNotesPages            | foo   | field |
+      | exportNotesInMargin             | foo   | field |
+      | convertOooTargetToPdfTarget     | foo   | field |
+      | exportLinksRelativeFsys         | foo   | field |
+      | exportHiddenSlides              | foo   | field |
+      | skipEmptyPages                  | foo   | field |
+      | addOriginalDocumentAsStream     | foo   | field |
+      | singlePage                      | foo   | field |
+      | nativeTaggedPdf                 | foo   | field |
+      | initialView                     | foo   | field |
+      | initialPage                     | -1    | field |
+      | magnification                   | foo   | field |
+      | zoom                            | -1    | field |
+      | pageLayout                      | foo   | field |
+      | resizeWindowToInitialPage       | foo   | field |
+      | centerWindow                    | foo   | field |
+      | openInFullScreenMode            | foo   | field |
+      | displayPDFDocumentTitle         | foo   | field |
+      | hideViewerMenubar               | foo   | field |
+      | hideViewerToolbar               | foo   | field |
+      | hideViewerWindowControls        | foo   | field |
+      | useTransitionEffects            | foo   | field |
+      | openBookmarkLevels              | 15    | field |
+      | nativeLosslessImageCompression  | foo   | field |
+      | nativeQuality                   | -1    | field |
+      | nativeReduceImageResolution     | foo   | field |
+      | nativeMaxImageResolution        | 10    | field |
     Then the response status code should be 400
     Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
     Then the response header "Gotenberg-Version" should be "{version}"
     Then the response body should match string:
       """
       Invalid form data: no form file found for extensions: [.123 .602 .abw .bib .bmp .cdr .cgm .cmx .csv .cwk .dbf .dif .doc .docm .docx .dot .dotm .dotx .dxf .emf .eps .fodg .fodp .fods .fodt .fopd .gif .htm .html .hwp .jpeg .jpg .key .ltx .lwp .mcw .met .mml .mw .numbers .odd .odg .odm .odp .ods .odt .otg .oth .otp .ots .ott .pages .pbm .pcd .pct .pcx .pdb .pdf .pgm .png .pot .potm .potx .ppm .pps .ppsm .ppsx .ppt .pptm .pptx .psd .psw .pub .pwp .pxl .ras .rtf .sda .sdc .sdd .sdp .sdw .sgl .slk .smf .stc .std .sti .stw .svg .svm .swf .sxc .sxd .sxg .sxi .sxm .sxw .tga .tif .tiff .txt .uof .uop .uos .uot .vdx .vor .vsd .vsdm .vsdx .wb2 .wk1 .wks .wmf .wpd .wpg .wps .xbm .xhtml .xls .xlsb .xlsm .xlsx .xlt .xltm .xltx .xlw .xml .xpm .zabw]
+      form field 'locale' is invalid (got 'en_AU', want a BCP 47 language tag, such as en-AU or de-DE)
       form field 'landscape' is invalid (got 'foo', want true or false)
       form field 'exportFormFields' is invalid (got 'foo', want true or false)
       form field 'allowDuplicateFieldNames' is invalid (got 'foo', want true or false)
