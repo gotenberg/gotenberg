@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <script src="{canary}/footer.js"></script>
+    <style>
+      body {
+        font-size: 8px;
+        margin: 0 16px;
+        background-image: url("{canary}/footer-background.png");
+      }
+    </style>
+  </head>
+  <body>
+    <p>Canary footer</p>
+    <img src="{canary}/footer-image.png" alt="" width="8" height="8" />
+    <iframe src="{canary}/footer-frame.html"></iframe>
+    <script type="application/javascript">
+      fetch("{canary}/footer-fetch").catch(() => {});
+    </script>
+  </body>
+</html>
