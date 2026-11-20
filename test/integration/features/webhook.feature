@@ -230,20 +230,22 @@ Feature: Webhook
       """
 
   # The outbound filter refuses a webhook URL the deny-list names, even when
-  # the allow-list matches every URL. A refusal stays generic for the client.
+  # the allow-list matches every URL. A refusal stays generic for the client,
+  # and neither the output nor the event reaches the canaries.
   Scenario: Webhook URL In The Deny-List
     Given I have a webhook server
     Given I have a Gotenberg container with the following environment variable(s):
-      | WEBHOOK_DENY_LIST | ^{helper}/webhook$ |
+      | WEBHOOK_DENY_LIST | ^{helper}/canary/ |
     When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
       | files                        | testdata/page_1.pdf     | file   |
-      | Gotenberg-Webhook-Url        | {helper}/webhook        | header |
-      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events | header |
+      | Gotenberg-Webhook-Url        | {helper}/canary/webhook | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/canary/events  | header |
     Then the response status code should be 403
     Then the response body should match string:
       """
       Forbidden
       """
+    Then the helper server should NOT have received a canary request
 
   # The helper server resolves to a non-public address: a private one on Linux,
   # 0.250.250.254 on Docker Desktop.
@@ -254,13 +256,14 @@ Feature: Webhook
       | WEBHOOK_DENY_PRIVATE_IPS | true |
     When I make a "POST" request to Gotenberg at the "/forms/pdf/flatten-form" endpoint with the following form data and header(s):
       | files                        | testdata/page_1.pdf     | file   |
-      | Gotenberg-Webhook-Url        | {helper}/webhook        | header |
-      | Gotenberg-Webhook-Events-Url | {helper}/webhook/events | header |
+      | Gotenberg-Webhook-Url        | {helper}/canary/webhook | header |
+      | Gotenberg-Webhook-Events-Url | {helper}/canary/events  | header |
     Then the response status code should be 403
     Then the response body should match string:
       """
       Forbidden
       """
+    Then the helper server should NOT have received a canary request
 
   # A host that does not resolve is the client's mistake, and says nothing of
   # the filters. An allow-list match skips the lookup: none here.

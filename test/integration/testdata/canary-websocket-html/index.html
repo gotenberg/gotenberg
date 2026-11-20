@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Canary WebSocket</title>
+  </head>
+  <body>
+    <h1>Canary WebSocket</h1>
+    <script type="application/javascript">
+      new WebSocket("{canary}/websocket".replace(/^http/, "ws"));
+    </script>
+  </body>
+</html>

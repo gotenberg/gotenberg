@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"io"
 	"math/rand/v2"
+	"mime"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -51,6 +53,10 @@ type server struct {
 	page      *request
 	file      *request
 	eventBody []byte
+	// canaries lists, as "METHOD /path", every request that reached /canary/.
+	// A scenario that expects a filter to refuse a URL points it there: the
+	// refusal holds only if the list stays empty.
+	canaries []string
 
 	shutdown context.CancelFunc
 	done     chan struct{}
@@ -185,6 +191,53 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 		<-c.Request().Context().Done()
 		return nil
 	})
+	// Canaries. Any request under /canary/ counts, whatever its method, a
+	// WebSocket handshake included, so a filter that logs a refusal but lets
+	// the request through still fails the scenario.
+	srv.Any("/canary/*", func(c *echo.Context) error {
+		r := c.Request()
+		_, err := io.Copy(io.Discard, r.Body)
+		if err != nil {
+			return c.String(http.StatusInternalServerError, err.Error())
+		}
+
+		s.mu.Lock()
+		s.canaries = append(s.canaries, r.Method+" "+r.URL.Path)
+		s.mu.Unlock()
+
+		return c.String(http.StatusOK, "canary")
+	})
+	// A redirect to a canary, for a filter that checks the URL it is given
+	// but must also check where that URL leads.
+	srv.GET("/canary-redirect/*", func(c *echo.Context) error {
+		return c.Redirect(http.StatusFound, "/canary/"+c.Param("*"))
+	})
+	// A testdata file whose "{canary}" tokens become the canary URL, as
+	// Gotenberg reaches it. Fixtures cannot hold that URL themselves, since
+	// the helper port changes with every scenario. No Content-Disposition:
+	// Chromium renders an HTML page instead of downloading it, and
+	// downloadFrom takes the filename from the path.
+	srv.GET("/canary-page/*", func(c *echo.Context) error {
+		path := filepath.Clean(c.Param("*"))
+		if !strings.HasPrefix(path, "testdata/") {
+			return c.String(http.StatusBadRequest, fmt.Sprintf("path %q is not under testdata/", path))
+		}
+
+		b, err := os.ReadFile(filepath.Join(wd, path))
+		if err != nil {
+			return c.String(http.StatusInternalServerError, fmt.Sprintf("read file %q: %s", path, err))
+		}
+
+		canary := fmt.Sprintf("http://%s/canary", c.Request().Host)
+		b = []byte(strings.ReplaceAll(string(b), "{canary}", canary))
+
+		contentType := mime.TypeByExtension(filepath.Ext(path))
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
+
+		return c.Blob(http.StatusOK, contentType, b)
+	})
 
 	return s, nil
 }
@@ -289,6 +342,13 @@ func (s *server) received(kind string) (*request, error) {
 	}
 
 	return rec, nil
+}
+
+// canaryRequests returns the requests that reached /canary/, oldest first.
+func (s *server) canaryRequests() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return slices.Clone(s.canaries)
 }
 
 func (s *server) getEventBody() []byte {
