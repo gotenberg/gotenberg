@@ -160,6 +160,8 @@ func uniqueName(name string, taken map[string]bool) string {
 }
 
 // writeAttachment streams the decoded content of f into a new file at path.
+// litho bounds the decoded bytes by the stream budget, --pdf-max-stream-bytes:
+// an attachment past it fails the read, and leaves no file behind.
 func writeAttachment(ctx context.Context, path string, f models.EmbeddedFile) error {
 	if f.Open == nil {
 		return fmt.Errorf("attachment %q has no content", f.Name)
@@ -167,8 +169,7 @@ func writeAttachment(ctx context.Context, path string, f models.EmbeddedFile) er
 
 	in, err := f.Open(ctx)
 	if litho.IsInvalidInput(err) {
-		// The client knows the attachment by its name, not by the step.
-		return &stageInputError{message: fmt.Sprintf("attachment %q: %s", f.Name, err), err: err}
+		return attachmentInputError(f.Name, err)
 	}
 
 	if err != nil {
@@ -184,13 +185,25 @@ func writeAttachment(ctx context.Context, path string, f models.EmbeddedFile) er
 	_, err = io.Copy(out, in)
 	closeErr := out.Close()
 
+	if err == nil && closeErr == nil {
+		return nil
+	}
+
+	_ = os.Remove(path)
+
+	if litho.IsInvalidInput(err) {
+		return attachmentInputError(f.Name, err)
+	}
+
 	if err != nil {
 		return fmt.Errorf("copy: %w", err)
 	}
 
-	if closeErr != nil {
-		return fmt.Errorf("close file: %w", closeErr)
-	}
+	return fmt.Errorf("close file: %w", closeErr)
+}
 
-	return nil
+// attachmentInputError words a failure the attachment's data caused. The
+// client knows the attachment by its name, not by the step.
+func attachmentInputError(name string, err error) error {
+	return &stageInputError{message: fmt.Sprintf("attachment %q: %s", name, err), err: err}
 }
