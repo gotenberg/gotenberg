@@ -208,6 +208,7 @@ COPY --link --chown="$GOTENBERG_USER_UID:$GOTENBERG_USER_GID" build/chromium-hyp
 COPY --link build/chromium-policies /etc/chromium/policies/managed
 
 ENV CHROMIUM_BIN_PATH=/usr/bin/chromium
+ENV CHROMIUM_PROGRAM_DIR_PATH=/usr/lib/chromium
 ENV CHROMIUM_HYPHEN_DATA_DIR_PATH=/opt/gotenberg/chromium-hyphen-data
 ENV LIBREOFFICE_BIN_PATH=/usr/lib/libreoffice/program/soffice.bin
 ENV LOK_BIN_PATH=/usr/bin/lok
@@ -269,6 +270,7 @@ COPY --link --chown="$GOTENBERG_USER_UID:$GOTENBERG_USER_GID" build/chromium-hyp
 COPY --link build/chromium-policies /etc/chromium/policies/managed
 
 ENV CHROMIUM_BIN_PATH=/usr/bin/chromium
+ENV CHROMIUM_PROGRAM_DIR_PATH=/usr/lib/chromium
 ENV CHROMIUM_HYPHEN_DATA_DIR_PATH=/opt/gotenberg/chromium-hyphen-data
 
 # Capture the Chromium version now that it is installed.

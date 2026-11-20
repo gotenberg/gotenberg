@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -563,6 +564,38 @@ func (a *Api) Stop(_ context.Context) error {
 	return fmt.Errorf("stop LibreOffice: %w", err)
 }
 
+// sofficeHelpers are the commands LibreOffice's program/soffice shell
+// script runs. lok runs the script to set up the user profile.
+var sofficeHelpers = []string{"basename", "dirname", "grep", "ls", "sed", "uname"}
+
+// ExecPaths returns LOK_BIN_PATH, the LibreOffice program directory (the
+// directory of LIBREOFFICE_BIN_PATH), its soffice script, and the commands
+// of [sofficeHelpers] found in PATH. The script is listed on its own so that
+// the exec restriction finds its "#!" interpreter, which it does not look for
+// inside directories.
+func (a *Api) ExecPaths() []string {
+	programDirPath := filepath.Dir(a.args.binPath)
+	paths := []string{a.args.lokBinPath, programDirPath}
+
+	sofficePath := filepath.Join(programDirPath, "soffice")
+	_, err := os.Stat(sofficePath)
+	if err == nil {
+		paths = append(paths, sofficePath)
+	}
+
+	for _, helper := range sofficeHelpers {
+		path, err := exec.LookPath(helper)
+		if err != nil {
+			// The soffice script then fails, and the start error says so.
+			continue
+		}
+
+		paths = append(paths, path)
+	}
+
+	return paths
+}
+
 // Debug returns additional debug data.
 func (a *Api) Debug() map[string]any {
 	return map[string]any{
@@ -916,6 +949,7 @@ var (
 	_ gotenberg.App         = (*Api)(nil)
 	_ gotenberg.Debuggable  = (*Api)(nil)
 	_ gotenberg.Reporter    = (*Api)(nil)
+	_ gotenberg.ExecPather  = (*Api)(nil)
 	_ api.HealthChecker     = (*Api)(nil)
 	_ Converter             = (*Api)(nil)
 	_ Provider              = (*Api)(nil)

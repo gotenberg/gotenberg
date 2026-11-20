@@ -124,6 +124,11 @@ type Chromium struct {
 	disableRoutes  bool
 	maxConcurrency int64
 	args           browserArguments
+	// programDirPath holds the executables CHROMIUM_BIN_PATH runs when it
+	// is a launcher script, such as Debian's /usr/bin/chromium, which runs
+	// /usr/lib/chromium/chromium. Empty when CHROMIUM_PROGRAM_DIR_PATH is
+	// not set.
+	programDirPath string
 
 	logger     *slog.Logger
 	browser    browser
@@ -573,6 +578,9 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 		return errors.New("CHROMIUM_HYPHEN_DATA_DIR_PATH environment variable is not set; set it to the absolute path of the Chromium hyphenation data directory (it ships in the Gotenberg image)")
 	}
 
+	// Optional: only the exec restriction uses it.
+	mod.programDirPath = os.Getenv("CHROMIUM_PROGRAM_DIR_PATH")
+
 	sharedBrowserContext := flags.MustBool("chromium-shared-browser-context")
 
 	mod.args = browserArguments{
@@ -753,6 +761,17 @@ func (mod *Chromium) Stop(_ context.Context) error {
 	}
 
 	return fmt.Errorf("stop Chromium: %w", err)
+}
+
+// ExecPaths returns CHROMIUM_BIN_PATH and, when set,
+// CHROMIUM_PROGRAM_DIR_PATH.
+func (mod *Chromium) ExecPaths() []string {
+	paths := []string{mod.args.binPath}
+	if mod.programDirPath != "" {
+		paths = append(paths, mod.programDirPath)
+	}
+
+	return paths
 }
 
 // Debug returns additional debug data.
@@ -1027,6 +1046,7 @@ var (
 	_ gotenberg.App         = (*Chromium)(nil)
 	_ gotenberg.Debuggable  = (*Chromium)(nil)
 	_ gotenberg.Reporter    = (*Chromium)(nil)
+	_ gotenberg.ExecPather  = (*Chromium)(nil)
 	_ api.HealthChecker     = (*Chromium)(nil)
 	_ api.Router            = (*Chromium)(nil)
 	_ Api                   = (*Chromium)(nil)

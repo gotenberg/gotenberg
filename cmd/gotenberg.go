@@ -32,6 +32,8 @@ func Run() {
 	fs.Bool("gotenberg-hide-banner", false, "Hide the ASCII art banner above the startup summary")
 	fs.Duration("gotenberg-graceful-shutdown-duration", time.Duration(30)*time.Second, "Set the graceful shutdown duration")
 	fs.Bool("gotenberg-build-debug-data", true, "Set if build data is needed")
+	fs.Bool("gotenberg-enable-exec-restriction", false, "Forbid Gotenberg, Chromium, LibreOffice and every process they start to execute any file but the engines' own, with Landlock (Linux 5.13 and later). A compromised engine then cannot run a binary it downloads. Gotenberg refuses to start if the kernel cannot enforce it")
+	fs.StringSlice("gotenberg-exec-restriction-paths", nil, "Set additional absolute paths of files, or directories, that processes may execute with --gotenberg-enable-exec-restriction")
 
 	// Logging & telemetry flags.
 	fs.String("log-level", gotenberg.InfoLoggingLevel, "Set the log level")
@@ -108,6 +110,22 @@ func Run() {
 	apps, err := ctx.Modules(new(gotenberg.App))
 	if err != nil {
 		fatal("load modules", err)
+	}
+
+	// The restriction must hold before any app starts a child process, so
+	// that every child inherits it.
+	if parsedFlags.MustBool("gotenberg-enable-exec-restriction") {
+		execPaths, err := gotenberg.ExecRestrictionPaths(ctx, parsedFlags.MustStringSlice("gotenberg-exec-restriction-paths"))
+		if err != nil {
+			fatal("gather the paths allowed by --gotenberg-enable-exec-restriction (env GOTENBERG_ENABLE_EXEC_RESTRICTION); fix or remove the offending path in --gotenberg-exec-restriction-paths (env GOTENBERG_EXEC_RESTRICTION_PATHS) or the module's environment variable", err)
+		}
+
+		err = gotenberg.RestrictExec(execPaths)
+		if err != nil {
+			fatal("enforce --gotenberg-enable-exec-restriction (env GOTENBERG_ENABLE_EXEC_RESTRICTION); run on a kernel with Landlock or unset it", err)
+		}
+
+		logger.InfoContext(bgCtx, "exec restriction enabled", slog.Any("paths", execPaths))
 	}
 
 	eg := new(errgroup.Group)
