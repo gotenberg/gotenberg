@@ -590,6 +590,45 @@ Feature: /forms/chromium/convert/html
       | Page.printToPDF                                                         |
       | --chromium-debug-protocol (CHROMIUM_DEBUG_PROTOCOL) logs every DevTools |
 
+  # Chromium renders header.html and footer.html as print templates, apart
+  # from the page, and loads none of their network resources: no image,
+  # background, script, frame or fetch reaches the helper server, even with
+  # no filter configured. The page's own canary scenarios prove that
+  # Chromium reaches the helper server, and the rendered header proves that
+  # the downloaded template is in use. Should a Chromium upgrade start
+  # loading template resources, this scenario fails before anyone assumes
+  # the outbound filters cover them.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/html (Canary resources in the header and footer never leave)
+    Given I have a static server
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/page-1-html/index.html                                                                                                                     | file   |
+      | downloadFrom              | [{"url":"{helper}/canary-page/testdata/canary-header-footer/header.html"},{"url":"{helper}/canary-page/testdata/canary-header-footer/footer.html"}] | field  |
+      | marginTop                 | 1                                                                                                                                                   | field  |
+      | marginBottom              | 1                                                                                                                                                   | field  |
+      | Gotenberg-Output-Filename | foo                                                                                                                                                 | header |
+    Then the response status code should be 200
+    Then the "foo.pdf" PDF should have content matching "Canary header" at page 1, artifacts included
+    Then the "foo.pdf" PDF should have content matching "Canary footer" at page 1, artifacts included
+    Then the helper server should NOT have received a canary request
+
+  # A style sheet a print template links fails the print instead of loading:
+  # the request never reaches the helper server. @font-face behaves the same.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/html (Canary style sheet in the header fails the print, never leaves)
+    Given I have a static server
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files        | testdata/page-1-html/index.html                                                | file  |
+      | downloadFrom | [{"url":"{helper}/canary-page/testdata/canary-header-stylesheet/header.html"}] | field |
+    Then the response status code should be 400
+    Then the response body should match string:
+      """
+      Chromium failed to print the PDF; this usually happens when the page is too large
+      """
+    Then the helper server should NOT have received a canary request
+
   # Control for the WebSocket scenario below. An ordinary fetch to a loopback
   # address is surfaced as a Fetch.requestPaused event, so it is blocked by
   # CHROMIUM_DENY_PRIVATE_IPS and the block is logged. The allow-list is

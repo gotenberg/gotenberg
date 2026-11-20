@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Canary</title>
+    <link rel="stylesheet" href="{canary}/style.css" />
+    <script src="{canary}/script.js"></script>
+    <style>
+      @font-face {
+        font-family: "Canary";
+        src: url("{canary}/font.woff2");
+      }
+      body {
+        font-family: "Canary", sans-serif;
+        background-image: url("{canary}/background.png");
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Canary</h1>
+    <p>
+      Every resource of this page points to the helper server's canary routes.
+      The helper server serves it with each canary token replaced by the canary
+      URL, as Gotenberg reaches it.
+    </p>
+    <img src="{canary}/image.png" alt="" />
+    <iframe src="{canary}/frame.html"></iframe>
+    <script type="application/javascript">
+      fetch("{canary}/fetch").catch(() => {});
+      const xhr = new XMLHttpRequest();
+      xhr.open("GET", "{canary}/xhr");
+      xhr.send();
+      navigator.sendBeacon("{canary}/beacon", "canary");
+      new EventSource("{canary}/eventsource");
+    </script>
+  </body>
+</html>

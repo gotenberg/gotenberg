@@ -73,6 +73,27 @@ func (s *scenario) theRequestMethodShouldBe(kind, expected string) error {
 	return nil
 }
 
+// theHelperServerShouldHaveReceivedACanaryRequest checks whether a request
+// reached the helper server's /canary/ routes. A filter's 403 or log line only
+// tells what Gotenberg decided; an empty canary list tells that no request left.
+func (s *scenario) theHelperServerShouldHaveReceivedACanaryRequest(should string) error {
+	if s.server == nil {
+		return errors.New("no helper server: add \"I have a webhook server\" before this step")
+	}
+
+	canaries := s.server.canaryRequests()
+	invert := should == "should NOT"
+
+	if invert && len(canaries) > 0 {
+		return fmt.Errorf("expected no canary request, but the helper server received %d: %s", len(canaries), strings.Join(canaries, ", "))
+	}
+	if !invert && len(canaries) == 0 {
+		return errors.New("expected a canary request, but the helper server received none")
+	}
+
+	return nil
+}
+
 func (s *scenario) allConcurrentResponseStatusCodesShouldBe(expected int) error {
 	if len(s.concurrentResps) == 0 {
 		return errors.New("no concurrent responses recorded")

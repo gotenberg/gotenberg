@@ -471,6 +471,87 @@ Feature: /forms/chromium/convert/url
     Then the Gotenberg container should log the following entries:
       | "url":"http://127.0.0.1:9999/redirected","rule":"allow-list" |
 
+  # Control for the canary scenarios below: with no filter in the way, the
+  # canary page's resources reach the helper server. Without it, a canary
+  # that stays silent could mean a broken page, not a working filter.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/url (Canary resources load when no filter refuses them)
+    Given I have a static server
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url       | {helper}/canary-page/testdata/canary-html/index.html | field |
+      | waitDelay | 1s                                                   | field |
+    Then the response status code should be 200
+    Then the helper server should have received a canary request
+
+  # The deny-list names every canary resource: style sheet, script, font,
+  # background, image, frame, fetch, XHR, beacon and EventSource. A logged
+  # refusal is not enough; none of them may reach the helper server.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/url (Canary resources in the deny-list never leave)
+    Given I have a static server
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_DENY_LIST | ^http://{helper-host}/canary/ |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url       | {helper}/canary-page/testdata/canary-html/index.html | field |
+      | waitDelay | 1s                                                   | field |
+    Then the response status code should be 200
+    Then the helper server should NOT have received a canary request
+
+  # Pins a known limitation. The pinning proxy sees only the host and port of
+  # a WebSocket tunnel, so a deny-list rule that names a path cannot sever the
+  # handshake: the conversion fails with a 403, but the handshake has already
+  # reached the target. Flip the last step once the handshake is refused
+  # before it leaves. See listenForEventWebSocketCreated.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/url (Canary WebSocket in a path deny-list rule fails the conversion, after the handshake)
+    Given I have a static server
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_DENY_LIST | ^ws://{helper-host}/canary/ |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url       | {helper}/canary-page/testdata/canary-websocket-html/index.html | field |
+      | waitDelay | 1s                                                             | field |
+    Then the response status code should be 403
+    Then the helper server should have received a canary request
+
+  # The allow-list admits the page but not its WebSocket: the pinning proxy
+  # refuses the tunnel, so the handshake never reaches the helper server.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/url (Canary WebSocket outside the allow-list never leaves)
+    Given I have a static server
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST | ^http://{helper-host}/canary-page/ |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url       | {helper}/canary-page/testdata/canary-websocket-html/index.html | field |
+      | waitDelay | 1s                                                             | field |
+    Then the response status code should be 200
+    Then the helper server should NOT have received a canary request
+
+  # The main URL passes the deny-list, but redirects to one it names. The
+  # redirected request must be refused before it leaves.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/url (Redirect to a canary in the deny-list never leaves)
+    Given I have a static server
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_DENY_LIST | ^http://{helper-host}/canary/ |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url | {helper}/canary-redirect/main | field |
+    Then the response status code should be 200
+    Then the helper server should NOT have received a canary request
+
+  # The helper server resolves to a non-public address: the main URL must be
+  # refused before Chromium navigates to it.
+  @chromium-ssrf
+  Scenario: POST /forms/chromium/convert/url (Main URL canary on a non-public address never leaves)
+    Given I have a static server
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_LIST       |      |
+      | CHROMIUM_DENY_PRIVATE_IPS | true |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/url" endpoint with the following form data and header(s):
+      | url | {helper}/canary/main | field |
+    Then the response status code should be 403
+    Then the helper server should NOT have received a canary request
+
   Scenario: POST /forms/chromium/convert/url (Main URL resolves to a non-public IP, deny-private-ips on with allow-list bypass)
     Given I have a Gotenberg container with the following environment variable(s):
       | CHROMIUM_ALLOW_LIST       | .+   |
