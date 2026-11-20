@@ -46,6 +46,16 @@ func (mod *DebuggableMock) Debug() map[string]any {
 	return mod.DebugMock()
 }
 
+// ExecPatherMock is a mock for the [ExecPather] interface.
+type ExecPatherMock struct {
+	ExecPathsMock func() []string
+}
+
+// ExecPaths calls ExecPathsMock.
+func (mod *ExecPatherMock) ExecPaths() []string {
+	return mod.ExecPathsMock()
+}
+
 // ProcessMock is a mock for the [Process] interface.
 type ProcessMock struct {
 	StartMock   func(ctx context.Context, logger *slog.Logger) error
@@ -120,6 +130,7 @@ func (rename *PathRenameMock) Rename(oldpath, newpath string) error {
 var (
 	_ Module            = (*ModuleMock)(nil)
 	_ Validator         = (*ValidatorMock)(nil)
+	_ ExecPather        = (*ExecPatherMock)(nil)
 	_ Process           = (*ProcessMock)(nil)
 	_ ProcessSupervisor = (*ProcessSupervisorMock)(nil)
 	_ MkdirAll          = (*MkdirAllMock)(nil)

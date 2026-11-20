@@ -201,6 +201,7 @@ KEEP_FAILED=
 # version
 # webhook
 # download-from
+# exec-restriction
 TAGS=
 
 .PHONY: test-integration

@@ -104,6 +104,14 @@ type Debuggable interface {
 	Debug() map[string]any
 }
 
+// ExecPather is a module interface for modules which start unix processes.
+// ExecPaths returns the absolute paths of the files the processes execute,
+// and of the directories holding them. With the exec restriction on (see
+// [ExecRestrictionPaths]), nothing else may execute.
+type ExecPather interface {
+	ExecPaths() []string
+}
+
 // MustRegisterModule registers a module.
 //
 // To register a module, create an init() method in the module main go file:
