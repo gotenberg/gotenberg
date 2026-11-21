@@ -1,18 +1,17 @@
 package chromium
 
 import (
-	"bytes"
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
+	"text/template/parse"
 	"time"
 
 	"github.com/dlclark/regexp2/v2"
@@ -739,63 +738,121 @@ func screenshotMarkdownRoute(chromium Api) api.Route {
 	}
 }
 
+// markdownPageWant says what the index.html of a Markdown route may hold.
+const markdownPageWant = `want text and {{ toHTML "<file>" }} actions`
+
+// markdownPagePart is a piece of the index.html of a Markdown route: either
+// text written as is, or a Markdown file rendered to HTML in its place.
+type markdownPagePart struct {
+	text         string
+	markdownPath string
+}
+
+// markdownToHtml writes the index.html at inputPath to a new HTML file in the
+// request's working directory, with each {{ toHTML "<file>" }} action replaced
+// by the sanitized HTML of that Markdown file, and returns the file:// URL of
+// the result.
+//
+// The page is parsed, never executed: it holds text, comments and toHTML
+// actions naming one of markdownPaths with a string literal, each file at most
+// once. The result is the page's text and each Markdown file rendered once, so
+// its size follows the upload's.
 func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) (string, error) {
-	// We have to convert each Markdown file referenced in the HTML
-	// file to... HTML. Thanks to the "html/template" package, we are
-	// able to provide the "toHTML" function which the user may call
-	// directly inside the HTML file.
-
-	var markdownFilesNotFoundErr error
-
-	tmpl, err := template.
-		New(filepath.Base(inputPath)).
-		Funcs(template.FuncMap{
-			"toHTML": func(filename string) (template.HTML, error) {
-				var path string
-
-				for _, markdownPath := range markdownPaths {
-					markdownFilename := ctx.OriginalFilename(markdownPath)
-
-					if filename == markdownFilename {
-						path = markdownPath
-						break
-					}
-				}
-
-				if path == "" {
-					markdownFilesNotFoundErr = errors.Join(
-						markdownFilesNotFoundErr,
-						fmt.Errorf("'%s'", filename),
-					)
-
-					return "", nil
-				}
-
-				b, err := os.ReadFile(path)
-				if err != nil {
-					return "", fmt.Errorf("read markdown file '%s': %w", filename, err)
-				}
-
-				unsafe := markdown.ToHTML(b, nil, nil)
-				sanitized := bluemonday.UGCPolicy().SanitizeBytes(unsafe)
-
-				// #nosec
-				return template.HTML(sanitized), nil
-			},
-		}).ParseFiles(inputPath)
+	parts, err := parseMarkdownPage(ctx, inputPath, markdownPaths)
 	if err != nil {
-		return "", fmt.Errorf("parse template file: %w", err)
+		return "", err
 	}
 
-	var buffer bytes.Buffer
+	outputPath := ctx.GeneratePath(".html")
 
-	err = tmpl.Execute(&buffer, &struct{}{})
+	err = writeMarkdownPage(ctx, outputPath, parts)
 	if err != nil {
-		return "", fmt.Errorf("execute template: %w", err)
+		return "", fmt.Errorf("write HTML file: %w", err)
+	}
+
+	return fmt.Sprintf("file://%s", outputPath), nil
+}
+
+// parseMarkdownPage splits the index.html at inputPath into the parts
+// [writeMarkdownPage] writes. It answers 400 for a page holding anything but
+// text, comments and {{ toHTML "<file>" }} actions, for a Markdown file named
+// twice, and for Markdown files the request lacks.
+func parseMarkdownPage(ctx *api.Context, inputPath string, markdownPaths []string) ([]markdownPagePart, error) {
+	name := ctx.OriginalFilename(inputPath)
+
+	b, err := os.ReadFile(inputPath)
+	if err != nil {
+		return nil, fmt.Errorf("read '%s': %w", name, err)
+	}
+
+	// Without the builtins, an action calling any function but toHTML fails
+	// to parse.
+	tree := parse.New(name)
+	trees := make(map[string]*parse.Tree)
+
+	_, err = tree.Parse(string(b), "{{", "}}", trees, map[string]any{"toHTML": true})
+	if err != nil {
+		return nil, invalidMarkdownPage(name, err, strings.TrimPrefix(err.Error(), "template: "))
+	}
+
+	// A define or block action adds a tree, or replaces the page's own when it
+	// takes its name.
+	if len(trees) != 1 || trees[name] != tree || tree.Root == nil {
+		return nil, invalidMarkdownPage(name, errors.New("page defines templates"), "got a define or block action")
+	}
+
+	byFilename := make(map[string]string, len(markdownPaths))
+	for _, markdownPath := range markdownPaths {
+		byFilename[ctx.OriginalFilename(markdownPath)] = markdownPath
+	}
+
+	var (
+		parts                    []markdownPagePart
+		seen                     = make(map[string]bool)
+		markdownFilesNotFoundErr error
+	)
+
+	for _, node := range tree.Root.Nodes {
+		switch node := node.(type) {
+		case *parse.TextNode:
+			parts = append(parts, markdownPagePart{text: string(node.Text)})
+		case *parse.CommentNode:
+		case *parse.ActionNode:
+			filename, ok := toHTMLArgument(node)
+			if !ok {
+				return nil, unsupportedMarkdownPageNode(name, tree, node)
+			}
+
+			if seen[filename] {
+				location, _ := tree.ErrorContext(node)
+				return nil, api.WrapError(
+					fmt.Errorf("markdown file '%s' named twice at %s", filename, location),
+					api.NewSentinelHttpError(
+						http.StatusBadRequest,
+						fmt.Sprintf("Invalid form data: file '%s' is invalid (%s: got toHTML on '%s' a second time, want one toHTML action per Markdown file)", name, location, filename),
+					),
+				)
+			}
+			seen[filename] = true
+
+			markdownPath, ok := byFilename[filename]
+			if !ok {
+				markdownFilesNotFoundErr = errors.Join(
+					markdownFilesNotFoundErr,
+					fmt.Errorf("'%s'", filename),
+				)
+
+				continue
+			}
+
+			parts = append(parts, markdownPagePart{markdownPath: markdownPath})
+		default:
+			return nil, unsupportedMarkdownPageNode(name, tree, node)
+		}
 	}
 
 	if markdownFilesNotFoundErr != nil {
-		return "", api.WrapError(
+		return nil, api.WrapError(
 			fmt.Errorf("markdown files not found: %w", markdownFilesNotFoundErr),
 			api.NewSentinelHttpError(
 				http.StatusBadRequest,
@@ -804,14 +861,119 @@ func markdownToHtml(ctx *api.Context, inputPath string, markdownPaths []string) 
 		)
 	}
 
-	inputPath = ctx.GeneratePath(".html")
+	return parts, nil
+}
 
-	err = os.WriteFile(inputPath, buffer.Bytes(), 0o600)
-	if err != nil {
-		return "", fmt.Errorf("write template result: %w", err)
+// toHTMLArgument returns the filename of an action that is exactly
+// {{ toHTML "<file>" }}: one command, no variable, the toHTML function and one
+// string literal.
+func toHTMLArgument(node *parse.ActionNode) (string, bool) {
+	pipe := node.Pipe
+	if pipe == nil || pipe.IsAssign || len(pipe.Decl) != 0 || len(pipe.Cmds) != 1 {
+		return "", false
 	}
 
-	return fmt.Sprintf("file://%s", inputPath), nil
+	args := pipe.Cmds[0].Args
+	if len(args) != 2 {
+		return "", false
+	}
+
+	identifier, ok := args[0].(*parse.IdentifierNode)
+	if !ok || identifier.Ident != "toHTML" {
+		return "", false
+	}
+
+	filename, ok := args[1].(*parse.StringNode)
+	if !ok {
+		return "", false
+	}
+
+	return filename.Text, true
+}
+
+// unsupportedMarkdownPageNode answers 400 for a node of an index.html other
+// than text, a comment or a {{ toHTML "<file>" }} action. The message quotes
+// the node's opening action only, as the node may span the page.
+func unsupportedMarkdownPageNode(name string, tree *parse.Tree, node parse.Node) error {
+	location, context := tree.ErrorContext(node)
+
+	before, _, found := strings.Cut(context, "}}")
+	if found {
+		context = before + "}}"
+	}
+
+	return invalidMarkdownPage(
+		name,
+		fmt.Errorf("unsupported node at %s", location),
+		fmt.Sprintf("%s: got '%s'", location, context),
+	)
+}
+
+// invalidMarkdownPage answers 400 for an index.html holding more than text
+// and {{ toHTML "<file>" }} actions.
+func invalidMarkdownPage(name string, err error, detail string) error {
+	return api.WrapError(
+		fmt.Errorf("parse '%s': %w", name, err),
+		api.NewSentinelHttpError(
+			http.StatusBadRequest,
+			fmt.Sprintf("Invalid form data: file '%s' is invalid (%s, %s)", name, detail, markdownPageWant),
+		),
+	)
+}
+
+// writeMarkdownPage writes parts to a new file at path, rendering each
+// Markdown file with the user-generated content policy of bluemonday. It
+// stops between parts once ctx is done.
+func writeMarkdownPage(ctx *api.Context, path string, parts []markdownPagePart) (err error) {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return fmt.Errorf("create file: %w", err)
+	}
+	defer func() {
+		errClose := f.Close()
+		if err == nil && errClose != nil {
+			err = fmt.Errorf("close file: %w", errClose)
+		}
+	}()
+
+	w := bufio.NewWriter(f)
+	policy := bluemonday.UGCPolicy()
+
+	for _, part := range parts {
+		err = ctx.Err()
+		if err != nil {
+			return fmt.Errorf("context: %w", err)
+		}
+
+		if part.markdownPath == "" {
+			_, err = w.WriteString(part.text)
+			if err != nil {
+				return fmt.Errorf("write text: %w", err)
+			}
+
+			continue
+		}
+
+		var b []byte
+		b, err = os.ReadFile(part.markdownPath)
+		if err != nil {
+			return fmt.Errorf("read markdown file '%s': %w", ctx.OriginalFilename(part.markdownPath), err)
+		}
+
+		unsafe := markdown.ToHTML(b, nil, nil)
+
+		_, err = w.Write(policy.SanitizeBytes(unsafe))
+		if err != nil {
+			return fmt.Errorf("write markdown file '%s': %w", ctx.OriginalFilename(part.markdownPath), err)
+		}
+	}
+
+	err = w.Flush()
+	if err != nil {
+		return fmt.Errorf("flush: %w", err)
+	}
+
+	return nil
 }
 
 // convertUrl prints url to PDF with Chromium and runs stages on the result.

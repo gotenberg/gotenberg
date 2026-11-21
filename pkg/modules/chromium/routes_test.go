@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -483,4 +485,172 @@ func clientMessage(err error) string {
 	}
 	_, message := httpErr.HttpError()
 	return message
+}
+
+// newMarkdownPage writes page as the index.html of a Markdown request, beside
+// a.md and b.md, and returns the request context and the paths to pass to
+// [markdownToHtml].
+func newMarkdownPage(t *testing.T, reqCtx context.Context, page string) (*api.Context, string, []string) {
+	t.Helper()
+
+	dir := t.TempDir()
+	ctx := &api.Context{Context: reqCtx}
+	(&api.ContextMock{Context: ctx}).SetDirPath(dir)
+
+	write := func(filename, content string) string {
+		t.Helper()
+
+		path := ctx.GeneratePathFromFilename(filename)
+		err := os.WriteFile(path, []byte(content), 0o600)
+		if err != nil {
+			t.Fatalf("write %s: %v", filename, err)
+		}
+
+		return path
+	}
+
+	inputPath := write("index.html", page)
+	markdownPaths := []string{
+		write("a.md", "# A\n"),
+		write("b.md", "*b*\n"),
+	}
+
+	return ctx, inputPath, markdownPaths
+}
+
+// TestMarkdownToHtml pins what the index.html of the Markdown routes renders
+// to: its text as is, each {{ toHTML "<file>" }} action replaced by the
+// sanitized HTML of that Markdown file.
+func TestMarkdownToHtml(t *testing.T) {
+	for _, tc := range []struct {
+		scenario string
+		page     string
+		want     string
+	}{
+		{scenario: "empty page", page: "", want: ""},
+		{scenario: "plain text", page: "<html><body><p>Hi</p></body></html>", want: "<html><body><p>Hi</p></body></html>"},
+		{scenario: "single toHTML", page: `<body>{{ toHTML "a.md" }}</body>`, want: "<body><h1>A</h1>\n</body>"},
+		{scenario: "several toHTML", page: `{{ toHTML "a.md" }}<hr>{{toHTML "b.md"}}`, want: "<h1>A</h1>\n<hr><p><em>b</em></p>\n"},
+		{scenario: "backtick string literal", page: "{{ toHTML `a.md` }}", want: "<h1>A</h1>\n"},
+		{scenario: "trim markers", page: "<div>\n  {{- toHTML \"a.md\" -}}\n</div>", want: "<div><h1>A</h1>\n</div>"},
+		{scenario: "template comment", page: "x{{/* note */}}y{{- /* trimmed */ -}} z", want: "xyz"},
+		{scenario: "HTML comment", page: `<!-- note -->{{ toHTML "b.md" }}`, want: "<!-- note --><p><em>b</em></p>\n"},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			ctx, inputPath, markdownPaths := newMarkdownPage(t, context.Background(), tc.page)
+
+			url, err := markdownToHtml(ctx, inputPath, markdownPaths)
+			if err != nil {
+				t.Fatalf("markdownToHtml() error = %v", err)
+			}
+
+			path, ok := strings.CutPrefix(url, "file://")
+			if !ok || filepath.Dir(path) != ctx.DirPath() {
+				t.Fatalf("url = %q, want a file:// URL in %s", url, ctx.DirPath())
+			}
+
+			got, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("read result: %v", err)
+			}
+
+			if string(got) != tc.want {
+				t.Errorf("result = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestMarkdownToHtml_Rejects pins that an index.html holding anything but
+// text, comments and {{ toHTML "<file>" }} actions, or naming a Markdown file
+// twice or one the request lacks, answers 400 without writing a page. The page
+// is never executed, so no action can loop, recurse or read data.
+func TestMarkdownToHtml_Rejects(t *testing.T) {
+	for _, tc := range []struct {
+		scenario string
+		page     string
+		want     string
+	}{
+		{scenario: "range over an integer", page: `{{ range 1000000000000000 }}{{ end }}`},
+		{scenario: "range with toHTML", page: `{{ range 3 }}{{ toHTML "a.md" }}{{ end }}`},
+		{scenario: "if", page: `{{ if true }}x{{ end }}`},
+		{scenario: "with", page: `{{ with "a.md" }}{{ toHTML . }}{{ end }}`},
+		{scenario: "dot", page: `{{ . }}`},
+		{scenario: "field", page: `{{ .Secret }}`},
+		{scenario: "variable declaration", page: `{{ $x := toHTML "a.md" }}`},
+		{scenario: "variable argument", page: `{{ $x := "a.md" }}{{ toHTML $x }}`},
+		{scenario: "variable assignment", page: `{{ $x := "a.md" }}{{ $x = "b.md" }}`},
+		{scenario: "pipeline", page: `{{ toHTML "a.md" | toHTML }}`},
+		{scenario: "parenthesized pipeline", page: `{{ (toHTML "a.md") }}`},
+		{scenario: "parenthesized argument", page: `{{ toHTML ("a.md") }}`},
+		{scenario: "no argument", page: `{{ toHTML }}`},
+		{scenario: "two arguments", page: `{{ toHTML "a.md" "b.md" }}`},
+		{scenario: "number argument", page: `{{ toHTML 1 }}`},
+		{scenario: "bare string", page: `{{ "a.md" }}`},
+		{scenario: "define", page: `{{ define "t" }}x{{ end }}{{ template "t" }}`},
+		{scenario: "nested define", page: `{{ define "a" }}{{ template "b" }}{{ template "b" }}{{ end }}{{ define "b" }}xx{{ end }}`},
+		{scenario: "block", page: `{{ block "t" . }}x{{ end }}`},
+		{scenario: "redefined page", page: `{{ define "index.html" }}{{ template "index.html" }}{{ end }}`},
+		{scenario: "redefined page holding text", page: `{{ define "index.html" }}x{{ end }}`},
+		{scenario: "template", page: `{{ template "index.html" }}`},
+		{scenario: "printf", page: `{{ printf "%s" "a.md" }}`},
+		{scenario: "len", page: `{{ len "a.md" }}`},
+		{scenario: "unclosed action", page: `{{ toHTML "a.md"`},
+		{
+			scenario: "message",
+			page:     "<p>\n{{ range 3 }}{{ toHTML \"a.md\" }}{{ end }}",
+			want:     `Invalid form data: file 'index.html' is invalid (index.html:2:9: got '{{range 3}}', want text and {{ toHTML "<file>" }} actions)`,
+		},
+		{
+			scenario: "Markdown file named twice",
+			page:     `{{ toHTML "a.md" }}{{ toHTML "b.md" }}{{ toHTML "a.md" }}`,
+			want:     `Invalid form data: file 'index.html' is invalid (index.html:1:41: got toHTML on 'a.md' a second time, want one toHTML action per Markdown file)`,
+		},
+		{
+			scenario: "Markdown files not found",
+			page:     `{{ toHTML "a.md" }}{{ toHTML "c.md" }}{{ toHTML "d.md" }}`,
+			want:     "Markdown file(s) not found: 'c.md'\n'd.md'",
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			ctx, inputPath, markdownPaths := newMarkdownPage(t, context.Background(), tc.page)
+
+			_, err := markdownToHtml(ctx, inputPath, markdownPaths)
+			if err == nil {
+				t.Fatal("markdownToHtml() error = nil, want a 400")
+			}
+
+			status, message := api.ParseError(err)
+			if status != http.StatusBadRequest {
+				t.Errorf("status = %d, want %d (error: %v)", status, http.StatusBadRequest, err)
+			}
+
+			if tc.want != "" && message != tc.want {
+				t.Errorf("message = %q, want %q", message, tc.want)
+			}
+
+			entries, err := os.ReadDir(ctx.DirPath())
+			if err != nil {
+				t.Fatalf("read directory: %v", err)
+			}
+
+			if len(entries) != 1+len(markdownPaths) {
+				t.Errorf("directory holds %d files, want only the %d uploads", len(entries), 1+len(markdownPaths))
+			}
+		})
+	}
+}
+
+// TestMarkdownToHtml_Cancelled pins that writing the page stops once the
+// request is done.
+func TestMarkdownToHtml_Cancelled(t *testing.T) {
+	reqCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	ctx, inputPath, markdownPaths := newMarkdownPage(t, reqCtx, `{{ toHTML "a.md" }}`)
+
+	_, err := markdownToHtml(ctx, inputPath, markdownPaths)
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("markdownToHtml() error = %v, want %v", err, context.Canceled)
+	}
 }

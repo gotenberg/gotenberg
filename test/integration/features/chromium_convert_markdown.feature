@@ -84,6 +84,29 @@ Feature: /forms/chromium/convert/markdown
     Then the response header "Content-Type" should be "application/pdf"
     Then there should be 1 PDF(s) in the response
 
+  # The page is parsed, never executed: it holds text and one toHTML action per
+  # Markdown file, so no action can loop or recurse.
+  Scenario: POST /forms/chromium/convert/markdown (Template Actions)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
+      | files | testdata/template-actions-markdown/index.html | file |
+      | files | testdata/page-1-markdown/page_1.md            | file |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: file 'index.html' is invalid (index.html:7:13: got '{{range 3}}', want text and {{ toHTML "<file>" }} actions)
+      """
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
+      | files | testdata/duplicate-markdown/index.html | file |
+      | files | testdata/page-1-markdown/page_1.md     | file |
+    Then the response status code should be 400
+    Then the response header "Content-Type" should be "text/plain; charset=UTF-8"
+    Then the response body should match string:
+      """
+      Invalid form data: file 'index.html' is invalid (index.html:8:12: got toHTML on 'page_1.md' a second time, want one toHTML action per Markdown file)
+      """
+
   Scenario: POST /forms/chromium/convert/markdown (Bad Request)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/markdown" endpoint with the following form data and header(s):
