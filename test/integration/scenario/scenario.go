@@ -138,6 +138,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Then(`^at least one concurrent response status code should be (\d+)$`, s.someConcurrentResponseStatusCodeShouldBe)
 	ctx.Then(`^the (webhook request|file request|server request) method should be "([^"]*)"$`, s.theRequestMethodShouldBe)
 	ctx.Then(`^the helper server (should|should NOT) have received a canary request$`, s.theHelperServerShouldHaveReceivedACanaryRequest)
+	ctx.Then(`^the helper server should have received the following canary request\(s\):$`, s.theHelperServerShouldHaveReceivedTheFollowingCanaryRequests)
 	ctx.Then(`^all probe response status codes should be (\d+)$`, s.allProbeResponseStatusCodesShouldBe)
 	ctx.Then(`^all sequential response status codes should be (\d+)$`, s.allSequentialResponseStatusCodesShouldBe)
 	ctx.Then(`^all concurrent responses should have (\d+) PDF\(s\)$`, s.allConcurrentResponsesShouldHavePdfs)

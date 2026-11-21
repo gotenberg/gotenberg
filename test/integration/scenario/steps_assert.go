@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -73,25 +74,81 @@ func (s *scenario) theRequestMethodShouldBe(kind, expected string) error {
 	return nil
 }
 
+// canaryGrace is how long the canary steps wait for a request still in
+// flight once Gotenberg has answered, such as a beacon or an asynchronous
+// webhook.
+const canaryGrace = 2 * time.Second
+
 // theHelperServerShouldHaveReceivedACanaryRequest checks whether a request
 // reached the helper server's /canary/ routes. A filter's 403 or log line only
 // tells what Gotenberg decided; an empty canary list tells that no request left.
+// The negative form waits canaryGrace before it concludes.
 func (s *scenario) theHelperServerShouldHaveReceivedACanaryRequest(should string) error {
 	if s.server == nil {
 		return errors.New("no helper server: add \"I have a webhook server\" before this step")
 	}
 
-	canaries := s.server.canaryRequests()
-	invert := should == "should NOT"
-
-	if invert && len(canaries) > 0 {
-		return fmt.Errorf("expected no canary request, but the helper server received %d: %s", len(canaries), strings.Join(canaries, ", "))
+	if should == "should NOT" {
+		deadline := time.Now().Add(canaryGrace)
+		for {
+			canaries := s.server.canaryRequests()
+			if len(canaries) > 0 {
+				return fmt.Errorf("expected no canary request, but the helper server received %d: %s", len(canaries), strings.Join(canaries, ", "))
+			}
+			if time.Now().After(deadline) {
+				return nil
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
 	}
-	if !invert && len(canaries) == 0 {
-		return errors.New("expected a canary request, but the helper server received none")
+
+	return s.waitForCanaries(func(canaries []string) error {
+		if len(canaries) == 0 {
+			return errors.New("expected a canary request, but the helper server received none")
+		}
+		return nil
+	})
+}
+
+// theHelperServerShouldHaveReceivedTheFollowingCanaryRequests checks that a
+// request reached each of the given paths under /canary/, whatever its method,
+// so that a control scenario fails as soon as one resource stops loading.
+func (s *scenario) theHelperServerShouldHaveReceivedTheFollowingCanaryRequests(pathsTable *godog.Table) error {
+	if s.server == nil {
+		return errors.New("no helper server: add \"I have a webhook server\" before this step")
 	}
 
-	return nil
+	return s.waitForCanaries(func(canaries []string) error {
+		var missing []string
+		for _, row := range pathsTable.Rows {
+			path := "/canary/" + strings.TrimPrefix(row.Cells[0].Value, "/")
+			found := slices.ContainsFunc(canaries, func(canary string) bool {
+				_, got, _ := strings.Cut(canary, " ")
+				return got == path
+			})
+			if !found {
+				missing = append(missing, path)
+			}
+		}
+
+		if len(missing) > 0 {
+			return fmt.Errorf("expected canary requests to %s, but the helper server received: %s", strings.Join(missing, ", "), strings.Join(canaries, ", "))
+		}
+		return nil
+	})
+}
+
+// waitForCanaries retries check against the canary requests for up to
+// canaryGrace, as some may still be in flight.
+func (s *scenario) waitForCanaries(check func(canaries []string) error) error {
+	deadline := time.Now().Add(canaryGrace)
+	for {
+		err := check(s.server.canaryRequests())
+		if err == nil || time.Now().After(deadline) {
+			return err
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func (s *scenario) allConcurrentResponseStatusCodesShouldBe(expected int) error {

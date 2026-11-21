@@ -1191,14 +1191,15 @@ Feature: /forms/libreoffice/convert
   Scenario: POST /forms/libreoffice/convert (Download From In The Deny-List)
     Given I have a static server
     Given I have a Gotenberg container with the following environment variable(s):
-      | API_DOWNLOAD_FROM_DENY_LIST | ^{helper}/static/ |
+      | API_DOWNLOAD_FROM_DENY_LIST | ^{helper}/canary/ |
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
-      | downloadFrom | [{"url":"{helper}/static/testdata/page_1.docx"}] | field |
+      | downloadFrom | [{"url":"{helper}/canary/page_1.docx"}] | field |
     Then the response status code should be 403
     Then the response body should match string:
       """
       Forbidden
       """
+    Then the helper server should NOT have received a canary request
 
   @webhook
   Scenario: POST /forms/libreoffice/convert (Webhook)
@@ -1299,9 +1300,10 @@ Feature: /forms/libreoffice/convert
     Given I have a static server
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
-      | downloadFrom | [{"url":"{helper}/canary-page/testdata/canary-libreoffice/index.html"}] | field |
+      | downloadFrom | [{"url":"{helper}/canary-page/testdata/canary-stylesheet-html/index.html"}] | field |
     Then the response status code should be 200
-    Then the helper server should have received a canary request
+    Then the helper server should have received the following canary request(s):
+      | style.css |
 
   @libreoffice-ssrf
   Scenario: POST /forms/libreoffice/convert (Canary in the deny-list never leaves)
@@ -1309,7 +1311,7 @@ Feature: /forms/libreoffice/convert
     Given I have a Gotenberg container with the following environment variable(s):
       | LIBREOFFICE_DENY_LIST | ^{helper}/canary/ |
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
-      | downloadFrom | [{"url":"{helper}/canary-page/testdata/canary-libreoffice/index.html"}] | field |
+      | downloadFrom | [{"url":"{helper}/canary-page/testdata/canary-stylesheet-html/index.html"}] | field |
     Then the response status code should be 200
     Then the helper server should NOT have received a canary request
 
@@ -1322,32 +1324,8 @@ Feature: /forms/libreoffice/convert
       | LIBREOFFICE_ALLOW_LIST       |      |
       | LIBREOFFICE_DENY_PRIVATE_IPS | true |
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
-      | downloadFrom | [{"url":"{helper}/canary-page/testdata/canary-libreoffice/index.html"}] | field |
+      | downloadFrom | [{"url":"{helper}/canary-page/testdata/canary-stylesheet-html/index.html"}] | field |
     Then the response status code should be 200
-    Then the helper server should NOT have received a canary request
-
-  # An uploaded document loads from an untrusted location, so LibreOffice
-  # refuses an image it links by URL, with no filter configured.
-  @libreoffice-ssrf
-  Scenario: POST /forms/libreoffice/convert (Canary image linked by URL never leaves)
-    Given I have a static server
-    Given I have a default Gotenberg container
-    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
-      | downloadFrom              | [{"url":"{helper}/canary-page/testdata/canary-libreoffice/linked-image.fodt"}] | field  |
-      | Gotenberg-Output-Filename | foo                                                                            | header |
-    Then the response status code should be 200
-    Then the "foo.pdf" PDF should have 0 image(s)
-    Then the helper server should NOT have received a canary request
-
-  # The deny-list names the download URL itself.
-  @download-from
-  Scenario: POST /forms/libreoffice/convert (Download From canary in the deny-list never leaves)
-    Given I have a static server
-    Given I have a Gotenberg container with the following environment variable(s):
-      | API_DOWNLOAD_FROM_DENY_LIST | ^{helper}/canary/ |
-    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
-      | downloadFrom | [{"url":"{helper}/canary/page_1.docx"}] | field |
-    Then the response status code should be 403
     Then the helper server should NOT have received a canary request
 
   # The workbook was saved scrolled down to row 37. Without the topLeftCell

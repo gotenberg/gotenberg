@@ -102,7 +102,8 @@ Available tags:
 - `all concurrent responses should have <N> PDF(s)`
 - `at least one concurrent response status code should be <code>`
 - `the (webhook request|file request|server request) method should be "<method>"`
-- `the helper server (should|should NOT) have received a canary request` (any request to `{helper}/canary/`; pair a `should NOT` with a control scenario that proves the canary is reachable)
+- `the helper server (should|should NOT) have received a canary request` (any request to `{helper}/canary/`; `should NOT` waits 2 seconds for a request still in flight, and pairs with a control scenario that proves the canary is reachable)
+- `the helper server should have received the following canary request(s):` (one path under `{helper}/canary/` per row, whatever the method; a control scenario lists every resource its `should NOT` counterpart covers)
 - `all sequential response status codes should be <code>`
 - `all probe response status codes should be <code>`
 - `the "<name>" image should be <width>x<height> pixels`

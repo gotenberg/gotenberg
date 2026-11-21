@@ -195,15 +195,17 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 	// WebSocket handshake included, so a filter that logs a refusal but lets
 	// the request through still fails the scenario.
 	srv.Any("/canary/*", func(c *echo.Context) error {
+		// Recorded first: a request counts once it arrives, even if reading
+		// its body fails.
 		r := c.Request()
+		s.mu.Lock()
+		s.canaries = append(s.canaries, r.Method+" "+r.URL.Path)
+		s.mu.Unlock()
+
 		_, err := io.Copy(io.Discard, r.Body)
 		if err != nil {
 			return c.String(http.StatusInternalServerError, err.Error())
 		}
-
-		s.mu.Lock()
-		s.canaries = append(s.canaries, r.Method+" "+r.URL.Path)
-		s.mu.Unlock()
 
 		return c.String(http.StatusOK, "canary")
 	})
