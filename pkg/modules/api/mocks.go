@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/alexliesenfeld/health"
-	"github.com/labstack/echo/v5"
 
 	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
@@ -84,6 +83,14 @@ func (ctx *ContextMock) OutputPaths() []string {
 	return ctx.outputPaths
 }
 
+// Answer returns the answer [Context.SetAnswer] set.
+//
+//	ctx := &api.ContextMock{Context: &api.Context{}}
+//	answer := ctx.Answer()
+func (ctx *ContextMock) Answer() any {
+	return ctx.answer
+}
+
 // SetTimeout sets the time limit of the request.
 //
 //	ctx := &api.ContextMock{Context: &api.Context{}}
@@ -98,14 +105,6 @@ func (ctx *ContextMock) SetTimeout(timeout time.Duration) {
 //	ctx.SetLogger(slog.Default())
 func (ctx *ContextMock) SetLogger(logger *slog.Logger) {
 	ctx.logger = logger
-}
-
-// SetEchoContext sets the [echo.Context].
-//
-//	ctx := &api.ContextMock{Context: &api.Context{}}
-//	ctx.setEchoContext(c)
-func (ctx *ContextMock) SetEchoContext(c *echo.Context) {
-	ctx.echoCtx = c
 }
 
 // SetMkdirAll sets the [gotenberg.MkdirAll].

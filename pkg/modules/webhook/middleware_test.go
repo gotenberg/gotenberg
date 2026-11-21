@@ -28,7 +28,7 @@ func TestWebhookMiddleware_SyncModeAnswersOnce(t *testing.T) {
 			expectEventStatus: http.StatusInternalServerError,
 		},
 		{
-			scenario: "route that writes its own response",
+			scenario: "chain that answers itself",
 			next: func(c *echo.Context) error {
 				err := c.JSON(http.StatusOK, map[string]string{"foo": "bar"})
 				if err != nil {

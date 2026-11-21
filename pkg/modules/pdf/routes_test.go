@@ -24,11 +24,34 @@ func serve(t *testing.T, route api.Route, values map[string][]string, fixtures .
 	mock := &api.ContextMock{Context: ctx}
 	mock.SetValues(values)
 
+	rec, err := handle(t, route, ctx)
+
+	return ctx, rec, err
+}
+
+// handle runs the handler of route on ctx, then writes the answer it set as
+// the API does. The handler itself must not write the response.
+func handle(t *testing.T, route api.Route, ctx *api.Context) (*httptest.ResponseRecorder, error) {
+	t.Helper()
+
 	rec := httptest.NewRecorder()
 	c := echo.New().NewContext(httptest.NewRequest(http.MethodPost, route.Path, nil), rec)
 	c.Set("context", ctx)
 
-	return ctx, rec, route.Handler(c)
+	err := route.Handler(c)
+	if rec.Body.Len() != 0 {
+		t.Fatalf("handler wrote %q, want it to set an answer instead", rec.Body.String())
+	}
+
+	answer := (&api.ContextMock{Context: ctx}).Answer()
+	if err == nil && answer != nil {
+		jsonErr := c.JSON(http.StatusOK, answer)
+		if jsonErr != nil {
+			t.Fatalf("write answer: %v", jsonErr)
+		}
+	}
+
+	return rec, err
 }
 
 func TestStageRoute(t *testing.T) {
@@ -248,8 +271,8 @@ func TestPipeRoute(t *testing.T) {
 func TestReadRoutes(t *testing.T) {
 	// pages_12.pdf carries neither an /Info dictionary nor an XMP packet.
 	_, rec, err := serve(t, metadataRoute(testProcessor()), nil, "pages_12.pdf")
-	if err != api.ErrNoOutputFile {
-		t.Fatalf("handler: %v, want ErrNoOutputFile after writing JSON", err)
+	if err != nil {
+		t.Fatalf("handler: %v", err)
 	}
 
 	if got := strings.TrimSpace(rec.Body.String()); got != `{"pages_12.pdf":{}}` {
@@ -257,8 +280,8 @@ func TestReadRoutes(t *testing.T) {
 	}
 
 	_, rec, err = serve(t, infoRoute(testProcessor()), nil, "pages_12.pdf")
-	if err != api.ErrNoOutputFile {
-		t.Fatalf("handler: %v, want ErrNoOutputFile after writing JSON", err)
+	if err != nil {
+		t.Fatalf("handler: %v", err)
 	}
 
 	var info map[string]documentInfo
@@ -277,7 +300,7 @@ func TestReadRoutes(t *testing.T) {
 	}
 
 	_, rec, err = serve(t, validateRoute(testProcessor()), map[string][]string{"profile": {"PDF/A-2b"}}, "page_1.pdf")
-	if err != api.ErrNoOutputFile {
+	if err != nil {
 		t.Fatalf("handler: %v", err)
 	}
 
@@ -290,7 +313,7 @@ func TestReadRoutes(t *testing.T) {
 		t.Fatalf("a plain PDF reported as PDF/A-2b compliant: %+v", got)
 	}
 	_, rec, err = serve(t, validateRoute(testProcessor()), map[string][]string{"profile": {"Factur-X"}}, "page_1.pdf")
-	if err != api.ErrNoOutputFile {
+	if err != nil {
 		t.Fatalf("handler: %v", err)
 	}
 
@@ -318,7 +341,7 @@ func TestReadRoutes(t *testing.T) {
 // 400 with the pairs.
 func TestValidateRoutePair(t *testing.T) {
 	_, rec, err := serve(t, validateRoute(testProcessor()), map[string][]string{"profile": {"PDF/A-2b", "PDF/UA-1"}}, "page_1.pdf")
-	if err != api.ErrNoOutputFile {
+	if err != nil {
 		t.Fatalf("handler: %v", err)
 	}
 
@@ -347,7 +370,7 @@ func TestValidateRoutePair(t *testing.T) {
 	}
 
 	_, rec, err = serve(t, validateRoute(testProcessor()), map[string][]string{"profile": {"PDF/UA-1"}}, "page_1.pdf")
-	if err != api.ErrNoOutputFile {
+	if err != nil {
 		t.Fatalf("handler: %v", err)
 	}
 
@@ -396,13 +419,9 @@ func readMetadata(t *testing.T, processor *Processor, path string) documentMetad
 	ctx, _ := testContext(t)
 	(&api.ContextMock{Context: ctx}).SetFiles(map[string]string{"doc.pdf": path})
 
-	rec := httptest.NewRecorder()
-	c := echo.New().NewContext(httptest.NewRequest(http.MethodPost, "/forms/pdf/metadata", nil), rec)
-	c.Set("context", ctx)
-
-	err := metadataRoute(processor).Handler(c)
-	if err != api.ErrNoOutputFile {
-		t.Fatalf("handler: %v, want ErrNoOutputFile after writing JSON", err)
+	rec, err := handle(t, metadataRoute(processor), ctx)
+	if err != nil {
+		t.Fatalf("handler: %v", err)
 	}
 
 	var answer map[string]documentMetadata
@@ -578,7 +597,7 @@ func TestUnknownFields(t *testing.T) {
 	// The fields a route reads are not unknown: password on a read route,
 	// profile on the validate route, the stage's options on a stage route.
 	_, _, err := serve(t, validateRoute(testProcessor()), map[string][]string{"profile": {"PDF/A-2b"}, "password": {""}}, "page_1.pdf")
-	if err != api.ErrNoOutputFile {
+	if err != nil {
 		t.Fatalf("validate: %v", err)
 	}
 
@@ -683,8 +702,8 @@ func TestFormRoute(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, rec, err := serve(t, formRoute(testProcessor()), tc.values, tc.fixture)
-			if err != api.ErrNoOutputFile {
-				t.Fatalf("handler: %v, want ErrNoOutputFile after writing JSON", err)
+			if err != nil {
+				t.Fatalf("handler: %v", err)
 			}
 
 			if got := strings.TrimSpace(rec.Body.String()); got != tc.wantBody {
@@ -708,13 +727,9 @@ func readFormFields(t *testing.T, processor *Processor, path string) []formField
 	ctx, _ := testContext(t)
 	(&api.ContextMock{Context: ctx}).SetFiles(map[string]string{"doc.pdf": path})
 
-	rec := httptest.NewRecorder()
-	c := echo.New().NewContext(httptest.NewRequest(http.MethodPost, "/forms/pdf/form", nil), rec)
-	c.Set("context", ctx)
-
-	err := formRoute(processor).Handler(c)
-	if err != api.ErrNoOutputFile {
-		t.Fatalf("handler: %v, want ErrNoOutputFile after writing JSON", err)
+	rec, err := handle(t, formRoute(processor), ctx)
+	if err != nil {
+		t.Fatalf("handler: %v", err)
 	}
 
 	var answer map[string][]formField

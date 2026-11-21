@@ -258,6 +258,57 @@ func TestNewContext_DownloadFromConcurrentMapWrites(t *testing.T) {
 	}
 }
 
+// A download carries the request's correlation ID, the one the client sent
+// included, even over a downloadFrom entry's own header of the same name.
+func TestNewContext_DownloadFromForwardsCorrelationId(t *testing.T) {
+	var got atomic.Value
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got.Store(r.Header.Get("Gotenberg-Trace"))
+		w.Header().Set("Content-Disposition", `attachment; filename="download.txt"`)
+		_, _ = w.Write([]byte("downloaded"))
+	}))
+	defer server.Close()
+
+	payload, err := json.Marshal([]downloadFrom{{
+		Url:              server.URL,
+		ExtraHttpHeaders: map[string]string{"Gotenberg-Trace": "entry"},
+	}})
+	if err != nil {
+		t.Fatalf("marshal downloadFrom payload: %v", err)
+	}
+
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	err = writer.WriteField("downloadFrom", string(payload))
+	if err != nil {
+		t.Fatalf("write downloadFrom field: %v", err)
+	}
+	err = writer.Close()
+	if err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/forms/libreoffice/convert", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	echoCtx := echo.New().NewContext(req, httptest.NewRecorder())
+	echoCtx.Set("correlationIdHeader", "Gotenberg-Trace")
+	echoCtx.Set("correlationId", "client")
+
+	logger := slog.New(slog.DiscardHandler)
+	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+
+	_, cancel, err := newContext(echoCtx, logger, fs, 10*time.Second, 0, downloadFromConfig{}, archiveConfig{})
+	if err != nil {
+		t.Fatalf("newContext returned error: %v", err)
+	}
+	defer cancel()
+
+	if got, _ := got.Load().(string); got != "client" {
+		t.Fatalf("Gotenberg-Trace = %q, want %q", got, "client")
+	}
+}
+
 // A failed download cancels the ones still in flight instead of letting them
 // run to --api-timeout (env API_TIMEOUT).
 func TestNewContext_DownloadFromFailureCancelsSiblings(t *testing.T) {

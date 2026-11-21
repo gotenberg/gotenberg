@@ -156,12 +156,9 @@ func readRoute(processor *Processor, name string, newRead func(form *api.FormDat
 				res[ctx.OriginalFilename(inputPath)] = collected[i]
 			}
 
-			err = c.JSON(http.StatusOK, res)
-			if err != nil {
-				return fmt.Errorf("return JSON response: %w", err)
-			}
+			ctx.SetAnswer(res)
 
-			return api.ErrNoOutputFile
+			return nil
 		},
 	}
 }

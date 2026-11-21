@@ -58,6 +58,7 @@ type Context struct {
 	diskToOriginalMu sync.RWMutex
 	outputPaths      []string
 	outputHeaders    map[string]string
+	answer           any
 	cancelled        bool
 
 	// fileOrder records the order files were received in, keyed by disk path.
@@ -88,8 +89,12 @@ type Context struct {
 	// yields whichever request happens to own it by then.
 	outputFilename string
 
+	// correlationIdHeader and correlationId are snapshotted for the same
+	// reason, and downloads forward them.
+	correlationIdHeader string
+	correlationId       string
+
 	logger     *slog.Logger
-	echoCtx    *echo.Context
 	mkdirAll   gotenberg.MkdirAll
 	pathRename gotenberg.PathRename
 	context.Context
@@ -203,17 +208,20 @@ func newContext(echoCtx *echo.Context, logger *slog.Logger, fs *gotenberg.FileSy
 
 	// Snapshot now, while echoCtx still belongs to this request.
 	outputFilename, _ := echoCtx.Get("outputFilename").(string)
+	correlationIdHeader, _ := echoCtx.Get("correlationIdHeader").(string)
+	correlationId, _ := echoCtx.Get("correlationId").(string)
 
 	ctx := &Context{
-		outputPaths:    make([]string, 0),
-		cancelled:      false,
-		outputFilename: outputFilename,
-		timeout:        timeout,
-		logger:         logger,
-		echoCtx:        echoCtx,
-		mkdirAll:       new(gotenberg.OsMkdirAll),
-		pathRename:     new(gotenberg.OsPathRename),
-		Context:        processCtx,
+		outputPaths:         make([]string, 0),
+		cancelled:           false,
+		outputFilename:      outputFilename,
+		correlationIdHeader: correlationIdHeader,
+		correlationId:       correlationId,
+		timeout:             timeout,
+		logger:              logger,
+		mkdirAll:            new(gotenberg.OsMkdirAll),
+		pathRename:          new(gotenberg.OsPathRename),
+		Context:             processCtx,
 	}
 
 	// A custom cancel function which removes the context's working directory
@@ -522,10 +530,8 @@ func (ctx *Context) downloadOne(groupCtx context.Context, i int, dl downloadFrom
 	}
 
 	// Propagate correlation ID header.
-	if correlationIdHeader, ok := ctx.echoCtx.Get("correlationIdHeader").(string); ok {
-		if correlationId, ok := ctx.echoCtx.Get("correlationId").(string); ok {
-			req.Header.Set(correlationIdHeader, correlationId)
-		}
+	if ctx.correlationIdHeader != "" && ctx.correlationId != "" {
+		req.Header.Set(ctx.correlationIdHeader, ctx.correlationId)
 	}
 
 	// Entries are serialized by the concurrency limit, so a late one can start
@@ -753,11 +759,6 @@ func (ctx *Context) Timeout() time.Duration {
 	return ctx.timeout
 }
 
-// Request returns the [http.Request].
-func (ctx *Context) Request() *http.Request {
-	return ctx.echoCtx.Request()
-}
-
 // FormData return a [FormData]. Every [FormData] of a request records the
 // fields it reads in the same set, which [FormData.RejectUnknown] checks.
 func (ctx *Context) FormData() *FormData {
@@ -874,6 +875,15 @@ func (ctx *Context) AddOutputPaths(paths ...string) error {
 	}
 
 	return nil
+}
+
+// SetAnswer sets the value the API answers with, as JSON with a 200 status,
+// instead of output files. A route that reads rather than writes PDFs, such
+// as one returning metadata, sets it. The API, not the route, writes the
+// response, and only when the route returns in time. Like
+// [Context.AddOutputPaths], it is not safe for concurrent use.
+func (ctx *Context) SetAnswer(answer any) {
+	ctx.answer = answer
 }
 
 // SetOutputHeader sets a header that describes the output, such as the

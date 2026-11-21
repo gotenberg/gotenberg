@@ -31,8 +31,8 @@ var (
 	// in an asynchronous fashion.
 	ErrAsyncProcess = errors.New("async process")
 
-	// ErrNoOutputFile happens when a handler or middleware has already written
-	// the response itself, so no output file must be sent.
+	// ErrNoOutputFile happens when a middleware has already written the
+	// response itself, so neither an answer nor an output file must be sent.
 	ErrNoOutputFile = errors.New("no output file")
 )
 
@@ -146,8 +146,8 @@ func answersDirectlyMiddleware() echo.MiddlewareFunc {
 	}
 }
 
-// RouteAnswersDirectly reports whether the route of c writes its response
-// itself rather than producing output files. See [Route.AnswersDirectly].
+// RouteAnswersDirectly reports whether the route of c answers with a value
+// rather than producing output files. See [Route.AnswersDirectly].
 func RouteAnswersDirectly(c *echo.Context) bool {
 	answers, _ := c.Get(AnswersDirectlyKey).(bool)
 	return answers
@@ -516,17 +516,15 @@ func oidcAuthMiddleware(verifier *oidc.IDTokenVerifier) echo.MiddlewareFunc {
 // contextMiddleware, middleware for "multipart/form-data" requests, sets the
 // [Context] and related context.CancelFunc in the [echo.Context] under
 // "context" and "cancel". If the process is synchronous, it also handles the
-// result of a "multipart/form-data" request.
+// result of a "multipart/form-data" request: the answer the handler set with
+// [Context.SetAnswer], or else its output files.
 //
 //	ctx := c.Get("context").(*api.Context)
 //	cancel := c.Get("cancel").(context.CancelFunc)
 func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, bodyLimit int64, downloadFromCfg downloadFromConfig, archiveCfg archiveConfig) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
-			logger, _ := c.Get("logger").(*slog.Logger)
-			if logger == nil {
-				return errors.New("no logger in context (possible pool reuse)")
-			}
+			logger := c.Get("logger").(*slog.Logger)
 
 			// We create a context with a timeout so that underlying processes are
 			// able to stop early and correctly handle a timeout scenario.
@@ -552,12 +550,25 @@ func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, bodyLimi
 			defer cancel()
 
 			if errors.Is(err, ErrNoOutputFile) {
-				// A middleware/handler already wrote the response.
+				// A middleware already wrote the response.
 				return nil
 			}
 
 			if err != nil {
+				// The handler may still be running after a hard timeout, so
+				// its answer and output files are left alone.
 				return err
+			}
+
+			// This goroutine owns the response: the handler only sets what to
+			// send. See hardTimeoutMiddleware.
+			if ctx.answer != nil {
+				err = c.JSON(http.StatusOK, ctx.answer)
+				if err != nil {
+					return fmt.Errorf("send response: %w", err)
+				}
+
+				return nil
 			}
 
 			// No error, let's build the output file.
@@ -582,19 +593,34 @@ func contextMiddleware(fs *gotenberg.FileSystem, timeout time.Duration, bodyLimi
 	}
 }
 
+// contextKeys are the [echo.Context] keys the API's middlewares set for the
+// middlewares and handlers after them.
+var contextKeys = []string{
+	"logger",
+	"rootPath",
+	"startTime",
+	"outputFilename",
+	"correlationIdHeader",
+	"correlationId",
+	"context",
+	"cancel",
+	AnswersDirectlyKey,
+}
+
 // hardTimeoutMiddleware manages hard timeout scenarios, i.e., when a route
 // handler fails to timeout as expected.
+//
+// The handler runs on its own goroutine, which outlives the request after a
+// hard timeout. It gets a context from [NewDetachedContext] rather than the
+// pooled c, which Echo recycles for another request once this middleware
+// returns: whatever the handler writes is dropped, and the response belongs to
+// the request goroutine alone. A multipart handler sets its answer with
+// [Context.SetAnswer] or registers output files, and contextMiddleware sends
+// them when the handler returns in time.
 func hardTimeoutMiddleware(hardTimeout time.Duration) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
-			// Guard the type assertion so a pooled [echo.Context] whose
-			// store has been recycled under us does not crash the process.
-			// See the webhook async handler for the race this protects
-			// against.
-			logger, _ := c.Get("logger").(*slog.Logger)
-			if logger == nil {
-				return errors.New("no logger in context (possible pool reuse)")
-			}
+			logger := c.Get("logger").(*slog.Logger)
 
 			// Define a hard timeout if the route handler fails to timeout as
 			// expected.
@@ -604,14 +630,13 @@ func hardTimeoutMiddleware(hardTimeout time.Duration) echo.MiddlewareFunc {
 			)
 			defer hardTimeoutCancel()
 
+			detached := NewDetachedContext(c, contextKeys...)
 			errChan := make(chan error, 1)
 
 			go func() {
-				// A panic either comes from the handler itself or, after a hard
-				// timeout, from c being recycled under this goroutine. In the
-				// first case the client gets a 500 right away; in the second
-				// nobody reads errChan anymore, and its buffer keeps the send
-				// from blocking.
+				// A handler panic reaches the client as a 500 right away. After
+				// a hard timeout, nobody reads errChan anymore, and its buffer
+				// keeps the send from blocking.
 				defer func() {
 					if r := recover(); r != nil {
 						logger.ErrorContext(hardTimeoutCtx, fmt.Sprintf("recover from handler panic: %v\n%s", r, debug.Stack()))
@@ -620,7 +645,7 @@ func hardTimeoutMiddleware(hardTimeout time.Duration) echo.MiddlewareFunc {
 				}()
 
 				// Call the next middleware in the chain.
-				errChan <- next(c)
+				errChan <- next(detached)
 			}()
 
 			select {

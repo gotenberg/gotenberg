@@ -117,14 +117,20 @@ type Route struct {
 	// Optional.
 	DisableTelemetry bool
 
-	// AnswersDirectly tells that a multipart route writes its response
-	// itself, such as JSON, rather than producing output files. Middlewares
-	// that deliver output files elsewhere, such as the webhook, read it with
-	// [RouteAnswersDirectly] to refuse the request before it runs.
+	// AnswersDirectly tells that a multipart route answers with a value it
+	// sets with [Context.SetAnswer], sent as JSON, rather than producing
+	// output files. Middlewares that deliver output files elsewhere, such as
+	// the webhook, read it with [RouteAnswersDirectly] to refuse the request
+	// before it runs.
 	// Optional.
 	AnswersDirectly bool
 
-	// Handler is the function that handles the request.
+	// Handler is the function that handles the request. The handler of a
+	// multipart route never writes the response: it registers output files
+	// with [Context.AddOutputPaths], or sets an answer with
+	// [Context.SetAnswer], and the API sends them. It runs under a hard
+	// timeout, on an [echo.Context] whose response is discarded. The handler
+	// of any other route writes its response itself.
 	// Required.
 	Handler echo.HandlerFunc
 }
@@ -710,9 +716,9 @@ func (a *Api) Start() error {
 			for _, externalMultipartMiddleware := range externalMultipartMiddlewares {
 				middlewares = append(middlewares, externalMultipartMiddleware.Handler)
 			}
-		}
 
-		middlewares = append(middlewares, hardTimeoutMiddleware(hardTimeout))
+			middlewares = append(middlewares, hardTimeoutMiddleware(hardTimeout))
+		}
 
 		a.srv.Add(
 			route.Method,
@@ -747,22 +753,14 @@ func (a *Api) Start() error {
 	copy(checks, a.healthChecks)
 	checks = append(checks, health.WithTimeout(a.timeout))
 	checker := health.NewChecker(checks...)
-	healthCheckHandler := health.NewHandler(checker)
+	// The health handler writes its own response, so the hard timeout is
+	// [http.TimeoutHandler]'s: it buffers what the handler writes and drops it
+	// once the time is up, rather than let a late answer reach the response.
+	_, hardTimeoutMessage := ParseError(context.DeadlineExceeded)
+	healthCheckHandler := echo.WrapHandler(http.TimeoutHandler(health.NewHandler(checker), hardTimeout, hardTimeoutMessage))
 
-	a.srv.GET(
-		fmt.Sprintf("%s%s", a.rootPath, "health"),
-		func() echo.HandlerFunc {
-			return echo.WrapHandler(healthCheckHandler)
-		}(),
-		hardTimeoutMiddleware(hardTimeout),
-	)
-	a.srv.HEAD(
-		fmt.Sprintf("%s%s", a.rootPath, "health"),
-		func() echo.HandlerFunc {
-			return echo.WrapHandler(healthCheckHandler)
-		}(),
-		hardTimeoutMiddleware(hardTimeout),
-	)
+	a.srv.GET(fmt.Sprintf("%s%s", a.rootPath, "health"), healthCheckHandler)
+	a.srv.HEAD(fmt.Sprintf("%s%s", a.rootPath, "health"), healthCheckHandler)
 
 	// ...the version route.
 	a.srv.GET(

@@ -7,7 +7,9 @@ import (
 	"crypto/rsa"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -367,31 +369,169 @@ func TestTelemetryMiddleware_Route(t *testing.T) {
 	}
 }
 
-func TestHardTimeoutMiddleware_MissingLoggerReturnsErrorInsteadOfPanicking(t *testing.T) {
-	mw := hardTimeoutMiddleware(100 * time.Millisecond)
-	handler := mw(func(c *echo.Context) error { return nil })
+// newMultipartServer returns a server whose route /forms/test runs handler as
+// the API runs a multipart route, under the given hard timeout, and whose route
+// /other answers "other" after a while, to keep a request on a recycled
+// [echo.Context] busy.
+func newMultipartServer(t *testing.T, hardTimeout time.Duration, handler echo.HandlerFunc) *httptest.Server {
+	t.Helper()
 
-	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
+	srv := newEchoServer()
+	srv.Pre(
+		latencyMiddleware(),
+		rootPathMiddleware("/"),
+		outputFilenameMiddleware(),
+		telemetryMiddleware(slog.New(slog.DiscardHandler), "", ":3000", "Gotenberg-Trace", nil),
+		versionHeaderMiddleware(),
+	)
 
-	// c has no "logger" key, mimicking a pooled context whose store was
-	// recycled under a concurrently running webhook goroutine. The
-	// middleware must surface an error instead of panicking on the
-	// unchecked type assertion the pre-fix code relied on.
-	defer func() {
-		if r := recover(); r != nil {
-			t.Fatalf("hardTimeoutMiddleware panicked: %v", r)
-		}
-	}()
+	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+	srv.POST(
+		"/forms/test",
+		handler,
+		contextMiddleware(fs, time.Minute, 0, downloadFromConfig{disable: true}, archiveConfig{}),
+		hardTimeoutMiddleware(hardTimeout),
+	)
+	srv.POST("/other", func(c *echo.Context) error {
+		time.Sleep(200 * time.Millisecond)
+		return c.String(http.StatusOK, "other")
+	})
 
-	err := handler(c)
-	if err == nil {
-		t.Fatal("expected an error for missing logger, got nil")
+	ts := httptest.NewServer(srv)
+	t.Cleanup(ts.Close)
+
+	return ts
+}
+
+// postMultipart posts a multipart form with one field to url.
+func postMultipart(t *testing.T, url string) *http.Response {
+	t.Helper()
+
+	var body bytes.Buffer
+	form := multipart.NewWriter(&body)
+	err := form.WriteField("foo", "bar")
+	if err != nil {
+		t.Fatalf("write field: %v", err)
 	}
-	if !strings.Contains(err.Error(), "logger") {
-		t.Fatalf("error = %q, want a message mentioning logger", err)
+	err = form.Close()
+	if err != nil {
+		t.Fatalf("close form: %v", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, url, &body)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set("Content-Type", form.FormDataContentType())
+	req.Header.Set("Gotenberg-Trace", "my-trace")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("post %s: %v", url, err)
+	}
+
+	return resp
+}
+
+// A handler that outlives its hard timeout keeps running while Echo hands its
+// pooled [echo.Context] to the next request. Whatever it does then, the next
+// request gets its own answer only.
+func TestHardTimeoutMiddleware_LateHandlerReachesNoOtherRequest(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		late func(c *echo.Context)
+	}{
+		{
+			name: "writes the response",
+			late: func(c *echo.Context) {
+				_ = c.JSON(http.StatusOK, map[string]string{"secret": "late"})
+			},
+		},
+		{
+			name: "sets an answer",
+			late: func(c *echo.Context) {
+				c.Get("context").(*Context).SetAnswer(map[string]string{"secret": "late"})
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			done := make(chan struct{})
+			ts := newMultipartServer(t, 50*time.Millisecond, func(c *echo.Context) error {
+				defer func() { done <- struct{}{} }()
+				time.Sleep(150 * time.Millisecond)
+				tc.late(c)
+				return nil
+			})
+
+			// Echo's pool may hand the next request another context, and
+			// sync.Pool drops items at random under -race: a few rounds make
+			// the reuse all but certain.
+			for range 3 {
+				resp := postMultipart(t, ts.URL+"/forms/test")
+				_, _ = io.Copy(io.Discard, resp.Body)
+				_ = resp.Body.Close()
+				if resp.StatusCode != http.StatusServiceUnavailable {
+					t.Fatalf("late request: status %d, want %d", resp.StatusCode, http.StatusServiceUnavailable)
+				}
+
+				resp, err := http.Post(ts.URL+"/other", "text/plain", nil)
+				if err != nil {
+					t.Fatalf("post /other: %v", err)
+				}
+				body, _ := io.ReadAll(resp.Body)
+				_ = resp.Body.Close()
+
+				<-done
+
+				if resp.StatusCode != http.StatusOK || string(body) != "other" {
+					t.Fatalf("other request: got %d %q, want %d %q", resp.StatusCode, body, http.StatusOK, "other")
+				}
+				if got := resp.Header.Get(echo.HeaderContentType); got != echo.MIMETextPlainCharsetUTF8 {
+					t.Fatalf("other request: Content-Type %q, want %q", got, echo.MIMETextPlainCharsetUTF8)
+				}
+			}
+		})
+	}
+}
+
+// The API, not the handler, sends the answer a handler sets in time, with the
+// headers of any other response.
+func TestContextMiddleware_SendsAnswer(t *testing.T) {
+	ts := newMultipartServer(t, time.Minute, func(c *echo.Context) error {
+		ctx := c.Get("context").(*Context)
+
+		var foo string
+		err := ctx.FormData().String("foo", &foo).Validate()
+		if err != nil {
+			return err
+		}
+
+		ctx.SetAnswer(map[string]string{"foo": foo})
+
+		return nil
+	})
+
+	resp := postMultipart(t, ts.URL+"/forms/test")
+	body, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", resp.StatusCode, http.StatusOK, body)
+	}
+	if got := string(body); got != "{\"foo\":\"bar\"}\n" {
+		t.Errorf("body = %q, want the answer as JSON", got)
+	}
+	if got := resp.Header.Get(echo.HeaderContentType); got != echo.MIMEApplicationJSON {
+		t.Errorf("Content-Type = %q, want %q", got, echo.MIMEApplicationJSON)
+	}
+	if got := resp.Header.Get("Gotenberg-Trace"); got != "my-trace" {
+		t.Errorf("Gotenberg-Trace = %q, want %q", got, "my-trace")
+	}
+	if got := resp.Header.Get("Gotenberg-Version"); got == "" {
+		t.Error("Gotenberg-Version missing")
+	}
+	if got := resp.Header.Get(echo.HeaderContentDisposition); got != "" {
+		t.Errorf("Content-Disposition = %q, want none on an answer", got)
 	}
 }
 

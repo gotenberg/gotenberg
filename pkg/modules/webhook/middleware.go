@@ -270,8 +270,8 @@ func webhookMiddleware(w *Webhook) api.Middleware {
 
 					// The downstream chain writes into a detached response, never
 					// the client's: the client only ever gets the 204 below, and the
-					// outcome goes to the webhook URLs. See newDetachedContext.
-					detached := newDetachedContext(c, "logger", "context", "correlationId", "correlationIdHeader", "startTime")
+					// outcome goes to the webhook URLs. See api.NewDetachedContext.
+					detached := api.NewDetachedContext(c, "logger", "context", "correlationId", "correlationIdHeader", "startTime")
 
 					process := func() {
 						err := next(detached)

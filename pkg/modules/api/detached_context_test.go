@@ -1,4 +1,4 @@
-package webhook
+package api
 
 import (
 	"log/slog"
@@ -19,7 +19,7 @@ func TestNewDetachedContext_SurvivesUnderlyingReset(t *testing.T) {
 	c.Set("logger", logger)
 	c.Set("correlationId", "abc-123")
 
-	detached := newDetachedContext(c, "logger", "correlationId", "missing")
+	detached := NewDetachedContext(c, "logger", "correlationId", "missing")
 
 	// Simulate Echo recycling c for a concurrent request. Reset clears the
 	// pooled store, which is exactly the crash scenario the detached context
@@ -48,7 +48,7 @@ func TestNewDetachedContext_SetDoesNotTouchUnderlying(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	detached := newDetachedContext(c)
+	detached := NewDetachedContext(c)
 	detached.Set("foo", "bar")
 
 	if got, _ := detached.Get("foo").(string); got != "bar" {
@@ -64,7 +64,7 @@ func TestNewDetachedContext_DiscardsWrites(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(httptest.NewRequest(http.MethodPost, "/", nil), rec)
 
-	detached := newDetachedContext(c)
+	detached := NewDetachedContext(c)
 
 	err := detached.JSON(http.StatusOK, map[string]string{"foo": "bar"})
 	if err != nil {
@@ -73,4 +73,31 @@ func TestNewDetachedContext_DiscardsWrites(t *testing.T) {
 	if rec.Body.Len() != 0 || rec.Code != http.StatusOK || len(rec.Header()) != 0 {
 		t.Fatalf("detached write reached the client's response: %q", rec.Body.String())
 	}
+}
+
+func TestNewDetachedContext_KeepsRouteAndPathValues(t *testing.T) {
+	e := echo.New()
+	e.POST("/forms/:name/*", func(c *echo.Context) error {
+		detached := NewDetachedContext(c)
+
+		// Simulate Echo recycling c for a concurrent request.
+		c.Reset(httptest.NewRequest(http.MethodGet, "/", nil), httptest.NewRecorder())
+
+		if got := detached.Param("name"); got != "pdf" {
+			t.Errorf("Param(name) = %q, want %q", got, "pdf")
+		}
+		if got := detached.Param("*"); got != "merge" {
+			t.Errorf("Param(*) = %q, want %q", got, "merge")
+		}
+		if got := detached.Path(); got != "/forms/:name/*" {
+			t.Errorf("Path = %q, want %q", got, "/forms/:name/*")
+		}
+		if got := detached.Request().URL.Path; got != "/forms/pdf/merge" {
+			t.Errorf("request path = %q, want %q", got, "/forms/pdf/merge")
+		}
+
+		return nil
+	})
+
+	e.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/forms/pdf/merge", nil))
 }
