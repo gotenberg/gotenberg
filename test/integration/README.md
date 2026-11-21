@@ -48,7 +48,7 @@ Available tags:
 
 - `I have a default Gotenberg container`
 - `I have a Gotenberg container with the following environment variable(s):` (table: key | value)
-- `I have a (webhook|static) server`: one helper server per scenario, whichever word is used; a second step reuses it. Besides the webhook and file routes, it answers RFC 3161 timestamp requests at `{helper}/tsa`, and never answers `{helper}/slow`, for timeouts
+- `I have a (webhook|static) server`: one helper server per scenario, whichever word is used; a second step reuses it. Besides the webhook and file routes, it answers RFC 3161 timestamp requests at `{helper}/tsa`, and never answers `{helper}/slow`, for timeouts. Its canary routes check that a filter refuses a request before it leaves: `{helper}/canary/<anything>` records every request it receives, whatever its method, `{helper}/canary-redirect/<anything>` redirects to `{helper}/canary/<anything>`, and `{helper}/canary-page/testdata/<path>` serves a fixture with each `{canary}` token replaced by `{helper}/canary`, as Gotenberg reaches it (fixtures cannot hold the helper URL, whose port changes with every scenario)
 
 ### When (action)
 
@@ -102,6 +102,7 @@ Available tags:
 - `all concurrent responses should have <N> PDF(s)`
 - `at least one concurrent response status code should be <code>`
 - `the (webhook request|file request|server request) method should be "<method>"`
+- `the helper server (should|should NOT) have received a canary request` (any request to `{helper}/canary/`; pair a `should NOT` with a control scenario that proves the canary is reachable)
 - `all sequential response status codes should be <code>`
 - `all probe response status codes should be <code>`
 - `the "<name>" image should be <width>x<height> pixels`

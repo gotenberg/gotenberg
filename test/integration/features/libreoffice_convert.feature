@@ -1291,6 +1291,65 @@ Feature: /forms/libreoffice/convert
     Then there should be 1 PDF(s) in the response
     Then the "foo.pdf" PDF should have 0 image(s)
 
+  # Control for the canary scenarios below: with no filter in the way,
+  # LibreOffice requests the style sheet an HTML document links. Without it,
+  # a canary that stays silent could mean LibreOffice never tried.
+  @libreoffice-ssrf
+  Scenario: POST /forms/libreoffice/convert (Canary style sheet loads when no filter refuses it)
+    Given I have a static server
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | downloadFrom | [{"url":"{helper}/canary-page/testdata/canary-libreoffice/index.html"}] | field |
+    Then the response status code should be 200
+    Then the helper server should have received a canary request
+
+  @libreoffice-ssrf
+  Scenario: POST /forms/libreoffice/convert (Canary in the deny-list never leaves)
+    Given I have a static server
+    Given I have a Gotenberg container with the following environment variable(s):
+      | LIBREOFFICE_DENY_LIST | ^{helper}/canary/ |
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | downloadFrom | [{"url":"{helper}/canary-page/testdata/canary-libreoffice/index.html"}] | field |
+    Then the response status code should be 200
+    Then the helper server should NOT have received a canary request
+
+  # The helper server resolves to a non-public address. An allow-list match
+  # would bypass the check: none here.
+  @libreoffice-ssrf
+  Scenario: POST /forms/libreoffice/convert (Canary on a non-public address never leaves)
+    Given I have a static server
+    Given I have a Gotenberg container with the following environment variable(s):
+      | LIBREOFFICE_ALLOW_LIST       |      |
+      | LIBREOFFICE_DENY_PRIVATE_IPS | true |
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | downloadFrom | [{"url":"{helper}/canary-page/testdata/canary-libreoffice/index.html"}] | field |
+    Then the response status code should be 200
+    Then the helper server should NOT have received a canary request
+
+  # An uploaded document loads from an untrusted location, so LibreOffice
+  # refuses an image it links by URL, with no filter configured.
+  @libreoffice-ssrf
+  Scenario: POST /forms/libreoffice/convert (Canary image linked by URL never leaves)
+    Given I have a static server
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | downloadFrom              | [{"url":"{helper}/canary-page/testdata/canary-libreoffice/linked-image.fodt"}] | field  |
+      | Gotenberg-Output-Filename | foo                                                                            | header |
+    Then the response status code should be 200
+    Then the "foo.pdf" PDF should have 0 image(s)
+    Then the helper server should NOT have received a canary request
+
+  # The deny-list names the download URL itself.
+  @download-from
+  Scenario: POST /forms/libreoffice/convert (Download From canary in the deny-list never leaves)
+    Given I have a static server
+    Given I have a Gotenberg container with the following environment variable(s):
+      | API_DOWNLOAD_FROM_DENY_LIST | ^{helper}/canary/ |
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | downloadFrom | [{"url":"{helper}/canary/page_1.docx"}] | field |
+    Then the response status code should be 403
+    Then the helper server should NOT have received a canary request
+
   # The workbook was saved scrolled down to row 37. Without the topLeftCell
   # reset, singlePage would start the page there and drop the header rows,
   # so the "Meteor" column header only appears when the whole sheet is rendered.
