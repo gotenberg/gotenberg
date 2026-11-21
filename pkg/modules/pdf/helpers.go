@@ -174,6 +174,18 @@ func parsePages(spec string, pageCount int) ([]int, error) {
 	return pages, nil
 }
 
+// validatePages reports whether spec is a page range specification
+// [parsePages] accepts for a document of pageCount pages, without expanding
+// it. A specification whose parts are valid but select no page passes; only
+// [parsePages] tells it.
+func validatePages(spec string, pageCount int) error {
+	if strings.EqualFold(strings.TrimSpace(spec), "all") {
+		return nil
+	}
+
+	return litho.ValidatePageRanges(spec, pageCount)
+}
+
 // pdfDatePattern matches a PDF date, D:YYYYMMDDHHmmSSOHH'mm (ISO 32000-1,
 // 7.9.4): the year is mandatory and each field after it is optional, the time
 // zone included.

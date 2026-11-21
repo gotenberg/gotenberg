@@ -1626,3 +1626,58 @@ func TestRunMergeFileBookmarksUnknownLabel(t *testing.T) {
 		t.Fatalf("got %d %q, want 400 %q", status, message, want)
 	}
 }
+
+// TestSplitStopsAtTheDeadline pins that a split of many parts stops between
+// parts when the request's deadline passes, rather than writing them all.
+func TestSplitStopsAtTheDeadline(t *testing.T) {
+	ctx, paths := testContext(t, "pages_12.pdf")
+
+	deadline, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	ctx.Context = deadline
+
+	ranges := make([]string, 50_000)
+	for i := range ranges {
+		ranges[i] = "1-"
+	}
+
+	start := time.Now()
+	_, err := testProcessor().splitOne(ctx, &splitStage{Ranges: ranges}, document{path: paths["pages_12.pdf"], filename: "pages_12.pdf"}, "")
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("split err = %v, want context.DeadlineExceeded", err)
+	}
+
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
+		t.Fatalf("split stopped after %s, want shortly after the deadline", elapsed)
+	}
+}
+
+// TestSplitChecksEveryRangeFirst pins that a split with an invalid range
+// writes no part, wherever the range sits in the list.
+func TestSplitChecksEveryRangeFirst(t *testing.T) {
+	ctx, paths := testContext(t, "pages_12.pdf")
+
+	ranges := make([]string, 1_000)
+	for i := range ranges {
+		ranges[i] = "1-"
+	}
+	ranges[len(ranges)-1] = "13"
+
+	before, err := os.ReadDir(ctx.DirPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = testProcessor().splitOne(ctx, &splitStage{Ranges: ranges}, document{path: paths["pages_12.pdf"], filename: "pages_12.pdf"}, "")
+	if !errors.Is(err, litho.ErrInvalidPageRange) {
+		t.Fatalf("split err = %v, want litho.ErrInvalidPageRange", err)
+	}
+
+	after, err := os.ReadDir(ctx.DirPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after) != len(before) {
+		t.Fatalf("split wrote %d files before rejecting the last range, want none", len(after)-len(before))
+	}
+}

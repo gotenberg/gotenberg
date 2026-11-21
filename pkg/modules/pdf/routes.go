@@ -420,16 +420,23 @@ func formRoute(processor *Processor) api.Route {
 // non-empty pages, a page selection, keeps the fields with a widget on a
 // selected page.
 func readForm(ctx context.Context, r *litho.Reader, pages string) ([]formField, error) {
-	var selected []int
+	// selected[p] tells whether the selection holds page p; nil keeps every
+	// field.
+	var selected []bool
 	if pages != "" {
 		count, err := r.PageCount(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("count pages: %w", err)
 		}
 
-		selected, err = parsePages(pages, count)
+		list, err := parsePages(pages, count)
 		if err != nil {
 			return nil, fmt.Errorf("form field 'pages': %w", err)
+		}
+
+		selected = make([]bool, count+1)
+		for _, p := range list {
+			selected[p] = true
 		}
 	}
 
@@ -438,8 +445,20 @@ func readForm(ctx context.Context, r *litho.Reader, pages string) ([]formField, 
 		return nil, fmt.Errorf("read form fields: %w", err)
 	}
 
+	return formFields(ctx, fields, selected)
+}
+
+// formFields describes fields for the form route, in order. A non-nil
+// selected, indexed by page, keeps the fields with a widget on a page it
+// holds.
+func formFields(ctx context.Context, fields []models.FormField, selected []bool) ([]formField, error) {
 	res := []formField{}
 	for _, f := range fields {
+		err := ctx.Err()
+		if err != nil {
+			return nil, err
+		}
+
 		// An XFA form names its fields in its own template, which set-form
 		// does not fill. A field that states no type is malformed.
 		if f.Type == models.FormFieldXFA || f.Type == "" {
@@ -469,13 +488,14 @@ func readForm(ctx context.Context, r *litho.Reader, pages string) ([]formField, 
 		}
 
 		for _, w := range f.Widgets {
-			if w.PageNumber > 0 && !slices.Contains(field.Pages, w.PageNumber) {
+			if w.PageNumber > 0 {
 				field.Pages = append(field.Pages, w.PageNumber)
 			}
 		}
 		slices.Sort(field.Pages)
+		field.Pages = slices.Compact(field.Pages)
 
-		if selected != nil && !slices.ContainsFunc(field.Pages, func(page int) bool { return slices.Contains(selected, page) }) {
+		if selected != nil && !slices.ContainsFunc(field.Pages, func(page int) bool { return page < len(selected) && selected[page] }) {
 			continue
 		}
 

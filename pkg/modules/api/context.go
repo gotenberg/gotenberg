@@ -72,6 +72,11 @@ type Context struct {
 	// twin rather than wherever its numbered name would land.
 	fileBase map[string]string
 
+	// nextSuffix maps a filename to the number uniqueFilename tries first
+	// the next time it collides, so the numbers a name already took are not
+	// probed again.
+	nextSuffix map[string]int
+
 	// fields records the value form fields the route reads, and fileFields
 	// the multipart fields files arrived under, so that
 	// [FormData.RejectUnknown] tells the fields the route does not know.
@@ -1032,26 +1037,31 @@ func safeExt(filename string) string {
 }
 
 // uniqueFilename returns filename, or a numbered variant of it when the
-// request already carries a file by that name.
+// request already carries a file by that name: "doc.pdf", then "doc (2).pdf",
+// "doc (3).pdf" and so on.
 //
-// Uploads are keyed by their sanitized original filename, so two files sharing
-// one name used to collide: the second overwrote the first and only one
-// reached the conversion, while both stayed on disk and counted against the
-// body limit. Sanitizing strips directories, so "a/doc.pdf" and "b/doc.pdf"
-// collide too.
+// Uploads are keyed by their sanitized original filename, and sanitizing
+// strips directories, so "a/doc.pdf" and "b/doc.pdf" share a name. Each name
+// resumes from the number it last reached, so N files of one name cost N
+// probes, not N²/2.
 func (ctx *Context) uniqueFilename(filename string) string {
 	_, exists := ctx.files[filename]
 	if !exists {
 		return filename
 	}
 
+	if ctx.nextSuffix == nil {
+		ctx.nextSuffix = make(map[string]int)
+	}
+
 	ext := filepath.Ext(filename)
 	stem := strings.TrimSuffix(filename, ext)
 
-	for i := 2; ; i++ {
+	for i := max(ctx.nextSuffix[filename], 2); ; i++ {
 		candidate := fmt.Sprintf("%s (%d)%s", stem, i, ext)
 		_, exists = ctx.files[candidate]
 		if !exists {
+			ctx.nextSuffix[filename] = i + 1
 			return candidate
 		}
 	}

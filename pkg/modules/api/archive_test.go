@@ -3,6 +3,8 @@ package api
 import (
 	"archive/zip"
 	"bytes"
+	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"maps"
@@ -191,4 +193,44 @@ func TestNewContext_Archives(t *testing.T) {
 			t.Fatalf("status = %d, want 413", status)
 		}
 	})
+}
+
+// TestNewContext_ArchiveStopsWhenCancelled pins that unpacking an archive
+// stops once the request is cancelled.
+func TestNewContext_ArchiveStopsWhenCancelled(t *testing.T) {
+	archive := buildZip(t, zipEntry{name: "index.html", content: []byte("<html></html>")})
+
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile(ArchivesFormField, "site.zip")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = part.Write(archive)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = writer.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reqCtx, cancelReq := context.WithCancel(context.Background())
+	cancelReq()
+
+	req := httptest.NewRequestWithContext(reqCtx, http.MethodPost, "/forms/chromium/convert/html", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	fs := gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll))
+
+	ctx, cancel, err := newContext(echo.New().NewContext(req, httptest.NewRecorder()), slog.New(slog.DiscardHandler), fs, 10*time.Second, 0, downloadFromConfig{disable: true}, archiveConfig{maxEntries: 10, maxRatio: 100})
+	t.Cleanup(cancel)
+
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("newContext err = %v, want context.Canceled", err)
+	}
+
+	if len(ctx.files) != 0 {
+		t.Fatalf("files = %v, want none unpacked", ctx.files)
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math"
 	"reflect"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -222,8 +223,23 @@ func TestRunEnd(t *testing.T) {
 	}
 }
 
+// collectSplitGroups resolves every group splitGroups yields, stopping at the
+// first error.
+func collectSplitGroups(s *splitStage, pageCount int) ([][]int, error) {
+	var groups [][]int
+	for pages, err := range splitGroups(s, pageCount) {
+		if err != nil {
+			return groups, err
+		}
+
+		groups = append(groups, pages)
+	}
+
+	return groups, nil
+}
+
 func TestSplitGroups(t *testing.T) {
-	groups, err := splitGroups(&splitStage{Every: new(2)}, 5)
+	groups, err := collectSplitGroups(&splitStage{Every: new(2)}, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,16 +247,50 @@ func TestSplitGroups(t *testing.T) {
 		t.Fatalf("every 2 of 5 = %v", groups)
 	}
 
-	groups, err = splitGroups(&splitStage{Ranges: []string{"1-2", " 4", "last", "1,3,5"}}, 5)
+	groups, err = collectSplitGroups(&splitStage{Ranges: []string{"1-2", " 4", "last", "1,3,5", "1,1,3-"}}, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(groups) != 4 || !slices.Equal(groups[0], []int{1, 2}) || !slices.Equal(groups[2], []int{5}) || !slices.Equal(groups[3], []int{1, 3, 5}) {
+	if len(groups) != 5 || !slices.Equal(groups[0], []int{1, 2}) || !slices.Equal(groups[2], []int{5}) || !slices.Equal(groups[3], []int{1, 3, 5}) || !slices.Equal(groups[4], []int{1, 3, 4, 5}) {
 		t.Fatalf("ranges = %v", groups)
 	}
 
-	if _, err := splitGroups(&splitStage{Ranges: []string{"1", "9"}}, 5); err == nil {
+	groups, err = collectSplitGroups(&splitStage{Ranges: []string{"1", "9", "2"}}, 5)
+	if err == nil {
 		t.Fatal("a range past the last page must fail")
+	}
+	if len(groups) != 1 {
+		t.Fatalf("groups before the failing range = %v, want the one before it", groups)
+	}
+}
+
+// TestSplitGroupsResolvesLazily pins that a group is resolved only when the
+// loop reaches it: stopping after the first of many open ranges on a large
+// document resolves that one alone.
+func TestSplitGroupsResolvesLazily(t *testing.T) {
+	const pageCount = 5_000
+
+	ranges := make([]string, 200_000)
+	for i := range ranges {
+		ranges[i] = "1-"
+	}
+	s := &splitStage{Ranges: ranges}
+
+	var before, after runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&before)
+	for pages, err := range splitGroups(s, pageCount) {
+		if err != nil || len(pages) != pageCount {
+			t.Fatalf("first group = %d pages, %v, want %d pages", len(pages), err, pageCount)
+		}
+
+		break
+	}
+	runtime.ReadMemStats(&after)
+
+	// Resolving every group holds 200,000 x 5,000 page numbers, about 8 GB.
+	if alloc := after.TotalAlloc - before.TotalAlloc; alloc > 4<<20 {
+		t.Fatalf("first group allocated %d bytes, want one group's worth", alloc)
 	}
 }
 

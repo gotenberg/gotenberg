@@ -976,6 +976,63 @@ func TestNewContext_DuplicateFilenamesAreBothKept(t *testing.T) {
 	}
 }
 
+func TestContext_UniqueFilename(t *testing.T) {
+	add := func(ctx *Context, name string) string {
+		unique := ctx.uniqueFilename(name)
+		ctx.files[unique] = "/disk/" + unique
+
+		return unique
+	}
+
+	t.Run("numbers each repeat in turn", func(t *testing.T) {
+		ctx := &Context{files: map[string]string{}}
+
+		var got []string
+		for range 4 {
+			got = append(got, add(ctx, "doc.pdf"))
+		}
+		got = append(got, add(ctx, "noext"), add(ctx, "noext"))
+
+		want := []string{"doc.pdf", "doc (2).pdf", "doc (3).pdf", "doc (4).pdf", "noext", "noext (2)"}
+		if !slices.Equal(got, want) {
+			t.Fatalf("names = %v, want %v", got, want)
+		}
+	})
+
+	t.Run("skips a number a file already carries", func(t *testing.T) {
+		ctx := &Context{files: map[string]string{"doc.pdf": "/disk/1", "doc (2).pdf": "/disk/2", "doc (4).pdf": "/disk/4"}}
+
+		got := []string{add(ctx, "doc.pdf"), add(ctx, "doc.pdf")}
+		ctx.files["doc (6).pdf"] = "/disk/6"
+		got = append(got, add(ctx, "doc.pdf"))
+
+		want := []string{"doc (3).pdf", "doc (5).pdf", "doc (7).pdf"}
+		if !slices.Equal(got, want) {
+			t.Fatalf("names = %v, want %v", got, want)
+		}
+	})
+
+	t.Run("many repeats stay linear", func(t *testing.T) {
+		const n = 50_000
+
+		ctx := &Context{files: map[string]string{}}
+
+		start := time.Now()
+		for range n {
+			add(ctx, "doc.pdf")
+		}
+
+		if len(ctx.files) != n {
+			t.Fatalf("files = %d, want %d distinct names", len(ctx.files), n)
+		}
+
+		// Probing from 2 on every repeat takes 1.25 billion lookups.
+		if elapsed := time.Since(start); elapsed > 10*time.Second {
+			t.Fatalf("%d repeats took %s, want well under a second", n, elapsed)
+		}
+	})
+}
+
 // A redirect target is filtered inside the HTTP client, so the policy verdict
 // surfaces from client.Do rather than from the pre-flight check. It used to be
 // interpolated into the response body, so a redirect described the allow-list,

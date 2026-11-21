@@ -54,6 +54,12 @@ func (ctx *Context) extractArchive(fh *multipart.FileHeader, cfg archiveConfig, 
 	allowance := &unpackAllowance{remaining: cfg.maxRatio * max(fh.Size, 1)}
 
 	for _, f := range r.File {
+		// The request's deadline stops the unpacking between entries.
+		err = ctx.Err()
+		if err != nil {
+			return fmt.Errorf("unpack archive: %w", err)
+		}
+
 		if !f.Mode().IsRegular() || isMacOSMetadata(f.Name) {
 			continue
 		}

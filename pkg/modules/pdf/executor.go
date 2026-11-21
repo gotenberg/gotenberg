@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"iter"
 	"log/slog"
 	"mime"
 	"net/http"
@@ -569,16 +570,32 @@ func (p *Processor) splitOne(ctx *api.Context, s *splitStage, d document, passwo
 		return nil, fmt.Errorf("count pages: %w", err)
 	}
 
-	groups, err := splitGroups(s, pageCount)
-	if err != nil {
-		return nil, err
+	// Every range is checked before any part is written, at a cost that grows
+	// with the ranges' length alone.
+	for _, spec := range s.Ranges {
+		err = validatePages(spec, pageCount)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	base := strings.TrimSuffix(d.filename, filepath.Ext(d.filename))
-	parts := make([]document, 0, len(groups))
+	var parts []document
 
-	for i, pages := range groups {
-		part, err := p.write(ctx, litho.NewPipeline().Open(r).Split(pages), []string{"split"}, fmt.Sprintf("%s_%d.pdf", base, i), signatureRemoval(s)...)
+	// Each group is resolved when its part is written, so a split holds one
+	// group in memory at a time, and the request's deadline stops it between
+	// parts.
+	for pages, err := range splitGroups(s, pageCount) {
+		if err != nil {
+			return nil, err
+		}
+
+		err = ctx.Err()
+		if err != nil {
+			return nil, err
+		}
+
+		part, err := p.write(ctx, litho.NewPipeline().Open(r).Split(pages), []string{"split"}, fmt.Sprintf("%s_%d.pdf", base, len(parts)), signatureRemoval(s)...)
 		if err != nil {
 			return nil, err
 		}
@@ -589,35 +606,35 @@ func (p *Processor) splitOne(ctx *api.Context, s *splitStage, d document, passwo
 	return parts, nil
 }
 
-// splitGroups returns the pages of each part a split produces.
-func splitGroups(s *splitStage, pageCount int) ([][]int, error) {
-	var groups [][]int
+// splitGroups yields the pages of each part a split produces, in order,
+// resolving each group when the loop reaches it. It stops after a group that
+// fails to resolve, yielding its error.
+func splitGroups(s *splitStage, pageCount int) iter.Seq2[[]int, error] {
+	return func(yield func([]int, error) bool) {
+		if s.Every != nil {
+			every := *s.Every
 
-	if s.Every != nil {
-		every := *s.Every
+			for start := 1; start <= pageCount; start += every {
+				var pages []int
+				for page := start; page < start+every && page <= pageCount; page++ {
+					pages = append(pages, page)
+				}
 
-		for start := 1; start <= pageCount; start += every {
-			var pages []int
-			for page := start; page < start+every && page <= pageCount; page++ {
-				pages = append(pages, page)
+				if !yield(pages, nil) {
+					return
+				}
 			}
 
-			groups = append(groups, pages)
+			return
 		}
 
-		return groups, nil
-	}
-
-	for _, part := range s.Ranges {
-		pages, err := parsePages(part, pageCount)
-		if err != nil {
-			return nil, err
+		for _, part := range s.Ranges {
+			pages, err := parsePages(part, pageCount)
+			if !yield(pages, err) || err != nil {
+				return
+			}
 		}
-
-		groups = append(groups, pages)
 	}
-
-	return groups, nil
 }
 
 // runEach runs a run of stages on every document.

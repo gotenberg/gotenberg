@@ -1,7 +1,9 @@
 package pdf
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -9,7 +11,9 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/gotenberg/litho/pkg/models"
 	"github.com/labstack/echo/v5"
 
 	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
@@ -699,6 +703,12 @@ func TestFormRoute(t *testing.T) {
 			values:   map[string][]string{"pages": {"1"}},
 			wantBody: `{"multi.pdf":[{"name":"total","type":"text","value":"42","pages":[1,2],"readOnly":true},{"name":"tags","type":"list","value":["a","c"],"pages":[1],"options":["a","b","c"],"multiSelect":true}]}`,
 		},
+		{
+			name:     "fields on pages a selection names several times",
+			fixture:  "multi.pdf",
+			values:   map[string][]string{"pages": {"2,2-,last,!1"}},
+			wantBody: `{"multi.pdf":[{"name":"total","type":"text","value":"42","pages":[1,2],"readOnly":true},{"name":"size","type":"radio","value":"Off","pages":[2],"states":["S","M","L"],"required":true},{"name":"sig","type":"signature","value":"","pages":[2]}]}`,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, rec, err := serve(t, formRoute(testProcessor()), tc.values, tc.fixture)
@@ -717,6 +727,52 @@ func TestFormRoute(t *testing.T) {
 	status, message := api.ParseError(err)
 	if status != http.StatusBadRequest || !strings.HasPrefix(message, "Stage 'form' failed on 'multi.pdf': form field 'pages': ") {
 		t.Fatalf("bad selection: got %d %q", status, message)
+	}
+}
+
+// TestFormFieldsStopsWhenCancelled pins that describing a form stops once
+// the request is cancelled.
+func TestFormFieldsStopsWhenCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	fields := []models.FormField{{Name: "a", Type: models.FormFieldText}}
+	got, err := formFields(ctx, fields, nil)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("formFields = %v, %v, want context.Canceled", got, err)
+	}
+}
+
+// TestFormFieldsManyWidgets pins that a field's pages and the page selection
+// cost a lookup per widget, not a scan: 200,000 widgets on as many pages
+// take well under a second, a scan per widget half a minute.
+func TestFormFieldsManyWidgets(t *testing.T) {
+	const n = 200_000
+
+	widgets := make([]models.FormWidget, 0, 2*n)
+	for p := n; p >= 1; p-- {
+		widgets = append(widgets, models.FormWidget{PageNumber: p}, models.FormWidget{PageNumber: p})
+	}
+	fields := []models.FormField{
+		{Name: "a", Type: models.FormFieldText, Widgets: widgets},
+		{Name: "b", Type: models.FormFieldText, Widgets: widgets[:2]},
+	}
+
+	selected := make([]bool, n+1)
+	selected[1] = true
+
+	start := time.Now()
+	got, err := formFields(context.Background(), fields, selected)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
+		t.Fatalf("formFields took %s, want well under a second", elapsed)
+	}
+
+	if len(got) != 1 || got[0].Name != "a" || len(got[0].Pages) != n || got[0].Pages[0] != 1 || got[0].Pages[n-1] != n {
+		t.Fatalf("formFields = %d fields, want field a on pages 1 to %d once each", len(got), n)
 	}
 }
 
