@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"log"
 	"log/slog"
 	"os"
+	"os/exec"
 	"slices"
 	"strings"
 	"sync"
@@ -32,8 +35,8 @@ import (
 //
 // It restates the "site-per-process,Translate,BlinkGenPropertyTrees" default
 // from chromedp.DefaultExecAllocatorOptions (chromedp v0.14.2) on purpose:
-// chromedp.Flag keys its flags by switch name, so a second --disable-features
-// replaces chromedp's value instead of merging with it. Revisit this list when
+// [chromiumSwitches] keys the switches by name, as chromedp does, so this
+// value replaces chromedp's instead of merging with it. Revisit this list when
 // bumping chromedp.
 //
 // WebUIOmniboxPopup and WebUIOmniboxAimPopup became enabled by default in
@@ -210,133 +213,115 @@ func (b *chromiumBrowser) Start(ctx context.Context, logger *slog.Logger) (err e
 		return fmt.Errorf("create symlink to hyphen-data directory: %w", err)
 	}
 
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.CombinedOutput(debug),
-		chromedp.ExecPath(b.arguments.binPath),
-		chromedp.NoSandbox,
-		// See:
-		// https://github.com/puppeteer/puppeteer/issues/661
-		// https://github.com/puppeteer/puppeteer/issues/2410
-		chromedp.Flag("font-render-hinting", "none"),
-		chromedp.UserDataDir(b.userProfileDirPath),
-		// See https://github.com/gotenberg/gotenberg/issues/831.
-		chromedp.Flag("disable-pdf-tagging", true),
-		// See https://github.com/gotenberg/gotenberg/issues/1177.
-		chromedp.Flag("no-zygote", true),
-		chromedp.Flag("disable-dev-shm-usage", true),
-		// See https://github.com/gotenberg/gotenberg/issues/1293.
-		chromedp.Flag("disable-component-update", false),
-		// See https://github.com/gotenberg/gotenberg/issues/1656.
-		chromedp.Flag("disable-features", chromiumDisableFeatures),
-		// See https://github.com/gotenberg/gotenberg/issues/1706.
-		chromedp.Flag("gaia-url", chromiumGaiaUrl),
-	)
-
-	if b.arguments.allowInsecureLocalhost {
-		// See https://github.com/gotenberg/gotenberg/issues/488.
-		opts = append(opts, chromedp.Flag("allow-insecure-localhost", true))
-	}
-
-	if b.arguments.ignoreCertificateErrors {
-		opts = append(opts, chromedp.IgnoreCertErrors)
-	}
-
-	if b.arguments.disableWebSecurity {
-		opts = append(opts, chromedp.Flag("disable-web-security", true))
-	}
-
-	if b.arguments.allowFileAccessFromFiles {
-		// See https://github.com/gotenberg/gotenberg/issues/356.
-		opts = append(opts, chromedp.Flag("allow-file-access-from-files", true))
-	}
-
-	if b.arguments.hostResolverRules != "" && !b.arguments.usesPinningProxy() {
-		// Behind the pinning proxy, Chromium resolves nothing but the proxy
-		// itself, and would apply a rule such as "MAP * ~NOTFOUND" to its
-		// 127.0.0.1 address. The pinning proxy applies the rules instead.
-		// See https://github.com/gotenberg/gotenberg/issues/488.
-		opts = append(opts, chromedp.Flag("host-resolver-rules", b.arguments.hostResolverRules))
-	}
-
-	if b.arguments.proxyServer != "" {
-		// See https://github.com/gotenberg/gotenberg/issues/376.
-		opts = append(opts, chromedp.ProxyServer(b.arguments.proxyServer))
-	}
-
-	// Default: route Chromium through the internal pinning proxy so that
-	// Chromium never performs its own DNS lookup for the navigation URL
-	// or any sub-resource. The proxy resolves and validates each URL
-	// once per request and dials the pinned IP, closing the DNS
-	// rebinding window between Gotenberg's validation and Chromium's
-	// connect.
-	//
-	// Skip when the operator has configured their own egress proxy: that
-	// proxy owns outbound safety, and routing through an internal proxy
-	// would override it. Custom host-resolver mappings keep the pinning
-	// proxy, which applies them, so that the outbound policy still covers
-	// WebSocket handshakes. Without it, nothing could block those.
+	// The pinning proxy starts first, as Chromium's switches name its address.
 	if b.arguments.usesPinningProxy() {
 		err = b.pinningProxy.Start(logger)
 		if err != nil {
 			return fmt.Errorf("start pinning proxy: %w", err)
 		}
-		opts = append(opts, chromedp.ProxyServer(b.pinningProxy.URL()))
 
-		if b.arguments.restrictsNetwork() || b.arguments.hostMapping() != nil {
-			// Chromium implicitly bypasses the proxy for loopback and
-			// link-local destinations. A WebSocket handshake is never surfaced
-			// as a fetch.EventRequestPaused, so listenForEventRequestPaused
-			// cannot filter it; the pinning proxy is the only layer that sees
-			// it. Left alone, a page could open a WebSocket to 127.0.0.1, ::1,
-			// localhost, or the link-local cloud metadata endpoint
-			// (169.254.169.254) and reach it unfiltered. "<-loopback>" removes
-			// the implicit bypass so those handshakes also traverse the
-			// pinning proxy and go through [gotenberg.DecideOutbound] like
-			// every other request.
-			//
-			// Gated on a policy that can reject a network URL: without one,
-			// loopback is not restricted, and routing it through the proxy
-			// would only turn a refused loopback sub-resource into a 502
-			// response instead of a loading failure. Host-resolver mappings
-			// also need it, since a rule may send "localhost" elsewhere and
-			// only the proxy applies the rules.
-			opts = append(opts, chromedp.Flag("proxy-bypass-list", "<-loopback>"))
-		}
+		// Tear it down on a failed start so a supervisor retry can re-bind.
+		// See https://github.com/gotenberg/gotenberg/issues/1559.
+		defer func() {
+			if err == nil {
+				return
+			}
+
+			stopErr := b.pinningProxy.Stop(logger)
+			if stopErr != nil {
+				logger.ErrorContext(context.Background(), fmt.Sprintf("stop pinning proxy after failed start: %s", stopErr))
+			}
+		}()
 	}
 
+	// --chromium-start-timeout bounds the start, from the launch to the
+	// DevTools handshake.
 	// See https://github.com/gotenberg/gotenberg/issues/524.
-	opts = append(opts, chromedp.WSURLReadTimeout(b.arguments.wsUrlReadTimeout))
+	startCtx, cancelStartTimeout := context.WithTimeout(ctx, b.arguments.wsUrlReadTimeout)
+	defer cancelStartTimeout()
 
-	// The browser outlives the start, so its context derives from initialCtx.
-	// Until the start succeeds, ctx may still abort it.
-	allocatorCtx, allocatorCancel := chromedp.NewExecAllocator(b.initialCtx, opts...)
-	var contextOpts []chromedp.ContextOption
+	process, err := b.launch(logger, debug)
+	if err != nil {
+		return fmt.Errorf("launch Chromium: %w", err)
+	}
+
+	// Until the start succeeds, its context may abort it.
+	abortStart := context.AfterFunc(startCtx, process.stop)
+	defer func() {
+		if err == nil {
+			return
+		}
+
+		abortStart()
+		process.stop()
+		<-process.exited
+
+		if ctx.Err() != nil {
+			err = fmt.Errorf("start Chromium: %w: %w", ctx.Err(), err)
+			return
+		}
+		err = fmt.Errorf("start Chromium: %w; if Chromium is slow to start, raise --chromium-start-timeout (CHROMIUM_START_TIMEOUT), currently %s", err, b.arguments.wsUrlReadTimeout)
+	}()
+
+	initialPage, err := process.pipe.initialPage()
+	if err != nil {
+		return fmt.Errorf("discover the initial page: %w", process.exitError(startCtx, err))
+	}
+
+	deadline, _ := startCtx.Deadline()
+	bridge, err := newDevToolsBridge(process.pipe, deadline)
+	if err != nil {
+		return fmt.Errorf("bridge DevTools: %w", err)
+	}
+	// Nothing listens anymore once the start is over.
+	defer bridge.closeListener()
+
+	// The browser outlives the start, so its context derives from the
+	// process's, which derives from initialCtx.
+	allocatorCtx, allocatorCancel := chromedp.NewRemoteAllocator(process.ctx, bridge.url(), chromedp.NoModifyURL)
+	contextOpts := []chromedp.ContextOption{
+		chromedp.WithTargetID(initialPage),
+		chromedp.WithErrorf(func(format string, v ...any) {
+			if format == "executor for %q doesn't exist" {
+				// The end of a session chromedp does not drive: the browser
+				// session auto-attaches shared and service workers, see
+				// lockBrowserWorkers, and chromedp drives a session of its
+				// own to each.
+				debug.Printf(format, v...)
+				return
+			}
+			// chromedp's default.
+			log.Printf("ERROR: "+format, v...)
+		}),
+	}
 	if b.arguments.debugProtocol {
 		contextOpts = append(contextOpts, chromedp.WithDebugf(debug.Printf))
 	}
 	browserCtx, cancel := chromedp.NewContext(allocatorCtx, contextOpts...)
-	abortStart := context.AfterFunc(ctx, func() {
+	// chromedp cancels browserCtx when it loses the connection, but does not
+	// kill a process it did not start.
+	stopKillOnLostConnection := context.AfterFunc(browserCtx, process.stop)
+	stop := func() {
+		// chromedp first detaches from the tab over the live connection.
+		stopKillOnLostConnection()
 		cancel()
 		allocatorCancel()
-	})
+		process.stop()
+		<-process.exited
+	}
 
 	err = chromedp.Run(browserCtx)
+	if err == nil {
+		err = lockBrowserWorkers(startCtx, browserCtx, logger)
+	}
 	if err == nil && !abortStart() {
-		// ctx was done right as Chromium came up: the browser is going down.
-		err = ctx.Err()
+		// startCtx was done right as Chromium came up: the browser is going
+		// down.
+		err = startCtx.Err()
 	}
 	if err != nil {
-		cancel()
-		allocatorCancel()
-		// The pinning proxy started before chromedp; tear it down so a
-		// supervisor retry can re-bind. Stop is a no-op when the proxy
-		// was never started (operator-configured --chromium-proxy-server).
-		// See https://github.com/gotenberg/gotenberg/issues/1559.
-		stopErr := b.pinningProxy.Stop(logger)
-		if stopErr != nil {
-			logger.ErrorContext(context.Background(), fmt.Sprintf("stop pinning proxy after failed start: %s", stopErr))
-		}
-		return fmt.Errorf("run exec allocator: %w; if Chromium is slow to start, raise --chromium-start-timeout (currently %s)", err, b.arguments.wsUrlReadTimeout)
+		stop()
+		return fmt.Errorf("connect to Chromium: %w", process.exitError(startCtx, err))
 	}
 
 	b.ctxMu.Lock()
@@ -345,18 +330,258 @@ func (b *chromiumBrowser) Start(ctx context.Context, logger *slog.Logger) (err e
 	// We have to keep the context around, as we need it to create new tabs
 	// later.
 	b.ctx = browserCtx
-	b.cancelFunc = func() {
-		cancel()
-		allocatorCancel()
-	}
-	b.pid = 0
-	if c := chromedp.FromContext(browserCtx); c != nil && c.Browser != nil && c.Browser.Process() != nil {
-		b.pid = c.Browser.Process().Pid
-	}
+	b.cancelFunc = stop
+	b.pid = process.cmd.Process.Pid
 	b.memoryExceeded.Store(0)
 	b.isStarted.Store(true)
 
 	return nil
+}
+
+// chromiumProcess is a Chromium process Gotenberg drives over
+// --remote-debugging-pipe.
+type chromiumProcess struct {
+	cmd  *exec.Cmd
+	pipe *devToolsPipe
+	// ctx is done once the process must go: stop kills it then.
+	ctx  context.Context
+	stop context.CancelFunc
+	// exited is closed once the process has exited, after which waitErr
+	// holds how.
+	exited  chan struct{}
+	waitErr error
+}
+
+// launch starts Chromium with the switches of [chromiumSwitches]. Its output
+// goes to the debug logs. The process lives until its stop function is
+// called, or Gotenberg exits.
+func (b *chromiumBrowser) launch(logger *slog.Logger, debug *debugLogger) (*chromiumProcess, error) {
+	proxyServer := b.arguments.proxyServer
+	if b.arguments.usesPinningProxy() {
+		proxyServer = b.pinningProxy.URL()
+	}
+
+	pipe, chromiumEnds, err := newDevToolsPipe()
+	if err != nil {
+		return nil, fmt.Errorf("create DevTools pipe: %w", err)
+	}
+
+	output, chromiumOutput, err := os.Pipe()
+	if err != nil {
+		pipe.close()
+		closeFiles(chromiumEnds...)
+		return nil, fmt.Errorf("create output pipe: %w", err)
+	}
+
+	cmd := exec.Command(b.arguments.binPath, chromiumSwitches(b.arguments, b.userProfileDirPath, proxyServer)...) //nolint:gosec
+	cmd.ExtraFiles = chromiumEnds
+	cmd.Stdout = chromiumOutput
+	cmd.Stderr = chromiumOutput
+	setParentDeathSignal(cmd)
+
+	logger.DebugContext(context.Background(), fmt.Sprintf("start Chromium: %s", strings.Join(cmd.Args, " ")))
+
+	err = cmd.Start()
+	// Chromium holds its own copies now.
+	closeFiles(append(chromiumEnds, chromiumOutput)...)
+	if err != nil {
+		pipe.close()
+		closeFiles(output)
+		return nil, fmt.Errorf("start Chromium: %w", err)
+	}
+
+	go func() {
+		_, _ = io.Copy(debug, output)
+		closeFiles(output)
+	}()
+
+	processCtx, stop := context.WithCancel(b.initialCtx)
+	process := &chromiumProcess{
+		cmd:    cmd,
+		pipe:   pipe,
+		ctx:    processCtx,
+		stop:   stop,
+		exited: make(chan struct{}),
+	}
+
+	go func() {
+		process.waitErr = cmd.Wait()
+		pipe.close()
+		close(process.exited)
+	}()
+
+	context.AfterFunc(processCtx, func() {
+		err := cmd.Process.Kill()
+		if err != nil && !errors.Is(err, os.ErrProcessDone) {
+			logger.ErrorContext(context.Background(), fmt.Sprintf("kill Chromium: %s", err))
+		}
+		pipe.close()
+	})
+
+	return process, nil
+}
+
+// exitError adds to err, an error the start ran into, its cause: the start
+// ran out of time, or Chromium exited.
+func (p *chromiumProcess) exitError(startCtx context.Context, err error) error {
+	select {
+	case <-p.exited:
+		if startCtx.Err() == nil {
+			return fmt.Errorf("Chromium exited (%v): %w", p.waitErr, err)
+		}
+	case <-startCtx.Done():
+	}
+
+	return fmt.Errorf("%w: %w", startCtx.Err(), err)
+}
+
+// chromiumSwitches returns the command line Gotenberg starts Chromium with.
+// proxyServer is the address of the proxy Chromium sends its traffic to.
+func chromiumSwitches(arguments browserArguments, userProfileDirPath, proxyServer string) []string {
+	// A string value gives --name=value, true gives --name, and false leaves
+	// the switch out.
+	switches := map[string]any{
+		// The switches of chromedp.DefaultExecAllocatorOptions (chromedp
+		// v0.14.2), which Gotenberg keeps while it starts Chromium itself.
+		// Revisit this list when bumping chromedp.
+		"no-first-run":                           true,
+		"no-default-browser-check":               true,
+		"headless":                               true,
+		"hide-scrollbars":                        true,
+		"mute-audio":                             true,
+		"disable-background-networking":          true,
+		"enable-features":                        "NetworkService,NetworkServiceInProcess",
+		"disable-background-timer-throttling":    true,
+		"disable-backgrounding-occluded-windows": true,
+		"disable-breakpad":                       true,
+		"disable-client-side-phishing-detection": true,
+		"disable-default-apps":                   true,
+		"disable-dev-shm-usage":                  true,
+		"disable-extensions":                     true,
+		"disable-hang-monitor":                   true,
+		"disable-ipc-flooding-protection":        true,
+		"disable-popup-blocking":                 true,
+		"disable-prompt-on-repost":               true,
+		"disable-renderer-backgrounding":         true,
+		"disable-sync":                           true,
+		"force-color-profile":                    "srgb",
+		"metrics-recording-only":                 true,
+		"safebrowsing-disable-auto-update":       true,
+		"enable-automation":                      true,
+		"password-store":                         "basic",
+		"use-mock-keychain":                      true,
+
+		// Gotenberg's own.
+		"no-sandbox": true,
+		// See:
+		// https://github.com/puppeteer/puppeteer/issues/661
+		// https://github.com/puppeteer/puppeteer/issues/2410
+		"font-render-hinting": "none",
+		"user-data-dir":       userProfileDirPath,
+		// See https://github.com/gotenberg/gotenberg/issues/831.
+		"disable-pdf-tagging": true,
+		// See https://github.com/gotenberg/gotenberg/issues/1177.
+		"no-zygote": true,
+		// See https://github.com/gotenberg/gotenberg/issues/1293.
+		"disable-component-update": false,
+		// See https://github.com/gotenberg/gotenberg/issues/1656.
+		"disable-features": chromiumDisableFeatures,
+		// See https://github.com/gotenberg/gotenberg/issues/1706.
+		"gaia-url": chromiumGaiaUrl,
+		// DevTools over file descriptors 3 and 4, and no port: see
+		// [devToolsPipe].
+		"remote-debugging-pipe": true,
+	}
+
+	if arguments.allowInsecureLocalhost {
+		// See https://github.com/gotenberg/gotenberg/issues/488.
+		switches["allow-insecure-localhost"] = true
+	}
+
+	if arguments.ignoreCertificateErrors {
+		switches["ignore-certificate-errors"] = true
+	}
+
+	if arguments.disableWebSecurity {
+		switches["disable-web-security"] = true
+	}
+
+	if arguments.allowFileAccessFromFiles {
+		// See https://github.com/gotenberg/gotenberg/issues/356.
+		switches["allow-file-access-from-files"] = true
+	}
+
+	if arguments.hostResolverRules != "" && !arguments.usesPinningProxy() {
+		// Behind the pinning proxy, Chromium resolves nothing but the proxy
+		// itself, and would apply a rule such as "MAP * ~NOTFOUND" to its
+		// 127.0.0.1 address. The pinning proxy applies the rules instead.
+		// See https://github.com/gotenberg/gotenberg/issues/488.
+		switches["host-resolver-rules"] = arguments.hostResolverRules
+	}
+
+	if proxyServer != "" {
+		// Default: route Chromium through the internal pinning proxy so that
+		// Chromium never performs its own DNS lookup for the navigation URL
+		// or any sub-resource. The proxy resolves and validates each URL
+		// once per request and dials the pinned IP, closing the DNS
+		// rebinding window between Gotenberg's validation and Chromium's
+		// connect.
+		//
+		// The operator's egress proxy, set with --chromium-proxy-server,
+		// takes its place: that proxy owns outbound safety, and routing
+		// through an internal proxy would override it. Custom host-resolver
+		// mappings keep the pinning proxy, which applies them, so that the
+		// outbound policy still covers WebSocket handshakes. Without it,
+		// nothing could block those.
+		// See https://github.com/gotenberg/gotenberg/issues/376.
+		switches["proxy-server"] = proxyServer
+	}
+
+	if arguments.usesPinningProxy() && (arguments.restrictsNetwork() || arguments.hostMapping() != nil) {
+		// Chromium implicitly bypasses the proxy for loopback and
+		// link-local destinations. A WebSocket handshake is never surfaced
+		// as a fetch.EventRequestPaused, so listenForEventRequestPaused
+		// cannot filter it; the pinning proxy is the only layer that sees
+		// it. Left alone, a page could open a WebSocket to 127.0.0.1, ::1,
+		// localhost, or the link-local cloud metadata endpoint
+		// (169.254.169.254) and reach it unfiltered. "<-loopback>" removes
+		// the implicit bypass so those handshakes also traverse the
+		// pinning proxy and go through [gotenberg.DecideOutbound] like
+		// every other request.
+		//
+		// Gated on a policy that can reject a network URL: without one,
+		// loopback is not restricted, and routing it through the proxy
+		// would only turn a refused loopback sub-resource into a 502
+		// response instead of a loading failure. Host-resolver mappings
+		// also need it, since a rule may send "localhost" elsewhere and
+		// only the proxy applies the rules.
+		switches["proxy-bypass-list"] = "<-loopback>"
+	}
+
+	args := make([]string, 0, len(switches)+1)
+	for name, value := range switches {
+		switch value := value.(type) {
+		case string:
+			args = append(args, fmt.Sprintf("--%s=%s", name, value))
+		case bool:
+			if value {
+				args = append(args, "--"+name)
+			}
+		}
+	}
+	slices.Sort(args)
+
+	// The first tab opens on a blank page, which --no-first-run alone does
+	// not ensure.
+	return append(args, "about:blank")
+}
+
+// closeFiles closes files, ignoring errors: callers close copies another
+// process holds, or ends they no longer read.
+func closeFiles(files ...*os.File) {
+	for _, f := range files {
+		_ = f.Close()
+	}
 }
 
 func (b *chromiumBrowser) Stop(logger *slog.Logger) error {
@@ -489,6 +714,7 @@ func (b *chromiumBrowser) pdf(ctx context.Context, logger *slog.Logger, url, out
 		network.Enable(),
 		fetch.Enable(),
 		runtime.Enable(),
+		pauseWorkersActionFunc(logger),
 		clearCacheActionFunc(logger, b.arguments.clearCache),
 		clearCookiesActionFunc(logger, b.arguments.clearCookies),
 		clearStorageActionFunc(logger, b.arguments.clearStorage, url),
@@ -517,6 +743,7 @@ func (b *chromiumBrowser) screenshot(ctx context.Context, logger *slog.Logger, u
 		network.Enable(),
 		fetch.Enable(),
 		runtime.Enable(),
+		pauseWorkersActionFunc(logger),
 		clearCacheActionFunc(logger, b.arguments.clearCache),
 		clearCookiesActionFunc(logger, b.arguments.clearCookies),
 		clearStorageActionFunc(logger, b.arguments.clearStorage, url),
@@ -764,6 +991,11 @@ func (b *chromiumBrowser) listen(requestCtx, taskCtx context.Context, taskCancel
 	}
 
 	listenForEventWebSocketCreated(taskCtx, logger, webSocketOptions)
+
+	// Workers load what they want out of reach of the listeners above. They
+	// start paused, see pauseWorkersActionFunc, and stay locked out of
+	// file:// URLs.
+	listenForWorkers(taskCtx, logger)
 
 	// See:
 	// https://github.com/gotenberg/gotenberg/issues/613.

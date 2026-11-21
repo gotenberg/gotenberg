@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Worker file access</title>
+  </head>
+  <body>
+    <h1>Worker file access</h1>
+    <div id="results"></div>
+    <script type="application/javascript">
+      // Every worker tries to read files outside the request's directory: its
+      // parent, which lists the directories of the other requests, and
+      // /etc/passwd. Each writes READ or BLOCKED. The page itself reads a file
+      // of its own directory.
+      const parent = new URL("../", location.href).href;
+      const read =
+        "function read(url) {" +
+        "  const xhr = new XMLHttpRequest();" +
+        "  try { xhr.open('GET', url, false); xhr.send(); return 'READ ' + xhr.responseText.slice(0, 40); }" +
+        "  catch (e) { return 'BLOCKED'; }" +
+        "}" +
+        "function readAll(name) {" +
+        "  return [name + ' parent ' + read(" +
+        JSON.stringify(parent) +
+        "), name + ' passwd ' + read('file:///etc/passwd')];" +
+        "}";
+
+      const expected = 7;
+      let count = 0;
+      function report(lines) {
+        for (const line of lines) {
+          const p = document.createElement("p");
+          p.textContent = line;
+          document.getElementById("results").appendChild(p);
+          count++;
+        }
+        if (count >= expected) {
+          window.done = true;
+        }
+      }
+
+      const worker = (source) =>
+        new Worker(
+          URL.createObjectURL(
+            new Blob([source], { type: "application/javascript" }),
+          ),
+        );
+
+      worker(read + "postMessage(readAll('dedicated'));").onmessage = (e) =>
+        report(e.data);
+
+      const nested = read + "postMessage(readAll('nested'));";
+      worker(
+        "const inner = new Worker(URL.createObjectURL(new Blob([" +
+          JSON.stringify(nested) +
+          "])));" +
+          "inner.onmessage = (e) => postMessage(e.data);",
+      ).onmessage = (e) => report(e.data);
+
+      const shared = new SharedWorker(
+        URL.createObjectURL(
+          new Blob(
+            [
+              read +
+                "onconnect = (e) => e.ports[0].postMessage(readAll('shared'));",
+            ],
+            { type: "application/javascript" },
+          ),
+        ),
+      );
+      shared.port.onmessage = (e) => report(e.data);
+
+      const own = new XMLHttpRequest();
+      try {
+        own.open("GET", "own.txt", false);
+        own.send();
+        report(["page " + own.responseText.trim()]);
+      } catch (e) {
+        report(["page own file BLOCKED"]);
+      }
+
+      setTimeout(() => {
+        if (!window.done) {
+          report(["TIMEOUT"]);
+          window.done = true;
+        }
+      }, 10000);
+    </script>
+  </body>
+</html>

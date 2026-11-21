@@ -621,6 +621,74 @@ Feature: /forms/chromium/convert/html
     Then the response status code should be 400
     Then the helper server should NOT have received a canary request
 
+  # Gotenberg drives Chromium over --remote-debugging-pipe: Chromium opens no
+  # DevTools port a page could reach.
+  Scenario: POST /forms/chromium/convert/html (DevTools over a pipe, without a port)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | LOG_LEVEL | debug |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files | testdata/page-1-html/index.html | file |
+    Then the response status code should be 200
+    Then the Gotenberg container should log the following entries:
+      | --remote-debugging-pipe |
+    Then the Gotenberg container should NOT log the following entries:
+      | --remote-debugging-port |
+      | DevTools listening on   |
+
+  # Workers are targets of their own, out of reach of the per-request file://
+  # prefixes. With file access from files allowed, they stay locked out of
+  # file:// URLs, while the page still reads the files of its own request.
+  Scenario: POST /forms/chromium/convert/html (Workers cannot read files with file access from files allowed)
+    Given I have a Gotenberg container with the following environment variable(s):
+      | CHROMIUM_ALLOW_FILE_ACCESS_FROM_FILES | true |
+    When I make a "POST" request to Gotenberg at the "/forms/chromium/convert/html" endpoint with the following form data and header(s):
+      | files                     | testdata/file-access-worker-html/index.html | file   |
+      | files                     | testdata/file-access-worker-html/own.txt    | file   |
+      | waitForExpression         | window.done === true                        | field  |
+      | Gotenberg-Output-Filename | foo                                         | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      page own file loaded
+      """
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      dedicated parent BLOCKED
+      """
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      dedicated passwd BLOCKED
+      """
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      nested parent BLOCKED
+      """
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      nested passwd BLOCKED
+      """
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      shared parent BLOCKED
+      """
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      shared passwd BLOCKED
+      """
+    Then the "foo.pdf" PDF should NOT have the following content at page 1:
+      """
+      READ
+      """
+    Then the "foo.pdf" PDF should NOT have the following content at page 1:
+      """
+      root:x:0:0
+      """
+    Then the "foo.pdf" PDF should NOT have the following content at page 1:
+      """
+      TIMEOUT
+      """
+
   # Control for the WebSocket scenario below. An ordinary fetch to a loopback
   # address is surfaced as a Fetch.requestPaused event, so it is blocked by
   # CHROMIUM_DENY_PRIVATE_IPS and the block is logged. The allow-list is

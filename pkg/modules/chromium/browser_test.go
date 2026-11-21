@@ -67,10 +67,63 @@ func TestChromiumBrowser_Start_removesProfileOnFailure(t *testing.T) {
 	}
 }
 
+// fakeChromiumBinary writes an executable shell script standing for Chromium.
+func fakeChromiumBinary(t *testing.T, script string) string {
+	t.Helper()
+
+	path := filepath.Join(t.TempDir(), "chromium")
+	err := os.WriteFile(path, []byte("#!/bin/sh\n"+script+"\n"), 0o700)
+	if err != nil {
+		t.Fatalf("write fake Chromium: %v", err)
+	}
+
+	return path
+}
+
+// --chromium-start-timeout bounds the DevTools handshake: a Chromium that
+// never answers on its pipe fails the start in time, and is killed.
+func TestChromiumBrowser_Start_timesOut(t *testing.T) {
+	b := newChromiumBrowser(browserArguments{
+		binPath:           fakeChromiumBinary(t, "exec sleep 30"),
+		hyphenDataDirPath: t.TempDir(),
+		wsUrlReadTimeout:  500 * time.Millisecond,
+	}).(*chromiumBrowser)
+
+	start := time.Now()
+	err := b.Start(context.Background(), slog.New(slog.DiscardHandler))
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected a context.DeadlineExceeded error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "--chromium-start-timeout (CHROMIUM_START_TIMEOUT)") {
+		t.Fatalf("expected the error to name the flag and its environment variable, got %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
+		t.Fatalf("expected the start to end with its timeout, took %s", elapsed)
+	}
+	if b.isStarted.Load() {
+		t.Fatal("expected the browser to stay not started")
+	}
+}
+
+// A Chromium that exits before the handshake fails the start with its exit
+// status.
+func TestChromiumBrowser_Start_chromiumExits(t *testing.T) {
+	b := newChromiumBrowser(browserArguments{
+		binPath:           fakeChromiumBinary(t, "exit 3"),
+		hyphenDataDirPath: t.TempDir(),
+		wsUrlReadTimeout:  10 * time.Second,
+	}).(*chromiumBrowser)
+
+	err := b.Start(context.Background(), slog.New(slog.DiscardHandler))
+	if err == nil || !strings.Contains(err.Error(), "Chromium exited (exit status 3)") {
+		t.Fatalf("expected an error with Chromium's exit status, got %v", err)
+	}
+}
+
 // TestChromiumDisableFeatures guards the override described in
 // https://github.com/gotenberg/gotenberg/issues/1656. Gotenberg replaces
 // chromedp's --disable-features value rather than extending it, as
-// chromedp.Flag keys its flags by switch name. Dropping one of chromedp's own
+// chromiumSwitches keys the switches by name. Dropping one of chromedp's own
 // entries while editing this list would silently re-enable it.
 func TestChromiumDisableFeatures(t *testing.T) {
 	for _, feature := range []string{
