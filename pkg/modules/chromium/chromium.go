@@ -524,9 +524,9 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 		ID: "chromium",
 		FlagSet: func() *flag.FlagSet {
 			fs := flag.NewFlagSet("chromium", flag.ExitOnError)
-			fs.Int64("chromium-restart-after", 100, "Number of conversions after which Chromium will automatically restart. Set to 0 to disable this feature")
-			fs.Int64("chromium-max-queue-size", 0, "Maximum request queue size for Chromium. Set to 0 to disable this feature")
-			fs.Duration("chromium-idle-shutdown-timeout", 0, "Shutdown Chromium after being idle for the given duration. Set to 0 to disable this feature")
+			fs.Int64("chromium-restart-after", 100, "Number of conversions after which Chromium will automatically restart. 0 never restarts it")
+			fs.Int64("chromium-max-queue-size", 0, "Maximum request queue size for Chromium. 0 means no limit")
+			fs.Duration("chromium-idle-shutdown-timeout", 0, "Shutdown Chromium after being idle for the given duration. 0 keeps it running")
 			fs.Int64("chromium-max-concurrency", 6, "Maximum number of concurrent conversions. Chromium supports up to 6")
 			fs.String("chromium-max-memory", "", "Set the anonymous resident memory Chromium, all its processes together, may hold while it converts - it accepts values like 1500MB, 2GB, etc. Over it, Gotenberg kills Chromium, which fails every conversion in flight with a 503, and restarts it. Keep it under the container's memory limit, so that a runaway page does not get the container OOM-killed. Empty disables this feature")
 			fs.Bool("chromium-auto-start", false, "Automatically launch Chromium upon initialization if set to true; otherwise, Chromium will start at the time of the first conversion")
