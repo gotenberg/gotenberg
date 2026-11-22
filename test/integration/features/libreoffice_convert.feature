@@ -1369,7 +1369,7 @@ Feature: /forms/libreoffice/convert
   Scenario: POST /forms/libreoffice/convert (HTTPS canary in the deny-list never leaves)
     Given I have a static server
     Given I have a Gotenberg container with the following environment variable(s):
-      | LIBREOFFICE_DENY_LIST | ^https://host\.docker\.internal:[0-9]+/ |
+      | LIBREOFFICE_DENY_LIST | ^https://host\\.docker\\.internal:[0-9]+/ |
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
       | downloadFrom | [{"url":"{helper}/canary-page/testdata/canary-stylesheet-https-html/index.html"}] | field |
     Then the response status code should be 200
