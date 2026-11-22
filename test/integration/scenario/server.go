@@ -58,6 +58,12 @@ type server struct {
 	// refusal holds only if the list stays empty.
 	canaries []string
 
+	// httpsPort is where the HTTPS canary listens, set by start. It records
+	// every connection as a request to /canary/https: a converter only gets
+	// one through a tunnel the filters let open, and the TLS handshake that
+	// follows fails, as the converter does not trust the helper.
+	httpsPort int
+
 	shutdown context.CancelFunc
 	done     chan struct{}
 }
@@ -231,7 +237,15 @@ func newServer(ctx context.Context, workdir string) (*server, error) {
 		}
 
 		canary := fmt.Sprintf("http://%s/canary", c.Request().Host)
+		host, _, err := net.SplitHostPort(c.Request().Host)
+		if err != nil {
+			return c.String(http.StatusBadRequest, fmt.Sprintf("split host %q: %s", c.Request().Host, err))
+		}
+		s.mu.Lock()
+		httpsCanary := fmt.Sprintf("https://%s/canary", net.JoinHostPort(host, fmt.Sprint(s.httpsPort)))
+		s.mu.Unlock()
 		b = []byte(strings.ReplaceAll(string(b), "{canary}", canary))
+		b = []byte(strings.ReplaceAll(string(b), "{canary-https}", httpsCanary))
 
 		contentType := mime.TypeByExtension(filepath.Ext(path))
 		if contentType == "" {
@@ -367,6 +381,16 @@ func (s *server) start(ctx context.Context) (int, error) {
 
 	port := ln.Addr().(*net.TCPAddr).Port
 
+	httpsLn, err := listenOutsideEphemeralRange()
+	if err != nil {
+		_ = ln.Close()
+		return 0, err
+	}
+
+	s.mu.Lock()
+	s.httpsPort = httpsLn.Addr().(*net.TCPAddr).Port
+	s.mu.Unlock()
+
 	startConfig := echo.StartConfig{
 		Listener:   ln,
 		HideBanner: true,
@@ -376,6 +400,8 @@ func (s *server) start(ctx context.Context) (int, error) {
 	serveCtx, cancel := context.WithCancel(context.Background())
 	s.shutdown = cancel
 	s.done = make(chan struct{})
+
+	go s.serveHTTPSCanary(serveCtx, httpsLn)
 
 	go func() {
 		defer close(s.done)
@@ -387,6 +413,28 @@ func (s *server) start(ctx context.Context) (int, error) {
 	}()
 
 	return port, nil
+}
+
+// serveHTTPSCanary records each connection ln accepts as a canary request,
+// then closes it, until ctx ends.
+func (s *server) serveHTTPSCanary(ctx context.Context, ln net.Listener) {
+	go func() {
+		<-ctx.Done()
+		_ = ln.Close()
+	}()
+
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+
+		s.mu.Lock()
+		s.canaries = append(s.canaries, "CONNECT /canary/https")
+		s.mu.Unlock()
+
+		_ = conn.Close()
+	}
 }
 
 func (s *server) stop(ctx context.Context) error {

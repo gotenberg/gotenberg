@@ -36,7 +36,7 @@ type libreOfficeArguments struct {
 	// enableMacros lets lok run the documents' macros. Off by default: a
 	// macro runs code inside the container.
 	enableMacros bool
-	proxyOptions outboundProxyOptions
+	proxyOptions gotenberg.OutboundProxyOptions
 }
 
 // libreOfficeProcess runs LibreOffice in a long-running lok process, which
@@ -270,11 +270,11 @@ func (p *libreOfficeProcess) Start(ctx context.Context, logger *slog.Logger) err
 		return errors.New("LibreOffice is already started")
 	}
 
-	proxy, err := newLibreOfficeProxy(logger, p.arguments.proxyOptions)
+	proxy := newLibreOfficeProxy(logger, p.arguments.proxyOptions)
+	err = proxy.Start()
 	if err != nil {
-		return fmt.Errorf("create LibreOffice outbound proxy: %w", err)
+		return fmt.Errorf("start LibreOffice outbound proxy: %w", err)
 	}
-	proxy.Start()
 
 	userProfileDirPath := p.fs.NewDirPath()
 

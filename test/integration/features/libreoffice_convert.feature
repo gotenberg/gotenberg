@@ -1315,6 +1315,52 @@ Feature: /forms/libreoffice/convert
     Then the response status code should be 200
     Then the helper server should NOT have received a canary request
 
+  # LibreOffice follows a redirect itself, through the proxy again, so the
+  # filters see every hop.
+  @libreoffice-ssrf
+  Scenario: POST /forms/libreoffice/convert (Canary style sheet loads through a redirect)
+    Given I have a static server
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | downloadFrom | [{"url":"{helper}/canary-page/testdata/canary-stylesheet-redirect-html/index.html"}] | field |
+    Then the response status code should be 200
+    Then the helper server should have received the following canary request(s):
+      | style.css |
+
+  @libreoffice-ssrf
+  Scenario: POST /forms/libreoffice/convert (Canary redirect into the deny-list never leaves)
+    Given I have a static server
+    Given I have a Gotenberg container with the following environment variable(s):
+      | LIBREOFFICE_DENY_LIST | ^{helper}/canary/ |
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | downloadFrom | [{"url":"{helper}/canary-page/testdata/canary-stylesheet-redirect-html/index.html"}] | field |
+    Then the response status code should be 200
+    Then the helper server should NOT have received a canary request
+
+  # Control for the HTTPS canary below: with no filter in the way, LibreOffice
+  # opens a tunnel for the HTTPS style sheet an HTML document links.
+  @libreoffice-ssrf
+  Scenario: POST /forms/libreoffice/convert (HTTPS canary tunnel opens when no filter refuses it)
+    Given I have a static server
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | downloadFrom | [{"url":"{helper}/canary-page/testdata/canary-stylesheet-https-html/index.html"}] | field |
+    Then the response status code should be 200
+    Then the helper server should have received the following canary request(s):
+      | https |
+
+  # A tunnel only exposes its host and port: the deny-list sees its root URL,
+  # so a host rule ending in "/" refuses it.
+  @libreoffice-ssrf
+  Scenario: POST /forms/libreoffice/convert (HTTPS canary in the deny-list never leaves)
+    Given I have a static server
+    Given I have a Gotenberg container with the following environment variable(s):
+      | LIBREOFFICE_DENY_LIST | ^https://host\.docker\.internal:[0-9]+/ |
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | downloadFrom | [{"url":"{helper}/canary-page/testdata/canary-stylesheet-https-html/index.html"}] | field |
+    Then the response status code should be 200
+    Then the helper server should NOT have received a canary request
+
   # The helper server resolves to a non-public address. An allow-list match
   # would bypass the check: none here.
   @libreoffice-ssrf

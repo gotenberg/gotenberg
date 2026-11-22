@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"github.com/dlclark/regexp2/v2"
+
+	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
 
 func compileRegexes(t *testing.T, patterns ...string) []*regexp2.Regexp {
@@ -33,13 +35,13 @@ func compileRegexes(t *testing.T, patterns ...string) []*regexp2.Regexp {
 	return out
 }
 
-func startProxy(t *testing.T, opts outboundProxyOptions) *libreOfficeProxy {
+func startProxy(t *testing.T, opts gotenberg.OutboundProxyOptions) *libreOfficeProxy {
 	t.Helper()
-	p, err := newLibreOfficeProxy(slog.New(slog.DiscardHandler), opts)
+	p := newLibreOfficeProxy(slog.New(slog.DiscardHandler), opts)
+	err := p.Start()
 	if err != nil {
-		t.Fatalf("new proxy: %v", err)
+		t.Fatalf("start proxy: %v", err)
 	}
-	p.Start()
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
@@ -55,7 +57,7 @@ func TestLibreOfficeProxy_HttpForwardAllowed(t *testing.T) {
 	}))
 	defer origin.Close()
 
-	p := startProxy(t, outboundProxyOptions{})
+	p := startProxy(t, gotenberg.OutboundProxyOptions{})
 
 	proxyURL, _ := url.Parse("http://" + p.Addr())
 	client := &http.Client{
@@ -84,8 +86,8 @@ func TestLibreOfficeProxy_HttpForwardDenyListRejects(t *testing.T) {
 	}))
 	defer origin.Close()
 
-	p := startProxy(t, outboundProxyOptions{
-		denyList: compileRegexes(t, `.*`),
+	p := startProxy(t, gotenberg.OutboundProxyOptions{
+		DenyList: compileRegexes(t, `.*`),
 	})
 
 	proxyURL, _ := url.Parse("http://" + p.Addr())
@@ -113,7 +115,7 @@ func TestLibreOfficeProxy_HttpForwardDenyPrivateIPsRejects(t *testing.T) {
 	}))
 	defer origin.Close()
 
-	p := startProxy(t, outboundProxyOptions{denyPrivateIPs: true})
+	p := startProxy(t, gotenberg.OutboundProxyOptions{DenyPrivateIPs: true})
 
 	proxyURL, _ := url.Parse("http://" + p.Addr())
 	client := &http.Client{
@@ -149,7 +151,7 @@ func TestLibreOfficeProxy_ConnectTunnelHappyPath(t *testing.T) {
 		_, _ = io.Copy(conn, conn)
 	}()
 
-	p := startProxy(t, outboundProxyOptions{})
+	p := startProxy(t, gotenberg.OutboundProxyOptions{})
 
 	conn, err := net.DialTimeout("tcp", p.Addr(), 2*time.Second)
 	if err != nil {
@@ -206,7 +208,7 @@ func TestLibreOfficeProxy_ConnectDenyListRejects(t *testing.T) {
 	}
 	defer listener.Close()
 
-	p := startProxy(t, outboundProxyOptions{denyList: compileRegexes(t, `.*`)})
+	p := startProxy(t, gotenberg.OutboundProxyOptions{DenyList: compileRegexes(t, `.*`)})
 
 	conn, err := net.DialTimeout("tcp", p.Addr(), 2*time.Second)
 	if err != nil {
@@ -237,7 +239,7 @@ func TestLibreOfficeProxy_ConnectDenyPrivateIPsRejects(t *testing.T) {
 	}
 	defer listener.Close()
 
-	p := startProxy(t, outboundProxyOptions{denyPrivateIPs: true})
+	p := startProxy(t, gotenberg.OutboundProxyOptions{DenyPrivateIPs: true})
 
 	conn, err := net.DialTimeout("tcp", p.Addr(), 2*time.Second)
 	if err != nil {
@@ -262,12 +264,57 @@ func TestLibreOfficeProxy_ConnectDenyPrivateIPsRejects(t *testing.T) {
 	}
 }
 
-func TestLibreOfficeProxy_StopIsIdempotent(t *testing.T) {
-	p, err := newLibreOfficeProxy(slog.New(slog.DiscardHandler), outboundProxyOptions{})
+// A tunnel only exposes its host and port, so the deny list sees its root URL:
+// a rule anchored on "host/" refuses it as it refuses the plain request, and
+// the refusal is logged with the conversion.
+func TestLibreOfficeProxy_ConnectDenyListMatchesTheRootURL(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("new proxy: %v", err)
+		t.Fatalf("listen: %v", err)
 	}
-	p.Start()
+	defer listener.Close()
+
+	target := listener.Addr().String()
+	p := startProxy(t, gotenberg.OutboundProxyOptions{
+		DenyList: compileRegexes(t, `^https://`+regexp2.Escape(target)+`/`),
+	})
+
+	var records []map[string]string
+	logger := slog.New(recordingHandler{records: &records}).With(slog.String("correlation_id", "foo"))
+
+	detach := p.attach(context.Background(), logger)
+	defer detach()
+
+	conn, err := net.DialTimeout("tcp", p.Addr(), 2*time.Second)
+	if err != nil {
+		t.Fatalf("dial proxy: %v", err)
+	}
+	defer conn.Close()
+
+	_, err = fmt.Fprintf(conn, "CONNECT %s HTTP/1.1\r\nHost: %s\r\n\r\n", target, target)
+	if err != nil {
+		t.Fatalf("write CONNECT: %v", err)
+	}
+
+	statusLine, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		t.Fatalf("read response: %v", err)
+	}
+	if !strings.Contains(statusLine, "403") {
+		t.Fatalf("CONNECT status: got %q, want 403", statusLine)
+	}
+
+	if len(records) != 1 || records[0]["correlation_id"] != "foo" || records[0]["rule"] != "deny-list" {
+		t.Fatalf("records = %v, want one deny-list refusal with the conversion's correlation ID", records)
+	}
+}
+
+func TestLibreOfficeProxy_StopIsIdempotent(t *testing.T) {
+	p := newLibreOfficeProxy(slog.New(slog.DiscardHandler), gotenberg.OutboundProxyOptions{})
+	err := p.Start()
+	if err != nil {
+		t.Fatalf("start proxy: %v", err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -406,8 +453,8 @@ func (h recordingHandler) WithGroup(string) slog.Handler { return h }
 // A request the filters refuse during a conversion is logged with the
 // conversion's logger, which carries the client request's correlation ID.
 func TestLibreOfficeProxy_LogsRefusalsWithTheConversion(t *testing.T) {
-	p := startProxy(t, outboundProxyOptions{
-		denyList: compileRegexes(t, `^http://styles\.example\.com/`),
+	p := startProxy(t, gotenberg.OutboundProxyOptions{
+		DenyList: compileRegexes(t, `^http://styles\.example\.com/`),
 	})
 
 	var records []map[string]string

@@ -441,12 +441,12 @@ func (a *Api) Provision(ctx *gotenberg.Context) error {
 		startTimeout: flags.MustDuration("libreoffice-start-timeout"),
 		maxMemory:    uint64(max(flags.MustHumanReadableBytes("libreoffice-max-memory"), 0)),
 		enableMacros: flags.MustBool("libreoffice-enable-macros"),
-		proxyOptions: outboundProxyOptions{
-			allowList:              flags.MustRegexpSlice("libreoffice-allow-list"),
-			denyList:               flags.MustRegexpSlice("libreoffice-deny-list"),
-			denyPrivateIPs:         flags.MustBool("libreoffice-deny-private-ips"),
-			denyPublicIPs:          flags.MustBool("libreoffice-deny-public-ips"),
-			enableEnvironmentProxy: flags.MustBool("libreoffice-enable-environment-proxy"),
+		proxyOptions: gotenberg.OutboundProxyOptions{
+			AllowList:              flags.MustRegexpSlice("libreoffice-allow-list"),
+			DenyList:               flags.MustRegexpSlice("libreoffice-deny-list"),
+			DenyPrivateIPs:         flags.MustBool("libreoffice-deny-private-ips"),
+			DenyPublicIPs:          flags.MustBool("libreoffice-deny-public-ips"),
+			EnableEnvironmentProxy: flags.MustBool("libreoffice-enable-environment-proxy"),
 		},
 	}
 
@@ -508,7 +508,7 @@ func (a *Api) Validate() error {
 		err = errors.Join(err, fmt.Errorf("lok binary does not exist at %q; check the LOK_BIN_PATH environment variable: %w", a.args.lokBinPath, statErr))
 	}
 
-	if a.args.proxyOptions.enableEnvironmentProxy {
+	if a.args.proxyOptions.EnableEnvironmentProxy {
 		proxyErr := gotenberg.ValidateEnvironmentProxyVariables()
 		if proxyErr != nil {
 			err = errors.Join(err, fmt.Errorf("--libreoffice-enable-environment-proxy is set: %w", proxyErr))
