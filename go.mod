@@ -12,7 +12,7 @@ require (
 	github.com/gobwas/ws v1.5.0
 	github.com/gomarkdown/markdown v0.0.0-20261117205700-e8c6d33a8b6c
 	github.com/google/uuid v1.6.0
-	github.com/gotenberg/litho v0.0.18
+	github.com/gotenberg/litho v0.0.19
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/labstack/echo/v5 v5.4.6
 	github.com/labstack/gommon v0.5.0
